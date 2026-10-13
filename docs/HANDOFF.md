@@ -1,5 +1,17 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 18:26 / 2ndb-79: Z56 · Z58 수정(#2396)이 독립 검토 세 번 BLOCK → 멈춤 · Q-261013-69 로 여쭘 - 답을 기다리는 동안 다음 1개는 Z109(집중 타이머가 뒤에서 멈춤)
+
+- **멈춘 것**: PR #2396(초안 · 브랜치 `fix/chat-reminder-reply-relative-time` · `e1326a63` · 워크트리 `.worktrees/z56-reminder-reply-261013`). **더 고치지 말 것 - Simon 의 답(Q-261013-69)이 먼저다.** 무엇이 들어 있고 왜 막혔는지는 DECISIONS 의 이 시각 줄. 검토 원문 `E:/Coding Infra/reports/devlab-261010/gates/z56-daybreak-r1.txt` ~ `r3.txt` · 과제서 `z56-task.md` · `z56-task-r2.md` · `z56-task-r3.md` · 실제 모델 원문 `z56-s1-real-model.md`.
+- **Q-261013-69 (안 정해지면 막히는 것: 대화에서 AI 가 "알림을 못 보낸다"고 답하는데 바로 아래에 리마인더 버튼이 있는 상태가 그대로 남는다)**: (가 · 추천) 둘로 나눈다 - 「5분 뒤」 읽기만 먼저, 그다음 AI 답은 좁혀서 다시 / (나) AI 의 거절 · 안전 답을 화면에 구조화된 신호로 넘기는 장치부터(경계 모듈 · 프록시 · 더 큼) / (다) Z56 은 보류하고 「5분 뒤」 읽기만.
+- **(가)로 가게 되면 할 일**(브랜치의 코드는 대부분 다시 쓸 수 있다): 
+  1. 「5분 뒤」 PR: `relativeMoment` · `SPANS` · `SPAN_UNIT` · `trackAsked` · `ChatPlanAsked` · `openableChatPlanSuggestion` · `useChatPlans.ts` 의 세 줄 + 그 테스트만 새 브랜치로. 3회차 ㉰: 기간을 하나 읽은 문장에 `or · 또는 · 혹은 · 아니면` 같은 선택 접속사와 다른 기간 표현이 남으면 비운다(「in an hour or thirty minutes」 · 「in an hour or two hours」를 테스트로). 모델에게 주는 글 · `gone` · `SAFETY_LINE` 은 넣지 않는다.
+  2. AI 답 PR: `parsePlan` 의 `gone` 을 되돌려 버튼을 main 과 같게 두고, `chatPlanPromptLine` 은 "말한 시각이 없거나 10분 넘게 남은" 부탁에만 글을 보낸다(답이 오는 사이 버튼이 사라지지 않게). `SAFETY_LINE` 은 NFKC 정규화 + 띄어 쓴 숫자 · 줄표 변형 + 같은 문장의 안내 문맥(전화 · 연락 · 상담 · call · text)으로. 두 종류가 함께인 메시지에는 전용 글 하나(또는 글을 보내지 않음). 영향평가서 267행의 조립 순서를 실제대로(머리말 → 버튼 글 → 위기 번호 규칙 → 호칭 → 주입 방지 → 모드 → 페르소나). 실제 모델 확인을 다시(8초 간격 · `PROBE_GAP_MS`).
+- **다음 1개 = Z109**(Q-69 의 답과 무관): `src/screens/deepspace/DeepSpaceDesignScreens.tsx` 의 `DeepSpaceFocusScreen`(2780행대)이 `setInterval` 안에서 `tick(prev, 1000)` 으로 1초씩 줄인다 → 앱이 뒤로 가면 멈춘다. 고칠 방향: ① 지난 실제 시간을 재서 `tick(prev, 지난 ms)`(엔진 `src/lib/ops/pomodoro.ts` 는 이미 그렇게 쓰게 돼 있다) + 앱이 앞으로 돌아올 때 한 번 ② 시작 · 다시 시작할 때 끝 시각에 알림을 미리 예약하고(`src/lib/ops/reminders.ts` 의 `scheduleWithOwnerLease` · 날짜 트리거 · 계정별 식별자 · `focusNotificationContent`), 일시정지 · 초기화 · 화면을 떠날 때 취소. 계정 범위 정리(`clearAccountScopedLocalNotifications` · `sweepResidualReminderNotifications`)가 그 알림을 어떻게 다루는지부터 읽을 것. 레퍼런스: 기본 시계 앱 · Forest 는 시작 시각으로 계산하고 끝 알림을 OS 에 미리 예약한다(Rufus 가 적음).
+- **기다리는 것**: Q-261013-69 · 2ndb-53 의 시안 질문(Q-71 ~ 75) · 2ndb-e7 의 0252 · 0253 · 0254(붙여서 한 번에 머지 → 그 빌드 동안 main 을 쉰다) · S4(OpenAI 조직 설정 · Simon 이 직접).
+- **질문 번호**: 이 세션은 69 까지. 다음은 80번대(70 ~ 79 는 2ndb-53).
+- **조심할 것**: 운영 프록시 확인 호출은 8초 간격(분당 한도가 모든 계정 공용) · CRLF 파일을 스크립트로 고칠 때는 줄 끝을 맞춰서(이번에 한 번 섞였다가 되돌림) · 스크립트 파일은 Write 도구로(heredoc 으로 고치려다 한 번 실패).
+
 ## 2026-10-13 17:31 / 2ndb-e7: 0252 는 3회차 검토에서 다시 막혀 고쳐 올림(CI 통과) · 메모리 부족으로 검토가 멈춤 - 다음은 Simon 의 Q-261013-47 답
 
 - **지금까지**: 0252(#2372)의 3회차 독립 검토가 17:07 에 BLOCK(막는 지적 둘 · 판정 파일 `gates/z46srv-daybreak-r3.txt`). 고친 판 `799e8540` 을 17:19 에 올렸고 CI 넷 통과(17:30). 고친 것: `ai_audit_log` 에 트리거 `guard_ai_audit_server_verified`(로그인했거나 익명인 요청은 어느 함수를 거치든 `server_verified` 줄을 못 쓴다) · 원장 표의 모양 확인을 넓힘 · 함수는 원장의 기본 키 충돌만 "이미 쓴 줄"로 읽음 · 다시 적용 시험 열 가지. 시험 계정 블록(Q-261013-36)은 17:10 에 실행 확인(전체 계정 19).
