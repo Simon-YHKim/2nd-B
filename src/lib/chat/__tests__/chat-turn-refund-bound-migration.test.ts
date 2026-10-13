@@ -103,6 +103,16 @@ describe('0255 대화 횟수 환불을 그 턴의 근거 줄에 묶는다 (Z46)'
     // Every column the refund reads as evidence, and no other.
     const kept = [...finalGuard.matchAll(/NEW\.(\w+)\s+IS NOT DISTINCT FROM OLD\.\1/g)].map((m) => m[1]);
     expect(kept).toEqual(['event_source', 'id', 'user_id', 'purpose', 'safety_zone', 'created_at']);
+    // One change is left alone under any role: the owner alone is cleared, as the foreign key does when
+    // an account is deleted (0011). Nothing else about the row may change with it.
+    expect(finalGuard).toMatch(
+      /IF OLD\.event_source IS NOT DISTINCT FROM 'server_verified'\s+AND NEW\.event_source IS NOT DISTINCT FROM OLD\.event_source\s+AND NEW\.id\s+IS NOT DISTINCT FROM OLD\.id\s+AND \(NEW\.user_id\s+IS NOT DISTINCT FROM OLD\.user_id OR NEW\.user_id IS NULL\)\s+AND NEW\.purpose\s+IS NOT DISTINCT FROM OLD\.purpose\s+AND NEW\.safety_zone IS NOT DISTINCT FROM OLD\.safety_zone\s+AND NEW\.created_at\s+IS NOT DISTINCT FROM OLD\.created_at THEN\s+RETURN NULL;/,
+    );
+    expect(finalGuard.match(/NEW\.user_id IS NULL/g)).toHaveLength(1);
+    const regression = read('db/tests/chat_turn_refund_regression.sql');
+    expect(regression).toMatch(/DELETE FROM public\.users WHERE id = '26101346-0000-4000-8000-00000000000c';/);
+    expect(regression).toMatch(/PERFORM public\.z46_retarget\('owner_gone_and_green'\);\s+RAISE EXCEPTION/);
+    expect(regression).toMatch(/SET LOCAL ROLE authenticated;\s+SELECT public\.z46_retarget\('account_deleted'\);/);
     expect(finalGuard.match(/RAISE EXCEPTION '[^'%]+'\s+USING ERRCODE = '42501';/g)).toHaveLength(2);
     expect(finalGuard).not.toMatch(/service_role/);
     // On every INSERT and every UPDATE, whatever columns the statement names.

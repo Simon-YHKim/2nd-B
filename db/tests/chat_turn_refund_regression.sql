@@ -304,6 +304,13 @@ BEGIN
     UPDATE public.ai_audit_log SET created_at = pg_catalog.now() WHERE id = '26101346-4000-4000-8000-000000000021';
   ELSIF p_what = 'latency' THEN
     UPDATE public.ai_audit_log SET latency_ms = 12 WHERE id = '26101346-4000-4000-8000-000000000021';
+  ELSIF p_what = 'owner_gone' THEN
+    UPDATE public.ai_audit_log SET user_id = NULL WHERE id = '26101346-4000-4000-8000-000000000021';
+  ELSIF p_what = 'owner_gone_and_green' THEN
+    UPDATE public.ai_audit_log SET user_id = NULL, safety_zone = 'green' WHERE id = '26101346-4000-4000-8000-000000000022';
+  ELSIF p_what = 'account_deleted' THEN
+    -- What deleting an account does to its audit rows: the foreign key clears user_id (0011).
+    DELETE FROM public.users WHERE id = '26101346-0000-4000-8000-00000000000c';
   ELSE
     RAISE EXCEPTION 'z46_retarget: unknown case %', p_what;
   END IF;
@@ -440,6 +447,46 @@ SELECT pg_temp.z46_assert((SELECT user_id = '26101346-0000-4000-8000-00000000000
                                   AND created_at < pg_catalog.now() - interval '20 seconds'
                              FROM public.ai_audit_log WHERE id = '26101346-4000-4000-8000-000000000021'),
                           'an evidence column of a server row changed, or the guard stopped a change that is not evidence');
+-- A row may lose its owner under any role, and only that: with another evidence column changed in
+-- the same statement it is refused. A row without an owner gives nobody a turn back.
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-000000000022', '26101346-0000-4000-8000-00000000000a', 'server_verified', 'secondb_chat', 'red', interval '30 seconds');
+SET LOCAL ROLE authenticated;
+DO $ownerless$
+BEGIN
+  BEGIN
+    PERFORM public.z46_retarget('owner_gone_and_green');
+    RAISE EXCEPTION 'z46 regression failed: a signed-in request changed the zone of a server row while clearing its owner';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  PERFORM public.z46_retarget('owner_gone');
+END
+$ownerless$;
+SELECT COALESCE(public.refund_chat_turn_after_output_swap(:'today'::date, '26101346-4000-4000-8000-000000000021')::text, 'null') AS r \gset
+RESET ROLE;
+SELECT pg_temp.z46_assert((SELECT user_id IS NULL AND safety_zone = 'red' AND event_source = 'server_verified'
+                             FROM public.ai_audit_log WHERE id = '26101346-4000-4000-8000-000000000021')
+                          AND (SELECT user_id = '26101346-0000-4000-8000-00000000000a' AND safety_zone = 'red'
+                                 FROM public.ai_audit_log WHERE id = '26101346-4000-4000-8000-000000000022'),
+                          'a server row could not lose its owner, or lost it together with another evidence column');
+SELECT pg_temp.z46_assert(:'r' = 'null', 'a row without an owner gave a turn back');
+DELETE FROM public.ai_audit_log WHERE id = '26101346-4000-4000-8000-000000000022';
+-- The same through the real path: an account with a fresh server row is deleted while the request
+-- role is a signed-in one. The foreign key clears the owner and the deletion goes through.
+SET LOCAL session_replication_role = replica;
+INSERT INTO auth.users (id, email) VALUES ('26101346-0000-4000-8000-00000000000c', 'z46-c@example.com');
+SET LOCAL session_replication_role = origin;
+INSERT INTO public.users (id, email, birth_date, locale) VALUES
+  ('26101346-0000-4000-8000-00000000000c', 'z46-c@example.com', DATE '1990-01-01', 'en');
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000c1', '26101346-0000-4000-8000-00000000000c', 'server_verified', 'secondb_chat', 'red', interval '30 seconds');
+SET LOCAL ROLE authenticated;
+SELECT public.z46_retarget('account_deleted');
+RESET ROLE;
+SELECT pg_temp.z46_assert(NOT EXISTS (SELECT 1 FROM public.users WHERE id = '26101346-0000-4000-8000-00000000000c')
+                          AND (SELECT user_id IS NULL AND event_source = 'server_verified' AND safety_zone = 'red'
+                                 FROM public.ai_audit_log WHERE id = '26101346-4000-4000-8000-0000000000c1'),
+                          'deleting an account under a signed-in request role did not go through, or its audit row did not stay without an owner');
+DELETE FROM public.ai_audit_log WHERE id = '26101346-4000-4000-8000-0000000000c1';
 -- The server itself may still correct such a row.
 UPDATE public.ai_audit_log SET purpose = 'ops_recommend' WHERE id = '26101346-4000-4000-8000-000000000021';
 SELECT pg_temp.z46_assert((SELECT purpose = 'ops_recommend' FROM public.ai_audit_log WHERE id = '26101346-4000-4000-8000-000000000021'),

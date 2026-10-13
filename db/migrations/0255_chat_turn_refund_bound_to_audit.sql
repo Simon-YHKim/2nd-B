@@ -21,6 +21,9 @@
 --      event_source 를 적은 UPDATE 에만 돈다. 다른 BEFORE 트리거가 표시를 바꾸거나, 이미 server_verified 인
 --      줄의 근거 칸(id · user_id · event_source · purpose · safety_zone · created_at)을 로그인한 요청이
 --      바꾸는 경우를 AFTER 트리거가 최종 값으로 보고 거절한다. 프록시(service_role)와 역할 없는 세션은 그대로다.
+--      예외 하나: 주인만 비워지는 수정(user_id → NULL · 다른 근거 칸은 그대로)은 어느 역할이든 둔다. 계정이 지워질 때
+--      외래 키(0011: ON DELETE SET NULL)가 하는 수정이고, 주인 없는 줄은 누구의 근거도 못 된다(함수는 본인 줄만 본다).
+--      지금 계정 삭제는 관리자 API 로 돌아 이 트리거에 걸리지 않지만, 삭제가 로그인한 요청으로 도는 날에도 막히면 안 된다.
 --   4. 요청의 역할을 읽는 순서를 바꾼다(Z46D-03): 먼저 role 설정을 보고, JWT claims 는 JSON 으로 읽히지 않으면
 --      "주장 없음"으로 본다. 전에는 JSON 이 아닌 글자가 들어 있으면 서버 쪽 감사 쓰기까지 22P02 로 끝났다.
 --   5. 원장 표의 기본 키가 미룰 수 있는(DEFERRABLE) 꼴이면 멈춘다(Z46D-02). 미뤄진 기본 키는 충돌을 커밋 때
@@ -112,11 +115,14 @@ BEGIN
        AND OLD.event_source IS DISTINCT FROM 'server_verified' THEN
       RETURN NULL;
     END IF;
-    -- A server row that keeps every evidence column is not this trigger's business.
+    -- A server row that keeps every evidence column is not this trigger's business. Nor is one that
+    -- only loses its owner: deleting an account clears user_id through the foreign key (0011: ON
+    -- DELETE SET NULL), in whatever role that deletion runs, and a row without an owner is nobody's
+    -- evidence (the refund reads the caller's own row).
     IF OLD.event_source IS NOT DISTINCT FROM 'server_verified'
        AND NEW.event_source IS NOT DISTINCT FROM OLD.event_source
        AND NEW.id          IS NOT DISTINCT FROM OLD.id
-       AND NEW.user_id     IS NOT DISTINCT FROM OLD.user_id
+       AND (NEW.user_id    IS NOT DISTINCT FROM OLD.user_id OR NEW.user_id IS NULL)
        AND NEW.purpose     IS NOT DISTINCT FROM OLD.purpose
        AND NEW.safety_zone IS NOT DISTINCT FROM OLD.safety_zone
        AND NEW.created_at  IS NOT DISTINCT FROM OLD.created_at THEN
