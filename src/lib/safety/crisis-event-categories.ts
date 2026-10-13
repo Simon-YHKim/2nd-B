@@ -57,14 +57,28 @@ function isTermNumber(entry: string): boolean {
   return value >= 1 && value <= 19;
 }
 
-// The list as it may be recorded: fixed names and term numbers are kept in their
-// order, anything else becomes one "unlisted", duplicates are dropped, and the
-// list never passes the server's limit.
+// The marker of a replaced AI reply. Only the app's code adds it (see
+// classifierReportedCategories below), so a list that holds it is the record of
+// an AI reply and a list without it is a record of the user's own words.
+const AI_REPLY_MARKER = "output_swap";
+
+// The list as it may be recorded. Fixed names are kept in their order,
+// duplicates are dropped, and the list never passes the server's limit.
+//
+// Term numbers and the "unlisted" stand-in belong to records of a replaced AI
+// reply only (Q-261013-66, the legal conditions of 2026-10-13):
+//  - with the marker: a term number is kept, anything else off the list becomes
+//    one "unlisted";
+//  - without it (the user's own words): a term number or anything off the list
+//    is dropped, and no stand-in is written. Such a record may end up empty.
 export function recordableCrisisCategories(categories: readonly unknown[]): string[] {
+  const aiReply = categories.includes(AI_REPLY_MARKER);
   const out: string[] = [];
   for (const entry of categories) {
-    const kept = typeof entry === "string" && (FIXED.has(entry) || isTermNumber(entry)) ? entry : UNLISTED_CRISIS_CATEGORY;
-    if (!out.includes(kept)) out.push(kept);
+    let kept: string | null = null;
+    if (typeof entry === "string" && FIXED.has(entry) && entry !== UNLISTED_CRISIS_CATEGORY) kept = entry;
+    else if (aiReply) kept = typeof entry === "string" && isTermNumber(entry) ? entry : UNLISTED_CRISIS_CATEGORY;
+    if (kept !== null && !out.includes(kept)) out.push(kept);
   }
   return out.slice(0, CRISIS_EVENT_CATEGORY_LIMIT);
 }
