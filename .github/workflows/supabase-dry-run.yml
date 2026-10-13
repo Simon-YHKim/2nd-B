@@ -1658,6 +1658,17 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/public_data_quota_regression.sql
+      # 0254: crisis_events.trigger_categories keeps names from the closed list
+      # only. This is the first step of the job that calls the two crisis write
+      # functions at all: the shared cases
+      # (db/tests/fixtures/crisis-category-cases.json), both write paths as a
+      # signed-in user, the once-only comparison, 0181's refusals and limiter,
+      # and the rollback round trip. psql reads the cases file from the
+      # repository root, which is where this step runs.
+      - name: Exercise the closed list for crisis record categories
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/crisis_category_closed_list_regression.sql
       - name: Exercise peer-response quota admission accounting
         env:
           PGPASSWORD: postgres
