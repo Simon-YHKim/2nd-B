@@ -5,6 +5,7 @@ import { showsDeviceNotAllowedLine } from "../device-line";
 // Q-261013-77 (Simon, 2026-10-13) · Z75: the privacy row read "on" on a phone that never allowed
 // location. The row shows consent; the device permission is a second condition. The row keeps its
 // word and adds one factual line only when consent is on and this device has not allowed location.
+// Simon picked the sentence the weather sheet already shows for that state (option 나), so no string is added.
 describe("the line under the weather location row", () => {
   test.each(["denied", "blocked", "undetermined"] as const)("consent on + device %s: shown", (device) => {
     expect(showsDeviceNotAllowedLine("on", false, device)).toBe(true);
@@ -37,19 +38,27 @@ describe("the row wires the line without asking for the permission or adding a s
     expect(source).toContain("listener.remove()");
   });
 
-  test("the line is plain text under the switch: no alert role, no link to settings", () => {
-    expect(source).toContain('{deviceNotAllowed ? <Text variant="caption" testID="weather-device-not-allowed">{t("phone.board.weather.deviceNotAllowed")}</Text> : null}');
+  test("the line is plain text under the switch and reuses the weather sheet's sentence for each platform", () => {
+    expect(source).toContain('{deviceNotAllowed ? <Text variant="caption" testID="weather-device-not-allowed">{t(Platform.OS === "web" ? "phone.board.weather.webSettingsBody" : "phone.board.weather.settingsBody")}</Text> : null}');
+    const sheet = readFileSync(resolve(__dirname, "../../../components/dashboard/board/WeatherSheet.tsx"), "utf8");
+    expect(sheet).toContain('t(Platform.OS === "web" ? "phone.board.weather.webSettingsBody" : "phone.board.weather.settingsBody")');
+  });
+
+  test("no button to OS settings on this row: it is where consent is withdrawn", () => {
     expect(source).not.toContain("openSettings");
-    expect(source).not.toContain("phone.board.weather.settings");
+    expect(source).not.toContain('t("phone.board.weather.settings")');
+    expect(source).not.toContain("Linking");
   });
 
-  test.each(["en", "ko", "es", "pt", "id"])("%s has the sentence", (locale) => {
+  test.each(["en", "ko", "es", "pt", "id"])("%s has both sentences and no extra key for this row", (locale) => {
     const ops = JSON.parse(readFileSync(resolve(__dirname, "../../../..", "locales", locale, "ops.json"), "utf8"));
-    expect(ops.phone.board.weather.deviceNotAllowed.trim().length).toBeGreaterThan(10);
+    expect(ops.phone.board.weather.settingsBody.trim().length).toBeGreaterThan(5);
+    expect(ops.phone.board.weather.webSettingsBody.trim().length).toBeGreaterThan(5);
+    expect(ops.phone.board.weather.deviceNotAllowed).toBeUndefined();
   });
 
-  test("the Korean sentence is the one that was decided", () => {
+  test("the Korean sentence on a phone is the one that was picked", () => {
     const ops = JSON.parse(readFileSync(resolve(__dirname, "../../../..", "locales", "ko", "ops.json"), "utf8"));
-    expect(ops.phone.board.weather.deviceNotAllowed).toBe("이 기기에서는 위치 접근이 허용돼 있지 않아 위치를 읽지 않습니다.");
+    expect(ops.phone.board.weather.settingsBody).toBe("기기 설정에서 위치 접근이 꺼져 있습니다.");
   });
 });

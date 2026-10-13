@@ -226,7 +226,6 @@
         "setting": "Localização para o tempo",
         "on": "Ativada",
         "off": "Desativada",
-        "deviceNotAllowed": "O acesso à localização não está permitido neste dispositivo, então o app não lê sua localização.",
         "source": "Observações próximas da NOAA/NWS, a até 50 km e com no máximo 90 minutos. Sem dados, o tempo fica oculto. Usamos cinco desenhos e temperaturas arredondadas; não é um produto oficial nem tem o endosso da NOAA/NWS.",
         "sourceTerms": "Termos de uso dos dados"
       },

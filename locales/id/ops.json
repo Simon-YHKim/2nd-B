@@ -226,7 +226,6 @@
         "setting": "Lokasi untuk cuaca",
         "on": "Aktif",
         "off": "Nonaktif",
-        "deviceNotAllowed": "Akses lokasi tidak diizinkan di perangkat ini, jadi aplikasi tidak membaca lokasimu.",
         "source": "Pengamatan terdekat dari NOAA/NWS dalam jarak 50 km dan tidak lebih dari 90 menit. Cuaca disembunyikan jika data tidak tersedia. Kami memakai lima gambar dan suhu yang dibulatkan; ini bukan produk resmi atau dukungan dari NOAA/NWS.",
         "sourceTerms": "Ketentuan penggunaan data"
       },

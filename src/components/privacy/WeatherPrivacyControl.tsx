@@ -1,6 +1,6 @@
 import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useRef, useState } from "react";
-import { AppState, StyleSheet } from "react-native";
+import { AppState, Platform, StyleSheet } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -37,7 +37,7 @@ export function WeatherPrivacyControl() {
     return () => controller.abort();
   }, [userId, isMinor]));
   // The device's own location permission, read without asking for it. Consent can be on while
-  // this device never allowed location; the row then says the app reads no location here (Z75).
+  // this device never allowed location; the row then shows the sentence the weather sheet already uses for that state (Z75).
   // Read again when the app comes back to the front, since the permission is changed in OS settings.
   const [device, setDevice] = useState<{ ownerId: string; status: WeatherLocationStatus } | null>(null);
   useFocusEffect(useCallback(() => {
@@ -80,7 +80,7 @@ export function WeatherPrivacyControl() {
       <Text variant="body" style={styles.label}>{t("phone.board.weather.setting")}</Text>
       <Text variant="body">{isMinor !== false ? t("phone.board.weather.off") : confirmed ? t(evidence === "on" ? "phone.board.weather.on" : "phone.board.weather.off") : status || failed ? "" : t("common:states.loading")}</Text>
     </Pressable>
-    {deviceNotAllowed ? <Text variant="caption" testID="weather-device-not-allowed">{t("phone.board.weather.deviceNotAllowed")}</Text> : null}
+    {deviceNotAllowed ? <Text variant="caption" testID="weather-device-not-allowed">{t(Platform.OS === "web" ? "phone.board.weather.webSettingsBody" : "phone.board.weather.settingsBody")}</Text> : null}
     {failed ? <Text variant="caption" accessibilityRole="alert">{t("phone.board.weather.failed")}</Text> : null}
   </View>;
 }
