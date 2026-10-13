@@ -100,6 +100,9 @@ describe("the code step is drawn on its own", () => {
     expect(step).toContain("onPress={() => void handleVerifyConfirmCode()}");
     expect(step).toContain("onPress={() => void handleResendConfirmCode()}");
     expect(step).toContain("disabled={!canResendConfirmCode}");
+    // One label, no arrow: centred like [Confirm code] above it (8081, 2026-10-14: it sat on the left).
+    expect(step).toContain("contentStyle={styles.resendContent}");
+    expect(screen).toContain('resendContent: { minHeight: m3.minTouch, alignItems: "center", justifyContent: "center" },');
   });
 
   // The button's text counts down every second. Read out each second it would drown the screen

@@ -287,7 +287,7 @@ export function DeepSpaceSignUpDesignScreen() {
               accessibilityHint={confirmResendSeconds > 0 ? resendLabel : undefined}
               accessibilityState={{ busy: confirmResending }}
               fullWidth
-              contentStyle={styles.linkContent}
+              contentStyle={styles.resendContent}
             >
               <Text style={[styles.linkText, !canResendConfirmCode && styles.disabledText]}>{resendLabel}</Text>
             </PixelPressable>
@@ -974,6 +974,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: m3.spacing.s3,
   },
+  // "Send again" has one label and no arrow, so it sits in the middle like the button above it.
+  resendContent: { minHeight: m3.minTouch, alignItems: "center", justifyContent: "center" },
   linkText: {
     flexShrink: 1,
     color: m3.color.primary,
