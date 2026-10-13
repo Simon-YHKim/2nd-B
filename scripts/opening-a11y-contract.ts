@@ -2,8 +2,10 @@
  * another button cannot satisfy a missing label in this control.
  *
  * Simon (localhost QA 2026-10-03) removed the sound toggle and moved skip to a
- * small bottom-right button (its touch target stays 44 dp through hitSlop). Skip
- * keeps its role, label, hint and ready gate; the sound toggle must stay gone. */
+ * small bottom-right button. Its touch target is a 44 dp pressable drawn around
+ * the small chip (Z121, 2026-10-13: hitSlop made up the difference before, but the
+ * web does not apply hitSlop and the target there was 28 px high). Skip keeps its
+ * role, label, hint and ready gate; the sound toggle must stay gone. */
 export function openingA11yContract(source: string): boolean {
   const control = (id: string) => {
     const marker = source.indexOf(`testID="${id}"`);
@@ -20,8 +22,9 @@ export function openingA11yContract(source: string): boolean {
     source.includes('importantForAccessibility="no-hide-descendants"') &&
     !source.includes('testID="opening-sound"') &&
     !source.includes("toggleSound") &&
-    skip.includes("style={[styles.skip, ") &&
-    skip.includes("hitSlop={8}") &&
+    skip.includes("style={[styles.skipTarget, ") &&
+    skip.includes("<View style={styles.skip}>") &&
+    source.includes("minWidth: 44, minHeight: 44, padding: SKIP_TARGET_PAD") &&
     skip.includes('t("loadingGate.skipShort")') &&
     skip.includes('accessibilityHint={t("loadingGate.skipHint")}') &&
     skip.includes('accessibilityRole="button"') &&

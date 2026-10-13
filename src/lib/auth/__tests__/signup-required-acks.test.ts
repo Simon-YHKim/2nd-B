@@ -188,7 +188,10 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain("<ProviderBrandIcon provider={provider} />");
     expect(screen).not.toContain('name="account"');
     expect(screen).toContain('flexWrap: "wrap"');
-    expect(screen).toContain("minWidth: 112");
+    // 2026-10-13 (Z122): the provider buttons wrap below 150 px each (was 112, where the label broke in two);
+    // the footer links keep 112.
+    expect(screen).toContain('providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 150 },');
+    expect(screen).toContain('footerLinkRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 112 },');
     expect(screen).toContain("disabled={formLocked}");
   });
 

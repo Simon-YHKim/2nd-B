@@ -207,11 +207,13 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
         on the opening clock: it waits while the clock waits and pauses with it. */}
     {sceneVisible ? <OpeningFade elapsedMs={elapsedMs} width={viewport.width} height={viewport.height} reducedMotion={reducedMotion} /> : null}
     {/* One small skip button in the bottom-right corner (Simon localhost QA
-        2026-10-03: "건너뛰기를 우 하단에다가 작게"). It looks small, but hitSlop
-        keeps the touch target at 44 dp. The sound toggle stays removed; sound
-        keeps its platform default: on in the native app, off on the web. */}
-    {sceneVisible ? <Pressable testID="opening-skip" style={[styles.skip, { bottom: insets.bottom + 12, right: insets.right + 16 }]} hitSlop={8} onPress={skip} disabled={!ready} accessibilityRole="button" accessibilityLabel={t("loadingGate.skip")} accessibilityHint={t("loadingGate.skipHint")} accessibilityState={{ disabled: !ready }}>
-      <Text style={[styles.skipText, !ready && styles.disabled]}>{t("loadingGate.skipShort")}</Text>
+        2026-10-03: "건너뛰기를 우 하단에다가 작게"). It looks small, and the
+        pressable around it is 44 dp. hitSlop used to make up the difference,
+        but the web does not apply hitSlop and the target there was 28 px high
+        (Z121). The sound toggle stays removed; sound keeps its platform
+        default: on in the native app, off on the web. */}
+    {sceneVisible ? <Pressable testID="opening-skip" style={[styles.skipTarget, { bottom: insets.bottom + 12 - SKIP_TARGET_PAD, right: insets.right + 16 - SKIP_TARGET_PAD }]} onPress={skip} disabled={!ready} accessibilityRole="button" accessibilityLabel={t("loadingGate.skip")} accessibilityHint={t("loadingGate.skipHint")} accessibilityState={{ disabled: !ready }}>
+      <View style={styles.skip}><Text style={[styles.skipText, !ready && styles.disabled]}>{t("loadingGate.skipShort")}</Text></View>
     </Pressable> : null}
     {assetError ? <Pressable testID="opening-retry" style={[styles.error, { bottom: insets.bottom + 32 }]} onPress={() => setAttempt(value => value + 1)} accessibilityRole="button"><Text style={styles.buttonText}>{t("loadingGate.retry")}</Text></Pressable> : null}
     {/* Only after the opening, while the app itself is still getting ready:
@@ -220,12 +222,16 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   </View>;
 }
 
+const SKIP_TARGET_PAD = 8;
+
 const styles = StyleSheet.create({
   container: { flex: 1, width: "100%", height: "100%", overflow: "hidden", backgroundColor: deepSpace.bgEdge },
   stage: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, overflow: "hidden" },
   image: { position: "absolute" },
   pixel: { position: "absolute", zIndex: 5 },
-  skip: { position: "absolute", zIndex: 7, minHeight: 28, justifyContent: "center", paddingHorizontal: 8, backgroundColor: deepSpace.bgEdge, borderWidth: 1, borderColor: deepSpace.accentDim },
+  // The target is the 28 dp chip plus SKIP_TARGET_PAD on every side: 44 dp, drawn where the chip alone was.
+  skipTarget: { position: "absolute", zIndex: 7, minWidth: 44, minHeight: 44, padding: SKIP_TARGET_PAD, alignItems: "center", justifyContent: "center" },
+  skip: { minHeight: 28, justifyContent: "center", paddingHorizontal: 8, backgroundColor: deepSpace.bgEdge, borderWidth: 1, borderColor: deepSpace.accentDim },
   skipText: { color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 18, paddingBottom: 2 },
   disabled: { color: deepSpace.textMuted },
   buttonText: { color: deepSpace.textHi, fontFamily: fontFamilies.pixelKo, fontSize: typography.sizes.xs, lineHeight: 20, paddingBottom: 2 },
