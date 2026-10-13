@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { chatStatusMaxLines } from "@/components/secondb/chat-font-layout";
+import { shouldShowChatAiNotice } from "@/lib/chat/ai-first-notice";
 
 // UI2-CHAT-01..05: execute only source expressions, never a React/RN renderer.
 const source = readFileSync(resolve(__dirname, "../secondb.tsx"), "utf8").replace(/\r\n/g, "\n");
@@ -83,7 +84,8 @@ describe("chat screen tidy", () => {
   });
 
   test.each(["secondb", "meta", "twi"])("%s empty state has only a static decorative portrait and existing guidance", rev2Persona => {
-    const empty = tree(elementByStyle("empty"), { rev2Persona });
+    // Someone who has already seen the first-time AI card: the empty chat is the portrait and the guidance only.
+    const empty = tree(elementByStyle("empty"), { rev2Persona, shouldShowChatAiNotice, aiNoticeSeen: true, turns: [], markAiNoticeSeen: jest.fn(), aiNoticeWords: {} });
     const decoration = descendants(empty, "View").find(el => el.props.testID === `chat-empty-portrait-${rev2Persona}`);
     expect(decoration?.props).toMatchObject({ key: rev2Persona, accessible: false, accessibilityElementsHidden: true, importantForAccessibility: "no-hide-descendants" });
     const portrait = descendants(empty, "HustleKPortrait");
@@ -96,6 +98,26 @@ describe("chat screen tidy", () => {
     const portraitSource = readFileSync(resolve(__dirname, "../../components/character/HustleKPortrait.tsx"), "utf8");
     expect(portraitSource).toContain("transition={0}");
   });
+
+  // Simon 2026-10-13: the chat says once, when first opened, that its answers are AI-made. It is a
+  // card in the empty chat (no window over the screen), closed for good by its one button.
+  test.each([[false, [["aiNotice.body"], ["aiNotice.confirm"], ["empty"]]], [null, [["empty"]]]] as const)(
+    "first-time AI card: seen=%s draws %j",
+    (aiNoticeSeen, texts) => {
+      const markAiNoticeSeen = jest.fn();
+      const empty = tree(elementByStyle("empty"), { rev2Persona: "secondb", shouldShowChatAiNotice, aiNoticeSeen, turns: [], markAiNoticeSeen, aiNoticeWords: {} });
+      expect(descendants(empty, "Text").map(el => el.children)).toEqual(texts);
+      const buttons = descendants(empty, "Pressable");
+      expect(buttons).toHaveLength(aiNoticeSeen === false ? 1 : 0);
+      if (aiNoticeSeen !== false) return;
+      const card = descendants(empty, "View").find(el => el.props.testID === "chat-ai-notice");
+      expect(card?.props.accessibilityRole).toBe("alert");
+      expect(buttons[0].props).toMatchObject({ accessibilityRole: "button", accessibilityLabel: "aiNotice.confirm" });
+      (buttons[0].props.onPress as () => void)();
+      expect(markAiNoticeSeen).toHaveBeenCalledTimes(1);
+      expect(style("aiNoticeBtn").minHeight).toBe(44);
+    },
+  );
 
   test("first entry no longer reads or writes retired intro keys or mounts an intro", () => {
     expect(source).not.toMatch(/introOpen|setIntroOpen|readIntroDismissed|writeIntroDismissed|INTRO_DISMISS_KEY|secondB_intro_dismissed|onboarding\.coachmarks/);

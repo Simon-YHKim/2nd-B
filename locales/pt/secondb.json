@@ -167,8 +167,10 @@
       "page": "{{current}} de {{total}}"
     }
   },
-  "aiMark": {
-    "short": "IA",
-    "spoken": "Esta resposta foi criada por IA."
-  }
+  "aiLine": "{{name}} é uma IA e pode errar. Confira as informações importantes.",
+  "aiNotice": {
+    "body": "{{name}} é uma IA. As respostas são geradas por IA e servem apenas como referência. Confira as informações importantes.",
+    "confirm": "Entendi"
+  },
+  "aiCopyTail": "Conteúdo gerado por IA (PolaScope)"
 }

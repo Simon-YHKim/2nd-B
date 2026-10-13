@@ -306,7 +306,7 @@ results.push(
       't("linkClip.label")',
       't("linkClip.placeholder")',
       't("linkClip.savedAsClip")',
-      't("linkClip.detected", { kind: detectedKind })',
+      't("linkClip.detected", { kind: t(`formats:builtIn.kinds.${detectedKind}.name`) })',
       't("inputs.extractedLabel")',
       't("inputs.bodyLabel")',
       't("inputs.imagePlaceholder")',
