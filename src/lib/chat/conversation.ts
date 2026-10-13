@@ -350,7 +350,7 @@ ${sanitizeUntrusted(structuredBlock)}
       : `This person's name is ${safeName}. Address them as ${safeName}.\n\n`
     : "";
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
-  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${chatPlanPromptLine(input.message, input.locale)}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
+  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${chatPlanPromptLine(input.message, input.locale, { minor: input.minor })}${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
   // C1/C3/C9 are enforced by callLlm. Red-zone short-circuit still
   // happens inside callLlm; we just no longer adjust the counter

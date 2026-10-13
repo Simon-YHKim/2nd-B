@@ -1,4 +1,7 @@
-import { chatPlanPromptLine, getChatPlanSuggestions, isCurrentChatPlanSuggestion, trackAsked, type ChatPlanSuggestionState } from "../plan-suggestions";
+import {
+  chatPlanPromptLine, getChatPlanSuggestions, isCurrentChatPlanSuggestion, openableChatPlanSuggestion, trackAsked,
+  type ChatPlanSuggestionState,
+} from "../plan-suggestions";
 import type { ChatPresentationTurn } from "../presentation-policy";
 
 const now = new Date(2026, 9, 9, 10, 0); // Friday, local wall clock.
@@ -106,13 +109,19 @@ describe("local routine and reminder suggestions", () => {
     expect(getChatPlanSuggestions(state("Don't forget to remind me tomorrow to call Alex."))[0]?.kind).toBe("reminder");
   });
 
+  // A day that does not exist or a moment already gone is never filled in. The reminder itself is
+  // still offered with blank fields: whether it is offered turns on the message alone (Z56).
   test.each([
     "Remind me on 2026-02-30 at 09:00 to submit the report.",
     "Remind me on 2026-10-08 at 09:00 to submit the report.",
     "Remind me today at 09:00 to submit the report.",
-    "I want to read every weekday.",
-    "I want to read every month.",
-  ])("does not fabricate an invalid, elapsed or unsupported calendar: %s", prompt => {
+  ])("does not fabricate an invalid or elapsed calendar: %s", prompt => {
+    const [found] = getChatPlanSuggestions(state(prompt));
+    expect(found).toMatchObject({ kind: "reminder" });
+    expect(found.date).toBeUndefined(); expect(found.time).toBeUndefined();
+  });
+
+  test.each(["I want to read every weekday.", "I want to read every month."])("does not offer an unsupported repeat: %s", prompt => {
     expect(getChatPlanSuggestions(state(prompt))).toEqual([]);
   });
 
@@ -198,7 +207,7 @@ describe("local routine and reminder suggestions", () => {
 
   // "In 5 minutes" (Z58). The span counts from when the message went out, which the screen records.
   const askedState = (prompt: string, at = now, clock = now): ChatPlanSuggestionState => ({
-    ...state(prompt), now: clock, asked: { conversationId: 7, index: 0, text: prompt, at },
+    ...state(prompt), now: clock, asked: { ownerId: "u1", conversationId: 7, index: 0, text: prompt, at },
   });
 
   test.each([
@@ -243,9 +252,9 @@ describe("local routine and reminder suggestions", () => {
 
   test.each([
     ["no record of when it was asked", undefined],
-    ["the record is for another message", { conversationId: 7, index: 0, text: "다른 말", at: now }],
-    ["the record is for another turn", { conversationId: 7, index: 2, text: "5분 뒤에 물 마시라고 알려줘", at: now }],
-    ["the record is for another conversation", { conversationId: 8, index: 0, text: "5분 뒤에 물 마시라고 알려줘", at: now }],
+    ["the record is for another message", { ownerId: "u1", conversationId: 7, index: 0, text: "다른 말", at: now }],
+    ["the record is for another turn", { ownerId: "u1", conversationId: 7, index: 2, text: "5분 뒤에 물 마시라고 알려줘", at: now }],
+    ["the record is for another conversation", { ownerId: "u1", conversationId: 8, index: 0, text: "5분 뒤에 물 마시라고 알려줘", at: now }],
   ])("leaves the fields blank when %s", (_label, asked) => {
     const found = getChatPlanSuggestions({ ...state("5분 뒤에 물 마시라고 알려줘"), asked })[0];
     expect(found).toMatchObject({ kind: "reminder" });
@@ -253,11 +262,16 @@ describe("local routine and reminder suggestions", () => {
   });
 
   test.each([
-    "1.5시간 뒤에 전화하라고 알려줘", "5분 후회하지 않게 전화하라고 알려줘", "5분 뒤와 10분 뒤에 전화하라고 알려줘",
+    "1.5시간 뒤에 전화하라고 알려줘", "5분 후회 없이 전화하라고 알려줘", "5분 뒤와 10분 뒤에 전화하라고 알려줘",
     "100시간 뒤에 전화하라고 알려줘", "Remind me in 5 minutes or in 10 minutes to call Alex.", "Remind me in 2000 minutes to call Alex.",
+    "1시간 또는 30분 뒤에 전화하라고 알려줘", "Remind me in 1 hour or 30 minutes to call Alex.", "1시간이나 30분 뒤에 전화하라고 알려줘",
+    "30분 뒤에 10분 동안 전화하라고 알려줘", "Remind me in 30 minutes to call Alex for 10 minutes.",
+    "5~10분 뒤에 전화하라고 알려줘", "2-3시간 뒤에 전화하라고 알려줘", "Remind me in 5-10 minutes to call Alex.",
+    "Remind me in 5 to 10 minutes to call Alex.", "5분에서 10분 뒤에 전화하라고 알려줘",
   ])("does not guess a span it cannot read: %s", prompt => {
     const found = getChatPlanSuggestions(askedState(prompt))[0];
-    expect(found?.time).toBeUndefined(); expect(found?.date).toBeUndefined();
+    expect(found).toMatchObject({ kind: "reminder" });
+    expect(found.time).toBeUndefined(); expect(found.date).toBeUndefined();
   });
 
   test("a stated day or clock wins over a span in the same sentence", () => {
@@ -270,24 +284,76 @@ describe("local routine and reminder suggestions", () => {
     expect(getChatPlanSuggestions(askedState("30분 뒤에 회의가 있어서 준비해야 해"))).toEqual([]);
   });
 
-  test("the screen records the newest outgoing message once, per conversation", () => {
+  test("the screen records the newest outgoing message once, per account and conversation", () => {
     const sending = { turns: [u("5분 뒤에 물 마시라고 알려줘")], conversationId: 7, sending: true };
-    const first = trackAsked(null, sending, now);
-    expect(first).toEqual({ conversationId: 7, index: 0, text: "5분 뒤에 물 마시라고 알려줘", at: now });
+    const first = trackAsked(null, "u1", sending, now);
+    expect(first).toEqual({ ownerId: "u1", conversationId: 7, index: 0, text: "5분 뒤에 물 마시라고 알려줘", at: now });
     const later = new Date(2026, 9, 9, 10, 1);
-    expect(trackAsked(first, sending, later)).toBe(first);
-    expect(trackAsked(first, { ...sending, turns: [...sending.turns, a("확인했습니다")], sending: false }, later)).toBe(first);
-    expect(trackAsked(first, { ...sending, conversationId: 8, sending: false, turns: [] }, later)).toBeNull();
-    expect(trackAsked(first, { ...sending, conversationId: 8 }, later)).toMatchObject({ conversationId: 8, at: later });
-    expect(trackAsked(first, { ...sending, turns: [u("10분 뒤에 전화하라고 알려줘")] }, later)).toMatchObject({ index: 0, at: later });
+    expect(trackAsked(first, "u1", sending, later)).toBe(first);
+    expect(trackAsked(first, "u1", { ...sending, turns: [...sending.turns, a("확인했습니다")], sending: false }, later)).toBe(first);
+    expect(trackAsked(first, "u1", { ...sending, conversationId: 8, sending: false, turns: [] }, later)).toBeNull();
+    expect(trackAsked(first, "u1", { ...sending, conversationId: 8 }, later)).toMatchObject({ conversationId: 8, at: later });
+    expect(trackAsked(first, "u1", { ...sending, turns: [u("10분 뒤에 전화하라고 알려줘")] }, later)).toMatchObject({ index: 0, at: later });
     // A restored conversation was never seen going out: nothing to count from.
-    expect(trackAsked(null, { turns: [u("5분 뒤에 물 마시라고 알려줘"), a("확인했습니다")], conversationId: 9, sending: false }, later)).toBeNull();
+    expect(trackAsked(null, "u1", { turns: [u("5분 뒤에 물 마시라고 알려줘"), a("확인했습니다")], conversationId: 9, sending: false }, later)).toBeNull();
+    // Another account on the same screen: the same conversation number, turn and words are not the same asking.
+    expect(trackAsked(first, "u2", { ...sending, turns: [...sending.turns, a("확인했습니다")], sending: false }, later)).toBeNull();
+    expect(trackAsked(first, "u2", sending, later)).toMatchObject({ ownerId: "u2", at: later });
+    expect(trackAsked(first, null, sending, later)).toBeNull();
+  });
+
+  // A moment that has passed blanks the fields; it never takes the reminder away. What the app
+  // offers for a message is the same at any hour, which is what the model is told to count on.
+  test.each([
+    "오늘 오전 9시에 보고서를 제출하라고 알려줘", "10월 1일에 보고서를 제출하라고 알려줘", "2월 30일에 보고서를 제출하라고 알려줘",
+    "Remind me on 2026-10-01 at 14:05 to pay the bill.",
+  ])("a passed or impossible moment keeps the reminder with blank fields: %s", prompt => {
+    const [found] = getChatPlanSuggestions(state(prompt));
+    expect(found).toMatchObject({ kind: "reminder" });
+    expect(found.date).toBeUndefined(); expect(found.time).toBeUndefined();
+  });
+
+  test("what the app offers for a message does not change with the clock", () => {
+    const prompts = [
+      "오늘 오후 3시에 전화하라고 알려줘", "내일 오전 9시에 보고서 제출하라고 알려줘", "5분 뒤에 물 마시라고 알려줘", "10월 9일 23시 59분에 전화하라고 알려줘",
+      "매일 저녁 9시에 스트레칭 운동하라고 알려줘", "Remind me today at 15:00 to call Alex.", "요즘 잠을 잘 못 자요", "내일 날씨 알려줘",
+    ];
+    const clocks = [now, new Date(2026, 9, 9, 14, 59, 59), new Date(2026, 9, 9, 15, 0), new Date(2026, 9, 9, 23, 59, 30),
+      new Date(2026, 9, 10, 0, 0, 30), new Date(2026, 11, 31, 23, 59), new Date(2027, 0, 1, 0, 1), new Date(2028, 1, 29, 12)];
+    for (const prompt of prompts) {
+      const offered = clocks.map(clock => getChatPlanSuggestions({ ...state(prompt), now: clock }).map(found => found.kind).join());
+      expect(new Set(offered).size).toBe(1);
+      const told = clocks.map(clock => chatPlanPromptLine(prompt, "ko", { now: clock, web: false }));
+      expect(new Set(told).size).toBe(1);
+    }
+  });
+
+  test("a pressed button opens what the same pair proposes now, and never another conversation's", () => {
+    const prompt = "5분 뒤에 물 마시라고 알려줘";
+    const first = getChatPlanSuggestions(askedState(prompt))[0];
+    expect(openableChatPlanSuggestion(first, askedState(prompt))).toEqual(first);
+    const later = askedState(prompt, now, new Date(2026, 9, 9, 10, 6));
+    expect(isCurrentChatPlanSuggestion(first, later)).toBe(false);
+    const opened = openableChatPlanSuggestion(first, later);
+    expect(opened).toMatchObject({ kind: "reminder", title: first.title, replyIndex: first.replyIndex });
+    expect(opened?.date).toBeUndefined(); expect(opened?.time).toBeUndefined();
+    // The same words at the same place in another conversation are not this button's.
+    expect(openableChatPlanSuggestion(first, { ...later, conversationId: 8 })).toBeNull();
+    expect(openableChatPlanSuggestion({ ...first, conversationId: 8 }, later)).toBeNull();
+    expect(openableChatPlanSuggestion({ ...first, title: "다른 일" }, later)).toBeNull();
+    expect(openableChatPlanSuggestion({ ...first, kind: "routine" }, later)).toBeNull();
+    expect(openableChatPlanSuggestion({ ...first, domainId: "money_check" }, later)).toBeNull();
+    // A different day while the current proposal still has its own is not "run out".
+    expect(openableChatPlanSuggestion({ ...first, date: "2026-12-01" }, askedState(prompt))).toBeNull();
+    expect(openableChatPlanSuggestion(first, { ...later, sending: true })).toBeNull();
+    expect(openableChatPlanSuggestion(first, { ...later, turns: [later.turns[0], a("Changed reply")] })).toBeNull();
+    expect(openableChatPlanSuggestion(null, later)).toBeNull();
   });
 
   // Asking to be told to do something names the task by its form, with no known task word (Z56).
   test.each([
     "5분 뒤에 약 먹으라고 알려줘", "내일 아침 8시에 우산 가져가라고 알려줘", "퇴근할 때 장 보도록 알려줘",
-    "Remind me to take my pills tomorrow at 9 am.",
+    "Remind me to take my pills tomorrow at 9 am.", "나에게 약 먹으라고 알려줘", "저한테 약 먹으라고 알려줘", "가족과 함께 약 먹으라고 알려줘",
   ])("an ask to be reminded to do something is a reminder: %s", prompt => {
     expect(getChatPlanSuggestions(state(prompt))[0]).toMatchObject({ kind: "reminder" });
   });
@@ -297,7 +363,22 @@ describe("local routine and reminder suggestions", () => {
       expect(getChatPlanSuggestions(state(prompt))).toEqual([]);
     });
 
-  // The model's line about the button (Z56): only for an ask the app will offer the button for.
+  // Telling someone else is not something this device's reminder does.
+  test.each(["5분 뒤 아이에게 약 먹으라고 알려줘", "엄마한테 약 드시라고 알려줘", "선생님께 내일 가라고 알려줘"])(
+    "an ask to tell someone else makes no reminder of its own and no word to the model: %s", prompt => {
+      expect(getChatPlanSuggestions(askedState(prompt))).toEqual([]);
+      expect(chatPlanPromptLine(prompt, "ko", { now, web: false })).toBe("");
+    });
+
+  test("a sentence naming someone keeps the button its task word always gave it, with no word to the model", () => {
+    expect(getChatPlanSuggestions(state("엄마한테 전화하라고 알려줘")).map(found => found.kind)).toEqual(["reminder"]);
+    expect(chatPlanPromptLine("엄마한테 전화하라고 알려줘", "ko", { now, web: false })).toBe("");
+    expect(chatPlanPromptLine("엄마한테 전화하라고 알려줘", "en", { now, web: true })).toBe("");
+  });
+
+  // The model's text about the button (Z56): only for an ask the app will offer the button for.
+  const told = (prompt: string, locale: "ko" | "en" = "ko", web = false) => chatPlanPromptLine(prompt, locale, { now, web });
+
   test.each([
     ["5분 뒤에 물 마시라고 알려줘", "reminder"], ["5분 뒤에 약 먹으라고 알려줘", "reminder"],
     ["내일 오전 9시에 보고서 제출하라고 알려줘", "reminder"], ["Remind me in 5 minutes to drink water.", "reminder"],
@@ -305,18 +386,19 @@ describe("local routine and reminder suggestions", () => {
   ])("tells the model about the button when the person asks to be reminded: %s", (prompt, kind) => {
     expect(getChatPlanSuggestions(state(prompt)).map(found => found.kind)).toEqual([kind]);
     for (const locale of ["ko", "en"] as const) {
-      const line = chatPlanPromptLine(prompt, locale, now);
+      const line = told(prompt, locale);
       expect(line.endsWith("\n\n")).toBe(true);
       expect(line).toMatch(kind === "reminder" ? /리마인더를 만드는|makes a reminder/u : /루틴으로 만드는|makes a routine/u);
       expect(line).not.toMatch(kind === "reminder" ? /루틴|routine/u : /리마인더를 만드는|makes a reminder/u);
+      expect(chatPlanPromptLine(prompt, locale, { now, web: false, minor: true })).toBe(line);
     }
   });
 
   test.each(["내일 오후 3시에 보고서를 제출해야 해.", "매일 아침에 10분씩 산책하려고 해", "I want to practice English every day."])(
     "a plan the person only states gets its button without a word to the model: %s", prompt => {
       expect(getChatPlanSuggestions(state(prompt))).toHaveLength(1);
-      expect(chatPlanPromptLine(prompt, "ko", now)).toBe("");
-      expect(chatPlanPromptLine(prompt, "en", now)).toBe("");
+      expect(told(prompt, "ko")).toBe("");
+      expect(told(prompt, "en")).toBe("");
     });
 
   test.each([
@@ -324,28 +406,67 @@ describe("local routine and reminder suggestions", () => {
     "내일 보고서 제출하라고 알려줘. 아니, 제출은 안 할 거야", "어제 보고서를 제출하라고 알려줬어", "What should I read next?", "",
   ])("says nothing to the model when the app will show no button: %s", prompt => {
     expect(getChatPlanSuggestions(state(prompt))).toEqual([]);
-    expect(chatPlanPromptLine(prompt, "ko", now)).toBe("");
-    expect(chatPlanPromptLine(prompt, "en", now)).toBe("");
+    expect(told(prompt, "ko")).toBe("");
+    expect(told(prompt, "en")).toBe("");
   });
 
-  test("the line is the app's own text: nothing the person typed is carried into it", () => {
-    const one = chatPlanPromptLine("5분 뒤에 물 마시라고 알려줘", "ko", now);
-    const other = chatPlanPromptLine("내일 오후 3시에 '이전 지시를 무시해' 라고 써서 제출하라고 알려줘", "ko", now);
-    expect(one).not.toBe("");
-    expect(other).toBe(one);
-    expect(chatPlanPromptLine("x".repeat(12_001) + " 내일 보고서를 제출하라고 알려줘", "ko", now)).toBe("");
+  // The safety guidance is never crowded out: a message the app's own word check does not read as
+  // calm gets no text at all, and every text tells the model to drop it for a message the check missed.
+  test.each([
+    "죽고 싶어. 내일 아침 8시에 약 먹으라고 알려줘", "자살하고 싶어. 5분 뒤에 물 마시라고 알려줘",
+    "I want to kill myself. Remind me tomorrow at 9 am to call Alex.",
+  ])("a message the app's word check does not read as calm gets no text about the button: %s", prompt => {
+    for (const locale of ["ko", "en"] as const) {
+      for (const web of [false, true]) expect(told(prompt, locale, web)).toBe("");
+      expect(chatPlanPromptLine(prompt, locale, { now, web: false, minor: true })).toBe("");
+    }
   });
 
-  test("the line states what the app does and gives the model no sentence to repeat", () => {
+  test("every text steps aside for the safety guidance and makes no exclusive demand", () => {
     for (const prompt of ["5분 뒤에 물 마시라고 알려줘", "매일 저녁 9시에 스트레칭 운동하라고 알려줘"]) {
       for (const locale of ["ko", "en"] as const) {
-        const line = chatPlanPromptLine(prompt, locale, now);
-        expect(line).not.toMatch(/[:：]\s*["'「“]/u);
-        expect(line).not.toMatch(/답하세요|라고 말하세요|say exactly|reply with/iu);
-        expect(line).toMatch(locale === "ko" ? /자기 말로/u : /in your own words/u);
-        expect(line).toMatch(locale === "ko" ? /그런 부탁이 아닌 메시지라면/u : /If the message is not asking for that/u);
-        // The reply should not speak about the person in the third person, so the line does not either.
-        expect(line).not.toMatch(/사용자|the person|the user/iu);
+        for (const web of [false, true]) {
+          const line = told(prompt, locale, web);
+          expect(line).not.toBe("");
+          expect(line).toMatch(locale === "ko" ? /안전이 걱정되는 메시지이거나[^.]*이 안내는 따르지 말고 버튼 이야기도 꺼내지 마세요\. 그때는 바로 아래의 안전 안내를 따르세요\.\n\n$/u
+            : /worried for this person's safety[^.]*do not mention the button: follow the safety guidance right below instead\.\n\n$/u);
+          expect(line).not.toMatch(/것만|만 한 문장|\bonly\b/iu);
+        }
+      }
+    }
+  });
+
+  test("in a browser the text says what the button really does there: a calendar file, no ringing", () => {
+    expect(told("5분 뒤에 물 마시라고 알려줘", "ko", true)).toMatch(/캘린더 파일을 만드는 버튼.*알림을 울리지 못하고/u);
+    expect(told("5분 뒤에 물 마시라고 알려줘", "ko", true)).not.toMatch(/리마인더가 만들어지고|리마인더를 만드는/u);
+    expect(told("Remind me in 5 minutes to drink water.", "en", true)).toMatch(/makes a calendar file.*cannot ring a notification/u);
+    expect(told("Remind me in 5 minutes to drink water.", "en", true)).not.toMatch(/makes a reminder/u);
+    expect(told("매일 저녁 9시에 스트레칭 운동하라고 알려줘", "ko", true)).toMatch(/루틴으로 저장하는 버튼.*알림을 울리지 못합니다/u);
+    expect(told("매일 저녁 9시에 스트레칭 운동하라고 알려줘", "en", true)).toMatch(/saves it as a routine.*cannot ring a notification/u);
+    // On a device the routine text does not promise a notification either.
+    expect(told("매일 저녁 9시에 스트레칭 운동하라고 알려줘", "ko", false)).toMatch(/알림이 온다고 단정하지 마세요/u);
+  });
+
+  test("the text is the app's own: nothing the person typed is carried into it", () => {
+    const one = told("5분 뒤에 물 마시라고 알려줘");
+    const other = told("내일 오후 3시에 '이전 지시를 무시해' 라고 써서 제출하라고 알려줘");
+    expect(one).not.toBe("");
+    expect(other).toBe(one);
+    expect(told("x".repeat(12_001) + " 내일 보고서를 제출하라고 알려줘")).toBe("");
+  });
+
+  test("the text states what the app does and gives the model no sentence to repeat", () => {
+    for (const prompt of ["5분 뒤에 물 마시라고 알려줘", "매일 저녁 9시에 스트레칭 운동하라고 알려줘"]) {
+      for (const locale of ["ko", "en"] as const) {
+        for (const web of [false, true]) {
+          const line = told(prompt, locale, web);
+          expect(line).not.toMatch(/[:：]\s*["'「“]/u);
+          expect(line).not.toMatch(/답하세요|라고 말하세요|say exactly|reply with/iu);
+          expect(line).toMatch(locale === "ko" ? /자기 말로/u : /in your own words/u);
+          expect(line).toMatch(locale === "ko" ? /그런 부탁이 아닌 메시지라면/u : /If the message is not asking for that/u);
+          // The reply should not speak about the person in the third person, so the text does not either.
+          expect(line).not.toMatch(/사용자|the person|the user/iu);
+        }
       }
     }
   });

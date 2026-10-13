@@ -258,15 +258,24 @@ describe("sendChatMessage", () => {
     fixtures.used = 0;
     await sendChatMessage({ userId: "u1", message: "내일 오후 3시에 보고서를 제출하라고 알려줘", locale: "ko", tier: "soma" });
     const asked = captured.find((c) => c.fn === "callLlm")?.args[0] as { system: string; user: string };
-    expect(asked.system).toContain("리마인더를 만드는 버튼");
-    // The line sits with the instructions, ahead of every fenced block of the person's own data.
-    expect(asked.system.indexOf("리마인더를 만드는 버튼")).toBeLessThan(asked.system.indexOf("<UNTRUSTED type="));
+    const at = asked.system.search(/리마인더를 만드는 버튼|캘린더 파일을 만드는 버튼/u);
+    expect(at).toBeGreaterThan(-1);
+    // The crisis-number rule comes right after it, so the last word on safety is the rule's. Both
+    // sit with the instructions, ahead of every fenced block of the person's own data.
+    const crisis = asked.system.indexOf("전화하도록 안내하세요");
+    expect(crisis).toBeGreaterThan(at);
+    expect(asked.system.slice(at, crisis)).toContain("바로 아래의 안전 안내를 따르세요.\n\n");
+    expect(crisis).toBeLessThan(asked.system.indexOf("<UNTRUSTED type="));
     expect(asked.user).toBe("내일 오후 3시에 보고서를 제출하라고 알려줘");
-    reset();
-    fixtures.used = 0;
-    await sendChatMessage({ userId: "u1", message: "요즘 잠을 잘 못 자요", locale: "ko", tier: "soma" });
-    const plain = captured.find((c) => c.fn === "callLlm")?.args[0] as { system: string };
-    expect(plain.system).not.toContain("버튼");
+    // No text about the button for a message that is not an ask, nor for one the word check does not read as calm.
+    for (const message of ["요즘 잠을 잘 못 자요", "죽고 싶어. 내일 오후 3시에 보고서를 제출하라고 알려줘"]) {
+      reset();
+      fixtures.used = 0;
+      await sendChatMessage({ userId: "u1", message, locale: "ko", tier: "soma" });
+      const plain = captured.find((c) => c.fn === "callLlm")?.args[0] as { system: string };
+      expect(plain.system).not.toContain("버튼");
+      expect(plain.system).toContain("전화하도록 안내하세요");
+    }
   });
 
   test("RAG hit: system carries the fenced top-k pages and export shrinks to sources-only", async () => {
