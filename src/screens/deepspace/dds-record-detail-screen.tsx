@@ -44,7 +44,7 @@ import {
   updateRecordTags,
 } from "@/lib/records/create";
 import { domainScreenRoute, filedDomainOf } from "@/lib/records/domain-screen";
-import { getPieceById, pieceIdFor, SOURCE_ID_PREFIX, titleRepeatsBody, type PieceDetail } from "@/lib/records/get-piece";
+import { editedBodyPatch, getPieceById, pieceIdFor, SOURCE_ID_PREFIX, titleRepeatsBody, type PieceDetail } from "@/lib/records/get-piece";
 import {
   recordsEmbeddingAllowed,
   relatedRecordsByEmbedding,
@@ -547,9 +547,9 @@ export function DeepSpaceRecordDetailScreen() {
     setEditBusy(true);
     setActionError(null);
     setEditing(false);
-    updateReadyPiece({ ...previous, body: nextBody });
+    updateReadyPiece({ ...previous, ...editedBodyPatch(previous, nextBody) });
     try {
-      await updateRecord(userId, recordId, { body: nextBody });
+      await updateRecord(userId, recordId, editedBodyPatch(previous, nextBody));
     } catch {
       if (isCurrent(identity)) {
         updateReadyPiece(previous);
