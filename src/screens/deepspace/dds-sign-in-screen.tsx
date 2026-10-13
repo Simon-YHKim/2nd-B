@@ -322,8 +322,40 @@ export function DeepSpaceSignInDesignScreen() {
             />
           </PixelSurface>
 
-          <View style={styles.passwordLabelRow}>
-            <Text style={styles.label}>{t("auth:signIn.password")}</Text>
+          <Text style={styles.label}>{t("auth:signIn.password")}</Text>
+          {/* Z11: the show button sits inside the field, at its right end. It used to float on
+              the label row above, apart from the field it acts on. */}
+          <PixelSurface
+            variant="inset"
+            background={
+              authBusy
+                ? m3.color.surfaceContainerHighest
+                : focusedField === "password"
+                  ? m3.color.primaryContainer
+                  : m3.color.surfaceVariant
+            }
+            style={styles.inputSurface}
+            contentStyle={styles.passwordContent}
+          >
+            <TextInput
+              ref={passwordRef}
+              value={password}
+              onChangeText={setPassword}
+              editable={!authBusy}
+              secureTextEntry={!showPassword}
+              autoComplete="current-password"
+              textContentType="password"
+              placeholderTextColor={m3.color.onSurfaceVariant}
+              accessibilityLabel={t("auth:signIn.password")}
+              accessibilityHint={t("auth:signIn.passwordHint")}
+              style={[styles.input, styles.passwordInput]}
+              returnKeyType="go"
+              onFocus={() => setFocusedField("password")}
+              onBlur={() => setFocusedField(null)}
+              onSubmitEditing={() => {
+                if (!submitDisabled) void submit();
+              }}
+            />
             <PixelPressable
               variant="frame"
               onPress={toggleShowPassword}
@@ -348,38 +380,6 @@ export function DeepSpaceSignInDesignScreen() {
                 size={24}
               />
             </PixelPressable>
-          </View>
-          <PixelSurface
-            variant="inset"
-            background={
-              authBusy
-                ? m3.color.surfaceContainerHighest
-                : focusedField === "password"
-                  ? m3.color.primaryContainer
-                  : m3.color.surfaceVariant
-            }
-            style={styles.inputSurface}
-            contentStyle={styles.inputContent}
-          >
-            <TextInput
-              ref={passwordRef}
-              value={password}
-              onChangeText={setPassword}
-              editable={!authBusy}
-              secureTextEntry={!showPassword}
-              autoComplete="current-password"
-              textContentType="password"
-              placeholderTextColor={m3.color.onSurfaceVariant}
-              accessibilityLabel={t("auth:signIn.password")}
-              accessibilityHint={t("auth:signIn.passwordHint")}
-              style={styles.input}
-              returnKeyType="go"
-              onFocus={() => setFocusedField("password")}
-              onBlur={() => setFocusedField(null)}
-              onSubmitEditing={() => {
-                if (!submitDisabled) void submit();
-              }}
-            />
           </PixelSurface>
 
           {inlineNotice}
@@ -598,13 +598,14 @@ const styles = StyleSheet.create({
     fontSize: m3.type.bodyLarge.size,
     lineHeight: m3.type.bodyLarge.line,
   },
-  passwordLabelRow: {
-    minHeight: m3.minTouch,
+  passwordContent: {
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: m3.spacing.s2,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
+  passwordInput: { flexGrow: 1, flexShrink: 1, flexBasis: 0 },
   eyeRoot: { width: m3.minTouch, minHeight: m3.minTouch },
   eyeContent: { minHeight: m3.minTouch, alignItems: "center", padding: m3.spacing.s2 },
   primaryContent: {
