@@ -102,10 +102,12 @@ gh run list --workflow=model-refresh.yml --limit 1
 
 ```bash
 # 1) QA 로그인
+# QA 계정의 메일과 비밀번호는 저장소 루트의 .env.test 에서 읽는다(이 문서에는 적지 않는다):
+#   set -a; . ./.env.test; set +a
 TOKEN=$(curl -s -X POST \
   "https://zoacryukmdeivmolvyhj.supabase.co/auth/v1/token?grant_type=password" \
   -H "apikey: $EXPO_PUBLIC_SUPABASE_ANON_KEY" -H "content-type: application/json" \
-  -d '{"email":"qa.ai.b18807@example.com","password":"Qa9RgfEtJTvY13H9oeh0bOGYT"}' \
+  -d "{\"email\":\"$QA_TEST_EMAIL\",\"password\":\"$QA_TEST_PASSWORD\"}" \
   | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
 
 # 2) 대화 좌석 호출
