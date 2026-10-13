@@ -118,13 +118,10 @@ describe('0252 답이 바뀐 대화 턴의 횟수 환불 (Z46)', () => {
       /run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db\/tests\/chat_turn_refund_regression\.sql/,
     );
     expect(workflow).toMatch(/- name: Race two chat turn refunds over one proxy row/);
+    // The races themselves follow the function 0255 put in 0252's place: no call passes a day, and the full
+    // list is pinned in chat-turn-refund-bound-migration.test.ts. The step and its first race stay.
     expect(workflow).toMatch(/race same_day "BEGIN" 0 1 "a=4 b=null 4\/3\/1"/);
-    expect(workflow).toMatch(/race cross_day "BEGIN ISOLATION LEVEL REPEATABLE READ" 1 1 "a=4 b=null 4\/3\/1"/);
     expect(workflow).toMatch(/race two_rows "BEGIN" 0 2 "a=4 b=3 3\/3\/2"/);
-    // REPEATABLE READ with two rows. Since 0255 each call names its own row, so the second ends with
-    // 40001 instead of quietly getting nothing; its row still gives the turn later. The full list of
-    // races is pinned in chat-turn-refund-bound-migration.test.ts.
-    expect(workflow).toMatch(/race two_rows_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 2 "a=4 b=ERROR:40001 4\/3\/1" "c=3"/);
   });
 
   it('이미 있는 원장 표의 모양이 다르면 함수를 만들기 전에 멈춘다', () => {
