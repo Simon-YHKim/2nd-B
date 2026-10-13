@@ -20,6 +20,8 @@ export interface MdNavItem {
   key: string;
   label: string;
   accessibilityLabel?: string;
+  /** Read after the label, e.g. while a guide points at this tab. */
+  accessibilityHint?: string;
   /** icon renderer - receives the resolved token colour so active/inactive tint. */
   icon: (color: string) => ReactNode;
   /** center-emphasised slot (e.g. 세컨비) - uses the tertiary (violet) indicator. */
@@ -92,6 +94,7 @@ export function MdNavBar({
               accessibilityState={{ selected: on }}
               aria-selected={on}
               accessibilityLabel={item.accessibilityLabel ?? item.label}
+              accessibilityHint={item.accessibilityHint}
               android_ripple={{ color: m3.color.secondaryContainer, borderless: true }}
               style={styles.press}
             >

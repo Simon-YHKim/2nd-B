@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, View } from "react-native";
 import { Redirect, router, useFocusEffect } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { profileGate } from "@/lib/auth/profile-probe";
@@ -60,6 +61,7 @@ export function DeepSpaceShell() {
     refreshTick,
   );
   const coachScrapTabRef = useRef<View>(null);
+  const { t } = useTranslation("deepspace");
   // 별이 밝아지는 소리(Q-261006-02). 읽은 밝기를 이 기기의 '마지막으로 본 밝기'와 비교한다.
   // 효과는 아래 읽기 effect 안에서 쓰므로 ref 로 넘긴다(소리 · 설정이 바뀌어도 다시 읽지 않게).
   const playBrighten = useUiSound(STAR_BRIGHTEN_CUE.source, STAR_BRIGHTEN_CUE);
@@ -157,6 +159,8 @@ export function DeepSpaceShell() {
       active="home"
       header="none"
       dockItemRefs={{ capture: coachScrapTabRef }}
+      // The guide's sentence is also read on the tab it points at (the face carried it before).
+      dockItemHints={coachmarksDue === true ? { capture: t("deepspace:coachmarks.homeStep") } : undefined}
       // While the guide is up, the Scrap tab opens the coached capture over home (a push,
       // as the guide always did), so the guide's last step can come back here.
       onDockSelect={(tab) => {

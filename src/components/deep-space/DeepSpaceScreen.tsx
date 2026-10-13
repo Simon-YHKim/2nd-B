@@ -74,6 +74,7 @@ export function DeepSpaceScreen({
   ownBack = false,
   overlay,
   dockItemRefs,
+  dockItemHints,
   onDockSelect,
   children,
 }: {
@@ -108,6 +109,8 @@ export function DeepSpaceScreen({
   overlay?: ReactNode;
   /** Refs to single dock tabs, for that guide to measure. */
   dockItemRefs?: Partial<Record<DeepSpaceTab, RefObject<View | null>>>;
+  /** A hint read on single dock tabs (the guide's sentence, on the tab it points at). */
+  dockItemHints?: Partial<Record<DeepSpaceTab, string>>;
   /** A screen may take a dock press itself. Returning true means it did. */
   onDockSelect?: (tab: DeepSpaceTab) => boolean;
   children: ReactNode;
@@ -155,6 +158,7 @@ export function DeepSpaceScreen({
     key,
     label: t("ds.dock." + key),
     accessibilityLabel: t("ds.dock." + key),
+    accessibilityHint: dockItemHints?.[key],
     icon: (color: string) => <TabIcon tab={key} color={color} size={24} />,
   }));
 

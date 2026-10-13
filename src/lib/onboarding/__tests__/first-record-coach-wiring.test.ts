@@ -27,6 +27,10 @@ describe("first-record coach wiring", () => {
     expect(frame).toContain("style={[styles.overlayHost, { top: insets.top, bottom: insets.bottom }]}");
     expect(frame).toContain('<View pointerEvents="box-none" style={[styles.overlayHost');
     expect(bar).toContain("ref={itemRefs?.[item.key]}");
+    // The sentence is read on the tab it points at, as it was on the face.
+    expect(shell).toContain('dockItemHints={coachmarksDue === true ? { capture: t("deepspace:coachmarks.homeStep") } : undefined}');
+    expect(frame).toContain("accessibilityHint: dockItemHints?.[key],");
+    expect(bar).toContain("accessibilityHint={item.accessibilityHint}");
     // The face does what it does every day: the home no longer knows about the guide.
     expect(home).toContain('testID="secondb-dialogue-launcher"');
     expect(home).not.toContain("coachFirstRecord");
