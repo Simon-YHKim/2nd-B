@@ -132,8 +132,26 @@ describe("calendar-math", () => {
     it("asks the list for that row and also scrolls to it on first layout", () => {
       expect(picker).toContain("const startRow = yearGridStartRow(minYear, maxYear, selectedYear, YEAR_COLUMNS);");
       expect(picker).toContain("initialScrollIndex={startRow}");
-      expect(picker).toContain("listRef.current?.scrollToOffset({ offset: YEAR_ROW_HEIGHT * startRow, animated: false });");
+      expect(picker).toContain("listRef.current?.scrollToOffset({ offset: YEAR_LIST_PAD + YEAR_ROW_HEIGHT * startRow, animated: false });");
       expect(picker).toContain("if (started.current || startRow === 0) return;");
+    });
+  });
+
+  // Round 7 (second phone): the list read as starting one row early. The list has top padding the
+  // scroll math did not count, so the opening row sat that much low and a sliver of the row
+  // above it stayed in view.
+  describe("the year grid counts its own top padding", () => {
+    const fs = jest.requireActual<typeof import("node:fs")>("node:fs");
+    const path = jest.requireActual<typeof import("node:path")>("node:path");
+    const picker = fs.readFileSync(path.join(__dirname, "..", "DatePicker.tsx"), "utf8");
+
+    it("uses one value for the padding it draws and the padding it scrolls past", () => {
+      expect(picker).toContain("const YEAR_LIST_PAD = m3.spacing.s2;");
+      expect(picker).toContain("yearListContent: { paddingVertical: YEAR_LIST_PAD },");
+      expect(picker).toContain(
+        "getItemLayout={(_, index) => ({ length: YEAR_ROW_HEIGHT, offset: YEAR_LIST_PAD + YEAR_ROW_HEIGHT * index, index })}",
+      );
+      expect(picker.match(/YEAR_ROW_HEIGHT \* /g)).toHaveLength(2);
     });
   });
 
