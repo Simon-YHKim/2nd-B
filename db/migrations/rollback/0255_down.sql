@@ -7,6 +7,7 @@
 DROP TRIGGER IF EXISTS guard_ai_audit_server_verified_final ON public.ai_audit_log;
 DROP FUNCTION IF EXISTS public.guard_ai_audit_server_verified_final();
 DROP FUNCTION IF EXISTS public.refund_chat_turn_after_output_swap(date, uuid);
+DROP FUNCTION IF EXISTS public.chat_turn_refund_day_matches(date, timestamp);
 
 CREATE OR REPLACE FUNCTION public.guard_ai_audit_server_verified()
 RETURNS trigger

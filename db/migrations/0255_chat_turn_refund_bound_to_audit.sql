@@ -149,6 +149,23 @@ CREATE TRIGGER guard_ai_audit_server_verified_final
   AFTER INSERT OR UPDATE ON public.ai_audit_log
   FOR EACH ROW EXECUTE FUNCTION public.guard_ai_audit_server_verified_final();
 
+-- The day rule on its own, so a test can ask it about any moment without waiting for midnight.
+-- p_made is the audit row's creation time on the KST clock. The day a turn was counted on is that
+-- row's day. A turn sent just before midnight is answered just after: its row is made in the first
+-- minutes of the next day, so the day before is accepted for a row made before 00:10 and for no other.
+CREATE OR REPLACE FUNCTION public.chat_turn_refund_day_matches(p_day date, p_made timestamp)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+SET search_path = ''
+AS $$
+  SELECT p_day IS NOT NULL AND p_made IS NOT NULL
+     AND (p_day = p_made::date
+          OR (p_day = p_made::date - 1 AND p_made::time < time '00:10'))
+$$;
+
+REVOKE ALL ON FUNCTION public.chat_turn_refund_day_matches(date, timestamp) FROM PUBLIC, anon, authenticated, service_role;
+
 -- 1. The refund, bound to the audit row of its own turn.
 CREATE OR REPLACE FUNCTION public.refund_chat_turn_after_output_swap(p_day date, p_audit_id uuid)
 RETURNS int
@@ -193,11 +210,8 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  -- The day the turn was counted on is the row's KST day. A turn sent just before midnight is
-  -- answered just after: its row is made in the first minutes of the next day, so the day before
-  -- is accepted for a row made before 00:10 and for no other.
-  IF NOT (p_day = v_made::date
-          OR (p_day = v_made::date - 1 AND v_made::time < time '00:10')) THEN
+  -- The day asked for must be the day that row's turn was counted on.
+  IF NOT public.chat_turn_refund_day_matches(p_day, v_made) THEN
     RETURN NULL;
   END IF;
 
