@@ -50,6 +50,9 @@ INSERT INTO public.records (id, user_id, kind, body) VALUES
   ('26101351-1000-4000-8000-000000000003', '26101351-0000-4000-8000-00000000000a', 'note', 'a3'),
   ('26101351-1000-4000-8000-000000000004', '26101351-0000-4000-8000-00000000000a', 'note', 'a4'),
   ('26101351-1000-4000-8000-000000000005', '26101351-0000-4000-8000-00000000000a', 'note', 'a5'),
+  ('26101351-1000-4000-8000-0000000000a6', '26101351-0000-4000-8000-00000000000a', 'note', 'a6'),
+  ('26101351-1000-4000-8000-0000000000a7', '26101351-0000-4000-8000-00000000000a', 'note', 'a7'),
+  ('26101351-1000-4000-8000-0000000000a8', '26101351-0000-4000-8000-00000000000a', 'note', 'a8'),
   ('26101351-1000-4000-8000-0000000000b1', '26101351-0000-4000-8000-00000000000b', 'note', 'b1'),
   ('26101351-1000-4000-8000-0000000000b2', '26101351-0000-4000-8000-00000000000b', 'note', 'b2'),
   ('26101351-1000-4000-8000-0000000000c1', '26101351-0000-4000-8000-00000000000c', 'note', 'c1');
@@ -65,6 +68,8 @@ INSERT INTO public.reasoning_runs (id, user_id, idempotency_key, trigger_kind, s
   ('26101351-3000-4000-8000-000000000005', '26101351-0000-4000-8000-00000000000a', 'z66-run-0005', 'auto', 'proposed', 'none', '2026-W42', '2026-10'),
   ('26101351-3000-4000-8000-000000000006', '26101351-0000-4000-8000-00000000000a', 'z66-run-0006', 'auto', 'proposed', 'none', '2026-W42', '2026-10'),
   ('26101351-3000-4000-8000-000000000012', '26101351-0000-4000-8000-00000000000a', 'z66-run-0012', 'auto', 'proposed', 'none', '2026-W42', '2026-10'),
+  ('26101351-3000-4000-8000-000000000013', '26101351-0000-4000-8000-00000000000a', 'z66-run-0013', 'auto', 'proposed', 'none', '2026-W42', '2026-10'),
+  ('26101351-3000-4000-8000-000000000014', '26101351-0000-4000-8000-00000000000a', 'z66-run-0014', 'auto', 'proposed', 'none', '2026-W42', '2026-10'),
   ('26101351-3000-4000-8000-0000000000b1', '26101351-0000-4000-8000-00000000000b', 'z66-run-00b1', 'auto', 'proposed', 'none', '2026-W42', '2026-10'),
   ('26101351-3000-4000-8000-0000000000b2', '26101351-0000-4000-8000-00000000000b', 'z66-run-00b2', 'auto', 'proposed', 'none', '2026-W42', '2026-10');
 
@@ -94,6 +99,17 @@ INSERT INTO public.reasoning_run_proposals (run_id, ordinal, payload, status) VA
   ('26101351-3000-4000-8000-000000000012', 1, pg_temp.z66_payload('record', '26101351-1000-4000-8000-0000000000b2', 'not mine'), 'proposed'),
   ('26101351-3000-4000-8000-0000000000b2', 0, pg_temp.z66_payload('record', '26101351-1000-4000-8000-0000000000b2', 'b2'), 'proposed'),
   ('26101351-3000-4000-8000-0000000000b2', 1, pg_temp.z66_payload('record', '26101351-1000-4000-8000-000000000005', 'not mine'), 'proposed'),
+  -- run 13: the client writes refId and the server stores it unchecked, so it can be any text.
+  -- Upper case and braces are the same uuid. Anything that is not the 8-4-4-4-12 shape is not judged.
+  ('26101351-3000-4000-8000-000000000013', 0, pg_temp.z66_payload('record', upper('26101351-1000-4000-8000-0000000000a6'), 'upper case'), 'proposed'),
+  ('26101351-3000-4000-8000-000000000013', 1, pg_temp.z66_payload('record', '{26101351-1000-4000-8000-0000000000a6}', 'braces'), 'proposed'),
+  ('26101351-3000-4000-8000-000000000013', 2, pg_temp.z66_payload('record', upper('26101351-1000-4000-8000-0000000000a7'), 'upper case, live'), 'proposed'),
+  ('26101351-3000-4000-8000-000000000013', 3, pg_temp.z66_payload('record', 'not-a-uuid', 'free text'), 'proposed'),
+  ('26101351-3000-4000-8000-000000000013', 4, pg_temp.z66_payload('record', (SELECT string_agg(md5(i::text), '') FROM generate_series(1, 400) AS i), 'very long'), 'proposed'),
+  ('26101351-3000-4000-8000-000000000013', 5, pg_temp.z66_payload('record', '{26101351-1000-4000-8000-0000000000a6', 'one brace'), 'proposed'),
+  ('26101351-3000-4000-8000-000000000013', 6, pg_temp.z66_payload('record', '261013511000400080000000000000a6', 'no hyphens'), 'proposed'),
+  -- run 14: used for the rollback round trip at the end.
+  ('26101351-3000-4000-8000-000000000014', 0, pg_temp.z66_payload('record', '26101351-1000-4000-8000-0000000000a8', 'a8'), 'proposed'),
   -- B's run: one row names A's record id, one names B's own record.
   ('26101351-3000-4000-8000-0000000000b1', 0, pg_temp.z66_payload('record', '26101351-1000-4000-8000-000000000001', 'not mine'), 'proposed'),
   ('26101351-3000-4000-8000-0000000000b1', 1, pg_temp.z66_payload('record', '26101351-1000-4000-8000-0000000000b1', 'b1'), 'proposed');
@@ -173,7 +189,25 @@ SELECT pg_temp.z66_assert((SELECT count(*) = 0 FROM public.reasoning_run_proposa
 SELECT pg_temp.z66_assert(pg_temp.z66_run('26101351-3000-4000-8000-000000000005') = 'ratified', 'run 5 stayed open with no rows');
 
 -- Run rows are never removed: the paid-entitlement meter counts them.
-SELECT pg_temp.z66_assert((SELECT count(*) = 7 FROM public.reasoning_runs WHERE user_id = '26101351-0000-4000-8000-00000000000a'), 'a run row was removed');
+-- 3b. The same uuid written in upper case or in braces is the same record. Text
+--     that is not a uuid is left alone, and it does not make the delete fail.
+SELECT pg_temp.z66_assert((SELECT length(payload->>'refId') = 12800 FROM public.reasoning_run_proposals
+                            WHERE run_id = '26101351-3000-4000-8000-000000000013' AND ordinal = 4), 'the long refId fixture is not long');
+SET LOCAL ROLE authenticated;
+DELETE FROM public.records WHERE id = '26101351-1000-4000-8000-0000000000a6';
+RESET ROLE;
+SELECT pg_temp.z66_assert(NOT EXISTS (SELECT 1 FROM public.records WHERE id = '26101351-1000-4000-8000-0000000000a6'), 'record a6 was not deleted');
+SELECT pg_temp.z66_assert(pg_temp.z66_row('26101351-3000-4000-8000-000000000013', 0) IS NULL, 'an upper-case refId row survived its record');
+SELECT pg_temp.z66_assert(pg_temp.z66_row('26101351-3000-4000-8000-000000000013', 1) IS NULL, 'a braced refId row survived its record');
+SELECT pg_temp.z66_assert((SELECT count(*) = 5 FROM public.reasoning_run_proposals
+                            WHERE run_id = '26101351-3000-4000-8000-000000000013' AND ordinal IN (2, 3, 4, 5, 6)), 'a row that is not this record was removed');
+SELECT pg_temp.z66_assert(pg_temp.z66_run('26101351-3000-4000-8000-000000000013') = 'proposed', 'run 13 closed while proposed rows remain');
+
+SELECT pg_temp.z66_assert((SELECT count(*) = 9 FROM public.reasoning_runs WHERE user_id = '26101351-0000-4000-8000-00000000000a'), 'a run row was removed');
+
+-- From here on nobody is signed in: service paths and cascades delete with no auth.uid().
+SELECT pg_catalog.set_config('request.jwt.claim.sub', '', true);
+SELECT pg_temp.z66_assert(auth.uid() IS NULL, 'a user is still signed in for the service-path steps');
 
 -- 4. One statement deletes records of two owners (service paths can). Each
 --    owner loses only the row that names their own record.
@@ -226,6 +260,11 @@ SELECT pg_temp.z66_assert(pg_temp.z66_run('26101351-3000-4000-8000-000000000011'
 -- B's leftover row (it names an id B never owned) is an orphan too.
 SELECT pg_temp.z66_assert(pg_temp.z66_row('26101351-3000-4000-8000-0000000000b1', 0) IS NULL, 'cleanup kept B''s row whose target B does not own');
 SELECT pg_temp.z66_assert(pg_temp.z66_run('26101351-3000-4000-8000-0000000000b1') = 'ratified', 'cleanup left B''s run open with no rows');
+-- Run 13: the upper-case row of a live record stays, and so does every row that is not a uuid.
+SELECT pg_temp.z66_assert(pg_temp.z66_row('26101351-3000-4000-8000-000000000013', 2) = 'proposed', 'cleanup removed an upper-case refId row whose record is live');
+SELECT pg_temp.z66_assert((SELECT count(*) = 4 FROM public.reasoning_run_proposals
+                            WHERE run_id = '26101351-3000-4000-8000-000000000013' AND ordinal IN (3, 4, 5, 6)), 'cleanup removed a row whose refId is not a uuid');
+SELECT pg_temp.z66_assert(pg_temp.z66_run('26101351-3000-4000-8000-000000000013') = 'proposed', 'cleanup closed run 13');
 -- Rows with a live target stay, and no row keeps a title.
 SELECT pg_temp.z66_assert(pg_temp.z66_row('26101351-3000-4000-8000-000000000001', 1) = 'proposed', 'cleanup removed run 1''s live row');
 SELECT pg_temp.z66_assert(pg_temp.z66_row('26101351-3000-4000-8000-000000000003', 1) = 'applied', 'cleanup removed run 3''s live row');
@@ -248,5 +287,20 @@ SELECT pg_temp.z66_assert((SELECT b.rows_left = (SELECT count(*) FROM public.rea
                              FROM z66_before b), 'a second replay changed rows or runs');
 SELECT pg_temp.z66_assert((SELECT count(*) = 2 FROM pg_catalog.pg_trigger t
   WHERE t.tgname = 'purge_reasoning_proposals' AND NOT t.tgisinternal), 'replay left the wrong number of triggers');
+
+-- 7. Rollback round trip: the down file takes the behaviour away, and applying again brings it back.
+\ir ../migrations/rollback/0251_down.sql
+
+SELECT pg_temp.z66_assert((SELECT count(*) = 0 FROM pg_catalog.pg_trigger t WHERE t.tgname = 'purge_reasoning_proposals' AND NOT t.tgisinternal)
+                          AND (SELECT count(*) = 0 FROM pg_catalog.pg_proc p WHERE p.proname = 'purge_reasoning_proposals_of_erased'),
+                          'the down file left a trigger or the function behind');
+DELETE FROM public.records WHERE id = '26101351-1000-4000-8000-0000000000a8';
+SELECT pg_temp.z66_assert(pg_temp.z66_row('26101351-3000-4000-8000-000000000014', 0) = 'proposed', 'after the down file a delete still removed the row');
+
+\ir ../migrations/0251_reasoning_proposals_purge.sql
+
+SELECT pg_temp.z66_assert(pg_temp.z66_row('26101351-3000-4000-8000-000000000014', 0) IS NULL, 'applying again did not clean up the row left behind');
+SELECT pg_temp.z66_assert(pg_temp.z66_run('26101351-3000-4000-8000-000000000014') = 'ratified', 'applying again left run 14 open with no rows');
+SELECT pg_temp.z66_assert((SELECT count(*) = 2 FROM pg_catalog.pg_trigger t WHERE t.tgname = 'purge_reasoning_proposals' AND NOT t.tgisinternal), 'applying again did not restore both triggers');
 
 ROLLBACK;

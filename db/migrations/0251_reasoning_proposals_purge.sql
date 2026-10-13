@@ -17,20 +17,26 @@
 --   4. 한 번 정리: 남은 줄의 payload 에서 title 을 뺀다. 본문 조각은 title 에만 있다
 --      (meta = 종류 이름 + 상대 시각 · key = record:<id>). 화면은 title 이 없으면 key 로 그린다.
 --
+-- refId 를 읽는 법: payload 는 클라이언트가 쓰고 서버는 검사 없이 넣는다(complete_reasoning_run).
+--   그래서 refId 는 아무 글일 수 있다. 여기서는 8-4-4-4-12 모양의 16진수(대소문자 무관 · 중괄호로
+--   감싼 것 포함)일 때만 uuid 로 바꿔 uuid 끼리 비교한다. 그 모양이 아닌 줄은 판단하지 않는다:
+--   트리거도 한 번 정리도 그 줄을 건드리지 않고, 그 글 때문에 삭제나 적용이 실패하지도 않는다.
+--   글자로 비교하지 않는 이유: 대문자로 적힌 같은 id 를 "대상 없음"으로 읽으면 살아 있는 줄을 지운다.
+--   refId 에 인덱스를 두지 않는 이유: 길이 제한이 없는 글이라 긴 값 하나가 인덱스 생성과 그 뒤의
+--   제안 저장을 실패하게 만든다. 조회는 소유자의 실행에서 그 실행의 줄로 내려가므로 없어도 된다.
+--
 -- 하지 않는 일
 --   - complete_reasoning_run 은 그대로다. 실행이 도는 사이 기록을 지우면 그 뒤에 들어온 제안 줄은
---     대상 없이 남을 수 있다. 화면이 그런 줄을 거르고, 새 빌드는 title 을 쓰지 않는다(#2365).
---   - refKind 가 record · source 가 아니거나 refId 가 없는 줄은 건드리지 않는다.
+--     대상 없이 남을 수 있다. 그 좁은 틈은 이 파일이 닫지 않는다(화면 쪽 #2365 가 다루는 중이다).
+--   - refKind 가 record · source 가 아니거나 refId 가 위 모양이 아닌 줄은 건드리지 않는다.
 --   - 삭제 등록부(db/erasure-registry.json)에는 넣지 않는다. 그 등록부는 소유자 열이 있는 표만
 --     받고 이 표에는 소유자 열이 없다(run_id 로만 이어진다).
 --
 -- 잠금 순서: 실행 행 다음에 제안 줄. ratify_reasoning_proposals · complete_reasoning_run 과 같다.
+--   트리거도 한 번 정리도 이 순서를 지킨다.
 -- 권한: 0092 가 authenticated · anon 의 INSERT/UPDATE/DELETE 를 회수했으므로 SECURITY DEFINER 로 돈다.
 --   트리거 함수는 records · sources 를 읽지 않는다(지운 행은 전이 표 gone 으로 받는다).
--- 되돌리기: rollback/0251_down.sql 은 트리거 · 함수 · 인덱스만 걷는다. 지운 줄과 title 은 돌아오지 않는다.
-
-CREATE INDEX IF NOT EXISTS reasoning_run_proposals_ref_id_idx
-  ON public.reasoning_run_proposals ((payload->>'refId'));
+-- 되돌리기: rollback/0251_down.sql 은 트리거와 함수만 걷는다. 지운 줄과 title 은 돌아오지 않는다.
 
 CREATE OR REPLACE FUNCTION public.purge_reasoning_proposals_of_erased()
 RETURNS trigger
@@ -41,6 +47,8 @@ SET row_security = off
 AS $$
 DECLARE
   v_kind text := TG_ARGV[0];
+  v_uuid_shape constant text :=
+    '^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\})$';
   v_runs uuid[];
 BEGIN
   IF v_kind IS NULL OR v_kind NOT IN ('record', 'source') THEN
@@ -58,9 +66,10 @@ BEGIN
        WHERE r.user_id IN (SELECT DISTINCT g.user_id FROM gone AS g)
          AND EXISTS (
                SELECT 1
-                 FROM gone AS g
-                 JOIN public.reasoning_run_proposals AS p
-                   ON p.payload->>'refId' = g.id::text
+                 FROM public.reasoning_run_proposals AS p
+                 JOIN gone AS g
+                   ON g.id = CASE WHEN p.payload->>'refId' ~ v_uuid_shape
+                                  THEN (p.payload->>'refId')::uuid END
                 WHERE p.run_id = r.id
                   AND p.payload->>'refKind' = v_kind
                   AND g.user_id = r.user_id)
@@ -78,7 +87,8 @@ BEGIN
      AND r.id = p.run_id
      AND g.user_id = r.user_id
      AND p.payload->>'refKind' = v_kind
-     AND p.payload->>'refId' = g.id::text;
+     AND g.id = CASE WHEN p.payload->>'refId' ~ v_uuid_shape
+                     THEN (p.payload->>'refId')::uuid END;
 
   UPDATE public.reasoning_runs AS r
      SET status = 'ratified'
@@ -109,9 +119,11 @@ CREATE TRIGGER purge_reasoning_proposals
 -- 한 번 정리. 다시 돌려도 같은 결과다(대상 없는 줄이 없으면 0줄 · title 이 없으면 0줄).
 DO $cleanup0251$
 DECLARE
+  v_uuid_shape constant text :=
+    '^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\})$';
   v_runs   uuid[];
-  v_gone   integer;
-  v_closed integer;
+  v_gone   integer := 0;
+  v_closed integer := 0;
   v_titles integer;
 BEGIN
   -- records 는 FORCE ROW LEVEL SECURITY 다(0178). 이 블록을 돌리는 역할에 행 보안이 걸리면
@@ -122,35 +134,56 @@ BEGIN
       current_user USING ERRCODE = '42501';
   END IF;
 
-  WITH orphan AS (
-    SELECT p.run_id, p.ordinal
-      FROM public.reasoning_run_proposals AS p
-      JOIN public.reasoning_runs AS r ON r.id = p.run_id
-     WHERE p.payload->>'refId' IS NOT NULL
+  -- 트리거와 같은 순서: 대상 없는 줄을 가진 실행 행을 id 순서로 먼저 잠근다.
+  SELECT pg_catalog.array_agg(locked.id)
+    INTO v_runs
+    FROM (
+      SELECT r.id
+        FROM public.reasoning_runs AS r
+       WHERE EXISTS (
+               SELECT 1
+                 FROM public.reasoning_run_proposals AS p
+                CROSS JOIN LATERAL (SELECT CASE WHEN p.payload->>'refId' ~ v_uuid_shape
+                                                THEN (p.payload->>'refId')::uuid END AS ref) AS u
+                WHERE p.run_id = r.id
+                  AND u.ref IS NOT NULL
+                  AND ((p.payload->>'refKind' = 'record'
+                        AND NOT EXISTS (SELECT 1 FROM public.records AS x
+                                         WHERE x.id = u.ref AND x.user_id = r.user_id))
+                    OR (p.payload->>'refKind' = 'source'
+                        AND NOT EXISTS (SELECT 1 FROM public.sources AS s
+                                         WHERE s.id = u.ref AND s.user_id = r.user_id))))
+       ORDER BY r.id
+         FOR UPDATE OF r
+    ) AS locked;
+
+  IF v_runs IS NOT NULL THEN
+    DELETE FROM public.reasoning_run_proposals AS p
+     USING public.reasoning_runs AS r
+     WHERE p.run_id = ANY (v_runs)
+       AND r.id = p.run_id
+       AND p.payload->>'refId' ~ v_uuid_shape
        AND ((p.payload->>'refKind' = 'record'
              AND NOT EXISTS (SELECT 1 FROM public.records AS x
-                              WHERE x.id::text = p.payload->>'refId' AND x.user_id = r.user_id))
+                              WHERE x.id = CASE WHEN p.payload->>'refId' ~ v_uuid_shape
+                                                THEN (p.payload->>'refId')::uuid END
+                                AND x.user_id = r.user_id))
          OR (p.payload->>'refKind' = 'source'
              AND NOT EXISTS (SELECT 1 FROM public.sources AS s
-                              WHERE s.id::text = p.payload->>'refId' AND s.user_id = r.user_id)))
-  ), gone AS (
-    DELETE FROM public.reasoning_run_proposals AS p
-     USING orphan AS o
-     WHERE p.run_id = o.run_id AND p.ordinal = o.ordinal
-    RETURNING p.run_id
-  )
-  SELECT pg_catalog.array_agg(DISTINCT gone.run_id), pg_catalog.count(*)::integer
-    INTO v_runs, v_gone
-    FROM gone;
+                              WHERE s.id = CASE WHEN p.payload->>'refId' ~ v_uuid_shape
+                                                THEN (p.payload->>'refId')::uuid END
+                                AND s.user_id = r.user_id)));
+    GET DIAGNOSTICS v_gone = ROW_COUNT;
 
-  UPDATE public.reasoning_runs AS r
-     SET status = 'ratified'
-   WHERE r.id = ANY (COALESCE(v_runs, ARRAY[]::uuid[]))
-     AND r.status = 'proposed'
-     AND NOT EXISTS (SELECT 1
-                       FROM public.reasoning_run_proposals AS q
-                      WHERE q.run_id = r.id AND q.status = 'proposed');
-  GET DIAGNOSTICS v_closed = ROW_COUNT;
+    UPDATE public.reasoning_runs AS r
+       SET status = 'ratified'
+     WHERE r.id = ANY (v_runs)
+       AND r.status = 'proposed'
+       AND NOT EXISTS (SELECT 1
+                         FROM public.reasoning_run_proposals AS q
+                        WHERE q.run_id = r.id AND q.status = 'proposed');
+    GET DIAGNOSTICS v_closed = ROW_COUNT;
+  END IF;
 
   UPDATE public.reasoning_run_proposals
      SET payload = payload - 'title'
