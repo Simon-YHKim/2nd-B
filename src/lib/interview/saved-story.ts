@@ -46,17 +46,35 @@ export function storyTitle(star: string, answers: readonly string[]): string {
 }
 
 // A code point that belongs to the one before it: a combining mark, a variation selector, a
-// joiner, a skin tone.
-const ATTACHES = /^[\p{M}‍️\u{1f3fb}-\u{1f3ff}]$/u;
+// joiner, a skin tone, a tag (the letters inside a flag such as England's).
+const ATTACHES = /^[\p{M}‍️\u{1f3fb}-\u{1f3ff}\u{e0020}-\u{e007f}]$/u;
 const JOINER = "‍";
+// The sign that joins two consonants into one in the Indic scripts.
+const JOINS_NEXT = /^[्্੍્୍்్್്්]$/u;
+
+/** One half of a flag: flags are written as two of these. */
+function isRegional(char: string | undefined): boolean {
+  const code = char?.codePointAt(0) ?? 0;
+  return code >= 0x1f1e6 && code <= 0x1f1ff;
+}
+
+/** True when cutting before `chars[end]` would land inside one visible character. */
+function splitsCharacter(chars: readonly string[], end: number): boolean {
+  const next = chars[end] ?? "";
+  const prev = chars[end - 1] ?? "";
+  if (ATTACHES.test(next) || prev === JOINER || JOINS_NEXT.test(prev)) return true;
+  if (!isRegional(prev) || !isRegional(next)) return false;
+  // Between two halves of the same flag only when an odd number of halves comes before the cut.
+  let halves = 0;
+  for (let i = end - 1; i >= 0 && isRegional(chars[i]); i -= 1) halves += 1;
+  return halves % 2 === 1;
+}
 
 function headOf(text: string): string {
   // Composed first, so a Hangul syllable typed as separate jamo is one code point.
   const chars = Array.from(text.normalize("NFC"));
   if (chars.length <= STORY_TITLE_ANSWER_LENGTH) return chars.join("").replace(/[.。]$/, "");
   let end = STORY_TITLE_ANSWER_LENGTH;
-  // Step back while the cut would land inside one visible character: before something that
-  // attaches to the previous code point, or right after a joiner.
-  while (end > 0 && (ATTACHES.test(chars[end] ?? "") || chars[end - 1] === JOINER)) end -= 1;
+  while (end > 0 && splitsCharacter(chars, end)) end -= 1;
   return `${chars.slice(0, end).join("").trimEnd()}…`;
 }
