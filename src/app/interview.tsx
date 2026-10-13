@@ -85,7 +85,7 @@ import {
 } from "@/lib/interview/probe";
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "@/lib/interview/session-end";
-import { storedTurns, storyAnswers, storyTitle } from "@/lib/interview/saved-story";
+import { storedTurns, storyTitle } from "@/lib/interview/saved-story";
 import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
 import { isRecordingAudioMode } from "@/lib/audio/audio-session";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
@@ -542,9 +542,6 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   }, [turns.length]);
 
   const userTurns = turns.filter((turn) => turn.role === "user").length;
-  // 이번 대화에서 내가 한 답. 대화를 끝낸 말("그만할래요")은 답이 아니라서 세지도, 제목으로
-  // 쓰지도 않는다. 저장본에는 그대로 남는다(saved-story.ts).
-  const answers = storyAnswers(turns, (text) => answerDisposition(text, locale) === "stop");
 
   // `override` 는 답변 칩이 쓴다. 칩을 누르면 `setDraft` 후 `send()` 를 부르는 대신
   // 곧바로 그 말을 보낸다 — 상태 갱신은 다음 렌더에나 반영돼서, 그 사이에 보내면
@@ -668,7 +665,11 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         topic: locale === "ko" ? "회상 인터뷰" : "Recall interview",
         // 목록에 보이는 제목. 모든 이야기가 답한 횟수만 다른 같은 줄이라 열어 봐야
         // 구분됐다(Z61 · Simon 결정 Q-261013-51: 별 이름 + 첫 답의 앞부분).
-        summary: storyTitle(homeT(`ds.star.${period}`), answers),
+        // 저장본이 "답변"으로 적는 턴 그대로다 -- 무슨 뜻의 말인지는 여기서 가리지 않는다.
+        summary: storyTitle(
+          homeT(`ds.star.${period}`),
+          turns.filter((turn) => turn.role === "user").map((turn) => turn.text),
+        ),
         // 옛 스크리너와 같은 표식. assess/registry.ts 가 이걸로 완료를 판정한다.
         // 앱 표식 칸(0218)에 쓴다 — 사용자 태그와 섞이지 않게.
         systemTags: recallInterviewSystemTags(locale),
@@ -741,7 +742,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               style={styles.saveMeta}
             >
               <Text style={[m3TextStyle("bodyMedium"), styles.saveMetaText]}>
-                {t("drill.saveMeta", { star: homeT(`ds.star.${period}`), n: answers.length })}
+                {t("drill.saveMeta", { star: homeT(`ds.star.${period}`), n: userTurns })}
               </Text>
               <Glyph name={tableOpen ? "expand_less" : "expand_more"} color={m3.color.onSurfaceVariant} />
             </Pressable>

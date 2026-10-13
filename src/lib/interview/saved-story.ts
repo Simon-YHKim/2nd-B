@@ -7,6 +7,9 @@
 //
 // Z63: a conversation ended with the button stops on a question nobody answered, and that
 // question was the last line of the stored story.
+//
+// Both read the turns as they are. Nothing here judges what an utterance meant: the stored
+// text, its title and the count on the save screen always describe the same turns.
 
 /** How many characters of the first answer the stored title carries. */
 export const STORY_TITLE_ANSWER_LENGTH = 40;
@@ -19,9 +22,9 @@ interface StoryTurn {
 /**
  * The turns worth storing: everything up to the last thing the user said.
  *
- * Words typed to end the conversation ("that's enough") are the user's own and stay, with
- * the question before them. The check that runs when a story is saved reads the stored text,
- * and for those words it is the only check that reads meaning, so they are not taken out.
+ * Only questions are ever left out. Words typed to end the conversation ("that's enough") are
+ * the user's own and stay, with the question before them: the check that runs when a story is
+ * saved reads the stored text, and for those words it is the only check that reads meaning.
  */
 export function storedTurns<T extends StoryTurn>(turns: readonly T[]): T[] {
   let end = turns.length;
@@ -30,32 +33,30 @@ export function storedTurns<T extends StoryTurn>(turns: readonly T[]): T[] {
 }
 
 /**
- * The answers of a conversation, in order. The words that ended it are a choice, not an
- * answer: they are neither counted nor used as the title.
- */
-export function storyAnswers<T extends StoryTurn>(
-  turns: readonly T[],
-  endedIt: (text: string) => boolean,
-): string[] {
-  return turns.filter((turn) => turn.role === "user" && !endedIt(turn.text)).map((turn) => turn.text);
-}
-
-/**
  * The stored title: the star's name, then how the first answer begins.
  *
- * The first answer is taken as it is, even when it says little: the choice was "the first
- * answer", and passing it over would put a later answer, one the user may not expect to
- * see in a list, into the title. An answer longer than STORY_TITLE_ANSWER_LENGTH is cut
- * there and marked with an ellipsis.
+ * The first thing the user said is taken as it is, whatever it says: the choice was "the first
+ * answer", and passing it over would put a later answer, one the user may not expect to see in
+ * a list, into the title. An answer longer than STORY_TITLE_ANSWER_LENGTH is cut there and
+ * marked with an ellipsis.
  */
 export function storyTitle(star: string, answers: readonly string[]): string {
   const first = answers.map((text) => text.replace(/\s+/g, " ").trim()).find((text) => text.length > 0);
   return first ? `${star} · ${headOf(first)}` : star;
 }
 
+// A code point that belongs to the one before it: a combining mark, a variation selector, a
+// joiner, a skin tone.
+const ATTACHES = /^[\p{M}‍️\u{1f3fb}-\u{1f3ff}]$/u;
+const JOINER = "‍";
+
 function headOf(text: string): string {
-  // By code point, so a cut never lands inside a surrogate pair.
-  const chars = Array.from(text);
-  if (chars.length <= STORY_TITLE_ANSWER_LENGTH) return text.replace(/[.。]$/, "");
-  return `${chars.slice(0, STORY_TITLE_ANSWER_LENGTH).join("").trimEnd()}…`;
+  // Composed first, so a Hangul syllable typed as separate jamo is one code point.
+  const chars = Array.from(text.normalize("NFC"));
+  if (chars.length <= STORY_TITLE_ANSWER_LENGTH) return chars.join("").replace(/[.。]$/, "");
+  let end = STORY_TITLE_ANSWER_LENGTH;
+  // Step back while the cut would land inside one visible character: before something that
+  // attaches to the previous code point, or right after a joiner.
+  while (end > 0 && (ATTACHES.test(chars[end] ?? "") || chars[end - 1] === JOINER)) end -= 1;
+  return `${chars.slice(0, end).join("").trimEnd()}…`;
 }

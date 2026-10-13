@@ -1,13 +1,12 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 
-import { answerDisposition } from "../continuity";
-import { STORY_TITLE_ANSWER_LENGTH, storedTurns, storyAnswers, storyTitle } from "../saved-story";
+import { STORY_TITLE_ANSWER_LENGTH, storedTurns, storyTitle } from "../saved-story";
 
 type Turn = { role: "interviewer" | "user"; text: string };
 const q = (text: string): Turn => ({ role: "interviewer", text });
 const a = (text: string): Turn => ({ role: "user", text });
-const endedIt = (text: string): boolean => answerDisposition(text, "ko") === "stop";
+const said = (turns: readonly Turn[]): string[] => turns.filter((turn) => turn.role === "user").map((turn) => turn.text);
 
 describe("the stored story ends on the last thing the user said (Z63)", () => {
   test("a question nobody answered is not stored", () => {
@@ -35,28 +34,17 @@ describe("the stored story ends on the last thing the user said (Z63)", () => {
     // when the story is saved reads the stored text, so taking them out would take them out
     // of the one check that reads meaning.
     const turns = [q("하나"), a("답"), q("둘"), a("그만할래요. 이제 다 그만하고 싶어요")];
-    expect(endedIt(turns[3]!.text)).toBe(true);
     expect(storedTurns(turns)).toEqual(turns);
+  });
+
+  test("nothing the user said is ever left out", () => {
+    const turns = [q("하나"), a("ㄱ"), q("둘"), q("셋"), a("ㄴ"), a("ㄷ"), q("넷"), q("다섯")];
+    expect(said(storedTurns(turns))).toEqual(said(turns));
   });
 
   test("no answer at all leaves nothing to store", () => {
     expect(storedTurns([q("하나"), q("둘")])).toEqual([]);
     expect(storedTurns([])).toEqual([]);
-  });
-});
-
-describe("what counts as an answer", () => {
-  test("the words that ended the conversation are not one", () => {
-    const turns = [q("하나"), a("매점 종소리요"), q("둘"), a("여기까지 할게요")];
-    expect(storyAnswers(turns, endedIt)).toEqual(["매점 종소리요"]);
-  });
-
-  test("a conversation ended at the first question has no answers", () => {
-    expect(storyAnswers([q("하나"), a("그만할래요")], endedIt)).toEqual([]);
-  });
-
-  test("an answer that says little is still an answer", () => {
-    expect(storyAnswers([q("하나"), a("모르겠어요"), q("둘"), a("복도요")], endedIt)).toEqual(["모르겠어요", "복도요"]);
   });
 });
 
@@ -73,8 +61,11 @@ describe("the stored title tells one story from another (Z61)", () => {
     );
   });
 
-  test("the first answer is the title even when it says little: a later one is never promoted", () => {
+  test("the first answer is the title whatever it says: a later one is never promoted", () => {
     expect(storyTitle("학창시절", ["모르겠어요", "아버지가 편찮으셨던 해였어요"])).toBe("학창시절 · 모르겠어요");
+    expect(storyTitle("학창시절", ["여기까지 오는 데 친구들이 많이 도와줬어요", "둘째"])).toBe(
+      "학창시절 · 여기까지 오는 데 친구들이 많이 도와줬어요",
+    );
   });
 
   test("a long answer is cut and marked", () => {
@@ -100,15 +91,51 @@ describe("the stored title tells one story from another (Z61)", () => {
     expect(storyTitle("학창시절", [])).toBe("학창시절");
     expect(storyTitle("학창시절", ["   "])).toBe("학창시절");
   });
+});
 
-  test("a conversation ended at the first question is titled by the star alone", () => {
-    expect(storyTitle("학창시절", storyAnswers([q("하나"), a("그만할래요")], endedIt))).toBe("학창시절");
-  });
+describe("where a long answer is cut", () => {
+  const fill = (n: number): string => "가".repeat(n);
 
-  test("a cut never splits a character in two", () => {
+  test("not through an emoji that takes two code units", () => {
     expect(storyTitle("지금", ["😀".repeat(STORY_TITLE_ANSWER_LENGTH + 2)])).toBe(
       `지금 · ${"😀".repeat(STORY_TITLE_ANSWER_LENGTH)}…`,
     );
+  });
+
+  test("not between a letter and the accent that sits on it", () => {
+    // "e" followed by a combining acute, placed so that the limit falls between the two.
+    const accented = "é";
+    const text = `${fill(STORY_TITLE_ANSWER_LENGTH - 1)}${accented}${fill(5)}`;
+    const title = storyTitle("지금", [text]);
+    // NFC composes this pair into one code point, so it fits whole before the cut.
+    expect(title).toBe(`지금 · ${fill(STORY_TITLE_ANSWER_LENGTH - 1)}é…`);
+  });
+
+  test("not between a mark that does not compose and its letter", () => {
+    // "x" + combining acute has no composed form. The limit falls between the two.
+    const text = `${fill(STORY_TITLE_ANSWER_LENGTH - 1)}x́${fill(5)}`;
+    expect(storyTitle("지금", [text])).toBe(`지금 · ${fill(STORY_TITLE_ANSWER_LENGTH - 1)}…`);
+  });
+
+  test("not inside a family emoji joined by zero-width joiners", () => {
+    const family = "\u{1f468}‍\u{1f469}‍\u{1f467}";
+    for (const lead of [STORY_TITLE_ANSWER_LENGTH - 1, STORY_TITLE_ANSWER_LENGTH - 2, STORY_TITLE_ANSWER_LENGTH - 3]) {
+      const title = storyTitle("지금", [`${fill(lead)}${family}${fill(6)}`]);
+      expect(title).toBe(`지금 · ${fill(lead)}…`);
+    }
+  });
+
+  test("not between an emoji and its skin tone", () => {
+    const wave = "\u{1f44b}\u{1f3fd}";
+    const title = storyTitle("지금", [`${fill(STORY_TITLE_ANSWER_LENGTH - 1)}${wave}${fill(4)}`]);
+    expect(title).toBe(`지금 · ${fill(STORY_TITLE_ANSWER_LENGTH - 1)}…`);
+  });
+
+  test("a Hangul syllable typed as separate jamo counts as one character", () => {
+    const decomposed = "한".normalize("NFD");
+    expect(Array.from(decomposed).length).toBe(3);
+    const title = storyTitle("지금", [`${fill(STORY_TITLE_ANSWER_LENGTH - 1)}${decomposed}${fill(4)}`]);
+    expect(title).toBe(`지금 · ${fill(STORY_TITLE_ANSWER_LENGTH - 1)}한…`);
   });
 });
 
@@ -126,14 +153,27 @@ function bodyOf(name: string): string {
 }
 
 describe("the save screen (Z61 · Z63 · the folded table of Z64)", () => {
+  const done = /\{done \?[\s\S]*?\) : \(/.exec(SCREEN)?.[0] ?? "";
+
   test("saving stores the turns up to the last answer under the new title", () => {
     const keep = bodyOf("keepIt");
     expect(keep).toContain("storedTurns(turns)");
-    expect(keep).toContain("summary: storyTitle(homeT(`ds.star.${period}`), answers),");
-    expect(SCREEN).toContain('const answers = storyAnswers(turns, (text) => answerDisposition(text, locale) === "stop");');
+    expect(keep).toContain("summary: storyTitle(");
+    expect(keep).toContain("homeT(`ds.star.${period}`)");
     // The fixed line every story used to share.
     expect(SCREEN).not.toContain("턴 회상 인터뷰");
     expect(SCREEN).not.toContain("-turn recall interview");
+  });
+
+  test("the title and the count read the same turns the stored text does: every user turn", () => {
+    // No judgement of what a turn meant goes into either. The stored text labels each user
+    // turn as an answer, the count is the number of those, the title is the first of them.
+    const keep = bodyOf("keepIt");
+    expect(keep).toContain('turns.filter((turn) => turn.role === "user").map((turn) => turn.text)');
+    expect(done).toContain('t("drill.saveMeta", { star: homeT(`ds.star.${period}`), n: userTurns })');
+    expect(SCREEN).toContain('const userTurns = turns.filter((turn) => turn.role === "user").length;');
+    expect(keep).not.toContain("answerDisposition");
+    expect(done).not.toContain("answerDisposition");
   });
 
   test("the kind label other screens read is unchanged", () => {
@@ -142,9 +182,7 @@ describe("the save screen (Z61 · Z63 · the folded table of Z64)", () => {
   });
 
   test("the table is folded behind the line that says what was done today", () => {
-    const done = /\{done \?[\s\S]*?\) : \(/.exec(SCREEN)?.[0] ?? "";
     expect(done).toContain("accessibilityState={{ expanded: tableOpen }}");
-    expect(done).toContain('t("drill.saveMeta", { star: homeT(`ds.star.${period}`), n: answers.length })');
     expect(done).toMatch(/\{tableOpen \? \(\s*<DrillProgress/);
     expect(SCREEN).toContain("const [tableOpen, setTableOpen] = useState(false);");
   });
@@ -152,10 +190,14 @@ describe("the save screen (Z61 · Z63 · the folded table of Z64)", () => {
   test("this change adds no way out of the screen and no second button", () => {
     // "Don't save" is not in this change: leaving unsaved skips the check that runs when a
     // story is saved, and that needs its own design (review rounds 1 and 2 on #2436).
-    const done = /\{done \?[\s\S]*?\) : \(/.exec(SCREEN)?.[0] ?? "";
     expect(done.split("<MdButton").length - 1).toBe(1);
     expect(done).toContain('label={t("approve")}');
     expect(SCREEN).not.toContain("drill.discard");
+    // The one new thing to press only opens and closes the table.
+    expect(done.split("<Pressable").length - 1).toBe(1);
+    expect(done).toContain("onPress={() => setTableOpen((open) => !open)}");
+    expect(done.split("onPress=").length - 1).toBe(2);
+    expect(done).not.toContain("router.");
   });
 });
 
