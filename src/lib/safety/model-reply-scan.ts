@@ -3,7 +3,7 @@
 // the gate terms and the input scan stay exactly as they are.
 import { classifyInput, type ClassifyOptions, type SafetyResult } from "./classifier";
 import { hasCrisisRiskContext } from "./crisis-context";
-import type { Locale } from "./lexicon";
+import { CRISIS_TERMS, type Locale } from "./lexicon";
 
 // ── The closed list (Simon 2026-10-13, Q-261013-34 with D1-D3) ───────────────
 // The gate matches Korean terms as bare substrings, so a reply the model wrote
@@ -37,19 +37,49 @@ export interface ModelReplyOptions extends ClassifyOptions {
   benignOverlaps?: boolean;
 }
 
-// Classifies a MODEL REPLY. It answers exactly as classifyInput does unless all
-// of these hold: the caller allowed the overlaps; the user is a known adult
-// (minor === false; unknown is treated as a minor); the strict scan was red;
-// what is left after the listed words are blanked carries no risk context (the
-// same test the existing exceptions sit behind); and the unchanged scan of what
-// is left is not red. Never use this for what the user wrote.
-export function classifyModelReply(text: string, locale: Locale, opts: ModelReplyOptions = {}): SafetyResult {
+export interface ModelReplyOverlapCheck {
+  // The strict answer, exactly as classifyInput gives it. This is the reply's
+  // zone. Nothing in this file turns a red reply into anything else.
+  strict: SafetyResult;
+  // True when the reply is red ONLY through the listed words: a candidate for a
+  // meaning-level check of the whole reply, never a verdict. A word list cannot
+  // tell "작은 다짐이 되어 줄 거예요" from a farewell that happens to hold the
+  // same letters, so the caller may show a candidate reply only after a
+  // classifier that reads meaning has found the whole reply to be no crisis.
+  candidate: boolean;
+}
+
+function escapeForPattern(term: string): string {
+  return term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Gate terms of either language still standing in the masked reply. This is the
+// bare term test: none of the whole-message exceptions (a denial, a plain work
+// statement) is applied, because blanking a listed word must never be what
+// makes one of them fit.
+export function gateTermsLeft(maskedReply: string): string[] {
+  const ko = CRISIS_TERMS.ko.filter((term) => maskedReply.includes(term.normalize("NFKC").toLowerCase()));
+  const en = CRISIS_TERMS.en.filter((term) =>
+    new RegExp(`(^|[^a-z0-9])${escapeForPattern(term.normalize("NFKC").toLowerCase())}($|[^a-z0-9])`).test(maskedReply),
+  );
+  return [...ko, ...en];
+}
+
+// Checks a MODEL REPLY. The strict answer is returned untouched in every case.
+// `candidate` is true only when all of these hold: the caller allowed the
+// overlaps; the user is a known adult (minor === false; unknown is treated as a
+// minor); the strict scan was red; with the listed words blanked, no gate term
+// of either language is left; and what is left carries no risk context (the
+// test the existing exceptions sit behind). Never use this for what the user
+// wrote.
+export function checkModelReplyOverlaps(text: string, locale: Locale, opts: ModelReplyOptions = {}): ModelReplyOverlapCheck {
   const strict = classifyInput(text, locale, opts);
-  if (strict.zone !== "red" || opts.benignOverlaps !== true || opts.minor !== false) return strict;
+  if (strict.zone !== "red" || opts.benignOverlaps !== true || opts.minor !== false) {
+    return { strict, candidate: false };
+  }
   const rest = maskModelReplyOverlaps(text);
-  if (hasCrisisRiskContext(rest)) return strict;
-  const restResult = classifyInput(rest, locale, opts);
-  return restResult.zone === "red" ? { ...strict, matched: restResult.matched } : restResult;
+  const candidate = gateTermsLeft(rest).length === 0 && !hasCrisisRiskContext(rest);
+  return { strict, candidate };
 }
 
 // ── Fixed numbers for the Korean gate terms (D3) ─────────────────────────────

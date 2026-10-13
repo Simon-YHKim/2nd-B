@@ -4,7 +4,8 @@ import { CRISIS_TERMS } from "../lexicon";
 import {
   KO_CRISIS_TERM_CODES,
   MODEL_REPLY_BENIGN_OVERLAPS,
-  classifyModelReply,
+  checkModelReplyOverlaps,
+  gateTermsLeft,
   maskModelReplyOverlaps,
   modelReplyTermCategories,
 } from "../model-reply-scan";
@@ -84,63 +85,111 @@ describe("the closed list", () => {
   });
 });
 
-describe("classifyModelReply", () => {
-  test.each(ORDINARY_REPLIES)("an ordinary reply is no longer replaced: %s", (reply, term) => {
-    // Control: the strict scan really matches this sentence, through the term named here.
-    const strict = classifyInput(reply, "ko");
-    expect(strict.zone).toBe("red");
-    expect(strict.matched).toContain(term);
+// Real crisis replies the strict scan catches ONLY through a listed word's letters. A word list
+// cannot tell these from the ordinary replies above, which is why nothing here decides green.
+const CAUGHT_ONLY_BY_A_LISTED_WORD: string[] = [
+  "내일이면 나는 이 세상에 없을 거라는 마지막 다짐이 되었어.",
+  "내일이면 나는 이 세상에 없을 거라는 마음가짐이 되었어.",
+  "내일이면 나는 이 세상에 없을 사람의 몸가짐이 되었어.",
+  "내일이면 나는 이 세상에 없을 테니 더 이상 살펴볼 필요 없어.",
+];
+
+// A listed word next to a sentence one of the whole-message exceptions would fit once the listed
+// word is blanked. The bare term test sees the other gate term, so these are not candidates.
+const A_LISTED_WORD_NEXT_TO_ANOTHER_GATE_TERM: string[] = [
+  "다짐이 되 자살할 생각은 없어",
+  "다짐이 되 숙제를 끝내고 싶어",
+  "마음가짐이 되 자해 안 해",
+  "더 이상 살펴 일을 끝낼 거야",
+  "몸가짐이 되 i want to die",
+];
+
+describe("checkModelReplyOverlaps", () => {
+  test.each(ORDINARY_REPLIES)("an ordinary reply is a candidate, and its strict answer stays red: %s", (reply, term) => {
+    const check = checkModelReplyOverlaps(reply, "ko", ADULT);
+    expect(check.candidate).toBe(true);
+    expect(check.strict).toEqual(classifyInput(reply, "ko", { minor: false }));
+    expect(check.strict.zone).toBe("red");
+    expect(check.strict.matched).toContain(term);
     expect(hasCrisisRiskContext(reply)).toBe(false);
-    expect(classifyModelReply(reply, "ko", ADULT).zone).not.toBe("red");
   });
 
-  test.each(STILL_REPLACED)("a crisis term standing on its own still replaces the reply: %s", (reply) => {
-    const result = classifyModelReply(reply, "ko", ADULT);
-    expect(result.zone).toBe("red");
-    expect(result.categories).toEqual(["crisis"]);
-    expect(result.crisisRouting?.number).toBe("109");
+  test.each(CAUGHT_ONLY_BY_A_LISTED_WORD)("a candidate is not a verdict, the strict answer of a real crisis reply is untouched: %s", (reply) => {
+    const check = checkModelReplyOverlaps(reply, "ko", ADULT);
+    expect(check.strict).toEqual(classifyInput(reply, "ko", { minor: false }));
+    expect(check.strict.zone).toBe("red");
+    expect(check.strict.crisisRouting?.number).toBe("109");
   });
 
-  test.each(RISK_CONTEXT_NEXT_TO_A_LISTED_WORD)("risk context left in the reply keeps the strict answer: %s", (reply) => {
-    expect(classifyModelReply(reply, "ko", ADULT)).toEqual(classifyInput(reply, "ko", { minor: false }));
-    expect(classifyModelReply(reply, "ko", ADULT).zone).toBe("red");
+  test.each(STILL_REPLACED)("a gate term standing on its own is never a candidate: %s", (reply) => {
+    const check = checkModelReplyOverlaps(reply, "ko", ADULT);
+    expect(check.candidate).toBe(false);
+    expect(check.strict).toEqual(classifyInput(reply, "ko", { minor: false }));
+    expect(check.strict.zone).toBe("red");
   });
 
-  it("reports only the terms that still stand after masking", () => {
-    const result = classifyModelReply("더 이상 살펴볼 것도 없고 가족에게 짐이 되는 것 같다고 하셨죠.", "ko", ADULT);
-    expect(result.zone).toBe("red");
-    expect(result.matched).toEqual(["짐이 되"]);
+  test.each(RISK_CONTEXT_NEXT_TO_A_LISTED_WORD)("risk context left in the reply is never a candidate: %s", (reply) => {
+    const check = checkModelReplyOverlaps(reply, "ko", ADULT);
+    expect(check.candidate).toBe(false);
+    expect(check.strict).toEqual(classifyInput(reply, "ko", { minor: false }));
+    expect(check.strict.zone).toBe("red");
   });
 
-  test.each(ORDINARY_REPLIES)("the overlaps are off for a minor (D1): %s", (reply) => {
-    const minor = { minor: true, benignOverlaps: true } as const;
-    expect(classifyModelReply(reply, "ko", minor)).toEqual(classifyInput(reply, "ko", { minor: true }));
-    expect(classifyModelReply(reply, "ko", minor).crisisRouting?.number).toBe("1388");
+  test.each(A_LISTED_WORD_NEXT_TO_ANOTHER_GATE_TERM)("blanking a listed word never makes a whole-message exception fit: %s", (reply) => {
+    const check = checkModelReplyOverlaps(reply, "ko", ADULT);
+    expect(check.candidate).toBe(false);
+    expect(check.strict).toEqual(classifyInput(reply, "ko", { minor: false }));
+    expect(gateTermsLeft(maskModelReplyOverlaps(reply)).length).toBeGreaterThan(0);
+  });
+
+  it("never alters the strict answer, whatever the options", () => {
+    const texts = [...ORDINARY_REPLIES.map(([reply]) => reply), ...STILL_REPLACED, ...CAUGHT_ONLY_BY_A_LISTED_WORD, "오늘은 산책을 20분 해 보세요.", ""];
+    for (const text of texts) {
+      for (const opts of [ADULT, { minor: true, benignOverlaps: true }, { benignOverlaps: true }, { minor: false }, {}] as const) {
+        expect(checkModelReplyOverlaps(text, "ko", opts).strict).toEqual(classifyInput(text, "ko", { minor: opts.minor }));
+      }
+    }
+  });
+
+  test.each(ORDINARY_REPLIES)("no candidate for a minor (D1): %s", (reply) => {
+    const check = checkModelReplyOverlaps(reply, "ko", { minor: true, benignOverlaps: true });
+    expect(check.candidate).toBe(false);
+    expect(check.strict.crisisRouting?.number).toBe("1388");
   });
 
   test.each(ORDINARY_REPLIES)("unknown age is treated as a minor: %s", (reply) => {
-    expect(classifyModelReply(reply, "ko", { benignOverlaps: true })).toEqual(classifyInput(reply, "ko"));
-    expect(classifyModelReply(reply, "ko", { benignOverlaps: true }).zone).toBe("red");
+    expect(checkModelReplyOverlaps(reply, "ko", { benignOverlaps: true }).candidate).toBe(false);
   });
 
-  test.each(ORDINARY_REPLIES)("the overlaps are off unless the caller allows them: %s", (reply) => {
-    const strict = classifyInput(reply, "ko", { minor: false });
-    expect(classifyModelReply(reply, "ko", { minor: false })).toEqual(strict);
-    expect(classifyModelReply(reply, "ko", { minor: false, benignOverlaps: false })).toEqual(strict);
-    expect(classifyModelReply(reply, "ko").zone).toBe("red");
+  test.each(ORDINARY_REPLIES)("no candidate unless the caller allows the overlaps: %s", (reply) => {
+    expect(checkModelReplyOverlaps(reply, "ko", { minor: false }).candidate).toBe(false);
+    expect(checkModelReplyOverlaps(reply, "ko", { minor: false, benignOverlaps: false }).candidate).toBe(false);
+    expect(checkModelReplyOverlaps(reply, "ko").candidate).toBe(false);
   });
 
-  it("answers exactly as the strict scan does for text that was not red", () => {
+  it("no candidate for text that was not red", () => {
     for (const text of ["오늘은 산책을 20분 해 보세요.", "", "   ", "기록을 세 개 남기셨네요."]) {
-      expect(classifyModelReply(text, "ko", ADULT)).toEqual(classifyInput(text, "ko", { minor: false }));
+      expect(checkModelReplyOverlaps(text, "ko", ADULT).candidate).toBe(false);
     }
   });
 
   it("changes nothing for spellings the gate does not match today", () => {
     // These spacing variants are outside the gate's exact terms, before and after this change.
     for (const text of ["더이상 살 이유를 모르겠다고 하셨죠.", "가족에게 짐 이 되는 기분이라고 하셨죠."]) {
-      expect(classifyModelReply(text, "ko", ADULT).zone).toBe(classifyInput(text, "ko").zone);
+      const check = checkModelReplyOverlaps(text, "ko", ADULT);
+      expect(check.strict).toEqual(classifyInput(text, "ko", { minor: false }));
+      expect(check.candidate).toBe(false);
     }
+  });
+});
+
+describe("gateTermsLeft", () => {
+  it("is the bare term test of both languages, with no whole-message exception", () => {
+    expect(gateTermsLeft("자살할 생각은 없어")).toEqual(["자살"]);
+    expect(gateTermsLeft("숙제를 끝내고 싶어")).toEqual(["끝내고 싶"]);
+    expect(gateTermsLeft("i want to die")).toEqual(["want to die", "i want to die"]);
+    expect(gateTermsLeft("the wantedtodie file")).toEqual([]);
+    expect(gateTermsLeft("오늘의 작은       어 줄 거예요.")).toEqual([]);
   });
 });
 
