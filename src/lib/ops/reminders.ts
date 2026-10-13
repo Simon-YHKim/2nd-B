@@ -315,6 +315,63 @@ export async function notifyNow(
  * how the /reminders toggles ended up flipping a flag for notifications that
  * either kept firing (off) or never existed (on).
  */
+/**
+ * The focus timer's end alert. It is handed to the OS when the timer starts, so it still rings with
+ * the app in the background, where the screen's own tick does not run (Z109). `at: null` delivers it
+ * now under the same identifier, which replaces the scheduled one; when the OS has already shown
+ * that alert it is left as it is, so the end is not rung a second time.
+ * The identifier comes back so the caller can withdraw the alert on pause or reset.
+ */
+export async function scheduleFocusEnd(
+  ownerId: string,
+  at: Date | null,
+  identifier: string = oneShotNotificationId(ownerId),
+): Promise<{ result: ReminderResult; identifier: string }> {
+  if (!remindersSupported() || !Notifications) return { result: "unavailable", identifier };
+  const lease = captureAccountOwnerLease(ownerId);
+  if (!lease || !isNotificationOwnedBy(identifier, ownerId)) return { result: "error", identifier };
+  // An end that is not ahead of now can never fire: say so instead of scheduling silence.
+  if (at && !(at.getTime() > Date.now())) return { result: "error", identifier };
+  try {
+    const permission = await Notifications.requestPermissionsAsync();
+    if (!permission.granted) return { result: "denied", identifier };
+    if (!lease.isCurrent()) return { result: "error", identifier };
+    await ensureChannel();
+    if (!lease.isCurrent()) return { result: "error", identifier };
+    if (!at) {
+      // An exact alarm fires at the end itself; the screen finds the end up to a second later.
+      const shown = await withinOperationTimeout(() => Notifications.getPresentedNotificationsAsync(), DEFAULT_CLEANUP_TIMEOUT_MS)
+        .catch(() => []);
+      if (!lease.isCurrent()) return { result: "error", identifier };
+      if (shown.some((notification) => notification.request.identifier === identifier)) return { result: "scheduled", identifier };
+    }
+    const result = await scheduleWithOwnerLease(lease, identifier, {
+      identifier,
+      content: {
+        ...focusNotificationContent(),
+        data: notificationPrivacyData(ownerId),
+      },
+      trigger: at
+        ? { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId: CHANNEL_ID }
+        : null,
+    });
+    return { result, identifier };
+  } catch {
+    if (typeof console !== "undefined") {
+      console.warn("[ops] focus end alert failed");
+    }
+    return { result: "error", identifier };
+  }
+}
+
+/** Withdraw a focus end alert that has not rung yet (pause, reset, leaving the screen). */
+export async function cancelFocusEnd(ownerId: string, identifier: string): Promise<void> {
+  if (!remindersSupported() || !Notifications || !isNotificationOwnedBy(identifier, ownerId)) return;
+  const lease = captureAccountOwnerLease(ownerId);
+  if (!lease) return;
+  await runLocalNotificationMutation(() => cancelScheduledIdentifier(identifier, false, () => lease.isCurrent()));
+}
+
 export function routineReminderId(ownerId: string, routineId: string): string {
   const identifier = routineNotificationId(ownerId, routineId);
   if (!identifier) throw new Error("Invalid routine reminder identifier.");
