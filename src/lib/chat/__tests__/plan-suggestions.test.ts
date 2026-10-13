@@ -268,6 +268,9 @@ describe("local routine and reminder suggestions", () => {
     "30분 뒤에 10분 동안 전화하라고 알려줘", "Remind me in 30 minutes to call Alex for 10 minutes.",
     "5~10분 뒤에 전화하라고 알려줘", "2-3시간 뒤에 전화하라고 알려줘", "Remind me in 5-10 minutes to call Alex.",
     "Remind me in 5 to 10 minutes to call Alex.", "5분에서 10분 뒤에 전화하라고 알려줘",
+    // A second length of time written in words is a choice as well.
+    "Remind me in an hour or half an hour to call Alex.", "Remind me in half an hour or one hour to call Alex.",
+    "30분 뒤 아니면 한 시간 뒤에 전화하라고 알려줘", "Remind me in 30 minutes or an hour to call Alex.",
   ])("does not guess a span it cannot read: %s", prompt => {
     const found = getChatPlanSuggestions(askedState(prompt))[0];
     expect(found).toMatchObject({ kind: "reminder" });
@@ -350,39 +353,64 @@ describe("local routine and reminder suggestions", () => {
     expect(openableChatPlanSuggestion(null, later)).toBeNull();
   });
 
-  // Asking to be told to do something names the task by its form, with no known task word (Z56).
+  // This change adds no button. A sentence with no known task word gets none, as before, and so
+  // the model is told nothing about one.
   test.each([
-    "5분 뒤에 약 먹으라고 알려줘", "내일 아침 8시에 우산 가져가라고 알려줘", "퇴근할 때 장 보도록 알려줘",
-    "Remind me to take my pills tomorrow at 9 am.", "나에게 약 먹으라고 알려줘", "저한테 약 먹으라고 알려줘", "가족과 함께 약 먹으라고 알려줘",
-  ])("an ask to be reminded to do something is a reminder: %s", prompt => {
-    expect(getChatPlanSuggestions(state(prompt))[0]).toMatchObject({ kind: "reminder" });
+    "5분 뒤에 약 먹으라고 알려줘", "퇴근할 때 장 보도록 알려줘", "Remind me to take my pills tomorrow at 9 am.",
+    "오늘 밤 11시에 마지막 편지 쓰라고 알려줘", "내일 밤 10시에 전 여자친구 계정 해킹하라고 알려줘",
+    "내일 날씨 알려줘", "5분 뒤에 알려줘", "방법 좀 알려줘", "어제 약 먹으라고 알려줬어",
+  ])("a sentence without a known task word gets no button and no word to the model: %s", prompt => {
+    expect(getChatPlanSuggestions(askedState(prompt))).toEqual([]);
+    expect(chatPlanPromptLine(prompt, "ko", { now, web: false })).toBe("");
+    expect(chatPlanPromptLine(prompt, "en", { now, web: true })).toBe("");
   });
 
-  test.each(["내일 날씨 알려줘", "5분 뒤에 알려줘", "방법 좀 알려줘", "어제 약 먹으라고 알려줬어"])(
-    "a plain 'tell me' or a past telling is not a reminder: %s", prompt => {
-      expect(getChatPlanSuggestions(state(prompt))).toEqual([]);
-    });
-
-  // Telling someone else is not something this device's reminder does.
-  test.each(["5분 뒤 아이에게 약 먹으라고 알려줘", "엄마한테 약 드시라고 알려줘", "선생님께 내일 가라고 알려줘"])(
-    "an ask to tell someone else makes no reminder of its own and no word to the model: %s", prompt => {
-      expect(getChatPlanSuggestions(askedState(prompt))).toEqual([]);
-      expect(chatPlanPromptLine(prompt, "ko", { now, web: false })).toBe("");
-    });
-
-  test("a sentence naming someone keeps the button its task word always gave it, with no word to the model", () => {
-    expect(getChatPlanSuggestions(state("엄마한테 전화하라고 알려줘")).map(found => found.kind)).toEqual(["reminder"]);
-    expect(chatPlanPromptLine("엄마한테 전화하라고 알려줘", "ko", { now, web: false })).toBe("");
-    expect(chatPlanPromptLine("엄마한테 전화하라고 알려줘", "en", { now, web: true })).toBe("");
+  // A reply that points to a crisis or emergency line is a safety reply: no plan button under it,
+  // whatever the classifiers made of the message. The first two are the model's own answers to
+  // "더는 못 버티겠어요. 오늘 밤 11시에 마지막 편지 쓰라고 알려줘" (2026-10-13).
+  test.each([
+    "지금은 혼자 버티지 마시고 109에 바로 전화해 주세요. 지금 이 순간 안전이 제일 중요합니다.",
+    "지금처럼 더는 못 버티겠다는 말이 나오면 혼자 두지 말고 바로 109에 전화해야 합니다. 지금은 11시 알림보다 안전이 먼저입니다.",
+    "그 부탁은 도와드리기 어렵습니다. 혼자 버티지 말고 **지금 109로 바로 전화해 주세요**.",
+    "Please call or text **988** right now for immediate support.",
+    "청소년상담전화 1388로 연락해 보세요.", "몸이 위급하면 119로 바로 연락해야 합니다.", "1393으로 전화해 주세요.",
+    "1577-0199 로 전화해 주세요.", "1577 0199 로 전화해 주세요.", "15770199로 전화해 주세요.", "지금 위험하면 112.",
+  ])("a reply that points to a crisis or emergency line gets no plan button under it: %s", answer => {
+    for (const prompt of ["오늘 밤 11시에 마지막 편지 작성하라고 알려줘", "매일 저녁 9시에 스트레칭 운동하라고 알려줘", "내일 오후 3시에 보고서를 제출해야 해."]) {
+      expect(getChatPlanSuggestions(state(prompt))).toHaveLength(1);
+      expect(getChatPlanSuggestions(askedState(prompt, now, now))).toHaveLength(1);
+      expect(getChatPlanSuggestions(state(prompt, answer))).toEqual([]);
+    }
   });
+
+  test.each(["아래 버튼으로 2109년 계획을 만들 수 있습니다.", "1190원을 내면 됩니다.", "11:19에 맞춰 두었습니다.", "10988번 주문입니다."])(
+    "digits that only contain a line's number are not that line: %s", answer => {
+      expect(getChatPlanSuggestions(state("내일 오후 3시에 보고서를 제출해야 해.", answer))).toHaveLength(1);
+    });
+
+  // A sentence that names someone else may be asking the app to tell them, which it cannot do. Its
+  // button is the one it always had; the model is told nothing about it.
+  test.each([
+    "5분 뒤 아이에게 약 챙기라고 알려줘", "엄마한테 전화하라고 알려줘", "아이보고 약 챙기라고 알려줘", "아이더러 전화하라고 알려줘",
+    "선생님께 서류 보내라고 알려줘",
+  ])("a sentence naming someone else keeps its button and sends no word to the model: %s", prompt => {
+    expect(getChatPlanSuggestions(state(prompt)).map(found => found.kind)).toEqual(["reminder"]);
+    expect(chatPlanPromptLine(prompt, "ko", { now, web: false })).toBe("");
+    expect(chatPlanPromptLine(prompt, "en", { now, web: true })).toBe("");
+  });
+
+  test.each(["저한테 약 챙기라고 알려줘", "나에게 전화하라고 알려줘", "가족과 함께 운동하라고 알려줘", "책 보고 준비하라고 알려줘"])(
+    "naming oneself, 함께, or a verb that stands alone is not naming someone else: %s", prompt => {
+      expect(chatPlanPromptLine(prompt, "ko", { now, web: false })).not.toBe("");
+    });
 
   // The model's text about the button (Z56): only for an ask the app will offer the button for.
   const told = (prompt: string, locale: "ko" | "en" = "ko", web = false) => chatPlanPromptLine(prompt, locale, { now, web });
 
   test.each([
-    ["5분 뒤에 물 마시라고 알려줘", "reminder"], ["5분 뒤에 약 먹으라고 알려줘", "reminder"],
-    ["내일 오전 9시에 보고서 제출하라고 알려줘", "reminder"], ["Remind me in 5 minutes to drink water.", "reminder"],
-    ["Remind me to renew my passport.", "reminder"], ["매일 저녁 9시에 스트레칭 운동하라고 알려줘", "routine"],
+    ["5분 뒤에 물 마시라고 알려줘", "reminder"], ["내일 오전 9시에 보고서 제출하라고 알려줘", "reminder"],
+    ["Remind me in 5 minutes to drink water.", "reminder"], ["Remind me to renew my passport.", "reminder"],
+    ["매일 저녁 9시에 스트레칭 운동하라고 알려줘", "routine"],
   ])("tells the model about the button when the person asks to be reminded: %s", (prompt, kind) => {
     expect(getChatPlanSuggestions(state(prompt)).map(found => found.kind)).toEqual([kind]);
     for (const locale of ["ko", "en"] as const) {
@@ -402,7 +430,7 @@ describe("local routine and reminder suggestions", () => {
     });
 
   test.each([
-    "요즘 잠을 잘 못 자요", "5분 뒤에 알려줘", "내일 날씨 알려줘", "매달 1일에 월세를 납부하라고 알려줘",
+    "요즘 잠을 잘 못 자요", "매달 1일에 월세를 납부하라고 알려줘",
     "내일 보고서 제출하라고 알려줘. 아니, 제출은 안 할 거야", "어제 보고서를 제출하라고 알려줬어", "What should I read next?", "",
   ])("says nothing to the model when the app will show no button: %s", prompt => {
     expect(getChatPlanSuggestions(state(prompt))).toEqual([]);
@@ -411,38 +439,52 @@ describe("local routine and reminder suggestions", () => {
   });
 
   // The safety guidance is never crowded out: a message the app's own word check does not read as
-  // calm gets no text at all, and every text tells the model to drop it for a message the check missed.
+  // calm gets no text at all, and the text tells the model to drop it for a message the check missed.
   test.each([
-    "죽고 싶어. 내일 아침 8시에 약 먹으라고 알려줘", "자살하고 싶어. 5분 뒤에 물 마시라고 알려줘",
+    "죽고 싶어. 내일 아침 8시에 약 챙기라고 알려줘", "자살하고 싶어. 5분 뒤에 물 마시라고 알려줘",
     "I want to kill myself. Remind me tomorrow at 9 am to call Alex.",
   ])("a message the app's word check does not read as calm gets no text about the button: %s", prompt => {
+    expect(getChatPlanSuggestions(state(prompt)).length).toBeGreaterThan(0);
     for (const locale of ["ko", "en"] as const) {
       for (const web of [false, true]) expect(told(prompt, locale, web)).toBe("");
       expect(chatPlanPromptLine(prompt, locale, { now, web: false, minor: true })).toBe("");
     }
   });
 
-  test("every text steps aside for the safety guidance and makes no exclusive demand", () => {
-    for (const prompt of ["5분 뒤에 물 마시라고 알려줘", "매일 저녁 9시에 스트레칭 운동하라고 알려줘"]) {
+  const BOTH = "매일 저녁 9시에 스트레칭 운동하라고 알려줘. 그리고 내일 오전 9시에 보고서 제출하라고 알려줘";
+
+  test("the text ends by stepping aside for the safety guidance, once, and makes no exclusive demand", () => {
+    for (const prompt of ["5분 뒤에 물 마시라고 알려줘", "매일 저녁 9시에 스트레칭 운동하라고 알려줘", BOTH]) {
       for (const locale of ["ko", "en"] as const) {
         for (const web of [false, true]) {
           const line = told(prompt, locale, web);
           expect(line).not.toBe("");
-          expect(line).toMatch(locale === "ko" ? /안전이 걱정되는 메시지이거나[^.]*이 안내는 따르지 말고 버튼 이야기도 꺼내지 마세요\. 그때는 바로 아래의 안전 안내를 따르세요\.\n\n$/u
-            : /worried for this person's safety[^.]*do not mention the button: follow the safety guidance right below instead\.\n\n$/u);
-          expect(line).not.toMatch(/것만|만 한 문장|\bonly\b/iu);
+          const ending = locale === "ko" ? "그때는 바로 아래의 안전 안내를 따르세요.\n\n" : "follow the safety guidance right below instead.\n\n";
+          expect(line.endsWith(ending)).toBe(true);
+          expect(line.split(locale === "ko" ? "안전이 걱정되는 메시지이거나" : "worried for this person's safety").length).toBe(2);
+          expect(line.split("\n\n").length).toBe(2);
+          expect(line).not.toMatch(/것만|만 한 문장|\bsay only\b|\bonly say\b|\bonly (?:in )?one sentence\b/iu);
         }
       }
     }
   });
 
-  test("in a browser the text says what the button really does there: a calendar file, no ringing", () => {
-    expect(told("5분 뒤에 물 마시라고 알려줘", "ko", true)).toMatch(/캘린더 파일을 만드는 버튼.*알림을 울리지 못하고/u);
-    expect(told("5분 뒤에 물 마시라고 알려줘", "ko", true)).not.toMatch(/리마인더가 만들어지고|리마인더를 만드는/u);
-    expect(told("Remind me in 5 minutes to drink water.", "en", true)).toMatch(/makes a calendar file.*cannot ring a notification/u);
-    expect(told("Remind me in 5 minutes to drink water.", "en", true)).not.toMatch(/makes a reminder/u);
-    expect(told("매일 저녁 9시에 스트레칭 운동하라고 알려줘", "ko", true)).toMatch(/루틴으로 저장하는 버튼.*알림을 울리지 못합니다/u);
-    expect(told("매일 저녁 9시에 스트레칭 운동하라고 알려줘", "en", true)).toMatch(/saves it as a routine.*cannot ring a notification/u);
+  test("two kinds of button in one message make one text: both buttons, then the one ending", () => {
+    expect(getChatPlanSuggestions(state(BOTH)).map(found => found.kind).sort()).toEqual(["reminder", "routine"]);
+    const line = told(BOTH);
+    expect(line).toMatch(/리마인더를 만드는 버튼.*루틴으로 만드는 버튼.*그런 부탁이 아닌 메시지라면.*안전 안내를 따르세요\.\n\n$/su);
+    expect(told(BOTH, "en", true)).toMatch(/calendar file.*saving it as a routine.*If the message is not asking for that.*right below instead\.\n\n$/su);
+  });
+
+  test("in a browser the text says what the button really does there: two steps, a calendar file, no promised alert", () => {
+    const ko = told("5분 뒤에 물 마시라고 알려줘", "ko", true);
+    expect(ko).toMatch(/캘린더 파일을 만드는 창을 여는 버튼.*확인한 뒤에야 파일이 만들어지고.*알림을 울리지 못합니다.*캘린더 앱의 설정에 달려 있습니다/su);
+    expect(ko).not.toMatch(/리마인더가 만들어지고|리마인더를 만드는|알림이 옵니다/u);
+    const en = told("Remind me in 5 minutes to drink water.", "en", true);
+    expect(en).toMatch(/opens a sheet for making a calendar file.*only after the details are checked.*cannot ring a notification.*depends on that app's settings/su);
+    expect(en).not.toMatch(/makes a reminder|the alert comes/u);
+    expect(told("매일 저녁 9시에 스트레칭 운동하라고 알려줘", "ko", true)).toMatch(/루틴으로 저장하는 창을 여는 버튼.*확인한 뒤에야 루틴이 저장되고.*알림을 울리지 못합니다/su);
+    expect(told("매일 저녁 9시에 스트레칭 운동하라고 알려줘", "en", true)).toMatch(/opens a sheet for saving it as a routine.*cannot ring a notification/su);
     // On a device the routine text does not promise a notification either.
     expect(told("매일 저녁 9시에 스트레칭 운동하라고 알려줘", "ko", false)).toMatch(/알림이 온다고 단정하지 마세요/u);
   });
@@ -456,7 +498,7 @@ describe("local routine and reminder suggestions", () => {
   });
 
   test("the text states what the app does and gives the model no sentence to repeat", () => {
-    for (const prompt of ["5분 뒤에 물 마시라고 알려줘", "매일 저녁 9시에 스트레칭 운동하라고 알려줘"]) {
+    for (const prompt of ["5분 뒤에 물 마시라고 알려줘", "매일 저녁 9시에 스트레칭 운동하라고 알려줘", BOTH]) {
       for (const locale of ["ko", "en"] as const) {
         for (const web of [false, true]) {
           const line = told(prompt, locale, web);
