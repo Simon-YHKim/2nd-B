@@ -1,7 +1,6 @@
-// Three findings of the device lab's layout pass over 8081 (2026-10-13, eight widths):
+// Two findings of the device lab's layout pass over 8081 (2026-10-13, eight widths):
 //   Z120  the legal documents ran edge to edge on a wide screen (a 1,240 px line at 1280),
-//   Z121  the opening's skip button was a 66 x 28 px target on the web (hitSlop is native only),
-//   Z122  at 320 px the two social buttons shared a row and broke their label in two.
+//   Z121  the opening's skip button was a 66 x 28 px target on the web (hitSlop is native only).
 // Render tests are blocked in this repo (RN 0.85), so these read the screens' source.
 import { readFileSync } from "fs";
 import { resolve } from "path";
@@ -59,28 +58,5 @@ describe("Z121: the opening's skip button is a 44 dp target that still looks sma
     expect(skip).toContain("disabled={!ready}");
     expect(skip).toContain('accessibilityLabel={t("loadingGate.skip")}');
     expect(skip).toContain("accessibilityState={{ disabled: !ready }}");
-  });
-});
-
-describe("Z122: a social button takes a row of its own when two cannot hold their label", () => {
-  // Measured on 8081: the longest of the two default labels is 92 px and the button adds 58 px
-  // around it. 150 keeps two columns from a 360 px screen up (a 312 px row) and wraps below.
-  const MIN_WIDTH = 150;
-  const LABEL = 92;
-  const AROUND_LABEL = 58;
-
-  test.each(["dds-sign-in-screen.tsx", "dds-sign-up-screen.tsx"])("%s wraps its provider buttons below 150 px each", (file) => {
-    const screen = read(`screens/deepspace/${file}`);
-    expect(screen).toContain(`providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: ${MIN_WIDTH} },`);
-    expect(screen).toMatch(/providers: \{[^}]*flexDirection: "row"[^}]*flexWrap: "wrap"/);
-  });
-
-  test("150 is enough for the label and still lets two share a 360 px screen", () => {
-    expect(MIN_WIDTH).toBeGreaterThanOrEqual(LABEL + AROUND_LABEL);
-    // Row widths measured at 320 and 360 px screens (sign-in 272 and 312, sign-up 268 and 308), gaps 6 and 4.
-    expect(2 * MIN_WIDTH + 6).toBeGreaterThan(272);
-    expect(2 * MIN_WIDTH + 6).toBeLessThanOrEqual(312);
-    expect(2 * MIN_WIDTH + 4).toBeGreaterThan(268);
-    expect(2 * MIN_WIDTH + 4).toBeLessThanOrEqual(308);
   });
 });

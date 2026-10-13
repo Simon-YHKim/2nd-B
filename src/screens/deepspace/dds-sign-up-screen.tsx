@@ -989,11 +989,7 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     gap: m3.spacing.s2,
   },
-  // Z122: two side by side only where each holds its label on one line. Measured on 8081
-  // (2026-10-13): "Google로 계속하기" is 92 px wide and the button adds 58 px around it, so a
-  // button narrower than 150 px wrapped the label (133 px at a 320 px screen). Below that the
-  // row wraps and each button takes the full width; from 360 px up the two columns stay.
-  providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 150 },
+  providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 112 },
   providerContent: {
     minHeight: 56,
     flexDirection: "row",

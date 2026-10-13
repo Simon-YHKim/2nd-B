@@ -15,6 +15,12 @@ export function openingA11yContract(source: string): boolean {
     const next = source.indexOf("<Pressable", marker);
     return start < 0 || end < 0 || (next >= 0 && next < end) ? "" : source.slice(start, end);
   };
+  // One style of the screen's StyleSheet, by name: the text between `name: {` and its closing `},`.
+  const style = (name: string) => {
+    const start = source.indexOf(`  ${name}: {`);
+    const end = start < 0 ? -1 : source.indexOf("},", start);
+    return end < 0 ? "" : source.slice(start, end);
+  };
   const skip = control("opening-skip");
   const retry = control("opening-retry");
   return source.includes('accessibilityLabel={t("loadingGate.loading")}') &&
@@ -24,7 +30,9 @@ export function openingA11yContract(source: string): boolean {
     !source.includes("toggleSound") &&
     skip.includes("style={[styles.skipTarget, ") &&
     skip.includes("<View style={styles.skip}>") &&
-    source.includes("minWidth: 44, minHeight: 44, padding: SKIP_TARGET_PAD") &&
+    // The size belongs to the style the skip pressable uses, not to any style of the file.
+    style("skipTarget").includes("minWidth: 44, minHeight: 44, padding: SKIP_TARGET_PAD") &&
+    source.includes("const SKIP_TARGET_PAD = 8;") &&
     skip.includes('t("loadingGate.skipShort")') &&
     skip.includes('accessibilityHint={t("loadingGate.skipHint")}') &&
     skip.includes('accessibilityRole="button"') &&
