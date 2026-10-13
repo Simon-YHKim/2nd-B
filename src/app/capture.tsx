@@ -51,6 +51,7 @@ import { ShardArt } from "@/components/art/IslandArt";
 import { Input } from "@/components/ui/Input";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, flattenAlpha, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { useScrollToWhenSettled } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { galmuriFor } from "@/components/m3/typeface";
@@ -528,6 +529,10 @@ function CaptureLegacySession({
   // A share that arrived while unsaved text sat in the link box. Nothing was merged: the card
   // above the box asks whether to add it below that text or clear the text first (Q-261013-78).
   const [heldShare, setHeldShare] = useState<{ content: string; tag: string | null } | null>(null);
+  // The link box sits below the first screenful. A share that lands in it (and the card that asks
+  // about unsaved text) is brought into view once the screen has settled; nothing else scrolls.
+  const { scrollRef: shareScrollRef, onContentSizeChange: followShareScroll, scrollToWhenSettled } = useScrollToWhenSettled();
+  const linkGroupTopRef = useRef<number | null>(null);
   const routeApplyPendingCommitRef = useRef(false);
   const [routeCommitGeneration, setRouteCommitGeneration] = useState(0);
   useLayoutEffect(() => {
@@ -1311,6 +1316,9 @@ function CaptureLegacySession({
     setShowAdvancedModes(true);
     activeModeRef.current = plan.mode;
     setMode(plan.mode);
+    if (plan.mode === "linkclip") {
+      scrollToWhenSettled(() => (linkGroupTopRef.current === null ? null : linkGroupTopRef.current - spacing.md));
+    }
     if (isStorageMode(plan.mode)) {
       applyDraftToFields(plan.mode, plan.drafts[plan.mode]);
     } else if (plan.liveFourw !== null) {
@@ -1391,6 +1399,7 @@ function CaptureLegacySession({
     locale,
     stopVoiceCaptureForModeExit,
     captureFocused,
+    scrollToWhenSettled,
   ]);
 
   // Deep links can open a specific composer with a pre-attached tag:
@@ -3311,6 +3320,8 @@ ${transcript}`;
       >
         <SceneTransition transitionKey={mode} kind="replace" animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
         <ScrollView
+          ref={shareScrollRef}
+          onContentSizeChange={followShareScroll}
           contentContainerStyle={[
             styles.scroll,
             Platform.OS === "android" && {
@@ -3890,7 +3901,7 @@ ${transcript}`;
               inside a bordered group so the URL/body boxes never read as one
               shared field across modes (2026-05-31 directive). */}
           {mode === "linkclip" ? (
-            <View style={styles.fieldGroup}>
+            <View style={styles.fieldGroup} onLayout={(event) => { linkGroupTopRef.current = event.nativeEvent.layout.y; }}>
               <Text variant="caption" color="textMuted">
                 {t("linkClip.label")}
               </Text>
