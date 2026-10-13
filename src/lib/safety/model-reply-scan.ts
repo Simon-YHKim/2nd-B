@@ -1,46 +1,63 @@
 // What the gate may overlook in a MODEL REPLY, and what it records when it replaces one.
-// Kept apart from crisis-context.ts so the Deno proxies' import graph does not change:
-// they scan what the USER wrote, and none of this applies there.
-import { prepareCrisisScanText } from "./crisis-context";
+// Kept out of classifier.ts and lexicon.ts: nothing here applies to what the USER wrote, and
+// the gate terms and the input scan stay exactly as they are.
+import { classifyInput, type ClassifyOptions, type SafetyResult } from "./classifier";
+import { hasCrisisRiskContext } from "./crisis-context";
+import type { Locale } from "./lexicon";
 
-// ── Model-reply scan copy (Simon 2026-10-13, Q-261013-34 with D1-D3) ───────────
+// ── The closed list (Simon 2026-10-13, Q-261013-34 with D1-D3) ───────────────
 // The gate matches Korean terms as bare substrings, so a reply the model wrote
 // can hold a crisis term's letters inside an unrelated word: "다짐이 되어" holds
-// "짐이 되". This list is CLOSED. It applies to the scan of a MODEL REPLY only,
-// never to what the user wrote, and only when the caller allows it (an adult's
-// conversation with no recent crisis signal). Each entry is a whole other word
-// or a fixed collocation that merely contains the term; nothing here judges
-// context, so no pattern, no stem, no near-synonym belongs in it. Adding an
-// entry needs a new legal opinion and a new independent review.
-// Left out on purpose (legal review 2026-10-13): every form of "끝내고 싶" and
-// "끝낼 거", the hotline's own name, empathy sentences, "마지막 인사", "다음 생에는".
-export const MODEL_REPLY_BENIGN_OVERLAPS: readonly string[] = [
-  "다짐이 되",
-  "마음가짐이 되",
-  "몸가짐이 되",
-  "유서 깊",
-  "사유서",
-  "이유서",
-  "더 이상 살펴",
-];
+// "짐이 되". This list is CLOSED. Each entry is a complete other word (never a
+// prefix that a crisis sentence could continue), and nothing here judges
+// context: no pattern, no stem, no near-synonym belongs in it. Adding an entry
+// needs a new legal opinion and a new independent review.
+// Left out on purpose:
+// - every form of "끝내고 싶" and "끝낼 거", the hotline's own name, empathy
+//   sentences, "마지막 인사", "다음 생에는" (legal review 2026-10-13);
+// - "유서 깊", "사유서", "이유서": approved by that review, then dropped by the
+//   independent review of this change. "유서 깊" is a prefix ("유서 깊숙이 숨겨
+//   뒀어" is a will), and "이 유서" typed without its space is "이유서".
+export const MODEL_REPLY_BENIGN_OVERLAPS: readonly string[] = ["다짐이 되", "마음가짐이 되", "몸가짐이 되", "더 이상 살펴"];
 
-// Returns a SCAN COPY of a model reply with each listed overlap blanked out.
-// Only the listed occurrence is masked: the same term standing anywhere else in
-// the reply still reaches the unchanged matcher.
-export function prepareModelReplyScanText(text: string): string {
-  let scan = prepareCrisisScanText(text);
+// The reply as the gate normalizes it, with each listed word blanked out in
+// place. Only the listed occurrence is masked: the same term standing anywhere
+// else in the reply is still there for the unchanged matcher.
+export function maskModelReplyOverlaps(text: string): string {
+  let scan = text.normalize("NFKC").toLowerCase().replace(/\s+/g, " ");
   for (const overlap of MODEL_REPLY_BENIGN_OVERLAPS) {
     scan = scan.split(overlap).join(" ".repeat(overlap.length));
   }
   return scan;
 }
 
-// Fixed numbers for the Korean gate terms (D3). When a model reply is replaced
-// by the crisis template, the number of the matched term is the only thing
-// recorded about what matched: no reply text, no user text, no hash. A number is
-// never reused or reassigned; a term added to the gate takes the next number.
-// The keys must equal CRISIS_TERMS.ko (model-reply-scan.test.ts checks it; this
-// file stays dependency-free for the Deno proxies, so it cannot import the list).
+export interface ModelReplyOptions extends ClassifyOptions {
+  // Allow the closed list above. The caller sets this only for an adult's
+  // conversation with no recent crisis signal.
+  benignOverlaps?: boolean;
+}
+
+// Classifies a MODEL REPLY. It answers exactly as classifyInput does unless all
+// of these hold: the caller allowed the overlaps; the user is a known adult
+// (minor === false; unknown is treated as a minor); the strict scan was red;
+// what is left after the listed words are blanked carries no risk context (the
+// same test the existing exceptions sit behind); and the unchanged scan of what
+// is left is not red. Never use this for what the user wrote.
+export function classifyModelReply(text: string, locale: Locale, opts: ModelReplyOptions = {}): SafetyResult {
+  const strict = classifyInput(text, locale, opts);
+  if (strict.zone !== "red" || opts.benignOverlaps !== true || opts.minor !== false) return strict;
+  const rest = maskModelReplyOverlaps(text);
+  if (hasCrisisRiskContext(rest)) return strict;
+  const restResult = classifyInput(rest, locale, opts);
+  return restResult.zone === "red" ? { ...strict, matched: restResult.matched } : restResult;
+}
+
+// ── Fixed numbers for the Korean gate terms (D3) ─────────────────────────────
+// When a model reply is replaced by the crisis template, the number of the
+// matched term is the only thing recorded about what matched: no reply text, no
+// user text, no hash. A number is never reused or reassigned; a term added to
+// the gate takes the next number. The keys must equal CRISIS_TERMS.ko, in order
+// (model-reply-scan.test.ts checks it).
 export const KO_CRISIS_TERM_CODES: Readonly<Record<string, number>> = {
   "자살": 1,
   "죽고 싶": 2,
