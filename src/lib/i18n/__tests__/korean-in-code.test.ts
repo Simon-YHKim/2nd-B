@@ -191,7 +191,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   // core-brain 은 2026-10-06 에 6 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A,
   // 저장 결과 카드 · 덱 제목 · 그래픽 라벨 · 내보내기를 core-brain/persona 키로).
   "src/app/iden.tsx": 7,
-  "src/app/interview.tsx": 4,
+  "src/app/interview.tsx": 3,
   "src/app/ipip-neo.tsx": 16,
   "src/app/motivation.tsx": 6,
   "src/app/notices.tsx": 10, // 38 -> 10: D-06 (QA 261004) 디자인 목업 공지 5건 제거
