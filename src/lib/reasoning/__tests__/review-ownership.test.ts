@@ -194,3 +194,132 @@ describe("a finished run whose targets are still being read", () => {
     await expect(settled).resolves.toEqual(READY);
   });
 });
+
+// Review round four.
+describe("review ownership: the epoch", () => {
+  it("goes up when a run begins, when a run is cancelled and when another account is shown", () => {
+    const ownership = createReviewOwnership("account-a");
+    const start = ownership.epoch;
+    const run = new AbortController();
+    ownership.begin(run);
+    expect(ownership.epoch).toBe(start + 1);
+    expect(ownership.cancel()).toBe(run);
+    expect(ownership.epoch).toBe(start + 2);
+    ownership.showAccount("account-b");
+    expect(ownership.epoch).toBe(start + 3);
+  });
+
+  it("does not move for a release, a cancel with nothing to cancel, or the same account shown again", () => {
+    const ownership = createReviewOwnership("account-a");
+    const run = new AbortController();
+    ownership.begin(run);
+    const held = ownership.epoch;
+    ownership.release(run);
+    expect(ownership.cancel()).toBeNull();
+    ownership.showAccount("account-a");
+    expect(ownership.epoch).toBe(held);
+  });
+
+  // Finding 2: run A1 fails on the limit and waits for the usage read. Meanwhile the user cancels,
+  // starts A2, and A2 finishes. `running` reads false before and after; only the epoch tells.
+  it("tells 'a run began and already ended' from 'no run since'", () => {
+    const ownership = createReviewOwnership("account-a");
+    const runA1 = new AbortController();
+    ownership.begin(runA1);
+    expect(ownership.release(runA1)).toBe(true);
+    const before = ownership.epoch;
+    expect(ownership.running).toBe(false);
+
+    ownership.cancel();
+    const runA2 = new AbortController();
+    ownership.begin(runA2);
+    expect(ownership.release(runA2)).toBe(true);
+
+    expect(ownership.running).toBe(false);
+    expect(ownership.epoch).not.toBe(before);
+  });
+
+  it("stays put when nothing happened during the wait", () => {
+    const ownership = createReviewOwnership("account-a");
+    const run = new AbortController();
+    ownership.begin(run);
+    ownership.release(run);
+    const before = ownership.epoch;
+    expect(ownership.epoch).toBe(before);
+    expect(ownership.shows("account-a")).toBe(true);
+  });
+});
+
+describe("review ownership: the run's global task", () => {
+  it("remembers the task a run started, and 0 for a run that started none", () => {
+    const ownership = createReviewOwnership("account-a");
+    const run = new AbortController();
+    const other = new AbortController();
+    ownership.begin(run);
+    ownership.bindTask(run, 7);
+    expect(ownership.taskOf(run)).toBe(7);
+    expect(ownership.taskOf(other)).toBe(0);
+  });
+
+  it("cancel hands back the cancelled run, so only that run's task is cleared", () => {
+    const ownership = createReviewOwnership("account-a");
+    const runA = new AbortController();
+    ownership.begin(runA);
+    ownership.bindTask(runA, 3);
+    const cancelled = ownership.cancel();
+    expect(cancelled).toBe(runA);
+    expect(cancelled && ownership.taskOf(cancelled)).toBe(3);
+    // A second cancel has nothing to hand back, so nothing is cleared for it.
+    expect(ownership.cancel()).toBeNull();
+  });
+});
+
+// Finding 1: the check inside settleRunForReview runs one promise step before the caller resumes.
+describe("a change that lands between the inner check and the caller", () => {
+  it("is caught only by asking again after the await", async () => {
+    const ownership = createReviewOwnership("account-a");
+    const runA = new AbortController();
+    ownership.begin(runA);
+
+    const ready = await settleRunForReview(
+      ["a-proposal"],
+      async () => READY,
+      () => {
+        const current = ownership.owns(runA, "account-a");
+        // Something already queued runs before the awaiting caller does.
+        queueMicrotask(() => ownership.showAccount("account-b"));
+        return current;
+      },
+    );
+
+    // The inner check passed, so a result came back ...
+    expect(ready).toEqual(READY);
+    // ... but by the time the caller runs, the screen is another account's.
+    expect(ownership.owns(runA, "account-a")).toBe(false);
+  });
+
+  it("the same holds for a newer run that takes the slot in that step", async () => {
+    const ownership = createReviewOwnership("account-a");
+    const runA = new AbortController();
+    const runB = new AbortController();
+    ownership.begin(runA);
+
+    const ready = await settleRunForReview(
+      ["a-proposal"],
+      async () => READY,
+      () => {
+        const current = ownership.owns(runA, "account-a");
+        queueMicrotask(() => {
+          ownership.cancel();
+          ownership.begin(runB);
+        });
+        return current;
+      },
+    );
+
+    expect(ready).toEqual(READY);
+    expect(ownership.owns(runA, "account-a")).toBe(false);
+    expect(ownership.release(runA)).toBe(false);
+    expect(ownership.owns(runB, "account-a")).toBe(true);
+  });
+});

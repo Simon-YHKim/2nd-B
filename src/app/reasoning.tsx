@@ -71,7 +71,7 @@ import { isProfileContextImportSource, SourceImportManagedError } from "@/lib/wi
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { getSource, updateSourceTags } from "@/lib/wiki/queries";
 import { downloadRawClipping } from "@/lib/wiki/storage";
-import { dismissTask, sendToBackground, startTask, useTaskStatus } from "@/lib/tasks/store";
+import { dismissFinishedTask, dismissTaskById, sendToBackground, startTask, useTaskStatus } from "@/lib/tasks/store";
 import { m3 } from "@/lib/theme/m3";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
 import { flattenAlpha } from "@/lib/theme/tokens";
@@ -745,6 +745,9 @@ export default function ReasoningScreen() {
   const [listLoading, setListLoading] = useState(true);
   const [used, setUsed] = useState(0);
   const [rewardCredits, setRewardCredits] = useState(0);
+  // False until a usage read for the account on screen has landed. A run does
+  // not start on numbers that may be another account's, or nobody's.
+  const [usageKnown, setUsageKnown] = useState(false);
   const [phase, setPhase] = useState<ScreenPhase>("idle");
   const [runState, setRunState] = useState<Record<string, ItemRunState>>({});
   const [proposals, setProposals] = useState<ReasoningProposal[]>([]);
@@ -765,10 +768,13 @@ export default function ReasoningScreen() {
   // The commit that paints another account moves the account and clears that
   // account's screen state in the same step. A layout effect, not a passive
   // one: nothing that was waiting can run between the paint and this. A run
-  // still going for the earlier account keeps its slot until it ends; it can
-  // no longer write here.
+  // still going for the earlier account is cancelled here and its task leaves
+  // the dock (the server's recovery sweep returns what it had charged), so the
+  // account now on screen starts from an empty slot and an empty dock.
   useLayoutEffect(() => {
     if (!ownership.showAccount(userId)) return;
+    const cancelled = ownership.cancel();
+    if (cancelled) dismissTaskById(ownership.taskOf(cancelled));
     setItems([]);
     setListLoading(true);
     setPhase("idle");
@@ -780,6 +786,10 @@ export default function ReasoningScreen() {
     setErrorText(null);
     setCrisisVisible(false);
     setLimitSheetVisible(false);
+    setAutoIntroVisible(false);
+    setUsed(0);
+    setRewardCredits(0);
+    setUsageKnown(false);
   }, [ownership, userId]);
   // Everything review shows goes through here (Q-261013-35): the title comes
   // from the live row, looked up in the table the proposal's refKind names; a
@@ -835,6 +845,7 @@ export default function ReasoningScreen() {
     if (!mountedRef.current || !ownership.shows(userId)) return;
     setUsed(next.used);
     setRewardCredits(next.rewardCredits);
+    setUsageKnown(true);
   }, [ownership, userId]);
 
   useEffect(() => {
@@ -860,7 +871,9 @@ export default function ReasoningScreen() {
     const deferred = deferredRunErrors.get(userId);
     if (!deferred) return;
     deferredRunErrors.delete(userId);
-    dismissTask();
+    // Clears the finished run's toast. A task that is running now is someone
+    // else's and stays.
+    dismissFinishedTask();
     if (deferred === "safety") {
       setPhase("idle");
       setCrisisVisible(true);
@@ -972,6 +985,7 @@ export default function ReasoningScreen() {
         );
         setUsed(usage.used);
         setRewardCredits(usage.rewardCredits);
+        setUsageKnown(true);
       })
       .catch(() => {
         if (!cancelled && ownership.shows(userId)) {
@@ -1030,8 +1044,8 @@ export default function ReasoningScreen() {
   };
 
   const cancelRun = useCallback(() => {
-    ownership.cancel();
-    dismissTask();
+    const cancelled = ownership.cancel();
+    if (cancelled) dismissTaskById(ownership.taskOf(cancelled));
     setPhase("idle");
     setRunState({});
     setProposals([]);
@@ -1040,7 +1054,7 @@ export default function ReasoningScreen() {
 
   const startRun = useCallback(() => {
     if (!userId || isMinor == null || selectedItems.length === 0 || phase === "running") return;
-    if (depleted) return;
+    if (depleted || !usageKnown) return;
     if (task.phase === "running") {
       setErrorText(t("ds.reasoningScreen.busyOther"));
       return;
@@ -1079,7 +1093,7 @@ export default function ReasoningScreen() {
       }),
     );
 
-    startTask({
+    const taskId = startTask({
       title: t("ds.reasoningScreen.taskTitle"),
       tip: t("ds.reasoningScreen.taskTip"),
       mode: "background",
@@ -1098,7 +1112,10 @@ export default function ReasoningScreen() {
             readyForReview,
             () => ownership.owns(controller, userId),
           );
-          if (ready === null) {
+          // The check inside ran one promise step ago, and something that was
+          // already queued can change hands in that step. Asked again here: from
+          // this line to the writes below nothing is awaited.
+          if (ready === null || !ownership.owns(controller, userId)) {
             // Cancel, a newer run or another account owns the screen now. The slot
             // is given back only if it is still this run's.
             ownership.release(controller);
@@ -1114,7 +1131,7 @@ export default function ReasoningScreen() {
             // The result is already visible here, so a second global completion
             // toast would compete with the review message. Background runs keep
             // the toast because this branch is skipped after unmount.
-            dismissTask();
+            dismissTaskById(ownership.taskOf(controller));
             await refreshUsage().catch(() => undefined);
           }
         } catch (error) {
@@ -1140,12 +1157,14 @@ export default function ReasoningScreen() {
             if (action.error) deferredRunErrors.set(userId, action.error);
             return;
           }
-          dismissTask();
+          dismissTaskById(ownership.taskOf(controller));
           if (action.error === "limit") {
+            const before = ownership.epoch;
             await refreshUsage().catch(() => undefined);
-            // The read took time: the screen may have been left, show another
-            // account, or hold a newer run by now.
-            if (!onScreen() || ownership.running) return;
+            // The read took time. If the screen was left, shows another account,
+            // or changed hands meanwhile (a run began, even one that has already
+            // ended), this failure is no longer what the screen should show.
+            if (!onScreen() || ownership.epoch !== before) return;
             setPhase("idle");
             setLimitSheetVisible(true);
           } else if (action.error === "safety") {
@@ -1160,11 +1179,22 @@ export default function ReasoningScreen() {
         }
       },
     });
+    ownership.bindTask(controller, taskId);
+    if (taskId === 0) {
+      // The dock was taken between the check above and here, so run() will never
+      // be called. Stop the batch and give the slot back.
+      void queued.catch(() => undefined);
+      ownership.cancel();
+      setPhase("idle");
+      setRunState({});
+      setErrorText(t("ds.reasoningScreen.busyOther"));
+    }
   }, [
     userId,
     selectedItems,
     phase,
     depleted,
+    usageKnown,
     task.phase,
     t,
     locale,
@@ -1233,7 +1263,8 @@ export default function ReasoningScreen() {
         setRunState({});
         setCompletedCount(0);
         setPhase("idle");
-        dismissTask();
+        // Clears a finished run's toast. A run that is going now stays in the dock.
+        dismissFinishedTask();
       }
     } catch (error) {
       // What goes back on screen is read again: a record deleted in between
@@ -1585,6 +1616,7 @@ export default function ReasoningScreen() {
             disabled={
               applying ||
               (phase !== "running" && phase !== "done" && selected.size === 0 && !depleted) ||
+              (phase !== "running" && phase !== "done" && !usageKnown) ||
               listLoading
             }
             onPress={() => {

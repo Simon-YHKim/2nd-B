@@ -15,23 +15,37 @@ export interface ReviewOwnership {
   shows(account: string | null): boolean;
   /** A new run takes the slot. */
   begin(controller: AbortController): void;
+  /** The global task this run started (lib/tasks/store id; 0 when none). */
+  bindTask(controller: AbortController, taskId: number): void;
+  /** That task's id, or 0. */
+  taskOf(controller: AbortController): number;
   /** Does this run still hold the slot, uncancelled, for the account it was started for? */
   owns(controller: AbortController, account: string | null): boolean;
   /** Give the slot back, only if it is still this run's. True when it was. */
   release(controller: AbortController): boolean;
-  /** Cancel whatever holds the slot and free it. */
-  cancel(): void;
+  /** Cancel whatever holds the slot and free it. Hands back the run it cancelled. */
+  cancel(): AbortController | null;
   /** A run holds the slot. */
   readonly running: boolean;
+  /**
+   * Goes up whenever the screen changes hands: a run begins, a run is
+   * cancelled, another account is shown. Something that waits compares the
+   * number from before with the number after. `running` cannot do that job:
+   * "no run since" and "a run began and already ended" both read false.
+   */
+  readonly epoch: number;
 }
 
 export function createReviewOwnership(initialAccount: string | null): ReviewOwnership {
   let account = initialAccount;
   let slot: AbortController | null = null;
+  let epoch = 0;
+  const tasks = new WeakMap<AbortController, number>();
   return {
     showAccount(next) {
       if (next === account) return false;
       account = next;
+      epoch += 1;
       return true;
     },
     shows(candidate) {
@@ -39,6 +53,13 @@ export function createReviewOwnership(initialAccount: string | null): ReviewOwne
     },
     begin(controller) {
       slot = controller;
+      epoch += 1;
+    },
+    bindTask(controller, taskId) {
+      tasks.set(controller, taskId);
+    },
+    taskOf(controller) {
+      return tasks.get(controller) ?? 0;
     },
     owns(controller, forAccount) {
       return slot === controller && !controller.signal.aborted && forAccount === account;
@@ -49,11 +70,18 @@ export function createReviewOwnership(initialAccount: string | null): ReviewOwne
       return true;
     },
     cancel() {
-      slot?.abort();
+      const cancelled = slot;
+      if (cancelled === null) return null;
+      cancelled.abort();
       slot = null;
+      epoch += 1;
+      return cancelled;
     },
     get running() {
       return slot !== null;
+    },
+    get epoch() {
+      return epoch;
     },
   };
 }

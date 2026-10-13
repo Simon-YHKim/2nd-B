@@ -102,9 +102,16 @@ describe("reasoning review: late results ask who owns the screen", () => {
       "setErrorText(null);",
       "setCrisisVisible(false);",
       "setLimitSheetVisible(false);",
+      "setAutoIntroVisible(false);",
+      "setUsed(0);",
+      "setRewardCredits(0);",
+      "setUsageKnown(false);",
     ]) {
       expect(layout).toContain(reset);
     }
+    // A run still going for the earlier account is cancelled in the same step, and only its own
+    // task leaves the dock.
+    expect(layout).toMatch(/const cancelled = ownership\.cancel\(\);\s*if \(cancelled\) dismissTaskById\(ownership\.taskOf\(cancelled\)\);/);
     // The only place the account moves, and it is not a passive effect.
     expect(count("ownership.showAccount(")).toBe(1);
     expect(count("useLayoutEffect(() => {")).toBe(1);
@@ -114,7 +121,8 @@ describe("reasoning review: late results ask who owns the screen", () => {
     const completed = body("const produced = await queued;", "setProposals(nextProposals);");
     expect(completed).toContain("() => ownership.owns(controller, userId),");
     const settle = completed.indexOf("await settleRunForReview(");
-    const stale = completed.indexOf("if (ready === null) {");
+    // Asked twice: inside settleRunForReview, and again here one promise step later.
+    const stale = completed.indexOf("if (ready === null || !ownership.owns(controller, userId)) {");
     const release = completed.lastIndexOf("ownership.release(controller);");
     expect(settle).toBeGreaterThan(-1);
     expect(stale).toBeGreaterThan(settle);
@@ -125,11 +133,13 @@ describe("reasoning review: late results ask who owns the screen", () => {
     // A stale result gives back only its own slot and returns before any state is written.
     const staleBranch = completed.slice(stale, completed.indexOf("const nextProposals = ready.live;"));
     expect(staleBranch).toMatch(/ownership\.release\(controller\);\s*return;/);
-    expect(staleBranch.slice(0, staleBranch.indexOf("return;"))).not.toMatch(/set[A-Z]\w*\(|dismissTask\(/);
+    expect(staleBranch.slice(0, staleBranch.indexOf("return;"))).not.toMatch(/set[A-Z]\w*\(|dismiss\w*\(/);
+    // From the second check to the first write nothing is awaited.
+    expect(completed.slice(stale)).not.toMatch(/await/);
   });
 
   it("a failed run asks before it touches the slot, the global task or the screen", () => {
-    const failed = body("} catch (error) {\n          // A cancelled run can reject after a newer run has taken the slot", "      },\n    });\n  }, [");
+    const failed = body("} catch (error) {\n          // A cancelled run can reject after a newer run has taken the slot", "      },\n    });\n    ownership.bindTask(controller, taskId);");
     expect(failed).toContain("ownedSlot: ownership.release(controller),");
     expect(failed).toContain("onScreen: onScreen(),");
     expect(failed).toContain("const onScreen = () => mountedRef.current && ownership.shows(userId);");
@@ -138,13 +148,16 @@ describe("reasoning review: late results ask who owns the screen", () => {
     expect(nothing).toBeGreaterThan(-1);
     expect(defer).toBeGreaterThan(nothing);
     // Up to the point where the action says "show", nothing global and nothing on screen changes.
-    const beforeShow = failed.slice(0, failed.indexOf("dismissTask();"));
-    expect(failed.indexOf("dismissTask();")).toBeGreaterThan(defer);
+    const ownTask = "dismissTaskById(ownership.taskOf(controller));";
+    const beforeShow = failed.slice(0, failed.indexOf(ownTask));
+    expect(failed.indexOf(ownTask)).toBeGreaterThan(defer);
     expect(beforeShow).not.toMatch(/setPhase\(|setErrorText\(|setLimitSheetVisible\(|setCrisisVisible\(/);
     // A failure kept for later is kept under the account the run was started for.
     expect(failed).toContain("if (action.error) deferredRunErrors.set(userId, action.error);");
     // The quota read in the limit branch takes time, so the screen is asked again after it.
-    expect(failed).toMatch(/await refreshUsage\(\)\.catch\(\(\) => undefined\);[\s\S]*?if \(!onScreen\(\) \|\| ownership\.running\) return;\s*setPhase\("idle"\);\s*setLimitSheetVisible\(true\);/);
+    // The epoch is read before the wait and compared after it ("running" cannot tell a run that
+    // began and already ended from no run at all).
+    expect(failed).toMatch(/const before = ownership\.epoch;\s*await refreshUsage\(\)\.catch\(\(\) => undefined\);[\s\S]*?if \(!onScreen\(\) \|\| ownership\.epoch !== before\) return;\s*setPhase\("idle"\);\s*setLimitSheetVisible\(true\);/);
     expect(count("runFailureAction({")).toBe(1);
   });
 
@@ -157,7 +170,27 @@ describe("reasoning review: late results ask who owns the screen", () => {
 
   it("cancel goes through the same object", () => {
     const cancel = body("const cancelRun = useCallback(() => {", "}, [ownership]);");
-    expect(cancel).toMatch(/^const cancelRun = useCallback\(\(\) => \{\s*ownership\.cancel\(\);\s*dismissTask\(\);/);
+    expect(cancel).toMatch(/^const cancelRun = useCallback\(\(\) => \{\s*const cancelled = ownership\.cancel\(\);\s*if \(cancelled\) dismissTaskById\(ownership\.taskOf\(cancelled\)\);/);
+  });
+
+  it("clears the dock only for its own task, or for a finished one", () => {
+    // No call clears whatever happens to be in the dock.
+    expect(source.replace(/dismissTaskById\(/g, "").replace(/dismissFinishedTask\(/g, "")).not.toContain("dismissTask(");
+    expect(source).toContain('import { dismissFinishedTask, dismissTaskById, sendToBackground, startTask, useTaskStatus } from "@/lib/tasks/store";');
+    // A kept failure being shown, and a finished apply: both clear a finished toast only.
+    expect(count("dismissFinishedTask();")).toBe(2);
+    const start = body("const startRun = useCallback(() => {", "const applySelectedProposals = useCallback(");
+    expect(start).toContain("const taskId = startTask({");
+    expect(start).toContain("ownership.bindTask(controller, taskId);");
+    // A start the dock refused never calls run(): the batch is stopped and the slot given back.
+    expect(start).toMatch(/if \(taskId === 0\) \{[\s\S]*?void queued\.catch\(\(\) => undefined\);\s*ownership\.cancel\(\);/);
+  });
+
+  it("does not start a run until a usage read for the account on screen has landed", () => {
+    const start = body("const startRun = useCallback(() => {", "const controller = new AbortController();");
+    expect(start).toContain("if (depleted || !usageKnown) return;");
+    expect(count("setUsageKnown(true);")).toBe(2);
+    expect(source).toContain('(phase !== "running" && phase !== "done" && !usageKnown) ||');
   });
 
   it("every read that was started for an account asks whether that account is still on screen", () => {
@@ -180,7 +213,8 @@ describe("reasoning review: late results ask who owns the screen", () => {
     const asked = finished.indexOf("stale = !mountedRef.current || !ownership.shows(userId);");
     expect(asked).toBeGreaterThan(-1);
     // Nothing is written before the question, and everything after it sits behind the answer.
-    expect(finished.slice(0, asked)).not.toMatch(/set[A-Z]\w*\(|dismissTask\(/);
+    expect(finished.slice(0, asked)).not.toMatch(/set[A-Z]\w*\(|dismiss\w*\(/);
+    expect(finished.slice(asked)).toContain("dismissFinishedTask();");
     expect(finished.slice(asked)).toMatch(/if \(!stale\) \{\s*setItems\(/);
 
     const failedApply = apply.slice(apply.indexOf("} catch (error) {"), apply.indexOf("} finally {"));
