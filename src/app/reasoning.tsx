@@ -32,7 +32,7 @@ import {
   setAutoIntroSeen,
   setAutoReasoningEnabled,
 } from "@/lib/reasoning/auto-pref";
-import { resolveLiveProposals } from "@/lib/reasoning/proposal-targets";
+import { prepareProposalsForReview } from "@/lib/reasoning/proposal-targets";
 import { monthLabelFor } from "@/lib/reasoning/remaining-copy";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import {
@@ -148,7 +148,7 @@ export interface ReasoningProposal extends ReasoningItem {
 // labels, and the suggested domain; apply re-reads the latest row anyway.
 // It carries no text of the record (Simon 2026-10-13, Q-261013-35): the title
 // used to be stored here, and it outlived a deleted record. Review reads the
-// title from the live row instead (resolveLiveProposals).
+// title from the live row instead (prepareProposalsForReview).
 function proposalToPayload(proposal: ReasoningProposal): Record<string, unknown> {
   return {
     key: proposal.key,
@@ -185,7 +185,7 @@ function proposalFromServerRow(row: ServerProposalRow): ReasoningProposal | null
     key: p.key,
     refKind: p.refKind,
     refId: p.refId,
-    // Filled from the live row by resolveLiveProposals. A stored title is not
+    // Filled from the live row by prepareProposalsForReview. A stored title is not
     // read: on rows written before 2026-10-13 it is the record's opening text.
     title: "",
     meta: typeof p.meta === "string" ? p.meta : "",
@@ -753,6 +753,34 @@ export default function ReasoningScreen() {
   const [autoIntroVisible, setAutoIntroVisible] = useState(false);
 
   const mountedRef = useRef(true);
+  // Everything review shows goes through here (Q-261013-35): the title comes
+  // from the live row, looked up in the table the proposal's refKind names; a
+  // proposal whose record or source is gone is dismissed on the server so its
+  // run can close; one whose target could not be read is held back, not shown.
+  // The painted language is read at call time, so this changes only with the user.
+  const readyForReview = useCallback(
+    async (candidates: readonly ReasoningProposal[]) => {
+      if (!userId) return { live: [] as ReasoningProposal[], unreadable: candidates.length };
+      const lng = renderedUiLanguage(i18n);
+      const untitledRecord = i18n.t("ds.reasoningScreen.untitledRecord", { ns: "deepspace", lng });
+      const untitledSource = i18n.t("ds.reasoningScreen.untitledSource", { ns: "deepspace", lng });
+      return prepareProposalsForReview(
+        candidates,
+        {
+          record: async (refId) => {
+            const row = await getRecordById(userId, refId);
+            return row ? recordTitle(row, untitledRecord) : null;
+          },
+          source: async (refId) => {
+            const source = await getSource(userId, refId);
+            return source ? source.title?.trim() || untitledSource : null;
+          },
+        },
+        (runId, ordinals) => ratifyProposals(userId, runId, [], ordinals),
+      );
+    },
+    [i18n, userId],
+  );
   const runningRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   // proposal_decided runs already counted — a partial-failure retry re-enters
@@ -841,39 +869,24 @@ export default function ReasoningScreen() {
       const stored = rows
         .map(proposalFromServerRow)
         .filter((proposal): proposal is ReasoningProposal => proposal !== null);
-      // Q-261013-35: a proposal whose record or source is gone is not shown,
-      // and its title comes from the live row, looked up in the table its
-      // refKind names. The painted language is read here, at call time, so
-      // this sweep still runs once per user.
-      const lng = renderedUiLanguage(i18n);
-      const untitledRecord = i18n.t("ds.reasoningScreen.untitledRecord", { ns: "deepspace", lng });
-      const untitledSource = i18n.t("ds.reasoningScreen.untitledSource", { ns: "deepspace", lng });
-      const pending = await resolveLiveProposals(
-        stored,
-        {
-          record: async (refId) => {
-            const row = await getRecordById(userId, refId);
-            return row ? recordTitle(row, untitledRecord) : null;
-          },
-          source: async (refId) => {
-            const source = await getSource(userId, refId);
-            return source ? source.title?.trim() || untitledSource : null;
-          },
-        },
-        (refKind) => (refKind === "record" ? untitledRecord : untitledSource),
-      );
-      if (cancelled || pending.length === 0) return;
-      setProposals(pending);
-      setSelected(new Set(pending.map((proposal) => proposal.key)));
+      const ready = await readyForReview(stored);
+      if (cancelled) return;
+      if (ready.unreadable > 0) {
+        setErrorText(i18n.t("ds.reasoningScreen.loadFailed", { ns: "deepspace", lng: renderedUiLanguage(i18n) }));
+      }
+      const live = ready.live;
+      if (live.length === 0) return;
+      setProposals(live);
+      setSelected(new Set(live.map((proposal) => proposal.key)));
       setRunState(
         Object.fromEntries(
-          pending.map((proposal) => [
+          live.map((proposal) => [
             proposal.key,
             { state: "done" as const, domain: proposal.domain },
           ]),
         ),
       );
-      setCompletedCount(pending.length);
+      setCompletedCount(live.length);
       setPhase((current) => (current === "running" ? current : "done"));
     })();
     return () => {
@@ -882,8 +895,9 @@ export default function ReasoningScreen() {
     // refreshUsage is useCallback([userId]), so listing it cannot re-run this
     // sweep more often than userId already does - the RPC still fires once per
     // user, which is what a recovery sweep should do. i18n is the one shared
-    // instance (its identity does not change with the language), so it adds no run.
-  }, [i18n, refreshUsage, userId]);
+    // instance (its identity does not change with the language) and
+    // readyForReview changes only with it and userId, so neither adds a run.
+  }, [i18n, readyForReview, refreshUsage, userId]);
 
   useEffect(() => {
     if (loading || !userId) return;
@@ -1046,11 +1060,15 @@ export default function ReasoningScreen() {
       resultHref: "/reasoning",
       run: async () => {
         try {
-          const nextProposals = await queued;
+          const produced = await queued;
           runningRef.current = false;
           abortRef.current = null;
           // Proposals are already persisted server-side by completeRun (0092).
+          // A record deleted elsewhere while the run was going is not shown.
+          const ready = await readyForReview(produced);
+          const nextProposals = ready.live;
           if (mountedRef.current) {
+            if (ready.unreadable > 0) setErrorText(t("ds.reasoningScreen.loadFailed"));
             setProposals(nextProposals);
             setSelected(new Set(nextProposals.map((proposal) => proposal.key)));
             setPhase("done");
@@ -1102,6 +1120,7 @@ export default function ReasoningScreen() {
     locale,
     isMinor,
     progression.tier,
+    readyForReview,
     refreshUsage,
   ]);
 
@@ -1160,8 +1179,11 @@ export default function ReasoningScreen() {
       setPhase("idle");
       dismissTask();
     } catch (error) {
-      setProposals(pending);
-      setSelected(new Set(pending.map((proposal) => proposal.key)));
+      // What goes back on screen is read again: a record deleted in between
+      // does not return under the title this screen still held.
+      const ready = await readyForReview(pending);
+      setProposals(ready.live);
+      setSelected(new Set(ready.live.map((proposal) => proposal.key)));
       if (typeof console !== "undefined") {
         console.warn("[reasoning] ratify failed", (error as Error).message);
       }
@@ -1175,7 +1197,7 @@ export default function ReasoningScreen() {
       if (accepted.length > 0) invalidateDomainLevels(userId);
       setApplying(false);
     }
-  }, [applying, phase, proposals, selected, t, userId]);
+  }, [applying, phase, proposals, readyForReview, selected, t, userId]);
 
   const reasoningTitle = t("ds.reasoningScreen.title");
   if (loading) return <InlineLoader />;

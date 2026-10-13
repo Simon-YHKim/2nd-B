@@ -1,8 +1,9 @@
-// Which stored proposals still point at something the user has, and what that thing is called now.
+// Which proposals still point at something the user has, and what that thing is called now.
 //
 // Simon 2026-10-13 (Q-261013-35). A deleted record's proposal must not come back in review, and the
-// record's opening text is no longer stored with its proposal. So a stored proposal carries no title:
-// the title is read from the live row, and a proposal whose row is gone is not shown.
+// record's opening text is no longer stored with its proposal. So a proposal is shown only after its
+// target was read: the title comes from the live row, a proposal whose row is gone is closed on the
+// server, and a proposal whose row could not be read is held back until a later load.
 //
 // A proposal points at one of two tables. Looking a source id up in records (or the reverse) reports a
 // live row as gone, so the lookup is chosen by refKind.
@@ -21,13 +22,24 @@ export interface StoredProposalRef {
   title: string;
 }
 
-export async function resolveLiveProposals<P extends StoredProposalRef>(
+export interface ProposalTargets<P> {
+  /** The row exists. The title is the live row's. */
+  live: P[];
+  /** The row is gone (the read answered, and found nothing). */
+  missing: P[];
+  /** The read failed, so the row may or may not be there. */
+  unreadable: P[];
+}
+
+type TargetState = "live" | "missing" | "unreadable";
+
+export async function resolveProposalTargets<P extends StoredProposalRef>(
   proposals: readonly P[],
   lookup: ProposalTargetLookup,
-  unreadTitle: (refKind: ProposalRefKind) => string,
-): Promise<P[]> {
+): Promise<ProposalTargets<P>> {
   // Filled by index so the stored order holds whatever order the reads finish in.
-  const resolved: (P | null)[] = proposals.map(() => null);
+  const states = proposals.map((): TargetState => "unreadable");
+  const titles = proposals.map((): string => "");
   await Promise.all(
     proposals.map(async (proposal, index) => {
       try {
@@ -35,13 +47,64 @@ export async function resolveLiveProposals<P extends StoredProposalRef>(
           proposal.refKind === "record"
             ? await lookup.record(proposal.refId)
             : await lookup.source(proposal.refId);
-        resolved[index] = title === null ? null : { ...proposal, title };
+        if (title === null) {
+          states[index] = "missing";
+        } else {
+          states[index] = "live";
+          titles[index] = title;
+        }
       } catch {
-        // The read failed, so the row may still be there: keep the proposal under a neutral name.
-        // The stored title is never the fallback - on older rows it is the record's opening text.
-        resolved[index] = { ...proposal, title: unreadTitle(proposal.refKind) };
+        states[index] = "unreadable";
       }
     }),
   );
-  return resolved.filter((proposal): proposal is P => proposal !== null);
+  const targets: ProposalTargets<P> = { live: [], missing: [], unreadable: [] };
+  proposals.forEach((proposal, index) => {
+    if (states[index] === "live") targets.live.push({ ...proposal, title: titles[index] });
+    else if (states[index] === "missing") targets.missing.push(proposal);
+    else targets.unreadable.push(proposal);
+  });
+  return targets;
+}
+
+export interface RunProposalRef extends StoredProposalRef {
+  runId: string;
+  ordinal: number;
+}
+
+export interface ReviewReady<P> {
+  /** What review may show. */
+  live: P[];
+  /** How many were held back because their target could not be read. */
+  unreadable: number;
+}
+
+/**
+ * Everything review shows goes through here. A proposal whose target is gone is dismissed on the
+ * server, run by run, so its run can close: a hidden ordinal that nobody decides keeps the run
+ * 'proposed' forever. A proposal whose target could not be read is neither shown nor dismissed, so
+ * the next load decides it. A failed dismiss leaves the rows as they were, for the next load.
+ */
+export async function prepareProposalsForReview<P extends RunProposalRef>(
+  proposals: readonly P[],
+  lookup: ProposalTargetLookup,
+  dismissMissing: (runId: string, ordinals: number[]) => Promise<void>,
+): Promise<ReviewReady<P>> {
+  const targets = await resolveProposalTargets(proposals, lookup);
+  const byRun = new Map<string, number[]>();
+  for (const proposal of targets.missing) {
+    const ordinals = byRun.get(proposal.runId);
+    if (ordinals) ordinals.push(proposal.ordinal);
+    else byRun.set(proposal.runId, [proposal.ordinal]);
+  }
+  await Promise.all(
+    [...byRun].map(async ([runId, ordinals]) => {
+      try {
+        await dismissMissing(runId, ordinals);
+      } catch {
+        // Still hidden. The rows stay 'proposed' and the next load tries again.
+      }
+    }),
+  );
+  return { live: targets.live, unreadable: targets.unreadable.length };
 }
