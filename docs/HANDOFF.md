@@ -1,5 +1,21 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 19:19 / 2ndb-79: Z109 수정(#2398)이 독립 검토 세 번 BLOCK → 멈춤 · Q-261013-80 으로 여쭘 - 멈춘 초안이 둘(#2396 · #2398)
+
+- **멈춘 것**: PR #2398(초안 · 브랜치 `fix/focus-timer-background` · `49a4f152` · 워크트리 `.worktrees/z109-focus-background-261013` · main 대비 4개 파일: `src/lib/ops/focus-clock.ts` · `DeepSpaceDesignScreens.tsx` 의 집중 타이머 효과 · 테스트 둘). **더 고치지 말 것 - Simon 의 답(Q-261013-80)이 먼저다.** 세 회차의 내용은 DECISIONS 의 이 시각 줄 · PR 댓글. 검토 원문 `E:/Coding Infra/reports/devlab-261010/gates/z109-daybreak-r1.txt` ~ `r3.txt` · 과제서 `z109-task.md` · `z109-task-r2.md` · `z109-task-r3.md`.
+- **Q-261013-80 (안 정해지면 막히는 것: 집중 타이머가 앱을 뒤로 보내면 멈추는 상태가 그대로 남는다)**: (가 · 추천) 한 번 더 고쳐 4회차 검토 / (나) 멈춘 채 둔다 / (다) 같은 과제서와 검토 원문을 다른 구현 모델에 넘긴다.
+- **(가)로 가게 되면 할 일**(셋 다 3회차 원문에 최소 패치가 적혀 있다): 
+  1. 일시정지 · 초기화: 화면에 실행 세대 ref 를 두고, 일시정지 · 초기화 핸들러가 `setTimer` 보다 **먼저** 세대를 올린다. 효과는 시작할 때 자기 세대를 잡고 `advance()` 첫 줄에서 세대가 다르면 `closed = true` 하고 돌아간다. 계약 테스트의 "advance() itself never reads the ref back" 단언은 세대 확인을 허용하도록 고친다.
+  2. 끝 알림: `announcesEnd` · `FOCUS_END_GRACE_MS` · `lateByMs` 를 지우고 완료마다 전처럼 `notifyNow(userId, …)`(main 과 같게). 뒤에 다녀와 늦게 찾은 끝에도 알림이 간다.
+  3. 시계 경계: `AppState` 리스너가 이전 상태를 기억하고, `active` 에서 벗어날 때 `continuous = true` 인 채로 `advance()` 를 한 번 부른 다음 `continuous = false`. `inactive → background` 처럼 앞이 아닌 상태끼리의 전환에서는 다시 하지 않는다. `active` 로 돌아오면 `advance()`.
+  4. 변이 스크립트(`scratchpad/z109_mutate.py`)를 위 셋에 맞게 고치고, 로컬은 대상 테스트(`npx jest --runInBand` 로 `focus-clock` · `focus-timer-screen-contract` · `notify-now-callers` · `reminders` · `src/lib/legal`) + `tsc --noEmit` 만. **전체 `npm run verify` 는 PC 메모리 부족으로 로컬에서 돌리지 않는다**(CI 로 본다).
+- **Z109 의 둘째 부분(앱이 뒤에 있는 동안의 끝 알림)** 은 #2398 이 들어가도 남는다. 따로 올린다. 필요한 설계는 DECISIONS 의 이 시각 줄 ⑦ · 2회차까지의 코드는 브랜치 커밋 `65654481`(`focus-end-alert.ts` · `scheduleFocusEnd` · `cancelFocusEnd` · `focusEndNotificationId`).
+- **멈춘 다른 초안**: #2396(Z56 · Q-261013-69 · 바로 아래 블록).
+- **폰 확인 대기**: Z111(#2403 · 폰 빌드 run 38382051137 이 끝난 뒤 Rufus 에게 리마인더 확인 창의 날짜 문장만).
+- **기다리는 것**: Q-261013-69 · Q-261013-80 · 2ndb-53 의 시안 질문(Q-57 ~ 59 · 70 ~ 76) · 2ndb-e7 의 0252 · 0253 · 0254 와 Q-261013-47 · 48 · S4(OpenAI 조직 설정 · Simon 이 직접).
+- **질문 번호**: 이 세션은 80 까지. 다음은 81(70 ~ 79 는 2ndb-53).
+- **조심할 것**: 범위를 줄이는 커밋에는 새 동작을 넣지 않는다(이번 3회차의 ㉯ · #2396 2회차와 같은 실수) · 화면의 `setTimer(값)` 은 그 사이 사용자가 누른 일시정지를 덮어쓴다(main 의 `setTimer(prev => …)` 은 안 덮어썼다) - 효과가 자기 상태를 가지면 사용자 핸들러와의 순서를 따로 지켜야 한다.
+
 ## 2026-10-13 18:48 / 2ndb-e7: 가입 거절 안내(Q-261013-31)의 서버 쪽은 시안 Q-261013-76 의 답 뒤로 - 독립 검토 셋은 여전히 Q-261013-47 대기
 
 - **Q-261013-31**: 서버가 거절 이유를 고정 코드로 말하게 하면 누구든 그 메일함의 가입 여부를 응답으로 구분할 수 있게 된다(지금의 500 은 다른 DB 실패와 섞인 흐린 신호). 그래서 구현은 Simon 이 2ndb-53 의 시안(Q-261013-76)에서 그 맞바꿈을 보고 고르신 뒤에만 한다. 읽은 것 · 정정 · 구현하게 될 때의 순서는 DECISIONS 의 이 시각 줄. 앱 쪽 배선은 2ndb-53.
