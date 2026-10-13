@@ -478,7 +478,12 @@ describe("home notification preview wiring", () => {
 
   test("notices cannot interrupt the home coachmark", () => {
     expect(home).not.toContain("autoNoticeVisible");
-    expect(home).toContain("if (coachFirstRecord) { onCoachHeadPress?.(); return; }");
+    // The guide is the screen frame's overlay, above the body and the dock (Z70, 2026-10-14):
+    // nothing the home draws, a notice preview included, can sit over it.
+    const shell = readFileSync(join(__dirname, "../../../components/deep-space/DeepSpaceShell.tsx"), "utf8");
+    const frame = readFileSync(join(__dirname, "../../../components/deep-space/DeepSpaceScreen.tsx"), "utf8");
+    expect(shell).toMatch(/overlay=\{coachmarksDue === true \? \(\s*<HomeCoachmarks/);
+    expect(frame).toMatch(/<MdNavBar[\s\S]*?\/>\s*\{overlay\}\s*<\/SafeAreaView>/);
   });
 
   test("preview waits for hydration and never starts a popup", () => {

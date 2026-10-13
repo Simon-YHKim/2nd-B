@@ -5,16 +5,40 @@ const root = resolve(__dirname, "../../../..");
 const read = (path: string) => readFileSync(resolve(root, path), "utf8");
 
 describe("first-record coach wiring", () => {
-  test("home points at the upper-left SecondB launcher and opens the coached capture route", () => {
+  // Z70 (Simon 2026-10-13, Q-261013-56): the guide used to point at the upper-left face, which
+  // opens capture only while the guide is up. It now points at the dock's Scrap tab, the way
+  // records are added every day.
+  test("home points at the dock's Scrap tab and that tab opens the coached capture route", () => {
     const shell = read("src/components/deep-space/DeepSpaceShell.tsx");
     const home = read("src/components/deep-space/ConstellationHome.tsx");
+    const frame = read("src/components/deep-space/DeepSpaceScreen.tsx");
+    const bar = read("src/components/m3/MdNavBar.tsx");
 
-    expect(shell).toContain("coachHeadTargetRef={coachHeadTargetRef}");
+    expect(shell).toContain("dockItemRefs={{ capture: coachScrapTabRef }}");
+    expect(shell).toContain("targetRef={coachScrapTabRef}");
+    expect(shell).toContain('if (!(coachmarksDue === true && tab === "capture")) return false;');
     expect(shell).toContain('params: { coach: FIRST_RECORD_COACH_PARAM }');
-    expect(home).toContain("ref={coachHeadTargetRef}");
+    expect(shell.split('pathname: "/capture"').length - 1).toBe(1);
+    // The guide is drawn above the dock, and the real tab sits under its hole.
+    expect(frame).toContain("itemRefs={dockItemRefs}");
+    expect(frame).toContain("if (onDockSelect?.(tab as DeepSpaceTab)) return;");
+    expect(frame).toMatch(/<MdNavBar[\s\S]*?\/>\s*\{overlay\}\s*<\/SafeAreaView>/);
+    expect(bar).toContain("ref={itemRefs?.[item.key]}");
+    // The face does what it does every day: the home no longer knows about the guide.
     expect(home).toContain('testID="secondb-dialogue-launcher"');
-    expect(home).toContain("if (coachFirstRecord)");
-    expect(home).toContain("onCoachHeadPress?.()");
+    expect(home).not.toContain("coachFirstRecord");
+    expect(home).not.toContain("onCoachHeadPress");
+    expect(home).not.toContain("coachmarks.homeStep");
+  });
+
+  test("the first step names the tab it points at, in every language", () => {
+    for (const lng of ["en", "ko", "es", "pt", "id"]) {
+      const step = (JSON.parse(read(`locales/${lng}/deepspace.json`)) as { coachmarks: { homeStep: string } }).coachmarks.homeStep;
+      const tab = (JSON.parse(read(`locales/${lng}/home.json`)) as { ds: { dock: { capture: string } } }).ds.dock.capture;
+      expect(step).toContain(tab);
+      expect(step).not.toMatch(/HustleK|허슬케이/);
+    }
+    expect((JSON.parse(read("locales/ko/deepspace.json")) as { coachmarks: { homeStep: string } }).coachmarks.homeStep).toBe("스크랩을 눌러 기록을 시작합니다.");
   });
 
   test("the spotlight leaves a real transparent hole over the target", () => {

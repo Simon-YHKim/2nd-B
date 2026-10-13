@@ -52,13 +52,14 @@ export function DeepSpaceShell() {
   // which is the honest reading of "we could not see anything".
 
   // The home coachmark is the first step of a cross-route task coach. Its real
-  // target is measured from the live SecondB head, then /capture owns steps 2-4.
+  // target is the dock's own Scrap tab, the way records are added every day
+  // (Z70, Simon 2026-10-13); /capture owns steps 2-4.
   const coachmarksDue = useCoachmarksGate(
     userId,
     !loading && hasProfile === true && firstRun === "home",
     refreshTick,
   );
-  const coachHeadTargetRef = useRef<View>(null);
+  const coachScrapTabRef = useRef<View>(null);
   // 별이 밝아지는 소리(Q-261006-02). 읽은 밝기를 이 기기의 '마지막으로 본 밝기'와 비교한다.
   // 효과는 아래 읽기 effect 안에서 쓰므로 ref 로 넘긴다(소리 · 설정이 바뀌어도 다시 읽지 않게).
   const playBrighten = useUiSound(STAR_BRIGHTEN_CUE.source, STAR_BRIGHTEN_CUE);
@@ -152,7 +153,24 @@ export function DeepSpaceShell() {
 
 
   return (
-    <DeepSpaceScreen active="home" header="none">
+    <DeepSpaceScreen
+      active="home"
+      header="none"
+      dockItemRefs={{ capture: coachScrapTabRef }}
+      // While the guide is up, the Scrap tab opens the coached capture over home (a push,
+      // as the guide always did), so the guide's last step can come back here.
+      onDockSelect={(tab) => {
+        if (!(coachmarksDue === true && tab === "capture")) return false;
+        router.push({ pathname: "/capture", params: { coach: FIRST_RECORD_COACH_PARAM } });
+        return true;
+      }}
+      overlay={coachmarksDue === true ? (
+        <HomeCoachmarks
+          ownerId={userId!}
+          targetRef={coachScrapTabRef}
+        />
+      ) : null}
+    >
       <ConstellationHome
         // 여행하기 on a domain star opens that domain's LENS (/star/<id>, the
         // rev2 11-star per-domain screen: briefing + 담기/기록 + timeline), NOT
@@ -166,11 +184,6 @@ export function DeepSpaceShell() {
         // overlay=home: only this entry may let the home show through the
         // card (lib/nav/over-home.ts, QA 261004 D-05) - same as /dashboard.
         onPolarisPress={() => router.push({ pathname: "/core-brain", params: { overlay: "home" } })}
-        coachFirstRecord={coachmarksDue === true}
-        coachHeadTargetRef={coachHeadTargetRef}
-        onCoachHeadPress={() =>
-          router.push({ pathname: "/capture", params: { coach: FIRST_RECORD_COACH_PARAM } })
-        }
         onBellPress={() => {
           if (typeof document !== "undefined") (document.activeElement as HTMLElement | null)?.blur?.();
           router.push({ pathname: "/dashboard", params: { overlay: "home", app: "notifications" } });
@@ -178,12 +191,6 @@ export function DeepSpaceShell() {
         starLevels={starLevels}
         northStarBrightness={northStarBrightness}
       />
-      {coachmarksDue === true ? (
-        <HomeCoachmarks
-          ownerId={userId!}
-          targetRef={coachHeadTargetRef}
-        />
-      ) : null}
     </DeepSpaceScreen>
   );
 }

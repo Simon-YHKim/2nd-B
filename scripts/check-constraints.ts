@@ -2758,9 +2758,11 @@ results.push(
       // 홈 코치마크는 첫 기록 안내다. 기존 기록이 다른 기기에 있어도 처음으로
       // 오판하지 않도록 소유자별 단일 게이트가 확인하고 홈에는 결과만 전달한다.
       landing.includes("useCoachmarksGate(") &&
-      landing.includes("coachFirstRecord={coachmarksDue === true}") &&
-      liveConstellation.includes("coachFirstRecord = false") &&
-      liveConstellation.includes("if (coachFirstRecord)") &&
+      // 2026-10-14 (Z70): 안내가 아래 탭 「스크랩」을 가리키게 되면서 홈은 안내를 아예 모른다.
+      // 게이트의 결과는 셸이 쥐고, 안내 층과 그 탭의 길만 그 결과로 정한다.
+      landing.includes("overlay={coachmarksDue === true ? (") &&
+      landing.includes('if (!(coachmarksDue === true && tab === "capture")) return false;') &&
+      !liveConstellation.includes("coachFirstRecord") &&
       !liveConstellation.includes("useCoachmarksGate(") &&
       captureScreen.includes('savedKind === "records"') &&
       captureScreen.includes('router.push("/records")') &&

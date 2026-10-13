@@ -4,7 +4,7 @@
 // in where the dock sits today (router wiring stays in the SCREEN, not here).
 // The active state is cued by a pill indicator (not colour alone) + label
 // weight + accessibilityState, keeping the tab-bar-active-cue lineage.
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, StyleSheet, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
 import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
@@ -33,6 +33,8 @@ export interface MdNavBarProps {
   bottomInset?: number;
   buttonLike?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Refs to single tabs, by item key: a guide that points at one tab measures it. */
+  itemRefs?: Partial<Record<string, RefObject<View | null>>>;
 }
 
 export function MdNavBar({
@@ -42,6 +44,7 @@ export function MdNavBar({
   bottomInset = 0,
   buttonLike = false,
   style,
+  itemRefs,
 }: MdNavBarProps) {
   const [measurements, setMeasurements] = useState<NavSlotMeasurements>({});
   const { width: windowWidth, fontScale, scale: pixelRatio } = useWindowDimensions();
@@ -71,6 +74,8 @@ export function MdNavBar({
         return (
           <View
             key={item.key}
+            ref={itemRefs?.[item.key]}
+            collapsable={false}
             style={[
               styles.tab,
               buttonLike && styles.buttonTab,

@@ -11,7 +11,7 @@
  * Rendered only in the deep-space build. The deep-space-shell-a11y guard pins the
  * character accessibilityLabel pattern to THIS file.
  */
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type ReactNode, type RefObject } from "react";
 import { BackHandler, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -72,6 +72,9 @@ export function DeepSpaceScreen({
   onBack,
   action,
   ownBack = false,
+  overlay,
+  dockItemRefs,
+  onDockSelect,
   children,
 }: {
   active: DeepSpaceTab;
@@ -100,6 +103,13 @@ export function DeepSpaceScreen({
   /** The screen draws its own back button in its body. Inside the dashboard
    *  phone the shell then adds no second one (Back lives in one place). */
   ownBack?: boolean;
+  /** Drawn above the body and the dock. The body's own children stop at the dock's top edge,
+   *  so a guide that points at a dock tab has to be drawn here. */
+  overlay?: ReactNode;
+  /** Refs to single dock tabs, for that guide to measure. */
+  dockItemRefs?: Partial<Record<DeepSpaceTab, RefObject<View | null>>>;
+  /** A screen may take a dock press itself. Returning true means it did. */
+  onDockSelect?: (tab: DeepSpaceTab) => boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation("home");
@@ -242,13 +252,16 @@ export function DeepSpaceScreen({
         items={dockItems}
         buttonLike
         style={styles.buttonDock}
+        itemRefs={dockItemRefs}
         onSelect={(tab) => {
+          if (onDockSelect?.(tab as DeepSpaceTab)) return;
           const target = TAB_ROUTE[tab as DeepSpaceTab];
           // Sub-screens highlight their owning root tab. Tapping that highlighted
           // item must still return to the root instead of becoming a no-op.
           if (tab !== active || pathname !== target) router.replace(target);
         }}
       />
+      {overlay}
     </SafeAreaView>
   );
 }
