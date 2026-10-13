@@ -1,6 +1,6 @@
 # 이용약관 · Terms of Service
 
-_시행일: 2026-10-05 · 최종 개정: 2026-10-13_
+_시행일: 2026-10-05 · 최종 개정: 2026-10-13 (개정 적용일: 2026-10-14)_
 
 ---
 
@@ -86,9 +86,7 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-13_
 ⑥ **만 14세 미만 및 미성년자(제25조)**: 이 서비스는 만 18세 이상으로 확인된 이용자만 별도 동의하여 켤 수 있습니다. 만 14세 미만은 법정대리인 동의를 포함한 별도 개방 절차가 마련되기 전까지 잠겨 있고, 만 14~17세 및 나이 미확인 계정도 잠겨 있습니다. 이 약관은 미성년 위치 기능을 개방하지 않습니다.
 
 ### 개정 이력
-| 시행일 | 변경 내용 |
-|---|---|
-| 2026-10-13 | 제2조: "AI 기반"을 "생성형 인공지능(AI)을 활용하는"으로 고쳤습니다. 표현을 정확히 한 것이며 서비스 내용은 바뀌지 않았습니다. |
+- 2026-10-13 공지 · 2026-10-14 적용: 제2조의 "AI 기반"을 "생성형 인공지능(AI)을 활용하는"으로 고쳤습니다(「인공지능 발전과 신뢰 기반 조성 등에 관한 기본법」(인공지능기본법)의 사전 고지에 맞춘 표현 정리이며, 서비스 내용은 바뀌지 않았습니다).
 
 ---
 
@@ -160,6 +158,4 @@ Revision: weather-v1-261007 (the initial revision identifier, not an effective d
 (6) **Children and minors (Article 25)**: Only confirmed adults aged 18 or older may opt in. Children under 14 remain locked out until a separate opening process including legal-representative consent exists. Users aged 14–17 and accounts with unknown age are also locked out. These terms do not open location features to minors.
 
 ### Revision history
-| Effective | What changed |
-|---|---|
-| 2026-10-13 | Section 2: "AI-assisted" now reads "uses generative artificial intelligence (AI)". This makes the wording precise; the Service itself is unchanged. |
+- Announced 2026-10-13, effective 2026-10-14: Section 2 now states that the Service uses generative artificial intelligence (AI). This aligns the wording with the prior-notice requirement of Korea's AI Basic Act; the Service itself is unchanged.
