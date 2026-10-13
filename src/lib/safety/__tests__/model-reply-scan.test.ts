@@ -1,5 +1,6 @@
 import { classifyInput, classifyInputAnyLocale } from "../classifier";
 import { hasCrisisRiskContext } from "../crisis-context";
+import { CRISIS_EVENT_CATEGORY_LIMIT } from "../crisis-event-categories";
 import { CRISIS_TERMS } from "../lexicon";
 import {
   KO_CRISIS_TERM_CODES,
@@ -8,6 +9,7 @@ import {
   gateTermsLeft,
   maskModelReplyOverlaps,
   modelReplyTermCategories,
+  replySwapCategories,
 } from "../model-reply-scan";
 
 // Simon 2026-10-13: Q-261013-34 and the three legal choices D1-D3. The gate matches Korean terms as
@@ -238,5 +240,120 @@ describe("the fixed numbers (D3)", () => {
       expect(entry).toMatch(/^crisis_term:(?:[1-9]|1[0-9])$/);
     }
     expect(modelReplyTermCategories([...CRISIS_TERMS.ko])).toHaveLength(19);
+  });
+});
+
+describe("replySwapCategories", () => {
+  it("is what the classifier reported, the marker, then the numbers of the Korean terms in the reply", () => {
+    expect(replySwapCategories(["lexicon_match"], "가족에게 짐이 되는 사람이라는 말은 사실이 아니에요.", false)).toEqual([
+      "lexicon_match",
+      "output_swap",
+      "crisis_term:15",
+    ]);
+    expect(replySwapCategories([], "오늘은 산책을 20분 해 보세요.", false)).toEqual(["output_swap"]);
+    expect(replySwapCategories(["active_ideation_no_method"], "you should end your life", false)).toEqual([
+      "active_ideation_no_method",
+      "output_swap",
+    ]);
+  });
+
+  it("reads the Korean terms whatever the screen's language is, and for a minor too", () => {
+    const reply = "자살이라는 낱말이 답에 들어갔습니다.";
+    expect(replySwapCategories([], reply)).toEqual(["output_swap", "crisis_term:1"]);
+    expect(replySwapCategories([], reply, true)).toEqual(["output_swap", "crisis_term:1"]);
+    expect(replySwapCategories([], reply, false)).toEqual(["output_swap", "crisis_term:1"]);
+  });
+
+  it("gives the numbers in ascending order", () => {
+    expect(replySwapCategories(["lexicon_match"], "유서 이야기와 자살 이야기가 함께 나왔습니다.", false)).toEqual([
+      "lexicon_match",
+      "output_swap",
+      "crisis_term:1",
+      "crisis_term:13",
+    ]);
+  });
+
+  it("records nothing a classifier wrote freely", () => {
+    const list = replySwapCategories(["사용자가 짐이 된다고 말함", "The reply tells the user to give up.", "active_ideation_no_method"], "가족에게 짐이 되는 사람", false);
+    expect(list).toEqual(["unlisted", "active_ideation_no_method", "output_swap", "crisis_term:15"]);
+    expect(JSON.stringify(list)).not.toContain("말함");
+    expect(JSON.stringify(list)).not.toContain("give up");
+  });
+
+  it("drops duplicates", () => {
+    expect(replySwapCategories(["lexicon_match", "lexicon_match"], "자살, 그리고 또 자살", false)).toEqual([
+      "lexicon_match",
+      "output_swap",
+      "crisis_term:1",
+    ]);
+  });
+
+  // Review round three: a classifier's answer is text a model wrote. It cannot name a source or a number.
+  it("takes no marker, source name or term number from the classifier: only this function adds them", () => {
+    const spoofed = ["crisis_term:7", "output_swap", "proxy_input_red", "input_red", "passive_ideation"];
+    // The reply holds one term (number 15). Number 7 and the other source names came from the classifier.
+    expect(replySwapCategories(spoofed, "가족에게 짐이 되는 사람", false)).toEqual([
+      "unlisted",
+      "passive_ideation",
+      "output_swap",
+      "crisis_term:15",
+    ]);
+    // A reply with no Korean term: the classifier's number does not appear at all.
+    const none = replySwapCategories(["crisis_term:7"], "you should give up", false);
+    expect(none).toEqual(["unlisted", "output_swap"]);
+    expect(none.filter((entry) => entry === "output_swap")).toHaveLength(1);
+  });
+
+  it("at the limit keeps the marker and the numbers first, and what the classifier reported gives way", () => {
+    // Everything a classifier can report: its twelve names and one stand-in for the rest.
+    const reported = [
+      "passive_ideation", "active_ideation_no_method", "active_ideation_with_method", "intent_no_plan", "intent_with_plan",
+      "behavior_past", "behavior_preparation", "behavior_recent", "self_harm_non_suicidal", "crisis", "forbidden_lexicon",
+      "lexicon_match", "some free text",
+    ];
+    // Two terms leave thirteen places: all thirteen fit.
+    const twoTerms = replySwapCategories(reported, "유서 이야기와 자살 이야기가 함께 나왔습니다.", false);
+    expect(twoTerms).toEqual([...reported.slice(0, 12), "unlisted", "output_swap", "crisis_term:1", "crisis_term:13"]);
+    expect(twoTerms).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
+
+    // Four terms leave eleven places: the marker and all four numbers stay, the names give way.
+    const fourTerms = replySwapCategories(reported, CRISIS_TERMS.ko.slice(0, 4).join(" / "), false);
+    expect(fourTerms).toEqual([
+      ...reported.slice(0, 11),
+      "output_swap",
+      "crisis_term:1",
+      "crisis_term:2",
+      "crisis_term:3",
+      "crisis_term:4",
+    ]);
+    expect(fourTerms).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
+  });
+
+  it("a reply holding every gate term keeps the marker and the fifteen lowest numbers", () => {
+    const everyTerm = CRISIS_TERMS.ko.join(" / ");
+    const list = replySwapCategories(["lexicon_match", "crisis"], everyTerm, false);
+    expect(list).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
+    expect(list).toEqual(["output_swap", ...Array.from({ length: 15 }, (_, i) => `crisis_term:${i + 1}`)]);
+  });
+
+  it("fifteen terms leave room for nothing but the marker, and fourteen leave one name", () => {
+    const fifteen = CRISIS_TERMS.ko.slice(0, 15).join(" / ");
+    expect(replySwapCategories(["lexicon_match"], fifteen, false)).toEqual([
+      "output_swap",
+      ...Array.from({ length: 15 }, (_, i) => `crisis_term:${i + 1}`),
+    ]);
+    const fourteen = CRISIS_TERMS.ko.slice(0, 14).join(" / ");
+    expect(replySwapCategories(["lexicon_match", "crisis"], fourteen, false)).toEqual([
+      "lexicon_match",
+      "output_swap",
+      ...Array.from({ length: 14 }, (_, i) => `crisis_term:${i + 1}`),
+    ]);
+  });
+
+  it("carries no text of the reply", () => {
+    const reply = CRISIS_TERMS.ko.join(" / ");
+    for (const entry of replySwapCategories(["lexicon_match"], reply, false)) {
+      for (const term of CRISIS_TERMS.ko) expect(entry).not.toContain(term);
+    }
   });
 });
