@@ -49,6 +49,8 @@ test.each([
   ["- 항목 하나  \n- 항목 둘", "- 항목 하나\n- 항목 둘"],
   ["```\n코드 줄  \n다음\n```", "\n코드 줄  \n다음\n"],
   ["`코드  `  \n다음", "코드  \n다음"],
+  // A fence the model never closed: the prose before it is trimmed, the code after it is not.
+  ["설명입니다.  \n```\n코드 줄  \n다음 줄\t\n", "설명입니다.\n```\n코드 줄  \n다음 줄\t\n"],
 ])("display only: %j", (input, expected) => {
   expect(chatDisplayText(input)).toBe(expected);
 });

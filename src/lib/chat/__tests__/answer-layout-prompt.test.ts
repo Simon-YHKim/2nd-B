@@ -4,6 +4,8 @@
 // before the merge; this file only keeps the sentence where the engine reads it.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { chatDisplayText } from "../display-text";
+import { parseTwiBranches } from "../twi-branches";
 
 const SRC = readFileSync(resolve(__dirname, "../conversation.ts"), "utf8");
 
@@ -35,5 +37,14 @@ test("the new-angle mode still asks for its next steps on lines of their own", (
   // parseTwiBranches lifts the lines that start with the arrow into chips; the layout instruction
   // must leave that contract alone.
   const mode = SRC.slice(SRC.indexOf("const MODE_INSTRUCTION"), SRC.indexOf("const TIER_DISPLAY"));
-  expect(mode).toContain("→ ");
+  expect(mode).toContain("each on its own line, each line starting with '→ '.");
+  expect(mode).toContain("한 줄에 하나씩 '→ '로 시작해 적으세요.");
+});
+
+test("lines that start with the arrow are still lifted into next steps after the screen trims line ends", () => {
+  // What the model sends in that mode (measured): spaces at the end of every line.
+  const reply = "퇴근 뒤 30분만 바꿔 보는 방법이 있습니다.   \n→ 퇴근 뒤 30분만 바꿔보기   \n→ 걷기 10분   \n→ 폰 내려놓기";
+  const branches = parseTwiBranches(reply);
+  expect(branches.branches).toEqual(["퇴근 뒤 30분만 바꿔보기", "걷기 10분", "폰 내려놓기"]);
+  expect(chatDisplayText(branches.display)).toBe("퇴근 뒤 30분만 바꿔 보는 방법이 있습니다.");
 });
