@@ -38,21 +38,22 @@ function harness(kind: "signIn" | "reset") {
   const slots: { value: unknown; deps?: unknown[]; cleanup?: () => void }[] = [];
   let index = 0;
   let dirty = true;
-  let pending: (() => void)[] = [];
+  let pending: ((() => void) & { layout: boolean })[] = [];
   const depsChanged = (a: unknown[] | undefined, b: unknown[]) => !a || a.length !== b.length || a.some((v, i) => !Object.is(v, b[i]));
   const memo = (make: () => unknown, deps: unknown[]) => {
     const i = index++;
     if (!slots[i] || depsChanged(slots[i].deps, deps)) slots[i] = { value: make(), deps };
     return slots[i].value;
   };
-  const effect = (fn: () => (() => void) | undefined, deps: unknown[]) => {
+  const queued = (layout: boolean) => (fn: () => (() => void) | undefined, deps: unknown[]) => {
     const i = index++;
     if (!slots[i] || depsChanged(slots[i].deps, deps)) {
       const cleanup = slots[i]?.cleanup;
       slots[i] = { value: null, deps };
-      pending.push(() => { cleanup?.(); slots[i].cleanup = fn(); });
+      pending.push(Object.assign(() => { cleanup?.(); slots[i].cleanup = fn(); }, { layout }));
     }
   };
+  const effect = queued(false);
   const auth = {
     userId: null as string | null, loading: false, refresh: jest.fn(),
     recoveryUserId: null as string | null, recoverySessionId: null as string | null,
@@ -82,7 +83,7 @@ function harness(kind: "signIn" | "reset") {
     },
     useRef: (initial: unknown) => { const i = index++; slots[i] ??= { value: { current: initial } }; return slots[i].value; },
     useCallback: (fn: unknown, deps: unknown[]) => memo(() => fn, deps), useMemo: memo,
-    useEffect: effect, useLayoutEffect: effect,
+    useEffect: effect, useLayoutEffect: queued(true),
     useAuth: () => auth, useIsFocused: () => environment.focused,
     useTranslation: () => ({ t: (key: string) => `${environment.language}:${key}`, i18n: { language: environment.language, hasResourceBundle: (lng: string) => lng === "en" || environment.packReady } }),
     Platform: { OS: "android" },
@@ -109,8 +110,20 @@ function harness(kind: "signIn" | "reset") {
     }
     return form;
   };
+  // One render whose passive effects are held back. React commits first (layout effects run with
+  // the commit) and runs passive effects later, and a request can settle in between; flush() alone
+  // cannot produce that order. The returned function runs the held effects, then settles as
+  // flush() does.
+  const renderHoldingEffects = () => {
+    dirty = false; index = 0; pending = [];
+    form = hook(environment.receipt as null);
+    const committed = pending;
+    committed.filter(fn => fn.layout).forEach(fn => fn());
+    const held = committed.filter(fn => !fn.layout);
+    return () => { held.forEach(fn => fn()); return flush(); };
+  };
   flush();
-  return { get form() { return form; }, flush, calls, auth, environment, scope,
+  return { get form() { return form; }, flush, renderHoldingEffects, calls, auth, environment, scope,
     back: () => onBack?.(), unmount: () => slots.forEach(slot => slot.cleanup?.()) };
 }
 
@@ -228,6 +241,34 @@ describe("a form failure does not follow the user into another presentation", ()
     expect(selectSignInNoticePlacement(form, late as never)).toBe("inline");
     jest.advanceTimersByTime(60000); h.flush(); expect(h.form.toast).toBe(late);
     h.form.setPassword("changed"); h.flush(); expect(h.form.toast).toBeNull();
+  });
+  // Review of #2341, round three: the same answer must survive when it lands AFTER loading has
+  // committed but BEFORE that commit's passive effects ran. The leaving-the-form cleanup may retire
+  // only the failure its own render had, never the one that arrived in between.
+  test("a failure that lands between the loading commit and its effects is kept and shows on the form", async () => {
+    const h = harness("signIn"); h.form.setEmail("reader@example.invalid"); h.form.setPassword("x"); h.flush();
+    let reject!: (error: Error) => void;
+    h.calls.signInWithEmail.mockImplementationOnce(() => new Promise<never>((_resolve, fail) => { reject = fail; }));
+    const pending = h.form.handleSubmit(); h.flush();
+    h.auth.loading = true;
+    const runHeldEffects = h.renderHoldingEffects();
+    reject(new Error("invalid credentials")); await pending;
+    runHeldEffects();
+    const late = h.form.toast;
+    expect(late).toEqual({ tone: "danger", message: "ko:errors.signInFailed" });
+    h.auth.loading = false; h.flush();
+    expect(h.form.toast).toBe(late);
+    h.form.setPassword("changed"); h.flush(); expect(h.form.toast).toBeNull();
+  });
+  test("a failure the form already showed is still retired when loading commits and its effects run late", async () => {
+    const h = harness("signIn"); h.form.setEmail("reader@example.invalid"); h.form.setPassword("x"); h.flush();
+    await h.form.handleSubmit(); h.flush();
+    expect(h.form.toast?.tone).toBe("danger");
+    h.auth.loading = true;
+    const runHeldEffects = h.renderHoldingEffects();
+    runHeldEffects();
+    expect(h.form.toast).toBeNull();
+    h.auth.loading = false; h.flush(); expect(h.form.toast).toBeNull();
   });
   test("a failure that arrives while the deletion receipt is shown is retired", async () => {
     const h = harness("signIn"); h.form.setEmail("reader@example.invalid"); h.form.setPassword("x"); h.flush();

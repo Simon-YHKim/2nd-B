@@ -161,8 +161,15 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
     // - Loading is different: a failure that ARRIVES while loading is the answer to the attempt the
     //   user just made. It is kept (the placement hides it there) and shown when the form returns.
     const leftForm = previous === "form" && branch.kind !== "form";
-    if (!isFocused || leftForm || branch.kind === "deletion" || branch.kind === "home") clearFailure();
-  }, [isFocused, branch.kind, toast, clearFailure]);
+    if (!isFocused || branch.kind === "deletion" || branch.kind === "home") {
+      clearFailure();
+    } else if (leftForm && toast?.tone === "danger") {
+      // Leaving the form retires only what THIS render had on screen. An answer can land between
+      // this commit and this effect; it is already in toastRef, and it is the one to keep. The
+      // identity guard in setToast skips it (review of #2341, round three).
+      setToast(clearAuthFailure(toast), toast);
+    }
+  }, [isFocused, branch.kind, toast, clearFailure, setToast]);
 
   useEffect(() => {
     if (!toast || toast.exitOnBack) return;
