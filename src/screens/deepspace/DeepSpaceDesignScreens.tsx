@@ -2814,7 +2814,7 @@ export function DeepSpaceFocusScreen() {
         setTally((cur) => ({ ...cur, day: completeFocusSession(cur.day, doneArea, prev.config.focusMinutes) }));
         if (userId) {
           void applyFocusSessionComplete(userId).catch(() => {});
-          // The account goes first: without it notifyNow answers "error" and nothing is shown (Z107).
+          // The account goes first: without it notifyNow shows nothing on a phone (Z107).
           void notifyNow(userId, t("focus.alarmFocusTitle"), t("focus.alarmFocusBodyArea", { area: t(`phone.areas.${doneArea}`) })).catch(() => {});
         }
       } else {

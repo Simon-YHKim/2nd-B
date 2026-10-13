@@ -317,7 +317,9 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
   test("frozen legacy calls without an explicit owner fail closed", async () => {
     setNavigatorProduct("ReactNative");
 
-    await expect(notifyNow("Legacy title", "Legacy body")).resolves.toBe("error");
+    // The two-argument form no longer compiles; an untyped caller is still refused.
+    const untyped = notifyNow as unknown as (title: string, body: string) => ReturnType<typeof notifyNow>;
+    await expect(untyped("Legacy title", "Legacy body")).resolves.toBe("error");
     await expect(scheduleRoutineReminder({
       title: "Legacy routine",
       startsAtIso: new Date(Date.now() + 60_000).toISOString(),

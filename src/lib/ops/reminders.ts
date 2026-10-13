@@ -272,8 +272,8 @@ export function notifyNow(
   title: string,
   body: string | undefined,
 ): Promise<ReminderResult>;
-/** @deprecated Missing owner is retained only for frozen legacy UI and fails closed. */
-export function notifyNow(title: string, body?: string): Promise<ReminderResult>;
+// No form without the account is declared: a call that cannot name it does not
+// compile (Z107). The check on arguments.length below still refuses it at run time.
 export async function notifyNow(
   first: string,
   _second?: string,
