@@ -1654,6 +1654,78 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reasoning_proposals_purge_regression.sql
+      # 0252: a chat turn whose answer was swapped for the crisis notice is given
+      # back once per proxy-written audit row. Called as `authenticated`; client
+      # rows, other purposes, old rows and another user's rows must not count.
+      - name: Exercise chat turn refund on proxy evidence only
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/chat_turn_refund_regression.sql
+      # Two sessions of one user ask at the same moment and there is ONE proxy
+      # row. Without the per-user advisory lock both read the row as unused and
+      # two turns come back (measured: 5 -> 3 with the lock removed).
+      - name: Race two chat turn refunds over one proxy row
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="race_0252_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0252 refund race refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          trap 'sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true' EXIT
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.chat_usage (user_id, day, count)
+          VALUES ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, 5);
+          INSERT INTO public.ai_audit_log
+            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+          VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
+          SQL
+          refund="COALESCE(public.refund_chat_turn_after_output_swap((pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date)::text, 'null')"
+          # Session A takes the refund and keeps its transaction open for three seconds.
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+            -c "BEGIN" \
+            -c "SET LOCAL request.jwt.claim.sub = '26101347-0000-4000-8000-00000000000a'" \
+            -c "SELECT 'a=' || $refund" \
+            -c "SELECT pg_sleep(3)" \
+            -c "COMMIT" > refund_a.out &
+          a_pid=$!
+          waited=0
+          until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                        WHERE datname = current_database() AND state = 'active'
+                                          AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+            waited=$((waited + 1))
+            if (( waited > 50 )); then echo "the first refund session never reached its pause" >&2; exit 1; fi
+            sleep 0.2
+          done
+          # Session B asks while A is still open. It must wait for A and then find the row used.
+          b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+            -c "BEGIN" \
+            -c "SET LOCAL request.jwt.claim.sub = '26101347-0000-4000-8000-00000000000a'" \
+            -c "SELECT 'b=' || $refund" \
+            -c "COMMIT" | grep '^b=' | tr -d '\r')"
+          wait "$a_pid"
+          a="$(grep '^a=' refund_a.out | tr -d '\r')"
+          state="$(sql "$clone_db" "SELECT count || '/' || pg_catalog.cardinality(refunded_audit_ids)
+                                      FROM public.chat_usage
+                                     WHERE user_id = '26101347-0000-4000-8000-00000000000a'" | tr -d '\r')"
+          echo "first session $a, second session $b, count/recorded ids $state"
+          if [[ "$a" != "a=4" || "$b" != "b=null" || "$state" != "4/1" ]]; then
+            echo "one proxy row gave back more than one turn, or none" >&2
+            exit 1
+          fi
       - name: Exercise public-data quota contract
         env:
           PGPASSWORD: postgres
