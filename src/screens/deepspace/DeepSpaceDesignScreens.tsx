@@ -542,7 +542,7 @@ export function DeepSpaceAccountDesignScreen() {
           <Action label={t("account.navPassword")} onPress={() => router.push("/change-password")} />
           <Action label={t("account.navSettings")} onPress={() => router.push("/settings")} />
           <Action label={t("account.navData")} onPress={() => router.push("/data")} />
-          <Action label="IDEN" onPress={() => router.push("/iden")} />
+          <Action label={t("account.navIden")} onPress={() => router.push("/iden")} />
           <Action label={t("account.navBeyond")} onPress={() => router.push("/beyond")} />
         </Card>
         {/* Build/OTA identifier — lets a tester confirm which bundle is live

@@ -159,7 +159,8 @@
     "navProfile": "프로필",
     "navSettings": "설정",
     "navData": "내 데이터",
-    "navBeyond": "앱 밖에서",
+    "navIden": "내 요약 내보내기",
+    "navBeyond": "위젯 · 알림",
     "navPassword": "비밀번호 변경"
   },
   "privacy": {
@@ -1043,7 +1044,7 @@
   },
   "beyond": {
     "preview": "미리보기",
-    "title": "앱 밖에서",
+    "title": "위젯 · 알림",
     "widgetsSection": "홈 화면 위젯",
     "todaysStar": "오늘의 별",
     "brightestStar": "가장 밝은 별",

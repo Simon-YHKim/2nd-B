@@ -159,7 +159,8 @@
     "navProfile": "Perfil",
     "navSettings": "Configurações",
     "navData": "Meus dados",
-    "navBeyond": "Fora do app",
+    "navIden": "Exportar meu resumo",
+    "navBeyond": "Widgets e alertas",
     "navPassword": "Alterar senha"
   },
   "privacy": {
@@ -1043,7 +1044,7 @@
   },
   "beyond": {
     "preview": "Prévia",
-    "title": "Fora do app",
+    "title": "Widgets e alertas",
     "widgetsSection": "Widgets da tela inicial",
     "todaysStar": "Estrela de hoje",
     "brightestStar": "Sua estrela mais brilhante",
