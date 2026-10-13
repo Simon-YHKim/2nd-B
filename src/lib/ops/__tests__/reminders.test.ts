@@ -180,6 +180,20 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
+// The whole file runs with the languages loaded and English selected. English equals the
+// fallback sentences (device-notification-text.test.ts pins that and covers the path before any
+// language is loaded), so no test here depends on the order the groups run in.
+beforeAll(async () => {
+  await i18next.init({
+    lng: "en",
+    fallbackLng: "en",
+    ns: ["ops"],
+    defaultNS: "ops",
+    resources: { en: { ops: enOps }, ko: { ops: koOps } },
+    interpolation: { escapeValue: false },
+  });
+});
+
 describe("routine reminders (O-R3 P2, on-device only)", () => {
   test("foreground handler asks the OS to actually show the banner (not suppress it)", async () => {
     // Without setNotificationHandler, expo-notifications hides foreground banners,
@@ -783,22 +797,12 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
   });
 });
 
-// Runs last on purpose: every test above schedules before any language is loaded and
-// gets the English fallback. Here the app language is Korean when the reminder is scheduled.
 describe("notification text follows the app language when the reminder is scheduled", () => {
-  beforeAll(async () => {
-    await i18next.init({
-      lng: "ko",
-      fallbackLng: "en",
-      ns: ["ops"],
-      defaultNS: "ops",
-      resources: { en: { ops: enOps }, ko: { ops: koOps } },
-      interpolation: { escapeValue: false },
-    });
+  beforeEach(async () => {
+    await i18next.changeLanguage("ko");
   });
 
-  afterAll(async () => {
-    // English equals the fallback, so nothing after this group could tell the difference.
+  afterEach(async () => {
     await i18next.changeLanguage("en");
   });
 
