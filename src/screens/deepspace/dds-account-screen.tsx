@@ -288,7 +288,7 @@ export function DeepSpaceAccountScreen() {
 
           <PixelSurface variant="frame" contentStyle={styles.navGroup}>
             {ACCOUNT_DESTINATIONS.map((destination) => {
-              const label = destination.labelKey === "IDEN" ? "IDEN" : t(destination.labelKey);
+              const label = t(destination.labelKey);
               return (
                 <PixelPressable
                   key={destination.route}

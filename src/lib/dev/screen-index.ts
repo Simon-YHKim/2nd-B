@@ -177,7 +177,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "me/[star]", href: "/me/school", label: "별 요약", auth: true, sample: true, note: "profile · infancy · school · twenties · later · work · now. 홈에서 별을 누르면 여기로 온다(Simon 결정 4 = B)" },
       { file: "career-drilldown", href: "/career-drilldown", label: "별 파고들기", auth: true },
       { file: "brightness", href: "/brightness", label: "밝기 변화 8주", auth: true },
-      { file: "beyond", href: "/beyond", label: "앱 밖에서", auth: true },
+      { file: "beyond", href: "/beyond", label: "위젯 · 알림", auth: true },
     ],
   },
   {
