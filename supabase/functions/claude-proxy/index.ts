@@ -39,6 +39,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
+import { insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
 import {
   BRAIN_RANK,
   LlmBodyError,
@@ -212,6 +213,7 @@ Deno.serve(async (req: Request) => {
     responseSchema?: unknown;
     reasoningRunId?: unknown;
     reasoningSlot?: unknown;
+    chatTurnId?: unknown;
   };
   try {
     body = await readLlmProxyJsonObject(req) as typeof body;
@@ -580,30 +582,30 @@ Deno.serve(async (req: Request) => {
   const claudeTotalTokens =
     (Number(claudeUsage.input_tokens) || 0) + (Number(claudeUsage.output_tokens) || 0) || null;
   const consentAuditId = crypto.randomUUID();
-  let audited = false;
-  try {
-    const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
-      id: consentAuditId,
-      user_id: userId,
-      event_source: 'server_verified',
-      prompt_hash: djb2(`${systemText ?? ''}${userText}`),
-      output_hash: djb2(text),
-      model_used: refused ? `${modelUsed}+refusal` : truncated ? `${modelUsed}+truncated` : modelUsed,
-      vertex_backend: false,
-      safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
-      latency_ms: latencyMs,
-      // D-27 re-decomposition axes (nullable; NULL on legacy/native-path rows).
-      purpose,
-      reasoning_vendor: 'claude',
-      reasoning_effort: clampedEffort,
-      key_combo: keyCombo,
-      total_tokens: claudeTotalTokens,
-    });
-    audited = !auditErr;
-    if (auditErr) console.warn('[claude-proxy] audit insert failed:', auditErr.message);
-  } catch (e) {
-    console.warn('[claude-proxy] audit insert threw:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
-  }
+  // Z46 (0255): a chat call may name the turn it answers. Only its shape is read here.
+  const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
+  // True only when this very row came back from the insert (see insertLlmAuditRow).
+  const audited = await insertLlmAuditRow(supabaseAdmin, {
+    id: consentAuditId,
+    user_id: userId,
+    event_source: 'server_verified',
+    prompt_hash: djb2(`${systemText ?? ''}${userText}`),
+    output_hash: djb2(text),
+    model_used: refused ? `${modelUsed}+refusal` : truncated ? `${modelUsed}+truncated` : modelUsed,
+    vertex_backend: false,
+    safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
+    latency_ms: latencyMs,
+    // D-27 re-decomposition axes (nullable; NULL on legacy/native-path rows).
+    purpose,
+    reasoning_vendor: 'claude',
+    reasoning_effort: clampedEffort,
+    key_combo: keyCombo,
+    total_tokens: claudeTotalTokens,
+    // The turn goes on the row of the reply that is handed back, and on no other: a refused or cut-off
+    // call answers nothing, and a retry of that turn must still be able to carry it. One turn, one row:
+    // the table refuses a second row for a turn, and the helper then audits without it.
+    ...(chatTurnId && !refused && !truncated ? { chat_turn_id: chatTurnId } : {}),
+  }, 'claude-proxy');
 
   if (refused) {
     return jsonResponse(req, { error: 'upstream_refusal', modelUsed, latencyMs }, 502);
