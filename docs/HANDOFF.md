@@ -1,5 +1,15 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 23:42 / 2ndb-79: 설계 둘(Z119 · Q-261013-69)이 1회차 설계 검토에서 막혀 구조를 바꿔 다시 쓰는 중 - 코드는 아직 없다 - 다음 1개는 Z119 2판 검토
+
+- **Z119(집중 타이머)**: 1판 BLOCK(지적 14 · `gates/z119-design-daybreak-r1.txt`). **2판 = `E:/Coding Infra/reports/devlab-261010/gates/z119-design-r2.md`**(계정마다 상태 키 하나 `focus.state.v2.<owner>` · 명령 한 줄 · 세션 `id` · 끝남과 집계를 한 번에 쓰기 · 읽기 전 잠금 · 계정 전환 때 진행 끊기 · 옛 키에서 옮기기). 검토 명령: `cd "E:/Coding Infra/reports/devlab-261010/gates" && python -B gate_design.py z119 2 E:/2ndB/.worktrees/z119-focus-run-261013 z119-design-r2.md --s … --lean …`(1회차의 `--lean` 목록 그대로 · 뒤에서 돌리면 10분쯤). 통과한 뒤에만 PR-A 를 쓴다. 워크트리 `.worktrees/z119-focus-run-261013`(커밋 없음).
+- **Q-261013-69(거절 · 안전 신호)**: 1판(따로 한 번 묻기)은 BLOCK(`gates/q69-design-daybreak-r1.txt`). **2판은 "후보가 있는 대화 요청에만 후보 설명을 붙이고, 답을 만드는 그 호출이 `planOffer(candidateId)` 같은 구조 결과를 함께 낸다"로 쓴다**(아직 안 씀). 읽을 곳: `src/lib/chat/plan-suggestions.ts`(후보를 사용자 글에서 만듦 · 181 ~ 205행) · `src/components/secondb/useChatPlans.ts` · `src/lib/llm/boundary.ts`(700 ~ 1030행) · `supabase/functions/openai-proxy/index.ts`. 서버(프록시) 일이 함께 필요 → 2판을 쓴 뒤 2ndb-e7 과 꼴을 맞춘다. AI 답을 사용자 글과 한 덩이로 `callLlm` 에 넣지 말 것(C9 가 AI 의 안전 문구를 사용자의 위기 입력으로 읽는다).
+- **#2425(대화 횟수 환불의 화면 쪽)**: 그대로 초안. 2ndb-e7 이 프록시의 `auditId` 와 함수 `(p_day, p_audit_id)` 를 올리면 경계 모듈과 화면을 맞춘다. 그때 `conversation.ts` 의 주석 둘(57 · 185행의 옛 모드 이름)도 같은 줄 안에서 고친다(영어 표기 Q-261013-90 의 답 뒤).
+- **모드 이름**: 2ndb-53 이 진행(가지 `feat/mode-names-fact-joy`). 상표 확인은 끝(머지해도 됨 · Joy-K 는 스토어 제목 · 광고에 넣지 않기). 이 세션이 할 일은 위의 주석 둘뿐.
+- **폰**: 빌드 `34123703` 메모를 보냄(결과는 `vb-devlab-b34123703-1013.result.md` · 새 번호는 Z120 부터). Rufus 가 타이머 B 를 프로세스 번호와 함께 다시 본다.
+- **설계 검토 도구**: `gates/gate_design.py <이름> <회차> <워크트리> <과제서> [--s 라벨=파일] [--lean 파일[:시작-끝]] [--focus …]` → `<이름>-design-daybreak-r<N>.txt`. `--lean` 의 경로가 없으면 바로 멈춘다(`useChatPlans.ts` 는 `src/components/secondb/` 에 있다).
+- **질문 번호**: 이 세션은 80 까지 · 다음은 81. 2ndb-53 이 90 ~ 99 를 쓴다.
+
 ## 2026-10-13 23:32 / 2ndb-e7: 0253(#2388)은 2회차도 BLOCK → 멈추고 Q-261013-49 로 여쭘 - 답을 기다리는 동안 다음 1개는 "환불을 그 턴의 근거 줄에 묶기"
 
 - **멈춘 것**: PR #2388(초안 · `fix/z66-complete-skips-erased-0253` · `a7e46b3d` · 워크트리 `.worktrees/z66-proposals-purge-261013`). **더 고치지 말 것 - Simon 의 답(Q-261013-49)이 먼저다.** 막은 것 하나: 0253 을 운영에 올리는 순간, 옛 본문으로 들어선 완료가 정리 뒤에 줄을 넣을 수 있다(`gates/z66c-daybreak-r2.txt` 의 Z66C-01). 경합 단계는 닫힘.
