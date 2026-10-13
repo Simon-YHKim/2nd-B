@@ -26,7 +26,7 @@ export const TERMS_DOC: LegalDoc = {
   draftBadge: "초안 · Draft",
   body: `# 이용약관 · Terms of Service
 
-_시행일: 2026-10-05 · 최종 개정: 2026-10-05_
+_시행일: 2026-10-05 · 최종 개정: 2026-10-13_
 
 ---
 
@@ -36,7 +36,7 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 본 약관은 하양 프로덕션(개인사업자, 대표: 배소하, 이하 "회사")가 제공하는 **PolaScope**(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.
 
 ### 제2조 (서비스의 성격)
-서비스는 이용자가 자신에 관한 기록을 축적하고 **자기 이해와 성장**을 돕는 AI 기반 개인 도구입니다. 서비스는 **의료·심리상담·진단·치료 서비스가 아니며**, 서비스가 제공하는 정보와 AI 산출물은 **참고용 정보**로서 전문적(의료·법률·재정) 조언을 대체하지 않습니다.
+서비스는 이용자가 자신에 관한 기록을 축적하고 **자기 이해와 성장**을 돕는, 생성형 인공지능(AI)을 활용하는 개인 도구입니다. 서비스는 **의료·심리상담·진단·치료 서비스가 아니며**, 서비스가 제공하는 정보와 AI 산출물은 **참고용 정보**로서 전문적(의료·법률·재정) 조언을 대체하지 않습니다.
 
 ### 제2조의2 (긴급 상황 및 안전 안내)
 ① **서비스는 응급·구조 서비스가 아닙니다.** 생명이나 안전이 걸린 상황에서는 서비스가 아니라 **112(경찰)·119(구조·구급)** 에 직접 연락하십시오.
@@ -111,6 +111,11 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 
 ⑥ **만 14세 미만 및 미성년자(제25조)**: 이 서비스는 만 18세 이상으로 확인된 이용자만 별도 동의하여 켤 수 있습니다. 만 14세 미만은 법정대리인 동의를 포함한 별도 개방 절차가 마련되기 전까지 잠겨 있고, 만 14~17세 및 나이 미확인 계정도 잠겨 있습니다. 이 약관은 미성년 위치 기능을 개방하지 않습니다.
 
+### 개정 이력
+| 시행일 | 변경 내용 |
+|---|---|
+| 2026-10-13 | 제2조: "AI 기반"을 "생성형 인공지능(AI)을 활용하는"으로 고쳤습니다. 표현을 정확히 한 것이며 서비스 내용은 바뀌지 않았습니다. |
+
 ---
 
 ## English
@@ -119,7 +124,7 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 These Terms govern the rights, obligations, and responsibilities between Hayang Production (sole proprietorship, Representative: Bae Soha; the "Company") and users regarding the use of **PolaScope** (the "Service").
 
 ### 2. Nature of the Service
-The Service is an AI-assisted personal tool that helps users accumulate records about themselves for **self-understanding and growth**. It is **not a medical, counseling, diagnostic, or treatment service**, and any information or AI output it provides is **for reference only** and does not replace professional (medical, legal, financial) advice.
+The Service is a personal tool that uses generative artificial intelligence (AI) and helps users accumulate records about themselves for **self-understanding and growth**. It is **not a medical, counseling, diagnostic, or treatment service**, and any information or AI output it provides is **for reference only** and does not replace professional (medical, legal, financial) advice.
 
 ### 2A. Emergencies and safety information
 (1) **The Service is not an emergency or rescue service.** If life or safety is at risk, contact the emergency services directly (in Korea, **112 for police and 119 for fire/ambulance**), not this app.
@@ -178,7 +183,12 @@ Revision: weather-v1-261007 (the initial revision identifier, not an effective d
 
 (5) **Location processing and retention**: Coordinates are used only on the device to select a nearby observation. Neither precise nor approximate device coordinates are sent to Company servers, Supabase or NOAA/NWS. The server obtains the same public observation list independently of users' locations. The device's location/weather memory cache lasts at most 30 minutes and clears on withdrawal or account change. There is no background tracking or movement-history storage. Location and weather are not used for advertising, analytics or AI input.
 
-(6) **Children and minors (Article 25)**: Only confirmed adults aged 18 or older may opt in. Children under 14 remain locked out until a separate opening process including legal-representative consent exists. Users aged 14–17 and accounts with unknown age are also locked out. These terms do not open location features to minors.`,
+(6) **Children and minors (Article 25)**: Only confirmed adults aged 18 or older may opt in. Children under 14 remain locked out until a separate opening process including legal-representative consent exists. Users aged 14–17 and accounts with unknown age are also locked out. These terms do not open location features to minors.
+
+### Revision history
+| Effective | What changed |
+|---|---|
+| 2026-10-13 | Section 2: "AI-assisted" now reads "uses generative artificial intelligence (AI)". This makes the wording precise; the Service itself is unchanged. |`,
 };
 
 export const REFUND_DOC: LegalDoc = {
