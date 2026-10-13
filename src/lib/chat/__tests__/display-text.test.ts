@@ -41,6 +41,14 @@ test.each([
   ["__https://example.com__", "https://example.com"],
   ["*나* _나_ **나** __나__", "나 나 나 나"],
   ["[원문](https://example.com/_path_) https://example.com/*path*", "[원문](https://example.com/_path_) https://example.com/*path*"],
+  // Z33: spaces at the end of a line are not drawn; the line break and everything else stay.
+  ["첫 문장입니다.  \n둘째 문장입니다.   \n셋째.", "첫 문장입니다.\n둘째 문장입니다.\n셋째."],
+  ["끝에 탭\t\r\n다음 \t \r\n끝", "끝에 탭\r\n다음\r\n끝"],
+  ["문단 하나\n   \n문단 둘", "문단 하나\n\n문단 둘"],
+  ["가  나  다", "가  나  다"],
+  ["- 항목 하나  \n- 항목 둘", "- 항목 하나\n- 항목 둘"],
+  ["```\n코드 줄  \n다음\n```", "\n코드 줄  \n다음\n"],
+  ["`코드  `  \n다음", "코드  \n다음"],
 ])("display only: %j", (input, expected) => {
   expect(chatDisplayText(input)).toBe(expected);
 });
