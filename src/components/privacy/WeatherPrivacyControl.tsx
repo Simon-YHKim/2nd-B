@@ -1,6 +1,6 @@
 import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useRef, useState } from "react";
-import { StyleSheet } from "react-native";
+import { AppState, StyleSheet } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -10,6 +10,8 @@ import { loadWeatherConsent, saveWeatherConsent, WeatherConsentConflictError } f
 import type { WeatherConsent } from "@/lib/weather/model";
 import { consentAfterFailedRevoke, consentEvidence } from "@/lib/weather/consent-evidence";
 import { WEATHER_LOCATION_ENABLED } from "@/lib/location/weather-location-gate";
+import { weatherLocationStatus, type WeatherLocationStatus } from "@/lib/location/weather-location";
+import { showsDeviceNotAllowedLine } from "@/lib/weather/device-line";
 
 /** Settings offers withdrawal. The clock sheet is the only opt-in surface. */
 export function WeatherPrivacyControl() {
@@ -34,6 +36,21 @@ export function WeatherPrivacyControl() {
     }).catch(() => { if (!controller.signal.aborted) setFailed(true); });
     return () => controller.abort();
   }, [userId, isMinor]));
+  // The device's own location permission, read without asking for it. Consent can be on while
+  // this device never allowed location; the row then says the app reads no location here (Z75).
+  // Read again when the app comes back to the front, since the permission is changed in OS settings.
+  const [device, setDevice] = useState<{ ownerId: string; status: WeatherLocationStatus } | null>(null);
+  useFocusEffect(useCallback(() => {
+    let live = true;
+    setDevice(null);
+    const read = () => {
+      if (userId) void weatherLocationStatus().then((next) => { if (live) setDevice({ ownerId: userId, status: next }); });
+    };
+    read();
+    const listener = AppState.addEventListener("change", (next) => { if (next === "active") read(); });
+    return () => { live = false; listener.remove(); };
+  }, [userId]));
+  const deviceNotAllowed = showsDeviceNotAllowedLine(evidence, isMinor, device?.ownerId === userId ? device.status : null);
   async function revoke() {
     const signal = scope.current?.signal;
     if (!userId || !canRevoke || saving.current || !signal || signal.aborted) return;
@@ -63,6 +80,7 @@ export function WeatherPrivacyControl() {
       <Text variant="body" style={styles.label}>{t("phone.board.weather.setting")}</Text>
       <Text variant="body">{isMinor !== false ? t("phone.board.weather.off") : confirmed ? t(evidence === "on" ? "phone.board.weather.on" : "phone.board.weather.off") : status || failed ? "" : t("common:states.loading")}</Text>
     </Pressable>
+    {deviceNotAllowed ? <Text variant="caption" testID="weather-device-not-allowed">{t("phone.board.weather.deviceNotAllowed")}</Text> : null}
     {failed ? <Text variant="caption" accessibilityRole="alert">{t("phone.board.weather.failed")}</Text> : null}
   </View>;
 }

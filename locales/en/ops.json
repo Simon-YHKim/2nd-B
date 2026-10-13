@@ -226,6 +226,7 @@
         "setting": "Location for weather",
         "on": "On",
         "off": "Off",
+        "deviceNotAllowed": "Location access is not allowed on this device, so the app does not read your location.",
         "source": "Nearby observations from NOAA/NWS, within 50 km and 90 minutes old. Hidden when unavailable. We use five drawings and rounded temperatures; this is not an official NOAA/NWS product or endorsement.",
         "sourceTerms": "Data use terms"
       },
