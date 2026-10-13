@@ -19,6 +19,12 @@ LANGUAGE sql AS $$
   SELECT count FROM public.chat_usage WHERE user_id = p_user AND day = p_day
 $$;
 
+-- The day an audit row was used for, or NULL while it is unused.
+CREATE FUNCTION pg_temp.z46_used(p_audit uuid) RETURNS date
+LANGUAGE sql AS $$
+  SELECT day FROM public.chat_turn_refunds WHERE audit_id = p_audit
+$$;
+
 -- The proxy's row shape (openai-proxy writes event_source 'server_verified' as service_role).
 CREATE FUNCTION pg_temp.z46_audit(p_id uuid, p_user uuid, p_source text, p_purpose text, p_zone text, p_age interval) RETURNS void
 LANGUAGE sql AS $$
@@ -47,7 +53,7 @@ INSERT INTO public.chat_usage (user_id, day, count, ad_bonus) VALUES
   ('26101346-0000-4000-8000-00000000000a', :'today'::date - 2, 4, 0),
   ('26101346-0000-4000-8000-00000000000b', :'today'::date, 1, 0);
 
--- Only signed-in users may call it, and nobody else holds EXECUTE.
+-- Who may call it, and who may touch the ledger table.
 DO $acl$
 DECLARE
   v_acl aclitem[];
@@ -55,15 +61,41 @@ BEGIN
   SELECT p.proacl INTO v_acl FROM pg_catalog.pg_proc p
    WHERE p.oid = 'public.refund_chat_turn_after_output_swap(date)'::regprocedure;
   PERFORM pg_temp.z46_assert(v_acl IS NOT NULL, 'function ACL is still the default (PUBLIC can execute)');
-  PERFORM pg_temp.z46_assert(EXISTS (
-    SELECT 1 FROM pg_catalog.aclexplode(v_acl) a JOIN pg_catalog.pg_roles r ON r.oid = a.grantee
-     WHERE a.privilege_type = 'EXECUTE' AND r.rolname = 'authenticated'), 'authenticated cannot execute the function');
   PERFORM pg_temp.z46_assert(NOT EXISTS (
     SELECT 1 FROM pg_catalog.aclexplode(v_acl) a LEFT JOIN pg_catalog.pg_roles r ON r.oid = a.grantee
      WHERE a.privilege_type = 'EXECUTE' AND (a.grantee = 0 OR r.rolname IN ('anon', 'service_role'))),
-    'PUBLIC, anon or service_role can execute the function');
+    'PUBLIC, anon or service_role holds EXECUTE directly');
+  -- Effective privilege, inherited grants included.
+  PERFORM pg_temp.z46_assert(has_function_privilege('authenticated', 'public.refund_chat_turn_after_output_swap(date)', 'EXECUTE'),
+    'authenticated cannot execute the function');
+  PERFORM pg_temp.z46_assert(NOT has_function_privilege('anon', 'public.refund_chat_turn_after_output_swap(date)', 'EXECUTE')
+                             AND NOT has_function_privilege('service_role', 'public.refund_chat_turn_after_output_swap(date)', 'EXECUTE'),
+    'anon or service_role can execute the function');
+  PERFORM pg_temp.z46_assert((SELECT c.relrowsecurity FROM pg_catalog.pg_class c WHERE c.oid = 'public.chat_turn_refunds'::regclass)
+                             AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polrelid = 'public.chat_turn_refunds'::regclass),
+    'the ledger table is not policy-less RLS');
+  PERFORM pg_temp.z46_assert(NOT has_table_privilege('authenticated', 'public.chat_turn_refunds', 'SELECT')
+                             AND NOT has_table_privilege('authenticated', 'public.chat_turn_refunds', 'INSERT')
+                             AND NOT has_table_privilege('authenticated', 'public.chat_turn_refunds', 'DELETE')
+                             AND NOT has_table_privilege('anon', 'public.chat_turn_refunds', 'SELECT')
+                             AND NOT has_table_privilege('service_role', 'public.chat_turn_refunds', 'DELETE'),
+    'an API role holds a privilege on the ledger table');
 END
 $acl$;
+
+-- anon is refused by privilege, before the function body runs.
+SET LOCAL ROLE anon;
+DO $anon$
+BEGIN
+  BEGIN
+    PERFORM public.refund_chat_turn_after_output_swap((pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date);
+    RAISE EXCEPTION 'z46 regression failed: anon called the function';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END
+$anon$;
+RESET ROLE;
 
 -- Nobody signed in: refused, not a silent NULL.
 DO $unsigned$
@@ -87,12 +119,52 @@ SELECT pg_temp.z46_audit('26101346-4000-4000-8000-000000000005', '26101346-0000-
 -- B's own evidence is B's.
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000b1', '26101346-0000-4000-8000-00000000000b', 'server_verified', 'secondb_chat', 'red', interval '1 minute');
 
+-- What a signed-in client can do on its own must never become evidence.
+-- The scratch database has no Supabase table-privilege floor, so the grants below stand in for
+-- it: with them in place only row security is left to refuse a direct write.
+GRANT SELECT, INSERT, UPDATE ON public.ai_audit_log TO authenticated;
 SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000a';
 SET LOCAL ROLE authenticated;
+-- (1) The client's own audit RPC stamps the row as the client's.
+SELECT public.log_ai_audit('0a0b0c0d', '0e0f0a0b', 'gpt-test+swap:v1', false, 'red', 10, 'secondb_chat');
+-- (2) A direct insert that claims to be the proxy is refused.
+DO $forge$
+BEGIN
+  BEGIN
+    INSERT INTO public.ai_audit_log
+      (user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+    VALUES ('26101346-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b', 'forged', false, 'red', 10, 'secondb_chat', 'server_verified');
+    RAISE EXCEPTION 'z46 regression failed: a signed-in user inserted a server_verified audit row';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END
+$forge$;
+-- (3) Promoting an existing row is refused or changes nothing.
+DO $promote$
+BEGIN
+  BEGIN
+    UPDATE public.ai_audit_log SET event_source = 'server_verified'
+     WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND purpose = 'secondb_chat' AND safety_zone = 'red';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END
+$promote$;
 SELECT COALESCE(public.refund_chat_turn_after_output_swap(:'today'::date)::text, 'null') AS r \gset
 RESET ROLE;
-SELECT pg_temp.z46_assert(:'r' = 'null', 'a turn was given back without proxy evidence (client row, green, other purpose, old, legacy, another user)');
+SELECT pg_temp.z46_assert((SELECT count(*) = 1 FROM public.ai_audit_log
+                            WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND model_used = 'gpt-test+swap:v1'
+                              AND event_source = 'client_unverified'),
+                          'the client audit RPC did not write a client_unverified row');
+SELECT pg_temp.z46_assert((SELECT count(*) = 0 FROM public.ai_audit_log
+                            WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND event_source = 'server_verified'
+                              AND purpose = 'secondb_chat' AND safety_zone = 'red'
+                              AND created_at >= pg_catalog.now() - interval '10 minutes'),
+                          'a signed-in user made or promoted a fresh server_verified red chat row');
+SELECT pg_temp.z46_assert(:'r' = 'null', 'a turn was given back without proxy evidence (client rows, green, other purpose, old, legacy, another user)');
 SELECT pg_temp.z46_assert(pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date) = 3, 'the count moved without evidence');
+SELECT pg_temp.z46_assert((SELECT count(*) = 0 FROM public.chat_turn_refunds), 'an audit row was marked used without a refund');
 
 -- One fresh proxy row: exactly one turn comes back, on the day asked for.
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-000000000011', '26101346-0000-4000-8000-00000000000a', 'server_verified', 'secondb_chat', 'red', interval '5 seconds');
@@ -101,10 +173,10 @@ SELECT COALESCE(public.refund_chat_turn_after_output_swap(:'today'::date)::text,
 RESET ROLE;
 SELECT pg_temp.z46_assert(:'r' = '2', 'the first refund did not return the new count 2');
 SELECT pg_temp.z46_assert(pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date) = 2, 'the count is not 2 after one refund');
-SELECT pg_temp.z46_assert((SELECT refunded_audit_ids = ARRAY['26101346-4000-4000-8000-000000000011'::uuid] AND ad_bonus = 2
-                             FROM public.chat_usage
-                            WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND day = :'today'::date),
-                          'the used audit id was not recorded, or ad_bonus changed');
+SELECT pg_temp.z46_assert(pg_temp.z46_used('26101346-4000-4000-8000-000000000011') = :'today'::date
+                          AND (SELECT count(*) = 1 FROM public.chat_turn_refunds), 'the used audit row was not recorded once, for today');
+SELECT pg_temp.z46_assert((SELECT ad_bonus = 2 FROM public.chat_usage
+                            WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND day = :'today'::date), 'ad_bonus changed');
 
 -- The same row is not used twice: not today, and not against yesterday.
 SET LOCAL ROLE authenticated;
@@ -125,18 +197,16 @@ SELECT COALESCE(public.refund_chat_turn_after_output_swap(NULL)::text, 'null') A
 RESET ROLE;
 SELECT pg_temp.z46_assert(:'r' = 'null' AND :'r2' = 'null' AND :'r3' = 'null', 'a day other than today or yesterday was accepted');
 SELECT pg_temp.z46_assert(pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date - 2) = 4, 'an old day was changed');
+SELECT pg_temp.z46_assert(pg_temp.z46_used('26101346-4000-4000-8000-000000000012') IS NULL, 'a refused day used up the evidence');
 
 -- Yesterday is accepted (a turn sent just before midnight), and uses the row left unused above.
 SET LOCAL ROLE authenticated;
 SELECT COALESCE(public.refund_chat_turn_after_output_swap(:'today'::date - 1)::text, 'null') AS r \gset
 RESET ROLE;
 SELECT pg_temp.z46_assert(:'r' = '1', 'yesterday was not given back');
-SELECT pg_temp.z46_assert((SELECT refunded_audit_ids = ARRAY['26101346-4000-4000-8000-000000000012'::uuid]
-                             FROM public.chat_usage
-                            WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND day = :'today'::date - 1),
-                          'yesterday did not record the audit id it used');
+SELECT pg_temp.z46_assert(pg_temp.z46_used('26101346-4000-4000-8000-000000000012') = :'today'::date - 1, 'yesterday did not record the audit row it used');
 
--- Two fresh rows give two turns back, the third call nothing. The count never goes below zero.
+-- Three fresh rows, two turns left today: two come back, the third call finds a zero count.
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-000000000013', '26101346-0000-4000-8000-00000000000a', 'server_verified', 'secondb_chat', 'red', interval '3 seconds');
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-000000000014', '26101346-0000-4000-8000-00000000000a', 'server_verified', 'secondb_chat', 'red', interval '2 seconds');
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-000000000015', '26101346-0000-4000-8000-00000000000a', 'server_verified', 'secondb_chat', 'red', interval '1 second');
@@ -148,13 +218,17 @@ RESET ROLE;
 SELECT pg_temp.z46_assert(:'r' = '1' AND :'r2' = '0', 'two fresh rows did not give two turns back');
 SELECT pg_temp.z46_assert(:'r3' = 'null', 'a turn was given back from a day whose count is already 0');
 SELECT pg_temp.z46_assert(pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date) = 0, 'the count is not 0');
--- The row that found no turn to give back is still unused: nothing was recorded for it.
-SELECT pg_temp.z46_assert((SELECT pg_catalog.cardinality(refunded_audit_ids) = 3 FROM public.chat_usage
-                            WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND day = :'today'::date),
-                          'an audit id was recorded although no turn came back');
+-- The call that found no turn to give back left its evidence unused: four rows used so far, not five.
+SELECT pg_temp.z46_assert((SELECT count(*) = 4 FROM public.chat_turn_refunds), 'an audit row was marked used although no turn came back');
+-- ... and that evidence still works for the day that has a turn.
+SET LOCAL ROLE authenticated;
+SELECT COALESCE(public.refund_chat_turn_after_output_swap(:'today'::date - 1)::text, 'null') AS r \gset
+RESET ROLE;
+SELECT pg_temp.z46_assert(:'r' = '0' AND (SELECT count(*) = 5 FROM public.chat_turn_refunds), 'the evidence left unused did not work for the day with a turn');
 
 -- A's calls never touched B, and B's own evidence works for B only.
-SELECT pg_temp.z46_assert(pg_temp.z46_count('26101346-0000-4000-8000-00000000000b', :'today'::date) = 1, 'another user''s count moved');
+SELECT pg_temp.z46_assert(pg_temp.z46_count('26101346-0000-4000-8000-00000000000b', :'today'::date) = 1
+                          AND pg_temp.z46_used('26101346-4000-4000-8000-0000000000b1') IS NULL, 'another user''s count or evidence moved');
 SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000b';
 SET LOCAL ROLE authenticated;
 SELECT COALESCE(public.refund_chat_turn_after_output_swap(:'today'::date)::text, 'null') AS r \gset
@@ -168,18 +242,34 @@ SELECT pg_temp.z46_assert(NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p
                                        WHERE p.polrelid = 'public.chat_usage'::regclass AND p.polcmd <> 'r'),
                           'a policy lets the signed-in role write chat_usage directly');
 
--- Rollback round trip: the down file removes the function and the column, applying again restores both.
+-- Rollback round trip. The down file removes the function and keeps the ledger, so evidence
+-- used before it cannot be used again after 0252 is applied a second time.
 \ir ../migrations/rollback/0252_down.sql
-SELECT pg_temp.z46_assert((SELECT count(*) = 0 FROM pg_catalog.pg_proc p WHERE p.proname = 'refund_chat_turn_after_output_swap')
-                          AND NOT EXISTS (SELECT 1 FROM information_schema.columns
-                                           WHERE table_schema = 'public' AND table_name = 'chat_usage' AND column_name = 'refunded_audit_ids'),
-                          'the down file left the function or the column behind');
-SELECT pg_temp.z46_assert(pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date) = 0, 'the down file changed a count');
+SELECT pg_temp.z46_assert((SELECT count(*) = 0 FROM pg_catalog.pg_proc p WHERE p.proname = 'refund_chat_turn_after_output_swap'),
+                          'the down file left the function behind');
+SELECT pg_temp.z46_assert((SELECT count(*) = 6 FROM public.chat_turn_refunds)
+                          AND pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date) = 0,
+                          'the down file dropped used-evidence marks or changed a count');
+-- Supabase grants new tables to the API roles by default; the scratch database does not.
+-- Put those grants in place so that applying 0252 again has something to take away.
+GRANT ALL ON TABLE public.chat_turn_refunds TO anon, authenticated, service_role;
 \ir ../migrations/0252_chat_turn_refund.sql
 \ir ../migrations/0252_chat_turn_refund.sql
-SELECT pg_temp.z46_assert((SELECT count(*) = 1 FROM pg_catalog.pg_proc p WHERE p.proname = 'refund_chat_turn_after_output_swap')
-                          AND (SELECT refunded_audit_ids = '{}'::uuid[] FROM public.chat_usage
-                                WHERE user_id = '26101346-0000-4000-8000-00000000000b' AND day = :'today'::date),
-                          'applying again did not restore the function and an empty column');
+SELECT pg_temp.z46_assert(NOT has_table_privilege('anon', 'public.chat_turn_refunds', 'SELECT')
+                          AND NOT has_table_privilege('authenticated', 'public.chat_turn_refunds', 'INSERT')
+                          AND NOT has_table_privilege('service_role', 'public.chat_turn_refunds', 'DELETE'),
+                          'applying 0252 left an API role with a privilege on the ledger table');
+UPDATE public.chat_usage SET count = 3
+ WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND day = :'today'::date;
+SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000a';
+SET LOCAL ROLE authenticated;
+SELECT COALESCE(public.refund_chat_turn_after_output_swap(:'today'::date)::text, 'null') AS r \gset
+RESET ROLE;
+SELECT pg_temp.z46_assert(:'r' = 'null' AND pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date) = 3,
+                          'evidence used before the rollback gave a turn back again after applying 0252 a second time');
+SELECT pg_temp.z46_assert(has_function_privilege('authenticated', 'public.refund_chat_turn_after_output_swap(date)', 'EXECUTE')
+                          AND NOT has_function_privilege('anon', 'public.refund_chat_turn_after_output_swap(date)', 'EXECUTE')
+                          AND NOT has_table_privilege('authenticated', 'public.chat_turn_refunds', 'SELECT'),
+                          'applying again changed who may call the function or read the ledger');
 
 ROLLBACK;
