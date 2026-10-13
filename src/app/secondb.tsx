@@ -689,6 +689,9 @@ function SecondBChatBody() {
   const [refDrawer, setRefDrawer] = useState<string[] | null>(null);
   // Funnel: fire ai_limit_hit at most once per mount when the daily cap is hit.
   const limitHitFiredRef = useRef(false);
+  // Z46: moves on every send and every re-read of the usage, so a count that arrives late is
+  // not shown over a newer one.
+  const usageSeq = useRef(0);
   // The tier the server says to upgrade to (from a blocked turn). Falls back to
   // "soma" in the limit-hit effect when no blocked turn has set it yet.
   const [pendingUpgrade, setPendingUpgrade] = useState<SubscriptionTier | null>(null);
@@ -809,6 +812,7 @@ function SecondBChatBody() {
   // granting the bonus moves the allowance on the SERVER, and until the client
   // re-reads it the composer stays locked at the old wall.
   const refreshChatUsage = useCallback(async () => {
+    usageSeq.current += 1;
     if (!userId) return;
     await readChatUsageDetail(userId)
       .then((d) => {
@@ -889,6 +893,9 @@ function SecondBChatBody() {
       setSendingPersona(requestPersona);
       setSending(true);
       setTurns((prev) => [...prev, { role: "user", text: msg }]);
+      const seq = ++usageSeq.current;
+      // Z46: a count settled after the reply is shown only to the account that sent.
+      const usageLease = captureAccountOwnerLease(userId);
       void (async () => {
         // AI 응답 대기: every mounted head holds the thinking face (eyes drift
         // up-side) until the reply lands — released in finally either way.
@@ -950,6 +957,10 @@ function SecondBChatBody() {
             // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
             if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
             setUsedToday(result.used);
+            // Z46: the turn of a swapped reply may be given back after the reply is on screen.
+            void result.settlement?.then((used) => {
+              if (used !== null && usageLease?.isCurrent() && usageSeq.current === seq) setUsedToday(used);
+            });
             captureEvent(
               secondBSession({
                 action: "message_sent",

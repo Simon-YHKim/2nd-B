@@ -29,6 +29,13 @@ jest.mock("../usage", () => ({
     captured.push({ fn: "readChatUsageDetail", args: [userId, day], ret: fixtures.used ?? 0 });
     return Promise.resolve({ used: fixtures.used ?? 0, adBonus: (fixtures.adBonus as number) ?? 0 });
   }),
+  // Z46: the settlement of a swapped turn. fixtures.settlement is what it resolves with;
+  // "never" keeps it pending, to show that the reply does not wait for it.
+  settleChatTurn: jest.fn((userId: string, day: string) => {
+    captured.push({ fn: "settleChatTurn", args: [userId, day], ret: fixtures.settlement ?? null });
+    if (fixtures.settlement === "never") return new Promise(() => {});
+    return Promise.resolve(fixtures.settlement ?? null);
+  }),
   bumpChatUsage: jest.fn((userId: string, day: string) => {
     captured.push({ fn: "bumpChatUsage", args: [userId, day], ret: (fixtures.used as number ?? 0) + 1 });
     return Promise.resolve((fixtures.used as number ?? 0) + 1);
@@ -230,6 +237,77 @@ describe("sendChatMessage", () => {
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toContain("bumpChatUsageIfUnderCap");
     expect(callNames).toContain("callLlm");
+  });
+
+  // Z46 (0252): the turn was counted before the model was called. When the model's reply is
+  // replaced by the fixed crisis guidance, the reply is handed over at once and the turn is
+  // settled with the server afterwards. The guidance never waits for a count.
+  const SWAPPED = {
+    text: "Please call hotline...",
+    safety: { zone: "red" },
+    audit: { modelUsed: "gpt-5.4+swap:v3", safetyZone: "red" },
+  };
+
+  test("a swapped reply comes back with the bumped count, and its settlement carries the count the server holds", async () => {
+    fixtures.used = 1;
+    fixtures.geminiResult = SWAPPED;
+    // The bump made it 2; the server gave the turn back, so it holds 1 again.
+    fixtures.settlement = 1;
+    const r = await sendChatMessage({ userId: "u1", message: "hi", locale: "en", tier: "free" });
+    if (r.status !== "ok") throw new Error("type narrowing");
+    expect(r.reply.text).toBe("Please call hotline...");
+    expect(r.used).toBe(2);
+    expect(r.remaining).toBe(3);
+    await expect(r.settlement).resolves.toBe(1);
+    const settle = captured.find((c) => c.fn === "settleChatTurn");
+    const bump = captured.find((c) => c.fn === "bumpChatUsageIfUnderCap");
+    // The same user, and the same day the turn was counted on: a send across midnight is not
+    // asked back on the wrong day.
+    expect(settle?.args).toEqual(["u1", bump?.args[2]]);
+    expect(captured.filter((c) => c.fn === "settleChatTurn")).toHaveLength(1);
+  });
+
+  test("the crisis guidance does not wait for a settlement that never answers", async () => {
+    fixtures.used = 1;
+    fixtures.geminiResult = SWAPPED;
+    fixtures.settlement = "never";
+    // If the reply waited for the settlement, this await would never finish.
+    const r = await sendChatMessage({ userId: "u1", message: "hi", locale: "en", tier: "free" });
+    if (r.status !== "ok") throw new Error("type narrowing");
+    expect(r.reply.text).toBe("Please call hotline...");
+    expect(r.used).toBe(2);
+    expect(r.settlement).toBeInstanceOf(Promise);
+  });
+
+  test("a message stopped before the model was called asks for nothing back", async () => {
+    fixtures.used = 1;
+    fixtures.geminiResult = {
+      text: "Please call hotline...",
+      safety: { zone: "red" },
+      audit: { modelUsed: "none-crisis-routed", safetyZone: "red" },
+    };
+    const r = await sendChatMessage({ userId: "u1", message: "trigger", locale: "en", tier: "free" });
+    if (r.status !== "ok") throw new Error("type narrowing");
+    expect(r.settlement).toBeUndefined();
+    expect(r.used).toBe(2);
+    expect(captured.map((c) => c.fn)).not.toContain("settleChatTurn");
+  });
+
+  test.each([
+    ["green", "gpt-5.4"],
+    ["yellow", "gpt-5.4"],
+    // The mark alone is not enough: the reply has to be the red-zone guidance.
+    ["green", "gpt-5.4+swap:v3"],
+  ])("an ordinary reply (%s, %s) asks for nothing back", async (zone, modelUsed) => {
+    fixtures.used = 1;
+    fixtures.geminiResult = { text: "ok", safety: { zone }, audit: { modelUsed } };
+    const r = await sendChatMessage({ userId: "u1", message: "hi", locale: "en", tier: "free" });
+    if (r.status !== "ok") throw new Error("type narrowing");
+    expect(r.settlement).toBeUndefined();
+    expect(r.used).toBe(2);
+    const calls = captured.map((c) => c.fn);
+    expect(calls).not.toContain("settleChatTurn");
+    expect(calls.filter((name) => name === "readChatUsageDetail")).toHaveLength(1);
   });
 
   test("does not consume quota when wiki snapshot export fails before the LLM call", async () => {

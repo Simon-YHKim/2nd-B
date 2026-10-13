@@ -26,7 +26,7 @@ import { loadStructuredContext } from "../records/load-structured";
 import { loadProfileContext } from "../persona/profile-context";
 import { exportUserWiki } from "../wiki/export";
 import { formatRagPages, retrieveChatContext } from "./rag";
-import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail } from "./usage";
+import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail, settleChatTurn } from "./usage";
 
 /** One prior exchange line. `assistant` is the model's own earlier reply. */
 export interface ChatHistoryTurn {
@@ -352,8 +352,8 @@ ${sanitizeUntrusted(structuredBlock)}
   const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
   // C1/C3/C9 are enforced by callLlm. Red-zone short-circuit still
-  // happens inside callLlm; we just no longer adjust the counter
-  // afterwards because the bump already landed atomically above.
+  // happens inside callLlm. The bump already landed atomically above;
+  // a swapped reply's turn is settled after it is handed over (Z46).
   const reply = await callLlm({
     userId: input.userId,
     locale: input.locale,
@@ -374,6 +374,9 @@ ${sanitizeUntrusted(structuredBlock)}
     // from `limit` therefore understates it by exactly the bonus the user just
     // earned by watching an ad. Ask the one function that knows the allowance.
     remaining: checkChatLimit(input.tier, newCount, adBonus).remaining,
+    // Z46: started here, never awaited here. The fixed crisis guidance must reach the person
+    // whether or not the server answers about a count. `day` is the day the turn was counted on.
+    ...(replyWasSwapped(reply) ? { settlement: settleChatTurn(input.userId, day) } : {}),
   };
 }
 
@@ -393,4 +396,22 @@ function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): stri
   }
   const lines = numbers.join(" or ");
   return `If the person talks about ending their life or hurting themselves, point them to ${lines}. Do not add a police number for that reason alone. Point to the local emergency number only when their body is in danger right now, such as an injury or something already swallowed. If you cannot tell which it is, stay with ${lines}. Never make up a phone number.`;
+}
+
+// The model was called and its reply was replaced by the fixed crisis guidance: the boundary marks
+// that reply with "+swap:" in the audit's model name. A message stopped before the model was
+// called is red too, but the server holds no evidence for that turn, so nothing is asked for it.
+function replyWasSwapped(reply: LlmResult<string>): boolean {
+  return reply.safety.zone === "red" && reply.audit.modelUsed.includes("+swap:");
+}
+
+// Declared down here and merged into SendMessageOk above, so that the lines of this file which
+// the impact assessment cites by number do not move.
+export interface SendMessageOk {
+  /**
+   * Present when the model's reply was replaced by the fixed crisis guidance (Z46). It resolves
+   * after the reply was handed over: with the count the server holds once the turn was asked
+   * back, or with null when that is not known. It never rejects. The reply never waits for it.
+   */
+  settlement?: Promise<number | null>;
 }
