@@ -1,5 +1,16 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 12:46 / 2ndb-79: 위기 안내 오탐(Z45)의 준비 조각이 3회차 검토 통과 · 실제 적용 방식은 Q-261013-39 대기 · 폰 빌드 c8ac34e4 메모 발행
+
+- **지금까지**: PR #2369(브랜치 `fix/output-overlap-exceptions` · 워크트리 `E:/2ndB/.worktrees/o2-reminder-reply-261013`) = `src/lib/safety/model-reply-scan.ts` 신설 + `crisis-context.ts` 끝에 `hasCrisisRiskContext` + 테스트 64. 부품만 · 연결 없음 · 앱 동작 변화 없음. 독립 검토 1 · 2회차 BLOCK → 3회차 PASS(12:40 · `E:/Coding Infra/reports/devlab-261010/gates/z45a-daybreak-r3.txt`). 왜 줄였는지는 DECISIONS 같은 시각 줄.
+- **다음 1개**: Q-261013-39 의 답. "가"면 연결 PR — 후보인 답에만 서버의 뜻 분류를 한 번 더(전체 스위치 `EXPO_PUBLIC_SERVER_SAFETY` 는 그대로 꺼 둠) · 성인 경로만 · 최근 세 턴에 위기 신호가 있던 대화 제외 · 답이 바뀐 경우에만 `crisis_term:<n>` 기록 · DPIA 한 줄(`.bots/legal/outbox/coding-legal-z45-dpia-line.note.md`) · 0252 환불 RPC 호출(`refund_chat_turn_after_output_swap` · 2ndb-e7 의 #2372 가 운영에 적용된 뒤) · 독립 검토 통과 뒤에만 머지 · 적용 뒤 2주 집계.
+- **연결 PR 을 쓰기 전에 읽을 것**: `src/lib/llm/boundary.ts` 의 답 교체(약 933 ~ 998행) · `src/lib/llm/safety.ts` 의 `classifyViaProxy`(약 233 ~ 260행) · `supabase/functions/openai-proxy/index.ts:1073`(프록시의 답 쪽 `hasCrisisTerm` — 여기도 같은 목록을 쓸지는 그때 정한다 · Edge 재배포가 따른다) · `EXPO_PUBLIC_OBFUSCATION_SAFETY`(워크플로 주석에 나오는 다른 스위치 · 아직 읽지 않음).
+- **막힌 것**: 없음(답 대기). 띄어쓰기 변형(「더이상 살」 · 「짐 이 되」)은 지금의 위기 낱말 목록이 원래 못 잡는다 — 이번 변경과 무관하고, 넓히려면 사용자 입력 검사까지 바뀌므로 법무에 따로 알렸다(`.bots/relay/inbox/coding-z45-design-change-q39-1241.note.md`).
+- **폰 빌드**: `c8ac34e4` 빌드 메모 발행(12:43 · `.bots/device-lab/outbox/build-memo-c8ac34e4-1013.md`). 로그인 실패 안내(#2341)의 폰 확인이 이 빌드의 핵심이다. Rufus 의 결과는 `device-lab/outbox/vb-devlab-bc8ac34e-1013.result.md` 로 온다.
+- **Simon 실행 대기**: 0251 적용 블록 · 시험 계정 삭제 블록(Q-36) — 2ndb-e7 의 안내 페이지 <https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>. 0251 이 적용되면 Rufus 에게 「결과 검토」 재확인을 부탁한다(그 전까지 그 줄을 누르지 않기로 했다).
+- **남은 답**: Q-261013-28 · 29 · 30 · 31 · 32 · 37 · 38 · 39. 보고서 18판 <https://claude.ai/artifact/UtELW66iaCBWxwrrwVjLd4>(101건 · 결정 대기 6).
+- **멈춘 것 그대로**: #2365(Q-261013-38) · #2318(Q-261013-29) · 구현 레인과 8082 확인 서버(Q-261013-30).
+
 ## 2026-10-13 12:13 / 2ndb-79: 로그인 실패 안내 머지 · 8081 확인 · 지운 글 화면 수정은 3회차에서 멈춤 · Simon 답 셋 반영 - 다음은 Z45 구현
 
 - **끝난 것**: #2341(Z12 · Z24 = Z96 · 12:02 · main `f0fde528` · 4회차 PASS WITH CONCERNS · 8081 확인 12:06). 기록은 이 PR(#2363).
@@ -29,6 +40,17 @@
 - **Simon 이 고르면 이 세션이 넣을 화면**: 2ndb-53 넷째 시안의 Q-261013-51(이야기 제목) · 52(저장 화면) — `interview.tsx`. Z63(저장본 끝의 답 없는 질문)도 같은 파일이다.
 - **운영에 남은 것**: 확인 안 된 시험 계정 1개(Q-261013-36 · 지우지 않았다) · QA 계정의 대상 없는 리즈닝 제안 4줄(Q-261013-35).
 - **멈춘 것 그대로**: #2341 · #2318 · 구현 레인과 8082 확인 서버(Q-261013-30).
+## 2026-10-13 12:27 / 2ndb-e7: Z66 서버 쪽 0251 머지(#2366) · 운영 적용은 Simon 의 SQL 편집기 실행 대기 - 다음은 실행 뒤 운영 읽기 확인
+
+- **지금까지**: Simon 10:36 「Q-34·Q-35 둘 다 추천대로 진행해」에 따라 Z66 서버 쪽을 만들었다. 마이그레이션 0251 = `records` · `sources` 의 AFTER DELETE 트리거(같은 소유자 · 같은 종류 · 같은 id 의 제안 줄을 상태와 무관하게 지움 · proposed 줄이 안 남으면 실행을 `ratified` 로 닫음 · `reasoning_runs` 행은 안 지움) + 한 번 정리(대상 없는 줄 삭제 · 남은 줄의 `title` 제거). 독립 검토 1회차 BLOCK(인덱스 · id 글자 비교 · 잠금 순서 · 회귀 빈틈) → 고침 → 2회차 PASS WITH CONCERNS. #2366 머지 12:24 · main `c9fe3485` · CI 넷 통과 · `app:parity` 같음(12:26). **운영은 바꾸지 않았다**(원장 217행 · 0251 없음 · 12:25 읽기).
+- **다음 1개**: Simon 이 안내 페이지 <https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg> 의 블록 둘을 실행했다고 알려 오면, 운영을 읽어 확인한다 — 원장에 `0251_reasoning_proposals_purge` 한 줄 · 트리거 `purge_reasoning_proposals` 둘(`records` · `sources`) · 함수 `purge_reasoning_proposals_of_erased` 의 ACL 에 API 역할 없음 · 제안 11줄 · 대상 없는 줄 0 · 제목 0 · 실행 11개 그대로(검토 대기 0) · 시험 계정 `rufus.z2test` 0행. 그다음 `_sync/TO-CLI.md` 의 12:26 알림을 "완료"로 내리고, 2ndb-79 에 적용 시각을 알린다(Rufus 의 Z66 재점검용).
+- **REQ-261013-01 (CLI → GUI · Simon)**: 목적 = 지운 기록의 제안 줄 4개와 그 제목을 운영에서 지우고, 앞으로 지우는 기록이 같은 흔적을 남기지 않게 한다(안 하면 그대로 남는다). 화면 · 행동 · 복사 버튼 · 성공 신호는 위 안내 페이지 요약 탭의 카드 ① ~ ③ 에 있다(편집기 그림은 기억으로 그린 배치 · ⚠ 미확인). 성공 신호: 첫째 블록 = 결과 표의 `ledger_0251 = 1` · `triggers = 2` · `rows_without_target = 0` / 둘째 블록 = `q36_remaining = 0`.
+- **막힌 것**: 없음(실행 대기).
+- **열린 질문**: Q-261013-42(0252 의 운영 적용 방식 · 추천 = 검토 통과 뒤 바로 올리고 보고) · Q-261013-40 · 41(이월 1회 · 최초 05:20). 2ndb-79 의 Q-261013-38(화면 PR #2365 를 어떻게 할지)이 "서버에 맡김"으로 나오면 `complete_reasoning_run` 이 대상 없는 제안을 넣지 않게 하는 서버 조각이 따로 필요하다(0251 은 실행이 도는 사이의 삭제를 닫지 않는다).
+- **그다음(0251 적용 뒤)**: 0252 = `refund_chat_turn_after_output_swap(p_day date)`(SECURITY DEFINER · `auth.uid()` 소유 · 근거는 프록시가 쓴 `ai_audit_log` 의 `server_verified` · `secondb_chat` · `red` · 최근 10분 줄 · 새 표 `chat_turn_refunds(audit_id PK)` 로 한 번만 · `count > 0` 일 때 1 내림 · 새 `count` 반환). 2ndb-79 와 모양을 맞췄고 화면은 2ndb-79 가 한다. 범위는 "답이 바뀐 턴"뿐이다(입력이 걸린 턴은 2ndb-79 가 Q-261013-37 로 따로 여쭘).
+- **알아 둘 사실**: 운영 서버는 PostgreSQL 17.6 · `postgres` 역할은 superuser 가 아니고 BYPASSRLS(11:34 읽기). `records` 는 FORCE RLS 라서 BYPASSRLS 가 없는 소유자 역할은 기록을 0행으로 본다 — 운영 데이터를 조건으로 지우는 블록은 `row_security_active` 가드를 둘 것. `refId` 같은 payload 칸은 클라이언트가 쓰는 길이 제한 없는 글이다(인덱스 · 맨 형 변환 금지).
+- **도구 메모**: 로컬 재생 하네스 `<scratchpad>/z66pg/`(`replay.sh` = CI sql job 의 시드 → 0001 ~ 0146 → 0147+ 를 PG18 임시 클러스터 포트 54411 에 올림 · `mutations_r2.py` · `deadlock_probe.sh` · `lanes.sh`). 적용 블록 생성기 `E:/Coding Infra/reports/codex-audit-261010/build_apply_0251.py <ref> <out>`. 안내 페이지 원본 `…/ui/z66-apply.fragment.html` + `dyn_z66.py` → `state_z66.py` → `vars_z66.py` → `build_result.py z66-apply z66-apply …` → `check_z66.cjs` → 같은 경로(`z66-apply.body.html`)로 다시 게시. 독립 검토 자료 `…/gates/z66srv-daybreak-r{1,2}.{md,txt,meta.json}`.
+- **이 세션이 들고 있는 것**: 워크트리 `z66-proposals-purge-261013`(브랜치 머지됨 · node_modules 정션 있음 — 지울 때 정션부터 풀 것) · `systags-next-261013`(머지됨 · 정션 없음). 로컬 PG18 임시 클러스터(포트 54411)는 세션을 끝낼 때 내린다.
 
 ## 2026-10-13 10:54 / 2ndb-79: 실사용 점검 95건 · 새 빌드 폰 확인 여섯 통과 · QA 계정은 유료 요금제 · 결정 여덟(Q-261013-28 ~ 35) 대기 - 다음은 Simon 의 답
 
