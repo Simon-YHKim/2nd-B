@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
-import { useAppRouter, usePhoneEmbed } from "@/lib/nav/phone-embed";
+import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
@@ -124,7 +124,14 @@ export function ImportHubScreen() {
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
 
-  const [step, setStep] = useState<Step>("hub");
+  // Z93: the "import history · withdraw" row asks for the history, so it lands on the history
+  // step, not on the list of sources to import from.
+  const landedOnHistory = useScreenParams<{ view?: string }>().view === "history";
+  const [step, setStep] = useState<Step>(landedOnHistory ? "history" : "hub");
+  const [sawHub, setSawHub] = useState(!landedOnHistory);
+  useEffect(() => {
+    if (step === "hub") setSawHub(true);
+  }, [step]);
   // A failed import used to end exactly like a successful one: back at the hub, no message,
   // nothing kept -- after the user had walked a consent flow and picked a file for it.
   const [importErr, setImportErr] = useState(false);
@@ -471,7 +478,9 @@ export function ImportHubScreen() {
 
   // --- render -----------------------------------------------------------
 
-  const back = () => (step === "hub" ? router.back() : setStep("hub"));
+  // Landed straight on the history: ‹ returns to where the reader came from, not to a hub
+  // they never opened.
+  const back = () => (step === "hub" || (step === "history" && !sawHub) ? router.back() : setStep("hub"));
 
   // 하단 탭바를 공용 셸에서 받는다(2026-08-30). 이 화면은 자기 SafeAreaView 로
   // 프레임을 직접 세우느라 독이 통째로 없었다 — 레퍼런스 import-hub 프레임의
@@ -487,7 +496,8 @@ export function ImportHubScreen() {
     <DeepSpaceScreen active="capture" header="none" ownBack>
       <View style={styles.glow} pointerEvents="none" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <SecondbStatusHeader text={t("hubBubble")} tip={t("hubTip")} />
+        {/* Z92: the bubble asks what to import. On the history that question is not this screen's. */}
+        {step === "history" ? null : <SecondbStatusHeader text={t("hubBubble")} tip={t("hubTip")} />}
         <View style={[styles.titleRow, inPhone && styles.titleRowWrap]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("back")} onPress={back} hitSlop={10} style={styles.backBtn}>
             <RNText style={styles.backIcon}>‹</RNText>

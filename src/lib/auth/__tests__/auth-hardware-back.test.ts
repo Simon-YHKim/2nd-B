@@ -414,7 +414,9 @@ describe("D2 hardware Back wiring", () => {
     const beforeWrite = writeBody("handleForgotPassword").split("setResetSubmitting(true)")[0];
     expect(beforeWrite).toContain('if (!resetEmail.includes("@"))');
     expect(beforeWrite).toContain("return;");
-    expect(beforeWrite).not.toContain("actionLockRef.current");
+    // 2026-10-13 Z12: reading the lock prevents overlap; invalid input never acquires it.
+    expect(beforeWrite).toContain("if (actionLockRef.current > 0) return;");
+    expect(beforeWrite).not.toContain("actionLockRef.current += 1");
   });
 
   test("the installed sign-in handler reads the synchronous lock without busy-state resubscription", () => {

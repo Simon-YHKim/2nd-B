@@ -97,7 +97,11 @@ describe("R3-1 auth branch matrix", () => {
       seen.add(branch.kind);
       for (const notice of notices) {
         const placement = notice === null ? "none"
-          : notice.exitOnBack ? presentations[expected].exit : presentations[expected].other;
+          : notice.exitOnBack ? presentations[expected].exit
+          // 2026-10-13 Z24: a failure of the form is drawn on the form only (never over loading
+          // or the deletion receipt). Exit guidance is unaffected.
+          : notice.tone === "danger" && expected !== "form" ? "none"
+          : presentations[expected].other;
         expect(selectSignInNoticePlacement(branch, notice)).toBe(placement);
       }
     }
@@ -147,12 +151,17 @@ describe("R3-1 auth branch matrix", () => {
       expect(branches[index].jsx.match(/\{inlineNotice\}/g)).toHaveLength(1);
       const shell = root.children.find(child => ts.isJsxElement(child) && child.openingElement.tagName.getText() === "PixelGateShell");
       if (shell && ts.isJsxElement(shell)) {
-        expect(childNames(shell).at(-1)).toBe("inlineNotice");
+        // 2026-10-13 Z24: only loading retains the trailing inline placement.
+        if (kind === "loading") expect(childNames(shell).at(-1)).toBe("inlineNotice");
         expect(shell.getText()).not.toContain("exitNoticeOverlay");
       }
     }
     expect(branches[0].jsx).toContain("<AccountDeletionNoticePanel notice={branch.notice} />");
-    expect(branches[3].jsx.indexOf("<BusinessFooter />")).toBeLessThan(branches[3].jsx.indexOf("{inlineNotice}"));
+    // 2026-10-13 Z24: form errors are drawn immediately above Submit, and only while there is one.
+    // No reserved slot: an always-present gap would change the approved layout, and the sign-up
+    // screen (#2325) already draws its notice the same way.
+    expect(branches[3].jsx).toMatch(/\{inlineNotice\}\s*<PixelPressable\s+variant="bevel"\s+onPress=\{\(\) => void submit\(\)\}/);
+    expect(branches[3].jsx.indexOf("{inlineNotice}")).toBeLessThan(branches[3].jsx.indexOf("<BusinessFooter />"));
   });
 
   test("only the pure placement result routes the one unchanged accessible notice", () => {

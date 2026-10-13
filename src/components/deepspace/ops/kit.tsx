@@ -316,8 +316,9 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
 
 export type OpsStateVariant = "empty" | "error" | "unlinked" | "rate";
 
-const STATE_BADGE: Record<OpsStateVariant, string> = {
-  empty: "NEW",
+// "empty" carries no badge. It used to say "NEW", and on a list with nothing in it a first-time
+// user read that as "something was just added" (A-Z first-use check, round 6, Z92).
+const STATE_BADGE: Record<Exclude<OpsStateVariant, "empty">, string> = {
   error: "ERR",
   unlinked: "LINK",
   rate: "WAIT",
@@ -343,7 +344,7 @@ export function OpsState(props: OpsStateProps) {
         warn ? styles.stateWarn : null,
       ]}
     >
-      <RNText style={styles.stateBadge}>{STATE_BADGE[props.variant]}</RNText>
+      {props.variant === "empty" ? null : <RNText style={styles.stateBadge}>{STATE_BADGE[props.variant]}</RNText>}
       <Text variant="heading" style={styles.stateTitle}>{props.title}</Text>
       <Text variant="body" style={styles.stateBody}>{props.body}</Text>
       {props.ctaLabel && props.onCta ? (

@@ -1647,6 +1647,13 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/erasure_registry_regression.sql
+      # 0251: a deleted record or source takes its reasoning proposal rows with
+      # it. The deletes run as `authenticated` through RLS, then the one-time
+      # cleanup is replayed over rows shaped like the ones left behind.
+      - name: Exercise reasoning proposal purge on record and source deletion
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reasoning_proposals_purge_regression.sql
       - name: Exercise public-data quota contract
         env:
           PGPASSWORD: postgres

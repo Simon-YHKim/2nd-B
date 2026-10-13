@@ -531,7 +531,10 @@
     "reminderSetNote": "Recordatorio configurado en este dispositivo.",
     "reminderDeniedNote": "El permiso de notificaciones está apagado. Actívalo en los ajustes del dispositivo para usar recordatorios.",
     "reminderFailedNote": "No se pudo configurar el recordatorio. Revisa la hora del elemento e intenta de nuevo.",
-    "reminderUnavailableNote": "Guardado. Los recordatorios necesitan la app instalada, así que este no sonará aquí."
+    "reminderUnavailableNote": "Guardado. Los recordatorios necesitan la app instalada, así que este no sonará aquí.",
+    "deviceReminderBody": "Es la hora de tu recordatorio.",
+    "deviceTimerBody": "Tu temporizador ha terminado.",
+    "deviceChannelName": "Recordatorios"
   },
   "focus": {
     "title": "Enfoque diario",
