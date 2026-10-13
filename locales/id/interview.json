@@ -28,6 +28,7 @@
     "saveTitle": "Simpan percakapan hari ini?",
     "saveBody": "Jawabanmu disimpan apa adanya. Belum ada perkiraan yang dibuat dari jawaban ini. Catatan yang bertambah akan mengisi bintang-bintangmu.",
     "saved": "Tersimpan.",
+    "saveMeta": "{{star}} · Jawaban: {{n}}",
     "scaffoldNote": "Tidak tahu tidak apa-apa. Kamu bisa menceritakan fakta yang diingat atau melewati ini.",
     "intro": "Ceritakan hanya yang kamu mau. Kamu bisa melewati atau berhenti kapan saja.",
     "dontKnow": "Belum tahu",
