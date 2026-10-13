@@ -1495,6 +1495,7 @@ results.push(
       "Opens profile settings.",
       "Opens privacy settings.",
       "Opens data management.",
+      "Opens My data.",
       "Signs out and returns to the sign-in screen.",
       "설정을 불러오는 중입니다…",
       "설정 삭제 확인",
@@ -1502,6 +1503,7 @@ results.push(
       "프로필 설정을 엽니다.",
       "개인정보 보호 설정을 엽니다.",
       "데이터 관리를 엽니다.",
+      "내 데이터를 엽니다.",
       "로그아웃하고 로그인 화면으로 돌아갑니다.",
     ];
     const ok =

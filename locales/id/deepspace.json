@@ -154,7 +154,7 @@
   "account": {
     "title": "Akun",
     "status": "Kelola informasi akun dan akun lain yang kamu hubungkan.",
-    "tip": "Kamu bisa memulai penghapusan atau ekspor sendiri kapan saja.",
+    "tip": "Kamu bisa memulai penghapusan akun sendiri kapan saja.",
     "delete": "Hapus akun",
     "navProfile": "Profil",
     "navSettings": "Pengaturan",

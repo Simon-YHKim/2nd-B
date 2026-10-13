@@ -154,7 +154,7 @@
   "account": {
     "title": "Cuenta",
     "status": "Revisa tus datos y las cuentas que has conectado.",
-    "tip": "Puedes exportar tus datos o eliminar tu cuenta cuando quieras.",
+    "tip": "Puedes eliminar tu cuenta cuando quieras.",
     "delete": "Eliminar cuenta",
     "navProfile": "Perfil",
     "navSettings": "Ajustes",

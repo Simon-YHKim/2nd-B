@@ -23,12 +23,12 @@ function read(path: string): string {
 }
 
 describe("PIXEL-CLAY /account contract", () => {
-  test("keeps the six real destinations and never revives the prototype widget route", () => {
+  // Z77 (Simon 2026-10-13): "Settings" and "My data" left this hub. Settings is where the visitor
+  // came from, and My data is a row in settings: one top-level door per place.
+  test("keeps the four real destinations and never revives the prototype widget route", () => {
     expect(ACCOUNT_DESTINATIONS.map(({ route }) => route)).toEqual([
       "/profile",
       "/change-password",
-      "/settings",
-      "/data",
       "/iden",
       "/beyond",
     ]);

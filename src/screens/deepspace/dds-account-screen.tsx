@@ -411,79 +411,85 @@ export function DeepSpaceAccountScreen() {
               </PixelSurface>
             ) : null}
 
-            <PixelPressable
-              variant={exportOpen ? "inset" : "bevel"}
-              onPress={() => {
-                setExportOpen((open) => !open);
-                setDobOpen(false);
-              }}
-              accessibilityLabel={t("consent:account.export.label")}
-              accessibilityHint={t("consent:account.export.body")}
-              accessibilityState={{ expanded: exportOpen }}
-              fullWidth
-              contentStyle={styles.toolHeader}
-            >
-              <PixelGlyph name="download" color={m3.color.primary} size={24} />
-              <RNText style={[m3TextStyle("labelLarge"), styles.toolLabel]}>
-                {t("consent:account.export.label")}
-              </RNText>
-              <PixelGlyph
-                name={exportOpen ? "expandLess" : "expandMore"}
-                color={m3.color.onSurfaceVariant}
-                size={24}
-              />
-            </PixelPressable>
-
-            {exportOpen ? (
-              <PixelSurface variant="inset" contentStyle={styles.toolBody}>
-                <RNText style={[m3TextStyle("bodySmall"), styles.bodyCopy]}>
-                  {t("consent:account.export.body")}
-                </RNText>
-                {exportFeedback?.kind === "done" ? (
-                  <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.success]}>
-                    {t("consent:account.export.done")}
-                  </RNText>
-                ) : null}
-                {exportFeedback?.kind === "partial" ? (
-                  <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
-                    {t("consent:account.export.donePartial", { count: exportFeedback.failedItems })}
-                  </RNText>
-                ) : null}
-                {exportFeedback?.kind === "failed" ? (
-                  <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
-                    {t("consent:account.export.failed")}
-                  </RNText>
-                ) : null}
-                {exportFeedback?.kind === "cooldown" ? (
-                  <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
-                    {t("consent:account.export.cooldown", { minutes: exportFeedback.minutes })}
-                  </RNText>
-                ) : null}
+            {/* Z77 (Simon 2026-10-13): the export tool is reached through My data's card (and the
+                manual's shortcut); both open this screen with ?tool=export. Without it, not drawn. */}
+            {requestedTool === "export" ? (
+              <>
                 <PixelPressable
-                  variant={exporting ? "inset" : "bevel"}
-                  disabled={exporting}
-                  onPress={() => void onExportData()}
-                  accessibilityLabel={t("consent:account.export.button")}
-                  accessibilityHint={t("consent:account.export.buttonHint")}
-                  accessibilityState={{ busy: exporting }}
+                  variant={exportOpen ? "inset" : "bevel"}
+                  onPress={() => {
+                    setExportOpen((open) => !open);
+                    setDobOpen(false);
+                  }}
+                  accessibilityLabel={t("consent:account.export.label")}
+                  accessibilityHint={t("consent:account.export.body")}
+                  accessibilityState={{ expanded: exportOpen }}
                   fullWidth
-                  contentStyle={styles.actionContent}
+                  contentStyle={styles.toolHeader}
                 >
+                  <PixelGlyph name="download" color={m3.color.primary} size={24} />
+                  <RNText style={[m3TextStyle("labelLarge"), styles.toolLabel]}>
+                    {t("consent:account.export.label")}
+                  </RNText>
                   <PixelGlyph
-                    name={exporting ? "refresh" : "download"}
-                    color={exporting ? m3.disabled.onSurface : m3.color.primary}
+                    name={exportOpen ? "expandLess" : "expandMore"}
+                    color={m3.color.onSurfaceVariant}
                     size={24}
                   />
-                  <RNText
-                    style={[
-                      m3TextStyle("labelLarge"),
-                      exporting ? styles.disabledLabel : styles.actionLabel,
-                    ]}
-                  >
-                    {t("consent:account.export.button")}
-                  </RNText>
                 </PixelPressable>
-              </PixelSurface>
+
+                {exportOpen ? (
+                  <PixelSurface variant="inset" contentStyle={styles.toolBody}>
+                    <RNText style={[m3TextStyle("bodySmall"), styles.bodyCopy]}>
+                      {t("consent:account.export.body")}
+                    </RNText>
+                    {exportFeedback?.kind === "done" ? (
+                      <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.success]}>
+                        {t("consent:account.export.done")}
+                      </RNText>
+                    ) : null}
+                    {exportFeedback?.kind === "partial" ? (
+                      <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
+                        {t("consent:account.export.donePartial", { count: exportFeedback.failedItems })}
+                      </RNText>
+                    ) : null}
+                    {exportFeedback?.kind === "failed" ? (
+                      <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
+                        {t("consent:account.export.failed")}
+                      </RNText>
+                    ) : null}
+                    {exportFeedback?.kind === "cooldown" ? (
+                      <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
+                        {t("consent:account.export.cooldown", { minutes: exportFeedback.minutes })}
+                      </RNText>
+                    ) : null}
+                    <PixelPressable
+                      variant={exporting ? "inset" : "bevel"}
+                      disabled={exporting}
+                      onPress={() => void onExportData()}
+                      accessibilityLabel={t("consent:account.export.button")}
+                      accessibilityHint={t("consent:account.export.buttonHint")}
+                      accessibilityState={{ busy: exporting }}
+                      fullWidth
+                      contentStyle={styles.actionContent}
+                    >
+                      <PixelGlyph
+                        name={exporting ? "refresh" : "download"}
+                        color={exporting ? m3.disabled.onSurface : m3.color.primary}
+                        size={24}
+                      />
+                      <RNText
+                        style={[
+                          m3TextStyle("labelLarge"),
+                          exporting ? styles.disabledLabel : styles.actionLabel,
+                        ]}
+                      >
+                        {t("consent:account.export.button")}
+                      </RNText>
+                    </PixelPressable>
+                  </PixelSurface>
+                ) : null}
+              </>
             ) : null}
 
             <PixelPressable
