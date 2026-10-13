@@ -1,5 +1,25 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 01:42 / 2ndb-53: 태어난 해 목록(Z104)은 들어갔다(#2439 · 8081 에서 잼) - 모드 이름 가지는 로컬에만 있고 대표님의 직접 답 대기(Q-261014-60 · Q-261013-90) - 다음 1개는 확인 코드 화면(Z18)
+
+- **지금까지**: #2439(01:30:58 · main `67b1c403`). `calendar-math.ts` 의 `yearGridOpenOffset` · `yearGridOpenRow`, `DatePicker.tsx` 의 `YearGrid` 가 고른 해의 줄을 목록 한가운데에 두고 연다. 목록 높이는 300 → 288(여섯 줄 · 줄의 짝수 배여야 가장자리가 줄의 한가운데를 지난다). 8081 에서 잰 값은 DECISIONS 26.10.14 01:42. 대조 "같음"(01:39). 보고서 「PolaScope UI 밤 작업 결과 (10-14)」 2판 https://claude.ai/artifact/VRJusX4XBR58wdPX42Bmzp (원본 `E:/Coding Infra/reports/codex-audit-261010/ui/ui-az12-1014.fragment.html`).
+- **모드 이름 가지 `feat/mode-names-fact-joy`**(이 워크트리 `.worktrees/polaris-261012` 의 로컬 가지 · 커밋 셋 `558a6f4a` · `f6f2f207` · `30a05e7e` · 원격에 없음): 10-14 00:00 에 푸시 + PR 이 이 창에서 승인되지 않았다. **대표님이 이 창에 직접 답하시기 전에는 푸시 · PR · 머지를 하지 않는다. 다른 창에 부탁하지도 않는다.** 답이 "올려서 넣기"이고 글자가 나(Fact-K · Joy-K)면: 그때의 main 을 합치고 → `30a05e7e` 의 DECISIONS 줄("넣음"이라고 적혀 있다)을 그 시각의 사실로 다시 쓰고 → 푸시 → PR → CI → 머지 → 8081 후 캡처(`ui/shoot_mode_names.cjs <outDir> after`) → 대조. 글자가 가(FactK · JoyK)나 다(팩트 · 조이)면 새 가지에서 `ui/rename_modes.py <worktree> <ko-meta> <ko-twi> <en-meta> <en-twi> --apply` 로 다시 만든다. 실제 모델 확인을 다시 하게 되면 확인용 서버를 `--port=19006` 으로 띄운다(8082 는 AI 프록시가 답하지 않는다 · `ui/probe_mode_names_real_model.cjs` 의 대신 전달은 쓰지 않는다).
+- **다음 1개 = 확인 코드 화면(Z18 · 대표님 10-13 20:43 「코드 입력과 다시 보내기만 보이게」)**: 지금 가입의 코드 단계에는 "다시 보내기"가 없다(`useSignUpForm.ts` 의 `canSubmit` 이 `!confirmSentTo` · `src` 에 `auth.resend` 0건). 2ndb-79 와 정한 것(01:30): 한 PR 로 이 창이 쓴다 - `src/lib/supabase/auth.ts` 에 `resendSignUpCode(email)`(`supabase.auth.resend({ type: "signup", email })` · 결과는 `ok` / `wait`(남은 초가 오면 함께) / `failed` 셋 · 가입의 오류 풀이와 따로) · 결과 문구는 계정이 있는지에 따라 달라지지 않는 한 줄 · 기다리는 간격은 이 프로젝트의 설정에서 읽음(`npm run check:supabase-auth-config`) · 시간당 발송 한도에 닿았을 때의 응답도 봄 · `signUp` 을 다시 부르지 않음(동의 묶음이 다시 실리지 않게) · 코드 단계에서 가입 폼 · 동의 묶음 · 소셜 버튼 · [계정 만들기]를 접음 · 왼쪽 위 ‹ 와 하드웨어 뒤로는 둘 다 폼으로(쓴 값 그대로). 인증 조각은 2ndb-79 가 읽는다. 실제 메일이 나가는 확인은 Q-261014-02 가 풀린 뒤 2ndb-79 의 가입 시험 도구로.
+- **조심할 것(가입 화면 파일)**: `dds-sign-up-screen.tsx` 의 `<ConsentBlock` 줄 번호(366)를 `src/lib/supabase/consent.ts` 의 주석이 인용한다(`comment-citations.test.ts`) · `az-round1-signup-screen.test.ts` 가 화면 글자를 고정한다 · 화면 파일을 읽는 테스트를 `grep -rl` 로 모아 전부 돌릴 것 · 새 문구는 다섯 언어 + `crisis-obfuscation.test.ts` 의 문자열 수(지금 4388).
+- **미룬 것**: 대화 화면(Z32 「오늘 0/5」 · Z87)과 로그인한 화면의 나머지 차례. 전 · 후 캡처에 QA 계정이 필요한데 그 계정의 비밀번호 물음(Q-261014-02 · 2ndb-79 가 올림)이 열려 있어 새 로그인 확인을 시작하지 않는다. Z87 은 모드 이름을 쓰므로 이름이 정해진 뒤가 낫다.
+- **폰 확인 거리(2ndb-79 의 빌드 메모에 부탁함)**: 해 목록을 열면 2006 줄이 가운데인지 · 위아래 줄이 걸쳐 보이는지 · 열릴 때 목록이 움찔하는지. 폰의 목록은 줄 번호로 먼저 열리고 첫 배치 때 반 줄(24)을 더 움직인다.
+- **질문 번호**: 10-14 는 이 세션 60 ~ 79(60 을 씀 · 다음 61).
+
+## 2026-10-14 01:29 / 2ndb-e7: 환불을 그 턴의 근거 줄에 묶는 PR #2438 을 초안으로 엶(CI 통과) - 다음 1개는 그 PR 의 독립 검토
+
+- **다음 1개 = #2438 의 독립 검토 1회차**. 준비는 끝났다: `E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r1.config.json`(과제 `q67bind-r1.md` · 주장 `gates/q67bind-facts-r1.md` · 발췌 `gates/q67bind-context.md`). 돌리는 법: 그 폴더에서 `python build_pr_gate.py gates/q67bind-daybreak-r1.config.json` → `bash run_gate_one.sh q67bind-daybreak-r1 refund-bind-261013`(배경 · 약 10분). **조건**: 폰 점검 에뮬레이터(`qemu-system-x86_64`)가 내려가 있을 것(Relay 에 01:25 에 부탁 · `.bots/relay/inbox/coding-e7-0255-pr-2438-emu-window-0125.note.md`) · 여유 메모리 확인 · 2ndb-79 에 시작 시각을 먼저 알림 · 끝나면 Relay 에 "다시 켜도 됨". 판정이 BLOCK 이면 고쳐 2회차, 두 번 막히면 멈추고 Simon 께.
+- **통과한 뒤의 순서**: `gh pr update-branch 2438`(main 이 움직였다) → CI → 머지(두 창에 먼저 알림 · 서버 파일이라 폰 빌드는 안 돈다고 보지만 머지 뒤 확인) → `python build_apply_0255.py origin/main <out.sql>`(같은 폴더 · md5 를 메모에 적음) → 그 `.sql` 을 `.bots/relay/inbox/` 에 먼저, 메모는 그다음 · `_sync/TO-CLI.md` 에 "알림" → Relay 가 실행(본문에 함수를 없애는 문장이 있어 확인 카드가 뜰 수 있음) → 이 창이 읽기 확인(원장 221행 · 인자 둘짜리만 있음 · 감사 표 트리거 둘 · `crisis_events` 의 unlisted 건수) → `openai-proxy` 재배포(`.github/workflows/deploy-edge-function.yml` 을 먼저 읽을 것) → 2ndb-79 에 "배포 끝"(그 창이 #2425 를 다시 엶).
+- **작업 메모**: `E:/Coding Infra/reports/codex-audit-261010/q67-refund-bind-notes-261014.md`. 워크트리 `.worktrees/refund-bind-261013`(node_modules 정션 있음 · 지울 때 정션부터 떼기).
+- **떼어 둔 것**: 사용자 글이 걸린 턴의 환불(Q-261013-67)은 #2438 에 없다. 여쭐 카드(어디까지 돌려줄지 + 상한 숫자)를 2ndb-79 와 정리해 올릴 것. 넣을 사실: 서버 상한은 이미 하나 있다(`0181:206-262` · 위기 기록 사용자당 10분 30 · 24시간 200).
+- **멈춘 것은 그대로**: 0253(#2388)은 Q-261013-49 의 답 대기(보고 페이지 5판 · https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg).
+- **그다음 차례**(0255 가 운영에 들어간 뒤): 대시보드 요청의 시간대 확인을 작은 표로 → Q-261013-48 ② 미확인 가입 자동 삭제 → Q-261013-79 = 가 의 서버 쪽 → Q-261013-40 · 41.
+- **이 창의 감시는 꺼져 있다**. 깨워질 때만 `.bots/relay/outbox/` 를 읽는다. 로컬 PostgreSQL 은 내려가 있다.
+
 ## 2026-10-14 01:18 / 2ndb-79: 인터뷰 저장 화면은 제목 · 끝 질문 · 표 접기가 들어갔다(#2436 · 8081 에서 확인) - 「저장 안 함」 버튼은 검토가 두 번 막아 설계부터 따로 - 다음 1개는 끝내기 판정(정상 답이 대화를 끝내는 main 의 결함)
 
 - **#2436 머지(01:13:31 · main `525ecf95`)**: 저장된 이야기의 제목 = 「별 이름 · 첫 답의 앞 40자」 · 버튼으로 끝냈을 때 저장본 끝의 답 없는 질문이 빠짐 · 저장 화면의 표는 「학창시절 · 답 2개」 한 줄 뒤에 접힘. 새 모듈 `src/lib/interview/saved-story.ts`. 8081 확인 도구 `E:/Coding Infra/reports/devlab-261010/signup-test/tools/interview_save_screen_check.cjs`(QA 계정에 기록 1줄을 쓴다 · 실제 질문 요청 1번).
