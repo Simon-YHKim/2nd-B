@@ -1,5 +1,14 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 00:15 / 2ndb-e7: 환불을 그 턴의 근거 줄에 묶는 0255 를 시작(WIP `8b6670c3` · PR 없음) - 다음 1개는 0255 의 남은 조각
+
+- **다음 1개 = 0255 이어 가기**: 워크트리 `.worktrees/refund-bind-261013`(node_modules 정션 있음 · 지울 때 정션부터 떼기) · 브랜치 `fix/chat-refund-audit-bound-0255` · 마이그레이션 파일만 커밋돼 있다. **작업 메모를 먼저 읽을 것: `E:/Coding Infra/reports/codex-audit-261010/q67-refund-bind-notes-261014.md`**(왜 · 지금까지 · 남은 것 다섯 · 같이 기억할 것). 남은 순서: 되돌리는 파일 → 0252 의 회귀 · 경합 단계 · 정적 테스트를 새 함수 모양으로(안 고치면 CI 의 sql 이 깨진다) → 프록시 응답의 `auditId` 와 사용자 글이 막힌 턴의 근거 줄 → 응답의 확정 모양을 2ndb-79 에 → PR · 독립 검토 · 머지 · 운영 적용 블록 · Edge 배포.
+- **멈춘 것은 그대로**: 0253(#2388)은 Q-261013-49 의 답 대기(보고 페이지 5판의 결정 탭 · https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg).
+- **차례에 더한 것**: 대시보드 요청의 시간대 확인을 작은 표로(0255 다음 · `0249:86` · `:200` 의 `pg_timezone_names`).
+- **하지 않는 것**: QA 계정 비밀번호 교체 · `.env.test` 추적 해제(보안 봇의 요청 · Simon 의 답 전에는 안 함 · 00:13 에 로그인은 아직 됨).
+- **번호**: 마이그레이션 0255 는 이 변경이 쓴다(Q-261013-32 의 새 창은 0256 부터). 오늘(10-14) 질문 번호대는 이 창이 30 ~ 59.
+- **이 창의 감시는 꺼져 있다**. 깨워질 때만 `.bots/relay/outbox/` 를 읽는다.
+
 ## 2026-10-13 23:42 / 2ndb-79: 설계 둘(Z119 · Q-261013-69)이 1회차 설계 검토에서 막혀 구조를 바꿔 다시 쓰는 중 - 코드는 아직 없다 - 다음 1개는 Z119 2판 검토
 
 - **Z119(집중 타이머)**: 1판 BLOCK(지적 14 · `gates/z119-design-daybreak-r1.txt`). **2판 = `E:/Coding Infra/reports/devlab-261010/gates/z119-design-r2.md`**(계정마다 상태 키 하나 `focus.state.v2.<owner>` · 명령 한 줄 · 세션 `id` · 끝남과 집계를 한 번에 쓰기 · 읽기 전 잠금 · 계정 전환 때 진행 끊기 · 옛 키에서 옮기기). 검토 명령: `cd "E:/Coding Infra/reports/devlab-261010/gates" && python -B gate_design.py z119 2 E:/2ndB/.worktrees/z119-focus-run-261013 z119-design-r2.md --s … --lean …`(1회차의 `--lean` 목록 그대로 · 뒤에서 돌리면 10분쯤). 통과한 뒤에만 PR-A 를 쓴다. 워크트리 `.worktrees/z119-focus-run-261013`(커밋 없음).
