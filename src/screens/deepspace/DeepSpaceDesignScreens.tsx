@@ -107,7 +107,7 @@ import {
 } from "@/lib/ops/routines";
 import { createCard, listDueCards, recordReview, type SrsCardRow } from "@/lib/srs/queries";
 import type { SrsRating } from "@/lib/srs/scheduler";
-import { advanceByClock, announcesEnd, readFocusClock } from "@/lib/ops/focus-clock";
+import { readFocusClock, startFocusRun } from "@/lib/ops/focus-clock";
 import {
   createPomodoro,
   pause,
@@ -2797,67 +2797,54 @@ export function DeepSpaceFocusScreen() {
   const areaRef = useRef(area);
   areaRef.current = area;
 
+  // Every press that changes the timer ends the run that is ticking, at once: the mark moves
+  // before React renders, so a tick that was already queued finds it is no longer the owner and
+  // cannot write its older state over the pause (Z109).
+  const runMarkRef = useRef(0);
+  const [runMark, setRunMark] = useState(0);
+  const changeTimer = (update: (state: PomodoroState) => PomodoroState) => {
+    runMarkRef.current += 1;
+    setRunMark(runMarkRef.current);
+    setTimer(update);
+  };
+
   useEffect(() => {
     if (!timer.running) return;
     // Time is measured, not counted. A tick that adds one second each time it fires stops when
-    // the app goes to the background: the timer stood at 12:51 for fifteen minutes (Z109).
-    //
-    // The 1-second tick and the return to the front both call advance(), and may do so back to
-    // back before React has rendered. So the session keeps its own state here: each call starts
-    // from what the call before it left, never from a timer that is one render old.
-    let current = timerRef.current;
-    let since = readFocusClock();
-    // false after a trip to the background: for that stretch only the wall clock knows how long it was.
-    let continuous = true;
-    // Set when the session ends or stops. Nothing that was already queued runs after it.
-    let closed = false;
-    const advance = () => {
-      if (closed) return;
-      const at = readFocusClock();
-      const { next, completed, lateByMs } = advanceByClock(current, since, at, continuous);
-      since = at;
-      continuous = true;
-      if (next === current) return;
-      const prev = current;
-      current = next;
-      timerRef.current = next;
-      if (!completed) {
+    // the app goes to the background: the timer stood at 12:51 for fifteen minutes (Z109). The
+    // run (lib/ops/focus-clock) measures by the clocks and catches up when the app comes back.
+    const run = startFocusRun(timerRef.current, AppState.currentState === "active", {
+      read: readFocusClock,
+      owns: () => runMarkRef.current === runMark,
+      onAdvance: (next) => {
+        timerRef.current = next;
         setTimer(next);
-        return;
-      }
-      closed = true;
-      // Sensor auto-complete: tick daily_focus + notify, then return to a fresh
-      // idle focus block (the reference timer has no break phase).
-      const idle = createPomodoro(prev.config);
-      timerRef.current = idle;
-      setTimer(idle);
-      // The finished session's OWN length goes into today's minutes, so picking
-      // another preset later cannot rewrite what was done (R2C-13).
-      const doneArea = areaRef.current;
-      setTally((cur) => ({ ...cur, day: completeFocusSession(cur.day, doneArea, prev.config.focusMinutes) }));
-      if (userId) {
-        void applyFocusSessionComplete(userId).catch(() => {});
-        // Found on time, the end is announced as before. Found on the way back from the
-        // background, the person is already looking at the finished timer and an alert would
-        // only be late. Ringing while the app is in the background is not part of this change.
-        if (announcesEnd(lateByMs)) {
+      },
+      onComplete: (finished) => {
+        // Sensor auto-complete: tick daily_focus + notify, then return to a fresh
+        // idle focus block (the reference timer has no break phase).
+        const idle = createPomodoro(finished.config);
+        timerRef.current = idle;
+        setTimer(idle);
+        // The finished session's OWN length goes into today's minutes, so picking
+        // another preset later cannot rewrite what was done (R2C-13).
+        const doneArea = areaRef.current;
+        setTally((cur) => ({ ...cur, day: completeFocusSession(cur.day, doneArea, finished.config.focusMinutes) }));
+        if (userId) {
+          void applyFocusSessionComplete(userId).catch(() => {});
           // The account goes first: without it notifyNow shows nothing on a phone (Z107).
           void notifyNow(userId, t("focus.alarmFocusTitle"), t("focus.alarmFocusBodyArea", { area: t(`phone.areas.${doneArea}`) })).catch(() => {});
         }
-      }
-    };
-    const id = setInterval(advance, 1000);
-    const sub = AppState.addEventListener("change", (state) => {
-      // Whichever fires first after a trip away, the tick or this, measures that stretch by the wall clock.
-      continuous = false;
-      if (state === "active") advance();
+      },
     });
+    const id = setInterval(run.step, 1000);
+    const sub = AppState.addEventListener("change", (state) => run.appInFront(state === "active"));
     return () => {
-      closed = true;
+      run.close();
       clearInterval(id);
       sub.remove();
     };
-  }, [timer.running, userId, t]);
+  }, [timer.running, runMark, userId, t]);
 
   // Today's tally and the area pick persist across app restarts, per account, so
   // the summary covers all of today's sessions, not just this mount's. A read that
@@ -2932,7 +2919,7 @@ export function DeepSpaceFocusScreen() {
     // Idle-only: mid-session this used to createPomodoro() with no guard and
     // silently destroy the running session (audit: /focus bug-open).
     if (!idle) return;
-    setTimer(createPomodoro({ ...timer.config, focusMinutes: m }));
+    changeTimer(() => createPomodoro({ ...timer.config, focusMinutes: m }));
   };
 
   return (
@@ -2992,14 +2979,14 @@ export function DeepSpaceFocusScreen() {
           label={timer.running ? t("focus.pause") : t("focus.startFocus")}
           variant={timer.running ? "tonal" : "filled"}
           icon={<CloneIcon name={timer.running ? "pause" : "play_arrow"} color={timer.running ? m3.color.onSecondaryContainer : m3.color.onPrimary} size={18} fill={!timer.running} />}
-          onPress={() => setTimer((s) => (s.running ? pause(s) : start(s)))}
+          onPress={() => changeTimer((s) => (s.running ? pause(s) : start(s)))}
           style={{ flex: 2 }}
         />
         <MdButton
           label={t("focus.resetBtn")}
           variant="outlined"
           icon={<CloneIcon name="replay" color={m3.color.primary} size={18} />}
-          onPress={() => setTimer((s) => reset(s))}
+          onPress={() => changeTimer((s) => reset(s))}
           style={{ flex: 1 }}
         />
       </View>
