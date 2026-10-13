@@ -14,16 +14,21 @@ describe("the chat count says it is today's", () => {
     expect(screen).toContain(
       [
         "          <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>",
-        '            <Text style={ds.bannerUsageWord}>{t("rev2.usageToday")} </Text>{dsUsage}/{limit}',
+        '            <Text style={[ds.bannerUsageWord, atLimit ? ds.headerMetaDanger : null]}>{t("rev2.usageToday")} </Text>{dsUsage}/{limit}',
         "          </Text>",
       ].join("\n"),
     );
   });
 
-  // The count is drawn in a pixel font with Latin glyphs only, so the word takes the body font;
-  // it inherits the count's size and its colour (including the at-limit colour).
-  it("gives the word the body font and nothing else", () => {
-    expect(screen).toContain("  bannerUsageWord: { fontFamily: fontFamilies.readable },");
+  // The count is drawn in a pixel font with Latin glyphs only, so the word takes the body font.
+  // A nested text does not inherit its parent's size or colour here (PlainText gives every text
+  // the phone's own label colour): 8081 drew the word at 15px in white next to the 11px count
+  // (2026-10-14). So the word names its size and colour, and takes the at-limit colour itself.
+  it("gives the word the body font, the description's size and the count's colour", () => {
+    expect(screen).toContain("  bannerUsageWord: { color: deepSpace.textLo, fontSize: 12, fontFamily: fontFamilies.readable },");
+    // The same colour token as the count itself.
+    expect(/bannerUsage: \{[^}]*color: deepSpace\.textLo,/.test(screen)).toBe(true);
+    expect(screen).toContain("atLimit ? ds.headerMetaDanger : null]}>{t(\"rev2.usageToday\")}");
   });
 
   it("still shows \"...\" while the count is not known", () => {
