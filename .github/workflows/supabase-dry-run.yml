@@ -1647,6 +1647,110 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/erasure_registry_regression.sql
+      # 0253: a record or source deleted while its reasoning run was still
+      # working. complete_reasoning_run must not store a proposal whose target is
+      # gone for that owner, and must store everything it cannot judge.
+      - name: Exercise reasoning completion against erased targets
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reasoning_complete_skips_erased_regression.sql
+      # The same thing with the delete and the completion in flight together.
+      # delete_first: the delete holds the record row, the completion waits for
+      # it and then stores nothing. complete_first: the completion holds the row,
+      # the delete waits, then removes the stored row through 0251's trigger and
+      # closes the run. Neither order may end in a deadlock or leave a row whose
+      # record is gone. source_delete_first is the first case again for a source.
+      - name: Race a record delete against a reasoning completion
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0253 completion race refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          user="26101354-0000-4000-8000-00000000000a"
+          record="26101354-1000-4000-8000-0000000000a1"
+          source="26101354-2000-4000-8000-0000000000a1"
+          run_id="26101354-3000-4000-8000-000000000001"
+          proposals="[{\"key\":\"record:$record\",\"refKind\":\"record\",\"refId\":\"$record\",\"title\":\"t\",\"domain\":\"growth\"}]"
+          complete="public.complete_reasoning_run('$user', '$run_id', '$proposals'::jsonb)"
+          delete="DELETE FROM public.records WHERE id = '$record'"
+          source_proposals="[{\"key\":\"source:$source\",\"refKind\":\"source\",\"refId\":\"$source\",\"title\":\"t\",\"domain\":\"growth\"}]"
+          complete_source="public.complete_reasoning_run('$user', '$run_id', '$source_proposals'::jsonb)"
+          delete_source="DELETE FROM public.sources WHERE id = '$source'"
+          race() { # <label> <first statement> <second statement> <expected: first rc/second rc/rows/run/records/sources>
+            local label="$1" first="$2" second="$3" want="$4"
+            local clone_db="race_0253_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0253 completion race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101354-0000-4000-8000-00000000000a', 'z66c-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101354-0000-4000-8000-00000000000a', 'z66c-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.records (id, user_id, kind, body)
+          VALUES ('26101354-1000-4000-8000-0000000000a1', '26101354-0000-4000-8000-00000000000a', 'note', 'deleted mid-run');
+          INSERT INTO public.sources (id, user_id, kind, title, storage_path)
+          VALUES ('26101354-2000-4000-8000-0000000000a1', '26101354-0000-4000-8000-00000000000a', 'article', 'deleted mid-run',
+                  'raw/z66c-race.md');
+          INSERT INTO public.reasoning_runs (id, user_id, idempotency_key, trigger_kind, status, spend, week_bucket, month_bucket)
+          VALUES ('26101354-3000-4000-8000-000000000001', '26101354-0000-4000-8000-00000000000a', 'z66c-race-0001', 'auto',
+                  'running', 'none', '2026-W42', '2026-10');
+          SQL
+            # Session A runs the first statement and keeps its transaction open for three seconds.
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+              -c "$first" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "race_0253_a_$label.out" 2>&1 &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the first session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            # Session B runs the second statement while A is still open.
+            local b_rc=0 a_rc=0 b a state
+            b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+              -c "$second" \
+              -c "COMMIT" 2>&1 | tr -d '\r' | tr '\n' ' ')" || b_rc=$?
+            wait "$a_pid" || a_rc=$?
+            a="$(tr -d '\r' < "race_0253_a_$label.out" | tr '\n' ' ')"
+            state="$(sql "$clone_db" "SELECT (SELECT count(*) FROM public.reasoning_run_proposals WHERE run_id = '$run_id')
+                                        || '/' || (SELECT status FROM public.reasoning_runs WHERE id = '$run_id')
+                                        || '/' || (SELECT count(*) FROM public.records WHERE id = '$record')
+                                        || '/' || (SELECT count(*) FROM public.sources WHERE id = '$source')" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: first session rc=$a_rc [$a] second session rc=$b_rc [$b] rows/run/records/sources $state"
+            if [[ "$a_rc/$b_rc/$state" != "$want" ]]; then
+              echo "$label: wanted $want" >&2
+              return 1
+            fi
+            if grep -q -i "deadlock" <<< "$a $b"; then
+              echo "$label: a session ended in a deadlock" >&2
+              return 1
+            fi
+          }
+          # The delete is open when the completion arrives: nothing is stored, the run ends as proposed.
+          race delete_first "$delete" "SELECT 'stored=' || $complete" "0/0/0/proposed/0/1"
+          # The completion is open when the delete arrives: the row is stored, then removed with its record.
+          race complete_first "SELECT 'stored=' || $complete" "$delete" "0/0/0/ratified/0/1"
+          # The same as the first case for a source.
+          race source_delete_first "$delete_source" "SELECT 'stored=' || $complete_source" "0/0/0/proposed/1/0"
       # 0251: a deleted record or source takes its reasoning proposal rows with
       # it. The deletes run as `authenticated` through RLS, then the one-time
       # cleanup is replayed over rows shaped like the ones left behind.
