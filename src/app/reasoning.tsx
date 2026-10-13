@@ -32,6 +32,7 @@ import {
   setAutoIntroSeen,
   setAutoReasoningEnabled,
 } from "@/lib/reasoning/auto-pref";
+import { resolveLiveProposals } from "@/lib/reasoning/proposal-targets";
 import { monthLabelFor } from "@/lib/reasoning/remaining-copy";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import {
@@ -145,12 +146,14 @@ export interface ReasoningProposal extends ReasoningItem {
 // review survives app kills and device switches and a spent run can never
 // lose its result to storage pressure. The payload is slim — identity,
 // labels, and the suggested domain; apply re-reads the latest row anyway.
+// It carries no text of the record (Simon 2026-10-13, Q-261013-35): the title
+// used to be stored here, and it outlived a deleted record. Review reads the
+// title from the live row instead (resolveLiveProposals).
 function proposalToPayload(proposal: ReasoningProposal): Record<string, unknown> {
   return {
     key: proposal.key,
     refKind: proposal.refKind,
     refId: proposal.refId,
-    title: proposal.title,
     meta: proposal.meta,
     createdAt: proposal.createdAt,
     icon: proposal.icon,
@@ -163,7 +166,6 @@ function proposalFromServerRow(row: ServerProposalRow): ReasoningProposal | null
     key?: unknown;
     refKind?: unknown;
     refId?: unknown;
-    title?: unknown;
     meta?: unknown;
     createdAt?: unknown;
     icon?: unknown;
@@ -183,7 +185,9 @@ function proposalFromServerRow(row: ServerProposalRow): ReasoningProposal | null
     key: p.key,
     refKind: p.refKind,
     refId: p.refId,
-    title: typeof p.title === "string" ? p.title : p.key,
+    // Filled from the live row by resolveLiveProposals. A stored title is not
+    // read: on rows written before 2026-10-13 it is the record's opening text.
+    title: "",
     meta: typeof p.meta === "string" ? p.meta : "",
     createdAt: typeof p.createdAt === "string" ? p.createdAt : new Date(0).toISOString(),
     body: undefined,
@@ -834,9 +838,30 @@ export default function ReasoningScreen() {
         await refreshUsage().catch(() => undefined);
       }
       const rows = await listPendingProposals(userId);
-      const pending = rows
+      const stored = rows
         .map(proposalFromServerRow)
         .filter((proposal): proposal is ReasoningProposal => proposal !== null);
+      // Q-261013-35: a proposal whose record or source is gone is not shown,
+      // and its title comes from the live row, looked up in the table its
+      // refKind names. The painted language is read here, at call time, so
+      // this sweep still runs once per user.
+      const lng = renderedUiLanguage(i18n);
+      const untitledRecord = i18n.t("ds.reasoningScreen.untitledRecord", { ns: "deepspace", lng });
+      const untitledSource = i18n.t("ds.reasoningScreen.untitledSource", { ns: "deepspace", lng });
+      const pending = await resolveLiveProposals(
+        stored,
+        {
+          record: async (refId) => {
+            const row = await getRecordById(userId, refId);
+            return row ? recordTitle(row, untitledRecord) : null;
+          },
+          source: async (refId) => {
+            const source = await getSource(userId, refId);
+            return source ? source.title?.trim() || untitledSource : null;
+          },
+        },
+        (refKind) => (refKind === "record" ? untitledRecord : untitledSource),
+      );
       if (cancelled || pending.length === 0) return;
       setProposals(pending);
       setSelected(new Set(pending.map((proposal) => proposal.key)));
@@ -856,8 +881,9 @@ export default function ReasoningScreen() {
     };
     // refreshUsage is useCallback([userId]), so listing it cannot re-run this
     // sweep more often than userId already does - the RPC still fires once per
-    // user, which is what a recovery sweep should do.
-  }, [refreshUsage, userId]);
+    // user, which is what a recovery sweep should do. i18n is the one shared
+    // instance (its identity does not change with the language), so it adds no run.
+  }, [i18n, refreshUsage, userId]);
 
   useEffect(() => {
     if (loading || !userId) return;
