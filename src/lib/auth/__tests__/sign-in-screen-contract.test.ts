@@ -101,7 +101,8 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
     expect(source).toContain('secureTextEntry={!showPassword}');
     expect(source).toContain('returnKeyType="next"');
     expect(source).toContain('returnKeyType="go"');
-    expect(source).toContain("runAuthActionOnce(actionLock, handleSubmit)");
+    // 2026-10-13 Z12: same synchronous mutex, with invalid-field focus relay.
+    expect(source).toContain("runAuthActionOnce(actionLock, () => handleSubmit((field) =>");
     expect(source).toContain("runAuthActionOnce(actionLock, () => handleOAuth(provider))");
     expect(source).not.toContain("PROVIDER_MONOGRAM");
     expect(source).not.toContain("handleNaver");

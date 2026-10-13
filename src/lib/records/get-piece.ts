@@ -263,3 +263,6 @@ export async function getPieceById(
     profileImportContext,
   };
 }
+
+// The detail screen reads this next to the piece it loads here.
+export { editedBodyPatch, titleRepeatsBody } from "./piece-title";

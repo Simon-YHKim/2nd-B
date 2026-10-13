@@ -16,7 +16,7 @@ import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router, useIsFocused } from "expo-router";
 import { useURL } from "expo-linking";
-
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createSignUpBackHandler } from "./sign-up-back";
 import { observeAuthConversion } from "@/lib/analytics/auth-conversions";
@@ -593,6 +593,13 @@ export function useSignUpForm(): UseSignUpForm {
     !confirmVerifying &&
     !submitting &&
     !oauthSubmitting;
+
+  // 2026-10-13: a persistent translated failure belongs to the selected language.
+  // Use the actual language, not the two-language consent-ledger locale above.
+  const noticeLanguage = renderedUiLanguage(i18n);
+  useEffect(() => {
+    setToast(clearSignUpFailure);
+  }, [noticeLanguage]);
 
   return {
     loading,

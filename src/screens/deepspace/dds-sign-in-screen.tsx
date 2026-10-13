@@ -127,6 +127,7 @@ export function DeepSpaceSignInDesignScreen() {
   // announced error and a bounded retry instead of pretending it is a clean
   // signed-out entry. refresh() re-reads the session under the same 8s guard.
   const { sessionUnavailable, refresh } = useAuth();
+  const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const actionLock = useRef(false);
   const [focusedField, setFocusedField] = useState<FocusedField>(null);
@@ -204,14 +205,17 @@ export function DeepSpaceSignInDesignScreen() {
   if (branch.kind === "home") return <RedirectHome />;
 
   const authBusy = submitting || oauthSubmitting;
-  const submitDisabled = !canSubmit || oauthSubmitting;
+  const submitDisabled = authBusy;
+  const submitMuted = !canSubmit || oauthSubmitting;
   const signInProviders = SIGN_IN_PROVIDERS.filter((provider) =>
     visibleProviders.includes(provider),
   );
 
   async function submit(): Promise<void> {
     if (submitDisabled) return;
-    await runAuthActionOnce(actionLock, handleSubmit);
+    await runAuthActionOnce(actionLock, () => handleSubmit((field) => {
+      (field === "email" ? emailRef : passwordRef).current?.focus();
+    }));
   }
 
   async function startProvider(provider: SignInProvider): Promise<void> {
@@ -296,6 +300,7 @@ export function DeepSpaceSignInDesignScreen() {
             contentStyle={styles.inputContent}
           >
             <TextInput
+              ref={emailRef}
               value={email}
               onChangeText={setEmail}
               editable={!authBusy}
@@ -377,22 +382,24 @@ export function DeepSpaceSignInDesignScreen() {
             />
           </PixelSurface>
 
+          {inlineNotice}
+
           <PixelPressable
             variant="bevel"
             onPress={() => void submit()}
             disabled={submitDisabled}
             accessibilityLabel={t("auth:signIn.submit")}
             accessibilityState={{ busy: submitting }}
-            background={submitDisabled ? m3.color.surfaceContainerHighest : m3.color.primary}
+            background={submitMuted ? m3.color.surfaceContainerHighest : m3.color.primary}
             fullWidth
             contentStyle={styles.primaryContent}
           >
             <PixelGlyph
               name="lock"
-              color={submitDisabled ? m3.color.onSurfaceVariant : m3.color.onPrimary}
+              color={submitMuted ? m3.color.onSurfaceVariant : m3.color.onPrimary}
               size={24}
             />
-            <Text style={[styles.primaryText, submitDisabled && styles.disabledText]}>
+            <Text style={[styles.primaryText, submitMuted && styles.disabledText]}>
               {submitting ? t("auth:signIn.submitting") : t("auth:signIn.submit")}
             </Text>
           </PixelPressable>
@@ -485,8 +492,6 @@ export function DeepSpaceSignInDesignScreen() {
               화면에서 사업자 정보 고지가 조용히 사라진다. */}
           <BusinessFooter />
         </View>
-
-        {inlineNotice}
       </PixelGateShell>
       {exitNoticeOverlay}
     </View>
