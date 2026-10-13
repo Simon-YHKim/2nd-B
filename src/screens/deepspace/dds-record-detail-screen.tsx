@@ -44,7 +44,7 @@ import {
   updateRecordTags,
 } from "@/lib/records/create";
 import { domainScreenRoute, filedDomainOf } from "@/lib/records/domain-screen";
-import { getPieceById, pieceIdFor, SOURCE_ID_PREFIX, type PieceDetail } from "@/lib/records/get-piece";
+import { getPieceById, pieceIdFor, SOURCE_ID_PREFIX, titleRepeatsBody, type PieceDetail } from "@/lib/records/get-piece";
 import {
   recordsEmbeddingAllowed,
   relatedRecordsByEmbedding,
@@ -832,6 +832,9 @@ export function DeepSpaceRecordDetailScreen() {
     t("deepspace:recordDetail.kindFallback"),
     !assessment.isAssessment,
   );
+  // Z86: a piece with no title of its own drew the start of its body as the headline and then
+  // the body under it. Imported profiles and assessments draw no body, so they keep the title.
+  const bodyRepeatsTitle = !piece.profileImportManaged && !assessment.isAssessment && titleRepeatsBody(displayTitle, piece.body);
   const date = evidenceDateLabel(piece.created_at, i18n.language === "ko" ? "ko" : "en");
   const domain = canonicalDomain(piece.tags ?? []);
   const relatedItems = mergedRelated(piece, related, t("deepspace:recordDetail.kindFallback"));
@@ -884,12 +887,14 @@ export function DeepSpaceRecordDetailScreen() {
             </View>
           </PixelSurface>
 
-          <RNText
-            accessibilityRole="header"
-            style={[m3TextStyle("headlineSmall"), styles.pieceTitle]}
-          >
-            {displayTitle}
-          </RNText>
+          {bodyRepeatsTitle ? null : (
+            <RNText
+              accessibilityRole="header"
+              style={[m3TextStyle("headlineSmall"), styles.pieceTitle]}
+            >
+              {displayTitle}
+            </RNText>
+          )}
 
           {actionError ? (
             <PixelSurface variant="frame" background={m3.color.errorContainer}>
