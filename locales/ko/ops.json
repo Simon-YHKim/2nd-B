@@ -531,7 +531,10 @@
     "reminderSetNote": "이 기기에 알림을 예약했습니다.",
     "reminderDeniedNote": "알림이 꺼져 있습니다. 기기 설정에서 허용하면 예약한 시간에 알림을 받을 수 있습니다.",
     "reminderFailedNote": "알림을 예약하지 못했습니다. 항목의 시간을 확인하고 다시 시도해 주세요.",
-    "reminderUnavailableNote": "저장했습니다. 알림은 설치한 앱에서만 받을 수 있습니다. 여기서는 알림이 울리지 않습니다."
+    "reminderUnavailableNote": "저장했습니다. 알림은 설치한 앱에서만 받을 수 있습니다. 여기서는 알림이 울리지 않습니다.",
+    "deviceReminderBody": "리마인더 시간입니다.",
+    "deviceTimerBody": "타이머가 끝났습니다.",
+    "deviceChannelName": "리마인더"
   },
   "focus": {
     "title": "집중 시간",

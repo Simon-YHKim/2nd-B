@@ -531,7 +531,10 @@
     "reminderSetNote": "Lembrete definido neste dispositivo.",
     "reminderDeniedNote": "Permissão de notificações desativada. Permita nas configurações do dispositivo para usar lembretes.",
     "reminderFailedNote": "Não foi possível definir o lembrete. Verifique o horário do item e tente novamente.",
-    "reminderUnavailableNote": "Salvo. Lembretes precisam do app instalado, então este não vai tocar aqui."
+    "reminderUnavailableNote": "Salvo. Lembretes precisam do app instalado, então este não vai tocar aqui.",
+    "deviceReminderBody": "Está na hora do seu lembrete.",
+    "deviceTimerBody": "Seu temporizador terminou.",
+    "deviceChannelName": "Lembretes"
   },
   "focus": {
     "title": "Foco diário",

@@ -240,7 +240,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(request.identifier).toBe(routineReminderId("account-a", "routine-1"));
     expect(request.content).toMatchObject({
       title: "PolaScope",
-      body: "Open the app to view your routine.",
+      body: "It's time for your reminder.",
       data: { _2bPrivacyGeneration: "notification-v2" },
     });
     expect(JSON.stringify(request)).not.toContain("Private routine title");
@@ -251,7 +251,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(request.trigger.channelId).toBe("ops-routines");
     expect(setNotificationChannelAsync).toHaveBeenCalledWith(
       "ops-routines",
-      expect.objectContaining({ name: "Routines" }),
+      expect.objectContaining({ name: "Reminders" }),
     );
   });
 
@@ -291,7 +291,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(request.identifier).toMatch(/^ops-v2-[0-9a-f]{16}-once-/);
     expect(request.content).toMatchObject({
       title: "PolaScope",
-      body: "Open the app to view your completed timer.",
+      body: "Your timer is done.",
       data: { _2bPrivacyGeneration: "notification-v2" },
     });
     expect(JSON.stringify(request)).not.toContain("Private");
@@ -486,7 +486,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(request.identifier).toMatch(/^ops-v2-[0-9a-f]{16}-once-/);
     expect(request.content).toMatchObject({
       title: "PolaScope",
-      body: "Open the app to view your routine.",
+      body: "It's time for your reminder.",
       data: { _2bPrivacyGeneration: "notification-v2" },
     });
   });
