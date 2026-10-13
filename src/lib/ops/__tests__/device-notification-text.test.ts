@@ -65,3 +65,44 @@ describe("deviceNotificationText follows the app language", () => {
     expect(deviceNotificationText(key)).toBe(DEVICE_NOTIFICATION_TEXT_FALLBACK[key]);
   });
 });
+
+describe("deviceNotificationText never lets a failed lookup reach the notification", () => {
+  beforeAll(async () => {
+    await i18next.changeLanguage("ko");
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test.each(KEYS)("the key handed back as the text: %s", (key) => {
+    jest.spyOn(i18next, "t").mockImplementation(((path: string) => path) as never);
+    const text = deviceNotificationText(key);
+    expect(text).toBe(DEVICE_NOTIFICATION_TEXT_FALLBACK[key]);
+    expect(text).not.toContain("push.");
+  });
+
+  test.each(KEYS)("an empty or blank text: %s", (key) => {
+    const lookup = jest.spyOn(i18next, "t");
+    lookup.mockImplementation((() => "") as never);
+    expect(deviceNotificationText(key)).toBe(DEVICE_NOTIFICATION_TEXT_FALLBACK[key]);
+    lookup.mockImplementation((() => "   ") as never);
+    expect(deviceNotificationText(key)).toBe(DEVICE_NOTIFICATION_TEXT_FALLBACK[key]);
+  });
+
+  test.each(KEYS)("a text that is not a string: %s", (key) => {
+    jest.spyOn(i18next, "t").mockImplementation((() => ({ nested: "value" })) as never);
+    expect(deviceNotificationText(key)).toBe(DEVICE_NOTIFICATION_TEXT_FALLBACK[key]);
+  });
+
+  test.each(KEYS)("a lookup that throws: %s", (key) => {
+    jest.spyOn(i18next, "t").mockImplementation((() => { throw new Error("lookup failed"); }) as never);
+    expect(deviceNotificationText(key)).toBe(DEVICE_NOTIFICATION_TEXT_FALLBACK[key]);
+    jest.restoreAllMocks();
+    jest.spyOn(i18next, "exists").mockImplementation((() => { throw new Error("lookup failed"); }) as never);
+    expect(deviceNotificationText(key)).toBe(DEVICE_NOTIFICATION_TEXT_FALLBACK[key]);
+  });
+
+  test.each(KEYS)("the real lookup still answers in Korean afterwards: %s", (key) => {
+    expect(deviceNotificationText(key)).toBe(fromFile("ko", key));
+  });
+});

@@ -85,6 +85,9 @@ jest.mock("expo-notifications", () => ({
   AndroidImportance: { DEFAULT: 3 },
 }));
 
+import i18next from "i18next";
+import enOps from "../../../../locales/en/ops.json";
+import koOps from "../../../../locales/ko/ops.json";
 import {
   clearAccountScopedLocalNotifications,
   disableReminder,
@@ -777,5 +780,102 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     releaseLateA?.();
     await Promise.resolve();
     expect(cancelScheduledNotificationAsync).not.toHaveBeenCalledWith(accountBId);
+  });
+});
+
+// Runs last on purpose: every test above schedules before any language is loaded and
+// gets the English fallback. Here the app language is Korean when the reminder is scheduled.
+describe("notification text follows the app language when the reminder is scheduled", () => {
+  beforeAll(async () => {
+    await i18next.init({
+      lng: "ko",
+      fallbackLng: "en",
+      ns: ["ops"],
+      defaultNS: "ops",
+      resources: { en: { ops: enOps }, ko: { ops: koOps } },
+      interpolation: { escapeValue: false },
+    });
+  });
+
+  afterAll(async () => {
+    // English equals the fallback, so nothing after this group could tell the difference.
+    await i18next.changeLanguage("en");
+  });
+
+  test("a routine reminder carries the Korean sentence and the Korean channel name, and still no private text", async () => {
+    setNavigatorProduct("ReactNative");
+    requestPermissionsAsync.mockResolvedValue({ granted: true });
+    scheduleNotificationAsync.mockResolvedValueOnce("id-ko-1");
+    expect(
+      await scheduleRoutineReminder(
+        {
+          title: "Private routine title",
+          description: "Private reason with personal details.",
+          startsAtIso: new Date("2026-06-12T21:30:00.000Z").toISOString(),
+          recurrence: "daily",
+        },
+        { ownerId: "account-a", identifier: routineReminderId("account-a", "routine-ko") },
+      ),
+    ).toBe("scheduled");
+    const request = scheduleNotificationAsync.mock.calls[0][0] as {
+      content: { title: string; body: string; data: Record<string, unknown> };
+    };
+    expect(request.content.title).toBe("PolaScope");
+    expect(request.content.body).toBe(koOps.push.deviceReminderBody);
+    expect(request.content.body).not.toBe(enOps.push.deviceReminderBody);
+    expect(request.content.data).toMatchObject({ _2bPrivacyGeneration: "notification-v2" });
+    expect(JSON.stringify(request)).not.toContain("Private routine title");
+    expect(JSON.stringify(request)).not.toContain("Private reason");
+    expect(setNotificationChannelAsync).toHaveBeenCalledWith(
+      "ops-routines",
+      expect.objectContaining({ name: koOps.push.deviceChannelName }),
+    );
+    expect(koOps.push.deviceChannelName).not.toBe(enOps.push.deviceChannelName);
+  });
+
+  test("a one-off reminder carries the Korean sentence", async () => {
+    setNavigatorProduct("ReactNative");
+    requestPermissionsAsync.mockResolvedValue({ granted: true });
+    scheduleNotificationAsync.mockResolvedValueOnce("id-ko-2");
+    expect(
+      await scheduleRoutineReminder(
+        { title: "Private one-off title", startsAtIso: new Date(Date.now() + 3_600_000).toISOString() },
+        { ownerId: "account-a" },
+      ),
+    ).toBe("scheduled");
+    const request = scheduleNotificationAsync.mock.calls[0][0] as { content: { body: string } };
+    expect(request.content.body).toBe(koOps.push.deviceReminderBody);
+    expect(JSON.stringify(request)).not.toContain("Private one-off title");
+  });
+
+  test("the timer notification carries the Korean sentence, not what the caller passed", async () => {
+    setNavigatorProduct("ReactNative");
+    requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
+    scheduleNotificationAsync.mockResolvedValueOnce("focus-ko");
+    await expect(notifyNow("account-a", "Private focus", "Private selected star")).resolves.toBe("scheduled");
+    const request = scheduleNotificationAsync.mock.calls[0][0] as { content: { title: string; body: string } };
+    expect(request.content.title).toBe("PolaScope");
+    expect(request.content.body).toBe(koOps.push.deviceTimerBody);
+    expect(request.content.body).not.toBe(enOps.push.deviceTimerBody);
+    expect(JSON.stringify(request)).not.toContain("Private focus");
+    expect(JSON.stringify(request)).not.toContain("Private selected star");
+  });
+
+  test("a language switched before the next schedule is the one that is used", async () => {
+    setNavigatorProduct("ReactNative");
+    requestPermissionsAsync.mockResolvedValue({ granted: true });
+    scheduleNotificationAsync.mockResolvedValue("id-switch");
+    await i18next.changeLanguage("en");
+    await scheduleRoutineReminder(
+      { title: "x", startsAtIso: new Date(Date.now() + 3_600_000).toISOString() },
+      { ownerId: "account-a" },
+    );
+    await i18next.changeLanguage("ko");
+    await scheduleRoutineReminder(
+      { title: "x", startsAtIso: new Date(Date.now() + 7_200_000).toISOString() },
+      { ownerId: "account-a" },
+    );
+    const bodies = scheduleNotificationAsync.mock.calls.map((call) => (call[0] as { content: { body: string } }).content.body);
+    expect(bodies).toEqual([enOps.push.deviceReminderBody, koOps.push.deviceReminderBody]);
   });
 });

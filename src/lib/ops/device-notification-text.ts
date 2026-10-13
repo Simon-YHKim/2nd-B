@@ -23,7 +23,8 @@ export function deviceNotificationText(key: DeviceNotificationTextKey): string {
   try {
     if (i18next.isInitialized && i18next.exists(OPS_KEY[key], { ns: "ops" })) {
       const text = i18next.t(OPS_KEY[key], { ns: "ops" });
-      if (typeof text === "string" && text.trim().length > 0) return text;
+      // i18next hands the key back when it finds nothing: never show that.
+      if (typeof text === "string" && text.trim().length > 0 && text !== OPS_KEY[key]) return text;
     }
   } catch {
     // A translation lookup must never stop a reminder from being scheduled.
