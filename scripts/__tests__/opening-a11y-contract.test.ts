@@ -12,8 +12,10 @@ test.each([
   'accessibilityLabel={t("loadingGate.loading")}',
   'importantForAccessibility="no-hide-descendants"',
   "accessibilityElementsHidden",
-  "style={[styles.skip, ",
-  "hitSlop={8}",
+  "style={[styles.skipTarget, ",
+  "<View style={styles.skip}>",
+  "minWidth: 44, minHeight: 44, padding: SKIP_TARGET_PAD",
+  "const SKIP_TARGET_PAD = 8;",
   't("loadingGate.skipShort")',
   'accessibilityHint={t("loadingGate.skipHint")}',
   "onPress={skip}",
@@ -24,6 +26,15 @@ test.each([
 ])("removing %s fails the opening guard", required => {
   expect(source).toContain(required);
   expect(openingA11yContract(source.replace(required, ""))).toBe(false);
+});
+
+test("the 44 dp size counts only on the style the skip pressable uses", () => {
+  const size = "minWidth: 44, minHeight: 44, padding: SKIP_TARGET_PAD, ";
+  expect(source).toContain(`skipTarget: { position: "absolute", zIndex: 7, ${size}`);
+  // The same words moved to the chip's own style: the pressable is small again.
+  const moved = source.replace(size, "").replace("  skip: { ", `  skip: { ${size}`);
+  expect(moved).toContain(size);
+  expect(openingA11yContract(moved)).toBe(false);
 });
 
 test.each(["opening-skip", "opening-retry"])("another button cannot supply a missing role on %s", id => {
