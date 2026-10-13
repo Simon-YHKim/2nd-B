@@ -531,7 +531,10 @@
     "reminderSetNote": "Pengingat diatur di perangkat ini.",
     "reminderDeniedNote": "Izin notifikasi nonaktif. Izinkan di pengaturan perangkatmu untuk menggunakan pengingat.",
     "reminderFailedNote": "Pengingat tidak bisa diatur. Periksa waktu item dan coba lagi.",
-    "reminderUnavailableNote": "Tersimpan. Pengingat butuh aplikasi terpasang, jadi yang ini tidak akan berbunyi di sini."
+    "reminderUnavailableNote": "Tersimpan. Pengingat butuh aplikasi terpasang, jadi yang ini tidak akan berbunyi di sini.",
+    "deviceReminderBody": "Saatnya untuk pengingatmu.",
+    "deviceTimerBody": "Timermu sudah selesai.",
+    "deviceChannelName": "Pengingat"
   },
   "focus": {
     "title": "Fokus harian",

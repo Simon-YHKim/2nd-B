@@ -71,3 +71,11 @@ export function prepareCrisisScanText(text: string): string {
     .replace(WORK_BEFORE_FINISH, (match) => match.replace(/끝(?:내고 *싶|낼 *거)/, (term: string) => " ".repeat(term.length)))
     .replace(WORK_AFTER_FINISH, (match) => match.replace(/끝내고 *싶/, (term: string) => " ".repeat(term.length)));
 }
+
+// The same test prepareCrisisScanText applies before any exception: does the
+// text mention actions, means, preparation, or life-ending context? Exported so
+// that another exception (model-reply-scan.ts) cannot relax what this test keeps
+// strict. It deliberately favors false positives.
+export function hasCrisisRiskContext(text: string): boolean {
+  return RISK_CONTEXT.test(text.normalize("NFKC").toLowerCase().replace(/\s+/g, " "));
+}
