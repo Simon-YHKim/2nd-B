@@ -172,6 +172,11 @@
     "pasteOfferHint": "Rellena el campo con tu último contenido copiado. Se lee solo cuando tocas.",
     "pasteOfferEmpty": "No se encontró nada para pegar."
   },
+  "sharedOverDraft": {
+    "title": "Tienes texto sin guardar aquí.",
+    "append": "Añadir debajo",
+    "replace": "Borrarlo y empezar de nuevo"
+  },
   "inputs": {
     "extractedLabel": "Texto extraído, puedes editarlo",
     "bodyLabel": "Texto",
