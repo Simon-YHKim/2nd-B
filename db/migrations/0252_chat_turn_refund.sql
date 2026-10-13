@@ -13,8 +13,10 @@
 --     ai_audit_log 에서 그 사용자의 event_source = 'server_verified' · purpose = 'secondb_chat' ·
 --     safety_zone = 'red' · 만든 지 10분 안 · 아직 환불에 쓰지 않은 줄.
 --   server_verified 줄은 클라이언트가 쓸 수 없다(0181: authenticated 는 표에 직접 쓰지 못하고,
---   클라이언트용 RPC 는 client_unverified 로만 적는다). 그래서 화면이 "답이 바뀌었다"고 말하는 것만으로는
---   횟수가 돌아오지 않는다.
+--   클라이언트용 RPC 는 client_unverified 로만 적는다). 그것은 함수 둘의 성질이라, 이 파일이 표의 성질로
+--   만든다: ai_audit_log 의 트리거가 "로그인했거나 익명인 요청"이 server_verified 줄을 넣거나 다른 줄을
+--   server_verified 로 바꾸는 것을 어느 함수를 거치든 거절한다. 프록시는 service_role 로 쓰므로 그대로다.
+--   그래서 화면이 "답이 바뀌었다"고 말하는 것만으로는 횟수가 돌아오지 않는다.
 --   한 줄은 한 번만 쓴다: 쓴 줄의 id 를 chat_turn_refunds 에 넣고 그 id 가 기본 키다. 두 호출이 같은 줄을
 --   고르면 둘째의 INSERT 가 기본 키에 걸린다. 호출한 쪽의 격리 수준이 무엇이든 같다(읽은 스냅샷이 아니라
 --   제약이 막는다). 같은 사용자의 호출은 advisory 잠금으로 한 줄씩 처리해, 뒤의 호출이 앞의 것을 본 뒤
@@ -45,11 +47,19 @@
 --     그대로 남아 다음 호출이 쓴다.
 --   - 같은 날의 chat_usage 줄을 다른 트랜잭션이 먼저 고쳤으면 40001 로 호출 전체가 실패한다
 --     (PostgreSQL 의 규칙 · 아무것도 바뀌지 않는다). 부른 쪽이 다시 부른다.
---   그래서 부르는 쪽의 계약은 하나다: NULL 이나 40001 을 받으면 남은 횟수를 다시 읽는다.
+--   부르는 쪽의 계약(앱은 호출 하나가 트랜잭션 하나다):
+--   - 40001 을 받으면 그 호출을 다시 한다(새 트랜잭션 · 두 번까지).
+--   - NULL 을 받으면 한 번 더 부른다. 그래도 NULL 이면 돌려줄 것이 없는 것이다.
+--   - 어느 쪽이든 끝에는 남은 횟수를 다시 읽어 화면을 맞춘다.
+--   READ COMMITTED 에서는 40001 이 나지 않고, NULL 은 "근거가 없다 · 그날 횟수가 0 이다 · 날짜가 범위 밖이다"다.
 -- 표의 모양: 표가 이미 있으면(되돌린 뒤 다시 적용 · 손으로 만든 표) CREATE TABLE IF NOT EXISTS 는 그 표를
---   보지 않는다. 한 번 보장은 기본 키에 서 있으므로, 칸 · 기본 키 · 감사 줄로 가는 연결이 아래와 다르면
---   함수를 만들기 전에 멈춘다.
--- 되돌리기: rollback/0252_down.sql 은 함수만 걷고 표는 남긴다(완전한 되돌리기가 아니라 기능 끄기다).
+--   보지 않는다. 한 번 보장은 기본 키에 서 있으므로, 함수를 만들기 전에 그 표가 이 파일이 만드는 표인지 본다:
+--   보통의 영구 표 · 칸 셋과 기본값 · audit_id 하나의 기본 키 · ai_audit_log.id 로 가는 연결 · 그 밖의
+--   제약 · 인덱스 · 트리거 · 규칙 · 정책 없음 · 행 보안 켜짐. 하나라도 다르면 멈춘다(55000).
+--   지원하는 적용은 트랜잭션 하나다(supabase db push · psql --single-transaction · 적용 블록). 트랜잭션 없이
+--   파일을 흘려 넣다 멈추면 그 앞의 COMMENT · 행 보안 · 권한 회수는 남는다(전부 다시 해도 같은 문장이다).
+-- 겹침의 범위: 함수는 원장의 기본 키 충돌만 "이미 쓴 줄"로 읽는다. 다른 고유 제약의 충돌은 그대로 오류다.
+-- 되돌리기: rollback/0252_down.sql 은 함수와 트리거를 걷고 표는 남긴다(완전한 되돌리기가 아니라 기능 끄기다).
 --   표를 같이 걷으면 방금 쓴 근거가 다시 적용한 뒤 한 번 더 쓰인다.
 
 CREATE TABLE IF NOT EXISTS public.chat_turn_refunds (
@@ -65,24 +75,36 @@ ALTER TABLE public.chat_turn_refunds ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.chat_turn_refunds FROM PUBLIC, anon, authenticated, service_role;
 
 -- A table that was already there is not looked at by CREATE TABLE IF NOT EXISTS. Stop here, before
--- the function exists, unless it is the table above.
+-- the function exists, unless it is the table above and nothing else hangs on it.
 DO $shape0252$
 DECLARE
   v_rel   constant regclass := 'public.chat_turn_refunds'::regclass;
   v_audit smallint;
+  v_id    smallint;
 BEGIN
+  IF NOT (SELECT c.relkind = 'r' AND c.relpersistence = 'p' AND NOT c.relispartition
+            FROM pg_catalog.pg_class AS c WHERE c.oid = v_rel)
+     OR EXISTS (SELECT 1 FROM pg_catalog.pg_inherits AS i WHERE i.inhrelid = v_rel OR i.inhparent = v_rel) THEN
+    RAISE EXCEPTION '0252: chat_turn_refunds is not a plain permanent table'
+      USING ERRCODE = '55000';
+  END IF;
   IF (SELECT pg_catalog.string_agg(
                a.attname || ' ' || pg_catalog.format_type(a.atttypid, a.atttypmod)
-                 || CASE WHEN a.attnotnull THEN ' not null' ELSE '' END,
+                 || CASE WHEN a.attnotnull THEN ' not null' ELSE '' END
+                 || CASE WHEN a.attgenerated <> '' OR a.attidentity <> '' THEN ' generated' ELSE '' END
+                 || COALESCE(' default ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid), ''),
                ', ' ORDER BY a.attnum)
         FROM pg_catalog.pg_attribute AS a
+        LEFT JOIN pg_catalog.pg_attrdef AS d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
        WHERE a.attrelid = v_rel AND a.attnum > 0 AND NOT a.attisdropped)
-     IS DISTINCT FROM 'audit_id uuid not null, day date not null, refunded_at timestamp with time zone not null' THEN
-    RAISE EXCEPTION '0252: chat_turn_refunds has other columns than this migration creates'
+     IS DISTINCT FROM 'audit_id uuid not null, day date not null, refunded_at timestamp with time zone not null default now()' THEN
+    RAISE EXCEPTION '0252: chat_turn_refunds has other columns or defaults than this migration creates'
       USING ERRCODE = '55000';
   END IF;
   SELECT a.attnum INTO v_audit FROM pg_catalog.pg_attribute AS a
    WHERE a.attrelid = v_rel AND a.attname = 'audit_id';
+  SELECT a.attnum INTO v_id FROM pg_catalog.pg_attribute AS a
+   WHERE a.attrelid = 'public.ai_audit_log'::regclass AND a.attname = 'id';
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint AS c
                   WHERE c.conrelid = v_rel AND c.contype = 'p' AND c.conkey = ARRAY[v_audit]) THEN
     RAISE EXCEPTION '0252: chat_turn_refunds has no primary key on audit_id alone'
@@ -90,9 +112,20 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint AS c
                   WHERE c.conrelid = v_rel AND c.contype = 'f' AND c.conkey = ARRAY[v_audit]
-                    AND c.confrelid = 'public.ai_audit_log'::regclass AND c.confdeltype = 'c'
-                    AND c.convalidated) THEN
-    RAISE EXCEPTION '0252: chat_turn_refunds.audit_id does not follow ai_audit_log'
+                    AND c.confrelid = 'public.ai_audit_log'::regclass AND c.confkey = ARRAY[v_id]
+                    AND c.confdeltype = 'c' AND c.convalidated AND NOT c.condeferrable
+                    AND pg_catalog.to_jsonb(c) ->> 'conenforced' IS DISTINCT FROM 'false') THEN
+    RAISE EXCEPTION '0252: chat_turn_refunds.audit_id does not follow ai_audit_log.id'
+      USING ERRCODE = '55000';
+  END IF;
+  -- Nothing else may change what an INSERT into the ledger means: one primary key, one link, no more.
+  IF (SELECT pg_catalog.count(*) FROM pg_catalog.pg_constraint AS c
+       WHERE c.conrelid = v_rel AND c.contype IN ('p', 'f', 'u', 'x', 'c', 't')) <> 2
+     OR (SELECT pg_catalog.count(*) FROM pg_catalog.pg_index AS i WHERE i.indrelid = v_rel) <> 1
+     OR EXISTS (SELECT 1 FROM pg_catalog.pg_trigger AS t WHERE t.tgrelid = v_rel AND NOT t.tgisinternal)
+     OR EXISTS (SELECT 1 FROM pg_catalog.pg_rewrite AS r WHERE r.ev_class = v_rel)
+     OR EXISTS (SELECT 1 FROM pg_catalog.pg_policy AS p WHERE p.polrelid = v_rel) THEN
+    RAISE EXCEPTION '0252: chat_turn_refunds carries a constraint, index, trigger, rule or policy this migration does not create'
       USING ERRCODE = '55000';
   END IF;
   IF NOT (SELECT c.relrowsecurity FROM pg_catalog.pg_class AS c WHERE c.oid = v_rel) THEN
@@ -101,6 +134,48 @@ BEGIN
   END IF;
 END
 $shape0252$;
+
+-- The evidence the refund reads is the server_verified mark on an audit row. 0181 leaves a signed-in
+-- user two ways to write an audit row, and both stamp client_unverified. That is a property of two
+-- functions. This trigger makes it a property of the table: whatever function runs, a request made
+-- as a signed-in or anonymous user cannot insert a server_verified row or turn a row into one. The
+-- proxies write as service_role and are not touched; neither is a session with no API role.
+CREATE OR REPLACE FUNCTION public.guard_ai_audit_server_verified()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+  v_role text;
+BEGIN
+  IF NEW.event_source IS DISTINCT FROM 'server_verified' THEN
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'UPDATE' AND OLD.event_source IS NOT DISTINCT FROM 'server_verified' THEN
+    RETURN NEW;
+  END IF;
+  -- The role the request came in with. SECURITY DEFINER changes current_user, not this setting, and
+  -- a function running with its owner's rights cannot change it. The JWT's own role claim is read
+  -- as well (0112: the claims live in request.jwt.claims on the current stack).
+  v_role := pg_catalog.current_setting('role', true);
+  IF v_role IN ('authenticated', 'anon')
+     OR COALESCE(
+          NULLIF(pg_catalog.current_setting('request.jwt.claim.role', true), ''),
+          NULLIF(pg_catalog.current_setting('request.jwt.claims', true), '')::jsonb ->> 'role'
+        ) IN ('authenticated', 'anon') THEN
+    RAISE EXCEPTION 'ai_audit_log: a signed-in request cannot write a server_verified row'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.guard_ai_audit_server_verified() FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS guard_ai_audit_server_verified ON public.ai_audit_log;
+CREATE TRIGGER guard_ai_audit_server_verified
+  BEFORE INSERT OR UPDATE OF event_source ON public.ai_audit_log
+  FOR EACH ROW EXECUTE FUNCTION public.guard_ai_audit_server_verified();
 
 CREATE OR REPLACE FUNCTION public.refund_chat_turn_after_output_swap(p_day date)
 RETURNS int
@@ -114,6 +189,7 @@ DECLARE
   v_today date := (v_now AT TIME ZONE 'Asia/Seoul')::date;
   v_audit uuid;
   v_count int;
+  v_hit   text;
 BEGIN
   IF v_user IS NULL THEN
     RAISE EXCEPTION 'not signed in' USING ERRCODE = '42501';
@@ -161,7 +237,13 @@ BEGIN
     END IF;
   EXCEPTION
     WHEN unique_violation THEN
-      RETURN NULL;
+      -- Only the ledger's own primary key means "this row was used already".
+      GET STACKED DIAGNOSTICS v_hit = CONSTRAINT_NAME;
+      IF v_hit IS NOT DISTINCT FROM (SELECT c.conname FROM pg_catalog.pg_constraint AS c
+                                      WHERE c.conrelid = 'public.chat_turn_refunds'::regclass AND c.contype = 'p') THEN
+        RETURN NULL;
+      END IF;
+      RAISE;
     WHEN SQLSTATE 'ZC252' THEN
       RETURN NULL;
   END;

@@ -1672,9 +1672,10 @@ jobs:
       # the third under REPEATABLE READ: the second call cannot see which row the
       # first took, picks the same one and gets nothing. No row counts twice, and
       # the row it did not reach is still there for the next call. The app calls
-      # through PostgREST, which is READ COMMITTED; the last two lines of the
-      # step then re-apply 0252 over a ledger table of another shape, which must
-      # stop before the function exists.
+      # through PostgREST, which is READ COMMITTED. The rest of the step applies
+      # 0252 again after its down file: once over its own ledger table, which
+      # must work, and then over nine tables of another shape, each of which must
+      # stop at the check named beside it and leave nothing of 0252 behind.
       - name: Race two chat turn refunds over one proxy row
         env:
           PGPASSWORD: postgres
@@ -1764,24 +1765,33 @@ jobs:
               return 1
             fi
           }
-          reapply_over() { # <label> <statement that leaves a ledger table of another shape>
-            local label="$1" breakit="$2"
+          reapply_over() { # <label> <statement that leaves a ledger table of another shape, or ''> <the check that must stop it, or ''>
+            local label="$1" breakit="$2" want="$3"
             local clone_db="reapply_0252_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
             if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
               echo "0252 re-apply check refuses an unsafe database name" >&2
               return 1
             fi
             sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
-            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -f db/migrations/rollback/0252_down.sql
-            sql "$clone_db" "$breakit"
-            local rc=0 gone
-            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 \
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/rollback/0252_down.sql
+            if [[ -n "$breakit" ]]; then sql "$clone_db" "$breakit"; fi
+            # One transaction, as every supported way of applying it is: a stop leaves nothing of 0252 behind.
+            local rc=0 gone guard
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose --single-transaction \
               -f db/migrations/0252_chat_turn_refund.sql > "reapply_0252_$label.out" 2>&1 || rc=$?
             gone="$(sql "$clone_db" "SELECT to_regprocedure('public.refund_chat_turn_after_output_swap(date)') IS NULL" | tr -d '\r')"
+            guard="$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_trigger WHERE tgname = 'guard_ai_audit_server_verified' AND NOT tgisinternal" | tr -d '\r')"
             sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
-            echo "$label: re-apply rc=$rc, function absent=$gone"
-            if [[ "$rc" == "0" || "$gone" != "t" ]] || ! grep -q "0252: chat_turn_refunds" "reapply_0252_$label.out"; then
-              echo "$label: 0252 was applied over a ledger table of another shape" >&2
+            echo "$label: re-apply rc=$rc, function absent=$gone, guard triggers=$guard"
+            if [[ -z "$want" ]]; then
+              if [[ "$rc" != "0" || "$gone" != "f" || "$guard" != "1" ]]; then
+                echo "$label: 0252 did not apply again over its own ledger table" >&2
+                cat "reapply_0252_$label.out" >&2
+                return 1
+              fi
+            elif [[ "$rc" == "0" || "$gone" != "t" || "$guard" != "0" ]] \
+              || ! grep -q -F "55000: 0252: chat_turn_refunds$want" "reapply_0252_$label.out"; then
+              echo "$label: 0252 was applied over a ledger table of another shape, or stopped at another check (wanted:$want)" >&2
               cat "reapply_0252_$label.out" >&2
               return 1
             fi
@@ -1793,9 +1803,16 @@ jobs:
           # The same under REPEATABLE READ: one turn now, and the other row gives its turn to the next call.
           race two_rows_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 2 "a=4 b=null 4/3/1" "c=3"
           # A ledger table that is already there, in another shape: stop before the function exists.
-          reapply_over no_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey"
-          reapply_over no_audit_link "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_audit_id_fkey"
-          reapply_over day_as_text "ALTER TABLE public.chat_turn_refunds ALTER COLUMN day TYPE text"
+          reapply_over same_table "" ""
+          reapply_over no_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey" " has no primary key on audit_id alone"
+          reapply_over no_audit_link "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_audit_id_fkey" ".audit_id does not follow ai_audit_log.id"
+          reapply_over link_to_other_column "ALTER TABLE public.ai_audit_log ADD COLUMN z46_other uuid UNIQUE; ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_audit_id_fkey, ADD CONSTRAINT chat_turn_refunds_audit_id_fkey FOREIGN KEY (audit_id) REFERENCES public.ai_audit_log (z46_other) ON DELETE CASCADE" ".audit_id does not follow ai_audit_log.id"
+          reapply_over day_as_text "ALTER TABLE public.chat_turn_refunds ALTER COLUMN day TYPE text" " has other columns or defaults"
+          reapply_over no_default "ALTER TABLE public.chat_turn_refunds ALTER COLUMN refunded_at DROP DEFAULT" " has other columns or defaults"
+          reapply_over unlogged "ALTER TABLE public.chat_turn_refunds SET UNLOGGED" " is not a plain permanent table"
+          reapply_over extra_unique "ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT z46_one_per_day UNIQUE (day)" " carries a constraint, index, trigger, rule or policy"
+          reapply_over extra_trigger "CREATE FUNCTION public.z46_noop() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TRIGGER z46_noop BEFORE INSERT ON public.chat_turn_refunds FOR EACH ROW EXECUTE FUNCTION public.z46_noop()" " carries a constraint, index, trigger, rule or policy"
+          reapply_over extra_policy "CREATE POLICY z46_read ON public.chat_turn_refunds FOR SELECT TO authenticated USING (true)" " carries a constraint, index, trigger, rule or policy"
       - name: Exercise public-data quota contract
         env:
           PGPASSWORD: postgres

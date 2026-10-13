@@ -186,6 +186,110 @@ SELECT pg_temp.z46_assert(:'r' = 'null', 'a turn was given back without proxy ev
 SELECT pg_temp.z46_assert(pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date) = 3, 'the count moved without evidence');
 SELECT pg_temp.z46_assert((SELECT count(*) = 0 FROM public.chat_turn_refunds), 'an audit row was marked used without a refund');
 
+-- The table itself refuses the mark from a signed-in request, whatever function does the writing.
+-- Four throw-away functions a signed-in user may call: one hides the write behind a function it
+-- cannot call itself, one builds its statement at run time, one uses MERGE, one turns the client's
+-- own row into a server row. None of them is in the list above, and none may succeed.
+CREATE FUNCTION public.z46_inner_writer(p_user uuid, p_tag text) RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $f$
+  INSERT INTO public.ai_audit_log (user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+  VALUES (p_user, '0a0b0c0d', '0e0f0a0b', p_tag, false, 'red', 10, 'secondb_chat', 'server_verified')
+$f$;
+REVOKE ALL ON FUNCTION public.z46_inner_writer(uuid, text) FROM PUBLIC, anon, authenticated, service_role;
+CREATE FUNCTION public.z46_wrapper() RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $f$
+BEGIN
+  PERFORM public.z46_inner_writer(auth.uid(), 'z46-wrapper');
+END
+$f$;
+CREATE FUNCTION public.z46_dynamic() RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $f$
+BEGIN
+  EXECUTE 'INS' || 'ERT INTO public.ai_' || 'audit_log (user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source) '
+       || 'VALUES ($1, ''0a0b0c0d'', ''0e0f0a0b'', ''z46-dynamic'', false, ''red'', 10, ''secondb_chat'', ''server_'' || ''verified'')'
+    USING auth.uid();
+END
+$f$;
+CREATE FUNCTION public.z46_merge() RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $f$
+BEGIN
+  MERGE INTO public.ai_audit_log AS t
+  USING (SELECT auth.uid() AS user_id) AS s ON false
+  WHEN NOT MATCHED THEN
+    INSERT (user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+    VALUES (s.user_id, '0a0b0c0d', '0e0f0a0b', 'z46-merge', false, 'red', 10, 'secondb_chat', 'server_verified');
+END
+$f$;
+CREATE FUNCTION public.z46_promote() RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $f$
+  UPDATE public.ai_audit_log SET event_source = 'server_verified'
+   WHERE user_id = auth.uid() AND model_used = 'gpt-test+swap:v1'
+$f$;
+-- Not a forgery: another column of a row changes. The guard must leave this alone.
+CREATE FUNCTION public.z46_touch() RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $f$
+  UPDATE public.ai_audit_log SET latency_ms = 11
+   WHERE user_id = auth.uid() AND model_used = 'gpt-test+swap:v1'
+$f$;
+REVOKE ALL ON FUNCTION public.z46_wrapper(), public.z46_dynamic(), public.z46_merge(), public.z46_promote(), public.z46_touch()
+  FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.z46_wrapper(), public.z46_dynamic(), public.z46_merge(), public.z46_promote(), public.z46_touch()
+  TO authenticated;
+GRANT EXECUTE ON FUNCTION public.z46_inner_writer(uuid, text) TO service_role;
+
+SET LOCAL ROLE authenticated;
+DO $guard$
+DECLARE
+  v_fn text;
+BEGIN
+  FOREACH v_fn IN ARRAY ARRAY['z46_wrapper', 'z46_dynamic', 'z46_merge', 'z46_promote'] LOOP
+    BEGIN
+      EXECUTE 'SELECT public.' || v_fn || '()';
+      RAISE EXCEPTION 'z46 regression failed: % wrote a server_verified audit row for a signed-in user', v_fn;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END;
+  END LOOP;
+  PERFORM public.z46_touch();
+END
+$guard$;
+SELECT COALESCE(public.refund_chat_turn_after_output_swap(:'today'::date)::text, 'null') AS r \gset
+RESET ROLE;
+-- The same request seen only through its JWT: no API role is set, the claim says signed-in.
+SET LOCAL request.jwt.claims = '{"role":"authenticated"}';
+DO $claims$
+BEGIN
+  BEGIN
+    PERFORM public.z46_inner_writer('26101346-0000-4000-8000-00000000000a', 'z46-claims');
+    RAISE EXCEPTION 'z46 regression failed: a request whose JWT says signed-in wrote a server_verified row';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END
+$claims$;
+SET LOCAL request.jwt.claims = '';
+SELECT pg_temp.z46_assert((SELECT count(*) = 0 FROM public.ai_audit_log
+                            WHERE event_source = 'server_verified'
+                              AND (model_used LIKE 'z46-%' OR model_used = 'gpt-test+swap:v1')),
+                          'a signed-in request left a server_verified audit row behind');
+SELECT pg_temp.z46_assert((SELECT latency_ms = 11 AND event_source = 'client_unverified' FROM public.ai_audit_log
+                            WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND model_used = 'gpt-test+swap:v1'),
+                          'the guard stopped a change that does not touch the mark');
+SELECT pg_temp.z46_assert(:'r' = 'null' AND pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date) = 3,
+                          'a turn was given back after the forged writes');
+-- The server's own writes are not touched: as service_role, and with no API role at all.
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
+SET LOCAL ROLE service_role;
+SELECT public.z46_inner_writer('26101346-0000-4000-8000-00000000000a', 'z46-as-service');
+RESET ROLE;
+SET LOCAL request.jwt.claims = '';
+SELECT public.z46_inner_writer('26101346-0000-4000-8000-00000000000a', 'z46-as-owner');
+SELECT pg_temp.z46_assert((SELECT count(*) = 2 FROM public.ai_audit_log
+                            WHERE event_source = 'server_verified' AND model_used IN ('z46-as-service', 'z46-as-owner')),
+                          'the guard stopped a server write');
+-- Those two are real evidence rows. Take them away so the cases below count what they wrote themselves.
+DELETE FROM public.ai_audit_log WHERE model_used IN ('z46-as-service', 'z46-as-owner');
+
 -- One fresh proxy row: exactly one turn comes back, on the day asked for.
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-000000000011', '26101346-0000-4000-8000-00000000000a', 'server_verified', 'secondb_chat', 'red', interval '5 seconds');
 SET LOCAL ROLE authenticated;
@@ -255,6 +359,34 @@ SELECT COALESCE(public.refund_chat_turn_after_output_swap(:'today'::date)::text,
 SELECT COALESCE(public.refund_chat_turn_after_output_swap(:'today'::date)::text, 'null') AS r2 \gset
 RESET ROLE;
 SELECT pg_temp.z46_assert(:'r' = '0' AND :'r2' = 'null', 'B did not get exactly one turn back from B''s own row');
+
+-- Only the ledger's own primary key means "used already". Another unique rule that the ledger is not
+-- supposed to carry must not be read as that: its conflict is an error, not a quiet NULL.
+SAVEPOINT z46_other_unique;
+UPDATE public.chat_usage SET count = 2
+ WHERE user_id = '26101346-0000-4000-8000-00000000000b' AND day = :'today'::date;
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000b2', '26101346-0000-4000-8000-00000000000b', 'server_verified', 'secondb_chat', 'red', interval '2 seconds');
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000b3', '26101346-0000-4000-8000-00000000000b', 'server_verified', 'secondb_chat', 'red', interval '1 second');
+CREATE UNIQUE INDEX z46_one_of_two ON public.chat_turn_refunds (day)
+ WHERE audit_id IN ('26101346-4000-4000-8000-0000000000b2', '26101346-4000-4000-8000-0000000000b3');
+SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000b';
+SET LOCAL ROLE authenticated;
+SELECT COALESCE(public.refund_chat_turn_after_output_swap(:'today'::date)::text, 'null') AS r \gset
+DO $other$
+BEGIN
+  BEGIN
+    -- The second fresh row is for the same day: it collides on the extra index, not on the primary key.
+    PERFORM public.refund_chat_turn_after_output_swap((pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date);
+    RAISE EXCEPTION 'z46 regression failed: a conflict on another unique rule was read as an already used row';
+  EXCEPTION WHEN unique_violation THEN
+    NULL;
+  END;
+END
+$other$;
+RESET ROLE;
+SELECT pg_temp.z46_assert(:'r' = '1' AND pg_temp.z46_count('26101346-0000-4000-8000-00000000000b', :'today'::date) = 1,
+                          'the refund before the foreign conflict did not stand, or the failed one changed the count');
+ROLLBACK TO SAVEPOINT z46_other_unique;
 
 -- The table stays read-only for its owner: no policy lets a signed-in user write chat_usage,
 -- so the function is the only way a count goes down.
