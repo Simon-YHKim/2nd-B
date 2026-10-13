@@ -68,7 +68,7 @@ describe("screen wiring", () => {
   });
 
   it("names who is answering now and takes its words from the locale", () => {
-    expect(empty).toContain('t("aiNotice.body", { name: t(`rev2.${rev2Persona}.lensName`) })');
+    expect(empty).toContain('t("aiNotice.body", aiNoticeWords)');
     expect(empty).toContain('t("aiNotice.confirm")');
   });
 });

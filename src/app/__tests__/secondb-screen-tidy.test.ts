@@ -85,7 +85,7 @@ describe("chat screen tidy", () => {
 
   test.each(["secondb", "meta", "twi"])("%s empty state has only a static decorative portrait and existing guidance", rev2Persona => {
     // Someone who has already seen the first-time AI card: the empty chat is the portrait and the guidance only.
-    const empty = tree(elementByStyle("empty"), { rev2Persona, shouldShowChatAiNotice, aiNoticeSeen: true, turns: [], markAiNoticeSeen: jest.fn() });
+    const empty = tree(elementByStyle("empty"), { rev2Persona, shouldShowChatAiNotice, aiNoticeSeen: true, turns: [], markAiNoticeSeen: jest.fn(), aiNoticeWords: {} });
     const decoration = descendants(empty, "View").find(el => el.props.testID === `chat-empty-portrait-${rev2Persona}`);
     expect(decoration?.props).toMatchObject({ key: rev2Persona, accessible: false, accessibilityElementsHidden: true, importantForAccessibility: "no-hide-descendants" });
     const portrait = descendants(empty, "HustleKPortrait");
@@ -105,7 +105,7 @@ describe("chat screen tidy", () => {
     "first-time AI card: seen=%s draws %j",
     (aiNoticeSeen, texts) => {
       const markAiNoticeSeen = jest.fn();
-      const empty = tree(elementByStyle("empty"), { rev2Persona: "secondb", shouldShowChatAiNotice, aiNoticeSeen, turns: [], markAiNoticeSeen });
+      const empty = tree(elementByStyle("empty"), { rev2Persona: "secondb", shouldShowChatAiNotice, aiNoticeSeen, turns: [], markAiNoticeSeen, aiNoticeWords: {} });
       expect(descendants(empty, "Text").map(el => el.children)).toEqual(texts);
       const buttons = descendants(empty, "Pressable");
       expect(buttons).toHaveLength(aiNoticeSeen === false ? 1 : 0);

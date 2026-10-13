@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { topicParticle } from "@/lib/i18n/josa";
+
 import { isModelAnswer, withAiCopyTail, type AiMarkTurn } from "../ai-mark";
 
 // Simon 2026-10-13 15:49: no mark by each answer's name. One line under the input says the
@@ -61,7 +63,8 @@ describe("chat screen and locales", () => {
     const dock = screen.slice(screen.indexOf('testID="chat-composer-dock"'), screen.indexOf("</KeyboardAvoidingArea>"));
     expect(dock.indexOf("<ChatComposer")).toBeGreaterThan(0);
     expect(dock.indexOf('testID="chat-ai-line"')).toBeGreaterThan(dock.indexOf("<ChatComposer"));
-    expect(dock).toContain('{t("aiLine", { name: t(`rev2.${rev2Persona}.lensName`) })}');
+    expect(dock).toContain('{t("aiLine", aiNoticeWords)}');
+    expect(screen).toContain("const aiNoticeName = t(`rev2.${rev2Persona}.lensName`);");
   });
 
   test("only a copied model answer gets the last line", () => {
@@ -82,15 +85,16 @@ describe("chat screen and locales", () => {
     }
   });
 
-  test("Korean says the name is AI and attaches 는 to it, so each of the three names must end in a vowel", () => {
+  test("Korean takes its particle from the code, so a name with or without a final consonant reads right", () => {
+    // i18n/josa.test.ts forbids a particle written into the string after a value (「{{name}}는」).
     const ko = copy("ko");
-    expect(ko.aiLine?.startsWith("{{name}}는 AI입니다.")).toBe(true);
-    expect(ko.aiNotice?.body?.startsWith("{{name}}는 AI입니다.")).toBe(true);
-    for (const id of ["secondb", "meta", "twi"]) {
-      const name = ko.rev2[id].lensName;
-      const last = name.charCodeAt(name.length - 1);
-      // A Hangul syllable with no final consonant: (code - 0xAC00) % 28 === 0.
-      expect(last >= 0xac00 && last <= 0xd7a3 && (last - 0xac00) % 28 === 0).toBe(true);
-    }
+    expect(ko.aiLine?.startsWith("{{name}}{{particle}} AI입니다.")).toBe(true);
+    expect(ko.aiNotice?.body?.startsWith("{{name}}{{particle}} AI입니다.")).toBe(true);
+    expect(screen).toContain("const aiNoticeWords = { name: aiNoticeName, particle: topicParticle(aiNoticeName) };");
+    const said = (name: string) => (ko.aiLine ?? "").replace("{{name}}", name).replace("{{particle}}", topicParticle(name));
+    expect(["secondb", "meta", "twi"].map((id) => said(ko.rev2[id].lensName).split(" AI입니다.")[0])).toEqual(["허슬케이는", "메타비는", "트위비는"]);
+    expect(said("별").startsWith("별은 AI입니다.")).toBe(true);
+    // Only Korean uses the particle slot.
+    for (const lng of ["en", "es", "pt", "id"]) expect(JSON.stringify([copy(lng).aiLine, copy(lng).aiNotice])).not.toContain("{{particle}}");
   });
 });

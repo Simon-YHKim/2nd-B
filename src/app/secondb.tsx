@@ -68,6 +68,7 @@ import { LlmConsentError, transcribeAudio, type LlmConsentErrorCode } from "@/li
 import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
 import { shouldShowChatAiNotice, useChatAiNoticeSeen } from "@/lib/chat/ai-first-notice";
 import { isModelAnswer, withAiCopyTail } from "@/lib/chat/ai-mark";
+import { topicParticle } from "@/lib/i18n/josa";
 import { isAbortError } from "@/lib/async/abort";
 import {
   createRecorderLifecycle,
@@ -1068,6 +1069,10 @@ function SecondBChatBody() {
   const lensSoftBg = rev2PersonaSoftBg(rev2Persona);
   const lensOnSoft = rev2PersonaOnSoft(rev2Persona);
   const pendingLensName = t(`rev2.${sendingPersona ?? rev2Persona}.lensName`);
+  // The AI line and the first-time card name whoever is answering now. Korean attaches its
+  // particle here, not in the string, so a name with or without a final consonant reads right.
+  const aiNoticeName = t(`rev2.${rev2Persona}.lensName`);
+  const aiNoticeWords = { name: aiNoticeName, particle: topicParticle(aiNoticeName) };
   const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
   const suggestionState = {
     turns, conversationId: conversationId.current, sending, keptIndices: keptIdx, keepingIndex: keeping,
@@ -1251,7 +1256,7 @@ function SecondBChatBody() {
             <View testID="chat-empty" style={ds.empty}>
               {shouldShowChatAiNotice({ seen: aiNoticeSeen, turnCount: turns.length }) ? (
                 <View testID="chat-ai-notice" style={ds.aiNotice} accessibilityRole="alert">
-                  <Text style={ds.aiNoticeBody}>{t("aiNotice.body", { name: t(`rev2.${rev2Persona}.lensName`) })}</Text>
+                  <Text style={ds.aiNoticeBody}>{t("aiNotice.body", aiNoticeWords)}</Text>
                   <Pressable onPress={markAiNoticeSeen} accessibilityRole="button" accessibilityLabel={t("aiNotice.confirm")} style={ds.aiNoticeBtn}>
                     <Text style={ds.aiNoticeBtnText}>{t("aiNotice.confirm")}</Text>
                   </Pressable>
@@ -1373,7 +1378,7 @@ function SecondBChatBody() {
         />
           {/* Always in view, under the input: the answers here are AI-made (Simon 2026-10-13).
               It names whoever is answering now, the same way the input's spoken name does. */}
-          <Text testID="chat-ai-line" style={ds.aiLine} accessibilityRole="text">{t("aiLine", { name: t(`rev2.${rev2Persona}.lensName`) })}</Text>
+          <Text testID="chat-ai-line" style={ds.aiLine} accessibilityRole="text">{t("aiLine", aiNoticeWords)}</Text>
         </View>
       </KeyboardAvoidingArea>
 
