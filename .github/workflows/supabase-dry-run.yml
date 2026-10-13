@@ -1654,6 +1654,165 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reasoning_proposals_purge_regression.sql
+      # 0252: a chat turn whose answer was swapped for the crisis notice is given
+      # back once per proxy-written audit row. Called as `authenticated`; client
+      # rows, other purposes, old rows and another user's rows must not count.
+      - name: Exercise chat turn refund on proxy evidence only
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/chat_turn_refund_regression.sql
+      # Two sessions of one user ask at the same moment and there is ONE proxy
+      # row. The first pass is the everyday case (READ COMMITTED, same day): the
+      # per-user advisory lock makes the second call wait and then find the row
+      # used. The second pass is the one a snapshot cannot protect: REPEATABLE
+      # READ, one call for today and one for yesterday. The second call still
+      # reads the row as unused, and only the ledger's primary key stops it. The
+      # third pass has two proxy rows: both calls get a turn, because the lock
+      # lets the second one see which row the first one took. The fourth pass is
+      # the third under REPEATABLE READ: the second call cannot see which row the
+      # first took, picks the same one and gets nothing. No row counts twice, and
+      # the row it did not reach is still there for the next call. The app calls
+      # through PostgREST, which is READ COMMITTED. The rest of the step applies
+      # 0252 again after its down file: once over its own ledger table, which
+      # must work, and then over nine tables of another shape, each of which must
+      # stop at the check named beside it and leave nothing of 0252 behind.
+      - name: Race two chat turn refunds over one proxy row
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0252 refund race refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          user="26101347-0000-4000-8000-00000000000a"
+          race() { # <label> <BEGIN statement> <day offset of the second call> <proxy rows> <expected: a b today/yesterday/used> [expected of a later plain call]
+            local label="$1" begin="$2" offset="$3" rows="$4" want="$5" later="${6:-}"
+            local clone_db="race_0252_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0252 refund race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.chat_usage (user_id, day, count) VALUES
+            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, 5),
+            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date - 1, 3);
+          INSERT INTO public.ai_audit_log
+            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+          VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
+          SQL
+            if [[ "$rows" == "2" ]]; then
+              sql "$clone_db" "INSERT INTO public.ai_audit_log
+                (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+                VALUES ('26101347-4000-4000-8000-000000000002', '$user', '0a0b0c0d', '0e0f0a0b', 'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified')"
+            fi
+            local today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
+            # Session A takes the refund for today and keeps its transaction open for three seconds.
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "$begin" \
+              -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+              -c "SELECT 'a=' || COALESCE(public.refund_chat_turn_after_output_swap($today)::text, 'null')" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "refund_a_$label.out" &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the first refund session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            # Session B asks while A is still open. Its first statement is the call, so under
+            # REPEATABLE READ its snapshot is taken here, before A commits.
+            local b a state
+            b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "$begin" \
+              -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+              -c "SELECT 'b=' || COALESCE(public.refund_chat_turn_after_output_swap($today - $offset)::text, 'null')" \
+              -c "COMMIT" | grep '^b=' | tr -d '\r')"
+            wait "$a_pid"
+            a="$(grep '^a=' "refund_a_$label.out" | tr -d '\r')"
+            state="$(sql "$clone_db" "SELECT (SELECT count FROM public.chat_usage WHERE user_id = '$user' AND day = $today)
+                                        || '/' || (SELECT count FROM public.chat_usage WHERE user_id = '$user' AND day = $today - 1)
+                                        || '/' || (SELECT count(*) FROM public.chat_turn_refunds)" | tr -d '\r')"
+            local c=""
+            if [[ -n "$later" ]]; then
+              c="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+                -c "BEGIN" \
+                -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+                -c "SELECT 'c=' || COALESCE(public.refund_chat_turn_after_output_swap($today)::text, 'null')" \
+                -c "COMMIT" | grep '^c=' | tr -d '\r')"
+            fi
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: first session $a, second session $b, today/yesterday/used rows $state${c:+, a later call $c}"
+            if [[ "$a $b $state" != "$want" ]]; then
+              echo "$label: one proxy row gave back more than one turn, or none (wanted $want)" >&2
+              return 1
+            fi
+            if [[ "$c" != "$later" ]]; then
+              echo "$label: the row the second call did not reach was lost (wanted $later)" >&2
+              return 1
+            fi
+          }
+          reapply_over() { # <label> <statement that leaves a ledger table of another shape, or ''> <the check that must stop it, or ''>
+            local label="$1" breakit="$2" want="$3"
+            local clone_db="reapply_0252_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0252 re-apply check refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/rollback/0252_down.sql
+            if [[ -n "$breakit" ]]; then sql "$clone_db" "$breakit"; fi
+            # One transaction, as every supported way of applying it is: a stop leaves nothing of 0252 behind.
+            local rc=0 gone guard
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose --single-transaction \
+              -f db/migrations/0252_chat_turn_refund.sql > "reapply_0252_$label.out" 2>&1 || rc=$?
+            gone="$(sql "$clone_db" "SELECT to_regprocedure('public.refund_chat_turn_after_output_swap(date)') IS NULL" | tr -d '\r')"
+            guard="$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_trigger WHERE tgname = 'guard_ai_audit_server_verified' AND NOT tgisinternal" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: re-apply rc=$rc, function absent=$gone, guard triggers=$guard"
+            if [[ -z "$want" ]]; then
+              if [[ "$rc" != "0" || "$gone" != "f" || "$guard" != "1" ]]; then
+                echo "$label: 0252 did not apply again over its own ledger table" >&2
+                cat "reapply_0252_$label.out" >&2
+                return 1
+              fi
+            elif [[ "$rc" == "0" || "$gone" != "t" || "$guard" != "0" ]] \
+              || ! grep -q -F "55000: 0252: chat_turn_refunds$want" "reapply_0252_$label.out"; then
+              echo "$label: 0252 was applied over a ledger table of another shape, or stopped at another check (wanted:$want)" >&2
+              cat "reapply_0252_$label.out" >&2
+              return 1
+            fi
+          }
+          race same_day "BEGIN" 0 1 "a=4 b=null 4/3/1"
+          race cross_day "BEGIN ISOLATION LEVEL REPEATABLE READ" 1 1 "a=4 b=null 4/3/1"
+          # Two swapped turns, two proxy rows: the second call waits for the first and takes the other row.
+          race two_rows "BEGIN" 0 2 "a=4 b=3 3/3/2"
+          # The same under REPEATABLE READ: one turn now, and the other row gives its turn to the next call.
+          race two_rows_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 2 "a=4 b=null 4/3/1" "c=3"
+          # A ledger table that is already there, in another shape: stop before the function exists.
+          reapply_over same_table "" ""
+          reapply_over no_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey" " has no primary key on audit_id alone"
+          reapply_over no_audit_link "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_audit_id_fkey" ".audit_id does not follow ai_audit_log.id"
+          reapply_over link_to_other_column "ALTER TABLE public.ai_audit_log ADD COLUMN z46_other uuid UNIQUE; ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_audit_id_fkey, ADD CONSTRAINT chat_turn_refunds_audit_id_fkey FOREIGN KEY (audit_id) REFERENCES public.ai_audit_log (z46_other) ON DELETE CASCADE" ".audit_id does not follow ai_audit_log.id"
+          reapply_over day_as_text "ALTER TABLE public.chat_turn_refunds ALTER COLUMN day TYPE text" " has other columns or defaults"
+          reapply_over no_default "ALTER TABLE public.chat_turn_refunds ALTER COLUMN refunded_at DROP DEFAULT" " has other columns or defaults"
+          reapply_over unlogged "ALTER TABLE public.chat_turn_refunds SET UNLOGGED" " is not a plain permanent table"
+          reapply_over extra_unique "ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT z46_one_per_day UNIQUE (day)" " carries a constraint, index, trigger, rule or policy"
+          reapply_over extra_trigger "CREATE FUNCTION public.z46_noop() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TRIGGER z46_noop BEFORE INSERT ON public.chat_turn_refunds FOR EACH ROW EXECUTE FUNCTION public.z46_noop()" " carries a constraint, index, trigger, rule or policy"
+          reapply_over extra_policy "CREATE POLICY z46_read ON public.chat_turn_refunds FOR SELECT TO authenticated USING (true)" " carries a constraint, index, trigger, rule or policy"
       - name: Exercise public-data quota contract
         env:
           PGPASSWORD: postgres
