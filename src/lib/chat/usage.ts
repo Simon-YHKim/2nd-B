@@ -1,5 +1,6 @@
 // Reads + atomic-bump for chat_usage. RLS scopes everything to auth.uid().
 
+import { withTimeout } from "../async/with-timeout";
 import { getSupabaseClient } from "../supabase/client";
 import { kstDateToday } from "./limits";
 
@@ -158,7 +159,9 @@ const REFUND_SERIALIZATION_RETRIES = 2;
  * already on its way to the person and must not be lost to a failed refund.
  *
  * The server function's contract: repeat the call after SQLSTATE 40001 (up to twice), and call
- * once more after NULL. The caller reads the count again afterwards.
+ * once more after NULL. Only NULL is asked again: any other answer that is not a count ends the
+ * call, so a count that arrived in the wrong shape is not followed by a second refund. The caller
+ * reads the count again afterwards.
  */
 export async function refundChatTurn(day: string = kstDateToday()): Promise<number | null> {
   let serializationRetries = 0;
@@ -177,7 +180,32 @@ export async function refundChatTurn(day: string = kstDateToday()): Promise<numb
       continue;
     }
     if (typeof data === "number") return data;
-    if (askedAgainAfterNull) return null;
+    if (data !== null || askedAgainAfterNull) return null;
     askedAgainAfterNull = true;
   }
+}
+
+/** How long a settlement may take before it gives up. Nothing on the screen waits for it. */
+export const CHAT_TURN_SETTLEMENT_DEADLINE_MS = 8000;
+
+/**
+ * Z46: settles a turn whose reply was replaced by the fixed crisis guidance. Asks the server to
+ * give the turn back, then reads that day's count again.
+ *
+ * Resolves with the count the server holds: the one read afterwards, or the one the refund
+ * returned when that read failed or did not answer before the deadline. Resolves with null when
+ * neither is known. It never rejects and never stays pending, and the reply does not wait for it.
+ */
+export function settleChatTurn(userId: string, day: string): Promise<number | null> {
+  let refunded: number | null = null;
+  const work = (async (): Promise<number | null> => {
+    refunded = await refundChatTurn(day);
+    try {
+      return (await readChatUsageDetail(userId, day)).used;
+    } catch {
+      return refunded;
+    }
+  })();
+  // `work` does not reject, so what is caught here is the deadline.
+  return withTimeout(work, CHAT_TURN_SETTLEMENT_DEADLINE_MS, "chat turn settlement").catch(() => refunded);
 }

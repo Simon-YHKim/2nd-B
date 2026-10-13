@@ -26,7 +26,7 @@ import { loadStructuredContext } from "../records/load-structured";
 import { loadProfileContext } from "../persona/profile-context";
 import { exportUserWiki } from "../wiki/export";
 import { formatRagPages, retrieveChatContext } from "./rag";
-import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail, refundChatTurn, type ChatUsageDetail } from "./usage";
+import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail, settleChatTurn } from "./usage";
 
 /** One prior exchange line. `assistant` is the model's own earlier reply. */
 export interface ChatHistoryTurn {
@@ -353,7 +353,7 @@ ${sanitizeUntrusted(structuredBlock)}
 
   // C1/C3/C9 are enforced by callLlm. Red-zone short-circuit still
   // happens inside callLlm. The bump already landed atomically above;
-  // a red-zone turn is settled with the server after the call (Z46).
+  // a swapped reply's turn is settled after it is handed over (Z46).
   const reply = await callLlm({
     userId: input.userId,
     locale: input.locale,
@@ -363,20 +363,20 @@ ${sanitizeUntrusted(structuredBlock)}
     minor: input.minor,
   });
 
-  const settled = reply.safety.zone === "red" ? await settleRedTurn(input.userId, day) : null;
-  const used = settled?.used ?? newCount;
-
   return {
     status: "ok",
     reply,
-    used,
+    used: newCount,
     limit,
     // `limit` is the tier cap WITHOUT today's rewarded-ad bonus: checkChatLimit
     // returns cap and allowance as separate fields on purpose (limits.ts), and
     // the server RPC gates on `count < cap + ad_bonus`. Recomputing remaining
     // from `limit` therefore understates it by exactly the bonus the user just
     // earned by watching an ad. Ask the one function that knows the allowance.
-    remaining: checkChatLimit(input.tier, used, settled?.adBonus ?? adBonus).remaining,
+    remaining: checkChatLimit(input.tier, newCount, adBonus).remaining,
+    // Z46: started here, never awaited here. The fixed crisis guidance must reach the person
+    // whether or not the server answers about a count. `day` is the day the turn was counted on.
+    ...(replyWasSwapped(reply) ? { settlement: settleChatTurn(input.userId, day) } : {}),
   };
 }
 
@@ -398,15 +398,20 @@ function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): stri
   return `If the person talks about ending their life or hurting themselves, point them to ${lines}. Do not add a police number for that reason alone. Point to the local emergency number only when their body is in danger right now, such as an injury or something already swallowed. If you cannot tell which it is, stay with ${lines}. Never make up a phone number.`;
 }
 
-// A red-zone turn was already counted: the bump lands before the model call to close the race.
-// The server gives a turn back only on evidence it wrote itself, so asking on every red-zone
-// reply is safe: without that evidence nothing changes. The count is read again afterwards so the
-// screen shows what the server holds. A failed read keeps the count from the bump.
-async function settleRedTurn(userId: string, day: string): Promise<ChatUsageDetail | null> {
-  await refundChatTurn(day);
-  try {
-    return await readChatUsageDetail(userId, day);
-  } catch {
-    return null;
-  }
+// The model was called and its reply was replaced by the fixed crisis guidance: the boundary marks
+// that reply with "+swap:" in the audit's model name. A message stopped before the model was
+// called is red too, but the server holds no evidence for that turn, so nothing is asked for it.
+function replyWasSwapped(reply: LlmResult<string>): boolean {
+  return reply.safety.zone === "red" && reply.audit.modelUsed.includes("+swap:");
+}
+
+// Declared down here and merged into SendMessageOk above, so that the lines of this file which
+// the impact assessment cites by number do not move.
+export interface SendMessageOk {
+  /**
+   * Present when the model's reply was replaced by the fixed crisis guidance (Z46). It resolves
+   * after the reply was handed over: with the count the server holds once the turn was asked
+   * back, or with null when that is not known. It never rejects. The reply never waits for it.
+   */
+  settlement?: Promise<number | null>;
 }
