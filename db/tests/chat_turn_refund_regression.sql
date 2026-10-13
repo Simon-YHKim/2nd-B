@@ -168,14 +168,14 @@ SELECT pg_temp.z46_assert((SELECT count(*) = 1 FROM public.ai_audit_log
 -- read from function bodies (a direct INSERT or UPDATE of the table) outside the pg_* schemas, so
 -- this file's own pg_temp helper is not in it. A function that writes through another function is
 -- not seen here.
+SELECT COALESCE(pg_catalog.string_agg(p.oid::regprocedure::text, ' | ' ORDER BY p.oid::regprocedure::text), '') AS client_writers
+  FROM pg_catalog.pg_proc AS p JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
+ WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema' AND p.prokind = 'f'
+   AND p.prosrc ~* '(insert\s+into|update)\s+(only\s+)?(public\.)?ai_audit_log\M'
+   AND has_function_privilege('authenticated', p.oid, 'EXECUTE') \gset
 SELECT pg_temp.z46_assert(
-  (SELECT COALESCE(pg_catalog.string_agg(p.oid::regprocedure::text, ' | ' ORDER BY p.oid::regprocedure::text), '')
-     FROM pg_catalog.pg_proc AS p JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
-    WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema' AND p.prokind = 'f'
-      AND p.prosrc ~* '(insert\s+into|update)\s+(only\s+)?(public\.)?ai_audit_log\M'
-      AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
-  = 'log_ai_audit(text,text,text,boolean,text,integer,text,text,text) | log_ai_audit_once(text,text,text,text,boolean,text,integer,text,text,text)',
-  'the functions a signed-in user may call that write ai_audit_log are no longer exactly log_ai_audit and log_ai_audit_once');
+  :'client_writers' = 'log_ai_audit(text,text,text,boolean,text,integer,text,text,text) | log_ai_audit_once(text,text,text,text,boolean,text,integer,text,text,text)',
+  'the functions a signed-in user may call that write ai_audit_log are no longer exactly log_ai_audit and log_ai_audit_once: ' || :'client_writers');
 SELECT pg_temp.z46_assert((SELECT count(*) = 0 FROM public.ai_audit_log
                             WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND event_source = 'server_verified'
                               AND purpose = 'secondb_chat' AND safety_zone = 'red'

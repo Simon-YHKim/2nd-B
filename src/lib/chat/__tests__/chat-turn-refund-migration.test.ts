@@ -112,8 +112,8 @@ describe('0252 답이 바뀐 대화 턴의 횟수 환불 (Z46)', () => {
     expect(regression).toMatch(/SELECT public\.log_ai_audit\('0a0b0c0d'/);
     expect(regression).toMatch(/SELECT public\.log_ai_audit_once\('z46-once-0001'/);
     expect(regression).toContain(
-      "= 'log_ai_audit(text,text,text,boolean,text,integer,text,text,text) | log_ai_audit_once(text,text,text,text,boolean,text,integer,text,text,text)'",
+      ":'client_writers' = 'log_ai_audit(text,text,text,boolean,text,integer,text,text,text) | log_ai_audit_once(text,text,text,text,boolean,text,integer,text,text,text)'",
     );
-    expect(regression).toMatch(/has_function_privilege\('authenticated', p\.oid, 'EXECUTE'\)/);
+    expect(regression).toMatch(/has_function_privilege\('authenticated', p\.oid, 'EXECUTE'\) \\gset/);
   });
 });
