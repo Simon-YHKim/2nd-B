@@ -97,6 +97,7 @@ import {
   markCaptureSubmissionSaved,
   planCaptureParamConsumption,
   planSharedConsumption,
+  appendSharedChunk,
   saveCaptureDraftState,
   sharedDeliveryKey,
   submittedCaptureDraftMatchesCurrent,
@@ -123,7 +124,7 @@ import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
 import type { SourceKind } from "@/lib/wiki/types";
-import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
+import { classifyLinkOrClip, firstUrlIn, titledLinkIn } from "@/lib/wiki/link-or-clip";
 import { normalizeSharedCaptureParams } from "@/lib/capture/share-params";
 import { carriesShareMarker, shareRefusedHref } from "@/lib/capture/share-intent";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
@@ -524,6 +525,9 @@ function CaptureLegacySession({
   // would DELETE the stored draft for the current mode (review finding #1).
   const shareSkippedRestoreRef = useRef(false);
   const [shareRestoreSkipped, setShareRestoreSkipped] = useState(false);
+  // A share that arrived while unsaved text sat in the link box. Nothing was merged: the card
+  // above the box asks whether to add it below that text or clear the text first (Q-261013-78).
+  const [heldShare, setHeldShare] = useState<{ content: string; tag: string | null } | null>(null);
   const routeApplyPendingCommitRef = useRef(false);
   const [routeCommitGeneration, setRouteCommitGeneration] = useState(0);
   useLayoutEffect(() => {
@@ -939,6 +943,17 @@ function CaptureLegacySession({
     setBody(text);
   }
 
+  // The two answers to the card above the link box. Both go through the ordinary edit path, so the
+  // result is kept as a draft like anything typed. Clearing happens only on this explicit tap.
+  function resolveHeldShare(choice: "append" | "replace"): void {
+    if (heldShare === null) return;
+    const { content, tag } = heldShare;
+    setHeldShare(null);
+    changeBody(choice === "append" ? appendSharedChunk(body, content) : content);
+    if (choice === "replace") setTagsEditable(tag === null ? [] : [tag]);
+    else if (tag !== null) setTagsEditable((prev) => (prev.includes(tag) ? prev : [...prev, tag]));
+  }
+
   function changeTopic(text: string): void {
     commitComposerMutation();
     setTopic(text);
@@ -1282,6 +1297,7 @@ function CaptureLegacySession({
       liveFourw: mode === "fourw" ? fourw : null,
       liveTags: tagsEditable,
       liveDomainIntent: domainIntent,
+      existingLinkText: "hold",
     });
     if (isCaptureTransientMode(plan.mode)) markTransientMutation(plan.mode);
     else markStorageMutation(plan.mode);
@@ -1321,6 +1337,7 @@ function CaptureLegacySession({
     setTagsEditable(plan.liveTags);
     setDomainIntent(plan.liveDomainIntent);
     setTodoDone(plan.liveTodoDone);
+    setHeldShare(plan.held);
     const durableWrite = persistDrafts(plan.persistMode);
     if (plan.consumedModeParam !== null || plan.consumedTagParam !== null) {
       // param effect 가 같은 조합을 다시 소비하지 않게 latch 를 건다.
@@ -1708,10 +1725,18 @@ function CaptureLegacySession({
   // violates rules-of-hooks, and a userId/loading flip on a later render would
   // skip them and blank the screen (React #300). rules-of-hooks now guards this.
   const linkClipKind = useMemo(() => classifyLinkOrClip(body), [body]);
+  // A browser's share carries a title and one address. That is a link with a title (Z113).
+  const titledLink = useMemo(() => (linkClipKind === "markdown" ? titledLinkIn(body) : null), [linkClipKind, body]);
   const detectedKind = useMemo(
-    () => (linkClipKind === "url" ? detectClipperKind(body.trim()) : "inbox"),
-    [linkClipKind, body],
+    () => (linkClipKind === "url" ? detectClipperKind(body.trim()) : titledLink !== null ? detectClipperKind(titledLink.url) : "inbox"),
+    [linkClipKind, titledLink, body],
   );
+  // Once the unsaved text is gone (saved, or cleared by hand) there is nothing left to ask about:
+  // the held share takes the empty box.
+  useEffect(() => {
+    if (heldShare === null || mode !== "linkclip" || submitting || body.trim().length > 0) return;
+    resolveHeldShare("replace");
+  }, [heldShare, mode, submitting, body]);
   const advancedModesExpanded = showAdvancedModes || mode !== "journal";
   const secondaryOpen = advancedModesExpanded;
   const visibleModes = advancedModesExpanded ? CAPTURE_MODES : BASIC_CAPTURE_MODES;
@@ -2957,15 +2982,18 @@ ${transcript}`;
       // memo / ocr already have body. linkclip: a bare URL becomes a titled
       // stub; pasted markdown is used as-is. file falls back to filename.
       const isBareLink = submittedMode === "linkclip" && classifyLinkOrClip(sourceDraft.body) === "url";
+      const titledLinkDraft = submittedMode === "linkclip" && !isBareLink ? titledLinkIn(sourceDraft.body) : null;
       // fallbackUrl: the bare URL, or the first URL found inside clipped md.
       const fallbackUrl =
         submittedMode === "linkclip"
-          ? (isBareLink ? sourceDraft.body.trim() : firstUrlIn(sourceDraft.body))
+          ? (isBareLink ? sourceDraft.body.trim() : titledLinkDraft?.url ?? firstUrlIn(sourceDraft.body))
           : null;
 
       let finalBody = sourceDraft.body.trim();
       if (isBareLink) {
         finalBody = `# ${sourceDraft.body.trim()}\n\n${sourceDraft.body.trim()}`;
+      } else if (titledLinkDraft !== null) {
+        finalBody = `# ${titledLinkDraft.title}\n\n${titledLinkDraft.url}`;
       }
       if (submittedMode === "file" && submittedPickedFile && finalBody.length === 0) {
         finalBody = `# ${submittedPickedFile.name}\n\nFile attachment - ${submittedPickedFile.mimeType}, ${submittedPickedFile.size} bytes.`;
@@ -3866,6 +3894,19 @@ ${transcript}`;
               <Text variant="caption" color="textMuted">
                 {t("linkClip.label")}
               </Text>
+              {heldShare !== null ? (
+                <View accessibilityRole="alert" style={styles.heldShare} testID="capture-held-share">
+                  <Text variant="body">{t("sharedOverDraft.title")}</Text>
+                  <View style={styles.heldShareActions}>
+                    <Pressable onPress={() => resolveHeldShare("append")} accessibilityRole="button" accessibilityLabel={t("sharedOverDraft.append")} style={styles.heldShareButton} testID="capture-held-share-append">
+                      <Text variant="subtle" color="brand">{t("sharedOverDraft.append")}</Text>
+                    </Pressable>
+                    <Pressable onPress={() => resolveHeldShare("replace")} accessibilityRole="button" accessibilityLabel={t("sharedOverDraft.replace")} style={styles.heldShareButton} testID="capture-held-share-replace">
+                      <Text variant="subtle" color="brand">{t("sharedOverDraft.replace")}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
               <Input
                 value={body}
                 onChangeText={changeBody}
@@ -3878,9 +3919,9 @@ ${transcript}`;
                 textAlignVertical="top"
                 style={styles.textarea}
               />
-              {linkClipKind === "url" ? (
+              {linkClipKind === "url" || titledLink !== null ? (
                 <Text variant="subtle" color="textSubtle">
-                  {t("linkClip.detected", { kind: detectedKind })}
+                  {t("linkClip.detected", { kind: t(`formats:builtIn.kinds.${detectedKind}.name`) })}
                 </Text>
               ) : linkClipKind === "markdown" ? (
                 <Text variant="subtle" color="textSubtle">
@@ -4442,6 +4483,22 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     alignSelf: "stretch",
+  },
+  heldShare: {
+    gap: spacing.xs,
+    borderColor: semantic.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
+    padding: spacing.sm,
+  },
+  heldShareActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  heldShareButton: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    borderColor: semantic.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
   },
   voiceControlRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   voiceStatusRow: {

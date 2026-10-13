@@ -1,0 +1,85 @@
+{
+  "about": "What the server stores in crisis_events.trigger_categories (0254). 'in' is what a client sends, 'out' is what the row holds. A record that names output_swap is a record of a swapped AI reply: list names and crisis_term:1 to crisis_term:19 stay, everything else becomes one 'unlisted'. Any other record keeps list names only. Order is kept and a repeated value keeps its first place. Read by db/tests/crisis_category_closed_list_regression.sql and by src/lib/safety/__tests__/crisis-category-server-list.test.ts. ASCII only.",
+  "cases": [
+    {
+      "name": "reply: names and numbers stay",
+      "in": ["output_swap", "crisis_term:3", "crisis_term:19", "crisis"],
+      "out": ["output_swap", "crisis_term:3", "crisis_term:19", "crisis"]
+    },
+    {
+      "name": "reply: everything else becomes one unlisted, at its first place",
+      "in": ["output_swap", "a sentence a model wrote", "crisis", "another sentence", "crisis_term:7"],
+      "out": ["output_swap", "unlisted", "crisis", "crisis_term:7"]
+    },
+    {
+      "name": "reply: only the nineteen exact numbers are numbers",
+      "in": ["output_swap", "crisis_term:0", "crisis_term:20", "crisis_term:01", "crisis_term:1a", "crisis_term:", "crisis_term: 1", "CRISIS_TERM:1", "crisis_term:\uFF11", "crisis_term:1 ", "crisis_term:-1", "crisis_term:1.0"],
+      "out": ["output_swap", "unlisted"]
+    },
+    {
+      "name": "reply: an unlisted the app sent stays one unlisted",
+      "in": ["output_swap", "unlisted", "unlisted", "x"],
+      "out": ["output_swap", "unlisted"]
+    },
+    {
+      "name": "reply: a repeated value keeps its first place",
+      "in": ["crisis", "output_swap", "crisis", "output_swap", "crisis_term:2", "crisis_term:2"],
+      "out": ["crisis", "output_swap", "crisis_term:2"]
+    },
+    {
+      "name": "reply: output_swap at the end still makes it a reply",
+      "in": ["crisis_term:5", "x", "output_swap"],
+      "out": ["crisis_term:5", "unlisted", "output_swap"]
+    },
+    {
+      "name": "reply: case and space variants are not names",
+      "in": ["output_swap", "Crisis", " crisis", "crisis ", "CRISIS"],
+      "out": ["output_swap", "unlisted"]
+    },
+    {
+      "name": "reply: sixteen entries stay sixteen",
+      "in": ["output_swap", "crisis_term:1", "crisis_term:2", "crisis_term:3", "crisis_term:4", "crisis_term:5", "crisis_term:6", "crisis_term:7", "crisis_term:8", "crisis_term:9", "crisis_term:10", "crisis_term:11", "crisis_term:12", "crisis_term:13", "crisis_term:14", "crisis_term:15"],
+      "out": ["output_swap", "crisis_term:1", "crisis_term:2", "crisis_term:3", "crisis_term:4", "crisis_term:5", "crisis_term:6", "crisis_term:7", "crisis_term:8", "crisis_term:9", "crisis_term:10", "crisis_term:11", "crisis_term:12", "crisis_term:13", "crisis_term:14", "crisis_term:15"]
+    },
+    {
+      "name": "reply: every name on the list",
+      "in": ["input_red", "input_semantic_red", "interview_input_red", "record_save_red", "proxy_input_red", "proxy_input_red_unconfirmed", "output_swap", "crisis", "forbidden_lexicon", "lexicon_match", "passive_ideation", "active_ideation_no_method", "active_ideation_with_method", "intent_no_plan", "intent_with_plan", "behavior_past", "behavior_preparation", "behavior_recent", "self_harm_non_suicidal"],
+      "out": ["input_red", "input_semantic_red", "interview_input_red", "record_save_red", "proxy_input_red", "proxy_input_red_unconfirmed", "output_swap", "crisis", "forbidden_lexicon", "lexicon_match", "passive_ideation", "active_ideation_no_method", "active_ideation_with_method", "intent_no_plan", "intent_with_plan", "behavior_past", "behavior_preparation", "behavior_recent", "self_harm_non_suicidal"]
+    },
+    {
+      "name": "input: names stay",
+      "in": ["input_red", "crisis", "passive_ideation"],
+      "out": ["input_red", "crisis", "passive_ideation"]
+    },
+    {
+      "name": "input: a number is not kept",
+      "in": ["input_red", "crisis_term:3", "crisis"],
+      "out": ["input_red", "crisis"]
+    },
+    {
+      "name": "input: unlisted is not kept",
+      "in": ["record_save_red", "unlisted", "lexicon_match"],
+      "out": ["record_save_red", "lexicon_match"]
+    },
+    {
+      "name": "input: anything else leaves no trace, and a near miss of output_swap does not make a reply",
+      "in": ["record_save_red", "a sentence a model wrote", "OUTPUT_SWAP", "output_swap ", " output_swap"],
+      "out": ["record_save_red"]
+    },
+    {
+      "name": "input: a repeated name keeps its first place",
+      "in": ["crisis", "input_semantic_red", "crisis", "x", "input_semantic_red"],
+      "out": ["crisis", "input_semantic_red"]
+    },
+    {
+      "name": "input: nothing left is an empty list",
+      "in": ["a sentence", "crisis_term:4", "unlisted"],
+      "out": []
+    },
+    {
+      "name": "input: empty stays empty",
+      "in": [],
+      "out": []
+    }
+  ]
+}

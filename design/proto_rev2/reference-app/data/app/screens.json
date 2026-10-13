@@ -495,7 +495,7 @@
       "id": "beyond",
       "component": null,
       "appOnly": true,
-      "title": "앱 밖에서",
+      "title": "위젯 · 알림",
       "route": "beyond"
     },
     {

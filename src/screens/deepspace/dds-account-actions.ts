@@ -24,7 +24,7 @@ export const ACCOUNT_DESTINATIONS: readonly {
   { route: "/change-password", labelKey: "deepspace:account.navPassword", icon: "lock" },
   { route: "/settings", labelKey: "deepspace:account.navSettings", icon: "settings" },
   { route: "/data", labelKey: "deepspace:account.navData", icon: "box" },
-  { route: "/iden", labelKey: "IDEN", icon: "iden" },
+  { route: "/iden", labelKey: "deepspace:account.navIden", icon: "iden" },
   { route: "/beyond", labelKey: "deepspace:account.navBeyond", icon: "devices" },
 ];
 

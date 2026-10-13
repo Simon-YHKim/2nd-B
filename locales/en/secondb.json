@@ -167,8 +167,10 @@
       "page": "{{current}} of {{total}}"
     }
   },
-  "aiMark": {
-    "short": "AI",
-    "spoken": "AI made this answer."
-  }
+  "aiLine": "{{name}} is AI and can make mistakes. Check important info.",
+  "aiNotice": {
+    "body": "{{name}} is AI. Its answers are AI-generated and for reference only. Check important info.",
+    "confirm": "OK"
+  },
+  "aiCopyTail": "AI-generated content (PolaScope)"
 }

@@ -66,7 +66,9 @@ import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
 import { LlmConsentError, transcribeAudio, type LlmConsentErrorCode } from "@/lib/llm/boundary";
 import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
-import { aiMarkFor } from "@/lib/chat/ai-mark";
+import { shouldShowChatAiNotice, useChatAiNoticeSeen } from "@/lib/chat/ai-first-notice";
+import { isModelAnswer, withAiCopyTail } from "@/lib/chat/ai-mark";
+import { topicParticle } from "@/lib/i18n/josa";
 import { isAbortError } from "@/lib/async/abort";
 import {
   createRecorderLifecycle,
@@ -625,14 +627,16 @@ function SecondBChatBody() {
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyTurn = useCallback(
     (i: number, text: string) => {
-      void writeClipboardText(text).then((ok) => {
+      // A model answer that leaves the app says it is AI-made in its last line (Simon 2026-10-13).
+      const copied = isModelAnswer(turns[i]) ? withAiCopyTail(text, t("aiCopyTail")) : text;
+      void writeClipboardText(copied).then((ok) => {
         setCopyNotice({ i, ok });
         AccessibilityInfo.announceForAccessibility(t(ok ? "copied" : "copyFailed"));
         if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
         copyTimerRef.current = setTimeout(() => setCopyNotice(null), 1800);
       });
     },
-    [t],
+    [t, turns],
   );
   useEffect(
     () => () => {
@@ -708,6 +712,12 @@ function SecondBChatBody() {
   const autosaveSessionRef = useRef<ReturnType<typeof createChatAutosaveSession> | null>(null);
   // 대화가 남지 않는다는 사실을 한 번만 알린다 (Simon 결정 B1).
   const { dismissed: saveNoticeDismissed, dismiss: dismissSaveNotice } = useChatSaveNoticeDismissed();
+  // The chat says once that its answers are AI-made; the line under the input keeps saying it.
+  // Sending the first message closes the card for good, the same as pressing its button.
+  const { seen: aiNoticeSeen, markSeen: markAiNoticeSeen } = useChatAiNoticeSeen(userId ?? null);
+  useEffect(() => {
+    if (aiNoticeSeen === false && turns.length > 0) markAiNoticeSeen();
+  }, [aiNoticeSeen, turns.length, markAiNoticeSeen]);
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -1059,6 +1069,10 @@ function SecondBChatBody() {
   const lensSoftBg = rev2PersonaSoftBg(rev2Persona);
   const lensOnSoft = rev2PersonaOnSoft(rev2Persona);
   const pendingLensName = t(`rev2.${sendingPersona ?? rev2Persona}.lensName`);
+  // The AI line and the first-time card name whoever is answering now. Korean attaches its
+  // particle here, not in the string, so a name with or without a final consonant reads right.
+  const aiNoticeName = t(`rev2.${rev2Persona}.lensName`);
+  const aiNoticeWords = { name: aiNoticeName, particle: topicParticle(aiNoticeName) };
   const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
   const suggestionState = {
     turns, conversationId: conversationId.current, sending, keptIndices: keptIdx, keepingIndex: keeping,
@@ -1240,6 +1254,14 @@ function SecondBChatBody() {
 
           {turns.length === 0 ? (
             <View testID="chat-empty" style={ds.empty}>
+              {shouldShowChatAiNotice({ seen: aiNoticeSeen, turnCount: turns.length }) ? (
+                <View testID="chat-ai-notice" style={ds.aiNotice} accessibilityRole="alert">
+                  <Text style={ds.aiNoticeBody}>{t("aiNotice.body", aiNoticeWords)}</Text>
+                  <Pressable onPress={markAiNoticeSeen} accessibilityRole="button" accessibilityLabel={t("aiNotice.confirm")} style={ds.aiNoticeBtn}>
+                    <Text style={ds.aiNoticeBtnText}>{t("aiNotice.confirm")}</Text>
+                  </Pressable>
+                </View>
+              ) : null}
               {/* All three personas share the untinted portrait. Static also in reduced motion. */}
               <View key={rev2Persona} testID={`chat-empty-portrait-${rev2Persona}`} accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
                 <HustleKPortrait expression="A01" size={96} />
@@ -1253,25 +1275,13 @@ function SecondBChatBody() {
                 testID={`chat-message-${turn.role}-${i}`}
                 style={[ds.bubbleRow, turn.role === "user" ? ds.userRow : ds.aiRow]}
               >
-                <View style={[ds.messageHeader, turn.role === "user" && ds.userMessageHeader, turn.role === "secondb" && ds.aiMessageHeader]} testID={`chat-message-header-${turn.role}-${i}`}>
+                <View style={[ds.messageHeader, turn.role === "user" && ds.userMessageHeader]} testID={`chat-message-header-${turn.role}-${i}`}>
                   <ChatMessageAvatar role={turn.role} userAvatar={userAvatar}
                     expression={turn.role === "secondb" ? getExchangeExpression(turns, i) : undefined}
                     label={turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)} />
                   <Text style={[ds.messageName, turn.role === "user" && ds.userMessageName]} testID={`chat-message-name-${turn.role}-${i}`}>
                     {turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)}
                   </Text>
-                  {/* Model answers say they are AI-made: a mark by the name on every answer, the
-                      sentence spelled out once on the first (Simon 2026-10-12). */}
-                  {aiMarkFor(turns, i) !== "none" ? (
-                    <View style={ds.aiMark} accessible accessibilityRole="text" accessibilityLabel={t("aiMark.spoken")} testID={`chat-ai-mark-${i}`}>
-                      <Text style={ds.aiMarkText}>{t("aiMark.short")}</Text>
-                    </View>
-                  ) : null}
-                  {aiMarkFor(turns, i) === "spelled" ? (
-                    <Text style={ds.aiMarkSentence} testID={`chat-ai-sentence-${i}`} aria-hidden accessibilityElementsHidden importantForAccessibility="no">
-                      {t("aiMark.spoken")}
-                    </Text>
-                  ) : null}
                 </View>
                 <View style={ds.bubbleCol}>
                   <Pressable
@@ -1366,6 +1376,9 @@ function SecondBChatBody() {
           lensAccent={lensAccent}
           inkOnAccent={inkOnAccent}
         />
+          {/* Always in view, under the input: the answers here are AI-made (Simon 2026-10-13).
+              It names whoever is answering now, the same way the input's spoken name does. */}
+          <Text testID="chat-ai-line" style={ds.aiLine} accessibilityRole="text">{t("aiLine", aiNoticeWords)}</Text>
         </View>
       </KeyboardAvoidingArea>
 
@@ -1657,10 +1670,20 @@ const ds = StyleSheet.create({
   messageName: { minWidth: 0, flexShrink: 1, color: deepSpace.textMid, fontSize: 12, lineHeight: 18, paddingBottom: 2, fontFamily: fontFamilies.readable },
   userMessageName: { textAlign: "right" },
   // The answer's name row may wrap: the spelled-out AI sentence drops under the name on a narrow screen.
-  aiMessageHeader: { flexWrap: "wrap" },
-  aiMark: { borderWidth: 1, borderColor: deepSpace.textMid, paddingHorizontal: 4, paddingVertical: 1 },
-  aiMarkText: { color: deepSpace.textMid, fontSize: 11, lineHeight: 14, fontFamily: fontFamilies.readable },
-  aiMarkSentence: { color: deepSpace.textLo, fontSize: 11, lineHeight: 18, paddingBottom: 2, fontFamily: fontFamilies.readable },
+  aiLine: { paddingHorizontal: 12, paddingTop: 4, color: deepSpace.textMid, fontSize: 11, lineHeight: 16, textAlign: "center", fontFamily: fontFamilies.readable },
+  aiNotice: {
+    alignSelf: "stretch",
+    padding: deepSpaceSpacing.sm,
+    gap: deepSpaceSpacing.xs,
+    borderRadius: m3.shape.medium,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surface,
+  },
+  aiNoticeBody: { color: semantic.text, fontSize: 12, lineHeight: 19, fontFamily: fontFamilies.readable },
+  // 44px 터치 타깃 (PRD 불변식)
+  aiNoticeBtn: { minHeight: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: semantic.border },
+  aiNoticeBtnText: { color: semantic.deepSpaceAccent, fontSize: 12, lineHeight: 18, fontWeight: "600" },
   bubbleCol: { maxWidth: "100%", alignSelf: "stretch", flexShrink: 1, gap: 6, alignItems: "flex-start" },
   // user bubble: M3 primary fill, radius 16/16/4/16 (reference).
   userBubble: {

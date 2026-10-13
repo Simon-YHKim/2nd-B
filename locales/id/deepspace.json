@@ -159,7 +159,8 @@
     "navProfile": "Profil",
     "navSettings": "Pengaturan",
     "navData": "Dataku",
-    "navBeyond": "Di luar aplikasi",
+    "navIden": "Ekspor ringkasanku",
+    "navBeyond": "Widget dan notifikasi",
     "navPassword": "Ubah kata sandi"
   },
   "privacy": {
@@ -1043,7 +1044,7 @@
   },
   "beyond": {
     "preview": "Pratinjau",
-    "title": "Di luar aplikasi",
+    "title": "Widget dan notifikasi",
     "widgetsSection": "Widget layar utama",
     "todaysStar": "Bintang hari ini",
     "brightestStar": "Bintang paling terangmu",
