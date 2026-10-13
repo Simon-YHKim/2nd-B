@@ -172,6 +172,11 @@
     "pasteOfferHint": "Mengisi kotak dengan konten terakhir yang kamu salin. Dibaca hanya saat kamu mengetuk.",
     "pasteOfferEmpty": "Tidak ada yang bisa ditempel."
   },
+  "sharedOverDraft": {
+    "title": "Ada teks yang belum disimpan di sini.",
+    "append": "Tambahkan di bawahnya",
+    "replace": "Hapus dan mulai baru"
+  },
   "inputs": {
     "extractedLabel": "Teks dari gambar atau file (bisa diedit)",
     "bodyLabel": "Isi",

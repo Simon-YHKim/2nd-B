@@ -172,6 +172,11 @@
     "pasteOfferHint": "Preenche o campo com o último conteúdo copiado. É lido apenas quando você toca.",
     "pasteOfferEmpty": "Nada para colar foi encontrado."
   },
+  "sharedOverDraft": {
+    "title": "Você tem um texto não salvo aqui.",
+    "append": "Adicionar abaixo",
+    "replace": "Apagar e começar de novo"
+  },
   "inputs": {
     "extractedLabel": "Meu texto extraído (editável)",
     "bodyLabel": "Corpo",
