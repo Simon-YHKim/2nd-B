@@ -21,7 +21,6 @@ import { loadNotifications } from "./notifications-sdk";
 import { runLocalNotificationMutation } from "./notification-mutation";
 import {
   accountNotificationStorageKey,
-  focusEndNotificationId,
   isCurrentGenerationNotificationId,
   isNotificationOwnedBy,
   isPrivacySafeNotificationRequest,
@@ -236,14 +235,11 @@ async function scheduleWithOwnerLease(
   lease: AccountOwnerLease,
   identifier: string,
   request: NotificationRequestInput,
-  stillDue?: () => boolean,
 ): Promise<ReminderResult> {
   if (!Notifications) return "unavailable";
   return runLocalNotificationMutation(async () => {
     if (!lease.isCurrent()) return "error";
     if (pendingScheduledCancellations.has(identifier)) return "error";
-    // The wait for this queue can outlast the moment the request was for.
-    if (stillDue && !stillDue()) return "error";
     let scheduled: Promise<unknown>;
     try {
       scheduled = Notifications.scheduleNotificationAsync(request);
@@ -319,60 +315,6 @@ export async function notifyNow(
  * how the /reminders toggles ended up flipping a flag for notifications that
  * either kept firing (off) or never existed (on).
  */
-/**
- * The focus timer's end alert. It is handed to the OS when the timer starts, so it still rings with
- * the app in the background, where the screen's own tick does not run (Z109). There is one per
- * account, under a fixed identifier: arming again replaces it. Once the OS has it, the OS alone
- * rings it; the screen's immediate alert (notifyNow) is only for when the OS never got it.
- */
-export async function scheduleFocusEnd(ownerId: string, at: Date): Promise<ReminderResult> {
-  if (!remindersSupported() || !Notifications) return "unavailable";
-  const lease = captureAccountOwnerLease(ownerId);
-  if (!lease) return "error";
-  // An end that is not ahead of now can never fire. Asked again inside the queue, right before
-  // the native call: the permission prompt and the queue can outlast a short session.
-  const due = () => at.getTime() > Date.now();
-  if (!due()) return "error";
-  const identifier = focusEndNotificationId(ownerId);
-  try {
-    const permission = await Notifications.requestPermissionsAsync();
-    if (!permission.granted) return "denied";
-    if (!lease.isCurrent()) return "error";
-    await ensureChannel();
-    if (!lease.isCurrent()) return "error";
-    return await scheduleWithOwnerLease(lease, identifier, {
-      identifier,
-      content: {
-        ...focusNotificationContent(),
-        data: notificationPrivacyData(ownerId),
-      },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId: CHANNEL_ID },
-    }, due);
-  } catch {
-    if (typeof console !== "undefined") {
-      console.warn("[ops] focus end alert failed");
-    }
-    return "error";
-  }
-}
-
-/**
- * Withdraw the account's focus end alert (pause, reset, leaving the screen, no session running).
- * true = the OS confirmed there is none left; false = it could not be confirmed and is worth
- * asking again. Where nothing can be scheduled there is nothing to withdraw.
- */
-export async function cancelFocusEnd(ownerId: string): Promise<boolean> {
-  if (!remindersSupported() || !Notifications) return true;
-  const lease = captureAccountOwnerLease(ownerId);
-  if (!lease) return false;
-  try {
-    await runLocalNotificationMutation(() => cancelScheduledIdentifier(focusEndNotificationId(ownerId), true, () => lease.isCurrent()));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function routineReminderId(ownerId: string, routineId: string): string {
   const identifier = routineNotificationId(ownerId, routineId);
   if (!identifier) throw new Error("Invalid routine reminder identifier.");

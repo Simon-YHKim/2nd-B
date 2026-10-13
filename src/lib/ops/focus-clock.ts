@@ -2,8 +2,8 @@
 //
 // A screen that adds a second each time its 1-second interval fires stops when the app goes to
 // the background, because the interval stops firing there: fifteen minutes later the timer still
-// showed 12:51, and the end alert that was sent from inside that tick never came (Z109). The
-// engine (./pomodoro) always took the elapsed time as an argument; this is the caller measuring it.
+// showed 12:51 (Z109). The engine (./pomodoro) always took the elapsed time as an argument; this
+// is the caller measuring it.
 import { focusJustCompleted, tick, type PomodoroState } from "./pomodoro";
 
 /**
@@ -22,15 +22,18 @@ export function readFocusClock(): FocusClockReading {
   return { wall, mono };
 }
 
-/** While the app ran without a break, a wall clock further than this from the monotonic one was changed. */
-export const CLOCK_JUMP_MS = 2000;
+/**
+ * How long after the end a step may find it and still announce it. Later than this the app was
+ * away when the session ended, and the person is now looking at the finished timer.
+ */
+export const FOCUS_END_GRACE_MS = 2000;
 
 export interface FocusAdvance {
   next: PomodoroState;
   /** A focus phase ran to its end in this step. */
   completed: boolean;
-  /** The device clock was changed during this step: an alert scheduled for a wall-clock time is now wrong. */
-  clockJumped: boolean;
+  /** How long before this step the phase ended, when `completed`. 0 otherwise. */
+  lateByMs: number;
 }
 
 const finite = (value: number) => (Number.isFinite(value) ? value : 0);
@@ -43,12 +46,13 @@ const finite = (value: number) => (Number.isFinite(value) ? value : 0);
  * back does not stretch it. After a trip to the background only the wall clock knows how long it was.
  */
 export function advanceByClock(prev: PomodoroState, since: FocusClockReading, at: FocusClockReading, continuous: boolean): FocusAdvance {
-  const wall = finite(at.wall - since.wall);
-  const mono = finite(at.mono - since.mono);
-  const next = tick(prev, Math.max(0, continuous ? mono : wall));
-  return {
-    next,
-    completed: next !== prev && focusJustCompleted(prev, next),
-    clockJumped: continuous && Math.abs(wall - mono) > CLOCK_JUMP_MS,
-  };
+  const elapsed = Math.max(0, finite(continuous ? at.mono - since.mono : at.wall - since.wall));
+  const next = tick(prev, elapsed);
+  const completed = next !== prev && focusJustCompleted(prev, next);
+  return { next, completed, lateByMs: completed ? Math.max(0, elapsed - prev.remainingMs) : 0 };
+}
+
+/** Whether the step that found the end announces it (true), or the end was while the app was away (false). */
+export function announcesEnd(lateByMs: number): boolean {
+  return lateByMs <= FOCUS_END_GRACE_MS;
 }

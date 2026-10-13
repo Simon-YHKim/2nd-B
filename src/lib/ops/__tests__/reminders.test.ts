@@ -89,14 +89,12 @@ import i18next from "i18next";
 import enOps from "../../../../locales/en/ops.json";
 import koOps from "../../../../locales/ko/ops.json";
 import {
-  cancelFocusEnd,
   clearAccountScopedLocalNotifications,
   disableReminder,
   enableReminder,
   foregroundNotificationBehavior,
   migrateLegacyRoutineNotifications,
   notifyNow,
-  scheduleFocusEnd,
   remindersSupported,
   routineReminderId,
   scheduleRoutineReminder,
@@ -314,101 +312,6 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
       data: { _2bPrivacyGeneration: "notification-v2" },
     });
     expect(JSON.stringify(request)).not.toContain("Private");
-  });
-
-  // Z109: the end alert is handed to the OS when the timer starts, so it rings with the app in the
-  // background. It keeps the fixed lock-screen sentence and the owner mark of every other alert,
-  // and there is one per account under a fixed identifier.
-  test("the focus end alert is scheduled for its moment, owner-marked, on the reminder channel", async () => {
-    setNavigatorProduct("ReactNative");
-    requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
-    scheduleNotificationAsync.mockResolvedValueOnce("focus-end");
-    const at = new Date(Date.now() + 15 * 60_000);
-
-    await expect(scheduleFocusEnd("account-a", at)).resolves.toBe("scheduled");
-
-    const request = scheduleNotificationAsync.mock.calls[0][0] as {
-      identifier: string;
-      content: { title: string; body: string; data: Record<string, unknown> };
-      trigger: { type: string; date: Date; channelId: string };
-    };
-    expect(request.identifier).toMatch(/^ops-v2-[0-9a-f]{16}-once-focus-end$/);
-    expect(request.trigger).toEqual({ type: "date", date: at, channelId: "ops-routines" });
-    expect(request.content).toMatchObject({
-      title: "PolaScope",
-      body: "Your timer is done.",
-      data: { _2bPrivacyGeneration: "notification-v2" },
-    });
-  });
-
-  test("arming the focus end again uses the same identifier, so there is never more than one", async () => {
-    setNavigatorProduct("ReactNative");
-    requestPermissionsAsync.mockResolvedValue({ granted: true });
-    scheduleNotificationAsync.mockResolvedValue("focus-end");
-
-    await scheduleFocusEnd("account-a", new Date(Date.now() + 15 * 60_000));
-    await scheduleFocusEnd("account-a", new Date(Date.now() + 10 * 60_000));
-
-    const ids = scheduleNotificationAsync.mock.calls.map((call) => (call[0] as { identifier: string }).identifier);
-    expect(ids).toHaveLength(2);
-    expect(ids[0]).toBe(ids[1]);
-    // Never an immediate delivery: once the OS has the alert, the OS alone rings it.
-    expect(scheduleNotificationAsync.mock.calls.every((call) => (call[0] as { trigger: unknown }).trigger !== null)).toBe(true);
-  });
-
-  test("a focus end that is not ahead of now, another account, or a refused permission schedules nothing", async () => {
-    setNavigatorProduct("ReactNative");
-    requestPermissionsAsync.mockResolvedValue({ granted: true });
-
-    await expect(scheduleFocusEnd("account-a", new Date(Date.now() - 1000))).resolves.toBe("error");
-    await expect(scheduleFocusEnd("account-a", new Date(Number.NaN))).resolves.toBe("error");
-    await expect(scheduleFocusEnd("account-b", new Date(Date.now() + 60_000))).resolves.toBe("error");
-    // None of these gets as far as asking the person for the notification permission.
-    expect(requestPermissionsAsync).not.toHaveBeenCalled();
-    requestPermissionsAsync.mockResolvedValueOnce({ granted: false });
-    await expect(scheduleFocusEnd("account-a", new Date(Date.now() + 60_000))).resolves.toBe("denied");
-
-    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
-  });
-
-  test("a focus end that passes while the permission prompt is open is not handed to the OS", async () => {
-    setNavigatorProduct("ReactNative");
-    const prompt = deferred<{ granted: boolean }>();
-    requestPermissionsAsync.mockReturnValueOnce(prompt.promise);
-    const nowSpy = jest.spyOn(Date, "now");
-    const start = 1_760_000_000_000;
-    nowSpy.mockReturnValue(start);
-    try {
-      const pending = scheduleFocusEnd("account-a", new Date(start + 3000));
-      // The person looks at the prompt for five seconds; the three-second session is over.
-      nowSpy.mockReturnValue(start + 5000);
-      prompt.resolve({ granted: true });
-
-      await expect(pending).resolves.toBe("error");
-      expect(scheduleNotificationAsync).not.toHaveBeenCalled();
-    } finally {
-      nowSpy.mockRestore();
-    }
-  });
-
-  test("withdrawing the focus end alert cancels that account's identifier and says whether the OS confirmed it", async () => {
-    setNavigatorProduct("ReactNative");
-    requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
-    scheduleNotificationAsync.mockResolvedValueOnce("focus-end");
-    await scheduleFocusEnd("account-a", new Date(Date.now() + 15 * 60_000));
-    const identifier = (scheduleNotificationAsync.mock.calls[0][0] as { identifier: string }).identifier;
-
-    // Another account has no lease here: nothing is cancelled and nothing is claimed.
-    await expect(cancelFocusEnd("account-b")).resolves.toBe(false);
-    expect(cancelScheduledNotificationAsync).not.toHaveBeenCalled();
-
-    await expect(cancelFocusEnd("account-a")).resolves.toBe(true);
-    expect(cancelScheduledNotificationAsync.mock.calls).toEqual([[identifier]]);
-
-    // A cancel the OS rejects is reported, so the caller can ask again.
-    cancelScheduledNotificationAsync.mockRejectedValueOnce(new Error("native cancel failed"));
-    await expect(cancelFocusEnd("account-a")).resolves.toBe(false);
-    await expect(cancelFocusEnd("account-a")).resolves.toBe(true);
   });
 
   test("frozen legacy calls without an explicit owner fail closed", async () => {

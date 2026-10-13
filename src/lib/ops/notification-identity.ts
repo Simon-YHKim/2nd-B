@@ -58,14 +58,6 @@ export function oneShotNotificationId(ownerId: string): string {
   return `${ownerPrefix(ownerId)}once-${nonce}`;
 }
 
-/**
- * The focus timer's end alert: one per account. A fixed identifier means arming again replaces the
- * alert, and withdrawing it needs nothing remembered (a screen that went away cannot lose it).
- */
-export function focusEndNotificationId(ownerId: string): string {
-  return `${ownerPrefix(ownerId)}once-focus-end`;
-}
-
 export function isCurrentGenerationNotificationId(identifier: string): boolean {
   return CURRENT_NOTIFICATION_PATTERN.test(identifier);
 }

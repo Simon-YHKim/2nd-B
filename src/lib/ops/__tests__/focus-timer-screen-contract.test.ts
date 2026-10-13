@@ -1,6 +1,6 @@
-// The focus timer's effects live in a screen, and render tests are blocked in this repo, so this
+// The focus timer's effect lives in a screen, and render tests are blocked in this repo, so this
 // reads the source. It pins what made the timer stop in the background (Z109) and what the first
-// review of the fix found: the session's own state, the closed flag, and who rings the end.
+// review of the fix found: the session's own state and the closed flag.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import ts from "typescript";
@@ -54,47 +54,28 @@ describe("the focus screen's timer effect (Z109)", () => {
     expect(effect).toMatch(/const prev = current; current = next; timerRef\.current = next;/);
     // advance() itself never reads the ref back.
     const advance = effect.slice(effect.indexOf("const advance = () => {"), effect.indexOf("const id = setInterval(advance, 1000);"));
+    expect(advance.length).toBeGreaterThan(200);
     expect(advance).not.toMatch(/=\s*timerRef\.current/);
   });
 
   test("nothing queued runs after the session has ended or stopped", () => {
     expect(effect).toMatch(/const advance = \(\) => \{ if \(closed\) return;/);
-    expect(effect).toMatch(/if \(completed\) \{ closed = true;/);
-    expect(effect).toMatch(/const ended = closed; closed = true;/);
-  });
-
-  test("hands the end alert to the OS when the timer starts, before the first tick", () => {
-    expect(effect).toMatch(/createFocusEndAlert\(userId, \{ schedule: scheduleFocusEnd, cancel: cancelFocusEnd, now: Date\.now \}\)/);
-    expect(effect).toMatch(/endAlert\?\.arm\(since\.wall \+ current\.remainingMs\);/);
-    expect(effect.indexOf("endAlert?.arm(since.wall + current.remainingMs);")).toBeLessThan(effect.indexOf("setInterval("));
+    // Closed before the finished timer is handed to React, so a second call cannot finish it twice.
+    expect(effect).toMatch(/closed = true; const idle = createPomodoro\(prev\.config\); timerRef\.current = idle; setTimer\(idle\);/);
+    expect(effect).toMatch(/return \(\) => \{ closed = true; clearInterval\(id\); sub\.remove\(\); \};/);
   });
 
   test("a trip to the background is measured by the wall clock, whichever callback comes first", () => {
     expect(effect).toMatch(/AppState\.addEventListener\("change", \(state\) => \{ continuous = false; if \(state === "active"\) advance\(\); \}\)/);
-    expect(effect).toMatch(/sub\.remove\(\);/);
   });
 
-  test("the OS alone rings an alert it has; the screen rings only when the OS never got it", () => {
-    expect(effect).toMatch(/if \(endAlert && \(await endAlert\.finish\(\)\)\) return; await notifyNow\(userId, title, body\);/);
-    // No "ring now" on top of a scheduled alert.
-    expect(effect).not.toMatch(/scheduleFocusEnd\(userId/);
+  test("the end is announced when it is found on time, account first, and not when it is found on the way back", () => {
+    expect(effect).toMatch(/if \(announcesEnd\(lateByMs\)\) \{ void notifyNow\(userId, t\("focus\.alarmFocusTitle"\)/);
     expect((effect.match(/notifyNow\(/g) ?? []).length).toBe(1);
   });
 
-  test("a changed device clock moves the alert; a failed arm is offered again on the tick", () => {
-    expect(effect).toMatch(/if \(clockJumped\) endAlert\?\.arm\(at\.wall \+ next\.remainingMs\); else endAlert\?\.retry\(\);/);
-    expect(effect).toMatch(/if \(next === current\) \{ endAlert\?\.retry\(\); return; \}/);
-  });
-
-  test("stopping before the end withdraws the alert; ending does not", () => {
-    expect(effect).toMatch(/if \(!ended\) void endAlert\?\.withdraw\(\)\.catch\(\(\) => \{\}\);/);
-    expect(effect).toMatch(/clearInterval\(id\);/);
-  });
-
-  test("while no session runs, nothing is left with the OS, and that is asked again on every return to the front", () => {
-    const idle = effects().filter((text) => /if \(timer\.running \|\| !userId\) return;/.test(text));
-    expect(idle).toHaveLength(1);
-    expect(idle[0]).toMatch(/void cancelFocusEnd\(userId\)\.catch\(\(\) => \{\}\); const sub = AppState\.addEventListener\("change", \(state\) => \{ if \(state === "active"\) void cancelFocusEnd\(userId\)\.catch\(\(\) => \{\}\); \}\);/);
-    expect(idle[0]).toMatch(/return \(\) => sub\.remove\(\); \}, \[timer\.running, userId\]\)$/);
+  test("this change hands nothing to the OS: no scheduled alert to ring twice or to be left behind", () => {
+    const screen = code(focusScreen().getText(source));
+    expect(screen).not.toMatch(/scheduleFocusEnd|cancelFocusEnd|createFocusEndAlert/);
   });
 });
