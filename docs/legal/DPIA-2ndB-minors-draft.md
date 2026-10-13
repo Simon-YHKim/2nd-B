@@ -160,10 +160,13 @@ Explicitly **excluded** purposes for all users (privacy-by-design defaults OFF):
 > to twelve of those names; the names that say where a record came from and the
 > term numbers are added only by the app's own code, so a model cannot put them
 > in a record by answering with them. This is a check in the app, not a
-> boundary: the server checks only how many entries there are and how long each
-> is (`0181`), so an older installed build or a modified client can still submit
-> other strings. Normalising them on the server is a separate change, not yet
-> made. Retention is the same as existing crisis records.
+> boundary. The server (`0181`) validates that the array is non-NULL and
+> one-dimensional, holds at most sixteen entries, and that every entry is
+> non-NULL, 1 to 64 characters and at most 256 bytes with no control characters.
+> It does not enforce an allowed-value list or a `crisis_term` pattern, so an
+> older installed build or a modified client can still submit other strings.
+> Normalising them on the server is a separate change, not yet made. Retention
+> is the same as existing crisis records.
 > Basis: Simon, 2026-10-13 11:42 (D3). Wording of record (ko): 「AI 답이 위기 안내로
 > 바뀐 경우, 걸린 위기어의 고정 코드 번호(1~19)와 출처 'AI 답'만 범주 칸에 기록한다.
 > AI 답 원문과 이용자 입력은 기록하지 않으며, 이용자 입력이 걸린 경우에는 코드를
