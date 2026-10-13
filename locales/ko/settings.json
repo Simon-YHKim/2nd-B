@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "로그아웃할까요?",
+      "cancelHint": "로그아웃하지 않고 닫습니다."
+    },
     "confirm": {
       "label": "설정 삭제 확인",
       "title": "선택한 데이터를 삭제할까요?",
@@ -115,7 +119,8 @@
   "workingPaused": "처리 중입니다. 끝날 때까지 다른 작업이나 로그아웃을 할 수 없습니다.",
   "myAccount": "내 계정",
   "app": "앱",
-  "resetCoachmarks": "사용 안내 다시 보기",
+  "versionLine": "버전 {{version}}",
+  "resetCoachmarks": "홈 화면 안내 다시 보기",
   "resetCoachmarksDesc": "홈 화면 사용법을 처음부터 다시 봅니다",
   "account": "계정",
   "plans": "요금제",

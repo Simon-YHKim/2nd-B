@@ -7,6 +7,7 @@ import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { Text } from "@/components/ui/Text";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { m3 } from "@/lib/theme/m3";
+import { useKeyboardCover } from "@/lib/ui/keyboard";
 
 type CoachTarget = LayoutRectangle;
 
@@ -53,6 +54,8 @@ export function FirstRecordCoachmark({
   const overlayRef = useRef<View>(null);
   const [target, setTarget] = useState<CoachTarget | null>(null);
   const { width, height } = useWindowDimensions();
+  // Z71: the bottom bubble and its next-step button sat behind the keyboard.
+  const keyboardCover = useKeyboardCover(overlayRef);
 
   const measureTarget = useCallback(() => {
     const overlay = overlayRef.current;
@@ -76,6 +79,13 @@ export function FirstRecordCoachmark({
     const handles = [0, 120, 320].map((delay) => setTimeout(measureTarget, delay));
     return () => handles.forEach(clearTimeout);
   }, [height, measureTarget, refreshKey, width]);
+
+  // The keyboard resizes the field being pointed at. Measure again, without
+  // dropping the frame first, so the dim does not blink off as typing starts.
+  useEffect(() => {
+    const handles = [120, 320].map((delay) => setTimeout(measureTarget, delay));
+    return () => handles.forEach(clearTimeout);
+  }, [keyboardCover, measureTarget]);
 
   if (!target) {
     return (
@@ -117,7 +127,13 @@ export function FirstRecordCoachmark({
         ]}
       />
 
-      <View style={[styles.bubbleWrap, bubbleAbove ? styles.bubbleTop : styles.bubbleBottom]}>
+      <View
+        style={[
+          styles.bubbleWrap,
+          bubbleAbove ? styles.bubbleTop : styles.bubbleBottom,
+          !bubbleAbove && keyboardCover > 0 && { bottom: m3.spacing.s8 + keyboardCover },
+        ]}
+      >
         <PixelSurface
           variant="bevel"
           background={m3.color.surfaceContainerHigh}

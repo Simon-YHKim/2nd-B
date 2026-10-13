@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "Sign out?",
+      "cancelHint": "Closes without signing out."
+    },
     "confirm": {
       "label": "Settings confirmation dialog",
       "title": "Delete the selected data?",
@@ -115,6 +119,7 @@
   "workingPaused": "Working on it. Other actions and sign-out are paused until this finishes.",
   "myAccount": "My account",
   "app": "App",
+  "versionLine": "Version {{version}}",
   "resetCoachmarks": "Show the home guide again",
   "resetCoachmarksDesc": "Replay the home guide from the start",
   "account": "Account",

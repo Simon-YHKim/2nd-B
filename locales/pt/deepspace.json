@@ -4,6 +4,7 @@
     "zoom": "Aproximando a estrela",
     "focus": "Ajustando o foco",
     "ready": "Foco fixado · Pronto para viajar",
+    "held": "Foco fixado",
     "return": "Voltando à constelação",
     "shutter": "Tirando uma foto"
   },
@@ -250,7 +251,7 @@
     "viewManual": "Ver o manual",
     "emailUs": "Fale conosco",
     "reportBug": "Relatar um erro",
-    "footer": "PolaScope v1.0.0 · 2 dias úteis KST",
+    "footer": "PolaScope v{{version}} · 2 dias úteis KST",
     "faqTitle": "Perguntas frequentes",
     "noticesTitle": "Avisos",
     "faqs": {
@@ -384,7 +385,7 @@
     "photoValue": "Salvar por foto",
     "mic": "Microfone",
     "micValue": "Salvar por voz",
-    "continue": "Continuar"
+    "continue": "Concluir"
   },
   "graph": {
     "title": "Meu mapa cerebral",

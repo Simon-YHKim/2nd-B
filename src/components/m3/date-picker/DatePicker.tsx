@@ -207,6 +207,10 @@ function CalendarGlyph({ size = 20, color }: { size?: number; color: string }) {
 const YEAR_COLUMNS = 4;
 // One grid row: the cell's touch floor plus the wrap's padding above and below it.
 const YEAR_ROW_HEIGHT = m3.minTouch + m3.spacing.s1 * 2;
+// The list's own top padding. The scroll math below counts it: without it the opening row sat
+// that much low, and a sliver of the row above stayed in view and in the accessibility tree
+// (A-Z first-use check, round 7: the birth year list read as starting one row early).
+const YEAR_LIST_PAD = m3.spacing.s2;
 
 function YearGrid({
   minYear,
@@ -231,12 +235,12 @@ function YearGrid({
       numColumns={YEAR_COLUMNS}
       // Open on the chosen year's row, not on the newest year (a birth year sits decades down).
       initialScrollIndex={startRow}
-      getItemLayout={(_, index) => ({ length: YEAR_ROW_HEIGHT, offset: YEAR_ROW_HEIGHT * index, index })}
+      getItemLayout={(_, index) => ({ length: YEAR_ROW_HEIGHT, offset: YEAR_LIST_PAD + YEAR_ROW_HEIGHT * index, index })}
       // The web list does not honour initialScrollIndex, so the first layout moves to the same row itself.
       onLayout={() => {
         if (started.current || startRow === 0) return;
         started.current = true;
-        listRef.current?.scrollToOffset({ offset: YEAR_ROW_HEIGHT * startRow, animated: false });
+        listRef.current?.scrollToOffset({ offset: YEAR_LIST_PAD + YEAR_ROW_HEIGHT * startRow, animated: false });
       }}
       style={styles.yearList}
       contentContainerStyle={styles.yearListContent}
@@ -788,7 +792,7 @@ const styles = StyleSheet.create({
 
   // Year grid.
   yearList: { maxHeight: 300, alignSelf: "stretch" },
-  yearListContent: { paddingVertical: m3.spacing.s2 },
+  yearListContent: { paddingVertical: YEAR_LIST_PAD },
   yearCellWrap: { flex: 1, padding: m3.spacing.s1 },
   // ⚠ 높이가 패딩에서만 나오던 자리다. `--u` 2px 이주(2026-08-20)로 s3 가 12 -> 6 이
   // 되면서 48 -> 36 으로 내려갔다. 게다가 numColumns={4} 그리드라 44 미만 타깃이

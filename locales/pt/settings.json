@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "Sair da conta?",
+      "cancelHint": "Fecha esta confirmação sem sair da conta."
+    },
     "confirm": {
       "label": "Diálogo de confirmação de configurações",
       "title": "Tem certeza?",
@@ -115,7 +119,8 @@
   "workingPaused": "Aguarde esta ação terminar para fazer outras alterações ou sair da conta.",
   "myAccount": "Minha conta",
   "app": "App",
-  "resetCoachmarks": "Redefinir os guias",
+  "versionLine": "Versão {{version}}",
+  "resetCoachmarks": "Rever o guia inicial",
   "resetCoachmarksDesc": "Reveja o guia inicial desde o começo",
   "account": "Conta",
   "plans": "Planos",

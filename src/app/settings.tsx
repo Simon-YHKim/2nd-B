@@ -38,7 +38,7 @@ import { signOut } from "@/lib/supabase/auth";
 import { changeUiLanguage } from "@/lib/i18n";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META, type AvailableUiLocale } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
-import { buildInfoLine } from "@/lib/build-info";
+import { VersionLine } from "@/components/ui/VersionLine";
 import {
   DEFAULT_WIKI_AUTO_PROMOTE,
   getWikiAutoPromote,
@@ -55,7 +55,9 @@ import {
 
 const CONFIRM_PHRASE = "DELETE";
 type SettingsToast = { message: string; tone: "info" | "success" | "danger" };
-type PendingConfirm = { message: string; onYes: () => Promise<void> } | null;
+/** `ask` replaces the delete wording of the shared confirm dialog (title, action, hints) for an action that deletes nothing. */
+type ConfirmAsk = { title: string; action: string; actionHint: string; cancelHint: string };
+type PendingConfirm = { message: string; onYes: () => Promise<void>; ask?: ConfirmAsk } | null;
 type ActionError = { title: string; body: string; retry?: () => void } | null;
 type SettingsDisclosureKey = "data" | "language";
 type DataDeleteStep = "records" | "assessments" | "library" | "full";
@@ -448,8 +450,8 @@ export default function Settings() {
     return <Redirect href="/sign-in" />;
   }
 
-  function confirm(message: string, onYes: () => Promise<void>): void {
-    setPendingConfirm({ message, onYes });
+  function confirm(message: string, onYes: () => Promise<void>, ask?: ConfirmAsk): void {
+    setPendingConfirm({ message, onYes, ask });
   }
 
   // Surface a calm, product-tone failure with a retry. The raw error stays in
@@ -1039,7 +1041,7 @@ export default function Settings() {
             accessibilityHint={t("actions.signOutHint")}
             variant="secondary"
             disabled={busy !== null}
-            onPress={async () => {
+            onPress={() => confirm(t("actions.signOutHint"), async () => {
               try {
                 await signOut();
                 // Go straight to /sign-in. Routing via "/" could briefly render
@@ -1054,19 +1056,19 @@ export default function Settings() {
                   t("signOutError"),
                 );
               }
-            }}
+            }, { title: t("modals.signOut.title"), action: t("signOut"), actionHint: t("actions.signOutHint"), cancelHint: t("modals.signOut.cancelHint") })}
           />
         </View>
 
-        {/* The real bundle identity, not a frozen string. This line existed to
-            answer "which bundle is this?" during an incident — the 2026-06-26
-            head-touch crash was prolonged by embedded-vs-OTA uncertainty — and a
-            hardcoded locale value ("Build 0.0.6 · OTA ota-2026-06-27a", still
-            claiming 0.0.6 on a 0.1.0 build) defeats exactly that purpose.
-            buildInfoLine() reads expo-updates. This is its one place on a user screen. */}
-        <Text variant="caption" color="textMuted" style={styles.buildMarker}>
-          {buildInfoLine()}
-        </Text>
+        {/* The real version, not a frozen string: a hardcoded locale value
+            ("Build 0.0.6 · OTA ota-2026-06-27a", still claiming 0.0.6 on a 0.1.0
+            build) is how this line once lied. The reader sees the app version.
+            The bundle identity (buildInfoLine(), which answered "which bundle is
+            this?" when the 2026-06-26 head-touch crash was prolonged by
+            embedded-vs-OTA uncertainty) opens on a tap: shown raw, its "?" read
+            as an error (Z94). This is its one place on a user screen. */}
+        <VersionLine style={styles.buildMarker} />
+
       </ScrollView>
 </KeyboardAvoidingArea>
       {toast ? (
@@ -1077,9 +1079,9 @@ export default function Settings() {
       <PremiumModal
         visible={pendingConfirm !== null}
         onClose={() => setPendingConfirm(null)}
-        accessibilityLabel={t("modals.confirm.label")}
+        accessibilityLabel={pendingConfirm?.ask?.title ?? t("modals.confirm.label")}
       >
-        <Text variant="heading">{t("modals.confirm.title")}</Text>
+        <Text variant="heading">{pendingConfirm?.ask?.title ?? t("modals.confirm.title")}</Text>
         <Text variant="body" color="textMuted" style={styles.modalBody}>
           {pendingConfirm?.message}
         </Text>
@@ -1089,15 +1091,15 @@ export default function Settings() {
             variant="secondary"
             onPress={() => setPendingConfirm(null)}
             style={styles.modalButton}
-            accessibilityHint={t("modals.confirm.cancelHint")}
+            accessibilityHint={pendingConfirm?.ask?.cancelHint ?? t("modals.confirm.cancelHint")}
           />
           <Button
-            label={t("modals.confirm.delete")}
-            variant="danger"
+            label={pendingConfirm?.ask?.action ?? t("modals.confirm.delete")}
+            variant={pendingConfirm?.ask ? "primary" : "danger"}
             onPress={runPendingConfirm}
             loading={busy !== null}
             style={styles.modalButton}
-            accessibilityHint={t("modals.confirm.deleteHint")}
+            accessibilityHint={pendingConfirm?.ask?.actionHint ?? t("modals.confirm.deleteHint")}
           />
         </View>
       </PremiumModal>

@@ -25,7 +25,9 @@ describe("PIXEL-CLAY /capture screen contract", () => {
     expect(renderer).toContain("CAPTURE_MODE_ROW.map");
     expect(renderer).toContain('accessibilityRole="tablist"');
     expect(renderer).toContain("<SegBtn");
-    expect(renderer).toContain("const [fourwOn, setFourwOn] = useState(false);");
+    // 2026-10-13 (Z79): unsaved writing returns with the format it was written in;
+    // with nothing kept the format still starts on plain text.
+    expect(renderer).toContain("const [fourwOn, setFourwOn] = useState(kept?.fourwOn ?? false);");
     expect(renderer).not.toContain('accessibilityRole="switch"');
     expect(renderer).toContain('t("capture:textFormat.general")');
     expect(renderer).toContain('t("capture:modes.fourw.label")');

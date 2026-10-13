@@ -1036,7 +1036,7 @@ export function ConstellationHome({
             frame={flight}
             onReturn={() => setBubble({ kind: "intro" })}
             onReturned={() => setVisualFocusId(null)}
-            onReady={() => setCameraReady(true)}
+            onReady={() => setCameraReady(true)} canTravel={selectedEntry?.kind === "available"}
           />
         ) : null}
         </View>

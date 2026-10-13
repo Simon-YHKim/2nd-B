@@ -4,6 +4,7 @@
     "zoom": "Memperbesar bintang",
     "focus": "Menyesuaikan fokus",
     "ready": "Fokus terkunci · Siap berkunjung",
+    "held": "Fokus terkunci",
     "return": "Kembali ke rasi bintang",
     "shutter": "Memotret"
   },
@@ -250,7 +251,7 @@
     "viewManual": "Lihat manual",
     "emailUs": "Email kami",
     "reportBug": "Laporkan bug",
-    "footer": "PolaScope v1.0.0 · 2 hari kerja KST",
+    "footer": "PolaScope v{{version}} · 2 hari kerja KST",
     "faqTitle": "Pertanyaan umum",
     "noticesTitle": "Pengumuman",
     "faqs": {
@@ -384,7 +385,7 @@
     "photoValue": "Simpan lewat foto",
     "mic": "Mikrofon",
     "micValue": "Simpan lewat suara",
-    "continue": "Lanjut"
+    "continue": "Selesai"
   },
   "graph": {
     "title": "Peta otakku",

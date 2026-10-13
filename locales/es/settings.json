@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "¿Cerrar sesión?",
+      "cancelHint": "Cierra esta confirmación sin cerrar sesión."
+    },
     "confirm": {
       "label": "Diálogo de confirmación de ajustes",
       "title": "¿Estás seguro?",
@@ -115,7 +119,8 @@
   "workingPaused": "Trabajando en ello. Otras acciones y el cierre de sesión están en pausa hasta que termine.",
   "myAccount": "Mi cuenta",
   "app": "App",
-  "resetCoachmarks": "Restablecer las guías",
+  "versionLine": "Versión {{version}}",
+  "resetCoachmarks": "Volver a ver la guía de inicio",
   "resetCoachmarksDesc": "Vuelve a ver la guía de inicio desde el principio",
   "account": "Cuenta",
   "plans": "Planes",

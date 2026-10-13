@@ -4,6 +4,7 @@
     "zoom": "Acercando la estrella",
     "focus": "Ajustando el enfoque",
     "ready": "Enfoque fijado · Listo para viajar",
+    "held": "Enfoque fijado",
     "return": "Volviendo a la constelación",
     "shutter": "Tomando una foto"
   },
@@ -250,7 +251,7 @@
     "viewManual": "Ver el manual",
     "emailUs": "Escríbenos",
     "reportBug": "Reportar un error",
-    "footer": "PolaScope v1.0.0 · 2 días hábiles KST",
+    "footer": "PolaScope v{{version}} · 2 días hábiles KST",
     "faqTitle": "Preguntas frecuentes",
     "noticesTitle": "Avisos",
     "faqs": {
@@ -384,7 +385,7 @@
     "photoValue": "Guardar por foto",
     "mic": "Micrófono",
     "micValue": "Guardar por voz",
-    "continue": "Continuar"
+    "continue": "Listo"
   },
   "graph": {
     "title": "Mapa de mis registros",

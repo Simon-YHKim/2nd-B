@@ -820,7 +820,8 @@ results.push(
       account.includes('accessibilityRole="alert"') &&
       settings.includes("PremiumModal") &&
       settings.includes("PremiumToast") &&
-      settings.includes('accessibilityLabel={t("modals.confirm.label")}') &&
+      // 2026-10-13 (A-Z 3차 Z37): 로그아웃도 이 확인 창을 쓴다. 그때는 삭제 문구 대신 그 질문이 창의 이름이다.
+      settings.includes('accessibilityLabel={pendingConfirm?.ask?.title ?? t("modals.confirm.label")}') &&
       settings.includes('accessibilityLabel={t("modals.feedback.label")}') &&
       capture.includes("PremiumModal") &&
       capture.includes('accessibilityLabel={t("feedback.accessibilityLabel")}') &&

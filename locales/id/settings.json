@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "Keluar dari akun?",
+      "cancelHint": "Menutup konfirmasi ini tanpa keluar."
+    },
     "confirm": {
       "label": "Dialog konfirmasi pengaturan",
       "title": "Kamu yakin?",
@@ -115,7 +119,8 @@
   "workingPaused": "Sedang diproses. Tunggu sampai selesai sebelum memilih tindakan lain atau keluar akun.",
   "myAccount": "Akunku",
   "app": "Aplikasi",
-  "resetCoachmarks": "Setel ulang panduan",
+  "versionLine": "Versi {{version}}",
+  "resetCoachmarks": "Lihat lagi panduan beranda",
   "resetCoachmarksDesc": "Putar ulang panduan beranda dari awal",
   "account": "Akun",
   "plans": "Paket",
