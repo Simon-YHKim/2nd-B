@@ -167,8 +167,9 @@ SELECT pg_temp.z46_assert((SELECT count(*) = 1 FROM public.ai_audit_log
 -- grows, the new function needs its own forged-evidence call here before it may ship. The list is
 -- read from function bodies (a direct INSERT or UPDATE of the table) outside the pg_* schemas, so
 -- this file's own pg_temp helper is not in it. A function that writes through another function is
--- not seen here.
-SELECT COALESCE(pg_catalog.string_agg(p.oid::regprocedure::text, ' | ' ORDER BY p.oid::regprocedure::text), '') AS client_writers
+-- not seen here. The names are sorted byte by byte (COLLATE "C"), so the list reads the same on
+-- every server whatever its locale.
+SELECT COALESCE(pg_catalog.string_agg(p.oid::regprocedure::text, ' | ' ORDER BY p.oid::regprocedure::text COLLATE "C"), '') AS client_writers
   FROM pg_catalog.pg_proc AS p JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
  WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema' AND p.prokind = 'f'
    AND p.prosrc ~* '(insert\s+into|update)\s+(only\s+)?(public\.)?ai_audit_log\M'
