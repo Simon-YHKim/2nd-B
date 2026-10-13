@@ -82,7 +82,7 @@ describe("R3-2 notice ownership matrix", () => {
     expect(h.exitApp).toHaveBeenCalledTimes(1);
   });
 
-  test("all nine hook writers use the shared transition; timers capture identity and blur preserves other notices", () => {
+  test("all hook writers use the shared transition; timers and failure clearing capture identity", () => {
     const file = "src/lib/auth/useSignInForm.ts";
     const source = readFileSync(file, "utf8");
     const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
@@ -92,7 +92,12 @@ describe("R3-2 notice ownership matrix", () => {
       ts.forEachChild(node, visit);
     };
     visit(ast);
-    expect(writes).toHaveLength(9);
+    // 2026-10-13 Z12/Z24: two local validation notices + identity-safe failure clear.
+    // Round four adds one writer: leaving the form retires the committed render's own toast,
+    // by identity, so an answer that landed before the effect ran is not the one cleared.
+    expect(writes).toHaveLength(13);
+    expect(writes).toContain("clearAuthFailure(current), current");
+    expect(writes).toContain("clearAuthFailure(toast), toast");
     expect(writes.filter(write => write.startsWith("null"))).toEqual(["null, notice", "null, toast"]);
     for (const key of ["signIn.exitOnBack", "errors.oauthSignInStartFailed", "errors.signInBusy", "errors.signInFailed", "signIn.resetToast", "signIn.resetSentToast", "errors.passwordResetFailed"]) {
       expect(writes.some(write => write.includes(`t("${key}"`))).toBe(true);
@@ -101,6 +106,8 @@ describe("R3-2 notice ownership matrix", () => {
     expect(source).toMatch(/next = replaceSignInToast\(toastRef.current, next, expected\);\s*presentedExitRef.current = replacePresentedSignInExit\(presentedExitRef.current, toastRef.current, next\);\s*toastRef.current = next;\s*setToastState\(next\);/);
     expect(source.match(/setToastState\(/g)).toHaveLength(1);
     expect(source).toContain("setTimeout(() => setToast(null, toast), duration)");
+    expect(source).toContain("const duration = authToastTimeoutMs(toast)");
+    expect(source).toContain("if (duration === null) return;");
     expect(source).toContain("clearTimeout(timeout)");
     expect(source).toContain("clearSignInExit(toastRef.current, setToast)");
   });

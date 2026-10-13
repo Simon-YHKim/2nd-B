@@ -38,5 +38,8 @@ export function selectSignInNoticePlacement(
   toast: SignInToast | null,
 ): SignInNoticePlacement {
   if (!toast) return "none";
+  // A failure of the form is drawn on the form only. One that arrives while loading is kept by the
+  // hook and shown when the form returns; it is never drawn over loading or the deletion receipt.
+  if (toast.tone === "danger" && !toast.exitOnBack && branch.kind !== "form") return "none";
   return NOTICE_PLACEMENTS[branch.kind][toast.exitOnBack ? "exit" : "other"];
 }
