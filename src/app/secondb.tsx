@@ -1008,11 +1008,12 @@ function SecondBChatBody() {
   // nothing is being sent, so the pair it replaces is always the end of the conversation. It goes
   // through handleSend, the same path and the same checks as typing the message again.
   // A second press before the first one has drawn `sending` would send the message twice, so the
-  // press is remembered at once and forgotten when that send is over.
+  // press is remembered at once and forgotten when that send is over (the turns change with it, so
+  // a send that began and ended inside one render is still seen).
   const retrying = useRef(false);
   useEffect(() => {
     if (!sending) retrying.current = false;
-  }, [sending]);
+  }, [sending, turns]);
   const retryFailed = useCallback(
     (i: number) => {
       const failed = turns[i];
