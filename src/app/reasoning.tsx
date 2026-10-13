@@ -32,7 +32,7 @@ import {
   setAutoIntroSeen,
   setAutoReasoningEnabled,
 } from "@/lib/reasoning/auto-pref";
-import { prepareProposalsForReview } from "@/lib/reasoning/proposal-targets";
+import { prepareProposalsForReview, settleRunForReview } from "@/lib/reasoning/proposal-targets";
 import { monthLabelFor } from "@/lib/reasoning/remaining-copy";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import {
@@ -753,6 +753,12 @@ export default function ReasoningScreen() {
   const [autoIntroVisible, setAutoIntroVisible] = useState(false);
 
   const mountedRef = useRef(true);
+  // The account this screen is showing now. A result that was read for an
+  // earlier account compares its own userId against this before it writes.
+  const userIdRef = useRef(userId);
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
   // Everything review shows goes through here (Q-261013-35): the title comes
   // from the live row, looked up in the table the proposal's refKind names; a
   // proposal whose record or source is gone is dismissed on the server so its
@@ -1061,11 +1067,26 @@ export default function ReasoningScreen() {
       run: async () => {
         try {
           const produced = await queued;
-          runningRef.current = false;
-          abortRef.current = null;
           // Proposals are already persisted server-side by completeRun (0092).
           // A record deleted elsewhere while the run was going is not shown.
-          const ready = await readyForReview(produced);
+          // This run keeps its slot while the targets are read, so Cancel still
+          // stops it; and the check comes after the read, so a result that is no
+          // longer the screen's (cancelled, a newer run, another account) is dropped.
+          const ready = await settleRunForReview(
+            produced,
+            readyForReview,
+            () => abortRef.current === controller && !controller.signal.aborted && userIdRef.current === userId,
+          );
+          if (ready === null) {
+            // Cancel and a newer run own the slot now. Release it only if it is still this run's.
+            if (abortRef.current === controller) {
+              runningRef.current = false;
+              abortRef.current = null;
+            }
+            return;
+          }
+          runningRef.current = false;
+          abortRef.current = null;
           const nextProposals = ready.live;
           if (mountedRef.current) {
             if (ready.unreadable > 0) setErrorText(t("ds.reasoningScreen.loadFailed"));
@@ -1129,6 +1150,7 @@ export default function ReasoningScreen() {
     const accepted = proposals.filter((proposal) => selected.has(proposal.key));
     const dismissed = proposals.filter((proposal) => !selected.has(proposal.key));
     let pending = [...proposals];
+    let stale = false;
     setApplying(true);
     setErrorText(null);
     try {
@@ -1182,12 +1204,17 @@ export default function ReasoningScreen() {
       // What goes back on screen is read again: a record deleted in between
       // does not return under the title this screen still held.
       const ready = await readyForReview(pending);
-      setProposals(ready.live);
-      setSelected(new Set(ready.live.map((proposal) => proposal.key)));
+      // The read took time. If the screen was left or the account changed
+      // meanwhile, this result is not that screen's: write nothing.
+      stale = !mountedRef.current || userIdRef.current !== userId;
+      if (!stale) {
+        setProposals(ready.live);
+        setSelected(new Set(ready.live.map((proposal) => proposal.key)));
+        setErrorText(t("ds.reasoningScreen.applyFailed"));
+      }
       if (typeof console !== "undefined") {
         console.warn("[reasoning] ratify failed", (error as Error).message);
       }
-      setErrorText(t("ds.reasoningScreen.applyFailed"));
     } finally {
       // Ratifying writes domain tags (records AND sources), which shifts the
       // constellation — drop the cached levels so the star brightens on the
@@ -1195,7 +1222,7 @@ export default function ReasoningScreen() {
       // pattern). Also runs on partial failure: some proposals may have
       // applied before the error.
       if (accepted.length > 0) invalidateDomainLevels(userId);
-      setApplying(false);
+      if (!stale) setApplying(false);
     }
   }, [applying, phase, proposals, readyForReview, selected, t, userId]);
 

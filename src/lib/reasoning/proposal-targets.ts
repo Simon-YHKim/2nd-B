@@ -108,3 +108,18 @@ export async function prepareProposalsForReview<P extends RunProposalRef>(
   );
   return { live: targets.live, unreadable: targets.unreadable.length };
 }
+
+/**
+ * A finished run may put its result on screen only while it is still the run the screen is waiting
+ * for. Reading the targets takes time, and meanwhile the user can cancel, start another run, or the
+ * account can change. So the question is asked AFTER the read, and a result that is no longer the
+ * screen's comes back as null: the caller writes nothing.
+ */
+export async function settleRunForReview<P>(
+  produced: readonly P[],
+  prepare: (proposals: readonly P[]) => Promise<ReviewReady<P>>,
+  stillCurrent: () => boolean,
+): Promise<ReviewReady<P> | null> {
+  const ready = await prepare(produced);
+  return stillCurrent() ? ready : null;
+}

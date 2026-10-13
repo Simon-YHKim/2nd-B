@@ -51,7 +51,7 @@ describe("reasoning review: stored proposals", () => {
     expect(restore).toContain("const live = ready.live;");
 
     const completed = body("const produced = await queued;", "setProposals(nextProposals);");
-    expect(completed).toContain("const ready = await readyForReview(produced);");
+    expect(completed).toMatch(/const ready = await settleRunForReview\(\s*produced,\s*readyForReview,/);
     expect(completed).toContain("const nextProposals = ready.live;");
 
     const failedApply = body("} catch (error) {\n      // What goes back on screen is read again", "setErrorText(t(\"ds.reasoningScreen.applyFailed\"));");
@@ -62,8 +62,34 @@ describe("reasoning review: stored proposals", () => {
   it("tells the user when a target could not be read, instead of showing the proposal", () => {
     const restore = body("const ready = await readyForReview(stored);", "setProposals(live);");
     expect(restore).toMatch(/if \(ready\.unreadable > 0\) \{\s*setErrorText\(i18n\.t\("ds\.reasoningScreen\.loadFailed"/);
-    const completed = body("const ready = await readyForReview(produced);", "setProposals(nextProposals);");
+    const completed = body("const ready = await settleRunForReview(", "setProposals(nextProposals);");
     expect(completed).toContain('if (ready.unreadable > 0) setErrorText(t("ds.reasoningScreen.loadFailed"));');
+  });
+
+  // Review round two: the read takes time, and the screen can change hands meanwhile.
+  it("keeps a finished run in its slot until its targets are read, and drops a result that is no longer the screen's", () => {
+    const completed = body("const produced = await queued;", "setProposals(nextProposals);");
+    expect(completed).toContain(
+      "() => abortRef.current === controller && !controller.signal.aborted && userIdRef.current === userId",
+    );
+    const settle = completed.indexOf("await settleRunForReview(");
+    const stale = completed.indexOf("if (ready === null) {");
+    const release = completed.lastIndexOf("runningRef.current = false;");
+    expect(settle).toBeGreaterThan(-1);
+    expect(stale).toBeGreaterThan(settle);
+    expect(release).toBeGreaterThan(stale);
+    // Nothing releases the slot between the run finishing and the read, so Cancel still reaches it.
+    expect(completed.slice(0, settle)).not.toContain("abortRef.current = null");
+    expect(completed.slice(0, settle)).not.toContain("runningRef.current = false");
+    // A stale result returns before any state is written.
+    expect(completed.slice(stale, completed.indexOf("const nextProposals = ready.live;"))).toContain("return;");
+  });
+
+  it("writes nothing after a failed apply when the screen was left or the account changed during the read", () => {
+    const failedApply = body("} catch (error) {\n      // What goes back on screen is read again", "} finally {");
+    expect(failedApply).toContain("stale = !mountedRef.current || userIdRef.current !== userId;");
+    expect(failedApply).toMatch(/if \(!stale\) \{\s*setProposals\(ready\.live\);/);
+    expect(source).toContain("if (!stale) setApplying(false);");
   });
 
   it("has a single place that restores proposals from the server", () => {

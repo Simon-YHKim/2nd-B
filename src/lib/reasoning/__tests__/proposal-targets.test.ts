@@ -1,6 +1,7 @@
 import {
   prepareProposalsForReview,
   resolveProposalTargets,
+  settleRunForReview,
   type ProposalTargetLookup,
 } from "../proposal-targets";
 
@@ -146,5 +147,82 @@ describe("prepareProposalsForReview", () => {
     const ready = await prepareProposalsForReview([stored("record:a")], lookupOf({ a: "A" }, {}), dismiss);
     expect(ready.live.map((p) => p.title)).toEqual(["A"]);
     expect(dismiss).not.toHaveBeenCalled();
+  });
+});
+
+describe("settleRunForReview", () => {
+  function deferredPrepare() {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const prepare = jest.fn(async (proposals: readonly Stored[]) => {
+      await gate;
+      return { live: [...proposals], unreadable: 0 };
+    });
+    return { prepare, release };
+  }
+
+  it("hands the result over when the run is still the screen's after the read", async () => {
+    const slot: { current: object | null } = { current: null };
+    const run = {};
+    slot.current = run;
+    const { prepare, release } = deferredPrepare();
+    const settled = settleRunForReview([stored("record:a")], prepare, () => slot.current === run);
+    release();
+    await expect(settled).resolves.toEqual({ live: [stored("record:a")], unreadable: 0 });
+  });
+
+  it("drops the result of a run that was cancelled and replaced while its targets were being read", async () => {
+    const slot: { current: object | null } = { current: null };
+    const first = {};
+    slot.current = first;
+    const { prepare, release } = deferredPrepare();
+    const settled = settleRunForReview([stored("record:a")], prepare, () => slot.current === first);
+    // Cancel, then a new run takes the slot, and only then does the first run's read finish.
+    slot.current = null;
+    slot.current = {};
+    release();
+    await expect(settled).resolves.toBeNull();
+  });
+
+  it("drops the result when the run was aborted during the read, even if nothing replaced it", async () => {
+    const controller = new AbortController();
+    const slot: { current: AbortController | null } = { current: controller };
+    const { prepare, release } = deferredPrepare();
+    const settled = settleRunForReview(
+      [stored("record:a")],
+      prepare,
+      () => slot.current === controller && !controller.signal.aborted,
+    );
+    controller.abort();
+    release();
+    await expect(settled).resolves.toBeNull();
+  });
+
+  it("drops the result when the account changed during the read", async () => {
+    const account = { current: "user-a" };
+    const { prepare, release } = deferredPrepare();
+    const settled = settleRunForReview([stored("record:a")], prepare, () => account.current === "user-a");
+    account.current = "user-b";
+    release();
+    await expect(settled).resolves.toBeNull();
+  });
+
+  it("asks only after the read has finished", async () => {
+    const order: string[] = [];
+    const settled = settleRunForReview(
+      [stored("record:a")],
+      async (proposals) => {
+        order.push("read");
+        return { live: [...proposals], unreadable: 0 };
+      },
+      () => {
+        order.push("asked");
+        return true;
+      },
+    );
+    await settled;
+    expect(order).toEqual(["read", "asked"]);
   });
 });
