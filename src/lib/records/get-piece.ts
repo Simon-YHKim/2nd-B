@@ -265,4 +265,4 @@ export async function getPieceById(
 }
 
 // The detail screen reads this next to the piece it loads here.
-export { titleRepeatsBody } from "./piece-title";
+export { editedBodyPatch, titleRepeatsBody } from "./piece-title";

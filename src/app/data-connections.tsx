@@ -212,7 +212,7 @@ function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: b
           })}
         </View>;
       })}
-      <PixelPressable onPress={() => router.push("/import-hub")} accessibilityLabel={t("ops:phone.importHistory")} contentStyle={styles.action}>
+      <PixelPressable onPress={() => router.push("/import-hub?view=history")} accessibilityLabel={t("ops:phone.importHistory")} contentStyle={styles.action}>
         <Text variant="caption">{t("ops:phone.importHistory")}</Text>
       </PixelPressable>
       <PixelPressable onPress={() => router.push("/privacy")} accessibilityLabel={t("ops:phone.dataConsent")} contentStyle={styles.action}>
