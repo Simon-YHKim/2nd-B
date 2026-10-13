@@ -129,7 +129,8 @@ describe("deep-space records source detail routing", () => {
     expect(DETAIL_SRC).toContain("locksRef.current.tags");
     expect(DETAIL_SRC).toContain("locksRef.current.delete");
     expect(DETAIL_SRC).toContain("if (nextBody.length === 0 || nextBody ===");
-    expect(DETAIL_SRC).toContain("updateReadyPiece({ ...previous, body: nextBody })");
+    // Since Z48 the optimistic piece and the saved patch carry the topic that follows the body.
+    expect(DETAIL_SRC).toContain("updateReadyPiece({ ...previous, ...editedBodyPatch(previous, nextBody) })");
     expect(DETAIL_SRC).toContain("updateReadyPiece(previous)");
     expect(DETAIL_SRC).toContain("visible={confirmingDelete}");
     expect(DETAIL_SRC).toContain("onPress={() => void handleDelete()}");

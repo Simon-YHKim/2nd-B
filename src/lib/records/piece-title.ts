@@ -12,3 +12,22 @@ export function titleRepeatsBody(title: string, body: string | null | undefined)
   const head = flat(title.replace(/…$/, ""));
   return head.length > 0 && flat(body ?? "").startsWith(head);
 }
+
+/** How many characters of a note's body the capture screen stores as its topic. */
+export const DERIVED_TOPIC_LENGTH = 80;
+
+/**
+ * What to store when a record's body is edited. A note saved from the capture screen has no
+ * title field: its topic is the first 80 characters of its body. Editing the body used to leave
+ * that copy behind, so the list and the detail kept the old words (A-Z first-use check, round 4,
+ * Z48: "did my edit not save?"). A topic that repeats the old body follows the new one; a topic
+ * of its own is the writer's and stays.
+ */
+export function editedBodyPatch(
+  previous: { topic?: string | null; body?: string | null },
+  nextBody: string,
+): { body: string; topic?: string } {
+  const topic = previous.topic?.trim();
+  if (!topic || !titleRepeatsBody(topic, previous.body)) return { body: nextBody };
+  return { body: nextBody, topic: nextBody.slice(0, DERIVED_TOPIC_LENGTH) };
+}
