@@ -1200,7 +1200,7 @@ function SecondBChatBody() {
             {t(`rev2.${rev2Persona}.desc`)}
           </Text>
           <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
-            {dsUsage}/{limit}
+            <Text style={ds.bannerUsageWord}>{t("rev2.usageToday")} </Text>{dsUsage}/{limit}
           </Text>
           {hasTurns ? (
             <Pressable
@@ -1596,6 +1596,8 @@ const ds = StyleSheet.create({
     fontFamily: fontFamilies.mono,
   },
   headerMetaDanger: { color: deepSpace.dangerText },
+  // "Today" in front of the count (Z32). The count's pixel font has Latin glyphs only.
+  bannerUsageWord: { fontFamily: fontFamilies.readable },
   clearLink: { flexShrink: 0, minHeight: 44, justifyContent: "center", paddingHorizontal: deepSpaceSpacing.xs },
   clearLinkText: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
 
