@@ -167,8 +167,10 @@
       "page": "{{current}} / {{total}}"
     }
   },
-  "aiMark": {
-    "short": "AI",
-    "spoken": "이 답은 AI가 만들었어요."
-  }
+  "aiLine": "{{name}}는 AI입니다. 틀릴 수 있으니 중요한 내용은 확인하세요.",
+  "aiNotice": {
+    "body": "{{name}}는 AI입니다. 답은 AI가 만들며 참고용입니다. 중요한 내용은 확인하세요.",
+    "confirm": "확인"
+  },
+  "aiCopyTail": "AI가 생성한 내용 (PolaScope)"
 }

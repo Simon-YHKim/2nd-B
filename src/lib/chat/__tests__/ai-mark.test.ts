@@ -1,83 +1,96 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { aiMarkFor, type AiMarkTurn } from "../ai-mark";
+import { isModelAnswer, withAiCopyTail, type AiMarkTurn } from "../ai-mark";
 
-// Simon 2026-10-12: the chat marks its answers as AI-made. Placement = by every
-// answer's name (Q-261012-64, pick 가). Wording = 「이 답은 AI가 만들었어요.」 (his
-// answer to Q-261012-30, relayed 23:17). The sentence is spelled out on the first
-// answer of a conversation and is the spoken name of every mark.
+// Simon 2026-10-13 15:49: no mark by each answer's name. One line under the input says the
+// answers are AI-made, a card says it once when the chat is first opened, and a copied model
+// answer ends with a line that says so. (2026-10-12 had a mark by every name: #2316.)
 
 const user: AiMarkTurn = { role: "user" };
 const answer: AiMarkTurn = { role: "secondb", safetyZone: "green" };
-const marks = (turns: AiMarkTurn[]) => turns.map((_, index) => aiMarkFor(turns, index));
 
-describe("aiMarkFor: which chat turns say they are AI-made", () => {
-  test("my own messages never carry the mark", () => {
-    expect(marks([user, user])).toEqual(["none", "none"]);
+describe("isModelAnswer: which chat turns are AI-made", () => {
+  test("my own messages are not", () => {
+    expect(isModelAnswer(user)).toBe(false);
   });
 
-  test("the first answer spells the sentence out; later answers carry the mark only", () => {
-    expect(marks([user, answer, user, answer, user, answer])).toEqual(["none", "spelled", "none", "mark", "none", "mark"]);
+  test("a model answer is, a cautious (yellow) one and an older one without a zone included", () => {
+    expect(isModelAnswer(answer)).toBe(true);
+    expect(isModelAnswer({ role: "secondb", safetyZone: "yellow" })).toBe(true);
+    expect(isModelAnswer({ role: "secondb" })).toBe(true);
   });
 
-  test("lines the app wrote itself are not called AI-made", () => {
-    const hint: AiMarkTurn = { role: "secondb", synthetic: true };
-    // A limit hint or an error line before the first real answer does not use up the spelled-out slot.
-    expect(marks([user, hint, user, answer, user, answer])).toEqual(["none", "none", "none", "spelled", "none", "mark"]);
+  test("lines the app wrote itself are not", () => {
+    expect(isModelAnswer({ role: "secondb", synthetic: true })).toBe(false);
   });
 
-  test("the fixed safety reply is not a model answer either", () => {
-    const safety: AiMarkTurn = { role: "secondb", safetyZone: "red" };
-    expect(marks([user, safety, user, answer])).toEqual(["none", "none", "none", "spelled"]);
-    // A cautious (yellow) reply still comes from the model.
-    expect(marks([user, { role: "secondb", safetyZone: "yellow" }])).toEqual(["none", "spelled"]);
+  test("the fixed safety reply is not: no model is called for it", () => {
+    expect(isModelAnswer({ role: "secondb", safetyZone: "red" })).toBe(false);
   });
 
-  test("an older in-memory answer without a zone counts as an answer", () => {
-    expect(marks([user, { role: "secondb" }])).toEqual(["none", "spelled"]);
-  });
-
-  test("an index outside the list is none", () => {
-    expect(aiMarkFor([user, answer], 5)).toBe("none");
-    expect(aiMarkFor([], 0)).toBe("none");
+  test("a turn that is not there is not", () => {
+    expect(isModelAnswer(undefined)).toBe(false);
   });
 });
 
-describe("chat screen and locales carry the mark", () => {
+describe("withAiCopyTail: what a copied model answer ends with", () => {
+  test("the last line says it is AI-made, one blank line below the answer", () => {
+    expect(withAiCopyTail("답입니다.", "AI가 생성한 내용 (PolaScope)")).toBe("답입니다.\n\nAI가 생성한 내용 (PolaScope)");
+  });
+
+  test("blank lines at the end of the answer do not pile up", () => {
+    expect(withAiCopyTail("답\n\n", "꼬리")).toBe("답\n\n꼬리");
+  });
+});
+
+describe("chat screen and locales", () => {
   const root = path.resolve(__dirname, "../../../..");
   const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8").replace(/\r\n/g, "\n");
   const screen = read("src/app/secondb.tsx");
-  const header = screen.slice(screen.indexOf("testID={`chat-message-header-${turn.role}-${i}`}"), screen.indexOf("<View style={ds.bubbleCol}>"));
+  type Copy = { aiLine?: string; aiNotice?: { body?: string; confirm?: string }; aiCopyTail?: string; aiMark?: unknown; rev2: Record<string, { lensName: string }> };
+  const copy = (lng: string) => JSON.parse(read(`locales/${lng}/secondb.json`)) as Copy;
 
-  test("the mark sits in the answer's name row, right after the name", () => {
-    expect(screen).toContain('import { aiMarkFor } from "@/lib/chat/ai-mark";');
-    expect(header.indexOf("chat-message-name-")).toBeGreaterThan(0);
-    expect(header.indexOf("chat-ai-mark-")).toBeGreaterThan(header.indexOf("chat-message-name-"));
-    expect(header).toContain("aiMarkFor(turns, i)");
-    expect(header).toContain('{t("aiMark.short")}');
+  test("no mark is drawn by an answer's name any more", () => {
+    expect(screen).not.toContain("chat-ai-mark-");
+    expect(screen).not.toContain("chat-ai-sentence-");
+    expect(screen).not.toContain("aiMark.");
   });
 
-  test("the sentence is the mark's spoken name and is drawn once, on the spelled-out turn", () => {
-    expect(header).toContain('accessibilityLabel={t("aiMark.spoken")}');
-    expect(header).toMatch(/=== "spelled" \? \(\s*<Text[^>]*testID=\{`chat-ai-sentence-\$\{i\}`\}/);
-    // The mark already speaks the sentence, so the drawn copy is hidden from screen readers on every platform.
-    expect(header).toContain('aria-hidden accessibilityElementsHidden importantForAccessibility="no"');
-    // Drawn as text once (the other use is the mark's spoken name).
-    expect(header.match(/^\s*\{t\("aiMark\.spoken"\)\}\s*$/gm)).toHaveLength(1);
+  test("one line sits under the input, inside the composer dock, and names who is answering now", () => {
+    const dock = screen.slice(screen.indexOf('testID="chat-composer-dock"'), screen.indexOf("</KeyboardAvoidingArea>"));
+    expect(dock.indexOf("<ChatComposer")).toBeGreaterThan(0);
+    expect(dock.indexOf('testID="chat-ai-line"')).toBeGreaterThan(dock.indexOf("<ChatComposer"));
+    expect(dock).toContain('{t("aiLine", { name: t(`rev2.${rev2Persona}.lensName`) })}');
   });
 
-  test("the answer's name row may wrap so the sentence never pushes past the edge", () => {
-    expect(screen).toContain('aiMessageHeader: { flexWrap: "wrap" },');
-    expect(screen).toContain('turn.role === "secondb" && ds.aiMessageHeader]} testID={`chat-message-header-${turn.role}-${i}`}>');
+  test("only a copied model answer gets the last line", () => {
+    expect(screen).toContain('const copied = isModelAnswer(turns[i]) ? withAiCopyTail(text, t("aiCopyTail")) : text;');
+    expect(screen).toContain("void writeClipboardText(copied)");
+    expect(screen).not.toContain("void writeClipboardText(text)");
   });
 
-  test("Korean uses Simon's sentence as written; every locale has both strings", () => {
-    const copy = (lng: string) => (JSON.parse(read(`locales/${lng}/secondb.json`)) as { aiMark?: { short?: string; spoken?: string } }).aiMark;
-    expect(copy("ko")).toEqual({ short: "AI", spoken: "이 답은 AI가 만들었어요." });
-    for (const lng of ["en", "es", "pt", "id"]) {
-      expect(copy(lng)?.short).toMatch(/^(AI|IA)$/);
-      expect((copy(lng)?.spoken ?? "").length).toBeGreaterThan(10);
+  test("every locale has the strings with the name slot, and none carries a long dash", () => {
+    for (const lng of ["ko", "en", "es", "pt", "id"]) {
+      const c = copy(lng);
+      expect(c.aiMark).toBeUndefined();
+      expect(c.aiLine).toContain("{{name}}");
+      expect(c.aiNotice?.body).toContain("{{name}}");
+      expect((c.aiNotice?.confirm ?? "").length).toBeGreaterThan(0);
+      expect(c.aiCopyTail).toContain("PolaScope");
+      for (const text of [c.aiLine, c.aiNotice?.body, c.aiNotice?.confirm, c.aiCopyTail]) expect(text).not.toContain("—");
+    }
+  });
+
+  test("Korean says the name is AI and attaches 는 to it, so each of the three names must end in a vowel", () => {
+    const ko = copy("ko");
+    expect(ko.aiLine?.startsWith("{{name}}는 AI입니다.")).toBe(true);
+    expect(ko.aiNotice?.body?.startsWith("{{name}}는 AI입니다.")).toBe(true);
+    for (const id of ["secondb", "meta", "twi"]) {
+      const name = ko.rev2[id].lensName;
+      const last = name.charCodeAt(name.length - 1);
+      // A Hangul syllable with no final consonant: (code - 0xAC00) % 28 === 0.
+      expect(last >= 0xac00 && last <= 0xd7a3 && (last - 0xac00) % 28 === 0).toBe(true);
     }
   });
 });

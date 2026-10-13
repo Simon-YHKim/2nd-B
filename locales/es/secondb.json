@@ -167,8 +167,10 @@
       "page": "{{current}} de {{total}}"
     }
   },
-  "aiMark": {
-    "short": "IA",
-    "spoken": "Esta respuesta la creó la IA."
-  }
+  "aiLine": "{{name}} es una IA y puede equivocarse. Comprueba la información importante.",
+  "aiNotice": {
+    "body": "{{name}} es una IA. Sus respuestas las genera la IA y son solo de referencia. Comprueba la información importante.",
+    "confirm": "Entendido"
+  },
+  "aiCopyTail": "Contenido generado por IA (PolaScope)"
 }
