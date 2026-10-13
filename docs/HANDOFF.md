@@ -1,5 +1,15 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 01:29 / 2ndb-e7: 환불을 그 턴의 근거 줄에 묶는 PR #2438 을 초안으로 엶(CI 통과) - 다음 1개는 그 PR 의 독립 검토
+
+- **다음 1개 = #2438 의 독립 검토 1회차**. 준비는 끝났다: `E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r1.config.json`(과제 `q67bind-r1.md` · 주장 `gates/q67bind-facts-r1.md` · 발췌 `gates/q67bind-context.md`). 돌리는 법: 그 폴더에서 `python build_pr_gate.py gates/q67bind-daybreak-r1.config.json` → `bash run_gate_one.sh q67bind-daybreak-r1 refund-bind-261013`(배경 · 약 10분). **조건**: 폰 점검 에뮬레이터(`qemu-system-x86_64`)가 내려가 있을 것(Relay 에 01:25 에 부탁 · `.bots/relay/inbox/coding-e7-0255-pr-2438-emu-window-0125.note.md`) · 여유 메모리 확인 · 2ndb-79 에 시작 시각을 먼저 알림 · 끝나면 Relay 에 "다시 켜도 됨". 판정이 BLOCK 이면 고쳐 2회차, 두 번 막히면 멈추고 Simon 께.
+- **통과한 뒤의 순서**: `gh pr update-branch 2438`(main 이 움직였다) → CI → 머지(두 창에 먼저 알림 · 서버 파일이라 폰 빌드는 안 돈다고 보지만 머지 뒤 확인) → `python build_apply_0255.py origin/main <out.sql>`(같은 폴더 · md5 를 메모에 적음) → 그 `.sql` 을 `.bots/relay/inbox/` 에 먼저, 메모는 그다음 · `_sync/TO-CLI.md` 에 "알림" → Relay 가 실행(본문에 함수를 없애는 문장이 있어 확인 카드가 뜰 수 있음) → 이 창이 읽기 확인(원장 221행 · 인자 둘짜리만 있음 · 감사 표 트리거 둘 · `crisis_events` 의 unlisted 건수) → `openai-proxy` 재배포(`.github/workflows/deploy-edge-function.yml` 을 먼저 읽을 것) → 2ndb-79 에 "배포 끝"(그 창이 #2425 를 다시 엶).
+- **작업 메모**: `E:/Coding Infra/reports/codex-audit-261010/q67-refund-bind-notes-261014.md`. 워크트리 `.worktrees/refund-bind-261013`(node_modules 정션 있음 · 지울 때 정션부터 떼기).
+- **떼어 둔 것**: 사용자 글이 걸린 턴의 환불(Q-261013-67)은 #2438 에 없다. 여쭐 카드(어디까지 돌려줄지 + 상한 숫자)를 2ndb-79 와 정리해 올릴 것. 넣을 사실: 서버 상한은 이미 하나 있다(`0181:206-262` · 위기 기록 사용자당 10분 30 · 24시간 200).
+- **멈춘 것은 그대로**: 0253(#2388)은 Q-261013-49 의 답 대기(보고 페이지 5판 · https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg).
+- **그다음 차례**(0255 가 운영에 들어간 뒤): 대시보드 요청의 시간대 확인을 작은 표로 → Q-261013-48 ② 미확인 가입 자동 삭제 → Q-261013-79 = 가 의 서버 쪽 → Q-261013-40 · 41.
+- **이 창의 감시는 꺼져 있다**. 깨워질 때만 `.bots/relay/outbox/` 를 읽는다. 로컬 PostgreSQL 은 내려가 있다.
+
 ## 2026-10-14 01:18 / 2ndb-79: 인터뷰 저장 화면은 제목 · 끝 질문 · 표 접기가 들어갔다(#2436 · 8081 에서 확인) - 「저장 안 함」 버튼은 검토가 두 번 막아 설계부터 따로 - 다음 1개는 끝내기 판정(정상 답이 대화를 끝내는 main 의 결함)
 
 - **#2436 머지(01:13:31 · main `525ecf95`)**: 저장된 이야기의 제목 = 「별 이름 · 첫 답의 앞 40자」 · 버튼으로 끝냈을 때 저장본 끝의 답 없는 질문이 빠짐 · 저장 화면의 표는 「학창시절 · 답 2개」 한 줄 뒤에 접힘. 새 모듈 `src/lib/interview/saved-story.ts`. 8081 확인 도구 `E:/Coding Infra/reports/devlab-261010/signup-test/tools/interview_save_screen_check.cjs`(QA 계정에 기록 1줄을 쓴다 · 실제 질문 요청 1번).
