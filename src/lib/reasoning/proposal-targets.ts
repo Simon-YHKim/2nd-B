@@ -26,18 +26,20 @@ export async function resolveLiveProposals<P extends StoredProposalRef>(
   lookup: ProposalTargetLookup,
   unreadTitle: (refKind: ProposalRefKind) => string,
 ): Promise<P[]> {
-  const resolved = await Promise.all(
-    proposals.map(async (proposal): Promise<P | null> => {
+  // Filled by index so the stored order holds whatever order the reads finish in.
+  const resolved: (P | null)[] = proposals.map(() => null);
+  await Promise.all(
+    proposals.map(async (proposal, index) => {
       try {
         const title =
           proposal.refKind === "record"
             ? await lookup.record(proposal.refId)
             : await lookup.source(proposal.refId);
-        return title === null ? null : { ...proposal, title };
+        resolved[index] = title === null ? null : { ...proposal, title };
       } catch {
         // The read failed, so the row may still be there: keep the proposal under a neutral name.
         // The stored title is never the fallback - on older rows it is the record's opening text.
-        return { ...proposal, title: unreadTitle(proposal.refKind) };
+        resolved[index] = { ...proposal, title: unreadTitle(proposal.refKind) };
       }
     }),
   );
