@@ -33,6 +33,26 @@ export function isBareUrl(input: string): boolean {
 }
 
 /**
+ * A title line and exactly one address, two blocks apart: the shape a browser's share sends
+ * (normalizeSharedCaptureParams joins the title and the address with a blank line). It is a link
+ * with a title, not a clipped text: the box says so and the record is saved under the shared
+ * title (Z113). Anything else (a second paragraph, an address inside the title, a multi-line
+ * title) is not.
+ */
+export function titledLinkIn(input: string): { title: string; url: string } | null {
+  const blocks = input
+    .trim()
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter((block) => block.length > 0);
+  if (blocks.length !== 2) return null;
+  const [title, url] = blocks;
+  if (/\n/.test(title) || title.length > 200 || /https?:\/\//i.test(title)) return null;
+  if (/\s/.test(url) || !URL_RE.test(url)) return null;
+  return { title, url };
+}
+
+/**
  * Extract the first http(s) URL found anywhere in the markdown, so a clipped
  * block can still record its source_url. Returns null when none present.
  */

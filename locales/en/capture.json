@@ -198,6 +198,11 @@
     "pasteOfferHint": "Fills the box with your last copied content. It is read only when you tap.",
     "pasteOfferEmpty": "Nothing to paste was found."
   },
+  "sharedOverDraft": {
+    "title": "You have unsaved text here.",
+    "append": "Add below it",
+    "replace": "Clear it and start new"
+  },
   "inputs": {
     "extractedLabel": "Text from your photo (editable)",
     "bodyLabel": "Body",

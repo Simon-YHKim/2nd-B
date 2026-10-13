@@ -273,7 +273,8 @@ describe("callAdvisor — output re-classification (CSO #1 fix)", () => {
 
     expect(mockGenerateContent).not.toHaveBeenCalled();
     const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
-    expect(categories).toEqual(["unlisted", "passive_ideation"]);
+    // The user's own words: what is off the list is dropped, and no stand-in is written (Q-261013-66).
+    expect(categories).toEqual(["passive_ideation"]);
     expect(JSON.stringify(categories)).not.toContain("cannot go on");
   });
 
@@ -293,7 +294,8 @@ describe("callAdvisor — output re-classification (CSO #1 fix)", () => {
 
     expect(mockGenerateContent).not.toHaveBeenCalled();
     const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
-    expect(categories).toEqual(["unlisted", "passive_ideation"]);
+    expect(categories).toEqual(["passive_ideation"]);
+    expect(categories).not.toContain("unlisted");
     expect(categories.some((entry: string) => entry.startsWith("crisis_term:"))).toBe(false);
     expect(categories).not.toContain("output_swap");
     expect(categories).not.toContain("proxy_input_red");
