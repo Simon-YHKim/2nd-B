@@ -7,6 +7,7 @@ import {
   type Locale,
 } from "./lexicon";
 import { prepareCrisisScanText } from "./crisis-context";
+import { prepareModelReplyScanText } from "./model-reply-scan";
 
 export type SafetyZone = "green" | "yellow" | "red";
 
@@ -111,6 +112,31 @@ export function classifyInput(text: string, locale: Locale, opts: ClassifyOption
   for (const term of FORBIDDEN_TERMS[locale]) {
     if (matchesTerm(text, term, locale)) lexiconMatches.push(term);
   }
+  if (lexiconMatches.length > 0) {
+    return { zone: "yellow", matched: lexiconMatches, categories: ["forbidden_lexicon"] };
+  }
+  return { zone: "green", matched: [], categories: [] };
+}
+
+export interface ModelReplyOptions extends ClassifyOptions {
+  // Allow the closed list of benign overlaps (model-reply-scan.ts). The caller sets
+  // this only for an adult's conversation with no recent crisis signal.
+  benignOverlaps?: boolean;
+}
+
+// Classifies a MODEL REPLY (Simon 2026-10-13, Q-261013-34). Same lexicon, same
+// matcher and same order as classifyInput. It differs in one case only: the
+// caller allowed the benign overlaps, the user is a known adult (minor === false;
+// unknown is treated as a minor), and every crisis match sat inside a listed
+// overlap. A crisis term standing anywhere else keeps the reply red. Never use
+// this for what the user wrote.
+export function classifyModelReply(text: string, locale: Locale, opts: ModelReplyOptions = {}): SafetyResult {
+  const strict = classifyInput(text, locale, opts);
+  if (strict.zone !== "red" || opts.benignOverlaps !== true || opts.minor !== false) return strict;
+  const scan = prepareModelReplyScanText(text);
+  const stillMatched = CRISIS_TERMS[locale].filter((term) => matchesTerm(scan, term, locale));
+  if (stillMatched.length > 0) return { ...strict, matched: stillMatched };
+  const lexiconMatches = FORBIDDEN_TERMS[locale].filter((term) => matchesTerm(text, term, locale));
   if (lexiconMatches.length > 0) {
     return { zone: "yellow", matched: lexiconMatches, categories: ["forbidden_lexicon"] };
   }
