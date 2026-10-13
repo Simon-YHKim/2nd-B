@@ -203,7 +203,7 @@
       "evidence": "근거 · 기록 8건",
       "rhythm": "리듬 ↓",
       "suggestRest": "쉼을 기록할까?",
-      "suggestImagine": "트위비 모드"
+      "suggestImagine": "조이케이 모드"
     },
     "lens": {
       "emptyTitle": "아직 이 별이 켜지지 않았습니다",
@@ -303,7 +303,7 @@
       "rewrite": "다시 쓰기",
       "add": "+ 추가",
       "emptyTitle": "아직 적어 둔 미래의 모습이 없습니다",
-      "emptyBody": "트위비와 앞으로 되고 싶은 모습을 이야기하고 여기에 남겨 보세요."
+      "emptyBody": "조이케이와 앞으로 되고 싶은 모습을 이야기하고 여기에 남겨 보세요."
     },
     "relational": {
       "title": "관계·지식",
