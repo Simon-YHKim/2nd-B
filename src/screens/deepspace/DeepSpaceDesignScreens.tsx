@@ -2812,11 +2812,11 @@ export function DeepSpaceFocusScreen() {
         // another preset later cannot rewrite what was done (R2C-13).
         const doneArea = areaRef.current;
         setTally((cur) => ({ ...cur, day: completeFocusSession(cur.day, doneArea, prev.config.focusMinutes) }));
-        if (userId) void applyFocusSessionComplete(userId).catch(() => {});
-        void notifyNow(
-          t("focus.alarmFocusTitle"),
-          t("focus.alarmFocusBodyArea", { area: t(`phone.areas.${doneArea}`) }),
-        ).catch(() => {});
+        if (userId) {
+          void applyFocusSessionComplete(userId).catch(() => {});
+          // The account goes first: without it notifyNow answers "error" and nothing is shown (Z107).
+          void notifyNow(userId, t("focus.alarmFocusTitle"), t("focus.alarmFocusBodyArea", { area: t(`phone.areas.${doneArea}`) })).catch(() => {});
+        }
       } else {
         setTimer(next);
       }
