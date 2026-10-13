@@ -216,6 +216,39 @@ describe("Supabase auth session mutation boundary", () => {
     expect(design).toContain("SIGNED_OUT");
   });
 
+  // Z18 (2026-10-14): `resend` is called outside the mutation lock by decision, not by omission.
+  // In the pinned auth-js it is one POST to /resend that neither reads nor writes the stored
+  // session, and its only caller runs before sign-in (the sign-up code step; the hook returns
+  // early when there is a user). If a later SDK makes it touch the session, this fails and the
+  // call moves inside the lock.
+  test("resend is a reviewed sessionless call, made outside the lock on purpose", () => {
+    const sdk = fs.readFileSync(
+      path.join(ROOT, "node_modules/@supabase/auth-js/dist/module/GoTrueClient.js"),
+      "utf8",
+    );
+    const start = sdk.indexOf("    async resend(credentials) {");
+    expect(start).toBeGreaterThan(-1);
+    const body = sdk.slice(start, sdk.indexOf("\n    /**", start));
+    expect(body).toContain("`${this.url}/resend`");
+    expect(body).not.toMatch(
+      /_saveSession|_removeSession|_acquireLock|_useSession|_notifyAllSubscribers|setItemAsync|removeItemAsync|getItemAsync|this\.storage/,
+    );
+
+    const facade = fs.readFileSync(AUTH_FACADE, "utf8");
+    const fn = facade.slice(
+      facade.indexOf("export async function resendSignUpCode"),
+      facade.indexOf('// Supabase Auth "Require current password'),
+    );
+    expect(fn).toContain("supabase.auth.resend({");
+    expect(fn).not.toMatch(/runAuthSessionMutation|runSdkUnlockedWriter/);
+
+    // The facade is the only place that reaches for it.
+    const callers = sourceFiles(path.join(ROOT, "src"))
+      .filter((file) => /\bauth\s*\.\s*resend\s*\(/.test(fs.readFileSync(file, "utf8")))
+      .map((file) => path.relative(ROOT, file).split(path.sep).join("/"));
+    expect(callers).toEqual(["src/lib/supabase/auth.ts"]);
+  });
+
   test("account deletion binds both the server call and local finalizer to captured A", () => {
     const requestSource = fs.readFileSync(
       path.join(ROOT, "src/lib/records/delete-bulk.ts"),

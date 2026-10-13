@@ -739,6 +739,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               onPress={() => setTableOpen((open) => !open)}
               accessibilityRole="button"
               accessibilityState={{ expanded: tableOpen }}
+              // 웹은 `accessibilityState.expanded` 를 옮겨 주지 않는다(PixelPressable 과 같은 까닭).
+              aria-expanded={tableOpen}
               style={styles.saveMeta}
             >
               <Text style={[m3TextStyle("bodyMedium"), styles.saveMetaText]}>
