@@ -83,8 +83,14 @@ describe("notifyNow has no form without the account", () => {
     expect(overloads).toHaveLength(1);
     const parameters = overloads[0]!.parameters;
     expect(parameters.map((parameter) => parameter.name.getText(source))).toEqual(["ownerId", "title", "body"]);
-    // None of the three may be left out, so a two-argument call does not compile.
-    expect(parameters.every((parameter) => parameter.questionToken === undefined && parameter.initializer === undefined)).toBe(true);
+    // None of the three may be left out (not optional, no default, not a rest
+    // parameter), so a two-argument call does not compile.
+    expect(
+      parameters.every(
+        (parameter) =>
+          parameter.questionToken === undefined && parameter.initializer === undefined && parameter.dotDotDotToken === undefined,
+      ),
+    ).toBe(true);
   });
 
   test("the running code still refuses a call without the account", () => {
