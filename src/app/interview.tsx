@@ -86,6 +86,7 @@ import {
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "@/lib/interview/session-end";
 import { storedTurns, storyTitle } from "@/lib/interview/saved-story";
+import { createSaveFlow, probeAction } from "@/lib/interview/save-flow";
 import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
 import { isRecordingAudioMode } from "@/lib/audio/audio-session";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
@@ -298,6 +299,11 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const [tableOpen, setTableOpen] = useState(false);
   /** 「저장 안 함」을 누르면 한 번 더 묻는 창. */
   const [discardAsk, setDiscardAsk] = useState(false);
+  /** 담기와 담지 않고 나가기의 상태(save-flow.ts). 판정이 아직 오는 중이거나 저장을 한 번이라도
+   *  시도했으면 「저장 안 함」은 더는 참이 아니다. 아래 두 state 는 그 값을 화면에 비춘 것이다. */
+  const saveFlow = useRef(createSaveFlow());
+  const [verdictWait, setVerdictWait] = useState(false);
+  const [saveTried, setSaveTried] = useState(false);
   const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
     visible: false,
     hotline: "KR_109",
@@ -388,6 +394,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       if (!userId || ended.current) return;
       setBusy(true);
       setNotice(null);
+      // 이 요청의 판정이 오기 전에는 저장하지 않고 나갈 수 없다(save-flow.ts).
+      const verdictIn = saveFlow.current.verdictPending();
+      setVerdictWait(true);
       try {
         const move = nextMove(cov, period, entriesOf(history), new Date(), stuck, giveUp, {
           history, locale, concreteOnly,
@@ -434,13 +443,16 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           userId, locale, period, history, cov, isMinor === true,
           0, move.kind === "finish" ? credited : move.layer,
         );
-        // Stop/save can be selected while this request is in flight.
-        if (ended.current) return;
-        if (probe.zone === "red") {
+        // C9 가 먼저다. 이 요청이 떠 있는 동안 "여기까지"를 눌러 저장 화면으로 갔어도
+        // 빨강 판정은 버리지 않는다(게이트 Z64-01). 버리는 것은 질문이다.
+        const after = probeAction(probe.zone, ended.current);
+        if (after === "crisis") {
           // C9: 텍스트가 아니라 핫라인. 대화는 여기서 멈춘다.
           setCrisis({ visible: true, hotline: hotlineFor() });
           return;
         }
+        // Stop/save can be selected while this request is in flight.
+        if (after === "drop") return;
         const lastAnswer = history[history.length - 1];
         const confirmed = credited && lastAnswer
           ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)
@@ -505,6 +517,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         }
         setNotice(t("drill.failed"));
       } finally {
+        verdictIn();
+        setVerdictWait(saveFlow.current.awaitingVerdict());
         setBusy(false);
       }
     },
@@ -646,6 +660,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   async function keepIt() {
     if (!userId || saving) return;
     setSaving(true);
+    // 여기서부터는 기록이 생겼을 수 있다. 「저장 안 함」을 거둔다(save-flow.ts).
+    setSaveTried(true);
     let navigating = false;
     try {
       const qLabel = locale === "ko" ? "질문" : "Q";
@@ -654,45 +670,61 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       const transcript = storedTurns(turns)
         .map((turn) => `${turn.role === "interviewer" ? qLabel : aLabel}: ${turn.text}`)
         .join("\n\n");
-      // The pre-save check above is the LOCAL lexicon. createRecord's own C9
-      // pass is the semantic one, and it reports red on the followup rather
-      // than throwing - so a semantically-red transcript that the lexicon did
-      // not match was written to the ledger and shown nowhere.
-      const saved = await createRecord({
-        userId,
-        locale,
-        minor: isMinor === true,
-        kind: "audit_response",
-        body: transcript,
-        topic: locale === "ko" ? "회상 인터뷰" : "Recall interview",
-        // 목록에 보이는 제목. 모든 이야기가 답한 횟수만 다른 같은 줄이라 열어 봐야
-        // 구분됐다(Z61 · Simon 결정 Q-261013-51: 별 이름 + 첫 답의 앞부분).
-        summary: storyTitle(
-          homeT(`ds.star.${period}`),
-          turns.filter((turn) => turn.role === "user").map((turn) => turn.text),
-          isBlockedAnswer,
-        ),
-        // 옛 스크리너와 같은 표식. assess/registry.ts 가 이걸로 완료를 판정한다.
-        // 앱 표식 칸(0218)에 쓴다 — 사용자 태그와 섞이지 않게.
-        systemTags: recallInterviewSystemTags(locale),
-        auditPeriod,
-        domainIntent: growthOrigin ? "growth" : undefined,
-        withFollowup: false,
+      // 기록이 먼저고 판 자리가 다음이다. 둘째에서 실패한 뒤 다시 누르면 기록은 다시
+      // 쓰지 않는다(save-flow.ts) -- 예전에는 전체를 다시 돌려 같은 이야기가 둘이 될 수 있었다.
+      const kept = await saveFlow.current.keep({
+        writeRecord: async () => {
+          // The pre-save check above is the LOCAL lexicon. createRecord's own C9
+          // pass is the semantic one, and it reports red on the followup rather
+          // than throwing - so a semantically-red transcript that the lexicon did
+          // not match was written to the ledger and shown nowhere.
+          const saved = await createRecord({
+            userId,
+            locale,
+            minor: isMinor === true,
+            kind: "audit_response",
+            body: transcript,
+            topic: locale === "ko" ? "회상 인터뷰" : "Recall interview",
+            // 목록에 보이는 제목. 모든 이야기가 답한 횟수만 다른 같은 줄이라 열어 봐야
+            // 구분됐다(Z61 · Simon 결정 Q-261013-51: 별 이름 + 첫 답의 앞부분).
+            // 대화를 끝낸 말("그만할래요")은 답이 아니라서 뺀다. 그 턴은 늘 마지막이라
+            // 뒤의 답이 첫 답 자리로 올라오는 일은 없다.
+            summary: storyTitle(
+              homeT(`ds.star.${period}`),
+              turns
+                .filter((turn) => turn.role === "user" && answerDisposition(turn.text, locale) !== "stop")
+                .map((turn) => turn.text),
+            ),
+            // 옛 스크리너와 같은 표식. assess/registry.ts 가 이걸로 완료를 판정한다.
+            // 앱 표식 칸(0218)에 쓴다 — 사용자 태그와 섞이지 않게.
+            systemTags: recallInterviewSystemTags(locale),
+            auditPeriod,
+            domainIntent: growthOrigin ? "growth" : undefined,
+            withFollowup: false,
+          });
+          return saved.followup?.zone === "red";
+        },
+        addCoverage: () => {
+          // 판 자리를 남긴다. **내용과 같은 동의 경로**다 -- 사용자가 담기로 했을
+          // 때만 쓴다. 칸 수에는 답변 원문이 없지만, 그렇다고 담지 않기로 한 대화가
+          // 별을 밝히는 것은 이 저장소의 규율과 어긋난다.
+          const delta = emptyCoverage();
+          for (const p of LIFE_PERIODS) {
+            for (const l of DRILL_LAYERS) {
+              delta[p][l] = Math.max(0, coverage[p][l] - baseCoverage.current[p][l]);
+            }
+          }
+          return addCoverage(userId, delta);
+        },
       });
-      if (saved.followup?.zone === "red") {
+      if (kept === "crisis") {
         setCrisis({ visible: true, hotline: hotlineFor() });
         return;
       }
-      // 판 자리를 남긴다. **내용과 같은 동의 경로**다 -- 사용자가 담기로 했을
-      // 때만 쓴다. 칸 수에는 답변 원문이 없지만, 그렇다고 담지 않기로 한 대화가
-      // 별을 밝히는 것은 이 저장소의 규율과 어긋난다.
-      const delta = emptyCoverage();
-      for (const p of LIFE_PERIODS) {
-        for (const l of DRILL_LAYERS) {
-          delta[p][l] = Math.max(0, coverage[p][l] - baseCoverage.current[p][l]);
-        }
+      if (kept === "failed") {
+        setFailModal(true);
+        return;
       }
-      await addCoverage(userId, delta);
       // 판 만큼 별이 밝아졌다면 그 변화를 원장에 남긴다. 남겨야 8주 그래프에
       // 선이 생긴다 -- 지금 등급만 있으면 "밝아지고 있다"를 보여줄 수가 없다.
       // 실패해도 조용하다(recordSevenTiers 가 삼킨다). 저장은 이미 끝났고,
@@ -717,7 +749,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   // 저장하지 않고 나간다 (Z64 · Simon 결정 Q-261013-52). 기록도 판 자리도 쓰지 않는다 --
   // 담기로 했을 때만 쓴다는 keepIt 의 규율 그대로다. 가는 곳은 저장한 뒤와 같다.
   function leaveUnsaved() {
-    if (saving) return;
+    if (saving || !saveFlow.current.canLeaveUnsaved()) return;
     setDiscardAsk(false);
     if (growthOrigin) router.replace("/star/growth");
     else router.replace(`/me/${period}`);
@@ -778,14 +810,18 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
                 icon={<Glyph name="check" color={m3.color.onPrimary} size={18} />}
                 style={styles.actionButton}
               />
-              {/* 저장하지 않는 길이 없었다(Z64). 답한 것이 있으면 한 번 더 묻는다. */}
-              <MdButton
-                label={t("drill.discard")}
-                variant="outlined"
-                disabled={saving}
-                onPress={() => (userTurns === 0 ? leaveUnsaved() : setDiscardAsk(true))}
-                style={styles.actionButton}
-              />
+              {/* 저장하지 않는 길이 없었다(Z64). 답한 것이 있으면 한 번 더 묻는다.
+                  저장을 한 번이라도 시도했으면 거둔다 -- 기록이 이미 생겼을 수 있다.
+                  마지막 답의 판정이 오는 동안에는 눌리지 않는다. */}
+              {saveTried ? null : (
+                <MdButton
+                  label={t("drill.discard")}
+                  variant="outlined"
+                  disabled={saving || verdictWait || crisis.visible}
+                  onPress={() => (userTurns === 0 ? leaveUnsaved() : setDiscardAsk(true))}
+                  style={styles.actionButton}
+                />
+              )}
             </View>
           </>
         ) : (

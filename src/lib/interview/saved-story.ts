@@ -26,17 +26,13 @@ export function storedTurns<T extends StoryTurn>(turns: readonly T[]): T[] {
 /**
  * The stored title: the star's name, then how the first answer begins.
  *
- * An answer the screen took as "I can't say" is passed over while a later one says
- * something; when every answer is one of those, the first stands. An answer longer than
- * STORY_TITLE_ANSWER_LENGTH is cut there and marked with an ellipsis.
+ * The first answer is taken as it is, even when it says little: the choice was "the first
+ * answer", and passing it over would put a later answer, one the user may not expect to
+ * see in a list, into the title. An answer longer than STORY_TITLE_ANSWER_LENGTH is cut
+ * there and marked with an ellipsis.
  */
-export function storyTitle(
-  star: string,
-  answers: readonly string[],
-  isNonAnswer: (text: string) => boolean,
-): string {
-  const said = answers.map((text) => text.replace(/\s+/g, " ").trim()).filter((text) => text.length > 0);
-  const first = said.find((text) => !isNonAnswer(text)) ?? said[0];
+export function storyTitle(star: string, answers: readonly string[]): string {
+  const first = answers.map((text) => text.replace(/\s+/g, " ").trim()).find((text) => text.length > 0);
   return first ? `${star} · ${headOf(first)}` : star;
 }
 
