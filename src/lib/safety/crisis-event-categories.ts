@@ -68,3 +68,37 @@ export function recordableCrisisCategories(categories: readonly unknown[]): stri
   }
   return out.slice(0, CRISIS_EVENT_CATEGORY_LIMIT);
 }
+
+// What a classifier may report: the word list's three names and the meaning
+// classifier's nine. The names that say where a record came from, and the term
+// numbers, are never taken from a classifier's answer. Only the app's own code
+// adds them, so a model cannot write "output_swap" or "crisis_term:7" into a
+// record by answering with it.
+export const CLASSIFIER_REPORTED_CATEGORIES: readonly string[] = [
+  "crisis",
+  "forbidden_lexicon",
+  "lexicon_match",
+  "passive_ideation",
+  "active_ideation_no_method",
+  "active_ideation_with_method",
+  "intent_no_plan",
+  "intent_with_plan",
+  "behavior_past",
+  "behavior_preparation",
+  "behavior_recent",
+  "self_harm_non_suicidal",
+];
+
+const REPORTABLE = new Set(CLASSIFIER_REPORTED_CATEGORIES);
+
+// A classifier's answer as it may be recorded: its twelve names are kept in their
+// order, anything else (free text, a source name, a term number) becomes one
+// "unlisted", duplicates are dropped, and the list stays within the limit.
+export function classifierReportedCategories(reported: readonly unknown[]): string[] {
+  const out: string[] = [];
+  for (const entry of reported) {
+    const kept = typeof entry === "string" && REPORTABLE.has(entry) ? entry : UNLISTED_CRISIS_CATEGORY;
+    if (!out.includes(kept)) out.push(kept);
+  }
+  return out.slice(0, CRISIS_EVENT_CATEGORY_LIMIT);
+}

@@ -30,7 +30,7 @@ import { getSupabaseClient } from "../supabase/client";
 import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-client";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
 import { enqueueAuditWrite } from "./audit-write-outbox";
-import { classifyObfuscatedInput, classifySafety, fixedCrisisResponse, noteObfuscationUnavailable, recordableCrisisCategories, replySwapCategories } from "./safety";
+import { classifierReportedCategories, classifyObfuscatedInput, classifySafety, fixedCrisisResponse, noteObfuscationUnavailable, recordableCrisisCategories, replySwapCategories } from "./safety";
 import {
   MODELS,
   PURPOSE_TIER,
@@ -1524,7 +1524,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       input.userId,
       {
         classifierConfidence: safety.confidence,
-        triggerCategories: safety.triggers,
+        triggerCategories: classifierReportedCategories(safety.triggers),
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },

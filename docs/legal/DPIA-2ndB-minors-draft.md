@@ -156,7 +156,10 @@ Explicitly **excluded** purposes for all users (privacy-by-design defaults OFF):
 > classifier reported. Every entry the current app queues for that field, on any
 > of its paths, is one of a closed list of fixed names
 > (`src/lib/safety/crisis-event-categories.ts`) or such a number; anything else a
-> classifier reports is recorded as `unlisted`. This is a check in the app, not a
+> classifier reports is recorded as `unlisted`. A classifier's answer is limited
+> to twelve of those names; the names that say where a record came from and the
+> term numbers are added only by the app's own code, so a model cannot put them
+> in a record by answering with them. This is a check in the app, not a
 > boundary: the server checks only how many entries there are and how long each
 > is (`0181`), so an older installed build or a modified client can still submit
 > other strings. Normalising them on the server is a separate change, not yet

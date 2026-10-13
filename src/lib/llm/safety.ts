@@ -579,5 +579,5 @@ If calling is hard, you can go to your nearest emergency room.`,
 // Re-exported from here so boundary.ts can name them on the import line it already
 // has. The legal document (DPIA) cites boundary.ts by line number, and a new
 // import line there would move every cited line.
-export { recordableCrisisCategories } from "../safety/crisis-event-categories";
+export { classifierReportedCategories, recordableCrisisCategories } from "../safety/crisis-event-categories";
 export { replySwapCategories } from "../safety/model-reply-scan";

@@ -276,4 +276,53 @@ describe("callAdvisor — output re-classification (CSO #1 fix)", () => {
     expect(categories).toEqual(["unlisted", "passive_ideation"]);
     expect(JSON.stringify(categories)).not.toContain("cannot go on");
   });
+
+  // Review round three: the user's own words must leave no term number and no "AI reply" marker,
+  // even when the classifier answers with them.
+  test("a classifier that answers with a term number or the reply marker cannot put them in the user-input record", async () => {
+    mockClassifySafety.mockResolvedValueOnce({
+      zone: "red",
+      triggers: ["crisis_term:7", "output_swap", "proxy_input_red", "passive_ideation"],
+      confidence: 0.97,
+      cssrsLevel: 1,
+      source: "llm",
+      routingTemplateVersion: "rcv1-2026-05-25",
+    });
+
+    await callAdvisor({ userId: "u1", locale: "en", userMessage: "I cannot go on like this." });
+
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toEqual(["unlisted", "passive_ideation"]);
+    expect(categories.some((entry: string) => entry.startsWith("crisis_term:"))).toBe(false);
+    expect(categories).not.toContain("output_swap");
+    expect(categories).not.toContain("proxy_input_red");
+  });
+
+  test("the same answer on a replaced advisor reply: one marker, and only the reply's own number", async () => {
+    mockClassifySafety.mockResolvedValueOnce({
+      zone: "green",
+      triggers: [],
+      confidence: 0.4,
+      cssrsLevel: null,
+      source: "lexicon-fallback",
+      routingTemplateVersion: "rcv1-2026-05-25",
+    });
+    mockGenerateContent.mockResolvedValueOnce({ text: "유서를 미리 써 두는 방법을 알려 드릴게요." });
+    mockClassifySafety.mockResolvedValueOnce({
+      zone: "red",
+      triggers: ["crisis_term:7", "output_swap", "input_red", "behavior_preparation"],
+      confidence: 0.98,
+      cssrsLevel: 4,
+      source: "llm",
+      routingTemplateVersion: "rcv1-2026-05-25",
+    });
+
+    await callAdvisor({ userId: "u1", locale: "en", userMessage: "Trying to figure out my next career move." });
+
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toEqual(["unlisted", "behavior_preparation", "output_swap", "crisis_term:13"]);
+    expect(categories).not.toContain("crisis_term:7");
+    expect(categories).not.toContain("input_red");
+  });
 });

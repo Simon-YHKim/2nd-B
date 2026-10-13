@@ -280,37 +280,63 @@ describe("replySwapCategories", () => {
     expect(JSON.stringify(list)).not.toContain("give up");
   });
 
-  it("drops duplicates, including a marker the classifier already reported", () => {
-    expect(replySwapCategories(["lexicon_match", "lexicon_match", "output_swap"], "자살, 그리고 또 자살", false)).toEqual([
+  it("drops duplicates", () => {
+    expect(replySwapCategories(["lexicon_match", "lexicon_match"], "자살, 그리고 또 자살", false)).toEqual([
       "lexicon_match",
       "output_swap",
       "crisis_term:1",
     ]);
   });
 
+  // Review round three: a classifier's answer is text a model wrote. It cannot name a source or a number.
+  it("takes no marker, source name or term number from the classifier: only this function adds them", () => {
+    const spoofed = ["crisis_term:7", "output_swap", "proxy_input_red", "input_red", "passive_ideation"];
+    // The reply holds one term (number 15). Number 7 and the other source names came from the classifier.
+    expect(replySwapCategories(spoofed, "가족에게 짐이 되는 사람", false)).toEqual([
+      "unlisted",
+      "passive_ideation",
+      "output_swap",
+      "crisis_term:15",
+    ]);
+    // A reply with no Korean term: the classifier's number does not appear at all.
+    const none = replySwapCategories(["crisis_term:7"], "you should give up", false);
+    expect(none).toEqual(["unlisted", "output_swap"]);
+    expect(none.filter((entry) => entry === "output_swap")).toHaveLength(1);
+  });
+
   it("at the limit keeps the marker and the numbers first, and what the classifier reported gives way", () => {
+    // Everything a classifier can report: its twelve names and one stand-in for the rest.
     const reported = [
       "passive_ideation", "active_ideation_no_method", "active_ideation_with_method", "intent_no_plan", "intent_with_plan",
       "behavior_past", "behavior_preparation", "behavior_recent", "self_harm_non_suicidal", "crisis", "forbidden_lexicon",
-      "lexicon_match", "input_red", "input_semantic_red", "interview_input_red", "record_save_red", "proxy_input_red",
+      "lexicon_match", "some free text",
     ];
-    // Seventeen reported names and two terms: the marker and both numbers stay, thirteen names fit.
+    // Two terms leave thirteen places: all thirteen fit.
     const twoTerms = replySwapCategories(reported, "유서 이야기와 자살 이야기가 함께 나왔습니다.", false);
+    expect(twoTerms).toEqual([...reported.slice(0, 12), "unlisted", "output_swap", "crisis_term:1", "crisis_term:13"]);
     expect(twoTerms).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
-    expect(twoTerms).toEqual([...reported.slice(0, 13), "output_swap", "crisis_term:1", "crisis_term:13"]);
 
-    // One reported name and one term: nothing is cut.
-    expect(replySwapCategories(["lexicon_match"], "자살이라는 낱말", false)).toEqual(["lexicon_match", "output_swap", "crisis_term:1"]);
+    // Four terms leave eleven places: the marker and all four numbers stay, the names give way.
+    const fourTerms = replySwapCategories(reported, CRISIS_TERMS.ko.slice(0, 4).join(" / "), false);
+    expect(fourTerms).toEqual([
+      ...reported.slice(0, 11),
+      "output_swap",
+      "crisis_term:1",
+      "crisis_term:2",
+      "crisis_term:3",
+      "crisis_term:4",
+    ]);
+    expect(fourTerms).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
   });
 
-  it("a reply holding every gate term keeps the marker and the fifteen lowest numbers, and says so", () => {
+  it("a reply holding every gate term keeps the marker and the fifteen lowest numbers", () => {
     const everyTerm = CRISIS_TERMS.ko.join(" / ");
     const list = replySwapCategories(["lexicon_match", "crisis"], everyTerm, false);
     expect(list).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
     expect(list).toEqual(["output_swap", ...Array.from({ length: 15 }, (_, i) => `crisis_term:${i + 1}`)]);
   });
 
-  it("fifteen terms still leave room for nothing but the marker, and fourteen leave one name", () => {
+  it("fifteen terms leave room for nothing but the marker, and fourteen leave one name", () => {
     const fifteen = CRISIS_TERMS.ko.slice(0, 15).join(" / ");
     expect(replySwapCategories(["lexicon_match"], fifteen, false)).toEqual([
       "output_swap",

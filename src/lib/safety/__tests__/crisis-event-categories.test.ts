@@ -1,7 +1,9 @@
 import {
   CRISIS_EVENT_CATEGORY_LIMIT,
+  CLASSIFIER_REPORTED_CATEGORIES,
   CRISIS_EVENT_FIXED_CATEGORIES,
   UNLISTED_CRISIS_CATEGORY,
+  classifierReportedCategories,
   recordableCrisisCategories,
 } from "../crisis-event-categories";
 
@@ -118,5 +120,61 @@ describe("recordableCrisisCategories", () => {
       expect(entry.length).toBeGreaterThanOrEqual(1);
       expect(entry.length).toBeLessThanOrEqual(64);
     }
+  });
+});
+
+describe("what a classifier may report", () => {
+  it("is the word list's three names and the meaning classifier's nine", () => {
+    expect([...CLASSIFIER_REPORTED_CATEGORIES]).toEqual([
+      "crisis",
+      "forbidden_lexicon",
+      "lexicon_match",
+      "passive_ideation",
+      "active_ideation_no_method",
+      "active_ideation_with_method",
+      "intent_no_plan",
+      "intent_with_plan",
+      "behavior_past",
+      "behavior_preparation",
+      "behavior_recent",
+      "self_harm_non_suicidal",
+    ]);
+    for (const name of CLASSIFIER_REPORTED_CATEGORIES) expect(CRISIS_EVENT_FIXED_CATEGORIES).toContain(name);
+  });
+
+  it.each([
+    "output_swap",
+    "input_red",
+    "input_semantic_red",
+    "interview_input_red",
+    "record_save_red",
+    "proxy_input_red",
+    "proxy_input_red_unconfirmed",
+    "crisis_term:1",
+    "crisis_term:7",
+    "crisis_term:19",
+    "unlisted",
+    "The user wrote that they cannot go on.",
+  ])("never takes a source name, a term number or free text from a classifier: %s", (entry) => {
+    expect(classifierReportedCategories([entry])).toEqual([UNLISTED_CRISIS_CATEGORY]);
+    expect(classifierReportedCategories(["passive_ideation", entry, "crisis"])).toEqual([
+      "passive_ideation",
+      UNLISTED_CRISIS_CATEGORY,
+      "crisis",
+    ]);
+  });
+
+  it("keeps its own names in order, drops duplicates, and turns non-strings into the stand-in", () => {
+    expect(classifierReportedCategories(["lexicon_match", "lexicon_match", "intent_with_plan"])).toEqual(["lexicon_match", "intent_with_plan"]);
+    expect(classifierReportedCategories([null, 3, "crisis"])).toEqual([UNLISTED_CRISIS_CATEGORY, "crisis"]);
+    expect(classifierReportedCategories([])).toEqual([]);
+  });
+
+  it("can never be longer than thirteen entries: twelve names and the stand-in", () => {
+    const everything = [...CRISIS_EVENT_FIXED_CATEGORIES, "crisis_term:3", "free text", "more free text"];
+    const list = classifierReportedCategories(everything);
+    expect(list.length).toBeLessThanOrEqual(13);
+    expect(list.length).toBeLessThanOrEqual(CRISIS_EVENT_CATEGORY_LIMIT);
+    for (const entry of list) expect([...CLASSIFIER_REPORTED_CATEGORIES, UNLISTED_CRISIS_CATEGORY]).toContain(entry);
   });
 });

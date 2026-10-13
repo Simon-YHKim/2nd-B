@@ -284,4 +284,17 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
     expect(categories).toEqual(["crisis", "input_red"]);
   });
+
+  // Review round three: a classifier that answers with reserved values.
+  test("a number or a source name the classifier answers with is not recorded; the reply's own number is", async () => {
+    mockGenerateContent.mockResolvedValueOnce({ text: "가족에게 짐이 되는 사람이라는 말은 사실이 아니에요." });
+    mockClassifySafety.mockResolvedValueOnce({ ...RED, triggers: ["crisis_term:7", "output_swap", "proxy_input_red", "passive_ideation"] });
+
+    await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "오늘 계획을 세웠어요." });
+
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toEqual(["unlisted", "passive_ideation", "output_swap", "crisis_term:15"]);
+    expect(categories).not.toContain("crisis_term:7");
+    expect(categories).not.toContain("proxy_input_red");
+  });
 });
