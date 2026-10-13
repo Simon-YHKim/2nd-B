@@ -317,23 +317,22 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
   });
 
   // Z109: the end alert is handed to the OS when the timer starts, so it rings with the app in the
-  // background. It keeps the fixed lock-screen sentence and the owner mark of every other alert.
+  // background. It keeps the fixed lock-screen sentence and the owner mark of every other alert,
+  // and there is one per account under a fixed identifier.
   test("the focus end alert is scheduled for its moment, owner-marked, on the reminder channel", async () => {
     setNavigatorProduct("ReactNative");
     requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
     scheduleNotificationAsync.mockResolvedValueOnce("focus-end");
     const at = new Date(Date.now() + 15 * 60_000);
 
-    const alert = await scheduleFocusEnd("account-a", at);
+    await expect(scheduleFocusEnd("account-a", at)).resolves.toBe("scheduled");
 
-    expect(alert.result).toBe("scheduled");
-    expect(alert.identifier).toMatch(/^ops-v2-[0-9a-f]{16}-once-/);
     const request = scheduleNotificationAsync.mock.calls[0][0] as {
       identifier: string;
       content: { title: string; body: string; data: Record<string, unknown> };
       trigger: { type: string; date: Date; channelId: string };
     };
-    expect(request.identifier).toBe(alert.identifier);
+    expect(request.identifier).toMatch(/^ops-v2-[0-9a-f]{16}-once-focus-end$/);
     expect(request.trigger).toEqual({ type: "date", date: at, channelId: "ops-routines" });
     expect(request.content).toMatchObject({
       title: "PolaScope",
@@ -342,70 +341,74 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     });
   });
 
-  test("ringing the focus end now reuses the identifier, so the scheduled alert is replaced and not rung twice", async () => {
+  test("arming the focus end again uses the same identifier, so there is never more than one", async () => {
     setNavigatorProduct("ReactNative");
     requestPermissionsAsync.mockResolvedValue({ granted: true });
     scheduleNotificationAsync.mockResolvedValue("focus-end");
-    const scheduled = await scheduleFocusEnd("account-a", new Date(Date.now() + 15 * 60_000));
 
-    const now = await scheduleFocusEnd("account-a", null, scheduled.identifier);
+    await scheduleFocusEnd("account-a", new Date(Date.now() + 15 * 60_000));
+    await scheduleFocusEnd("account-a", new Date(Date.now() + 10 * 60_000));
 
-    expect(now).toEqual({ result: "scheduled", identifier: scheduled.identifier });
-    expect(scheduleNotificationAsync).toHaveBeenCalledTimes(2);
-    const second = scheduleNotificationAsync.mock.calls[1][0] as { identifier: string; trigger: unknown };
-    expect(second.identifier).toBe(scheduled.identifier);
-    expect(second.trigger).toBeNull();
+    const ids = scheduleNotificationAsync.mock.calls.map((call) => (call[0] as { identifier: string }).identifier);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toBe(ids[1]);
+    // Never an immediate delivery: once the OS has the alert, the OS alone rings it.
+    expect(scheduleNotificationAsync.mock.calls.every((call) => (call[0] as { trigger: unknown }).trigger !== null)).toBe(true);
   });
 
-  test("ringing the focus end now leaves an alert the OS has already shown as it is", async () => {
-    setNavigatorProduct("ReactNative");
-    requestPermissionsAsync.mockResolvedValue({ granted: true });
-    scheduleNotificationAsync.mockResolvedValue("focus-end");
-    const scheduled = await scheduleFocusEnd("account-a", new Date(Date.now() + 15 * 60_000));
-    getPresentedNotificationsAsync.mockResolvedValueOnce([
-      { request: { identifier: "ops-v2-0000000000000000-once-other" } },
-      { request: { identifier: scheduled.identifier } },
-    ]);
-
-    await expect(scheduleFocusEnd("account-a", null, scheduled.identifier))
-      .resolves.toEqual({ result: "scheduled", identifier: scheduled.identifier });
-    expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1);
-
-    // Another alert on the shade, or a shade that cannot be read, does not hold the ring back.
-    getPresentedNotificationsAsync.mockResolvedValueOnce([{ request: { identifier: "ops-v2-0000000000000000-once-other" } }]);
-    await scheduleFocusEnd("account-a", null, scheduled.identifier);
-    getPresentedNotificationsAsync.mockRejectedValueOnce(new Error("shade unavailable"));
-    await scheduleFocusEnd("account-a", null, scheduled.identifier);
-    expect(scheduleNotificationAsync).toHaveBeenCalledTimes(3);
-  });
-
-  test("a focus end that is not ahead of now, a foreign identifier, or a refused permission schedules nothing", async () => {
+  test("a focus end that is not ahead of now, another account, or a refused permission schedules nothing", async () => {
     setNavigatorProduct("ReactNative");
     requestPermissionsAsync.mockResolvedValue({ granted: true });
 
-    await expect(scheduleFocusEnd("account-a", new Date(Date.now() - 1000))).resolves.toMatchObject({ result: "error" });
-    await expect(scheduleFocusEnd("account-a", new Date(Number.NaN))).resolves.toMatchObject({ result: "error" });
-    await expect(scheduleFocusEnd("account-a", new Date(Date.now() + 60_000), "ops-v2-0000000000000000-once-x"))
-      .resolves.toEqual({ result: "error", identifier: "ops-v2-0000000000000000-once-x" });
-    await expect(scheduleFocusEnd("account-b", new Date(Date.now() + 60_000))).resolves.toMatchObject({ result: "error" });
+    await expect(scheduleFocusEnd("account-a", new Date(Date.now() - 1000))).resolves.toBe("error");
+    await expect(scheduleFocusEnd("account-a", new Date(Number.NaN))).resolves.toBe("error");
+    await expect(scheduleFocusEnd("account-b", new Date(Date.now() + 60_000))).resolves.toBe("error");
+    // None of these gets as far as asking the person for the notification permission.
+    expect(requestPermissionsAsync).not.toHaveBeenCalled();
     requestPermissionsAsync.mockResolvedValueOnce({ granted: false });
-    await expect(scheduleFocusEnd("account-a", new Date(Date.now() + 60_000))).resolves.toMatchObject({ result: "denied" });
+    await expect(scheduleFocusEnd("account-a", new Date(Date.now() + 60_000))).resolves.toBe("denied");
 
     expect(scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
-  test("withdrawing the focus end alert cancels exactly that identifier, and only for its owner", async () => {
+  test("a focus end that passes while the permission prompt is open is not handed to the OS", async () => {
+    setNavigatorProduct("ReactNative");
+    const prompt = deferred<{ granted: boolean }>();
+    requestPermissionsAsync.mockReturnValueOnce(prompt.promise);
+    const nowSpy = jest.spyOn(Date, "now");
+    const start = 1_760_000_000_000;
+    nowSpy.mockReturnValue(start);
+    try {
+      const pending = scheduleFocusEnd("account-a", new Date(start + 3000));
+      // The person looks at the prompt for five seconds; the three-second session is over.
+      nowSpy.mockReturnValue(start + 5000);
+      prompt.resolve({ granted: true });
+
+      await expect(pending).resolves.toBe("error");
+      expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  test("withdrawing the focus end alert cancels that account's identifier and says whether the OS confirmed it", async () => {
     setNavigatorProduct("ReactNative");
     requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
     scheduleNotificationAsync.mockResolvedValueOnce("focus-end");
-    const { identifier } = await scheduleFocusEnd("account-a", new Date(Date.now() + 15 * 60_000));
+    await scheduleFocusEnd("account-a", new Date(Date.now() + 15 * 60_000));
+    const identifier = (scheduleNotificationAsync.mock.calls[0][0] as { identifier: string }).identifier;
 
-    await cancelFocusEnd("account-b", identifier);
-    await cancelFocusEnd("account-a", "ops-v2-0000000000000000-once-x");
+    // Another account has no lease here: nothing is cancelled and nothing is claimed.
+    await expect(cancelFocusEnd("account-b")).resolves.toBe(false);
     expect(cancelScheduledNotificationAsync).not.toHaveBeenCalled();
 
-    await cancelFocusEnd("account-a", identifier);
+    await expect(cancelFocusEnd("account-a")).resolves.toBe(true);
     expect(cancelScheduledNotificationAsync.mock.calls).toEqual([[identifier]]);
+
+    // A cancel the OS rejects is reported, so the caller can ask again.
+    cancelScheduledNotificationAsync.mockRejectedValueOnce(new Error("native cancel failed"));
+    await expect(cancelFocusEnd("account-a")).resolves.toBe(false);
+    await expect(cancelFocusEnd("account-a")).resolves.toBe(true);
   });
 
   test("frozen legacy calls without an explicit owner fail closed", async () => {

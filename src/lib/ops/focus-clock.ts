@@ -7,29 +7,48 @@
 import { focusJustCompleted, tick, type PomodoroState } from "./pomodoro";
 
 /**
- * How late a tick may find the end and still be the one to ring it. The end alert is handed to the
- * OS when the timer starts; a tick that arrives later than this (the app was in the background)
- * finds an alert that has already rung and must not ring it again.
+ * One reading of both clocks. The wall clock keeps going while the app is suspended, but it moves
+ * when the device clock is changed. The monotonic clock cannot be changed, but it may stand still
+ * while the device sleeps. Each is the measure where the other fails.
  */
-export const FOCUS_END_GRACE_MS = 2000;
+export interface FocusClockReading {
+  wall: number;
+  mono: number;
+}
+
+export function readFocusClock(): FocusClockReading {
+  const wall = Date.now();
+  const mono = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : wall;
+  return { wall, mono };
+}
+
+/** While the app ran without a break, a wall clock further than this from the monotonic one was changed. */
+export const CLOCK_JUMP_MS = 2000;
 
 export interface FocusAdvance {
   next: PomodoroState;
   /** A focus phase ran to its end in this step. */
   completed: boolean;
-  /** How long ago the phase ended, when `completed`. 0 otherwise. */
-  lateByMs: number;
+  /** The device clock was changed during this step: an alert scheduled for a wall-clock time is now wrong. */
+  clockJumped: boolean;
 }
 
-/** Advance `prev` by the wall-clock time between `since` and `at`. A clock that went backwards adds nothing. */
-export function advanceByClock(prev: PomodoroState, since: number, at: number): FocusAdvance {
-  const elapsed = Number.isFinite(at - since) ? Math.max(0, at - since) : 0;
-  const next = tick(prev, elapsed);
-  const completed = next !== prev && focusJustCompleted(prev, next);
-  return { next, completed, lateByMs: completed ? Math.max(0, elapsed - prev.remainingMs) : 0 };
-}
+const finite = (value: number) => (Number.isFinite(value) ? value : 0);
 
-/** Whether the tick that found the end should ring the alert itself (true) or the OS already has (false). */
-export function ringsOnTime(lateByMs: number): boolean {
-  return lateByMs <= FOCUS_END_GRACE_MS;
+/**
+ * Advance `prev` by the time between two readings.
+ *
+ * `continuous` says the app ran without a trip to the background between them. Then the monotonic
+ * clock is the measure, so a device clock set forward does not end the session early and one set
+ * back does not stretch it. After a trip to the background only the wall clock knows how long it was.
+ */
+export function advanceByClock(prev: PomodoroState, since: FocusClockReading, at: FocusClockReading, continuous: boolean): FocusAdvance {
+  const wall = finite(at.wall - since.wall);
+  const mono = finite(at.mono - since.mono);
+  const next = tick(prev, Math.max(0, continuous ? mono : wall));
+  return {
+    next,
+    completed: next !== prev && focusJustCompleted(prev, next),
+    clockJumped: continuous && Math.abs(wall - mono) > CLOCK_JUMP_MS,
+  };
 }

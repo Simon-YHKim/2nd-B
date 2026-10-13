@@ -109,7 +109,8 @@ import {
 } from "@/lib/ops/routines";
 import { createCard, listDueCards, recordReview, type SrsCardRow } from "@/lib/srs/queries";
 import type { SrsRating } from "@/lib/srs/scheduler";
-import { advanceByClock, ringsOnTime } from "@/lib/ops/focus-clock";
+import { advanceByClock, readFocusClock } from "@/lib/ops/focus-clock";
+import { createFocusEndAlert } from "@/lib/ops/focus-end-alert";
 import {
   createPomodoro,
   pause,
@@ -2803,62 +2804,90 @@ export function DeepSpaceFocusScreen() {
     if (!timer.running) return;
     // Time is measured, not counted. A tick that adds one second each time it fires stops when
     // the app goes to the background, and the end alert sent from inside it stopped with it (Z109).
-    let since = Date.now();
-    // The OS gets the end alert now, so it rings with the app in the background. `ringing` is
-    // cleared once the end has been handled: cleanup (pause, reset, leaving the screen, another
-    // account) only withdraws an alert that has not rung.
-    let ringing = userId && timerRef.current.phase === "focus"
-      ? scheduleFocusEnd(userId, new Date(since + timerRef.current.remainingMs)) : null;
+    //
+    // The 1-second tick and the return to the front both call advance(), and may do so back to
+    // back before React has rendered. So the session keeps its own state here: each call starts
+    // from what the call before it left, never from a timer that is one render old.
+    let current = timerRef.current;
+    let since = readFocusClock();
+    // false after a trip to the background: for that stretch only the wall clock knows how long it was.
+    let continuous = true;
+    // Set when the session ends or stops. Nothing that was already queued runs after it.
+    let closed = false;
+    // The OS gets the end alert now, so it rings with the app in the background.
+    const endAlert = userId && current.phase === "focus"
+      ? createFocusEndAlert(userId, { schedule: scheduleFocusEnd, cancel: cancelFocusEnd, now: Date.now }) : null;
+    endAlert?.arm(since.wall + current.remainingMs);
     const advance = () => {
-      const at = Date.now();
-      const prev = timerRef.current;
-      const { next, completed, lateByMs } = advanceByClock(prev, since, at);
+      if (closed) return;
+      const at = readFocusClock();
+      const { next, completed, clockJumped } = advanceByClock(current, since, at, continuous);
       since = at;
-      if (next === prev) return;
+      continuous = true;
+      if (next === current) {
+        endAlert?.retry();
+        return;
+      }
+      const prev = current;
+      current = next;
+      timerRef.current = next;
       if (completed) {
+        closed = true;
         // Sensor auto-complete: tick daily_focus + notify, then return to a fresh
         // idle focus block (the reference timer has no break phase).
-        setTimer(createPomodoro(prev.config));
+        const idle = createPomodoro(prev.config);
+        timerRef.current = idle;
+        setTimer(idle);
         // The finished session's OWN length goes into today's minutes, so picking
         // another preset later cannot rewrite what was done (R2C-13).
         const doneArea = areaRef.current;
         setTally((cur) => ({ ...cur, day: completeFocusSession(cur.day, doneArea, prev.config.focusMinutes) }));
         if (userId) {
           void applyFocusSessionComplete(userId).catch(() => {});
-          const scheduled = ringing;
-          ringing = null;
           const title = t("focus.alarmFocusTitle");
           const body = t("focus.alarmFocusBodyArea", { area: t(`phone.areas.${doneArea}`) });
           void (async () => {
-            const alert = scheduled ? await scheduled : null;
-            if (alert?.result === "scheduled") {
-              // Found on time by this screen: ring now under the same identifier, which replaces the
-              // scheduled one. Found late (the app was in the background): the OS has already rung it.
-              if (ringsOnTime(lateByMs)) await scheduleFocusEnd(userId, null, alert.identifier);
-              return;
-            }
+            // The OS has the alert: it rings it, and the screen stays silent (ringing it here as well
+            // could not tell whether the OS had rung a moment earlier).
+            if (endAlert && (await endAlert.finish())) return;
             // The account goes first: without it notifyNow shows nothing on a phone (Z107).
             await notifyNow(userId, title, body);
           })().catch(() => {});
         }
-      } else {
-        setTimer(next);
+        return;
       }
+      // A device clock that was changed moves the wall-clock time the alert was scheduled for.
+      if (clockJumped) endAlert?.arm(at.wall + next.remainingMs);
+      else endAlert?.retry();
+      setTimer(next);
     };
     const id = setInterval(advance, 1000);
-    // Coming back to the front catches up at once instead of on the next tick.
     const sub = AppState.addEventListener("change", (state) => {
+      // Whichever fires first after a trip away, the tick or this, measures that stretch by the wall clock.
+      continuous = false;
       if (state === "active") advance();
     });
     return () => {
       clearInterval(id);
       sub.remove();
-      const pending = ringing;
-      if (pending && userId) {
-        void pending.then((alert) => (alert.result === "scheduled" ? cancelFocusEnd(userId, alert.identifier) : undefined)).catch(() => {});
-      }
+      const ended = closed;
+      closed = true;
+      // Stopped before the end (pause, reset, leaving the screen, another account): nothing stays with the OS.
+      if (!ended) void endAlert?.withdraw().catch(() => {});
     };
   }, [timer.running, userId, t]);
+
+  // No session is running: no end alert may be left with the OS. This is what a withdrawal that
+  // could not be confirmed, or an app that was closed mid-session, leaves behind. Asked again each
+  // time the app comes back to the front.
+  useEffect(() => {
+    if (timer.running || !userId) return;
+    void cancelFocusEnd(userId).catch(() => {});
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void cancelFocusEnd(userId).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [timer.running, userId]);
 
   // Today's tally and the area pick persist across app restarts, per account, so
   // the summary covers all of today's sessions, not just this mount's. A read that
