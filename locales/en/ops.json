@@ -531,7 +531,10 @@
     "reminderSetNote": "Reminder set on this device.",
     "reminderDeniedNote": "Notification permission is off. Allow it in your device settings to use reminders.",
     "reminderFailedNote": "The reminder could not be set. Check the item's time and try again.",
-    "reminderUnavailableNote": "Saved. Reminders only work in the installed app. You will not get an alert here."
+    "reminderUnavailableNote": "Saved. Reminders only work in the installed app. You will not get an alert here.",
+    "deviceReminderBody": "It's time for your reminder.",
+    "deviceTimerBody": "Your timer is done.",
+    "deviceChannelName": "Reminders"
   },
   "focus": {
     "title": "Focus timer",
