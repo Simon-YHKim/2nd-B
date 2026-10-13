@@ -154,7 +154,7 @@
   "account": {
     "title": "Conta",
     "status": "Gerencie suas informações e escolha quais contas conectar.",
-    "tip": "Você pode exportar seus dados ou iniciar a exclusão quando quiser.",
+    "tip": "Você pode iniciar a exclusão quando quiser.",
     "delete": "Excluir conta",
     "navProfile": "Perfil",
     "navSettings": "Configurações",

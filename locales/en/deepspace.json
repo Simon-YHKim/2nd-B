@@ -154,7 +154,7 @@
   "account": {
     "title": "Account",
     "status": "Manage your account details and connected accounts.",
-    "tip": "You can also export data or delete your account here.",
+    "tip": "You can also delete your account here.",
     "delete": "Delete account",
     "navProfile": "Profile",
     "navSettings": "Settings",
