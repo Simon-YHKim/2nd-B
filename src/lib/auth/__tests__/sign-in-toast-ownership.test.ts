@@ -93,8 +93,11 @@ describe("R3-2 notice ownership matrix", () => {
     };
     visit(ast);
     // 2026-10-13 Z12/Z24: two local validation notices + identity-safe failure clear.
-    expect(writes).toHaveLength(12);
+    // Round four adds one writer: leaving the form retires the committed render's own toast,
+    // by identity, so an answer that landed before the effect ran is not the one cleared.
+    expect(writes).toHaveLength(13);
     expect(writes).toContain("clearAuthFailure(current), current");
+    expect(writes).toContain("clearAuthFailure(toast), toast");
     expect(writes.filter(write => write.startsWith("null"))).toEqual(["null, notice", "null, toast"]);
     for (const key of ["signIn.exitOnBack", "errors.oauthSignInStartFailed", "errors.signInBusy", "errors.signInFailed", "signIn.resetToast", "signIn.resetSentToast", "errors.passwordResetFailed"]) {
       expect(writes.some(write => write.includes(`t("${key}"`))).toBe(true);
