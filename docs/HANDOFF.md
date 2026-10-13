@@ -1,5 +1,15 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 14:15 / 2ndb-e7: 0252(대화 횟수 환불 · PR #2372 초안) 2회차 검토가 메모리로 멈춤 · 서버 일 둘을 새로 맡음 - 다음은 Simon 의 블록 실행과 Q-261013-43 · 44 의 답
+
+- **지금까지(12:27 블록에 더해)**: 0252 = `refund_chat_turn_after_output_swap(p_day date)`(답이 위기 안내로 바뀐 턴의 횟수를 1 돌려줌 · 근거 = 프록시가 쓴 `ai_audit_log` 의 `server_verified` · `secondb_chat` · `red` · 10분 안의 안 쓴 줄 · 쓴 근거는 원장 표 `chat_turn_refunds` 에 기본 키로 남김 · 롤백은 함수만 걷음). 독립 검토 1회차 BLOCK(배열 방식의 중복 환불 · 롤백 뒤 재사용) → `dc66d13f` 로 고침 → CI 넷 통과(sql 단계의 경합 세 경우 포함) → **2회차는 13:10 에 하네스가 메모리 부족으로 멈춤(판정 없음)**. 살아 있던 프로세스 여섯과 로컬 PG18 임시 클러스터를 내렸다. 0251 은 12:27 블록 그대로(머지됨 · 운영 적용은 Simon 의 SQL 편집기 실행 대기 · 안내 페이지 2판 <https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>).
+- **다음 1개**: Simon 의 블록 실행(12:27 블록의 REQ-261013-01) → 운영 읽기 확인. 0252 는 Q-261013-43 의 답이 "다시 돌리기"면 `bash "E:/Coding Infra/reports/codex-audit-261010/run_gate_one.sh" z46srv-daybreak-r2 z66-proposals-purge-261013` 을 **하나만** 돌린다(검토 자료는 `…/gates/z46srv-daybreak-r2.md` 로 이미 만들어져 있다 · 돌리기 전에 여유 메모리 확인).
+- **막힌 것**: 0252 의 2회차 검토(메모리 · Simon 의 말씀 대기). 하네스 안내가 "스스로 다시 시작하지 말 것"이었다.
+- **새로 맡은 것(2ndb-79 의 제안 · Simon 13:17 답)**: ① Q-261013-31(Z1 가입 거절 안내)의 서버 쪽 — 읽기 끝. `block_alias_duplicate_signup`(`0113:16-43`)의 예외는 앱에 500 으로만 간다. Supabase "Before User Created" 인증 훅(Postgres 함수)으로 가입 행을 넣기 전에 4xx + 메시지를 돌려줄 수 있다(운영 Authentication › Hooks 설정 변경이 따라옴). 구현 전 확인할 것: 운영 GoTrue 가 그 훅을 지원하는지 · 소셜 가입에서 오류가 어떻게 보이는지 · 초대/관리자 생성 경로. 이유를 화면에서 어디까지 말할지는 Simon 께 여쭐 것. ② Q-261013-32(#2132 이어 가기)의 서버 쪽 — 범위 읽기부터(61개 파일 · 마이그레이션 0217 · 0227 · 0228 을 0253 이후로 다시 · Edge 함수 `account-deletion-receipt` · `delete-account`). 구현을 어느 창에서 할지는 Q-261013-44.
+- **올 수 있는 것(답 전에는 시작 안 함)**: `complete_reasoning_run` 이 실행 중에 지워진 기록의 제안을 넣지 않게 하는 조각(#2365 가 5회차 BLOCK 으로 종료돼 화면 거르기가 없다) · `trigger_categories` 의 서버 쪽 닫힌 목록(2ndb-79 의 #2380 검토 지적 · 내 의견은 거부가 아니라 `unlisted` 로 바꿔 저장) · Q-37 의 상한(프록시가 입력 422 에서 `server_verified` · `red` 줄을 쓰고 같은 환불 RPC).
+- **열린 질문**: Q-261013-43(0252 검토 재실행) · 44(#2132 서버 쪽을 어느 창에서) · 42(0252 의 운영 적용 방식) · 40 · 41(이월 1회).
+- **도구 메모(12:27 블록에 더해)**: `<scratchpad>/z66pg/` 의 `mutations_z46.py`(SQL 회귀 + 경합 단계를 같이 돌림) · `race_z46.sh` · `build_gate_z46_r2.py`. 로컬 클러스터는 내려가 있다(`pg_ctl -D <scratchpad>/z66pg/pgdata -o "-p 54411 -c lc_messages=C -c listen_addresses=localhost" -l server.log -w start` 로 다시 띄움 · 파이프로 받지 말 것). 하네스가 메모리로 배경 명령을 멈춰도 자식 프로세스는 살아 있다 — 명령줄의 라벨로 내 것임을 확인하고 `taskkill /T` 로 끝낼 것.
+
 ## 2026-10-13 14:02 / 2ndb-79: #2365 는 5회차 BLOCK 으로 종료 · Q-60 은 지금처럼 숨김 · 법무 의견 받음 - 다음은 위기 안내의 "먼저" 조각
 
 - **지금까지**: Simon 13:43 「Q-61 다로 진행」 → #2365 5회차 → 13:58 BLOCK → 멈춤(추가 회차 · 우회 금지). Q-60 은 기기 확인 결과로 "지금처럼 숨김"으로 끝. 법무 의견(Q-39 · 띄어쓰기 · Q-28) 받음. 흔들리는 검사의 원인을 고친 #2378 은 독립 검토 통과 · CI 대기.
