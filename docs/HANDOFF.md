@@ -1,5 +1,271 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 20:43 / 2ndb-e7: Simon 20:21 「ㄱㄱ」(대기 중이던 것 전부 추천대로 · 풀이는 Relay) - 확인 안 된 가입 2줄은 지워짐 · 독립 검토는 에뮬레이터가 내려가면 0252 4회차부터
+
+- **끝난 것**: Q-261013-48 ① — 운영의 확인 안 된 가입 2줄 삭제(Relay 20:37 실행 · 20:42:34 에 0건 확인 · 전체 계정 17). 가입 거절의 서버 변경은 하지 않는다(Q-261013-76 = 나 · 2ndb-53 이 화면 문장으로 #2413 머지).
+- **다음 1개 = 0252(#2372)의 4회차 독립 검토**: 준비 끝(워크트리 `.worktrees/z66-proposals-purge-261013` 가 `fix/chat-turn-refund-0252` `799e8540` · 프롬프트 `E:/Coding Infra/reports/codex-audit-261010/gates/z46srv-daybreak-r4.md`). 시작 조건 셋: ① 폰 점검용 에뮬레이터(`qemu-system-x86_64`)가 내려가 있을 것(Q-261013-47 = "에뮬레이터가 끝난 뒤" · Relay 가 Rufus 에 물어 둠) ② 여유 메모리 확인(`powershell -File "<임시 폴더>/mem.ps1"`) ③ 2ndb-79 에 시작 시각을 먼저 알리고 그쪽 검토와 겹치지 않을 것. 시작: `cd "E:/Coding Infra/reports/codex-audit-261010" && bash run_gate_one.sh z46srv-daybreak-r4 z66-proposals-purge-261013`(배경 · 10분쯤 · 판정은 `gates/z46srv-daybreak-r4.txt`). **4회차도 막히면 더 고치지 않고 Simon 께 올린다.**
+- **그다음**: 0253 의 1회차(워크트리를 `fix/z66-complete-skips-erased-0253` 로 · `gates/z66c-daybreak-r1.md` 있음) → 0254 의 1회차(워크트리를 `fix/crisis-category-normalize-0254` 로 바꾼 뒤 `python build_pr_gate.py gates/q66srv-daybreak-r1.config.json`) → 통과한 것끼리 붙여 머지(머지마다 폰 빌드 · 2ndb-79 · 2ndb-53 에 먼저 알림) → 운영 적용(Q-261013-46 = 이 창이 올리고 보고 · 0252 는 `build_apply_0252.py origin/main <out.sql>` 로 블록을 다시 만들어 로컬 다섯 번 뒤 Relay 에 · 0253 · 0254 도 확인 카드가 뜨면 같은 길) → 올릴 때마다 `crisis_events` 의 `unlisted` 건수를 한 번 읽는다(Q-261013-45).
+- **Q-261013-48 ② 자동 삭제 장치**: 확인 코드 만료 뒤 1일 · 하루 1회 · 나이 무관 · 14세 미만은 바로 · `docs/legal/privacy-policy.md` 제3조 한 줄. 먼저 필요한 값 = 확인 코드의 만료 시간(Relay 가 Simon 께 화면 한 장으로 요청 중). 번호는 그때 잡는다(0252 ~ 0254 는 이 창의 초안 · Q-32 의 새 창에는 0255 부터라고 적어 줬으니 겹치지 않게 main 과 열린 PR 을 먼저 볼 것).
+- **이 창의 감시는 꺼져 있다**(19:38 메모리). 깨워질 때만 `.bots/relay/outbox/` 를 읽는다.
+- **질문 번호**: 이 세션은 48 까지. 다음 49.
+
+## 2026-10-13 20:29 / 2ndb-79: 20:21 답(전부 추천대로)으로 멈췄던 둘을 다시 진행 - 다음 1개는 #2398 4회차 · 그다음 #2396 나누기
+
+- **지금**: Simon 의 20:21 답(Relay 1:1 원문 「ㄱㄱ」 · DECISIONS 의 이 시각 결정 줄)으로 Q-261013-80 · Q-261013-69 가 둘 다 "가"다. 바로 아래 19:19 블록의 "더 고치지 말 것"은 풀렸다.
+- **다음 1개 = #2398 4회차**(워크트리 `.worktrees/z109-focus-background-261013` · 할 일 넷은 19:19 블록의 "(가)로 가게 되면 할 일" 그대로: 세대 폐기 · 완료마다 `notifyNow` · 앞에서 벗어날 때 한 번 진행 · 변이 스크립트). 4회차도 BLOCK 이면 다시 멈추고 여쭌다.
+- **그다음 = #2396 나누기**(18:2x 블록의 "(가)로 가게 되면 할 일" 1 · 2 그대로): 새 브랜치로 「5분 뒤」 읽기만 먼저 → AI 답은 좁혀서 다시. Z116(「할 일」 칸에 부탁 문장 통째 · `actionTitle()`)은 같은 파일이라 이때 같이 본다(따로 PR).
+- **무거운 검사는 하나씩**: 독립 검토 · `tsc` 를 돌리기 전에 2ndb-e7 · 2ndb-53 에 시각을 알린다(Q-261013-47 의 답 · PC 메모리 부족).
+- **par12 뒤의 나눔**: Z112 · Z113(시안 Q-261013-78) · Z114(#2409 머지) = 2ndb-53 / Z115(기록을 묻는 답에 기간 · 근거 없음) · Z116(「할 일」 칸에 부탁 문장 통째 · Q-261013-69 뒤) = 이 세션 / Z117(다른 탭에 다녀오면 대화가 안 보임) = 미정. 다음 새 번호 Z118.
+- **폰 확인 대기**: Z114(빌드 메모 `bf69dfcd` · 결과 `device-lab/outbox/vb-devlab-bbf69dfcd-1013.result.md` · 링크 칸에 주소를 넣었을 때 「링크 자동 인식: 일반 아티클」).
+- **이 세션의 남은 차례**: 위기 안내 연결(Q-39 · Q-34 · Q-37) → Q-28(#2389 머지 뒤) → 띄어쓰기 보강(닫힌 허용 목록) → Z82 · Z115(AI 지시문 · 실제 모델 확인이 먼저 · 8초 간격) → Z116(Q-261013-69 뒤) → Z40 · Z55 · Z59 · Z63(Simon 답 뒤) · Z78 · Z13 · Z110 · O2 다시. Q-67 의 화면 쪽은 0252 가 운영에 들어간 뒤. Z75 는 2ndb-53 의 시안(Q-261013-77)으로, Z83 은 다시 나면 보는 것으로 넘어갔다(DECISIONS 의 이 시각 줄 ④ · ⑤).
+- **큰 항목은 새 창에서 시작하기를 권한다**(Simon 에게 19:42 에 알림 · 답 없음): 오늘 수정 둘이 검토에서 세 번씩 막혔고, 이 창의 대화가 여러 번 요약됐고, PC 메모리가 모자라 로컬 전체 검증을 못 돌린다. 새 창이 Q-39 를 시작한다면 먼저 읽을 것: DECISIONS 26.10.13 12:46 · 13:21 · 13:41 · 14:02 줄 · `.bots/legal/outbox/` 의 Q-39 답(파일 이름은 grep) · 머지된 준비 조각 #2369 · 멈춘 초안 #2365. **코드 전에 과제서(설계)를 독립 검토에 먼저 보일 것** - 오늘 두 PR 은 범위와 상태 경쟁을 코드 뒤에 발견했다(내 해석).
+- **메모리**: 배경 작업이 꺼진다(18:40 로컬 전체 검증 · 19:38 다른 두 창 · 19:57 빌드 완료 대기). 꺼진 것은 스스로 다시 걸지 않는다. 전체 `npm run verify` 는 CI 로 본다. 독립 검토(`gate_generic.py`)는 19:08 에 한 번 끝까지 돌았다.
+- **질문 번호**: 이 세션은 80 까지. 다음은 81(70 ~ 79 는 2ndb-53).
+
+## 2026-10-13 19:51 / 2ndb-e7: Relay 답 감시가 메모리로 멈춤(다시 걸지 않음) · Q-261013-48 의 추천을 법무 의견대로 고침 - 이 창은 깨워질 때만 답 폴더를 읽는다
+
+- **지금 도는 것**: 없음. 19:38 에 Relay 답 감시가 메모리 부족으로 멈췄고(실제로 죽은 것을 19:45 에 프로세스로 확인) 다시 걸지 않았다. **이 창을 여는 사람은 먼저 `.bots/relay/outbox/` 의 새 `simon-*.note.md` 를 읽을 것**(Q-261013-44 ~ 48 · `.result.md` 는 접수 확인일 뿐이다).
+- **Q-261013-48 의 지금 추천**(법무 의견 반영 · `.bots/relay/inbox/coding-e7-q48-recommendation-revised-1944.note.md`): 확인 코드가 만료되고 하루가 지난 줄을 하루 한 번 지운다(길어도 이틀) · 나이와 무관하게 같은 기한 · 남은 2줄(2026-07-17 생성)은 Simon 이 "지운다"고 하시면 블록으로 바로. Simon 의 답은 둘로 나뉜다: ① 남은 2줄을 지금 지울지 ② 자동 삭제 장치를 만들지.
+- **① 이 "지운다"로 오면**: 삭제 블록을 만든다(Q-261013-36 의 블록 `.bots/relay/inbox/coding-e7-q36-block-1647.sql` 이 본보기 · 조건 = 확인 안 됨 · 2026-07-17 생성 · 프로필 없음 · 건수가 정확히 2 가 아니면 멈춤 · 값은 고르는 데 쓰지 않는다) → `.sql` 먼저 · 메모 나중으로 Relay 에 · 확인 카드는 Simon 승인 · 지운 뒤 0건을 읽어 DECISIONS 에(시각 · 건수 2 · 생성일 · 근거 · 승인 시각 · 실행 주체 · 값은 적지 않는다).
+- **② 가 "만든다"로 오면**: 서버 변경 하나(지우는 함수 + 예약 작업 + `docs/legal/privacy-policy.md` 의 한 줄 · 번호는 그때 잡는다). 먼저 필요한 값 = 확인 코드의 만료 시간(운영 대시보드 Authentication › Providers › Email 의 "Email OTP Expiration" · 저장소 설정에 없고 이 창은 읽을 길이 없다 → Simon 께 화면 한 장으로 부탁). 독립 검토는 Q-261013-47 의 답 뒤.
+- **다음 1개는 그대로**: Simon 의 Q-261013-47 답(아래 18:42 블록의 순서대로). 2ndb-79 는 0252 가 운영에 들어가면 알려 달라고 했다(Q-67 의 화면 쪽을 그때 시작).
+- **질문 번호**: 이 세션은 48 까지. 다음 49.
+
+## 2026-10-13 19:32 / 2ndb-e7: 확인을 끝내지 않은 가입 줄이 생년월일과 함께 남는다(Q-261013-48 로 여쭘) - 독립 검토 셋은 여전히 Q-261013-47 대기
+
+- **새 질문 Q-261013-48**: 가입을 누르면 확인 코드를 넣기 전에 줄이 생기고 생년월일이 같이 실리는데 지우는 장치가 없다. 운영에 2줄(둘 다 07-17 · 19:14 읽기). 언제 지울지 Relay 로 올렸다(`.bots/relay/inbox/coding-e7-unconfirmed-signups-q48-1915.note.md` · 기한 숫자는 법무에 먼저). **답 전에는 운영의 2줄을 지우지 않는다.** 답이 "지운다"면: 지우는 함수 + 예약 작업의 서버 변경 하나(독립 검토 뒤 운영 적용 · 번호는 그때 잡는다)와 남은 2줄 삭제 블록(Q-36 때와 같은 길 · 블록 파일을 Relay 에 · 확인 카드는 Simon 승인).
+- **가입 거절 안내(Q-261013-31 → 시안 Q-261013-76 · 2ndb-53)**: 시안 3판 https://claude.ai/artifact/AshRZZbvZKZWA6dXoa7wK1 · 법무는 "서버는 그대로 두고 실패 안내에 한 문장"을 지금 넣어도 된다고 봤다. 서버가 이유를 말하게 하는 안은 권하지 않았다. 서버 변경은 Simon 이 시안에서 고르신 뒤에만.
+- **다음 1개는 그대로**: Simon 의 Q-261013-47 답을 읽는다(아래 18:42 블록의 순서대로).
+- **질문 번호**: 이 세션은 48 까지. 다음 49.
+
+## 2026-10-13 19:19 / 2ndb-79: Z109 수정(#2398)이 독립 검토 세 번 BLOCK → 멈춤 · Q-261013-80 으로 여쭘 - 멈춘 초안이 둘(#2396 · #2398)
+
+- **멈춘 것**: PR #2398(초안 · 브랜치 `fix/focus-timer-background` · `49a4f152` · 워크트리 `.worktrees/z109-focus-background-261013` · main 대비 4개 파일: `src/lib/ops/focus-clock.ts` · `DeepSpaceDesignScreens.tsx` 의 집중 타이머 효과 · 테스트 둘). **더 고치지 말 것 - Simon 의 답(Q-261013-80)이 먼저다.** 세 회차의 내용은 DECISIONS 의 이 시각 줄 · PR 댓글. 검토 원문 `E:/Coding Infra/reports/devlab-261010/gates/z109-daybreak-r1.txt` ~ `r3.txt` · 과제서 `z109-task.md` · `z109-task-r2.md` · `z109-task-r3.md`.
+- **Q-261013-80 (안 정해지면 막히는 것: 집중 타이머가 앱을 뒤로 보내면 멈추는 상태가 그대로 남는다)**: (가 · 추천) 한 번 더 고쳐 4회차 검토 / (나) 멈춘 채 둔다 / (다) 같은 과제서와 검토 원문을 다른 구현 모델에 넘긴다.
+- **(가)로 가게 되면 할 일**(셋 다 3회차 원문에 최소 패치가 적혀 있다): 
+  1. 일시정지 · 초기화: 화면에 실행 세대 ref 를 두고, 일시정지 · 초기화 핸들러가 `setTimer` 보다 **먼저** 세대를 올린다. 효과는 시작할 때 자기 세대를 잡고 `advance()` 첫 줄에서 세대가 다르면 `closed = true` 하고 돌아간다. 계약 테스트의 "advance() itself never reads the ref back" 단언은 세대 확인을 허용하도록 고친다.
+  2. 끝 알림: `announcesEnd` · `FOCUS_END_GRACE_MS` · `lateByMs` 를 지우고 완료마다 전처럼 `notifyNow(userId, …)`(main 과 같게). 뒤에 다녀와 늦게 찾은 끝에도 알림이 간다.
+  3. 시계 경계: `AppState` 리스너가 이전 상태를 기억하고, `active` 에서 벗어날 때 `continuous = true` 인 채로 `advance()` 를 한 번 부른 다음 `continuous = false`. `inactive → background` 처럼 앞이 아닌 상태끼리의 전환에서는 다시 하지 않는다. `active` 로 돌아오면 `advance()`.
+  4. 변이 스크립트(`scratchpad/z109_mutate.py`)를 위 셋에 맞게 고치고, 로컬은 대상 테스트(`npx jest --runInBand` 로 `focus-clock` · `focus-timer-screen-contract` · `notify-now-callers` · `reminders` · `src/lib/legal`) + `tsc --noEmit` 만. **전체 `npm run verify` 는 PC 메모리 부족으로 로컬에서 돌리지 않는다**(CI 로 본다).
+- **Z109 의 둘째 부분(앱이 뒤에 있는 동안의 끝 알림)** 은 #2398 이 들어가도 남는다. 따로 올린다. 필요한 설계는 DECISIONS 의 이 시각 줄 ⑦ · 2회차까지의 코드는 브랜치 커밋 `65654481`(`focus-end-alert.ts` · `scheduleFocusEnd` · `cancelFocusEnd` · `focusEndNotificationId`).
+- **멈춘 다른 초안**: #2396(Z56 · Q-261013-69 · 바로 아래 블록).
+- **폰 확인 대기**: Z111(#2403 · 폰 빌드 run 38382051137 이 끝난 뒤 Rufus 에게 리마인더 확인 창의 날짜 문장만).
+- **기다리는 것**: Q-261013-69 · Q-261013-80 · 2ndb-53 의 시안 질문(Q-57 ~ 59 · 70 ~ 76) · 2ndb-e7 의 0252 · 0253 · 0254 와 Q-261013-47 · 48 · S4(OpenAI 조직 설정 · Simon 이 직접).
+- **질문 번호**: 이 세션은 80 까지. 다음은 81(70 ~ 79 는 2ndb-53).
+- **조심할 것**: 범위를 줄이는 커밋에는 새 동작을 넣지 않는다(이번 3회차의 ㉯ · #2396 2회차와 같은 실수) · 화면의 `setTimer(값)` 은 그 사이 사용자가 누른 일시정지를 덮어쓴다(main 의 `setTimer(prev => …)` 은 안 덮어썼다) - 효과가 자기 상태를 가지면 사용자 핸들러와의 순서를 따로 지켜야 한다.
+
+## 2026-10-13 18:48 / 2ndb-e7: 가입 거절 안내(Q-261013-31)의 서버 쪽은 시안 Q-261013-76 의 답 뒤로 - 독립 검토 셋은 여전히 Q-261013-47 대기
+
+- **Q-261013-31**: 서버가 거절 이유를 고정 코드로 말하게 하면 누구든 그 메일함의 가입 여부를 응답으로 구분할 수 있게 된다(지금의 500 은 다른 DB 실패와 섞인 흐린 신호). 그래서 구현은 Simon 이 2ndb-53 의 시안(Q-261013-76)에서 그 맞바꿈을 보고 고르신 뒤에만 한다. 읽은 것 · 정정 · 구현하게 될 때의 순서는 DECISIONS 의 이 시각 줄. 앱 쪽 배선은 2ndb-53.
+- **다음 1개는 그대로**: Simon 의 Q-261013-47 답을 읽는다(바로 아래 18:42 블록의 순서대로).
+- **질문 번호**: 이 세션은 47 까지. 다음 48. (76 은 2ndb-53 의 번호다.)
+
+## 2026-10-13 18:42 / 2ndb-e7: Q-261013-47 의 답이 아직 없다 - 독립 검토 셋은 시작하지 않았고, 4회차 준비물만 고쳐 둠
+
+- **지금 도는 것**: 없음. 검토 · 변이 표 · 로컬 PostgreSQL 전부 멈춘 그대로다. Relay 는 17:38 에 Q-261013-47 을 Simon 께 올렸다고 답했고(접수 확인), 18:36 까지 답 메모는 없었다. 18:39 여유 4.4GB · 커밋 58% · 폰 점검용 에뮬레이터가 돌고 있다(Rufus 18:18 회차).
+- **다음 1개 = Simon 의 Q-261013-47 답을 읽는다**(`.bots/relay/outbox/` 의 새 `simon-*.note.md` · `.result.md` 는 접수 확인일 뿐이다). "다시 돌려라"가 오면: 2ndb-79 에 한 줄 → 여유 메모리 확인(`powershell -File "<임시 폴더>/mem.ps1"` 같은 읽기) → 워크트리 `.worktrees/z66-proposals-purge-261013` 를 `fix/chat-turn-refund-0252` 로 → `python "C:/Users/202502/AppData/Local/Temp/claude/E--2ndB/5368fd66-53a9-491c-9acd-0e48434e3bf3/scratchpad/z66pg/build_gate_z46_r4.py" "<CI 한 줄>"`(**18:40 에 고침**: 변이 표 파일이 없어도 돌고, 없다는 사실과 3회차 표임을 프롬프트에 적는다) → `python build_pr_gate.py gates/z46srv-daybreak-r4.config.json` → `bash run_gate_one.sh z46srv-daybreak-r4 z66-proposals-purge-261013`. 하나씩만. 4회차도 막히면 더 고치지 않고 Simon 께 올린다(17:23 결정).
+- **그다음**: 0253 의 1회차(`gates/z66c-daybreak-r1.md` 있음 · 워크트리를 그 브랜치로) → 0254 의 1회차(`gates/q66srv-daybreak-r1.config.json` · 워크트리를 그 브랜치로 바꾼 뒤 프롬프트를 만든다) → 통과한 것끼리 붙여서 머지(셋 다 `src/**` 의 테스트 파일이 있어 머지마다 폰 빌드가 돈다 · 2ndb-79 에 먼저 알리고 그 빌드 동안 main 을 쉰다).
+- **0252 의 운영 적용 블록**: 생성기 `E:/Coding Infra/reports/codex-audit-261010/build_apply_0252.py` 는 트리거까지 재도록 고쳐졌고 초안 본문으로 다섯 번(적용 · 다시 적용 · CRLF · 변조 · 다른 트리거가 있을 때) 통과했다(17:36). **머지 뒤 main 의 본문으로 다시 만들고 다섯을 다시 돌린 것만 Relay 에 넘긴다**(`.bots/relay/inbox/` 에 `.sql` 먼저 · 그다음 `.note.md` · 확인 카드는 Simon 승인 · `_sync/TO-CLI.md` 에 적용 중 → 완료).
+- **Simon 의 손이 필요한 것**: Q-261013-47(검토 재개) · Q-261013-45(`unlisted` 건수를 누가 볼지) · Q-261013-46(0253 · 0254 의 운영 적용 방식) · 새 창에 인계 메모 붙이기(Q-261013-44 · `E:/Coding Infra/reports/codex-audit-261010/handoff-q32-delrcpt-server-261013.md`) · 이월 중인 Q-261013-40 · 41(이월 2회 · 다음 보고에서 기본값으로 진행할지 접을지 이 창이 고른다).
+- **답과 무관하게 남은 서버 일(시작 전)**: Q-261013-67(프록시가 사용자 글을 422 로 막을 때 `server_verified` · red 감사 줄을 쓰게 하기 · 0252 가 운영에 올라간 뒤 · Edge 재배포) · Q-261013-31 의 서버 설계 메모(가입 거절 안내).
+- **끝내기 전**: `npm run app:parity` 는 17:35 에 같음이었다. 그 뒤 main 은 문서 머지뿐이다(다시 칠 것).
+- **질문 번호**: 이 세션은 47 까지. 다음 48.
+
+## 2026-10-13 18:26 / 2ndb-79: Z56 · Z58 수정(#2396)이 독립 검토 세 번 BLOCK → 멈춤 · Q-261013-69 로 여쭘 - 답을 기다리는 동안 다음 1개는 Z109(집중 타이머가 뒤에서 멈춤)
+
+- **멈춘 것**: PR #2396(초안 · 브랜치 `fix/chat-reminder-reply-relative-time` · `e1326a63` · 워크트리 `.worktrees/z56-reminder-reply-261013`). **더 고치지 말 것 - Simon 의 답(Q-261013-69)이 먼저다.** 무엇이 들어 있고 왜 막혔는지는 DECISIONS 의 이 시각 줄. 검토 원문 `E:/Coding Infra/reports/devlab-261010/gates/z56-daybreak-r1.txt` ~ `r3.txt` · 과제서 `z56-task.md` · `z56-task-r2.md` · `z56-task-r3.md` · 실제 모델 원문 `z56-s1-real-model.md`.
+- **Q-261013-69 (안 정해지면 막히는 것: 대화에서 AI 가 "알림을 못 보낸다"고 답하는데 바로 아래에 리마인더 버튼이 있는 상태가 그대로 남는다)**: (가 · 추천) 둘로 나눈다 - 「5분 뒤」 읽기만 먼저, 그다음 AI 답은 좁혀서 다시 / (나) AI 의 거절 · 안전 답을 화면에 구조화된 신호로 넘기는 장치부터(경계 모듈 · 프록시 · 더 큼) / (다) Z56 은 보류하고 「5분 뒤」 읽기만.
+- **(가)로 가게 되면 할 일**(브랜치의 코드는 대부분 다시 쓸 수 있다): 
+  1. 「5분 뒤」 PR: `relativeMoment` · `SPANS` · `SPAN_UNIT` · `trackAsked` · `ChatPlanAsked` · `openableChatPlanSuggestion` · `useChatPlans.ts` 의 세 줄 + 그 테스트만 새 브랜치로. 3회차 ㉰: 기간을 하나 읽은 문장에 `or · 또는 · 혹은 · 아니면` 같은 선택 접속사와 다른 기간 표현이 남으면 비운다(「in an hour or thirty minutes」 · 「in an hour or two hours」를 테스트로). 모델에게 주는 글 · `gone` · `SAFETY_LINE` 은 넣지 않는다.
+  2. AI 답 PR: `parsePlan` 의 `gone` 을 되돌려 버튼을 main 과 같게 두고, `chatPlanPromptLine` 은 "말한 시각이 없거나 10분 넘게 남은" 부탁에만 글을 보낸다(답이 오는 사이 버튼이 사라지지 않게). `SAFETY_LINE` 은 NFKC 정규화 + 띄어 쓴 숫자 · 줄표 변형 + 같은 문장의 안내 문맥(전화 · 연락 · 상담 · call · text)으로. 두 종류가 함께인 메시지에는 전용 글 하나(또는 글을 보내지 않음). 영향평가서 267행의 조립 순서를 실제대로(머리말 → 버튼 글 → 위기 번호 규칙 → 호칭 → 주입 방지 → 모드 → 페르소나). 실제 모델 확인을 다시(8초 간격 · `PROBE_GAP_MS`).
+- **다음 1개 = Z109**(Q-69 의 답과 무관): `src/screens/deepspace/DeepSpaceDesignScreens.tsx` 의 `DeepSpaceFocusScreen`(2780행대)이 `setInterval` 안에서 `tick(prev, 1000)` 으로 1초씩 줄인다 → 앱이 뒤로 가면 멈춘다. 고칠 방향: ① 지난 실제 시간을 재서 `tick(prev, 지난 ms)`(엔진 `src/lib/ops/pomodoro.ts` 는 이미 그렇게 쓰게 돼 있다) + 앱이 앞으로 돌아올 때 한 번 ② 시작 · 다시 시작할 때 끝 시각에 알림을 미리 예약하고(`src/lib/ops/reminders.ts` 의 `scheduleWithOwnerLease` · 날짜 트리거 · 계정별 식별자 · `focusNotificationContent`), 일시정지 · 초기화 · 화면을 떠날 때 취소. 계정 범위 정리(`clearAccountScopedLocalNotifications` · `sweepResidualReminderNotifications`)가 그 알림을 어떻게 다루는지부터 읽을 것. 레퍼런스: 기본 시계 앱 · Forest 는 시작 시각으로 계산하고 끝 알림을 OS 에 미리 예약한다(Rufus 가 적음).
+- **기다리는 것**: Q-261013-69 · 2ndb-53 의 시안 질문(Q-71 ~ 75) · 2ndb-e7 의 0252 · 0253 · 0254(붙여서 한 번에 머지 → 그 빌드 동안 main 을 쉰다) · S4(OpenAI 조직 설정 · Simon 이 직접).
+- **질문 번호**: 이 세션은 69 까지. 다음은 80번대(70 ~ 79 는 2ndb-53).
+- **조심할 것**: 운영 프록시 확인 호출은 8초 간격(분당 한도가 모든 계정 공용) · CRLF 파일을 스크립트로 고칠 때는 줄 끝을 맞춰서(이번에 한 번 섞였다가 되돌림) · 스크립트 파일은 Write 도구로(heredoc 으로 고치려다 한 번 실패).
+
+## 2026-10-13 17:31 / 2ndb-e7: 0252 는 3회차 검토에서 다시 막혀 고쳐 올림(CI 통과) · 메모리 부족으로 검토가 멈춤 - 다음은 Simon 의 Q-261013-47 답
+
+- **지금까지**: 0252(#2372)의 3회차 독립 검토가 17:07 에 BLOCK(막는 지적 둘 · 판정 파일 `gates/z46srv-daybreak-r3.txt`). 고친 판 `799e8540` 을 17:19 에 올렸고 CI 넷 통과(17:30). 고친 것: `ai_audit_log` 에 트리거 `guard_ai_audit_server_verified`(로그인했거나 익명인 요청은 어느 함수를 거치든 `server_verified` 줄을 못 쓴다) · 원장 표의 모양 확인을 넓힘 · 함수는 원장의 기본 키 충돌만 "이미 쓴 줄"로 읽음 · 다시 적용 시험 열 가지. 시험 계정 블록(Q-261013-36)은 17:10 에 실행 확인(전체 계정 19).
+- **멈춘 것(메모리)**: 17:2x 에 Claude Code 가 배경 작업 둘을 멈췄다 — 0253(#2388)의 1회차 독립 검토(17:23 시작 · 판정 없음)와 0252 의 변이 표(37가지 중 8번째). 살아 있던 프로세스는 끝냈고 로컬 PostgreSQL 도 내렸다. **스스로 다시 시작하지 않는다.** Simon 께 Q-261013-47 로 올렸다(Relay 메모 `coding-e7-gates-stopped-memory-q47-1731` · 추천: 폰 점검용 에뮬레이터가 끝난 뒤 여유 메모리를 보고 하나씩).
+- **다음 1개 = Q-261013-47 의 답이 오면 0252 의 4회차부터**: 워크트리를 `fix/chat-turn-refund-0252` 로 바꾸고 → `python "C:/Users/202502/AppData/Local/Temp/claude/E--2ndB/5368fd66-53a9-491c-9acd-0e48434e3bf3/scratchpad/z66pg/build_gate_z46_r4.py" "<CI 한 줄>"`(변이 표 파일 `out/mutations_z46_r4.txt` 가 없으면 그 줄을 빼고 "변이 표는 메모리로 멈춰 결과 없음"이라고 적을 것) → `python build_pr_gate.py gates/z46srv-daybreak-r4.config.json` → `run_gate_one.sh z46srv-daybreak-r4 z66-proposals-purge-261013`. 4회차의 BLOCK 기준 둘은 좁혔고 그 사실을 검토자에게 알리게 돼 있다. **4회차도 막히면 더 고치지 않고 Simon 께 올린다.**
+- **그다음**: 0253 의 1회차(`gates/z66c-daybreak-r1.md` 는 만들어져 있다 · 워크트리를 그 브랜치로) → 0254 의 1회차(`gates/q66srv-daybreak-r1.config.json` · 프롬프트는 워크트리를 그 브랜치로 바꾼 뒤 만든다). 통과한 것끼리 붙여서 머지(셋 다 `src/**` 의 테스트 파일이 있어 폰 빌드가 한 번씩 돈다 · 2ndb-79 에 미리 알릴 것).
+- **운영 적용**: 0252 는 Relay 블록으로(`build_apply_0252.py` 는 16:5x 의 본문 기준이다 · **0252 가 바뀌었으므로 사후 확인에 트리거 하나를 더해야 한다** · main 에 들어간 본문으로 다시 만들고 로컬에서 넷(적용 · 다시 적용 · CRLF · 변조)을 다시 돌릴 것). 0253 · 0254 는 Q-261013-46 의 답을 따른다.
+- **Simon 의 손이 필요한 것**: Q-261013-47(검토 재개) · 새 창에 인계 메모 붙이기(Q-261013-44 · `handoff-q32-delrcpt-server-261013.md`) · Q-261013-45 · 46.
+- **화면 쪽에 넘긴 약속(2ndb-79 가 받음)**: 환불 RPC 가 40001 이면 다시 부름(두 번까지) · null 이면 한 번 더 · 끝에 남은 횟수 다시 읽기.
+- **질문 번호**: 이 세션은 47 까지. 다음 48.
+
+## 2026-10-13 17:08 / 2ndb-79: Z19(계정 전환) · Z107(타이머 알림) 폰 확인까지 끝 · 둘째 시험 계정 삭제 확인 · #2387 머지 - 다음은 Z56(레퍼런스와 실제 모델 확인부터)
+
+- **지금까지**: 오늘 이 창이 넣은 것 = #2380(위기 기록의 범주 칸) · #2384(Z107) · #2382(Z19) · #2387(Q-66 의 화면 쪽) · 테스트 #2378. 넷 다 8081 에 있고, #2382 · #2384 는 폰에서 통과했다(DECISIONS 의 이 시각 줄). 둘째 시험 계정은 앱에서 지웠고 운영 0줄. 이 창에 열린 PR 은 이 기록 PR 뿐이다(초안으로 둔 #2365 · #2318 은 멈춘 것).
+- **다음 1개 = Z56**(AI 가 "알림을 못 보낸다"고 답하는데 바로 아래에 리마인더 버튼이 있다 · Rufus 15:40 에 다시 재현 · 이번엔 버튼도 없었음): 
+  1. **레퍼런스부터**(Simon 15:55): ChatGPT · Claude · Gemini 의 대화에서 "N분 뒤에 알려 줘"를 받았을 때의 답과 화면(알림을 직접 만드는지 · 못 만들면 어떻게 말하는지 · 버튼을 주는지)을 지금의 화면과 공식 문서로 확인해 PR 설명에 적는다.
+  2. 지시문은 `src/lib/chat/conversation.ts` 의 `SYSTEM_PROMPT_HEADER`(130 ~ 165행). 되돌린 #2324 는 "한 문장으로 답하세요: …" 꼴이라 모델이 그 문장을 그대로 답했다(#2327 로 되돌림). 사실을 알려 주는 꼴로 쓰고, **버튼이 안 뜨는 경우(상대 시각 「10분 뒤」는 `src/lib/chat/plan-suggestions.ts` 가 아직 못 읽는다 · Z58)에도 거짓이 되지 않는 문장**이어야 한다. Z58(상대 시각 해석)을 같이 넣는 편이 맞다.
+  3. **머지 전에 실제 모델로 확인**: 프록시가 클라이언트의 `system` 을 받는다(`boundary.ts` 754행 `system: input.system ?? null`). `signup-test/tools/safety_seat_probe.cjs` 와 같은 방식으로 QA 계정이 `secondb_chat` 좌석을 직접 불러, 되는 경우 · 안 되는 경우 문장 여러 개를 고치기 전후로 비교한다. `DPIA` 가 `conversation.ts` 의 줄 범위를 인용하므로 줄 수를 바꾸면 `npx jest src/lib/legal` 로 확인한다.
+- **기다리는 것**: Rufus 의 Z66 「결과 검토」 재점검(끝난 시각을 2ndb-e7 에 알린다) · 2ndb-53 의 AI 표시 #2389(Q-75 답 뒤 머지 → 그다음에 이 창이 기록 읽기 동의 카드를 `secondb.tsx` 에 넣는다 · 시안 Q-71 ~ 74 의 답과 법무 확인이 먼저) · 2ndb-e7 의 0252 · 0253 · 0254(붙여서 한 번에 머지 → 그 폰 빌드가 도는 동안 main 을 쉰다) · Q-36 블록 실행(Simon 이 Relay 에 말한 뒤).
+- **Q-67 의 화면 쪽**: 0252 가 운영에 올라간 뒤. 환불 RPC 를 부르고, `null` 이나 40001 이면 남은 횟수를 다시 읽는다(`readChatUsageDetail`).
+- **그 뒤 차례**: 뜻 분류 연결(Q-39 · 확인 문장 100건) → 띄어쓰기 보강(닫힌 허용 목록) → Z40 · Z55 · Z59 · Z63 · Z75 · Z78 · Z82 · Z83 · Z13 · O2 다시.
+- **도구**: 계정 전환을 웹에서 보는 `signup-test/tools/account_switch_check.cjs`(QA 계정의 로그아웃 요청은 가로채 서버에 보내지 않는다) · 둘째 계정 만들기 `signup_web.cjs submit` + 이메일 확인 1행 쓰기 · 지우기 `delete_web.cjs delete`. 워크트리: `o2-reminder-reply-261013`(브랜치 `fix/crisis-record-user-input-no-standin` · 머지됨) · `q29-account-restart-261013` · `z107-focus-notify-261013`(둘 다 머지됨 · 정리 전 · 정션을 먼저 푼다).
+- **질문 번호**: 이 세션은 68 까지. 다음 69, 그 뒤 80번대(71 ~ 79 는 2ndb-53).
+
+## 2026-10-13 17:02 / 2ndb-e7: 0251 운영 적용됨(16:41:48) · 서버 조각 셋(0252 · 0253 · 0254)이 초안 - 다음은 0252 의 3회차 검토 결과
+
+- **지금까지**: Simon 15:37 「Q-66·67·68, Gaius 여섯 건, Z66 가 전부 추천대로 진행」 · 16:13 「Q 42 43 44 모두 권장하는 방식으로 진행해줘」(둘 다 Relay 1:1 · DECISIONS 의 이 시각 줄). **0251 은 16:41:48 에 운영에 적용됐다**(Relay 가 블록 파일을 그대로 `execute_sql` · 확인 카드는 Simon 승인 · 운영 읽기 16:42:30: 원장 218행 · 본문 md5 = 저장소 파일 · 트리거 둘 · 대상 없는 줄 6 → 0 · 제목 17 → 0 · 실행 13 그대로). 안내 페이지 <https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg> 를 3판으로 갱신(16:57).
+- **다음 1개 = 0252(#2372)의 3회차 독립 검토**: 16:56:53 시작 · 판정 파일 `E:/Coding Infra/reports/codex-audit-261010/gates/z46srv-daybreak-r3.txt`. 2회차(16:37 BLOCK)의 지적 셋을 고쳤다(커밋 `ebe2ad1d` · `8640d176` · `fde208c9`). CI 는 `fde208c9` 에서 넷 다 통과(17:02 · 앞 판은 회귀의 정렬이 서버 로캘에 따라 달라 한 번 실패 → `COLLATE "C"`). 통과하면: 머지(폰 빌드가 도는 중이면 그 뒤) → 운영 적용. **0252 본문에는 `ON DELETE CASCADE` · `UPDATE` 낱말이 있어 연결 도구가 확인 카드를 띄운다 → 이 창에서 올리지 말고 블록 파일을 Relay 에 넘긴다**(생성기 `E:/Coding Infra/reports/codex-audit-261010/build_apply_0252.py <git-ref> <out.sql>` · 로컬에서 적용 · 다시 적용 · CRLF · 본문 변조 넷을 돌려 봄 · main 에 들어간 본문으로 다시 만들 것).
+- **0253(#2388 · Z66 가의 서버 조각)**: `complete_reasoning_run` 이 저장 직전에 같은 소유자의 대상이 있는지 보고 없는 제안은 넣지 않는다. 초안 · CI 넷 통과 · 독립 검토 전. 검토 준비물: `gates/z66c-daybreak-r1.config.json`(과제 `z66c-r1.md` · 발췌 · 잰 것). 돌릴 때: 워크트리를 그 브랜치로 바꾸고 `python build_pr_gate.py gates/z66c-daybreak-r1.config.json` → `run_gate_one.sh z66c-daybreak-r1 z66-proposals-purge-261013`.
+- **0254(#2391 · Q-66 의 서버 쪽)**: 위기 기록을 쓰는 함수 둘이 저장 직전에 범주 값을 닫힌 목록으로 정리한다(`output_swap` 이 든 기록만 번호와 `unlisted` 를 남김). 초안 · CI 넷 통과 · 독립 검토 전(`gates/q66srv-daybreak-r1.config.json`). 공유 경우 16개 `db/tests/fixtures/crisis-category-cases.json`. 화면 쪽 #2387 은 main 에 있다(16:37).
+- **독립 검토는 하나씩**: 여유 메모리를 보고(16:28 · 16:56 에 4.6 ~ 4.8GB) 하나만 돌린다. 13:10 에 메모리 부족으로 한 번 멈췄다. 워크트리는 하나라 검토가 도는 동안 브랜치를 바꾸지 않는다.
+- **Simon 의 손이 필요한 것**: ① 새 Claude Code 창에 인계 메모 붙이기(Q-261013-44 · 파일 `E:/Coding Infra/reports/codex-audit-261010/handoff-q32-delrcpt-server-261013.md` · 삭제 뒤 완료 안내의 서버 쪽) ② 시험 계정 블록(Q-261013-36)의 실행을 Relay 에 말씀하시기(블록은 16:44 에 Relay 에 넘김 · md5 `5133b420…`) ③ Q-261013-45(위기 기록의 `unlisted` 건수를 누가 볼지) · Q-261013-46(0253 · 0254 의 운영 적용 방식). 셋 다 Relay 메모 `coding-e7-0251-confirmed-next-steps-1645` 와 안내 페이지에 있다.
+- **그 뒤 차례**: Q-261013-67(사용자 글이 걸린 턴의 서버 환불 · 프록시 셋 + 재배포 · 0252 가 운영에 올라간 뒤) → Q-261013-31(가입 거절 안내의 서버 쪽 · 설계안부터).
+- **확인할 것**: Rufus 의 Z66 재점검이 끝나면(2ndb-79 가 시각을 알림) 대상 없는 제안 줄을 다시 센다. 리즈닝이 도는 사이 지운 경우는 0253 전이라 남을 수 있다.
+- **운영 SQL 을 넘기는 길**(오늘 정착): 확인 카드가 뜨는 블록은 `.bots/relay/inbox/` 에 `.sql` + `.note.md`(줄 수 · 바이트 · md5 · `execute_sql` · 성공 표 · 오류 이름). `apply_migration` 은 쓰지 않는다(원장 줄이 둘 생기고 주석이 떨어져 본문 대조에 걸린다). 실행 뒤 운영을 읽어 확인 → `_sync/TO-CLI.md` "완료".
+- **멈춘 것 · 안 한 것**: `DECISIONS.md`(560KB) · `docs/HANDOFF.md`(198KB)는 기준을 넘었다. 쪼개기는 Simon 의 말이 있으면 한다. 로컬 재생 도구(PostgreSQL 18 임시 클러스터 · 포트 54411)는 이 창의 임시 폴더에 있다.
+- **질문 번호**: 이 세션은 46 까지. 다음 47.
+
+## 2026-10-13 15:56 / 2ndb-79: 15:37 답으로 #2382(계정 전환) 머지 · 웹 확인 통과 · #2384(Z107) 머지 - 다음은 폰 빌드 메모와 Rufus 확인
+
+- **지금까지**: Simon 15:37 「Q-66·67·68, Gaius 여섯 건, Z66 가 전부 추천대로 진행」 · 15:49 AI 표시와 "레퍼런스 먼저"(둘 다 DECISIONS 의 이 시각 줄). #2384 머지(15:29 · `d2f26e16`) · #2382 머지(15:48 · `bc6fec77`) · 8081 에서 계정 전환 확인 통과(15:54) · 둘째 시험 계정을 만들어 둠(15:50 · 아직 살아 있음).
+- **다음 1개 = Rufus 의 폰 결과**: 빌드 메모는 16:19 에 올렸다(`.bots/device-lab/outbox/build-memo-bc6fec77-1013.md` · 실행 38358839692 성공 · APK `E:/Coding Infra/reports/devlab-261010/builds/2ndb-bc6fec7.apk`). 결과서 `.bots/device-lab/outbox/vb-devlab-bbc6fec77-1013.result.md` 를 기다린다. 2ndb-53 · 2ndb-e7 에는 "빌드 끝"을 알렸다. **main 머지 전에 0251 의 운영 적용이 끝났는지 확인한다**(Relay 가 Simon 요청으로 Supabase 연결로 실행 중이라고 16:13 에 적음 · 2ndb-e7 에 확인을 부탁함). 그 뒤 #2387(독립 검토 PASS)과 이 기록 PR 을 넣는다.
+- **Rufus 의 결과가 오면**: 통과 → 둘째 시험 계정을 `node delete_web.cjs delete`(도구 폴더 `E:/Coding Infra/reports/devlab-261010/signup-test/tools`)로 지우고, 운영에서 최근 만든 줄이 0 인지 읽어 확인 → 보고서의 Z19 · Z107 을 "반영 · 폰 확인"으로. 어긋남 → 되돌리는 PR 을 먼저 올리고 Simon 에게 알린다(웹 게시 · QA 릴리스는 하지 않는다).
+- **그다음 = 화면 쪽 Q-66 맞춤**(작은 PR): `src/lib/safety/crisis-event-categories.ts` 의 `recordableCrisisCategories` 가 `output_swap` 없는 기록에서는 `crisis_term:*` 와 목록 밖 값을 버리고 `unlisted` 도 넣지 않게 한다(`output_swap` 이 있으면 지금처럼). 테스트: 법무의 새 문구("범위 밖 값은 원값을 남기지 않고 `unlisted` 로만 · 사용자 입력 출처는 `unlisted` 도 기록하지 않는다") · advisor 의 사용자 글 경로 기대값을 `["passive_ideation"]` 로. 영향평가서 D3 줄에 "or `unlisted`". 서버 쪽은 2ndb-e7(0254 예정 · 같은 규칙).
+- **그 뒤 차례**: 뜻 분류 연결(Q-39 · 확인 문장 100건 + 동의 상세 문장 시안) → Q-28(2ndb-53 의 여섯째 시안 → 구현) → 띄어쓰기 보강(닫힌 허용 목록) → Z56(대화 지시문 · 실제 모델 확인: 프록시가 `system` 을 받으므로 QA 계정으로 직접 불러 볼 수 있다) · Z58 → Z40 · Z55 · Z59 · Z63 · Z75 · Z78 · Z82 · Z83 · Z13 · O2 다시.
+- **Q-67**: 서버 함수 0252(2ndb-e7 · PR #2372 초안 · 2회차 검토는 Simon 의 Q-261013-43 답 대기)가 먼저. 화면 쪽(환불 RPC 호출 · 환불 뒤 사용량 다시 읽기)은 0252 가 운영에 올라간 뒤.
+- **실행 대기(Simon)**: 0251 적용 블록 · 시험 계정 삭제 블록(<https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>). 2ndb-53 의 시안 질문 Q-57 · 58 · 59 · 70 과 여섯째 시안(Q-71 ~).
+- **멈춘 것**: #2365(종료 · 초안) · #2318(접음 · 초안). 버스 감시는 30분마다 다시 건다(전체 스캔 뒤).
+- **질문 번호**: 이 세션은 68 까지. 다음 69, 그 뒤 80번대.
+
+## 2026-10-13 15:20 / 2ndb-79: 계정 전환 수정(#2382)은 "먼저 폰에서" 때문에 초안으로 멈춤(Q-261013-68) · Z107 원인 찾음(#2384) - 다음은 Simon 의 답과 #2384
+
+- **지금까지**: #2382 독립 검토 1 · 2회차 BLOCK. 코드 지적은 2회차에서 모두 닫혔고 남은 것은 머지 전 폰 확인 하나 → Q-261013-68 로 여쭘(이 세션 추천 (나) 머지 뒤 main 빌드로 확인 / 독립 검토 의견 (가) 이 PC 에서 먼저 빌드). PR 은 초안. Rufus 의 `cad9e8f0` 결과: Z57 · Z11 폰 통과 · Z104 · Z105 결함 아님 · 새 항목 Z107. 고침 = PR #2384(계정을 첫 인자로 넘김 · 두 인자 꼴의 선언을 없애 계정 없는 호출은 어떤 이름으로도 컴파일되지 않게 함 · 호출자 검사 추가): 독립 검토 1회차 BLOCK(검사가 별칭 호출을 놓침) → 2회차 PASS WITH CONCERNS(15:19 · 낮음 하나 고침) · CI 가 끝나면 머지하고 그 빌드로 Rufus 가 폰에서 확인한다.
+- **다음 1개**: Simon 의 Q-261013-68 답을 받는다. (가)면 빌드 요청으로 읽고 `E:/2ndB/.worktrees/q29-account-restart-261013`(브랜치 `fix/account-change-restart` · head `6e011359`)에서 로컬 릴리스 빌드 → Rufus 확인 → 통과하면 3회차 검토 없이 머지 조건 충족 여부를 다시 확인. (나)면 초안 해제 → CI → 머지 → main 빌드 메모 → Rufus(둘째 시험 계정은 앱에서 만들고 앱에서 삭제 · 운영 0행 확인). (다)면 그대로 둔다.
+- **#2382 의 상태**: 세 번째 BLOCK 이 나오면 멈추고 묻는 규칙에서 지금 두 번. 코드 변경이 없으므로 답 전에는 검토를 다시 돌리지 않는다.
+- **답 · 실행 대기(Simon)**: Q-261013-62 · 63 · 64 · 65 · 66(법무 의견 붙음: 바꿔서 저장 = 충족) · 67 · **68** · Q-28 의 동의 읽기 확인. 실행 = 0251 적용 블록 · 시험 계정 삭제 블록(<https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>). 2ndb-53 의 시안 질문 Q-57 · 58 · 59 · 70.
+- **Q-66 의 답이 오면 할 것**: 서버 쪽 = 2ndb-e7(0252 다음 번호 · 규칙은 DECISIONS 의 이 시각 둘째 줄). 화면 쪽 = `src/lib/safety/crisis-event-categories.ts` 의 `recordableCrisisCategories` 가 `output_swap` 없는 기록에서 `crisis_term:*` · 목록 밖 값을 버리고 `unlisted` 를 넣지 않게 + 영향평가서 D3 줄에 "or `unlisted`" + 법무의 새 테스트 문구.
+- **그 뒤 차례**: 뜻 분류 연결(Q-39) → Q-28 → 띄어쓰기 보강(Q-64 뒤) → Z56 · Z58 → Z40 · Z55 · Z59 · Z63 · Z75 · Z78 · Z82 · Z83 · Z13 · O2 다시.
+- **스크립트 편집 뒤 확인**: 커밋 전에 `git diff --numstat origin/main` 으로 삭제 줄 수를 본다(오늘 테스트 331줄을 잘라 냈다가 복구). 타입 검사 · jest 의 종료 코드는 로그 파일로 보내고 `$?` 를 읽는다.
+- **질문 번호**: 이 세션은 68 까지 썼다. 다음 69.
+
+## 2026-10-13 14:49 / 2ndb-79: 위기 기록의 범주 칸(#2380) 머지 · Q-37 과 서버 쪽 값 정리는 결정 대기(Q-261013-66 · 67) - 다음은 Q-29(계정이 바뀌면 앱 다시 시작 · #2382)
+
+- **지금까지**: #2380 머지(14:41 · main `b16f4fab` · 독립 검토 4회차 통과 · 8081 번들 확인). 답이 위기 안내로 바뀌면 낱말의 고정 번호만 남기고, 위기 기록의 범주는 닫힌 목록만 통과하며, 분류 모델의 답에서는 이름 열둘만 받는다. 위기 안내의 동작은 그대로다. #2378(흔들리는 검사) 머지(14:06).
+- **다음 1개 = Q-29 · PR #2382**(브랜치 `fix/account-change-restart` · 워크트리 `E:/2ndB/.worktrees/q29-account-restart-261013` · 커밋 `496b376b` + main 머지 · 푸시됨):
+  - 독립 검토 1회차를 14:48 에 넣었다(`gates/q29-task.md` · 결과 `gates/q29-daybreak-r1.txt`). 머지 조건 = CI 초록 + 독립 검토 통과 + 새 중간 지적 0. 세 번 막히면 멈추고 Simon 에게 묻는다.
+  - 머지 뒤: ① 8081 에서 QA 계정 → 둘째 시험 계정으로 바꿔 로그인해 새로고침되는지 확인(QA 계정의 로그아웃 요청 `/auth/v1/logout` 은 가로채서 전역 로그아웃을 피한다 · Rufus 가 같은 계정을 폰에서 쓰고 있다) ② CI 가 만든 APK 를 받아 빌드 메모를 올리고 Rufus 에게 폰 확인을 부탁(계정 바꿔 로그인 → 앱이 다시 시작 → 집이 보임 · 빈 화면 없음 · 재시작 뒤 오프닝과 소리) ③ 둘째 시험 계정은 앱의 계정 삭제로 지우고 운영 0행 확인(도구 `E:/Coding Infra/reports/devlab-261010/signup-test/tools`).
+  - 폰 확인이 통과하기 전에는 보고서의 Z19 를 "반영"으로 올리지 않는다. 재시작이 안 되면 기존 경로로 떨어지므로 지금보다 나빠지지는 않는다.
+- **답 · 실행 대기(Simon)**: Q-261013-62(14 ~ 17세 기록 읽기 1차 닫기) · 63(연락처 · 계좌 꼴 가리기) · 64(띄어쓰기 허용 문맥 목록) · 65(Z66 남은 둘) · **66(서버에서도 범주 값 정리 · 추천 "바꿔서 저장")** · **67(Q-37 을 서버 변경으로 · 추천 "근거만큼 환불")** · Q-28 의 동의 읽기 확인. 실행 = 0251 적용 블록 · 시험 계정 삭제 블록(<https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>). 2ndb-53 의 시안 질문 Q-57 · 58 · 59 · 70.
+- **그 뒤 차례**: 뜻 분류 연결(Q-39 · 바꿈표 넷 + 합성 문장 100개 실제 모델 확인 + 동의 상세 문장 시안이 먼저) → Q-28(시안 → 법무 결정 후보의 답 → 구현) → 띄어쓰기 보강(Q-64 뒤) → Z56 · Z58(상대 시각 해석 · `src/lib/chat/plan-suggestions.ts`) → Z40 · Z55 · Z59 · Z63 · Z75 · Z78 · Z82 · Z83 · Z13 · O2 다시.
+- **기다리는 것**: Rufus 의 `cad9e8f0` 재점검 결과서(`.bots/device-lab/outbox/vb-devlab-bcad9e8f-1013.result.md` · 14:42 까지 없음).
+- **멈춘 것**: #2365(종료 · 초안) · #2318(접음 · 초안) · 구현 레인과 8082 확인 서버. 버스 감시는 30분마다 다시 건다(전체 스캔 뒤).
+- **질문 번호**: 이 세션은 67 까지 썼다. 다음 68.
+
+## 2026-10-13 14:15 / 2ndb-e7: 0252(대화 횟수 환불 · PR #2372 초안) 2회차 검토가 메모리로 멈춤 · 서버 일 둘을 새로 맡음 - 다음은 Simon 의 블록 실행과 Q-261013-43 · 44 의 답
+
+- **지금까지(12:27 블록에 더해)**: 0252 = `refund_chat_turn_after_output_swap(p_day date)`(답이 위기 안내로 바뀐 턴의 횟수를 1 돌려줌 · 근거 = 프록시가 쓴 `ai_audit_log` 의 `server_verified` · `secondb_chat` · `red` · 10분 안의 안 쓴 줄 · 쓴 근거는 원장 표 `chat_turn_refunds` 에 기본 키로 남김 · 롤백은 함수만 걷음). 독립 검토 1회차 BLOCK(배열 방식의 중복 환불 · 롤백 뒤 재사용) → `dc66d13f` 로 고침 → CI 넷 통과(sql 단계의 경합 세 경우 포함) → **2회차는 13:10 에 하네스가 메모리 부족으로 멈춤(판정 없음)**. 살아 있던 프로세스 여섯과 로컬 PG18 임시 클러스터를 내렸다. 0251 은 12:27 블록 그대로(머지됨 · 운영 적용은 Simon 의 SQL 편집기 실행 대기 · 안내 페이지 2판 <https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>).
+- **다음 1개**: Simon 의 블록 실행(12:27 블록의 REQ-261013-01) → 운영 읽기 확인. 0252 는 Q-261013-43 의 답이 "다시 돌리기"면 `bash "E:/Coding Infra/reports/codex-audit-261010/run_gate_one.sh" z46srv-daybreak-r2 z66-proposals-purge-261013` 을 **하나만** 돌린다(검토 자료는 `…/gates/z46srv-daybreak-r2.md` 로 이미 만들어져 있다 · 돌리기 전에 여유 메모리 확인).
+- **막힌 것**: 0252 의 2회차 검토(메모리 · Simon 의 말씀 대기). 하네스 안내가 "스스로 다시 시작하지 말 것"이었다.
+- **새로 맡은 것(2ndb-79 의 제안 · Simon 13:17 답)**: ① Q-261013-31(Z1 가입 거절 안내)의 서버 쪽 — 읽기 끝. `block_alias_duplicate_signup`(`0113:16-43`)의 예외는 앱에 500 으로만 간다. Supabase "Before User Created" 인증 훅(Postgres 함수)으로 가입 행을 넣기 전에 4xx + 메시지를 돌려줄 수 있다(운영 Authentication › Hooks 설정 변경이 따라옴). 구현 전 확인할 것: 운영 GoTrue 가 그 훅을 지원하는지 · 소셜 가입에서 오류가 어떻게 보이는지 · 초대/관리자 생성 경로. 이유를 화면에서 어디까지 말할지는 Simon 께 여쭐 것. ② Q-261013-32(#2132 이어 가기)의 서버 쪽 — 범위 읽기부터(61개 파일 · 마이그레이션 0217 · 0227 · 0228 을 0253 이후로 다시 · Edge 함수 `account-deletion-receipt` · `delete-account`). 구현을 어느 창에서 할지는 Q-261013-44.
+- **올 수 있는 것(답 전에는 시작 안 함)**: `complete_reasoning_run` 이 실행 중에 지워진 기록의 제안을 넣지 않게 하는 조각(#2365 가 5회차 BLOCK 으로 종료돼 화면 거르기가 없다) · `trigger_categories` 의 서버 쪽 닫힌 목록(2ndb-79 의 #2380 검토 지적 · 내 의견은 거부가 아니라 `unlisted` 로 바꿔 저장) · Q-37 의 상한(프록시가 입력 422 에서 `server_verified` · `red` 줄을 쓰고 같은 환불 RPC).
+- **열린 질문**: Q-261013-43(0252 검토 재실행) · 44(#2132 서버 쪽을 어느 창에서) · 42(0252 의 운영 적용 방식) · 40 · 41(이월 1회).
+- **도구 메모(12:27 블록에 더해)**: `<scratchpad>/z66pg/` 의 `mutations_z46.py`(SQL 회귀 + 경합 단계를 같이 돌림) · `race_z46.sh` · `build_gate_z46_r2.py`. 로컬 클러스터는 내려가 있다(`pg_ctl -D <scratchpad>/z66pg/pgdata -o "-p 54411 -c lc_messages=C -c listen_addresses=localhost" -l server.log -w start` 로 다시 띄움 · 파이프로 받지 말 것). 하네스가 메모리로 배경 명령을 멈춰도 자식 프로세스는 살아 있다 — 명령줄의 라벨로 내 것임을 확인하고 `taskkill /T` 로 끝낼 것.
+
+## 2026-10-13 14:02 / 2ndb-79: #2365 는 5회차 BLOCK 으로 종료 · Q-60 은 지금처럼 숨김 · 법무 의견 받음 - 다음은 위기 안내의 "먼저" 조각
+
+- **지금까지**: Simon 13:43 「Q-61 다로 진행」 → #2365 5회차 → 13:58 BLOCK → 멈춤(추가 회차 · 우회 금지). Q-60 은 기기 확인 결과로 "지금처럼 숨김"으로 끝. 법무 의견(Q-39 · 띄어쓰기 · Q-28) 받음. 흔들리는 검사의 원인을 고친 #2378 은 독립 검토 통과 · CI 대기.
+- **다음 1개 = 위기 안내의 "먼저" 조각**(브랜치 `fix/reply-overlap-wiring` · 워크트리 `E:/2ndB/.worktrees/o2-reminder-reply-261013` · 커밋 없음 · 지금 그 워크트리는 #2378 의 브랜치 `test/password-reset-no-network` 에 있다):
+  - `src/lib/llm/boundary.ts` 의 답 교체 세 곳(986 · 1464 · 1748행 근처)의 `triggerCategories` 에 `...modelReplyTermCategories(<낱말 검사 결과의 matched>)` 를 **줄 수를 늘리지 않고** 더한다. DPIA 가 그 파일의 줄 번호를 인용한다(`boundary.ts:894-960` 등). import 줄을 새로 넣으면 전부 밀리므로, `src/lib/llm/safety.ts` 끝에서 다시 내보내고 33행의 import 목록에 이름만 더하는 쪽을 생각했다.
+  - `src/lib/chat/conversation.ts` 274행을 같은 줄 수로 바꾼다: 사용자 글이 낱말 검사(두 언어)에서 red 면 횟수를 올리지 않고 `usedBefore` 를 그대로 쓴다(도우미는 파일 끝에 · 19행의 import 에 `classifyInputAnyLocale` 추가). 뜻 분류로만 걸리는 입력(낱말을 흩어 쓴 경우)은 이 조각에서 못 뺀다 — PR 에 적을 것.
+  - `docs/legal/DPIA-2ndB-minors-draft.md` row 6 메모 블록 끝(146행 뒤)에 법무 문장(`.bots/legal/outbox/coding-legal-z45-dpia-line.note.md` 의 2 · 3절).
+  - 테스트: `boundary-output-swap.test.ts`(낱말로 걸린 답의 교체에 `crisis_term:15` · 뜻으로만 걸린 교체에는 번호 없음 · 입력이 걸린 경로에는 번호 없음) · `conversation.test.ts`(red 입력은 `bumpChatUsageIfUnderCap` 를 부르지 않고 `callLlm` 은 부름).
+  - 푸시 전: `npx jest src/lib/legal src/lib/__tests__/source-control-characters.test.ts` · 테스트 파일은 Write 도구나 스크립트 파일로만 고친다(heredoc 금지).
+- **그다음 = 뜻 분류 연결**: `model-reply-scan.ts` 에 바꿈표 넷과 `rewordModelReplyOverlaps` · 후보 조건에 「마지막」(공백을 지운 사본에서) · `llm/safety.ts` 에 사본을 묻는 함수(green 이고 확신도 0.8 이상만 true · 벤더가 openai/claude 가 아니면 묻지 않음 · 5초) · `boundary.ts` 933 ~ 945행을 같은 줄 수로 · `conversation.ts` 에서 성인이고 최근 세 턴에 위기 신호가 없을 때만 허락. 회귀 묶음 100건(합성 문장 · 도구 `E:/Coding Infra/reports/devlab-261010/signup-test/tools/safety_seat_probe.cjs` · 20건 결과 `<scratchpad>/seat-eval-reworded.out1.json`)을 저장소 테스트 자료로. 동의 상세 문구 한 문장은 2ndb-53 시안 → Simon 확인 뒤 같은 PR 에.
+- **답 · 실행 대기**: Simon 실행 = 0251 적용 · 시험 계정 삭제(<https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>). Relay 가 올릴 법무 결정 후보 = Q28-D1 ~ D4 · Z45-D5 · Q39-D1(이건 진행 중). 2ndb-53 의 다섯째 시안 = Q-261013-57 · 58 · 59 · 70(<https://claude.ai/artifact/GhaKcnydd7Gg2FWy6PuonY>).
+- **그 뒤 차례**: Q-29(계정이 바뀌면 앱 다시 시작 · 폰 확인 먼저 · #2318 은 접음) → Q-28(시안 → 법무 결정 후보의 답 → 구현) → 띄어쓰기 보강(Z45-D5 의 답 뒤) → Z56 · Z58.
+- **멈춘 것**: #2365(종료 · 초안으로 둠) · #2318 · 구현 레인과 8082 확인 서버. 메모리로 꺼진 것: #2373 의 CI 대기 작업(13:10).
+
+## 2026-10-13 13:41 / 2ndb-79: #2365 는 4회차에서 멈춤(Q-261013-61) · 위기 안내 연결은 서버 설정 없이 가는 길 확인 - 다음은 그 연결 PR
+
+- **지금까지**: #2365 4회차 BLOCK → 멈춤(Simon 의 답대로). 위기 안내 연결(Q-39)의 길을 실제 모델 20건으로 확인(DECISIONS 같은 시각 둘째 줄 ③). 폰 c8ac34e4 결과 받음(로그인 실패 안내 통과).
+- **다음 1개 = 위기 안내 연결 PR**(브랜치 `fix/reply-overlap-wiring` · 워크트리 `E:/2ndB/.worktrees/o2-reminder-reply-261013` · 아직 커밋 없음):
+  - `src/lib/safety/model-reply-scan.ts`: 바꿔 쓰기 표(넷) · `rewordModelReplyOverlaps` · 후보 조건에 "「마지막」이 없음" 추가 · 바꿔 쓴 사본에 위기 낱말 · 위험 문맥이 없을 때만 후보.
+  - `src/lib/llm/safety.ts`: 후보 사본을 `safety_classify` 자리에 묻는 함수(green 이고 확신도 0.8 이상일 때만 true · 그 밖 · 실패 · 시간 초과는 false). 전체 스위치 `EXPO_PUBLIC_SERVER_SAFETY` 는 건드리지 않는다.
+  - `src/lib/llm/boundary.ts`(답 교체 · 약 933 ~ 998행): 부르는 쪽이 허락했고 후보이고 뜻 확인이 true 일 때만 교체하지 않는다. 교체할 때는 `crisis_term:<n>` 을 범주에 더한다(`modelReplyTermCategories`).
+  - `src/lib/chat/conversation.ts`: 성인이고 최근 세 턴(기록 6칸)에 위기 신호가 없을 때만 허락 · 사용자 글이 걸린 턴은 횟수를 올리지 않는다(Q-37 · 입력 검사를 횟수 올림 앞으로).
+  - `docs/legal/DPIA-2ndB-minors-draft.md` row 6 메모 끝에 법무 문장(`.bots/legal/outbox/coding-legal-z45-dpia-line.note.md`). 줄이 밀리므로 푸시 전 `jest src/lib/legal`.
+  - 테스트: 법무 요구 여섯 + 미성년 · 최근 위기 신호 · 뜻 확인 실패/시간 초과/낮은 확신도는 교체 · 실제 모델 20건의 문장을 고정 자료로.
+  - 횟수 환불 호출(Q-34 ③)은 0252 가 운영에 적용된 뒤 따로(지금 넣으면 없는 RPC 를 부르게 된다).
+  - 독립 검토(`gate_generic.py z45w 1 <PR> …`) 통과 뒤에만 머지. 적용 뒤 2주 집계.
+- **그다음**: Q-29(계정이 바뀌면 앱 다시 시작 · 폰 확인 먼저) → Q-60(Rufus 의 기기 사실 확인 결과를 보고) → 작은 것(`auth-password-reset.test.ts` 의 네 검사에 `fetch` 대역) → Z56 · Z58.
+- **답 대기**: Q-261013-61(#2365). Simon 실행 대기: 0251 적용 · 시험 계정 삭제(<https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>).
+- **봇에 부탁해 둔 것**: 법무 = Q-28 의견 · 조건 원문(「마지막」 · 띄어쓰기) · 바꿔 쓴 사본으로 묻는 방식에 걸리는 것이 있는지 / Rufus = Q-60 기기 사실 확인 · P7Pro 지역 · 다음 빌드(Z57 · Z11) 확인.
+- **멈춘 것 그대로**: #2365 · #2318(Q-29 의 답으로 접음 · 닫지는 않았다) · 구현 레인과 8082 확인 서버.
+
+## 2026-10-13 13:21 / 2ndb-79: Simon 의 답 13건 받음 · 상충 넷을 읽은 방식과 우선순위 · Z57 머지 - 다음은 #2365 4회차
+
+- **지금까지**: Simon 이 13:17 에 보고서 결정 탭의 답 13건을 직접 보냈다(원문은 DECISIONS 같은 시각 첫 줄). 상충 넷을 먼저 알리고 읽은 방식을 적었다(둘째 줄 ①). #2373(Z57) 13:18 머지(main `70b8b8ce`) · #2369(Z45 부품) 12:59 머지.
+- **다음 1개 = Q-38**: #2365(워크트리 `E:/2ndB/.worktrees/z1-signup-reject-261013` 에서 브랜치 `fix/reasoning-review-live-targets` 로 되돌아가서)의 4회차. 3회차가 남긴 셋: ① 실행의 catch 경로에 컨트롤러 소유 확인 ② `userIdRef` 를 `useEffect` 가 아니라 동기적으로(`useLayoutEffect` 또는 계정 세대) 갱신 + 계정이 바뀌면 상태 초기화 ③ 낡은 계정 경로가 `phase` · `applying` 을 남김. 회귀 테스트 → CI → `gate_generic.py z66s 4 2365 …` → PASS 면 머지, BLOCK 이면 멈춤.
+- **그다음(순서대로)**:
+  - Q-39 · Q-34 · Q-37 = 위기 안내 연결 PR. 후보인 답(`checkModelReplyOverlaps` 의 `candidate`)에만 서버의 뜻 분류 한 번 · "위기 아님"일 때만 그대로 · 성인 경로만 · 최근 세 턴에 위기 신호가 있던 대화 제외 · 답이 바뀐 경우에만 `crisis_term:<n>` 기록 · 0252 환불 RPC 호출 뒤 `readChatUsageDetail` 로 다시 읽기 · 사용자 글이 걸린 턴도 차감하지 않기(Q-37) · DPIA 한 줄(`.bots/legal/outbox/coding-legal-z45-dpia-line.note.md`). 뜻 분류의 실제 모델 확인은 운영 프록시를 QA 계정으로 직접 불러서(8082 는 띄우지 않는다). 읽을 곳: `src/lib/llm/boundary.ts` 약 933 ~ 998행 · `src/lib/llm/safety.ts` 233 ~ 260행 · `src/lib/chat/conversation.ts` 약 269 ~ 274행.
+  - Q-29 = 계정이 바뀌면 앱이 스스로 다시 시작. #2318(초안 · 16개 파일)의 방식은 접고 새 PR 로. 폰에서 되는지 먼저(Device Lab) · 둘째 계정이 필요하면 하나 만들고 앱에서 삭제 → 운영 0행 확인.
+  - Q-60 = 잠금이 풀려 있을 때만 할 일 표시. 기기 확인 먼저(안드로이드 채널의 잠금 화면 표시 값 · 채널 설정은 만든 뒤 못 바꾸므로 새 채널 id 가 필요할 수 있다 · iOS 는 미확인). 잠금 화면에 새면 지금처럼 숨긴다. 독립 검토 필수.
+  - Q-28 = 문구 시안(2ndb-53 · 소개 문장과 예시 질문을 지금 사실에 맞게) → 법무 의견(성인 · 14~17세) → 영향평가서의 "기록 본문은 프롬프트에 넣지 않는다" 문장 개정 → 구현(기록 전체에서 관련된 것 찾아 읽기 · 처음 한 번 묻기 · 설정에서 끄기). 법무 앞에는 코드가 기록 본문을 보내지 않는다.
+  - Q-31 = Z1(가입 거절 안내): 서버 변경(2ndb-e7 에 물을 것)과 새 문구 시안부터.
+  - Q-32 = #2132 이어 가기: 서버 2ndb-e7 · 화면 2ndb-53 에 제안함(받겠다는 답이 오기 전에는 배정이 아니다).
+  - 작은 것: `auth-password-reset.test.ts` 의 네 검사에 `fetch` 대역(실제 HIBP 호출이 CI 에서 흔들림).
+- **Simon 실행 대기**: 0251 적용 블록 · 시험 계정 삭제 블록(Q-36) — <https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>.
+- **막힌 것**: 없음. 8082 확인 서버와 구현 레인은 Q-30 의 허용 범위 밖이라 띄우지 않는다.
+- **폰**: Rufus 가 13:10 부터 `c8ac34e4` 빌드로 점검 중(결과 `device-lab/outbox/vb-devlab-bc8ac34e-1013.result.md`). Z57 은 `70b8b8ce` 이후 빌드에서.
+
+## 2026-10-13 12:46 / 2ndb-79: 위기 안내 오탐(Z45)의 준비 조각이 3회차 검토 통과 · 실제 적용 방식은 Q-261013-39 대기 · 폰 빌드 c8ac34e4 메모 발행
+
+- **지금까지**: PR #2369(브랜치 `fix/output-overlap-exceptions` · 워크트리 `E:/2ndB/.worktrees/o2-reminder-reply-261013`) = `src/lib/safety/model-reply-scan.ts` 신설 + `crisis-context.ts` 끝에 `hasCrisisRiskContext` + 테스트 64. 부품만 · 연결 없음 · 앱 동작 변화 없음. 독립 검토 1 · 2회차 BLOCK → 3회차 PASS(12:40 · `E:/Coding Infra/reports/devlab-261010/gates/z45a-daybreak-r3.txt`). 왜 줄였는지는 DECISIONS 같은 시각 줄.
+- **다음 1개**: Q-261013-39 의 답. "가"면 연결 PR — 후보인 답에만 서버의 뜻 분류를 한 번 더(전체 스위치 `EXPO_PUBLIC_SERVER_SAFETY` 는 그대로 꺼 둠) · 성인 경로만 · 최근 세 턴에 위기 신호가 있던 대화 제외 · 답이 바뀐 경우에만 `crisis_term:<n>` 기록 · DPIA 한 줄(`.bots/legal/outbox/coding-legal-z45-dpia-line.note.md`) · 0252 환불 RPC 호출(`refund_chat_turn_after_output_swap` · 2ndb-e7 의 #2372 가 운영에 적용된 뒤) · 독립 검토 통과 뒤에만 머지 · 적용 뒤 2주 집계.
+- **연결 PR 을 쓰기 전에 읽을 것**: `src/lib/llm/boundary.ts` 의 답 교체(약 933 ~ 998행) · `src/lib/llm/safety.ts` 의 `classifyViaProxy`(약 233 ~ 260행) · `supabase/functions/openai-proxy/index.ts:1073`(프록시의 답 쪽 `hasCrisisTerm` — 여기도 같은 목록을 쓸지는 그때 정한다 · Edge 재배포가 따른다) · `EXPO_PUBLIC_OBFUSCATION_SAFETY`(워크플로 주석에 나오는 다른 스위치 · 아직 읽지 않음).
+- **막힌 것**: 없음(답 대기). 띄어쓰기 변형(「더이상 살」 · 「짐 이 되」)은 지금의 위기 낱말 목록이 원래 못 잡는다 — 이번 변경과 무관하고, 넓히려면 사용자 입력 검사까지 바뀌므로 법무에 따로 알렸다(`.bots/relay/inbox/coding-z45-design-change-q39-1241.note.md`).
+- **폰 빌드**: `c8ac34e4` 빌드 메모 발행(12:43 · `.bots/device-lab/outbox/build-memo-c8ac34e4-1013.md`). 로그인 실패 안내(#2341)의 폰 확인이 이 빌드의 핵심이다. Rufus 의 결과는 `device-lab/outbox/vb-devlab-bc8ac34e-1013.result.md` 로 온다.
+- **Simon 실행 대기**: 0251 적용 블록 · 시험 계정 삭제 블록(Q-36) — 2ndb-e7 의 안내 페이지 <https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>. 0251 이 적용되면 Rufus 에게 「결과 검토」 재확인을 부탁한다(그 전까지 그 줄을 누르지 않기로 했다).
+- **남은 답**: Q-261013-28 · 29 · 30 · 31 · 32 · 37 · 38 · 39. 보고서 18판 <https://claude.ai/artifact/UtELW66iaCBWxwrrwVjLd4>(101건 · 결정 대기 6).
+- **멈춘 것 그대로**: #2365(Q-261013-38) · #2318(Q-261013-29) · 구현 레인과 8082 확인 서버(Q-261013-30).
+
+## 2026-10-13 12:13 / 2ndb-79: 로그인 실패 안내 머지 · 8081 확인 · 지운 글 화면 수정은 3회차에서 멈춤 · Simon 답 셋 반영 - 다음은 Z45 구현
+
+- **끝난 것**: #2341(Z12 · Z24 = Z96 · 12:02 · main `f0fde528` · 4회차 PASS WITH CONCERNS · 8081 확인 12:06). 기록은 이 PR(#2363).
+- **멈춘 것**: #2365(Z66 화면 쪽 · 초안 · 3회차 BLOCK · Q-261013-38 답 대기 · 워크트리 `E:/2ndB/.worktrees/z1-signup-reject-261013` 브랜치 `fix/reasoning-review-live-targets` head `13fd9903` · 판정 `gates/z66s-daybreak-r1|r2|r3.txt`). 4회차를 하게 되면: 계정 단위 세대(generation)를 계정 전환과 동기적으로 갱신(최소한 `useLayoutEffect`) + 그때 `phase` · `applying` · `proposals` · `selected` · `runState` · `completedCount` · 오류 초기화 + 실행의 catch 에도 `abortRef.current === controller` 소유권 검사 + 회귀 테스트(취소 → 새 실행 → 옛 reject).
+- **다음 1개 = Z45 구현(Simon 10:36 Q-34 · 11:42 D1 ~ D3 · 법무 의견 `.bots/legal/outbox/coding-z45-legal-ask.result.md` · DPIA 문장 `.bots/legal/outbox/coding-legal-z45-dpia-line.note.md`)**
+  - ① AI 답 검사에만 닫힌 예외 목록: 「다짐이 되」 · 「마음가짐이 되」 · 「몸가짐이 되」 / 「유서 깊」 · 「사유서」 · 「이유서」 / 「더 이상 살펴」. 「끝내고 싶」 · 「끝낼 거」는 넣지 않는다(D2). 예외 낱말 밖에서 같은 위기 낱말이 한 번이라도 따로 나오면 지금처럼 바뀐다. 사용자 입력 검사에는 예외 없음(앱 · 서버 프록시 양쪽 · 테스트로 고정).
+  - 끄는 조건: 미성년 경로(D1) · 같은 대화의 최근 세 턴 안에 위기 신호(사용자 입력이 걸렸거나 안내가 나감).
+  - ② 기록: AI 답이 바뀐 경우에만 위기 낱말의 고정 코드(1 ~ 19)와 출처 "AI 답"을 범주 칸에(D3). 사용자 입력이 걸린 경우에는 코드를 남기지 않는다. 범위 밖 코드는 거부.
+  - 서버 쪽: `supabase/functions/openai-proxy/index.ts:1073` 의 답 쪽 판정(`hasCrisisTerm(text)`)에도 같은 목록 → Edge 재배포(2ndb-e7 과 상의 · "게시 중" 표시). 낱말 목록의 세 사본 일치 검사(`crisis-terms-proxy-parity.test.ts`)처럼 예외 목록도 일치 검사를 둔다.
+  - ③ 바뀐 턴의 횟수 미차감: 서버 환불 RPC(0252 · 2ndb-e7 · 0251 적용 뒤) + 화면은 RPC 가 돌려준 값으로 남은 횟수를 맞춘다.
+  - DPIA(`docs/legal/DPIA-2ndB-minors-draft.md` row 6 메모 블록 끝)에 법무가 준 문장(ko 원문 + en)과 개정 메모 한 줄. `dpia-crisis-rail-anchors.test.ts` 확인.
+  - 테스트(법무 요구 6 + 조건): 통과해야 하는 문장 · 바뀌어야 하는 문장("더 이상 살고 싶지 않아" · "유서를 썼어" · "가족에게 짐이 되는 것 같아" · 섞인 문장 · 띄어쓰기 변형) · 사용자 입력에 예를 넣어도 지금처럼 · 미성년은 예외 꺼짐 · 목록 스냅샷 · 코드 범위.
+  - 「끝내고 싶은 일」 말투의 오탐을 프롬프트로 줄이는 것은 실제 모델 확인이 먼저라 따로 낸다(Q-261013-30).
+  - 독립 검토를 통과한 뒤에만 넣는다. 적용 뒤 2주 집계.
+- **Q-36(시험 계정 삭제)**: 블록 본문을 2ndb-e7 에 넘겼다(로컬 PG18 다섯 경우 확인 · 0251 과 다른 카드). Simon 이 SQL 편집기에서 한 번 실행한다. 실행 뒤 0행 확인.
+- **폰 빌드**: 8081 과 맞추는 방법을 Relay 에 답했다(같은 커밋의 자동 빌드를 내려받아 빌드 메모로). 다음 빌드 메모에 넣을 확인: 로그인 실패 안내(틀린 비밀번호 → 버튼 위 · 5초 뒤에도 남음 · 한 글자 고치면 사라짐 · 빈 칸으로 누르면 「먼저 계정 이메일을 입력해 주세요.」) + 2ndb-53 의 다섯(설정 맨 아래 「버전 0.10.0」 · 지원 화면 버전 · 「가져온 이력·철회」가 이력을 엶 · 제목 없는 메모의 상세에 큰 제목 없음 · 생년월일 연도 목록 맨 위 줄 — 화면 캡처로).
+- **남은 답**: Q-261013-28 · 29 · 30 · 31 · 32 · 37 · 38.
+- **이 세션의 제약**: 메모리로 꺼진 구현 레인 · 배경 머지 도우미는 다시 띄우지 않았다. 직접 고치고 테스트는 CI 로 돌린다(첫 CI 실패가 두 번 났다: 타입 오류 · 호출 수 고정).
+
+## 2026-10-13 11:22 / 2ndb-79: 실사용 점검 99건 · 폰에서 로그인 실패 안내가 안 보이는 원인 확인(Q-261013-33 의 새 근거) · 결정 아홉(Q-261013-28 ~ 36) 대기 - 다음은 Simon 의 답
+
+- **지금까지(10:54 블록에 더해)**: 둘째 기기(P7Pro · 로그아웃 상태) 확인 — Z3 · Z4 · Z9 · Z18 · Z2 통과. Z24 = Z96 의 원인 확인(실패 안내가 폼 맨 끝에 2.8초만 뜸 · 폰에서는 화면 밖). 새 관찰 Z96 ~ Z99. 보고서 14판(반영 15). 기록 PR #2358 머지.
+- **Simon 의 답(10:36 · Relay 1:1 원문 「Q-34·Q-35 둘 다 추천대로 진행해」 · 11:25 에 읽음)**: Q-261013-34(Z45) 와 35(Z66)를 추천대로 진행한다. 35 = 서버는 2ndb-e7(0251 · 한 번 정리) · 화면과 저장 쪽은 이 세션. 34 = 답 쪽 예외는 법무 의견과 독립 검토 뒤 · 낱말 번호 기록과 횟수 미차감은 바로.
+- **Simon 의 답 둘째(11:33 · 원문 「Q-33·Q-36 둘 다 추천대로 진행해」 · 11:37 에 읽음)**: #2341 을 한 번 더 고쳐 4회차 검토(통과하면 머지 · 또 막히면 멈춤) · 확인 안 된 시험 계정 1개 삭제(2ndb-e7 의 SQL 편집기 블록에 넣어 달라고 함).
+- **다음 1개**: #2341 의 4회차. Q-35 의 화면 쪽은 PR #2365 로 올렸다(CI 재시도 · 독립 검토 1회차 진행 중). 남은 답은 Q-261013-28 ~ 32. #2341 의 순서: `gates/z12-daybreak-r3.txt` 의 최소 패치(폼을 떠날 때의 정리는 그 렌더의 danger 안내만 identity 로 지운다) + 하니스 테스트 → 푸시(테스트는 CI 가 돌린다) → `gate_generic.py z12 4 2341 …` → PASS + CI 초록이면 머지 → 8081 확인 → 2ndb-53(Z11 대기)과 Device Lab 에 알림.
+- **다음 빌드 메모에 넣을 것**: #2359(설정 맨 아래 「버전 0.10.0」 한 줄 · 누르면 내부 값 · 지원 화면 맨 아래 버전) · #2361(Z92 · Z93) · Z86 · Z7(여는 줄) — 머지되는 대로. Rufus 에 부탁해 둔 것: Z98 재현(누르기 전후 덤프) · 시험 계정 회차(실제 로그아웃 · Z22 · 무료 화면) · 빌드 `6d3d5384` 의 Z85 · Z91.
+- **Simon 이 고르면 이 세션이 넣을 화면**: 2ndb-53 넷째 시안의 Q-261013-51(이야기 제목) · 52(저장 화면) — `interview.tsx`. Z63(저장본 끝의 답 없는 질문)도 같은 파일이다.
+- **운영에 남은 것**: 확인 안 된 시험 계정 1개(Q-261013-36 · 지우지 않았다) · QA 계정의 대상 없는 리즈닝 제안 4줄(Q-261013-35).
+- **멈춘 것 그대로**: #2341 · #2318 · 구현 레인과 8082 확인 서버(Q-261013-30).
+## 2026-10-13 12:27 / 2ndb-e7: Z66 서버 쪽 0251 머지(#2366) · 운영 적용은 Simon 의 SQL 편집기 실행 대기 - 다음은 실행 뒤 운영 읽기 확인
+
+- **지금까지**: Simon 10:36 「Q-34·Q-35 둘 다 추천대로 진행해」에 따라 Z66 서버 쪽을 만들었다. 마이그레이션 0251 = `records` · `sources` 의 AFTER DELETE 트리거(같은 소유자 · 같은 종류 · 같은 id 의 제안 줄을 상태와 무관하게 지움 · proposed 줄이 안 남으면 실행을 `ratified` 로 닫음 · `reasoning_runs` 행은 안 지움) + 한 번 정리(대상 없는 줄 삭제 · 남은 줄의 `title` 제거). 독립 검토 1회차 BLOCK(인덱스 · id 글자 비교 · 잠금 순서 · 회귀 빈틈) → 고침 → 2회차 PASS WITH CONCERNS. #2366 머지 12:24 · main `c9fe3485` · CI 넷 통과 · `app:parity` 같음(12:26). **운영은 바꾸지 않았다**(원장 217행 · 0251 없음 · 12:25 읽기).
+- **다음 1개**: Simon 이 안내 페이지 <https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg> 의 블록 둘을 실행했다고 알려 오면, 운영을 읽어 확인한다 — 원장에 `0251_reasoning_proposals_purge` 한 줄 · 트리거 `purge_reasoning_proposals` 둘(`records` · `sources`) · 함수 `purge_reasoning_proposals_of_erased` 의 ACL 에 API 역할 없음 · 제안 11줄 · 대상 없는 줄 0 · 제목 0 · 실행 11개 그대로(검토 대기 0) · 시험 계정 `rufus.z2test` 0행. 그다음 `_sync/TO-CLI.md` 의 12:26 알림을 "완료"로 내리고, 2ndb-79 에 적용 시각을 알린다(Rufus 의 Z66 재점검용).
+- **REQ-261013-01 (CLI → GUI · Simon)**: 목적 = 지운 기록의 제안 줄 4개와 그 제목을 운영에서 지우고, 앞으로 지우는 기록이 같은 흔적을 남기지 않게 한다(안 하면 그대로 남는다). 화면 · 행동 · 복사 버튼 · 성공 신호는 위 안내 페이지 요약 탭의 카드 ① ~ ③ 에 있다(편집기 그림은 기억으로 그린 배치 · ⚠ 미확인). 성공 신호: 첫째 블록 = 결과 표의 `ledger_0251 = 1` · `triggers = 2` · `rows_without_target = 0` / 둘째 블록 = `q36_remaining = 0`.
+- **막힌 것**: 없음(실행 대기).
+- **열린 질문**: Q-261013-42(0252 의 운영 적용 방식 · 추천 = 검토 통과 뒤 바로 올리고 보고) · Q-261013-40 · 41(이월 1회 · 최초 05:20). 2ndb-79 의 Q-261013-38(화면 PR #2365 를 어떻게 할지)이 "서버에 맡김"으로 나오면 `complete_reasoning_run` 이 대상 없는 제안을 넣지 않게 하는 서버 조각이 따로 필요하다(0251 은 실행이 도는 사이의 삭제를 닫지 않는다).
+- **그다음(0251 적용 뒤)**: 0252 = `refund_chat_turn_after_output_swap(p_day date)`(SECURITY DEFINER · `auth.uid()` 소유 · 근거는 프록시가 쓴 `ai_audit_log` 의 `server_verified` · `secondb_chat` · `red` · 최근 10분 줄 · 새 표 `chat_turn_refunds(audit_id PK)` 로 한 번만 · `count > 0` 일 때 1 내림 · 새 `count` 반환). 2ndb-79 와 모양을 맞췄고 화면은 2ndb-79 가 한다. 범위는 "답이 바뀐 턴"뿐이다(입력이 걸린 턴은 2ndb-79 가 Q-261013-37 로 따로 여쭘).
+- **알아 둘 사실**: 운영 서버는 PostgreSQL 17.6 · `postgres` 역할은 superuser 가 아니고 BYPASSRLS(11:34 읽기). `records` 는 FORCE RLS 라서 BYPASSRLS 가 없는 소유자 역할은 기록을 0행으로 본다 — 운영 데이터를 조건으로 지우는 블록은 `row_security_active` 가드를 둘 것. `refId` 같은 payload 칸은 클라이언트가 쓰는 길이 제한 없는 글이다(인덱스 · 맨 형 변환 금지).
+- **도구 메모**: 로컬 재생 하네스 `<scratchpad>/z66pg/`(`replay.sh` = CI sql job 의 시드 → 0001 ~ 0146 → 0147+ 를 PG18 임시 클러스터 포트 54411 에 올림 · `mutations_r2.py` · `deadlock_probe.sh` · `lanes.sh`). 적용 블록 생성기 `E:/Coding Infra/reports/codex-audit-261010/build_apply_0251.py <ref> <out>`. 안내 페이지 원본 `…/ui/z66-apply.fragment.html` + `dyn_z66.py` → `state_z66.py` → `vars_z66.py` → `build_result.py z66-apply z66-apply …` → `check_z66.cjs` → 같은 경로(`z66-apply.body.html`)로 다시 게시. 독립 검토 자료 `…/gates/z66srv-daybreak-r{1,2}.{md,txt,meta.json}`.
+- **이 세션이 들고 있는 것**: 워크트리 `z66-proposals-purge-261013`(브랜치 머지됨 · node_modules 정션 있음 — 지울 때 정션부터 풀 것) · `systags-next-261013`(머지됨 · 정션 없음). 로컬 PG18 임시 클러스터(포트 54411)는 세션을 끝낼 때 내린다.
+
 ## 2026-10-13 10:54 / 2ndb-79: 실사용 점검 95건 · 새 빌드 폰 확인 여섯 통과 · QA 계정은 유료 요금제 · 결정 여덟(Q-261013-28 ~ 35) 대기 - 다음은 Simon 의 답
 
 - **지금까지(07:52 블록에 더해)**: 병렬 6회차(Z88 ~ Z93) → 2ndb-53. 빌드 메모 둘(08:41 `233004cd` · 10:53 `6d3d5384` — 둘 다 자동 빌드 결과물 · 새로 빌드하지 않음 · QA 릴리스 없음). 폰 확인 통과: Z37 · Z79 · Z71 · Z25 · Z26 · Z38 앞쪽. Z89 · Z90 닫음. 새 관찰 Z94 · Z95. 보고서 12판.
@@ -84,6 +350,16 @@
 - **08:22 덧붙임**: #2354(08:18 · main `e2e72c4a` · Z85 대화 입력 칸과 답의 읽기용 이름이 고른 대화 상대를 따름 · 8081 에서 입력 칸 확인) 머지. 시안 다(오프라인과 도움말)를 게시했다(<https://claude.ai/artifact/35qVVdLDy9M9MWzS4GR3nV> · Q-261013-21 ~ 25 · 원본 `ui-az4c-1013.fragment.html`). 시안 셋이 다 나갔다(가 Q-11 ~ 15 · 나 Q-16 ~ 20 · 다 Q-21 ~ 25 · 앞의 06 ~ 10 은 가의 결정 탭). 다음 1개는 넷째 묶음(이야기와 대화: Z60 별 요약에서 내 이야기로 · Z61 제목 「1턴 회상 인터뷰」 · Z64 저장 화면 · Z32 「0/5」 · Z65 구독이 끝나는 날짜 · Z86 기록 상세의 큰 제목 · Z87 모드를 바꿔도 앞 대화가 남음). `interview.tsx` 는 여전히 Simon 의 답 전에는 아무도 고치지 않는다. 고칠 일로 남은 것: Z70 · 웹 설정 맨 아래의 「v? · ? · OTA ?」.
 - **08:44 덧붙임**: **셋째 시안의 Q-21 추천을 바로잡았다**(08:36 · 같은 주소 2판): 「인터넷에 연결되어 있지 않습니다」 · 긴 줄표가 아니라, 응답이 없을 때 `common:errors.network` + [다시 시도] · 못 불러온 숫자는 「...」(DECISIONS 08:44 · 08:22 줄의 그 대목은 틀린 것). #2356(08:41 · main `6d3d5384` · Z91 가져오기 화면의 반말 한 문장 · 8081 확인) 머지. 6회차 Z88 ~ Z93 받음: Z88 · Z92 · Z93 은 넷째 묶음, Z89 · Z90 은 고칠 일. QA 계정은 「북극성 · 250회/일」로 보인다(무료가 아님 · 횟수 표시 시안은 5회와 두 경우). 다음 1개는 그대로 넷째 묶음(이야기와 대화 + 알림 · 가져오기).
 - **11:16 덧붙임**: #2359(11:09 · main `c92d95bb` · Z94 설정 맨 아래가 「버전 0.10.0」 · 누르면 내부 값 · 지원 화면의 고정 글 「v1.0.0」을 실제 버전으로 · 8081 확인 11:13 · 폰 미확인) 머지. **넷째 시안**(이야기와 대화)을 게시했다(<https://claude.ai/artifact/3v1eVGgURSgptxiiT28uqi> · Q-261013-50 ~ 56 · 번호대는 이 창 06 ~ 25 와 50번대). 이제 답을 기다리는 이 창의 물음은 스물일곱(06 ~ 25 · 50 ~ 56)이다. 폰 확인(2ndb-79 가 전함): Z79 · Z71 · Z37 · Z25 · Z26 · Z38 앞쪽 · Z3 · Z4 · Z9 · Z18 통과 · Z89 · Z90 닫음 · Z7 부분. **다음 1개 = 묻지 않고 고칠 넷**: Z93(「가져온 이력 · 철회」가 이력 화면을 열게) → Z92(빈 화면의 「NEW」 · 이력 화면의 말풍선) → Z86(제목 없는 기록의 상세에서 같은 글 두 번) → Z7(태어난 해 목록이 고를 만한 해의 줄에서 열리게). 알아 둘 것: 로케일 문자열을 더하면 `crisis-obfuscation.test.ts` 의 개수 고정(지금 4378)을 같은 PR 에서 올린다. app:parity 같음(11:13).
+- **12:16 덧붙임**: 묻지 않고 고칠 다섯을 넣었다: #2362(11:29 · Z86 제목 없는 기록의 상세에서 같은 글 두 번) · #2364(11:33 · Z7 태어난 해 목록의 윗줄 흔적 · 원인은 추정) · #2361(11:40 · main `a2bd8a5d` · Z93 「가져온 이력·철회」가 이력 걸음에서 열림 · Z92 빈 상태의 「NEW」와 이력 걸음의 말풍선) · #2367(12:11 · main `c8ac34e4` · Z48 메모 본문을 고치면 제목도 따라감 · 8081 은 요청을 가로채 확인 · QA 계정 쓰기 0). 다섯 다 8081 전후 확인 · 폰 미확인. 넷째 시안은 3판(같은 주소). 「삭제」 세 곳이 지우는 것을 확인했다(DECISIONS 12:16 ⑦ · 내 데이터의 「삭제」 줄은 글과 여는 곳이 어긋남 · Q-17 에 붙여 답 대기 · 고치지 않음). **앱 머지 쉼**: `c8ac34e4` 의 폰 빌드가 끝날 때까지 두 창 모두 main 을 움직이지 않기로 했다(2ndb-79 가 끝났다고 알리면 그 창의 #2363 → 이 창의 기록 PR 순서). **다음 1개 = Z11**(로그인 화면의 비밀번호 보기 버튼이 칸 안이 아니라 이름 줄에 떠 있음 · #2341 이 12:02 에 머지돼 풀림 · `dds-sign-in-screen.tsx` 는 바이트 고정이 있고 실패 안내 자리 `inlineNotice` 를 건드리지 않는다) · 그 뒤 Z17(로그인 화면 맨 아래 사업자 줄이 잘림). 고르실 것으로 남은 것(다섯째 묶음 후보 · 답이 스물일곱 쌓여 있어 아직 안 그림): Z28(아바타 꾸미기가 앱 소개보다 먼저) · Z34(스크랩 탭에 저장한 것 목록이 없음) · Z49(기록 상세의 편집 · 삭제가 맨 끝) · Z51(알림 시간 설정이 없음) · Z10 · Z27 · Z35 · Z100 · 손으로 준 요금제의 구독 문장(Z65). `reasoning.tsx` 는 2ndb-79 의 #2365(막힘 · Q-261013-38)가 열려 있는 동안 열지 않는다. Z29 는 `interview.tsx` 라 2ndb-79 몫. 답을 기다리는 이 창의 물음은 스물일곱(Q-261013-06 ~ 25 · 50 ~ 56)이다. app:parity 같음(12:15).
+- **13:36 덧붙임**: #2370(13:31 · main `cad9e8f0` · Z11 로그인 화면의 비밀번호 보기 버튼을 칸 안 오른쪽으로 · 8081 확인 13:33 · 폰 미확인) 머지. 오늘 고친 여섯(Z94 · Z93 · Z92 · Z86 · Z7 · Z48)은 폰에서 통과했고 Z17 은 결함 아님으로 닫았다. 열린 PR 없음. **다음 1개 = 다섯째 시안**: ① 허슬케이 소개 문장과 예시 질문을 지금 사실에 맞게(2ndb-79 의 Q-261013-28 에 Simon 이 "소개 문장과 예시 질문을 사실에 맞게 바꾸기"로 답함 · 지금 실제로 읽는 것은 그 창에 물어 둠) ② 가입 거절 안내의 자리와 모양(Q-261013-31) ③ Z106(메뉴와 화면 제목의 이름) ④ 태어난 해 목록이 여는 자리(Z104) ⑤ Z100(안내의 폰 뒤로 · 닫는 버튼). 번호는 Q-261013-57 ~ 59, 그 뒤는 70번대(60번대는 2ndb-79). 그 뒤: Q-261013-32 의 화면 쪽(삭제 뒤 완료 화면 · 서버 조각 뒤) · Z105(#2365 뒤) · 남은 고르실 것(Z28 · Z34 · Z49 · Z51 · Z10 · Z27 · Z35 · 손으로 준 요금제의 구독 문장). 답을 기다리는 이 창의 물음은 스물일곱(Q-261013-06 ~ 25 · 50 ~ 56)이다. 알아 둘 것: `auth-password-reset.test.ts` 가 CI 에서 흔들린다(실제 외부 호출 · 고치는 PR 은 2ndb-79). app:parity 같음(13:34).
+- **13:45 덧붙임**: **다섯째 시안**(소개 문장과 안내)을 게시했다(<https://claude.ai/artifact/GhaKcnydd7Gg2FWy6PuonY> · Q-261013-57 허슬케이 소개 문장을 지금 사실에 맞게 · 58 가입 거절 안내의 자리 · 59 「가져온 이력·철회」가 여는 화면의 제목 · 70 태어난 해 목록이 열리는 자리). 답을 기다리는 이 창의 물음은 서른하나(06 ~ 25 · 50 ~ 59 · 70)다. Z105(「결과 검토」의 반영 버튼이 여섯째 줄을 가림)는 결함 아님으로 읽었다(아래 여백 120 > 막대 높이 · 8081 에서 끝까지 내리면 마지막 줄이 막대 위 · 코드 변경 없음 · 폰 재확인 항목). **다음 1개 = 답이 오면 Q-261013-57(소개 문장)부터 넣기**. 묻지 않고 고칠 일은 지금 없다. 기다리는 것: 동의 카드와 설정의 끄는 자리 시안(법무 답 뒤) · 삭제 뒤 완료 화면 시안(서버 조각 뒤) · 가입 거절 안내의 문장(서버가 이유를 가른 뒤) · 폰 확인(Z11 · Z104 위로 쓸기 · Z105 끝까지 내리기). 고르실 것으로 아직 안 그린 것: Z28 · Z34 · Z49 · Z51 · Z10 · Z27 · Z35 · 손으로 준 요금제의 구독 문장. 이 창의 다음 질문 번호는 Q-261013-71.
+- **16:26 덧붙임** · **여섯째 시안 게시**: <https://claude.ai/artifact/WGcXgUscmTSoSntWHiNLuD>(Q-261013-71 ~ 75 · 대화 화면의 기록 읽기 동의 카드 · 이름 「기록 읽기」와 설정의 칸 · 소개 문장 · 동의 항목 안내의 「안전 및 감사」 문장 · 입력창 아래 AI 한 줄). 근거는 Simon 15:37(법무 여섯 건 추천대로)과 15:49(AI 표시는 입력창 아래 한 줄 · **"레퍼런스를 어느 정도 확보하고 작업"**: UI · 고지 방식은 다른 서비스가 어떻게 하는지부터 모으고 보고서에 표로 둔다). **바로잡음**: 다섯째 시안 Q-57 의 추천 「내 위키를 참고해…」는 `check:mascot-voice` 에 걸린다(소개 문장 넷은 「기록」 같은 출처 낱말이 있어야 통과) → 「기록을 정리한 위키로 답하는 허슬케이」로 바꿔 Q-73 에 넣음 · Q-57 은 Q-73 으로 갈음. **이제 이 창의 답 대기는 번호 서른여섯**(06 ~ 25 · 50 ~ 59 · 70 ~ 75 · 그 가운데 Q-57 과 Q-73 은 한 답으로 갈음). **다음 1개 = Q-75 의 답이 오면 AI 표시 초안 PR #2389 의 문장을 맞추고 머지 → 8081 과 폰에서 확인**(`feat/chat-ai-line` · 화면에서는 아직 못 봄 · `src/app/secondb.tsx` 의 이름 옆 표시 빼기 · 입력창 아래 한 줄 · 처음 한 번 카드 · `copyTurn` 의 꼬리 · `src/lib/chat/ai-mark.ts` · 로케일 다섯 · 문자열 개수 고정 `crisis-obfuscation.test.ts` · 넣기 전에 2ndb-79 와 `secondb.tsx` 순서 맞추기). 기록 읽기(카드 · 설정의 칸)의 구현은 2ndb-79 와 서버 쪽이고 처리방침 · 영향평가서 개정이 같은 배포에 들어가야 한다. 기다리는 것: 법무의 한 줄 확인 셋(2ndb-79 경유) · S4(OpenAI 설정 확인 · Simon) · 삭제 뒤 완료 화면(서버 조각 뒤) · 가입 거절 안내의 문장(서버가 이유를 가른 뒤). 폰 확인은 끝남(Z11 통과 · Z104 · Z105 결함 아님 · 14:57). 아직 안 그린 것에 Z108(위키 목록의 낱말 찾기)을 더함. 이 창의 다음 질문 번호는 Q-261013-76(71 ~ 79 가 이 창 · 2ndb-79 는 80번대). 시안 문장을 저장소 검사에 돌려 보는 도구: scratchpad `check_copy.ts`(반의인화 · 마스코트 말투 · 금지 낱말 · 긴 줄표).
+- **17:15 덧붙임** · **여섯째 시안 3판**(17:10 · 같은 주소): 법무가 문장을 확인했다(16:42 조건부 → 17:09 2판 OK). 동의 카드의 「받는 곳」 · 「선택권」 · 「보관」 세 줄이 처음 올린 것과 다르다. 넣을 때는 **`.bots/relay/inbox/coding-53-q71-75-wording-text-1644.note.md` 가 아니라 시안 3판의 문장**을 쓴다(「보관」 줄은 "제공자는 공개 정책상 남용을 막기 위한 점검에 최대 30일 보관할 수 있습니다(처리방침 제5조)" · 「처리방침 제5조」는 그 조항으로 바로 가는 링크). OpenAI 설정 확인(S4)은 아직 없고, 없이 내보내면 DECISIONS 에 한 줄을 남긴다(법무 조건). **#2389**(AI 표시 초안 · `79330cea`)는 CI 통과 · Q-75 답 대기. 이름 뒤에 조사가 붙는 한국어 문자열은 `{{name}}{{particle}}` + `topicParticle()`(`src/lib/i18n/josa.ts`)로 쓴다(문자열에 「는」을 박으면 `josa.test.ts` 에 걸리고, 화면 파일에 한국어 리터럴을 두면 `korean-in-code.test.ts` 에 걸린다). 다음 1개는 그대로: Q-75 의 답이 오면 #2389 의 문장을 맞추고 머지 → 8081 과 폰에서 확인.
+- **18:57 덧붙임** · **일곱째 시안**(가입 거절 안내 · Q-261013-76) <https://claude.ai/artifact/AshRZZbvZKZWA6dXoa7wK1>: 2ndb-e7 의 부탁으로 그렸다. 이미 가입한 메일함의 다른 꼴 주소(`+` · gmail 의 점)로 가입이 거절될 때의 안내다. **서버가 이유를 말하게 하면 그 메일함의 가입 여부가 응답으로 또렷해진다**는 점을 두 창이 18:47 에 함께 확인해, 문구가 아니라 길 셋(가 = 서버가 이유를 말함 · 나 = 서버 그대로, 실패 안내에 「가입한 적이 있다면 그때 쓴 주소로 로그인해 주세요.」 한 문장 · 다 = 새 가입처럼 확인 코드를 보내고 코드를 넣은 뒤에 「이 메일함에는 이미 계정이 있습니다.」 · 19:01 의 2판에서 서버 쪽 답에 맞춰 고침)을 여쭸다. 추천 = 나 먼저. 법무 물음은 18:52 · 19:02 에 Relay 우편함에 넣었고 답 전이다(오면 보고서를 고쳐 올린다). 넣지 않았다. **다음 1개는 그대로**: Q-75 의 답이 오면 #2389 를 맞춰 머지. Q-76 이 나 안으로 오면 이 창이 문장 하나(다섯 언어 · 제출 실패용 키를 따로)를 넣고, 가 · 다 안이면 2ndb-e7 의 서버가 먼저다. 문장 원문과 근거 줄은 DECISIONS 18:57 · 19:02.
+- **19:21 덧붙임** · ① **일곱째 시안 3판**(19:13 · 19:15 에 서버 쪽 확인을 덧붙임 · 같은 주소): 법무 의견을 받았다(19:11 · 내부 의견 · 법률 자문 아님 · 나 = 지금 넣어도 됨 · 다 = 다음 단계로 권함 · 가 = 조건 넷이 붙고 권하지 않음). 나 안의 문장을 법무가 권한 순서로 고쳤다: 「가입에 실패했습니다. 전에 가입한 적이 있다면 그때 쓴 주소로 로그인해 주세요. 처음이라면 잠시 후 다시 시도해 주세요.」 **Q-261013-76 이 나 안으로 오면 이 문장을 넣는다**(제출 실패용 키를 따로 · 확인 링크 실패의 `errors.signUpFailed` 는 그대로 · 다섯 언어). 확인 안 된 가입 줄에 생년월일이 남는 일은 2ndb-e7 이 Q-261013-48 로 따로 여쭌다. ② **Z111**(리마인더 확인 창의 날짜 안내 · 2ndb-79 가 넘김): #2403 머지(19:14:57 · main `20fe21bc`) · 8081 화면과 번들에서 확인 · 대조 같음(19:21) · 폰 확인은 다음 Rufus 회차. ③ 실수 하나: 19:02 의 한 줄을 이미 머지된 #2401 의 브랜치에 올려 main 에 못 들어갔고 #2402 로 다시 올렸다(머지 도우미를 건 PR 에는 줄을 더하지 않는다). **다음 1개는 그대로**: Q-75 의 답이 오면 #2389 를 맞춰 머지. 근거 줄은 DECISIONS 19:14 · 19:21.
+- **19:29 덧붙임** · **여덟째 시안**(날씨용 위치 표시 · Q-261013-77 · Z75) <https://claude.ai/artifact/QVPzxVbvRo3qD6HZVyiB8Z>: 2ndb-79 가 넘긴 일이다. 「개인정보 · 약관」의 「날씨용 위치 · 켜짐」은 계정의 동의만 보고 기기의 위치 허용은 보지 않아, 허용한 적 없는 기기에서도 「켜짐」이다(8081 에서 재현 19:24). 추천 = 가 안: 낱말은 그대로, 기기에서 허용되지 않았을 때(`denied` · `blocked` · `undetermined`)만 줄 아래에 「이 기기에서는 위치 접근이 허용돼 있지 않아 위치를 쓰지 않습니다.」 · 「설정 열기」 버튼 없음(안드로이드 공식 문서의 권고). 법무 물음은 19:28 에 보냈고 답 전이다. 넣지 않았다. **Q-261013-77 의 답이 오면 이 창이 넣는다**(`src/components/privacy/WeatherPrivacyControl.tsx` 하나 + 문장 하나 · 다섯 언어 · `weatherLocationStatus()` 를 읽기만 함 · `DeepSpaceDesignScreens.tsx` 는 건드리지 않음). 답을 기다리는 번호는 Q-261013-06 ~ 25 · 50 ~ 59 · 70 ~ 77, 다음 번호 78. 근거 줄은 DECISIONS 19:29.
+- **19:44 덧붙임** · **여덟째 시안 2판**(같은 주소): 법무 의견을 받았다(내부 의견 · 법률 자문 아님 · 가 = 괜찮음 · 나 · 다 = 조건부). **Q-261013-77 이 가 안으로 오면 넣을 문장은 「이 기기에서는 위치 접근이 허용돼 있지 않아 위치를 읽지 않습니다.」다**(19:29 의 "쓰지 않습니다"가 아님 · 코드가 뒷받침하는 것은 "읽지 않는다"까지). 「설정 열기」는 두지 않고, 눌러서 철회하는 동작은 그대로 둔다. 법무가 따로 적은 것: 위치 기능의 사업자 신고가 필요한지는 판단하지 않았으니 공개 전에 확인(이 시안의 범위 밖). 그리고 사실 하나: #2407 의 머지 도우미는 19:38 쯤 메모리 부족으로 멈췄다는 알림이 왔지만 스크립트는 살아 있었고 19:42:54 에 머지했다(main `6429e096`). 멈췄다는 알림만 믿고 "머지 안 됨"이라고 알리지 말고 PR 상태를 다시 읽을 것. 근거 줄은 DECISIONS 19:44.
+- **20:04 덧붙임** · ① **Z114**(스크랩 링크 안내의 「article」): #2409 머지(19:56:14 · main `bf69dfcd`) · 8081 화면에서 「링크 자동 인식: 일반 아티클」 확인 · 대조 같음(19:58) · 폰 확인은 다음 Rufus 회차. 이름은 형식 화면의 것(`formats:builtIn.kinds.<종류>.name`)을 그대로 쓴다. ② **아홉째 시안**(공유 받기 · Q-261013-78) <https://claude.ai/artifact/G3txQDPKuUkCgzAEP9iDfv>: 쓰던 글이 링크 칸에 남아 있을 때 공유가 오면 그 아래에 말없이 붙는다(Z112 · 일부러 만든 동작 · `share-params.test.ts:108`). 추천 = 가 안: 지금처럼 붙이고 「쓰던 글 아래에 붙였습니다.」 한 줄. ③ **묻지 않고 고칠 것**(Z113): "제목 한 줄 + 주소 하나"인 칸을 링크로 본다(칸의 글은 그대로 · 안내는 이미 있는 「링크 자동 인식: …」 · 저장 제목은 공유의 제목). 손댈 곳은 `src/lib/wiki/link-or-clip.ts` 의 분류와 `src/app/capture.tsx:2959-2969` 의 저장 제목, 그리고 그 테스트다. Q-78 의 답과 함께 넣고, 답이 늦으면 Z113 만 먼저 넣는다. **이 창의 다음 1개는 Z113 구현이다**(답을 기다리지 않아도 되는 유일한 일). ④ 메모리가 모자랄 때는 배경 머지 도우미를 띄우지 않고 검사 결과를 직접 읽어 머지한다(#2408 · #2409 가 그렇게 들어감). 답을 기다리는 번호는 Q-261013-06 ~ 25 · 50 ~ 59 · 70 ~ 78, 다음 번호 79. 근거 줄은 DECISIONS 19:59 · 20:04.
 
 ## 2026-10-13 03:42 / 2ndb-53: A-Z 3차의 P1 넷(Z22 · Z23 · Z25 · Z26) 머지 · Z5 동의 문장 시안 게시 - Simon 의 답 다섯(Q-261013-06 ~ 10)을 기다림
 

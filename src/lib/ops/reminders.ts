@@ -29,6 +29,7 @@ import {
   routineIdFromNotification,
   routineNotificationId,
 } from "./notification-identity";
+import { deviceNotificationText } from "./device-notification-text";
 import type { OpsEventInput } from "./push";
 
 // null on web / Expo Go (SDK 53+ throws on require) -- every entry point below
@@ -41,14 +42,15 @@ type NotificationRequestInput = Parameters<
 export type ReminderResult = "scheduled" | "denied" | "unavailable" | "error";
 
 const CHANNEL_ID = "ops-routines";
-const ROUTINE_NOTIFICATION_CONTENT = {
-  title: "PolaScope",
-  body: "Open the app to view your routine.",
-} as const;
-const FOCUS_NOTIFICATION_CONTENT = {
-  title: "PolaScope",
-  body: "Open the app to view your completed timer.",
-} as const;
+const NOTIFICATION_TITLE = "PolaScope";
+// The body is a fixed sentence in the app's language, read when the reminder is
+// scheduled. A repeating reminder keeps the sentence it was scheduled with.
+function routineNotificationContent(): { title: string; body: string } {
+  return { title: NOTIFICATION_TITLE, body: deviceNotificationText("deviceReminderBody") };
+}
+function focusNotificationContent(): { title: string; body: string } {
+  return { title: NOTIFICATION_TITLE, body: deviceNotificationText("deviceTimerBody") };
+}
 const NOTIFICATION_PRIVACY_MIGRATION_KEY = "ops.notifications.privacyMigration.v2";
 const LEGACY_ACCOUNT_LOCAL_NOTIFICATION_KEYS = [
   "ops.reminders.disabled",
@@ -171,7 +173,7 @@ async function ensureChannel(): Promise<void> {
   if (!Notifications) return;
   try {
     await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-      name: "Routines",
+      name: deviceNotificationText("deviceChannelName"),
       importance: Notifications.AndroidImportance.DEFAULT,
     });
   } catch {
@@ -270,8 +272,8 @@ export function notifyNow(
   title: string,
   body: string | undefined,
 ): Promise<ReminderResult>;
-/** @deprecated Missing owner is retained only for frozen legacy UI and fails closed. */
-export function notifyNow(title: string, body?: string): Promise<ReminderResult>;
+// No form without the account is declared: a call that cannot name it does not
+// compile (Z107). The check on arguments.length below still refuses it at run time.
 export async function notifyNow(
   first: string,
   _second?: string,
@@ -292,7 +294,7 @@ export async function notifyNow(
     return await scheduleWithOwnerLease(lease, identifier, {
       identifier,
       content: {
-        ...FOCUS_NOTIFICATION_CONTENT,
+        ...focusNotificationContent(),
         data: notificationPrivacyData(ownerId),
       },
       // null trigger = deliver immediately (the phase already ended).
@@ -556,7 +558,7 @@ export async function scheduleRoutineReminder(
     // Lock-screen notifications are an OS-visible boundary. Keep personal
     // routine titles/reasons inside the app even when the device is locked.
     const content = {
-      ...ROUTINE_NOTIFICATION_CONTENT,
+      ...routineNotificationContent(),
       data: notificationPrivacyData(ownerId),
     };
     if (input.recurrence === "daily") {

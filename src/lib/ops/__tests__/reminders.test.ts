@@ -85,6 +85,9 @@ jest.mock("expo-notifications", () => ({
   AndroidImportance: { DEFAULT: 3 },
 }));
 
+import i18next from "i18next";
+import enOps from "../../../../locales/en/ops.json";
+import koOps from "../../../../locales/ko/ops.json";
 import {
   clearAccountScopedLocalNotifications,
   disableReminder,
@@ -177,6 +180,20 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
+// The whole file runs with the languages loaded and English selected. English equals the
+// fallback sentences (device-notification-text.test.ts pins that and covers the path before any
+// language is loaded), so no test here depends on the order the groups run in.
+beforeAll(async () => {
+  await i18next.init({
+    lng: "en",
+    fallbackLng: "en",
+    ns: ["ops"],
+    defaultNS: "ops",
+    resources: { en: { ops: enOps }, ko: { ops: koOps } },
+    interpolation: { escapeValue: false },
+  });
+});
+
 describe("routine reminders (O-R3 P2, on-device only)", () => {
   test("foreground handler asks the OS to actually show the banner (not suppress it)", async () => {
     // Without setNotificationHandler, expo-notifications hides foreground banners,
@@ -240,7 +257,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(request.identifier).toBe(routineReminderId("account-a", "routine-1"));
     expect(request.content).toMatchObject({
       title: "PolaScope",
-      body: "Open the app to view your routine.",
+      body: "It's time for your reminder.",
       data: { _2bPrivacyGeneration: "notification-v2" },
     });
     expect(JSON.stringify(request)).not.toContain("Private routine title");
@@ -251,7 +268,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(request.trigger.channelId).toBe("ops-routines");
     expect(setNotificationChannelAsync).toHaveBeenCalledWith(
       "ops-routines",
-      expect.objectContaining({ name: "Routines" }),
+      expect.objectContaining({ name: "Reminders" }),
     );
   });
 
@@ -291,7 +308,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(request.identifier).toMatch(/^ops-v2-[0-9a-f]{16}-once-/);
     expect(request.content).toMatchObject({
       title: "PolaScope",
-      body: "Open the app to view your completed timer.",
+      body: "Your timer is done.",
       data: { _2bPrivacyGeneration: "notification-v2" },
     });
     expect(JSON.stringify(request)).not.toContain("Private");
@@ -300,7 +317,9 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
   test("frozen legacy calls without an explicit owner fail closed", async () => {
     setNavigatorProduct("ReactNative");
 
-    await expect(notifyNow("Legacy title", "Legacy body")).resolves.toBe("error");
+    // The two-argument form no longer compiles; an untyped caller is still refused.
+    const untyped = notifyNow as unknown as (title: string, body: string) => ReturnType<typeof notifyNow>;
+    await expect(untyped("Legacy title", "Legacy body")).resolves.toBe("error");
     await expect(scheduleRoutineReminder({
       title: "Legacy routine",
       startsAtIso: new Date(Date.now() + 60_000).toISOString(),
@@ -486,7 +505,7 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     expect(request.identifier).toMatch(/^ops-v2-[0-9a-f]{16}-once-/);
     expect(request.content).toMatchObject({
       title: "PolaScope",
-      body: "Open the app to view your routine.",
+      body: "It's time for your reminder.",
       data: { _2bPrivacyGeneration: "notification-v2" },
     });
   });
@@ -777,5 +796,92 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     releaseLateA?.();
     await Promise.resolve();
     expect(cancelScheduledNotificationAsync).not.toHaveBeenCalledWith(accountBId);
+  });
+});
+
+describe("notification text follows the app language when the reminder is scheduled", () => {
+  beforeEach(async () => {
+    await i18next.changeLanguage("ko");
+  });
+
+  afterEach(async () => {
+    await i18next.changeLanguage("en");
+  });
+
+  test("a routine reminder carries the Korean sentence and the Korean channel name, and still no private text", async () => {
+    setNavigatorProduct("ReactNative");
+    requestPermissionsAsync.mockResolvedValue({ granted: true });
+    scheduleNotificationAsync.mockResolvedValueOnce("id-ko-1");
+    expect(
+      await scheduleRoutineReminder(
+        {
+          title: "Private routine title",
+          description: "Private reason with personal details.",
+          startsAtIso: new Date("2026-06-12T21:30:00.000Z").toISOString(),
+          recurrence: "daily",
+        },
+        { ownerId: "account-a", identifier: routineReminderId("account-a", "routine-ko") },
+      ),
+    ).toBe("scheduled");
+    const request = scheduleNotificationAsync.mock.calls[0][0] as {
+      content: { title: string; body: string; data: Record<string, unknown> };
+    };
+    expect(request.content.title).toBe("PolaScope");
+    expect(request.content.body).toBe(koOps.push.deviceReminderBody);
+    expect(request.content.body).not.toBe(enOps.push.deviceReminderBody);
+    expect(request.content.data).toMatchObject({ _2bPrivacyGeneration: "notification-v2" });
+    expect(JSON.stringify(request)).not.toContain("Private routine title");
+    expect(JSON.stringify(request)).not.toContain("Private reason");
+    expect(setNotificationChannelAsync).toHaveBeenCalledWith(
+      "ops-routines",
+      expect.objectContaining({ name: koOps.push.deviceChannelName }),
+    );
+    expect(koOps.push.deviceChannelName).not.toBe(enOps.push.deviceChannelName);
+  });
+
+  test("a one-off reminder carries the Korean sentence", async () => {
+    setNavigatorProduct("ReactNative");
+    requestPermissionsAsync.mockResolvedValue({ granted: true });
+    scheduleNotificationAsync.mockResolvedValueOnce("id-ko-2");
+    expect(
+      await scheduleRoutineReminder(
+        { title: "Private one-off title", startsAtIso: new Date(Date.now() + 3_600_000).toISOString() },
+        { ownerId: "account-a" },
+      ),
+    ).toBe("scheduled");
+    const request = scheduleNotificationAsync.mock.calls[0][0] as { content: { body: string } };
+    expect(request.content.body).toBe(koOps.push.deviceReminderBody);
+    expect(JSON.stringify(request)).not.toContain("Private one-off title");
+  });
+
+  test("the timer notification carries the Korean sentence, not what the caller passed", async () => {
+    setNavigatorProduct("ReactNative");
+    requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
+    scheduleNotificationAsync.mockResolvedValueOnce("focus-ko");
+    await expect(notifyNow("account-a", "Private focus", "Private selected star")).resolves.toBe("scheduled");
+    const request = scheduleNotificationAsync.mock.calls[0][0] as { content: { title: string; body: string } };
+    expect(request.content.title).toBe("PolaScope");
+    expect(request.content.body).toBe(koOps.push.deviceTimerBody);
+    expect(request.content.body).not.toBe(enOps.push.deviceTimerBody);
+    expect(JSON.stringify(request)).not.toContain("Private focus");
+    expect(JSON.stringify(request)).not.toContain("Private selected star");
+  });
+
+  test("a language switched before the next schedule is the one that is used", async () => {
+    setNavigatorProduct("ReactNative");
+    requestPermissionsAsync.mockResolvedValue({ granted: true });
+    scheduleNotificationAsync.mockResolvedValue("id-switch");
+    await i18next.changeLanguage("en");
+    await scheduleRoutineReminder(
+      { title: "x", startsAtIso: new Date(Date.now() + 3_600_000).toISOString() },
+      { ownerId: "account-a" },
+    );
+    await i18next.changeLanguage("ko");
+    await scheduleRoutineReminder(
+      { title: "x", startsAtIso: new Date(Date.now() + 7_200_000).toISOString() },
+      { ownerId: "account-a" },
+    );
+    const bodies = scheduleNotificationAsync.mock.calls.map((call) => (call[0] as { content: { body: string } }).content.body);
+    expect(bodies).toEqual([enOps.push.deviceReminderBody, koOps.push.deviceReminderBody]);
   });
 });

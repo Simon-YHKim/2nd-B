@@ -433,7 +433,7 @@ export function useSignUpForm(): UseSignUpForm {
         setExistingAccountHelp(true);
         return;
       }
-      setToast({ tone: "danger", message: t("errors.signUpFailed") });
+      setToast({ tone: "danger", message: t("errors.signUpSubmitFailed") });
       if (typeof console !== "undefined") console.warn("[auth] sign-up failed");
     } finally {
       const current = ownsSignUpAction(actionLockRef.current, "email", owner);
