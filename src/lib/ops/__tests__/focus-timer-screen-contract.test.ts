@@ -66,7 +66,7 @@ describe("the focus screen's timer wiring (Z109)", () => {
 
   test("what the run reports goes to the ref before React, so a new run starts from it", () => {
     expect(effect).toMatch(/onAdvance: \(next\) => \{ timerRef\.current = next; setTimer\(next\); \},/);
-    expect(effect).toMatch(/onComplete: \(finished\) => \{ const idle = createPomodoro\(finished\.config\); timerRef\.current = idle; setTimer\(idle\);/);
+    expect(effect).toMatch(/onComplete: \(prev\) => \{ const idle = createPomodoro\(prev\.config\); timerRef\.current = idle; setTimer\(idle\);/);
   });
 
   test("the end is announced every time it is reported, account first", () => {
@@ -74,7 +74,7 @@ describe("the focus screen's timer wiring (Z109)", () => {
       /if \(userId\) \{ void applyFocusSessionComplete\(userId\)\.catch\(\(\) => \{\}\); void notifyNow\(userId, t\("focus\.alarmFocusTitle"\)/,
     );
     expect((effect.match(/notifyNow\(/g) ?? []).length).toBe(1);
-    expect(effect).toMatch(/completeFocusSession\(cur\.day, doneArea, finished\.config\.focusMinutes\)/);
+    expect(effect).toMatch(/completeFocusSession\(cur\.day, doneArea, prev\.config\.focusMinutes\)/);
   });
 
   test("the screen lets go of the run when the effect ends", () => {

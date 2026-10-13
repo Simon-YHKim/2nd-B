@@ -2820,16 +2820,16 @@ export function DeepSpaceFocusScreen() {
         timerRef.current = next;
         setTimer(next);
       },
-      onComplete: (finished) => {
+      onComplete: (prev) => {
         // Sensor auto-complete: tick daily_focus + notify, then return to a fresh
         // idle focus block (the reference timer has no break phase).
-        const idle = createPomodoro(finished.config);
+        const idle = createPomodoro(prev.config);
         timerRef.current = idle;
         setTimer(idle);
         // The finished session's OWN length goes into today's minutes, so picking
         // another preset later cannot rewrite what was done (R2C-13).
         const doneArea = areaRef.current;
-        setTally((cur) => ({ ...cur, day: completeFocusSession(cur.day, doneArea, finished.config.focusMinutes) }));
+        setTally((cur) => ({ ...cur, day: completeFocusSession(cur.day, doneArea, prev.config.focusMinutes) }));
         if (userId) {
           void applyFocusSessionComplete(userId).catch(() => {});
           // The account goes first: without it notifyNow shows nothing on a phone (Z107).
