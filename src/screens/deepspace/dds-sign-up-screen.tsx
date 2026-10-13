@@ -478,7 +478,15 @@ export function DeepSpaceSignUpDesignScreen() {
           after every legal link. This keeps 320dp layouts reachable without an
           absolute footer covering consent; native keyboard behavior remains a
           HUMAN QA item rather than a claimed sticky-footer pass. */}
-      {toast ? <SignUpToast message={toast.message} tone={toast.tone} /> : null}
+      {toast ? (
+        <SignUpToast
+          message={toast.message}
+          tone={toast.tone}
+          // A failure notice appears here and pushes the submit button down. The button is the last
+          // thing in the scroll, so going to the end keeps both on screen. Not on the code step.
+          onLayout={toast.tone === "danger" && confirmSentTo === null ? () => scrollRef.current?.scrollToEnd({ animated: false }) : undefined}
+        />
+      ) : null}
       <PixelPressable
         variant={submitDisabled ? "inset" : "bevel"}
         onPress={() => void handleSubmit()}
@@ -707,9 +715,11 @@ function FooterLink({
 function SignUpToast({
   message,
   tone,
+  onLayout,
 }: {
   message: string;
   tone: "info" | "success" | "danger";
+  onLayout?: () => void;
 }) {
   const background =
     tone === "danger"
@@ -721,6 +731,7 @@ function SignUpToast({
     <View
       accessibilityRole="alert"
       accessibilityLiveRegion={tone === "danger" ? "assertive" : "polite"}
+      onLayout={onLayout}
     >
       <PixelSurface variant="frame" background={background} contentStyle={styles.toast}>
         <Text
