@@ -105,6 +105,34 @@ describe("root account scene boundary wiring", () => {
     expect(resolver).toContain("ACCOUNT_RESET_MAX_ATTEMPTS");
     expect(resolver).toContain("setResetPass((pass) => pass + 1)");
   });
+
+  // Simon Q-261013-29: a different owner starts the app again.
+  test("a published different owner asks for the app restart before any release proof, and never inside the sign-in screens", () => {
+    const resolver = LAYOUT.slice(
+      LAYOUT.indexOf("function PendingAccountTransitionResolver"),
+      LAYOUT.indexOf("function ThemedStatusBar"),
+    );
+    const authReturn = resolver.indexOf('if (segments[0] === "(auth)") return;');
+    const published = resolver.indexOf("const newOwnerPublished = isAccountNavigationResetPending();");
+    const restart = resolver.indexOf("if (newOwnerPublished && !webAwayFromHome && accountRestartPending(rerun)) return;");
+    const proofBranch = resolver.indexOf("shouldReleaseAccountTransition(segments, rootState)");
+    const dismiss = resolver.indexOf("router.dismissAll();");
+    expect(authReturn).toBeGreaterThan(-1);
+    expect(published).toBeGreaterThan(authReturn);
+    expect(restart).toBeGreaterThan(published);
+    expect(proofBranch).toBeGreaterThan(restart);
+    expect(dismiss).toBeGreaterThan(proofBranch);
+    // The restart is asked for through the one helper, in exactly two places: before the proof, and
+    // when the web has used its attempts without coming home.
+    expect(resolver.split("accountRestartPending(").length - 1).toBe(2);
+    expect(resolver).toContain('const webAwayFromHome = Platform.OS === "web" && (segments as readonly string[]).length !== 0;');
+    const exhausted = resolver.indexOf("} else if (newOwnerPublished) {");
+    expect(exhausted).toBeGreaterThan(resolver.indexOf("if (dispatch.attempts < ACCOUNT_RESET_MAX_ATTEMPTS) {"));
+    expect(resolver.indexOf("accountRestartPending(rerun);", exhausted)).toBeGreaterThan(exhausted);
+    // The resolver does not reload by itself.
+    expect(resolver).not.toContain("reloadAsync");
+    expect(resolver).not.toContain("location.reload");
+  });
 });
 
 // ---------------------------------------------------------------------------

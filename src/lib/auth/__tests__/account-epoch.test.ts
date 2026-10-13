@@ -7,6 +7,7 @@ import {
   captureAccountOwnerLease,
   clearAccountTransition,
   currentAccountEpoch,
+  isAccountNavigationResetPending,
   isAccountTransitionPending,
   isCurrentAccountEpoch,
   currentResolvedAccountOwner,
@@ -140,6 +141,60 @@ describe("account epoch ownership boundary", () => {
 
     expect(clearAccountTransition(currentAccountEpoch())).toBe(true);
     expect(isAccountTransitionPending()).toBe(false);
+  });
+});
+
+describe("a different owner awaiting its fresh start", () => {
+  beforeEach(() => __resetAccountEpochForTests());
+
+  test("the first sign-in of the realm has nothing retained", () => {
+    expect(isAccountNavigationResetPending()).toBe(false);
+    beginAccountOwnerTransition("owner-a");
+    noteResolvedOwner("owner-a");
+    expect(isAccountNavigationResetPending()).toBe(false);
+  });
+
+  test("direct A -> B: not while B is only observed, yes once B is published, no after the reset is proven", () => {
+    noteResolvedOwner("owner-a");
+
+    beginAccountOwnerTransition("owner-b");
+    expect(isAccountTransitionPending()).toBe(true);
+    expect(isAccountNavigationResetPending()).toBe(false);
+
+    noteResolvedOwner("owner-b");
+    expect(isAccountNavigationResetPending()).toBe(true);
+
+    expect(clearAccountTransition(currentAccountEpoch())).toBe(true);
+    expect(isAccountNavigationResetPending()).toBe(false);
+  });
+
+  test("A -> signed out -> B counts; signing out alone and signing back into A do not", () => {
+    noteResolvedOwner("owner-a");
+    beginAccountOwnerTransition(null);
+    noteResolvedOwner(null);
+    expect(isAccountNavigationResetPending()).toBe(false);
+
+    beginAccountOwnerTransition("owner-a");
+    noteResolvedOwner("owner-a");
+    expect(isAccountNavigationResetPending()).toBe(false);
+
+    beginAccountOwnerTransition(null);
+    noteResolvedOwner(null);
+    beginAccountOwnerTransition("owner-b");
+    expect(isAccountNavigationResetPending()).toBe(false);
+    noteResolvedOwner("owner-b");
+    expect(isAccountNavigationResetPending()).toBe(true);
+  });
+
+  test("B -> C before B's fresh start: off while C is only observed, on again when C is published", () => {
+    noteResolvedOwner("owner-a");
+    noteResolvedOwner("owner-b");
+    expect(isAccountNavigationResetPending()).toBe(true);
+
+    beginAccountOwnerTransition("owner-c");
+    expect(isAccountNavigationResetPending()).toBe(false);
+    noteResolvedOwner("owner-c");
+    expect(isAccountNavigationResetPending()).toBe(true);
   });
 });
 

@@ -96,9 +96,11 @@ import {
   accountTransitionPendingFromSnapshot,
   accountTransitionSnapshot,
   clearAccountTransition,
+  isAccountNavigationResetPending,
   shouldReleaseAccountTransition,
   subscribeAccountTransition,
 } from "@/lib/auth/account-epoch";
+import { accountRestartPending } from "@/lib/auth/account-restart";
 
 // Expo Router uses a route's named `ErrorBoundary` export as that segment's
 // render-error fallback. Exporting it from the root layout makes it the app-wide
@@ -412,10 +414,17 @@ const ACCOUNT_RESET_RETRY_RENDER_PASSES = 2;
 const ACCOUNT_RESET_MAX_ATTEMPTS = 3;
 
 /**
- * Reset retained navigation for a new owner, but release the opaque hold only
- * after both the route segments and root stack prove that `/` is the sole
- * scene. Expo Router imperative actions are queued, so clearing in the same
- * effect that dispatches them would expose the old scene for one commit.
+ * A different owner starts the app again (Simon Q-261013-29): a fresh realm has
+ * nothing of the previous owner in it, so there is nothing to prove about the
+ * retained tree. The phone restarts at home by itself. The web reloads the
+ * address it is on, so it first lets the reset below bring that address home and
+ * restarts in place once the reset has used its attempts.
+ *
+ * Where the build cannot restart, the old path stays: reset retained navigation
+ * and release the opaque hold only after both the route segments and root stack
+ * prove that `/` is the sole scene. Expo Router imperative actions are queued,
+ * so clearing in the same effect that dispatches them would expose the old
+ * scene for one commit.
  */
 function PendingAccountTransitionResolver(): null {
   const transitionSnapshot = useSyncExternalStore(
@@ -442,6 +451,10 @@ function PendingAccountTransitionResolver(): null {
     // Keep password recovery/sign-up uninterrupted. The pending proof is
     // resolved as soon as the user exits the auth group.
     if (segments[0] === "(auth)") return;
+    const rerun = () => setResetPass((pass) => pass + 1);
+    const newOwnerPublished = isAccountNavigationResetPending();
+    const webAwayFromHome = Platform.OS === "web" && (segments as readonly string[]).length !== 0;
+    if (newOwnerPublished && !webAwayFromHome && accountRestartPending(rerun)) return;
     if (shouldReleaseAccountTransition(segments, rootState)) {
       clearAccountTransition(epoch);
       resetDispatchRef.current = null;
@@ -475,6 +488,9 @@ function PendingAccountTransitionResolver(): null {
     // reset, but cap attempts; if proof never arrives the hold stays fail-closed.
     if (dispatch.attempts < ACCOUNT_RESET_MAX_ATTEMPTS) {
       setResetPass((pass) => pass + 1);
+    } else if (newOwnerPublished) {
+      // The web never came home: restart where it is rather than stay covered.
+      accountRestartPending(rerun);
     }
   }, [epoch, pending, resetPass, rootState, segments]);
 
