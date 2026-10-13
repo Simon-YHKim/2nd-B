@@ -3,10 +3,12 @@ import { join } from "node:path";
 
 // Simon 2026-10-13 (Q-261013-35): a deleted record's proposal must not come back in review, and a
 // proposal no longer stores the record's opening text. These read the screen's source because the
-// screen cannot be rendered in jest; the rule itself (which table, what is dismissed, what is held
-// back) is tested in src/lib/reasoning/__tests__/proposal-targets.test.ts.
+// screen cannot be rendered in jest; the rules themselves are tested where they live:
+// which table, what is dismissed, what is held back in src/lib/reasoning/__tests__/proposal-targets.test.ts,
+// and who a late result belongs to in src/lib/reasoning/__tests__/review-ownership.test.ts.
 
-const source = readFileSync(join(__dirname, "..", "reasoning.tsx"), "utf8");
+// Line endings differ between checkouts; the markers below are written with "\n".
+const source = readFileSync(join(__dirname, "..", "reasoning.tsx"), "utf8").replace(/\r\n/g, "\n");
 
 function body(startMarker: string, endMarker: string): string {
   const start = source.indexOf(startMarker);
@@ -14,6 +16,10 @@ function body(startMarker: string, endMarker: string): string {
   const end = source.indexOf(endMarker, start);
   expect(end).toBeGreaterThan(start);
   return source.slice(start, end);
+}
+
+function count(needle: string): number {
+  return source.split(needle).length - 1;
 }
 
 describe("reasoning review: stored proposals", () => {
@@ -32,19 +38,19 @@ describe("reasoning review: stored proposals", () => {
   });
 
   it("has one preparation step: a lookup per kind, and a dismiss for what is gone", () => {
-    const ready = body("const readyForReview = useCallback(", "const runningRef = useRef(false);");
+    const ready = body("const readyForReview = useCallback(", "const emittedRunsRef = useRef");
     expect(ready).toContain("return prepareProposalsForReview(");
     expect(ready).toMatch(/record:\s*async \(refId\) => \{\s*const row = await getRecordById\(userId, refId\);/);
     expect(ready).toMatch(/source:\s*async \(refId\) => \{\s*const source = await getSource\(userId, refId\);/);
     // Dismiss only: the ratify list is empty, so nothing the user did not choose is accepted.
     expect(ready).toContain("(runId, ordinals) => ratifyProposals(userId, runId, [], ordinals)");
-    expect(source.split("prepareProposalsForReview(").length - 1).toBe(1);
+    expect(count("prepareProposalsForReview(")).toBe(1);
   });
 
   it("shows proposals only after that step, on every path that puts them on screen", () => {
     const shown = [...source.matchAll(/setProposals\(([^)]*)\)/g)].map((match) => match[1]);
     // Clearing the list needs no check. Everything else is the checked list.
-    expect(shown.sort()).toEqual(["[]", "[]", "[]", "live", "nextProposals", "ready.live"]);
+    expect(shown.sort()).toEqual(["[]", "[]", "[]", "[]", "live", "nextProposals", "ready.live"]);
 
     const restore = body("const rows = await listPendingProposals(userId);", "setProposals(live);");
     expect(restore).toContain("const ready = await readyForReview(stored);");
@@ -66,34 +72,119 @@ describe("reasoning review: stored proposals", () => {
     expect(completed).toContain('if (ready.unreadable > 0) setErrorText(t("ds.reasoningScreen.loadFailed"));');
   });
 
-  // Review round two: the read takes time, and the screen can change hands meanwhile.
+  it("has a single place that restores proposals from the server", () => {
+    expect(count("listPendingProposals(userId)")).toBe(1);
+    expect(count("proposalFromServerRow")).toBe(2);
+  });
+});
+
+// Review rounds two to four: reads take time, and the screen can change hands meanwhile
+// (cancelled, a newer run, another account). One object answers who owns what.
+describe("reasoning review: late results ask who owns the screen", () => {
+  it("keeps the account and the run slot in one ownership object, with no refs of its own", () => {
+    expect(source).toContain("const [ownership] = useState(() => createReviewOwnership(userId));");
+    for (const gone of ["userIdRef", "abortRef", "runningRef"]) expect(source).not.toContain(gone);
+    expect(count("createReviewOwnership(")).toBe(1);
+  });
+
+  it("moves the account and clears that account's screen in a layout effect, in one step", () => {
+    const layout = body("useLayoutEffect(() => {", "}, [ownership, userId]);");
+    expect(layout).toMatch(/^useLayoutEffect\(\(\) => \{\s*if \(!ownership\.showAccount\(userId\)\) return;/);
+    for (const reset of [
+      "setItems([]);",
+      "setListLoading(true);",
+      'setPhase("idle");',
+      "setApplying(false);",
+      "setProposals([]);",
+      "setSelected(new Set());",
+      "setRunState({});",
+      "setCompletedCount(0);",
+      "setErrorText(null);",
+      "setCrisisVisible(false);",
+      "setLimitSheetVisible(false);",
+    ]) {
+      expect(layout).toContain(reset);
+    }
+    // The only place the account moves, and it is not a passive effect.
+    expect(count("ownership.showAccount(")).toBe(1);
+    expect(count("useLayoutEffect(() => {")).toBe(1);
+  });
+
   it("keeps a finished run in its slot until its targets are read, and drops a result that is no longer the screen's", () => {
     const completed = body("const produced = await queued;", "setProposals(nextProposals);");
-    expect(completed).toContain(
-      "() => abortRef.current === controller && !controller.signal.aborted && userIdRef.current === userId",
-    );
+    expect(completed).toContain("() => ownership.owns(controller, userId),");
     const settle = completed.indexOf("await settleRunForReview(");
     const stale = completed.indexOf("if (ready === null) {");
-    const release = completed.lastIndexOf("runningRef.current = false;");
+    const release = completed.lastIndexOf("ownership.release(controller);");
     expect(settle).toBeGreaterThan(-1);
     expect(stale).toBeGreaterThan(settle);
     expect(release).toBeGreaterThan(stale);
     // Nothing releases the slot between the run finishing and the read, so Cancel still reaches it.
-    expect(completed.slice(0, settle)).not.toContain("abortRef.current = null");
-    expect(completed.slice(0, settle)).not.toContain("runningRef.current = false");
-    // A stale result returns before any state is written.
-    expect(completed.slice(stale, completed.indexOf("const nextProposals = ready.live;"))).toContain("return;");
+    expect(completed.slice(0, settle)).not.toContain("ownership.release(");
+    expect(completed.slice(0, settle)).not.toContain("ownership.cancel(");
+    // A stale result gives back only its own slot and returns before any state is written.
+    const staleBranch = completed.slice(stale, completed.indexOf("const nextProposals = ready.live;"));
+    expect(staleBranch).toMatch(/ownership\.release\(controller\);\s*return;/);
+    expect(staleBranch.slice(0, staleBranch.indexOf("return;"))).not.toMatch(/set[A-Z]\w*\(|dismissTask\(/);
   });
 
-  it("writes nothing after a failed apply when the screen was left or the account changed during the read", () => {
-    const failedApply = body("} catch (error) {\n      // What goes back on screen is read again", "} finally {");
-    expect(failedApply).toContain("stale = !mountedRef.current || userIdRef.current !== userId;");
+  it("a failed run asks before it touches the slot, the global task or the screen", () => {
+    const failed = body("} catch (error) {\n          // A cancelled run can reject after a newer run has taken the slot", "      },\n    });\n  }, [");
+    expect(failed).toContain("ownedSlot: ownership.release(controller),");
+    expect(failed).toContain("onScreen: onScreen(),");
+    expect(failed).toContain("const onScreen = () => mountedRef.current && ownership.shows(userId);");
+    const nothing = failed.indexOf('if (action.act === "nothing") return;');
+    const defer = failed.indexOf('if (action.act === "defer") {');
+    expect(nothing).toBeGreaterThan(-1);
+    expect(defer).toBeGreaterThan(nothing);
+    // Up to the point where the action says "show", nothing global and nothing on screen changes.
+    const beforeShow = failed.slice(0, failed.indexOf("dismissTask();"));
+    expect(failed.indexOf("dismissTask();")).toBeGreaterThan(defer);
+    expect(beforeShow).not.toMatch(/setPhase\(|setErrorText\(|setLimitSheetVisible\(|setCrisisVisible\(/);
+    // A failure kept for later is kept under the account the run was started for.
+    expect(failed).toContain("if (action.error) deferredRunErrors.set(userId, action.error);");
+    // The quota read in the limit branch takes time, so the screen is asked again after it.
+    expect(failed).toMatch(/await refreshUsage\(\)\.catch\(\(\) => undefined\);[\s\S]*?if \(!onScreen\(\) \|\| ownership\.running\) return;\s*setPhase\("idle"\);\s*setLimitSheetVisible\(true\);/);
+    expect(count("runFailureAction({")).toBe(1);
+  });
+
+  it("an old run's progress callbacks cannot write into the screen", () => {
+    const start = body("const startRun = useCallback(() => {", "startTask({");
+    expect(start).toContain("ownership.begin(controller);");
+    expect(start).toMatch(/onItemStart: \(key\) => \{\s*if \(!mountedRef\.current \|\| !ownership\.owns\(controller, userId\)\) return;/);
+    expect(start).toMatch(/onItemDone: \(key, completed, domain\) => \{\s*if \(!mountedRef\.current \|\| !ownership\.owns\(controller, userId\)\) return;/);
+  });
+
+  it("cancel goes through the same object", () => {
+    const cancel = body("const cancelRun = useCallback(() => {", "}, [ownership]);");
+    expect(cancel).toMatch(/^const cancelRun = useCallback\(\(\) => \{\s*ownership\.cancel\(\);\s*dismissTask\(\);/);
+  });
+
+  it("every read that was started for an account asks whether that account is still on screen", () => {
+    const usage = body("const refreshUsage = useCallback(async () => {", "}, [ownership, userId]);");
+    expect(usage).toContain("if (!mountedRef.current || !ownership.shows(userId)) return;");
+
+    const restore = body("const ready = await readyForReview(stored);", "setProposals(live);");
+    expect(restore).toContain("if (cancelled || !ownership.shows(userId)) return;");
+
+    const list = body("void Promise.all([listRecentRecords(userId, 60)", "}, [i18n, loading, ownership, uiLng, userId]);");
+    expect(list).toMatch(/\.then\(\(\[records, sources, usage\]\) => \{\s*if \(cancelled \|\| !ownership\.shows\(userId\)\) return;/);
+    expect(list).toContain("if (!cancelled && ownership.shows(userId)) setListLoading(false);");
+  });
+
+  it("apply writes to the screen only if it is still this account's, on the finished path and the failed path", () => {
+    const apply = body("const applySelectedProposals = useCallback(async () => {", "}, [applying, ownership, phase, proposals, readyForReview, selected, t, userId]);");
+    expect(apply.split("stale = !mountedRef.current || !ownership.shows(userId);").length - 1).toBe(2);
+
+    const finished = apply.slice(apply.indexOf("pending = pending.filter((candidate) => candidate.key !== proposal.key);"), apply.indexOf("} catch (error) {"));
+    const asked = finished.indexOf("stale = !mountedRef.current || !ownership.shows(userId);");
+    expect(asked).toBeGreaterThan(-1);
+    // Nothing is written before the question, and everything after it sits behind the answer.
+    expect(finished.slice(0, asked)).not.toMatch(/set[A-Z]\w*\(|dismissTask\(/);
+    expect(finished.slice(asked)).toMatch(/if \(!stale\) \{\s*setItems\(/);
+
+    const failedApply = apply.slice(apply.indexOf("} catch (error) {"), apply.indexOf("} finally {"));
     expect(failedApply).toMatch(/if \(!stale\) \{\s*setProposals\(ready\.live\);/);
-    expect(source).toContain("if (!stale) setApplying(false);");
-  });
-
-  it("has a single place that restores proposals from the server", () => {
-    expect(source.split("listPendingProposals(userId)").length - 1).toBe(1);
-    expect(source.split("proposalFromServerRow").length - 1).toBe(2);
+    expect(apply).toContain("if (!stale) setApplying(false);");
   });
 });

@@ -1,5 +1,5 @@
 import { PhoneAnimatedView, PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Animated, StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
@@ -33,6 +33,12 @@ import {
   setAutoReasoningEnabled,
 } from "@/lib/reasoning/auto-pref";
 import { prepareProposalsForReview, settleRunForReview } from "@/lib/reasoning/proposal-targets";
+import {
+  createReviewOwnership,
+  runFailureAction,
+  type DeferredRunError,
+  type RunFailureKind,
+} from "@/lib/reasoning/review-ownership";
 import { monthLabelFor } from "@/lib/reasoning/remaining-copy";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import {
@@ -706,7 +712,6 @@ function recordTitle(
 
 type ItemRunState = { state: "waiting" | "running" | "done"; domain?: DomainId };
 type ScreenPhase = "idle" | "running" | "done" | "error";
-type DeferredRunError = "limit" | "safety" | "generic";
 
 // A background task can finish after its screen unmounts. Keep the outcome
 // until the result route opens so failure never disappears behind a dismissed
@@ -753,12 +758,29 @@ export default function ReasoningScreen() {
   const [autoIntroVisible, setAutoIntroVisible] = useState(false);
 
   const mountedRef = useRef(true);
-  // The account this screen is showing now. A result that was read for an
-  // earlier account compares its own userId against this before it writes.
-  const userIdRef = useRef(userId);
-  useEffect(() => {
-    userIdRef.current = userId;
-  }, [userId]);
+  // Who a late result belongs to (review-ownership.ts): the account on screen
+  // and the run holding the slot. Whatever finishes later asks this before it
+  // writes or releases anything.
+  const [ownership] = useState(() => createReviewOwnership(userId));
+  // The commit that paints another account moves the account and clears that
+  // account's screen state in the same step. A layout effect, not a passive
+  // one: nothing that was waiting can run between the paint and this. A run
+  // still going for the earlier account keeps its slot until it ends; it can
+  // no longer write here.
+  useLayoutEffect(() => {
+    if (!ownership.showAccount(userId)) return;
+    setItems([]);
+    setListLoading(true);
+    setPhase("idle");
+    setApplying(false);
+    setProposals([]);
+    setSelected(new Set());
+    setRunState({});
+    setCompletedCount(0);
+    setErrorText(null);
+    setCrisisVisible(false);
+    setLimitSheetVisible(false);
+  }, [ownership, userId]);
   // Everything review shows goes through here (Q-261013-35): the title comes
   // from the live row, looked up in the table the proposal's refKind names; a
   // proposal whose record or source is gone is dismissed on the server so its
@@ -787,8 +809,6 @@ export default function ReasoningScreen() {
     },
     [i18n, userId],
   );
-  const runningRef = useRef(false);
-  const abortRef = useRef<AbortController | null>(null);
   // proposal_decided runs already counted — a partial-failure retry re-enters
   // applySelectedProposals with the same runIds, and the analytics counts must
   // stay exactly-once like the server transitions (0092).
@@ -812,18 +832,18 @@ export default function ReasoningScreen() {
   const refreshUsage = useCallback(async () => {
     if (!userId) return;
     const next = await getReasoningUsage(userId);
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || !ownership.shows(userId)) return;
     setUsed(next.used);
     setRewardCredits(next.rewardCredits);
-  }, [userId]);
+  }, [ownership, userId]);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      if (runningRef.current) sendToBackground();
+      if (ownership.running) sendToBackground();
     };
-  }, []);
+  }, [ownership]);
 
   useEffect(() => {
     // A failed first profile probe is unknown, not a confirmed missing profile.
@@ -876,7 +896,9 @@ export default function ReasoningScreen() {
         .map(proposalFromServerRow)
         .filter((proposal): proposal is ReasoningProposal => proposal !== null);
       const ready = await readyForReview(stored);
-      if (cancelled) return;
+      // The cleanup that sets `cancelled` is a passive effect and can run after
+      // another account is already on screen, so the account is asked as well.
+      if (cancelled || !ownership.shows(userId)) return;
       if (ready.unreadable > 0) {
         setErrorText(i18n.t("ds.reasoningScreen.loadFailed", { ns: "deepspace", lng: renderedUiLanguage(i18n) }));
       }
@@ -903,7 +925,7 @@ export default function ReasoningScreen() {
     // user, which is what a recovery sweep should do. i18n is the one shared
     // instance (its identity does not change with the language) and
     // readyForReview changes only with it and userId, so neither adds a run.
-  }, [i18n, readyForReview, refreshUsage, userId]);
+  }, [i18n, ownership, readyForReview, refreshUsage, userId]);
 
   useEffect(() => {
     if (loading || !userId) return;
@@ -911,7 +933,7 @@ export default function ReasoningScreen() {
     setListLoading(true);
     void Promise.all([listRecentRecords(userId, 60), listSourcePieces(userId, { excludeProfileImports: true }), getReasoningUsage(userId)])
       .then(([records, sources, usage]) => {
-        if (cancelled) return;
+        if (cancelled || !ownership.shows(userId)) return;
         // A fixed t for the painted language: the list re-reads when the language (or its
         // lazy pack) changes, not on every i18n event the hook's t follows.
         const tl = i18n.getFixedT(uiLng, "deepspace");
@@ -952,15 +974,17 @@ export default function ReasoningScreen() {
         setRewardCredits(usage.rewardCredits);
       })
       .catch(() => {
-        if (!cancelled) setErrorText(i18n.t("ds.reasoningScreen.loadFailed", { ns: "deepspace", lng: uiLng }));
+        if (!cancelled && ownership.shows(userId)) {
+          setErrorText(i18n.t("ds.reasoningScreen.loadFailed", { ns: "deepspace", lng: uiLng }));
+        }
       })
       .finally(() => {
-        if (!cancelled) setListLoading(false);
+        if (!cancelled && ownership.shows(userId)) setListLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [i18n, loading, uiLng, userId]);
+  }, [i18n, loading, ownership, uiLng, userId]);
 
   const cap = reasoningCapForTier(progression.tier);
   const remaining = remainingReasoning(progression.tier, used, rewardCredits);
@@ -1006,15 +1030,13 @@ export default function ReasoningScreen() {
   };
 
   const cancelRun = useCallback(() => {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    runningRef.current = false;
+    ownership.cancel();
     dismissTask();
     setPhase("idle");
     setRunState({});
     setProposals([]);
     setCompletedCount(0);
-  }, []);
+  }, [ownership]);
 
   const startRun = useCallback(() => {
     if (!userId || isMinor == null || selectedItems.length === 0 || phase === "running") return;
@@ -1025,8 +1047,7 @@ export default function ReasoningScreen() {
     }
 
     const controller = new AbortController();
-    abortRef.current = controller;
-    runningRef.current = true;
+    ownership.begin(controller);
     setPhase("running");
     setProposals([]);
     setCompletedCount(0);
@@ -1047,11 +1068,11 @@ export default function ReasoningScreen() {
         items: selectedItems,
         signal: controller.signal,
         onItemStart: (key) => {
-          if (!mountedRef.current) return;
+          if (!mountedRef.current || !ownership.owns(controller, userId)) return;
           setRunState((current) => ({ ...current, [key]: { state: "running" } }));
         },
         onItemDone: (key, completed, domain) => {
-          if (!mountedRef.current) return;
+          if (!mountedRef.current || !ownership.owns(controller, userId)) return;
           setCompletedCount(completed);
           setRunState((current) => ({ ...current, [key]: { state: "done", domain } }));
         },
@@ -1075,18 +1096,15 @@ export default function ReasoningScreen() {
           const ready = await settleRunForReview(
             produced,
             readyForReview,
-            () => abortRef.current === controller && !controller.signal.aborted && userIdRef.current === userId,
+            () => ownership.owns(controller, userId),
           );
           if (ready === null) {
-            // Cancel and a newer run own the slot now. Release it only if it is still this run's.
-            if (abortRef.current === controller) {
-              runningRef.current = false;
-              abortRef.current = null;
-            }
+            // Cancel, a newer run or another account owns the screen now. The slot
+            // is given back only if it is still this run's.
+            ownership.release(controller);
             return;
           }
-          runningRef.current = false;
-          abortRef.current = null;
+          ownership.release(controller);
           const nextProposals = ready.live;
           if (mountedRef.current) {
             if (ready.unreadable > 0) setErrorText(t("ds.reasoningScreen.loadFailed"));
@@ -1100,29 +1118,40 @@ export default function ReasoningScreen() {
             await refreshUsage().catch(() => undefined);
           }
         } catch (error) {
-          runningRef.current = false;
-          abortRef.current = null;
-          const deferred: DeferredRunError | null =
+          // A cancelled run can reject after a newer run has taken the slot, and a
+          // run can fail after another account was painted. Only the run that still
+          // held the slot acts at all, and only on the screen of its own account.
+          const kind: RunFailureKind =
             error instanceof ReasoningLimitError
               ? "limit"
               : error instanceof ReasoningSafetyError
                 ? "safety"
                 : (error as Error).message === "reasoning_cancelled"
-                  ? null
+                  ? "cancelled"
                   : "generic";
-          if (!mountedRef.current) {
-            if (deferred) deferredRunErrors.set(userId, deferred);
+          const onScreen = () => mountedRef.current && ownership.shows(userId);
+          const action = runFailureAction({
+            ownedSlot: ownership.release(controller),
+            onScreen: onScreen(),
+            kind,
+          });
+          if (action.act === "nothing") return;
+          if (action.act === "defer") {
+            if (action.error) deferredRunErrors.set(userId, action.error);
             return;
           }
           dismissTask();
-          if (error instanceof ReasoningLimitError) {
+          if (action.error === "limit") {
             await refreshUsage().catch(() => undefined);
+            // The read took time: the screen may have been left, show another
+            // account, or hold a newer run by now.
+            if (!onScreen() || ownership.running) return;
             setPhase("idle");
             setLimitSheetVisible(true);
-          } else if (error instanceof ReasoningSafetyError) {
+          } else if (action.error === "safety") {
             setPhase("idle");
             setCrisisVisible(true);
-          } else if ((error as Error).message === "reasoning_cancelled") {
+          } else if (action.error === "cancelled") {
             setPhase("idle");
           } else {
             setPhase("error");
@@ -1141,6 +1170,7 @@ export default function ReasoningScreen() {
     locale,
     isMinor,
     progression.tier,
+    ownership,
     readyForReview,
     refreshUsage,
   ]);
@@ -1191,22 +1221,27 @@ export default function ReasoningScreen() {
         await markProposalApplied(userId, proposal.runId, proposal.ordinal);
         pending = pending.filter((candidate) => candidate.key !== proposal.key);
       }
-      setItems((current) =>
-        current.filter((item) => !accepted.some((proposal) => proposal.key === item.key)),
-      );
-      setProposals([]);
-      setSelected(new Set());
-      setRunState({});
-      setCompletedCount(0);
-      setPhase("idle");
-      dismissTask();
+      // The writes took time. If the screen was left or shows another account
+      // by now, what follows is not this screen's to change.
+      stale = !mountedRef.current || !ownership.shows(userId);
+      if (!stale) {
+        setItems((current) =>
+          current.filter((item) => !accepted.some((proposal) => proposal.key === item.key)),
+        );
+        setProposals([]);
+        setSelected(new Set());
+        setRunState({});
+        setCompletedCount(0);
+        setPhase("idle");
+        dismissTask();
+      }
     } catch (error) {
       // What goes back on screen is read again: a record deleted in between
       // does not return under the title this screen still held.
       const ready = await readyForReview(pending);
       // The read took time. If the screen was left or the account changed
       // meanwhile, this result is not that screen's: write nothing.
-      stale = !mountedRef.current || userIdRef.current !== userId;
+      stale = !mountedRef.current || !ownership.shows(userId);
       if (!stale) {
         setProposals(ready.live);
         setSelected(new Set(ready.live.map((proposal) => proposal.key)));
@@ -1224,7 +1259,7 @@ export default function ReasoningScreen() {
       if (accepted.length > 0) invalidateDomainLevels(userId);
       if (!stale) setApplying(false);
     }
-  }, [applying, phase, proposals, readyForReview, selected, t, userId]);
+  }, [applying, ownership, phase, proposals, readyForReview, selected, t, userId]);
 
   const reasoningTitle = t("ds.reasoningScreen.title");
   if (loading) return <InlineLoader />;
