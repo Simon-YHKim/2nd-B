@@ -690,7 +690,7 @@ function SecondBChatBody() {
   // Funnel: fire ai_limit_hit at most once per mount when the daily cap is hit.
   const limitHitFiredRef = useRef(false);
   // Z46: moves on every send and every re-read of the usage, so a count that arrives late is
-  // not shown over a newer one, or over another account's.
+  // not shown over a newer one.
   const usageSeq = useRef(0);
   // The tier the server says to upgrade to (from a blocked turn). Falls back to
   // "soma" in the limit-hit effect when no blocked turn has set it yet.
@@ -894,6 +894,8 @@ function SecondBChatBody() {
       setSending(true);
       setTurns((prev) => [...prev, { role: "user", text: msg }]);
       const seq = ++usageSeq.current;
+      // Z46: a count settled after the reply is shown only to the account that sent.
+      const usageLease = captureAccountOwnerLease(userId);
       void (async () => {
         // AI 응답 대기: every mounted head holds the thinking face (eyes drift
         // up-side) until the reply lands — released in finally either way.
@@ -957,7 +959,7 @@ function SecondBChatBody() {
             setUsedToday(result.used);
             // Z46: the turn of a swapped reply may be given back after the reply is on screen.
             void result.settlement?.then((used) => {
-              if (used !== null && usageSeq.current === seq) setUsedToday(used);
+              if (used !== null && usageLease?.isCurrent() && usageSeq.current === seq) setUsedToday(used);
             });
             captureEvent(
               secondBSession({

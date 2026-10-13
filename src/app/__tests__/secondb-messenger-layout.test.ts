@@ -207,7 +207,7 @@ describe("HustleK messenger layout", () => {
       setTurns: (updater: (previous: Props[]) => Props[]) => { const next = updater(turns); turns.splice(0, turns.length, ...next); },
       holdExpression: () => jest.fn(), sendChatMessage, currentDisplayName: () => "Alex", rev2PersonaHint: (id: string) => id,
       setUsedToday: jest.fn(), setPendingUpgrade: jest.fn(), rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
-      usageSeq: { current: 0 },
+      usageSeq: { current: 0 }, captureAccountOwnerLease: () => ({ isCurrent: () => true }),
       captureEvent: jest.fn(), secondBSession: (event: unknown) => event,
       parseSourceCitations, parseTwiBranches,
       replyCueAllowed: () => false, isRecordingAudioMode: () => false, playReplyCue: jest.fn(),
@@ -242,12 +242,16 @@ describe("HustleK messenger layout", () => {
   });
 
   // Z46: the turn of a swapped reply is settled after the reply is on screen. The count that
-  // arrives then is shown, unless a newer send or a re-read of the usage has happened since.
+  // arrives then is shown to the account that sent, unless a newer send or a re-read of the
+  // usage has happened since.
   test.each([
-    ["is shown when nothing newer happened", 1, 0, [2, 1]],
-    ["is dropped after a newer send or re-read", 1, 1, [2]],
-    ["changes nothing when the count is not known", null, 0, [2]],
-  ])("a count settled after the reply %s", async (_name, settledCount, laterMoves, shown) => {
+    ["is shown when nothing newer happened", 1, 0, "same", [2, 1]],
+    ["is dropped after a newer send or re-read", 1, 1, "same", [2]],
+    ["changes nothing when the count is not known", null, 0, "same", [2]],
+    // The account changed and its own re-read has not run yet: the mark has not moved.
+    ["is dropped when another account is on screen by then", 1, 0, "changed", [2]],
+    ["is dropped when the sender was not the settled owner at send time", 1, 0, "none", [2]],
+  ])("a count settled after the reply %s", async (_name, settledCount, laterMoves, owner, shown) => {
     const declaration = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "handleSend") as ts.VariableDeclaration;
     const callback = (declaration.initializer as ts.CallExpression).arguments[0];
     const turns: Props[] = [];
@@ -257,6 +261,8 @@ describe("HustleK messenger layout", () => {
     const settlement = new Promise<number | null>(done => { settle = done; });
     const setUsedToday = jest.fn();
     const usageSeq = { current: 0 };
+    let sameAccount = true;
+    const captureAccountOwnerLease = jest.fn((ownerId: string) => (owner === "none" ? null : { ownerId, isCurrent: () => sameAccount }));
     class LlmConsentError extends Error { code = "paused"; }
     const scope: Props = {
       userId: "A", rev2Persona: "meta", locale: "en", progression: { tier: "free" }, turns, chatMode: "analytic", isMinor: false, limit: 10,
@@ -265,7 +271,7 @@ describe("HustleK messenger layout", () => {
       holdExpression: () => jest.fn(), currentDisplayName: () => "Alex", rev2PersonaHint: (id: string) => id,
       sendChatMessage: jest.fn(() => Promise.resolve({ status: "ok", reply: { text: "Please call", safety: { zone: "red" } }, used: 2, settlement })),
       setUsedToday, setPendingUpgrade: jest.fn(), rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
-      usageSeq,
+      usageSeq, captureAccountOwnerLease,
       captureEvent: jest.fn(), secondBSession: (event: unknown) => event,
       parseSourceCitations, parseTwiBranches,
       replyCueAllowed: () => false, isRecordingAudioMode: () => false, playReplyCue: jest.fn(),
@@ -273,12 +279,14 @@ describe("HustleK messenger layout", () => {
     };
     const send = execute(`(${callback.getText(ast)})`, scope) as (message: string) => boolean;
     expect(send("My question")).toBe(true);
+    expect(captureAccountOwnerLease).toHaveBeenCalledWith("A");
     // The reply is on screen and the send is over while the settlement is still open.
     await completion;
     expect(turns).toHaveLength(2);
     expect(turns[1]).toMatchObject({ role: "secondb", safetyZone: "red" });
     expect(setUsedToday.mock.calls.map(call => call[0])).toEqual([2]);
     usageSeq.current += laterMoves;
+    if (owner === "changed") sameAccount = false;
     settle(settledCount);
     await settlement;
     await Promise.resolve();
