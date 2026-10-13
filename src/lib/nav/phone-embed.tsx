@@ -148,3 +148,43 @@ export function useStartAtEndWhen(name: string, value: string): { scrollRef: Ref
   }, []);
   return { scrollRef, onContentSizeChange: wanted ? onContentSizeChange : undefined };
 }
+
+/** How long a requested scroll keeps following content that is still settling. Short on purpose:
+ *  after this the scroll belongs to the person again. */
+const SCROLL_TO_FOLLOW_MS = 1500;
+
+/**
+ * Moves a screen's scroll view to an offset once the scroll memory's own restore has let go
+ * (see START_AT_END_AFTER_MS). For something that arrives while the screen is opening and sits
+ * below the first screenful: a share landing in the scrap screen's link box. The offset is read
+ * when the scroll happens, so a late layout is followed; a null offset means "not laid out yet".
+ */
+export function useScrollToWhenSettled(): {
+  scrollRef: RefObject<ScrollView | null>;
+  onContentSizeChange: () => void;
+  scrollToWhenSettled: (offset: () => number | null) => void;
+} {
+  const scrollRef = useRef<ScrollView | null>(null);
+  const wanted = useRef<{ offset: () => number | null; since: number } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current !== null) clearTimeout(timer.current); }, []);
+  const arm = useCallback(() => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      const y = wanted.current === null ? null : wanted.current.offset();
+      if (y !== null) scrollRef.current?.scrollTo({ y: Math.max(0, y), animated: false });
+    }, START_AT_END_AFTER_MS);
+  }, []);
+  const onContentSizeChange = useCallback(() => {
+    const request = wanted.current;
+    if (request === null) return;
+    if (Date.now() - request.since > SCROLL_TO_FOLLOW_MS) { wanted.current = null; return; }
+    arm();
+  }, [arm]);
+  const scrollToWhenSettled = useCallback((offset: () => number | null) => {
+    wanted.current = { offset, since: Date.now() };
+    arm();
+  }, [arm]);
+  return { scrollRef, onContentSizeChange, scrollToWhenSettled };
+}

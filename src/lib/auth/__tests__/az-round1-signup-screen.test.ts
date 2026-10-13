@@ -19,7 +19,9 @@ describe("Z4: an empty password box looks empty", () => {
 
 describe("Z2: the result of submitting shows right above the button", () => {
   test("the toast is drawn once, before the submit button", () => {
-    const toast = "{toast ? <SignUpToast message={toast.message} tone={toast.tone} /> : null}";
+    // The element gained an onLayout (2026-10-13: it keeps the button on screen when the notice
+    // appears), so this looks for the element, not for one exact line.
+    const toast = "<SignUpToast\n";
     expect(signUp.split(toast)).toHaveLength(2);
     const submit = signUp.indexOf('accessibilityLabel={t("auth:signUp.submit")}');
     expect(signUp.indexOf(toast)).toBeGreaterThan(0);
