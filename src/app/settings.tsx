@@ -38,7 +38,7 @@ import { signOut } from "@/lib/supabase/auth";
 import { changeUiLanguage } from "@/lib/i18n";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META, type AvailableUiLocale } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
-import { buildInfoLine } from "@/lib/build-info";
+import { VersionLine } from "@/components/ui/VersionLine";
 import {
   DEFAULT_WIKI_AUTO_PROMOTE,
   getWikiAutoPromote,
@@ -1060,15 +1060,15 @@ export default function Settings() {
           />
         </View>
 
-        {/* The real bundle identity, not a frozen string. This line existed to
-            answer "which bundle is this?" during an incident — the 2026-06-26
-            head-touch crash was prolonged by embedded-vs-OTA uncertainty — and a
-            hardcoded locale value ("Build 0.0.6 · OTA ota-2026-06-27a", still
-            claiming 0.0.6 on a 0.1.0 build) defeats exactly that purpose.
-            buildInfoLine() reads expo-updates. This is its one place on a user screen. */}
-        <Text variant="caption" color="textMuted" style={styles.buildMarker}>
-          {buildInfoLine()}
-        </Text>
+        {/* The real version, not a frozen string: a hardcoded locale value
+            ("Build 0.0.6 · OTA ota-2026-06-27a", still claiming 0.0.6 on a 0.1.0
+            build) is how this line once lied. The reader sees the app version.
+            The bundle identity (buildInfoLine(), which answered "which bundle is
+            this?" when the 2026-06-26 head-touch crash was prolonged by
+            embedded-vs-OTA uncertainty) opens on a tap: shown raw, its "?" read
+            as an error (Z94). This is its one place on a user screen. */}
+        <VersionLine style={styles.buildMarker} />
+
       </ScrollView>
 </KeyboardAvoidingArea>
       {toast ? (

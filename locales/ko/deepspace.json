@@ -251,7 +251,7 @@
     "viewManual": "사용 안내서 보기",
     "emailUs": "이메일 문의",
     "reportBug": "오류 신고",
-    "footer": "PolaScope v1.0.0 · 답변까지 영업일 2일 (KST)",
+    "footer": "PolaScope v{{version}} · 답변까지 영업일 2일 (KST)",
     "faqTitle": "자주 묻는 질문",
     "noticesTitle": "공지사항",
     "faqs": {

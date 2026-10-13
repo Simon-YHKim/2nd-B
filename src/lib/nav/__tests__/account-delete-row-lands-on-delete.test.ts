@@ -68,7 +68,9 @@ describe("Z25: the delete row lands on the delete card", () => {
 describe("Z26: the account screen shows no build line", () => {
   test("the build line lives on Settings only", () => {
     expect(account).not.toContain("buildInfoLine");
-    expect(read("src/app/settings.tsx")).toContain("{buildInfoLine()}");
+    // Since Z94 Settings draws it through VersionLine, behind a tap on the version.
+    expect(read("src/app/settings.tsx")).toContain("<VersionLine style={styles.buildMarker} />");
+    expect(read("src/components/ui/VersionLine.tsx")).toContain("{buildInfoLine()}");
   });
 });
 
