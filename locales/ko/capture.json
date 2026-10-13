@@ -198,6 +198,11 @@
     "pasteOfferHint": "누르면 클립보드의 내용을 읽어 입력칸에 붙여 넣습니다.",
     "pasteOfferEmpty": "붙여넣을 내용이 없습니다."
   },
+  "sharedOverDraft": {
+    "title": "쓰던 글이 있습니다.",
+    "append": "이어 붙이기",
+    "replace": "쓰던 글 지우고 새로"
+  },
   "inputs": {
     "extractedLabel": "사진에서 읽은 글 (수정 가능)",
     "bodyLabel": "본문",
