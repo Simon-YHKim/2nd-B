@@ -146,8 +146,8 @@ Explicitly **excluded** purposes for all users (privacy-by-design defaults OFF):
 > or derived.** What remains is the zone verdict and its categories.
 >
 > **2026-10-13 · row 6 · Z45 D3.** When an AI reply is replaced by the crisis
-> template, only the fixed code number (1 to 19) of the matched crisis terms and
-> the source "AI reply" are recorded in the category field: `trigger_categories`
+> template, only the fixed code number (1 to 19) of the matched crisis terms or
+> `unlisted`, and the source "AI reply", are recorded in the category field: `trigger_categories`
 > gains `crisis_term:<n>` beside the existing `output_swap`. Neither the AI reply
 > text nor the user's input is recorded, and no code is recorded when the user's
 > input is what matched. A number, not a hash: with nineteen terms a hash would
@@ -155,8 +155,11 @@ Explicitly **excluded** purposes for all users (privacy-by-design defaults OFF):
 > is always kept, then up to fifteen numbers (the lowest), then what the
 > classifier reported. Every entry the current app queues for that field, on any
 > of its paths, is one of a closed list of fixed names
-> (`src/lib/safety/crisis-event-categories.ts`) or such a number; anything else a
-> classifier reports is recorded as `unlisted`. A classifier's answer is limited
+> (`src/lib/safety/crisis-event-categories.ts`) or such a number; on the record
+> of a replaced AI reply anything else a classifier reports is recorded as the
+> single fixed value `unlisted`, never as its own value. A record of the user's
+> own words carries neither a number nor `unlisted`: there, anything off the
+> list is dropped (Q-261013-66, 2026-10-13). A classifier's answer is limited
 > to twelve of those names; the names that say where a record came from and the
 > term numbers are added only by the app's own code, so a model cannot put them
 > in a record by answering with them. This is a check in the app, not a
