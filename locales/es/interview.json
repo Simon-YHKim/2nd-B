@@ -29,8 +29,6 @@
     "saveBody": "La conversación se guarda tal como está. Todavía no se estima un resultado. El brillo cambiará a medida que añadas registros.",
     "saved": "Guardado.",
     "saveMeta": "{{star}} · Respuestas: {{n}}",
-    "discard": "No guardar",
-    "discardConfirm": "La conversación de hoy se perderá.",
     "scaffoldNote": "Está bien no saber. Puedes contar un hecho que recuerdes o saltar la pregunta.",
     "intro": "Comparte solo lo que quieras. Puedes saltar una pregunta o parar cuando quieras.",
     "dontKnow": "No estoy seguro",

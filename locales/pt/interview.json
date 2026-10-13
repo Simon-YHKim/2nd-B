@@ -29,8 +29,6 @@
     "saveBody": "A conversa será salva como você escreveu. Nenhuma estimativa é criada agora; o brilho das estrelas aumenta conforme você registra.",
     "saved": "Guardado.",
     "saveMeta": "{{star}} · Respostas: {{n}}",
-    "discard": "Não guardar",
-    "discardConfirm": "A conversa de hoje será perdida.",
     "scaffoldNote": "Tudo bem não saber. Você pode contar um fato de que se lembra ou pular.",
     "intro": "Compartilhe só o que quiser. Você pode pular ou parar a qualquer momento.",
     "dontKnow": "Não sei",
