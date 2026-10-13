@@ -146,15 +146,21 @@ Explicitly **excluded** purposes for all users (privacy-by-design defaults OFF):
 > or derived.** What remains is the zone verdict and its categories.
 >
 > **2026-10-13 · row 6 · Z45 D3.** When an AI reply is replaced by the crisis
-> template, only the fixed code number (1 to 19) of each matched crisis term and
+> template, only the fixed code number (1 to 19) of the matched crisis terms and
 > the source "AI reply" are recorded in the category field: `trigger_categories`
 > gains `crisis_term:<n>` beside the existing `output_swap`. Neither the AI reply
 > text nor the user's input is recorded, and no code is recorded when the user's
 > input is what matched. A number, not a hash: with nineteen terms a hash would
-> name the term just as well. Every entry written to that field, on any path, is
-> one of a closed list of fixed names (`src/lib/safety/crisis-event-categories.ts`)
-> or such a number; anything else a classifier reports is recorded as `unlisted`.
-> Retention is the same as existing crisis records.
+> name the term just as well. The field holds sixteen entries: the source marker
+> is always kept, then up to fifteen numbers (the lowest), then what the
+> classifier reported. Every entry the current app queues for that field, on any
+> of its paths, is one of a closed list of fixed names
+> (`src/lib/safety/crisis-event-categories.ts`) or such a number; anything else a
+> classifier reports is recorded as `unlisted`. This is a check in the app, not a
+> boundary: the server checks only how many entries there are and how long each
+> is (`0181`), so an older installed build or a modified client can still submit
+> other strings. Normalising them on the server is a separate change, not yet
+> made. Retention is the same as existing crisis records.
 > Basis: Simon, 2026-10-13 11:42 (D3). Wording of record (ko): 「AI 답이 위기 안내로
 > 바뀐 경우, 걸린 위기어의 고정 코드 번호(1~19)와 출처 'AI 답'만 범주 칸에 기록한다.
 > AI 답 원문과 이용자 입력은 기록하지 않으며, 이용자 입력이 걸린 경우에는 코드를

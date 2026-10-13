@@ -130,12 +130,16 @@ export function modelReplyTermCategories(matched: readonly string[]): string[] {
 // reply holds. The terms are read from the Korean list whatever the screen's
 // language is: a reply replaced on an English screen can still hold a Korean term.
 // Everything passes recordableCrisisCategories, so only fixed names and the
-// numbers are recorded; the marker always stays; and the order is fixed for a
-// given reply, so a retried write sends the same list.
+// numbers are recorded, and the order is fixed for a given reply, so a retried
+// write sends the same list.
+// The field holds sixteen entries. The marker and the numbers are kept first:
+// the marker always, then up to fifteen numbers (the lowest), and what the
+// classifier reported takes the room that is left. A reply would have to hold
+// more than fifteen different gate terms to lose a number.
 export function replySwapCategories(triggers: readonly string[], reply: string, minor?: boolean): string[] {
-  const numbers = modelReplyTermCategories(classifyInput(reply, "ko", { minor }).matched);
+  const numbers = modelReplyTermCategories(classifyInput(reply, "ko", { minor }).matched).slice(0, CRISIS_EVENT_CATEGORY_LIMIT - 1);
   const reported = recordableCrisisCategories(triggers)
     .filter((entry) => entry !== "output_swap")
-    .slice(0, CRISIS_EVENT_CATEGORY_LIMIT - 1);
+    .slice(0, CRISIS_EVENT_CATEGORY_LIMIT - 1 - numbers.length);
   return recordableCrisisCategories([...reported, "output_swap", ...numbers]);
 }

@@ -288,21 +288,40 @@ describe("replySwapCategories", () => {
     ]);
   });
 
-  it("never passes the server's limit, and the marker always stays", () => {
-    const everyTerm = CRISIS_TERMS.ko.join(" / ");
-    const list = replySwapCategories(["lexicon_match"], everyTerm, false);
-    expect(list.length).toBeLessThanOrEqual(CRISIS_EVENT_CATEGORY_LIMIT);
-    expect(list.slice(0, 2)).toEqual(["lexicon_match", "output_swap"]);
-    for (const entry of list.slice(2)) expect(entry).toMatch(/^crisis_term:[0-9]+$/);
-
+  it("at the limit keeps the marker and the numbers first, and what the classifier reported gives way", () => {
     const reported = [
       "passive_ideation", "active_ideation_no_method", "active_ideation_with_method", "intent_no_plan", "intent_with_plan",
       "behavior_past", "behavior_preparation", "behavior_recent", "self_harm_non_suicidal", "crisis", "forbidden_lexicon",
       "lexicon_match", "input_red", "input_semantic_red", "interview_input_red", "record_save_red", "proxy_input_red",
     ];
-    const full = replySwapCategories(reported, everyTerm, false);
-    expect(full).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
-    expect(full[CRISIS_EVENT_CATEGORY_LIMIT - 1]).toBe("output_swap");
+    // Seventeen reported names and two terms: the marker and both numbers stay, thirteen names fit.
+    const twoTerms = replySwapCategories(reported, "유서 이야기와 자살 이야기가 함께 나왔습니다.", false);
+    expect(twoTerms).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
+    expect(twoTerms).toEqual([...reported.slice(0, 13), "output_swap", "crisis_term:1", "crisis_term:13"]);
+
+    // One reported name and one term: nothing is cut.
+    expect(replySwapCategories(["lexicon_match"], "자살이라는 낱말", false)).toEqual(["lexicon_match", "output_swap", "crisis_term:1"]);
+  });
+
+  it("a reply holding every gate term keeps the marker and the fifteen lowest numbers, and says so", () => {
+    const everyTerm = CRISIS_TERMS.ko.join(" / ");
+    const list = replySwapCategories(["lexicon_match", "crisis"], everyTerm, false);
+    expect(list).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
+    expect(list).toEqual(["output_swap", ...Array.from({ length: 15 }, (_, i) => `crisis_term:${i + 1}`)]);
+  });
+
+  it("fifteen terms still leave room for nothing but the marker, and fourteen leave one name", () => {
+    const fifteen = CRISIS_TERMS.ko.slice(0, 15).join(" / ");
+    expect(replySwapCategories(["lexicon_match"], fifteen, false)).toEqual([
+      "output_swap",
+      ...Array.from({ length: 15 }, (_, i) => `crisis_term:${i + 1}`),
+    ]);
+    const fourteen = CRISIS_TERMS.ko.slice(0, 14).join(" / ");
+    expect(replySwapCategories(["lexicon_match", "crisis"], fourteen, false)).toEqual([
+      "lexicon_match",
+      "output_swap",
+      ...Array.from({ length: 14 }, (_, i) => `crisis_term:${i + 1}`),
+    ]);
   });
 
   it("carries no text of the reply", () => {
