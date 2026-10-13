@@ -126,6 +126,16 @@ async function createOwnedRecoveryPending(
 }
 
 describe("password reset helpers", () => {
+  // No test here may reach the network. updatePasswordForRecovery first asks the
+  // breached-password service (api.pwnedpasswords.com). On a slow runner that real
+  // call ran into its own 5 s deadline, which is also the test timeout, and four
+  // tests below failed on unrelated pull requests (CI 2026-10-13). Unreachable is
+  // the documented fail-open path, so that is the default; a test that needs an
+  // answer from the service installs its own fetch.
+  beforeEach(() => {
+    jest.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+  });
+
   afterEach(() => {
     jest.restoreAllMocks();
     __setSupabaseClientForTests(null);
