@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { chatDisplayText } from "@/lib/chat/display-text";
+import { retryableMessage } from "@/lib/chat/retry-failed";
 import { parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
 
@@ -63,7 +64,7 @@ function sender(turns: Props[]) {
     return handler(message, retry);
   };
   return {
-    send, calls, sendChatMessage,
+    send, calls, sendChatMessage, scope,
     async answer(result: Props | Error) {
       const done = completion;
       if (result instanceof Error) settle.reject(result); else settle.resolve(result);
@@ -102,6 +103,39 @@ describe("a reply that failed says which message it was for", () => {
     expect(turns[1]).toMatchObject({ synthetic: true, text: "Limit reached" });
     expect(turns[1]).not.toHaveProperty("retryText");
   });
+
+  test("an answer that turned into crisis guidance is an answer: nothing to send again", async () => {
+    const turns: Props[] = [];
+    const chat = sender(turns);
+    chat.send("내일 일정 알려줘");
+    await chat.answer({ status: "ok", reply: { text: "안내", safety: { zone: "red" } }, used: 1 });
+    expect(turns).toHaveLength(2);
+    expect(turns[1]).toMatchObject({ role: "secondb", safetyZone: "red" });
+    expect(turns[1]).not.toHaveProperty("retryText");
+  });
+
+  test("an error after the answer arrived does not offer to send again", async () => {
+    const turns: Props[] = [];
+    const chat = sender(turns);
+    chat.scope.captureEvent = () => { throw new Error("analytics"); };
+    chat.send("내일 일정 알려줘");
+    await chat.answer(ok("없습니다."));
+    // The wide catch still adds its line after the answer (as on main); it names no message.
+    expect(turns).toHaveLength(3);
+    expect(turns[1]).toMatchObject({ role: "secondb", text: "없습니다." });
+    expect(turns[2]).toMatchObject({ synthetic: true, text: "replyFailed" });
+    expect(turns[2]).not.toHaveProperty("retryText");
+  });
+
+  test("an error after the limit line does not offer it either", async () => {
+    const turns: Props[] = [];
+    const chat = sender(turns);
+    chat.scope.captureEvent = () => { throw new Error("analytics"); };
+    chat.send("내일 일정 알려줘");
+    await chat.answer({ status: "blocked", hint: "Limit reached", used: 10 });
+    expect(turns).toHaveLength(3);
+    expect(turns[2]).not.toHaveProperty("retryText");
+  });
 });
 
 describe("trying again replaces the failed pair", () => {
@@ -128,6 +162,19 @@ describe("trying again replaces the failed pair", () => {
     expect(turns).toHaveLength(4);
     expect(turns[3]).toMatchObject({ role: "secondb", text: "내일은 일정이 없습니다." });
     expect(turns[3]).not.toHaveProperty("retryText");
+  });
+
+  test("the analytics count is the conversation as it is after the replacement", async () => {
+    const turns: Props[] = earlier();
+    const chat = sender(turns);
+    const captureEvent = jest.fn();
+    chat.scope.captureEvent = captureEvent;
+    chat.send("내일 일정 알려줘");
+    await chat.answer(new Error("offline"));
+    chat.send("내일 일정 알려줘", { failedIndex: 3 });
+    await chat.answer(ok("없습니다."));
+    // Two earlier turns and this message: what a first try that worked would have counted.
+    expect(captureEvent).toHaveBeenLastCalledWith(expect.objectContaining({ outcome: "ok", turn_count: 3 }));
   });
 
   test("a second failure offers it again, still once", async () => {
@@ -165,69 +212,110 @@ describe("trying again replaces the failed pair", () => {
   });
 });
 
-describe("when trying again is offered", () => {
+describe("one rule for when a failed line can be sent again", () => {
   const failed = (text: string): Props => ({ role: "secondb", synthetic: true, text: "replyFailed", retryText: text });
-  function retry(turns: Props[], sending = false) {
+  const rule = (turns: Props[], i: number) => retryableMessage(turns as never, i);
+
+  test("the last turn, right after the message it names", () => {
+    expect(rule([{ role: "user", text: "질문" }, failed("질문")], 1)).toBe("질문");
+  });
+
+  test.each([
+    ["the conversation moved on", [{ role: "user", text: "질문" }, failed("질문"), { role: "user", text: "다른 질문" }, { role: "secondb", text: "답" }], 1],
+    ["the turn before it is another message", [{ role: "user", text: "다른 말" }, failed("질문")], 1],
+    ["the turn before it is an answer", [{ role: "user", text: "질문" }, { role: "secondb", text: "답" }, failed("질문")], 2],
+    ["nothing before it", [failed("질문")], 0],
+    ["a limit line", [{ role: "user", text: "질문" }, { role: "secondb", synthetic: true, text: "Limit reached" }], 1],
+    ["a consent line", [{ role: "user", text: "질문" }, { role: "secondb", synthetic: true, consentError: "paused", text: "x" }], 1],
+    ["an answer", [{ role: "user", text: "질문" }, { role: "secondb", text: "답" }], 1],
+    ["crisis guidance", [{ role: "user", text: "질문" }, { role: "secondb", text: "안내", safetyZone: "red" }], 1],
+  ] as Array<[string, Props[], number]>)("not when %s", (_name, turns, i) => {
+    expect(rule(turns, i)).toBeNull();
+  });
+});
+
+describe("when a press on try again sends", () => {
+  const failed = (text: string): Props => ({ role: "secondb", synthetic: true, text: "replyFailed", retryText: text });
+  const pair = (): Props[] => [{ role: "user", text: "질문" }, failed("질문")];
+  function retry(turns: Props[], state: { sending?: boolean; underLimit?: boolean } = {}) {
     const handleSend = jest.fn(() => true);
     const retrying = { current: false };
-    const run = execute(`(${callbackOf("retryFailed")})`, { turns, sending, handleSend, retrying }) as (i: number) => void;
+    const run = execute(`(${callbackOf("retryFailed")})`, {
+      turns, sending: state.sending ?? false, underLimit: state.underLimit ?? true, handleSend, retrying, retryableMessage,
+    }) as (i: number) => void;
     return { run, handleSend, retrying };
   }
 
-  test("the last turn, nothing being sent: it sends the same message for that pair", () => {
-    const turns = [{ role: "user", text: "질문" }, failed("질문")];
-    const { run, handleSend } = retry(turns);
+  test("the last turn, nothing being sent, under the limit: it sends the same message for that pair", () => {
+    const { run, handleSend } = retry(pair());
     run(1);
     expect(handleSend).toHaveBeenCalledWith("질문", { failedIndex: 1 });
   });
 
-  test("a second press before the screen has caught up does not send again", () => {
-    const turns = [{ role: "user", text: "질문" }, failed("질문")];
-    const { run, handleSend, retrying } = retry(turns);
-    run(1);
-    run(1);
-    expect(handleSend).toHaveBeenCalledTimes(1);
-    expect(retrying.current).toBe(true);
-    // The screen forgets the press when that send is over (the effect on `sending`).
-    expect(source).toContain("if (!sending) retrying.current = false;");
-  });
-
   test("not while something is being sent", () => {
-    const { run, handleSend } = retry([{ role: "user", text: "질문" }, failed("질문")], true);
+    const { run, handleSend } = retry(pair(), { sending: true });
     run(1);
     expect(handleSend).not.toHaveBeenCalled();
   });
 
-  test("not for a failed line that is no longer the last turn", () => {
-    const turns = [{ role: "user", text: "질문" }, failed("질문"), { role: "user", text: "다른 질문" }, { role: "secondb", text: "답" }];
+  test("not at today's limit: the composer cannot send there either", () => {
+    const { run, handleSend } = retry(pair(), { underLimit: false });
+    run(1);
+    expect(handleSend).not.toHaveBeenCalled();
+  });
+
+  test("not for a line the rule does not accept", () => {
+    const turns = [{ role: "user", text: "질문" }, { role: "secondb", text: "답" }, failed("질문")];
     const { run, handleSend } = retry(turns);
-    run(1);
+    run(2);
     expect(handleSend).not.toHaveBeenCalled();
   });
 
-  test("not when the turn before it is not the message it names", () => {
-    for (const turns of [
-      [{ role: "user", text: "다른 말" }, failed("질문")],
-      [{ role: "secondb", text: "답" }, failed("질문")],
-      [failed("질문")],
-    ]) {
-      const { run, handleSend } = retry(turns);
-      run(turns.length - 1);
-      expect(handleSend).not.toHaveBeenCalled();
-    }
+  test("the composer's gate and the retry's gate are the same expression", () => {
+    expect(source).toContain("const underLimit = usedToday === null || usedToday < allowance;");
+    expect(source).toContain("const sendEnabled = !sending && underLimit;");
+  });
+});
+
+describe("two presses in a row, through the screen's own handlers", () => {
+  test("the model is asked once for them", async () => {
+    const turns: Props[] = [];
+    const chat = sender(turns);
+    chat.send("질문");
+    await chat.answer(new Error("offline"));
+    expect(chat.sendChatMessage).toHaveBeenCalledTimes(1);
+
+    // Both presses land on the same render: the same handler, the same snapshot of the turns.
+    const retrying = { current: false };
+    const press = execute(`(${callbackOf("retryFailed")})`, {
+      turns: turns.slice(), sending: false, underLimit: true, handleSend: chat.send, retrying, retryableMessage,
+    }) as (i: number) => void;
+    press(1);
+    press(1);
+    expect(chat.sendChatMessage).toHaveBeenCalledTimes(2);
+    expect(turns).toEqual([{ role: "user", text: "질문" }]);
+    await chat.answer(ok("답"));
+    expect(turns).toHaveLength(2);
+    expect(turns[1]).toMatchObject({ role: "secondb", text: "답" });
   });
 
-  test("not for a line that carries no message (limit, consent, an ordinary answer)", () => {
-    for (const last of [{ role: "secondb", synthetic: true, text: "Limit reached" }, { role: "secondb", synthetic: true, consentError: "paused", text: "x" }, { role: "secondb", text: "답" }]) {
-      const { run, handleSend } = retry([{ role: "user", text: "질문" }, last]);
-      run(1);
-      expect(handleSend).not.toHaveBeenCalled();
-    }
+  test("the press is kept while the send is under way and forgotten when it is over", () => {
+    const effect = findNode(
+      node => ts.isCallExpression(node) && node.expression.getText(ast) === "useEffect" && node.arguments[0]!.getText(ast).includes("retrying.current"),
+    ) as ts.CallExpression;
+    const body = effect.arguments[0]!.getText(ast);
+    const retrying = { current: true };
+    (execute(`(${body})`, { sending: true, retrying }) as () => void)();
+    expect(retrying.current).toBe(true);
+    (execute(`(${body})`, { sending: false, retrying }) as () => void)();
+    expect(retrying.current).toBe(false);
+    // It runs when the send state or the turns change (a send always changes the turns).
+    expect(effect.arguments[1]!.getText(ast).split(/\s+/).join("")).toBe("[sending,turns]");
   });
 });
 
 describe("the button under the failed line", () => {
-  function drawn(turns: Props[], sending: boolean) {
+  function drawn(turns: Props[], sendEnabled: boolean) {
     const map = findNode(node => ts.isCallExpression(node) && node.expression.getText(ast) === "turns.map");
     if (!map) throw new Error("Conversation rendering is missing");
     const retryFailed = jest.fn();
@@ -238,7 +326,7 @@ describe("the button under the failed line", () => {
       ServiceConsentLink: "ServiceConsentLink", MdButton: "MdButton",
       turns, ds: anyStyle, userAvatar: null, userDisplayName: "나", lensAccent: "accent",
       getExchangeExpression: () => "A04", copyTurn: jest.fn(), chatDisplayText, sourceCitationDisplay, copyNotice: null,
-      sending, retryFailed, t: (key: string) => key,
+      sendEnabled, retryableMessage, retryFailed, t: (key: string) => key,
     }) as Tree[];
     const buttons = tree.map(message => {
       const column = (message.props.children as Tree[])[1]!;
@@ -246,13 +334,12 @@ describe("the button under the failed line", () => {
     });
     return { buttons, retryFailed };
   }
-  const pair = (): Props[] => [
-    { role: "user", text: "질문" },
-    { role: "secondb", synthetic: true, text: "replyFailed", retryText: "질문" },
-  ];
+  const counts = (turns: Props[], sendEnabled = true) => drawn(turns, sendEnabled).buttons.map(list => list.length);
+  const failedLine = (text: string): Props => ({ role: "secondb", synthetic: true, text: "replyFailed", retryText: text });
+  const pair = (): Props[] => [{ role: "user", text: "질문" }, failedLine("질문")];
 
   test("it is there for the last failed line, named with the app's word for it, and asks for that turn", () => {
-    const { buttons, retryFailed } = drawn(pair(), false);
+    const { buttons, retryFailed } = drawn(pair(), true);
     expect(buttons.map(list => list.length)).toEqual([0, 1]);
     const button = buttons[1]![0]!;
     expect(button.props.label).toBe("common:actions.retry");
@@ -260,20 +347,24 @@ describe("the button under the failed line", () => {
     expect(retryFailed).toHaveBeenCalledWith(1);
   });
 
-  test("it is not there while something is being sent", () => {
-    expect(drawn(pair(), true).buttons.map(list => list.length)).toEqual([0, 0]);
+  test("it is not there where the composer cannot send (something being sent, today's limit reached)", () => {
+    expect(counts(pair(), false)).toEqual([0, 0]);
   });
 
   test("it is not there once the conversation has moved on", () => {
-    const turns = [...pair(), { role: "user", text: "다른 질문" }, { role: "secondb", text: "답" }];
-    expect(drawn(turns, false).buttons.map(list => list.length)).toEqual([0, 0, 0, 0]);
+    expect(counts([...pair(), { role: "user", text: "다른 질문" }, { role: "secondb", text: "답" }])).toEqual([0, 0, 0, 0]);
   });
 
-  test("it is not there for an answer, a limit line or a consent line", () => {
-    const turns = [{ role: "user", text: "질문" }, { role: "secondb", text: "답" }];
-    expect(drawn(turns, false).buttons.map(list => list.length)).toEqual([0, 0]);
-    const consent = [{ role: "user", text: "질문" }, { role: "secondb", synthetic: true, consentError: "paused", text: "x" }];
-    expect(drawn(consent, false).buttons.map(list => list.length)).toEqual([0, 0]);
+  test("it is not there for an answer, crisis guidance, a limit line or a consent line", () => {
+    const asked: Props = { role: "user", text: "질문" };
+    expect(counts([asked, { role: "secondb", text: "답" }])).toEqual([0, 0]);
+    expect(counts([asked, { role: "secondb", text: "안내", safetyZone: "red" }])).toEqual([0, 0]);
+    expect(counts([asked, { role: "secondb", synthetic: true, text: "Limit reached" }])).toEqual([0, 0]);
+    expect(counts([asked, { role: "secondb", synthetic: true, consentError: "paused", text: "x" }])).toEqual([0, 0]);
+  });
+
+  test("a failed line that does not follow its message draws no button (drawn means it works)", () => {
+    expect(counts([{ role: "user", text: "질문" }, { role: "secondb", text: "답" }, failedLine("질문")])).toEqual([0, 0, 0]);
   });
 });
 
