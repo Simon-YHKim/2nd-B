@@ -655,5 +655,6 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
   }
 
-  return jsonResponse(req, { text, modelUsed, latencyMs, audited });
+  // Z46 (0255): the id of the audit row written above, only when it was written (see openai-proxy).
+  return jsonResponse(req, { text, modelUsed, latencyMs, audited, ...(audited ? { auditId: consentAuditId } : {}) });
 });

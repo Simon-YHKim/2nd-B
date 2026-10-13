@@ -34,7 +34,8 @@
 // An `audio` payload switches this function to the transcription endpoint; the
 // response envelope is unchanged either way.
 // Response shape (identical to gemini-proxy / claude-proxy):
-//   { text: string, modelUsed: string, latencyMs: number, audited?: boolean }
+//   { text: string, modelUsed: string, latencyMs: number, audited?: boolean,
+//     auditId?: string }   // the audit row of this call, present when audited
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -1099,7 +1100,12 @@ async function handleOpenAi(
     return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
   }
 
-  return jsonResponse(req, { text, modelUsed, latencyMs, audited });
+  // Z46 (0255): hand back the id of the audit row written above, and only when it
+  // was written. The chat screen passes it to refund_chat_turn_after_output_swap,
+  // which reads that one row and gives a turn back only if it is the caller's own,
+  // server_verified, for chat, red, recent and not used before. The id opens nothing
+  // else: no other function takes it from a signed-in caller.
+  return jsonResponse(req, { text, modelUsed, latencyMs, audited, ...(audited ? { auditId: consentAuditId } : {}) });
 }
 
 Deno.serve(async (req: Request) => {

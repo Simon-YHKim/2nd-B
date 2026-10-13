@@ -33,7 +33,8 @@
 //     purpose?: string, effort?: 'low'|'medium'|'high'|'xhigh'|'max',
 //     responseSchema?: object (Gemini-style; normalized to JSON Schema here) }
 // Response shape (identical to gemini-proxy):
-//   { text: string, modelUsed: string, latencyMs: number, audited?: boolean }
+//   { text: string, modelUsed: string, latencyMs: number, audited?: boolean,
+//     auditId?: string }   // the audit row of this call, present when audited
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -617,5 +618,6 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
   }
 
-  return jsonResponse(req, { text, modelUsed, latencyMs, audited });
+  // Z46 (0255): the id of the audit row written above, only when it was written (see openai-proxy).
+  return jsonResponse(req, { text, modelUsed, latencyMs, audited, ...(audited ? { auditId: consentAuditId } : {}) });
 });
