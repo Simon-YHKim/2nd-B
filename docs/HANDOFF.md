@@ -1,5 +1,22 @@
 # 2nd-Brain Handoff
 
+## 2026-10-13 13:41 / 2ndb-79: #2365 는 4회차에서 멈춤(Q-261013-61) · 위기 안내 연결은 서버 설정 없이 가는 길 확인 - 다음은 그 연결 PR
+
+- **지금까지**: #2365 4회차 BLOCK → 멈춤(Simon 의 답대로). 위기 안내 연결(Q-39)의 길을 실제 모델 20건으로 확인(DECISIONS 같은 시각 둘째 줄 ③). 폰 c8ac34e4 결과 받음(로그인 실패 안내 통과).
+- **다음 1개 = 위기 안내 연결 PR**(브랜치 `fix/reply-overlap-wiring` · 워크트리 `E:/2ndB/.worktrees/o2-reminder-reply-261013` · 아직 커밋 없음):
+  - `src/lib/safety/model-reply-scan.ts`: 바꿔 쓰기 표(넷) · `rewordModelReplyOverlaps` · 후보 조건에 "「마지막」이 없음" 추가 · 바꿔 쓴 사본에 위기 낱말 · 위험 문맥이 없을 때만 후보.
+  - `src/lib/llm/safety.ts`: 후보 사본을 `safety_classify` 자리에 묻는 함수(green 이고 확신도 0.8 이상일 때만 true · 그 밖 · 실패 · 시간 초과는 false). 전체 스위치 `EXPO_PUBLIC_SERVER_SAFETY` 는 건드리지 않는다.
+  - `src/lib/llm/boundary.ts`(답 교체 · 약 933 ~ 998행): 부르는 쪽이 허락했고 후보이고 뜻 확인이 true 일 때만 교체하지 않는다. 교체할 때는 `crisis_term:<n>` 을 범주에 더한다(`modelReplyTermCategories`).
+  - `src/lib/chat/conversation.ts`: 성인이고 최근 세 턴(기록 6칸)에 위기 신호가 없을 때만 허락 · 사용자 글이 걸린 턴은 횟수를 올리지 않는다(Q-37 · 입력 검사를 횟수 올림 앞으로).
+  - `docs/legal/DPIA-2ndB-minors-draft.md` row 6 메모 끝에 법무 문장(`.bots/legal/outbox/coding-legal-z45-dpia-line.note.md`). 줄이 밀리므로 푸시 전 `jest src/lib/legal`.
+  - 테스트: 법무 요구 여섯 + 미성년 · 최근 위기 신호 · 뜻 확인 실패/시간 초과/낮은 확신도는 교체 · 실제 모델 20건의 문장을 고정 자료로.
+  - 횟수 환불 호출(Q-34 ③)은 0252 가 운영에 적용된 뒤 따로(지금 넣으면 없는 RPC 를 부르게 된다).
+  - 독립 검토(`gate_generic.py z45w 1 <PR> …`) 통과 뒤에만 머지. 적용 뒤 2주 집계.
+- **그다음**: Q-29(계정이 바뀌면 앱 다시 시작 · 폰 확인 먼저) → Q-60(Rufus 의 기기 사실 확인 결과를 보고) → 작은 것(`auth-password-reset.test.ts` 의 네 검사에 `fetch` 대역) → Z56 · Z58.
+- **답 대기**: Q-261013-61(#2365). Simon 실행 대기: 0251 적용 · 시험 계정 삭제(<https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>).
+- **봇에 부탁해 둔 것**: 법무 = Q-28 의견 · 조건 원문(「마지막」 · 띄어쓰기) · 바꿔 쓴 사본으로 묻는 방식에 걸리는 것이 있는지 / Rufus = Q-60 기기 사실 확인 · P7Pro 지역 · 다음 빌드(Z57 · Z11) 확인.
+- **멈춘 것 그대로**: #2365 · #2318(Q-29 의 답으로 접음 · 닫지는 않았다) · 구현 레인과 8082 확인 서버.
+
 ## 2026-10-13 13:21 / 2ndb-79: Simon 의 답 13건 받음 · 상충 넷을 읽은 방식과 우선순위 · Z57 머지 - 다음은 #2365 4회차
 
 - **지금까지**: Simon 이 13:17 에 보고서 결정 탭의 답 13건을 직접 보냈다(원문은 DECISIONS 같은 시각 첫 줄). 상충 넷을 먼저 알리고 읽은 방식을 적었다(둘째 줄 ①). #2373(Z57) 13:18 머지(main `70b8b8ce`) · #2369(Z45 부품) 12:59 머지.
