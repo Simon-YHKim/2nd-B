@@ -411,8 +411,8 @@ export function DeepSpaceAccountScreen() {
               </PixelSurface>
             ) : null}
 
-            {/* Z77 (Simon 2026-10-13): the export tool has one door, the card on My data, which
-                opens this screen with ?tool=export. Arriving any other way does not draw it. */}
+            {/* Z77 (Simon 2026-10-13): the export tool is reached through My data's card (and the
+                manual's shortcut); both open this screen with ?tool=export. Without it, not drawn. */}
             {requestedTool === "export" ? (
               <>
                 <PixelPressable

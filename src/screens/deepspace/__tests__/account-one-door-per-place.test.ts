@@ -32,7 +32,9 @@ describe("the account hub keeps one door per place", () => {
   });
 });
 
-describe("the export tool has one door: the card on My data", () => {
+// The doors that carry the query: My data's export card and the manual's shortcut. Opening the
+// account screen any other way (settings' account row) does not draw the tool.
+describe("the export tool is drawn only for the visitor who came for it", () => {
   const screen = read("src/screens/deepspace/dds-account-screen.tsx");
   const guard = screen.indexOf('{requestedTool === "export" ? (');
   const guardEnd = screen.indexOf("              </>\n            ) : null}", guard);
@@ -56,6 +58,15 @@ describe("the export tool has one door: the card on My data", () => {
     expect(screen.indexOf('router.push("/privacy?section=delete")')).toBeGreaterThan(guardEnd);
   });
 
+  // The guard reads the route's own query through the closed list of two tools, nothing else.
+  it("takes the tool from the route's query", () => {
+    expect(screen).toContain("const { tool } = useScreenParams<{ tool?: string | string[] }>();");
+    expect(screen).toContain("const requestedTool = accountToolFromParam(tool);");
+    // One assignment; every other mention is a comparison.
+    expect(screen.split("const requestedTool").length - 1).toBe(1);
+    expect(screen.split("requestedTool = ").length - 1).toBe(1);
+  });
+
   it("still opens the tool when the visitor arrives with the query", () => {
     expect(screen).toContain('setExportOpen(requestedTool === "export");');
     expect(accountToolFromParam("export")).toBe("export");
@@ -63,9 +74,17 @@ describe("the export tool has one door: the card on My data", () => {
     expect(accountToolFromParam("settings")).toBeNull();
   });
 
-  it("My data's export card is that door", () => {
+  it("My data's export card and the manual's shortcut both carry the query", () => {
     const card = DATA_RIGHTS.find((item) => item.id === "account-export");
     expect(card?.route).toBe("/account?tool=export");
+    expect(read("src/screens/deepspace/dds-manual-content.ts")).toContain('routes: ["/privacy", "/iden", "/account?tool=export", "/support"],');
+  });
+
+  // The account row in settings opens the screen without the query: no export row there.
+  it("settings opens the account screen without the query", () => {
+    const settings = read("src/app/settings.tsx");
+    expect(settings).toContain('router.push("/account")');
+    expect(settings).not.toContain("/account?tool=");
   });
 
   // The export owner checks are untouched: the tool moved nowhere.
@@ -97,6 +116,14 @@ describe("one name for the screen: My data", () => {
     for (const canon of ["public/proto/data/app/screens.json", "design/proto_rev2/reference-app/data/app/screens.json"]) {
       expect(read(canon)).toContain('"title": "내 데이터",\n      "route": "data"');
     }
+  });
+
+  // The public account-deletion page names the path to export; it has to be the path that exists.
+  it("the public account-deletion page names the path that exists", () => {
+    const page = read("docs/legal/account-deletion.md");
+    expect(page).toContain("**설정 → 내 데이터 → 계정 데이터 내보내기**");
+    expect(page).toContain("**Settings → My data → Account data export**");
+    expect(page).not.toMatch(/설정 → 계정 → 데이터 내보내기|Settings → Account → Export data|설정 → 데이터 관리|Settings → Data management/);
   });
 
   // The hub's tip named export as something that starts on this screen. It no longer does.
