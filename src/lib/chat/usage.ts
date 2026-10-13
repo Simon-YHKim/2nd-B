@@ -145,3 +145,39 @@ export async function bumpChatUsageIfUnderCap(
   if (typeof data !== "number") throw new Error("invalid_chat_usage_response");
   return data;
 }
+
+/** How many more times a refund call is made after the database reports a serialization failure. */
+const REFUND_SERIALIZATION_RETRIES = 2;
+
+/**
+ * Asks the server to give back one of the day's turns after the reply was replaced by the fixed
+ * crisis guidance (0252, Z46). The server lowers the count only on evidence it wrote itself, and
+ * uses each piece of evidence once, so the screen's word alone changes nothing.
+ *
+ * Returns the new count, or null when nothing was given back. It never throws: the reply is
+ * already on its way to the person and must not be lost to a failed refund.
+ *
+ * The server function's contract: repeat the call after SQLSTATE 40001 (up to twice), and call
+ * once more after NULL. The caller reads the count again afterwards.
+ */
+export async function refundChatTurn(day: string = kstDateToday()): Promise<number | null> {
+  let serializationRetries = 0;
+  let askedAgainAfterNull = false;
+  for (;;) {
+    let data: unknown;
+    let error: { code?: string } | null;
+    try {
+      ({ data, error } = await getSupabaseClient().rpc("refund_chat_turn_after_output_swap", { p_day: day }));
+    } catch {
+      return null;
+    }
+    if (error) {
+      if (error.code !== "40001" || serializationRetries >= REFUND_SERIALIZATION_RETRIES) return null;
+      serializationRetries += 1;
+      continue;
+    }
+    if (typeof data === "number") return data;
+    if (askedAgainAfterNull) return null;
+    askedAgainAfterNull = true;
+  }
+}
