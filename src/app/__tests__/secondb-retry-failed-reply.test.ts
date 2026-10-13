@@ -169,8 +169,9 @@ describe("when trying again is offered", () => {
   const failed = (text: string): Props => ({ role: "secondb", synthetic: true, text: "replyFailed", retryText: text });
   function retry(turns: Props[], sending = false) {
     const handleSend = jest.fn(() => true);
-    const run = execute(`(${callbackOf("retryFailed")})`, { turns, sending, handleSend }) as (i: number) => void;
-    return { run, handleSend };
+    const retrying = { current: false };
+    const run = execute(`(${callbackOf("retryFailed")})`, { turns, sending, handleSend, retrying }) as (i: number) => void;
+    return { run, handleSend, retrying };
   }
 
   test("the last turn, nothing being sent: it sends the same message for that pair", () => {
@@ -178,6 +179,17 @@ describe("when trying again is offered", () => {
     const { run, handleSend } = retry(turns);
     run(1);
     expect(handleSend).toHaveBeenCalledWith("질문", { failedIndex: 1 });
+  });
+
+  test("a second press before the screen has caught up does not send again", () => {
+    const turns = [{ role: "user", text: "질문" }, failed("질문")];
+    const { run, handleSend, retrying } = retry(turns);
+    run(1);
+    run(1);
+    expect(handleSend).toHaveBeenCalledTimes(1);
+    expect(retrying.current).toBe(true);
+    // The screen forgets the press when that send is over (the effect on `sending`).
+    expect(source).toContain("if (!sending) retrying.current = false;");
   });
 
   test("not while something is being sent", () => {

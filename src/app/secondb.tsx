@@ -1007,13 +1007,19 @@ function SecondBChatBody() {
   // when no answer came, plus a way to try again). Only the last turn offers it, and only while
   // nothing is being sent, so the pair it replaces is always the end of the conversation. It goes
   // through handleSend, the same path and the same checks as typing the message again.
+  // A second press before the first one has drawn `sending` would send the message twice, so the
+  // press is remembered at once and forgotten when that send is over.
+  const retrying = useRef(false);
+  useEffect(() => {
+    if (!sending) retrying.current = false;
+  }, [sending]);
   const retryFailed = useCallback(
     (i: number) => {
       const failed = turns[i];
       const asked = turns[i - 1];
-      if (sending || i !== turns.length - 1 || !failed?.retryText) return;
+      if (retrying.current || sending || i !== turns.length - 1 || !failed?.retryText) return;
       if (asked?.role !== "user" || asked.text !== failed.retryText) return;
-      handleSend(failed.retryText, { failedIndex: i });
+      retrying.current = handleSend(failed.retryText, { failedIndex: i });
     },
     [turns, sending, handleSend],
   );
