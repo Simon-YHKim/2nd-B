@@ -251,7 +251,7 @@
     "viewManual": "Ver el manual",
     "emailUs": "Escríbenos",
     "reportBug": "Reportar un error",
-    "footer": "PolaScope v1.0.0 · 2 días hábiles KST",
+    "footer": "PolaScope v{{version}} · 2 días hábiles KST",
     "faqTitle": "Preguntas frecuentes",
     "noticesTitle": "Avisos",
     "faqs": {

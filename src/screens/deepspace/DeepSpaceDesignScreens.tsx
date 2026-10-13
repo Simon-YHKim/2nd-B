@@ -40,7 +40,7 @@ import { useSoundEffects } from "@/lib/settings/sound-effects";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { FilterChip } from "./dds-wiki-records-screens";
-import { buildInfoLine } from "@/lib/build-info";
+import { appVersion, buildInfoLine } from "@/lib/build-info";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { gatherRisingInterests } from "@/lib/trends/gather";
 import type { RisingInterest } from "@/lib/trends/rising";
@@ -518,7 +518,7 @@ export function DeepSpaceSupportDesignScreen() {
         })}
       </Card>
 
-      <Text variant="subtle" style={styles.footer}>{t("support.footer")}</Text>
+      <Text variant="subtle" style={styles.footer}>{t("support.footer", { version: appVersion() ?? "?" })}</Text>
     </Shell>
   );
 }

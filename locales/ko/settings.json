@@ -119,6 +119,7 @@
   "workingPaused": "처리 중입니다. 끝날 때까지 다른 작업이나 로그아웃을 할 수 없습니다.",
   "myAccount": "내 계정",
   "app": "앱",
+  "versionLine": "버전 {{version}}",
   "resetCoachmarks": "홈 화면 안내 다시 보기",
   "resetCoachmarksDesc": "홈 화면 사용법을 처음부터 다시 봅니다",
   "account": "계정",

@@ -251,7 +251,7 @@
     "viewManual": "Lihat manual",
     "emailUs": "Email kami",
     "reportBug": "Laporkan bug",
-    "footer": "PolaScope v1.0.0 · 2 hari kerja KST",
+    "footer": "PolaScope v{{version}} · 2 hari kerja KST",
     "faqTitle": "Pertanyaan umum",
     "noticesTitle": "Pengumuman",
     "faqs": {

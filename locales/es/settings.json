@@ -119,6 +119,7 @@
   "workingPaused": "Trabajando en ello. Otras acciones y el cierre de sesión están en pausa hasta que termine.",
   "myAccount": "Mi cuenta",
   "app": "App",
+  "versionLine": "Versión {{version}}",
   "resetCoachmarks": "Volver a ver la guía de inicio",
   "resetCoachmarksDesc": "Vuelve a ver la guía de inicio desde el principio",
   "account": "Cuenta",

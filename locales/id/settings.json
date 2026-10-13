@@ -119,6 +119,7 @@
   "workingPaused": "Sedang diproses. Tunggu sampai selesai sebelum memilih tindakan lain atau keluar akun.",
   "myAccount": "Akunku",
   "app": "Aplikasi",
+  "versionLine": "Versi {{version}}",
   "resetCoachmarks": "Lihat lagi panduan beranda",
   "resetCoachmarksDesc": "Putar ulang panduan beranda dari awal",
   "account": "Akun",
