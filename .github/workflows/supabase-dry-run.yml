@@ -1706,30 +1706,64 @@ jobs:
           VALUES ('26101354-3000-4000-8000-000000000001', '26101354-0000-4000-8000-00000000000a', 'z66c-race-0001', 'auto',
                   'running', 'none', '2026-W42', '2026-10');
           SQL
-            # Session A runs the first statement and keeps its transaction open for three seconds.
-            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+            # A barrier instead of a timed pause. A holder session keeps an advisory lock; the first session
+            # runs its statement and then waits for that lock with its transaction open; only then is the
+            # second session started. The case fails unless the second session is SEEN waiting for a lock
+            # the first one holds. Two statements that merely ran one after the other do not pass.
+            local key=2530253 h_app="race0253_h_$label" a_app="race0253_a_$label" b_app="race0253_b_$label"
+            local a_rc=0 b_rc=0 a b state h_pid a_pid b_pid
+            seen() { # <what must become true> <query returning 1 when it is>
+              local n=0
+              until [[ "$(sql "$clone_db" "$2")" == "1" ]]; do
+                n=$((n + 1))
+                if (( n > 150 )); then echo "$label: $1" >&2; return 1; fi
+                sleep 0.2
+              done
+            }
+            give_up() {
+              sql "$clone_db" "SELECT pg_catalog.pg_terminate_backend(pid) FROM pg_catalog.pg_stat_activity
+                                WHERE application_name IN ('$h_app', '$a_app', '$b_app')" > /dev/null || true
+              wait 2> /dev/null || true
+              sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            }
+            PGAPPNAME="$h_app" psql -X -q -h localhost -U postgres -d "$clone_db" -At \
+              -c "SELECT pg_advisory_lock($key)" -c "SELECT pg_sleep(120)" > /dev/null 2>&1 &
+            h_pid=$!
+            if ! seen "the holder never took the barrier" \
+                 "SELECT count(*) FROM pg_catalog.pg_locks l JOIN pg_catalog.pg_stat_activity s ON s.pid = l.pid
+                   WHERE l.locktype = 'advisory' AND l.granted AND s.application_name = '$h_app'"; then give_up; return 1; fi
+            PGAPPNAME="$a_app" PGOPTIONS="-c statement_timeout=90s" \
+              psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
               -c "BEGIN" \
               -c "SET LOCAL request.jwt.claim.sub = '$user'" \
               -c "$first" \
-              -c "SELECT pg_sleep(3)" \
+              -c "SELECT pg_advisory_xact_lock($key)" \
               -c "COMMIT" > "race_0253_a_$label.out" 2>&1 &
-            local a_pid=$! waited=0
-            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
-                                          WHERE datname = current_database() AND state = 'active'
-                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
-              waited=$((waited + 1))
-              if (( waited > 50 )); then echo "$label: the first session never reached its pause" >&2; return 1; fi
-              sleep 0.2
-            done
-            # Session B runs the second statement while A is still open.
-            local b_rc=0 a_rc=0 b a state
-            b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+            a_pid=$!
+            if ! seen "the first session never reached the barrier" \
+                 "SELECT count(*) FROM pg_catalog.pg_locks l JOIN pg_catalog.pg_stat_activity s ON s.pid = l.pid
+                   WHERE l.locktype = 'advisory' AND NOT l.granted AND s.application_name = '$a_app'"; then give_up; return 1; fi
+            PGAPPNAME="$b_app" PGOPTIONS="-c statement_timeout=90s" \
+              psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
               -c "BEGIN" \
               -c "SET LOCAL request.jwt.claim.sub = '$user'" \
               -c "$second" \
-              -c "COMMIT" 2>&1 | tr -d '\r' | tr '\n' ' ')" || b_rc=$?
+              -c "COMMIT" > "race_0253_b_$label.out" 2>&1 &
+            b_pid=$!
+            # With the lock on the target gone, the second session runs through and this never becomes true.
+            if ! seen "the second session did not wait for a lock the first session holds" \
+                 "SELECT count(*) FROM pg_catalog.pg_stat_activity w
+                   WHERE w.application_name = '$b_app' AND w.wait_event_type = 'Lock'
+                     AND (SELECT f.pid FROM pg_catalog.pg_stat_activity f WHERE f.application_name = '$a_app')
+                         = ANY (pg_catalog.pg_blocking_pids(w.pid))"; then give_up; return 1; fi
+            # Open the barrier by ending the holder. The first session commits, then the second one goes on.
+            sql "$clone_db" "SELECT pg_catalog.pg_terminate_backend(pid) FROM pg_catalog.pg_stat_activity
+                              WHERE application_name = '$h_app'" > /dev/null
+            wait "$h_pid" 2> /dev/null || true
             wait "$a_pid" || a_rc=$?
+            wait "$b_pid" || b_rc=$?
             a="$(tr -d '\r' < "race_0253_a_$label.out" | tr '\n' ' ')"
+            b="$(tr -d '\r' < "race_0253_b_$label.out" | tr '\n' ' ')"
             state="$(sql "$clone_db" "SELECT (SELECT count(*) FROM public.reasoning_run_proposals WHERE run_id = '$run_id')
                                         || '/' || (SELECT status FROM public.reasoning_runs WHERE id = '$run_id')
                                         || '/' || (SELECT count(*) FROM public.records WHERE id = '$record')

@@ -189,6 +189,7 @@ SELECT pg_temp.z66c_assert(pg_temp.z66c_ordinals('26101353-3000-4000-8000-000000
                            'deleting a record after completion did not remove its stored proposal');
 
 -- 8. Rollback round trip: the down file brings back the old behaviour, applying again removes it.
+SELECT pg_temp.z66c_ordinals('26101353-3000-4000-8000-000000000001') AS z66c_run1_before \gset
 \ir ../migrations/rollback/0253_down.sql
 SET LOCAL request.jwt.claim.sub = '26101353-0000-4000-8000-00000000000a';
 SET LOCAL ROLE authenticated;
@@ -197,6 +198,13 @@ RESET ROLE;
 SELECT pg_temp.z66c_assert(:n5 = 1 AND pg_temp.z66c_ordinals('26101353-3000-4000-8000-000000000005') = '0',
                            'after the down file the old function did not store the row (the down file is not 0092''s body)');
 \ir ../migrations/0253_reasoning_complete_skips_erased.sql
+-- The row the old function just stored for an erased record is what the gap between 0251 and 0253 can leave
+-- behind. Applying 0253 removes it and closes its run; the live rows of the other runs are untouched.
+SELECT pg_temp.z66c_assert(pg_temp.z66c_ordinals('26101353-3000-4000-8000-000000000005') = ''
+                           AND (SELECT status FROM public.reasoning_runs WHERE id = '26101353-3000-4000-8000-000000000005') = 'ratified',
+                           'applying 0253 left the row the old function stored for an erased record, or did not close its run');
+SELECT pg_temp.z66c_assert(pg_temp.z66c_ordinals('26101353-3000-4000-8000-000000000001') = :'z66c_run1_before',
+                           'the one-time cleanup of 0253 touched rows whose targets are live');
 \ir ../migrations/0253_reasoning_complete_skips_erased.sql
 SET LOCAL ROLE authenticated;
 SELECT public.complete_reasoning_run('26101353-0000-4000-8000-00000000000a', '26101353-3000-4000-8000-000000000006', :'p_n6'::jsonb) AS n6 \gset

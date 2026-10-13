@@ -49,9 +49,10 @@ describe('0253 리즈닝이 끝날 때 지워진 기록의 제안은 저장하�
     const shape = (s: string) => [...s.matchAll(/v_uuid_shape constant text :=\s+'([^']+)';/g)].map((m) => m[1]);
     const here = shape(sql);
     const purge = shape(strip(read('db/migrations/0251_reasoning_proposals_purge.sql')));
-    expect(here).toHaveLength(1);
+    expect(here).toHaveLength(2); // the function and the one-time cleanup
     expect(purge).toHaveLength(2);
     expect(here[0]).toBe(purge[0]);
+    expect(here[1]).toBe(purge[0]);
     expect(fn.match(/\)::uuid/g)).toHaveLength(fn.match(guardedCast)?.length ?? -1);
     expect(fn.match(guardedCast)).toHaveLength(3);
     expect(fn).not.toMatch(/id::text/);
@@ -78,6 +79,46 @@ describe('0253 리즈닝이 끝날 때 지워진 기록의 제안은 저장하�
     const down = functionBody(read('db/migrations/rollback/0253_down.sql'));
     expect(original.length).toBeGreaterThan(800);
     expect(down).toBe(original);
+  });
+
+  it('한 번 정리: 표를 잠근 뒤 같은 소유자의 대상이 없는 줄만 지우고, 기록이 안 보이면 거절한다', () => {
+    const start = sql.indexOf('DO $cleanup0253$');
+    expect(start).toBeGreaterThan(sql.indexOf('GRANT  EXECUTE ON FUNCTION public.complete_reasoning_run'));
+    const block = sql.slice(start, sql.indexOf('$cleanup0253$;', start));
+    // refuses before it deletes anything when the applying role cannot see records or sources
+    const refuse = block.indexOf("RAISE EXCEPTION '0253 cleanup refused");
+    const lock = block.indexOf('LOCK TABLE public.reasoning_runs IN EXCLUSIVE MODE;');
+    const pick = block.indexOf('FOR UPDATE OF r');
+    const erase = block.indexOf('DELETE FROM public.reasoning_run_proposals AS p');
+    expect(refuse).toBeGreaterThan(-1);
+    expect(lock).toBeGreaterThan(refuse);
+    expect(pick).toBeGreaterThan(lock);
+    expect(erase).toBeGreaterThan(pick);
+    expect(block).toMatch(/row_security_active\('public\.records'::regclass\)\s+OR pg_catalog\.row_security_active\('public\.sources'::regclass\)/);
+    // same owner, both kinds, and only a refId it can read as a uuid
+    expect(block.match(/x\.user_id = r\.user_id/g)).toHaveLength(2);
+    expect(block.match(/s\.user_id = r\.user_id/g)).toHaveLength(2);
+    expect(block).toMatch(/AND p\.payload->>'refId' ~ v_uuid_shape/);
+    expect(block.match(/\)::uuid/g)).toHaveLength(
+      block.match(/CASE WHEN p\.payload->>'refId' ~ v_uuid_shape\s+THEN \(p\.payload->>'refId'\)::uuid END/g)?.length ?? -1,
+    );
+    // closes only runs it emptied of pending rows; never touches titles or other payload fields
+    expect(block).toMatch(/SET status = 'ratified'\s+WHERE r\.id = ANY \(v_runs\)\s+AND r\.status = 'proposed'\s+AND NOT EXISTS/);
+    expect(block).not.toMatch(/SET payload/);
+  });
+
+  it('경합 단계는 고정 대기가 아니라, 둘째 세션이 첫째의 잠금을 기다리는 것을 본 뒤에 푼다', () => {
+    const workflow = read('.github/workflows/supabase-dry-run.yml');
+    const start = workflow.indexOf('- name: Race a record delete against a reasoning completion');
+    const step = workflow.slice(start, workflow.indexOf('\n      - name:', start + 10));
+    expect(step).not.toMatch(/pg_sleep\(3\)/);
+    expect(step).toMatch(/-c "SELECT pg_advisory_xact_lock\(\$key\)"/);
+    expect(step).toMatch(/w\.wait_event_type = 'Lock'/);
+    expect(step).toMatch(/= ANY \(pg_catalog\.pg_blocking_pids\(w\.pid\)\)/);
+    expect(step).toMatch(/the second session did not wait for a lock the first session holds/);
+    // the barrier is opened only after that check
+    expect(step.indexOf('pg_blocking_pids')).toBeLessThan(step.indexOf('# Open the barrier by ending the holder.'));
+    expect(step).toMatch(/statement_timeout=90s/);
   });
 
   it('CI 가 회귀 SQL 과 두 순서의 경합을 실제로 돌린다', () => {
