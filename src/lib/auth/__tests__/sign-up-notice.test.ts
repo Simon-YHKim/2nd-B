@@ -4,6 +4,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { clearSignUpFailure, signUpToastTimeoutMs, type SignUpToast } from "../sign-up-notice";
 import { submitSignUp } from "../sign-up-flow";
+import { resendCooldownAfter, SIGN_UP_RESEND_COOLDOWN_SECONDS, type ResendSignUpCodeResult } from "../sign-up-resend";
 import { AgeGateError, BreachedPasswordError, ExistingAccountLikelyError } from "../../supabase/auth";
 
 const file = "src/lib/auth/useSignUpForm.ts";
@@ -40,7 +41,8 @@ function effect(marker: string, scope: Record<string, unknown>): (() => void) | 
 
 function harness(notice: SignUpToast | null = { tone: "danger", message: "errors.signUpFailed" }) {
   const state = { toast: notice, existingAccountHelp: true, email: "mailbox@example.invalid", password: "fixture-password",
-    birthDate: "1990-01-01", residenceCountry: "KR", consent: {}, confirmCode: "123456", confirmSentTo: "mailbox@example.invalid" as string | null };
+    birthDate: "1990-01-01", residenceCountry: "KR", consent: {}, confirmCode: "123456", confirmSentTo: "mailbox@example.invalid" as string | null,
+    confirmResendSeconds: 0, confirmResending: false };
   const setToast = jest.fn((value: SignUpToast | null | ((current: SignUpToast | null) => SignUpToast | null)) => {
     state.toast = typeof value === "function" ? value(state.toast) : value;
   });
@@ -64,6 +66,7 @@ function harness(notice: SignUpToast | null = { tone: "danger", message: "errors
     submitSignUp, signUpWithEmail: jest.fn(async () => { throw new ExistingAccountLikelyError("DB rejection"); }),
     AgeGateError, BreachedPasswordError, ExistingAccountLikelyError,
     verifySignUpCode: jest.fn(), refresh: jest.fn(),
+    resendSignUpCode: jest.fn(async (): Promise<ResendSignUpCodeResult> => ({ ok: true })), resendCooldownAfter, SIGN_UP_RESEND_COOLDOWN_SECONDS,
     isProviderEnabled: () => true, isNaverEnabled: () => true,
     startOAuthProvider: jest.fn(), signInWithNaver: jest.fn(),
     PROVIDER_LABEL: { google: "Google" }, console: { warn: jest.fn() },
@@ -231,5 +234,99 @@ describe("Z1 recovery card lifetime", () => {
     expect(h.state.existingAccountHelp).toBe(false);
     expect(h.state.confirmSentTo).toBe(h.state.email);
     expect(h.state.toast).toBeNull();
+  });
+});
+
+// Z18 (2026-10-14, Simon 2026-10-13 "the code entry and send again only"): the code step can ask
+// for the mail again. It never signs up a second time, and its one notice line is the same
+// whatever the server knows about the address.
+describe("Z18 send the code again", () => {
+  const answer = (result: ResendSignUpCodeResult) => jest.fn(async () => result);
+
+  test("a submit that needs the code starts the wait before the first resend", async () => {
+    const h = harness(null);
+    h.state.confirmSentTo = null;
+    h.scope.signUpWithEmail = jest.fn(async () => ({ kind: "confirmationRequired" }));
+    await h.action("handleSubmit");
+    expect(h.state.confirmSentTo).toBe(h.state.email);
+    expect(h.state.confirmResendSeconds).toBe(SIGN_UP_RESEND_COOLDOWN_SECONDS);
+  });
+
+  test("sent: the card's address is asked again, the wait restarts and one plain line shows", async () => {
+    const h = harness(null);
+    const resend = h.scope.resendSignUpCode = answer({ ok: true });
+    await h.action("handleResendConfirmCode");
+    expect(resend.mock.calls).toEqual([["mailbox@example.invalid"]]);
+    expect(h.state.confirmResendSeconds).toBe(SIGN_UP_RESEND_COOLDOWN_SECONDS);
+    expect(h.state.toast).toEqual({ tone: "success", message: "signUp.confirmCodeResent" });
+    expect(h.state.confirmSentTo).toBe("mailbox@example.invalid");
+    expect(h.state.confirmResending).toBe(false);
+    // Not a second sign-up: the consent given at submit is not sent again.
+    expect(h.scope.signUpWithEmail).not.toHaveBeenCalled();
+  });
+
+  test("too soon: the button counts the server's seconds and nothing is announced as a failure", async () => {
+    const h = harness(null);
+    h.scope.resendSignUpCode = answer({ ok: false, reason: "wait", seconds: 37 });
+    await h.action("handleResendConfirmCode");
+    expect(h.state.confirmResendSeconds).toBe(37);
+    expect(h.state.toast).toBeNull();
+  });
+
+  test("too soon without a number falls back to the usual wait", async () => {
+    const h = harness(null);
+    h.scope.resendSignUpCode = answer({ ok: false, reason: "wait" });
+    await h.action("handleResendConfirmCode");
+    expect(h.state.confirmResendSeconds).toBe(SIGN_UP_RESEND_COOLDOWN_SECONDS);
+    expect(h.state.toast).toBeNull();
+  });
+
+  test("failed: one failure line, and the button is free to try again", async () => {
+    const h = harness(null);
+    h.scope.resendSignUpCode = answer({ ok: false, reason: "failed" });
+    await h.action("handleResendConfirmCode");
+    expect(h.state.toast).toEqual({ tone: "danger", message: "signUp.confirmCodeResendFailed" });
+    expect(h.state.confirmResendSeconds).toBe(0);
+    expect(h.state.confirmResending).toBe(false);
+  });
+
+  test.each([
+    ["the wait is still counting", { confirmResendSeconds: 12 }],
+    ["a resend is already out", { confirmResending: true }],
+    ["there is no card", { confirmSentTo: null }],
+  ])("does nothing while %s", async (_name, patch) => {
+    const h = harness(null);
+    Object.assign(h.state, patch);
+    const resend = h.scope.resendSignUpCode = answer({ ok: true });
+    await h.action("handleResendConfirmCode");
+    expect(resend).not.toHaveBeenCalled();
+    expect(h.state.toast).toBeNull();
+  });
+
+  test.each(["confirmVerifying", "submitting", "oauthSubmitting"])("does nothing while %s", async (flag) => {
+    const h = harness(null);
+    h.scope[flag] = true;
+    const resend = h.scope.resendSignUpCode = answer({ ok: true });
+    await h.action("handleResendConfirmCode");
+    expect(resend).not.toHaveBeenCalled();
+  });
+
+  test("a write already holding the screen's lock keeps the resend out", async () => {
+    const h = harness(null);
+    h.scope.beginSignUpAction = jest.fn(() => null);
+    const resend = h.scope.resendSignUpCode = answer({ ok: true });
+    await h.action("handleResendConfirmCode");
+    expect(resend).not.toHaveBeenCalled();
+    expect(h.state.confirmResending).toBe(false);
+  });
+
+  test("leaving the step returns to the form with what was typed", () => {
+    const h = harness({ tone: "danger", message: "signUp.confirmCodeInvalid" });
+    h.action("leaveConfirmStep");
+    expect(h.state.confirmSentTo).toBeNull();
+    expect(h.state.confirmCode).toBe("");
+    expect(h.state.toast).toBeNull();
+    expect(h.state).toMatchObject({ email: "mailbox@example.invalid", password: "fixture-password", birthDate: "1990-01-01", residenceCountry: "KR" });
+    expect(h.scope.setAvatarSetupAfterConfirmation).toHaveBeenCalledWith(false);
   });
 });

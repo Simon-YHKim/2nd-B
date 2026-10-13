@@ -47,6 +47,9 @@ function phaseHarness(screen: Screen, reverseLayout = false, OS = "android") {
   const actionLockRef = { current: screen === "sign-in" ? 0 : { active: null as string | null } };
   const exitApp = jest.fn();
   const dismissTo = jest.fn();
+  // Sign-up's code step (Z18): Back leaves the step for the form before it leaves sign-up.
+  const confirmSentToRef = { current: null as string | null };
+  const leaveConfirmStep = jest.fn(() => { confirmSentToRef.current = null; });
   const t = (key: string) => key;
   let cursor = 0;
   let phase = "render";
@@ -82,6 +85,7 @@ function phaseHarness(screen: Screen, reverseLayout = false, OS = "android") {
   };
   return {
     exitApp, dismissTo, setToast, changes, toastRef, presentedExitRef, isGuestRef, BackHandler,
+    leaveConfirmStep, codeStep(address: string | null) { confirmSentToRef.current = address; },
     get subscribed() { return listeners.size; },
     get handler() { return [...listeners][0]; },
     render(kind: "deletion" | "loading" | "form" | "home" = "form", isFocused = true, translate = t) {
@@ -95,6 +99,7 @@ function phaseHarness(screen: Screen, reverseLayout = false, OS = "android") {
         branch, isFocused, Platform: { OS }, isGuestRef, toastRef, presentedExitRef, actionLockRef,
         setToast, t: translate, Date: { now: () => now }, BackHandler, router: { dismissTo },
         createSignInBackHandler, createSignUpBackHandler, clearSignInExit,
+        confirmSentToRef, leaveConfirmStep,
         useLayoutEffect: (effect: Effect, deps: readonly unknown[]) => queue("layout", effect, deps),
         useEffect: (effect: Effect, deps: readonly unknown[]) => queue("passive", effect, deps),
         // Regression mutations must actually delay installation until passive.
@@ -237,6 +242,23 @@ test("R7 signup focus and live write lock do not wait for passive", () => {
   h.press(); expect(h.dismissTo).toHaveBeenCalledTimes(2);
   h.unmount(); expect(h.subscribed).toBe(0);
   expect(h.changes).toEqual(["layout:add", "layout:remove", "layout:add", "layout:remove"]);
+});
+
+test.each([false, true])("Z18 signup Back on the code step returns to the form first, busy=%s", busy => {
+  const h = phaseHarness("sign-up");
+  h.render(); h.layout(); h.passive();
+  // The step changes without re-subscribing: the handler reads it when Back is pressed.
+  h.codeStep("mailbox@example.invalid"); h.busy(busy);
+  expect(h.press()).toBe(true);
+  expect(h.leaveConfirmStep).toHaveBeenCalledTimes(busy ? 0 : 1);
+  expect(h.dismissTo).not.toHaveBeenCalled();
+  h.busy(false);
+  // Out of the step (or after the held write), the next Back is the D2 one: sign-in.
+  if (busy) { expect(h.press()).toBe(true); expect(h.leaveConfirmStep).toHaveBeenCalledTimes(1); }
+  expect(h.dismissTo).not.toHaveBeenCalled();
+  expect(h.press()).toBe(true);
+  expect(h.dismissTo.mock.calls).toEqual([["/sign-in"]]);
+  expect(h.changes).toEqual(["layout:add"]);
 });
 
 test.each((["sign-in", "sign-up"] as const).flatMap(screen => ["ios", "web"].map(OS => ({ screen, OS }))))(

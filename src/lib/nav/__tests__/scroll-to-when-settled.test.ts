@@ -138,7 +138,9 @@ describe("sign-up keeps the submit button on screen when a failure notice appear
 
   // Going to the END only shows the button while the button is the last thing in the scroll.
   test("the submit button is still the last thing in the scroll, right after the notice", () => {
-    const notice = signUp.indexOf("<SignUpToast\n");
+    // One notice element, shared by the form and the code step (Z18); the form draws it last but one.
+    expect(signUp.split("<SignUpToast\n").length - 1).toBe(1);
+    const notice = signUp.lastIndexOf("{notice}");
     expect(notice).toBeGreaterThan(-1);
     const tail = signUp.slice(notice, signUp.indexOf("</PixelGateShell>", notice));
     expect(tail.split("<PixelPressable").length - 1).toBe(1);
