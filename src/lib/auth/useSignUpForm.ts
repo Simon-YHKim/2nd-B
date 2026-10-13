@@ -25,6 +25,7 @@ import {
   consumeAuthCallbackUrl,
   signUpWithEmail,
   verifySignUpCode,
+  resendSignUpCode,
   isNaverEnabled,
   isProviderEnabled,
   signInWithNaver,
@@ -46,6 +47,7 @@ import {
 } from "@/lib/auth/consent-selections";
 import { submitSignUp } from "@/lib/auth/sign-up-flow";
 import { clearSignUpFailure, signUpToastTimeoutMs, type SignUpToast } from "./sign-up-notice";
+import { resendCooldownAfter, SIGN_UP_RESEND_COOLDOWN_SECONDS } from "./sign-up-resend";
 import { recordConsentBestEffort } from "@/lib/supabase/consent";
 import {
   OAUTH_PROVIDER_LABEL,
@@ -57,7 +59,7 @@ const ADULT_AGE = 18;
 
 export type { SignUpToastTone, SignUpToast } from "./sign-up-notice";
 
-export type SignUpAction = "email" | "oauth" | "naver" | "verify";
+export type SignUpAction = "email" | "oauth" | "naver" | "verify" | "resend";
 
 /**
  * One lock is shared by every auth write on the sign-up screen. The monotonically
@@ -147,6 +149,13 @@ export interface UseSignUpForm {
   canVerifyConfirmCode: boolean;
   confirmVerifying: boolean;
   handleVerifyConfirmCode: () => Promise<void>;
+  /** Seconds until the confirmation mail can be sent again (0 = allowed now). */
+  confirmResendSeconds: number;
+  confirmResending: boolean;
+  canResendConfirmCode: boolean;
+  handleResendConfirmCode: () => Promise<void>;
+  /** Leaves the code step for the form, keeping what was typed there. */
+  leaveConfirmStep: () => void;
   // provider visibility
   visibleProviders: OAuthProvider[];
   naverEnabled: boolean;
@@ -190,6 +199,11 @@ export function useSignUpForm(): UseSignUpForm {
   // reset-password OTP flow (#1013).
   const [confirmCode, setConfirmCode] = useState("");
   const [confirmVerifying, setConfirmVerifying] = useState(false);
+  // "Send the code again" (Z18): the code step shows the code entry and this, nothing else.
+  const [confirmResendSeconds, setConfirmResendSeconds] = useState(0);
+  const [confirmResending, setConfirmResending] = useState(false);
+  // Android Back reads the step through this ref, so its subscription stays keyed on focus.
+  const confirmSentToRef = useRef<string | null>(null);
   const [consent, setConsent] = useState(emptyConsentSelections());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const deepLinkUrl = useURL();
@@ -273,16 +287,34 @@ export function useSignUpForm(): UseSignUpForm {
     };
   }, [deepLinkUrl, refresh, t, userId]);
 
-  // D2 (Simon 2026-10-10): focused Android sign-up returns to sign-in.
+  // The confirmation-code step is the second step of sign-up. Leaving it (the on-screen arrow and
+  // Android Back) returns to the form with what was typed; the address's card and code retire.
+  const leaveConfirmStep = useCallback(() => {
+    setConfirmSentTo(null);
+    setConfirmCode("");
+    setAvatarSetupAfterConfirmation(false);
+    setToast(null);
+  }, []);
+  useLayoutEffect(() => {
+    confirmSentToRef.current = confirmSentTo;
+  }, [confirmSentTo]);
+
+  // D2 (Simon 2026-10-10): focused Android sign-up returns to sign-in. From the code step, Back
+  // first returns to the form (Z18, 2026-10-14): one step back, the same place the arrow goes.
   useLayoutEffect(() => {
     if (Platform.OS !== "android" || !isFocused) return;
     const onBackPress = createSignUpBackHandler({
       isBusy: () => actionLockRef.current.active !== null,
       router,
+      leaveStep: () => {
+        if (confirmSentToRef.current === null) return false;
+        leaveConfirmStep();
+        return true;
+      },
     });
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => sub.remove();
-  }, [isFocused]);
+  }, [isFocused, leaveConfirmStep]);
 
   // A valid DOB between the applied floor and 17 drives the high-privacy notice variant and
   // the minor_self consent band.
@@ -403,6 +435,8 @@ export function useSignUpForm(): UseSignUpForm {
         // establishes a session.
         setToast(null);
         setAvatarSetupAfterConfirmation(true);
+        // A mail just went out to this address, so "send again" waits out the interval.
+        setConfirmResendSeconds(SIGN_UP_RESEND_COOLDOWN_SECONDS);
         return;
       }
       if (result.kind === "entered") {
@@ -506,6 +540,64 @@ export function useSignUpForm(): UseSignUpForm {
     userId,
   ]);
 
+  // Resend cooldown ticker (the reset-password screen's shape): keyed on the boolean so one
+  // interval lives per countdown, cleared on unmount (ANDROID_QA_GUIDELINES: no leaked timers).
+  const resendCounting = confirmResendSeconds > 0;
+  useEffect(() => {
+    if (!resendCounting) return;
+    const h = setInterval(() => setConfirmResendSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(h);
+  }, [resendCounting]);
+
+  // Sends the confirmation mail again to the address the card names (resendSignUpCode). It does
+  // not sign up again, so the consent given at submit stays as recorded. The notice is the same
+  // line whether or not that address still has a sign-up waiting; a "wait" answer only restarts
+  // the countdown on the button, with the server's number when it gave one.
+  const handleResendConfirmCode = useCallback(async () => {
+    const target = confirmSentTo;
+    if (
+      !target ||
+      loading ||
+      userId ||
+      confirmVerifying ||
+      confirmResending ||
+      submitting ||
+      oauthSubmitting ||
+      confirmResendSeconds > 0
+    ) {
+      return;
+    }
+    const owner = beginSignUpAction(actionLockRef.current, "resend");
+    if (owner === null) return;
+    setConfirmResending(true);
+    setToast(null);
+    try {
+      const result = await resendSignUpCode(target);
+      if (!mountedRef.current || !ownsSignUpAction(actionLockRef.current, "resend", owner)) return;
+      setConfirmResendSeconds(resendCooldownAfter(result));
+      if (result.ok) {
+        setToast({ tone: "success", message: t("signUp.confirmCodeResent") });
+      } else if (result.reason === "failed") {
+        setToast({ tone: "danger", message: t("signUp.confirmCodeResendFailed") });
+        if (typeof console !== "undefined") console.warn("[auth] confirmation code resend failed");
+      }
+    } finally {
+      const current = ownsSignUpAction(actionLockRef.current, "resend", owner);
+      releaseSignUpAction(actionLockRef.current, "resend", owner);
+      if (current && mountedRef.current) setConfirmResending(false);
+    }
+  }, [
+    confirmResendSeconds,
+    confirmResending,
+    confirmSentTo,
+    confirmVerifying,
+    loading,
+    oauthSubmitting,
+    submitting,
+    t,
+    userId,
+  ]);
+
   // Social sign-up: the OAuth flow creates the auth user, then /complete-profile
   // collects date of birth (C10) and records consent — so the age gate + consent
   // ledger still apply to provider sign-ups, just at the post-redirect step.
@@ -591,6 +683,17 @@ export function useSignUpForm(): UseSignUpForm {
     !loading &&
     !userId &&
     !confirmVerifying &&
+    !confirmResending &&
+    !submitting &&
+    !oauthSubmitting;
+
+  const canResendConfirmCode =
+    confirmSentTo !== null &&
+    confirmResendSeconds === 0 &&
+    !loading &&
+    !userId &&
+    !confirmVerifying &&
+    !confirmResending &&
     !submitting &&
     !oauthSubmitting;
 
@@ -631,6 +734,11 @@ export function useSignUpForm(): UseSignUpForm {
     canVerifyConfirmCode,
     confirmVerifying,
     handleVerifyConfirmCode,
+    confirmResendSeconds,
+    confirmResending,
+    canResendConfirmCode,
+    handleResendConfirmCode,
+    leaveConfirmStep,
     visibleProviders,
     naverEnabled: isNaverEnabled(),
     handleSubmit,

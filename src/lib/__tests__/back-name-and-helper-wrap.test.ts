@@ -36,8 +36,9 @@ describe("sign-up: the top-bar control says it goes to sign-in", () => {
   });
 
   it("its spoken name and hint name the sign-in screen, not the constellation", () => {
-    expect(signUp).toContain('accessibilityLabel={t("auth:signUp.existingAccountSignIn")}');
-    expect(signUp).toContain('accessibilityHint={t("auth:signUp.signInHint")}');
+    // Z18 (2026-10-14): on the confirmation-code step the same arrow goes back to the form, and says so.
+    expect(signUp).toContain('accessibilityLabel={confirmSentTo !== null ? t("auth:signUp.confirmBackToForm") : t("auth:signUp.existingAccountSignIn")}');
+    expect(signUp).toContain('accessibilityHint={confirmSentTo !== null ? undefined : t("auth:signUp.signInHint")}');
     expect(signUp).not.toContain("navGraph.drilldown");
   });
 
@@ -45,6 +46,7 @@ describe("sign-up: the top-bar control says it goes to sign-in", () => {
     const auth = JSON.parse(read(`locales/${lng}/auth.json`)) as { signUp: Record<string, unknown> };
     expect(typeof auth.signUp.existingAccountSignIn).toBe("string");
     expect(typeof auth.signUp.signInHint).toBe("string");
+    expect(String(auth.signUp.confirmBackToForm ?? "").length).toBeGreaterThan(0);
   });
 });
 

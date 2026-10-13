@@ -386,6 +386,28 @@ describe("D2 sign-up Back behavior without RN", () => {
     expect(back()).toBe(true);
     expect(router.dismissTo).toHaveBeenCalledTimes(1);
   });
+
+  // Z18 (2026-10-14): from the confirmation-code step, Back is one step back (the form).
+  test("a step that can be left is left instead of asking for sign-in", () => {
+    const router = { dismissTo: jest.fn() };
+    let inStep = true;
+    const leaveStep = jest.fn(() => { if (!inStep) return false; inStep = false; return true; });
+    const back = createSignUpBackHandler({ isBusy: () => false, router, leaveStep });
+    expect(back()).toBe(true);
+    expect(leaveStep).toHaveBeenCalledTimes(1);
+    expect(router.dismissTo).not.toHaveBeenCalled();
+    expect(back()).toBe(true);
+    expect(router.dismissTo.mock.calls).toEqual([["/sign-in"]]);
+  });
+
+  test("the write lock holds Back before the step is asked", () => {
+    const router = { dismissTo: jest.fn() };
+    const leaveStep = jest.fn(() => true);
+    const back = createSignUpBackHandler({ isBusy: () => true, router, leaveStep });
+    expect(back()).toBe(true);
+    expect(leaveStep).not.toHaveBeenCalled();
+    expect(router.dismissTo).not.toHaveBeenCalled();
+  });
 });
 
 // Wiring only: these do not simulate React focus cleanup or router history.
@@ -507,6 +529,9 @@ describe("D2 hardware Back wiring", () => {
   test("sign-up wires the synchronous lock and real router to its pure handler", () => {
     expect(upEffect).toContain("const onBackPress = createSignUpBackHandler({");
     expect(upEffect).toMatch(/isBusy: \(\) => actionLockRef.current.active !== null,\s*router,/);
+    // Z18: the handler reads the step when Back is pressed, through the ref a layout effect keeps.
+    expect(upEffect).toMatch(/leaveStep: \(\) => \{\s*if \(confirmSentToRef.current === null\) return false;\s*leaveConfirmStep\(\);\s*return true;\s*\},/);
+    expect(signUp).toMatch(/useLayoutEffect\(\(\) => \{\s*confirmSentToRef.current = confirmSentTo;\s*\}, \[confirmSentTo\]\);/);
     expect(upEffect).not.toContain("exitApp");
   });
 
