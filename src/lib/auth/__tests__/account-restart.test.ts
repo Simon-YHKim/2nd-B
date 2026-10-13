@@ -6,14 +6,19 @@ jest.mock("expo-updates", () => ({
   reloadAsync: () => mockReloadAsync(),
 }));
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import {
   ACCOUNT_RESTART_GRACE_MS,
-  ACCOUNT_RESTART_WEB_SETTLE_MS,
+  WEB_BASE_PATH,
   __resetAccountRestartForTests,
   accountRestartPending,
+  webHomeAddress,
 } from "../account-restart";
 
-type WindowHolder = { window?: { location?: { reload?: () => void } } };
+type FakeLocation = { pathname?: string; replace?: (address: string) => void };
+type WindowHolder = { window?: { location?: FakeLocation } };
 const holder = globalThis as unknown as WindowHolder;
 
 /** A promise that never settles: the app is still restarting. */
@@ -116,66 +121,112 @@ describe("restart for a new account owner: phone", () => {
   });
 });
 
+describe("the web's home address", () => {
+  test("the base path is the one the app is built with", () => {
+    const appJson = JSON.parse(readFileSync(path.join(__dirname, "../../../../app.json"), "utf8")) as {
+      expo: { experiments: { baseUrl: string } };
+    };
+    expect(WEB_BASE_PATH).toBe(appJson.expo.experiments.baseUrl);
+  });
+
+  test.each([
+    ["/2nd-B", "/2nd-B/"],
+    ["/2nd-B/", "/2nd-B/"],
+    ["/2nd-B/secondb", "/2nd-B/"],
+    ["/2nd-B/record/7f3c0d1e-0000-4000-8000-000000000000", "/2nd-B/"],
+    ["/2nd-B/sign-in", "/2nd-B/"],
+    ["/", "/"],
+    ["/secondb", "/"],
+    ["/record/1", "/"],
+    // A path that only starts with the same letters is not under the base path.
+    ["/2nd-Bx/secondb", "/"],
+    ["/2nd-Brain", "/"],
+    ["", "/"],
+  ])("%s -> %s", (pathname, home) => {
+    expect(webHomeAddress(pathname)).toBe(home);
+  });
+});
+
 describe("restart for a new account owner: web", () => {
   beforeEach(() => {
     platform.OS = "web";
   });
 
-  test("reloads the page after the address has had time to settle, and never touches the phone reload", () => {
-    const reload = jest.fn();
-    holder.window = { location: { reload } };
+  test("goes to the home address in the same call, without waiting for anything, and never touches the phone reload", () => {
+    const replace = jest.fn();
+    holder.window = { location: { pathname: "/2nd-B/record/7f3c0d1e-0000-4000-8000-000000000000", replace } };
     const listener = jest.fn();
 
     expect(accountRestartPending(listener)).toBe(true);
-    expect(reload).not.toHaveBeenCalled();
-    jest.advanceTimersByTime(ACCOUNT_RESTART_WEB_SETTLE_MS - 1);
-    expect(reload).not.toHaveBeenCalled();
 
-    jest.advanceTimersByTime(1);
-    expect(reload).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith("/2nd-B/");
     expect(accountRestartPending(listener)).toBe(true);
-    expect(reload).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledTimes(1);
     expect(mockReloadAsync).not.toHaveBeenCalled();
     expect(listener).not.toHaveBeenCalled();
   });
 
-  test("no page to reload answers no at once", () => {
+  test("already at home, it still loads the page again", () => {
+    const replace = jest.fn();
+    holder.window = { location: { pathname: "/2nd-B/", replace } };
+
+    expect(accountRestartPending(jest.fn())).toBe(true);
+
+    expect(replace).toHaveBeenCalledWith("/2nd-B/");
+  });
+
+  test("a site served at the root goes to the root", () => {
+    const replace = jest.fn();
+    holder.window = { location: { pathname: "/secondb", replace } };
+
+    expect(accountRestartPending(jest.fn())).toBe(true);
+
+    expect(replace).toHaveBeenCalledWith("/");
+  });
+
+  test("no page to navigate answers no at once", () => {
     const listener = jest.fn();
 
     expect(accountRestartPending(listener)).toBe(false);
     expect(listener).toHaveBeenCalledTimes(1);
 
-    holder.window = { location: {} };
+    holder.window = { location: { pathname: "/2nd-B/" } };
+    __resetAccountRestartForTests();
+    expect(accountRestartPending(listener)).toBe(false);
+
+    holder.window = { location: { replace: jest.fn() } };
     __resetAccountRestartForTests();
     expect(accountRestartPending(listener)).toBe(false);
   });
 
-  test("a reload that throws falls back", () => {
+  test("a navigation that throws falls back in the same call", () => {
     holder.window = {
       location: {
-        reload: () => {
+        pathname: "/2nd-B/secondb",
+        replace: () => {
           throw new Error("blocked");
         },
       },
     };
     const listener = jest.fn();
 
-    expect(accountRestartPending(listener)).toBe(true);
-    jest.advanceTimersByTime(ACCOUNT_RESTART_WEB_SETTLE_MS);
-
+    expect(accountRestartPending(listener)).toBe(false);
     expect(listener).toHaveBeenCalledTimes(1);
     expect(accountRestartPending(listener)).toBe(false);
   });
 
   test("a page still open after the grace time falls back", () => {
-    const reload = jest.fn();
-    holder.window = { location: { reload } };
+    const replace = jest.fn();
+    holder.window = { location: { pathname: "/2nd-B/secondb", replace } };
     const listener = jest.fn();
 
-    accountRestartPending(listener);
-    jest.advanceTimersByTime(ACCOUNT_RESTART_GRACE_MS);
+    expect(accountRestartPending(listener)).toBe(true);
+    jest.advanceTimersByTime(ACCOUNT_RESTART_GRACE_MS - 1);
+    expect(listener).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1);
 
-    expect(reload).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledTimes(1);
     expect(listener).toHaveBeenCalledTimes(1);
     expect(accountRestartPending(listener)).toBe(false);
   });

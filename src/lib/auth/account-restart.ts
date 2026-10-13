@@ -7,6 +7,9 @@
 // navigation reset for a build that cannot restart itself (a development build,
 // or a platform call that fails), so this file never leaves the screen covered
 // with nothing left to lift the cover.
+//
+// The request does not depend on the router: the phone reloads natively, and the
+// web goes to an address this file works out by itself.
 
 import * as Updates from "expo-updates";
 import { Platform } from "react-native";
@@ -18,10 +21,20 @@ type Listener = () => void;
 // so the restart did not happen and the caller resets navigation instead.
 export const ACCOUNT_RESTART_GRACE_MS = 4000;
 
-// The web reloads the address it is on. The router writes that address a moment
-// after its state changes (and rewinds history asynchronously), so the reload
-// waits for it to settle.
-export const ACCOUNT_RESTART_WEB_SETTLE_MS = 300;
+// Where the web build is served on GitHub Pages and on the local server
+// (app.json: expo.experiments.baseUrl). account-restart.test.ts reads app.json
+// and fails if the two drift apart.
+export const WEB_BASE_PATH = "/2nd-B";
+
+/**
+ * The home address for the page being shown: under the base path when the page
+ * is served there, otherwise the site root. Decided from the address alone, so
+ * it is right whatever the router is doing at that moment.
+ */
+export function webHomeAddress(pathname: string): string {
+  const underBase = pathname === WEB_BASE_PATH || pathname.startsWith(`${WEB_BASE_PATH}/`);
+  return underBase ? `${WEB_BASE_PATH}/` : "/";
+}
 
 let state: RestartState = "idle";
 let graceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -44,17 +57,13 @@ function markUnavailable(): void {
 function requestRestart(): void {
   if (Platform.OS === "web") {
     const location = typeof window !== "undefined" ? window.location : undefined;
-    if (typeof location?.reload !== "function") {
+    if (typeof location?.replace !== "function" || typeof location.pathname !== "string") {
       markUnavailable();
       return;
     }
-    setTimeout(() => {
-      try {
-        location.reload();
-      } catch {
-        markUnavailable();
-      }
-    }, ACCOUNT_RESTART_WEB_SETTLE_MS);
+    // A full navigation to home: a new document, and no entry left in history
+    // for the address the previous owner was on.
+    location.replace(webHomeAddress(location.pathname));
     return;
   }
   // Release builds reach the native reload. A development build rejects here,
