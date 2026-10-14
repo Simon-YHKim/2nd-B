@@ -289,7 +289,7 @@ const SOURCE_EXEMPTIONS: readonly { reason: string; spots: readonly Spot[] }[] =
   {
     reason: "environment value: EXPO_PUBLIC_FORCE_TIER takes the internal keys (its schema, and the dev screen note that names it)",
     spots: [
-      ["src/lib/dev/screen-index.ts", "DEV_SCREEN_GROUPS › value of note", "`chatMode` 를 divergent 로, `rev2Persona` 를 트위비로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 트위비는 북극성(pro) 전용 — free·plus 로 열면 페르소나가 조용히 허슬케이로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)", 1],
+      ["src/lib/dev/screen-index.ts", "DEV_SCREEN_GROUPS › value of note", "`chatMode` 를 divergent 로, `rev2Persona` 를 조이케이로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 조이케이는 북극성(pro) 전용 — free·plus 로 열면 페르소나가 조용히 허슬케이로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)", 1],
       ["src/lib/env.ts", "schema › array element", "soma", 1],
       ["src/lib/env.ts", "schema › array element", "cortex", 1],
       ["src/lib/env.ts", "schema › array element", "brain", 1],

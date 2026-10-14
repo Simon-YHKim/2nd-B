@@ -41,7 +41,7 @@ function renderedMessages(messageTurns?: Props[], selectedLens = "HustleK") {
   const copyTurn = jest.fn();
   const getExchangeExpression = jest.fn(() => "A04");
   const turns = messageTurns ?? [{ role: "user", text: "My draft" }, { role: "secondb", text: "A useful response" }];
-  const labels: Record<string, string> = { "rev2.secondb.lensName": "HustleK", "rev2.meta.lensName": "Meta-B", "rev2.twi.lensName": "Twi-B" };
+  const labels: Record<string, string> = { "rev2.secondb.lensName": "HustleK", "rev2.meta.lensName": "Fact-K", "rev2.twi.lensName": "Joy-K" };
   const tree = execute(`(${map.getText(ast)})`, {
     React: { createElement: (type: string, props: Props | null, ...children: unknown[]) => ({ type, props: { ...props, children } }) },
     View: "View", Pressable: "Pressable", Text: "Text", ChatMessageAvatar: "ChatMessageAvatar", ServiceConsentLink: "ServiceConsentLink",
@@ -179,13 +179,13 @@ describe("HustleK messenger layout", () => {
       { role: "secondb", text: "Analysis", persona: "meta" },
       { role: "secondb", text: "An older turn without identity" },
     ];
-    for (const selected of ["HustleK", "Meta-B", "Twi-B"]) {
+    for (const selected of ["HustleK", "Fact-K", "Joy-K"]) {
       const host = renderedMessages(turns, selected);
       expect(host.tree.map(message => {
         const [header] = message.props.children as Tree[];
         const [avatar, nickname] = header.props.children as Tree[];
         return [avatar.props.label, nickname.props.children];
-      })).toEqual([["HustleK", ["HustleK"]], ["Meta-B", ["Meta-B"]], ["HustleK", ["HustleK"]]]);
+      })).toEqual([["HustleK", ["HustleK"]], ["Fact-K", ["Fact-K"]], ["HustleK", ["HustleK"]]]);
     }
   });
 
