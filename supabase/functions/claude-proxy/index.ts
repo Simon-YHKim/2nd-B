@@ -39,7 +39,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
-import { claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
+import { beginChatTurnAttempt, claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
 import {
   BRAIN_RANK,
   LlmBodyError,
@@ -466,6 +466,16 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // Z46 (0255 round 6): the id this call's audit row will carry is made before the model is asked, with the
+  // turn the app named (chat only · read by shape · never written on the audit row). The server records this
+  // call as that turn's attempt first; only a turn's latest attempt can be bound to an answer, so an earlier
+  // attempt that ends late cannot take the turn from the re-ask. Bounded: false means this answer is not bound
+  // (no refund for it), never that the answer stops.
+  const consentAuditId = crypto.randomUUID();
+  const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
+  const turnAttempt = chatTurnId !== null
+    && await beginChatTurnAttempt(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'claude-proxy');
+
   const t0 = Date.now();
   let upstream: Response;
   try {
@@ -581,10 +591,7 @@ Deno.serve(async (req: Request) => {
   const claudeUsage = (data?.usage ?? {}) as { input_tokens?: number; output_tokens?: number };
   const claudeTotalTokens =
     (Number(claudeUsage.input_tokens) || 0) + (Number(claudeUsage.output_tokens) || 0) || null;
-  const consentAuditId = crypto.randomUUID();
-  // Z46 (0255): a chat call may name the turn it answers. Only its shape is read here; it is not
-  // written on the audit row.
-  const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
+  // consentAuditId and chatTurnId were made before the model call (Z46 · 0255 round 6).
   // True only when this very row came back from the insert (see insertLlmAuditRow).
   const audited = await insertLlmAuditRow(supabaseAdmin, {
     id: consentAuditId,
@@ -622,7 +629,7 @@ Deno.serve(async (req: Request) => {
   // nothing. The server reads the owner, the state and the age of its own reservation row; the id the
   // app sent decides nothing. Bounded: past the limit the reply goes out unbound (no refund for it).
   // An empty answer answers nothing: the turn stays open for the call that is sent again.
-  const turnBound = audited && chatTurnId && text.trim() !== ''
+  const turnBound = audited && chatTurnId && turnAttempt && text.trim() !== ''
     ? await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'claude-proxy')
     : false;
 

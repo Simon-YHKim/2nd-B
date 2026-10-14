@@ -2034,6 +2034,10 @@ jobs:
           VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
                   'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
           SQL
+            if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000001', '$turn_a')" | tr -d '\r')" != "t" ]]; then
+              echo "$label: the first proxy call was not recorded as its turn's attempt" >&2
+              return 1
+            fi
             if [[ "$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '26101347-4000-4000-8000-000000000001', '$turn_a')" | tr -d '\r')" != "t" ]]; then
               echo "$label: the first proxy row was not bound to its turn" >&2
               return 1
@@ -2042,6 +2046,10 @@ jobs:
               sql "$clone_db" "INSERT INTO public.ai_audit_log
                 (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
                 VALUES ('26101347-4000-4000-8000-000000000002', '$user', '0a0b0c0d', '0e0f0a0b', 'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified')"
+              if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000002', '$turn_b')" | tr -d '\r')" != "t" ]]; then
+                echo "$label: the second proxy call was not recorded as its turn's attempt" >&2
+                return 1
+              fi
               if [[ "$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '26101347-4000-4000-8000-000000000002', '$turn_b')" | tr -d '\r')" != "t" ]]; then
                 echo "$label: the second proxy row was not bound to its turn" >&2
                 return 1
@@ -2101,11 +2109,23 @@ jobs:
           # The claim, twice at the same moment. turn: two fresh answers ask for one reservation. row: one fresh
           # answer asks for two reservations. The first call keeps its transaction open for three seconds; the
           # second is made while it is open. Exactly one binds; the other gets false and changes nothing.
-          claim_race() { # <label> <turn|row|retry> <expected: a b first-reservation/second-reservation, + = re-asked>
+          claim_race() { # <label> <turn|row|retry> <expected: a b, then each reservation as state:answer:attempts:latest attempt>
             local label="$1" second="$2" want="$3"
-            local turn_a="26101347-7000-4000-8000-000000007001" turn_b="26101347-7000-4000-8000-000000007001"
-            local row_a="26101347-4000-4000-8000-000000000001" row_b="26101347-4000-4000-8000-000000000002"
-            if [[ "$second" == "row" ]]; then turn_b="26101347-7000-4000-8000-000000007002"; row_b="$row_a"; fi
+            local turn_a="26101347-7000-4000-8000-000000007001" turn_b="26101347-7000-4000-8000-000000007002"
+            local row_1="26101347-4000-4000-8000-000000000001" row_2="26101347-4000-4000-8000-000000000002"
+            local row_3="26101347-4000-4000-8000-000000000003"
+            # turn:  the first attempt (row 01) and the re-ask (row 02) were recorded; the re-ask's claim runs while
+            #        the first attempt's claim arrives late. row: one row was named as the attempt of two turns.
+            # retry: the first attempt's answer (row 03) was bound and never reached the app; two re-asks are
+            #        recorded at once.
+            local fn="claim_chat_turn_for_audit" a_args="'$row_2', '$turn_a'" b_args="'$row_1', '$turn_a'"
+            local -a setup=("'$row_1', '$turn_a'" "'$row_2', '$turn_a'")
+            if [[ "$second" == "row" ]]; then
+              a_args="'$row_1', '$turn_a'"; b_args="'$row_1', '$turn_b'"; setup=("'$row_1', '$turn_a'" "'$row_1', '$turn_b'")
+            fi
+            if [[ "$second" == "retry" ]]; then
+              fn="begin_chat_turn_attempt"; a_args="'$row_1', '$turn_a'"; b_args="'$row_2', '$turn_a'"; setup=("'$row_3', '$turn_a'")
+            fi
             local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
             if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
               echo "0255 claim race refuses an unsafe database name" >&2
@@ -2120,23 +2140,36 @@ jobs:
           VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
           INSERT INTO public.chat_usage (user_id, day, count) VALUES
             ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, 5);
-          INSERT INTO public.chat_turn_reservations (turn_id, user_id, counted_day) VALUES
-            ('26101347-7000-4000-8000-000000007001', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date),
-            ('26101347-7000-4000-8000-000000007002', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date);
+          -- Turn 7001 is the user's latest (7002 was counted a minute before it).
+          INSERT INTO public.chat_turn_reservations (turn_id, user_id, counted_day, issued_at) VALUES
+            ('26101347-7000-4000-8000-000000007001', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, pg_catalog.now()),
+            ('26101347-7000-4000-8000-000000007002', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, pg_catalog.now() - interval '1 minute');
           INSERT INTO public.ai_audit_log
             (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
           VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
                   'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified'),
                  ('26101347-4000-4000-8000-000000000002', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified'),
+                 ('26101347-4000-4000-8000-000000000003', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
                   'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
           SQL
+            # What the proxies did before the race: each recorded its call as an attempt before asking the model.
+            local args
+            for args in "${setup[@]}"; do
+              if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', $args)" | tr -d '\r')" != "t" ]]; then
+                echo "$label: an attempt before the race was not recorded" >&2
+                return 1
+              fi
+            done
             if [[ "$second" == "retry" ]]; then
-              # The turn already holds an answer (row 03) that never reached the app; both sessions are its re-ask.
-              sql "$clone_db" "UPDATE public.chat_turn_reservations SET state = 'answered', audit_id = '26101347-4000-4000-8000-000000000003', answered_at = pg_catalog.now() WHERE turn_id = '$turn_a'"
+              if [[ "$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '$row_3', '$turn_a')" | tr -d '\r')" != "t" ]]; then
+                echo "$label: the first answer was not bound before the race" >&2
+                return 1
+              fi
             fi
             psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
               -c "BEGIN" \
-              -c "SELECT 'a=' || public.claim_chat_turn_for_audit('$user', '$row_a', '$turn_a')::text" \
+              -c "SELECT 'a=' || public.$fn('$user', $a_args)::text" \
               -c "SELECT pg_sleep(3)" \
               -c "COMMIT" > "claim_a_$label.out" &
             local a_pid=$! waited=0
@@ -2150,18 +2183,19 @@ jobs:
             local a b state b_out
             b_out="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -At \
               -c "BEGIN" \
-              -c "SELECT 'b=' || public.claim_chat_turn_for_audit('$user', '$row_b', '$turn_b')::text" \
+              -c "SELECT 'b=' || public.$fn('$user', $b_args)::text" \
               -c "COMMIT" 2>&1 || true)"
             b="$(grep '^b=' <<<"$b_out" | tr -d '\r' || true)"
             if [[ -z "$b" ]]; then b="b=$(grep -o -m1 'ERROR: *[0-9A-Z]\{5\}' <<<"$b_out" | tr -d ' \r' || true)"; fi
             wait "$a_pid"
             a="$(grep '^a=' "claim_a_$label.out" | tr -d '\r')"
-            state="$(sql "$clone_db" "SELECT string_agg(r.state || ':' || COALESCE(right(r.audit_id::text, 2), '-') || CASE WHEN r.rebound THEN '+' ELSE '' END, '/' ORDER BY r.turn_id)
+            state="$(sql "$clone_db" "SELECT string_agg(r.state || ':' || COALESCE(right(r.audit_id::text, 2), '-') || ':' || r.attempts
+                                                        || ':' || COALESCE(right(r.pending_audit_id::text, 2), '-'), '/' ORDER BY r.turn_id)
                                         FROM public.chat_turn_reservations AS r" | tr -d '\r')"
             sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
             echo "$label: first session $a, second session $b, reservations $state"
             if [[ "$a $b $state" != "$want" ]]; then
-              echo "$label: two claims at once did not end with exactly one answer bound to each turn (wanted $want)" >&2
+              echo "$label: two calls at once did not end with exactly one answer bound to each turn (wanted $want)" >&2
               return 1
             fi
           }
@@ -2302,11 +2336,11 @@ jobs:
           reapply_over extra_unique "ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT z46_one_per_day UNIQUE (day)" " carries a constraint, index, trigger, rule or policy"
           reapply_over extra_trigger "CREATE FUNCTION public.z46_noop() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TRIGGER z46_noop BEFORE INSERT ON public.chat_turn_refunds FOR EACH ROW EXECUTE FUNCTION public.z46_noop()" " carries a constraint, index, trigger, rule or policy"
           reapply_over extra_policy "CREATE POLICY z46_read ON public.chat_turn_refunds FOR SELECT TO authenticated USING (true)" " carries a constraint, index, trigger, rule or policy"
-          # Two answers at once for one reservation (the second is the one re-ask and takes its place), one
-          # answer for two reservations, and two re-asks at once of a turn whose answer was lost (one takes it).
-          claim_race two_answers_one_turn turn "a=true b=true answered:02+/counted:-"
-          claim_race one_answer_two_turns row "a=true b=false answered:01/counted:-"
-          claim_race two_retries_one_turn retry "a=true b=false answered:01+/counted:-"
+          # The re-ask's claim against the late claim of the first attempt (the late one binds nothing), one row
+          # for two turns (one binds), and two re-asks recorded at once of a turn whose answer was lost (one is).
+          claim_race two_answers_one_turn turn "a=true b=false answered:02:2:02/counted:-:0:-"
+          claim_race one_answer_two_turns row "a=true b=false answered:01:1:01/counted:-:1:01"
+          claim_race two_retries_one_turn retry "a=true b=false answered:03:2:01/counted:-:0:-"
           # Two bumps at once for one user on two days (yesterday's turn, then today's): only the per-user lock
           # puts them in line, and the later one closes the earlier one, so one reservation is left open.
           bump_race two_bumps_two_days "a=1 b=1 1:0"
@@ -2321,7 +2355,7 @@ jobs:
           # other shape it stops at the check named beside it.
           # (rsv_ = reservations. A clone is named reapply_0255_<label>_<run id>_<attempt>_<pid>, and a
           # database name ends at 63 bytes, so the labels stay short.)
-          good_table="CREATE TABLE public.chat_turn_reservations (turn_id uuid NOT NULL DEFAULT gen_random_uuid(), user_id uuid NOT NULL, counted_day date NOT NULL, issued_at timestamptz NOT NULL DEFAULT now(), state text NOT NULL DEFAULT 'counted', audit_id uuid, answered_at timestamptz, refunded_at timestamptz, rebound boolean NOT NULL DEFAULT false, CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id), CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), CONSTRAINT chat_turn_reservations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE, CONSTRAINT chat_turn_reservations_state_check CHECK (state IN ('counted', 'answered', 'refunded')), CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL)))"
+          good_table="CREATE TABLE public.chat_turn_reservations (turn_id uuid NOT NULL DEFAULT gen_random_uuid(), user_id uuid NOT NULL, counted_day date NOT NULL, issued_at timestamptz NOT NULL DEFAULT now(), state text NOT NULL DEFAULT 'counted', audit_id uuid, answered_at timestamptz, refunded_at timestamptz, attempts smallint NOT NULL DEFAULT 0, pending_audit_id uuid, attempted_at timestamptz, CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id), CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), CONSTRAINT chat_turn_reservations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE, CONSTRAINT chat_turn_reservations_state_check CHECK (state IN ('counted', 'answered', 'refunded')), CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL)))"
           broken() { # <text to find in the good table> <text to put there> : the good table with one thing changed
             local changed="${good_table/"$1"/"$2"}"
             if [[ "$changed" == "$good_table" ]]; then echo "0255 re-apply check: [$1] is not in the table text" >&2; return 1; fi

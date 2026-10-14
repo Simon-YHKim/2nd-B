@@ -12,6 +12,7 @@ DROP TRIGGER IF EXISTS guard_ai_audit_server_verified_final ON public.ai_audit_l
 DROP FUNCTION IF EXISTS public.guard_ai_audit_server_verified_final();
 DROP FUNCTION IF EXISTS public.refund_chat_turn_after_output_swap(uuid);
 DROP FUNCTION IF EXISTS public.claim_chat_turn_for_audit(uuid, uuid, uuid);
+DROP FUNCTION IF EXISTS public.begin_chat_turn_attempt(uuid, uuid, uuid);
 DROP FUNCTION IF EXISTS public.bump_chat_usage_for_turn(uuid, date);
 DROP TABLE IF EXISTS public.chat_turn_reservations;
 

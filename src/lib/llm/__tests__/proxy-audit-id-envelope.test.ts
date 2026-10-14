@@ -13,7 +13,7 @@ const REPLY =
 describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 그 답을 턴에 묶어 달라고 서버에 묻는다 (Z46 · 0255)', () => {
   it.each(PROXIES)('%s: 방금 쓴 그 줄의 id 를, 그 줄이 돌아왔을 때만', (name) => {
     const src = read(`supabase/functions/${name}/index.ts`);
-    expect(src).toContain("import { claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';");
+    expect(src).toContain("import { beginChatTurnAttempt, claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';");
     // One reply response, and it is the one that carries the id.
     expect(src.match(/return jsonResponse\(req, \{\n    text, [\s\S]*?\n  \}\);/g)).toEqual([REPLY]);
     expect(src).not.toMatch(/return jsonResponse\(req, \{ text, /);
@@ -39,9 +39,22 @@ describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 
     expect(src).not.toMatch(/chat_turn_id/);
     // one question, with the user from the verified token, the row just written and the turn the app named
     expect(src.match(/claimChatTurn\(/g)).toHaveLength(1);
-    // an empty answer binds nothing (round 4), and the reply says whether the turn was bound
+    // round 6: before the model is asked, the call is recorded as the turn's attempt under the id its audit row
+    // will carry; the id is made there, once, and only a recorded attempt is ever bound
+    expect(src.match(/beginChatTurnAttempt\(/g)).toHaveLength(1);
+    expect(tail).toMatch(
+      new RegExp(
+        `^const consentAuditId = crypto\\.randomUUID\\(\\);\\n  const chatTurnId = readChatTurnId\\(purpose, body\\?\\.chatTurnId\\);\\n  const turnAttempt = chatTurnId !== null\\n    && await beginChatTurnAttempt\\(supabaseAdmin, \\{ userId, auditId: consentAuditId, turnId: chatTurnId \\}, '${name}'\\);\\n\\n  const t0 = Date\\.now\\(\\);\\n  let upstream: Response;\\n`,
+      ),
+    );
+    expect(tail.match(/const consentAuditId = /g)).toHaveLength(1);
+    expect(tail.match(/const chatTurnId = /g)).toHaveLength(1);
+    // after the input classifier has had its say: a blocked input records no attempt
+    expect(src.lastIndexOf("error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);")).toBeLessThan(src.indexOf('beginChatTurnAttempt(supabaseAdmin'));
+    // an empty answer binds nothing (round 4), nor an answer whose attempt was not recorded (round 6), and the
+    // reply says whether the turn was bound
     expect(tail).toContain(
-      `  const turnBound = audited && chatTurnId && text.trim() !== ''\n    ? await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, '${name}')\n    : false;\n`,
+      `  const turnBound = audited && chatTurnId && turnAttempt && text.trim() !== ''\n    ? await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, '${name}')\n    : false;\n`,
     );
     // after the row is written, after the consent re-check has had its say, and before the reply
     const order = [
@@ -59,14 +72,15 @@ describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 
     expect(between).not.toMatch(/return /);
     const before = tail.slice(0, tail.indexOf('? await claimChatTurn(supabaseAdmin, {'));
     for (const answer of [...before.matchAll(/return jsonResponse\(req, \{ error: '(upstream_[a-z_]+)'/g)].map((m) => m[1])) {
-      expect(['upstream_refusal', 'upstream_truncated', 'upstream_blocked', 'upstream_empty']).toContain(answer);
+      // round 6: the attempt is recorded before the model call, so the failures of the call itself sit here too
+      expect(['upstream_unreachable', 'upstream_bad_payload', 'upstream_refusal', 'upstream_truncated', 'upstream_blocked', 'upstream_empty']).toContain(answer);
     }
     expect(before).toMatch(/return jsonResponse\(req, \{ error: 'upstream_truncated'/);
   });
 
   it.each(PROXIES)('%s: 다른 응답은 id 를 싣지 않는다(막힌 입력 · 실패 · 동의 철회 · 임베딩)', (name) => {
     const src = read(`supabase/functions/${name}/index.ts`);
-    expect(src.match(/auditId: consentAuditId/g)).toHaveLength(2); // the reply, and the question above it
+    expect(src.match(/auditId: consentAuditId/g)).toHaveLength(3); // the reply, the claim above it, and the attempt before the model call
     // every response call, read whole (the reply spans lines): exactly one carries the id, and it is the reply
     const calls = [...src.matchAll(/jsonResponse\(req, \{[\s\S]*?\}\s*(?:,[^;]*?)?\);/g)].map((m) => m[0]);
     expect(calls.length).toBeGreaterThan(3);
@@ -90,8 +104,13 @@ describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 
     expect(helper).toMatch(/const stored = !error && !!data && typeof data === 'object' && \(data as \{ id\?: unknown \}\)\.id === row\.id;/);
     expect(helper).toMatch(/if \(purpose !== 'secondb_chat' \|\| typeof raw !== 'string'\) return null;/);
     expect(helper).toContain("export const CHAT_TURN_CLAIM_FN = 'claim_chat_turn_for_audit';");
+    expect(helper).toContain("export const CHAT_TURN_BEGIN_FN = 'begin_chat_turn_attempt';");
     expect(helper).toContain('export const CHAT_TURN_CLAIM_TIMEOUT_MS = 1500;');
-    expect(helper).toContain('admin.rpc(CHAT_TURN_CLAIM_FN, { p_user_id: ids.userId, p_audit_id: ids.auditId, p_turn_id: ids.turnId })');
+    // the two questions are one bounded call with the same three ids, by name
+    expect(helper).toContain('admin.rpc(fn, { p_user_id: ids.userId, p_audit_id: ids.auditId, p_turn_id: ids.turnId })');
+    expect(helper).toContain("return askAboutTurn(admin, CHAT_TURN_BEGIN_FN, 'attempt', ids, tag, timeoutMs);");
+    expect(helper).toContain("return askAboutTurn(admin, CHAT_TURN_CLAIM_FN, 'claim', ids, tag, timeoutMs);");
+    expect(helper.match(/askAboutTurn\(admin, /g)).toHaveLength(2);
     expect(helper).toContain('return await Promise.race([call, limit]);');
     expect(helper).toContain('return data === true;');
     // one limit for every outcome, and no retry of either write
@@ -105,6 +124,10 @@ describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 
       /CREATE OR REPLACE FUNCTION public\.claim_chat_turn_for_audit\(p_user_id uuid, p_audit_id uuid, p_turn_id uuid\)\s+RETURNS boolean/,
     );
     expect(migration).toMatch(/GRANT EXECUTE ON FUNCTION public\.claim_chat_turn_for_audit\(uuid, uuid, uuid\) TO service_role;/);
+    expect(migration).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.begin_chat_turn_attempt\(p_user_id uuid, p_audit_id uuid, p_turn_id uuid\)\s+RETURNS boolean/,
+    );
+    expect(migration).toMatch(/GRANT EXECUTE ON FUNCTION public\.begin_chat_turn_attempt\(uuid, uuid, uuid\) TO service_role;/);
     // No Deno-only import: the unit test runs it as it is.
     expect(helper).not.toMatch(/^import /m);
   });

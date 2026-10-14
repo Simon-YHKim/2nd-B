@@ -20,6 +20,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
   const fn = statement(sql, 'public.refund_chat_turn_after_output_swap(p_audit_id uuid)');
   const bump = statement(sql, 'public.bump_chat_usage_for_turn(p_user_id uuid, p_day date)');
   const claim = statement(sql, 'public.claim_chat_turn_for_audit(p_user_id uuid, p_audit_id uuid, p_turn_id uuid)');
+  const attempt = statement(sql, 'public.begin_chat_turn_attempt(p_user_id uuid, p_audit_id uuid, p_turn_id uuid)');
   const guard = statement(sql, 'public.guard_ai_audit_server_verified()');
   const finalGuard = statement(sql, 'public.guard_ai_audit_server_verified_final()');
 
@@ -31,8 +32,9 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(table).toMatch(/issued_at\s+timestamptz NOT NULL DEFAULT now\(\),/);
     expect(table).toMatch(/state\s+text\s+NOT NULL DEFAULT 'counted',/);
     expect(table).toMatch(/audit_id\s+uuid,/);
-    // round 5: whether the answer bound is the one re-ask of the turn
-    expect(table).toMatch(/rebound\s+boolean\s+NOT NULL DEFAULT false,/);
+    // round 6: the attempts of the turn (how many began, the audit id the latest will write, when it began)
+    expect(table).toMatch(/attempts\s+smallint\s+NOT NULL DEFAULT 0,\s+pending_audit_id uuid,\s+attempted_at timestamptz,/);
+    expect(table).not.toMatch(/rebound/);
     expect(table).toContain('CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id),');
     // one answer, one reservation
     expect(table).toContain('CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id),');
@@ -71,7 +73,8 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
       "'turn_id:uuid:t:gen_random_uuid()|user_id:uuid:t:-|counted_day:date:t:-|issued_at:timestamp with time zone:t:now()'",
     );
     expect(check).toContain("|| '|state:text:t:''counted''::text|audit_id:uuid:f:-|answered_at:timestamp with time zone:f:-'");
-    expect(check).toContain("|| '|refunded_at:timestamp with time zone:f:-|rebound:boolean:t:false';");
+    expect(check).toContain("|| '|refunded_at:timestamp with time zone:f:-|attempts:smallint:t:0|pending_audit_id:uuid:f:-'");
+    expect(check).toContain("|| '|attempted_at:timestamp with time zone:f:-';");
     expect(check).toMatch(/IF v_cols IS DISTINCT FROM v_want THEN/);
     expect(check).toMatch(/\(\(c\.contype = 'p' AND a\.attname = 'turn_id'\) OR \(c\.contype = 'u' AND a\.attname = 'audit_id'\)\)\) <> 2 THEN/);
     expect(check).toMatch(/c\.contype = 'f' AND c\.confrelid = 'public\.users'::regclass\s+AND c\.conkey = ARRAY\[a\.attnum\] AND c\.confkey = ARRAY\[p\.attnum\]\s+AND c\.confdeltype = 'c' AND c\.convalidated AND NOT c\.condeferrable\s+AND pg_catalog\.to_jsonb\(c\) ->> 'conenforced' IS DISTINCT FROM 'false'\) THEN/);
@@ -92,8 +95,9 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     // The cap, the caller check and the limit error are the existing function's.
     expect(bump).toMatch(/v_count := public\.bump_chat_usage_if_under_cap\(p_user_id, p_day, 0\);/);
     expect(bump).not.toMatch(/v_cap|effective_subscription_tier|ad_bonus|auth\.uid/);
+    // round 6: stamped with the clock, so that "the user's latest turn" reads the same inside one transaction
     expect(bump).toMatch(
-      /INSERT INTO public\.chat_turn_reservations \(user_id, counted_day\)\s+VALUES \(p_user_id, p_day\)\s+RETURNING turn_id INTO v_turn;/,
+      /INSERT INTO public\.chat_turn_reservations \(user_id, counted_day, issued_at\)\s+VALUES \(p_user_id, p_day, pg_catalog\.clock_timestamp\(\)\)\s+RETURNING turn_id INTO v_turn;/,
     );
     // the id is the table's own default: the function never takes one from the caller or makes one itself
     expect(bump).not.toMatch(/gen_random_uuid|p_turn/);
@@ -119,13 +123,13 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(claim).toMatch(
       /IF NOT EXISTS \(SELECT 1\s+FROM public\.ai_audit_log AS a\s+WHERE a\.id = p_audit_id\s+AND a\.user_id = p_user_id\s+AND a\.event_source = 'server_verified'\s+AND a\.purpose = 'secondb_chat'\s+AND a\.created_at >= v_now - interval '60 seconds'\s+AND a\.created_at <= v_now\) THEN\s+RETURN false;/,
     );
-    // the reservation: one statement decides and writes. Not answered yet, or answered, not given back and not
-    // asked again yet (round 5: the one re-ask of Q-261014-20 takes the place of the lost answer)
+    // the reservation: one statement decides and writes. This row must be the reservation's latest attempt, begun in
+    // the last five minutes (round 6); not answered yet, or answered by another row and not given back (the re-ask)
     expect(claim).toMatch(
-      /UPDATE public\.chat_turn_reservations AS r\s+SET state = 'answered',\s+audit_id = p_audit_id,\s+answered_at = v_now,\s+rebound = \(r\.state = 'answered'\)\s+WHERE r\.turn_id = p_turn_id\s+AND r\.user_id = p_user_id\s+AND \(\(r\.state = 'counted' AND r\.audit_id IS NULL\)\s+OR \(r\.state = 'answered' AND NOT r\.rebound AND r\.audit_id IS DISTINCT FROM p_audit_id\)\)\s+AND r\.issued_at >= v_now - interval '5 minutes'\s+AND r\.issued_at <= v_now\s+RETURNING r\.turn_id INTO v_done;/,
+      /UPDATE public\.chat_turn_reservations AS r\s+SET state = 'answered',\s+audit_id = p_audit_id,\s+answered_at = v_now\s+WHERE r\.turn_id = p_turn_id\s+AND r\.user_id = p_user_id\s+AND r\.pending_audit_id = p_audit_id\s+AND r\.attempted_at >= v_now - interval '5 minutes'\s+AND r\.attempted_at <= v_now\s+AND \(\(r\.state = 'counted' AND r\.audit_id IS NULL\)\s+OR \(r\.state = 'answered' AND r\.audit_id IS DISTINCT FROM p_audit_id\)\)\s+RETURNING r\.turn_id INTO v_done;/,
     );
-    // nothing given back is ever bound again
-    expect(claim).not.toMatch(/'refunded'/);
+    // nothing given back is ever bound again, and the reservation's own age is not the window any more
+    expect(claim).not.toMatch(/'refunded'|issued_at|rebound/);
     expect(claim.match(/UPDATE /g)).toHaveLength(1);
     expect(claim).not.toMatch(/INSERT INTO|DELETE FROM|chat_usage|chat_turn_refunds/);
     // an answer that already has a reservation takes no second one
@@ -177,6 +181,26 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(fn).not.toMatch(/pg_catalog\.now\(\)|\bnow\(\)/);
   });
 
+  it('시도: 모델을 부르기 전에 프록시만 적고, 첫 시도는 아직 시도 없는 답 없는 턴에, 다시 묻기는 그 사람의 가장 최근 턴에 한 번', () => {
+    expect(attempt).toMatch(/RETURNS boolean\s+LANGUAGE plpgsql\s+SECURITY DEFINER\s+SET search_path = ''/);
+    expect(attempt).toMatch(/IF p_user_id IS NULL OR p_audit_id IS NULL OR p_turn_id IS NULL THEN\s+RETURN false;/);
+    // in line with the bump: the same per-user lock, so "latest" cannot move under it
+    expect(attempt).toMatch(/PERFORM pg_catalog\.pg_advisory_xact_lock\(\s*pg_catalog\.hashtextextended\('chat_turn_bump:' \|\| p_user_id::text, 0\)\);/);
+    expect(attempt).toMatch(
+      /UPDATE public\.chat_turn_reservations AS r\s+SET attempts = r\.attempts \+ 1,\s+pending_audit_id = p_audit_id,\s+attempted_at = v_now\s+WHERE r\.turn_id = p_turn_id\s+AND r\.user_id = p_user_id\s+AND r\.issued_at <= v_now\s+AND \(\(r\.attempts = 0 AND r\.state = 'counted'\)\s+OR \(r\.attempts = 1 AND r\.state IN \('counted', 'answered'\)\s+AND NOT EXISTS \(SELECT 1\s+FROM public\.chat_turn_reservations AS n\s+WHERE n\.user_id = r\.user_id\s+AND n\.turn_id <> r\.turn_id\s+AND n\.issued_at >= r\.issued_at\)\)\)\s+RETURNING r\.turn_id INTO v_done;/,
+    );
+    expect(attempt.indexOf('pg_advisory_xact_lock')).toBeLessThan(attempt.indexOf('UPDATE public.chat_turn_reservations'));
+    expect(attempt.match(/UPDATE /g)).toHaveLength(1);
+    expect(attempt).not.toMatch(/INSERT INTO|DELETE FROM|chat_usage|chat_turn_refunds|ai_audit_log|'refunded'/);
+    expect(attempt).toMatch(/RETURN v_done IS NOT NULL;/);
+    // the proxy's alone
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;');
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid) TO service_role;');
+    // before the claim in the file, and both after the bump
+    expect(sql.indexOf(attempt)).toBeLessThan(sql.indexOf(claim));
+    expect(sql.indexOf(bump)).toBeLessThan(sql.indexOf(attempt));
+  });
+
   it('로그인한 사용자만 부르고, 누구의 횟수인지는 인자가 아니라 세션이 정한다', () => {
     expect(fn).toMatch(/RETURNS int\s+LANGUAGE plpgsql\s+SECURITY DEFINER\s+SET search_path = ''/);
     expect(fn).toMatch(/v_user\s+uuid := auth\.uid\(\);/);
@@ -186,7 +210,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(sql).toMatch(/REVOKE ALL ON FUNCTION public\.refund_chat_turn_after_output_swap\(uuid\) FROM PUBLIC, anon, service_role;/);
     expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.refund_chat_turn_after_output_swap\(uuid\) TO authenticated;/);
     // three grants in all: the bump and the refund to signed-in users, the claim to the proxy
-    expect(sql.match(/GRANT /g)).toHaveLength(3);
+    expect(sql.match(/GRANT /g)).toHaveLength(4);
   });
 
   it('날짜를 받는 호출(0252 의 인자 하나짜리)은 없앤다', () => {
@@ -285,13 +309,14 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(sql.match(/INSERT INTO public\.\w+/g)).toEqual(['INSERT INTO public.chat_turn_reservations', 'INSERT INTO public.chat_turn_refunds']);
     expect(sql.match(/UPDATE public\.\w+/g)).toEqual([
       'UPDATE public.chat_turn_reservations',
+      'UPDATE public.chat_turn_reservations',
       'UPDATE public.chat_usage',
       'UPDATE public.chat_turn_reservations',
     ]);
-    for (const body of [bump, claim, fn]) {
+    for (const body of [bump, attempt, claim, fn]) {
       expect(sql).toContain(body);
     }
-    const outside = [bump, claim, fn].reduce((text, body) => text.replace(body, ''), sql);
+    const outside = [bump, attempt, claim, fn].reduce((text, body) => text.replace(body, ''), sql);
     expect(outside).not.toMatch(/DELETE FROM|INSERT INTO|UPDATE public\./);
     expect(sql).not.toMatch(TOP_LEVEL_TRANSACTION);
   });
@@ -303,6 +328,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
       'DROP FUNCTION IF EXISTS public.guard_ai_audit_server_verified_final();',
       'DROP FUNCTION IF EXISTS public.refund_chat_turn_after_output_swap(uuid);',
       'DROP FUNCTION IF EXISTS public.claim_chat_turn_for_audit(uuid, uuid, uuid);',
+      'DROP FUNCTION IF EXISTS public.begin_chat_turn_attempt(uuid, uuid, uuid);',
       'DROP FUNCTION IF EXISTS public.bump_chat_usage_for_turn(uuid, date);',
       'DROP TABLE IF EXISTS public.chat_turn_reservations;',
       'CREATE OR REPLACE FUNCTION public.guard_ai_audit_server_verified()',
@@ -354,10 +380,15 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(regression).not.toMatch(/chat_turn_reservations \(turn_id, user_id, counted_day\) VALUES\n  \('26101346-7000-4000-8000-000000007001'/);
     expect(helper).not.toMatch(/chat_turn_reservations/);
     // the cases the reservation brings
-    expect(regression).toMatch(/'a third call took a turn that had already been asked again, or the re-ask did not take it'/);
-    // round 5: the lost answer, the re-ask and a third call; only the re-ask gives the turn back
-    expect(regression).toMatch(/:'again' = 'true,true,false,false'/);
-    expect(regression).toMatch(/:'back' = 'null,1,null,null'/);
+    // round 6: a re-ask only on the user's latest turn; the late first attempt (R2438-17) and the lost bound answer
+    expect(regression).toMatch(/'a re-ask was recorded on a turn that is not the user''s latest, or a later call took the turn'/);
+    expect(regression).toMatch(/concat_ws\(',', :'t1_b1', :'t1_b2', :'t1_c2', :'t1_late', :'t1_b3', :'t1_c3'\) = 'true,true,true,false,false,false'/);
+    expect(regression).toMatch(/:'t1_back' = 'null,1,null,null'/);
+    expect(regression).toMatch(/concat_ws\(',', :'t2_b1', :'t2_c1', :'t2_b2', :'t2_c2', :'t2_again', :'t2_b3', :'t2_c3'\) = 'true,true,true,true,false,false,false'/);
+    expect(regression).toMatch(/:'t2_back' = 'null,1,null'/);
+    // the stand-in for a proxy records the attempt before writing its row, as the proxies do
+    expect(helper.indexOf('PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn);')).toBeGreaterThan(-1);
+    expect(helper.indexOf('PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn);')).toBeLessThan(helper.indexOf('INSERT INTO public.ai_audit_log'));
     // the refund reads the owner of the reservation itself, not only what the claim guarantees
     expect(regression).toMatch(
       /SAVEPOINT z46_foreign_reservation;[\s\S]{0,1400}'a reservation of another user gave the caller a turn back, or was closed'\);\s+ROLLBACK TO SAVEPOINT z46_foreign_reservation;/,
@@ -366,7 +397,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(regression).toMatch(/:'yes' = 'true,false,false,true,true'/);
     // another user's refused attempt on a turn does not stop its owner from binding it afterwards
     expect(regression).toMatch(
-      /SAVEPOINT z46_owner_after_attempt;[\s\S]{0,700}'the owner could not bind a turn after another user had asked for it'\);\s+ROLLBACK TO SAVEPOINT z46_owner_after_attempt;/,
+      /SAVEPOINT z46_owner_after_attempt;[\s\S]{0,1100}SELECT public\.begin_chat_turn_attempt\([\s\S]{0,700}'the owner could not bind a turn after another user had asked for it'\);\s+ROLLBACK TO SAVEPOINT z46_owner_after_attempt;/,
     );
     expect(regression).toMatch(/RAISE EXCEPTION 'z46 regression failed: a signed-in user bound an answer to a turn';\s+EXCEPTION WHEN insufficient_privilege THEN/);
     expect(regression).toMatch(/RAISE EXCEPTION 'z46 regression failed: a signed-in user made a reservation directly';\s+EXCEPTION WHEN insufficient_privilege THEN/);
@@ -381,7 +412,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(regression).toMatch(/CREATE TRIGGER z46_flip BEFORE UPDATE OF latency_ms ON public\.ai_audit_log/);
     expect(regression).toMatch(/SET LOCAL request\.jwt\.claims = 'not-json';\s+SET LOCAL ROLE service_role;\s+SELECT public\.z46_inner_writer\(/);
     expect(regression).toContain(
-      ":'turn_writers' = 'bump_chat_usage_for_turn(uuid,date) | claim_chat_turn_for_audit(uuid,uuid,uuid) | refund_chat_turn_after_output_swap(uuid)'",
+      ":'turn_writers' = 'begin_chat_turn_attempt(uuid,uuid,uuid) | bump_chat_usage_for_turn(uuid,date) | claim_chat_turn_for_audit(uuid,uuid,uuid) | refund_chat_turn_after_output_swap(uuid)'",
     );
     const steps = [
       '\\ir ../migrations/rollback/0255_down.sql',
@@ -418,13 +449,16 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     ]);
     const claims = [...workflow.matchAll(/^ +claim_race (\w+) (turn|row|retry) "([^"\n]*)"$/gm)].map((m) => `${m[1]}|${m[2]}|${m[3]}`);
     expect(claims).toEqual([
-      'two_answers_one_turn|turn|a=true b=true answered:02+/counted:-',
-      'one_answer_two_turns|row|a=true b=false answered:01/counted:-',
-      'two_retries_one_turn|retry|a=true b=false answered:01+/counted:-',
+      'two_answers_one_turn|turn|a=true b=false answered:02:2:02/counted:-:0:-',
+      'one_answer_two_turns|row|a=true b=false answered:01:1:01/counted:-:1:01',
+      'two_retries_one_turn|retry|a=true b=false answered:03:2:01/counted:-:0:-',
     ]);
     // the second claim is made while the first one's transaction is still open
     const claimRace = workflow.slice(workflow.indexOf('claim_race() {'), workflow.indexOf('reapply_over() {'));
-    expect(claimRace.indexOf('-c "SELECT pg_sleep(3)"')).toBeLessThan(claimRace.indexOf("SELECT 'b=' || public.claim_chat_turn_for_audit("));
+    expect(claimRace.indexOf('-c "SELECT pg_sleep(3)"')).toBeLessThan(claimRace.indexOf("SELECT 'b=' || public.$fn('$user', $b_args)::text"));
+    // round 6: the races begin from attempts recorded as the proxies record them
+    expect(claimRace).toContain('SELECT public.begin_chat_turn_attempt(\'$user\', $args)');
+    expect(claimRace).toContain('fn="begin_chat_turn_attempt"');
     expect(claimRace).toMatch(/AND query = 'SELECT pg_sleep\(3\)'/);
     // round 4: two bumps of one user on two days at once leave only the later reservation open
     const bumps = [...workflow.matchAll(/^ +bump_race (\w+) "([^"\n]*)"$/gm)].map((m) => `${m[1]}|${m[2]}`);

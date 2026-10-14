@@ -19,15 +19,18 @@
 --      가장 최근 예약 하나다(4회차 · 대표님 2026-10-14 14:12:02 「4회차: 앞선 답 없는 예약을 닫아 가장 최근 하나만
 --      묶이게 + 우려 넷 손질 → 4회차 검토」). 올리기는 사용자마다 한 줄로 선다(트랜잭션 잠금). 이틀 지난 예약 줄도
 --      여기서 지운다. 옛 올리기는 그대로 둔다(옛 설치본이 부른다 · 그 턴에는 예약이 없으므로 환불도 없다).
---   3. claim_chat_turn_for_audit(p_user_id, p_audit_id, p_turn_id): 프록시(service_role)만 부른다. 답의 감사 줄을 쓴
---      직후에 부르고, 넷이 모두 맞을 때만 예약 줄에 그 감사 줄을 묶는다: 예약의 주인이 그 사용자다 · 아직 답이 묶인
---      적 없거나, 묶였지만 아직 돌려주지 않았고 다시 묶은 적이 없다 · 5분 안에 만든 예약이다 · 감사 줄이 그 사용자의
---      것이고 프록시가 쓴 대화 줄이며 60초 안에 생겼다. 둘째 경우가 "다시 묻기"다(5회차 · 대표님 2026-10-14 20:40
---      「네 번 막힌 #2438: 5회차: 다시 묻기 한 번은 서버가 그 예약에 다시 묶게 + 응답 유실 회귀 → 5회차 검토」 ·
---      Q-261014-20 「잃은 답은 횟수 없이 한 번 다시 묻기」): 묶인 답이 앱에 닿지 못하면 앱은 같은 번호로 한 번 다시
---      묻고, 서버는 그 답으로 바꿔 묶는다(rebound = true · 앞 답의 감사 줄은 어디에도 묶이지 않게 된다). 셋째 답은
---      묶지 않는다. 한 문장으로 묶으므로 같은 예약에 답이 동시에 와도 묶인 답은 하나로 정해진다. 감사 줄 하나는 예약
---      하나에만 묶인다(고유).
+--   3. 시도와 묶기(6회차 · 대표님 2026-10-14 21:30:04 「6회차: 모델 호출 전에 서버가 시도 번호를 매기게 · 받은 답
+--      뒤 다시 묻기의 환불은 받아들임 → 6회차 검토」 · Q-261014-20 「잃은 답은 횟수 없이 한 번 다시 묻기」).
+--      begin_chat_turn_attempt(p_user_id, p_audit_id, p_turn_id): 프록시(service_role)만 부른다. 모델을 부르기 **전에**
+--      이 호출을 그 턴의 시도로 적는다: 시도 수 · 이 호출의 감사 줄이 가질 id · 시작한 때. 첫 시도는 아직 시도가 없는
+--      답 없는 예약에, 둘째 시도(다시 묻기)는 그 사용자의 **가장 최근** 예약이 아직 돌려주지 않았을 때만 된다. 셋째는
+--      없다. 올리기와 같은 사용자별 잠금으로 줄을 선다.
+--      claim_chat_turn_for_audit(p_user_id, p_audit_id, p_turn_id): 프록시(service_role)만 부른다. 답의 감사 줄을 쓴
+--      직후에 부르고, 모두 맞을 때만 예약 줄에 그 감사 줄을 묶는다: 예약의 주인이 그 사용자다 · 그 감사 줄이 그 예약의
+--      **가장 최근 시도**의 것이다 · 그 시도가 5분 안에 시작됐다 · 아직 답이 없거나 다른 답이 묶였고 돌려주지 않았다 ·
+--      감사 줄이 그 사용자의 것이고 프록시가 쓴 대화 줄이며 60초 안에 생겼다. 다시 물은 답은 앞 답의 자리를 차지한다
+--      (앞 답의 감사 줄은 어디에도 묶이지 않게 된다). 늦게 끝난 앞 시도의 답은 묶이지 않는다(가장 최근 시도가 아니다).
+--      감사 줄 하나는 예약 하나에만 묶인다(고유).
 --   4. refund_chat_turn_after_output_swap(p_audit_id): 넘겨받은 감사 줄 하나만 본다. 본인 것 · server_verified ·
 --      secondb_chat · red · 10분 안 · 아직 안 쓴 것이어야 하고, 그 줄이 묶인 본인의 예약이 있어야 한다. **그 예약에
 --      적힌 날**의 횟수를 1 내리고 예약을 refunded 로 바꾼다. 날짜 인자는 없다. 맞지 않으면 NULL 이고 아무것도 바꾸지
@@ -60,13 +63,14 @@
 -- 남용: 0252 와 같다. 하루 한도는 클라이언트가 호출 전에 RPC 를 부르는 것으로만 걸린다. 이 파일이 지키는 것은
 --   "돌려주는 횟수는 예약 하나에 하나, 그 예약이 센 날에만, 프록시가 쓴 red 줄이 그 예약에 묶였을 때만"이다.
 --   변조한 앱이 고를 것은 없다: 묶일 수 있는 예약은 그 사용자의 가장 최근 예약 하나뿐이다(앞선 것은 다음 올리기가 닫는다).
---   다시 묻기: 서버는 응답이 사라진 다시 묻기와 일부러 한 번 더 묻기를 가리지 못한다. 변조한 앱은 한 턴에 답을 하나 더
---   받을 수 있지만, 그런 앱은 처음부터 올리기를 부르지 않을 수도 있으므로 새로 열리는 것은 없다. 돌려주는 횟수는
---   그대로 예약 하나에 하나 · 그 예약이 센 날이다.
--- 권한: bump… 과 refund… 는 authenticated 만, claim… 은 service_role 만 EXECUTE. 트리거 함수는 누구도 직접 부를 수 없다.
+--   다시 묻기: 서버는 응답이 사라진 다시 묻기와 일부러 한 번 더 묻기를 가리지 못한다. 그래서 받은 답 뒤에 같은 번호로
+--   다시 물어 빨강 답을 받으면 그 턴의 사용량 줄과 원장이 바뀐다(그 턴이 돌려받아진다). 이 길은 대표님이 받아들였다
+--   (2026-10-14 21:30:04 「받은 답 뒤 다시 묻기의 환불은 받아들임」). 다시 묻기는 그 사용자의 가장 최근 턴에 한 번뿐이고,
+--   돌려주는 횟수는 그대로 예약 하나에 하나 · 그 예약이 센 날이다.
+-- 권한: bump… 과 refund… 는 authenticated 만, begin… 과 claim… 은 service_role 만 EXECUTE. 트리거 함수는 누구도 직접 부를 수 없다.
 -- 삭제: 예약 줄은 계정을 지우면 따라 지워진다(users 를 따라). 내용 삭제(erase_my_data)는 건드리지 않는다. 삭제
 --   등록부에는 0258 이 올린다.
--- 되돌리기: rollback/0255_down.sql 이 새 함수 셋 · AFTER 트리거 · 예약 표를 걷고 0252 의 함수 둘을 그대로 되돌린다.
+-- 되돌리기: rollback/0255_down.sql 이 새 함수 넷 · AFTER 트리거 · 예약 표를 걷고 0252 의 함수 둘을 그대로 되돌린다.
 --   프록시가 claim… 을 부르고 있으면 먼저 프록시를 되돌린다(부르는 쪽은 실패해도 답을 그대로 보낸다).
 
 -- 8. The ledger's primary key must be on audit_id alone and must raise at the INSERT, not at commit.
@@ -95,7 +99,9 @@ CREATE TABLE IF NOT EXISTS public.chat_turn_reservations (
   audit_id    uuid,
   answered_at timestamptz,
   refunded_at timestamptz,
-  rebound     boolean     NOT NULL DEFAULT false,
+  attempts    smallint    NOT NULL DEFAULT 0,
+  pending_audit_id uuid,
+  attempted_at timestamptz,
   CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id),
   CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id),
   CONSTRAINT chat_turn_reservations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE,
@@ -103,7 +109,7 @@ CREATE TABLE IF NOT EXISTS public.chat_turn_reservations (
   CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL))
 );
 COMMENT ON TABLE public.chat_turn_reservations IS
-  'One row per counted chat turn (0255): who, the day it was counted on, the proxy audit row that answered it, and whether that answer is the one re-ask of the turn. Ids, days, times and that flag only, no content. Rows older than two days are removed by the next bump.';
+  'One row per counted chat turn (0255): who, the day it was counted on, the proxy audit row that answered it, and its attempts (how many were started, the audit id the latest will write, when it started). Ids, days, times and a count only, no content. Rows older than two days are removed by the next bump.';
 
 CREATE INDEX IF NOT EXISTS chat_turn_reservations_user_issued_idx
   ON public.chat_turn_reservations (user_id, issued_at);
@@ -120,7 +126,8 @@ DECLARE
   v_want  constant text :=
     'turn_id:uuid:t:gen_random_uuid()|user_id:uuid:t:-|counted_day:date:t:-|issued_at:timestamp with time zone:t:now()'
     || '|state:text:t:''counted''::text|audit_id:uuid:f:-|answered_at:timestamp with time zone:f:-'
-    || '|refunded_at:timestamp with time zone:f:-|rebound:boolean:t:false';
+    || '|refunded_at:timestamp with time zone:f:-|attempts:smallint:t:0|pending_audit_id:uuid:f:-'
+    || '|attempted_at:timestamp with time zone:f:-';
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class AS c
                   WHERE c.oid = v_rel AND c.relkind = 'r' AND c.relpersistence = 'p' AND c.relrowsecurity
@@ -342,8 +349,9 @@ BEGIN
           OR r.issued_at < pg_catalog.clock_timestamp() - interval '2 days');
 
   -- The reservation carries the day the turn was counted on. That day is the day a refund gives back.
-  INSERT INTO public.chat_turn_reservations (user_id, counted_day)
-  VALUES (p_user_id, p_day)
+  -- Stamped with the clock, so that "the user's latest turn" (see the attempt below) reads the same here.
+  INSERT INTO public.chat_turn_reservations (user_id, counted_day, issued_at)
+  VALUES (p_user_id, p_day, pg_catalog.clock_timestamp())
   RETURNING turn_id INTO v_turn;
 
   RETURN pg_catalog.jsonb_build_object('count', v_count, 'turnId', v_turn);
@@ -352,6 +360,49 @@ $$;
 
 REVOKE ALL ON FUNCTION public.bump_chat_usage_for_turn(uuid, date) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.bump_chat_usage_for_turn(uuid, date) TO authenticated;
+
+-- 3a. Before the model is asked, the proxy records this call as an attempt of the turn the app named, under the id
+-- its audit row will carry. The first attempt of a turn not attempted yet; the second (the one re-ask) only on the
+-- user's latest turn, while it has not been given back. In line with the bump, so "latest" cannot move under it.
+CREATE OR REPLACE FUNCTION public.begin_chat_turn_attempt(p_user_id uuid, p_audit_id uuid, p_turn_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_now  timestamptz := pg_catalog.clock_timestamp();
+  v_done uuid;
+BEGIN
+  IF p_user_id IS NULL OR p_audit_id IS NULL OR p_turn_id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('chat_turn_bump:' || p_user_id::text, 0));
+
+  UPDATE public.chat_turn_reservations AS r
+     SET attempts = r.attempts + 1,
+         pending_audit_id = p_audit_id,
+         attempted_at = v_now
+   WHERE r.turn_id = p_turn_id
+     AND r.user_id = p_user_id
+     AND r.issued_at <= v_now
+     AND ((r.attempts = 0 AND r.state = 'counted')
+          OR (r.attempts = 1 AND r.state IN ('counted', 'answered')
+              AND NOT EXISTS (SELECT 1
+                                FROM public.chat_turn_reservations AS n
+                               WHERE n.user_id = r.user_id
+                                 AND n.turn_id <> r.turn_id
+                                 AND n.issued_at >= r.issued_at)))
+  RETURNING r.turn_id INTO v_done;
+
+  RETURN v_done IS NOT NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid) TO service_role;
 
 -- 3. The proxy asks the server whether this answer belongs to that reservation. The turn id came from
 -- the app, so nothing about it is taken on trust: owner, state and age are read from the server's own row.
@@ -382,22 +433,22 @@ BEGIN
   END IF;
 
   BEGIN
-    -- The reservation: this user's, made in the last five minutes, and either not answered yet or answered,
-    -- not given back and not asked again yet. The second is the one re-ask (Q-261014-20): the answer bound to
-    -- the turn never reached the app, and the app asks once more with the same turn. The new answer takes the
-    -- place of the first, whose row is then bound to nothing, and there is no third. One statement, so answers
-    -- arriving at once for one reservation leave exactly one of them bound.
+    -- The reservation: this user's, and this row is its latest attempt's, begun in the last five minutes. Not
+    -- answered yet, or answered by another row and not given back: the latter is the one re-ask (Q-261014-20),
+    -- whose answer takes the place of the first, whose row is then bound to nothing. An earlier attempt that
+    -- ends late is not the latest and binds nothing. One statement, so answers arriving at once for one
+    -- reservation leave exactly one of them bound.
     UPDATE public.chat_turn_reservations AS r
        SET state = 'answered',
            audit_id = p_audit_id,
-           answered_at = v_now,
-           rebound = (r.state = 'answered')
+           answered_at = v_now
      WHERE r.turn_id = p_turn_id
        AND r.user_id = p_user_id
+       AND r.pending_audit_id = p_audit_id
+       AND r.attempted_at >= v_now - interval '5 minutes'
+       AND r.attempted_at <= v_now
        AND ((r.state = 'counted' AND r.audit_id IS NULL)
-            OR (r.state = 'answered' AND NOT r.rebound AND r.audit_id IS DISTINCT FROM p_audit_id))
-       AND r.issued_at >= v_now - interval '5 minutes'
-       AND r.issued_at <= v_now
+            OR (r.state = 'answered' AND r.audit_id IS DISTINCT FROM p_audit_id))
     RETURNING r.turn_id INTO v_done;
   EXCEPTION
     WHEN unique_violation THEN
