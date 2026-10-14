@@ -1921,7 +1921,8 @@ results.push(
         // 레거시 화면의 `const ko` 는 카피 두 벌을 소스에 품기 위한 것이었다.
         // 라이브에도 같은 이름의 플래그가 있지만 쓰는 곳이 하나뿐이고 그건
         // 저장되는 데이터의 언어다 — 카피 분기가 아니라 이 쓰임새를 못박는다.
-        screen.includes('{ locale: ko ? "ko" : "en" }') &&
+        // 2026-10-14: 건강 동의가 읽은 값을 원장의 before 로 넘기게 되어 같은 줄에 before 가 붙었다.
+        screen.includes('{ locale: ko ? "ko" : "en", before: current }') &&
         enDeep.includes("Before importing") &&
         koDeep.includes("가져오기 전 확인") &&
         sources.includes('"import:health.connect"') &&
