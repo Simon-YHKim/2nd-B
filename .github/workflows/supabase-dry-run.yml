@@ -2112,6 +2112,13 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/public_data_quota_regression.sql
+      # 0259: the interview seat has a daily ceiling and a rolling seven-day budget; every other seat is as
+      # 0185 made it. The file seeds earlier days, refuses at both edges, checks other seats and tiers, and
+      # goes through 0259's down file and back. Everything it writes is rolled back.
+      - name: Exercise the weekly interview budget (0259)
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/interview_probe_weekly_budget_regression.sql
       # 0254: crisis_events.trigger_categories keeps names from the closed list
       # only. This is the first step of the job that calls the two crisis write
       # functions at all: the shared cases
