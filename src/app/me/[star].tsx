@@ -347,9 +347,23 @@ export default function StarSummaryRoute() {
                   ))}
                 </View>
                 {summary.records > 0 ? (
-                  <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
-                    {t("ds.star.records", { count: summary.records })}
-                  </Text>
+                  // The count opens the wiki list on this star's stories (Z60, Simon 2026-10-13).
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => router.push({ pathname: "/records", params: { period: meta.period ?? "" } })}
+                    style={styles.recordsLink}
+                  >
+                    <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
+                      {t("ds.star.records", { count: summary.records })}
+                    </Text>
+                    <Text
+                      style={[m3TextStyle("bodySmall"), styles.muted]}
+                      accessibilityElementsHidden
+                      importantForAccessibility="no-hide-descendants"
+                    >
+                      ›
+                    </Text>
+                  </Pressable>
                 ) : null}
               </>
             ) : summary === null ? (
@@ -419,6 +433,7 @@ const styles = StyleSheet.create({
   range: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm },
   card: { marginTop: spacing.sm },
   muted: { color: m3.color.onSurfaceVariant },
+  recordsLink: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, minHeight: 44 },
   // 다섯 층 사다리. 높은 화면에서는 줄이 RUNG_MAX 까지 자라 아래 절반을 채우고,
   // 낮은 화면(대시보드 폰 안)에서는 RUNG_MIN 까지 줄어든 뒤 본문이 스크롤한다.
   ladder: {

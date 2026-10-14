@@ -97,7 +97,9 @@
     "fallbackTitle": "Sem título",
     "graphEmpty": "Ainda não há conhecimento para conectar.",
     "loadError": "Não foi possível carregar seus registros. Tente novamente.",
-    "retry": "Tentar de novo"
+    "retry": "Tentar de novo",
+    "periodScope": "Histórias de {{star}}",
+    "periodShowAll": "Ver tudo"
   },
   "domains": {
     "title": "Minhas áreas",

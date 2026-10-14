@@ -40,7 +40,7 @@ describe("deep-space records source detail routing", () => {
   test("source rows keep their source id and origin for detail navigation", () => {
     expect(RECORDS_SRC).toContain('type RecordsOrigin = "record" | "source";');
     expect(RECORDS_SRC).toContain(
-      "type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string };",
+      "type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string; audit_period?: string | null };",
     );
     expect(RECORDS_SRC).toContain("id: s.id");
     expect(RECORDS_SRC).toContain('origin: "source"');
@@ -235,7 +235,18 @@ describe("deep-space records source detail routing", () => {
       // filters, the counts and the detail routing). Verified before re-pinning: the
       // previous digest 6f14103c794fa937f15f34e045ff7c170bf9dee817eb3be4dcfdcdf86b52ab59
       // recomputes byte-for-byte from origin/main's copy of this file.
-      "3c52b8a74b97388b39715e189c1f529a8d3f24b9ecedde299d5909daad952c6d",
+      //
+      // Re-pinned 2026-10-14 (Z60, Simon 2026-10-13: the star summary's record count
+      // opens that star's stories). The list reads ?period=, and when it names a
+      // star's period it opens as the list, keeps only the rows told under that star
+      // (audit_period), and shows one line at the top that says so and returns to
+      // everything; choosing the graph returns to everything too. Slice 20,830 ->
+      // 22,839 chars / 489 -> 522 lines. The read itself, the error state, the tag and
+      // type filters, the counts and the detail routing are untouched. Verified before
+      // re-pinning: the previous digest
+      // 3c52b8a74b97388b39715e189c1f529a8d3f24b9ecedde299d5909daad952c6d recomputes
+      // byte-for-byte from origin/main's copy of this file.
+      "d5eaeb6ac07516244eeeb542dedac1fc57838992f41bd2c20fc273f5735d7d2b",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,
