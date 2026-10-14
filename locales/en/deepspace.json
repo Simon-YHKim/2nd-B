@@ -97,7 +97,9 @@
     "fallbackTitle": "Untitled",
     "graphEmpty": "No knowledge to connect yet.",
     "loadError": "Couldn't load your archive. Try again.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "periodScope": "Stories: {{star}}",
+    "periodShowAll": "Show all"
   },
   "domains": {
     "title": "My areas",
