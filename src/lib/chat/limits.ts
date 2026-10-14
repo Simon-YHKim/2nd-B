@@ -49,11 +49,11 @@ export interface ChatLimitCheck {
   upgradeTo: SubscriptionTier | null;
 }
 
-// Monetization v2 (2026-06-10): soma sells again as the entry tier, so the
-// upgrade ladder walks every paid step — free -> soma -> cortex -> brain.
-// (D-09 had retired soma; v2 supersedes that with the entry price point.)
+// The tier a reached limit points to. soma stopped selling on 2026-07-30 (#1140), so the paid
+// ladder is free -> cortex -> brain, and an account still on soma points to cortex too (Simon
+// 2026-10-14, Q-261014-26). Only the ai_limit_hit event reads it: the bubble names no tier.
 const NEXT_TIER: Record<SubscriptionTier, SubscriptionTier | null> = {
-  free: "soma",
+  free: "cortex",
   soma: "cortex",
   cortex: "brain",
   brain: null,
