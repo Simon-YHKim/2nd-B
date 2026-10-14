@@ -2605,6 +2605,7 @@ jobs:
           reapply_0255_over rsv_no_default "$(broken " DEFAULT gen_random_uuid()" "")" "chat_turn_reservations has other columns"
           reapply_0255_over rsv_audit_as_text "$(broken "audit_id uuid," "audit_id text,")" "chat_turn_reservations has other columns"
           reapply_0255_over rsv_extra_column "$(broken "refunded_at timestamptz," "refunded_at timestamptz, note text,")" "chat_turn_reservations has other columns"
+          reapply_0255_over rsv_round6_shape "$(broken " attempt_started_at timestamptz," "")" "chat_turn_reservations has other columns"
           reapply_0255_over rsv_no_unique_answer "$(broken "CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), " "")" "chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id"
           reapply_0255_over rsv_deferrable_unique "$(broken "UNIQUE (audit_id)," "UNIQUE (audit_id) DEFERRABLE,")" "chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id"
           reapply_0255_over rsv_no_cascade "$(broken " ON DELETE CASCADE" "")" "chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE"

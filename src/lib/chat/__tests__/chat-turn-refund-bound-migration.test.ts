@@ -440,7 +440,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect([...steps].sort((a, b) => a - b)).toEqual(steps);
   });
 
-  it('CI 가 환불 경합 여섯 · 묶기 경합 셋 · 올리기 경합 하나 · 0255 의 다시 적용 스물여섯을 실제로 돌린다', () => {
+  it('CI 가 환불 경합 여섯 · 묶기 경합 셋 · 올리기 경합 하나 · 다시 묻기 경합 하나 · 늦은 시도 경합 둘 · 잠금 순서 경합 둘 · 0255 의 다시 적용 스물일곱을 실제로 돌린다', () => {
     const workflow = read('.github/workflows/supabase-dry-run.yml');
     // No call in the step passes a day.
     const calls = workflow.match(/public\.refund_chat_turn_after_output_swap\('[^\n]*/g) ?? [];
@@ -535,6 +535,8 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
       'rsv_no_default:chat_turn_reservations has other columns',
       'rsv_audit_as_text:chat_turn_reservations has other columns',
       'rsv_extra_column:chat_turn_reservations has other columns',
+      // round 7: a table made by round 6 (no attempt_started_at) stops the re-apply
+      'rsv_round6_shape:chat_turn_reservations has other columns',
       'rsv_no_unique_answer:chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id',
       'rsv_deferrable_unique:chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id',
       'rsv_no_cascade:chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE',
