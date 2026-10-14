@@ -50,6 +50,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { prepareCrisisScanText } from '../../../src/lib/safety/crisis-context.ts';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
+import { beginChatTurnAttempt, claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
 // D-27 attribution plus the shared server-owned purpose policy. The remaining
 // crisis/auth/cap plumbing stays inlined until its own deploy-verified migration.
 import {
@@ -415,7 +416,7 @@ Deno.serve(async (req: Request) => {
   const capacityRpc = (functionName: string, args: Record<string, unknown>) =>
     supabaseAdmin.rpc(functionName, args);
 
-  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; audio?: unknown; responseSchema?: unknown; purpose?: unknown; effort?: unknown; op?: unknown; texts?: unknown; reasoningRunId?: unknown; reasoningSlot?: unknown };
+  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; audio?: unknown; responseSchema?: unknown; purpose?: unknown; effort?: unknown; op?: unknown; texts?: unknown; reasoningRunId?: unknown; reasoningSlot?: unknown; chatTurnId?: unknown };
   try {
     body = await readLlmProxyJsonObject(req) as typeof body;
   } catch (error) {
@@ -1006,6 +1007,17 @@ Deno.serve(async (req: Request) => {
   }
 
 
+  // Z46 (0255 round 6): the id this call's audit row will carry is made before the model is asked, with the
+  // turn the app named (chat only · read by shape · never written on the audit row). The server records this
+  // call as that turn's attempt first, numbered in the order the calls reach it (round 8). Only a recorded
+  // attempt can be bound, and a bound answer gives way only to the second attempt's, so an earlier attempt
+  // that ends late cannot take the turn from the re-ask. Bounded: false means this answer is not bound
+  // (no refund for it), never that the answer stops.
+  const consentAuditId = crypto.randomUUID();
+  const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
+  const turnAttempt = chatTurnId !== null
+    && await beginChatTurnAttempt(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'gemini-proxy');
+
   const t0 = Date.now();
   let upstream: Response;
   try {
@@ -1150,31 +1162,25 @@ Deno.serve(async (req: Request) => {
           : '';
   const geminiTotalTokens =
     Number((data?.usageMetadata as { totalTokenCount?: number } | undefined)?.totalTokenCount) || null;
-  const consentAuditId = crypto.randomUUID();
-  let audited = false;
-  try {
-    const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
-      id: consentAuditId,
-      user_id: userId,
-      event_source: 'server_verified',
-      prompt_hash: djb2(`${systemText ?? ''}${userText}`),
-      output_hash: djb2(text),
-      model_used: `${modelUsed}${outcomeMarker}`,
-      vertex_backend: false,
-      safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
-      latency_ms: latencyMs,
-      // D-27 re-decomposition axes (nullable; NULL on legacy/native-path rows).
-      purpose,
-      reasoning_vendor: 'gemini',
-      reasoning_effort: effortSlug,
-      key_combo: keyCombo,
-      total_tokens: geminiTotalTokens,
-    });
-    audited = !auditErr;
-    if (auditErr) console.warn('[gemini-proxy] audit insert failed:', auditErr.message);
-  } catch (e) {
-    console.warn('[gemini-proxy] audit insert threw:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
-  }
+  // consentAuditId and chatTurnId were made before the model call (Z46 · 0255 round 6).
+  // True only when this very row came back from the insert (see insertLlmAuditRow).
+  const audited = await insertLlmAuditRow(supabaseAdmin, {
+    id: consentAuditId,
+    user_id: userId,
+    event_source: 'server_verified',
+    prompt_hash: djb2(`${systemText ?? ''}${userText}`),
+    output_hash: djb2(text),
+    model_used: `${modelUsed}${outcomeMarker}`,
+    vertex_backend: false,
+    safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
+    latency_ms: latencyMs,
+    // D-27 re-decomposition axes (nullable; NULL on legacy/native-path rows).
+    purpose,
+    reasoning_vendor: 'gemini',
+    reasoning_effort: effortSlug,
+    key_combo: keyCombo,
+    total_tokens: geminiTotalTokens,
+  }, 'gemini-proxy');
 
   if (blockReason) {
     return jsonResponse(req, { error: 'upstream_blocked', reason: String(blockReason).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
@@ -1195,5 +1201,19 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
   }
 
-  return jsonResponse(req, { text, modelUsed, latencyMs, audited });
+  // Z46 (0255): ask the server whether this answer belongs to the turn the app named. Only here, on the
+  // way out with a reply: a refused, cut-off or consent-withheld call has returned above and answers
+  // nothing. The server reads the owner, the state and the age of its own reservation row; the id the
+  // app sent decides nothing. Bounded: past the limit the reply goes out unbound (no refund for it).
+  // An empty answer answers nothing: the turn stays open for the call that is sent again.
+  const turnBound = audited && chatTurnId && turnAttempt && text.trim() !== ''
+    ? await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'gemini-proxy')
+    : false;
+
+  // Z46 (0255): the id of the audit row written above, only when it was written (see openai-proxy).
+  return jsonResponse(req, {
+    text, modelUsed, latencyMs, audited,
+    ...(audited ? { auditId: consentAuditId } : {}),
+    ...(chatTurnId ? { turnBound } : {}),
+  });
 });

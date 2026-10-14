@@ -56,6 +56,11 @@
       "class": "retained",
       "reason": "결제 셀프서비스 남용 방지 한도. 지우면 한도를 되감을 수 있다(0184)."
     },
+    "chat_turn_reservations": {
+      "owner": "user_id",
+      "class": "account_delete_only",
+      "reason": "Per-turn chat count reservations: ids, the counted day and times, no content. No owner policy; only server functions touch it (0255). Rows older than two days are removed by the next bump; account deletion cascades."
+    },
     "chat_usage": {
       "owner": "user_id",
       "class": "retained",
@@ -500,6 +505,9 @@
     ],
     "0240_profile_context_import_erasure_registry.sql": [
       "profile_context_imports"
+    ],
+    "0258_chat_turn_reservations_erasure_registry.sql": [
+      "chat_turn_reservations"
     ]
   },
   "forwardRevisions": {
