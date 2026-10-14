@@ -118,10 +118,13 @@ export function DeepSpaceDataScreen() {
                     />
                   </PixelPressable>
 
-                  {expanded ? (
+                  {/* The export card's detail is folded by hiding it, not removing it: an export in
+                      progress keeps going and its result lines stay (a partial bundle's warning sits
+                      on the same screen as the delete card). */}
+                  {expanded || item.id === "account-export" ? (
                     <PixelSurface
                       variant="inset"
-                      style={styles.detailSurface}
+                      style={[styles.detailSurface, !expanded && styles.detailFolded]}
                       contentStyle={styles.detailContent}
                     >
                       <RNText style={[m3TextStyle("bodyMedium"), styles.detailText]}>
@@ -164,6 +167,7 @@ export function DeepSpaceDataScreen() {
 }
 
 const styles = StyleSheet.create({
+  detailFolded: { display: "none" },
   screen: { flex: 1, minHeight: 0 },
   centerState: { flex: 1, alignItems: "center", justifyContent: "center" },
   topBar: {

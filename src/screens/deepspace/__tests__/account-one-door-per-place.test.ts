@@ -4,9 +4,10 @@
 // settings row My data" (2026-10-13, Q-261013-17), under the 2026-10-10 rule of one top-level
 // door per place.
 //
-// What the code turned out to hold (2026-10-14): the export TOOL lives only on the account screen.
-// My data's export card is a door to it (/account?tool=export). So the tool stays where it is and
-// is drawn only for the visitor who came through that door.
+// What the code turned out to hold (2026-10-14 morning): the export TOOL lived only on the account
+// screen and My data's card was a door to it. Simon then moved the tool itself into My data
+// (Q-261014-61, 2026-10-14 20:33): the card runs it, and an old link to the account screen's tool
+// is sent on to that card.
 // Source contracts: render tests are not available here.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -32,8 +33,7 @@ describe("the account hub keeps one door per place", () => {
   });
 });
 
-// The doors that carry the query: My data's export card and the manual's shortcut. Opening the
-// account screen any other way (settings' account row) does not draw the tool.
+// One place runs the export: My data's export card. The manual's shortcut and the old link open it.
 describe("the export lives in My data (Q-261014-61, Simon 2026-10-14)", () => {
   const screen = read("src/screens/deepspace/dds-account-screen.tsx");
   const dataScreen = read("src/screens/deepspace/dds-data-screen.tsx");
@@ -78,6 +78,18 @@ describe("the export lives in My data (Q-261014-61, Simon 2026-10-14)", () => {
     const settings = read("src/app/settings.tsx");
     expect(settings).toContain('router.push("/account")');
     expect(settings).not.toContain("/account?tool=");
+  });
+
+  it("exactly one screen file runs the export", () => {
+    expect(panel.split("exportAccountData(").length - 1).toBe(1);
+    expect(screen).not.toContain("exportAccountData(");
+    expect(dataScreen).not.toContain("exportAccountData(");
+  });
+
+  it("folding the export card hides its detail without removing it", () => {
+    expect(dataScreen).toContain('{expanded || item.id === "account-export" ? (');
+    expect(dataScreen).toContain("style={[styles.detailSurface, !expanded && styles.detailFolded]}");
+    expect(dataScreen).toContain('detailFolded: { display: "none" },');
   });
 
   // The export's owner checks moved with it, unchanged.

@@ -165,6 +165,8 @@ const MIGRATED: readonly string[] = [
   "src/components/deepspace/shell/SbStatusBar.tsx",
   "src/screens/deepspace/dds-auth-screens.tsx",
   "src/screens/deepspace/dds-account-screen.tsx",
+  // 2026-10-14 - the account export moved into its own panel in My data (Q-261014-61).
+  "src/screens/deepspace/dds-account-export.tsx",
   "src/screens/deepspace/dds-data-screen.tsx",
   "src/screens/deepspace/dds-change-password-screen.tsx",
   "src/screens/deepspace/dds-consent-notice-screen.tsx",
