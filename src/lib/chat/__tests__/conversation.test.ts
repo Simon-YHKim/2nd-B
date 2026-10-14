@@ -112,9 +112,9 @@ describe("sendChatMessage", () => {
     if (r.status !== "blocked") throw new Error("type narrowing");
     expect(r.limit).toBe(5);
     expect(r.used).toBe(5);
-    expect(r.upgradeTo).toBe("soma");
-    expect(r.hint).toContain("chat limit (5)");
-    expect(r.hint).toContain("Soma");
+    expect(r.upgradeTo).toBe("cortex");
+    // Simon 2026-10-14 (Q-261014-24): the limit sentence only; no tier is named or pitched.
+    expect(r.hint).toBe("You've hit today's chat limit (5). Limits reset at midnight KST.");
 
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toContain("readChatUsageDetail");
@@ -127,8 +127,7 @@ describe("sendChatMessage", () => {
     fixtures.used = 30;
     const r = await sendChatMessage({ userId: "u1", message: "안녕", locale: "ko", tier: "soma" });
     if (r.status !== "blocked") throw new Error("type narrowing");
-    expect(r.hint).toContain("오늘 채팅 한도");
-    expect(r.hint).toContain("KST 자정");
+    expect(r.hint).toBe("오늘 채팅 한도(30회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.");
     expect(r.upgradeTo).toBe("cortex");
   });
 
@@ -153,7 +152,7 @@ describe("sendChatMessage", () => {
     expect(calls).not.toContain("callLlm");
   });
 
-  test("a concurrent send reaching the known cap preserves the upgrade hint", async () => {
+  test("a concurrent send reaching the known cap gets the same limit sentence", async () => {
     fixtures.used = 29;
     fixtures.usedAtBump = 30;
     const r = await sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "soma" });
@@ -162,8 +161,7 @@ describe("sendChatMessage", () => {
     expect(r.limit).toBe(30);
     expect(r.used).toBe(30);
     expect(r.upgradeTo).toBe("cortex");
-    expect(r.hint).toContain("chat limit (30)");
-    expect(r.hint).toContain("Cortex");
+    expect(r.hint).toBe("You've hit today's chat limit (30). Limits reset at midnight KST.");
     expect(captured.some((c) => c.fn === "callLlm")).toBe(false);
   });
 

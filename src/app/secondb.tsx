@@ -854,7 +854,7 @@ function SecondBChatBody() {
       aiLimitHit({
         tier: progression.tier,
         limit,
-        upgrade_to: pendingUpgrade ?? "soma",
+        upgrade_to: pendingUpgrade ?? "cortex",
       }),
     );
   }, [usedToday, allowance, limit, progression.tier, pendingUpgrade]);

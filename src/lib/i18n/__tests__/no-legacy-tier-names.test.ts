@@ -190,7 +190,7 @@ const SOURCE_EXEMPTIONS: readonly { reason: string; spots: readonly Spot[] }[] =
   {
     reason: "internal tier key: the value code, database and server use for a tier (types, comparisons, maps, case labels)",
     spots: [
-      ["src/app/secondb.tsx", "SecondBChatBody › operand of ??", "soma", 1],
+      ["src/app/secondb.tsx", "SecondBChatBody › operand of ??", "cortex", 1],
       ["src/lib/analytics/conversion-events.ts", "cleanConversionProps › operand of !==", "cortex", 1],
       ["src/lib/analytics/conversion-events.ts", "cleanConversionProps › operand of !==", "brain", 1],
       ["src/lib/analytics/conversion-events.ts", "ConversionTier › literal type", "cortex", 1],
@@ -198,7 +198,7 @@ const SOURCE_EXEMPTIONS: readonly { reason: string; spots: readonly Spot[] }[] =
       ["src/lib/billing/paddle-checkout.ts", "CheckoutTier › literal type", "cortex", 1],
       ["src/lib/billing/paddle-checkout.ts", "CheckoutTier › literal type", "brain", 1],
       ["src/lib/chat/limits.ts", "NEXT_TIER › value of cortex", "brain", 1],
-      ["src/lib/chat/limits.ts", "NEXT_TIER › value of free", "soma", 1],
+      ["src/lib/chat/limits.ts", "NEXT_TIER › value of free", "cortex", 1],
       ["src/lib/chat/limits.ts", "NEXT_TIER › value of soma", "cortex", 1],
       ["src/lib/entitlements/reasoning-cap.ts", "pricingLabel › case label", "cortex", 1],
       ["src/lib/entitlements/reasoning-cap.ts", "pricingLabel › case label", "brain", 1],
@@ -345,31 +345,9 @@ function checkSource(found: readonly FoundNode[], groups: readonly { spots: read
   return { hits, unused: [...listed.keys()].filter((key) => !seen.has(key)) };
 }
 
-// TODO(PR-1 chat limit bubble): TIER_DISPLAY in src/lib/chat/conversation.ts still turns the upgrade
-// tier into "Soma" / "Cortex" / "Brain" in the chat limit bubble. It waits for an owner decision and
-// changes in its own PR; when that PR lands, set this to null. Until then exactly the three value
-// nodes of TIER_DISPLAY's soma / cortex / brain properties pass, and nothing else in that file does.
-const PENDING_TIER_DISPLAY: { file: string; keys: readonly string[] } | null = {
-  file: "src/lib/chat/conversation.ts",
-  keys: ["soma", "cortex", "brain"],
-};
-
-function tierDisplayValues(source: ts.SourceFile, keys: readonly string[]): ts.Expression[] {
-  const values: ts.Expression[] = [];
-  function visit(node: ts.Node): void {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "TIER_DISPLAY"
-      && node.initializer && ts.isObjectLiteralExpression(node.initializer)) {
-      for (const property of node.initializer.properties) {
-        if (ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && keys.includes(property.name.text)) {
-          values.push(property.initializer);
-        }
-      }
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(source);
-  return values;
-}
+// The chat limit bubble's TIER_DISPLAY map ("Soma" / "Cortex" / "Brain") was the last pending
+// exception here; it went with the upgrade pitch (Simon 2026-10-14, Q-261014-24), so nothing in
+// app code is exempt beyond the listed spots.
 
 function parse(rel: string): ts.SourceFile {
   const file = path.join(root, rel);
@@ -391,31 +369,22 @@ test("no app string names a tier by its legacy name outside the listed internal 
   const files: string[] = [];
   sourceFiles(path.join(root, "src"), files);
   const found: FoundNode[] = [];
-  let pendingSeen = 0;
   for (const rel of files) {
     const source = parse(rel);
-    const pending = new Set(PENDING_TIER_DISPLAY && rel === PENDING_TIER_DISPLAY.file
-      ? tierDisplayValues(source, PENDING_TIER_DISPLAY.keys).map((node) => node.getStart())
-      : []);
     // Comments are not nodes, so they are never read.
     const visit = (node: ts.Node): void => {
       if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node)
         || ts.isTemplateTail(node) || ts.isJsxText(node)) {
-        if (pending.has(node.getStart())) pendingSeen += 1;
-        else {
-          const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
-          found.push({ file: rel, context: contextOf(node), at: `${rel}:${line}`, text: node.text });
-        }
+        const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+        found.push({ file: rel, context: contextOf(node), at: `${rel}:${line}`, text: node.text });
       }
       ts.forEachChild(node, visit);
     };
     visit(source);
   }
-  // Sight control: the walk read the app (946 files, 63,496 string nodes and the three pending values
-  // on 2026-10-14).
+  // Sight control: the walk read the app (946 files and 63,496 string nodes on 2026-10-14).
   expect(files.length).toBeGreaterThan(500);
   expect(found.length).toBeGreaterThan(40000);
-  expect(pendingSeen).toBe(PENDING_TIER_DISPLAY ? PENDING_TIER_DISPLAY.keys.length : 0);
   expect(checkSource(found, SOURCE_EXEMPTIONS)).toEqual({ hits: [], unused: [] });
 });
 
@@ -441,10 +410,27 @@ test("a listed spot holds only its own place, text and count", () => {
   expect(contexts).toEqual(["TIERS › array element: brain", "f › operand of ===: cortex", "B › value of label: soma"]);
 });
 
-test("the pending exception is exactly TIER_DISPLAY's three legacy values", () => {
-  const pending = PENDING_TIER_DISPLAY ?? { file: "src/lib/chat/conversation.ts", keys: [] };
-  const values = tierDisplayValues(parse(pending.file), pending.keys)
-    .map((node) => (ts.isStringLiteralLike(node) ? node.text : node.getText()));
-  // When PR-1 renames them, this fails and PENDING_TIER_DISPLAY becomes null.
-  expect(values).toEqual(PENDING_TIER_DISPLAY ? ["Soma", "Cortex", "Brain"] : []);
+test("the chat limit bubble names no tier", () => {
+  // Simon 2026-10-14 (Q-261014-24): the limit sentence and the 요금제 보기 link only.
+  const declared: string[] = [];
+  const pieces: string[] = [];
+  const collect = (node: ts.Node): void => {
+    if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+      pieces.push(node.text);
+    }
+    ts.forEachChild(node, collect);
+  };
+  const visit = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+      if (node.name.text === "BLOCKED_HINT" || node.name.text === "TIER_DISPLAY") declared.push(node.name.text);
+      if (node.name.text === "BLOCKED_HINT") collect(node);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parse("src/lib/chat/conversation.ts"));
+  expect(declared).toEqual(["BLOCKED_HINT"]);
+  expect(pieces).toEqual([
+    "You've hit today's chat limit (", "). Limits reset at midnight KST.",
+    "오늘 채팅 한도(", "회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.",
+  ]);
 });

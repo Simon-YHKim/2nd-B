@@ -1,11 +1,11 @@
 // Jarvis chat orchestrator.
 //
 //   1. Read today's chat_usage row for the user.
-//   2. Check the tier limit (free 2, Soma 30, Cortex 80, Brain 250).
+//   2. Check the daily limit (CHAT_DAILY_LIMIT in limits.ts; free 5 by default).
 //   3. If allowed, build a system prompt with a compact wiki snapshot,
 //      call callLlm (which enforces C1/C3/C9 automatically), and
 //      atomically bump today's chat_usage.
-//   4. If blocked, return a localized upgrade hint without calling Gemini.
+//   4. If blocked, return a localized limit notice without calling the model.
 //
 // The wiki snapshot is the export prompt with body_md truncated so the
 // chat fits in Gemini Flash's context window. Phase 1/2 wiki pages will
@@ -190,24 +190,24 @@ const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: strin
   },
 };
 
-// Monetization v2 tier display names (2026-06-10): every tier sells under its
-// enum name — Soma is the entry tier again, so no more Plus/Pro aliasing.
-const TIER_DISPLAY: Record<SubscriptionTier, string> = {
-  free: "Free",
-  soma: "Soma",
-  cortex: "Cortex",
-  brain: "Brain",
-};
+// The limit bubble used to end with an upgrade pitch that named the next tier through a
+// TIER_DISPLAY map ("Soma" / "Cortex" / "Brain"). Simon 2026-10-14 (Q-261014-24): keep only
+// the limit sentence and the 요금제 보기 link under it. Those names were legacy anyway
+// (people see 별바라기 · 항해자 · 북극성), so the map went with the pitch.
+//
+// These comment lines stand where the map stood so that every line below keeps its number:
+// docs/legal cites this file by line (DPIA-2ndB-minors-draft.md: 254 · 259 · 260 · 310 · 352).
+// The next tier still travels in SendMessageResult.upgradeTo for the ai_limit_hit event
+// (Q-261014-26); no sentence names it.
 
 const BLOCKED_HINT = {
-  en: (limit: number, upgrade: SubscriptionTier | null) =>
-    upgrade
-      ? `You've hit today's chat limit (${limit}). Upgrade to ${TIER_DISPLAY[upgrade]} for more. Limits reset at midnight KST.`
-      : `You've hit today's chat limit (${limit}). Limits reset at midnight KST.`,
-  ko: (limit: number, upgrade: SubscriptionTier | null) =>
-    upgrade
-      ? `오늘 채팅 한도(${limit}회)를 모두 사용했어요. ${TIER_DISPLAY[upgrade]} 플랜으로 업그레이드하면 더 많이 쓸 수 있어요. 한도는 KST 자정에 초기화돼요.`
-      : `오늘 채팅 한도(${limit}회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.`,
+  en: (limit: number) =>
+    `You've hit today's chat limit (${limit}). Limits reset at midnight KST.`,
+  ko: (limit: number) =>
+    `오늘 채팅 한도(${limit}회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.`,
+  // Called as BLOCKED_HINT[locale](limit) at both blocked returns of sendChatMessage below:
+  // the pre-check on today's row, and a concurrent send that reached the known cap.
+  // Neither passes the tier any more.
 };
 
 export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
@@ -224,7 +224,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
       limit: precheck.limit,
       used: precheck.used,
       upgradeTo: precheck.upgradeTo,
-      hint: BLOCKED_HINT[input.locale](precheck.limit, precheck.upgradeTo),
+      hint: BLOCKED_HINT[input.locale](precheck.limit),
     };
   }
 
@@ -287,7 +287,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
         upgradeTo: check.upgradeTo,
         hint: check.allowed
           ? tLocale(input.locale, "secondb", "serverLimitReached")
-          : BLOCKED_HINT[input.locale](check.limit, check.upgradeTo),
+          : BLOCKED_HINT[input.locale](check.limit),
       };
     }
     throw e;
