@@ -1794,3 +1794,18 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     audit,
   };
 }
+
+// Chat turns are classified by the conversation engine before it reads any
+// context or counts the turn (Simon 2026-10-14, Q-261014-30). RED gets the same
+// ledgers and fixed guidance as callLlm's own short-circuit (same source tag,
+// same purpose). GREEN returns null: no write, no model call.
+export async function classifyChatTextForCrisis(
+  text: string,
+  locale: "en" | "ko",
+  userId: string,
+  minor?: boolean,
+): Promise<LlmResult<string> | null> {
+  const safety = classifyInputAnyLocale(text, locale, { minor });
+  if (safety.zone !== "red") return null;
+  return routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", { purpose: "secondb_chat" });
+}

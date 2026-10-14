@@ -6,6 +6,8 @@ import ts from "typescript";
 
 type Row = Record<string, any>;
 const mockTables: Record<string, Row[]> = {};
+// Every table a test reaches through from(), in order (reads and writes alike).
+const mockTouched: string[] = [];
 const mockObjects = new Map<string, string>();
 const mockUpload = jest.fn(async (path: string, content: string) => { mockObjects.set(path, content); return { error: null }; });
 const mockRpc = jest.fn(async (name: string, args: Row) => {
@@ -26,6 +28,7 @@ const mockRpc = jest.fn(async (name: string, args: Row) => {
 });
 
 function mockQuery(table: string) {
+  mockTouched.push(table);
   const filters: ((row: Row) => boolean)[] = [];
   let action = "select";
   let payload: Row | Row[] = {};
@@ -162,6 +165,42 @@ test("the composed conversation still runs the real safety classifier and record
   expect(mockRpc.mock.calls.map(([name]) => name)).toEqual(expect.arrayContaining(["log_ai_audit_once", "log_crisis_event_once"]));
   expect(mockTables.crisis_events).toHaveLength(1);
   expect(JSON.stringify(mockTables.crisis_events)).not.toContain("I want to kill myself");
+});
+
+// Q-261014-30 (Simon 2026-10-14): the same turn seen from the seam. The engine, the boundary and
+// the outbox are real; what leaves them is counted at the Supabase client.
+test("a device-red turn is not counted, reads nothing but today's usage, and writes one audit row and one crisis row", async () => {
+  const calls = jest.spyOn(boundary, "callLlm");
+  const realFetch = globalThis.fetch;
+  const fetchSpy = jest.fn(async () => { throw new Error("Network forbidden in this fixture"); });
+  globalThis.fetch = fetchSpy as unknown as typeof fetch;
+  mockTouched.length = 0;
+  try {
+    const result = await sendChatMessage({ userId: OWNER, message: "I want to kill myself", locale: "en", tier: "brain" });
+    if (result.status !== "ok") throw new Error("Expected fixed safety response");
+    expect(result.reply.safety.zone).toBe("red");
+    expect(result.reply.audit.modelUsed).toBe("none-crisis-routed");
+    // The usage as read. This fixture's bump RPC answers 1, so a counted turn would say 1.
+    expect(result.used).toBe(0);
+    expect(result.remaining).toBe(250);
+
+    const rpcNames = mockRpc.mock.calls.map(([name]) => name);
+    expect(rpcNames.filter((name) => /bump/.test(name))).toEqual([]);
+    expect(rpcNames).toEqual(["log_ai_audit_once", "log_crisis_event_once"]);
+    expect(mockTouched).toEqual(["chat_usage"]);
+    // One row, where the context read used to add an embed_index red row of its own.
+    expect(mockTables.ai_audit_log).toEqual([
+      expect.objectContaining({ p_purpose: "secondb_chat", p_safety_zone: "red", p_model_used: "none-crisis-routed" }),
+    ]);
+    expect(mockTables.crisis_events).toEqual([
+      expect.objectContaining({ p_trigger_categories: expect.arrayContaining(["input_red"]) }),
+    ]);
+    expect(calls).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(mockUpload).not.toHaveBeenCalled();
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 afterEach(() => jest.restoreAllMocks());
 
