@@ -29,7 +29,7 @@
       },
       "capture": {
         "text": "Write down the thought you just had.",
-        "tip": "A short note is fine. You can read it again after saving."
+        "tip": "A short note is fine."
       },
       "chat": {
         "text": "Ask a question about your records.",
@@ -304,7 +304,7 @@
       "rewrite": "Rewrite",
       "add": "+ Add",
       "emptyTitle": "No future goals written yet",
-      "emptyBody": "Talk with Twi-B about who you want to become, then save your ideas here."
+      "emptyBody": "Talk with Joy-K about who you want to become, then save your ideas here."
     },
     "relational": {
       "title": "Relations",

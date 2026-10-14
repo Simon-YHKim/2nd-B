@@ -1,11 +1,11 @@
 // Jarvis chat orchestrator.
 //
 //   1. Read today's chat_usage row for the user.
-//   2. Check the tier limit (free 2, Soma 30, Cortex 80, Brain 250).
+//   2. Check the daily limit (CHAT_DAILY_LIMIT in limits.ts; free 5 by default).
 //   3. If allowed, build a system prompt with a compact wiki snapshot,
 //      call callLlm (which enforces C1/C3/C9 automatically), and
 //      atomically bump today's chat_usage.
-//   4. If blocked, return a localized upgrade hint without calling Gemini.
+//   4. If blocked, return a localized limit notice without calling the model.
 //
 // The wiki snapshot is the export prompt with body_md truncated so the
 // chat fits in Gemini Flash's context window. Phase 1/2 wiki pages will
@@ -145,7 +145,7 @@ const SYSTEM_PROMPT_HEADER = {
     "당신은 허슬케이, 이 사람의 개인 매니저이자 곁에서 함께 걷는 페이스메이커입니다. 이 사람이 남긴 기록을 읽고 곁에서 돕습니다.",
     "잘 아는 친구처럼 편하고 따뜻하게 말해도 됩니다. 다만 따뜻함이 지어내도 된다는 뜻은 아닙니다.",
     "모든 이야기는 이 사람의 기록에 근거합니다. 기록에 없는 사실이나 특성, 수치(심리 점수 포함)를 지어내지 마세요.",
-    "사람에 대한 단정이 아니라 기록 속 패턴을 말하세요. '~인 것 같아요', '이 기록들에서는' 처럼 신중한 표현을 쓰고, 그 사람이 누구인지 확신하듯 말하지 마세요.",
+    "사람에 대한 단정이 아니라 기록 속 패턴을 말하세요. '~로 보입니다', '이 기록들에서는' 처럼 신중한 표현을 쓰고, 그 사람이 누구인지 확신하듯 말하지 마세요.",
     "의료·임상·상담 서비스가 아닙니다. 일상적인 말을 쓰고, 진단하거나 임상 용어를 쓰지 마세요.",
     "그 사람이 스스로를 아는 것보다 더 잘 안다고 주장하지 마세요.",
     "무엇을 이야기할지는 사용자가 정합니다. 비밀을 말해 달라고 하거나, 말하지 않겠다는 내용을 거듭 캐묻지 마세요.",
@@ -186,28 +186,28 @@ const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: strin
     // parseTwiBranches lifts the "→ " lines into tappable next-step chips that
     // hand off to the composer / 담기. Prompt-shaping only — C9/C3 unchanged.
     en: "New angle mode: stay grounded in the user's data, but deliberately explore radically different angles, assumptions, and unexpected possibilities. Clearly frame them as new perspectives or 'what if' hypotheses, not established facts. End the reply with up to three short next-step candidates the user could capture, each on its own line, each line starting with '→ '.",
-    ko: "새 관점 모드: 사용자의 데이터에 근거하되, 전혀 다른 관점과 가정, 뜻밖의 가능성을 의도적으로 탐색하세요. 단정이 아니라 '새로운 관점 / 가정'으로 분명히 표시하세요. 답변의 맨 끝에는 사용자가 기록할 수 있는 짧은 다음 걸음 후보를 최대 3개, 한 줄에 하나씩 '→ '로 시작해 적으세요.",
+    ko: "새 관점 모드: 사용자의 데이터에 근거하되, 전혀 다른 관점과 가정, 뜻밖의 가능성을 의도적으로 탐색하세요. 단정하지 말고, 확인된 사실이 아니라 하나의 관점이나 가정이라는 점이 문장 안에서 드러나게 쓰세요. 답변의 맨 끝에는 사용자가 기록할 수 있는 짧은 다음 걸음 후보를 최대 3개, 한 줄에 하나씩 '→ '로 시작해 적으세요.",
   },
 };
 
-// Monetization v2 tier display names (2026-06-10): every tier sells under its
-// enum name — Soma is the entry tier again, so no more Plus/Pro aliasing.
-const TIER_DISPLAY: Record<SubscriptionTier, string> = {
-  free: "Free",
-  soma: "Soma",
-  cortex: "Cortex",
-  brain: "Brain",
-};
+// The limit bubble used to end with an upgrade pitch that named the next tier through a
+// TIER_DISPLAY map ("Soma" / "Cortex" / "Brain"). Simon 2026-10-14 (Q-261014-24): keep only
+// the limit sentence and the 요금제 보기 link under it. Those names were legacy anyway
+// (people see 별바라기 · 항해자 · 북극성), so the map went with the pitch.
+//
+// These comment lines stand where the map stood so that every line below keeps its number:
+// docs/legal cites this file by line (DPIA-2ndB-minors-draft.md: 254 · 259 · 260 · 310 · 352).
+// The next tier still travels in SendMessageResult.upgradeTo for the ai_limit_hit event
+// (Q-261014-26); no sentence names it.
 
 const BLOCKED_HINT = {
-  en: (limit: number, upgrade: SubscriptionTier | null) =>
-    upgrade
-      ? `You've hit today's chat limit (${limit}). Upgrade to ${TIER_DISPLAY[upgrade]} for more. Limits reset at midnight KST.`
-      : `You've hit today's chat limit (${limit}). Limits reset at midnight KST.`,
-  ko: (limit: number, upgrade: SubscriptionTier | null) =>
-    upgrade
-      ? `오늘 채팅 한도(${limit}회)를 모두 사용했어요. ${TIER_DISPLAY[upgrade]} 플랜으로 업그레이드하면 더 많이 쓸 수 있어요. 한도는 KST 자정에 초기화돼요.`
-      : `오늘 채팅 한도(${limit}회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.`,
+  en: (limit: number) =>
+    `You've hit today's chat limit (${limit}). Limits reset at midnight KST.`,
+  ko: (limit: number) =>
+    `오늘 채팅 한도(${limit}회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.`,
+  // Called as BLOCKED_HINT[locale](limit) at both blocked returns of sendChatMessage below:
+  // the pre-check on today's row, and a concurrent send that reached the known cap.
+  // Neither passes the tier any more.
 };
 
 export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
@@ -224,7 +224,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
       limit: precheck.limit,
       used: precheck.used,
       upgradeTo: precheck.upgradeTo,
-      hint: BLOCKED_HINT[input.locale](precheck.limit, precheck.upgradeTo),
+      hint: BLOCKED_HINT[input.locale](precheck.limit),
     };
   }
   const cut = await answerDeviceRed(input, precheck);
@@ -287,7 +287,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
         upgradeTo: check.upgradeTo,
         hint: check.allowed
           ? tLocale(input.locale, "secondb", "serverLimitReached")
-          : BLOCKED_HINT[input.locale](check.limit, check.upgradeTo),
+          : BLOCKED_HINT[input.locale](check.limit),
       };
     }
     throw e;

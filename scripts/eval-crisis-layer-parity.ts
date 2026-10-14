@@ -137,7 +137,8 @@ function main(): void {
     // vocabulary mirror. Check raw/nested strings, including JSON escapes.
     const inputs = [
       ...Object.values(CRISIS_EVAL).flat().map(({ text }) => text),
-      ...Object.values(CRISIS_TERMS).flat().flatMap((term) => [term, term.replace(/ /g, "\n"), term.normalize("NFD")]),
+      // The joined spelling of a spaced term counts too (Q-261014-90).
+      ...Object.values(CRISIS_TERMS).flat().flatMap((term) => [term, term.replace(/ /g, "\n"), term.replace(/ /g, ""), term.normalize("NFD")]),
     ];
     for (const text of inputs) {
       const expected = classifier.classifyInputAnyLocale(text, "en").zone === "red";

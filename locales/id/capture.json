@@ -89,9 +89,6 @@
     "personal": "Tersimpan sebagai format pribadimu.",
     "shared": "Format baru tersimpan dan dibagikan ke formatmu."
   },
-  "firstRun": {
-    "hint": "Mulai dengan satu kalimat. Kamu bisa membacanya lagi di Catatan."
-  },
   "saved": {
     "title": "Catatan tersimpan",
     "ocrTitle": "Catatan foto kamu tersimpan",
@@ -158,8 +155,8 @@
     "advisor": {
       "label": "Tanya HustleK soal entri ini",
       "helper": "Nonaktif secara default. Nyalakan jika kamu ingin tanggapan HustleK.",
-      "lockedLabel": "Tanya HustleK soal entri ini (Brain)",
-      "lockedHelper": "Refleksi atas entri terbuka dengan paket Brain. Ketuk untuk lihat paket.",
+      "lockedLabel": "Tanya HustleK soal entri ini (Bintang Utara)",
+      "lockedHelper": "Refleksi atas entri terbuka dengan paket Bintang Utara. Ketuk untuk lihat paket.",
       "lockedHint": "Membuka layar paket."
     }
   },

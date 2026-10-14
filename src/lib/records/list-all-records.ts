@@ -10,8 +10,9 @@
 // are being read is neither skipped nor repeated. The index it rides is the one that already
 // exists: records_user_created_idx (user_id, created_at DESC).
 //
-// It asks only for the columns the list draws (TimelineRecord in records-timeline.ts). Reading
-// every row is the point; reading columns nobody looks at is not.
+// It asks only for the columns the list draws (TimelineRecord in records-timeline.ts) and the one
+// it narrows by (audit_period: the star a record was told under, for ?period=). Reading every row
+// is the point; reading columns nobody looks at is not.
 //
 // listRecentRecords() is left as it is: the streak and the other screens that call it keep their
 // window.
@@ -66,7 +67,7 @@ function fromCursor<Q extends { lte(column: "created_at", value: string): Q; or(
 
 async function readPage(userId: string, cursor: PageCursor | null) {
   const { data, error } = await fromCursor(
-    getSupabaseClient().from("records").select("id, kind, body, topic, summary, tags, created_at").eq("user_id", userId),
+    getSupabaseClient().from("records").select("id, kind, body, topic, summary, tags, created_at, audit_period").eq("user_id", userId),
     cursor,
   )
     .order("created_at", { ascending: false })

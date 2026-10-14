@@ -89,9 +89,6 @@
     "personal": "Guardado como tu formato personal.",
     "shared": "Formato guardado y compartido."
   },
-  "firstRun": {
-    "hint": "Escribe tu primera frase. Después de guardarla, podrás verla en Registros."
-  },
   "saved": {
     "title": "Fragmento guardado",
     "ocrTitle": "Tu nota de foto está guardada",
@@ -158,8 +155,8 @@
     "advisor": {
       "label": "Preguntarle a HustleK sobre esta entrada",
       "helper": "Desactivado por defecto. Actívalo solo cuando quieras recibir una reflexión.",
-      "lockedLabel": "Preguntarle a HustleK sobre esta entrada (Brain)",
-      "lockedHelper": "Las reflexiones sobre entradas se desbloquean con el plan Brain. Toca para ver los planes.",
+      "lockedLabel": "Preguntarle a HustleK sobre esta entrada (Estrella Polar)",
+      "lockedHelper": "Las reflexiones sobre entradas se desbloquean con el plan Estrella Polar. Toca para ver los planes.",
       "lockedHint": "Abre la pantalla de planes."
     }
   },

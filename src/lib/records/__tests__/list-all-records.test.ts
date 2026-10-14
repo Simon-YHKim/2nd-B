@@ -82,11 +82,12 @@ describe("the wiki list's own read", () => {
     expect(calls[0].limit).toBe(WIKI_RECORDS_PAGE);
   });
 
-  it("asks only for the columns the list draws", async () => {
+  it("asks only for the columns the list draws, and the one it narrows by", async () => {
     answers = [{ data: [], error: null }];
     await listAllRecords("owner-1");
     // TimelineRecord (records-timeline.ts): what a row, its icon, its title and its time read.
-    expect(calls[0].select.split(",").map((c) => c.trim()).sort()).toEqual(["body", "created_at", "id", "kind", "summary", "tags", "topic"]);
+    // audit_period: the star a record was told under, which ?period= narrows the list by.
+    expect(calls[0].select.split(",").map((c) => c.trim()).sort()).toEqual(["audit_period", "body", "created_at", "id", "kind", "summary", "tags", "topic"]);
     const timeline = readFileSync(join(__dirname, "..", "..", "..", "screens", "deepspace", "records-timeline.ts"), "utf8").replace(/\r\n?/g, "\n");
     const shape = timeline.slice(timeline.indexOf("export interface TimelineRecord {"), timeline.indexOf("}", timeline.indexOf("export interface TimelineRecord {")));
     const fields = [...shape.matchAll(/^\s+(\w+)\??:/gm)].map((m) => m[1]).sort();
