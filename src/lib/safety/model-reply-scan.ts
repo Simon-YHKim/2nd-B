@@ -1,7 +1,7 @@
 // What the gate may overlook in a MODEL REPLY, and what it records when it replaces one.
 // Kept out of classifier.ts and lexicon.ts: nothing here applies to what the USER wrote, and
 // the gate terms and the input scan stay exactly as they are.
-import { classifyInput, matchesJoinedKoTerm, type ClassifyOptions, type SafetyResult } from "./classifier";
+import { classifyInput, classifyInputAnyLocale, matchesJoinedKoTerm, type ClassifyOptions, type SafetyResult } from "./classifier";
 import { hasCrisisRiskContext } from "./crisis-context";
 import { CRISIS_EVENT_CATEGORY_LIMIT, classifierReportedCategories, recordableCrisisCategories } from "./crisis-event-categories";
 import { CRISIS_TERMS, type Locale } from "./lexicon";
@@ -23,11 +23,16 @@ export const MODEL_REPLY_BENIGN_OVERLAPS: readonly string[] = ["다짐이 되", 
 
 // The reply as the gate normalizes it, with each listed word blanked out in
 // place. Only the listed occurrence is masked: the same term standing anywhere
-// else in the reply is still there for the unchanged matcher.
+// else in the reply is still there for the unchanged matcher. Since the gate also
+// matches a spaced term typed without its spaces (Q-261014-90), each listed word is
+// blanked in its one fully joined spelling too ("다짐이되"): the same word, not a
+// new entry, so a reply gets the same answer however that word is spaced.
 export function maskModelReplyOverlaps(text: string): string {
   let scan = text.normalize("NFKC").toLowerCase().replace(/\s+/g, " ");
   for (const overlap of MODEL_REPLY_BENIGN_OVERLAPS) {
-    scan = scan.split(overlap).join(" ".repeat(overlap.length));
+    for (const form of new Set([overlap, overlap.replace(/ /g, "")])) {
+      scan = scan.split(form).join(" ".repeat(form.length));
+    }
   }
   return scan;
 }
@@ -39,8 +44,9 @@ export interface ModelReplyOptions extends ClassifyOptions {
 }
 
 export interface ModelReplyOverlapCheck {
-  // The strict answer, exactly as classifyInput gives it. This is the reply's
-  // zone. Nothing in this file turns a red reply into anything else.
+  // The strict answer, exactly as classifyInputAnyLocale gives it: both languages
+  // whatever the screen's, so a Korean reply on an English screen is still read.
+  // This is the reply's zone. Nothing in this file turns a red reply into anything else.
   strict: SafetyResult;
   // True when the reply is red ONLY through the listed words: a candidate for a
   // meaning-level check of the whole reply, never a verdict. A word list cannot
@@ -75,7 +81,7 @@ export function gateTermsLeft(maskedReply: string): string[] {
 // test the existing exceptions sit behind). Never use this for what the user
 // wrote.
 export function checkModelReplyOverlaps(text: string, locale: Locale, opts: ModelReplyOptions = {}): ModelReplyOverlapCheck {
-  const strict = classifyInput(text, locale, opts);
+  const strict = classifyInputAnyLocale(text, locale, opts);
   if (strict.zone !== "red" || opts.benignOverlaps !== true || opts.minor !== false) {
     return { strict, candidate: false };
   }
