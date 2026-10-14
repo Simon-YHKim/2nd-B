@@ -89,9 +89,6 @@
     "personal": "Guardado como tu formato personal.",
     "shared": "Formato guardado y compartido."
   },
-  "firstRun": {
-    "hint": "Escribe tu primera frase. Después de guardarla, podrás verla en Registros."
-  },
   "saved": {
     "title": "Fragmento guardado",
     "ocrTitle": "Tu nota de foto está guardada",

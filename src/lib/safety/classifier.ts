@@ -96,7 +96,7 @@ export function classifyInput(text: string, locale: Locale, opts: ClassifyOption
   const crisisMatches: string[] = [];
   const crisisScanText = prepareCrisisScanText(text);
   for (const term of CRISIS_TERMS[locale]) {
-    if (matchesTerm(crisisScanText, term, locale)) crisisMatches.push(term);
+    if (matchesTerm(crisisScanText, term, locale) || (locale === "ko" && matchesJoinedKoTerm(crisisScanText, term))) crisisMatches.push(term);
   }
   if (crisisMatches.length > 0) {
     const h = pickCrisisHotline(locale, opts.minor);
@@ -158,4 +158,21 @@ export function containsAnalysisForbidden(text: string, locale: Locale): string[
     if (matchesTerm(text, term, locale)) hits.push(term);
   }
   return hits;
+}
+
+// Simon 2026-10-14 (Q-261014-90 가): a Korean gate term written with a space also counts when it
+// is typed without one ("다 끝내고싶어"). Each spaced term gets exactly one more form, the one with
+// all of its spaces taken out, and that form is looked for in the text as it stands: the text's
+// own spaces are never removed, so a match cannot reach across a word boundary the person typed
+// ("마지막인 사진" is not "마지막 인사"). A joined form that is a term of its own (죽고싶, 끝낼거)
+// is left to that term, so `matched` names the same terms as before for those. Other endings
+// ("끝낼게", "끝내버리고") are not covered here. The proxies' hasCrisisTerm copies
+// (supabase/functions/_shared/llm-proxy-common.ts, gemini-proxy/index.ts) do the same; the parity
+// test runs both. Defined here, after every line docs/legal cites, so no cited line moves.
+export function matchesJoinedKoTerm(haystack: string, term: string): boolean {
+  const spaced = term.normalize("NFKC").toLowerCase();
+  if (!spaced.includes(" ")) return false;
+  const joined = spaced.replace(/ /g, "");
+  if (CRISIS_TERMS.ko.some((other) => other.normalize("NFKC").toLowerCase() === joined)) return false;
+  return haystack.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").includes(joined);
 }

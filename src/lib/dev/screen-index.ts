@@ -190,9 +190,9 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         auth: true,
         qaVariants: [
           {
-            label: "첫 실행 안내",
+            label: "첫 실행 진입",
             href: "/capture?entry=firstRun",
-            note: "온보딩이 넘겨주는 진입. `firstRun` 플래그가 일기 모드에 '한 문장이면 충분' 힌트를 붙이고, `hasFullCaptureParams` 가 딥스페이스에서 CaptureView 대신 전체 intake 를 연다",
+            note: "온보딩이 넘겨주는 진입. `hasFullCaptureParams` 가 딥스페이스에서 CaptureView 대신 전체 intake 를 연다. 일기 모드 아래 따로 붙던 첫 실행 줄은 머리글 TIP 과 같은 말이라 지웠다(Q-261014-88)",
           },
         ],
       },

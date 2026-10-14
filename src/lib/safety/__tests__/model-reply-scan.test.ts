@@ -185,6 +185,58 @@ describe("checkModelReplyOverlaps", () => {
   });
 });
 
+// Review r1 on #2514: the strict answer read only the screen's language, so a Korean crisis reply on
+// an English screen came back green and the two-language check after it never ran.
+describe("the strict answer reads both languages whatever the screen's", () => {
+  test.each([
+    ["다 끝내고싶다는 마음이 드시는군요.", "en"],
+    ["다 끝내고 싶다는 마음이 드시는군요.", "en"],
+    ["죽고 싶다는 생각이 계속 드는군요.", "en"],
+    ["You said you keep thinking you want to die.", "ko"],
+  ] as const)("%s on the %s screen is red and never a candidate", (reply, locale) => {
+    const check = checkModelReplyOverlaps(reply, locale, ADULT);
+    expect(check.strict).toEqual(classifyInputAnyLocale(reply, locale, { minor: false }));
+    expect([check.strict.zone, check.candidate]).toEqual(["red", false]);
+  });
+
+  test.each(ORDINARY_REPLIES)("an ordinary Korean reply on the English screen gets the Korean screen's answer: %s", (reply) => {
+    const onEnglish = checkModelReplyOverlaps(reply, "en", ADULT);
+    expect([onEnglish.strict.zone, onEnglish.candidate]).toEqual(["red", true]);
+    expect(checkModelReplyOverlaps(reply, "en", { minor: true, benignOverlaps: true }).candidate).toBe(false);
+  });
+});
+
+// Q-261014-90: the gate also matches a spaced term typed without its spaces, so each listed word is
+// blanked in its joined spelling too. Same word, same answer, however it is spaced.
+describe("a listed word typed without its space", () => {
+  const joined = (reply: string): string => {
+    let out = reply;
+    for (const overlap of MODEL_REPLY_BENIGN_OVERLAPS) out = out.split(overlap).join(overlap.replace(/ /g, ""));
+    return out;
+  };
+
+  test.each(ORDINARY_REPLIES)("spaced and joined get the same candidate answer: %s", (reply) => {
+    const together = joined(reply);
+    expect(together).not.toBe(reply);
+    for (const text of [reply, together]) {
+      const check = checkModelReplyOverlaps(text, "ko", ADULT);
+      expect([text, check.strict.zone, check.candidate]).toEqual([text, "red", true]);
+      expect(checkModelReplyOverlaps(text, "ko", { minor: true, benignOverlaps: true }).candidate).toBe(false);
+    }
+  });
+
+  it("blanks only the listed word: a joined crisis term elsewhere in the reply still stops it", () => {
+    for (const reply of ["오늘의 작은 다짐이되어 줄 거예요. 다 끝내고싶어", "더이상살펴보지 않아도 됩니다. 사라지고싶다는 말씀도요."]) {
+      const check = checkModelReplyOverlaps(reply, "ko", ADULT);
+      expect([reply, check.strict.zone, check.candidate]).toEqual([reply, "red", false]);
+    }
+  });
+
+  it("the list and its four words are unchanged", () => {
+    expect(MODEL_REPLY_BENIGN_OVERLAPS).toEqual(["다짐이 되", "마음가짐이 되", "몸가짐이 되", "더 이상 살펴"]);
+  });
+});
+
 describe("gateTermsLeft", () => {
   it("is the bare term test of both languages, with no whole-message exception", () => {
     expect(gateTermsLeft("자살할 생각은 없어")).toEqual(["자살"]);
