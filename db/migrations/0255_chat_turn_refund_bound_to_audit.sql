@@ -21,8 +21,13 @@
 --      여기서 지운다. 옛 올리기는 그대로 둔다(옛 설치본이 부른다 · 그 턴에는 예약이 없으므로 환불도 없다).
 --   3. claim_chat_turn_for_audit(p_user_id, p_audit_id, p_turn_id): 프록시(service_role)만 부른다. 답의 감사 줄을 쓴
 --      직후에 부르고, 넷이 모두 맞을 때만 예약 줄에 그 감사 줄을 묶는다: 예약의 주인이 그 사용자다 · 아직 답이 묶인
---      적 없다 · 5분 안에 만든 예약이다 · 감사 줄이 그 사용자의 것이고 프록시가 쓴 대화 줄이며 60초 안에 생겼다.
---      한 문장으로 묶으므로 같은 예약에 답 둘이 동시에 와도 하나만 묶인다. 감사 줄 하나는 예약 하나에만 묶인다(고유).
+--      적 없거나, 묶였지만 아직 돌려주지 않았고 다시 묶은 적이 없다 · 5분 안에 만든 예약이다 · 감사 줄이 그 사용자의
+--      것이고 프록시가 쓴 대화 줄이며 60초 안에 생겼다. 둘째 경우가 "다시 묻기"다(5회차 · 대표님 2026-10-14 20:40
+--      「네 번 막힌 #2438: 5회차: 다시 묻기 한 번은 서버가 그 예약에 다시 묶게 + 응답 유실 회귀 → 5회차 검토」 ·
+--      Q-261014-20 「잃은 답은 횟수 없이 한 번 다시 묻기」): 묶인 답이 앱에 닿지 못하면 앱은 같은 번호로 한 번 다시
+--      묻고, 서버는 그 답으로 바꿔 묶는다(rebound = true · 앞 답의 감사 줄은 어디에도 묶이지 않게 된다). 셋째 답은
+--      묶지 않는다. 한 문장으로 묶으므로 같은 예약에 답이 동시에 와도 묶인 답은 하나로 정해진다. 감사 줄 하나는 예약
+--      하나에만 묶인다(고유).
 --   4. refund_chat_turn_after_output_swap(p_audit_id): 넘겨받은 감사 줄 하나만 본다. 본인 것 · server_verified ·
 --      secondb_chat · red · 10분 안 · 아직 안 쓴 것이어야 하고, 그 줄이 묶인 본인의 예약이 있어야 한다. **그 예약에
 --      적힌 날**의 횟수를 1 내리고 예약을 refunded 로 바꾼다. 날짜 인자는 없다. 맞지 않으면 NULL 이고 아무것도 바꾸지
@@ -55,6 +60,9 @@
 -- 남용: 0252 와 같다. 하루 한도는 클라이언트가 호출 전에 RPC 를 부르는 것으로만 걸린다. 이 파일이 지키는 것은
 --   "돌려주는 횟수는 예약 하나에 하나, 그 예약이 센 날에만, 프록시가 쓴 red 줄이 그 예약에 묶였을 때만"이다.
 --   변조한 앱이 고를 것은 없다: 묶일 수 있는 예약은 그 사용자의 가장 최근 예약 하나뿐이다(앞선 것은 다음 올리기가 닫는다).
+--   다시 묻기: 서버는 응답이 사라진 다시 묻기와 일부러 한 번 더 묻기를 가리지 못한다. 변조한 앱은 한 턴에 답을 하나 더
+--   받을 수 있지만, 그런 앱은 처음부터 올리기를 부르지 않을 수도 있으므로 새로 열리는 것은 없다. 돌려주는 횟수는
+--   그대로 예약 하나에 하나 · 그 예약이 센 날이다.
 -- 권한: bump… 과 refund… 는 authenticated 만, claim… 은 service_role 만 EXECUTE. 트리거 함수는 누구도 직접 부를 수 없다.
 -- 삭제: 예약 줄은 계정을 지우면 따라 지워진다(users 를 따라). 내용 삭제(erase_my_data)는 건드리지 않는다. 삭제
 --   등록부에는 0258 이 올린다.
@@ -87,6 +95,7 @@ CREATE TABLE IF NOT EXISTS public.chat_turn_reservations (
   audit_id    uuid,
   answered_at timestamptz,
   refunded_at timestamptz,
+  rebound     boolean     NOT NULL DEFAULT false,
   CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id),
   CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id),
   CONSTRAINT chat_turn_reservations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE,
@@ -94,7 +103,7 @@ CREATE TABLE IF NOT EXISTS public.chat_turn_reservations (
   CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL))
 );
 COMMENT ON TABLE public.chat_turn_reservations IS
-  'One row per counted chat turn (0255): who, the day it was counted on, and the proxy audit row that answered it. Ids, days and times only, no content. Rows older than two days are removed by the next bump.';
+  'One row per counted chat turn (0255): who, the day it was counted on, the proxy audit row that answered it, and whether that answer is the one re-ask of the turn. Ids, days, times and that flag only, no content. Rows older than two days are removed by the next bump.';
 
 CREATE INDEX IF NOT EXISTS chat_turn_reservations_user_issued_idx
   ON public.chat_turn_reservations (user_id, issued_at);
@@ -111,7 +120,7 @@ DECLARE
   v_want  constant text :=
     'turn_id:uuid:t:gen_random_uuid()|user_id:uuid:t:-|counted_day:date:t:-|issued_at:timestamp with time zone:t:now()'
     || '|state:text:t:''counted''::text|audit_id:uuid:f:-|answered_at:timestamp with time zone:f:-'
-    || '|refunded_at:timestamp with time zone:f:-';
+    || '|refunded_at:timestamp with time zone:f:-|rebound:boolean:t:false';
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class AS c
                   WHERE c.oid = v_rel AND c.relkind = 'r' AND c.relpersistence = 'p' AND c.relrowsecurity
@@ -373,16 +382,20 @@ BEGIN
   END IF;
 
   BEGIN
-    -- The reservation: this user's, not answered yet, made in the last five minutes. One statement, so
-    -- two answers arriving for one reservation cannot both take it.
+    -- The reservation: this user's, made in the last five minutes, and either not answered yet or answered,
+    -- not given back and not asked again yet. The second is the one re-ask (Q-261014-20): the answer bound to
+    -- the turn never reached the app, and the app asks once more with the same turn. The new answer takes the
+    -- place of the first, whose row is then bound to nothing, and there is no third. One statement, so answers
+    -- arriving at once for one reservation leave exactly one of them bound.
     UPDATE public.chat_turn_reservations AS r
        SET state = 'answered',
            audit_id = p_audit_id,
-           answered_at = v_now
+           answered_at = v_now,
+           rebound = (r.state = 'answered')
      WHERE r.turn_id = p_turn_id
        AND r.user_id = p_user_id
-       AND r.state = 'counted'
-       AND r.audit_id IS NULL
+       AND ((r.state = 'counted' AND r.audit_id IS NULL)
+            OR (r.state = 'answered' AND NOT r.rebound AND r.audit_id IS DISTINCT FROM p_audit_id))
        AND r.issued_at >= v_now - interval '5 minutes'
        AND r.issued_at <= v_now
     RETURNING r.turn_id INTO v_done;
