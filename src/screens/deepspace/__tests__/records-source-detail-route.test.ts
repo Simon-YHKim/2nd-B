@@ -214,7 +214,16 @@ describe("deep-space records source detail routing", () => {
       // byte-for-byte from HEAD's copy, so this change is the only delta in the slice.
       // 2026-10-08: list/graph uses the scoped SceneTransition. Removing the
       // two wrapper tags reproduces 2444ee96; data and detail routing stay exact.
-      "261f51af581c332fbfc14f40919f95d230ff4a223a661cb6ad0d222f65d37603",
+      //
+      // Re-pinned 2026-10-14 (Z80, Simon 2026-10-13): a count that was not read is not
+      // zero. While the records read is pending or has failed, the triage card's title
+      // and the graph's count show "..." instead of 0, and the card's spoken name says
+      // loading / could not load. Eleven lines in, three out, all in the count lines and
+      // the triage card: slice 19,985 -> 20,421 chars / 477 -> 485 lines. The data read,
+      // the filters and the detail routing are untouched. Verified before re-pinning: the
+      // previous digest 261f51af581c332fbfc14f40919f95d230ff4a223a661cb6ad0d222f65d37603
+      // recomputes byte-for-byte from origin/main's copy of this file.
+      "6f14103c794fa937f15f34e045ff7c170bf9dee817eb3be4dcfdcdf86b52ab59",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,
