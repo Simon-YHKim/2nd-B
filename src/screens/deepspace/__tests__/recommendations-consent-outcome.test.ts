@@ -60,7 +60,7 @@ function harness(options: { consentRecorded?: boolean; consentThrows?: boolean }
     setUnderstanding: () => undefined,
     setRecOn: (on: boolean) => { calls.recOn.push(on); },
     setRecError: (on: boolean) => { calls.recError.push(on); },
-    fetchPrivacyPrefs: async () => ({ recommendations: false }),
+    readPrivacyPrefsStrict: async () => ({ recommendations: false }),
     savePrivacyPrefs: async (_id: string, prefs: { recommendations: boolean }) => {
       calls.saved.push(prefs.recommendations);
     },
