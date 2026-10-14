@@ -1,5 +1,21 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 21:24 / 2ndb-e7: #2438 5회차가 독립 검토에서 막혀 멈춤 - 대표님께 Q-261014-38 - 다음 1개는 그 답
+
+- **판정**: 5회차 BLOCK(21:18 · `gates/q67bind-daybreak-r5.txt`). 4회차 막힘(응답 유실 뒤 다시 묻기)은 닫힘. 새 막힘 R2438-17: 1.5초를 넘긴 첫 답의 늦은 묶기가 다시 물은 답의 묶임을 덮어씀. 새 우려: 다시 묶기 길로 변조한 앱이 앞선 답한 예약을 고름 · 받은 초록 뒤 다시 물어 빨강으로 환불 · 재시도 창 5분.
+- **물음**: Q-261014-38(보고서 14판 https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg). 추천 = 4회차 판으로 되돌려 머지(5회차 커밋을 `git revert` 로 되돌리되 R2438-16 의 시험 보강은 남김 · 4회차 BLOCK 을 대표님 결정으로).
+- **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `f17900d7`(5회차 · CI 초록). 4회차 머리는 `7e596603`. 워크트리 `.worktrees/refund-bind-261013`.
+- **다음 1개**: Q-38 의 답. 답 전에는 #2438 을 고치지 않는다.
+- **번호**: 10-14 물음은 이 세션 30 ~ 39(38 까지 씀 · 다음 39).
+
+## 2026-10-14 21:10 / 2ndb-e7: #2438 5회차(다시 묻기 한 번을 서버가 다시 묶음)를 지어 CI 초록 · 독립 검토 5회차 진행 중 - 다음 1개는 그 판정
+
+- **대표님 답(20:40 · 이 창에 직접)**: Q-261014-37 = 5회차(다시 묻기 한 번은 서버가 그 예약에 다시 묶게 + 응답 유실 회귀 → 5회차 검토). 원문은 DECISIONS 26.10.14 21:10 줄.
+- **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `f17900d7`(main 합침 · CI 넷 초록 20:55). 워크트리 `.worktrees/refund-bind-261013`(정션 있음).
+- **바꾼 것**: 예약의 `rebound` 칸 · 묶기가 답한 예약을 같은 번호의 다음 답에 한 번 다시 묶음 · 회귀의 응답 유실 절 · 예약 픽스처 시각과 4분 지침 · CI 묶기 경합 셋.
+- **다음 1개**: 5회차 판정(`E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r5.txt`). 통과면 머지 → `build_apply_0255_r3.py <main> <dir>` 로 0255 · 0258 블록 → `apply0255_r3_trials.sh` → Relay → 보고(운영 적용 · `openai-proxy` 재배포는 Relay 실행 뒤). 막히면 멈추고 여쭘.
+- **준비물**: 과제서 `q67bind-r5.md` · 잰 것 `gates/q67bind-facts-r5.md` · 묶음 생성기 `<scratchpad>/build_gate_q67bind_r5.py` · 변이 `verify_0255_v5.sh` · `mut_0255_static_v5.py`.
+- **번호**: 새 마이그레이션 0260 부터. 10-14 물음은 이 세션 30 ~ 39(37 까지 씀 · 다음 38).
 ## 2026-10-14 21:10 / 2ndb-79: 밤 인수 — 옛 등급 이름 정리 끝(#2492) · 막힌 PR 둘(#2483 · #2497)이 대표님 답(Q-261014-81 · 82 · 83)을 기다림
 
 - **#2483**(위기 낱말로 앱이 끊은 대화를 횟수에서 빼기): 가지 `fix/chat-device-red-not-counted` · 워크트리 `.worktrees/z40-chat-retry-261014` · 머리 `946d03f5`(CI 초록) · 독립 검토 5회 모두 BLOCK(코드 결함 없음) · Q-261014-81. 머지하면 8081 '후': `crisiscount-shots` 방식 그대로 `node "E:/Coding Infra/reports/devlab-261010/ui/z-crisiscount/chat_device_red_shots.cjs" after <out>`(기대: 「오늘 14/250」 그대로 · bump 0 · 읽은 표 chat_usage 하나). 머지 뒤 `src/lib/legal/__tests__/conversation-cited-lines.test.ts`(#2497 이 넣을 예정)의 396 줄 수와 맞출 것.
