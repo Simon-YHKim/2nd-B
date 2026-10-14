@@ -158,8 +158,8 @@
     "advisor": {
       "label": "Tanya HustleK soal entri ini",
       "helper": "Nonaktif secara default. Nyalakan jika kamu ingin tanggapan HustleK.",
-      "lockedLabel": "Tanya HustleK soal entri ini (Brain)",
-      "lockedHelper": "Refleksi atas entri terbuka dengan paket Brain. Ketuk untuk lihat paket.",
+      "lockedLabel": "Tanya HustleK soal entri ini (Bintang Utara)",
+      "lockedHelper": "Refleksi atas entri terbuka dengan paket Bintang Utara. Ketuk untuk lihat paket.",
       "lockedHint": "Membuka layar paket."
     }
   },
