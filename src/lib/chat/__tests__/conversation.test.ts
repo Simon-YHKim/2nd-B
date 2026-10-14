@@ -103,6 +103,7 @@ jest.mock("@/lib/llm/boundary", () => ({
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 
 import { sendChatMessage } from "../conversation";
 import { callLlm, classifyChatTextForCrisis } from "@/lib/llm/boundary";
@@ -438,6 +439,80 @@ describe("sendChatMessage", () => {
       expect(line(259)).toContain("includeSavedConversations: true");
       expect(line(260)).toContain("includeSavedConversations: true");
       // :310 and :352 are held by dpia-crisis-rail-anchors.test.ts (wiki_snapshot, SYSTEM_PROMPT_HEADER).
+    });
+
+    // The tests above read strings, and the unit tests further up mock the boundary call. So a
+    // guard at the top of the helper such as `if (input.history?.length) return null;` passed all
+    // of them: a red message sent with history would then read the context and be counted before
+    // callLlm cut it (review N-02, 2026-10-14). The two tests below hold the syntax itself.
+    const AST = ts.createSourceFile("conversation.ts", SRC, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    /** A node as written, with every run of whitespace folded to one space. */
+    const norm = (node: ts.Node): string => node.getText(AST).replace(/\s+/g, " ");
+    const texts = (nodes: readonly ts.Node[] | undefined): string[] => (nodes ?? []).map((node) => norm(node));
+    /** The one top-level function declaration of that name. */
+    const topLevelFn = (name: string): ts.FunctionDeclaration => {
+      const found = AST.statements.filter(
+        (node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === name,
+      );
+      expect([name, found.length]).toEqual([name, 1]);
+      return found[0];
+    };
+    /** How many identifiers of that name the file has, declarations and imports included. */
+    const mentions = (name: string): number => {
+      let count = 0;
+      const visit = (node: ts.Node): void => {
+        if (ts.isIdentifier(node) && node.text === name) count += 1;
+        ts.forEachChild(node, visit);
+      };
+      visit(AST);
+      return count;
+    };
+
+    test("the helper is exactly three statements: ask the boundary, pass a null on, answer with the usage as read", () => {
+      const helper = topLevelFn("answerDeviceRed");
+      expect(texts(helper.modifiers)).toEqual(["async"]);
+      expect(helper.asteriskToken).toBeUndefined();
+      expect(helper.typeParameters).toBeUndefined();
+      expect(texts(helper.parameters)).toEqual(["input: SendMessageInput", "usage: ChatLimitCheck"]);
+      expect(helper.type ? norm(helper.type) : "").toBe("Promise<SendMessageOk | null>");
+      expect(texts(helper.body?.statements)).toEqual([
+        "const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);",
+        "if (!reply) return null;",
+        'return { status: "ok", reply, used: usage.used, limit: usage.limit, remaining: usage.remaining };',
+      ]);
+
+      // The name those statements call is the boundary's own export: imported under its own name,
+      // and mentioned nowhere but that import and the one call, so nothing local can stand in for it.
+      const imported: string[] = [];
+      for (const node of AST.statements) {
+        if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) continue;
+        const from = node.moduleSpecifier.text;
+        const named = node.importClause?.namedBindings;
+        if (!named || !ts.isNamedImports(named)) continue;
+        for (const element of named.elements) {
+          if (element.name.text !== "classifyChatTextForCrisis") continue;
+          imported.push(`${(element.propertyName ?? element.name).text} from ${from}`);
+        }
+      }
+      expect(imported).toEqual(["classifyChatTextForCrisis from @/lib/llm/boundary"]);
+      expect(mentions("classifyChatTextForCrisis")).toBe(2);
+    });
+
+    test("in sendChatMessage the cut is the two statements right after the limit check, and the helper is called nowhere else", () => {
+      const body = topLevelFn("sendChatMessage").body;
+      if (!body) throw new Error("sendChatMessage has no body");
+      const isLimitCheck = (statement: ts.Statement): boolean =>
+        ts.isIfStatement(statement) && norm(statement.expression) === "!precheck.allowed";
+      expect(body.statements.filter(isLimitCheck)).toHaveLength(1);
+      const limitCheck = body.statements.findIndex(isLimitCheck);
+      // By statement index: nothing sits between the limit check and the cut, or between the
+      // verdict and its return.
+      expect(texts(body.statements.slice(limitCheck + 1, limitCheck + 3))).toEqual([
+        "const cut = await answerDeviceRed(input, precheck);",
+        "if (cut) return cut;",
+      ]);
+      // The helper's declaration and this one call.
+      expect(mentions("answerDeviceRed")).toBe(2);
     });
   });
 

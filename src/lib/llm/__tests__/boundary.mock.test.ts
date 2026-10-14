@@ -351,16 +351,33 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
       expect(found).toHaveLength(1);
       return found[0]!;
     };
+    /** A node as written, with every run of whitespace folded to one space. */
+    const norm = (node: ts.Node): string => node.getText(file).replace(/\s+/g, " ");
+    const texts = (nodes: readonly ts.Node[] | undefined): string[] => (nodes ?? []).map((node) => norm(node));
 
-    test("one verdict and one routing call, tagged as chat input, with no path to callLlm", () => {
-      const body = declaration().body?.getText(file) ?? "";
-      expect(body).not.toBe("");
-      expect(body).not.toMatch(/callLlm|callAdvisor|invoke/);
-      expect(body.split("classifyInputAnyLocale(")).toHaveLength(2);
-      expect(body.split("routeCrisis(")).toHaveLength(2);
-      expect(body).toContain('"input_red"');
-      expect(body).toContain('purpose: "secondb_chat"');
-      expect(body).toContain('if (safety.zone !== "red") return null;');
+    // Counting strings in the body does not hold this. A branch such as "in mock mode route the
+    // verdict, otherwise call the SDK" keeps every string the function has today, and every
+    // behaviour test in this file runs in mock mode, so it would take the routing branch and pass
+    // (review N-01, 2026-10-14). The declaration is held whole instead: its modifiers, its
+    // parameters, its return type, and a body of exactly these three statements. Any added
+    // statement, branch, default value or wrapper changes one of these lists.
+    test("the declaration is exactly one verdict, one early null and one direct routing call", () => {
+      const fn = declaration();
+      expect(texts(fn.modifiers)).toEqual(["export", "async"]);
+      expect(fn.asteriskToken).toBeUndefined();
+      expect(fn.typeParameters).toBeUndefined();
+      expect(texts(fn.parameters)).toEqual([
+        "text: string",
+        'locale: "en" | "ko"',
+        "userId: string",
+        "minor?: boolean",
+      ]);
+      expect(fn.type ? norm(fn.type) : "").toBe("Promise<LlmResult<string> | null>");
+      expect(texts(fn.body?.statements)).toEqual([
+        "const safety = classifyInputAnyLocale(text, locale, { minor });",
+        'if (safety.zone !== "red") return null;',
+        'return routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", { purpose: "secondb_chat" });',
+      ]);
     });
 
     // Legal documents cite eleven positions of this file by line number, so the function goes

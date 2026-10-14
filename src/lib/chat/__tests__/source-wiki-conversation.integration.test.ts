@@ -83,7 +83,7 @@ import { captureFromMarkdown } from "../../wiki/capture";
 import { generateSourcePage } from "../../wiki/phase2";
 import { exportUserWiki } from "../../wiki/export";
 import { getWikiPage } from "../../wiki/queries";
-import { sendChatMessage } from "../conversation";
+import { sendChatMessage, type SendMessageInput } from "../conversation";
 import { parseSourceCitations } from "../sources";
 import { CHAT_KEEP_TAG, composeExchangeBody, exchangeMarkdown } from "../keep-exchange";
 import * as boundary from "../../llm/boundary";
@@ -167,16 +167,36 @@ test("the composed conversation still runs the real safety classifier and record
   expect(JSON.stringify(mockTables.crisis_events)).not.toContain("I want to kill myself");
 });
 
+// Every optional input the engine takes, filled in. Required<> turns an optional field added to
+// SendMessageInput later into a type error here until it is filled too, so "every" stays true.
+const EVERY_OPTIONAL_INPUT: Required<Omit<SendMessageInput, "userId" | "message" | "locale" | "tier">> = {
+  displayName: "Alex",
+  personaHint: "Speak plainly.",
+  mode: "divergent",
+  minor: true,
+  history: [
+    { role: "user", text: "What did I record about the tool change?" },
+    { role: "assistant", text: ORIGINAL },
+  ],
+};
+// The second row is there because the cut must not depend on what else rides with the message:
+// a guard such as "with history, skip the verdict" would send a red turn on to the context reads
+// and the bump, and only the first row would still pass (review N-02, 2026-10-14).
+const RED_TURNS: [string, Partial<typeof EVERY_OPTIONAL_INPUT>][] = [
+  ["with the required inputs only", {}],
+  ["with every optional input filled, history included", EVERY_OPTIONAL_INPUT],
+];
+
 // Q-261014-30 (Simon 2026-10-14): the same turn seen from the seam. The engine, the boundary and
 // the outbox are real; what leaves them is counted at the Supabase client.
-test("a device-red turn is not counted, reads nothing but today's usage, and writes one audit row and one crisis row", async () => {
+test.each(RED_TURNS)("a device-red turn %s is not counted, reads nothing but today's usage, and writes one audit row and one crisis row", async (_label, optional) => {
   const calls = jest.spyOn(boundary, "callLlm");
   const realFetch = globalThis.fetch;
   const fetchSpy = jest.fn(async () => { throw new Error("Network forbidden in this fixture"); });
   globalThis.fetch = fetchSpy as unknown as typeof fetch;
   mockTouched.length = 0;
   try {
-    const result = await sendChatMessage({ userId: OWNER, message: "I want to kill myself", locale: "en", tier: "brain" });
+    const result = await sendChatMessage({ userId: OWNER, message: "I want to kill myself", locale: "en", tier: "brain", ...optional });
     if (result.status !== "ok") throw new Error("Expected fixed safety response");
     expect(result.reply.safety.zone).toBe("red");
     expect(result.reply.audit.modelUsed).toBe("none-crisis-routed");

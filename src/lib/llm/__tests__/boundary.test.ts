@@ -206,6 +206,44 @@ describe("callLlm", () => {
     expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("interview_input_red");
   });
 
+  // Q-261014-30: the chat engine's device verdict in THIS suite's environment, which is not mock
+  // mode (the "C3: normal flow" test above shows a green call here does reach the SDK).
+  // boundary.mock.test.ts runs the same function in mock mode only, where a branch such as "route
+  // in mock mode, call the model otherwise" would look the same (review N-01, 2026-10-14).
+  test("chat red routing reaches no model outside mock mode: no SDK call, no Supabase client, both ledgers", async () => {
+    const { classifyChatTextForCrisis } = jest.requireActual("../boundary") as typeof import("../boundary");
+    // Every proxy path goes through one of these two. With both ledger inserts mocked, nothing
+    // else in the boundary asks for them.
+    const client = jest.spyOn(
+      jest.requireActual("../../supabase/client") as typeof import("../../supabase/client"),
+      "getSupabaseClient",
+    );
+    const capturedInvoke = jest.spyOn(
+      jest.requireActual("../../supabase/captured-session-client") as typeof import("../../supabase/captured-session-client"),
+      "invokeFunctionWithCapturedSession",
+    );
+    try {
+      const result = await classifyChatTextForCrisis("죽고 싶어요", "ko", "chat-user", true);
+
+      expect(result?.safety.zone).toBe("red");
+      expect(mockGenerateContent).not.toHaveBeenCalled();
+      expect(client).not.toHaveBeenCalled();
+      expect(capturedInvoke).not.toHaveBeenCalled();
+      expect(insertMock).toHaveBeenCalledTimes(1);
+      expect(insertMock.mock.calls[0]![0]).toMatchObject({
+        userId: "chat-user",
+        purpose: "secondb_chat",
+        safetyZone: "red",
+        modelUsed: "none-crisis-routed",
+      });
+      expect(crisisMock).toHaveBeenCalledTimes(1);
+      expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("input_red");
+    } finally {
+      client.mockRestore();
+      capturedInvoke.mockRestore();
+    }
+  });
+
   test.each([
     ["ko", "모르겠어요"],
     ["en", "I'm not sure"],
