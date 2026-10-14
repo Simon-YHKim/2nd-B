@@ -261,6 +261,10 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     const regression = read('db/tests/chat_turn_refund_regression.sql');
     expect(regression).toMatch(/SET LOCAL request\.jwt\.claim\.role = 'service_role';\s+DO \$mixed\$/);
     expect(regression).toMatch(/SET LOCAL request\.jwt\.claim\.role = 'anon';\s+SET LOCAL request\.jwt\.claims = '\{"role":"service_role"\}';\s+DO \$mixed2\$/);
+    // and once where only the AFTER trigger runs: a change of the zone that does not name event_source
+    expect(regression).toMatch(
+      /SAVEPOINT z46_mixed_retarget;\s+SET LOCAL request\.jwt\.claim\.role = 'anon';\s+SET LOCAL request\.jwt\.claims = '\{"role":"service_role"\}';\s+DO \$mixed_retarget\$\s+BEGIN\s+BEGIN\s+PERFORM public\.z46_retarget\('zone'\);/,
+    );
   });
 
   it('있는 줄의 값은 건드리지 않고, 스스로 트랜잭션을 열거나 닫지 않는다', () => {

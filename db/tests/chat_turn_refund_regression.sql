@@ -651,6 +651,25 @@ SELECT pg_temp.z46_assert((SELECT user_id = '26101346-0000-4000-8000-00000000000
                                   AND created_at < pg_catalog.now() - interval '20 seconds'
                              FROM public.ai_audit_log WHERE id = '26101346-4000-4000-8000-000000000021'),
                           'an evidence column of a server row changed, or the guard stopped a change that is not evidence');
+-- The same change with the three places disagreeing: one says anon, the claims say service_role, no role is
+-- set. This statement does not name event_source, so only the AFTER trigger sees it, and it must read each
+-- place on its own.
+SAVEPOINT z46_mixed_retarget;
+SET LOCAL request.jwt.claim.role = 'anon';
+SET LOCAL request.jwt.claims = '{"role":"service_role"}';
+DO $mixed_retarget$
+BEGIN
+  BEGIN
+    PERFORM public.z46_retarget('zone');
+    RAISE EXCEPTION 'z46 regression failed: the zone of a server_verified row changed under role signals that disagree';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END
+$mixed_retarget$;
+ROLLBACK TO SAVEPOINT z46_mixed_retarget;
+SELECT pg_temp.z46_assert((SELECT safety_zone = 'red' FROM public.ai_audit_log WHERE id = '26101346-4000-4000-8000-000000000021'),
+                          'the zone of the server row is not what the proxy wrote');
 -- A row may lose its owner under any role, and only that: with another evidence column changed in
 -- the same statement it is refused. A row without an owner gives nobody a turn back.
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-000000000022', '26101346-0000-4000-8000-00000000000a', 'server_verified', 'secondb_chat', 'red', interval '5 seconds', '26101346-7000-4000-8000-000000007005');
