@@ -115,9 +115,6 @@
     "personal": "Saved as your personal format.",
     "shared": "Saved and shared your new format."
   },
-  "firstRun": {
-    "hint": "Start with a short note. You can find it in Records later."
-  },
   "saved": {
     "title": "Piece saved",
     "ocrTitle": "Your photo note is saved",
