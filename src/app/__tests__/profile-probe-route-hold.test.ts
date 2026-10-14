@@ -290,7 +290,7 @@ const RECORDS = parse("src/screens/deepspace/dds-wiki-records-screens.tsx");
 const RECORDS_LOAD = toJs(
   `(${only(
     find(functionDeclaration(RECORDS, "DeepSpaceRecordsScreen"), isCallTo("useEffect")).filter(
-      (call) => call.arguments.length > 0 && containsIdentifier(call.arguments[0], "listRecentRecords"),
+      (call) => call.arguments.length > 0 && containsIdentifier(call.arguments[0], "listAllRecords"),
     ),
     "records-load useEffect in DeepSpaceRecordsScreen",
   ).arguments[0].getText(RECORDS)})`,
@@ -311,7 +311,7 @@ function recordsScene(reads: Reads) {
       setLoading: () => undefined,
       setLoadError: () => undefined,
       setRecords: () => undefined,
-      listRecentRecords: async (id: string) => {
+      listAllRecords: async (id: string) => {
         reads.records.push(id);
         return [];
       },

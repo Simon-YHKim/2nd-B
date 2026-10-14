@@ -223,7 +223,16 @@ describe("deep-space records source detail routing", () => {
       // the filters and the detail routing are untouched. Verified before re-pinning: the
       // previous digest 261f51af581c332fbfc14f40919f95d230ff4a223a661cb6ad0d222f65d37603
       // recomputes byte-for-byte from origin/main's copy of this file.
-      "6f14103c794fa937f15f34e045ff7c170bf9dee817eb3be4dcfdcdf86b52ab59",
+      //
+      // Re-pinned 2026-10-14 (wiki list reads every record): the list borrowed the
+      // streak's 90-day read, so a record older than that was never listed (16 of 69
+      // production rows). The one read call is now listAllRecords(userId), with a
+      // two-line comment above it: slice 20,421 -> 20,595 chars / 485 -> 487 lines.
+      // Nothing else in the slice moves (the error state, the sources read, the
+      // filters, the counts and the detail routing). Verified before re-pinning: the
+      // previous digest 6f14103c794fa937f15f34e045ff7c170bf9dee817eb3be4dcfdcdf86b52ab59
+      // recomputes byte-for-byte from origin/main's copy of this file.
+      "636738059104fd42b1019a1c496753709426ece280062b0cfaee56e9f71028f7",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,

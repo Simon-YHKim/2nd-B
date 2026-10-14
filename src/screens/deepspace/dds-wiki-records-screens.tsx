@@ -28,7 +28,8 @@ import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
-import { listRecentRecords, listRecordsByIds } from "@/lib/records/create";
+import { listRecordsByIds } from "@/lib/records/create";
+import { listAllRecords } from "@/lib/records/list-all-records";
 import { buildRoleRecordsGraph } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { getWikiPageById, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
@@ -328,7 +329,9 @@ export function DeepSpaceRecordsScreen() {
       let recs: RecordsTimelineRecord[] = [];
       let recordsFailed = false;
       try {
-        recs = (await listRecentRecords(userId)) as RecordsTimelineRecord[];
+        // Every record, not the 90-day window listRecentRecords keeps for the streak: a record
+        // older than that was never asked for and so never listed (2026-10-14).
+        recs = (await listAllRecords(userId)) as RecordsTimelineRecord[];
       } catch {
         recordsFailed = true;
       }
