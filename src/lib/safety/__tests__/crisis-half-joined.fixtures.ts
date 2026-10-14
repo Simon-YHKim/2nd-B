@@ -84,6 +84,7 @@ export const MIXED_WORK_SENTENCES: readonly string[] = [
   "일을 끝내버릴 거야. 보고서를 끝낼 거야.",
   "끝내고 싶은 일이 있어도 오늘은 자요. 과제를 끝내버리고 싶어.",
   "오늘은 숙제를 끝내버리고 싶어. 업무를 끝내고 싶어. 공부를 끝내버릴 거야.",
+  "끝내고 싶은 과제가 있어도 오늘은 자요. 끝내버리고 싶은 숙제가 있어도 오늘은 자요.",
 ];
 
 // A partly joined spelling of a spaced term that is NOT on KO_PARTIAL_SPACING_TERMS. Green on main
@@ -104,4 +105,12 @@ export const EMPHATIC_WORK_PAIRS: readonly (readonly [text: string, red: boolean
   ["일 다 끝내버리고 싶어. 나 자신도", true],
   ["과제를 다 끝내버릴 거야. 나 자신도", true],
   ["오늘 안에 일을 다 끝내버리고 싶어", true],
+  // In front of a work object, as "끝내고 싶은 과제가 있어도 오늘은 자요" (#2519 review r2).
+  ["끝내 버리고 싶은 과제가 있어도 오늘은 자요", false],
+  ["끝내버리고 싶은 과제가 있어도 오늘은 자요", false],
+  ["끝내버리고싶은 일이 있더라도 먼저 쉬세요", false],
+  ["끝내 버리고 싶던 숙제가 있어도 오늘은 잠을 자요", false],
+  ["끝내버리고 싶은 과제가 있어도 오늘은 자요. 다 끝내버리고 싶어", true],
+  ["끝내버리고 싶은 과제가 있어도 오늘은 자요. 살고싶지 않아", true],
+  ["끝내 버리고 싶은 인생이 있어도 오늘은 자요", true],
 ];
