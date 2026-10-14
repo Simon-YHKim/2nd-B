@@ -34,7 +34,7 @@ test("conversation.ts keeps every line the DPIA cites, word for word, at its num
   expect(CITED.map(([n]) => [n, lines[n - 1]])).toEqual(CITED.map(([n, text]) => [n, text]));
 });
 
-test("conversation.ts is 396 lines long", () => {
+test("conversation.ts is 405 lines long", () => {
   // The split leaves one empty string after the final newline.
-  expect(lines.length - 1).toBe(396);
+  expect(lines.length - 1).toBe(405);
 });
