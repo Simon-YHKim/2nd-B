@@ -255,12 +255,14 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(step).toContain("drop the retained_until_applied exception");
     // 71 baseline rows + five from 0226 (interview sessions, transcript head and turns,
     // context-block ids, the session-start counter) + two weather tables from 0233
-    // + two dashboard tables from 0237 + the import receipt from 0240.
+    // + two dashboard tables from 0237 + the import receipt from 0240 + the chat turn reservations from 0258.
     const registry = JSON.parse(read("db/erasure-registry.json"));
-    expect(Object.keys(registry.tables)).toHaveLength(81);
+    expect(Object.keys(registry.tables)).toHaveLength(82);
     expect(registry.tables.profile_context_imports).toMatchObject({ owner: "user_id", class: "retained" });
-    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 81");
-    expect(step).toContain("81 registry rows, contracts and ACL verified");
+    expect(registry.tables.chat_turn_reservations).toMatchObject({ owner: "user_id", class: "account_delete_only" });
+    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 82");
+    expect(step).toContain("82 registry rows, contracts and ACL verified");
+    expect(step).toMatch(/WHERE table_name='chat_turn_reservations' AND owner_column='user_id'\s+AND class='account_delete_only' AND delete_order IS NULL AND cascades_from IS NULL\) <> 1/);
     expect(step).toMatch(/WHERE table_name='profile_context_imports' AND owner_column='user_id'\s+AND class='retained' AND delete_order IS NULL AND cascades_from IS NULL\) <> 1/);
     expect(step).toContain("('0201', 'rss_proxy_erasure_registry')");
     expect(step).not.toMatch(/\\i db\/migration-drafts\/UNNUMBERED_/);
