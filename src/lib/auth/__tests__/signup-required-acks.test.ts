@@ -188,7 +188,7 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain("<ProviderBrandIcon provider={provider} />");
     expect(screen).not.toContain('name="account"');
     expect(screen).toContain('flexWrap: "wrap"');
-    expect(screen).toContain('providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 149 }');
+    expect(screen).toContain('providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 112 }');
     expect(screen).toContain("disabled={formLocked}");
   });
 
