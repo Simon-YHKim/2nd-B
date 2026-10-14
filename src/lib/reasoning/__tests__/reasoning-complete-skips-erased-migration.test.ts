@@ -210,6 +210,9 @@ describe('0253 · 0256 을 CI 가 실제로 돌린다', () => {
     expect(cleanup).toMatch(/CREATE DATABASE \$clone_db TEMPLATE \$source_db/);
     expect(cleanup).toMatch(/-d "\$clone_db" -v ON_ERROR_STOP=1 \\\s+-f db\/tests\/reasoning_orphan_proposals_cleanup_regression\.sql/);
     expect(cleanup).toMatch(/trap 'drop_clone \|\| true' EXIT/);
+    // the test role belongs to the cluster, so the same clean-up drops it after the clone (Z66C-05)
+    expect(cleanup).toMatch(/-c "DROP DATABASE IF EXISTS \$clone_db WITH \(FORCE\)" \\\s+-c "DROP ROLE IF EXISTS z66d_plain"/);
+    expect(read('db/tests/reasoning_orphan_proposals_cleanup_regression.sql')).toContain('CREATE ROLE z66d_plain NOLOGIN NOBYPASSRLS;');
     expect(race).toMatch(/race delete_first "\$delete" "SELECT 'stored=' \|\| \$complete" "0\/0\/0\/proposed\/0\/1"/);
     expect(race).toMatch(/race complete_first "SELECT 'stored=' \|\| \$complete" "\$delete" "0\/0\/0\/ratified\/0\/1"/);
     expect(race).toMatch(/race source_delete_first "\$delete_source" "SELECT 'stored=' \|\| \$complete_source" "0\/0\/0\/proposed\/1\/0"/);
