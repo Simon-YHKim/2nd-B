@@ -306,12 +306,12 @@ const CRISIS_TERMS_KO: readonly string[] = [
   '영영 잠들고 싶',
 ];
 
-// EN terms match only at word boundaries — ported from
-// src/lib/safety/classifier.ts:matchesTerm so a benign substring (e.g.
-// "spending it" containing "ending it") doesn't 422 a legitimate prompt.
-// KO terms remain substring matches (Hangul has no whitespace word
-// boundaries). KEEP THE MATCHING SEMANTICS IN SYNC with the client
-// classifier; the parity test extracts and exercises this code.
+// EN terms match only at word boundaries, ported from src/lib/safety/classifier.ts:matchesTerm
+// so a benign substring ("spending it" containing "ending it") doesn't 422 a legitimate prompt.
+// KO terms remain substring matches (Hangul has no whitespace word boundaries), and a spaced KO
+// term also matches typed without its spaces (Q-261014-90, classifier.ts:matchesJoinedKoTerm).
+// KEEP THE MATCHING SEMANTICS IN SYNC with the client classifier; the parity test extracts and
+// exercises this code. Same line count as before: docs/legal cites lines of this file.
 // Fold whitespace and Unicode composition before matching, so the crisis gate
 // cannot be walked past with a newline / non-breaking space (U+00A0) / full-width
 // space (U+3000) between the words of a multi-word term, or with NFD-decomposed
@@ -344,11 +344,7 @@ function hasCrisisTerm(text: string): boolean {
     if (matchesTermEn(lower, term)) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
-    const spaced = normalizeForMatch(term);
-    if (lower.includes(spaced)) return true;
-    // Simon 2026-10-14 (Q-261014-90): the spaced term typed without its spaces ("끝내고싶"). The
-    // text keeps its own spaces. Mirrors src/lib/safety/classifier.ts:matchesJoinedKoTerm.
-    if (spaced.includes(' ') && lower.includes(spaced.replace(/ /g, ''))) return true;
+    if (lower.includes(normalizeForMatch(term)) || (term.includes(' ') && lower.includes(normalizeForMatch(term).replace(/ /g, '')))) return true;
   }
   return false;
 }
