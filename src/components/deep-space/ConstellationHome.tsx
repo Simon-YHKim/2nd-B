@@ -1131,18 +1131,39 @@ export function ConstellationHome({
               </View>
             ) : bubble.kind === "star" ? (
               <View style={styles.bubbleActions}>
-                <MdButton
-                  label={t("ds.home.bubble.travel")}
-                  variant="filled"
-                  disabled={selectedEntry?.kind !== "available" || !cameraReady || captureId !== null}
-                  style={styles.dialogueAction}
-                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
-                  onPress={() => {
-                    if (!cameraReady || selectedEntry?.kind !== 'available' || captureLock.current) return;
-                    captureLock.current = true;
-                    setCaptureId(bubble.id);
-                  }}
-                />
+                {selectedEntry?.kind === "previous" ? (
+                  // Z23 (Simon 2026-10-13): a star that waits on the one before it used to show a
+                  // dimmed Travel that did nothing. It offers the way to that star instead.
+                  <MdButton
+                    label={t("ds.home.bubble.goToStar", { star: starName(selectedEntry.prerequisite) })}
+                    variant="filled"
+                    disabled={!cameraReady || captureId !== null}
+                    style={styles.dialogueAction}
+                    hitSlop={DIALOGUE_ACTION_HIT_SLOP}
+                    onPress={() => {
+                      if (!cameraReady || captureLock.current) return;
+                      const previous = selectedEntry.prerequisite;
+                      setVisualFocusId(null);
+                      setCameraReady(false);
+                      destinationProgress.setValue(0);
+                      setBubble({ kind: "intro" });
+                      onStarTravel(previous);
+                    }}
+                  />
+                ) : (
+                  <MdButton
+                    label={t("ds.home.bubble.travel")}
+                    variant="filled"
+                    disabled={selectedEntry?.kind !== "available" || !cameraReady || captureId !== null}
+                    style={styles.dialogueAction}
+                    hitSlop={DIALOGUE_ACTION_HIT_SLOP}
+                    onPress={() => {
+                      if (!cameraReady || selectedEntry?.kind !== 'available' || captureLock.current) return;
+                      captureLock.current = true;
+                      setCaptureId(bubble.id);
+                    }}
+                  />
+                )}
                 <MdButton
                   label={t("ds.home.bubble.later")}
                   disabled={captureId !== null}
