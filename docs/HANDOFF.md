@@ -8,6 +8,11 @@
 - **다음 1개**: 6회차 판정(`E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r6.txt`). 통과면 머지 → `build_apply_0255_r3.py` 를 6회차에 맞춰(시도 함수 · 권한 확인) main 에서 블록 → 로컬 시험 → Relay → 보고. 막히면 멈추고 여쭘.
 - **준비물**: 과제서 `q67bind-r6.md` · 잰 것 `gates/q67bind-facts-r6.md` · 묶음 생성기 `<scratchpad>/build_gate_q67bind_r6.py` · 변이 `verify_0255_v6.sh`(시도 잠금 변이는 `one_mut_step.sh r6_begin_no_lock`) · `mut_0255_static_v6.py` · 시간 `time_0255_v6.sh`.
 - **화면 쪽 계약**: 2ndb-79 가 받음(가장 최근 턴에 한 번 · 새 턴을 세면 앞 턴은 다시 물을 수 없음 · 보류 중인 턴부터 확인).
+## 2026-10-14 22:19 / 2ndb-79: 말투 스킬 검토 보고 · 물음 셋(Q-261014-84 · 85 · 86) 대기
+
+- **보고서**: https://claude.ai/artifact/7UeoU6JgyU4H3c7scKTVZS · 원고 scratchpad 의 `tone-review/brief.md` · 빌드 원본 `tone-build/` · 워크플로 결과 `tasks/wqtd8a9m9.output`.
+- **답이 '가'면 1단계 PR**: `locales/ko/profile.json` contextImport 28개 + `locales/ko/secondb.json` 리마인더 7개를 B안으로(사용자가 하는 말 · 제안 · consent · safety 제외 · 영어 원문 무변경) → `npm run verify` → PR → 머지 → app:parity → 8081 전 · 후(가져오기 화면 · 리마인더 안내). 화면 창(2ndb-53)이 같은 가져오기 화면의 코드(`dds-import-inbox-screens.tsx`)를 고치고 있으나 로케일은 건드리지 않는다고 했다(22:18).
+- **여전히 대기**: #2483(Q-261014-81) · #2497(Q-261014-82) · 검토 진행 방식(Q-261014-83). 서버 창 #2438 은 6회차 검토 중(머리 4b76c554 · 22:1x).
 
 ## 2026-10-14 22:08 / 2ndb-53: 대표님이 이 창에서 답한 넷(20:33)대로 다섯을 넣음 - 개인정보 화면 · 모드 이름 · 별의 이야기 · 안내 밖 누름 · 내보내기 자리 - 8081 확인 · 대조 "같음" - 다음 1개는 가져오기 화면의 같은 결함
 
