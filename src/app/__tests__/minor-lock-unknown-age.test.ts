@@ -195,10 +195,13 @@ describe("외부 가져오기(/import) - 기기 건강 잠금은 모름도 막�
         healthBusy: false,
         isMinor,
         ko: false,
-        fetchPrivacyPrefs: async () => {
-          calls.push("fetchPrivacyPrefs");
+        readPrivacyPrefsStrict: async () => {
+          calls.push("readPrivacyPrefsStrict");
           return {};
         },
+        withTimeout: (work: Promise<unknown>) => work,
+        HEALTH_PREFS_READ_TIMEOUT_MS: 10_000,
+        beginAccountSessionLease: () => ({ assertCurrent: () => undefined, release: () => undefined }),
         savePrivacyPrefs: async () => {
           calls.push("savePrivacyPrefs");
         },
@@ -208,7 +211,7 @@ describe("외부 가져오기(/import) - 기기 건강 잠금은 모름도 막�
       vm.createContext(s);
       vm.runInContext(toJs(handler.getText(sf)), s);
       await (s.handleHealthConsent as () => Promise<void>)();
-      expect({ isMinor, calls }).toEqual({ isMinor, calls: isMinor === false ? ["fetchPrivacyPrefs", "savePrivacyPrefs"] : [] });
+      expect({ isMinor, calls }).toEqual({ isMinor, calls: isMinor === false ? ["readPrivacyPrefsStrict", "savePrivacyPrefs"] : [] });
     }
   });
 
