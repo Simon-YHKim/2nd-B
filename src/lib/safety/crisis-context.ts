@@ -30,7 +30,11 @@ const EN_STANDALONE_DENIAL = /^(?:no(?: |[,.!…。！]+ ?))?(?:(?:i am|i'm) not
 // Explicit everyday objects narrow an ambiguous "finish" occurrence. Keep
 // object boundaries: "일생" (lifetime) must never be treated as "일" (work).
 const WORK_OBJECT = "(?:일|업무|작업|공부|숙제|과제|프로젝트|보고서)";
-const WORK_BEFORE = `${WORK_OBJECT}(?:을|를)? *(?:(?:오늘|먼저|빨리|마저|다|좀|전부|모두) ){0,2}끝(?:내고 *싶|낼 *거)`;
+// The finishing phrases the exception may mask, and only after a work object. The emphatic
+// forms (끝내 버리고 싶 · 끝내 버릴 거) take the same condition as the plain ones (Q-261015-80):
+// "과제를 빨리 끝내버리고 싶어" is a work statement, "다 끝내버리고 싶어" is not.
+const FINISH = "끝(?:내고 *싶|낼 *거|내 *버리고 *싶|내 *버릴 *거)";
+const WORK_BEFORE = `${WORK_OBJECT}(?:을|를)? *(?:(?:오늘|먼저|빨리|마저|다|좀|전부|모두) ){0,2}${FINISH}`;
 const WORK_AFTER = `끝내고 *싶(?:은|던) +${WORK_OBJECT}`;
 const WORK_BEFORE_FINISH = new RegExp(
   `(^|[^가-힣a-z0-9])${WORK_BEFORE}`,
@@ -68,7 +72,7 @@ export function prepareCrisisScanText(text: string): string {
   // still reaches the unchanged matcher. A benign first occurrence cannot
   // hide a later unqualified one.
   return normalized
-    .replace(WORK_BEFORE_FINISH, (match) => match.replace(/끝(?:내고 *싶|낼 *거)/, (term: string) => " ".repeat(term.length)))
+    .replace(WORK_BEFORE_FINISH, (match) => match.replace(new RegExp(FINISH), (term: string) => " ".repeat(term.length)))
     .replace(WORK_AFTER_FINISH, (match) => match.replace(/끝내고 *싶/, (term: string) => " ".repeat(term.length)));
 }
 

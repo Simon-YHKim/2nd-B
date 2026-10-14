@@ -14,9 +14,10 @@ import { dirname, resolve } from "path";
 
 import * as ts from "typescript";
 
-import { classifyInput } from "../classifier";
+import { classifyInput, koSpacingForms } from "../classifier";
 import { CRISIS_TERMS } from "../lexicon";
 import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS } from "./crisis-context.fixtures";
+import { DAILY_SAMPLE, EMPHATIC_WORK_PAIRS, LEFT_OUT_ENDINGS, NEWLY_CAUGHT_CRISIS } from "./crisis-half-joined.fixtures";
 
 const PROXY_SOURCES = {
   "gemini-proxy": "../../../../supabase/functions/gemini-proxy/index.ts",
@@ -204,6 +205,31 @@ describe.each(Object.entries(PROXY_SOURCES))("%s hasCrisisTerm behaviour parity"
     ["일 다 끝내고싶어. 나 자신도", true],
     ["그게 마지막인 사진이야", false],
   ] as const)("KO: joined work sentence and word boundary agree on both sides: %s", (text, red) => {
+    expect(classifyInput(text, "ko").zone === "red").toBe(red);
+    expect(hasCrisisTerm(text)).toBe(red);
+  });
+
+  // Simon 2026-10-15 (Q-261015-80 가): partly joined spellings and the two emphatic terms, on the
+  // table the decision was made on. The server gives the app's answer on every sample.
+  test.each(CRISIS_TERMS.ko.flatMap((term) => koSpacingForms(term)).map((form) => `그냥 ${form}`))(
+    "KO: every spelling of every term is red on both sides: %s",
+    (text) => {
+      expect(classifyInput(text, "ko").zone).toBe("red");
+      expect(hasCrisisTerm(text)).toBe(true);
+    },
+  );
+
+  test.each(NEWLY_CAUGHT_CRISIS)("KO: the decision's crisis sample is red on both sides: %s", (text) => {
+    expect(classifyInput(text, "ko").zone).toBe("red");
+    expect(hasCrisisTerm(text)).toBe(true);
+  });
+
+  test.each(LEFT_OUT_ENDINGS)("KO: an ending the decision left out is green on both sides: %s", (text) => {
+    expect(classifyInput(text, "ko").zone).toBe("green");
+    expect(hasCrisisTerm(text)).toBe(false);
+  });
+
+  test.each([...DAILY_SAMPLE, ...EMPHATIC_WORK_PAIRS])("KO: daily sample and work pairs agree on both sides: %s", (text, red) => {
     expect(classifyInput(text, "ko").zone === "red").toBe(red);
     expect(hasCrisisTerm(text)).toBe(red);
   });
