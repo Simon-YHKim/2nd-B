@@ -1,5 +1,24 @@
 # 2nd-Brain Handoff
 
+## 2026-10-15 01:12 / 2ndb-79: 새벽 마감 — 위기 입력 붙임꼴 운영 반영 · 첫 화면 시범 끝 · #2516 보강 중 · Q-261015-80 대기
+
+- **운영 상태**: openai-proxy v154 · gemini-proxy v168 = main `2ac1916c`(붙임꼴 위기 검사 포함). **0255 운영 적용(10-17 23:20 뒤 Relay) 전에는 프록시 재배포 금지** — #2438(01:00 머지) 뒤의 main 프록시는 운영에 없는 begin_chat_turn_attempt · claim_chat_turn_for_audit 를 부른다(배포 게이트가 막음).
+- **열린 PR**: #2516(설명형 문구 CI 경고 · 1회차 BLOCK 넷 고치는 중 · 가지 `chore/explanatory-copy-warning` · 워크트리 `.worktrees/z40-chat-retry-261014`). #2483(Q-261014-81) · #2497(Q-261014-82)은 여전히 대표님 답 대기 — 8081 에서 위기로 끊긴 턴도 하루 횟수가 1 오르는 것을 다시 봤다(#2483 이 고치는 동작).
+- **대표님 답 대기**: Q-261015-80(남은 우회 꼴 · 보고서 2판) · Q-261014-81 · 82 · 83. 첫 화면 시범을 다른 화면으로 넓힐지(넓히면 설정 · 기록 남기기 · 가입 · 프로필 순).
+- **다음**: #2516 2회차 → 머지 · Q-261014-91(답 쪽 오탐 지시문 · 위기 입력 전체로 전 · 후 각 30회 이상 · 고정 안내 발동이 줄면 머지 안 함 · 측정 시각 범위를 기록해 2주 집계에서 뺄 것) · 화면 환불(#2438 새 계약: 다시 묻기는 가장 최근 턴에 한 번 · 보류 중인 턴 먼저 확인 · 확인 전 새 보내기 막기).
+- **캡처 스크립트**(재사용): `E:/Coding Infra/reports/devlab-261010/ui/z-crisis-joined/joined_shots.cjs` · `proxy_gate_probe.cjs` · `ui/z-capture-firstrun/firstrun_shots.cjs` · `ui/z-register86/chat_register_shots.cjs` (모두 `<before|after> <out-dir>`).
+
+## 2026-10-15 01:07 / 2ndb-e7: #2438 8회차가 독립 검토를 통과해 머지(01:00 · main `51ffb91a`) - 0255 · 0258 블록 Relay 대기 - 다음 1개는 Relay 실행
+
+- **결과**: 8회차(서버가 시도가 닿은 순서로 첫째 · 둘째 칸에 적음 · 프록시 시계 없음) · 독립 검토 PASS WITH CONCERNS(00:51 · 차단 0 · `E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r8.txt`) · 머지 01:00:02. 가지 `fix/chat-refund-audit-bound-0255` 는 머지됨.
+- **운영은 미완료**: 블록 `.bots/relay/inbox/coding-e7-0255-apply-block-0103.sql` → `coding-e7-0258-apply-block-0103.sql`(순서 그대로 · 메모 `coding-e7-0255-0258-apply-blocks-0103.note.md`). Relay 복귀(10-17 23:20) 뒤 실행. 0253 · 0256 · 0259 블록과는 서로 기대지 않는다.
+- **⚠ 0255 운영 적용 전에는 openai · gemini · claude · xai 프록시를 재배포하지 않는다.** main 의 프록시가 `begin_chat_turn_attempt` · `claim_chat_turn_for_audit` 를 부른다. 배포 게이트도 막는다. 지금 운영 배포본은 openai-proxy v154 · gemini-proxy v168(2ndb-79 · #2514 · 00:49).
+- **적용 뒤 할 일(2ndb-e7)**: 운영 읽기(함수 넷 · 예약 표 · 감사 표 트리거 둘 · 원장 줄) → 프록시 넷 재배포(두 창에 먼저 알림) → 대화 한 번으로 묶기 · 환불 확인 → 보고. 화면 쪽 환불 PR 은 2ndb-79(계약: 다시 묻기는 가장 최근 턴에 한 번 · 서버가 닿은 순서로 시도 둘 · turnBound=false 면 환불을 다시 부르는 것은 화면의 일).
+- **남은 우려(모두 돌려주지 않는 쪽)**: R2438-24 이른 끊김 · R2438-12 시간 넘긴 호출 · R2438-15 두 기기(이 창이 범위 밖으로 둔 것 · 대표님 결정 아님) · R2438-10 빠진 경합 · 프록시 실행 시험.
+- **운영 블록 생성기 · 시험**: `E:/Coding Infra/reports/codex-audit-261010/build_apply_0255_r8.py <ref> <out>` · `scratchpad/apply0255_r8_trials.sh <블록 폴더>`.
+- **질문 번호**: 이 창은 10-15 번호대를 아직 쓰지 않았다(10-14 는 40~49 중 40 만 씀).
+- **보고서**: https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg 17판.
+
 ## 2026-10-14 23:43 / 2ndb-79: 밤 마감 — #2509 끝 · 보고서 둘 · 물음 여덟 대기
 
 - **끝난 것**: #2509(대화 지시문 148 · 189행 · 22:52 머지 · 폰 빌드 통과 · 8081 전 · 후 캡처). 22:20 말투 답 기록(#2508).
