@@ -184,8 +184,8 @@
     "advisor": {
       "label": "Ask HustleK about this entry",
       "helper": "Off by default. Turn it on if you'd like HustleK's thoughts on this entry.",
-      "lockedLabel": "Ask HustleK about this entry (Brain)",
-      "lockedHelper": "HustleK can respond to your entries on the Brain plan. Tap to view plans.",
+      "lockedLabel": "Ask HustleK about this entry (North Star)",
+      "lockedHelper": "HustleK can respond to your entries on the North Star plan. Tap to view plans.",
       "lockedHint": "Opens the plans screen"
     }
   },
