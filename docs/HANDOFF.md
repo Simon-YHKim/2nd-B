@@ -1,5 +1,16 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 11:20 / 2ndb-e7: 0253 · 0256 머지(#2388 · 3회차 통과) · 운영 적용 블록 둘은 Relay inbox 에 - 다음 1개는 PR #2438 을 턴 예약 표로 다시 짓기
+
+- **다음 1개 = PR #2438(0255)을 "검토가 요구한 대로 끝까지" 다시 짓는다**(Simon 10:36 의 답). 모양은 한 장에 있다: `E:/Coding Infra/reports/codex-audit-261010/q67bind-design-r3.md`(2ndb-79 가 읽고 동의 · 조건 둘 포함). 순서: 마이그레이션 0255 를 예약 표 꼴로 다시 → 프록시 넷의 공용 도우미가 `claim_chat_turn_for_audit` 을 부르게(상한 한 값 · 넘으면 묶지 않고 답을 보냄) → 회귀 · 경합 · 정적 테스트 → verify → CI → 독립 검토 3회차 → 통과하면 머지 → 운영 적용 → `openai-proxy` 재배포 → 보고(답 받음). 워크트리 `.worktrees/refund-bind-261013`(node_modules 정션 있음) · 가지 `fix/chat-refund-audit-bound-0255` 머리 `be3d29fe`(2회차 판 · main 을 합쳐야 함).
+- **기다리는 것**:
+  - 운영의 0253 → 0256: 블록 둘이 `.bots/relay/inbox/` 에 있다(`coding-e7-0253-apply-block-1112.sql` · `coding-e7-0256-apply-block-1112.sql` · 메모 `coding-e7-0253-0256-apply-blocks-1112.note.md`). Relay 는 10-17(토) 23:20 뒤에 돈다. 올라가면 이 창이 운영을 읽는다: 원장에 두 줄 · 함수가 새 본문 · 대상이 지워진 제안 줄 0.
+  - **Q-261014-34**(보고 페이지 9판 「결정」 탭): 운영에 올리는 때. 고르지 않으시면 Relay 를 기다린다. 더 일찍은 Simon 이 이 창에 직접 "올려"라고 적으실 때만(그때는 `_sync/TO-CLI.md` 에 "적용 중"을 올리고 블록 둘을 순서대로 실행 · 확인 카드는 Simon 이 누름 · 끝나면 Relay inbox 에 "이미 끝남" 메모).
+- **#2388 이 남긴 후속(막지 않은 지적)**: Z66C-03 리즈닝 화면의 조회(`src/lib/reasoning/runs.ts:252` · 2ndb-79 에 알림) · Z66C-05 정리 회귀의 시험용 역할 `z66d_plain` 을 실패 경로에서도 지우기(워크플로 단계의 trap 에 `DROP ROLE IF EXISTS`) · Z66C-06 0256 머리말의 "0253 의 본문이 아님"을 "표식이 없음"으로(주석 한 줄). 05 · 06 은 작은 PR 하나로 묶을 수 있다(급하지 않음).
+- **그 뒤의 차례**: 0257(충돌 기록 설정 키를 미성년 잠금에 · `clamp_minor_privacy_prefs` 의 0072 본문 + 한 줄 · 2ndb-79 의 앱 분석 설계가 검토를 지나고 Simon 확인 뒤) → 인터뷰 저장의 서버 걸음(2ndb-79 의 Q-261014-04 둘째) → 밀린 것(대시보드 요청의 시간대 확인 → 확인을 끝내지 않은 가입 줄의 자동 삭제 → 가입 거절의 서버 쪽 → 내부 꼬리표 옮기기). 새 마이그레이션 번호는 **0258 부터**(0255 = #2438 · 0256 = 머지됨 · 0257 = 위의 것).
+- **지금 있는 것**: 판정 `E:/Coding Infra/reports/codex-audit-261010/gates/z66c-daybreak-r3.txt` · 적용 블록 생성기 `build_apply_0253.py`(같은 폴더) · 로컬 시험 도구는 작업 메모 `q67-refund-bind-notes-261014.md` 의 10:41 절에. 워크트리 `.worktrees/z66-proposals-purge-261013` 은 머지됐으므로 지워도 된다(정션부터 떼기). 로컬 PostgreSQL 은 내려가 있다. 로컬 템플릿 `z66_main` 에는 새 함수가 들어 있으니 옛 함수가 필요하면 `z46_main` 을 쓸 것.
+- **이 창의 감시는 꺼져 있다**. Relay 의 outbox 는 01:23 뒤로 새 파일이 없다. Simon 의 답은 2ndb-79 창으로 왔다(그 창이 전해 줌 · 이 창이 그 창의 기록에서 원문을 확인).
+
 ## 2026-10-14 11:01 / 2ndb-53: 위키의 못 불러온 숫자가 「...」로 보인다(Z80 · #2476 · main `ab2d2339` · 8081 확인 · 대조 "같음") - 모드 이름 가지는 올릴 준비가 끝났고 이 창의 확인만 기다림 - 다음 1개는 위키 목록이 모든 기록을 읽게 하는 것
 
 - **들어간 것**: #2476(10:52:06). `dds-wiki-records-screens.tsx` 에서 기록을 읽는 중이거나 읽지 못했을 때(`countsUnread = loading || loadError`) 「정리함에 ...개」 · 「... 별가루」. 새 문자열 없음 · 세는 쪽 그대로. 그 화면 조각의 고정값(`records-source-detail-route.test.ts`)을 새 값으로(옛 값이 main 사본에서 다시 나오는 것을 확인 · 도구 `scratchpad/records_slice_digest.cjs` 는 세션 밖에서는 없으니, 다시 필요하면 그 검사의 `sliceBetween` · `sha256` 을 그대로 옮겨 쓴다). 검사 `wiki-counts-not-read.test.ts`.
