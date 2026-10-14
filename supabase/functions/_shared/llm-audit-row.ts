@@ -118,10 +118,9 @@ async function askAboutTurn(
 
 /**
  * Before the model is asked: records this call as an attempt of the turn the app named, under the id its audit
- * row will carry, and when this call started. The server allows the first attempt of a turn and one more (the
- * re-ask) on the user's latest turn; only the latest attempt's answer can be bound. It writes nothing for a call
- * that reaches it after this wait is over (the same 1.5 s), nor for one that started before the attempt on record.
- * False means this answer will not be bound.
+ * row will carry. The server allows the first attempt of a turn and one more (the re-ask) on the user's latest
+ * turn, numbered in the order they reach it; the second attempt's answer may take the first's place, never the
+ * other way round. False means this answer will not be bound.
  */
 export function beginChatTurnAttempt(
   admin: ClaimAdmin,
@@ -129,7 +128,7 @@ export function beginChatTurnAttempt(
   tag: string,
   timeoutMs: number = CHAT_TURN_CLAIM_TIMEOUT_MS,
 ): Promise<boolean> {
-  const args = { p_user_id: ids.userId, p_audit_id: ids.auditId, p_turn_id: ids.turnId, p_started_at: new Date().toISOString() };
+  const args = { p_user_id: ids.userId, p_audit_id: ids.auditId, p_turn_id: ids.turnId };
   return askAboutTurn(admin, CHAT_TURN_BEGIN_FN, 'attempt', args, tag, timeoutMs);
 }
 

@@ -108,8 +108,8 @@ describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 
     expect(helper).toContain('export const CHAT_TURN_CLAIM_TIMEOUT_MS = 1500;');
     // the two questions are one bounded call with the same three ids, by name
     expect(helper).toContain('admin.rpc(fn, args)');
-    expect(helper).toContain('const args = { p_user_id: ids.userId, p_audit_id: ids.auditId, p_turn_id: ids.turnId, p_started_at: new Date().toISOString() };');
-    expect(helper).toContain('const args = { p_user_id: ids.userId, p_audit_id: ids.auditId, p_turn_id: ids.turnId };');
+    expect(helper.match(/const args = \{ p_user_id: ids\.userId, p_audit_id: ids\.auditId, p_turn_id: ids\.turnId \};/g)).toHaveLength(2);
+    expect(helper).not.toMatch(/p_started_at|new Date\(/);
     expect(helper).toContain("return askAboutTurn(admin, CHAT_TURN_BEGIN_FN, 'attempt', args, tag, timeoutMs);");
     expect(helper).toContain("return askAboutTurn(admin, CHAT_TURN_CLAIM_FN, 'claim', args, tag, timeoutMs);");
     expect(helper.match(/askAboutTurn\(admin, /g)).toHaveLength(2);
@@ -127,9 +127,9 @@ describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 
     );
     expect(migration).toMatch(/GRANT EXECUTE ON FUNCTION public\.claim_chat_turn_for_audit\(uuid, uuid, uuid\) TO service_role;/);
     expect(migration).toMatch(
-      /CREATE OR REPLACE FUNCTION public\.begin_chat_turn_attempt\(p_user_id uuid, p_audit_id uuid, p_turn_id uuid, p_started_at timestamptz\)\s+RETURNS boolean/,
+      /CREATE OR REPLACE FUNCTION public\.begin_chat_turn_attempt\(p_user_id uuid, p_audit_id uuid, p_turn_id uuid\)\s+RETURNS boolean/,
     );
-    expect(migration).toMatch(/GRANT EXECUTE ON FUNCTION public\.begin_chat_turn_attempt\(uuid, uuid, uuid, timestamptz\) TO service_role;/);
+    expect(migration).toMatch(/GRANT EXECUTE ON FUNCTION public\.begin_chat_turn_attempt\(uuid, uuid, uuid\) TO service_role;/);
     // No Deno-only import: the unit test runs it as it is.
     expect(helper).not.toMatch(/^import /m);
   });
