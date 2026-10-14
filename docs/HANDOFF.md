@@ -1,5 +1,20 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 12:56 / 2ndb-53: 이야기 목록(별 요약의 「기록 N개 ›」 · Z60)을 작업 폴더에 만들어 둠 - 올리지 않음 - 이 창의 확인 하나(모드 이름 · 이야기 목록)를 기다림 - 다음 1개는 오프라인일 때의 문장의 범위를 적는 것
+
+- **올리지 않은 가지 둘**(둘 다 원격에 없음 · 대표님이 **이 창에 직접** 확인을 주신 뒤에만 푸시 · PR):
+  - `feat/star-stories-open-the-wiki-list` · 로컬 `ac8c505f` · main `5bd3fc75` 위 · 전체 jest 1100 묶음 통과(12:42).
+  - `feat/mode-names-fact-joy` · 로컬 `2479941d` · main 보다 7 뒤(올릴 때 다시 합치고 이름 바꾸는 도구를 세어 보기 + 전체 검사).
+  - 사본(작업 폴더가 사라질 때를 대비): `E:/Coding Infra/reports/codex-audit-261010/ui/local-branches-1014/` 의 `star-stories.bundle` · `star-stories/*.patch` · `mode-names.bundle`. 되살리기: `git -C <워크트리> fetch "<그 폴더>/star-stories.bundle" feat/star-stories-open-the-wiki-list:feat/star-stories-open-the-wiki-list`.
+- **이야기 목록이 하는 일**: 별 요약의 「기록 N개 ›」 → `/records?period=<시기>` → 위키가 목록으로 열리고 그 시기의 줄만 · 맨 위 「OO 별의 이야기 · 전체 보기」. 「전체 보기」 또는 「그래프」를 고르면 전체로. 대시보드의 폰 안에서는 전처럼 글자로만(그 안의 `/records` 는 `DashboardPhone.tsx` 의 노트 화면이고 `period` 를 모름 - 그 화면이 `period` 를 알게 되면 `[star].tsx` 의 `inPhone` 가지와 검사의 그 줄을 함께 걷는다).
+- **올릴 때**: main 을 합침 → 고친 줄마다 옛 줄을 `grep -rnF` 로 src · scripts 에서 찾음 → 전체 검사 → 독립 검토 한 번 더(고친 뒤에는 받지 않았음) → `DECISIONS.md` 에 그 시각의 줄 → 푸시 · PR · CI · 머지 → 8081 후 캡처 `node ui/shoot_star_stories.cjs http://localhost:8081 <outDir> after`(전 = `ui/star-stories-z60/stories-before.*`) · 대조 → 두 창에 알림. `docs/HANDOFF.md` 의 「Z60 을 넣지 않은 까닭」 블록(10:23)은 그때의 사실이니 그대로 두고 새 블록에 "넣음"을 적는다.
+- **여쭐 것(급하지 않음 · 보고서 6판의 할 일 탭)**: 별에서 들어온 목록에 화면 안 뒤로(‹)를 둘지 · 1년 넘은 기록의 날짜에 해를 붙일지 · 5,000줄을 넘는 계정에 "더 있음" 한 줄.
+- **검사 파일을 고칠 때**: heredoc 파이썬에 정규식을 쓰면 역슬래시 한 겹이 사라져 낱말 경계가 백스페이스 글자로 들어간다(12:36 에 실제로 일어남 · 그 단언은 늘 통과). Write 도구로 만든 스크립트에서 `chr(92)` 로 쓰고, 고친 파일의 제어 문자를 센다.
+- **다음 1개 = 개인정보 화면이 읽기에 실패했을 때**(오프라인일 때의 문장 · Z40 · 78 · 80 의 남은 것의 첫째): 화면의 읽기와 토글을 켜는 처리가 실패 때 "모두 꺼짐"을 돌려주는 `fetchPrivacyPrefs` 를 쓴다 → 꺼져 보이고, 읽기만 실패하고 쓰기가 되는 순간에는 다른 항목이 말없이 꺼질 수 있다(같은 시각 `DECISIONS.md` 줄 ⑨). 방향: 토글 처리는 `readPrivacyPrefsStrict` 로 읽고(실패면 저장하지 않음) 그 값을 `savePrivacyPrefs` 의 `before` 로 넘김 · 화면의 첫 읽기가 실패하면 토글 대신 이미 쓰는 「서버에 연결할 수 없습니다…」(`common:errors.network`)와 [다시 시도](`common:actions.retry`) · 문구는 바꾸지 않음. 동의와 닿는 자리라 코드를 고치기 전에 두 창에 알리고 독립 검토를 받는다. 그 뒤 순서: 별 요약 → 위키 목록의 기한 → 날씨용 위치 → 리즈닝 → 위키 페이지 · 리서치 → 스크랩. 홈 하늘은 "화면 위의 띠"와 함께.
+- **그 뒤**: 사용 안내서(Z69) → 도움말(Z73). 모드 이름 뒤: 이름과 낱말 · 모드를 바꾼 자리의 줄.
+- **보고서**: 「PolaScope UI 오전 작업 결과 (10-14)」 6판 https://claude.ai/artifact/5fJ63nCat19biPfQRGppd4 (원본 `ui/ui-az14-1014.fragment.html` · 166KB).
+- **질문 번호**: 10-14 는 이 세션 60 ~ 79(60 ~ 64 를 씀 · 다음 65).
+
 ## 2026-10-14 12:49 / 2ndb-79: 앱 잠금은 1차(기기 잠금)까지로 결정 · 다른 앱에 다녀와도 처리가 이어지게 하는 일이 새로 옴 · #2483 은 코드 검토 1회차 막힘(검사 보강 중)
 
 - **대표님 결정(12:44:17 · 이 창)**: 앱 잠금은 기기 잠금 확인까지만(지문 → 그 폰의 핀 · 패턴). 앱 전용 비밀번호와 앱이 그리는 패턴은 만들지 않는다. 로그인은 유지. 원문은 `DECISIONS.md` 의 같은 시각 줄.
