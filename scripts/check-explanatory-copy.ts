@@ -9,20 +9,26 @@
 // patterns are blunt (STYLE.md item 8: copy whose intent a test or comment
 // records is not cut on a pattern alone), so a person decides, not this script.
 //
-// A broken run is still a failure: no git, no origin/main, unreadable JSON.
-// A warning-only check that silently stops running looks exactly like a clean
-// one.
+// THE BASE. In a pull request CI passes the PR's base commit as
+// EXPLANATORY_COPY_BASE (ci.yml). It must be a 40-character SHA and readable,
+// fetched if the shallow checkout lacks it; otherwise the run fails, because a
+// warning-only check that silently stops running looks exactly like a clean
+// one. Without that variable the base is merge-base(HEAD, origin/main), then
+// origin/main itself; when neither exists (a clone without origin/main) the
+// check prints one SKIP line and exits 0, so local `npm run verify` does not
+// break on a missing remote ref. Unreadable JSON is still a failure.
 //
 // WHERE THE RULES COME FROM. The seven patterns, the 10-character floor, the
-// 40-character helper limit and every exclusion are ported one for one from the
-// 2026-10-14 census script (ux-review/census.py) that measured the existing ko
-// bundle. Change them here and in the same way, or the warning stops meaning
-// what the census measured.
+// 40-character helper limit and the per-file exclusions are ported one for one
+// from the 2026-10-14 census script (ux-review/census.py) that measured the
+// existing ko bundle. Change them here and in the same way, or the warning stops
+// meaning what the census measured. The namespace rule below is the one
+// addition: it makes the exclusions hold for keys the census never saw.
 //
 // OUT OF SCOPE (never warned): consent.json and safety.json whole, and the keys
-// for privacy, legal and payment notices, age gates, consent and AI disclosure.
-// Those are versioned, reviewed or legally required, and STYLE.md item 1 keeps
-// them out of the checklist.
+// for privacy, legal and payment notices, age gates, consent and AI disclosure,
+// in any file. Those are versioned, reviewed or legally required, and STYLE.md
+// item 1 keeps them out of the checklist.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
@@ -77,8 +83,22 @@ const KEY_EXCL: ReadonlyArray<readonly [file: string, key: RegExp, why: string]>
   ["peer.json", /^alreadyNote$/, "privacy"],
 ];
 
-// 3) A key whose last segment names consent or a notice is out, whatever file.
-const KEY_LAST_EXCL = /^(.*consent.*|.*disclosure.*|privacyNote|privacyFootnote|.*minorlocked|adultOnly|ageGate|ageNotice)$/i;
+// 3) Namespaces, in any file and at any depth of the key path. The census only
+//    had rule 2's list and a last-segment rule, so a new `privacy.*`, `legal.*`,
+//    `safety.*`, `consent.*` or AI-disclosure key in another file would have been
+//    warned (#2516 review r1). Each segment of the path is tested, so both
+//    `privacy.body` and `share.privacyNote` are out. `aiNotice` style keys are
+//    listed by name: a bare `ai` prefix would also take `aiMuseum`, a setting.
+const NAMESPACE_EXCL: ReadonlyArray<readonly [segment: RegExp, why: string]> = [
+  [/consent/i, "consent"],
+  [/disclosure/i, "legal"],
+  [/^privacy/i, "privacy"],
+  [/^legal/i, "legal"],
+  [/^terms$/i, "legal"],
+  [/^safety/i, "safety"],
+  [/^ai(Notice|Line|CopyTail|Approx|Disclosure)/, "ai-disclosure"],
+  [/minorlocked$|^adultOnly$|^ageGate$|^ageNotice$/i, "age"],
+];
 // 4) Content: legal and crisis wording the key lists missed.
 const CONTENT_EXCL = /동의합니다|동의해요|동의하게|약관|처리방침|청약철회|국외|법정대리인|사업자등록|통신판매|1388|자살/;
 
@@ -159,8 +179,9 @@ export function exclusionReason(file: string, key: string, value: string): strin
   for (const [excludedFile, rx, why] of KEY_EXCL) {
     if (excludedFile === file && rx.test(key)) return why;
   }
-  const last = key.split(".").pop() ?? "";
-  if (KEY_LAST_EXCL.test(last)) return "consent-key";
+  for (const segment of key.split(".")) {
+    for (const [rx, why] of NAMESPACE_EXCL) if (rx.test(segment)) return why;
+  }
   if (CONTENT_EXCL.test(value)) return "legal-content";
   return null;
 }
@@ -264,63 +285,115 @@ export function reportExplanatoryCopy(pairs: readonly LocaleFilePair[], baseLabe
   return 0;
 }
 
-// ---------------------------------------------------------------- git (thin)
-function git(root: string, args: string[], input?: string): Buffer {
-  return execFileSync("git", args, { cwd: root, input, maxBuffer: 256 * 1024 * 1024 });
+
+/** The one SKIP line printed when there is no base; an annotation inside GitHub Actions. */
+export function reportSkip(reason: string, inActions: boolean, log: (line: string) => void): 0 {
+  const line = `explanatory-copy SKIP  ${reason} (warning only, exit 0)`;
+  log(inActions ? `::warning title=${escapeProperty("explanatory-copy SKIP")}::${escapeData(line)}` : line);
+  return 0;
 }
 
+// ---------------------------------------------------------------- base
+export type BaseGit = {
+  /** True when `sha` names a commit this clone can read. */
+  hasCommit(sha: string): boolean;
+  /** Fetches that one commit from origin; throws on failure. */
+  fetchCommit(sha: string): void;
+  /** merge-base(HEAD, origin/main), or null when there is none. */
+  mergeBase(): string | null;
+  /** The origin/main commit, or null when the ref does not exist. */
+  originMain(): string | null;
+};
+export type BaseChoice = { sha: string; label: string } | { skip: string };
+
+const FULL_SHA = /^[0-9a-f]{40}$/;
+
 /**
- * merge-base of HEAD and origin/main, or origin/main itself; throws when neither
- * resolves. ci.yml's pull_request checkout is shallow, so merge-base finds no
- * common ancestor there and the origin/main tip (fetched by its own step) is
- * the base. HEAD is the PR merge commit, so that diff is the PR's change, except
- * for strings main changed in the seconds between the merge ref and the fetch.
+ * The commit to compare with. A non-empty `pinned` (EXPLANATORY_COPY_BASE, the
+ * PR base CI passes) must be a full SHA that is readable after at most one
+ * fetch, or this throws. Without it: merge-base, then origin/main, then skip.
  */
-function resolveBase(root: string): { sha: string; label: string } {
+export function chooseBase(pinned: string | undefined, git: BaseGit): BaseChoice {
+  const sha = pinned?.trim() ?? "";
+  if (sha !== "") {
+    if (!FULL_SHA.test(sha)) throw new Error(`EXPLANATORY_COPY_BASE is not a 40-character lowercase commit SHA: ${JSON.stringify(sha)}`);
+    if (!git.hasCommit(sha)) git.fetchCommit(sha);
+    if (!git.hasCommit(sha)) throw new Error(`EXPLANATORY_COPY_BASE ${sha} is not a readable commit after fetching it`);
+    return { sha, label: `PR base ${sha.slice(0, 8)}` };
+  }
+  const mergeBase = git.mergeBase();
+  if (mergeBase) return { sha: mergeBase, label: `merge-base ${mergeBase.slice(0, 8)}` };
+  const tip = git.originMain();
+  if (tip) return { sha: tip, label: `origin/main ${tip.slice(0, 8)} (no merge-base)` };
+  return { skip: "no origin/main and no EXPLANATORY_COPY_BASE, so there is nothing to compare with" };
+}
+
+// ---------------------------------------------------------------- git (thin)
+// Every call passes its arguments as argv, never through a shell or a
+// newline-separated stdin protocol: a file name may hold a newline, a comma or
+// a colon (#2516 review r1), and none of those may shift which content is read.
+function git(root: string, args: string[]): Buffer {
+  return execFileSync("git", args, { cwd: root, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024 });
+}
+
+function gitOrNull(root: string, args: string[]): string | null {
   try {
-    const sha = git(root, ["merge-base", "HEAD", "origin/main"]).toString("utf8").trim();
-    return { sha, label: `merge-base ${sha.slice(0, 8)}` };
+    return git(root, args).toString("utf8").trim() || null;
   } catch {
-    const sha = git(root, ["rev-parse", "--verify", "origin/main^{commit}"]).toString("utf8").trim();
-    return { sha, label: `origin/main ${sha.slice(0, 8)} (no merge-base)` };
+    return null;
   }
 }
 
-/** Base blobs for the given paths in one `git cat-file --batch`; a path missing at base maps to null. */
-function readBaseFiles(root: string, base: string, paths: readonly string[]): Map<string, string | null> {
-  const out = new Map<string, string | null>();
-  if (paths.length === 0) return out;
-  const buf = git(root, ["cat-file", "--batch"], paths.map((p) => `${base}:${p}\n`).join(""));
-  let at = 0;
-  for (const p of paths) {
-    const eol = buf.indexOf(0x0a, at);
-    const header = buf.subarray(at, eol).toString("utf8");
-    at = eol + 1;
-    if (header.endsWith(" missing")) {
-      out.set(p, null);
-      continue;
-    }
-    const size = Number(header.split(" ")[2]);
-    if (!Number.isInteger(size)) throw new Error(`unexpected git cat-file header for ${p}: ${header}`);
-    out.set(p, buf.subarray(at, at + size).toString("utf8"));
-    at += size + 1;
+export function repoBaseGit(root: string): BaseGit {
+  return {
+    hasCommit: (sha) => gitOrNull(root, ["cat-file", "-t", `${sha}^{commit}`]) === "commit",
+    fetchCommit: (sha) => {
+      git(root, ["fetch", "--no-tags", "--depth=1", "origin", sha]);
+    },
+    mergeBase: () => gitOrNull(root, ["merge-base", "HEAD", "origin/main"]),
+    originMain: () => gitOrNull(root, ["rev-parse", "--verify", "--quiet", "origin/main^{commit}"]),
+  };
+}
+
+/**
+ * The top-level `locales/ko/*.json` blobs at `base`, by file name. The listing
+ * is NUL-separated (`ls-tree -z`) and each blob is read by its object id, so a
+ * file name is never parsed back out of git's output or put into a revision.
+ */
+export function readBaseLocaleFiles(root: string, base: string): Map<string, string> {
+  const listing = git(root, ["ls-tree", "-z", "--full-name", base, "--", `${LOCALE_DIR}/`]).toString("utf8");
+  const out = new Map<string, string>();
+  for (const record of listing.split("\0")) {
+    if (record === "") continue;
+    const tab = record.indexOf("\t");
+    const [, type, oid] = record.slice(0, tab).split(" ");
+    const path = record.slice(tab + 1);
+    if (type !== "blob" || !path.startsWith(`${LOCALE_DIR}/`)) continue;
+    const name = path.slice(LOCALE_DIR.length + 1);
+    if (name.includes("/") || !name.endsWith(".json")) continue;
+    out.set(name, git(root, ["cat-file", "blob", oid]).toString("utf8"));
   }
   return out;
 }
 
 function main(): void {
   const root = process.cwd();
-  const base = resolveBase(root);
+  const log = (line: string) => console.log(line);
+  const base = chooseBase(process.env.EXPLANATORY_COPY_BASE, repoBaseGit(root));
+  if ("skip" in base) {
+    process.exitCode = reportSkip(base.skip, process.env.GITHUB_ACTIONS === "true", log);
+    return;
+  }
+  const baseTexts = readBaseLocaleFiles(root, base.sha);
   const files = readdirSync(join(root, LOCALE_DIR))
     .filter((name) => name.endsWith(".json"))
     .sort();
-  const baseTexts = readBaseFiles(root, base.sha, files.map((f) => `${LOCALE_DIR}/${f}`));
   const pairs: LocaleFilePair[] = files.map((file) => {
     const headText = readFileSync(join(root, LOCALE_DIR, file), "utf8");
-    const baseText = baseTexts.get(`${LOCALE_DIR}/${file}`) ?? null;
-    return { file, base: baseText === null ? null : JSON.parse(baseText), head: JSON.parse(headText), headText };
+    const baseText = baseTexts.get(file);
+    return { file, base: baseText === undefined ? null : JSON.parse(baseText), head: JSON.parse(headText), headText };
   });
-  process.exitCode = reportExplanatoryCopy(pairs, base.label, (line) => console.log(line));
+  process.exitCode = reportExplanatoryCopy(pairs, base.label, log);
 }
 
 if (require.main === module) main();

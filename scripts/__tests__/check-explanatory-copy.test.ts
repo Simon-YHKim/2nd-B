@@ -1,15 +1,25 @@
 // check:explanatory-copy is warning-only by decision (Q-261014-89 가): these
 // tests pin that a hit is reported, that unchanged and out-of-scope strings are
-// not, and that the exit code stays 0 either way. The git part of the script is
-// a thin reader; everything below feeds the two JSON bundles directly.
+// not, and that the exit code stays 0 either way. The comparison feeds the two
+// JSON bundles directly; base selection runs against a fake git, and only the
+// base-file reader touches a real (temporary, plumbing-built) repository.
+
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
+  type BaseGit,
   changedStrings,
+  chooseBase,
   exclusionReason,
   explanatoryHits,
   findExplanatoryCopy,
   formatWarning,
+  readBaseLocaleFiles,
   reportExplanatoryCopy,
+  reportSkip,
 } from "../check-explanatory-copy";
 
 const lookupOf = (entries: Record<string, string>) => new Map(Object.entries(entries));
@@ -57,15 +67,39 @@ describe("exclusionReason", () => {
     expect(exclusionReason("secondb.json", "aiNotice.body", "여기에서 볼 수 있습니다.")).toBe("ai-disclosure");
     expect(exclusionReason("deepspace.json", "privacy.retention", "여기에서 볼 수 있습니다.")).toBe("privacy");
     expect(exclusionReason("settings.json", "subscription.refund.body", "여기에서 볼 수 있습니다.")).toBe("legal");
-    expect(exclusionReason("capture.json", "share.exportConsentHint", "여기에서 볼 수 있습니다.")).toBe("consent-key");
-    expect(exclusionReason("capture.json", "share.privacyNote", "여기에서 볼 수 있습니다.")).toBe("consent-key");
+    expect(exclusionReason("capture.json", "share.exportConsentHint", "여기에서 볼 수 있습니다.")).toBe("consent");
+    expect(exclusionReason("capture.json", "share.privacyNote", "여기에서 볼 수 있습니다.")).toBe("privacy");
     expect(exclusionReason("capture.json", "share.body", "약관에 따라 여기에서 볼 수 있습니다.")).toBe("legal-content");
+  });
+
+  // #2516 review r1: the census rules were tied to files and keys that already
+  // existed. A new notice namespace in any other file must be out as well.
+  test.each([
+    ["wiki.json", "privacy.body", "privacy"],
+    ["capture.json", "share.privacyHelper", "privacy"],
+    ["wiki.json", "legal.footer", "legal"],
+    ["ops.json", "plans.legalRefund", "legal"],
+    ["wiki.json", "terms.body", "legal"],
+    ["wiki.json", "export.disclosure", "legal"],
+    ["home.json", "safety.helper", "safety"],
+    ["home.json", "card.safetyLine", "safety"],
+    ["wiki.json", "consent.body", "consent"],
+    ["home.json", "sync.needsConsent", "consent"],
+    ["capture.json", "aiNotice.body", "ai-disclosure"],
+    ["wiki.json", "summary.aiLine", "ai-disclosure"],
+    ["home.json", "aiCopyTail", "ai-disclosure"],
+    ["wiki.json", "card.aiApprox", "ai-disclosure"],
+    ["home.json", "health.minorLocked", "age"],
+    ["wiki.json", "share.adultOnly", "age"],
+  ])("%s %s is out of scope (%s) whatever the file", (file, key, why) => {
+    expect(exclusionReason(file, key, "저장한 기록은 여기에서 볼 수 있습니다.")).toBe(why);
   });
 
   test("keeps ordinary UI copy in scope", () => {
     expect(exclusionReason("capture.json", "journal.fields.bodyPlaceholder", "여기에서 볼 수 있습니다.")).toBeNull();
-    // A key rule belongs to its own file only.
-    expect(exclusionReason("capture.json", "aiNotice.body", "여기에서 볼 수 있습니다.")).toBeNull();
+    // `ai` alone is not a disclosure: aiMuseum is a setting.
+    expect(exclusionReason("settings.json", "aiMuseum.helper", "여기에서 볼 수 있습니다.")).toBeNull();
+    expect(exclusionReason("wiki.json", "notice.body", "여기에서 볼 수 있습니다.")).toBeNull();
   });
 });
 
@@ -137,5 +171,136 @@ describe("findExplanatoryCopy and reportExplanatoryCopy", () => {
     expect(line.startsWith("::warning file=locales/ko/a%2Cb.json,line=3,title=")).toBe(true);
     expect(line).toContain("첫 줄%0A100%25 둘째 줄");
     expect(line.split("::")).toHaveLength(3);
+  });
+
+  test("keeps a file name with a newline, comma, colon or :: inside the annotation's file property", () => {
+    const line = formatWarning({ file: "a\nb,c:d::e.json", key: "k", value: "값", hits: ["can_do"], line: 3 });
+    expect(line).not.toMatch(/[\r\n]/);
+    const [, command] = line.split("::", 2);
+    expect(command).toBe(`warning file=locales/ko/a%0Ab%2Cc%3Ad%3A%3Ae.json,line=3,title=설명형 문구 후보`);
+  });
+});
+
+describe("chooseBase", () => {
+  const SHA = "0123456789abcdef0123456789abcdef01234567";
+  const fakeGit = (over: Partial<BaseGit> & { present?: Set<string> } = {}) => {
+    const present = over.present ?? new Set<string>();
+    const fetched: string[] = [];
+    const git: BaseGit = {
+      hasCommit: (sha) => present.has(sha),
+      fetchCommit: (sha) => {
+        fetched.push(sha);
+      },
+      mergeBase: () => "a".repeat(40),
+      originMain: () => "b".repeat(40),
+      ...over,
+    };
+    return { git, fetched };
+  };
+
+  test("uses the pinned PR base when it is readable, without fetching", () => {
+    const { git, fetched } = fakeGit({ present: new Set([SHA]) });
+    expect(chooseBase(SHA, git)).toEqual({ sha: SHA, label: "PR base 01234567" });
+    expect(fetched).toEqual([]);
+  });
+
+  test("fetches a pinned PR base the shallow checkout lacks", () => {
+    const present = new Set<string>();
+    const calls: string[] = [];
+    const { git } = fakeGit({
+      present,
+      fetchCommit: (sha) => {
+        calls.push(sha);
+        present.add(sha);
+      },
+    });
+    expect(chooseBase(SHA, git)).toEqual({ sha: SHA, label: "PR base 01234567" });
+    expect(calls).toEqual([SHA]);
+  });
+
+  test("fails when the pinned PR base cannot be read, even after fetching", () => {
+    const { git, fetched } = fakeGit();
+    expect(() => chooseBase(SHA, git)).toThrow(/not a readable commit/);
+    expect(fetched).toEqual([SHA]);
+  });
+
+  test("fails when the fetch itself fails", () => {
+    const { git } = fakeGit({
+      fetchCommit: () => {
+        throw new Error("fetch failed");
+      },
+    });
+    expect(() => chooseBase(SHA, git)).toThrow("fetch failed");
+  });
+
+  test.each([
+    ["short", "0123456"],
+    ["uppercase", SHA.toUpperCase()],
+    ["a ref name", "origin/main"],
+    ["an option", "--upload-pack=x"],
+    ["a newline", `${SHA}\nHEAD`],
+  ])("rejects %s before calling git", (_label, value) => {
+    const { git, fetched } = fakeGit({ present: new Set([value]) });
+    expect(() => chooseBase(value, git)).toThrow(/40-character/);
+    expect(fetched).toEqual([]);
+  });
+
+  test("without a pinned base: merge-base, then origin/main, then skip", () => {
+    expect(chooseBase(undefined, fakeGit().git)).toEqual({ sha: "a".repeat(40), label: "merge-base aaaaaaaa" });
+    expect(chooseBase("", fakeGit({ mergeBase: () => null }).git)).toEqual({
+      sha: "b".repeat(40),
+      label: "origin/main bbbbbbbb (no merge-base)",
+    });
+    expect(chooseBase(undefined, fakeGit({ mergeBase: () => null, originMain: () => null }).git)).toEqual({
+      skip: "no origin/main and no EXPLANATORY_COPY_BASE, so there is nothing to compare with",
+    });
+  });
+
+  test("a skip prints one line and exits 0, as an annotation inside GitHub Actions", () => {
+    const local: string[] = [];
+    expect(reportSkip("no base", false, (l) => local.push(l))).toBe(0);
+    expect(local).toEqual(["explanatory-copy SKIP  no base (warning only, exit 0)"]);
+    const actions: string[] = [];
+    expect(reportSkip("no base", true, (l) => actions.push(l))).toBe(0);
+    expect(actions).toEqual(["::warning title=explanatory-copy SKIP::explanatory-copy SKIP  no base (warning only, exit 0)"]);
+  });
+});
+
+describe("readBaseLocaleFiles", () => {
+  // The tree is built with plumbing, so no file with these names has to exist
+  // on disk (Windows cannot hold a newline or a colon in a file name).
+  const files: Record<string, string> = {
+    "locales/ko/plain.json": '{"a":"평범"}',
+    "locales/ko/a\nb.json": '{"a":"줄바꿈"}',
+    "locales/ko/c,d:e::f.json": '{"a":"쉼표 콜론"}',
+    "locales/ko/sub/nested.json": '{"a":"하위 폴더"}',
+    "locales/en/plain.json": '{"a":"english"}',
+  };
+  let repo = "";
+  let base = "";
+  const git = (args: string[], input?: string) =>
+    execFileSync("git", ["-c", "core.protectNTFS=false", ...args], { cwd: repo, input, encoding: "utf8" }).trim();
+
+  beforeAll(() => {
+    repo = mkdtempSync(join(tmpdir(), "explcopy-"));
+    git(["init", "-q"]);
+    for (const [path, content] of Object.entries(files)) {
+      const oid = git(["hash-object", "-w", "--stdin"], content);
+      git(["update-index", "--add", "--cacheinfo", "100644", oid, path]);
+    }
+    const tree = git(["write-tree"]);
+    base = git(["-c", "user.name=t", "-c", "user.email=t@example.com", "commit-tree", tree, "-m", "base"]);
+  });
+
+  afterAll(() => {
+    if (repo) rmSync(repo, { recursive: true, force: true });
+  });
+
+  test("reads each top-level ko file by its own name, whatever characters the name holds", () => {
+    const read = readBaseLocaleFiles(repo, base);
+    expect([...read.keys()].sort()).toEqual(["a\nb.json", "c,d:e::f.json", "plain.json"]);
+    expect(read.get("a\nb.json")).toBe(files["locales/ko/a\nb.json"]);
+    expect(read.get("c,d:e::f.json")).toBe(files["locales/ko/c,d:e::f.json"]);
+    expect(read.get("plain.json")).toBe(files["locales/ko/plain.json"]);
   });
 });

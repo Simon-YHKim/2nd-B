@@ -52,18 +52,18 @@ jobs:
         with:
           version: "0.11.19"
       - run: npm ci --legacy-peer-deps
-      # check:explanatory-copy (Q-261014-89) compares locales/ko with
-      # origin/main, which a pull_request checkout does not fetch. Without this
-      # the check cannot find its base and verify fails on every PR. HEAD is the
-      # PR merge commit, so the diff against main's tip is what the PR changes.
-      - name: Fetch main for the explanatory-copy warning
-        run: git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main
       # a2z audit 2026-07-11: this job used to hand-copy the verify steps and
       # had drifted — check:legal-review, check:anti-anthro and
       # check:mascot-voice ran locally but NOT here, so those regressions
       # merged on green CI. Running the package.json `verify` script verbatim
       # makes the two pipelines structurally unable to drift again.
       - name: Full verify gauntlet (same command as local `npm run verify`)
+        # check:explanatory-copy (Q-261014-89) compares locales/ko with the
+        # commit this PR targets, not with main's tip at run time. The value
+        # reaches the script only as an environment variable; it checks that it
+        # is a 40-character SHA and fetches that one commit (argv, no shell).
+        env:
+          EXPLANATORY_COPY_BASE: ${{ github.event.pull_request.base.sha }}
         run: npm run verify
       # Resolve the actual Edge SDKs: application tsc excludes these files,
       # while Jest stubs previously hid an unpublished JSR version.
