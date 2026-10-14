@@ -3,10 +3,10 @@
 // the matcher folds whitespace runs to one space but never removes them, and the letter-gap gate
 // (crisis-obfuscation.ts) leaves "끝내고 싶" out on purpose.
 //
-// Only the fully joined form of each spaced term is added. The term list (content, order, the
-// fixed numbers in model-reply-scan.ts) is unchanged, endings ("끝낼게", "끝내버리고") are not
-// covered here, and the text's own spaces are never removed. The proxies' copies are held to the
-// same answers in crisis-terms-proxy-parity.test.ts.
+// This file is about the fully joined form of each spaced term. The text's own spaces are never
+// removed. The proxies' copies are held to the same answers in crisis-terms-proxy-parity.test.ts.
+// 2026-10-15 (Q-261015-80): the partly joined forms and the two emphatic terms (20 · 21) came after;
+// they are tested in crisis-half-joined-emphatic.test.ts.
 import { classifyInput, matchesJoinedKoTerm } from "../classifier";
 import { CRISIS_TERMS } from "../lexicon";
 import { checkModelReplyOverlaps, KO_CRISIS_TERM_CODES } from "../model-reply-scan";
@@ -15,14 +15,16 @@ import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS } from "./cr
 const SPACED = CRISIS_TERMS.ko.filter((term) => term.includes(" "));
 const joinedOf = (term: string): string => term.replace(/ /g, "");
 
-test("the spaced terms this covers, from the unchanged list", () => {
+test("the spaced terms this covers, from the list", () => {
   expect(SPACED).toEqual([
     "죽고 싶", "살고 싶지 않", "사라지고 싶", "더 이상 살", "끝내고 싶", "끝낼 거", "목숨을 끊",
     "스스로 목숨", "마지막 인사", "짐이 되", "없어지는 게 나아", "사라지는 게 나", "다음 생에는", "영영 잠들고 싶",
+    // Appended by Q-261015-80 (terms 20 and 21).
+    "끝내 버리고 싶", "끝내 버릴",
   ]);
-  // The list and its fixed numbers are what they were.
+  // The first nineteen terms and their fixed numbers are what they were.
   expect(Object.keys(KO_CRISIS_TERM_CODES)).toEqual([...CRISIS_TERMS.ko]);
-  expect(CRISIS_TERMS.ko).toHaveLength(19);
+  expect(CRISIS_TERMS.ko).toHaveLength(21);
 });
 
 test.each([

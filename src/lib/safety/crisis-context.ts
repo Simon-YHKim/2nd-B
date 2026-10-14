@@ -49,6 +49,25 @@ const REST_ADVICE = "(?:(?:오늘(?:은)?|먼저|우선|이제|잠부터|충분�
 const WORK_STATEMENT = `${WORK_PREFIX}(?:${WORK_BEFORE}(?:(?:어(?:요)?|다|습니다|네요|야|예요|에요|고)|(?:어도|다면|은 마음은 알지만) +${REST_ADVICE})|${WORK_AFTER}(?:이|가) +(?:있어도|있더라도) +${REST_ADVICE})`;
 const KNOWN_WORK_CONTEXT = new RegExp(`^${WORK_STATEMENT}(?:[,\.!?。！？]* +${WORK_STATEMENT}){0,2}[.!?。！？]*$`);
 
+// Q-261015-80: the emphatic forms (끝내 버리고 싶 · 끝내 버릴 거) take the same work condition as
+// 끝내고 싶 · 끝낼 거, in a layer of their own that only ever blanks an emphatic form. The test and
+// the masking above are exactly what they were, so an emphatic sentence never lets a plain form
+// through that went through nothing before: "과제를 끝내고 싶어. 숙제를 끝내버리고 싶어." stays red
+// through its first sentence (#2519 review r1). The grammar is the one above with either form in
+// both of its places: the finish after a work object (WORK_BEFORE), and 끝내고 싶 in front of one
+// (WORK_AFTER, "끝내버리고 싶은 과제가 있어도 오늘은 자요"; #2519 review r2). 끝낼 거 has no form in
+// front of an object, so 끝내 버릴 거 has none either.
+const PLAIN_FINISH = "끝(?:내고 *싶|낼 *거)";
+const EMPHATIC_FINISH = "끝(?:내 *버리고 *싶|내 *버릴 *거)";
+const EMPHATIC_WORK_AFTER = `끝내 *버리고 *싶(?:은|던) +${WORK_OBJECT}`;
+const EITHER_WORK_STATEMENT = WORK_STATEMENT
+  .replace(PLAIN_FINISH, `(?:${PLAIN_FINISH}|${EMPHATIC_FINISH})`)
+  .replace(WORK_AFTER, `(?:${WORK_AFTER}|${EMPHATIC_WORK_AFTER})`);
+const KNOWN_WORK_CONTEXT_EITHER = new RegExp(`^${EITHER_WORK_STATEMENT}(?:[,\.!?。！？]* +${EITHER_WORK_STATEMENT}){0,2}[.!?。！？]*$`);
+const EMPHATIC_WORK_BEFORE_FINISH = new RegExp(`(^|[^가-힣a-z0-9])${WORK_BEFORE.replace(PLAIN_FINISH, EMPHATIC_FINISH)}`, "g");
+// The same end-of-object test as WORK_AFTER_FINISH, taken from it so the two cannot drift.
+const EMPHATIC_WORK_AFTER_FINISH = new RegExp(WORK_AFTER_FINISH.source.replace(WORK_AFTER, EMPHATIC_WORK_AFTER), "g");
+
 export function prepareCrisisScanText(text: string): string {
   const normalized = text.normalize("NFKC").toLowerCase().replace(/\s+/g, " ");
   if (RISK_CONTEXT.test(normalized)) return normalized;
@@ -62,14 +81,24 @@ export function prepareCrisisScanText(text: string): string {
   if (KO_STANDALONE_DENIAL.test(denial) || KO_PLAIN_DENIAL.test(normalized.trim()) || EN_STANDALONE_DENIAL.test(englishDenial)) {
     return normalized.replace(/자살|자해|suicidal|want to die/g, (term) => " ".repeat(term.length));
   }
-  if (!KNOWN_WORK_CONTEXT.test(normalized.trim())) return normalized;
-
-  // Mask just the contextual occurrence, so another crisis phrase elsewhere
-  // still reaches the unchanged matcher. A benign first occurrence cannot
-  // hide a later unqualified one.
-  return normalized
-    .replace(WORK_BEFORE_FINISH, (match) => match.replace(/끝(?:내고 *싶|낼 *거)/, (term: string) => " ".repeat(term.length)))
-    .replace(WORK_AFTER_FINISH, (match) => match.replace(/끝내고 *싶/, (term: string) => " ".repeat(term.length)));
+  let scan = normalized;
+  if (KNOWN_WORK_CONTEXT.test(normalized.trim())) {
+    // Mask just the contextual occurrence, so another crisis phrase elsewhere
+    // still reaches the unchanged matcher. A benign first occurrence cannot
+    // hide a later unqualified one.
+    scan = scan
+      .replace(WORK_BEFORE_FINISH, (match) => match.replace(/끝(?:내고 *싶|낼 *거)/, (term: string) => " ".repeat(term.length)))
+      .replace(WORK_AFTER_FINISH, (match) => match.replace(/끝내고 *싶/, (term: string) => " ".repeat(term.length)));
+  }
+  // The emphatic layer (Q-261015-80): every sentence a work statement with either form, and only
+  // the emphatic occurrences next to a work object are blanked. Blanks keep the length, so the
+  // masks never shift each other.
+  if (KNOWN_WORK_CONTEXT_EITHER.test(normalized.trim())) {
+    scan = scan
+      .replace(EMPHATIC_WORK_BEFORE_FINISH, (match) => match.replace(new RegExp(EMPHATIC_FINISH), (term: string) => " ".repeat(term.length)))
+      .replace(EMPHATIC_WORK_AFTER_FINISH, (match) => match.replace(/끝내 *버리고 *싶/, (term: string) => " ".repeat(term.length)));
+  }
+  return scan;
 }
 
 // The same test prepareCrisisScanText applies before any exception: does the

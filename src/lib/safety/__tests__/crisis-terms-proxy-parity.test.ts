@@ -14,9 +14,17 @@ import { dirname, resolve } from "path";
 
 import * as ts from "typescript";
 
-import { classifyInput } from "../classifier";
+import { classifyInput, KO_PARTIAL_SPACING_TERMS, koSpacingForms, koTermSpellings } from "../classifier";
 import { CRISIS_TERMS } from "../lexicon";
 import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS } from "./crisis-context.fixtures";
+import {
+  DAILY_SAMPLE,
+  EMPHATIC_WORK_PAIRS,
+  LEFT_OUT_ENDINGS,
+  MIXED_WORK_SENTENCES,
+  NEWLY_CAUGHT_CRISIS,
+  OUT_OF_SCOPE_PARTIAL,
+} from "./crisis-half-joined.fixtures";
 
 const PROXY_SOURCES = {
   "gemini-proxy": "../../../../supabase/functions/gemini-proxy/index.ts",
@@ -83,6 +91,10 @@ describe.each(Object.entries(PROXY_SOURCES))("%s crisis-term parity", (_name, re
 
   test("CRISIS_TERMS_KO matches lexicon CRISIS_TERMS.ko exactly (content + order)", () => {
     expect(extractArray(src, "CRISIS_TERMS_KO")).toEqual([...CRISIS_TERMS.ko]);
+  });
+
+  test("PARTIAL_SPACING_KO matches classifier KO_PARTIAL_SPACING_TERMS exactly (Q-261015-80)", () => {
+    expect(extractArray(src, "PARTIAL_SPACING_KO")).toEqual([...KO_PARTIAL_SPACING_TERMS]);
   });
 });
 
@@ -204,6 +216,48 @@ describe.each(Object.entries(PROXY_SOURCES))("%s hasCrisisTerm behaviour parity"
     ["일 다 끝내고싶어. 나 자신도", true],
     ["그게 마지막인 사진이야", false],
   ] as const)("KO: joined work sentence and word boundary agree on both sides: %s", (text, red) => {
+    expect(classifyInput(text, "ko").zone === "red").toBe(red);
+    expect(hasCrisisTerm(text)).toBe(red);
+  });
+
+  // Simon 2026-10-15 (Q-261015-80 가): partly joined spellings and the two emphatic terms, on the
+  // table the decision was made on. The server gives the app's answer on every sample.
+  test.each(CRISIS_TERMS.ko.flatMap((term) => koTermSpellings(term)).map((form) => `그냥 ${form}`))(
+    "KO: every spelling the gate reads is red on both sides: %s",
+    (text) => {
+      expect(classifyInput(text, "ko").zone).toBe("red");
+      expect(hasCrisisTerm(text)).toBe(true);
+    },
+  );
+
+  // Every spacing of every term, read or not: the server answers what the app answers, so a
+  // partly joined spelling of a term off the list (영영 잠들고싶) is green on both sides.
+  test.each(CRISIS_TERMS.ko.flatMap((term) => koSpacingForms(term)).map((form) => `그냥 ${form}`))(
+    "KO: any spacing of a term gets the app's answer on the server: %s",
+    (text) => {
+      expect(hasCrisisTerm(text)).toBe(classifyInput(text, "ko").zone === "red");
+    },
+  );
+
+  test.each([
+    ...OUT_OF_SCOPE_PARTIAL.map((text) => [text, false] as const),
+    ...MIXED_WORK_SENTENCES.map((text) => [text, true] as const),
+  ])("KO: a term off the partial list stays green, a plain work form main stopped stays red, on both sides: %s", (text, red) => {
+    expect(classifyInput(text, "ko").zone === "red").toBe(red);
+    expect(hasCrisisTerm(text)).toBe(red);
+  });
+
+  test.each(NEWLY_CAUGHT_CRISIS)("KO: the decision's crisis sample is red on both sides: %s", (text) => {
+    expect(classifyInput(text, "ko").zone).toBe("red");
+    expect(hasCrisisTerm(text)).toBe(true);
+  });
+
+  test.each(LEFT_OUT_ENDINGS)("KO: an ending the decision left out is green on both sides: %s", (text) => {
+    expect(classifyInput(text, "ko").zone).toBe("green");
+    expect(hasCrisisTerm(text)).toBe(false);
+  });
+
+  test.each([...DAILY_SAMPLE, ...EMPHATIC_WORK_PAIRS])("KO: daily sample and work pairs agree on both sides: %s", (text, red) => {
     expect(classifyInput(text, "ko").zone === "red").toBe(red);
     expect(hasCrisisTerm(text)).toBe(red);
   });

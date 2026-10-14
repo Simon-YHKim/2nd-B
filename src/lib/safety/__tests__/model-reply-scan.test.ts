@@ -271,9 +271,18 @@ describe("the exported risk-context test", () => {
 });
 
 describe("the fixed numbers (D3)", () => {
-  it("number every Korean gate term 1 to 19, in the gate's own order", () => {
+  it("number every Korean gate term 1 to 21, in the gate's own order", () => {
     expect(Object.keys(KO_CRISIS_TERM_CODES)).toEqual([...CRISIS_TERMS.ko]);
-    expect(Object.values(KO_CRISIS_TERM_CODES)).toEqual(Array.from({ length: 19 }, (_, i) => i + 1));
+    expect(Object.values(KO_CRISIS_TERM_CODES)).toEqual(Array.from({ length: 21 }, (_, i) => i + 1));
+    // Q-261015-80 appended two terms; the first nineteen kept their numbers.
+    expect(KO_CRISIS_TERM_CODES["영영 잠들고 싶"]).toBe(19);
+    expect(KO_CRISIS_TERM_CODES["끝내 버리고 싶"]).toBe(20);
+    expect(KO_CRISIS_TERM_CODES["끝내 버릴"]).toBe(21);
+  });
+
+  it("write 20 and 21 nowhere yet: the record's closed list stops at 19 (0254)", () => {
+    expect(modelReplyTermCategories(["끝내 버리고 싶", "끝내 버릴"])).toEqual([]);
+    expect(modelReplyTermCategories(["끝내 버릴", "유서"])).toEqual(["crisis_term:13"]);
   });
 
   it("turn matched terms into ascending category entries and nothing else", () => {
@@ -291,6 +300,7 @@ describe("the fixed numbers (D3)", () => {
     for (const entry of modelReplyTermCategories([...CRISIS_TERMS.ko])) {
       expect(entry).toMatch(/^crisis_term:(?:[1-9]|1[0-9])$/);
     }
+    // 21 terms, 19 of them recordable today.
     expect(modelReplyTermCategories([...CRISIS_TERMS.ko])).toHaveLength(19);
   });
 });
