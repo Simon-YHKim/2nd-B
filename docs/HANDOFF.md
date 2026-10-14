@@ -1,5 +1,15 @@
 # 2nd-Brain Handoff
 
+## 2026-10-15 03:03 / 2ndb-e7: 0260(위기 기록이 받는 번호를 21 까지 · PR #2520) 검토 통과 · 머지(03:00 · main `d3f41d91`) - 블록 Relay 대기 - 다음 1개는 Relay 실행
+
+- **결과**: 대표님 Q-261015-40 답("남긴다")대로 `normalize_client_crisis_categories` 를 0254 의 글자 그대로 다시 만들고 번호 20 · 21 만 더함. 독립 검토 PASS(지적 0 · `E:/Coding Infra/reports/codex-audit-261010/gates/crisis0260-daybreak-r1.txt`). 앱은 받는 범위(`isTermNumber`)만 21.
+- **운영은 미완료**: 블록 `.bots/relay/inbox/coding-e7-0260-apply-block-0301.sql`(메모 `…-0301.note.md`). Relay 복귀(10-17 23:20) 뒤 실행. 다른 블록과 서로 기대지 않는다.
+- **⚠ 0260 운영 적용 전에는 앱이 위기 낱말 20 · 21 을 기록에 쓰게 하지 않는다**(`src/lib/safety/model-reply-scan.ts` 의 19 상한 · 2ndb-79 가 적용 뒤 21 로). 먼저 쓰면 운영의 0254 가 `unlisted` 로 바꾼다.
+- **적용 뒤 할 일(2ndb-e7)**: 운영 읽기(본문 md5 `8884ee36db2c0f5585c5d84be4240967` · 아무 역할도 못 부름 · 위기 기록 줄 수) → 2ndb-79 에 알림.
+- **블록 생성기 · 시험**: `E:/Coding Infra/reports/codex-audit-261010/build_apply_0260.py <ref> <out>` · `scratchpad/apply0260_trials.sh <블록 폴더>`.
+- **워크트리**: `.worktrees/crisis-list-0260`(정션 있음 · 가지는 머지됨). 정리할 때 정션부터 뗀다.
+- **보고서**: https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg 19판.
+
 ## 2026-10-15 01:12 / 2ndb-79: 새벽 마감 — 위기 입력 붙임꼴 운영 반영 · 첫 화면 시범 끝 · #2516 보강 중 · Q-261015-80 대기
 
 - **운영 상태**: openai-proxy v154 · gemini-proxy v168 = main `2ac1916c`(붙임꼴 위기 검사 포함). **0255 운영 적용(10-17 23:20 뒤 Relay) 전에는 프록시 재배포 금지** — #2438(01:00 머지) 뒤의 main 프록시는 운영에 없는 begin_chat_turn_attempt · claim_chat_turn_for_audit 를 부른다(배포 게이트가 막음).
