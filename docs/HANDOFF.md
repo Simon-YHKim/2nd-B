@@ -1,5 +1,16 @@
 # 2nd-Brain Handoff
 
+## 2026-10-15 01:07 / 2ndb-e7: #2438 8회차가 독립 검토를 통과해 머지(01:00 · main `51ffb91a`) - 0255 · 0258 블록 Relay 대기 - 다음 1개는 Relay 실행
+
+- **결과**: 8회차(서버가 시도가 닿은 순서로 첫째 · 둘째 칸에 적음 · 프록시 시계 없음) · 독립 검토 PASS WITH CONCERNS(00:51 · 차단 0 · `E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r8.txt`) · 머지 01:00:02. 가지 `fix/chat-refund-audit-bound-0255` 는 머지됨.
+- **운영은 미완료**: 블록 `.bots/relay/inbox/coding-e7-0255-apply-block-0103.sql` → `coding-e7-0258-apply-block-0103.sql`(순서 그대로 · 메모 `coding-e7-0255-0258-apply-blocks-0103.note.md`). Relay 복귀(10-17 23:20) 뒤 실행. 0253 · 0256 · 0259 블록과는 서로 기대지 않는다.
+- **⚠ 0255 운영 적용 전에는 openai · gemini · claude · xai 프록시를 재배포하지 않는다.** main 의 프록시가 `begin_chat_turn_attempt` · `claim_chat_turn_for_audit` 를 부른다. 배포 게이트도 막는다. 지금 운영 배포본은 openai-proxy v154 · gemini-proxy v168(2ndb-79 · #2514 · 00:49).
+- **적용 뒤 할 일(2ndb-e7)**: 운영 읽기(함수 넷 · 예약 표 · 감사 표 트리거 둘 · 원장 줄) → 프록시 넷 재배포(두 창에 먼저 알림) → 대화 한 번으로 묶기 · 환불 확인 → 보고. 화면 쪽 환불 PR 은 2ndb-79(계약: 다시 묻기는 가장 최근 턴에 한 번 · 서버가 닿은 순서로 시도 둘 · turnBound=false 면 환불을 다시 부르는 것은 화면의 일).
+- **남은 우려(모두 돌려주지 않는 쪽)**: R2438-24 이른 끊김 · R2438-12 시간 넘긴 호출 · R2438-15 두 기기(이 창이 범위 밖으로 둔 것 · 대표님 결정 아님) · R2438-10 빠진 경합 · 프록시 실행 시험.
+- **운영 블록 생성기 · 시험**: `E:/Coding Infra/reports/codex-audit-261010/build_apply_0255_r8.py <ref> <out>` · `scratchpad/apply0255_r8_trials.sh <블록 폴더>`.
+- **질문 번호**: 이 창은 10-15 번호대를 아직 쓰지 않았다(10-14 는 40~49 중 40 만 씀).
+- **보고서**: https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg 17판.
+
 ## 2026-10-14 23:43 / 2ndb-79: 밤 마감 — #2509 끝 · 보고서 둘 · 물음 여덟 대기
 
 - **끝난 것**: #2509(대화 지시문 148 · 189행 · 22:52 머지 · 폰 빌드 통과 · 8081 전 · 후 캡처). 22:20 말투 답 기록(#2508).
