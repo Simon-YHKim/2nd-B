@@ -863,6 +863,16 @@ SELECT pg_temp.z46_assert(pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e1
                           AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e3') = 'answered/26101346-4000-4000-8000-0000000000e9'
                           AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070b4') = 'counted/-',
                           'a refused claim changed a reservation');
+-- B's turn that E just asked for is still B's to bind: a refused attempt by someone else blocks nothing.
+SAVEPOINT z46_owner_after_attempt;
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000b4', '26101346-0000-4000-8000-00000000000b', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
+SET LOCAL ROLE service_role;
+SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000b', '26101346-4000-4000-8000-0000000000b4', '26101346-7000-4000-8000-0000000070b4')::text AS own \gset
+RESET ROLE;
+SELECT pg_temp.z46_assert(:'own' = 'true'
+                          AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070b4') = 'answered/26101346-4000-4000-8000-0000000000b4',
+                          'the owner could not bind a turn after another user had asked for it');
+ROLLBACK TO SAVEPOINT z46_owner_after_attempt;
 -- The one that binds: E's fresh reservation and E's fresh chat row. Then nothing else can take either.
 SET LOCAL ROLE service_role;
 SELECT concat_ws(',',
@@ -910,6 +920,23 @@ SELECT pg_temp.z46_assert(pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e1
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000e7', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', '26101346-7000-4000-8000-0000000070e1');
 SELECT pg_temp.z46_assert(pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e1') = 'refunded/26101346-4000-4000-8000-0000000000e1',
                           'a refunded reservation was answered again');
+-- The refund does not rely on the claim alone: a reservation that is another user's gives the caller nothing,
+-- even if it carries the caller's own fresh red row. The claim never makes such a row; it is built here directly.
+SAVEPOINT z46_foreign_reservation;
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000e8', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
+INSERT INTO public.chat_turn_reservations (turn_id, user_id, counted_day, state, audit_id, answered_at) VALUES
+  ('26101346-7000-4000-8000-0000000070b9', '26101346-0000-4000-8000-00000000000b', :'today'::date, 'answered', '26101346-4000-4000-8000-0000000000e8', pg_catalog.now());
+SELECT pg_temp.z46_count('26101346-0000-4000-8000-00000000000e', :'today'::date) AS e_before \gset
+SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000e';
+SET LOCAL ROLE authenticated;
+SELECT COALESCE(public.refund_chat_turn_after_output_swap('26101346-4000-4000-8000-0000000000e8')::text, 'null') AS rf \gset
+RESET ROLE;
+SELECT pg_temp.z46_assert(:'rf' = 'null' AND :e_before > 0
+                          AND pg_temp.z46_count('26101346-0000-4000-8000-00000000000e', :'today'::date) = :e_before
+                          AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070b9') = 'answered/26101346-4000-4000-8000-0000000000e8'
+                          AND pg_temp.z46_used('26101346-4000-4000-8000-0000000000e8') IS NULL,
+                          'a reservation of another user gave the caller a turn back, or was closed');
+ROLLBACK TO SAVEPOINT z46_foreign_reservation;
 -- The next bump clears that user's reservations older than two days and nobody else's, and keeps the rest.
 INSERT INTO public.chat_turn_reservations (turn_id, user_id, counted_day, issued_at) VALUES
   ('26101346-7000-4000-8000-0000000070e8', '26101346-0000-4000-8000-00000000000e', :'today'::date - 3, pg_catalog.now() - interval '49 hours'),

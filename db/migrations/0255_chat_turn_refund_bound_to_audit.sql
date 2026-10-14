@@ -104,7 +104,7 @@ REVOKE ALL ON TABLE public.chat_turn_reservations FROM PUBLIC, anon, authenticat
 -- its columns and constraints, so check what is actually there.
 DO $table0255$
 DECLARE
-  v_rel   oid := 'public.chat_turn_reservations'::regclass;
+  v_rel   constant regclass := 'public.chat_turn_reservations'::regclass;
   v_cols  text;
   v_want  constant text :=
     'turn_id:uuid:t:gen_random_uuid()|user_id:uuid:t:-|counted_day:date:t:-|issued_at:timestamp with time zone:t:now()'
@@ -112,14 +112,19 @@ DECLARE
     || '|refunded_at:timestamp with time zone:f:-';
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class AS c
-                  WHERE c.oid = v_rel AND c.relkind = 'r' AND c.relpersistence = 'p' AND c.relrowsecurity) THEN
+                  WHERE c.oid = v_rel AND c.relkind = 'r' AND c.relpersistence = 'p' AND c.relrowsecurity
+                    AND NOT c.relispartition)
+     OR EXISTS (SELECT 1 FROM pg_catalog.pg_inherits AS i WHERE i.inhrelid = v_rel OR i.inhparent = v_rel) THEN
     RAISE EXCEPTION '0255: chat_turn_reservations is not a permanent table with row security on'
       USING ERRCODE = '55000';
   END IF;
+  -- Every column with its type, NOT NULL and default. A generated or identity column is another column:
+  -- the functions below write state and audit_id themselves.
   SELECT pg_catalog.string_agg(
            a.attname || ':' || pg_catalog.format_type(a.atttypid, a.atttypmod) || ':'
            || CASE WHEN a.attnotnull THEN 't' ELSE 'f' END || ':'
-           || COALESCE(pg_catalog.pg_get_expr(d.adbin, d.adrelid), '-'),
+           || COALESCE(pg_catalog.pg_get_expr(d.adbin, d.adrelid), '-')
+           || CASE WHEN a.attgenerated <> '' OR a.attidentity <> '' THEN ':generated' ELSE '' END,
            '|' ORDER BY a.attnum)
     INTO v_cols
     FROM pg_catalog.pg_attribute AS a
@@ -147,15 +152,43 @@ BEGIN
                      ON p.attrelid = c.confrelid AND p.attname = 'id' AND NOT p.attisdropped
                   WHERE c.conrelid = v_rel AND c.contype = 'f' AND c.confrelid = 'public.users'::regclass
                     AND c.conkey = ARRAY[a.attnum] AND c.confkey = ARRAY[p.attnum]
-                    AND c.confdeltype = 'c' AND c.convalidated) THEN
+                    AND c.confdeltype = 'c' AND c.convalidated AND NOT c.condeferrable
+                    AND pg_catalog.to_jsonb(c) ->> 'conenforced' IS DISTINCT FROM 'false') THEN
     RAISE EXCEPTION '0255: chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE'
       USING ERRCODE = '55000';
   END IF;
-  -- The two checks, by name and validated: which states exist, and that an answer is there exactly when the state says so.
+  -- The two checks, by name and by what they say: which states exist, and that an answer is there exactly
+  -- when the state says so. A check of another meaning under the same name does not count.
   IF (SELECT pg_catalog.count(*) FROM pg_catalog.pg_constraint AS c
        WHERE c.conrelid = v_rel AND c.contype = 'c' AND c.convalidated
-         AND c.conname IN ('chat_turn_reservations_state_check', 'chat_turn_reservations_answer_check')) <> 2 THEN
+         AND pg_catalog.to_jsonb(c) ->> 'conenforced' IS DISTINCT FROM 'false'
+         AND (c.conname::text, pg_catalog.pg_get_constraintdef(c.oid)) IN (
+               ('chat_turn_reservations_state_check',
+                'CHECK ((state = ANY (ARRAY[''counted''::text, ''answered''::text, ''refunded''::text])))'),
+               ('chat_turn_reservations_answer_check',
+                'CHECK (((state = ''counted''::text) = (audit_id IS NULL)))'))) <> 2 THEN
     RAISE EXCEPTION '0255: chat_turn_reservations lacks its state checks' USING ERRCODE = '55000';
+  END IF;
+  -- Nothing else may change what a write to the table means: the five constraints above, their two
+  -- indexes and the lookup index on (user_id, issued_at), no trigger and no rule.
+  IF (SELECT pg_catalog.count(*) FROM pg_catalog.pg_constraint AS c
+       WHERE c.conrelid = v_rel AND c.contype IN ('p', 'f', 'u', 'x', 'c', 't')) <> 5
+     OR (SELECT pg_catalog.count(*) FROM pg_catalog.pg_index AS i WHERE i.indrelid = v_rel) <> 3
+     OR NOT EXISTS (SELECT 1
+                      FROM pg_catalog.pg_index AS i
+                      JOIN pg_catalog.pg_class AS ic ON ic.oid = i.indexrelid
+                      JOIN pg_catalog.pg_attribute AS u
+                        ON u.attrelid = i.indrelid AND u.attname = 'user_id' AND NOT u.attisdropped
+                      JOIN pg_catalog.pg_attribute AS t
+                        ON t.attrelid = i.indrelid AND t.attname = 'issued_at' AND NOT t.attisdropped
+                     WHERE i.indrelid = v_rel AND ic.relname = 'chat_turn_reservations_user_issued_idx'
+                       AND NOT i.indisunique AND i.indisvalid AND i.indisready
+                       AND i.indpred IS NULL AND i.indexprs IS NULL
+                       AND i.indnatts = 2 AND i.indkey[0] = u.attnum AND i.indkey[1] = t.attnum)
+     OR EXISTS (SELECT 1 FROM pg_catalog.pg_trigger AS t WHERE t.tgrelid = v_rel AND NOT t.tgisinternal)
+     OR EXISTS (SELECT 1 FROM pg_catalog.pg_rewrite AS r WHERE r.ev_class = v_rel) THEN
+    RAISE EXCEPTION '0255: chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create'
+      USING ERRCODE = '55000';
   END IF;
   -- No role of the application may read or write it directly.
   IF pg_catalog.has_table_privilege('anon', v_rel, 'SELECT, INSERT, UPDATE, DELETE')

@@ -1982,7 +1982,8 @@ jobs:
       # the tables as 0252 left them and over a reservation table of the very shape
       # it makes, which must work, and over a ledger key that is missing, may be
       # deferred or covers another column, and a reservation table of another
-      # shape, each of which must stop and leave 0252's function in place.
+      # shape or with something more hanging on it, each of which must stop and
+      # leave 0252's function in place.
       - name: Race two chat turn refunds over one proxy row
         env:
           PGPASSWORD: postgres
@@ -2275,6 +2276,15 @@ jobs:
           reapply_0255_over reservations_no_cascade "$(broken " ON DELETE CASCADE" "")" "chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE"
           reapply_0255_over reservations_no_answer_check "$(broken ", CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL))" "")" "chat_turn_reservations lacks its state checks"
           reapply_0255_over reservations_unlogged "$(broken "CREATE TABLE" "CREATE UNLOGGED TABLE")" "chat_turn_reservations is not a permanent table with row security on"
+          reapply_0255_over reservations_generated_state "$(broken "state text NOT NULL DEFAULT 'counted'," "state text NOT NULL GENERATED ALWAYS AS ('counted'::text) STORED,")" "chat_turn_reservations has other columns"
+          reapply_0255_over reservations_check_other_meaning "$(broken "CHECK ((state = 'counted') = (audit_id IS NULL))" "CHECK (state IS NOT NULL)")" "chat_turn_reservations lacks its state checks"
+          reapply_0255_over reservations_deferrable_owner_link "$(broken " ON DELETE CASCADE," " ON DELETE CASCADE DEFERRABLE,")" "chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE"
+          reapply_0255_over reservations_extra_check "$good_table; ALTER TABLE public.chat_turn_reservations ADD CONSTRAINT z46_extra CHECK (counted_day IS NOT NULL)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over reservations_extra_index "$good_table; CREATE INDEX z46_extra ON public.chat_turn_reservations (counted_day)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over reservations_extra_rule "$good_table; CREATE RULE z46_extra AS ON UPDATE TO public.chat_turn_reservations DO ALSO NOTHING" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over reservations_with_child "$good_table; CREATE TABLE public.z46_child () INHERITS (public.chat_turn_reservations)" "chat_turn_reservations is not a permanent table with row security on"
+          reapply_0255_over reservations_extra_trigger "$good_table; CREATE FUNCTION public.z46_noop() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TRIGGER z46_noop BEFORE UPDATE ON public.chat_turn_reservations FOR EACH ROW EXECUTE FUNCTION public.z46_noop()" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over reservations_other_lookup_index "$good_table; CREATE UNIQUE INDEX chat_turn_reservations_user_issued_idx ON public.chat_turn_reservations (user_id, issued_at)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
           reapply_0255_over reservations_open_policy "$good_table; CREATE POLICY z46_read ON public.chat_turn_reservations FOR SELECT TO authenticated USING (true)" "chat_turn_reservations is open to an application role"
       - name: Exercise public-data quota contract
         env:

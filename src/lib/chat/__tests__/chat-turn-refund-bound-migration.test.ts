@@ -50,7 +50,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(sql).not.toMatch(/CREATE (UNIQUE )?INDEX[^;]*ON public\.ai_audit_log/i);
   });
 
-  it('이미 있는 표의 모양을 적용 때 확인한다: 원장의 기본 키와 예약 표의 열 · 키 · 외래 키 · 검사 · 열림', () => {
+  it('이미 있는 표의 모양을 적용 때 확인한다: 원장의 기본 키와 예약 표의 열 · 키 · 외래 키 · 검사 · 덤 · 열림', () => {
     const ledger = sql.slice(sql.indexOf('DO $shape0255$'), sql.indexOf('$shape0255$;'));
     expect(sql.indexOf('DO $shape0255$')).toBeLessThan(sql.indexOf('CREATE TABLE'));
     expect(ledger).toMatch(/ON a\.attrelid = c\.conrelid AND a\.attname = 'audit_id' AND NOT a\.attisdropped/);
@@ -61,7 +61,10 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     // after the table, the index, the row security switch and the revoke; before any function
     expect(start).toBeGreaterThan(sql.indexOf('REVOKE ALL ON TABLE public.chat_turn_reservations'));
     expect(start).toBeLessThan(sql.indexOf('CREATE OR REPLACE FUNCTION'));
-    expect(check).toMatch(/c\.relkind = 'r' AND c\.relpersistence = 'p' AND c\.relrowsecurity/);
+    expect(check).toMatch(/c\.relkind = 'r' AND c\.relpersistence = 'p' AND c\.relrowsecurity\s+AND NOT c\.relispartition\)/);
+    expect(check).toMatch(/OR EXISTS \(SELECT 1 FROM pg_catalog\.pg_inherits AS i WHERE i\.inhrelid = v_rel OR i\.inhparent = v_rel\) THEN/);
+    // a generated or identity column is another column
+    expect(check).toMatch(/\|\| CASE WHEN a\.attgenerated <> '' OR a\.attidentity <> '' THEN ':generated' ELSE '' END,/);
     expect(check).toContain(
       "'turn_id:uuid:t:gen_random_uuid()|user_id:uuid:t:-|counted_day:date:t:-|issued_at:timestamp with time zone:t:now()'",
     );
@@ -69,10 +72,17 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(check).toContain("|| '|refunded_at:timestamp with time zone:f:-';");
     expect(check).toMatch(/IF v_cols IS DISTINCT FROM v_want THEN/);
     expect(check).toMatch(/\(\(c\.contype = 'p' AND a\.attname = 'turn_id'\) OR \(c\.contype = 'u' AND a\.attname = 'audit_id'\)\)\) <> 2 THEN/);
-    expect(check).toMatch(/c\.contype = 'f' AND c\.confrelid = 'public\.users'::regclass\s+AND c\.conkey = ARRAY\[a\.attnum\] AND c\.confkey = ARRAY\[p\.attnum\]\s+AND c\.confdeltype = 'c' AND c\.convalidated\) THEN/);
-    expect(check).toMatch(/c\.conname IN \('chat_turn_reservations_state_check', 'chat_turn_reservations_answer_check'\)\) <> 2 THEN/);
+    expect(check).toMatch(/c\.contype = 'f' AND c\.confrelid = 'public\.users'::regclass\s+AND c\.conkey = ARRAY\[a\.attnum\] AND c\.confkey = ARRAY\[p\.attnum\]\s+AND c\.confdeltype = 'c' AND c\.convalidated AND NOT c\.condeferrable\s+AND pg_catalog\.to_jsonb\(c\) ->> 'conenforced' IS DISTINCT FROM 'false'\) THEN/);
+    // the two checks by name AND by definition: a check of another meaning under the same name does not count
+    expect(check).toContain("AND (c.conname::text, pg_catalog.pg_get_constraintdef(c.oid)) IN (");
+    expect(check).toContain("'CHECK ((state = ANY (ARRAY[''counted''::text, ''answered''::text, ''refunded''::text])))'),");
+    expect(check).toContain("'CHECK (((state = ''counted''::text) = (audit_id IS NULL)))'))) <> 2 THEN");
+    // nothing else on the table: five constraints, three indexes (the lookup index by its columns), no trigger, no rule
+    expect(check).toMatch(/c\.contype IN \('p', 'f', 'u', 'x', 'c', 't'\)\) <> 5\s+OR \(SELECT pg_catalog\.count\(\*\) FROM pg_catalog\.pg_index AS i WHERE i\.indrelid = v_rel\) <> 3/);
+    expect(check).toMatch(/ic\.relname = 'chat_turn_reservations_user_issued_idx'\s+AND NOT i\.indisunique AND i\.indisvalid AND i\.indisready\s+AND i\.indpred IS NULL AND i\.indexprs IS NULL\s+AND i\.indnatts = 2 AND i\.indkey\[0\] = u\.attnum AND i\.indkey\[1\] = t\.attnum\)/);
+    expect(check).toMatch(/OR EXISTS \(SELECT 1 FROM pg_catalog\.pg_trigger AS t WHERE t\.tgrelid = v_rel AND NOT t\.tgisinternal\)\s+OR EXISTS \(SELECT 1 FROM pg_catalog\.pg_rewrite AS r WHERE r\.ev_class = v_rel\) THEN/);
     expect(check).toMatch(/has_table_privilege\('anon', v_rel, 'SELECT, INSERT, UPDATE, DELETE'\)\s+OR pg_catalog\.has_table_privilege\('authenticated', v_rel, 'SELECT, INSERT, UPDATE, DELETE'\)\s+OR pg_catalog\.has_table_privilege\('service_role', v_rel, 'SELECT, INSERT, UPDATE, DELETE'\)\s+OR EXISTS \(SELECT 1 FROM pg_catalog\.pg_policy AS pol WHERE pol\.polrelid = v_rel\) THEN/);
-    expect(check.match(/RAISE EXCEPTION '0255: [^']+'[^;]*USING ERRCODE = '55000';/g)).toHaveLength(6);
+    expect(check.match(/RAISE EXCEPTION '0255: [^']+'[^;]*USING ERRCODE = '55000';/g)).toHaveLength(7);
   });
 
   it('올리기는 지금의 함수가 그대로 하고, 서버가 예약 줄을 만든다. 이틀 지난 본인의 줄은 여기서 지운다', () => {
@@ -330,8 +340,16 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(helper).not.toMatch(/chat_turn_reservations/);
     // the cases the reservation brings
     expect(regression).toMatch(/'a second call took a turn that already had its answer'/);
+    // the refund reads the owner of the reservation itself, not only what the claim guarantees
+    expect(regression).toMatch(
+      /SAVEPOINT z46_foreign_reservation;[\s\S]{0,1400}'a reservation of another user gave the caller a turn back, or was closed'\);\s+ROLLBACK TO SAVEPOINT z46_foreign_reservation;/,
+    );
     expect(regression).toMatch(/:'no' = 'false,false,false,false,false,false,false,false,false,false,false,false,false,false,false'/);
     expect(regression).toMatch(/:'yes' = 'true,false,false,false,true,true'/);
+    // another user's refused attempt on a turn does not stop its owner from binding it afterwards
+    expect(regression).toMatch(
+      /SAVEPOINT z46_owner_after_attempt;[\s\S]{0,700}'the owner could not bind a turn after another user had asked for it'\);\s+ROLLBACK TO SAVEPOINT z46_owner_after_attempt;/,
+    );
     expect(regression).toMatch(/RAISE EXCEPTION 'z46 regression failed: a signed-in user bound an answer to a turn';\s+EXCEPTION WHEN insufficient_privilege THEN/);
     expect(regression).toMatch(/RAISE EXCEPTION 'z46 regression failed: a signed-in user made a reservation directly';\s+EXCEPTION WHEN insufficient_privilege THEN/);
     expect(regression).toMatch(/'the bump did not remove exactly the caller''s reservations older than two days'/);
@@ -353,7 +371,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect([...steps].sort((a, b) => a - b)).toEqual(steps);
   });
 
-  it('CI 가 환불 경합 여섯 · 묶기 경합 둘 · 0255 의 다시 적용 열다섯을 실제로 돌린다', () => {
+  it('CI 가 환불 경합 여섯 · 묶기 경합 둘 · 0255 의 다시 적용 스물넷을 실제로 돌린다', () => {
     const workflow = read('.github/workflows/supabase-dry-run.yml');
     // No call in the step passes a day.
     const calls = workflow.match(/public\.refund_chat_turn_after_output_swap\('[^\n]*/g) ?? [];
@@ -393,6 +411,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(workflow).toMatch(/grep -q -F "55000: 0255: \$want"/);
     const cases = [...workflow.matchAll(/^ +reapply_0255_over (\w+) "[^\n]*" "([^"\n]*)"$/gm)].map((m) => `${m[1]}:${m[2]}`);
     const key = 'chat_turn_refunds must have a primary key on audit_id alone that is not deferrable';
+    const extra = 'chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create';
     expect(cases).toEqual([
       'same_ledger:',
       `no_primary_key:${key}`,
@@ -408,6 +427,15 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
       'reservations_no_cascade:chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE',
       'reservations_no_answer_check:chat_turn_reservations lacks its state checks',
       'reservations_unlogged:chat_turn_reservations is not a permanent table with row security on',
+      'reservations_generated_state:chat_turn_reservations has other columns',
+      'reservations_check_other_meaning:chat_turn_reservations lacks its state checks',
+      'reservations_deferrable_owner_link:chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE',
+      `reservations_extra_check:${extra}`,
+      `reservations_extra_index:${extra}`,
+      `reservations_extra_rule:${extra}`,
+      'reservations_with_child:chat_turn_reservations is not a permanent table with row security on',
+      `reservations_extra_trigger:${extra}`,
+      `reservations_other_lookup_index:${extra}`,
       'reservations_open_policy:chat_turn_reservations is open to an application role',
     ]);
     // every message a case waits for is one the migration can raise
