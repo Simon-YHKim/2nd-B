@@ -33,7 +33,11 @@ describe("records screen honest error state + focus refetch + virtualized list",
   const src = read(RECORDS);
 
   it("does not coerce a records-read failure to an empty list (false-empty)", () => {
+    // The read's name changed on 2026-10-14 (the list now reads every record); the guard follows
+    // it, and keeps the old name too so neither spelling of the false-empty can come back.
+    expect(src).not.toContain("listAllRecords(userId).catch(() => [])");
     expect(src).not.toContain("listRecentRecords(userId).catch(() => [])");
+    expect(src).toContain("recs = (await listAllRecords(userId)) as RecordsTimelineRecord[];");
     expect(src).toContain("recordsFailed = true");
     expect(src).toContain("setLoadError(true)");
   });
