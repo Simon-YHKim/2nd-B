@@ -1,4 +1,4 @@
-import { ProviderBrandIcon } from "@/components/auth/ProviderBrandIcon";
+import { ProviderBrandIcon, useProviderColumns } from "@/components/auth/ProviderBrandIcon";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Platform, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -173,6 +173,7 @@ export function DeepSpaceSignInDesignScreen() {
       {signInNotice}
     </SignInExitNotice>
   ) : null;
+  const columns = useProviderColumns();
 
   if (branch.kind === "deletion") {
     return (
@@ -437,7 +438,7 @@ export function DeepSpaceSignInDesignScreen() {
                     disabled={authBusy}
                     accessibilityLabel={t(PROVIDER_KEY[provider])}
                     accessibilityState={{ busy: oauthSubmitting }}
-                    rootStyle={styles.providerRoot}
+                    rootStyle={columns === 1 ? styles.providerRootOne : styles.providerRoot}
                     contentStyle={styles.providerContent}
                   >
                     <ProviderBrandIcon provider={provider} />
@@ -647,6 +648,7 @@ const styles = StyleSheet.create({
   },
   providers: { flexDirection: "row", flexWrap: "wrap", alignItems: "stretch", gap: m3.spacing.s3 },
   providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 112 },
+  providerRootOne: { flexBasis: "100%", flexGrow: 1, flexShrink: 1, minWidth: 112 },
   providerContent: {
     minHeight: 56,
     flexDirection: "row",
