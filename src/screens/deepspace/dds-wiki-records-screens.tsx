@@ -26,9 +26,10 @@ import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
+import { useAppRouter, useHardwareBack, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { listRecordsByIds } from "@/lib/records/create";
+import { SEVEN_STARS } from "@/lib/persona/seven-stars";
 import { listAllRecords } from "@/lib/records/list-all-records";
 import { buildRoleRecordsGraph } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
@@ -158,7 +159,7 @@ export function FilterChip({ label, active, violet, onPress }: { label: string; 
 // without a dedicated column in the DB. Purely presentational.
 type RType = "text" | "link" | "voice" | "photo" | "todo";
 type RecordsOrigin = "record" | "source";
-type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string };
+type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string; audit_period?: string | null };
 
 const TYPE_CHIPS: { id: RType | "all" | "unfiled"; labelKey: string }[] = [
   { id: "all", labelKey: "records.filterAll" },
@@ -271,7 +272,7 @@ export function DeepSpaceRecordsScreen() {
   const isKo = i18n.language === "ko";
   const { userId, loading: authLoading } = useAuth();
   // ?tags=a,b filters to pieces whose tags intersect the set (trinity 영역 drilldown).
-  const recordsParams = useScreenParams<{ tags?: string }>();
+  const recordsParams = useScreenParams<{ tags?: string; period?: string }>();
   const tagFilter = useMemo(
     () =>
       (recordsParams.tags ?? "")
@@ -306,7 +307,30 @@ export function DeepSpaceRecordsScreen() {
   const [typeFilter, setTypeFilter] = useState<RType | "all" | "unfiled">("all");
   // PIXEL-CLAY `records` is the connection map. Keep the real, virtualized list
   // one tap away instead of replacing it with the reference's sample corpus.
-  const [view, setView] = useState<"list" | "graph">("graph");
+  // ?period=<a star's period> opens the list on that star's stories (the star summary's
+  // record count leads here). The line at the top of the list says so and returns to
+  // everything; so does the graph, which is the map of all of it.
+  const [periodShownAll, setPeriodShownAll] = useState<string | null>(null);
+  const periodStar = useMemo(() => {
+    const asked = recordsParams.period;
+    if (!asked || asked === periodShownAll) return null;
+    return SEVEN_STARS.find((star) => star.period !== null && star.period === asked) ?? null;
+  }, [recordsParams.period, periodShownAll]);
+  const [view, setView] = useState<"list" | "graph">(periodStar ? "list" : "graph");
+  useEffect(() => {
+    if (periodStar) setView("list");
+  }, [periodStar]);
+  const showAllPeriods = useCallback(() => setPeriodShownAll(recordsParams.period ?? null), [recordsParams.period]);
+  // Opened from a star's summary, the device's Back returns to that summary. The tab's own Back
+  // (DeepSpaceScreen) goes home, which skipped the screen the person came from. This listener is
+  // added after the tab's, so it is asked first.
+  const openedFromStar = SEVEN_STARS.some((star) => star.period !== null && star.period === recordsParams.period);
+  const backToStar = useCallback(() => {
+    if (!openedFromStar || !router.canGoBack()) return false;
+    router.back();
+    return true;
+  }, [openedFromStar, router]);
+  useHardwareBack(backToStar);
 
   useEffect(() => {
     if (!userId) return;
@@ -418,9 +442,10 @@ export function DeepSpaceRecordsScreen() {
   }, [records, t]);
 
   const scoped = useMemo(() => {
-    if (tagFilter.length === 0) return records;
-    return records.filter((r) => (r.tags ?? []).some((tag) => tagFilter.includes(tag.toLowerCase())));
-  }, [records, tagFilter]);
+    const ofStar = periodStar ? records.filter((r) => r.audit_period === periodStar.period) : records;
+    if (tagFilter.length === 0) return ofStar;
+    return ofStar.filter((r) => (r.tags ?? []).some((tag) => tagFilter.includes(tag.toLowerCase())));
+  }, [records, tagFilter, periodStar]);
   const unfiledCount = useMemo(() => scoped.filter(isUnfiled).length, [scoped]);
   const filtered = useMemo(() => {
     if (typeFilter === "all") return scoped;
@@ -491,11 +516,24 @@ export function DeepSpaceRecordsScreen() {
           { key: "graph", label: t("records.viewGraph") },
         ]}
         selected={[view]}
-        onSelect={(key) => setView(key === "graph" ? "graph" : "list")}
+        onSelect={(key) => {
+          if (key === "graph") showAllPeriods();
+          setView(key === "graph" ? "graph" : "list");
+        }}
         style={rStyles.viewToggle}
       />
     </View>
   );
+
+  const periodLine = periodStar ? (
+    <View style={rStyles.periodLine}>
+      <RNText style={rStyles.periodLineText}>{t("records.periodScope", { star: t(`home:ds.star.${periodStar.key}`) })}</RNText>
+      <RNText style={rStyles.periodLineDot} aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">·</RNText>
+      <Pressable onPress={showAllPeriods} accessibilityRole="button" style={rStyles.periodLineAll}>
+        <RNText style={rStyles.periodLineAllText}>{t("records.periodShowAll")}</RNText>
+      </Pressable>
+    </View>
+  ) : null;
 
   const triageCards = (
     <>
@@ -576,6 +614,7 @@ export function DeepSpaceRecordsScreen() {
             ListHeaderComponent={
               <View style={rStyles.listHeader}>
                 {viewToggleRow}
+                {periodLine}
                 {triageCards}
                 {chipStrip}
               </View>
@@ -587,10 +626,13 @@ export function DeepSpaceRecordsScreen() {
                 <GraphLoading />
               ) : (
                 <View style={styles.wikiPageOpen}>
-                  <Text variant="body" style={styles.wikiBody}>{typeFilter === "all" ? t("records.emptyAll") : t("records.emptyKind")}</Text>
-                  <Pressable style={styles.primary} onPress={() => router.push("/capture")} accessibilityRole="button">
-                    <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
-                  </Pressable>
+                  <Text variant="body" style={styles.wikiBody}>{typeFilter === "all" && !periodStar ? t("records.emptyAll") : t("records.emptyKind")}</Text>
+                  {/* A new record is not told under a star, so it would not appear in a star's list. */}
+                  {periodStar ? null : (
+                    <Pressable style={styles.primary} onPress={() => router.push("/capture")} accessibilityRole="button">
+                      <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+                    </Pressable>
+                  )}
                 </View>
               )
             }
@@ -682,6 +724,11 @@ const rStyles = StyleSheet.create({
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   wikiTitle: { color: colors.textTitle, fontSize: 26, fontWeight: "800", flexShrink: 1 },
   viewToggle: { width: 148, flexShrink: 0 },
+  periodLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
+  periodLineText: { color: colors.textTitle, fontSize: 15, fontWeight: "700" },
+  periodLineDot: { color: colors.textMid, fontSize: 15 },
+  periodLineAll: { minHeight: 44, justifyContent: "center" },
+  periodLineAllText: { color: colors.cyanSoft, fontSize: 15, fontWeight: "700" },
   triageCard: {
     flexDirection: "row",
     alignItems: "center",
