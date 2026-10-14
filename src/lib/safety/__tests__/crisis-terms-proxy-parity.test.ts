@@ -179,4 +179,32 @@ describe.each(Object.entries(PROXY_SOURCES))("%s hasCrisisTerm behaviour parity"
     expect(classifyInput(text, "ko").zone).toBe("red");
     expect(hasCrisisTerm(text)).toBe(true);
   });
+
+  // Simon 2026-10-14 (Q-261014-90 가): a spaced Korean term typed without its spaces counts on
+  // both boundaries, and only that one form: the text keeps its own spaces.
+  test.each(CRISIS_TERMS.ko.filter((term) => term.includes(" ")).map((term) => `그냥 ${term.replace(/ /g, "")}`))(
+    "KO: joined spelling matches on both sides: %s",
+    (text) => {
+      expect(classifyInput(text, "ko").zone).toBe("red");
+      expect(hasCrisisTerm(text)).toBe(true);
+    },
+  );
+
+  test.each(["다 끝내고싶어", "사는 게 의미가 없어. 다 끝내고싶어", "학원 끝나고 그냥 다 끝내고싶다 진짜"])(
+    "KO: the reported joined sentence is red on both sides: %s",
+    (text) => {
+      expect(classifyInput(text, "ko").zone).toBe("red");
+      expect(hasCrisisTerm(text)).toBe(true);
+    },
+  );
+
+  test.each([
+    ["과제를 다 끝내고싶어", false],
+    ["일을 다 끝내고싶어", false],
+    ["일 다 끝내고싶어. 나 자신도", true],
+    ["그게 마지막인 사진이야", false],
+  ] as const)("KO: joined work sentence and word boundary agree on both sides: %s", (text, red) => {
+    expect(classifyInput(text, "ko").zone === "red").toBe(red);
+    expect(hasCrisisTerm(text)).toBe(red);
+  });
 });

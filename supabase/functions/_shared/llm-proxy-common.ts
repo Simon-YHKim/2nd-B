@@ -159,7 +159,9 @@ export function hasCrisisTerm(text: string): boolean {
     if (matchesTermEn(lower, term)) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
-    if (lower.includes(normalizeForMatch(term))) return true;
+    // Simon 2026-10-14 (Q-261014-90): a spaced term also matches typed without its spaces; the text
+    // keeps its own. Mirrors src/lib/safety/classifier.ts:matchesJoinedKoTerm.
+    if (lower.includes(normalizeForMatch(term)) || (term.includes(' ') && lower.includes(normalizeForMatch(term).replace(/ /g, '')))) return true;
   }
   return false;
 }
