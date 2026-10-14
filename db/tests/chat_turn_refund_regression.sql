@@ -48,7 +48,7 @@ BEGIN
     (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, created_at, purpose, event_source)
   VALUES
     (p_id, p_user, '0a0b0c0d', '0e0f0a0b', 'gpt-test', false, p_zone::public.safety_zone, 10,
-     pg_catalog.now() - p_age, p_purpose, p_source);
+     pg_catalog.clock_timestamp() - p_age, p_purpose, p_source);
   IF p_turn IS NOT NULL THEN
     PERFORM public.claim_chat_turn_for_audit(p_user, p_id, p_turn);
   END IF;
@@ -235,16 +235,16 @@ SELECT pg_temp.z46_assert((:'d1'::jsonb ->> 'turnId') ~ '^[0-9a-f]{8}-[0-9a-f]{4
                           AND (:'d1'::jsonb ->> 'turnId') <> (:'d2'::jsonb ->> 'turnId')
                           AND (:'d2'::jsonb ->> 'turnId') <> (:'d3'::jsonb ->> 'turnId'),
                           'the turn bump did not hand out three different ids');
-SELECT pg_temp.z46_assert((SELECT count(*) = 2 AND bool_and(user_id = '26101346-0000-4000-8000-00000000000d' AND counted_day = :'today'::date
-                                                             AND state = 'counted' AND audit_id IS NULL
-                                                             AND issued_at <= pg_catalog.clock_timestamp()
-                                                             AND issued_at > pg_catalog.clock_timestamp() - interval '1 minute')
-                             FROM public.chat_turn_reservations
-                            WHERE turn_id IN ((:'d1'::jsonb ->> 'turnId')::uuid, (:'d2'::jsonb ->> 'turnId')::uuid))
-                          AND (SELECT user_id = '26101346-0000-4000-8000-00000000000d' AND counted_day = :'today'::date - 1 AND state = 'counted'
+-- Each bump closes the one before it that got no answer: only the latest reservation is left to bind.
+SELECT pg_temp.z46_assert(pg_temp.z46_turn((:'d1'::jsonb ->> 'turnId')::uuid) IS NULL
+                          AND pg_temp.z46_turn((:'d2'::jsonb ->> 'turnId')::uuid) IS NULL
+                          AND (SELECT user_id = '26101346-0000-4000-8000-00000000000d' AND counted_day = :'today'::date - 1
+                                      AND state = 'counted' AND audit_id IS NULL
+                                      AND issued_at <= pg_catalog.clock_timestamp()
+                                      AND issued_at > pg_catalog.clock_timestamp() - interval '1 minute'
                                  FROM public.chat_turn_reservations WHERE turn_id = (:'d3'::jsonb ->> 'turnId')::uuid)
-                          AND (SELECT count(*) = 3 FROM public.chat_turn_reservations WHERE user_id = '26101346-0000-4000-8000-00000000000d'),
-                          'a counted turn did not get a reservation of its own for the caller and the day it was counted on');
+                          AND (SELECT count(*) = 1 FROM public.chat_turn_reservations WHERE user_id = '26101346-0000-4000-8000-00000000000d'),
+                          'a counted turn did not get a reservation of its own for the caller and the day it was counted on, or an earlier unanswered one was kept');
 SELECT pg_temp.z46_assert(pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date) = 3
                           AND pg_temp.z46_waiting('26101346-0000-4000-8000-00000000000a', :'today'::date) = 8,
                           'the refused bump for another user changed that user''s row');
@@ -265,8 +265,9 @@ END
 $cap$;
 RESET ROLE;
 SELECT pg_temp.z46_assert(pg_temp.z46_count('26101346-0000-4000-8000-00000000000d', :'today'::date) = 5
-                          AND pg_temp.z46_waiting('26101346-0000-4000-8000-00000000000d', :'today'::date) = 5,
-                          'the refused sixth turn changed the count or left a reservation behind');
+                          AND pg_temp.z46_waiting('26101346-0000-4000-8000-00000000000d', :'today'::date) = 1
+                          AND pg_temp.z46_waiting('26101346-0000-4000-8000-00000000000d', :'today'::date - 1) = 0,
+                          'the refused sixth turn changed the count or left a reservation behind, or more than the latest reservation waits');
 -- The existing bump still works and makes no reservation: a turn counted that way cannot be given back.
 SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000b';
 SET LOCAL ROLE authenticated;
@@ -956,21 +957,51 @@ SELECT pg_temp.z46_assert(:'rf' = 'null' AND :e_before > 0
                           AND pg_temp.z46_used('26101346-4000-4000-8000-0000000000e8') IS NULL,
                           'a reservation of another user gave the caller a turn back, or was closed');
 ROLLBACK TO SAVEPOINT z46_foreign_reservation;
--- The next bump clears that user's reservations older than two days and nobody else's, and keeps the rest.
-INSERT INTO public.chat_turn_reservations (turn_id, user_id, counted_day, issued_at) VALUES
-  ('26101346-7000-4000-8000-0000000070e8', '26101346-0000-4000-8000-00000000000e', :'today'::date - 3, pg_catalog.now() - interval '49 hours'),
-  ('26101346-7000-4000-8000-0000000070e9', '26101346-0000-4000-8000-00000000000e', :'today'::date - 2, pg_catalog.now() - interval '47 hours'),
-  ('26101346-7000-4000-8000-0000000070bf', '26101346-0000-4000-8000-00000000000b', :'today'::date - 3, pg_catalog.now() - interval '49 hours');
+-- The next bump clears that user's reservations older than two days and the ones that never got an answer,
+-- and nobody else's; answered and given-back reservations younger than two days stay.
+INSERT INTO public.chat_turn_reservations (turn_id, user_id, counted_day, issued_at, state, audit_id, answered_at) VALUES
+  ('26101346-7000-4000-8000-0000000070e8', '26101346-0000-4000-8000-00000000000e', :'today'::date - 3, pg_catalog.now() - interval '49 hours',
+   'answered', '26101346-4000-4000-8000-0000000000f8', pg_catalog.now() - interval '49 hours'),
+  ('26101346-7000-4000-8000-0000000070e9', '26101346-0000-4000-8000-00000000000e', :'today'::date - 2, pg_catalog.now() - interval '47 hours',
+   'answered', '26101346-4000-4000-8000-0000000000f9', pg_catalog.now() - interval '47 hours'),
+  ('26101346-7000-4000-8000-0000000070bf', '26101346-0000-4000-8000-00000000000b', :'today'::date - 3, pg_catalog.now() - interval '49 hours',
+   'counted', NULL, NULL);
 SET LOCAL ROLE authenticated;
 SELECT public.bump_chat_usage_for_turn('26101346-0000-4000-8000-00000000000e', :'today'::date)::text AS e_new \gset
 RESET ROLE;
 SELECT pg_temp.z46_assert((:'e_new'::jsonb ->> 'count') = '2'
                           AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e8') IS NULL
-                          AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e9') = 'counted/-'
+                          AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e9') = 'answered/26101346-4000-4000-8000-0000000000f9'
                           AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070bf') = 'counted/-'
                           AND pg_temp.z46_turn((:'e_new'::jsonb ->> 'turnId')::uuid) = 'counted/-'
-                          AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e2') = 'counted/-',
-                          'the bump did not remove exactly the caller''s reservations older than two days');
+                          AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e2') IS NULL
+                          AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e5') = 'answered/26101346-4000-4000-8000-0000000000e6'
+                          AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e1') = 'refunded/26101346-4000-4000-8000-0000000000e1'
+                          AND (SELECT count(*) = 1 FROM public.chat_turn_reservations
+                                WHERE user_id = '26101346-0000-4000-8000-00000000000e' AND state = 'counted'),
+                          'the bump did not remove exactly the caller''s unanswered reservations and those older than two days');
+-- The midnight case of round 3: a turn counted yesterday that got no answer, then a turn counted today. The
+-- answer of today's request cannot be bound to yesterday's reservation, whatever id the app sends with it.
+SAVEPOINT z46_midnight;
+INSERT INTO public.chat_turn_reservations (turn_id, user_id, counted_day, issued_at) VALUES
+  ('26101346-7000-4000-8000-0000000070b8', '26101346-0000-4000-8000-00000000000b', :'today'::date - 1, pg_catalog.clock_timestamp() - interval '1 minute');
+SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000b';
+SET LOCAL ROLE authenticated;
+SELECT public.bump_chat_usage_for_turn('26101346-0000-4000-8000-00000000000b', :'today'::date)::text AS b_new \gset
+RESET ROLE;
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000b8', '26101346-0000-4000-8000-00000000000b', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
+SET LOCAL ROLE service_role;
+SELECT concat_ws(',',
+         public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000b', '26101346-4000-4000-8000-0000000000b8', '26101346-7000-4000-8000-0000000070b8')::text,
+         public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000b', '26101346-4000-4000-8000-0000000000b8', (:'b_new'::jsonb ->> 'turnId')::uuid)::text) AS midnight \gset
+RESET ROLE;
+SELECT pg_temp.z46_assert(:'midnight' = 'false,true'
+                          AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070b8') IS NULL
+                          AND pg_temp.z46_turn((:'b_new'::jsonb ->> 'turnId')::uuid) = 'answered/26101346-4000-4000-8000-0000000000b8'
+                          AND (SELECT count(*) = 0 FROM public.chat_turn_reservations
+                                WHERE user_id = '26101346-0000-4000-8000-00000000000b' AND state = 'counted'),
+                          'yesterday''s unanswered reservation could still take today''s answer: ' || :'midnight');
+ROLLBACK TO SAVEPOINT z46_midnight;
 DELETE FROM public.chat_turn_reservations WHERE turn_id = '26101346-7000-4000-8000-0000000070bf';
 
 -- Only the ledger's own primary key means "used already". Another unique rule that the ledger is not

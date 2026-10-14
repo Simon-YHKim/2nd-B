@@ -7,14 +7,16 @@ const read = (p: string) => readFileSync(join(ROOT, p), 'utf8').replace(/\r\n/g,
 // Every proxy that can seat the chat. The chat screen hands the id to
 // refund_chat_turn_after_output_swap (0255), so a proxy that leaves it out gives no turn back.
 const PROXIES = ['openai-proxy', 'claude-proxy', 'gemini-proxy', 'xai-proxy'];
-const REPLY = 'return jsonResponse(req, { text, modelUsed, latencyMs, audited, ...(audited ? { auditId: consentAuditId } : {}) });';
+const REPLY =
+  'return jsonResponse(req, {\n    text, modelUsed, latencyMs, audited,\n    ...(audited ? { auditId: consentAuditId } : {}),\n    ...(chatTurnId ? { turnBound } : {}),\n  });';
 
 describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 그 답을 턴에 묶어 달라고 서버에 묻는다 (Z46 · 0255)', () => {
   it.each(PROXIES)('%s: 방금 쓴 그 줄의 id 를, 그 줄이 돌아왔을 때만', (name) => {
     const src = read(`supabase/functions/${name}/index.ts`);
     expect(src).toContain("import { claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';");
     // One reply response, and it is the one that carries the id.
-    expect(src.match(/return jsonResponse\(req, \{ text, [^\n]*\);/g)).toEqual([REPLY]);
+    expect(src.match(/return jsonResponse\(req, \{\n    text, [\s\S]*?\n  \}\);/g)).toEqual([REPLY]);
+    expect(src).not.toMatch(/return jsonResponse\(req, \{ text, /);
     // `audited` has one source: the shared insert, which is true only when the row it was given came back.
     const tail = src.slice(src.lastIndexOf('const consentAuditId = crypto.randomUUID();'));
     expect(tail).toMatch(
@@ -37,24 +39,25 @@ describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 
     expect(src).not.toMatch(/chat_turn_id/);
     // one question, with the user from the verified token, the row just written and the turn the app named
     expect(src.match(/claimChatTurn\(/g)).toHaveLength(1);
+    // an empty answer binds nothing (round 4), and the reply says whether the turn was bound
     expect(tail).toContain(
-      `  if (audited && chatTurnId) {\n    await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, '${name}');\n  }\n`,
+      `  const turnBound = audited && chatTurnId && text.trim() !== ''\n    ? await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, '${name}')\n    : false;\n`,
     );
     // after the row is written, after the consent re-check has had its say, and before the reply
     const order = [
       tail.indexOf('await insertLlmAuditRow(supabaseAdmin, {'),
       tail.indexOf('const consentDenial = await recheckLlmConsent(capacityRpc, consentLease);'),
       tail.indexOf('    return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);'),
-      tail.indexOf('await claimChatTurn(supabaseAdmin, {'),
+      tail.indexOf('? await claimChatTurn(supabaseAdmin, {'),
       tail.indexOf(REPLY),
     ];
     expect(order.every((at) => at >= 0)).toBe(true);
     expect(order).toEqual([...order].sort((a, b) => a - b));
     // no early return of the reply path sits below the question: every refusal, cut-off and failure
     // answer has already left by then
-    const between = tail.slice(tail.indexOf('await claimChatTurn(supabaseAdmin, {'), tail.indexOf(REPLY));
+    const between = tail.slice(tail.indexOf('? await claimChatTurn(supabaseAdmin, {'), tail.indexOf(REPLY));
     expect(between).not.toMatch(/return /);
-    const before = tail.slice(0, tail.indexOf('await claimChatTurn(supabaseAdmin, {'));
+    const before = tail.slice(0, tail.indexOf('? await claimChatTurn(supabaseAdmin, {'));
     for (const answer of [...before.matchAll(/return jsonResponse\(req, \{ error: '(upstream_[a-z_]+)'/g)].map((m) => m[1])) {
       expect(['upstream_refusal', 'upstream_truncated', 'upstream_blocked', 'upstream_empty']).toContain(answer);
     }
@@ -64,7 +67,11 @@ describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 
   it.each(PROXIES)('%s: 다른 응답은 id 를 싣지 않는다(막힌 입력 · 실패 · 동의 철회 · 임베딩)', (name) => {
     const src = read(`supabase/functions/${name}/index.ts`);
     expect(src.match(/auditId: consentAuditId/g)).toHaveLength(2); // the reply, and the question above it
-    expect(src.match(/jsonResponse\([^\n]*auditId/g)).toHaveLength(1);
+    // every response call, read whole (the reply spans lines): exactly one carries the id, and it is the reply
+    const calls = [...src.matchAll(/jsonResponse\(req, \{[\s\S]*?\}\s*(?:,[^;]*?)?\);/g)].map((m) => m[0]);
+    expect(calls.length).toBeGreaterThan(3);
+    expect(calls.filter((call) => call.includes('auditId'))).toEqual([REPLY.replace(/^return /, '')]);
+    expect(calls.filter((call) => call.includes('turnBound'))).toEqual([REPLY.replace(/^return /, '')]);
     for (const line of src.split('\n').filter((l) => /jsonResponse\(req, \{ (error|vectors)\b/.test(l))) {
       expect(line).not.toMatch(/auditId|consentAuditId/);
     }

@@ -658,10 +658,15 @@ Deno.serve(async (req: Request) => {
   // way out with a reply: a refused, cut-off or consent-withheld call has returned above and answers
   // nothing. The server reads the owner, the state and the age of its own reservation row; the id the
   // app sent decides nothing. Bounded: past the limit the reply goes out unbound (no refund for it).
-  if (audited && chatTurnId) {
-    await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'xai-proxy');
-  }
+  // An empty answer answers nothing: the turn stays open for the call that is sent again.
+  const turnBound = audited && chatTurnId && text.trim() !== ''
+    ? await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'xai-proxy')
+    : false;
 
   // Z46 (0255): the id of the audit row written above, only when it was written (see openai-proxy).
-  return jsonResponse(req, { text, modelUsed, latencyMs, audited, ...(audited ? { auditId: consentAuditId } : {}) });
+  return jsonResponse(req, {
+    text, modelUsed, latencyMs, audited,
+    ...(audited ? { auditId: consentAuditId } : {}),
+    ...(chatTurnId ? { turnBound } : {}),
+  });
 });

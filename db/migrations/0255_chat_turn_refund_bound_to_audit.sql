@@ -15,8 +15,10 @@
 --      권한도 주지 않는다). 아래 함수 셋만 건드린다.
 --   2. bump_chat_usage_for_turn(p_user_id, p_day): 지금의 올리기(bump_chat_usage_if_under_cap)를 그대로 부르고
 --      예약 줄 하나를 만든 뒤 { count, turnId } 를 돌려준다. 한도와 날짜를 다루는 방식은 지금의 올리기와 같다.
---      그 사용자의 이틀 지난 예약 줄은 여기서 지운다. 옛 올리기는 그대로 둔다(옛 설치본이 부른다 · 그 턴에는 예약이
---      없으므로 환불도 없다).
+--      새 예약을 만들기 전에 그 사용자의 앞선 답 없는 예약을 닫는다(지운다): 답을 묶을 수 있는 것은 언제나 그 사용자의
+--      가장 최근 예약 하나다(4회차 · 대표님 2026-10-14 14:12:02 「4회차: 앞선 답 없는 예약을 닫아 가장 최근 하나만
+--      묶이게 + 우려 넷 손질 → 4회차 검토」). 올리기는 사용자마다 한 줄로 선다(트랜잭션 잠금). 이틀 지난 예약 줄도
+--      여기서 지운다. 옛 올리기는 그대로 둔다(옛 설치본이 부른다 · 그 턴에는 예약이 없으므로 환불도 없다).
 --   3. claim_chat_turn_for_audit(p_user_id, p_audit_id, p_turn_id): 프록시(service_role)만 부른다. 답의 감사 줄을 쓴
 --      직후에 부르고, 넷이 모두 맞을 때만 예약 줄에 그 감사 줄을 묶는다: 예약의 주인이 그 사용자다 · 아직 답이 묶인
 --      적 없다 · 5분 안에 만든 예약이다 · 감사 줄이 그 사용자의 것이고 프록시가 쓴 대화 줄이며 60초 안에 생겼다.
@@ -52,7 +54,7 @@
 --   - 올리기만 하고 끝내 답을 못 받은 턴을 돌려주지 않는다(하루 한도의 뜻이 바뀌는 일이라 따로 정한다).
 -- 남용: 0252 와 같다. 하루 한도는 클라이언트가 호출 전에 RPC 를 부르는 것으로만 걸린다. 이 파일이 지키는 것은
 --   "돌려주는 횟수는 예약 하나에 하나, 그 예약이 센 날에만, 프록시가 쓴 red 줄이 그 예약에 묶였을 때만"이다.
---   변조한 앱이 고를 수 있는 것은 자기 계정에서 5분 안에 올리고 아직 답이 없는 예약들 가운데 하나다.
+--   변조한 앱이 고를 것은 없다: 묶일 수 있는 예약은 그 사용자의 가장 최근 예약 하나뿐이다(앞선 것은 다음 올리기가 닫는다).
 -- 권한: bump… 과 refund… 는 authenticated 만, claim… 은 service_role 만 EXECUTE. 트리거 함수는 누구도 직접 부를 수 없다.
 -- 삭제: 예약 줄은 계정을 지우면 따라 지워진다(users 를 따라). 내용 삭제(erase_my_data)는 건드리지 않는다. 삭제
 --   등록부에는 0258 이 올린다.
@@ -184,7 +186,8 @@ BEGIN
                      WHERE i.indrelid = v_rel AND ic.relname = 'chat_turn_reservations_user_issued_idx'
                        AND NOT i.indisunique AND i.indisvalid AND i.indisready
                        AND i.indpred IS NULL AND i.indexprs IS NULL
-                       AND i.indnatts = 2 AND i.indkey[0] = u.attnum AND i.indkey[1] = t.attnum)
+                       AND i.indnatts = 2 AND i.indnkeyatts = 2 AND i.indkey[0] = u.attnum AND i.indkey[1] = t.attnum
+                       AND ic.relam = (SELECT am.oid FROM pg_catalog.pg_am AS am WHERE am.amname = 'btree'))
      OR EXISTS (SELECT 1 FROM pg_catalog.pg_trigger AS t WHERE t.tgrelid = v_rel AND NOT t.tgisinternal)
      OR EXISTS (SELECT 1 FROM pg_catalog.pg_rewrite AS r WHERE r.ev_class = v_rel) THEN
     RAISE EXCEPTION '0255: chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create'
@@ -317,10 +320,17 @@ BEGIN
   -- Raises 42501 for another user's id and P0001 chat_limit_exceeded at the cap. The third argument is ignored there.
   v_count := public.bump_chat_usage_if_under_cap(p_user_id, p_day, 0);
 
-  -- A refund is only possible within minutes of the answer, so this user's old reservations go here.
+  -- One bump at a time per user, so the next statement sees every reservation an earlier bump made.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('chat_turn_bump:' || p_user_id::text, 0));
+
+  -- This turn closes the turns before it that never got an answer: an answer can only ever be bound to the
+  -- user's latest counted turn. A refund is only possible within minutes of the answer, so the user's
+  -- reservations older than two days go here too.
   DELETE FROM public.chat_turn_reservations AS r
    WHERE r.user_id = p_user_id
-     AND r.issued_at < pg_catalog.clock_timestamp() - interval '2 days';
+     AND (r.state = 'counted'
+          OR r.issued_at < pg_catalog.clock_timestamp() - interval '2 days');
 
   -- The reservation carries the day the turn was counted on. That day is the day a refund gives back.
   INSERT INTO public.chat_turn_reservations (user_id, counted_day)

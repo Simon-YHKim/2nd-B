@@ -2158,6 +2158,52 @@ jobs:
               return 1
             fi
           }
+          bump_race() { # <label> <expected: a b counted-reservations as count:day offsets>
+            local label="$1" want="$2"
+            local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 bump race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          SQL
+            local as_user="SET LOCAL request.jwt.claim.sub = '$user'"
+            local kst_today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'a=' || (public.bump_chat_usage_for_turn('$user', $kst_today - 1) ->> 'count')" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "bump_a_$label.out" &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the first bump session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            local a b counted
+            b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'b=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'count')" \
+              -c "COMMIT" | grep '^b=' | tr -d '\r')"
+            wait "$a_pid"
+            a="$(grep '^a=' "bump_a_$label.out" | tr -d '\r')"
+            counted="$(sql "$clone_db" "SELECT count(*) || ':' || COALESCE(string_agg(($kst_today - r.counted_day)::text, ',' ORDER BY r.counted_day DESC), '-')
+                                         FROM public.chat_turn_reservations AS r WHERE r.state = 'counted'" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: first session $a, second session $b, counted reservations $counted"
+            if [[ "$a $b $counted" != "$want" ]]; then
+              echo "$label: two bumps at once did not leave only the later reservation open (wanted $want)" >&2
+              return 1
+            fi
+          }
           reapply_over() { # <label> <statement that leaves a ledger table of another shape, or ''> <the check that must stop it, or ''>
             local label="$1" breakit="$2" want="$3"
             local clone_db="reapply_0252_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
@@ -2252,6 +2298,9 @@ jobs:
           # Two answers for one reservation, then one answer for two reservations.
           claim_race two_answers_one_turn turn "a=true b=false answered:01/counted:-"
           claim_race one_answer_two_turns row "a=true b=false answered:01/counted:-"
+          # Two bumps at once for one user on two days (yesterday's turn, then today's): only the per-user lock
+          # puts them in line, and the later one closes the earlier one, so one reservation is left open.
+          bump_race two_bumps_two_days "a=1 b=1 1:0"
           # 0255 over the tables as 0252 left them, then over a ledger key that is missing, may raise at commit or
           # covers another column.
           reapply_0255_over same_ledger "" ""
@@ -2287,6 +2336,8 @@ jobs:
           reapply_0255_over rsv_with_child "$good_table; CREATE TABLE public.z46_child () INHERITS (public.chat_turn_reservations)" "chat_turn_reservations is not a permanent table with row security on"
           reapply_0255_over rsv_extra_trigger "$good_table; CREATE FUNCTION public.z46_noop() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TRIGGER z46_noop BEFORE UPDATE ON public.chat_turn_reservations FOR EACH ROW EXECUTE FUNCTION public.z46_noop()" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
           reapply_0255_over rsv_other_lookup_index "$good_table; CREATE UNIQUE INDEX chat_turn_reservations_user_issued_idx ON public.chat_turn_reservations (user_id, issued_at)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_include_lookup_index "$good_table; CREATE INDEX chat_turn_reservations_user_issued_idx ON public.chat_turn_reservations (user_id) INCLUDE (issued_at)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_brin_lookup_index "$good_table; CREATE INDEX chat_turn_reservations_user_issued_idx ON public.chat_turn_reservations USING brin (user_id, issued_at)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
           reapply_0255_over rsv_open_policy "$good_table; CREATE POLICY z46_read ON public.chat_turn_reservations FOR SELECT TO authenticated USING (true)" "chat_turn_reservations is open to an application role"
       - name: Exercise public-data quota contract
         env:

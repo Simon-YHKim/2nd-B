@@ -79,13 +79,13 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(check).toContain("'CHECK (((state = ''counted''::text) = (audit_id IS NULL)))'))) <> 2 THEN");
     // nothing else on the table: five constraints, three indexes (the lookup index by its columns), no trigger, no rule
     expect(check).toMatch(/c\.contype IN \('p', 'f', 'u', 'x', 'c', 't'\)\) <> 5\s+OR \(SELECT pg_catalog\.count\(\*\) FROM pg_catalog\.pg_index AS i WHERE i\.indrelid = v_rel\) <> 3/);
-    expect(check).toMatch(/ic\.relname = 'chat_turn_reservations_user_issued_idx'\s+AND NOT i\.indisunique AND i\.indisvalid AND i\.indisready\s+AND i\.indpred IS NULL AND i\.indexprs IS NULL\s+AND i\.indnatts = 2 AND i\.indkey\[0\] = u\.attnum AND i\.indkey\[1\] = t\.attnum\)/);
+    expect(check).toMatch(/ic\.relname = 'chat_turn_reservations_user_issued_idx'\s+AND NOT i\.indisunique AND i\.indisvalid AND i\.indisready\s+AND i\.indpred IS NULL AND i\.indexprs IS NULL\s+AND i\.indnatts = 2 AND i\.indnkeyatts = 2 AND i\.indkey\[0\] = u\.attnum AND i\.indkey\[1\] = t\.attnum\s+AND ic\.relam = \(SELECT am\.oid FROM pg_catalog\.pg_am AS am WHERE am\.amname = 'btree'\)\)/);
     expect(check).toMatch(/OR EXISTS \(SELECT 1 FROM pg_catalog\.pg_trigger AS t WHERE t\.tgrelid = v_rel AND NOT t\.tgisinternal\)\s+OR EXISTS \(SELECT 1 FROM pg_catalog\.pg_rewrite AS r WHERE r\.ev_class = v_rel\) THEN/);
     expect(check).toMatch(/has_table_privilege\('anon', v_rel, 'SELECT, INSERT, UPDATE, DELETE'\)\s+OR pg_catalog\.has_table_privilege\('authenticated', v_rel, 'SELECT, INSERT, UPDATE, DELETE'\)\s+OR pg_catalog\.has_table_privilege\('service_role', v_rel, 'SELECT, INSERT, UPDATE, DELETE'\)\s+OR EXISTS \(SELECT 1 FROM pg_catalog\.pg_policy AS pol WHERE pol\.polrelid = v_rel\) THEN/);
     expect(check.match(/RAISE EXCEPTION '0255: [^']+'[^;]*USING ERRCODE = '55000';/g)).toHaveLength(7);
   });
 
-  it('올리기는 지금의 함수가 그대로 하고, 서버가 예약 줄을 만든다. 이틀 지난 본인의 줄은 여기서 지운다', () => {
+  it('올리기는 지금의 함수가 그대로 하고, 서버가 예약 줄을 만든다. 본인의 앞선 답 없는 줄과 이틀 지난 줄은 여기서 지운다', () => {
     expect(bump).toMatch(/RETURNS jsonb\s+LANGUAGE plpgsql\s+SECURITY DEFINER\s+SET search_path = ''/);
     // The cap, the caller check and the limit error are the existing function's.
     expect(bump).toMatch(/v_count := public\.bump_chat_usage_if_under_cap\(p_user_id, p_day, 0\);/);
@@ -95,10 +95,13 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     );
     // the id is the table's own default: the function never takes one from the caller or makes one itself
     expect(bump).not.toMatch(/gen_random_uuid|p_turn/);
+    // round 4: an answer can only be bound to the user's latest counted turn, so a bump closes the earlier ones
     expect(bump).toMatch(
-      /DELETE FROM public\.chat_turn_reservations AS r\s+WHERE r\.user_id = p_user_id\s+AND r\.issued_at < pg_catalog\.clock_timestamp\(\) - interval '2 days';/,
+      /DELETE FROM public\.chat_turn_reservations AS r\s+WHERE r\.user_id = p_user_id\s+AND \(r\.state = 'counted'\s+OR r\.issued_at < pg_catalog\.clock_timestamp\(\) - interval '2 days'\);/,
     );
-    const order = [bump.indexOf('bump_chat_usage_if_under_cap'), bump.indexOf('DELETE FROM public.chat_turn_reservations'), bump.indexOf('INSERT INTO public.chat_turn_reservations')];
+    // one bump at a time per user, so that delete sees every reservation an earlier bump made
+    expect(bump).toMatch(/PERFORM pg_catalog\.pg_advisory_xact_lock\(\s*pg_catalog\.hashtextextended\('chat_turn_bump:' \|\| p_user_id::text, 0\)\);/);
+    const order = [bump.indexOf('bump_chat_usage_if_under_cap'), bump.indexOf('pg_advisory_xact_lock'), bump.indexOf('DELETE FROM public.chat_turn_reservations'), bump.indexOf('INSERT INTO public.chat_turn_reservations')];
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(bump).toMatch(/RETURN pg_catalog\.jsonb_build_object\('count', v_count, 'turnId', v_turn\);/);
     expect(sql).toMatch(/REVOKE ALL ON FUNCTION public\.bump_chat_usage_for_turn\(uuid, date\) FROM PUBLIC, anon, service_role;/);
@@ -356,7 +359,11 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     );
     expect(regression).toMatch(/RAISE EXCEPTION 'z46 regression failed: a signed-in user bound an answer to a turn';\s+EXCEPTION WHEN insufficient_privilege THEN/);
     expect(regression).toMatch(/RAISE EXCEPTION 'z46 regression failed: a signed-in user made a reservation directly';\s+EXCEPTION WHEN insufficient_privilege THEN/);
-    expect(regression).toMatch(/'the bump did not remove exactly the caller''s reservations older than two days'/);
+    expect(regression).toMatch(/'the bump did not remove exactly the caller''s unanswered reservations and those older than two days'/);
+    // round 4: the midnight case of round 3 (yesterday's unanswered reservation cannot take today's answer)
+    expect(regression).toMatch(/SAVEPOINT z46_midnight;[\s\S]{0,2600}:'midnight' = 'false,true'[\s\S]{0,900}ROLLBACK TO SAVEPOINT z46_midnight;/);
+    // audit rows are made at clock time, like the windows the functions read
+    expect(regression).toContain('pg_catalog.clock_timestamp() - p_age, p_purpose, p_source);');
     expect(regression).toMatch(/'a deleted account left reservations behind'/);
     expect(regression).toMatch(/'the turn counted yesterday lowered another day, or did not lower yesterday'/);
     expect(regression).toMatch(/FOREACH v_case IN ARRAY ARRAY\['user', 'purpose', 'zone', 'time'\] LOOP/);
@@ -375,7 +382,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect([...steps].sort((a, b) => a - b)).toEqual(steps);
   });
 
-  it('CI 가 환불 경합 여섯 · 묶기 경합 둘 · 0255 의 다시 적용 스물넷을 실제로 돌린다', () => {
+  it('CI 가 환불 경합 여섯 · 묶기 경합 둘 · 올리기 경합 하나 · 0255 의 다시 적용 스물여섯을 실제로 돌린다', () => {
     const workflow = read('.github/workflows/supabase-dry-run.yml');
     // No call in the step passes a day.
     const calls = workflow.match(/public\.refund_chat_turn_after_output_swap\('[^\n]*/g) ?? [];
@@ -407,6 +414,14 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     const claimRace = workflow.slice(workflow.indexOf('claim_race() {'), workflow.indexOf('reapply_over() {'));
     expect(claimRace.indexOf('-c "SELECT pg_sleep(3)"')).toBeLessThan(claimRace.indexOf("SELECT 'b=' || public.claim_chat_turn_for_audit("));
     expect(claimRace).toMatch(/AND query = 'SELECT pg_sleep\(3\)'/);
+    // round 4: two bumps of one user on two days at once leave only the later reservation open
+    const bumps = [...workflow.matchAll(/^ +bump_race (\w+) "([^"\n]*)"$/gm)].map((m) => `${m[1]}|${m[2]}`);
+    expect(bumps).toEqual(['two_bumps_two_days|a=1 b=1 1:0']);
+    const bumpRace = workflow.slice(workflow.indexOf('bump_race() {'), workflow.indexOf('reapply_over() {'));
+    expect(bumpRace).toContain("-c \"SELECT 'a=' || (public.bump_chat_usage_for_turn('$user', $kst_today - 1) ->> 'count')\"");
+    expect(bumpRace.indexOf('-c "SELECT pg_sleep(3)"')).toBeLessThan(bumpRace.indexOf("SELECT 'b=' || (public.bump_chat_usage_for_turn('$user', $kst_today)"));
+    expect(bumpRace).toMatch(/AND query = 'SELECT pg_sleep\(3\)'/);
+    expect(bumpRace).toContain("WHERE r.state = 'counted'");
     // 0252's re-apply cases start from a database without 0255.
     expect(workflow).toMatch(
       /--single-transaction -f db\/migrations\/rollback\/0255_down\.sql\s+psql [^\n]*--single-transaction -f db\/migrations\/rollback\/0252_down\.sql/,
@@ -440,6 +455,8 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
       'rsv_with_child:chat_turn_reservations is not a permanent table with row security on',
       `rsv_extra_trigger:${extra}`,
       `rsv_other_lookup_index:${extra}`,
+      `rsv_include_lookup_index:${extra}`,
+      `rsv_brin_lookup_index:${extra}`,
       'rsv_open_policy:chat_turn_reservations is open to an application role',
     ]);
     // Each case runs on a clone named <prefix>_<label>_<run id>_<attempt>_<pid>. PostgreSQL ends a name at 63 bytes
