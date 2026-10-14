@@ -89,9 +89,6 @@
     "personal": "Tersimpan sebagai format pribadimu.",
     "shared": "Format baru tersimpan dan dibagikan ke formatmu."
   },
-  "firstRun": {
-    "hint": "Mulai dengan satu kalimat. Kamu bisa membacanya lagi di Catatan."
-  },
   "saved": {
     "title": "Catatan tersimpan",
     "ocrTitle": "Catatan foto kamu tersimpan",

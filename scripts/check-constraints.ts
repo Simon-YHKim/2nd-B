@@ -211,7 +211,6 @@ results.push(
       "feedback.retryHint",
       "formatSaved.personal",
       "formatSaved.shared",
-      "firstRun.hint",
       "saved.title",
       "saved.ocrTitle",
       "saved.ocrBody",
