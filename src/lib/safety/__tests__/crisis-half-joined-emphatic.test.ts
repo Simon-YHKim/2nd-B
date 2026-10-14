@@ -1,38 +1,74 @@
 // Simon 2026-10-15 01:51 (Q-261015-80 가): the input word gate also reads
-//  1. a spaced Korean term with only SOME of its spaces left out ("살고싶지 않아", "더 이상살기 싫어").
-//     The fully joined spelling came with Q-261014-90; now every space is kept or left out on its own.
+//  1. the decision's four terms with only SOME of their spaces left out ("살고싶지 않아", "더 이상살기
+//     싫어"), and the new emphatic term likewise. A list by name (KO_PARTIAL_SPACING_TERMS): every other
+//     spaced term keeps the two spellings of Q-261014-90, fully spaced and fully joined.
 //  2. the emphatic forms of two terms, appended as terms 20 and 21: 끝내 버리고 싶 · 끝내 버릴. They take
-//     the work-statement exception on the same condition as 끝내고 싶 · 끝낼 거.
+//     the work-statement exception on the same condition as 끝내고 싶 · 끝낼 거, in a layer that never
+//     changes what the plain forms' exception did (#2519 review r1).
 // 끝낼게 · 끝내려고 · 끝낼래 were left out. The text's own spaces are never removed. The samples are the
 // table the decision was made on (crisis-half-joined.fixtures.ts); the proxies are held to the same
 // answers in crisis-terms-proxy-parity.test.ts.
-import { classifyInput, classifyInputAnyLocale, koSpacingForms, matchesJoinedKoTerm } from "../classifier";
+import {
+  classifyInput,
+  classifyInputAnyLocale,
+  KO_PARTIAL_SPACING_TERMS,
+  koSpacingForms,
+  koTermSpellings,
+  matchesJoinedKoTerm,
+} from "../classifier";
 import { CRISIS_TERMS } from "../lexicon";
 import { checkModelReplyOverlaps, KO_CRISIS_TERM_CODES } from "../model-reply-scan";
 import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS } from "./crisis-context.fixtures";
-import { DAILY_SAMPLE, EMPHATIC_WORK_PAIRS, LEFT_OUT_ENDINGS, NEWLY_CAUGHT_CRISIS } from "./crisis-half-joined.fixtures";
+import {
+  DAILY_SAMPLE,
+  EMPHATIC_WORK_PAIRS,
+  LEFT_OUT_ENDINGS,
+  MIXED_WORK_SENTENCES,
+  NEWLY_CAUGHT_CRISIS,
+  OUT_OF_SCOPE_PARTIAL,
+} from "./crisis-half-joined.fixtures";
 
-const MULTI_SPACE = CRISIS_TERMS.ko.filter((term) => term.split(" ").length > 2);
-
-test("the terms with two or more spaces, read from the list as it is", () => {
-  // The four of the decision's table, the one it did not list, and the new emphatic term.
-  expect(MULTI_SPACE).toEqual(["살고 싶지 않", "더 이상 살", "없어지는 게 나아", "사라지는 게 나", "영영 잠들고 싶", "끝내 버리고 싶"]);
+test("partly joined spellings are read for the decision's four terms and the new emphatic one, by name", () => {
+  expect(KO_PARTIAL_SPACING_TERMS).toEqual(["살고 싶지 않", "더 이상 살", "없어지는 게 나아", "사라지는 게 나", "끝내 버리고 싶"]);
+  for (const term of KO_PARTIAL_SPACING_TERMS) expect(CRISIS_TERMS.ko).toContain(term);
+  // The one other term with two spaces is not on the list and keeps its two spellings.
+  expect(CRISIS_TERMS.ko.filter((term) => term.split(" ").length > 2 && !KO_PARTIAL_SPACING_TERMS.includes(term))).toEqual(["영영 잠들고 싶"]);
+  expect(koTermSpellings("영영 잠들고 싶")).toEqual(["영영 잠들고 싶", "영영잠들고싶"]);
   expect(CRISIS_TERMS.ko.slice(19)).toEqual(["끝내 버리고 싶", "끝내 버릴"]);
   expect(CRISIS_TERMS.ko).toHaveLength(21);
 });
 
-test("koSpacingForms keeps or leaves out each space on its own", () => {
+test("koSpacingForms keeps or leaves out each space on its own; koTermSpellings uses it for listed terms only", () => {
   expect(koSpacingForms("더 이상 살")).toEqual(["더 이상 살", "더 이상살", "더이상 살", "더이상살"]);
   expect(koSpacingForms("죽고 싶")).toEqual(["죽고 싶", "죽고싶"]);
   expect(koSpacingForms("자살")).toEqual(["자살"]);
+  expect(koTermSpellings("더 이상 살")).toEqual(koSpacingForms("더 이상 살"));
+  expect(koTermSpellings("끝내 버릴")).toEqual(["끝내 버릴", "끝내버릴"]);
+  expect(koTermSpellings("자살")).toEqual(["자살"]);
 });
 
-describe.each(MULTI_SPACE)("every spelling of %s", (term) => {
+describe.each(KO_PARTIAL_SPACING_TERMS)("every spelling of %s", (term) => {
   test.each(koSpacingForms(term))("%s is red and reported as the listed term", (form) => {
     const result = classifyInput(`그냥 ${form}`, "ko");
     expect(result.zone).toBe("red");
     expect(result.matched).toEqual([term]);
   });
+});
+
+test.each(OUT_OF_SCOPE_PARTIAL)("a partly joined spelling of a term off the list stays green: %s", (text) => {
+  expect(classifyInputAnyLocale(text, "ko").zone).toBe("green");
+});
+
+test("a term off the list is still read fully spaced and fully joined", () => {
+  expect(classifyInput("그냥 영영 잠들고 싶어", "ko").matched).toEqual(["영영 잠들고 싶"]);
+  expect(classifyInput("그냥 영영잠들고싶어", "ko").matched).toEqual(["영영 잠들고 싶"]);
+});
+
+test.each(MIXED_WORK_SENTENCES)("an emphatic work sentence never lets a plain form through that main stopped: %s", (text) => {
+  // Each of these is red on main through its plain form; the emphatic layer must leave it red.
+  const result = classifyInput(text, "ko");
+  expect(result.zone).toBe("red");
+  expect(result.matched.some((term) => term === "끝내고 싶" || term === "끝낼 거" || term === "끝낼거")).toBe(true);
 });
 
 test.each(NEWLY_CAUGHT_CRISIS)("the decision's crisis sample is red, 109 for an adult and 1388 first for a minor: %s", (text) => {

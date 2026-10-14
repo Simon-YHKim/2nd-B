@@ -129,9 +129,11 @@ export const CRISIS_TERMS_KO: readonly string[] = [
   '영영 잠들고 싶', '끝내 버리고 싶', '끝내 버릴',
 ];
 
-// Every spelling of a KO term with each of its spaces kept or left out (Q-261014-90, Q-261015-80).
-// Mirrors src/lib/safety/classifier.ts:koSpacingForms; gemini-proxy/index.ts holds the same line.
-const spacingForms = (t: string): string[] => t.split(' ').reduce<string[]>((acc, w, i) => (i === 0 ? [w] : acc.flatMap((a) => [`${a} ${w}`, a + w])), []);
+// The spellings the gate reads for a KO term: fully spaced and fully joined (Q-261014-90), and for the
+// listed terms every partly joined one too (Q-261015-80). Mirrors src/lib/safety/classifier.ts
+// (KO_PARTIAL_SPACING_TERMS, koTermSpellings); gemini-proxy/index.ts holds the same two lines.
+const PARTIAL_SPACING_KO: readonly string[] = ['살고 싶지 않', '더 이상 살', '없어지는 게 나아', '사라지는 게 나', '끝내 버리고 싶'];
+const spacingForms = (t: string): string[] => (PARTIAL_SPACING_KO.includes(t) ? t.split(' ').reduce<string[]>((acc, w, i) => (i === 0 ? [w] : acc.flatMap((a) => [`${a} ${w}`, a + w])), []) : [t, t.replace(/ /g, '')]);
 
 // Fold whitespace and Unicode composition before matching, so the crisis gate
 // cannot be walked past with a newline / non-breaking space (U+00A0) / full-width

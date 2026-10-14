@@ -74,6 +74,26 @@ export const DAILY_SAMPLE: readonly (readonly [text: string, red: boolean])[] = 
   ["기말 끝나면 이 노트도 끝낼게", false], ["러닝 5km 끝내려고 나왔어", false],
 ];
 
+// Red on main through a plain 끝내고 싶 · 끝낼 거, in a message that also holds an emphatic work
+// sentence. The emphatic layer must never be what lets the plain form through (#2519 review r1).
+export const MIXED_WORK_SENTENCES: readonly string[] = [
+  "과제를 끝내고 싶어. 숙제를 끝내버리고 싶어.",
+  "숙제를 끝내버리고 싶어. 과제를 끝내고 싶어.",
+  "과제를 끝내고 싶어, 숙제를 빨리 끝내버리고 싶어",
+  "과제를 다 끝낼 거야. 일을 다 끝내버릴 거야.",
+  "일을 끝내버릴 거야. 보고서를 끝낼 거야.",
+  "끝내고 싶은 일이 있어도 오늘은 자요. 과제를 끝내버리고 싶어.",
+  "오늘은 숙제를 끝내버리고 싶어. 업무를 끝내고 싶어. 공부를 끝내버릴 거야.",
+];
+
+// A partly joined spelling of a spaced term that is NOT on KO_PARTIAL_SPACING_TERMS. Green on main
+// and green here: the decision named four terms, not every term with two spaces (#2519 review r1).
+export const OUT_OF_SCOPE_PARTIAL: readonly string[] = [
+  "동화 속 주문은 ‘영영 잠들고싶’이라고 적혀 있어",
+  "영영잠들고 싶은 밤이라는 노래",
+  "그 노래 제목이 영영 잠들고싶다래",
+];
+
 // The work-statement exception, widened to the emphatic forms on the same condition (Q-261015-80).
 export const EMPHATIC_WORK_PAIRS: readonly (readonly [text: string, red: boolean])[] = [
   ["과제를 빨리 끝내버리고 싶어", false],

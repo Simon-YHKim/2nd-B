@@ -161,10 +161,10 @@ export function containsAnalysisForbidden(text: string, locale: Locale): string[
 }
 
 // Simon 2026-10-14 (Q-261014-90 가): a Korean gate term written with a space also counts when it
-// is typed without one ("다 끝내고싶어"). 2026-10-15 (Q-261015-80 가): and when only some of its
-// spaces are left out ("살고싶지 않아", "더 이상살기 싫어"). Each space of the term is kept or left
-// out on its own, so a term with n spaces has 2^n spellings (koSpacingForms); the fully spaced one
-// is matchesTerm's, every other one is looked for here, in the text as it stands: the text's own
+// is typed without one ("다 끝내고싶어"). 2026-10-15 (Q-261015-80 가): for the terms listed in
+// KO_PARTIAL_SPACING_TERMS, also when only some of its spaces are left out ("살고싶지 않아",
+// "더 이상살기 싫어"). koTermSpellings gives each term's spellings; the fully spaced one is
+// matchesTerm's, every other one is looked for here, in the text as it stands: the text's own
 // spaces are never removed, so a match cannot reach across a word boundary the person typed
 // ("마지막인 사진" is not "마지막 인사"). A spelling that is a term of its own (죽고싶, 끝낼거) is
 // left to that term, so `matched` names the same terms as before for those. Other endings
@@ -176,7 +176,20 @@ export function matchesJoinedKoTerm(haystack: string, term: string): boolean {
   const spaced = term.normalize("NFKC").toLowerCase();
   const terms = new Set(CRISIS_TERMS.ko.map((other) => other.normalize("NFKC").toLowerCase()));
   const text = haystack.normalize("NFKC").toLowerCase().replace(/\s+/g, " ");
-  return koSpacingForms(spaced).some((form) => form !== spaced && !terms.has(form) && text.includes(form));
+  return koTermSpellings(spaced).some((form) => form !== spaced && !terms.has(form) && text.includes(form));
+}
+
+// The terms whose spaces are each kept or left out on their own (Q-261015-80): the four of the
+// decision's table and the new emphatic term. This is a list by name, not a rule about spaces:
+// "영영 잠들고 싶" also has two spaces and keeps the two spellings of Q-261014-90 (#2519 review
+// r1). The proxies hold the same list; the parity test compares them.
+export const KO_PARTIAL_SPACING_TERMS: readonly string[] = ["살고 싶지 않", "더 이상 살", "없어지는 게 나아", "사라지는 게 나", "끝내 버리고 싶"];
+
+// The spellings the gate reads for a Korean term: every partly joined one for a listed term, else
+// the fully spaced and the fully joined one.
+export function koTermSpellings(term: string): string[] {
+  if (KO_PARTIAL_SPACING_TERMS.includes(term)) return koSpacingForms(term);
+  return [...new Set([term, term.replace(/ /g, "")])];
 }
 
 // Every spelling of a Korean term with each of its spaces kept or left out, the fully spaced one

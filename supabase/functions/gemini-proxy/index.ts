@@ -307,12 +307,12 @@ const CRISIS_TERMS_KO: readonly string[] = [
   '영영 잠들고 싶', '끝내 버리고 싶', '끝내 버릴',
 ];
 
-// EN terms match only at word boundaries, ported from src/lib/safety/classifier.ts:matchesTerm so a
-// benign substring ("spending it" containing "ending it") doesn't 422 a legitimate prompt. KO terms stay
-// substring matches, and a spaced KO term also matches with any of its spaces left out (Q-261014-90,
-// Q-261015-80, classifier.ts:matchesJoinedKoTerm + koSpacingForms). KEEP THE MATCHING SEMANTICS IN SYNC
-// with the client classifier; the parity test runs this code. Same line count: docs/legal cites this file.
-const spacingForms = (t: string): string[] => t.split(' ').reduce<string[]>((acc, w, i) => (i === 0 ? [w] : acc.flatMap((a) => [`${a} ${w}`, a + w])), []);
+// EN terms match at word boundaries (classifier.ts:matchesTerm), so "spending it" does not 422 on "ending it".
+// KO terms stay substring matches, spaced ones also fully joined (Q-261014-90) and, for the listed ones, partly
+// joined (Q-261015-80): classifier.ts:koTermSpellings. KEEP THE MATCHING SEMANTICS IN SYNC with the client
+// classifier; the parity test runs this code. Same line count: docs/legal cites lines of this file.
+const PARTIAL_SPACING_KO: readonly string[] = ['살고 싶지 않', '더 이상 살', '없어지는 게 나아', '사라지는 게 나', '끝내 버리고 싶'];
+const spacingForms = (t: string): string[] => (PARTIAL_SPACING_KO.includes(t) ? t.split(' ').reduce<string[]>((acc, w, i) => (i === 0 ? [w] : acc.flatMap((a) => [`${a} ${w}`, a + w])), []) : [t, t.replace(/ /g, '')]);
 // Fold whitespace and Unicode composition before matching, so the crisis gate
 // cannot be walked past with a newline / non-breaking space (U+00A0) / full-width
 // space (U+3000) between the words of a multi-word term, or with NFD-decomposed

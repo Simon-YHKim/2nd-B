@@ -51,6 +51,7 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/chat/sources.ts": "치환된 인용 이름 뒤의 한국어 조사 쌍을 josaFor에 연결하는 문법 규칙. 중립 낱말은 화면에서 번역해 전달",
   "src/lib/safety/lexicon.ts": "금지어 패턴 (안전 분류기 입력)",
   "src/lib/safety/crisis-context.ts": "의도 부인과 업무·휴식 문맥을 판별하는 한국어 문법 규칙. 사용자에게 표시하는 문구가 아님",
+  "src/lib/safety/classifier.ts": "위기 입력 검사가 띄어쓰기를 일부만 뺀 꼴까지 읽는 위기 낱말의 이름 목록(Q-261015-80). 사용자에게 표시하는 문구가 아님",
   "src/lib/safety/model-reply-scan.ts": "모델 답 검사에서만 넘기는 닫힌 겹침 낱말 목록과 위기 낱말의 고정 번호표. 사용자에게 표시하는 문구가 아님",
   "src/lib/safety/crisis-obfuscation.ts": "쪼갠 입력을 의미 판정에 보낼지 정하는 낱말·글자 규칙. 번역할 UI 문구가 아님",
   "src/lib/safety/anthro.ts": "의인화 금지 패턴",
