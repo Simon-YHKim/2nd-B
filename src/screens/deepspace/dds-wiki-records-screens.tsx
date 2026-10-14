@@ -464,8 +464,16 @@ export function DeepSpaceRecordsScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
+  // Z80 (Simon 2026-10-13): a count that was not read is not zero. While the records read is
+  // pending or has failed, the two counts show "..." the way the chat's daily count does.
+  const countsUnread = loading || loadError;
   const graphCount = recordsGraph.nodes.filter((node) => node.kind === "record").length;
-  const graphCountText = `${graphCount}${graphCount < graphSourceRecords.length ? ` / ${graphSourceRecords.length}` : ""} ${t("domains.unit")}`;
+  const graphCountText = countsUnread
+    ? `... ${t("domains.unit")}`
+    : `${graphCount}${graphCount < graphSourceRecords.length ? ` / ${graphSourceRecords.length}` : ""} ${t("domains.unit")}`;
+  const triageTitle = countsUnread
+    ? t("records.triageTitle", { replace: { count: "..." } })
+    : t("records.triageTitle", { count: unfiledCount });
 
   // The list header keeps the title, triage, and filters together inside the
   // FlatList. Graph mode uses the compact absolute rail below instead.
@@ -510,13 +518,13 @@ export function DeepSpaceRecordsScreen() {
         // list's own 미분류 filter, one tap away on the same screen.
         onPress={() => setTypeFilter("unfiled")}
         accessibilityRole="button"
-        accessibilityLabel={t("records.triageTitle", { count: unfiledCount })}
+        accessibilityLabel={loadError ? t("records.loadError") : loading ? t("common:states.loading") : triageTitle}
       >
         <View style={rStyles.triageIcon}>
           <PixelGlyph name="inbox" color={colors.soul} size={20} />
         </View>
         <View style={rStyles.triageCol}>
-          <RNText style={rStyles.triageTitle}>{t("records.triageTitle", { count: unfiledCount })}</RNText>
+          <RNText style={rStyles.triageTitle}>{triageTitle}</RNText>
           <RNText style={rStyles.triageBody}>{t("records.triageBody")}</RNText>
         </View>
         <RNText style={rStyles.triageChev}>›</RNText>
