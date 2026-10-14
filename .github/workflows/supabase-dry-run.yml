@@ -1667,9 +1667,12 @@ jobs:
             echo "0256 cleanup regression refuses an unsafe database name" >&2
             exit 1
           fi
+          # The test role the file makes belongs to the cluster, not to the clone, so it goes on every
+          # way out as well (a failure inside the file would otherwise leave it on a reused local cluster).
           drop_clone() {
             psql -X -q -h localhost -U postgres -d "$source_db" -v ON_ERROR_STOP=1 \
-              -c "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)"
+              -c "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" \
+              -c "DROP ROLE IF EXISTS z66d_plain"
           }
           trap 'drop_clone || true' EXIT
           psql -X -q -h localhost -U postgres -d "$source_db" -v ON_ERROR_STOP=1 \
