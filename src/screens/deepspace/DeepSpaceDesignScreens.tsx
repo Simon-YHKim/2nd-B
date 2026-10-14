@@ -586,6 +586,12 @@ export function DeepSpacePrivacyDesignScreen() {
   // failed read showed every choice OFF as if stored, and a save could start from that guess.
   const [prefsReadFailed, setPrefsReadFailed] = useState(false);
   const [prefsReload, setPrefsReload] = useState(0);
+  const showPrefs = (shown: PrivacyPrefs) => {
+    setAnalyticsOn(shown.external_analytics === true);
+    setAdsOn(shown.ads === true);
+    setRecOn(shown.recommendations === true);
+    setEmbedOn(shown.records_embedding === true);
+  };
   const [analyticsOn, setAnalyticsOn] = useState<boolean | null>(null);
   const [adsOn, setAdsOn] = useState<boolean | null>(null);
   const [externalError, setExternalError] = useState<{
@@ -756,12 +762,6 @@ export function DeepSpacePrivacyDesignScreen() {
     const targetUserId = userId;
     let cancelled = false;
     setPrefsReadFailed(false);
-    const show = (shown: PrivacyPrefs) => {
-      setAnalyticsOn(shown.external_analytics === true);
-      setAdsOn(shown.ads === true);
-      setRecOn(shown.recommendations === true);
-      setEmbedOn(shown.records_embedding === true);
-    };
     void withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs").then(
       (p) => {
         if (cancelled || activeUserRef.current !== targetUserId) return;
@@ -771,18 +771,19 @@ export function DeepSpacePrivacyDesignScreen() {
           prefsRef.current = p;
           prefsUserRef.current = targetUserId;
         }
-        show(prefsRef.current ?? p);
+        showPrefs(prefsRef.current ?? p);
       },
       () => {
         if (cancelled || activeUserRef.current !== targetUserId) return;
         // The health card's own strict read may already know the stored choices.
-        if (prefsUserRef.current === targetUserId && prefsRef.current) show(prefsRef.current);
+        if (prefsUserRef.current === targetUserId && prefsRef.current) showPrefs(prefsRef.current);
         else setPrefsReadFailed(true);
       },
     );
     return () => {
       cancelled = true;
     };
+    // showPrefs only calls state setters; a new copy each render changes nothing the read needs.
   }, [userId, prefsReload]);
 
   async function toggleExternalPreference(
@@ -803,11 +804,6 @@ export function DeepSpacePrivacyDesignScreen() {
     if (prefsRef.current[key] === next) return;
 
     const targetUserId = userId;
-    // The stored choices this save starts from, and what the ledger compares it with. Left to
-    // itself the save reads `before` fail-soft, and a failed read there logs a grant for every
-    // other choice that is on.
-    const base: PrivacyPrefs = prefsRef.current;
-    const updated: PrivacyPrefs = { ...base, [key]: next };
     setExternalError(null);
     setBusy(true);
 
@@ -821,6 +817,13 @@ export function DeepSpacePrivacyDesignScreen() {
     }
 
     try {
+      // The stored choices at the moment of the press, read strictly: the save writes the whole
+      // object, so building it from the copy this screen read earlier would put back anything
+      // another device changed since, and the ledger (comparing with that same copy) would not
+      // show it. A failed read throws and nothing is saved.
+      const base = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      const updated: PrivacyPrefs = { ...base, [key]: next };
       await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en", before: base });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       const effectiveNext = minorRef.current ? false : next;
@@ -860,7 +863,7 @@ export function DeepSpacePrivacyDesignScreen() {
     try {
       // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
       // "everything off" on failure, and the save below would have written that over the other choices.
-      const current = await readPrivacyPrefsStrict(targetUserId);
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
@@ -924,7 +927,7 @@ export function DeepSpacePrivacyDesignScreen() {
     try {
       // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
       // "everything off" on failure, and the save below would have written that over the other choices.
-      const current = await readPrivacyPrefsStrict(targetUserId);
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
       const prefs = { ...current, recommendations: false };
       await savePrivacyPrefs(targetUserId, prefs, { before: current });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
@@ -949,7 +952,7 @@ export function DeepSpacePrivacyDesignScreen() {
     try {
       // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
       // "everything off" on failure, and the save below would have written that over the other choices.
-      const current = await readPrivacyPrefsStrict(targetUserId);
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
@@ -1011,7 +1014,7 @@ export function DeepSpacePrivacyDesignScreen() {
     try {
       // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
       // "everything off" on failure, and the save below would have written that over the other choices.
-      const current = await readPrivacyPrefsStrict(targetUserId);
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
       const prefs = { ...current, records_embedding: false };
       await savePrivacyPrefs(targetUserId, prefs, { before: current });
       // Consent revoked → forget the index (honest "off deletes vectors").
@@ -1255,6 +1258,11 @@ export function DeepSpacePrivacyDesignScreen() {
           if (activeUserRef.current !== ownerId) return;
           prefsRef.current = known;
           prefsUserRef.current = ownerId;
+          // The screen's own read may have failed while this one got through: show what it read.
+          if (prefsReadFailed) {
+            showPrefs(known);
+            setPrefsReadFailed(false);
+          }
         }}
         onPrefsUnknown={(ownerId) => {
           if (prefsUserRef.current === ownerId) prefsUserRef.current = null;

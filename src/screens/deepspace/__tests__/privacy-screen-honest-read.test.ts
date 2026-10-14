@@ -59,9 +59,14 @@ function harness(read: () => Promise<Record<string, unknown>>) {
     setRecError: (on: boolean) => errors.push(on),
     setEmbedErr: (on: boolean) => errors.push(on),
     readPrivacyPrefsStrict: read,
-    fetchPrivacyPrefs: async () => {
-      throw new Error("the fail-soft read must not be used by a handler that saves");
-    },
+    withTimeout: (work: Promise<unknown>) => work,
+    PRIVACY_READ_TIMEOUT_MS: 10_000,
+    // Like the real one: a failed read comes back as "everything off", never as an error.
+    fetchPrivacyPrefs: async () => ({ recommendations: false, records_embedding: false, external_analytics: false, chat_autosave: false }),
+    setAnalyticsOn: () => undefined,
+    setAdsOn: () => undefined,
+    setExternalError: (value: unknown) => errors.push(value !== null),
+    setAnalyticsConsent: () => undefined,
     savePrivacyPrefs: async (_id: string, prefs: Record<string, unknown>, options?: Record<string, unknown>) => {
       saves.push({ prefs, options });
     },
@@ -96,13 +101,36 @@ describe("a handler that saves reads strictly, and saves nothing when the read f
   });
 });
 
-describe("analytics and ads start from the choices on screen, and say so to the ledger", () => {
-  it("the save carries the choices it was built from as before", () => {
-    const fn = fnText("toggleExternalPreference");
-    expect(fn).toContain("const base: PrivacyPrefs = prefsRef.current;");
-    expect(fn).toContain("const updated: PrivacyPrefs = { ...base, [key]: next };");
-    expect(fn).toContain('await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en", before: base });');
-    expect(fn).toContain('await savePrivacyPrefs(targetUserId, committed, { locale: ko ? "ko" : "en", before: updated });');
+describe("analytics and ads read the stored choices at the press, not the copy on screen", () => {
+  it("a failed read saves nothing", async () => {
+    const failing = harness(async () => {
+      throw new Error("no answer");
+    });
+    await load("toggleExternalPreference", failing.context)("external_analytics", false);
+    expect(failing.saves).toEqual([]);
+    expect(failing.errors.filter(Boolean)).toEqual([true]);
+  });
+
+  it("a choice another device changed since this screen read is kept, and the ledger compares with the server", async () => {
+    // On screen: health import on. On the server: it was withdrawn elsewhere since.
+    const onServer = { ...STORED, health_import: false };
+    const screen = harness(async () => ({ ...onServer }));
+    (screen.context.prefsRef as { current: Record<string, unknown> }).current = { ...STORED, health_import: true };
+    await load("toggleExternalPreference", screen.context)("external_analytics", false);
+    expect(screen.saves).toHaveLength(1);
+    expect(screen.saves[0].prefs).toEqual({ ...onServer, external_analytics: false });
+    expect(screen.saves[0].options?.before).toEqual(onServer);
+  });
+});
+
+describe("a rollback tells the ledger it starts from what was just written", () => {
+  it("recommendations whose consent row could not be written are turned back off", async () => {
+    const screen = harness(async () => ({ ...STORED }));
+    screen.context.recordRecommendationsConsent = async () => false;
+    await load("enableRecommendations", screen.context)();
+    expect(screen.saves.map((save) => save.prefs.recommendations)).toEqual([true, false]);
+    expect(screen.saves[0].options?.before).toEqual(STORED);
+    expect(screen.saves[1].options?.before).toEqual({ ...STORED, recommendations: true });
   });
 });
 
@@ -116,8 +144,16 @@ describe("the screen's own read", () => {
   });
 
   it("a failed read says so, unless the health card's strict read already knows the choices", () => {
-    expect(screen).toContain("if (prefsUserRef.current === targetUserId && prefsRef.current) show(prefsRef.current);");
+    expect(screen).toContain("if (prefsUserRef.current === targetUserId && prefsRef.current) showPrefs(prefsRef.current);");
     expect(screen).toContain("else setPrefsReadFailed(true);");
+    // ...and when the health card learns them after the screen's read failed, the cards come back.
+    expect(screen).toMatch(/onPrefsKnown=\{\(ownerId, known\) => \{[\s\S]*?if \(prefsReadFailed\) \{\s*showPrefs\(known\);\s*setPrefsReadFailed\(false\);/);
+  });
+
+  it("every read the screen makes before a save has the same deadline", () => {
+    const timed = SOURCE.split("\n").filter((line) => line.includes("readPrivacyPrefsStrict(targetUserId)"));
+    expect(timed.length).toBe(6);
+    for (const line of timed) expect(line).toContain('withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs")');
   });
 
   it("then the settings cards give way to the existing sentence and a retry, and no toggle is drawn", () => {
