@@ -1,5 +1,16 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 23:03 / 2ndb-53: 가져오기 화면의 건강 동의가 읽지 못하면 저장하지 않음(#2507) - 8081 전 · 후 · 대조 "같음" - 다음 1개는 별 요약이 읽지 못할 때
+
+- **들어간 것**: #2507(22:42 · main `5e15b5d3`). `dds-import-inbox-screens.tsx` 의 `handleHealthConsent` 가 `withTimeout(readPrivacyPrefsStrict(owner), 10초)` 로 읽고, `beginAccountSessionLease(owner)` 로 읽는 사이 계정이 바뀌면 멈추고, 읽은 값을 `savePrivacyPrefs` 의 `before` 로 넘긴다. 검사 `src/screens/deepspace/__tests__/import-health-consent-strict-read.test.ts`(실제 처리기를 떼어 내 실행).
+- **고칠 때 알 것**:
+  - 이 파일은 `src/lib/inbox/__tests__/signals.test.ts` 가 **파일 전체 해시**로 고정한다. 바꾸면 그 주석에 줄을 더하고 다시 고정한다(주석이 그렇게 하라고 적음).
+  - `scripts/check-constraints.ts` 의 ImportI18nCopy 가 저장 호출 줄을 글자 그대로 박아 둔다(지금 `{ locale: ko ? "ko" : "en", before: current }`). 로컬에서 `check:constraints` 를 돌리면 **종료 코드**를 본다(끝 줄은 PASS 로 끝나도 중간에 FAIL 이 있을 수 있음).
+- **남긴 것(검토 · 모두 main 에 원래 있던 것)**: 저장 **도중** 로그아웃되면 건강 켜짐만 남고 민감정보 동의 기록이 빠질 수 있다(기록은 `savePrivacyPrefs` 안에서 씀) - 2ndb-e7 의 "한 항목 + 원장을 한 트랜잭션으로" 서버 함수와 함께 풀 일. 실패 때 화면에 말이 없다(새 문구라 안 넣음).
+- **다음 1개 = 별 요약이 읽지 못할 때**: `loadSummary` 가 오류를 삼켜 「0/5층」 · 「시작하기」를 보이거나 불러오는 중에 멈춘다. 이미 쓰는 「서버에 연결할 수 없습니다…」와 [다시 시도]로. 그 뒤 위키 목록의 기한 · 날씨용 위치 · 리즈닝 · 위키 페이지 · 리서치 · 스크랩 차례.
+- **캡처 도구**: `E:/Coding Infra/reports/codex-audit-261010/ui/shoot_import_health.cjs`(QA 계정 · 저장은 모두 그 브라우저에서 멈추고 본문만 기록 · 읽기용 rpc 만 통과 · `PROBE_FAIL_PREFS=1`).
+- **보고서**: 「PolaScope UI 저녁 작업 결과 (10-14)」 2판 https://claude.ai/artifact/71c5qzpYGVB9mSNx3kau8h.
+
 ## 2026-10-14 22:27 / 2ndb-e7: #2438 6회차가 독립 검토에서 막혀 멈춤 - 대표님께 Q-261014-39 - 다음 1개는 그 답
 
 - **판정**: 6회차 BLOCK(22:24 · `gates/q67bind-daybreak-r6.txt`). 5회차 막힘(늦은 첫 묶기)과 우려 셋은 닫힘 · 받은 답 뒤 다시 묻기는 "대표가 받아들임". 새 막힘 R2438-21: 1.5초를 넘겨 늦게 닿은 첫 시도 등록이 다시 묻기의 등록을 덮음. 새 우려 R2438-22: 올리기 · 환불의 잠금 순서 교착.
