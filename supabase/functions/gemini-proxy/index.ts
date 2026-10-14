@@ -344,7 +344,11 @@ function hasCrisisTerm(text: string): boolean {
     if (matchesTermEn(lower, term)) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
-    if (lower.includes(normalizeForMatch(term))) return true;
+    const spaced = normalizeForMatch(term);
+    if (lower.includes(spaced)) return true;
+    // Simon 2026-10-14 (Q-261014-90): the spaced term typed without its spaces ("끝내고싶"). The
+    // text keeps its own spaces. Mirrors src/lib/safety/classifier.ts:matchesJoinedKoTerm.
+    if (spaced.includes(' ') && lower.includes(spaced.replace(/ /g, ''))) return true;
   }
   return false;
 }

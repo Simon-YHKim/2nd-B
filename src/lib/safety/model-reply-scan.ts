@@ -1,7 +1,7 @@
 // What the gate may overlook in a MODEL REPLY, and what it records when it replaces one.
 // Kept out of classifier.ts and lexicon.ts: nothing here applies to what the USER wrote, and
 // the gate terms and the input scan stay exactly as they are.
-import { classifyInput, type ClassifyOptions, type SafetyResult } from "./classifier";
+import { classifyInput, matchesJoinedKoTerm, type ClassifyOptions, type SafetyResult } from "./classifier";
 import { hasCrisisRiskContext } from "./crisis-context";
 import { CRISIS_EVENT_CATEGORY_LIMIT, classifierReportedCategories, recordableCrisisCategories } from "./crisis-event-categories";
 import { CRISIS_TERMS, type Locale } from "./lexicon";
@@ -57,9 +57,10 @@ function escapeForPattern(term: string): string {
 // Gate terms of either language still standing in the masked reply. This is the
 // bare term test: none of the whole-message exceptions (a denial, a plain work
 // statement) is applied, because blanking a listed word must never be what
-// makes one of them fit.
+// makes one of them fit. A spaced Korean term typed without its spaces counts, as
+// it does in the gate (classifier.ts:matchesJoinedKoTerm).
 export function gateTermsLeft(maskedReply: string): string[] {
-  const ko = CRISIS_TERMS.ko.filter((term) => maskedReply.includes(term.normalize("NFKC").toLowerCase()));
+  const ko = CRISIS_TERMS.ko.filter((term) => maskedReply.includes(term.normalize("NFKC").toLowerCase()) || matchesJoinedKoTerm(maskedReply, term));
   const en = CRISIS_TERMS.en.filter((term) =>
     new RegExp(`(^|[^a-z0-9])${escapeForPattern(term.normalize("NFKC").toLowerCase())}($|[^a-z0-9])`).test(maskedReply),
   );
