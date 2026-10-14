@@ -13,7 +13,7 @@
 // raw `sources` list, which already steers the model toward the user's
 // inbox.
 
-import { callLlm } from "@/lib/llm/boundary";
+import { callLlm, classifyChatTextForCrisis } from "@/lib/llm/boundary";
 import { tLocale } from "@/lib/i18n/text";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
 import { classifyInput, crisisHotlines } from "@/lib/safety/classifier";
@@ -21,7 +21,7 @@ import { promptSafeName } from "@/lib/persona/address";
 import type { LlmResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
-import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
+import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday, type ChatLimitCheck } from "./limits";
 import { loadStructuredContext } from "../records/load-structured";
 import { loadProfileContext } from "../persona/profile-context";
 import { exportUserWiki } from "../wiki/export";
@@ -227,13 +227,13 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
       hint: BLOCKED_HINT[input.locale](precheck.limit),
     };
   }
-
+  const cut = await answerDeviceRed(input, precheck);
+  if (cut) return cut;
   // Context assembly (D-26 A1): try query-relevant retrieval first — embed the
   // message and pull the top-8 semantically relevant pages (RAG). On a hit the
-  // prompt carries ONLY those pages plus a slim recent-sources list (~10x
-  // smaller than the old whole-wiki dump, and better grounded). On any miss
-  // (no index yet, embed failure, red-zone query) fall back to the legacy
-  // whole-wiki snapshot so chat never breaks on RAG.
+  // prompt carries ONLY those pages plus a slim recent-sources list (~10x smaller
+  // than the old whole-wiki dump, and better grounded). On any miss (no index
+  // yet, embed failure) fall back to the legacy whole-wiki snapshot.
   // 0066: newest structured form captures (4W1H, career 3C4P) ride along so
   // the model reads the form data as structure, not prose. Small, fail-soft,
   // sanitized + fenced with the snapshot below.
@@ -266,9 +266,9 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // quota. The earlier read is only a no-cost preflight: if wiki export fails,
   // the user gets no reply but also does not lose a daily chat turn.
   //
-  // Trade-off vs. the previous design: red-zone (crisis-routed) turns still
-  // count against the daily quota because the bump must land before the LLM
-  // call to close the race. A future PR can add a refund RPC if it matters.
+  // A device-red turn never gets here: it was answered above, uncounted
+  // (Q-261014-30; this replaces the old "red turns still count" trade-off).
+  // A turn cut later (server gate, meaning check, output swap) is still counted.
   let newCount: number;
   try {
     newCount = await bumpChatUsageIfUnderCap(input.userId, limit, day);
@@ -351,9 +351,9 @@ ${sanitizeUntrusted(structuredBlock)}
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
   const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
-  // C1/C3/C9 are enforced by callLlm. Red-zone short-circuit still
-  // happens inside callLlm; we just no longer adjust the counter
-  // afterwards because the bump already landed atomically above.
+  // C1/C3/C9 are enforced by callLlm, whose own red-zone short-circuit still
+  // runs for every turn that gets here. Device-red input was already routed
+  // above by the same boundary module, before any context read or bump.
   const reply = await callLlm({
     userId: input.userId,
     locale: input.locale,
@@ -384,7 +384,7 @@ ${sanitizeUntrusted(structuredBlock)}
 // (crisisHotlines)에서 가져온다 - 여기에 숫자를 따로 적으면 두 곳이 갈라진다.
 // 입력 검사가 잡은 말은 여기까지 오지 않는다(고정 안내가 나간다). 이 줄은 검사를 지나
 // 모델까지 온 말에 모델이 119 · 112 를 권하던 것을 바로잡는다.
-// 파일 끝에 둔다: 위쪽 줄 번호를 법무 문서(DPIA)가 인용하고 있어, 위에 끼우면 인용이 밀린다.
+// 파일 아래쪽에 둔다: 위쪽 줄 번호를 법무 문서(DPIA)가 인용하고 있어, 위에 끼우면 인용이 밀린다.
 function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): string {
   const numbers = crisisHotlines(locale, minor === true).map((line) => line.number);
   if (locale === "ko") {
@@ -393,4 +393,13 @@ function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): stri
   }
   const lines = numbers.join(" or ");
   return `If the person talks about ending their life or hurting themselves, point them to ${lines}. Do not add a police number for that reason alone. Point to the local emergency number only when their body is in danger right now, such as an injury or something already swallowed. If you cannot tell which it is, stay with ${lines}. Never make up a phone number.`;
+}
+
+// Q-261014-30 (Simon 2026-10-14): a turn the device classifier marks red is
+// answered here, before any context read and without a bump. One verdict, one
+// routing call; the answer carries the usage that was read, unchanged.
+async function answerDeviceRed(input: SendMessageInput, usage: ChatLimitCheck): Promise<SendMessageOk | null> {
+  const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);
+  if (!reply) return null;
+  return { status: "ok", reply, used: usage.used, limit: usage.limit, remaining: usage.remaining };
 }

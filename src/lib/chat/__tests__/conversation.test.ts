@@ -91,11 +91,28 @@ jest.mock("@/lib/llm/boundary", () => ({
       },
     );
   }),
+  // Q-261014-30: the device verdict. Null (not red) unless a test sets fixtures.deviceRed;
+  // boundary.mock.test.ts runs the real function.
+  classifyChatTextForCrisis: jest.fn((text: string, locale: string, userId: string, minor?: boolean) => {
+    const ret = fixtures.deviceRed ?? null;
+    captured.push({ fn: "classifyChatTextForCrisis", args: [text, locale, userId, minor], ret });
+    if (fixtures.deviceRedError) return Promise.reject(fixtures.deviceRedError);
+    return Promise.resolve(ret);
+  }),
 }));
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import ts from "typescript";
+
 import { sendChatMessage } from "../conversation";
+import { callLlm, classifyChatTextForCrisis } from "@/lib/llm/boundary";
 import { classifyInput, crisisHotlines } from "@/lib/safety/classifier";
 import { loadProfileContext } from "../../persona/profile-context";
+import { loadStructuredContext } from "../../records/load-structured";
+import { exportUserWiki } from "../../wiki/export";
+import { retrieveChatContext } from "../rag";
+import { bumpChatUsageIfUnderCap, readChatUsageDetail } from "../usage";
 
 function reset() {
   captured.length = 0;
@@ -195,7 +212,7 @@ describe("sendChatMessage", () => {
     expect(r.remaining).toBe(3); // 5 - 2
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsageDetail", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callLlm"]);
+    expect(callNames).toEqual(["readChatUsageDetail", "classifyChatTextForCrisis", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callLlm"]);
 
     // System prompt was assembled from header + exportUserWiki output.
     const geminiCall = captured.find((c) => c.fn === "callLlm");
@@ -232,11 +249,13 @@ describe("sendChatMessage", () => {
     expect(r.remaining).toBe(3);
   });
 
-  test("red-zone routed reply still counts toward the quota (R2 policy change)", async () => {
-    // codex R2: to close the TOCTOU race, the bump now happens BEFORE the
-    // LLM call. Crisis-routed turns are no longer free. This is the
-    // deliberate trade-off documented in
-    // docs/security/2026-05-26-codex-challenge.md.
+  test("a turn cut after the device verdict is still counted", async () => {
+    // codex R2: to close the TOCTOU race, the bump happens BEFORE the LLM call
+    // (docs/security/2026-05-26-codex-challenge.md). Since Q-261014-30 a turn
+    // the device classifier marks red is answered before the bump (the
+    // device-red block below). This is the other case: the device verdict was
+    // null and callLlm itself came back red (server gate, meaning check,
+    // output swap), so the turn was already counted.
     fixtures.used = 1;
     fixtures.geminiResult = {
       text: "Please call hotline...",
@@ -244,11 +263,308 @@ describe("sendChatMessage", () => {
       audit: { modelUsed: "none-crisis-routed", safetyZone: "red" },
     };
     const r = await sendChatMessage({ userId: "u1", message: "trigger", locale: "en", tier: "free" });
-    expect(r.status).toBe("ok");
+    if (r.status !== "ok") throw new Error("type narrowing");
+    expect(r.used).toBe(2);
 
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toContain("bumpChatUsageIfUnderCap");
     expect(callNames).toContain("callLlm");
+  });
+
+  // Q-261014-30 (Simon 2026-10-14): a turn the device classifier marks red is answered before any
+  // context read and is not counted. The verdict and its routing are one call into the boundary
+  // module (mocked in this file).
+  describe("device-red turn (Q-261014-30)", () => {
+    const FIXED = {
+      text: "Please reach out to 988.",
+      safety: { zone: "red" },
+      audit: { modelUsed: "none-crisis-routed", safetyZone: "red" },
+    };
+    const RED = "I want to die";
+    const readers = [loadStructuredContext, loadProfileContext, retrieveChatContext, exportUserWiki] as unknown as jest.Mock[];
+    const spies = [
+      readChatUsageDetail,
+      classifyChatTextForCrisis,
+      ...readers,
+      bumpChatUsageIfUnderCap,
+      callLlm,
+    ] as unknown as jest.Mock[];
+
+    // These mocks keep their calls across tests (no clearMocks in jest.config.js), and two of the
+    // readers do not write to `captured`: clear them so "not called" means this turn.
+    beforeEach(() => {
+      for (const spy of spies) spy.mockClear();
+    });
+
+    test("a red verdict is the whole turn: usage read, verdict, answer; no context read, no bump, no model call", async () => {
+      fixtures.used = 1;
+      fixtures.deviceRed = FIXED;
+      const r = await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" });
+      if (r.status !== "ok") throw new Error("type narrowing");
+      expect(r.reply).toBe(FIXED);
+
+      expect(captured.map((c) => c.fn)).toEqual(["readChatUsageDetail", "classifyChatTextForCrisis"]);
+      for (const reader of readers) expect(reader).not.toHaveBeenCalled();
+      expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
+      expect(callLlm).not.toHaveBeenCalled();
+
+      // The usage that was read comes back as read: 1 of 5 used, 4 left.
+      expect(r.used).toBe(1);
+      expect(r.limit).toBe(5);
+      expect(r.remaining).toBe(4);
+    });
+
+    test("the verdict gets the message as typed, the locale, the user and the minor flag", async () => {
+      fixtures.deviceRed = FIXED;
+      const typed = `  ${RED}\n `;
+      await sendChatMessage({ userId: "u7", message: typed, locale: "ko", tier: "soma", minor: true });
+      expect(classifyChatTextForCrisis).toHaveBeenCalledTimes(1);
+      expect(classifyChatTextForCrisis).toHaveBeenLastCalledWith(typed, "ko", "u7", true);
+
+      // An unknown age stays unknown on the way in: no adult default is written here.
+      await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "soma" });
+      expect(classifyChatTextForCrisis).toHaveBeenCalledTimes(2);
+      expect(classifyChatTextForCrisis).toHaveBeenLastCalledWith(RED, "en", "u1", undefined);
+    });
+
+    test("remaining keeps today's rewarded-ad bonus and limit stays the bare tier cap", async () => {
+      fixtures.used = 1;
+      fixtures.adBonus = 2;
+      fixtures.deviceRed = FIXED;
+      const r = await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" });
+      if (r.status !== "ok") throw new Error("type narrowing");
+      expect(r.used).toBe(1);
+      expect(r.limit).toBe(5);
+      // Allowance is 5 + 2 and nothing was spent on this turn. `limit - used` would say 4.
+      expect(r.remaining).toBe(6);
+    });
+
+    test("a null verdict leaves the ordinary path as it was: four context reads, one bump, one model call", async () => {
+      fixtures.used = 1;
+      const r = await sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "free" });
+      if (r.status !== "ok") throw new Error("type narrowing");
+      expect(r.used).toBe(2);
+      expect(r.remaining).toBe(3);
+
+      // `spies` is written in the order the engine has to call them.
+      const order = spies.map((spy) => spy.mock.invocationCallOrder);
+      expect(order.map((calls) => calls.length)).toEqual(spies.map(() => 1));
+      const sequence = order.map((calls) => calls[0]);
+      expect(sequence).toEqual([...sequence].sort((a, b) => a - b));
+
+      const llmArgs = (callLlm as unknown as jest.Mock).mock.calls[0][0] as { system: string; user: string; purpose: string };
+      expect(llmArgs.purpose).toBe("secondb_chat");
+      expect(llmArgs.user).toBe("hello");
+      expect(llmArgs.system).toContain("HustleK"); // header
+    });
+
+    test("at the limit a crisis message is blocked before the verdict (kept as is; waiting on the answer to Q-261014-11)", async () => {
+      fixtures.used = 5; // free tier max
+      fixtures.deviceRed = FIXED;
+      const r = await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" });
+      expect(r.status).toBe("blocked");
+      expect(classifyChatTextForCrisis).not.toHaveBeenCalled();
+      expect(captured.map((c) => c.fn)).toEqual(["readChatUsageDetail"]);
+    });
+
+    test("device red goes through without reaching the limit only the server knows", async () => {
+      // Same account as the server-rejection test above: the local check allows the turn and the
+      // bump would reject it. A device-red turn never asks for the bump, so it gets the guidance.
+      fixtures.used = 5;
+      fixtures.serverCap = 5;
+      fixtures.deviceRed = FIXED;
+      const r = await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "brain" });
+      if (r.status !== "ok") throw new Error("device red must be answered, not blocked");
+      expect(r.reply).toBe(FIXED);
+      expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
+      expect(readChatUsageDetail).toHaveBeenCalledTimes(1);
+      expect(r.used).toBe(5);
+      expect(r.limit).toBe(250);
+      expect(r.remaining).toBe(245);
+    });
+
+    test("a verdict that rejects rejects the turn, uncounted", async () => {
+      fixtures.used = 1;
+      fixtures.deviceRedError = new Error("verdict failed");
+      await expect(sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" })).rejects.toThrow(
+        "verdict failed",
+      );
+      expect(captured.map((c) => c.fn)).toEqual(["readChatUsageDetail", "classifyChatTextForCrisis"]);
+      for (const reader of readers) expect(reader).not.toHaveBeenCalled();
+      expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
+      expect(callLlm).not.toHaveBeenCalled();
+    });
+  });
+
+  // The same decision read from the source: where the cut sits, that the engine makes no verdict
+  // of its own, and that the lines the legal documents cite still say what they cite them for.
+  describe("device-red cut in the source (Q-261014-30)", () => {
+    const SRC = readFileSync(join(__dirname, "..", "conversation.ts"), "utf8").replace(/\r\n/g, "\n");
+    // Comments are not evidence of what runs (same cut as dpia-crisis-rail-anchors.test.ts).
+    const CODE = SRC.split("\n")
+      .map((line) => line.replace(/(^|[^:\w])\/\/.*$/, "$1"))
+      .join("\n");
+    /** One top-level function, from its opening line to its closing brace. */
+    const fnBody = (opening: string): string => {
+      const start = CODE.indexOf(opening);
+      const end = CODE.indexOf("\n}\n", start);
+      expect(start).toBeGreaterThan(-1);
+      expect(end).toBeGreaterThan(start);
+      return CODE.slice(start, end);
+    };
+
+    test("the cut comes after the limit check and before every context read, the bump and the model call", () => {
+      const send = fnBody("export async function sendChatMessage(");
+      const at = (needle: string): number => {
+        const index = send.indexOf(needle);
+        expect([needle, index > -1]).toEqual([needle, true]);
+        return index;
+      };
+      const cut = at("answerDeviceRed(");
+      expect(send.split("answerDeviceRed(")).toHaveLength(2);
+      // The verdict's answer is returned by the next statement, with no code in between.
+      expect(send.slice(cut - "const cut = await ".length)).toMatch(
+        /^const cut = await answerDeviceRed\(input, precheck\);\n\s*if \(cut\) return cut;\n/,
+      );
+      for (const earlier of ["readChatUsageDetail(", "checkChatLimit(", 'status: "blocked"']) {
+        expect([earlier, at(earlier) < cut]).toEqual([earlier, true]);
+      }
+      for (const later of [
+        "loadStructuredContext(",
+        "loadProfileContext(",
+        "retrieveChatContext(",
+        "exportUserWiki(",
+        "bumpChatUsageIfUnderCap(",
+        "callLlm(",
+      ]) {
+        expect([later, at(later) > cut]).toEqual([later, true]);
+      }
+    });
+
+    test("the engine makes no verdict of its own: one boundary call, and the helper cannot reach the model", () => {
+      expect(CODE).not.toContain("classifyInputAnyLocale");
+      const helper = fnBody("async function answerDeviceRed(");
+      expect(helper).toContain("await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor)");
+      expect(helper).not.toContain("callLlm");
+      expect(helper).not.toContain("classifyInput");
+      expect(helper).not.toContain("bumpChatUsageIfUnderCap");
+      // Outside the import, the boundary's verdict is called from the helper and nowhere else.
+      expect(CODE.split("classifyChatTextForCrisis(")).toHaveLength(2);
+    });
+
+    test("the lines the legal documents cite still hold what they are cited for", () => {
+      const line = (n: number): string => SRC.split("\n")[n - 1] ?? "";
+      expect(line(254)).toContain("exportUserWiki(");
+      expect(line(259)).toContain("includeSavedConversations: true");
+      expect(line(260)).toContain("includeSavedConversations: true");
+      // :310 and :352 are held by dpia-crisis-rail-anchors.test.ts (wiki_snapshot, SYSTEM_PROMPT_HEADER).
+    });
+
+    // The tests above read strings, and the unit tests further up mock the boundary call. So a
+    // guard at the top of the helper such as `if (input.history?.length) return null;` passed all
+    // of them: a red message sent with history would then read the context and be counted before
+    // callLlm cut it (review N-02, 2026-10-14). The two tests below hold the syntax itself.
+    const AST = ts.createSourceFile("conversation.ts", SRC, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    /** A node as written, with every run of whitespace folded to one space. */
+    const norm = (node: ts.Node): string => node.getText(AST).replace(/\s+/g, " ");
+    const texts = (nodes: readonly ts.Node[] | undefined): string[] => (nodes ?? []).map((node) => norm(node));
+    /** The one top-level function declaration of that name. */
+    const topLevelFn = (name: string): ts.FunctionDeclaration => {
+      const found = AST.statements.filter(
+        (node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === name,
+      );
+      expect([name, found.length]).toEqual([name, 1]);
+      return found[0];
+    };
+    /** How many identifiers of that name the file has, declarations and imports included. */
+    const mentions = (name: string): number => {
+      let count = 0;
+      const visit = (node: ts.Node): void => {
+        if (ts.isIdentifier(node) && node.text === name) count += 1;
+        ts.forEachChild(node, visit);
+      };
+      visit(AST);
+      return count;
+    };
+
+    test("the helper is exactly three statements: ask the boundary, pass a null on, answer with the usage as read", () => {
+      const helper = topLevelFn("answerDeviceRed");
+      expect(texts(helper.modifiers)).toEqual(["async"]);
+      expect(helper.asteriskToken).toBeUndefined();
+      expect(helper.typeParameters).toBeUndefined();
+      expect(texts(helper.parameters)).toEqual(["input: SendMessageInput", "usage: ChatLimitCheck"]);
+      expect(helper.type ? norm(helper.type) : "").toBe("Promise<SendMessageOk | null>");
+      expect(texts(helper.body?.statements)).toEqual([
+        "const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);",
+        "if (!reply) return null;",
+        'return { status: "ok", reply, used: usage.used, limit: usage.limit, remaining: usage.remaining };',
+      ]);
+
+      // The name those statements call is the boundary's own export: imported under its own name,
+      // and mentioned nowhere but that import and the one call, so nothing local can stand in for it.
+      const imported: string[] = [];
+      for (const node of AST.statements) {
+        if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) continue;
+        const from = node.moduleSpecifier.text;
+        const named = node.importClause?.namedBindings;
+        if (!named || !ts.isNamedImports(named)) continue;
+        for (const element of named.elements) {
+          if (element.name.text !== "classifyChatTextForCrisis") continue;
+          imported.push(`${(element.propertyName ?? element.name).text} from ${from}`);
+        }
+      }
+      expect(imported).toEqual(["classifyChatTextForCrisis from @/lib/llm/boundary"]);
+      expect(mentions("classifyChatTextForCrisis")).toBe(2);
+    });
+
+    // Every top-level statement up to the cut, as written: the usage read, the limit check, the
+    // verdict and its return, and nothing else. Holding only the two statements after the limit
+    // check let an aliased bump in front of it through for one value of an optional input
+    // (`const consume = bumpChatUsageIfUnderCap; await consume(...)` when mode is "analytic"), and
+    // the string checks above look for the literal call only (review G-02, 2026-10-14).
+    test("sendChatMessage up to the cut is exactly the usage read, the limit check, the verdict and its return", () => {
+      const body = topLevelFn("sendChatMessage").body;
+      if (!body) throw new Error("sendChatMessage has no body");
+      expect(texts(body.statements.slice(0, 7))).toEqual([
+        "const day = kstDateToday();",
+        "const limit = CHAT_DAILY_LIMIT[input.tier];",
+        "const { used: usedBefore, adBonus } = await readChatUsageDetail(input.userId, day);",
+        "const precheck = checkChatLimit(input.tier, usedBefore, adBonus);",
+        'if (!precheck.allowed) { return { status: "blocked", reason: "limit_reached", limit: precheck.limit, used: precheck.used, upgradeTo: precheck.upgradeTo, hint: BLOCKED_HINT[input.locale](precheck.limit), }; }',
+        "const cut = await answerDeviceRed(input, precheck);",
+        "if (cut) return cut;",
+      ]);
+      // The helper's declaration and this one call.
+      expect(mentions("answerDeviceRed")).toBe(2);
+    });
+
+    test("the bump is named twice in the file, its import and one call, and that call comes after the cut", () => {
+      const body = topLevelFn("sendChatMessage").body;
+      if (!body) throw new Error("sendChatMessage has no body");
+      const uses: string[] = [];
+      let callAt = -1;
+      const visit = (node: ts.Node): void => {
+        if (ts.isIdentifier(node) && node.text === "bumpChatUsageIfUnderCap") {
+          const parent = node.parent;
+          if (ts.isImportSpecifier(parent) && parent.name === node && !parent.propertyName) {
+            uses.push(`import from ${norm(parent.parent.parent.parent.moduleSpecifier)}`);
+          } else if (ts.isCallExpression(parent) && parent.expression === node) {
+            uses.push("call");
+            callAt = node.getStart(AST);
+          } else {
+            // An alias, a reference passed on, an import under another name: anything but a call.
+            uses.push(`other: ${norm(parent)}`);
+          }
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(AST);
+      expect(uses).toEqual(['import from "./usage"', "call"]);
+      const cutReturn = body.statements[6];
+      expect(norm(cutReturn)).toBe("if (cut) return cut;");
+      expect(callAt).toBeGreaterThan(cutReturn.getEnd());
+      expect(callAt).toBeLessThan(body.getEnd());
+    });
   });
 
   test("does not consume quota when wiki snapshot export fails before the LLM call", async () => {
@@ -259,7 +575,7 @@ describe("sendChatMessage", () => {
     );
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsageDetail", "retrieveChatContext", "exportUserWiki"]);
+    expect(callNames).toEqual(["readChatUsageDetail", "classifyChatTextForCrisis", "retrieveChatContext", "exportUserWiki"]);
     expect(callNames).not.toContain("bumpChatUsageIfUnderCap");
     expect(callNames).not.toContain("callLlm");
   });
