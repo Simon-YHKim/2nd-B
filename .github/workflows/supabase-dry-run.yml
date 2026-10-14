@@ -2245,6 +2245,68 @@ jobs:
               return 1
             fi
           }
+          reask_race() { # <label> <expected: a b attempts:latest attempt> : a re-ask recorded while a new turn is counted
+            local label="$1" want="$2"
+            local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 re-ask race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.ai_audit_log
+            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+          VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
+          SQL
+            local as_user="SET LOCAL request.jwt.claim.sub = '$user'"
+            local kst_today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
+            # The turn to be re-asked: counted, its first attempt recorded and its answer (row 01) bound.
+            local turn
+            turn="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'turn=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'turnId')" \
+              -c "COMMIT" | grep '^turn=' | sed 's/^turn=//' | tr -d '\r')"
+            if [[ ! "$turn" =~ ^[0-9a-f-]{36}$ ]]; then echo "$label: no turn was counted before the race" >&2; return 1; fi
+            if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000001', '$turn')" | tr -d '\r')" != "t" ]] \
+               || [[ "$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '26101347-4000-4000-8000-000000000001', '$turn')" | tr -d '\r')" != "t" ]]; then
+              echo "$label: the first answer was not bound before the race" >&2
+              return 1
+            fi
+            # A new turn is being counted (and holds its transaction open) while the re-ask of the old one arrives.
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'a=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'count')" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "reask_a_$label.out" &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the bump session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            local a b state
+            b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "SELECT 'b=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000002', '$turn')::text" \
+              | grep '^b=' | tr -d '\r')"
+            wait "$a_pid"
+            a="$(grep '^a=' "reask_a_$label.out" | tr -d '\r')"
+            state="$(sql "$clone_db" "SELECT r.attempts || ':' || COALESCE(right(r.pending_audit_id::text, 2), '-')
+                                        FROM public.chat_turn_reservations AS r WHERE r.turn_id = '$turn'" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: first session $a, second session $b, the old turn's attempts $state"
+            if [[ "$a $b $state" != "$want" ]]; then
+              echo "$label: a re-ask was recorded on a turn that a new turn had just replaced (wanted $want)" >&2
+              return 1
+            fi
+          }
           reapply_over() { # <label> <statement that leaves a ledger table of another shape, or ''> <the check that must stop it, or ''>
             local label="$1" breakit="$2" want="$3"
             local clone_db="reapply_0252_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
@@ -2344,6 +2406,9 @@ jobs:
           # Two bumps at once for one user on two days (yesterday's turn, then today's): only the per-user lock
           # puts them in line, and the later one closes the earlier one, so one reservation is left open.
           bump_race two_bumps_two_days "a=1 b=1 1:0"
+          # A re-ask of the old turn arrives while a new turn is being counted: it waits for the bump's per-user
+          # lock and is refused once the new turn is in (only the latest turn can be re-asked).
+          reask_race reask_during_bump "a=2 b=false 1:01"
           # 0255 over the tables as 0252 left them, then over a ledger key that is missing, may raise at commit or
           # covers another column.
           reapply_0255_over same_ledger "" ""

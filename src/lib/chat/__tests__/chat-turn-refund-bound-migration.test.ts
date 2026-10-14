@@ -386,6 +386,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(regression).toMatch(/:'t1_back' = 'null,1,null,null'/);
     expect(regression).toMatch(/concat_ws\(',', :'t2_b1', :'t2_c1', :'t2_b2', :'t2_c2', :'t2_again', :'t2_b3', :'t2_c3'\) = 'true,true,true,true,false,false,false'/);
     expect(regression).toMatch(/:'t2_back' = 'null,1,null'/);
+    expect(regression).toMatch(/concat_ws\(',', :'t3_b1', :'t3_c1', :'t3_back', :'t3_b2', :'t3_c2'\) = 'true,true,1,false,false'/);
     // the stand-in for a proxy records the attempt before writing its row, as the proxies do
     expect(helper.indexOf('PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn);')).toBeGreaterThan(-1);
     expect(helper.indexOf('PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn);')).toBeLessThan(helper.indexOf('INSERT INTO public.ai_audit_log'));
@@ -463,6 +464,11 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     // round 4: two bumps of one user on two days at once leave only the later reservation open
     const bumps = [...workflow.matchAll(/^ +bump_race (\w+) "([^"\n]*)"$/gm)].map((m) => `${m[1]}|${m[2]}`);
     expect(bumps).toEqual(['two_bumps_two_days|a=1 b=1 1:0']);
+    // round 6: a re-ask that arrives while a new turn is being counted waits for the lock and is refused
+    const reasks = [...workflow.matchAll(/^ +reask_race (\w+) "([^"\n]*)"$/gm)].map((m) => `${m[1]}|${m[2]}`);
+    expect(reasks).toEqual(['reask_during_bump|a=2 b=false 1:01']);
+    const reaskRace = workflow.slice(workflow.indexOf('reask_race() {'), workflow.indexOf('reapply_over() {'));
+    expect(reaskRace.indexOf('-c "SELECT pg_sleep(3)"')).toBeLessThan(reaskRace.indexOf("SELECT 'b=' || public.begin_chat_turn_attempt("));
     const bumpRace = workflow.slice(workflow.indexOf('bump_race() {'), workflow.indexOf('reapply_over() {'));
     expect(bumpRace).toContain("-c \"SELECT 'a=' || (public.bump_chat_usage_for_turn('$user', $kst_today - 1) ->> 'count')\"");
     expect(bumpRace.indexOf('-c "SELECT pg_sleep(3)"')).toBeLessThan(bumpRace.indexOf("SELECT 'b=' || (public.bump_chat_usage_for_turn('$user', $kst_today)"));

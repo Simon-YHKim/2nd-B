@@ -1051,6 +1051,27 @@ SELECT pg_temp.z46_assert((:'t2'::jsonb ->> 'count') = '2' AND :'t2_back' = 'nul
                           AND pg_temp.z46_count('26101346-0000-4000-8000-00000000000e', :'today'::date) = 1
                           AND pg_temp.z46_turn((:'t2'::jsonb ->> 'turnId')::uuid) = 'refunded/26101346-4000-4000-8000-0000000000d7',
                           'the lost first answer, the re-ask and a third attempt did not give back exactly one turn, through the re-ask: ' || :'t2_back');
+-- T3: a turn given back after its first answer takes no re-ask: the attempt itself is refused.
+SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000e';
+SET LOCAL ROLE authenticated;
+SELECT public.bump_chat_usage_for_turn('26101346-0000-4000-8000-00000000000e', :'today'::date)::text AS t3 \gset
+RESET ROLE;
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000d9', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000da', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
+SET LOCAL ROLE service_role;
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d9', (:'t3'::jsonb ->> 'turnId')::uuid)::text AS t3_b1 \gset
+SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d9', (:'t3'::jsonb ->> 'turnId')::uuid)::text AS t3_c1 \gset
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT COALESCE(public.refund_chat_turn_after_output_swap('26101346-4000-4000-8000-0000000000d9')::text, 'null') AS t3_back \gset
+RESET ROLE;
+SET LOCAL ROLE service_role;
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000da', (:'t3'::jsonb ->> 'turnId')::uuid)::text AS t3_b2 \gset
+SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000da', (:'t3'::jsonb ->> 'turnId')::uuid)::text AS t3_c2 \gset
+RESET ROLE;
+SELECT pg_temp.z46_assert(concat_ws(',', :'t3_b1', :'t3_c1', :'t3_back', :'t3_b2', :'t3_c2') = 'true,true,1,false,false'
+                          AND (SELECT attempts = 1 FROM public.chat_turn_reservations WHERE turn_id = (:'t3'::jsonb ->> 'turnId')::uuid),
+                          'a turn given back took a re-ask: ' || concat_ws(',', :'t3_b1', :'t3_c1', :'t3_back', :'t3_b2', :'t3_c2'));
 -- The refund does not rely on the claim alone: a reservation that is another user's gives the caller nothing,
 -- even if it carries the caller's own fresh red row. The claim never makes such a row; it is built here directly.
 SAVEPOINT z46_foreign_reservation;
@@ -1175,8 +1196,8 @@ SELECT pg_temp.z46_assert(to_regprocedure('public.refund_chat_turn_after_output_
 \ir ../migrations/rollback/0252_down.sql
 SELECT pg_temp.z46_assert((SELECT count(*) = 0 FROM pg_catalog.pg_proc p WHERE p.proname = 'refund_chat_turn_after_output_swap'),
                           'the down files left a refund function behind');
--- (eight used rows: the six of the cases above and the two re-asks')
-SELECT pg_temp.z46_assert((SELECT count(*) = 8 FROM public.chat_turn_refunds)
+-- (nine used rows: the six of the cases above, the two re-asks' and the third turn's first answer)
+SELECT pg_temp.z46_assert((SELECT count(*) = 9 FROM public.chat_turn_refunds)
                           AND pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date) = 0,
                           'the down files dropped used-evidence marks or changed a count');
 -- Supabase grants new tables to the API roles by default; the scratch database does not.
