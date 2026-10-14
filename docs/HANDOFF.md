@@ -1,5 +1,29 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 21:24 / 2ndb-e7: #2438 5회차가 독립 검토에서 막혀 멈춤 - 대표님께 Q-261014-38 - 다음 1개는 그 답
+
+- **판정**: 5회차 BLOCK(21:18 · `gates/q67bind-daybreak-r5.txt`). 4회차 막힘(응답 유실 뒤 다시 묻기)은 닫힘. 새 막힘 R2438-17: 1.5초를 넘긴 첫 답의 늦은 묶기가 다시 물은 답의 묶임을 덮어씀. 새 우려: 다시 묶기 길로 변조한 앱이 앞선 답한 예약을 고름 · 받은 초록 뒤 다시 물어 빨강으로 환불 · 재시도 창 5분.
+- **물음**: Q-261014-38(보고서 14판 https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg). 추천 = 4회차 판으로 되돌려 머지(5회차 커밋을 `git revert` 로 되돌리되 R2438-16 의 시험 보강은 남김 · 4회차 BLOCK 을 대표님 결정으로).
+- **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `f17900d7`(5회차 · CI 초록). 4회차 머리는 `7e596603`. 워크트리 `.worktrees/refund-bind-261013`.
+- **다음 1개**: Q-38 의 답. 답 전에는 #2438 을 고치지 않는다.
+- **번호**: 10-14 물음은 이 세션 30 ~ 39(38 까지 씀 · 다음 39).
+
+## 2026-10-14 21:10 / 2ndb-e7: #2438 5회차(다시 묻기 한 번을 서버가 다시 묶음)를 지어 CI 초록 · 독립 검토 5회차 진행 중 - 다음 1개는 그 판정
+
+- **대표님 답(20:40 · 이 창에 직접)**: Q-261014-37 = 5회차(다시 묻기 한 번은 서버가 그 예약에 다시 묶게 + 응답 유실 회귀 → 5회차 검토). 원문은 DECISIONS 26.10.14 21:10 줄.
+- **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `f17900d7`(main 합침 · CI 넷 초록 20:55). 워크트리 `.worktrees/refund-bind-261013`(정션 있음).
+- **바꾼 것**: 예약의 `rebound` 칸 · 묶기가 답한 예약을 같은 번호의 다음 답에 한 번 다시 묶음 · 회귀의 응답 유실 절 · 예약 픽스처 시각과 4분 지침 · CI 묶기 경합 셋.
+- **다음 1개**: 5회차 판정(`E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r5.txt`). 통과면 머지 → `build_apply_0255_r3.py <main> <dir>` 로 0255 · 0258 블록 → `apply0255_r3_trials.sh` → Relay → 보고(운영 적용 · `openai-proxy` 재배포는 Relay 실행 뒤). 막히면 멈추고 여쭘.
+- **준비물**: 과제서 `q67bind-r5.md` · 잰 것 `gates/q67bind-facts-r5.md` · 묶음 생성기 `<scratchpad>/build_gate_q67bind_r5.py` · 변이 `verify_0255_v5.sh` · `mut_0255_static_v5.py`.
+- **번호**: 새 마이그레이션 0260 부터. 10-14 물음은 이 세션 30 ~ 39(37 까지 씀 · 다음 38).
+## 2026-10-14 21:10 / 2ndb-79: 밤 인수 — 옛 등급 이름 정리 끝(#2492) · 막힌 PR 둘(#2483 · #2497)이 대표님 답(Q-261014-81 · 82 · 83)을 기다림
+
+- **#2483**(위기 낱말로 앱이 끊은 대화를 횟수에서 빼기): 가지 `fix/chat-device-red-not-counted` · 워크트리 `.worktrees/z40-chat-retry-261014` · 머리 `946d03f5`(CI 초록) · 독립 검토 5회 모두 BLOCK(코드 결함 없음) · Q-261014-81. 머지하면 8081 '후': `crisiscount-shots` 방식 그대로 `node "E:/Coding Infra/reports/devlab-261010/ui/z-crisiscount/chat_device_red_shots.cjs" after <out>`(기대: 「오늘 14/250」 그대로 · bump 0 · 읽은 표 chat_usage 하나). 머지 뒤 `src/lib/legal/__tests__/conversation-cited-lines.test.ts`(#2497 이 넣을 예정)의 396 줄 수와 맞출 것.
+- **#2497**(대화 한도 말풍선): 가지 `fix/chat-limit-bubble-no-upsell` · 워크트리 `.worktrees/z117-chat-session-261014` · 머리 `b340d1a9` 위 main 합침 · 검토 3회 BLOCK · Q-261014-82. 머지하면 8081 '후': `node "E:/Coding Infra/reports/devlab-261010/ui/z-limit-bubble/chat_limit_bubble_shots.cjs" after <out>`(전 캡처는 같은 폴더 shots/before-*).
+- **다음 차례**(16:45 줄): Q-261014-25 프로필 등급 이름을 각 언어로(20:28 답 · 작은 PR) → Q-11 한도에 닿은 계정의 위기 글에 안내 먼저 → 안전 설계 둘의 다음 판(`E:/Coding Infra/reports/devlab-261010/gates/nosave-step1-design.v2.md` 의 검토 지적 반영 3판 · `interview-hotline-rule-design.md` 2판: 화면이 안내 줄을 버리지 않게 + 위협 레인) → 인터뷰 끝내는 규칙 → 캘린더(Q-27 · 28 · 켜기는 법무 뒤) → 공유 받기 확장(Q-29 · 새 APK).
+- **보고서**: https://claude.ai/artifact/XCvRDcxq2MSYtsTAVZvjWE (2판 15:15 · 원고 scratchpad 의 `interview6/brief.md` · 같은 경로로 다시 게시).
+- **번호**: 이 세션의 10-14 물음은 80 ~ 99(83 까지 씀). 화면 창 60 ~ 79 · 서버 창 30 ~ 59.
+
 ## 2026-10-14 15:16 / 2ndb-e7: PR #2438 4회차가 독립 검토에서 막혀 멈춤 - 대표님께 Q-261014-37 - 다음 1개는 그 답
 
 - **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `7e596603`(main `b8e7f407` 합침 · CI 넷 초록 14:50). 워크트리 `.worktrees/refund-bind-261013`(정션 있음 · 지울 때 정션부터 뗄 것).

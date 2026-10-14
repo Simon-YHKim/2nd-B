@@ -46,6 +46,8 @@ export function HomeCoachmarks({
       hint={t("deepspace:coachmarks.targetHint")}
       skipLabel={t("deepspace:coachmarks.dontShowAgain")}
       onSkip={finish}
+      // A tap outside closes the guide and remembers it, like the button (Q-261014-62).
+      onOutsidePress={finish}
       refreshKey="home-scrap-tab"
     />
   );
