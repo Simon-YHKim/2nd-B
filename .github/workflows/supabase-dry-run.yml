@@ -1667,9 +1667,12 @@ jobs:
             echo "0256 cleanup regression refuses an unsafe database name" >&2
             exit 1
           fi
+          # The test role the file makes belongs to the cluster, not to the clone, so it goes on every
+          # way out as well (a failure inside the file would otherwise leave it on a reused local cluster).
           drop_clone() {
             psql -X -q -h localhost -U postgres -d "$source_db" -v ON_ERROR_STOP=1 \
-              -c "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)"
+              -c "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" \
+              -c "DROP ROLE IF EXISTS z66d_plain"
           }
           trap 'drop_clone || true' EXIT
           psql -X -q -h localhost -U postgres -d "$source_db" -v ON_ERROR_STOP=1 \
@@ -2109,6 +2112,71 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/public_data_quota_regression.sql
+      # 0259: the interview seat has a daily ceiling and a rolling seven-day budget; every other seat is as
+      # 0185 made it. The file seeds earlier days, refuses at both edges, checks other seats and tiers, and
+      # goes through 0259's down file and back. Everything it writes is rolled back.
+      - name: Exercise the weekly interview budget (0259)
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/interview_probe_weekly_budget_regression.sql
+      # 0259: two interview questions for the last place of the week, from two sessions at once. The week holds
+      # 139 of 140; the first session takes the 140th and keeps its transaction open; the second arrives while
+      # it is open. Exactly one is allowed, the other is refused with the week's numbers, and the week ends at
+      # 140. On a clone that is dropped on every way out.
+      - name: Race two interview questions for the last place of the week (0259)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="race_0259_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0259 race refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"; }
+          drop_clone() { sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)"; }
+          trap 'drop_clone || true' EXIT
+          sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101459-0000-4000-8000-0000000000aa', 'w59-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101459-0000-4000-8000-0000000000aa', 'w59-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.llm_proxy_purpose_daily (user_id, kst_day, purpose, count) VALUES
+            ('26101459-0000-4000-8000-0000000000aa', (pg_catalog.clock_timestamp() AT TIME ZONE 'Asia/Seoul')::date - 1, 'interview_probe', 60),
+            ('26101459-0000-4000-8000-0000000000aa', (pg_catalog.clock_timestamp() AT TIME ZONE 'Asia/Seoul')::date - 2, 'interview_probe', 60),
+            ('26101459-0000-4000-8000-0000000000aa', (pg_catalog.clock_timestamp() AT TIME ZONE 'Asia/Seoul')::date - 3, 'interview_probe', 19);
+          SQL
+          call="SELECT q.allowed::text || '/' || q.used || '/' || q.quota_limit FROM public.consume_llm_proxy_purpose_quota('26101459-0000-4000-8000-0000000000aa', 'openai', 'interview_probe') AS q"
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+            -c "BEGIN" \
+            -c "SET LOCAL request.jwt.claim.role = 'service_role'" \
+            -c "SELECT 'a=' || ($call)" \
+            -c "SELECT pg_sleep(3)" \
+            -c "COMMIT" > race_0259_a.out &
+          a_pid=$!
+          waited=0
+          until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                        WHERE datname = current_database() AND state = 'active' AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+            waited=$((waited + 1))
+            if (( waited > 50 )); then echo "the first session never reached its pause" >&2; exit 1; fi
+            sleep 0.2
+          done
+          b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+                 -c "BEGIN" -c "SET LOCAL request.jwt.claim.role = 'service_role'" -c "SELECT 'b=' || ($call)" -c "COMMIT" | grep '^b=' | tr -d '\r')"
+          wait "$a_pid"
+          a="$(grep '^a=' race_0259_a.out | tr -d '\r')"
+          week="$(sql "$clone_db" "SELECT sum(count) FROM public.llm_proxy_purpose_daily
+                                    WHERE user_id = '26101459-0000-4000-8000-0000000000aa' AND purpose = 'interview_probe'" | tr -d '\r')"
+          echo "first session $a, second session $b, week $week"
+          if [[ "$a $b $week" != "a=true/1/60 b=false/140/140 140" ]]; then
+            echo "two questions at once did not end with exactly one allowed and the week at 140" >&2
+            exit 1
+          fi
+          trap - EXIT
+          drop_clone
       # 0254: crisis_events.trigger_categories keeps names from the closed list
       # only. This is the first step of the job that calls the two crisis write
       # functions at all: the shared cases

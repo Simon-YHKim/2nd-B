@@ -1,4 +1,4 @@
-// A-Z first-use check, round 5 (Z85, device). With Meta-B or Twi-B selected, a screen reader still
+// A-Z first-use check, round 5 (Z85, device). With Fact-K or Joy-K selected, a screen reader still
 // read the input as "Ask HustleK" and every answer as "HustleK answer": both names were fixed text.
 import fs from "node:fs";
 import path from "node:path";

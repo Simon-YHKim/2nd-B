@@ -322,13 +322,13 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           {
             label: "새 관점 모드",
             href: "/secondb?mode=divergent",
-            // ⚠ 이 변형만 등급을 탄다. 트위비는 pro(=brain) 전용이라
+            // ⚠ 이 변형만 등급을 탄다. 조이케이는 pro(=brain) 전용이라
             // (`personaAllowed`, tier-map `pro ↔ brain`) free·plus 에서는 tier 를
             // 알게 된 직후 effect 가 `rev2Persona` 를 조용히 secondb 로 되돌린다.
             // 에러도 잠금 표시도 없다 — 이 목록이 막으려는 그 조용한 되돌림과
-            // 같은 모양이라, 안내 없이 두면 검수자가 "트위비가 원래 이렇구나" 한다.
+            // 같은 모양이라, 안내 없이 두면 검수자가 "조이케이가 원래 이렇구나" 한다.
             // 담기 모드 할당량과는 **별개 이야기**다(그쪽은 등급 제한이 없다).
-            note: "`chatMode` 를 divergent 로, `rev2Persona` 를 트위비로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 트위비는 Brain(pro) 전용 — free·plus 로 열면 페르소나가 조용히 허슬케이로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)",
+            note: "`chatMode` 를 divergent 로, `rev2Persona` 를 조이케이로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 조이케이는 북극성(pro) 전용 — free·plus 로 열면 페르소나가 조용히 허슬케이로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)",
           },
           {
             label: "노드에서 이어 묻기 (견본)",
@@ -501,7 +501,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       {
         file: "trinity",
         href: "/trinity",
-        label: "브레인 트리니티 (은퇴)",
+        label: "트리니티 (은퇴)",
         render: { kind: "redirect", to: "/core-brain", lifecycle: "retired" },
         note: "리다이렉트 전용(Simon 결정 Q-261004-33 B). TrinityLegacy 와 개발 빌드의 M3 리메이크가 둘 다 2026-10-05 에 빠졌다",
       },
