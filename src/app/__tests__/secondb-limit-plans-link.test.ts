@@ -3,42 +3,63 @@
 // refused a send while the local count was still under the wall, sendChatMessage returned "blocked"
 // with its own limit sentence, the bubble appeared, and the link did not (review r1 on #2497).
 //
-// Component render tests are blocked in this repo (RN upstream), so the screen is pinned by reading
-// its source, the way chat-allowance-wiring.test.ts pins this same file.
+// Component render tests are blocked in this repo (RN upstream), so the screen is pinned through its
+// source: the state's first value and the link's condition are read from the syntax tree and the
+// condition is run (review r2 on #2497: string checks let useState(true) through). What the send
+// handler does with the state is asserted in the handler harnesses (secondb-messenger-layout and
+// secondb-retry-failed-reply), and the ad grant in rewarded-grant-failure.
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 
 const screen = readFileSync(path.resolve(__dirname, "../secondb.tsx"), "utf8").replace(/\r\n/g, "\n");
+const ast = ts.createSourceFile("secondb.tsx", screen, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
-function between(start: string, end: string): string {
-  const from = screen.indexOf(start);
-  expect(from).toBeGreaterThan(-1);
-  const to = screen.indexOf(end, from + start.length);
-  expect(to).toBeGreaterThan(from);
-  return screen.slice(from, to);
+function findAll(predicate: (node: ts.Node) => boolean): ts.Node[] {
+  const out: ts.Node[] = [];
+  const visit = (node: ts.Node): void => {
+    if (predicate(node)) out.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  return out;
 }
 
-test("the plans link shows at the local wall or after any send the limit refused", () => {
-  const link = between("{atLimit || limitRefused ? (", "</Pressable>");
-  expect(link).toContain('router.push("/plans?from=ai_limit")');
-  // One link, one condition: the old local-only gate is gone.
-  expect(screen).not.toContain("{atLimit ? (");
+test("the refusal starts false, so the first screen under the limit shows no link", () => {
+  const states = findAll((node) => ts.isVariableDeclaration(node) && ts.isArrayBindingPattern(node.name)
+    && node.name.elements.some((element) => ts.isBindingElement(element) && element.name.getText(ast) === "setLimitRefused")) as ts.VariableDeclaration[];
+  expect(states).toHaveLength(1);
+  const init = states[0].initializer;
+  expect(init && ts.isCallExpression(init) && init.expression.getText(ast)).toBe("useState");
+  const [first] = (init as ts.CallExpression).arguments;
+  expect(first?.kind).toBe(ts.SyntaxKind.FalseKeyword);
+});
+
+test("the plans link shows at the local wall or after a refusal, and only then", () => {
+  const links = findAll((node) => ts.isConditionalExpression(node)
+    && node.whenTrue.getText(ast).includes('router.push("/plans?from=ai_limit")')) as ts.ConditionalExpression[];
+  expect(links).toHaveLength(1);
+  const [link] = links;
+  expect(link.whenFalse.kind).toBe(ts.SyntaxKind.NullKeyword);
+  const condition = link.condition.getText(ast);
+  const shows = (atLimit: boolean, limitRefused: boolean): boolean => Boolean(runInNewContext(`(${condition})`, { atLimit, limitRefused }));
+  expect([
+    [false, false, shows(false, false)],
+    [false, true, shows(false, true)],
+    [true, false, shows(true, false)],
+    [true, true, shows(true, true)],
+  ]).toEqual([
+    [false, false, false],
+    [false, true, true],
+    [true, false, true],
+    [true, true, true],
+  ]);
+  // One link: the old local-only gate is gone.
   expect(screen.split('router.push("/plans?from=ai_limit")')).toHaveLength(2);
 });
 
-test("a blocked send marks the refusal, whichever way the limit refused it", () => {
-  // Both blocked returns of sendChatMessage (the pre-check and the server's cap) land in this branch.
-  const blocked = between('if (result.status === "blocked") {', "} else {");
-  expect(blocked).toContain("text: result.hint, synthetic: true");
-  expect(blocked).toContain("setLimitRefused(true);");
-  expect(blocked).not.toContain("setLimitRefused(false)");
-});
-
-test("a reply that goes through, or a granted ad bonus, clears it", () => {
-  const branches = between('if (result.status === "blocked") {', 'outcome: "ok"');
-  expect(branches.slice(branches.indexOf("} else {"))).toContain("setLimitRefused(false);");
-  const granted = between('if (outcome === "granted") {', "}");
-  expect(granted).toContain("setLimitRefused(false);");
-  // Exactly these three writes: set on a refusal, cleared by a reply or a grant.
-  expect(screen.match(/setLimitRefused\(/g)).toHaveLength(3);
+test("only a refusal sets it, and only a reply or a granted ad bonus clears it", () => {
+  const writes = findAll((node) => ts.isCallExpression(node) && node.expression.getText(ast) === "setLimitRefused") as ts.CallExpression[];
+  expect(writes.map((call) => call.arguments.map((arg) => arg.getText(ast)).join(", ")).sort()).toEqual(["false", "false", "true"]);
 });

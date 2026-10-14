@@ -80,6 +80,7 @@ describe("a reply that failed says which message it was for", () => {
     const chat = sender(turns);
     chat.send("내일 일정 알려줘");
     await chat.answer(new Error("timeout"));
+    expect((chat.scope.setLimitRefused as jest.Mock).mock.calls).toEqual([]);
     expect(turns).toEqual([
       { role: "user", text: "내일 일정 알려줘" },
       expect.objectContaining({ role: "secondb", synthetic: true, text: "replyFailed", retryText: "내일 일정 알려줘" }),
@@ -100,6 +101,8 @@ describe("a reply that failed says which message it was for", () => {
     const chat = sender(turns);
     chat.send("내일 일정 알려줘");
     await chat.answer({ status: "blocked", hint: "Limit reached", used: 10 });
+    // The bubble comes with 요금제 보기 (Q-261014-24).
+    expect((chat.scope.setLimitRefused as jest.Mock).mock.calls).toEqual([[true]]);
     expect(turns[1]).toMatchObject({ synthetic: true, text: "Limit reached" });
     expect(turns[1]).not.toHaveProperty("retryText");
   });
@@ -109,6 +112,8 @@ describe("a reply that failed says which message it was for", () => {
     const chat = sender(turns);
     chat.send("내일 일정 알려줘");
     await chat.answer({ status: "ok", reply: { text: "안내", safety: { zone: "red" } }, used: 1 });
+    // An answer, so a limit refusal shown before it is cleared.
+    expect((chat.scope.setLimitRefused as jest.Mock).mock.calls).toEqual([[false]]);
     expect(turns).toHaveLength(2);
     expect(turns[1]).toMatchObject({ role: "secondb", safetyZone: "red" });
     expect(turns[1]).not.toHaveProperty("retryText");

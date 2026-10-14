@@ -200,13 +200,14 @@ describe("HustleK messenger layout", () => {
     const completion = new Promise<void>(done => { finished = done; });
     const sendChatMessage = jest.fn(() => pending);
     const setSendingPersona = jest.fn();
+    const setLimitRefused = jest.fn();
     class LlmConsentError extends Error { code = "paused"; }
     const scope: Props = {
       userId: "A", rev2Persona: "meta", locale: "en", progression: { tier: "free" }, turns, chatMode: outcome === "divergent" ? "divergent" : "analytic", isMinor: false, limit: 10,
       setSending: (sending: boolean) => { if (!sending) finished(); }, setSendingPersona,
       setTurns: (updater: (previous: Props[]) => Props[]) => { const next = updater(turns); turns.splice(0, turns.length, ...next); },
       holdExpression: () => jest.fn(), sendChatMessage, currentDisplayName: () => "Alex", rev2PersonaHint: (id: string) => id,
-      setUsedToday: jest.fn(), setLimitRefused: jest.fn(), setPendingUpgrade: jest.fn(), rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
+      setUsedToday: jest.fn(), setLimitRefused, setPendingUpgrade: jest.fn(), rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
       captureEvent: jest.fn(), secondBSession: (event: unknown) => event,
       parseSourceCitations, parseTwiBranches,
       replyCueAllowed: () => false, isRecordingAudioMode: () => false, playReplyCue: jest.fn(),
@@ -230,6 +231,9 @@ describe("HustleK messenger layout", () => {
     expect(turns[1]).toMatchObject({ role: "secondb", persona: "meta" });
     expect(sendChatMessage).toHaveBeenCalledWith(expect.objectContaining({ personaHint: "meta" }));
     expect(setSendingPersona).toHaveBeenLastCalledWith(null);
+    // A limit refusal shows 요금제 보기 (Q-261014-24); a reply that goes through clears it; a failed
+    // send or a consent pause leaves it as it was.
+    expect(setLimitRefused.mock.calls).toEqual(outcome === "blocked" ? [[true]] : outcome === "ok" || outcome === "divergent" ? [[false]] : []);
     if (outcome === "ok" || outcome === "divergent") {
       expect(turns[1].text).toBe("**Start here** Untitled.");
       expect(turns[1].citationText).toBe("**Start here** [[untitled]].");
