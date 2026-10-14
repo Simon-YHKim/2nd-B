@@ -37,6 +37,18 @@ LANGUAGE sql AS $$
                       AND d.kst_day = (pg_catalog.clock_timestamp() AT TIME ZONE 'Asia/Seoul')::date), 0)
 $$;
 
+-- The cases are about one KST day and the function reads the clock: never start in the last two minutes of
+-- a KST day (wait it out), and check at the end that the day did not change.
+DO $w59_midnight$
+DECLARE
+  v_now  timestamp := pg_catalog.clock_timestamp() AT TIME ZONE 'Asia/Seoul';
+  v_left interval := pg_catalog.date_trunc('day', v_now) + interval '1 day' - v_now;
+BEGIN
+  IF v_left < interval '2 minutes' THEN
+    PERFORM pg_catalog.pg_sleep(EXTRACT(epoch FROM v_left)::float8 + 5);
+  END IF;
+END
+$w59_midnight$;
 SELECT (pg_catalog.clock_timestamp() AT TIME ZONE 'Asia/Seoul')::date AS today \gset
 
 -- The vanilla PostgreSQL auth stub lacks production trigger columns.
@@ -110,9 +122,11 @@ SELECT pg_temp.w_assert(pg_temp.w_calls('26101459-0000-4000-8000-000000000002', 
 -- 3. Other seats are as 0185 made them: the interview week does not touch them, and their daily share is the old one.
 SELECT pg_temp.w_assert(pg_temp.w_call('26101459-0000-4000-8000-000000000002', 'ops_recommend') = 'true/1/20',
                         'the interview week reached another seat, or a day before today was counted for it');
-SELECT pg_temp.w_assert(pg_temp.w_calls('26101459-0000-4000-8000-000000000002', 'ops_recommend', 19) = 'true/20/20'
-                        AND pg_temp.w_call('26101459-0000-4000-8000-000000000002', 'ops_recommend') = 'false/20/20',
-                        'another seat of the group the interview seat left lost or gained its daily share of twenty');
+-- (one call per statement: PostgreSQL does not promise the order in which the parts of an AND are evaluated)
+SELECT pg_temp.w_assert(pg_temp.w_calls('26101459-0000-4000-8000-000000000002', 'ops_recommend', 19) = 'true/20/20',
+                        'another seat of the group the interview seat left lost its daily share of twenty');
+SELECT pg_temp.w_assert(pg_temp.w_call('26101459-0000-4000-8000-000000000002', 'ops_recommend') = 'false/20/20',
+                        'another seat of the group the interview seat left gained more than its daily share of twenty');
 SELECT pg_temp.w_assert(pg_temp.w_call('26101459-0000-4000-8000-000000000002', 'axis_estimate') = 'true/1/5',
                         'a seat with its own share changed');
 
@@ -144,9 +158,10 @@ SELECT pg_temp.w_assert(pg_temp.w_call('26101459-0000-4000-8000-000000000005', '
 -- 5. The way back: 0259's down file brings 0185's function back (the interview seat is twenty a day again,
 --    with no week), and 0259 applies again over it.
 \ir ../migrations/rollback/0259_down.sql
-SELECT pg_temp.w_assert(pg_temp.w_calls('26101459-0000-4000-8000-000000000004', 'interview_probe', 20) = 'true/20/20'
-                        AND pg_temp.w_call('26101459-0000-4000-8000-000000000004', 'interview_probe') = 'false/20/20',
-                        'the down file did not bring back the daily share of twenty');
+SELECT pg_temp.w_assert(pg_temp.w_calls('26101459-0000-4000-8000-000000000004', 'interview_probe', 20) = 'true/20/20',
+                        'the down file did not bring back the daily share of twenty (fewer)');
+SELECT pg_temp.w_assert(pg_temp.w_call('26101459-0000-4000-8000-000000000004', 'interview_probe') = 'false/20/20',
+                        'the down file did not bring back the daily share of twenty (more)');
 -- Without 0259 the old daily share speaks: forty today is already past twenty, and no week is read.
 SELECT pg_temp.w_assert(pg_temp.w_call('26101459-0000-4000-8000-000000000002', 'interview_probe') = 'false/40/20',
                         'the down file left a week, or not the old daily share');
@@ -155,5 +170,8 @@ SELECT pg_temp.w_assert(pg_temp.w_call('26101459-0000-4000-8000-000000000004', '
                         '0259 did not apply again over the down file');
 SELECT pg_temp.w_assert(pg_temp.w_call('26101459-0000-4000-8000-000000000002', 'interview_probe') = 'false/140/140',
                         'the week did not come back with 0259');
+
+SELECT pg_temp.w_assert((pg_catalog.clock_timestamp() AT TIME ZONE 'Asia/Seoul')::date = :'today'::date,
+                        'the run crossed KST midnight, so its cases spanned two days: run it again');
 
 ROLLBACK;

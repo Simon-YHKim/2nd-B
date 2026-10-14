@@ -132,5 +132,17 @@ describe('0259 인터뷰 질문의 주 단위 예산 (Simon 2026-10-14 Q-261014-
       expect(regression).toContain(want);
     }
     expect(regression.trimEnd().endsWith('ROLLBACK;')).toBe(true);
+    // never across KST midnight, and never two side-effecting calls in one assertion
+    expect(regression).toMatch(/DO \$w59_midnight\$[\s\S]*IF v_left < interval '2 minutes' THEN[\s\S]*\$w59_midnight\$;/);
+    expect(regression).toContain("'the run crossed KST midnight, so its cases spanned two days: run it again'");
+    for (const statement of regression.split(/;\n/)) {
+      expect((statement.match(/pg_temp\.w_calls?\(/g) ?? []).length).toBeLessThanOrEqual(1);
+    }
+    // the race in CI: two sessions for the last place of a week of 139
+    const race = workflow.slice(workflow.indexOf('- name: Race two interview questions for the last place of the week (0259)'));
+    expect(race).toMatch(/'interview_probe', 60\),[\s\S]*'interview_probe', 60\),[\s\S]*'interview_probe', 19\);/);
+    expect(race).toContain('-c "SELECT pg_sleep(3)"');
+    expect(race).toContain('if [[ "$a $b $week" != "a=true/1/60 b=false/140/140 140" ]]; then');
+    expect(race).toContain("trap 'drop_clone || true' EXIT");
   });
 });
