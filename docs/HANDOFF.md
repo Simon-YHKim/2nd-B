@@ -1,5 +1,16 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 23:35 / 2ndb-e7: #2438 7회차가 독립 검토에서 막혀 멈춤 - 대표님께 Q-261014-40 - 다음 1개는 그 답
+
+- **판정**: 7회차 BLOCK(23:31 · `E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r7.txt` · 검토자는 셸이 막혀 첨부 코드만으로 판정). 잠금 순서 교착(R2438-22)은 닫힘. 6회차 막힘(R2438-21)은 시계가 맞을 때만 닫혀 일부. **새 막힘 R2438-23**: 시작 시각을 프록시 시계로 재므로, 프록시끼리 시계가 1.5초 넘게 어긋나면 늦게 닿은 첫 시도가 다시 묻기의 자리를 다시 빼앗는다.
+- **7회차 판**: 가지 `fix/chat-refund-audit-bound-0255` 머리 `c791a3bf` · CI 넷 초록 · 워크트리 `.worktrees/refund-bind-261013`(정션 있음). `begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz)` 가 잠금 뒤 시계로 1.5초 지남 · 5초 앞날 · 적힌 시도보다 먼저 시작한 호출을 버린다. 올리기는 사용자별 잠금을 횟수를 세기 전에, 환불은 같은 열쇠를 맨 앞에서 잡는다. 시험: 회귀 T4 · T5 · CI 경합 넷(`late_first_attempt` · `reask_past_wait` · `bump_then_refund` · 세 세션 `bump_waits_for_row`) · 다시 적용 `rsv_round6_shape`.
+- **잰 것**: 로컬 변이 64건(7회차 아홉 모두 잡힘 · 놓침은 3회차부터 알던 `guard_one_place_only`) · 정적 63/63 · DB 안 시도 p95 0.23 ~ 0.26ms.
+- **운영 블록 생성기는 준비됨**: `E:/Coding Infra/reports/codex-audit-261010/build_apply_0255_r7.py <ref> <out>`(시도 함수가 없던 것 · 프록시만 · 정의자 모양을 확인) · 시험 `scratchpad/apply0255_r7_trials.sh <블록 폴더>` 일곱 갈래 통과(가지 머리 기준). 머지하면 main 에서 다시 만든다. 8회차로 가면 시도 함수 시그니처가 다시 바뀌므로 생성기의 `BEGIN_FN` 도 고친다.
+- **물음 Q-261014-40**(보고서 https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg 16판): 첫째(추천) 8회차 · 시계 없음(서버가 닿은 순서로 시도 1 · 2 번 · 묶인 답은 더 늦게 닿은 시도의 답만 대신 · 막히면 7회차 판 머지) / 둘째 7회차 판 지금 머지 / 셋째 8회차 · 막히면 다시 여쭘 / 넷째 4회차 판 / 다섯째 보류.
+- **다음 1개 = Q-261014-40 의 답.** 답이 2ndb-79 창에 붙으면 그 창의 기록에서 원문을 확인한 뒤 따른다. 운영 적용은 어느 답이든 Relay(10-17 23:20 뒤).
+- **질문 번호**: 이 창은 10-14 에 40~49 를 쓴다(30~39 소진 · 2ndb-79 = 80~99 · 2ndb-53 = 60~79).
+- **app:parity**: 22:33 에 "같음". 이 PR 은 문서만이라 8081 은 바뀌지 않는다.
+
 ## 2026-10-14 23:03 / 2ndb-53: 가져오기 화면의 건강 동의가 읽지 못하면 저장하지 않음(#2507) - 8081 전 · 후 · 대조 "같음" - 다음 1개는 별 요약이 읽지 못할 때
 
 - **들어간 것**: #2507(22:42 · main `5e15b5d3`). `dds-import-inbox-screens.tsx` 의 `handleHealthConsent` 가 `withTimeout(readPrivacyPrefsStrict(owner), 10초)` 로 읽고, `beginAccountSessionLease(owner)` 로 읽는 사이 계정이 바뀌면 멈추고, 읽은 값을 `savePrivacyPrefs` 의 `before` 로 넘긴다. 검사 `src/screens/deepspace/__tests__/import-health-consent-strict-read.test.ts`(실제 처리기를 떼어 내 실행).
