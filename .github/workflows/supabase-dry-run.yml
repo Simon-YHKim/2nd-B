@@ -1972,11 +1972,14 @@ jobs:
       # is READ COMMITTED. The rest of the step applies 0252 again after both down
       # files: once over its own ledger table, which must work, and then over nine
       # tables of another shape, each of which must stop at the check named beside
-      # it and leave nothing of 0252 behind. Last, 0255 is applied again after its
-      # own down file: over the tables as 0252 left them, which must work, and over
-      # a ledger key that is missing or may be deferred, a turn column of another
-      # type and an index of another shape under the turn index's name, each of
-      # which must stop and leave 0252's function in place.
+      # it and leave nothing of 0252 behind. Then the claim that binds an answer to
+      # a counted turn (0255): two answers asking for one reservation, and one
+      # answer asking for two reservations, at the same moment. One binds, the
+      # other gets false. Last, 0255 is applied again after its own down file: over
+      # the tables as 0252 left them and over a reservation table of the very shape
+      # it makes, which must work, and over a ledger key that is missing, may be
+      # deferred or covers another column, and a reservation table of another
+      # shape, each of which must stop and leave 0252's function in place.
       - name: Race two chat turn refunds over one proxy row
         env:
           PGPASSWORD: postgres
@@ -1994,6 +1997,7 @@ jobs:
           race() { # <label> <BEGIN statement> <days ago the second row's turn was counted> <proxy rows> <expected: a b today/yesterday/used> [expected of a later plain call]
             local label="$1" begin="$2" offset="$3" rows="$4" want="$5" later="${6:-}"
             # Three counted turns: two today, one yesterday. The first row answers the first of today's.
+            # Each answer is bound to its turn the way a proxy binds it: through the claim.
             local turn_a="26101347-7000-4000-8000-000000007001" turn_b="26101347-7000-4000-8000-000000007002"
             if [[ "$offset" == "1" ]]; then turn_b="26101347-7000-4000-8000-000000007011"; fi
             # The first call names the first row. The second names the second row when there are two.
@@ -2011,20 +2015,30 @@ jobs:
           SET session_replication_role = origin;
           INSERT INTO public.users (id, email, birth_date, locale)
           VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
-          INSERT INTO public.chat_usage (user_id, day, count, refundable_turns) VALUES
-            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, 5,
-             ARRAY['26101347-7000-4000-8000-000000007001', '26101347-7000-4000-8000-000000007002']::uuid[]),
-            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date - 1, 3,
-             ARRAY['26101347-7000-4000-8000-000000007011']::uuid[]);
+          INSERT INTO public.chat_usage (user_id, day, count) VALUES
+            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, 5),
+            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date - 1, 3);
+          INSERT INTO public.chat_turn_reservations (turn_id, user_id, counted_day) VALUES
+            ('26101347-7000-4000-8000-000000007001', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date),
+            ('26101347-7000-4000-8000-000000007002', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date),
+            ('26101347-7000-4000-8000-000000007011', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date - 1);
           INSERT INTO public.ai_audit_log
-            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source, chat_turn_id)
+            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
           VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
-                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified', '26101347-7000-4000-8000-000000007001');
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
           SQL
+            if [[ "$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '26101347-4000-4000-8000-000000000001', '$turn_a')" | tr -d '\r')" != "t" ]]; then
+              echo "$label: the first proxy row was not bound to its turn" >&2
+              return 1
+            fi
             if [[ "$rows" == "2" ]]; then
               sql "$clone_db" "INSERT INTO public.ai_audit_log
-                (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source, chat_turn_id)
-                VALUES ('26101347-4000-4000-8000-000000000002', '$user', '0a0b0c0d', '0e0f0a0b', 'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified', '$turn_b')"
+                (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+                VALUES ('26101347-4000-4000-8000-000000000002', '$user', '0a0b0c0d', '0e0f0a0b', 'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified')"
+              if [[ "$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '26101347-4000-4000-8000-000000000002', '$turn_b')" | tr -d '\r')" != "t" ]]; then
+                echo "$label: the second proxy row was not bound to its turn" >&2
+                return 1
+              fi
             fi
             local today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
             # Session A takes the refund for its row and keeps its transaction open for three seconds.
@@ -2077,6 +2091,69 @@ jobs:
               return 1
             fi
           }
+          # The claim, twice at the same moment. turn: two fresh answers ask for one reservation. row: one fresh
+          # answer asks for two reservations. The first call keeps its transaction open for three seconds; the
+          # second is made while it is open. Exactly one binds; the other gets false and changes nothing.
+          claim_race() { # <label> <turn|row> <expected: a b first-reservation/second-reservation>
+            local label="$1" second="$2" want="$3"
+            local turn_a="26101347-7000-4000-8000-000000007001" turn_b="26101347-7000-4000-8000-000000007001"
+            local row_a="26101347-4000-4000-8000-000000000001" row_b="26101347-4000-4000-8000-000000000002"
+            if [[ "$second" == "row" ]]; then turn_b="26101347-7000-4000-8000-000000007002"; row_b="$row_a"; fi
+            local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 claim race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.chat_usage (user_id, day, count) VALUES
+            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, 5);
+          INSERT INTO public.chat_turn_reservations (turn_id, user_id, counted_day) VALUES
+            ('26101347-7000-4000-8000-000000007001', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date),
+            ('26101347-7000-4000-8000-000000007002', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date);
+          INSERT INTO public.ai_audit_log
+            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+          VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified'),
+                 ('26101347-4000-4000-8000-000000000002', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
+          SQL
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SELECT 'a=' || public.claim_chat_turn_for_audit('$user', '$row_a', '$turn_a')::text" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "claim_a_$label.out" &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the first claim session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            local a b state b_out
+            b_out="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -At \
+              -c "BEGIN" \
+              -c "SELECT 'b=' || public.claim_chat_turn_for_audit('$user', '$row_b', '$turn_b')::text" \
+              -c "COMMIT" 2>&1 || true)"
+            b="$(grep '^b=' <<<"$b_out" | tr -d '\r' || true)"
+            if [[ -z "$b" ]]; then b="b=$(grep -o -m1 'ERROR: *[0-9A-Z]\{5\}' <<<"$b_out" | tr -d ' \r' || true)"; fi
+            wait "$a_pid"
+            a="$(grep '^a=' "claim_a_$label.out" | tr -d '\r')"
+            state="$(sql "$clone_db" "SELECT string_agg(r.state || ':' || COALESCE(right(r.audit_id::text, 2), '-'), '/' ORDER BY r.turn_id)
+                                        FROM public.chat_turn_reservations AS r" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: first session $a, second session $b, reservations $state"
+            if [[ "$a $b $state" != "$want" ]]; then
+              echo "$label: two claims at once did not end with exactly one bound (wanted $want)" >&2
+              return 1
+            fi
+          }
           reapply_over() { # <label> <statement that leaves a ledger table of another shape, or ''> <the check that must stop it, or ''>
             local label="$1" breakit="$2" want="$3"
             local clone_db="reapply_0252_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
@@ -2110,7 +2187,7 @@ jobs:
               return 1
             fi
           }
-          reapply_0255_over() { # <label> <statement that changes the ledger first, or ''> <the check that must stop it, or ''>
+          reapply_0255_over() { # <label> <statement run first: it changes the ledger or leaves a reservation table, or ''> <the check that must stop it, or ''>
             local label="$1" breakit="$2" want="$3"
             local clone_db="reapply_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
             if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
@@ -2125,7 +2202,9 @@ jobs:
             psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose --single-transaction \
               -f db/migrations/0255_chat_turn_refund_bound_to_audit.sql > "reapply_0255_$label.out" 2>&1 || rc=$?
             bound="$(sql "$clone_db" "SELECT to_regprocedure('public.refund_chat_turn_after_output_swap(uuid)') IS NOT NULL
-                                             AND to_regprocedure('public.bump_chat_usage_for_turn(uuid, date)') IS NOT NULL" | tr -d '\r')"
+                                             AND to_regprocedure('public.bump_chat_usage_for_turn(uuid, date)') IS NOT NULL
+                                             AND to_regprocedure('public.claim_chat_turn_for_audit(uuid, uuid, uuid)') IS NOT NULL
+                                             AND to_regclass('public.chat_turn_reservations') IS NOT NULL" | tr -d '\r')"
             unbound="$(sql "$clone_db" "SELECT to_regprocedure('public.refund_chat_turn_after_output_swap(date)') IS NOT NULL" | tr -d '\r')"
             guards="$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_trigger
                                         WHERE tgrelid = 'public.ai_audit_log'::regclass AND NOT tgisinternal
@@ -2166,15 +2245,34 @@ jobs:
           reapply_over extra_unique "ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT z46_one_per_day UNIQUE (day)" " carries a constraint, index, trigger, rule or policy"
           reapply_over extra_trigger "CREATE FUNCTION public.z46_noop() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TRIGGER z46_noop BEFORE INSERT ON public.chat_turn_refunds FOR EACH ROW EXECUTE FUNCTION public.z46_noop()" " carries a constraint, index, trigger, rule or policy"
           reapply_over extra_policy "CREATE POLICY z46_read ON public.chat_turn_refunds FOR SELECT TO authenticated USING (true)" " carries a constraint, index, trigger, rule or policy"
-          # 0255 over the tables as 0252 left them, then over a primary key that is missing or may raise at commit,
-          # a turn column of another type, and an index of another shape under the turn index's name.
+          # Two answers for one reservation, then one answer for two reservations.
+          claim_race two_answers_one_turn turn "a=true b=false answered:01/counted:-"
+          claim_race one_answer_two_turns row "a=true b=false answered:01/counted:-"
+          # 0255 over the tables as 0252 left them, then over a ledger key that is missing, may raise at commit or
+          # covers another column.
           reapply_0255_over same_ledger "" ""
-          reapply_0255_over no_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey" "chat_turn_refunds must have a primary key that is not deferrable"
-          reapply_0255_over deferrable_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey; ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT chat_turn_refunds_pkey PRIMARY KEY (audit_id) DEFERRABLE INITIALLY IMMEDIATE" "chat_turn_refunds must have a primary key that is not deferrable"
-          reapply_0255_over deferred_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey; ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT chat_turn_refunds_pkey PRIMARY KEY (audit_id) DEFERRABLE INITIALLY DEFERRED" "chat_turn_refunds must have a primary key that is not deferrable"
-          reapply_0255_over turns_as_text "ALTER TABLE public.chat_usage ADD COLUMN refundable_turns text[] NOT NULL DEFAULT '{}'" "chat_usage.refundable_turns or ai_audit_log.chat_turn_id has another type"
-          reapply_0255_over turn_index_not_unique "ALTER TABLE public.ai_audit_log ADD COLUMN chat_turn_id uuid; CREATE INDEX ai_audit_log_chat_turn_id_key ON public.ai_audit_log (chat_turn_id) WHERE chat_turn_id IS NOT NULL" "ai_audit_log_chat_turn_id_key is not the unique index on chat_turn_id alone"
-          reapply_0255_over turn_index_whole_table "ALTER TABLE public.ai_audit_log ADD COLUMN chat_turn_id uuid; CREATE UNIQUE INDEX ai_audit_log_chat_turn_id_key ON public.ai_audit_log (chat_turn_id, user_id)" "ai_audit_log_chat_turn_id_key is not the unique index on chat_turn_id alone"
+          reapply_0255_over no_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey" "chat_turn_refunds must have a primary key on audit_id alone that is not deferrable"
+          reapply_0255_over deferrable_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey; ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT chat_turn_refunds_pkey PRIMARY KEY (audit_id) DEFERRABLE INITIALLY IMMEDIATE" "chat_turn_refunds must have a primary key on audit_id alone that is not deferrable"
+          reapply_0255_over deferred_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey; ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT chat_turn_refunds_pkey PRIMARY KEY (audit_id) DEFERRABLE INITIALLY DEFERRED" "chat_turn_refunds must have a primary key on audit_id alone that is not deferrable"
+          reapply_0255_over wider_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey; ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT chat_turn_refunds_pkey PRIMARY KEY (audit_id, day)" "chat_turn_refunds must have a primary key on audit_id alone that is not deferrable"
+          # A reservation table that is already there. In the shape 0255 makes it, the apply goes through; in any
+          # other shape it stops at the check named beside it.
+          good_table="CREATE TABLE public.chat_turn_reservations (turn_id uuid NOT NULL DEFAULT gen_random_uuid(), user_id uuid NOT NULL, counted_day date NOT NULL, issued_at timestamptz NOT NULL DEFAULT now(), state text NOT NULL DEFAULT 'counted', audit_id uuid, answered_at timestamptz, refunded_at timestamptz, CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id), CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), CONSTRAINT chat_turn_reservations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE, CONSTRAINT chat_turn_reservations_state_check CHECK (state IN ('counted', 'answered', 'refunded')), CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL)))"
+          broken() { # <text to find in the good table> <text to put there> : the good table with one thing changed
+            local changed="${good_table/"$1"/"$2"}"
+            if [[ "$changed" == "$good_table" ]]; then echo "0255 re-apply check: [$1] is not in the table text" >&2; return 1; fi
+            printf '%s' "$changed"
+          }
+          reapply_0255_over reservations_same_table "$good_table" ""
+          reapply_0255_over reservations_no_default "$(broken " DEFAULT gen_random_uuid()" "")" "chat_turn_reservations has other columns"
+          reapply_0255_over reservations_audit_as_text "$(broken "audit_id uuid," "audit_id text,")" "chat_turn_reservations has other columns"
+          reapply_0255_over reservations_extra_column "$(broken "refunded_at timestamptz," "refunded_at timestamptz, note text,")" "chat_turn_reservations has other columns"
+          reapply_0255_over reservations_no_unique_answer "$(broken "CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), " "")" "chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id"
+          reapply_0255_over reservations_deferrable_unique "$(broken "UNIQUE (audit_id)," "UNIQUE (audit_id) DEFERRABLE,")" "chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id"
+          reapply_0255_over reservations_no_cascade "$(broken " ON DELETE CASCADE" "")" "chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE"
+          reapply_0255_over reservations_no_answer_check "$(broken ", CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL))" "")" "chat_turn_reservations lacks its state checks"
+          reapply_0255_over reservations_unlogged "$(broken "CREATE TABLE" "CREATE UNLOGGED TABLE")" "chat_turn_reservations is not a permanent table with row security on"
+          reapply_0255_over reservations_open_policy "$good_table; CREATE POLICY z46_read ON public.chat_turn_reservations FOR SELECT TO authenticated USING (true)" "chat_turn_reservations is open to an application role"
       - name: Exercise public-data quota contract
         env:
           PGPASSWORD: postgres
