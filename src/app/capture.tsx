@@ -471,14 +471,14 @@ function CaptureLegacySession({
   const modeHelp = (m: Mode) => t(`modes.${m}.help`);
   const trackLabel = (id: WikiTrack) => t(`tracks.${id}.label`);
 
-  // J4: onboarding hands off with entry=firstRun; until now the param was
-  // accepted and never read. First-run framing lowers the blank-page bar
-  // ("one sentence is enough") for the journey's very first save.
+  // J4: onboarding hands off with entry=firstRun; the route wrapper reads it to
+  // open this full intake. The extra first-run line under the hero is gone
+  // (Simon Q-261014-88, 2026-10-14): the header tip already says "a short note
+  // is fine", and one screen should not say it twice.
   // url/text/title arrive from the Web Share Target (manifest.webmanifest):
   // sharing a page from another app opens /capture with the payload here.
-  const { entry, url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam } =
-    useLocalSearchParams<{ entry?: string; url?: string; text?: string; title?: string; mode?: string; tag?: string }>();
-  const firstRun = entry === "firstRun";
+  const { url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam } =
+    useLocalSearchParams<{ url?: string; text?: string; title?: string; mode?: string; tag?: string }>();
   const shared = useMemo(
     () => normalizeSharedCaptureParams({ url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam }),
     [sharedUrlParam, sharedTextParam, sharedTitleParam],
@@ -3336,13 +3336,10 @@ ${transcript}`;
             style={styles.primaryHeader}
             accessible
             accessibilityLabel={
-              // P2-12: the firstRun hint renders INSIDE this accessible
-              // container, so the fixed label swallowed it — TalkBack users
-              // never heard "one sentence is enough" on their very first
-              // capture. Fold it into the spoken label while it is visible.
-              firstRun && !savedTitle && mode === "journal"
-                ? `${t("hero.title")} ${t("hero.subtitle")} ${t("firstRun.hint")}`
-                : `${t("hero.title")} ${t("hero.subtitle")}`
+              // P2-12 folded the first-run line into this label because it
+              // rendered inside the container. That line is gone
+              // (Q-261014-88), so the label is the hero alone again.
+              `${t("hero.title")} ${t("hero.subtitle")}`
             }
             accessibilityHint={
               // J1: the spoken hint must match where the piece actually went —
@@ -3365,15 +3362,6 @@ ${transcript}`;
               <Text variant="heading" numberOfLines={2}>
                 {savedTitle ? (savedIsOcr ? t("saved.ocrTitle") : t("saved.title")) : t("hero.title")}
               </Text>
-              {firstRun && !savedTitle && mode === "journal" ? (
-                // J4: first-run framing under the hero — one quiet line that
-                // lowers the blank-page bar for the journal default. Hidden in
-                // the other modes ("one sentence" reads wrong over a PDF pick)
-                // and once a save lands.
-                <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
-                  {t("firstRun.hint")}
-                </Text>
-              ) : null}
             </View>
           </View>
 
