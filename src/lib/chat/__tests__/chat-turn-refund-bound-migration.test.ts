@@ -418,26 +418,42 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
       `deferrable_primary_key:${key}`,
       `deferred_primary_key:${key}`,
       `wider_primary_key:${key}`,
-      'reservations_same_table:',
-      'reservations_no_default:chat_turn_reservations has other columns',
-      'reservations_audit_as_text:chat_turn_reservations has other columns',
-      'reservations_extra_column:chat_turn_reservations has other columns',
-      'reservations_no_unique_answer:chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id',
-      'reservations_deferrable_unique:chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id',
-      'reservations_no_cascade:chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE',
-      'reservations_no_answer_check:chat_turn_reservations lacks its state checks',
-      'reservations_unlogged:chat_turn_reservations is not a permanent table with row security on',
-      'reservations_generated_state:chat_turn_reservations has other columns',
-      'reservations_check_other_meaning:chat_turn_reservations lacks its state checks',
-      'reservations_deferrable_owner_link:chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE',
-      `reservations_extra_check:${extra}`,
-      `reservations_extra_index:${extra}`,
-      `reservations_extra_rule:${extra}`,
-      'reservations_with_child:chat_turn_reservations is not a permanent table with row security on',
-      `reservations_extra_trigger:${extra}`,
-      `reservations_other_lookup_index:${extra}`,
-      'reservations_open_policy:chat_turn_reservations is open to an application role',
+      'rsv_same_table:',
+      'rsv_no_default:chat_turn_reservations has other columns',
+      'rsv_audit_as_text:chat_turn_reservations has other columns',
+      'rsv_extra_column:chat_turn_reservations has other columns',
+      'rsv_no_unique_answer:chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id',
+      'rsv_deferrable_unique:chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id',
+      'rsv_no_cascade:chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE',
+      'rsv_no_answer_check:chat_turn_reservations lacks its state checks',
+      'rsv_unlogged:chat_turn_reservations is not a permanent table with row security on',
+      'rsv_generated_state:chat_turn_reservations has other columns',
+      'rsv_check_other_meaning:chat_turn_reservations lacks its state checks',
+      'rsv_deferrable_owner_link:chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE',
+      `rsv_extra_check:${extra}`,
+      `rsv_extra_index:${extra}`,
+      `rsv_extra_rule:${extra}`,
+      'rsv_with_child:chat_turn_reservations is not a permanent table with row security on',
+      `rsv_extra_trigger:${extra}`,
+      `rsv_other_lookup_index:${extra}`,
+      'rsv_open_policy:chat_turn_reservations is open to an application role',
     ]);
+    // Each case runs on a clone named <prefix>_<label>_<run id>_<attempt>_<pid>. PostgreSQL ends a name at 63 bytes
+    // and the step refuses a longer one, so every label has to fit beside a twelve-digit run id (CI's are eleven).
+    const fits = (prefix: string, label: string) => `${prefix}_${label}_123456789012_99_1234567`.length <= 63;
+    const labels: [string, string[]][] = [
+      ['race_0252', races.map((r) => r.slice(0, r.indexOf('|')))],
+      ['race_0255', claims.map((c) => c.slice(0, c.indexOf('|')))],
+      ['reapply_0252', [...workflow.matchAll(/^ +reapply_over (\w+) /gm)].map((m) => m[1])],
+      ['reapply_0255', cases.map((c) => c.slice(0, c.indexOf(':')))],
+    ];
+    for (const [prefix, names] of labels) {
+      expect(names.length).toBeGreaterThan(1);
+      expect(names.filter((name) => !fits(prefix, name))).toEqual([]);
+    }
+    for (const prefix of ['race_0252', 'race_0255', 'reapply_0252', 'reapply_0255']) {
+      expect(workflow).toContain(`local clone_db="${prefix}_\${label}_\${GITHUB_RUN_ID:-local}_\${GITHUB_RUN_ATTEMPT:-0}_$$"`);
+    }
     // every message a case waits for is one the migration can raise
     for (const message of new Set(cases.map((c) => c.slice(c.indexOf(':') + 1)).filter(Boolean))) {
       expect(raw).toContain(`'0255: ${message}`);

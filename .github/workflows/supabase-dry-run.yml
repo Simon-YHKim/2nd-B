@@ -2261,31 +2261,33 @@ jobs:
           reapply_0255_over wider_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey; ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT chat_turn_refunds_pkey PRIMARY KEY (audit_id, day)" "chat_turn_refunds must have a primary key on audit_id alone that is not deferrable"
           # A reservation table that is already there. In the shape 0255 makes it, the apply goes through; in any
           # other shape it stops at the check named beside it.
+          # (rsv_ = reservations. A clone is named reapply_0255_<label>_<run id>_<attempt>_<pid>, and a
+          # database name ends at 63 bytes, so the labels stay short.)
           good_table="CREATE TABLE public.chat_turn_reservations (turn_id uuid NOT NULL DEFAULT gen_random_uuid(), user_id uuid NOT NULL, counted_day date NOT NULL, issued_at timestamptz NOT NULL DEFAULT now(), state text NOT NULL DEFAULT 'counted', audit_id uuid, answered_at timestamptz, refunded_at timestamptz, CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id), CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), CONSTRAINT chat_turn_reservations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE, CONSTRAINT chat_turn_reservations_state_check CHECK (state IN ('counted', 'answered', 'refunded')), CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL)))"
           broken() { # <text to find in the good table> <text to put there> : the good table with one thing changed
             local changed="${good_table/"$1"/"$2"}"
             if [[ "$changed" == "$good_table" ]]; then echo "0255 re-apply check: [$1] is not in the table text" >&2; return 1; fi
             printf '%s' "$changed"
           }
-          reapply_0255_over reservations_same_table "$good_table" ""
-          reapply_0255_over reservations_no_default "$(broken " DEFAULT gen_random_uuid()" "")" "chat_turn_reservations has other columns"
-          reapply_0255_over reservations_audit_as_text "$(broken "audit_id uuid," "audit_id text,")" "chat_turn_reservations has other columns"
-          reapply_0255_over reservations_extra_column "$(broken "refunded_at timestamptz," "refunded_at timestamptz, note text,")" "chat_turn_reservations has other columns"
-          reapply_0255_over reservations_no_unique_answer "$(broken "CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), " "")" "chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id"
-          reapply_0255_over reservations_deferrable_unique "$(broken "UNIQUE (audit_id)," "UNIQUE (audit_id) DEFERRABLE,")" "chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id"
-          reapply_0255_over reservations_no_cascade "$(broken " ON DELETE CASCADE" "")" "chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE"
-          reapply_0255_over reservations_no_answer_check "$(broken ", CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL))" "")" "chat_turn_reservations lacks its state checks"
-          reapply_0255_over reservations_unlogged "$(broken "CREATE TABLE" "CREATE UNLOGGED TABLE")" "chat_turn_reservations is not a permanent table with row security on"
-          reapply_0255_over reservations_generated_state "$(broken "state text NOT NULL DEFAULT 'counted'," "state text NOT NULL GENERATED ALWAYS AS ('counted'::text) STORED,")" "chat_turn_reservations has other columns"
-          reapply_0255_over reservations_check_other_meaning "$(broken "CHECK ((state = 'counted') = (audit_id IS NULL))" "CHECK (state IS NOT NULL)")" "chat_turn_reservations lacks its state checks"
-          reapply_0255_over reservations_deferrable_owner_link "$(broken " ON DELETE CASCADE," " ON DELETE CASCADE DEFERRABLE,")" "chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE"
-          reapply_0255_over reservations_extra_check "$good_table; ALTER TABLE public.chat_turn_reservations ADD CONSTRAINT z46_extra CHECK (counted_day IS NOT NULL)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
-          reapply_0255_over reservations_extra_index "$good_table; CREATE INDEX z46_extra ON public.chat_turn_reservations (counted_day)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
-          reapply_0255_over reservations_extra_rule "$good_table; CREATE RULE z46_extra AS ON UPDATE TO public.chat_turn_reservations DO ALSO NOTHING" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
-          reapply_0255_over reservations_with_child "$good_table; CREATE TABLE public.z46_child () INHERITS (public.chat_turn_reservations)" "chat_turn_reservations is not a permanent table with row security on"
-          reapply_0255_over reservations_extra_trigger "$good_table; CREATE FUNCTION public.z46_noop() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TRIGGER z46_noop BEFORE UPDATE ON public.chat_turn_reservations FOR EACH ROW EXECUTE FUNCTION public.z46_noop()" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
-          reapply_0255_over reservations_other_lookup_index "$good_table; CREATE UNIQUE INDEX chat_turn_reservations_user_issued_idx ON public.chat_turn_reservations (user_id, issued_at)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
-          reapply_0255_over reservations_open_policy "$good_table; CREATE POLICY z46_read ON public.chat_turn_reservations FOR SELECT TO authenticated USING (true)" "chat_turn_reservations is open to an application role"
+          reapply_0255_over rsv_same_table "$good_table" ""
+          reapply_0255_over rsv_no_default "$(broken " DEFAULT gen_random_uuid()" "")" "chat_turn_reservations has other columns"
+          reapply_0255_over rsv_audit_as_text "$(broken "audit_id uuid," "audit_id text,")" "chat_turn_reservations has other columns"
+          reapply_0255_over rsv_extra_column "$(broken "refunded_at timestamptz," "refunded_at timestamptz, note text,")" "chat_turn_reservations has other columns"
+          reapply_0255_over rsv_no_unique_answer "$(broken "CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), " "")" "chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id"
+          reapply_0255_over rsv_deferrable_unique "$(broken "UNIQUE (audit_id)," "UNIQUE (audit_id) DEFERRABLE,")" "chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id"
+          reapply_0255_over rsv_no_cascade "$(broken " ON DELETE CASCADE" "")" "chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE"
+          reapply_0255_over rsv_no_answer_check "$(broken ", CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL))" "")" "chat_turn_reservations lacks its state checks"
+          reapply_0255_over rsv_unlogged "$(broken "CREATE TABLE" "CREATE UNLOGGED TABLE")" "chat_turn_reservations is not a permanent table with row security on"
+          reapply_0255_over rsv_generated_state "$(broken "state text NOT NULL DEFAULT 'counted'," "state text NOT NULL GENERATED ALWAYS AS ('counted'::text) STORED,")" "chat_turn_reservations has other columns"
+          reapply_0255_over rsv_check_other_meaning "$(broken "CHECK ((state = 'counted') = (audit_id IS NULL))" "CHECK (state IS NOT NULL)")" "chat_turn_reservations lacks its state checks"
+          reapply_0255_over rsv_deferrable_owner_link "$(broken " ON DELETE CASCADE," " ON DELETE CASCADE DEFERRABLE,")" "chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE"
+          reapply_0255_over rsv_extra_check "$good_table; ALTER TABLE public.chat_turn_reservations ADD CONSTRAINT z46_extra CHECK (counted_day IS NOT NULL)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_extra_index "$good_table; CREATE INDEX z46_extra ON public.chat_turn_reservations (counted_day)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_extra_rule "$good_table; CREATE RULE z46_extra AS ON UPDATE TO public.chat_turn_reservations DO ALSO NOTHING" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_with_child "$good_table; CREATE TABLE public.z46_child () INHERITS (public.chat_turn_reservations)" "chat_turn_reservations is not a permanent table with row security on"
+          reapply_0255_over rsv_extra_trigger "$good_table; CREATE FUNCTION public.z46_noop() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TRIGGER z46_noop BEFORE UPDATE ON public.chat_turn_reservations FOR EACH ROW EXECUTE FUNCTION public.z46_noop()" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_other_lookup_index "$good_table; CREATE UNIQUE INDEX chat_turn_reservations_user_issued_idx ON public.chat_turn_reservations (user_id, issued_at)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_open_policy "$good_table; CREATE POLICY z46_read ON public.chat_turn_reservations FOR SELECT TO authenticated USING (true)" "chat_turn_reservations is open to an application role"
       - name: Exercise public-data quota contract
         env:
           PGPASSWORD: postgres
