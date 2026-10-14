@@ -403,8 +403,8 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(helper.indexOf('PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn);')).toBeGreaterThan(-1);
     expect(helper.indexOf('PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn);')).toBeLessThan(helper.indexOf('INSERT INTO public.ai_audit_log'));
     // round 8: the order is the server's. The re-ask reaches it first, the late call second; the re-ask's answer
-    // binds and alone gives the turn back; a third call is not recorded (T4 · R2438-21 · R2438-23)
-    expect(regression).toMatch(/concat_ws\(',', :'t4_b1', :'t4_late', :'t4_third', :'t4_c1', :'t4_back', :'t4_back_late'\) = 'true,true,false,true,1,null'/);
+    // binds and alone gives the turn back; the same row twice and a third call are not recorded (T4 · R2438-21 · R2438-23)
+    expect(regression).toMatch(/concat_ws\(',', :'t4_b1', :'t4_same', :'t4_late', :'t4_third', :'t4_c1', :'t4_back', :'t4_back_late'\) = 'true,false,true,false,true,1,null'/);
     expect(regression).toMatch(/AND \(SELECT attempts = 2 AND attempt1_audit_id = '26101346-4000-4000-8000-0000000000db' AND attempt2_audit_id = '26101346-4000-4000-8000-0000000000dc'/);
     expect(regression).not.toMatch(/t5_|p_started_at|attempt_started_at|pending_audit_id/);
     // the refund reads the owner of the reservation itself, not only what the claim guarantees

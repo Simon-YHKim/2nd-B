@@ -1076,7 +1076,7 @@ SELECT pg_temp.z46_assert(concat_ws(',', :'t3_b1', :'t3_c1', :'t3_back', :'t3_b2
 -- T4 (R2438-21 · R2438-23 · round 8): the re-ask (db) reaches the server first and is recorded as the first attempt;
 -- the first call (dc), whose proxy has given up waiting, reaches it after and is recorded as the second. No clock
 -- decides: the order is the one the server saw. The re-ask's answer binds and alone gives the turn back; the late
--- call's proxy never asks to bind. A third call is not recorded.
+-- call's proxy never asks to bind. The same row is not recorded twice, and a third call is not recorded.
 SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000e';
 SET LOCAL ROLE authenticated;
 SELECT public.bump_chat_usage_for_turn('26101346-0000-4000-8000-00000000000e', :'today'::date)::text AS t4 \gset
@@ -1085,6 +1085,7 @@ SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000db', '26101346-0000-
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000dc', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
 SET LOCAL ROLE service_role;
 SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000db', (:'t4'::jsonb ->> 'turnId')::uuid)::text AS t4_b1 \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000db', (:'t4'::jsonb ->> 'turnId')::uuid)::text AS t4_same \gset
 SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000dc', (:'t4'::jsonb ->> 'turnId')::uuid)::text AS t4_late \gset
 SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000dd', (:'t4'::jsonb ->> 'turnId')::uuid)::text AS t4_third \gset
 SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000db', (:'t4'::jsonb ->> 'turnId')::uuid)::text AS t4_c1 \gset
@@ -1093,12 +1094,12 @@ SET LOCAL ROLE authenticated;
 SELECT COALESCE(public.refund_chat_turn_after_output_swap('26101346-4000-4000-8000-0000000000db')::text, 'null') AS t4_back \gset
 SELECT COALESCE(public.refund_chat_turn_after_output_swap('26101346-4000-4000-8000-0000000000dc')::text, 'null') AS t4_back_late \gset
 RESET ROLE;
-SELECT pg_temp.z46_assert(concat_ws(',', :'t4_b1', :'t4_late', :'t4_third', :'t4_c1', :'t4_back', :'t4_back_late') = 'true,true,false,true,1,null'
+SELECT pg_temp.z46_assert(concat_ws(',', :'t4_b1', :'t4_same', :'t4_late', :'t4_third', :'t4_c1', :'t4_back', :'t4_back_late') = 'true,false,true,false,true,1,null'
                           AND (SELECT attempts = 2 AND attempt1_audit_id = '26101346-4000-4000-8000-0000000000db' AND attempt2_audit_id = '26101346-4000-4000-8000-0000000000dc'
                                       AND state = 'refunded' AND audit_id = '26101346-4000-4000-8000-0000000000db'
                                  FROM public.chat_turn_reservations WHERE turn_id = (:'t4'::jsonb ->> 'turnId')::uuid),
                           'the order of the attempts was not the order they reached the server, or the late call took the turn: '
-                          || concat_ws(',', :'t4_b1', :'t4_late', :'t4_third', :'t4_c1', :'t4_back', :'t4_back_late'));
+                          || concat_ws(',', :'t4_b1', :'t4_same', :'t4_late', :'t4_third', :'t4_c1', :'t4_back', :'t4_back_late'));
 -- The refund does not rely on the claim alone: a reservation that is another user's gives the caller nothing,
 -- even if it carries the caller's own fresh red row. The claim never makes such a row; it is built here directly.
 SAVEPOINT z46_foreign_reservation;
