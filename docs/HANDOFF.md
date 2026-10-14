@@ -1,5 +1,13 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 21:10 / 2ndb-79: 밤 인수 — 옛 등급 이름 정리 끝(#2492) · 막힌 PR 둘(#2483 · #2497)이 대표님 답(Q-261014-81 · 82 · 83)을 기다림
+
+- **#2483**(위기 낱말로 앱이 끊은 대화를 횟수에서 빼기): 가지 `fix/chat-device-red-not-counted` · 워크트리 `.worktrees/z40-chat-retry-261014` · 머리 `946d03f5`(CI 초록) · 독립 검토 5회 모두 BLOCK(코드 결함 없음) · Q-261014-81. 머지하면 8081 '후': `crisiscount-shots` 방식 그대로 `node "E:/Coding Infra/reports/devlab-261010/ui/z-crisiscount/chat_device_red_shots.cjs" after <out>`(기대: 「오늘 14/250」 그대로 · bump 0 · 읽은 표 chat_usage 하나). 머지 뒤 `src/lib/legal/__tests__/conversation-cited-lines.test.ts`(#2497 이 넣을 예정)의 396 줄 수와 맞출 것.
+- **#2497**(대화 한도 말풍선): 가지 `fix/chat-limit-bubble-no-upsell` · 워크트리 `.worktrees/z117-chat-session-261014` · 머리 `b340d1a9` 위 main 합침 · 검토 3회 BLOCK · Q-261014-82. 머지하면 8081 '후': `node "E:/Coding Infra/reports/devlab-261010/ui/z-limit-bubble/chat_limit_bubble_shots.cjs" after <out>`(전 캡처는 같은 폴더 shots/before-*).
+- **다음 차례**(16:45 줄): Q-261014-25 프로필 등급 이름을 각 언어로(20:28 답 · 작은 PR) → Q-11 한도에 닿은 계정의 위기 글에 안내 먼저 → 안전 설계 둘의 다음 판(`E:/Coding Infra/reports/devlab-261010/gates/nosave-step1-design.v2.md` 의 검토 지적 반영 3판 · `interview-hotline-rule-design.md` 2판: 화면이 안내 줄을 버리지 않게 + 위협 레인) → 인터뷰 끝내는 규칙 → 캘린더(Q-27 · 28 · 켜기는 법무 뒤) → 공유 받기 확장(Q-29 · 새 APK).
+- **보고서**: https://claude.ai/artifact/XCvRDcxq2MSYtsTAVZvjWE (2판 15:15 · 원고 scratchpad 의 `interview6/brief.md` · 같은 경로로 다시 게시).
+- **번호**: 이 세션의 10-14 물음은 80 ~ 99(83 까지 씀). 화면 창 60 ~ 79 · 서버 창 30 ~ 59.
+
 ## 2026-10-14 15:16 / 2ndb-e7: PR #2438 4회차가 독립 검토에서 막혀 멈춤 - 대표님께 Q-261014-37 - 다음 1개는 그 답
 
 - **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `7e596603`(main `b8e7f407` 합침 · CI 넷 초록 14:50). 워크트리 `.worktrees/refund-bind-261013`(정션 있음 · 지울 때 정션부터 뗄 것).
