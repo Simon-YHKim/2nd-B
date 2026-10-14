@@ -2370,13 +2370,17 @@ jobs:
               return 1
             fi
           }
-          lock_order_race() { # <label> <expected: a b what the refund waited on> : a refund while a bump holds the turns
-            local label="$1" want="$2"
+          lock_order_race() { # <label> <who holds first: bump|row> <expected: sessions and what the refund waited on>
+            # A refund while a bump holds the user's turns (bump), or while a bump waits for today's usage row that a
+            # third session holds (row). Either way the refund waits on the user's lock, never on a row, because the
+            # bump takes that lock before it touches chat_usage and the refund takes it first (R2438-22).
+            local label="$1" first="$2" want="$3"
             local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
             if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
               echo "0255 lock order race refuses an unsafe database name" >&2
               return 1
             fi
+            if [[ "$first" != "bump" && "$first" != "row" ]]; then echo "$label: no holder $first" >&2; return 1; fi
             sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
             # A turn answered by a red row, counted three days ago on today's row (a re-ask may come that late), so
             # the bump below removes it while the refund wants it: the case where the two met in opposite orders.
@@ -2400,24 +2404,49 @@ jobs:
           SQL
             local as_user="SET LOCAL request.jwt.claim.sub = '$user'"
             local kst_today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
-            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
-              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
-              -c "SELECT 'a=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'count')" \
-              -c "SELECT pg_sleep(3)" \
-              -c "COMMIT" > "order_a_$label.out" &
-            local a_pid=$! waited=0
+            local bump_sql="SELECT 'b=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'count')"
+            if [[ "$first" == "row" ]]; then
+              psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+                -c "BEGIN" \
+                -c "SELECT 'a=' || cu.count FROM public.chat_usage AS cu WHERE cu.user_id = '$user' AND cu.day = $kst_today FOR UPDATE" \
+                -c "SELECT pg_sleep(4)" \
+                -c "COMMIT" > "order_a_$label.out" &
+            else
+              psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+                -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+                -c "$bump_sql" \
+                -c "SELECT pg_sleep(4)" \
+                -c "COMMIT" > "order_a_$label.out" &
+            fi
+            local a_pid=$! b_pid="" waited=0
             until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
                                           WHERE datname = current_database() AND state = 'active'
-                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+                                            AND query = 'SELECT pg_sleep(4)'")" == "1" ]]; do
               waited=$((waited + 1))
-              if (( waited > 50 )); then echo "$label: the bump session never reached its pause" >&2; return 1; fi
+              if (( waited > 50 )); then echo "$label: the first session never reached its pause" >&2; return 1; fi
               sleep 0.2
             done
+            if [[ "$first" == "row" ]]; then
+              # the bump arrives while today's row is held, and waits for it
+              psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+                -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+                -c "$bump_sql" \
+                -c "COMMIT" > "order_b_$label.out" &
+              b_pid=$!
+              waited=0
+              until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                            WHERE datname = current_database() AND state = 'active' AND wait_event_type = 'Lock'
+                                              AND query LIKE '%bump_chat_usage_for_turn%' AND pid <> pg_catalog.pg_backend_pid()")" == "1" ]]; do
+                waited=$((waited + 1))
+                if (( waited > 50 )); then echo "$label: the bump never waited for today's row" >&2; return 1; fi
+                sleep 0.2
+              done
+            fi
             psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
               -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
-              -c "SELECT 'b=' || COALESCE(public.refund_chat_turn_after_output_swap('26101347-4000-4000-8000-000000000001')::text, 'null')" \
-              -c "COMMIT" > "order_b_$label.out" &
-            local b_pid=$! wait_on="" tries=0
+              -c "SELECT 'r=' || COALESCE(public.refund_chat_turn_after_output_swap('26101347-4000-4000-8000-000000000001')::text, 'null')" \
+              -c "COMMIT" > "order_r_$label.out" &
+            local r_pid=$! wait_on="" tries=0
             until [[ -n "$wait_on" ]]; do
               tries=$((tries + 1))
               if (( tries > 10 )); then break; fi
@@ -2426,14 +2455,19 @@ jobs:
                                             WHERE a.datname = current_database() AND a.state = 'active' AND a.wait_event IS NOT NULL
                                               AND a.query LIKE '%refund_chat_turn_after_output_swap%' AND a.pid <> pg_catalog.pg_backend_pid()" | tr -d '\r')"
             done
-            wait "$a_pid"; wait "$b_pid"
-            local a b
-            a="$(grep '^a=' "order_a_$label.out" | tr -d '\r')"
-            b="$(grep '^b=' "order_b_$label.out" | tr -d '\r')"
+            # a session the database ended (a deadlock) shows as a missing value below, not as a stopped step
+            wait "$a_pid" || true
+            if [[ -n "$b_pid" ]]; then wait "$b_pid" || true; fi
+            wait "$r_pid" || true
+            local a b r
+            a="$(grep '^a=' "order_a_$label.out" | tr -d '\r' || true)"
+            b="$(cat "order_a_$label.out" "order_b_$label.out" 2> /dev/null | grep '^b=' | tr -d '\r' || true)"
+            r="$(grep '^r=' "order_r_$label.out" | tr -d '\r' || true)"
             sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
-            echo "$label: first session $a, second session $b, the refund waited on ${wait_on:-nothing}"
-            if [[ "$a $b wait=${wait_on:-nothing}" != "$want" ]]; then
-              echo "$label: the refund did not wait for the user's lock while a bump held the turns (wanted $want)" >&2
+            local got="${a:+$a }${b:-b=missing} ${r:-r=missing} wait=${wait_on:-nothing}"
+            echo "$label: $got"
+            if [[ "$got" != "$want" ]]; then
+              echo "$label: the refund did not wait for the user's lock (wanted $want)" >&2
               return 1
             fi
           }
@@ -2546,7 +2580,10 @@ jobs:
           late_begin_race reask_past_wait 01 02 after_a "a=true b=false 1:01"
           # A refund that arrives while a bump holds the user's turns waits on the user's lock, not on a row the bump
           # holds (R2438-22); the bump removed the old turn, so the refund then finds nothing to give back.
-          lock_order_race bump_then_refund "a=4 b=null wait=Lock:advisory"
+          lock_order_race bump_then_refund bump "b=4 r=null wait=Lock:advisory"
+          # A bump that waits for today's row (held by a third session) already holds the user's lock, so a refund
+          # that arrives then waits on that lock too and never takes the row the bump is waiting for.
+          lock_order_race bump_waits_for_row row "a=3 b=4 r=null wait=Lock:advisory"
           # 0255 over the tables as 0252 left them, then over a ledger key that is missing, may raise at commit or
           # covers another column.
           reapply_0255_over same_ledger "" ""

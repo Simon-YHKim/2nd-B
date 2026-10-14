@@ -486,8 +486,12 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
       'late_first_attempt|02|01|before_a|a=true b=false 1:02',
       'reask_past_wait|01|02|after_a|a=true b=false 1:01',
     ]);
-    const orders = [...workflow.matchAll(/^ +lock_order_race (\w+) "([^"\n]*)"$/gm)].map((m) => `${m[1]}|${m[2]}`);
-    expect(orders).toEqual(['bump_then_refund|a=4 b=null wait=Lock:advisory']);
+    const orders = [...workflow.matchAll(/^ +lock_order_race (\w+) (bump|row) "([^"\n]*)"$/gm)].map((m) => m.slice(1).join('|'));
+    expect(orders).toEqual([
+      'bump_then_refund|bump|b=4 r=null wait=Lock:advisory',
+      // a third session holds today's usage row: the waiting bump already holds the user's lock
+      'bump_waits_for_row|row|a=3 b=4 r=null wait=Lock:advisory',
+    ]);
     const lateRace = workflow.slice(workflow.indexOf('late_begin_race() {'), workflow.indexOf('lock_order_race() {'));
     // the second call's start is fixed: before the first session runs, or its own clock once the first holds the lock
     expect(lateRace).toContain("before_a) b_started=\"'$t0'::timestamptz - interval '0.3 seconds'\" ;;");
