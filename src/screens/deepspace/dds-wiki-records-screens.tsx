@@ -411,7 +411,9 @@ export function DeepSpaceRecordsScreen() {
   // their own day label - without it every non-today record showed no time at all.
   const timeById = useMemo(() => {
     const m = new Map<string, string>();
-    buildRecordsTimeline(records, { labels: dsTimeLabels(t), labelEveryItem: true }).forEach((g) => g.items.forEach((it) => m.set(it.id, it.timeLabel)));
+    // maxGroups: the timeline labels only its first 8 day groups unless told otherwise, and a row
+    // past the eighth day then showed no time at all. This list holds every record, so every day.
+    buildRecordsTimeline(records, { labels: dsTimeLabels(t), labelEveryItem: true, maxGroups: Number.POSITIVE_INFINITY }).forEach((g) => g.items.forEach((it) => m.set(it.id, it.timeLabel)));
     return m;
   }, [records, t]);
 

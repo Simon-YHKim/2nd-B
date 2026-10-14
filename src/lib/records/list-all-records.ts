@@ -10,14 +10,21 @@
 // are being read is neither skipped nor repeated. The index it rides is the one that already
 // exists: records_user_created_idx (user_id, created_at DESC).
 //
+// It asks only for the columns the list draws (TimelineRecord in records-timeline.ts). Reading
+// every row is the point; reading columns nobody looks at is not.
+//
 // listRecentRecords() is left as it is: the streak and the other screens that call it keep their
 // window.
 import { getSupabaseClient } from "../supabase/client";
-import { withSystemTagsColumn } from "./system-tags";
 
 /** Rows asked for at a time. */
 export const WIKI_RECORDS_PAGE = 100;
-/** A stop for a loop that would not end. Far above any account today (the largest holds under 100 rows). */
+/**
+ * Where the walk stops whatever the server answers. Far above any account today (the largest
+ * holds under 100 rows). An account past it would get its newest 5,000 and nothing would say that
+ * older ones exist: telling the reader needs a line on the screen, which is a wording decision this
+ * file does not make. Until then this is a known limit, not a guarantee.
+ */
 export const WIKI_RECORDS_MAX = 5000;
 
 interface PageCursor {
@@ -58,35 +65,15 @@ function fromCursor<Q extends { lte(column: "created_at", value: string): Q; or(
 }
 
 async function readPage(userId: string, cursor: PageCursor | null) {
-  const supabase = getSupabaseClient();
-  // system_tags (0218) rides along as in listRecentRecords; without the column the rows come back
-  // the pre-0218 way. Two literal selects, not one computed string: supabase-js types a row from
-  // the literal it is given.
-  const { data, error } = await withSystemTagsColumn((columnPresent) =>
-    columnPresent
-      ? fromCursor(
-          supabase
-            .from("records")
-            .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, system_tags, created_at, structured, audit_period")
-            .eq("user_id", userId),
-          cursor,
-        )
-          .order("created_at", { ascending: false })
-          .order("id", { ascending: false })
-          .limit(WIKI_RECORDS_PAGE)
-      : fromCursor(
-          supabase
-            .from("records")
-            .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured, audit_period")
-            .eq("user_id", userId),
-          cursor,
-        )
-          .order("created_at", { ascending: false })
-          .order("id", { ascending: false })
-          .limit(WIKI_RECORDS_PAGE),
-  );
+  const { data, error } = await fromCursor(
+    getSupabaseClient().from("records").select("id, kind, body, topic, summary, tags, created_at").eq("user_id", userId),
+    cursor,
+  )
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(WIKI_RECORDS_PAGE);
   if (error) throw error;
-  return (data ?? []) as NonNullable<typeof data>[number][];
+  return data ?? [];
 }
 
 /**

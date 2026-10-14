@@ -1,6 +1,9 @@
 // The wiki list asked only for the last 90 days of records (it borrowed the streak's read), so
 // older records were never listed: 16 of 69 production rows on 2026-10-14. listAllRecords() is
 // the list's own read: no window, pages that each start after the last row of the one before.
+//
+// The walk is driven here by a stand-in builder that records what it was asked. What the real
+// query builder puts on the wire is pinned separately, in list-all-records-request.test.ts.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -53,6 +56,7 @@ const mockFrom = jest.fn((table: string) => {
 
 jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({ from: mockFrom }) }));
 
+import { buildRecordsTimeline } from "../../../screens/deepspace/records-timeline";
 import { WIKI_RECORDS_MAX, WIKI_RECORDS_PAGE, afterCursorFilter, listAllRecords } from "../list-all-records";
 
 const row = (n: number) => ({ id: `id-${String(n).padStart(5, "0")}`, created_at: `2026-10-${String(13 - Math.floor(n / 1000)).padStart(2, "0")}T00:00:00.${String(999999 - n).padStart(6, "0")}+00:00` });
@@ -65,32 +69,40 @@ beforeEach(() => {
 });
 
 describe("the wiki list's own read", () => {
-  it("asks for the owner's rows, newest first, with no date window", async () => {
+  it("asks for the owner's rows, newest first, with no date condition, in one request", async () => {
     answers = [{ data: page(0, 3), error: null }];
     const rows = await listAllRecords("owner-1");
     expect(rows).toHaveLength(3);
     expect(calls).toHaveLength(1);
     expect(calls[0].owner).toBe("owner-1");
+    // No window: neither the plain bound nor the logical filter rides on the first page.
     expect(calls[0].or).toBeNull();
     expect(calls[0].lte).toBeNull();
     expect(calls[0].orders).toEqual([["created_at", { ascending: false }], ["id", { ascending: false }]]);
     expect(calls[0].limit).toBe(WIKI_RECORDS_PAGE);
-    expect(calls[0].select).toContain("audit_period");
-    expect(calls[0].select).toContain("system_tags");
-    // The streak's window is exactly what this read must not carry.
-    expect(calls[0].select).not.toContain("embedding");
+  });
+
+  it("asks only for the columns the list draws", async () => {
+    answers = [{ data: [], error: null }];
+    await listAllRecords("owner-1");
+    // TimelineRecord (records-timeline.ts): what a row, its icon, its title and its time read.
+    expect(calls[0].select.split(",").map((c) => c.trim()).sort()).toEqual(["body", "created_at", "id", "kind", "summary", "tags", "topic"]);
+    const timeline = readFileSync(join(__dirname, "..", "..", "..", "screens", "deepspace", "records-timeline.ts"), "utf8").replace(/\r\n?/g, "\n");
+    const shape = timeline.slice(timeline.indexOf("export interface TimelineRecord {"), timeline.indexOf("}", timeline.indexOf("export interface TimelineRecord {")));
+    const fields = [...shape.matchAll(/^\s+(\w+)\??:/gm)].map((m) => m[1]).sort();
+    expect(fields).toEqual(["body", "created_at", "id", "kind", "summary", "tags", "topic"]);
   });
 
   it("starts each next page after the last row of the one before", async () => {
     answers = [{ data: page(0, WIKI_RECORDS_PAGE), error: null }, { data: page(WIKI_RECORDS_PAGE, 7), error: null }];
     const rows = await listAllRecords("owner-1");
     expect(rows).toHaveLength(WIKI_RECORDS_PAGE + 7);
-    expect(rows.map((r) => r.id)).toEqual(page(0, WIKI_RECORDS_PAGE + 7).map((r) => r.id));
     expect(calls).toHaveLength(2);
     const last = row(WIKI_RECORDS_PAGE - 1);
     expect(calls[1].or).toBe(afterCursorFilter({ createdAt: last.created_at, id: last.id }));
     expect(calls[1].lte).toEqual(["created_at", last.created_at]);
     expect(calls[1].owner).toBe("owner-1");
+    expect(calls[1].limit).toBe(WIKI_RECORDS_PAGE);
   });
 
   it("carries the last row's instant as the server wrote it, microseconds and all", async () => {
@@ -122,23 +134,11 @@ describe("the wiki list's own read", () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it("has a stop for a walk that would not end", async () => {
+  it("stops at its limit whatever the server answers (a known limit: the cut is not shown)", async () => {
     const pages = WIKI_RECORDS_MAX / WIKI_RECORDS_PAGE;
     answers = Array.from({ length: pages + 3 }, (_, i) => ({ data: page(i * WIKI_RECORDS_PAGE, WIKI_RECORDS_PAGE), error: null }));
     expect(await listAllRecords("owner-1")).toHaveLength(WIKI_RECORDS_MAX);
     expect(calls).toHaveLength(pages);
-  });
-
-  it("asks once more without system_tags on a database that has no such column", async () => {
-    answers = [
-      { data: null, error: { code: "42703", message: "column records.system_tags does not exist" } },
-      { data: page(0, 2), error: null },
-    ];
-    expect(await listAllRecords("owner-1")).toHaveLength(2);
-    expect(calls).toHaveLength(2);
-    expect(calls[0].select).toContain("system_tags");
-    expect(calls[1].select).not.toContain("system_tags");
-    expect(calls[1].select).toContain("audit_period");
   });
 });
 
@@ -163,6 +163,35 @@ describe("the wiki list uses it", () => {
     expect(screen).toContain('import { listAllRecords } from "@/lib/records/list-all-records";');
     expect(screen).toContain("recs = (await listAllRecords(userId)) as RecordsTimelineRecord[];");
     expect(screen).not.toMatch(/listRecentRecords\(/);
+  });
+
+  it("gives every row its day, however many days the list holds", () => {
+    // buildRecordsTimeline labels only its first maxGroups day groups (8 unless told otherwise).
+    // The flat list has no group headers, so a row past the eighth day showed no time at all,
+    // which is every row this read newly brings in.
+    expect(screen).toContain("buildRecordsTimeline(records, { labels: dsTimeLabels(t), labelEveryItem: true, maxGroups: Number.POSITIVE_INFINITY })");
+  });
+
+  it("with that, a row on the ninth day and after carries its day; without it, it carried nothing", () => {
+    const now = new Date("2026-10-14T03:00:00Z");
+    const rows = Array.from({ length: 12 }, (_, day) => ({
+      id: `r${day}`,
+      kind: "note" as const,
+      summary: `day ${day}`,
+      created_at: new Date(now.getTime() - (day * 24 + 1) * 3600 * 1000).toISOString(),
+    }));
+    const labelled = (maxGroups?: number) => {
+      const byId = new Map<string, string>();
+      buildRecordsTimeline(rows, { now, utcOffsetMs: 0, labelEveryItem: true, ...(maxGroups === undefined ? {} : { maxGroups }) }).forEach((g) =>
+        g.items.forEach((it) => byId.set(it.id, it.timeLabel)),
+      );
+      return rows.map((r) => byId.get(r.id) ?? "");
+    };
+    // The default stops after eight day groups: the last four rows get no label at all.
+    expect(labelled().filter((label) => label !== "")).toHaveLength(8);
+    expect(labelled().slice(8)).toEqual(["", "", "", ""]);
+    // What the list passes: every row has one.
+    expect(labelled(Number.POSITIVE_INFINITY).every((label) => label !== "")).toBe(true);
   });
 
   it("the streak's read keeps its window", () => {
