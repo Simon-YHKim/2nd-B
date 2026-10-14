@@ -1,6 +1,6 @@
 import { parseTwiBranches } from "../twi-branches";
 
-describe("트위비 3-branch parser (P5f)", () => {
+describe("조이케이 3-branch parser (P5f)", () => {
   test("lifts up to three trailing branch lines out of the display text", () => {
     const reply = [
       "기록을 보면 아침 시간이 늘 비어 있어요.",
@@ -41,7 +41,7 @@ describe("트위비 3-branch parser (P5f)", () => {
   });
 
   test("4+ candidates: keeps the first three in order, no stray arrow line in display", () => {
-    // 트위비 is asked for up to three but LLMs violate that intermittently; the
+    // 조이케이 is asked for up to three but LLMs violate that intermittently; the
     // parser must stay robust — clear ALL trailing arrow lines from display and keep
     // the first three (in reply order), not the last three with a stranded line.
     const reply = [

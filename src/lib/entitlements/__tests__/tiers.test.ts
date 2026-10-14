@@ -20,7 +20,7 @@ describe('TIERS table (Phase 4 boundary, Simon 확정 2026-07-17)', () => {
     });
   });
 
-  it('encodes plus (메타비, 주 7회) and pro (메타비+트위비, unlimited)', () => {
+  it('encodes plus (팩트케이, 주 7회) and pro (팩트케이+조이케이, unlimited)', () => {
     expect(TIERS.plus).toEqual({
       reasoningPerWeek: 7,
       metabPersona: true,
@@ -108,7 +108,7 @@ describe('remainingReasoning / canUseReasoning (weekly)', () => {
 });
 
 describe('personaAllowed', () => {
-  it('메타비 unlocks at plus, 트위비 at pro (2nd-B is free for everyone)', () => {
+  it('팩트케이 unlocks at plus, 조이케이 at pro (2nd-B is free for everyone)', () => {
     expect(personaAllowed('free', 'meta')).toBe(false);
     expect(personaAllowed('free', 'twi')).toBe(false);
     expect(personaAllowed('plus', 'meta')).toBe(true);
