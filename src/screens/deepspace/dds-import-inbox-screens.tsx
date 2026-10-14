@@ -29,6 +29,8 @@ import { RECORD_SAVE_CUE } from "@/lib/audio/app-cues";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
 import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { readPrivacyPrefsStrict } from "@/lib/supabase/privacy-strict";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { armHealthAutoRead } from "@/lib/health/auto-read";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { healthWithdrawDeps, withdrawHealthImport } from "@/lib/health/withdraw";
@@ -71,6 +73,9 @@ interface ImportResult {
 }
 
 type ImportMode = "file" | "account";
+
+// How long the health consent waits for the stored choices before it gives up and saves nothing.
+const HEALTH_PREFS_READ_TIMEOUT_MS = 10_000;
 
 // ── 29-import / reference ImportScreen (sb-more.jsx) ─────────────────────────
 // A windowed 외부 가져오기 hub: file/account mode toggle, a file drop zone, the
@@ -252,18 +257,30 @@ export function DeepSpaceImportScreen() {
   // that is not confirmed yet (isMinor null).
   async function handleHealthConsent() {
     if (!userId || healthBusy || isMinor !== false) return;
+    const owner = userId;
+    const lease = beginAccountSessionLease(owner);
     setHealthBusy(true);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(userId)), health_import: true };
+      // Strict, with a deadline: the save below writes every choice at once, and the fail-soft
+      // read this used returned "everything off" on failure, so a moment where the read failed
+      // but the write went through turned the person's other choices off. A failed read throws
+      // and nothing is saved (the privacy screen does the same since #2496).
+      const current = await withTimeout(readPrivacyPrefsStrict(owner), HEALTH_PREFS_READ_TIMEOUT_MS, "privacy_prefs");
+      // The read can end after a sign-out or an account switch; this opt-in is then not that
+      // person's to save, so it stops (throws) like the withdrawal below does.
+      lease.assertCurrent();
+      const prefs = { ...current, health_import: true };
       // savePrivacyPrefs writes the sensitive-data consent row itself on the
       // false -> true edge (H9). This screen used to write it here, which was the
       // ONLY path that did; now that the choke point covers every path, calling
       // it again would append a duplicate row to an append-only ledger.
-      await savePrivacyPrefs(userId, prefs, { locale: ko ? "ko" : "en" });
+      // `before` is what this save started from, so the ledger records exactly this change.
+      await savePrivacyPrefs(owner, prefs, { locale: ko ? "ko" : "en", before: current });
       setHealthPref(true);
     } catch {
       // Best-effort; the row stays in the opt-in state so the user can retry.
     } finally {
+      lease.release();
       setHealthBusy(false);
     }
   }
