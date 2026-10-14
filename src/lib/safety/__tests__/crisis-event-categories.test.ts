@@ -68,7 +68,7 @@ describe("recordableCrisisCategories: a record of a replaced AI reply (it carrie
 
   it.each([
     "crisis_term:0",
-    "crisis_term:20",
+    "crisis_term:22",
     "crisis_term:99",
     "crisis_term:01",
     "crisis_term:-1",
