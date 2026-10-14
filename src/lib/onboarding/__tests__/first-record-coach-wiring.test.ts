@@ -17,7 +17,8 @@ describe("first-record coach wiring", () => {
     expect(shell).toContain("dockItemRefs={{ capture: coachScrapTabRef }}");
     expect(shell).toContain("targetRef={coachScrapTabRef}");
     expect(shell).toContain('if (!(coachmarksDue === true && tab === "capture")) return false;');
-    expect(shell).toContain('params: { coach: FIRST_RECORD_COACH_PARAM }');
+    // Z72: the route value says whether this is a first guide or a replay.
+    expect(shell).toContain('router.push({ pathname: "/capture", params: { coach } });');
     expect(shell.split('pathname: "/capture"').length - 1).toBe(1);
     // The guide is drawn above the dock, and the real tab sits under its hole.
     expect(frame).toContain("itemRefs={dockItemRefs}");
@@ -61,7 +62,7 @@ describe("first-record coach wiring", () => {
     const route = read("src/app/capture.tsx");
     const capture = read("src/components/deep-space/DeepSpaceViews.tsx");
 
-    expect(route).toContain("<CaptureView firstRecordCoach={firstRecordCoach} />");
+    expect(route).toContain('<CaptureView firstRecordCoach={firstRecordCoach} coachReplay={coachMode === "replay"} />');
     expect(capture).toContain('advanceFirstRecordCoach(current, "memo-selected")');
     expect(capture).toContain('advanceFirstRecordCoach(current, "input-confirmed")');
     expect(capture).toContain('advanceFirstRecordCoach(current, "save-succeeded")');

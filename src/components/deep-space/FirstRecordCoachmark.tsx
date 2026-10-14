@@ -20,6 +20,8 @@ interface FirstRecordCoachmarkProps {
   actionLabel?: string;
   onSkip?: () => void;
   onAction?: () => void;
+  /** The target is shown, not pressed: the hole is covered (a replayed guide's Save, Z72). */
+  blockTarget?: boolean;
   refreshKey: string;
 }
 
@@ -49,6 +51,7 @@ export function FirstRecordCoachmark({
   actionLabel,
   onSkip,
   onAction,
+  blockTarget = false,
   refreshKey,
 }: FirstRecordCoachmarkProps) {
   const overlayRef = useRef<View>(null);
@@ -118,6 +121,10 @@ export function FirstRecordCoachmark({
       <DitherPanel style={{ left: 0, right: 0, top: bottom, bottom: 0 }} />
       <DitherPanel style={{ left: 0, top, width: left, height: bottom - top }} />
       <DitherPanel style={{ left: right, right: 0, top, height: bottom - top }} />
+
+      {blockTarget ? (
+        <View style={[styles.targetBlock, { left, top, width: right - left, height: bottom - top }]} />
+      ) : null}
 
       <View
         pointerEvents="none"
@@ -200,6 +207,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     overflow: "hidden",
   },
+  // No fill: it only takes the press that would have gone through the hole.
+  targetBlock: { position: "absolute" },
   targetFrame: {
     position: "absolute",
     borderWidth: m3.spacing.s1,

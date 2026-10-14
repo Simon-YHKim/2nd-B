@@ -653,6 +653,8 @@
     "formatStep": "Choose Memo first. One line is enough.",
     "inputStep": "Write the thought on your mind. It does not need to be a complete sentence.",
     "saveStep": "Now tap Save to keep this record.",
+    "replayEndStep": "Save keeps the record.",
+    "replayEndHint": "This second look ends here, without saving.",
     "doneStep": "Your record is saved. Return to the constellation to see it.",
     "targetHint": "Tap the highlighted control to continue.",
     "inputHint": "Write at least one character to continue to Save.",
