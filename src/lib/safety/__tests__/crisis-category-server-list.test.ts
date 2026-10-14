@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -26,11 +26,28 @@ const listOf = (sql: string, name: string): string[] => {
 
 type Case = { name: string; in: string[]; out: string[] };
 
+// The cleaning function as the last numbered migration that makes it leaves it (0254, then 0260 for the numbers).
+const NORMALIZE_HEAD = 'CREATE OR REPLACE FUNCTION public.normalize_client_crisis_categories(p_categories text[])';
+const normalizeOf = (sql: string) => {
+  const start = sql.indexOf(NORMALIZE_HEAD);
+  if (start < 0) return '';
+  return sql.slice(start, sql.indexOf('$$;', start) + 3);
+};
+const latestNormalizeMigration = () =>
+  readdirSync(join(ROOT, 'db/migrations'))
+    .filter((file) => /^\d{4}_[a-z0-9_]+\.sql$/.test(file))
+    .sort()
+    .filter((file) => read(`db/migrations/${file}`).includes(NORMALIZE_HEAD))
+    .pop();
+
 describe('0254 위기 기록의 범주 칸은 서버에서도 닫힌 목록만 남긴다 (Q-261013-66)', () => {
   const raw = read('db/migrations/0254_crisis_category_closed_list.sql');
   const sql = strip(raw);
-  const names = listOf(sql, 'v_names');
-  const numbers = listOf(sql, 'v_numbers');
+  // the list the server keeps now: the last migration that makes the cleaning function
+  const latestFile = latestNormalizeMigration() ?? '';
+  const latest = strip(read(`db/migrations/${latestFile}`));
+  const names = listOf(latest, 'v_names');
+  const numbers = listOf(latest, 'v_numbers');
   const fixtureText = read('db/tests/fixtures/crisis-category-cases.json');
   const cases = (JSON.parse(fixtureText) as { cases: Case[] }).cases;
 
@@ -58,8 +75,9 @@ describe('0254 위기 기록의 범주 칸은 서버에서도 닫힌 목록만 �
     expect(UNLISTED_CRISIS_CATEGORY).toBe('unlisted');
   });
 
-  it('서버의 번호는 crisis_term:1 ~ 19 열아홉 개이고, 앱이 번호로 받는 것과 같다', () => {
-    expect(numbers).toEqual(Array.from({ length: 19 }, (_, i) => `crisis_term:${i + 1}`));
+  it('서버의 번호는 crisis_term:1 ~ 21 스물한 개이고(0260), 앱이 번호로 받는 것과 같다', () => {
+    expect(latestFile).toBe('0260_crisis_category_terms_to_21.sql');
+    expect(numbers).toEqual(Array.from({ length: 21 }, (_, i) => `crisis_term:${i + 1}`));
     const candidates = [
       ...Array.from({ length: 31 }, (_, i) => `crisis_term:${i}`),
       'crisis_term:01',
@@ -157,6 +175,39 @@ describe('0254 위기 기록의 범주 칸은 서버에서도 닫힌 목록만 �
     expect(original.length).toBeGreaterThan(2500);
     expect(writeFunctions(down)).toBe(original);
     expect(down).toContain('DROP FUNCTION IF EXISTS public.normalize_client_crisis_categories(text[]);');
+  });
+
+  it('0260 은 0254 의 정리 함수를 번호 둘(20 · 21)만 더해 다시 만들고, 다른 것은 건드리지 않는다', () => {
+    const m60 = read('db/migrations/0260_crisis_category_terms_to_21.sql');
+    const before = normalizeOf(raw);
+    const after = normalizeOf(m60);
+    expect(before.length).toBeGreaterThan(1500);
+    const swaps: [string, string][] = [
+      ['  -- nineteen exact strings can pass', '  -- twenty-one exact strings can pass'],
+      ["'crisis_term:19'\n  ];", "'crisis_term:19', 'crisis_term:20',\n    'crisis_term:21'\n  ];"],
+    ];
+    let expected = before;
+    for (const [from, to] of swaps) {
+      expect(expected.split(from)).toHaveLength(2);
+      expected = expected.replace(from, to);
+    }
+    expect(after).toBe(expected);
+    // nothing else is made, changed or granted here
+    const body = strip(m60);
+    expect(body.match(/CREATE OR REPLACE FUNCTION/g)).toHaveLength(1);
+    expect(body).not.toMatch(/log_crisis_event|GRANT |ALTER |DROP |INSERT |UPDATE |DELETE /);
+    const revokes = (text: string) => text.split('\n').filter((line) => line.startsWith('REVOKE ALL ON FUNCTION public.normalize_client_crisis_categories'));
+    expect(revokes(body)).toEqual(revokes(sql));
+    expect(revokes(body)).toHaveLength(4);
+    expect(body).not.toMatch(/^[ \t]*(BEGIN([ \t]+(WORK|TRANSACTION))?|COMMIT([ \t]+WORK)?)[ \t]*;/im);
+  });
+
+  it('0260 의 롤백은 0254 의 정리 함수와 권한을 글자 그대로 되돌린다', () => {
+    const down = read('db/migrations/rollback/0260_down.sql');
+    expect(normalizeOf(down)).toBe(normalizeOf(raw));
+    const revokes = (text: string) => text.split('\n').filter((line) => line.startsWith('REVOKE ALL ON FUNCTION public.normalize_client_crisis_categories'));
+    expect(revokes(down)).toEqual(revokes(raw));
+    expect(strip(down)).not.toMatch(/DROP |log_crisis_event|crisis_term:20/);
   });
 
   it('CI 가 회귀 SQL 을 실제로 돌린다', () => {

@@ -41,7 +41,8 @@ export const CRISIS_EVENT_FIXED_CATEGORIES: readonly string[] = [
 
 const FIXED = new Set(CRISIS_EVENT_FIXED_CATEGORIES);
 
-// crisis_term:1 to crisis_term:19, the fixed numbers of the Korean gate terms
+// crisis_term:1 to crisis_term:21, the fixed numbers of the Korean gate terms (0260 widened the server's list
+// from 19). What the app writes is capped in model-reply-scan.ts until 0260 is applied in production.
 // (model-reply-scan.ts). No other number and nothing after the number.
 function isTermNumber(entry: string): boolean {
   const prefix = "crisis_term:";
@@ -54,7 +55,7 @@ function isTermNumber(entry: string): boolean {
   }
   if (digits.length === 2 && digits[0] === "0") return false;
   const value = Number(digits);
-  return value >= 1 && value <= 19;
+  return value >= 1 && value <= 21;
 }
 
 // The marker of a replaced AI reply. Only the app's code adds it (see

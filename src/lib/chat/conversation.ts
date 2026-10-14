@@ -1,11 +1,11 @@
 // Jarvis chat orchestrator.
 //
 //   1. Read today's chat_usage row for the user.
-//   2. Check the tier limit (free 2, Soma 30, Cortex 80, Brain 250).
+//   2. Check the daily limit (CHAT_DAILY_LIMIT in limits.ts; free 5 by default).
 //   3. If allowed, build a system prompt with a compact wiki snapshot,
 //      call callLlm (which enforces C1/C3/C9 automatically), and
 //      atomically bump today's chat_usage.
-//   4. If blocked, return a localized upgrade hint without calling Gemini.
+//   4. If blocked, return a localized limit notice without calling the model.
 //
 // The wiki snapshot is the export prompt with body_md truncated so the
 // chat fits in Gemini Flash's context window. Phase 1/2 wiki pages will
@@ -13,7 +13,7 @@
 // raw `sources` list, which already steers the model toward the user's
 // inbox.
 
-import { callLlm } from "@/lib/llm/boundary";
+import { callLlm, classifyChatTextForCrisis } from "@/lib/llm/boundary";
 import { tLocale } from "@/lib/i18n/text";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
 import { classifyInput, crisisHotlines } from "@/lib/safety/classifier";
@@ -21,7 +21,7 @@ import { promptSafeName } from "@/lib/persona/address";
 import type { LlmResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
-import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
+import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday, type ChatLimitCheck } from "./limits";
 import { loadStructuredContext } from "../records/load-structured";
 import { loadProfileContext } from "../persona/profile-context";
 import { exportUserWiki } from "../wiki/export";
@@ -190,24 +190,24 @@ const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: strin
   },
 };
 
-// Monetization v2 tier display names (2026-06-10): every tier sells under its
-// enum name — Soma is the entry tier again, so no more Plus/Pro aliasing.
-const TIER_DISPLAY: Record<SubscriptionTier, string> = {
-  free: "Free",
-  soma: "Soma",
-  cortex: "Cortex",
-  brain: "Brain",
-};
+// The limit bubble used to end with an upgrade pitch that named the next tier through a
+// TIER_DISPLAY map ("Soma" / "Cortex" / "Brain"). Simon 2026-10-14 (Q-261014-24): keep only
+// the limit sentence and the 요금제 보기 link under it. Those names were legacy anyway
+// (people see 별바라기 · 항해자 · 북극성), so the map went with the pitch.
+//
+// These comment lines stand where the map stood so that every line below keeps its number:
+// docs/legal cites this file by line (DPIA-2ndB-minors-draft.md: 254 · 259 · 260 · 310 · 352).
+// The next tier still travels in SendMessageResult.upgradeTo for the ai_limit_hit event
+// (Q-261014-26); no sentence names it.
 
 const BLOCKED_HINT = {
-  en: (limit: number, upgrade: SubscriptionTier | null) =>
-    upgrade
-      ? `You've hit today's chat limit (${limit}). Upgrade to ${TIER_DISPLAY[upgrade]} for more. Limits reset at midnight KST.`
-      : `You've hit today's chat limit (${limit}). Limits reset at midnight KST.`,
-  ko: (limit: number, upgrade: SubscriptionTier | null) =>
-    upgrade
-      ? `오늘 채팅 한도(${limit}회)를 모두 사용했어요. ${TIER_DISPLAY[upgrade]} 플랜으로 업그레이드하면 더 많이 쓸 수 있어요. 한도는 KST 자정에 초기화돼요.`
-      : `오늘 채팅 한도(${limit}회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.`,
+  en: (limit: number) =>
+    `You've hit today's chat limit (${limit}). Limits reset at midnight KST.`,
+  ko: (limit: number) =>
+    `오늘 채팅 한도(${limit}회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.`,
+  // Called as BLOCKED_HINT[locale](limit) at both blocked returns of sendChatMessage below:
+  // the pre-check on today's row, and a concurrent send that reached the known cap.
+  // Neither passes the tier any more.
 };
 
 export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
@@ -224,16 +224,16 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
       limit: precheck.limit,
       used: precheck.used,
       upgradeTo: precheck.upgradeTo,
-      hint: BLOCKED_HINT[input.locale](precheck.limit, precheck.upgradeTo),
+      hint: BLOCKED_HINT[input.locale](precheck.limit),
     };
   }
-
+  const cut = await answerDeviceRed(input, precheck);
+  if (cut) return cut;
   // Context assembly (D-26 A1): try query-relevant retrieval first — embed the
   // message and pull the top-8 semantically relevant pages (RAG). On a hit the
-  // prompt carries ONLY those pages plus a slim recent-sources list (~10x
-  // smaller than the old whole-wiki dump, and better grounded). On any miss
-  // (no index yet, embed failure, red-zone query) fall back to the legacy
-  // whole-wiki snapshot so chat never breaks on RAG.
+  // prompt carries ONLY those pages plus a slim recent-sources list (~10x smaller
+  // than the old whole-wiki dump, and better grounded). On any miss (no index
+  // yet, embed failure) fall back to the legacy whole-wiki snapshot.
   // 0066: newest structured form captures (4W1H, career 3C4P) ride along so
   // the model reads the form data as structure, not prose. Small, fail-soft,
   // sanitized + fenced with the snapshot below.
@@ -266,9 +266,9 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // quota. The earlier read is only a no-cost preflight: if wiki export fails,
   // the user gets no reply but also does not lose a daily chat turn.
   //
-  // Trade-off vs. the previous design: red-zone (crisis-routed) turns still
-  // count against the daily quota because the bump must land before the LLM
-  // call to close the race. A future PR can add a refund RPC if it matters.
+  // A device-red turn never gets here: it was answered above, uncounted
+  // (Q-261014-30; this replaces the old "red turns still count" trade-off).
+  // A turn cut later (server gate, meaning check, output swap) is still counted.
   let newCount: number;
   try {
     newCount = await bumpChatUsageIfUnderCap(input.userId, limit, day);
@@ -287,7 +287,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
         upgradeTo: check.upgradeTo,
         hint: check.allowed
           ? tLocale(input.locale, "secondb", "serverLimitReached")
-          : BLOCKED_HINT[input.locale](check.limit, check.upgradeTo),
+          : BLOCKED_HINT[input.locale](check.limit),
       };
     }
     throw e;
@@ -351,9 +351,9 @@ ${sanitizeUntrusted(structuredBlock)}
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
   const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
-  // C1/C3/C9 are enforced by callLlm. Red-zone short-circuit still
-  // happens inside callLlm; we just no longer adjust the counter
-  // afterwards because the bump already landed atomically above.
+  // C1/C3/C9 are enforced by callLlm, whose own red-zone short-circuit still
+  // runs for every turn that gets here. Device-red input was already routed
+  // above by the same boundary module, before any context read or bump.
   const reply = await callLlm({
     userId: input.userId,
     locale: input.locale,
@@ -384,7 +384,7 @@ ${sanitizeUntrusted(structuredBlock)}
 // (crisisHotlines)에서 가져온다 - 여기에 숫자를 따로 적으면 두 곳이 갈라진다.
 // 입력 검사가 잡은 말은 여기까지 오지 않는다(고정 안내가 나간다). 이 줄은 검사를 지나
 // 모델까지 온 말에 모델이 119 · 112 를 권하던 것을 바로잡는다.
-// 파일 끝에 둔다: 위쪽 줄 번호를 법무 문서(DPIA)가 인용하고 있어, 위에 끼우면 인용이 밀린다.
+// 파일 아래쪽에 둔다: 위쪽 줄 번호를 법무 문서(DPIA)가 인용하고 있어, 위에 끼우면 인용이 밀린다.
 function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): string {
   const numbers = crisisHotlines(locale, minor === true).map((line) => line.number);
   if (locale === "ko") {
@@ -393,4 +393,13 @@ function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): stri
   }
   const lines = numbers.join(" or ");
   return `If the person talks about ending their life or hurting themselves, point them to ${lines}. Do not add a police number for that reason alone. Point to the local emergency number only when their body is in danger right now, such as an injury or something already swallowed. If you cannot tell which it is, stay with ${lines}. Never make up a phone number.`;
+}
+
+// Q-261014-30 (Simon 2026-10-14): a turn the device classifier marks red is
+// answered here, before any context read and without a bump. One verdict, one
+// routing call; the answer carries the usage that was read, unchanged.
+async function answerDeviceRed(input: SendMessageInput, usage: ChatLimitCheck): Promise<SendMessageOk | null> {
+  const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);
+  if (!reply) return null;
+  return { status: "ok", reply, used: usage.used, limit: usage.limit, remaining: usage.remaining };
 }
