@@ -20,7 +20,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
   const fn = statement(sql, 'public.refund_chat_turn_after_output_swap(p_audit_id uuid)');
   const bump = statement(sql, 'public.bump_chat_usage_for_turn(p_user_id uuid, p_day date)');
   const claim = statement(sql, 'public.claim_chat_turn_for_audit(p_user_id uuid, p_audit_id uuid, p_turn_id uuid)');
-  const attempt = statement(sql, 'public.begin_chat_turn_attempt(p_user_id uuid, p_audit_id uuid, p_turn_id uuid)');
+  const attempt = statement(sql, 'public.begin_chat_turn_attempt(p_user_id uuid, p_audit_id uuid, p_turn_id uuid, p_started_at timestamptz)');
   const guard = statement(sql, 'public.guard_ai_audit_server_verified()');
   const finalGuard = statement(sql, 'public.guard_ai_audit_server_verified_final()');
 
@@ -33,7 +33,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(table).toMatch(/state\s+text\s+NOT NULL DEFAULT 'counted',/);
     expect(table).toMatch(/audit_id\s+uuid,/);
     // round 6: the attempts of the turn (how many began, the audit id the latest will write, when it began)
-    expect(table).toMatch(/attempts\s+smallint\s+NOT NULL DEFAULT 0,\s+pending_audit_id uuid,\s+attempted_at timestamptz,/);
+    expect(table).toMatch(/attempts\s+smallint\s+NOT NULL DEFAULT 0,\s+pending_audit_id uuid,\s+attempted_at timestamptz,\s+attempt_started_at timestamptz,/);
     expect(table).not.toMatch(/rebound/);
     expect(table).toContain('CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id),');
     // one answer, one reservation
@@ -74,7 +74,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     );
     expect(check).toContain("|| '|state:text:t:''counted''::text|audit_id:uuid:f:-|answered_at:timestamp with time zone:f:-'");
     expect(check).toContain("|| '|refunded_at:timestamp with time zone:f:-|attempts:smallint:t:0|pending_audit_id:uuid:f:-'");
-    expect(check).toContain("|| '|attempted_at:timestamp with time zone:f:-';");
+    expect(check).toContain("|| '|attempted_at:timestamp with time zone:f:-|attempt_started_at:timestamp with time zone:f:-';");
     expect(check).toMatch(/IF v_cols IS DISTINCT FROM v_want THEN/);
     expect(check).toMatch(/\(\(c\.contype = 'p' AND a\.attname = 'turn_id'\) OR \(c\.contype = 'u' AND a\.attname = 'audit_id'\)\)\) <> 2 THEN/);
     expect(check).toMatch(/c\.contype = 'f' AND c\.confrelid = 'public\.users'::regclass\s+AND c\.conkey = ARRAY\[a\.attnum\] AND c\.confkey = ARRAY\[p\.attnum\]\s+AND c\.confdeltype = 'c' AND c\.convalidated AND NOT c\.condeferrable\s+AND pg_catalog\.to_jsonb\(c\) ->> 'conenforced' IS DISTINCT FROM 'false'\) THEN/);
@@ -107,7 +107,8 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     );
     // one bump at a time per user, so that delete sees every reservation an earlier bump made
     expect(bump).toMatch(/PERFORM pg_catalog\.pg_advisory_xact_lock\(\s*pg_catalog\.hashtextextended\('chat_turn_bump:' \|\| p_user_id::text, 0\)\);/);
-    const order = [bump.indexOf('bump_chat_usage_if_under_cap'), bump.indexOf('pg_advisory_xact_lock'), bump.indexOf('DELETE FROM public.chat_turn_reservations'), bump.indexOf('INSERT INTO public.chat_turn_reservations')];
+    // round 7: the per-user lock comes first, before the existing bump touches chat_usage (R2438-22)
+    const order = [bump.indexOf('pg_advisory_xact_lock'), bump.indexOf('bump_chat_usage_if_under_cap'), bump.indexOf('DELETE FROM public.chat_turn_reservations'), bump.indexOf('INSERT INTO public.chat_turn_reservations')];
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(bump).toMatch(/RETURN pg_catalog\.jsonb_build_object\('count', v_count, 'turnId', v_turn\);/);
     expect(sql).toMatch(/REVOKE ALL ON FUNCTION public\.bump_chat_usage_for_turn\(uuid, date\) FROM PUBLIC, anon, service_role;/);
@@ -183,19 +184,25 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
 
   it('시도: 모델을 부르기 전에 프록시만 적고, 첫 시도는 아직 시도 없는 답 없는 턴에, 다시 묻기는 그 사람의 가장 최근 턴에 한 번', () => {
     expect(attempt).toMatch(/RETURNS boolean\s+LANGUAGE plpgsql\s+SECURITY DEFINER\s+SET search_path = ''/);
-    expect(attempt).toMatch(/IF p_user_id IS NULL OR p_audit_id IS NULL OR p_turn_id IS NULL THEN\s+RETURN false;/);
+    expect(attempt).toMatch(/IF p_user_id IS NULL OR p_audit_id IS NULL OR p_turn_id IS NULL OR p_started_at IS NULL THEN\s+RETURN false;/);
+    // round 7: the clock is read again after the lock; a call past the proxy's wait or from the future writes nothing
+    expect(attempt).toMatch(/v_now := pg_catalog\.clock_timestamp\(\);\s+IF v_now > p_started_at \+ interval '1\.5 seconds' OR p_started_at > v_now \+ interval '5 seconds' THEN\s+RETURN false;\s+END IF;/);
+    expect(attempt.indexOf('pg_advisory_xact_lock')).toBeLessThan(attempt.indexOf('v_now := pg_catalog.clock_timestamp();'));
+    expect(attempt).not.toMatch(/v_now\s+timestamptz := /);
+    // the lease is the proxy's own wait
+    expect(read('supabase/functions/_shared/llm-audit-row.ts')).toContain('export const CHAT_TURN_CLAIM_TIMEOUT_MS = 1500;');
     // in line with the bump: the same per-user lock, so "latest" cannot move under it
     expect(attempt).toMatch(/PERFORM pg_catalog\.pg_advisory_xact_lock\(\s*pg_catalog\.hashtextextended\('chat_turn_bump:' \|\| p_user_id::text, 0\)\);/);
     expect(attempt).toMatch(
-      /UPDATE public\.chat_turn_reservations AS r\s+SET attempts = r\.attempts \+ 1,\s+pending_audit_id = p_audit_id,\s+attempted_at = v_now\s+WHERE r\.turn_id = p_turn_id\s+AND r\.user_id = p_user_id\s+AND r\.issued_at <= v_now\s+AND \(\(r\.attempts = 0 AND r\.state = 'counted'\)\s+OR \(r\.attempts = 1 AND r\.state IN \('counted', 'answered'\)\s+AND NOT EXISTS \(SELECT 1\s+FROM public\.chat_turn_reservations AS n\s+WHERE n\.user_id = r\.user_id\s+AND n\.turn_id <> r\.turn_id\s+AND n\.issued_at >= r\.issued_at\)\)\)\s+RETURNING r\.turn_id INTO v_done;/,
+      /UPDATE public\.chat_turn_reservations AS r\s+SET attempts = r\.attempts \+ 1,\s+pending_audit_id = p_audit_id,\s+attempted_at = v_now,\s+attempt_started_at = p_started_at\s+WHERE r\.turn_id = p_turn_id\s+AND r\.user_id = p_user_id\s+AND r\.issued_at <= v_now\s+AND \(r\.attempt_started_at IS NULL OR r\.attempt_started_at < p_started_at\)\s+AND \(\(r\.attempts = 0 AND r\.state = 'counted'\)\s+OR \(r\.attempts = 1 AND r\.state IN \('counted', 'answered'\)\s+AND NOT EXISTS \(SELECT 1\s+FROM public\.chat_turn_reservations AS n\s+WHERE n\.user_id = r\.user_id\s+AND n\.turn_id <> r\.turn_id\s+AND n\.issued_at >= r\.issued_at\)\)\)\s+RETURNING r\.turn_id INTO v_done;/,
     );
     expect(attempt.indexOf('pg_advisory_xact_lock')).toBeLessThan(attempt.indexOf('UPDATE public.chat_turn_reservations'));
     expect(attempt.match(/UPDATE /g)).toHaveLength(1);
     expect(attempt).not.toMatch(/INSERT INTO|DELETE FROM|chat_usage|chat_turn_refunds|ai_audit_log|'refunded'/);
     expect(attempt).toMatch(/RETURN v_done IS NOT NULL;/);
     // the proxy's alone
-    expect(sql).toContain('REVOKE ALL ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;');
-    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid) TO service_role;');
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz) FROM PUBLIC, anon, authenticated;');
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz) TO service_role;');
     // before the claim in the file, and both after the bump
     expect(sql.indexOf(attempt)).toBeLessThan(sql.indexOf(claim));
     expect(sql.indexOf(bump)).toBeLessThan(sql.indexOf(attempt));
@@ -221,7 +228,10 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
   });
 
   it('한 줄은 한 번만 쓰고, 그날 횟수가 있을 때만 1 내린다(0252 와 같은 방법)', () => {
-    expect(fn).toMatch(/pg_advisory_xact_lock\(\s*pg_catalog\.hashtextextended\('chat_turn_refund:' \|\| v_user::text, 0\)\)/);
+    // round 7: the bump's and the attempt's per-user lock, taken before any row (R2438-22)
+    expect(fn).toMatch(/pg_advisory_xact_lock\(\s*pg_catalog\.hashtextextended\('chat_turn_bump:' \|\| v_user::text, 0\)\)/);
+    expect(fn).not.toMatch(/chat_turn_refund:/);
+    expect(fn.indexOf('pg_advisory_xact_lock')).toBeLessThan(fn.indexOf('FROM public.ai_audit_log'));
     expect(fn.indexOf('pg_advisory_xact_lock')).toBeLessThan(fn.indexOf('FROM public.ai_audit_log'));
     const block = fn.slice(fn.lastIndexOf('\n  BEGIN'));
     const order = [
@@ -328,7 +338,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
       'DROP FUNCTION IF EXISTS public.guard_ai_audit_server_verified_final();',
       'DROP FUNCTION IF EXISTS public.refund_chat_turn_after_output_swap(uuid);',
       'DROP FUNCTION IF EXISTS public.claim_chat_turn_for_audit(uuid, uuid, uuid);',
-      'DROP FUNCTION IF EXISTS public.begin_chat_turn_attempt(uuid, uuid, uuid);',
+      'DROP FUNCTION IF EXISTS public.begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz);',
       'DROP FUNCTION IF EXISTS public.bump_chat_usage_for_turn(uuid, date);',
       'DROP TABLE IF EXISTS public.chat_turn_reservations;',
       'CREATE OR REPLACE FUNCTION public.guard_ai_audit_server_verified()',
@@ -388,8 +398,13 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(regression).toMatch(/:'t2_back' = 'null,1,null'/);
     expect(regression).toMatch(/concat_ws\(',', :'t3_b1', :'t3_c1', :'t3_back', :'t3_b2', :'t3_c2'\) = 'true,true,1,false,false'/);
     // the stand-in for a proxy records the attempt before writing its row, as the proxies do
-    expect(helper.indexOf('PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn);')).toBeGreaterThan(-1);
-    expect(helper.indexOf('PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn);')).toBeLessThan(helper.indexOf('INSERT INTO public.ai_audit_log'));
+    expect(helper.indexOf('PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn, pg_catalog.clock_timestamp());')).toBeGreaterThan(-1);
+    expect(helper.indexOf('PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn, pg_catalog.clock_timestamp());')).toBeLessThan(helper.indexOf('INSERT INTO public.ai_audit_log'));
+    // round 7: a call that started before the attempt on record (T4), one past the proxy's wait and one from the future (T5)
+    expect(regression).toMatch(/concat_ws\(',', :'t4_b1', :'t4_late', :'t4_c1', :'t4_c_late', :'t4_back', :'t4_back_late'\) = 'true,false,true,false,1,null'/);
+    expect(regression).toMatch(/concat_ws\(',', :'t5_old', :'t5_future', :'t5_ok', :'t5_c_old', :'t5_c_ok', :'t5_back'\) = 'false,false,true,false,true,1'/);
+    expect(regression).toContain("pg_catalog.clock_timestamp() - interval '0.5 seconds')::text AS t4_late");
+    expect(regression).toContain("pg_catalog.clock_timestamp() - interval '2 seconds')::text AS t5_old");
     // the refund reads the owner of the reservation itself, not only what the claim guarantees
     expect(regression).toMatch(
       /SAVEPOINT z46_foreign_reservation;[\s\S]{0,1400}'a reservation of another user gave the caller a turn back, or was closed'\);\s+ROLLBACK TO SAVEPOINT z46_foreign_reservation;/,
@@ -413,7 +428,7 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(regression).toMatch(/CREATE TRIGGER z46_flip BEFORE UPDATE OF latency_ms ON public\.ai_audit_log/);
     expect(regression).toMatch(/SET LOCAL request\.jwt\.claims = 'not-json';\s+SET LOCAL ROLE service_role;\s+SELECT public\.z46_inner_writer\(/);
     expect(regression).toContain(
-      ":'turn_writers' = 'begin_chat_turn_attempt(uuid,uuid,uuid) | bump_chat_usage_for_turn(uuid,date) | claim_chat_turn_for_audit(uuid,uuid,uuid) | refund_chat_turn_after_output_swap(uuid)'",
+      ":'turn_writers' = 'begin_chat_turn_attempt(uuid,uuid,uuid,timestamp with time zone) | bump_chat_usage_for_turn(uuid,date) | claim_chat_turn_for_audit(uuid,uuid,uuid) | refund_chat_turn_after_output_swap(uuid)'",
     );
     const steps = [
       '\\ir ../migrations/rollback/0255_down.sql',
@@ -429,10 +444,12 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     const workflow = read('.github/workflows/supabase-dry-run.yml');
     // No call in the step passes a day.
     const calls = workflow.match(/public\.refund_chat_turn_after_output_swap\('[^\n]*/g) ?? [];
-    expect(calls).toHaveLength(3);
-    for (const call of calls) {
+    expect(calls).toHaveLength(4);
+    // the refund races pass the row they bound; the lock-order race passes its fixture's row
+    for (const call of calls.slice(0, 3)) {
       expect(call).toMatch(/^public\.refund_chat_turn_after_output_swap\('\$row_[ab]'\)::text/);
     }
+    expect(calls[3]).toMatch(/^public\.refund_chat_turn_after_output_swap\('26101347-4000-4000-8000-000000000001'\)::text, 'null'\)/);
     expect(workflow).not.toMatch(/refund_chat_turn_after_output_swap\(\$today/);
     expect(workflow).not.toMatch(/chat_turn_id|refundable_turns/);
     // the answers of the refund races are bound through the claim, and the race fails if that does not bind
@@ -458,7 +475,21 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     const claimRace = workflow.slice(workflow.indexOf('claim_race() {'), workflow.indexOf('reapply_over() {'));
     expect(claimRace.indexOf('-c "SELECT pg_sleep(3)"')).toBeLessThan(claimRace.indexOf("SELECT 'b=' || public.$fn('$user', $b_args)::text"));
     // round 6: the races begin from attempts recorded as the proxies record them
-    expect(claimRace).toContain('SELECT public.begin_chat_turn_attempt(\'$user\', $args)');
+    expect(claimRace).toContain('SELECT public.begin_chat_turn_attempt(\'$user\', $args, pg_catalog.clock_timestamp())');
+    // round 7: every attempt in the step says when it started
+    for (const call of workflow.match(/public\.begin_chat_turn_attempt\([^\n]*/g) ?? []) {
+      expect(call).toMatch(/pg_catalog\.clock_timestamp\(\)/);
+    }
+    // round 7: a first call that started first arrives last (R2438-21), and a refund during a bump (R2438-22)
+    const lates = [...workflow.matchAll(/^ +late_begin_race (\w+) "([^"\n]*)"$/gm)].map((m) => `${m[1]}|${m[2]}`);
+    expect(lates).toEqual(['late_first_attempt|a=true b=false 1:02']);
+    const orders = [...workflow.matchAll(/^ +lock_order_race (\w+) "([^"\n]*)"$/gm)].map((m) => `${m[1]}|${m[2]}`);
+    expect(orders).toEqual(['bump_then_refund|a=4 b=null wait=Lock:advisory']);
+    const lateRace = workflow.slice(workflow.indexOf('late_begin_race() {'), workflow.indexOf('lock_order_race() {'));
+    expect(lateRace.indexOf('-c "SELECT pg_sleep(3)"')).toBeLessThan(lateRace.indexOf("pg_catalog.clock_timestamp() - interval '0.3 seconds')::text"));
+    const orderRace = workflow.slice(workflow.indexOf('lock_order_race() {'), workflow.indexOf('reapply_over() {'));
+    expect(orderRace).toContain("pg_catalog.now() - interval '3 days', 'answered'");
+    expect(orderRace).toContain("AND a.query LIKE '%refund_chat_turn_after_output_swap%'");
     expect(claimRace).toContain('fn="begin_chat_turn_attempt"');
     expect(claimRace).toMatch(/AND query = 'SELECT pg_sleep\(3\)'/);
     // round 4: two bumps of one user on two days at once leave only the later reservation open

@@ -50,7 +50,7 @@ BEGIN
       RAISE EXCEPTION 'z46 regression: the run took over four minutes, past the window its fresh reservations rely on; run it again';
     END IF;
     -- Before the model is asked, the proxy records this call as an attempt of the turn (the server may refuse).
-    PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn);
+    PERFORM public.begin_chat_turn_attempt(p_user, p_id, p_turn, pg_catalog.clock_timestamp());
   END IF;
   INSERT INTO public.ai_audit_log
     (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, created_at, purpose, event_source)
@@ -127,9 +127,9 @@ BEGIN
                              AND NOT has_function_privilege('authenticated', 'public.claim_chat_turn_for_audit(uuid, uuid, uuid)', 'EXECUTE')
                              AND NOT has_function_privilege('anon', 'public.claim_chat_turn_for_audit(uuid, uuid, uuid)', 'EXECUTE'),
     'the claim is not service_role''s alone');
-  PERFORM pg_temp.z46_assert(has_function_privilege('service_role', 'public.begin_chat_turn_attempt(uuid, uuid, uuid)', 'EXECUTE')
-                             AND NOT has_function_privilege('authenticated', 'public.begin_chat_turn_attempt(uuid, uuid, uuid)', 'EXECUTE')
-                             AND NOT has_function_privilege('anon', 'public.begin_chat_turn_attempt(uuid, uuid, uuid)', 'EXECUTE'),
+  PERFORM pg_temp.z46_assert(has_function_privilege('service_role', 'public.begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz)', 'EXECUTE')
+                             AND NOT has_function_privilege('authenticated', 'public.begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz)', 'EXECUTE')
+                             AND NOT has_function_privilege('anon', 'public.begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz)', 'EXECUTE'),
     'the attempt is not service_role''s alone');
   PERFORM pg_temp.z46_assert(NOT EXISTS (
     SELECT 1 FROM pg_catalog.pg_proc p CROSS JOIN LATERAL pg_catalog.aclexplode(p.proacl) a
@@ -147,7 +147,7 @@ BEGIN
                                WHERE p.oid IN ('public.refund_chat_turn_after_output_swap(uuid)'::regprocedure,
                                                'public.bump_chat_usage_for_turn(uuid, date)'::regprocedure,
                                                'public.claim_chat_turn_for_audit(uuid, uuid, uuid)'::regprocedure,
-                                               'public.begin_chat_turn_attempt(uuid, uuid, uuid)'::regprocedure)),
+                                               'public.begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz)'::regprocedure)),
     'the refund, the turn bump, the attempt or the claim is not a definer function with an empty search path');
   -- Both guards are on the table and switched on: one before the write, one on the stored row.
   PERFORM pg_temp.z46_assert((SELECT count(*) = 2 FROM pg_catalog.pg_trigger t
@@ -388,7 +388,7 @@ SELECT COALESCE(pg_catalog.string_agg(p.oid::regprocedure::text, ' | ' ORDER BY 
  WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema' AND p.prokind = 'f'
    AND p.prosrc ~* 'chat_turn_reservations' \gset
 SELECT pg_temp.z46_assert(
-  :'turn_writers' = 'begin_chat_turn_attempt(uuid,uuid,uuid) | bump_chat_usage_for_turn(uuid,date) | claim_chat_turn_for_audit(uuid,uuid,uuid) | refund_chat_turn_after_output_swap(uuid)',
+  :'turn_writers' = 'begin_chat_turn_attempt(uuid,uuid,uuid,timestamp with time zone) | bump_chat_usage_for_turn(uuid,date) | claim_chat_turn_for_audit(uuid,uuid,uuid) | refund_chat_turn_after_output_swap(uuid)',
   'the functions that name chat_turn_reservations are no longer exactly the turn bump, the attempt, the claim and the refund: ' || :'turn_writers');
 SELECT pg_temp.z46_assert((SELECT count(*) = 0 FROM public.ai_audit_log
                             WHERE user_id = '26101346-0000-4000-8000-00000000000a' AND event_source = 'server_verified'
@@ -884,7 +884,7 @@ BEGIN
     NULL;
   END;
   BEGIN
-    PERFORM public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000e2', '26101346-7000-4000-8000-0000000070e5');
+    PERFORM public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000e2', '26101346-7000-4000-8000-0000000070e5', pg_catalog.clock_timestamp());
     RAISE EXCEPTION 'z46 regression failed: a signed-in user recorded an attempt of a turn';
   EXCEPTION WHEN insufficient_privilege THEN
     NULL;
@@ -925,7 +925,7 @@ SELECT pg_temp.z46_assert(pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e1
 SAVEPOINT z46_owner_after_attempt;
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000b4', '26101346-0000-4000-8000-00000000000b', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
 SET LOCAL ROLE service_role;
-SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000b', '26101346-4000-4000-8000-0000000000b4', '26101346-7000-4000-8000-0000000070b4')::text AS own_begin \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000b', '26101346-4000-4000-8000-0000000000b4', '26101346-7000-4000-8000-0000000070b4', pg_catalog.clock_timestamp())::text AS own_begin \gset
 SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000b', '26101346-4000-4000-8000-0000000000b4', '26101346-7000-4000-8000-0000000070b4')::text AS own \gset
 RESET ROLE;
 SELECT pg_temp.z46_assert(:'own_begin' = 'true' AND :'own' = 'true'
@@ -990,11 +990,11 @@ SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000d3', '26101346-0000-
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000d2', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000d4', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
 SET LOCAL ROLE service_role;
-SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d3', (:'t1'::jsonb ->> 'turnId')::uuid)::text AS t1_b1 \gset
-SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d2', (:'t1'::jsonb ->> 'turnId')::uuid)::text AS t1_b2 \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d3', (:'t1'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp())::text AS t1_b1 \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d2', (:'t1'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp())::text AS t1_b2 \gset
 SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d2', (:'t1'::jsonb ->> 'turnId')::uuid)::text AS t1_c2 \gset
 SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d3', (:'t1'::jsonb ->> 'turnId')::uuid)::text AS t1_late \gset
-SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d4', (:'t1'::jsonb ->> 'turnId')::uuid)::text AS t1_b3 \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d4', (:'t1'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp())::text AS t1_b3 \gset
 SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d4', (:'t1'::jsonb ->> 'turnId')::uuid)::text AS t1_c3 \gset
 RESET ROLE;
 SELECT pg_temp.z46_assert(concat_ws(',', :'t1_b1', :'t1_b2', :'t1_c2', :'t1_late', :'t1_b3', :'t1_c3') = 'true,true,true,false,false,false'
@@ -1028,12 +1028,12 @@ SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000d6', '26101346-0000-
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000d7', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000d8', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
 SET LOCAL ROLE service_role;
-SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d6', (:'t2'::jsonb ->> 'turnId')::uuid)::text AS t2_b1 \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d6', (:'t2'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp())::text AS t2_b1 \gset
 SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d6', (:'t2'::jsonb ->> 'turnId')::uuid)::text AS t2_c1 \gset
-SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d7', (:'t2'::jsonb ->> 'turnId')::uuid)::text AS t2_b2 \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d7', (:'t2'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp())::text AS t2_b2 \gset
 SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d7', (:'t2'::jsonb ->> 'turnId')::uuid)::text AS t2_c2 \gset
 SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d6', (:'t2'::jsonb ->> 'turnId')::uuid)::text AS t2_again \gset
-SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d8', (:'t2'::jsonb ->> 'turnId')::uuid)::text AS t2_b3 \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d8', (:'t2'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp())::text AS t2_b3 \gset
 SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d8', (:'t2'::jsonb ->> 'turnId')::uuid)::text AS t2_c3 \gset
 RESET ROLE;
 SELECT pg_temp.z46_assert(concat_ws(',', :'t2_b1', :'t2_c1', :'t2_b2', :'t2_c2', :'t2_again', :'t2_b3', :'t2_c3') = 'true,true,true,true,false,false,false'
@@ -1059,19 +1059,66 @@ RESET ROLE;
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000d9', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000da', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
 SET LOCAL ROLE service_role;
-SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d9', (:'t3'::jsonb ->> 'turnId')::uuid)::text AS t3_b1 \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d9', (:'t3'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp())::text AS t3_b1 \gset
 SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000d9', (:'t3'::jsonb ->> 'turnId')::uuid)::text AS t3_c1 \gset
 RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT COALESCE(public.refund_chat_turn_after_output_swap('26101346-4000-4000-8000-0000000000d9')::text, 'null') AS t3_back \gset
 RESET ROLE;
 SET LOCAL ROLE service_role;
-SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000da', (:'t3'::jsonb ->> 'turnId')::uuid)::text AS t3_b2 \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000da', (:'t3'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp())::text AS t3_b2 \gset
 SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000da', (:'t3'::jsonb ->> 'turnId')::uuid)::text AS t3_c2 \gset
 RESET ROLE;
 SELECT pg_temp.z46_assert(concat_ws(',', :'t3_b1', :'t3_c1', :'t3_back', :'t3_b2', :'t3_c2') = 'true,true,1,false,false'
                           AND (SELECT attempts = 1 FROM public.chat_turn_reservations WHERE turn_id = (:'t3'::jsonb ->> 'turnId')::uuid),
                           'a turn given back took a re-ask: ' || concat_ws(',', :'t3_b1', :'t3_c1', :'t3_back', :'t3_b2', :'t3_c2'));
+-- T4 (R2438-21 · round 7): the first call (dc) started half a second before the re-ask (db) but reaches the server
+-- after it. It started before the attempt on record, so it writes nothing and its answer binds nothing; the re-ask
+-- is bound and alone gives the turn back.
+SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000e';
+SET LOCAL ROLE authenticated;
+SELECT public.bump_chat_usage_for_turn('26101346-0000-4000-8000-00000000000e', :'today'::date)::text AS t4 \gset
+RESET ROLE;
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000db', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000dc', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
+SET LOCAL ROLE service_role;
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000db', (:'t4'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp())::text AS t4_b1 \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000dc', (:'t4'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp() - interval '0.5 seconds')::text AS t4_late \gset
+SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000db', (:'t4'::jsonb ->> 'turnId')::uuid)::text AS t4_c1 \gset
+SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000dc', (:'t4'::jsonb ->> 'turnId')::uuid)::text AS t4_c_late \gset
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT COALESCE(public.refund_chat_turn_after_output_swap('26101346-4000-4000-8000-0000000000db')::text, 'null') AS t4_back \gset
+SELECT COALESCE(public.refund_chat_turn_after_output_swap('26101346-4000-4000-8000-0000000000dc')::text, 'null') AS t4_back_late \gset
+RESET ROLE;
+SELECT pg_temp.z46_assert(concat_ws(',', :'t4_b1', :'t4_late', :'t4_c1', :'t4_c_late', :'t4_back', :'t4_back_late') = 'true,false,true,false,1,null'
+                          AND (SELECT attempts = 1 AND pending_audit_id = '26101346-4000-4000-8000-0000000000db' FROM public.chat_turn_reservations WHERE turn_id = (:'t4'::jsonb ->> 'turnId')::uuid),
+                          'a call that started before the attempt on record took its place: '
+                          || concat_ws(',', :'t4_b1', :'t4_late', :'t4_c1', :'t4_c_late', :'t4_back', :'t4_back_late'));
+-- T5: a call the proxy no longer waits for (started two seconds ago, past its 1.5 s) and one stamped a minute in
+-- the future write nothing; the turn still takes its first attempt, which is bound and gives the turn back.
+SET LOCAL request.jwt.claim.sub = '26101346-0000-4000-8000-00000000000e';
+SET LOCAL ROLE authenticated;
+SELECT public.bump_chat_usage_for_turn('26101346-0000-4000-8000-00000000000e', :'today'::date)::text AS t5 \gset
+RESET ROLE;
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000dd', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000de', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
+SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000df', '26101346-0000-4000-8000-00000000000e', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
+SET LOCAL ROLE service_role;
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000dd', (:'t5'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp() - interval '2 seconds')::text AS t5_old \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000de', (:'t5'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp() + interval '1 minute')::text AS t5_future \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000df', (:'t5'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp())::text AS t5_ok \gset
+SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000dd', (:'t5'::jsonb ->> 'turnId')::uuid)::text AS t5_c_old \gset
+SELECT public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000df', (:'t5'::jsonb ->> 'turnId')::uuid)::text AS t5_c_ok \gset
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT COALESCE(public.refund_chat_turn_after_output_swap('26101346-4000-4000-8000-0000000000df')::text, 'null') AS t5_back \gset
+RESET ROLE;
+SELECT pg_temp.z46_assert(concat_ws(',', :'t5_old', :'t5_future', :'t5_ok', :'t5_c_old', :'t5_c_ok', :'t5_back') = 'false,false,true,false,true,1'
+                          AND (SELECT attempts = 1 AND pending_audit_id = '26101346-4000-4000-8000-0000000000df' FROM public.chat_turn_reservations WHERE turn_id = (:'t5'::jsonb ->> 'turnId')::uuid)
+                          AND pg_temp.z46_count('26101346-0000-4000-8000-00000000000e', :'today'::date) = 1,
+                          'a call past the proxy''s wait or from the future was recorded as an attempt: '
+                          || concat_ws(',', :'t5_old', :'t5_future', :'t5_ok', :'t5_c_old', :'t5_c_ok', :'t5_back'));
 -- The refund does not rely on the claim alone: a reservation that is another user's gives the caller nothing,
 -- even if it carries the caller's own fresh red row. The claim never makes such a row; it is built here directly.
 SAVEPOINT z46_foreign_reservation;
@@ -1123,7 +1170,7 @@ SELECT public.bump_chat_usage_for_turn('26101346-0000-4000-8000-00000000000b', :
 RESET ROLE;
 SELECT pg_temp.z46_audit('26101346-4000-4000-8000-0000000000b8', '26101346-0000-4000-8000-00000000000b', 'server_verified', 'secondb_chat', 'red', interval '1 second', NULL);
 SET LOCAL ROLE service_role;
-SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000b', '26101346-4000-4000-8000-0000000000b8', (:'b_new'::jsonb ->> 'turnId')::uuid)::text AS midnight_begin \gset
+SELECT public.begin_chat_turn_attempt('26101346-0000-4000-8000-00000000000b', '26101346-4000-4000-8000-0000000000b8', (:'b_new'::jsonb ->> 'turnId')::uuid, pg_catalog.clock_timestamp())::text AS midnight_begin \gset
 SELECT concat_ws(',',
          public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000b', '26101346-4000-4000-8000-0000000000b8', '26101346-7000-4000-8000-0000000070b8')::text,
          public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000b', '26101346-4000-4000-8000-0000000000b8', (:'b_new'::jsonb ->> 'turnId')::uuid)::text) AS midnight \gset
@@ -1187,7 +1234,7 @@ SELECT pg_temp.z46_assert(to_regprocedure('public.refund_chat_turn_after_output_
                           AND (SELECT count(*) = 1 FROM pg_catalog.pg_trigger t
                                 WHERE t.tgrelid = 'public.ai_audit_log'::regclass AND NOT t.tgisinternal)
                           AND to_regprocedure('public.claim_chat_turn_for_audit(uuid, uuid, uuid)') IS NULL
-                          AND to_regprocedure('public.begin_chat_turn_attempt(uuid, uuid, uuid)') IS NULL
+                          AND to_regprocedure('public.begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz)') IS NULL
                           AND to_regclass('public.chat_turn_reservations') IS NULL
                           AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_attribute a
                                            WHERE a.attname IN ('chat_turn_id', 'refundable_turns') AND NOT a.attisdropped
@@ -1196,8 +1243,8 @@ SELECT pg_temp.z46_assert(to_regprocedure('public.refund_chat_turn_after_output_
 \ir ../migrations/rollback/0252_down.sql
 SELECT pg_temp.z46_assert((SELECT count(*) = 0 FROM pg_catalog.pg_proc p WHERE p.proname = 'refund_chat_turn_after_output_swap'),
                           'the down files left a refund function behind');
--- (nine used rows: the six of the cases above, the two re-asks' and the third turn's first answer)
-SELECT pg_temp.z46_assert((SELECT count(*) = 9 FROM public.chat_turn_refunds)
+-- (eleven used rows: the six of the cases above, the two re-asks', the third turn's first answer, and T4's and T5's)
+SELECT pg_temp.z46_assert((SELECT count(*) = 11 FROM public.chat_turn_refunds)
                           AND pg_temp.z46_count('26101346-0000-4000-8000-00000000000a', :'today'::date) = 0,
                           'the down files dropped used-evidence marks or changed a count');
 -- Supabase grants new tables to the API roles by default; the scratch database does not.

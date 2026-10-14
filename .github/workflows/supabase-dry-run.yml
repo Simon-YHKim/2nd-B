@@ -2034,7 +2034,7 @@ jobs:
           VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
                   'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
           SQL
-            if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000001', '$turn_a')" | tr -d '\r')" != "t" ]]; then
+            if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000001', '$turn_a', pg_catalog.clock_timestamp())" | tr -d '\r')" != "t" ]]; then
               echo "$label: the first proxy call was not recorded as its turn's attempt" >&2
               return 1
             fi
@@ -2046,7 +2046,7 @@ jobs:
               sql "$clone_db" "INSERT INTO public.ai_audit_log
                 (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
                 VALUES ('26101347-4000-4000-8000-000000000002', '$user', '0a0b0c0d', '0e0f0a0b', 'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified')"
-              if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000002', '$turn_b')" | tr -d '\r')" != "t" ]]; then
+              if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000002', '$turn_b', pg_catalog.clock_timestamp())" | tr -d '\r')" != "t" ]]; then
                 echo "$label: the second proxy call was not recorded as its turn's attempt" >&2
                 return 1
               fi
@@ -2124,7 +2124,8 @@ jobs:
               a_args="'$row_1', '$turn_a'"; b_args="'$row_1', '$turn_b'"; setup=("'$row_1', '$turn_a'" "'$row_1', '$turn_b'")
             fi
             if [[ "$second" == "retry" ]]; then
-              fn="begin_chat_turn_attempt"; a_args="'$row_1', '$turn_a'"; b_args="'$row_2', '$turn_a'"; setup=("'$row_3', '$turn_a'")
+              fn="begin_chat_turn_attempt"; setup=("'$row_3', '$turn_a'")
+              a_args="'$row_1', '$turn_a', pg_catalog.clock_timestamp()"; b_args="'$row_2', '$turn_a', pg_catalog.clock_timestamp()"
             fi
             local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
             if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
@@ -2156,7 +2157,7 @@ jobs:
             # What the proxies did before the race: each recorded its call as an attempt before asking the model.
             local args
             for args in "${setup[@]}"; do
-              if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', $args)" | tr -d '\r')" != "t" ]]; then
+              if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', $args, pg_catalog.clock_timestamp())" | tr -d '\r')" != "t" ]]; then
                 echo "$label: an attempt before the race was not recorded" >&2
                 return 1
               fi
@@ -2273,7 +2274,7 @@ jobs:
               -c "SELECT 'turn=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'turnId')" \
               -c "COMMIT" | grep '^turn=' | sed 's/^turn=//' | tr -d '\r')"
             if [[ ! "$turn" =~ ^[0-9a-f-]{36}$ ]]; then echo "$label: no turn was counted before the race" >&2; return 1; fi
-            if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000001', '$turn')" | tr -d '\r')" != "t" ]] \
+            if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000001', '$turn', pg_catalog.clock_timestamp())" | tr -d '\r')" != "t" ]] \
                || [[ "$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '26101347-4000-4000-8000-000000000001', '$turn')" | tr -d '\r')" != "t" ]]; then
               echo "$label: the first answer was not bound before the race" >&2
               return 1
@@ -2294,7 +2295,7 @@ jobs:
             done
             local a b state
             b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
-              -c "SELECT 'b=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000002', '$turn')::text" \
+              -c "SELECT 'b=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000002', '$turn', pg_catalog.clock_timestamp())::text" \
               | grep '^b=' | tr -d '\r')"
             wait "$a_pid"
             a="$(grep '^a=' "reask_a_$label.out" | tr -d '\r')"
@@ -2304,6 +2305,126 @@ jobs:
             echo "$label: first session $a, second session $b, the old turn's attempts $state"
             if [[ "$a $b $state" != "$want" ]]; then
               echo "$label: a re-ask was recorded on a turn that a new turn had just replaced (wanted $want)" >&2
+              return 1
+            fi
+          }
+          late_begin_race() { # <label> <expected: a b attempts:latest attempt> : a first call that started first arrives last
+            local label="$1" want="$2"
+            local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 late attempt race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          SQL
+            local as_user="SET LOCAL request.jwt.claim.sub = '$user'"
+            local kst_today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
+            local turn
+            turn="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'turn=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'turnId')" \
+              -c "COMMIT" | grep '^turn=' | sed 's/^turn=//' | tr -d '\r')"
+            if [[ ! "$turn" =~ ^[0-9a-f-]{36}$ ]]; then echo "$label: no turn was counted before the race" >&2; return 1; fi
+            # The re-ask (row 02) reaches the server first and holds its transaction open; the first call (row 01),
+            # which started a moment before it, arrives while it is open.
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SELECT 'a=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000002', '$turn', pg_catalog.clock_timestamp())::text" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "late_a_$label.out" &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the first session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            local a b state
+            b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "SELECT 'b=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000001', '$turn', pg_catalog.clock_timestamp() - interval '0.3 seconds')::text" \
+              | grep '^b=' | tr -d '\r')"
+            wait "$a_pid"
+            a="$(grep '^a=' "late_a_$label.out" | tr -d '\r')"
+            state="$(sql "$clone_db" "SELECT r.attempts || ':' || COALESCE(right(r.pending_audit_id::text, 2), '-')
+                                        FROM public.chat_turn_reservations AS r WHERE r.turn_id = '$turn'" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: first session $a, second session $b, the turn's attempts $state"
+            if [[ "$a $b $state" != "$want" ]]; then
+              echo "$label: a call that started earlier took the place of the attempt on record (wanted $want)" >&2
+              return 1
+            fi
+          }
+          lock_order_race() { # <label> <expected: a b what the refund waited on> : a refund while a bump holds the turns
+            local label="$1" want="$2"
+            local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 lock order race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            # A turn answered by a red row, counted three days ago on today's row (a re-ask may come that late), so
+            # the bump below removes it while the refund wants it: the case where the two met in opposite orders.
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.chat_usage (user_id, day, count) VALUES
+            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, 3);
+          INSERT INTO public.ai_audit_log
+            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+          VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
+          INSERT INTO public.chat_turn_reservations
+            (turn_id, user_id, counted_day, issued_at, state, audit_id, answered_at, attempts, pending_audit_id, attempted_at, attempt_started_at)
+          VALUES ('26101347-7000-4000-8000-000000007001', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date,
+                  pg_catalog.now() - interval '3 days', 'answered', '26101347-4000-4000-8000-000000000001', pg_catalog.now(),
+                  2, '26101347-4000-4000-8000-000000000001', pg_catalog.now(), pg_catalog.now());
+          SQL
+            local as_user="SET LOCAL request.jwt.claim.sub = '$user'"
+            local kst_today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'a=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'count')" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "order_a_$label.out" &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the bump session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'b=' || COALESCE(public.refund_chat_turn_after_output_swap('26101347-4000-4000-8000-000000000001')::text, 'null')" \
+              -c "COMMIT" > "order_b_$label.out" &
+            local b_pid=$! wait_on="" tries=0
+            until [[ -n "$wait_on" ]]; do
+              tries=$((tries + 1))
+              if (( tries > 10 )); then break; fi
+              sleep 0.2
+              wait_on="$(sql "$clone_db" "SELECT a.wait_event_type || ':' || a.wait_event FROM pg_catalog.pg_stat_activity AS a
+                                            WHERE a.datname = current_database() AND a.state = 'active' AND a.wait_event IS NOT NULL
+                                              AND a.query LIKE '%refund_chat_turn_after_output_swap%' AND a.pid <> pg_catalog.pg_backend_pid()" | tr -d '\r')"
+            done
+            wait "$a_pid"; wait "$b_pid"
+            local a b
+            a="$(grep '^a=' "order_a_$label.out" | tr -d '\r')"
+            b="$(grep '^b=' "order_b_$label.out" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: first session $a, second session $b, the refund waited on ${wait_on:-nothing}"
+            if [[ "$a $b wait=${wait_on:-nothing}" != "$want" ]]; then
+              echo "$label: the refund did not wait for the user's lock while a bump held the turns (wanted $want)" >&2
               return 1
             fi
           }
@@ -2409,6 +2530,11 @@ jobs:
           # A re-ask of the old turn arrives while a new turn is being counted: it waits for the bump's per-user
           # lock and is refused once the new turn is in (only the latest turn can be re-asked).
           reask_race reask_during_bump "a=2 b=false 1:01"
+          # A first call that started before the re-ask reaches the server after it (R2438-21): it writes nothing.
+          late_begin_race late_first_attempt "a=true b=false 1:02"
+          # A refund that arrives while a bump holds the user's turns waits on the user's lock, not on a row the bump
+          # holds (R2438-22); the bump removed the old turn, so the refund then finds nothing to give back.
+          lock_order_race bump_then_refund "a=4 b=null wait=Lock:advisory"
           # 0255 over the tables as 0252 left them, then over a ledger key that is missing, may raise at commit or
           # covers another column.
           reapply_0255_over same_ledger "" ""
@@ -2420,7 +2546,7 @@ jobs:
           # other shape it stops at the check named beside it.
           # (rsv_ = reservations. A clone is named reapply_0255_<label>_<run id>_<attempt>_<pid>, and a
           # database name ends at 63 bytes, so the labels stay short.)
-          good_table="CREATE TABLE public.chat_turn_reservations (turn_id uuid NOT NULL DEFAULT gen_random_uuid(), user_id uuid NOT NULL, counted_day date NOT NULL, issued_at timestamptz NOT NULL DEFAULT now(), state text NOT NULL DEFAULT 'counted', audit_id uuid, answered_at timestamptz, refunded_at timestamptz, attempts smallint NOT NULL DEFAULT 0, pending_audit_id uuid, attempted_at timestamptz, CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id), CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), CONSTRAINT chat_turn_reservations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE, CONSTRAINT chat_turn_reservations_state_check CHECK (state IN ('counted', 'answered', 'refunded')), CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL)))"
+          good_table="CREATE TABLE public.chat_turn_reservations (turn_id uuid NOT NULL DEFAULT gen_random_uuid(), user_id uuid NOT NULL, counted_day date NOT NULL, issued_at timestamptz NOT NULL DEFAULT now(), state text NOT NULL DEFAULT 'counted', audit_id uuid, answered_at timestamptz, refunded_at timestamptz, attempts smallint NOT NULL DEFAULT 0, pending_audit_id uuid, attempted_at timestamptz, attempt_started_at timestamptz, CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id), CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), CONSTRAINT chat_turn_reservations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE, CONSTRAINT chat_turn_reservations_state_check CHECK (state IN ('counted', 'answered', 'refunded')), CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL)))"
           broken() { # <text to find in the good table> <text to put there> : the good table with one thing changed
             local changed="${good_table/"$1"/"$2"}"
             if [[ "$changed" == "$good_table" ]]; then echo "0255 re-apply check: [$1] is not in the table text" >&2; return 1; fi

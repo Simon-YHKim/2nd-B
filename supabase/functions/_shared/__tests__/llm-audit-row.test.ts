@@ -120,7 +120,10 @@ describe('llm-audit-row (감사 줄 쓰기와 턴 묶기)', () => {
     it('서버가 true 를 돌려줄 때만 참이고, 사용자 · 이 호출의 감사 줄 id · 턴을 그대로 넘긴다', async () => {
       const { admin, calls } = fakeClaim(async () => ({ data: true, error: null }));
       await expect(beginChatTurnAttempt(admin, IDS, 't')).resolves.toBe(true);
-      expect(calls).toEqual([{ fn: CHAT_TURN_BEGIN_FN, args: { p_user_id: USER, p_audit_id: ROW_ID, p_turn_id: TURN } }]);
+      // round 7: when this call started, by the proxy's clock, so the server can drop it once the wait is over
+      expect(calls).toEqual([{ fn: CHAT_TURN_BEGIN_FN, args: { p_user_id: USER, p_audit_id: ROW_ID, p_turn_id: TURN, p_started_at: expect.any(String) } }]);
+      const started = Date.parse(calls[0].args.p_started_at as string);
+      expect(Math.abs(Date.now() - started)).toBeLessThan(5000);
       expect(CHAT_TURN_BEGIN_FN).toBe('begin_chat_turn_attempt');
     });
 

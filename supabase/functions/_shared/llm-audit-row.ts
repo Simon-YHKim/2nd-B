@@ -80,14 +80,14 @@ async function askAboutTurn(
   admin: ClaimAdmin,
   fn: string,
   what: string,
-  ids: { userId: string; auditId: string; turnId: string },
+  args: Record<string, unknown>,
   tag: string,
   timeoutMs: number,
 ): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const call = Promise.resolve(
-      admin.rpc(fn, { p_user_id: ids.userId, p_audit_id: ids.auditId, p_turn_id: ids.turnId }),
+      admin.rpc(fn, args),
     ).then(
       ({ data, error }) => {
         if (error) {
@@ -118,8 +118,10 @@ async function askAboutTurn(
 
 /**
  * Before the model is asked: records this call as an attempt of the turn the app named, under the id its audit
- * row will carry. The server allows the first attempt of a turn and one more (the re-ask) on the user's latest
- * turn; only the latest attempt's answer can be bound. False means this answer will not be bound.
+ * row will carry, and when this call started. The server allows the first attempt of a turn and one more (the
+ * re-ask) on the user's latest turn; only the latest attempt's answer can be bound. It writes nothing for a call
+ * that reaches it after this wait is over (the same 1.5 s), nor for one that started before the attempt on record.
+ * False means this answer will not be bound.
  */
 export function beginChatTurnAttempt(
   admin: ClaimAdmin,
@@ -127,7 +129,8 @@ export function beginChatTurnAttempt(
   tag: string,
   timeoutMs: number = CHAT_TURN_CLAIM_TIMEOUT_MS,
 ): Promise<boolean> {
-  return askAboutTurn(admin, CHAT_TURN_BEGIN_FN, 'attempt', ids, tag, timeoutMs);
+  const args = { p_user_id: ids.userId, p_audit_id: ids.auditId, p_turn_id: ids.turnId, p_started_at: new Date().toISOString() };
+  return askAboutTurn(admin, CHAT_TURN_BEGIN_FN, 'attempt', args, tag, timeoutMs);
 }
 
 /**
@@ -142,5 +145,6 @@ export function claimChatTurn(
   tag: string,
   timeoutMs: number = CHAT_TURN_CLAIM_TIMEOUT_MS,
 ): Promise<boolean> {
-  return askAboutTurn(admin, CHAT_TURN_CLAIM_FN, 'claim', ids, tag, timeoutMs);
+  const args = { p_user_id: ids.userId, p_audit_id: ids.auditId, p_turn_id: ids.turnId };
+  return askAboutTurn(admin, CHAT_TURN_CLAIM_FN, 'claim', args, tag, timeoutMs);
 }

@@ -21,10 +21,13 @@
 --      여기서 지운다. 옛 올리기는 그대로 둔다(옛 설치본이 부른다 · 그 턴에는 예약이 없으므로 환불도 없다).
 --   3. 시도와 묶기(6회차 · 대표님 2026-10-14 21:30:04 「6회차: 모델 호출 전에 서버가 시도 번호를 매기게 · 받은 답
 --      뒤 다시 묻기의 환불은 받아들임 → 6회차 검토」 · Q-261014-20 「잃은 답은 횟수 없이 한 번 다시 묻기」).
---      begin_chat_turn_attempt(p_user_id, p_audit_id, p_turn_id): 프록시(service_role)만 부른다. 모델을 부르기 **전에**
---      이 호출을 그 턴의 시도로 적는다: 시도 수 · 이 호출의 감사 줄이 가질 id · 시작한 때. 첫 시도는 아직 시도가 없는
---      답 없는 예약에, 둘째 시도(다시 묻기)는 그 사용자의 **가장 최근** 예약이 아직 돌려주지 않았을 때만 된다. 셋째는
---      없다. 올리기와 같은 사용자별 잠금으로 줄을 선다.
+--      begin_chat_turn_attempt(p_user_id, p_audit_id, p_turn_id, p_started_at): 프록시(service_role)만 부른다. 모델을
+--      부르기 **전에** 이 호출을 그 턴의 시도로 적는다: 시도 수 · 이 호출의 감사 줄이 가질 id · 적은 때 · 프록시가 이
+--      호출을 시작한 때. 첫 시도는 아직 시도가 없는 답 없는 예약에, 둘째 시도(다시 묻기)는 그 사용자의 **가장 최근**
+--      예약이 아직 돌려주지 않았을 때만 된다. 셋째는 없다. 올리기와 같은 사용자별 잠금을 잡은 **뒤** 시계를 다시 읽어,
+--      프록시가 더는 기다리지 않는 호출(시작한 지 1.5초가 지남) · 앞날의 시각 · 적힌 시도보다 먼저 시작한 호출은 아무것도
+--      적지 않는다(7회차 · 대표님 2026-10-14 22:35:52 「7회차: 시도 등록에 시작 시각을 실어 늦게 닿은 앞 호출을 버림 +
+--      잠금 순서 통일 + 두 세션 시험 → 7회차 검토」). 그래서 늦게 닿은 앞 호출이 다시 묻기의 자리를 빼앗지 못한다.
 --      claim_chat_turn_for_audit(p_user_id, p_audit_id, p_turn_id): 프록시(service_role)만 부른다. 답의 감사 줄을 쓴
 --      직후에 부르고, 모두 맞을 때만 예약 줄에 그 감사 줄을 묶는다: 예약의 주인이 그 사용자다 · 그 감사 줄이 그 예약의
 --      **가장 최근 시도**의 것이다 · 그 시도가 5분 안에 시작됐다 · 아직 답이 없거나 다른 답이 묶였고 돌려주지 않았다 ·
@@ -102,6 +105,7 @@ CREATE TABLE IF NOT EXISTS public.chat_turn_reservations (
   attempts    smallint    NOT NULL DEFAULT 0,
   pending_audit_id uuid,
   attempted_at timestamptz,
+  attempt_started_at timestamptz,
   CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id),
   CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id),
   CONSTRAINT chat_turn_reservations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE,
@@ -109,7 +113,7 @@ CREATE TABLE IF NOT EXISTS public.chat_turn_reservations (
   CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL))
 );
 COMMENT ON TABLE public.chat_turn_reservations IS
-  'One row per counted chat turn (0255): who, the day it was counted on, the proxy audit row that answered it, and its attempts (how many were started, the audit id the latest will write, when it started). Ids, days, times and a count only, no content. Rows older than two days are removed by the next bump.';
+  'One row per counted chat turn (0255): who, the day it was counted on, the proxy audit row that answered it, and its attempts (how many were started, the audit id the latest will write, when it was recorded and when the proxy started it). Ids, days, times and a count only, no content. Rows older than two days are removed by the next bump.';
 
 CREATE INDEX IF NOT EXISTS chat_turn_reservations_user_issued_idx
   ON public.chat_turn_reservations (user_id, issued_at);
@@ -127,7 +131,7 @@ DECLARE
     'turn_id:uuid:t:gen_random_uuid()|user_id:uuid:t:-|counted_day:date:t:-|issued_at:timestamp with time zone:t:now()'
     || '|state:text:t:''counted''::text|audit_id:uuid:f:-|answered_at:timestamp with time zone:f:-'
     || '|refunded_at:timestamp with time zone:f:-|attempts:smallint:t:0|pending_audit_id:uuid:f:-'
-    || '|attempted_at:timestamp with time zone:f:-';
+    || '|attempted_at:timestamp with time zone:f:-|attempt_started_at:timestamp with time zone:f:-';
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class AS c
                   WHERE c.oid = v_rel AND c.relkind = 'r' AND c.relpersistence = 'p' AND c.relrowsecurity
@@ -333,12 +337,15 @@ DECLARE
   v_count int;
   v_turn  uuid;
 BEGIN
-  -- Raises 42501 for another user's id and P0001 chat_limit_exceeded at the cap. The third argument is ignored there.
-  v_count := public.bump_chat_usage_if_under_cap(p_user_id, p_day, 0);
-
-  -- One bump at a time per user, so the next statement sees every reservation an earlier bump made.
+  -- One decision about this user's turns at a time, and this lock first, before any row: the bump, the attempt
+  -- and the refund all take it before they touch chat_usage or a reservation, so none of them waits for a row
+  -- another holds while holding one it wants (round 7). The next statements see every reservation an earlier
+  -- bump made.
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('chat_turn_bump:' || p_user_id::text, 0));
+
+  -- Raises 42501 for another user's id and P0001 chat_limit_exceeded at the cap. The third argument is ignored there.
+  v_count := public.bump_chat_usage_if_under_cap(p_user_id, p_day, 0);
 
   -- This turn closes the turns before it that never got an answer: an answer can only ever be bound to the
   -- user's latest counted turn. A refund is only possible within minutes of the answer, so the user's
@@ -364,30 +371,40 @@ GRANT EXECUTE ON FUNCTION public.bump_chat_usage_for_turn(uuid, date) TO authent
 -- 3a. Before the model is asked, the proxy records this call as an attempt of the turn the app named, under the id
 -- its audit row will carry. The first attempt of a turn not attempted yet; the second (the one re-ask) only on the
 -- user's latest turn, while it has not been given back. In line with the bump, so "latest" cannot move under it.
-CREATE OR REPLACE FUNCTION public.begin_chat_turn_attempt(p_user_id uuid, p_audit_id uuid, p_turn_id uuid)
+CREATE OR REPLACE FUNCTION public.begin_chat_turn_attempt(p_user_id uuid, p_audit_id uuid, p_turn_id uuid, p_started_at timestamptz)
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_now  timestamptz := pg_catalog.clock_timestamp();
+  v_now  timestamptz;
   v_done uuid;
 BEGIN
-  IF p_user_id IS NULL OR p_audit_id IS NULL OR p_turn_id IS NULL THEN
+  IF p_user_id IS NULL OR p_audit_id IS NULL OR p_turn_id IS NULL OR p_started_at IS NULL THEN
     RETURN false;
   END IF;
 
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('chat_turn_bump:' || p_user_id::text, 0));
 
+  -- The clock after the lock: a call the proxy no longer waits for (it gives up after 1.5 s, see
+  -- CHAT_TURN_CLAIM_TIMEOUT_MS) or one stamped in the future writes nothing.
+  v_now := pg_catalog.clock_timestamp();
+  IF v_now > p_started_at + interval '1.5 seconds' OR p_started_at > v_now + interval '5 seconds' THEN
+    RETURN false;
+  END IF;
+
   UPDATE public.chat_turn_reservations AS r
      SET attempts = r.attempts + 1,
          pending_audit_id = p_audit_id,
-         attempted_at = v_now
+         attempted_at = v_now,
+         attempt_started_at = p_started_at
    WHERE r.turn_id = p_turn_id
      AND r.user_id = p_user_id
      AND r.issued_at <= v_now
+     -- a call that started before the attempt on record arrived late: it does not take that attempt's place
+     AND (r.attempt_started_at IS NULL OR r.attempt_started_at < p_started_at)
      AND ((r.attempts = 0 AND r.state = 'counted')
           OR (r.attempts = 1 AND r.state IN ('counted', 'answered')
               AND NOT EXISTS (SELECT 1
@@ -401,8 +418,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz) TO service_role;
 
 -- 3. The proxy asks the server whether this answer belongs to that reservation. The turn id came from
 -- the app, so nothing about it is taken on trust: owner, state and age are read from the server's own row.
@@ -486,9 +503,11 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  -- One refund decision at a time per user: the later call waits, then sees what the earlier one used.
+  -- One decision about this user's turns at a time, under the bump's and the attempt's lock and before any row
+  -- (round 7): the later call waits, then sees what the earlier one used, and a bump cannot hold chat_usage
+  -- while this call holds the reservation it wants.
   PERFORM pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended('chat_turn_refund:' || v_user::text, 0));
+    pg_catalog.hashtextextended('chat_turn_bump:' || v_user::text, 0));
 
   -- That row and no other: the caller's own, written by a proxy, for chat, red, recent, not used yet.
   SELECT a.id
