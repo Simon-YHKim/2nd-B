@@ -653,6 +653,8 @@
     "formatStep": "Primeiro escolha Memorando. Uma linha é suficiente.",
     "inputStep": "Escreva o que está pensando. Não precisa ser uma frase completa.",
     "saveStep": "Por fim, toque em Salvar para guardar este registro.",
+    "replayEndStep": "Salvar guarda o registro.",
+    "replayEndHint": "Esta segunda vez termina aqui, sem salvar.",
     "doneStep": "Seu registro foi salvo. Volte à constelação para vê-lo.",
     "targetHint": "Toque no controle destacado para continuar.",
     "inputHint": "Escreva pelo menos um caractere para continuar até Salvar.",

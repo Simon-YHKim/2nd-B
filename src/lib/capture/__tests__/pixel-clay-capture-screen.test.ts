@@ -13,7 +13,7 @@ describe("PIXEL-CLAY /capture screen contract", () => {
 
   test("keeps the production route on the shared shell without legacy companion chrome", () => {
     expect(route).toContain('<DeepSpaceScreen active="capture" header="none" variant="windowed">');
-    expect(route).toContain("<CaptureView firstRecordCoach={firstRecordCoach} />");
+    expect(route).toContain('<CaptureView firstRecordCoach={firstRecordCoach} coachReplay={coachMode === "replay"} />');
   });
 
   // 2026-09-30 (Simon): five tiles became three - 사진 and 음성 left the row, and

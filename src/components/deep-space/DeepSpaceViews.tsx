@@ -361,7 +361,10 @@ const CaptureTodoInput = forwardRef<TextInput, {
   );
 });
 
-export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: boolean } = {}) {
+export function CaptureView({
+  firstRecordCoach = false,
+  coachReplay = false,
+}: { firstRecordCoach?: boolean; coachReplay?: boolean } = {}) {
   const { t, i18n } = useTranslation(["home", "capture", "deepspace"]);
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
@@ -373,6 +376,9 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   // Unsaved writing comes back after a visit to another tab (Z79). Session
   // memory only; with nothing typed the screen opens on its defaults below.
   const [kept] = useState(() => readCaptureViewDraft(userId));
+  // Z72: a replayed guide takes its practice writing with it, but never a draft the
+  // screen had already opened on.
+  const openedEmptyRef = useRef(kept === undefined);
   const [mode, setMode] = useState<CaptureMode>(kept?.mode ?? "text");
   // 2026-10-08 (Simon): 일반 and 4W1H are both visible in a segmented control.
   // Plain text remains the default. Each draft survives format changes; saving
@@ -733,6 +739,21 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
     }
   }
 
+  // Z72 (Simon 2026-10-13): a replayed guide ends in front of Save. Nothing is saved, and the
+  // practice writing goes with it unless the screen had opened on a kept draft.
+  const endReplayCoach = () => {
+    if (userId) markCoachmarksSeen(userId);
+    if (openedEmptyRef.current) {
+      forgetCaptureViewDraft(userId);
+      setFourw(EMPTY_FOURW);
+      setText("");
+      setTodos(["", ""]);
+      clearPhotos();
+    }
+    setCoachStep(null);
+    router.replace("/");
+  };
+
   // W4H1 single-line fields relay focus when→where→who→what on Android.
   const whatRef = useRef<TextInput>(null);
   const whenRef = useRef<TextInput>(null);
@@ -750,6 +771,8 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         ? inputCoachTargetRef
         : saveCoachTargetRef;
   const coachCount = coachStep === "done" ? t("deepspace:coachmarks.doneCount") : `${coachStep === "format" ? 2 : coachStep === "input" ? 3 : 4}/4`;
+  // A replay's last step has its own card below: Save is shown, not pressed.
+  const replayEnd = coachReplay && coachStep === "save";
   const coachMessage =
     coachStep === "format"
       ? t("deepspace:coachmarks.formatStep")
@@ -1076,7 +1099,20 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         onInsert={insertOcr}
         onClose={closeOcr}
       />
-      {coachStep ? (
+      {replayEnd ? (
+        // Z72: a replayed guide's last step. Save sits under a cover, and the card's own button ends it.
+        <FirstRecordCoachmark
+          targetRef={saveCoachTargetRef}
+          countLabel="4/4"
+          message={t("deepspace:coachmarks.replayEndStep")}
+          hint={t("deepspace:coachmarks.replayEndHint")}
+          actionLabel={t("deepspace:coachmarks.goHome")}
+          onAction={endReplayCoach}
+          blockTarget
+          refreshKey={`replay-end:${fourwOn}:${canSave}`}
+        />
+      ) : null}
+      {coachStep && !replayEnd ? (
         <FirstRecordCoachmark
           targetRef={coachTargetRef}
           countLabel={coachCount}

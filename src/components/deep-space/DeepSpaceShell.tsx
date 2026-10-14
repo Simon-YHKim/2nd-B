@@ -21,8 +21,8 @@ import { useUiSound } from "@/lib/audio/use-ui-sound";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { refocusFirstRunHomeVisit, useFirstRunHomeGate } from "@/lib/onboarding/account-first-run";
-import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
-import { FIRST_RECORD_COACH_PARAM } from "@/lib/onboarding/first-record-coach";
+import { coachmarksReplayActive, useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
+import { FIRST_RECORD_COACH_PARAM, FIRST_RECORD_REPLAY_PARAM } from "@/lib/onboarding/first-record-coach";
 import { DeepSpaceScreen } from "./DeepSpaceScreen";
 import { ConstellationHome, type HomeStarId } from "./ConstellationHome";
 import { HomeCoachmarks } from "./HomeCoachmarks";
@@ -165,7 +165,9 @@ export function DeepSpaceShell() {
       // as the guide always did), so the guide's last step can come back here.
       onDockSelect={(tab) => {
         if (!(coachmarksDue === true && tab === "capture")) return false;
-        router.push({ pathname: "/capture", params: { coach: FIRST_RECORD_COACH_PARAM } });
+        // A replayed guide ends in front of Save (Z72): the capture route is told which one this is.
+        const coach = coachmarksReplayActive(userId) ? FIRST_RECORD_REPLAY_PARAM : FIRST_RECORD_COACH_PARAM;
+        router.push({ pathname: "/capture", params: { coach } });
         return true;
       }}
       overlay={coachmarksDue === true ? (
