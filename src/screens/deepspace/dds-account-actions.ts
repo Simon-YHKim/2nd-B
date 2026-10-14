@@ -32,7 +32,10 @@ export const ACCOUNT_DESTINATIONS: readonly {
 
 export type AccountTool = "dob" | "export";
 
-/** Only these two query values may reveal a tool; arrays and unknown values are ignored. */
+/**
+ * Only these two query values may reveal a tool; arrays and unknown values are ignored. "export"
+ * now only sends an old link on to My data's export card (Q-261014-61).
+ */
 export function accountToolFromParam(value: string | string[] | undefined): AccountTool | null {
   return value === "dob" || value === "export" ? value : null;
 }

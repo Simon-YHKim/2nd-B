@@ -21,7 +21,7 @@ export type ManualRoute =
   | "/review"
   | "/privacy"
   | "/iden"
-  | "/account?tool=export"
+  | "/data?open=account-export"
   | "/support";
 
 export type ManualGlyph = "home" | "sparkle" | "book" | "taskAlt" | "lock";
@@ -60,7 +60,7 @@ const ACTION_KEY: Record<ManualRoute, string> = {
   "/review": "review",
   "/privacy": "privacy",
   "/iden": "iden",
-  "/account?tool=export": "accountExport",
+  "/data?open=account-export": "accountExport",
   "/support": "support",
 };
 
@@ -79,7 +79,7 @@ const TOPIC_SPECS: readonly TopicSpec[] = [
   {
     id: "data",
     icon: "lock",
-    routes: ["/privacy", "/iden", "/account?tool=export", "/support"],
+    routes: ["/privacy", "/iden", "/data?open=account-export", "/support"],
   },
 ];
 

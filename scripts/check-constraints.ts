@@ -1200,7 +1200,8 @@ results.push(
       onboarding.includes("accessibilityHint={skipHint}") &&
       account.includes('accessibilityHint={t("consent:account.dob.saveHint")}') &&
       account.includes('accessibilityHint={t("consent:account.privacy.buttonHint")}') &&
-      account.includes('accessibilityLabel={t("consent:account.export.label")}') &&
+      // The export moved into My data (Q-261014-61): its button is named and hinted there.
+      read("src/screens/deepspace/dds-account-export.tsx").includes('accessibilityLabel={t("consent:account.export.button")}') &&
       // 터미널 삭제: 타이핑 확인 입력과 위험 버튼이 둘 다 스크린리더에 잡혀야 한다.
       // 2026-10-06 (Q-261005-01 = A): 이 라벨은 인라인 ko/en 삼항이었고 es/pt/id 는
       // 영어로 읽혔다. 지금은 deepspace 키라 다섯 언어가 각자 읽는다. 여기서는
@@ -1671,7 +1672,6 @@ results.push(
       't("consent:account.dob.saveFailedBody")',
       't("consent:account.dob.saveHint")',
       't("consent:account.privacy.buttonHint")',
-      't("consent:account.export.buttonHint")',
     ];
     const forbiddenInlineCopy = [
       "Loading account…",
@@ -1694,8 +1694,11 @@ results.push(
       "계정과 데이터를 삭제하기 전 최종 확인을 엽니다.",
       "계정과 데이터 삭제를 시작합니다.",
     ];
+    // The export moved into My data (Q-261014-61, 2026-10-14); its hint is required there.
+    const accountExport = read("src/screens/deepspace/dds-account-export.tsx");
     const ok =
       requiredCode.every((snippet) => account.includes(snippet)) &&
+      accountExport.includes('t("consent:account.export.buttonHint")') &&
       en.includes('"loading": "Loading account…"') &&
       ko.includes('"loading": "계정을 불러오고 있습니다…"') &&
       forbiddenInlineCopy.every((term) => !account.includes(term));
