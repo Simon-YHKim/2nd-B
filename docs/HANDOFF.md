@@ -1,5 +1,154 @@
 # 2nd-Brain Handoff
 
+## Latest — 2026-10-15 08:52 / 전체 세션 재시작용 인수 — 세 창(대화 · 위기 / 화면 / 서버)의 상태 · 워크트리 122개 현황 · 다음 작업 큐
+
+> 대표님(10-15 08:4x): 「세션들을 전체적으로 새로 시작해서 작업할 거거든? 그러니까 사이먼 핸드오프 스킬을 이용해서 핸드오프 할 수 있게 해 줘. 단 지금 현재 워크트리에 있는 다른 세션의 내용도 함께 포함해서 핸드오프 해 줘.」
+> 작성: 2ndb-c2(전 2ndb-79 · 대화 · 위기 갈래). 화면 창은 2ndb-41(전 2ndb-53), 서버 창은 2ndb-78(전 2ndb-e7)로 10-15 06:5x 에 다시 떴다. 새 세션은 이 블록과 바로 아래 10-15 블록들, `DECISIONS.md` 끝 30줄부터 읽는다.
+
+### ⚠ 정했지만 아직 앱에 없는 것 (대표님 10-15 08:53 지적: 「APK 다운받아서 실제 앱을 확인해 보니까 내가 요청했던 기능들이 구현 안 된 게 좀 많은 거 같은데?」)
+10-15 07:0x 의 「작업 모두 완료하고 …」를 2ndb-c2 가 '진행 중 PR 머지 + APK' 로 좁게 읽고 '완료'로 보고했다. 아래는 **대표님이 답으로 정했지만 구현에 손대지 않은 것**이다. 새 세션은 B ~ H 큐보다 이 표를 먼저 본다(우선순위는 대표님께 확인).
+
+| 기능 | 정한 답 | 지금 상태 | 갈래 |
+|---|---|---|---|
+| 인터뷰 끝내는 규칙 + 장면 끝 [이 이야기 더 · 다른 장면 · 저장하고 마치기] | Q-261014-12 · 13 · 03 · 10 (10-14 13:42) | 미착수 · 끝내는 규칙 먼저 고치고 그 규칙으로 잼 | 대화 · 위기 |
+| 인터뷰 말투: 들은 말을 한 구절 받아 준 뒤 묻기 · 화자 허슬케이 | Q-261014-15 | 미착수 · 실제 모델 확인 필요 | 대화 · 위기 |
+| 답하는 자리의 사실 한 줄 「답은 AI가 읽고 다음 질문을 만듭니다. 저장을 눌러야 기록으로 남습니다.」 | Q-261014-16 | 미착수 · 시안부터 | 대화 · 위기 |
+| 인터뷰 주 단위 예산(임시 주 140 · 하루 60) + 한도에서 화면 유지 | Q-261014-17 | 서버(0259 #2491) 머지 · **운영 적용은 10-17 23:20 뒤** · 화면 유지 미착수 | 서버 + 대화 · 위기 |
+| 인터뷰 임시 보관(저장 전 인터뷰를 기기에 · 7일 · 네이티브 암호화 · 웹은 로그아웃 때 지움) | Q-261014-21 | 미착수 | 대화 · 위기 |
+| 앱 잠금 1차(지문 → 기기 핀 · 패턴 · 폰 앱에만 · 위기 안내는 잠금 위 · 1분 뒤 다시 묻기) | 12:44 결정 + Q-261014-19 | 미착수 · 새 APK 필요 | 대화 · 위기 |
+| 다른 앱에 다녀와도 이어지기(서버엔 턴 상태만 · 잃은 답은 한 번 다시 묻기) | Q-261014-20 | 서버(#2438 0255) 머지 · **운영 적용 10-17 뒤** · 화면 미착수 | 서버 + 대화 · 위기 |
+| 한도에 닿은 계정의 위기 글에 안내 먼저 | Q-261014-11 | 미착수 | 대화 · 위기 |
+| 늦게 온 위기 안내 · 인터뷰 위기 번호 규칙(안전 설계 둘) | 16:47 차례 | 설계 3판 · 2판 미작성 | 대화 · 위기 |
+| 앱 사용 통계(서버 기록으로 세기 + 수집 켜고 '앱 사용 통계'로 적기) | Q-261014-08 | 미착수 · 수집 쪽은 법무 확인(10-17 뒤) | 대화 · 위기 + 서버 |
+| 폰 캘린더 읽기(재동의 방식 가 · 캘린더 먼저) | Q-261014-27 · 28 | 미착수 · 스위치 꺼진 채 만들고 켜기는 법무 뒤 | 대화 · 위기 |
+| 공유 받기에 녹음 파일 · 사진 | Q-261014-29 | 미착수 · 새 APK | 대화 · 위기 |
+| 프로필 등급 이름을 각 언어로(es · id · pt) | Q-261014-25 (20:28) | 미착수 | 대화 · 위기 |
+| 끝말 검사(해요체 평서 래칫 · 예외 둘) | Q-261014-84 가 | 미착수(STYLE.md 체크리스트만 끝) | 대화 · 위기 |
+| 읽지 못할 때 거짓을 보이는 화면 7개 · 이름 · 낱말 묶음 · 대화 모드 전환 줄 · 사용 안내서 → 도움말 | 화면 창 목록 | 미착수(시안 고르기 필요한 것 있음) | 화면 |
+| 개인정보 설정 한 항목 RPC · interview_probe 크기 상한 · 인터뷰 저장 서버 걸음(Q-04) · Q-05/06 · 가입 거절 서버 쪽 등 9건 | 서버 창 목록 | 미착수 | 서버 |
+
+### 어디까지 왔나
+- main HEAD: `5e5be3d5` · main CI 초록(웹 빌드 · 과금 감시 · 대시보드) · `npm run app:parity` = **같음**(10-15 07:29 · 8081 = localhost-main 감독자가 origin/main 을 따라감).
+- **QA APK**: https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-261015-32649e77 (main `32649e77` · arm64 · pre-release · latest 아님). 그 뒤 main 의 변경은 문서뿐이라 앱은 같다.
+- **10-14 ~ 10-15 머지(앱)**: 옛 등급 이름 #2492 · 대화 지시문 말투 · 새 관점 표지 #2509 · 첫 화면 문구 #2515 · 위기 입력 붙여 쓴 꼴 #2514 · 반쪽 붙임 · 강조형 #2519 · 설명형 문구 CI 경고 #2516 · 대화 한도 말풍선 #2497 · 위기 턴 하루 횟수 제외 #2483 · (화면 창) 개인정보 화면 #2496 · 모드 이름 팩트케이 · 조이케이 #2498 · 별 이야기 목록 #2499 · 홈 안내 밖 누르면 닫힘 #2502 · 내보내기를 내 데이터로 #2503 · 가져오기 건강 동의 #2507 · (서버 창) 인터뷰 주 단위 예산 0259 #2491 · 턴 환불 묶기 0255 #2438 · 위기 기록 번호 21 까지 0260 #2520. 문서: STYLE.md 설명 문구 체크리스트 #2513 · 기록 PR 다수.
+- working tree(정본 체크아웃): 다른 세션 · 봇의 미커밋 문서뿐(아래 워크트리 표 첫 줄). 이 인수 PR 은 `docs/HANDOFF.md` 하나만 바꾼다.
+
+### 활성 인프라 · 운영 제약 (지키지 않으면 사고)
+- Supabase 프로젝트 `zoacryukmdeivmolvyhj`. 운영 엣지: openai-proxy **v154** · gemini-proxy **v168**(둘 다 main `2ac1916c` = 위기 입력 붙여 쓴 꼴까지 · 10-15 00:45 · 00:47 배포) · claude-proxy v148 · xai-proxy v83 · dashboard-generate v10(위기 검사 새 사본 미반영 · 호출 0 · 꺼짐).
+- **0255 운영 적용 전에는 프록시를 재배포하지 말 것.** #2438 이후 main 의 프록시는 운영에 아직 없는 `begin_chat_turn_attempt` · `claim_chat_turn_for_audit` 를 부른다(배포 게이트가 막음).
+- **Relay 대기(10-17 23:20 뒤 · 서버 창이 블록을 넣어 둠)**: 0253 · 0256 · 0259(인터뷰 주 단위 한도) · 0255 · 0258 · 0260. 적용 뒤 순서: 프록시 재배포(openai · gemini · claude · xai · dashboard-generate · #2514 · #2519 서버 사본 + #2438 계약) → 0260 확인 뒤 앱 `src/lib/safety/model-reply-scan.ts` 의 `RECORDED_TERM_CODE_MAX` 19 → 21(위기 낱말 20 · 21 기록).
+- 운영 감사 원장 `ai_audit_log` 의 **10-15 01:32:54 ~ 01:50:50 KST 120줄**은 Q-91 회귀 측정(QA 계정 · 운영 프록시 직접 호출)이다. 10-13 결정의 '적용 후 2주 집계'에서 뺄 것. 10-14 22:23 ~ 22:32 의 40줄(#2509 짝 측정)도 같은 성격.
+- 운영 게시 · 적용 중에는 `_sync/TO-CLI.md` 에 **새 `## ` 머리줄**로 "게시 중/적용 중"을 올리고, 끝나면 **새 머리줄**로 "완료"(머지 스크립트는 마지막 `## ` 줄만 본다).
+
+### 대표님 답을 기다리는 물음
+| 번호 | 무엇 | 보는 곳 |
+|---|---|---|
+| Q-261015-81 | 답 쪽 위기 오탐 지시문(Q-91): 가(추천) '기록을 묘사할 때'로 좁힌 새 문장으로 재측정 · 머지 조건에 '모델의 직접 109 감소 금지' / 나 접기 | 가지 `fix/chat-prompt-finish-wording`(GitHub · 머지 안 함) · 측정 원문 `E:/Coding Infra/reports/devlab-261010/z91-finish-wording/` |
+| Q-261014-83 | 검토 진행 방식: 가(추천) 코드 결함 없이 시험 빈틈만 나오면 메우고 재검토 없이 머지 · 검토 2회까지 | 결정 기록 26.10.14 21:06 |
+| (물음 번호 없음) | 기록 남기기 첫 화면 시범을 다른 화면으로 넓힐지(넓히면 설정 · 기록 남기기 · 가입 · 프로필 순) | #2515 전 · 후 그림 `E:/Coding Infra/reports/devlab-261010/ui/z-capture-firstrun/shots/side-by-side.png` |
+| (물음 번호 없음) | 예전 세션의 초안 PR 열셋을 어떻게 할지(#2440 · #2425 · #2396 · #2365 · #2318 · #2241 · #2132 · #2110 · #2034 · #2024 · #2001 · #1839 · #1814 · 모두 draft) | 아래 워크트리 표 |
+
+### 다음 작업 큐
+| # | 작업 | 갈래 | 크기 | 권장 |
+|---|---|---|---|---|
+| A | 10-17 23:20 뒤 Relay 운영 적용 확인 → 프록시 재배포 → `RECORDED_TERM_CODE_MAX` 21 | 서버 + 대화 · 위기 | small | ⭐ 날짜가 정해진 일 · 운영 반영이 막혀 있음 |
+| B | 화면 환불 · 다른 앱에 다녀오기(Q-261014-20) — #2438 계약: 다시 묻기는 가장 최근 턴에 한 번 · 보류 중인 턴 먼저 확인 · 확인 전 새 보내기 막기 | 대화 · 위기 | medium | ⭐ 서버 쪽은 머지됨 · 0255 적용 뒤 실제 동작 |
+| C | #2483 에서 따로 남긴 구조 검사(공용 위기 함수 `routeCrisis` 가 env · 벤더 · edge 를 읽지 못하게) | 대화 · 위기 | small | Q-261014-81 '가'의 약속분 |
+| D | 끝말 검사(해요체 평서 래칫 · 예외 둘: 외부 AI 가져오기 · 리마인더 안내) — Q-261014-84 '가'의 남은 절반 | 대화 · 위기 | small | STYLE.md 체크리스트(#2513)는 끝 · CI 검사는 아직 |
+| E | 프로필 등급 이름을 각 언어로(Q-261014-25 = 가: es/id/pt `plans.json` tiers.*.name) | 대화 · 위기 | small | 20:28 답 · 미착수 |
+| F | 화면 창 남은 일: 읽지 못할 때 거짓을 보이는 화면 7개(별 요약 · 위키 목록 기한 · 날씨용 위치 · 리즈닝 · 위키 페이지 · 리서치 · 스크랩 · 4 ~ 7h) · 이름 · 낱말 묶음과 대화 모드 전환 줄(대표님 시안 고르기 뒤) · 사용 안내서 → 도움말 | 화면 | large | 시안 고르기가 먼저 |
+| G | 서버 창 밀린 일: 개인정보 설정 한 항목 RPC · interview_probe 크기 상한 · Q-20 서버 확인 · 0257(키 확정 뒤) · 인터뷰 저장 서버 걸음(Q-04) · Q-05/06 · 가입 거절 서버 쪽 · 내부 꼬리표 · 확인 안 된 가입 줄 자동 삭제 | 서버 | large | 2 ~ 4일 |
+| H | 16:47(10-14) 차례의 나머지: 한도에 닿은 계정의 위기 글에 안내 먼저(Q-11) · 안전 설계 둘(`E:/Coding Infra/reports/devlab-261010/gates/nosave-step1-design.v2.md` 3판 · `interview-hotline-rule-design.md` 2판) · 인터뷰 끝내는 규칙(Q-12 · 13 · 03 · 10) · 캘린더(Q-27 · 28 · 켜기는 법무 뒤) · 공유 받기 확장(Q-29 · 새 APK) · 인터뷰 임시 보관(Q-21) · 한도에서 화면 유지(Q-17) · 인터뷰 말투(Q-15 · 실제 모델) · 잠금 1차(Q-19) | 대화 · 위기 | large | 차례대로 · 각 화면 하나씩 |
+| I | DPIA 의 "위기 레인 isMinor 경쟁 가드" 인용이 엉뚱한 곳을 가리킴(10-17 23:20 뒤 법무 확인) · CLAUDE.md F3 절 "통화녹음 파일 기능 없다" 낡음 | 문서 | small | 법무 일정 뒤 |
+
+### 워크트리 현황 (10-15 08:4x 실측 · 전체 122개 = 머지 끝 79 · main 과 같음/뒤 4 · 남은 것 39)
+GitHub 에 안 올라간 커밋은 **0** 이다(유일했던 `docs/assistant-v24-261007` 1개는 10-15 08:4x 에 올림). 아래는 main 에 없는 커밋이나 미커밋 변경이 있는 워크트리다. "main 에 없는 커밋"은 `git cherry` 로 센 패치 수(스쿼시 머지된 것은 빠짐). **새 세션은 남의 워크트리를 지우거나 덮어쓰지 말고, 정리할 때는 정션(node_modules)을 먼저 끊는다**(`[IO.Directory]::Delete(path,$false)` · `git worktree remove --force` 금지).
+
+| 워크트리(`.worktrees/…`) | 가지 | PR | main 에 없는 커밋 | 미커밋(추적) | 메모 |
+|---|---|---|---:|---:|---|
+| E:/2ndB(정본) | `main` | - | 0 | 8 | 정본 체크아웃. 추적 8개 수정 + 미추적 65개는 봇 · 운영 초안(docs/drafts · docs/ops · docs/leads · docs/trends · docs/accounting) — 다른 세션 · 봇의 로컬 파일이라 git 에 없음. 지우지 말 것 |
+| acct-switch-261013 | `fix/account-switch-release-proof` | #2318 OPEN draft | 3 | 0 | 열린 초안 PR · 검토 · 결정 대기 |
+| assistant-v24-docs | `docs/assistant-v24-261007` | - | 1 | 0 | 10-07 비서 v2.4 결정 원문 커밋 1개(10-15 08:4x 에 가지를 GitHub 로 올림). 같은 결정 줄은 이미 main 의 DECISIONS-2026-10-07_12.md 에 있음 → 이 가지는 정리 대상 |
+| handoff-261006 | `docs/handoff-261006-0221-live` | - | 2 | 0 | 10-06 인수 문서 커밋 2개(main 에 없음) |
+| homezoom-261010 | `fix/home-telescope-phone-overlap-261010` | #2220 CLOSED draft | 1 | 0 | PR 닫힘 · 남은 커밋은 버린 것으로 보임(확인 뒤 정리) |
+| hustlek-camping-assets-261008 | `codex/hustlek-camping-assets-261008` | - | 0 | 1 | docs/HANDOFF.md 미커밋 수정 1 · 주인 확인 전 손대지 말 것 |
+| q67-turn-refund-261013 | `fix/chat-turn-refund-after-swap` | #2425 OPEN draft | 3 | 0 | 열린 초안 PR · 검토 · 결정 대기 |
+| qa-reasoning-261009 | `fix/qa-reasoning-261009` | #2183 MERGED | 0 | 1 | PR #2183 은 머지됨 · 시험 파일 미커밋 수정 1(pixel-clay-capture-screen.test.ts) |
+| qa261004-nav-stack | `fix/qa261004-nav-stack` | - | 14 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261005-authboot | `fix/qa261005-authboot` | - | 4 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261005-focuscareer | `fix/qa261005-focuscareer` | - | 3 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261005-interview2 | `fix/qa261005-interview2` | - | 5 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261005-legkeys | `chore/qa261005-legkeys` | - | 3 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261005-migdrafts | `fix/qa261005-migdrafts` | - | 4 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261005-notheme | `fix/qa261005-notheme` | - | 1 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261005-opstools | `fix/qa261005-opstools` | - | 6 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261005-sharetarget | `fix/qa261005-sharetarget` | - | 8 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261006-designdocs | `docs/qa261006-designdocs` | - | 3 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261006-legsmall | `chore/qa261006-legsmall` | - | 2 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261006-onboard40 | `fix/qa261006-onboard40` | - | 6 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261006-systags39 | `fix/qa261006-systags39` | - | 4 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261006-tr1 | `fix/qa261006-tr1` | - | 0 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261006-tr2 | `fix/qa261006-tr2` | - | 2 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261006-tr3 | `fix/qa261006-tr3` | - | 2 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261006-trfix | `fix/qa261006-trfix` | - | 0 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261006-wording | `fix/qa261006-wording` | - | 0 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261007-delrcpt | `fix/qa261007-delrcpt` | #2132 OPEN draft | 8 | 0 | 열린 초안 PR · 검토 · 결정 대기 |
+| qa261007-g2rest | `fix/qa261011-g2-rest` | #2241 OPEN draft | 5 | 0 | 열린 초안 PR · 검토 · 결정 대기 |
+| qa261007-interview | `fix/qa261007-interview` | #2131 CLOSED draft | 6 | 0 | PR 닫힘 · 남은 커밋은 버린 것으로 보임(확인 뒤 정리) |
+| qa261007-onboard | `fix/qa261007-onboard` | - | 5 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261007-smallfix | `fix/qa261007-smallfix` | - | 4 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| qa261007-systags | `fix/qa261007-systags` | - | 4 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| rd-h1-261007 | `claude/rd-h1-import-guards-261007` | - | 0 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| safescan-261010 | `fix/safety-scan-obfuscation-261010` | #2194 CLOSED draft | 1 | 0 | PR 닫힘 · 남은 커밋은 버린 것으로 보임(확인 뒤 정리) |
+| scanline-261010 | `fix/safety-scan-linear-261010` | #2208 CLOSED draft | 2 | 0 | PR 닫힘 · 남은 커밋은 버린 것으로 보임(확인 뒤 정리) |
+| ssv-r4-fix-261006 | `feat/ssv-revoke-settle-v2` | - | 1 | 0 | PR 없음 · 10-04 ~ 10-07 QA 회차 가지로 보임(대부분 다른 PR 로 대체됐을 것 · 확인 뒤 정리) |
+| stop-phrase-261014 | `fix/interview-stop-only-on-a-stop-phrase` | #2440 OPEN draft | 2 | 0 | 열린 초안 PR · 검토 · 결정 대기 |
+| z1-signup-reject-261013 | `fix/reasoning-review-live-targets` | #2365 OPEN draft | 6 | 0 | 열린 초안 PR · 검토 · 결정 대기 |
+| z56-reminder-reply-261013 | `fix/chat-reminder-reply-relative-time` | #2396 OPEN draft | 3 | 0 | 열린 초안 PR · 검토 · 결정 대기 |
+
+### 적용 중인 정책 (영구 · 요약 — 원문은 CLAUDE.md · DECISIONS.md)
+1. 앱 = localhost 같은 소프트웨어: 수정 완료 = PR → CI → 머지 → 8081 확인. 세션을 끝내기 전 `npm run app:parity` 가 "같음".
+2. main 앱 머지는 한 번에 하나 · 그 폰 빌드가 main 확인 단계 셋(Gate + Recheck 둘)을 지날 때까지 세 창 모두 main 머지(문서 포함)를 쉰다. 기록 PR(DECISIONS · HANDOFF)은 창끼리 번갈아.
+3. 머지 조건 = CI 초록 + 독립 검토(gate_generic.py · daybreak) PASS + 새 중간 0. 같은 PR 이 세 번 막히면 멈추고 여쭘(Q-261014-83 답 대기).
+4. 안전 장치(C9 · 위기 낱말 · 업무 예외)는 대표님 답 없이 약하게 하지 않는다. 바꿀 때는 main 대 가지 기계적 대조로 "main red → 가지 green 0" 을 숫자로 보인다.
+5. 프롬프트(대화 지시문) 변경은 머지 전 실제 모델 짝 측정 · 위기 쪽 수치가 줄면 머지하지 않는다.
+6. 화면 문구: `STYLE.md` 「설명 문구 줄이기」 8줄 + B안(사실 · 안내 ~습니다, 질문 · 제안 해요체 · 예외: 외부 AI 가져오기 · 리마인더 안내) · PR CI 로그에 설명형 문구 경고(실패 아님 · #2516).
+7. APK · QA 릴리스는 대표님이 요청할 때만(`npm run app:qa-release` · 게시 중 표시).
+8. 질문 번호는 세션마다 범위를 나눠 쓴다(10-14 · 15: 대화 · 위기 80 ~ 99 · 화면 60 ~ 79 · 서버 30 ~ 59 · 40 ~ 49). 새 마이그레이션 번호는 0261 부터(0257 은 앱 분석 몫으로 예약).
+9. 보고는 Artifact HTML + 3 ~ 5줄 요약 · 시각은 `TZ=KST-9 date` 실측값만.
+
+### 핵심 파일 · 도구 위치
+```
+docs/HANDOFF.md · DECISIONS.md                 인수 · 결정(append-only)
+STYLE.md                                       화면 문구 규칙(설명 문구 체크리스트)
+src/lib/chat/conversation.ts                   대화 지시문(줄 수 · 법무 인용 줄 고정: conversation-cited-lines.test.ts)
+src/lib/safety/{classifier,lexicon,crisis-context,model-reply-scan}.ts   위기 검사(앱) · supabase/functions/_shared/llm-proxy-common.ts · gemini-proxy/index.ts(서버 사본)
+scripts/app-parity.cjs                         localhost · parity · qa-release
+scripts/check-explanatory-copy.ts              설명형 문구 경고
+E:/Coding Infra/reports/devlab-261010/gates/gate_generic.py   독립 검토(daybreak)
+E:/Coding Infra/reports/devlab-261010/ui/      8081 전 · 후 캡처 스크립트(z-crisis-joined · z-capture-firstrun · z-register86 · z-limit-bubble · z-crisiscount)
+E:/Coding Infra/reports/devlab-261010/z90-crisis-joined/ · z91-finish-wording/   위기 검사 조사 · 측정 원문(이 PC 에만)
+_sync/TO-CLI.md                                운영 게시 · 적용 중 표시(로컬)
+```
+보고서(Artifact): 앱 말투 https://claude.ai/artifact/7UeoU6JgyU4H3c7scKTVZS · 설명형 문구와 위기 안내 오탐(2판) https://claude.ai/artifact/QCQHmEZHpLuHuhLUp72i6x · 인터뷰 여섯 판단 https://claude.ai/artifact/XCvRDcxq2MSYtsTAVZvjWE · 서버 창 https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg
+
+### 검증
+```bash
+npm run verify          # lint + type-check + i18n + lexicon + crisis-parity + constraints + emdash + explanatory-copy(경고) + jest
+npm run app:parity      # 세션 끝나기 전 "같음"
+```
+
+### 다음 세션 시작하는 법
+```bash
+git -C E:/2ndB fetch origin main
+git -C E:/2ndB show origin/main:docs/HANDOFF.md | head -120
+git -C E:/2ndB show origin/main:DECISIONS.md | tail -30
+npm run app:parity
+# 날짜가 10-17 23:20 이전이면 A 는 기다리고 B · C · D · E 부터
+```
+
+---
+
 ## 2026-10-15 07:34 / 2ndb-c2(전 2ndb-79): 아침 마감 — 위기 우회 꼴 · 한도 말풍선 · 위기 턴 횟수 머지 · QA APK 게시 · app:parity 같음
 
 - **QA APK**: https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-261015-32649e77 (main `32649e77` · pre-release). 8081 = `32649e77` · app:parity 같음(07:29).
