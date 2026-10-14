@@ -1,5 +1,13 @@
 # 2nd-Brain Handoff
 
+## 2026-10-15 07:34 / 2ndb-c2(전 2ndb-79): 아침 마감 — 위기 우회 꼴 · 한도 말풍선 · 위기 턴 횟수 머지 · QA APK 게시 · app:parity 같음
+
+- **QA APK**: https://github.com/Simon-YHKim/2nd-B/releases/tag/qa-261015-32649e77 (main `32649e77` · pre-release). 8081 = `32649e77` · app:parity 같음(07:29).
+- **대표님 답 대기**: Q-261015-81(Q-91 지시문 · 좁힌 문장으로 재측정할지) · Q-261014-83(검토 진행 방식) · 첫 화면 시범을 다른 화면으로 넓힐지 · 예전 세션 초안 PR 열셋(모두 draft)을 어떻게 할지.
+- **10-17 23:20 뒤(Relay)**: 0255 · 0258 · 0260 운영 적용 → 프록시 재배포(openai · gemini · claude · xai · dashboard-generate 에 위기 검사 서버 사본 반영 · #2438 계약) → 0260 적용 확인 뒤 앱 `model-reply-scan.ts` 의 `RECORDED_TERM_CODE_MAX` 19 → 21.
+- **남은 이 창 일**: 화면 환불 · 다른 앱에 다녀오기(Q-261014-20 · #2438 계약: 다시 묻기는 가장 최근 턴에 한 번 · 보류 중인 턴 먼저 확인 · 확인 전 새 보내기 막기) · #2483 의 따로 남긴 구조 검사(공용 위기 함수가 env · 벤더 · edge 를 읽지 못하게) · 16:47 차례의 나머지.
+- **세션 이름이 바뀜**: 이 창 2ndb-c2 · 서버 창 2ndb-78 · 화면 창 2ndb-41(06:5x 다시 뜸).
+
 ## 2026-10-15 03:03 / 2ndb-e7: 0260(위기 기록이 받는 번호를 21 까지 · PR #2520) 검토 통과 · 머지(03:00 · main `d3f41d91`) - 블록 Relay 대기 - 다음 1개는 Relay 실행
 
 - **결과**: 대표님 Q-261015-40 답("남긴다")대로 `normalize_client_crisis_categories` 를 0254 의 글자 그대로 다시 만들고 번호 20 · 21 만 더함. 독립 검토 PASS(지적 0 · `E:/Coding Infra/reports/codex-audit-261010/gates/crisis0260-daybreak-r1.txt`). 앱은 받는 범위(`isTermNumber`)만 21.
