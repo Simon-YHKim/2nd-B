@@ -696,8 +696,12 @@ function SecondBChatBody() {
   // Funnel: fire ai_limit_hit at most once per mount when the daily cap is hit.
   const limitHitFiredRef = useRef(false);
   // The tier the server says to upgrade to (from a blocked turn). Falls back to
-  // "soma" in the limit-hit effect when no blocked turn has set it yet.
+  // "cortex" in the limit-hit effect when no blocked turn has set it yet.
   const [pendingUpgrade, setPendingUpgrade] = useState<SubscriptionTier | null>(null);
+  // A send the daily limit refused. Its bubble always comes with 요금제 보기 (Simon 2026-10-14,
+  // Q-261014-24), also when the server's cap refused it while the local count is still under
+  // the wall (atLimit false). A reply that goes through, or a granted ad bonus, clears it.
+  const [limitRefused, setLimitRefused] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const followingLatest = useRef(true);
 
@@ -931,6 +935,7 @@ function SecondBChatBody() {
           if (result.status === "blocked") {
             setTurns((prev) => [...prev, { role: "secondb", persona: requestPersona, text: result.hint, synthetic: true }]);
             setUsedToday(result.used);
+            setLimitRefused(true);
             if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
             // 0090: free adults can widen TODAY's allowance by +2 via a
             // rewarded watch - only when the FULL rewarded gate passes
@@ -967,6 +972,7 @@ function SecondBChatBody() {
             // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
             if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
             setUsedToday(result.used);
+            setLimitRefused(false);
             captureEvent(
               secondBSession({
                 action: "message_sent",
@@ -1384,7 +1390,7 @@ function SecondBChatBody() {
           ) : null}
         </ScrollView>
 
-        {atLimit ? (
+        {atLimit || limitRefused ? (
           <Pressable
             onPress={() => router.push("/plans?from=ai_limit")}
             hitSlop={14}
@@ -1509,7 +1515,10 @@ function SecondBChatBody() {
               await grantChatAdBonus(userId);
               // 보상 소리(Q-261006-13)는 앱이 직접 적립에 성공했을 때만. SSV 모드면 서버가 나중에
               // 적립하므로("processing") 무음이다.
-              if (outcome === "granted") requestGlobalCue("rewardCredited");
+              if (outcome === "granted") {
+                requestGlobalCue("rewardCredited");
+                setLimitRefused(false);
+              }
             } catch (e) {
               outcome = e instanceof ChatRewardCapReachedError ? "capped" : "unconfirmed";
               if (typeof console !== "undefined") {

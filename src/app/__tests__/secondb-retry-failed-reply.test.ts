@@ -50,7 +50,7 @@ function sender(turns: Props[]) {
     setSendingPersona: jest.fn(),
     setTurns: (updater: (previous: Props[]) => Props[]) => { const next = updater(turns); turns.splice(0, turns.length, ...next); },
     holdExpression: () => jest.fn(), sendChatMessage, currentDisplayName: () => "Alex", rev2PersonaHint: (id: string) => id,
-    setUsedToday: jest.fn(), setPendingUpgrade: jest.fn(), rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
+    setUsedToday: jest.fn(), setLimitRefused: jest.fn(), setPendingUpgrade: jest.fn(), rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
     captureEvent: jest.fn(), secondBSession: (event: unknown) => event,
     parseSourceCitations, parseTwiBranches,
     replyCueAllowed: () => false, isRecordingAudioMode: () => false, playReplyCue: jest.fn(),
