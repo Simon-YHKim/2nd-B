@@ -370,7 +370,16 @@ export default function StarSummaryRoute() {
                 }
                 style={styles.cta}
               />
-            ) : null}
+            ) : (
+              // Z23: the home bubble sends a waiting star to the one before it. That one can be
+              // waiting too, so the same way on is offered here instead of a dead end.
+              <MdButton
+                label={t("ds.home.bubble.goToStar", { star: t(`ds.star.${entry.prerequisite}`) })}
+                variant="filled"
+                onPress={() => router.push(`/me/${entry.prerequisite}`)}
+                style={styles.cta}
+              />
+            )}
           </>
         )}
       </ScrollView>

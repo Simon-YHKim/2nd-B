@@ -14,16 +14,18 @@ import { fetchBirthDate, updateBirthDate } from "@/lib/supabase/account";
 export const ACCOUNT_DOB_LOAD_TIMEOUT_MS = 15_000;
 export const ACCOUNT_EXPORT_TIMEOUT_MS = 30_000;
 
-/** The six account-hub destinations retained from the real app contract. */
+/**
+ * The account hub's destinations. "Settings" and "My data" left on 2026-10-14 (Simon 2026-10-13,
+ * Z77: one top-level door per place). Settings is where the visitor came from, and My data is
+ * a row in settings.
+ */
 export const ACCOUNT_DESTINATIONS: readonly {
-  route: "/profile" | "/change-password" | "/settings" | "/data" | "/iden" | "/beyond";
+  route: "/profile" | "/change-password" | "/iden" | "/beyond";
   labelKey: string;
   icon: AnyGlyphName;
 }[] = [
   { route: "/profile", labelKey: "deepspace:account.navProfile", icon: "account" },
   { route: "/change-password", labelKey: "deepspace:account.navPassword", icon: "lock" },
-  { route: "/settings", labelKey: "deepspace:account.navSettings", icon: "settings" },
-  { route: "/data", labelKey: "deepspace:account.navData", icon: "box" },
   { route: "/iden", labelKey: "deepspace:account.navIden", icon: "iden" },
   { route: "/beyond", labelKey: "deepspace:account.navBeyond", icon: "devices" },
 ];

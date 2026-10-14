@@ -11,7 +11,7 @@
  * (PIXEL-CLAY 규칙 4 · Simon 결정 2026-08-27). 프로토타입의 곱셈
  * 0.36 + L/5×0.64 는 m3.starLadder 안에 미리 합성돼 있다.
  */
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
@@ -510,9 +510,6 @@ const DOMAIN_HALO_MULT_REST = 1.6;
 export function ConstellationHome({
   onStarTravel,
   onPolarisPress,
-  coachFirstRecord = false,
-  coachHeadTargetRef,
-  onCoachHeadPress,
   onBellPress,
   starLevels = {},
   northStarBrightness = 0.2,
@@ -520,10 +517,6 @@ export function ConstellationHome({
   /** 여행하기 on a star bubble (domains → their records lens, profile → /profile). */
   onStarTravel: (id: HomeStarId) => void;
   onPolarisPress: () => void;
-  /** First-run task coach: the live head becomes step 1's only active target. */
-  coachFirstRecord?: boolean;
-  coachHeadTargetRef?: RefObject<View | null>;
-  onCoachHeadPress?: () => void;
   onBellPress: () => void;
   starLevels?: Partial<Record<HomeStarId, LadderLevel>>;
   northStarBrightness?: number;
@@ -760,16 +753,12 @@ export function ConstellationHome({
     onBlip: playDialogueBlip,
   });
   const advanceDialogue = useCallback(() => {
-    if (coachFirstRecord) {
-      onCoachHeadPress?.();
-      return;
-    }
     if (!dialogue.isComplete) {
       dialogue.reveal();
       return;
     }
     setBubble({ kind: "intro" });
-  }, [coachFirstRecord, dialogue.isComplete, dialogue.reveal, onCoachHeadPress]);
+  }, [dialogue.isComplete, dialogue.reveal]);
   // Read state is shared with the phone. Home only previews the newest unread
   // title; opening the phone is not itself a read.
   const unreadNotice = noticeCenter.hydrated
@@ -808,17 +797,15 @@ export function ConstellationHome({
           Fabric Android can drop styles applied directly to Pressable. */}
       <View style={styles.topBar}>
         <View style={styles.topBarStart}>
-          <View ref={coachHeadTargetRef} collapsable={false} testID="secondb-dialogue-launcher"
+          <View collapsable={false} testID="secondb-dialogue-launcher"
             style={[styles.secondbLauncher, bubble.kind !== "intro" && styles.secondbLauncherActive]}>
             <Pressable
               style={styles.secondbLauncherPress}
               onPress={() => {
-                if (coachFirstRecord) { onCoachHeadPress?.(); return; }
                 setBubble((current) => current.kind === "intro" ? { kind: "reasoning" } : { kind: "intro" });
               }}
               accessibilityRole="button"
               accessibilityLabel={t(bubble.kind === "intro" ? "ds.home.dialogueOpen" : "ds.home.dialogueClose")}
-              accessibilityHint={coachFirstRecord ? t("deepspace:coachmarks.homeStep") : undefined}
               accessibilityState={{ expanded: bubble.kind !== "intro" }}
               hitSlop={4}
             >
@@ -1080,9 +1067,6 @@ export function ConstellationHome({
                   onPress={advanceDialogue}
                   accessibilityRole="button"
                   accessibilityLabel={t("ds.home.headA11y")}
-                  accessibilityHint={
-                    coachFirstRecord ? t("deepspace:coachmarks.homeStep") : undefined
-                  }
                 >
                   <SecondbHead
                     size={HOME_HEAD_SIZE}
@@ -1147,18 +1131,39 @@ export function ConstellationHome({
               </View>
             ) : bubble.kind === "star" ? (
               <View style={styles.bubbleActions}>
-                <MdButton
-                  label={t("ds.home.bubble.travel")}
-                  variant="filled"
-                  disabled={selectedEntry?.kind !== "available" || !cameraReady || captureId !== null}
-                  style={styles.dialogueAction}
-                  hitSlop={DIALOGUE_ACTION_HIT_SLOP}
-                  onPress={() => {
-                    if (!cameraReady || selectedEntry?.kind !== 'available' || captureLock.current) return;
-                    captureLock.current = true;
-                    setCaptureId(bubble.id);
-                  }}
-                />
+                {selectedEntry?.kind === "previous" ? (
+                  // Z23 (Simon 2026-10-13): a star that waits on the one before it used to show a
+                  // dimmed Travel that did nothing. It offers the way to that star instead.
+                  <MdButton
+                    label={t("ds.home.bubble.goToStar", { star: starName(selectedEntry.prerequisite) })}
+                    variant="filled"
+                    disabled={!cameraReady || captureId !== null}
+                    style={styles.dialogueAction}
+                    hitSlop={DIALOGUE_ACTION_HIT_SLOP}
+                    onPress={() => {
+                      if (!cameraReady || captureLock.current) return;
+                      const previous = selectedEntry.prerequisite;
+                      setVisualFocusId(null);
+                      setCameraReady(false);
+                      destinationProgress.setValue(0);
+                      setBubble({ kind: "intro" });
+                      onStarTravel(previous);
+                    }}
+                  />
+                ) : (
+                  <MdButton
+                    label={t("ds.home.bubble.travel")}
+                    variant="filled"
+                    disabled={selectedEntry?.kind !== "available" || !cameraReady || captureId !== null}
+                    style={styles.dialogueAction}
+                    hitSlop={DIALOGUE_ACTION_HIT_SLOP}
+                    onPress={() => {
+                      if (!cameraReady || selectedEntry?.kind !== 'available' || captureLock.current) return;
+                      captureLock.current = true;
+                      setCaptureId(bubble.id);
+                    }}
+                  />
+                )}
                 <MdButton
                   label={t("ds.home.bubble.later")}
                   disabled={captureId !== null}
