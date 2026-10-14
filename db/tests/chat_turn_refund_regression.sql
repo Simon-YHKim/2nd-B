@@ -894,12 +894,14 @@ END
 $claim_denied$;
 RESET ROLE;
 SET LOCAL ROLE service_role;
--- Everything that must bind nothing, asked one by one: an attempt begun too long ago, a turn whose latest attempt
--- is another call's, another user's reservation, one that does not exist; a row the client wrote, a row for another
+-- Everything that must bind nothing, asked one by one: an attempt begun too long ago, a turn answered by its second
+-- attempt asked by its first, a fresh row of the user that is not an attempt of the turn it names (round 8),
+-- another user's reservation, one that does not exist; a row the client wrote, a row for another
 -- purpose, a row that is old, another user's row, a row that does not exist; a user who owns neither; and nothing.
 SELECT concat_ws(',',
          public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000e1', '26101346-7000-4000-8000-0000000070e2')::text,
          public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000e1', '26101346-7000-4000-8000-0000000070e3')::text,
+         public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000e2', '26101346-7000-4000-8000-0000000070e1')::text,
          public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000e1', '26101346-7000-4000-8000-0000000070b4')::text,
          public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000e1', '26101346-7000-4000-8000-0000000070ff')::text,
          public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000ec', '26101346-7000-4000-8000-0000000070d1')::text,
@@ -914,8 +916,8 @@ SELECT concat_ws(',',
          COALESCE(public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', NULL, '26101346-7000-4000-8000-0000000070e1')::text, 'null'),
          COALESCE(public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000e1', NULL)::text, 'null')) AS no \gset
 RESET ROLE;
-SELECT pg_temp.z46_assert(:'no' = 'false,false,false,false,false,false,false,false,false,false,false,false,false,false,false',
-                          'the claim bound an answer it must not (old attempt, another call''s attempt, another user''s or unknown reservation; client, other-purpose, old, another user''s or unknown row; a user who owns neither; missing arguments): ' || :'no');
+SELECT pg_temp.z46_assert(:'no' = 'false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false',
+                          'the claim bound an answer it must not (old attempt, the first over the second, a row not recorded as an attempt, another user''s or unknown reservation; client, other-purpose, old, another user''s or unknown row; a user who owns neither; missing arguments): ' || :'no');
 SELECT pg_temp.z46_assert(pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e1') = 'counted/-'
                           AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e2') = 'counted/-'
                           AND pg_temp.z46_turn('26101346-7000-4000-8000-0000000070e3') = 'answered/26101346-4000-4000-8000-0000000000e9'

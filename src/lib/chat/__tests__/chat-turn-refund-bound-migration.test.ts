@@ -411,7 +411,9 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(regression).toMatch(
       /SAVEPOINT z46_foreign_reservation;[\s\S]{0,1400}'a reservation of another user gave the caller a turn back, or was closed'\);\s+ROLLBACK TO SAVEPOINT z46_foreign_reservation;/,
     );
-    expect(regression).toMatch(/:'no' = 'false,false,false,false,false,false,false,false,false,false,false,false,false,false,false'/);
+    // round 8: a fresh row of the user that is not an attempt of the turn it names binds nothing (sixteen refusals)
+    expect(regression).toMatch(/:'no' = 'false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false'/);
+    expect(regression).toContain("public.claim_chat_turn_for_audit('26101346-0000-4000-8000-00000000000e', '26101346-4000-4000-8000-0000000000e2', '26101346-7000-4000-8000-0000000070e1')::text,");
     expect(regression).toMatch(/:'yes' = 'true,false,false,true,true'/);
     // another user's refused attempt on a turn does not stop its owner from binding it afterwards
     expect(regression).toMatch(
