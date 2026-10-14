@@ -2308,8 +2308,9 @@ jobs:
               return 1
             fi
           }
-          late_begin_race() { # <label> <expected: a b attempts:latest attempt> : a first call that started first arrives last
-            local label="$1" want="$2"
+          late_begin_race() { # <label> <a row> <b row> <b started: before_a|after_a> <expected: a b attempts:latest attempt>
+            # A call that reaches the server while another session holds the user's turns.
+            local label="$1" a_row="$2" b_row="$3" b_start="$4" want="$5"
             local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
             if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
               echo "0255 late attempt race refuses an unsafe database name" >&2
@@ -2331,11 +2332,19 @@ jobs:
               -c "SELECT 'turn=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'turnId')" \
               -c "COMMIT" | grep '^turn=' | sed 's/^turn=//' | tr -d '\r')"
             if [[ ! "$turn" =~ ^[0-9a-f-]{36}$ ]]; then echo "$label: no turn was counted before the race" >&2; return 1; fi
-            # The re-ask (row 02) reaches the server first and holds its transaction open; the first call (row 01),
-            # which started a moment before it, arrives while it is open.
+            # The first session's call reaches the server first and holds its transaction open; the second arrives
+            # while it is open and waits for the user's lock. The second call started before the first one (its start
+            # is fixed before the first session runs) or after it (its own clock, once the first holds the lock).
+            local t0 b_started
+            t0="$(sql "$clone_db" "SELECT pg_catalog.clock_timestamp()::text" | tr -d '\r')"
+            case "$b_start" in
+              before_a) b_started="'$t0'::timestamptz - interval '0.3 seconds'" ;;
+              after_a) b_started="pg_catalog.clock_timestamp()" ;;
+              *) echo "$label: no start $b_start" >&2; return 1 ;;
+            esac
             psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
               -c "BEGIN" \
-              -c "SELECT 'a=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000002', '$turn', pg_catalog.clock_timestamp())::text" \
+              -c "SELECT 'a=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-0000000000$a_row', '$turn', pg_catalog.clock_timestamp())::text" \
               -c "SELECT pg_sleep(3)" \
               -c "COMMIT" > "late_a_$label.out" &
             local a_pid=$! waited=0
@@ -2348,7 +2357,7 @@ jobs:
             done
             local a b state
             b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
-              -c "SELECT 'b=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000001', '$turn', pg_catalog.clock_timestamp() - interval '0.3 seconds')::text" \
+              -c "SELECT 'b=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-0000000000$b_row', '$turn', $b_started)::text" \
               | grep '^b=' | tr -d '\r')"
             wait "$a_pid"
             a="$(grep '^a=' "late_a_$label.out" | tr -d '\r')"
@@ -2357,7 +2366,7 @@ jobs:
             sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
             echo "$label: first session $a, second session $b, the turn's attempts $state"
             if [[ "$a $b $state" != "$want" ]]; then
-              echo "$label: a call that started earlier took the place of the attempt on record (wanted $want)" >&2
+              echo "$label: a call that waited past the proxy's 1.5 s, or started before the attempt on record, was recorded (wanted $want)" >&2
               return 1
             fi
           }
@@ -2531,7 +2540,10 @@ jobs:
           # lock and is refused once the new turn is in (only the latest turn can be re-asked).
           reask_race reask_during_bump "a=2 b=false 1:01"
           # A first call that started before the re-ask reaches the server after it (R2438-21): it writes nothing.
-          late_begin_race late_first_attempt "a=true b=false 1:02"
+          late_begin_race late_first_attempt 02 01 before_a "a=true b=false 1:02"
+          # A re-ask that waits on the user's lock past the proxy's 1.5 s: the server reads its clock after the lock,
+          # so the call the proxy gave up on writes nothing and the turn keeps its one re-ask.
+          late_begin_race reask_past_wait 01 02 after_a "a=true b=false 1:01"
           # A refund that arrives while a bump holds the user's turns waits on the user's lock, not on a row the bump
           # holds (R2438-22); the bump removed the old turn, so the refund then finds nothing to give back.
           lock_order_race bump_then_refund "a=4 b=null wait=Lock:advisory"

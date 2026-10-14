@@ -478,15 +478,22 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     expect(claimRace).toContain('SELECT public.begin_chat_turn_attempt(\'$user\', $args, pg_catalog.clock_timestamp())');
     // round 7: every attempt in the step says when it started
     for (const call of workflow.match(/public\.begin_chat_turn_attempt\([^\n]*/g) ?? []) {
-      expect(call).toMatch(/pg_catalog\.clock_timestamp\(\)/);
+      expect(call).toMatch(/pg_catalog\.clock_timestamp\(\)|'\$turn', \$b_started\)::text/);
     }
     // round 7: a first call that started first arrives last (R2438-21), and a refund during a bump (R2438-22)
-    const lates = [...workflow.matchAll(/^ +late_begin_race (\w+) "([^"\n]*)"$/gm)].map((m) => `${m[1]}|${m[2]}`);
-    expect(lates).toEqual(['late_first_attempt|a=true b=false 1:02']);
+    const lates = [...workflow.matchAll(/^ +late_begin_race (\w+) (\d\d) (\d\d) (before_a|after_a) "([^"\n]*)"$/gm)].map((m) => m.slice(1).join('|'));
+    expect(lates).toEqual([
+      'late_first_attempt|02|01|before_a|a=true b=false 1:02',
+      'reask_past_wait|01|02|after_a|a=true b=false 1:01',
+    ]);
     const orders = [...workflow.matchAll(/^ +lock_order_race (\w+) "([^"\n]*)"$/gm)].map((m) => `${m[1]}|${m[2]}`);
     expect(orders).toEqual(['bump_then_refund|a=4 b=null wait=Lock:advisory']);
     const lateRace = workflow.slice(workflow.indexOf('late_begin_race() {'), workflow.indexOf('lock_order_race() {'));
-    expect(lateRace.indexOf('-c "SELECT pg_sleep(3)"')).toBeLessThan(lateRace.indexOf("pg_catalog.clock_timestamp() - interval '0.3 seconds')::text"));
+    // the second call's start is fixed: before the first session runs, or its own clock once the first holds the lock
+    expect(lateRace).toContain("before_a) b_started=\"'$t0'::timestamptz - interval '0.3 seconds'\" ;;");
+    expect(lateRace).toContain('after_a) b_started="pg_catalog.clock_timestamp()" ;;');
+    expect(lateRace.indexOf('t0="$(sql "$clone_db" "SELECT pg_catalog.clock_timestamp()::text"')).toBeLessThan(lateRace.indexOf('-c "SELECT pg_sleep(3)"'));
+    expect(lateRace.indexOf('-c "SELECT pg_sleep(3)"')).toBeLessThan(lateRace.indexOf("'$turn', $b_started)::text"));
     const orderRace = workflow.slice(workflow.indexOf('lock_order_race() {'), workflow.indexOf('reapply_over() {'));
     expect(orderRace).toContain("pg_catalog.now() - interval '3 days', 'answered'");
     expect(orderRace).toContain("AND a.query LIKE '%refund_chat_turn_after_output_swap%'");
