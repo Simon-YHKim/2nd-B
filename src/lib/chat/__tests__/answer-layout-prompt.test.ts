@@ -36,7 +36,7 @@ test("the instruction does not ask for one paragraph: that wording flattened ste
 test("the new-angle mode still asks for its next steps on lines of their own", () => {
   // parseTwiBranches lifts the lines that start with the arrow into chips; the layout instruction
   // must leave that contract alone.
-  const mode = SRC.slice(SRC.indexOf("const MODE_INSTRUCTION"), SRC.indexOf("const TIER_DISPLAY"));
+  const mode = SRC.slice(SRC.indexOf("const MODE_INSTRUCTION"), SRC.indexOf("const BLOCKED_HINT"));
   expect(mode).toContain("each on its own line, each line starting with '→ '.");
   expect(mode).toContain("한 줄에 하나씩 '→ '로 시작해 적으세요.");
 });

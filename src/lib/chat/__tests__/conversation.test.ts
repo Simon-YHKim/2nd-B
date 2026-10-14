@@ -112,9 +112,9 @@ describe("sendChatMessage", () => {
     if (r.status !== "blocked") throw new Error("type narrowing");
     expect(r.limit).toBe(5);
     expect(r.used).toBe(5);
-    expect(r.upgradeTo).toBe("soma");
-    expect(r.hint).toContain("chat limit (5)");
-    expect(r.hint).toContain("Soma");
+    expect(r.upgradeTo).toBe("cortex");
+    // Simon 2026-10-14 (Q-261014-24): the limit sentence only; no tier is named or pitched.
+    expect(r.hint).toBe("You've hit today's chat limit (5). Limits reset at midnight KST.");
 
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toContain("readChatUsageDetail");
@@ -123,13 +123,33 @@ describe("sendChatMessage", () => {
     expect(callNames).not.toContain("exportUserWiki");
   });
 
-  test("Korean locale uses Korean hint string", async () => {
-    fixtures.used = 30;
-    const r = await sendChatMessage({ userId: "u1", message: "안녕", locale: "ko", tier: "soma" });
+  // Simon 2026-10-14 (Q-261014-24): every limit bubble is the limit sentence alone. Free (별바라기),
+  // both ways a send meets the limit, both languages, compared as whole sentences.
+  const LIMIT_SENTENCE = {
+    en: "You've hit today's chat limit (5). Limits reset at midnight KST.",
+    ko: "오늘 채팅 한도(5회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.",
+  } as const;
+  // The server's cap refused the send while the local count still allows one: its own sentence.
+  const SERVER_LIMIT_SENTENCE = {
+    en: "This account has reached today's chat limit. Limits reset at midnight KST.",
+    ko: "오늘 이 계정의 채팅 이용 한도에 도달했습니다. 한도는 KST 자정에 초기화됩니다.",
+  } as const;
+  const PITCH = /upgrade|업그레이드|요금제로|플랜으로|for more|더 많이|Soma|Cortex|Brain/i;
+
+  test.each([
+    ["en", "pre-check", { used: 5 }, LIMIT_SENTENCE.en],
+    ["ko", "pre-check", { used: 5 }, LIMIT_SENTENCE.ko],
+    ["en", "server refusal, local count also at the limit", { used: 4, usedAtBump: 5 }, LIMIT_SENTENCE.en],
+    ["ko", "server refusal, local count also at the limit", { used: 4, usedAtBump: 5 }, LIMIT_SENTENCE.ko],
+    ["en", "server refusal, local count still under the limit", { used: 2, serverCap: 2 }, SERVER_LIMIT_SENTENCE.en],
+    ["ko", "server refusal, local count still under the limit", { used: 2, serverCap: 2 }, SERVER_LIMIT_SENTENCE.ko],
+  ] as const)("free, %s, %s: the bubble is exactly the limit sentence", async (locale, _way, setup, sentence) => {
+    Object.assign(fixtures, setup);
+    const r = await sendChatMessage({ userId: "u1", message: "hello", locale, tier: "free" });
     if (r.status !== "blocked") throw new Error("type narrowing");
-    expect(r.hint).toContain("오늘 채팅 한도");
-    expect(r.hint).toContain("KST 자정");
-    expect(r.upgradeTo).toBe("cortex");
+    expect(r.hint).toBe(sentence);
+    expect(r.hint).not.toMatch(PITCH);
+    expect(captured.some((c) => c.fn === "callLlm")).toBe(false);
   });
 
   test.each(["en", "ko"] as const)("%s: server rejection does not claim the client override cap was consumed", async (locale) => {
@@ -143,9 +163,9 @@ describe("sendChatMessage", () => {
     expect(r.limit).toBeNull();
     expect(r.used).toBe(5);
     expect(r.upgradeTo).toBeNull();
-    expect(r.hint).toContain(locale === "ko" ? "이 계정" : "This account");
-    expect(r.hint).toContain("KST");
-    expect(r.hint).not.toMatch(/250|\(5\)|Brain|Soma|Cortex/);
+    expect(r.hint).toBe(SERVER_LIMIT_SENTENCE[locale]);
+    expect(r.hint).not.toMatch(/250|\(5\)/);
+    expect(r.hint).not.toMatch(PITCH);
 
     const calls = captured.map((c) => c.fn);
     expect(calls.filter((name) => name === "readChatUsageDetail")).toHaveLength(2);
@@ -153,7 +173,7 @@ describe("sendChatMessage", () => {
     expect(calls).not.toContain("callLlm");
   });
 
-  test("a concurrent send reaching the known cap preserves the upgrade hint", async () => {
+  test("a concurrent send reaching the known cap gets the same limit sentence", async () => {
     fixtures.used = 29;
     fixtures.usedAtBump = 30;
     const r = await sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "soma" });
@@ -162,8 +182,7 @@ describe("sendChatMessage", () => {
     expect(r.limit).toBe(30);
     expect(r.used).toBe(30);
     expect(r.upgradeTo).toBe("cortex");
-    expect(r.hint).toContain("chat limit (30)");
-    expect(r.hint).toContain("Cortex");
+    expect(r.hint).toBe("You've hit today's chat limit (30). Limits reset at midnight KST.");
     expect(captured.some((c) => c.fn === "callLlm")).toBe(false);
   });
 
