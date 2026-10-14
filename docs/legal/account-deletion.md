@@ -16,8 +16,8 @@ PolaScope(운영: 하양 프로덕션, 개인사업자 · 대표 배소하)은 �
 
 ### 계정을 유지한 채 데이터만 삭제하기
 
-- 앱의 **설정 → 데이터 관리**에서 기록·가져온 자료·위키 등 콘텐츠의 전체 또는 일부를 계정 유지 상태로 삭제할 수 있습니다.
-- **설정 → 계정 → 데이터 내보내기**로 삭제 전에 내 데이터를 내려받을 수 있습니다.
+- 앱의 **설정 → 내 데이터**에서 기록·가져온 자료·위키 등 콘텐츠의 전체 또는 일부를 계정 유지 상태로 삭제할 수 있습니다.
+- **설정 → 내 데이터 → 계정 데이터 내보내기**로 삭제 전에 내 데이터를 내려받을 수 있습니다.
 
 ### 삭제되는 데이터
 
@@ -55,8 +55,8 @@ PolaScope (operated by Hayang Production, a sole proprietorship; Rep. Bae Soha) 
 
 ### Delete data while keeping your account
 
-- In **Settings → Data management**, you can delete some or all of your content (records, imported sources, wiki) while keeping your account.
-- Use **Settings → Account → Export data** to download your data before deletion.
+- In **Settings → My data**, you can delete some or all of your content (records, imported sources, wiki) while keeping your account.
+- Use **Settings → My data → Account data export** to download your data before deletion.
 
 ### Data that is deleted
 

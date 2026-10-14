@@ -33,7 +33,7 @@ describe("/capture 공통 인증 관문", () => {
     );
     const queryBranchAt = CAPTURE.indexOf("if (hasFullCaptureParams || fullCaptureActive)");
     const queryIntakeAt = CAPTURE.indexOf("<CaptureLegacy embeddedInDock />");
-    const bareCaptureAt = CAPTURE.indexOf("<CaptureView firstRecordCoach={firstRecordCoach} />");
+    const bareCaptureAt = CAPTURE.indexOf('<CaptureView firstRecordCoach={firstRecordCoach} coachReplay={coachMode === "replay"} />');
 
     expect(queryBranchAt).toBeGreaterThan(missingProfileAt);
     expect(queryIntakeAt).toBeGreaterThan(queryBranchAt);

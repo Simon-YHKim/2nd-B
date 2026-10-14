@@ -29,7 +29,8 @@ describe("N2-2 notice placement", () => {
     expect(source).toContain("showGuardianSupervisionNotice = false");
     expect(source).toContain("showGuardianSupervisionNotice?: boolean");
     // 2026-10-13: the title row moved into the shell's fixed head (`<AuthShell head={…}>`), so the row now closes with `}` and `>`.
-    expect(source).toMatch(/\{doc.title\}\s*<\/Text>\s*<\/View>\}\s*>\s*\{meta \? \(\s*<Text[^>]*>\{meta\}<\/Text>\s*\) : null\}\s*\{showGuardianSupervisionNotice \? <GuardianSupervisionNotice \/> : null\}\s*\{languageSections \? \(\s*<SegBtn\b/);
+    // 2026-10-13 (Z120): the body sits in a reading column, so that column opens between the head and the metadata.
+    expect(source).toMatch(/\{doc.title\}\s*<\/Text>\s*<\/View>\}\s*>\s*<View style=\{local\.column\}>\s*\{meta \? \(\s*<Text[^>]*>\{meta\}<\/Text>\s*\) : null\}\s*\{showGuardianSupervisionNotice \? <GuardianSupervisionNotice \/> : null\}\s*\{languageSections \? \(\s*<SegBtn\b/);
     const body = source.indexOf("<View style={styles.card}>");
     expect(body).toBeGreaterThan(source.indexOf("<GuardianSupervisionNotice />"));
     expect(source.slice(body)).not.toContain("GuardianSupervisionNotice");

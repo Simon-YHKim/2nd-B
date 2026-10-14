@@ -659,7 +659,7 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     // 이 반환 하나다.
     expect(wrapper).toContain("<CaptureLegacy embeddedInDock />");
     expect(wrapper).not.toMatch(/<CaptureLegacy \/>/);
-    expect(wrapper).toContain("<CaptureView firstRecordCoach={firstRecordCoach} />");
+    expect(wrapper).toContain('<CaptureView firstRecordCoach={firstRecordCoach} coachReplay={coachMode === "replay"} />');
     expect(wrapper).not.toContain("sharedEverRef.current =");
   });
 

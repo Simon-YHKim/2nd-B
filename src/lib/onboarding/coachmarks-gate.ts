@@ -21,6 +21,9 @@ const memoryFlags = new Map<string, Flags>();
 const versions = new Map<string, number>();
 const listeners = new Set<(ownerId: string, due: boolean) => void>();
 const nativeWrites = new Map<string, Promise<void>>();
+// Whether the guide last called for on this device is a replay (Z72): a replay ends in
+// front of Save, so whoever opens the coached capture has to know which one this is.
+const replayActive = new Map<string, boolean>();
 
 function ls(): Storage | null {
   try {
@@ -67,6 +70,7 @@ function persistNative(ownerId: string, operation: string, write: (storage: Asyn
 export function markCoachmarksSeen(ownerId: string): void {
   if (!ownerId) return;
   memoryFlags.set(ownerId, { seen: true, replay: false });
+  replayActive.set(ownerId, false);
   publishCoachmarksDue(ownerId, false);
   const at = new Date().toISOString();
   try {
@@ -85,6 +89,7 @@ export function markCoachmarksSeen(ownerId: string): void {
 export function resetCoachmarks(ownerId: string): void {
   if (!ownerId) return;
   memoryFlags.set(ownerId, { seen: false, replay: true });
+  replayActive.set(ownerId, true);
   publishCoachmarksDue(ownerId, true);
   const at = new Date().toISOString();
   try {
@@ -128,6 +133,11 @@ export async function hasCoachmarkContent(ownerId: string): Promise<boolean> {
   return rows.some(Boolean);
 }
 
+/** True while the guide this device shows the owner was asked for again in settings. */
+export function coachmarksReplayActive(ownerId: string | null): boolean {
+  return !!ownerId && replayActive.get(ownerId) === true;
+}
+
 /** null means the owner/storage/data check is pending or failed. */
 export function useCoachmarksGate(ownerId: string | null, ready: boolean, retryTick = 0): boolean | null {
   const [decision, setDecision] = useState<{ ownerId: string; due: boolean | null } | null>(null);
@@ -145,6 +155,7 @@ export function useCoachmarksGate(ownerId: string | null, ready: boolean, retryT
       try {
         const flags = await readFlags(ownerId);
         if (cancelled || version !== (versions.get(ownerId) ?? 0)) return;
+        replayActive.set(ownerId, flags.replay);
         if (flags.replay || flags.seen) {
           setDecision({ ownerId, due: flags.replay });
           return;
@@ -172,4 +183,5 @@ export function __resetCoachmarksGateForTests(): void {
   versions.clear();
   listeners.clear();
   nativeWrites.clear();
+  replayActive.clear();
 }

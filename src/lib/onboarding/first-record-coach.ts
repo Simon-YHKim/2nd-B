@@ -1,4 +1,15 @@
 export const FIRST_RECORD_COACH_PARAM = "first-record";
+/** A replay asked for in settings. It ends in front of Save and writes nothing (Z72). */
+export const FIRST_RECORD_REPLAY_PARAM = "first-record-replay";
+
+export type FirstRecordCoachMode = "first" | "replay";
+
+/** Which guide the capture route was opened with. Anything else is no guide. */
+export function firstRecordCoachMode(param: unknown): FirstRecordCoachMode | null {
+  if (param === FIRST_RECORD_COACH_PARAM) return "first";
+  if (param === FIRST_RECORD_REPLAY_PARAM) return "replay";
+  return null;
+}
 
 export type FirstRecordCoachStep = "format" | "input" | "save" | "done";
 

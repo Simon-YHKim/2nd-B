@@ -85,6 +85,7 @@ import {
 } from "@/lib/interview/probe";
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "@/lib/interview/session-end";
+import { storedTurns, storyTitle } from "@/lib/interview/saved-story";
 import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
 import { isRecordingAudioMode } from "@/lib/audio/audio-session";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
@@ -252,6 +253,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   // summary replaces the phone's screen instead of the app's route.
   const router = useAppRouter();
   const { t, i18n } = useTranslation("interview");
+  const { t: homeT } = useTranslation("home");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "ko" | "en";
   // 기록에 남기는 시기도 같은 id 로 쓴다. Growth 렌즈가 이 값을 생애 장의 정본으로
   // 읽고, 값이 없는 일반 성장 기록만 created_at 연대로 되돌아간다. 옛 행의
@@ -292,6 +294,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const [notice, setNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "danger" } | null>(null);
   const [failModal, setFailModal] = useState(false);
+  /** 저장 화면의 표("이만큼 팠다")는 접어 둔다 (Simon 결정 Q-261013-52). */
+  const [tableOpen, setTableOpen] = useState(false);
   const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
     visible: false,
     hotline: "KR_109",
@@ -644,7 +648,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     try {
       const qLabel = locale === "ko" ? "질문" : "Q";
       const aLabel = locale === "ko" ? "답변" : "A";
-      const transcript = turns
+      // 마지막 답까지만 담는다 -- "여기까지"로 끝내면 답 없는 질문이 끝에 붙어 있다(Z63).
+      const transcript = storedTurns(turns)
         .map((turn) => `${turn.role === "interviewer" ? qLabel : aLabel}: ${turn.text}`)
         .join("\n\n");
       // The pre-save check above is the LOCAL lexicon. createRecord's own C9
@@ -658,10 +663,13 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         kind: "audit_response",
         body: transcript,
         topic: locale === "ko" ? "회상 인터뷰" : "Recall interview",
-        summary:
-          locale === "ko"
-            ? `${userTurns}턴 회상 인터뷰`
-            : `${userTurns}-turn recall interview`,
+        // 목록에 보이는 제목. 모든 이야기가 답한 횟수만 다른 같은 줄이라 열어 봐야
+        // 구분됐다(Z61 · Simon 결정 Q-261013-51: 별 이름 + 첫 답의 앞부분).
+        // 저장본이 "답변"으로 적는 턴 그대로다 -- 무슨 뜻의 말인지는 여기서 가리지 않는다.
+        summary: storyTitle(
+          homeT(`ds.star.${period}`),
+          turns.filter((turn) => turn.role === "user").map((turn) => turn.text),
+        ),
         // 옛 스크리너와 같은 표식. assess/registry.ts 가 이걸로 완료를 판정한다.
         // 앱 표식 칸(0218)에 쓴다 — 사용자 태그와 섞이지 않게.
         systemTags: recallInterviewSystemTags(locale),
@@ -723,13 +731,31 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
              *  대화가 끝난 뒤에 보여주는 것이 정직한 순서다.
              *
              *  열은 사용자가 **살아온 시기**만(`periodIdsForAge`). LIFE_PERIODS 를
-             *  그대로 그리면 스물다섯 살에게 70대 열이 보인다. */}
-            <DrillProgress
-              coverage={coverage}
-              locale={locale}
-              periods={coveredPeriods}
-              activePeriod={period}
-            />
+             *  그대로 그리면 스물다섯 살에게 70대 열이 보인다.
+             *
+             *  표는 접어 둔다 (Z64 · Simon 결정 Q-261013-52). 처음 쓰는 사람에게 L1 ~ L5
+             *  표는 뜻이 전해지지 않았다. 오늘 한 것 한 줄이 먼저고, 그 줄을 누르면 편다. */}
+            <Pressable
+              onPress={() => setTableOpen((open) => !open)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: tableOpen }}
+              // 웹은 `accessibilityState.expanded` 를 옮겨 주지 않는다(PixelPressable 과 같은 까닭).
+              aria-expanded={tableOpen}
+              style={styles.saveMeta}
+            >
+              <Text style={[m3TextStyle("bodyMedium"), styles.saveMetaText]}>
+                {t("drill.saveMeta", { star: homeT(`ds.star.${period}`), n: userTurns })}
+              </Text>
+              <Glyph name={tableOpen ? "expand_less" : "expand_more"} color={m3.color.onSurfaceVariant} />
+            </Pressable>
+            {tableOpen ? (
+              <DrillProgress
+                coverage={coverage}
+                locale={locale}
+                periods={coveredPeriods}
+                activePeriod={period}
+              />
+            ) : null}
             <MdCard variant="outlined" style={styles.noteCard}>
               <Text style={[m3TextStyle("bodySmall"), styles.note]}>{t("drill.saveBody")}</Text>
             </MdCard>
@@ -949,6 +975,14 @@ const styles = StyleSheet.create({
   // 대화 화면이라 버튼이 키보드 위에 붙고, 거기서 작으면 그대로 오탭이 된다.
   actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs, minHeight: 48 },
   actionButton: { minHeight: 48, justifyContent: "center" },
+  saveMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    minHeight: 48,
+  },
+  saveMetaText: { flex: 1, color: m3.color.onSurface },
   saveTitle: { color: m3.color.onSurface },
   saveBody: { color: m3.color.onSurfaceVariant },
   noteCard: { padding: spacing.sm },

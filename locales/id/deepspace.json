@@ -154,7 +154,7 @@
   "account": {
     "title": "Akun",
     "status": "Kelola informasi akun dan akun lain yang kamu hubungkan.",
-    "tip": "Kamu bisa memulai penghapusan atau ekspor sendiri kapan saja.",
+    "tip": "Kamu bisa memulai penghapusan akun sendiri kapan saja.",
     "delete": "Hapus akun",
     "navProfile": "Profil",
     "navSettings": "Pengaturan",
@@ -649,10 +649,12 @@
     "fallbackInsight": "Memahami diriku secara mendalam, hidup lebih seperti diriku."
   },
   "coachmarks": {
-    "homeStep": "Ketuk HustleK untuk mulai menyimpan catatan.",
+    "homeStep": "Ketuk Klip untuk memulai catatan.",
     "formatStep": "Pilih Memo terlebih dahulu. Satu baris sudah cukup.",
     "inputStep": "Tulis pikiranmu saat ini. Tidak harus berupa kalimat lengkap.",
     "saveStep": "Terakhir, ketuk Simpan untuk menyimpan catatan ini.",
+    "replayEndStep": "Simpan akan menyimpan catatan.",
+    "replayEndHint": "Tayangan ulang ini berakhir di sini, tanpa menyimpan.",
     "doneStep": "Catatanmu sudah tersimpan. Kembali ke rasi untuk melihatnya.",
     "targetHint": "Ketuk kontrol yang disorot untuk melanjutkan.",
     "inputHint": "Tulis setidaknya satu karakter untuk lanjut ke Simpan.",

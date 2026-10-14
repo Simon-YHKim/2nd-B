@@ -78,14 +78,38 @@ export function yearsDescending(minYear: number, maxYear: number): number[] {
   return out;
 }
 
+/** The year grid's measures in px: one row, the list's own top and bottom padding, the list's height. */
+export interface YearGridLayout {
+  rowHeight: number;
+  pad: number;
+  viewport: number;
+}
+
 /**
- * The row the year grid opens on: one row above the row holding `year`, so the
- * chosen year is in view with its newer neighbours. Row 0 when there is no year
- * or it is outside the list. Rows hold `columns` years, newest first.
+ * The scroll offset the year grid opens at: the row holding `year` sits in the middle of the
+ * list. With a list an even number of rows tall, the rows at its top and bottom edges are then
+ * cut in half and read as "there is more both ways" (Simon 2026-10-13, Z104). Kept inside the
+ * list's two ends; 0 when there is no year or it is outside the list. Rows hold `columns` years,
+ * newest first.
  */
-export function yearGridStartRow(minYear: number, maxYear: number, year: number | null, columns: number): number {
+export function yearGridOpenOffset(
+  minYear: number,
+  maxYear: number,
+  year: number | null,
+  columns: number,
+  layout: YearGridLayout,
+): number {
   if (year === null || year > maxYear || year < minYear || columns < 1) return 0;
-  return Math.max(0, Math.floor((maxYear - year) / columns) - 1);
+  const row = Math.floor((maxYear - year) / columns);
+  const rows = Math.ceil((maxYear - minYear + 1) / columns);
+  const end = layout.pad * 2 + layout.rowHeight * rows - layout.viewport;
+  const centred = layout.pad + layout.rowHeight * row - (layout.viewport - layout.rowHeight) / 2;
+  return Math.max(0, Math.min(centred, end));
+}
+
+/** The first row in view at that offset: what a list that can only open on a row index is given. */
+export function yearGridOpenRow(offset: number, layout: YearGridLayout): number {
+  return Math.max(0, Math.floor((offset - layout.pad) / layout.rowHeight));
 }
 
 /** Year of a valid ISO date, or null. */
