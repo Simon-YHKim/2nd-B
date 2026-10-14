@@ -86,6 +86,7 @@
         "menuTag": "Menu",
         "menu": "What would you like to do?",
         "travel": "Travel",
+        "goToStar": "Go to {{star}}",
         "later": "Later",
         "returnToSky": "Return to the constellation",
         "chatbot": "Chatbot",

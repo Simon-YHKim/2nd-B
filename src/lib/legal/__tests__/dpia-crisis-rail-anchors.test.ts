@@ -461,8 +461,9 @@ test("홈 머리 누르기는 유휴 표정을 지우는 이벤트를 보내지 
   // 여기서 빨개지고, 그때는 문서 문장을 다시 넓혀야 한다.
   //
   // 시야(넓혀 말하지 않는다): 머리의 onPress 가 사는 홈 파일과 reveal 이 사는 대사
-  // 타자기 파일뿐이다. 코치 단계의 onCoachHeadPress 는 DeepSpaceShell 이 넘기는
-  // `/capture` 이동이고, 그 화면에서 저장하면 반응이 간다 - 그건 문서가 말하는 '저장' 이다.
+  // 타자기 파일뿐이다. 첫 기록 안내의 `/capture` 이동은 2026-10-14 부터 머리가 아니라
+  // 아래 탭 「스크랩」에서 나간다(DeepSpaceShell 의 onDockSelect · Z70). 그 화면에서 저장하면
+  // 반응이 간다 - 그건 문서가 말하는 '저장' 이다.
   const HOME = "src/components/deep-space/ConstellationHome.tsx";
   const PRESS_PATH = [HOME, "src/components/deep-space/JrpgDialogueBox.tsx"];
   const WAKE = /\b(?:reactExpression|holdExpression)\s*\(/;

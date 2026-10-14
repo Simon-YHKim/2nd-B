@@ -86,6 +86,7 @@
         "menuTag": "Menu",
         "menu": "Como posso ajudar?",
         "travel": "Viajar",
+        "goToStar": "Ir para {{star}}",
         "later": "Depois",
         "returnToSky": "Voltar à constelação",
         "chatbot": "Chatbot",

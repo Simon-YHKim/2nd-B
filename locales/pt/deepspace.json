@@ -154,7 +154,7 @@
   "account": {
     "title": "Conta",
     "status": "Gerencie suas informações e escolha quais contas conectar.",
-    "tip": "Você pode exportar seus dados ou iniciar a exclusão quando quiser.",
+    "tip": "Você pode iniciar a exclusão da conta quando quiser.",
     "delete": "Excluir conta",
     "navProfile": "Perfil",
     "navSettings": "Configurações",
@@ -649,10 +649,12 @@
     "fallbackInsight": "Me entender a fundo, viver mais do meu jeito."
   },
   "coachmarks": {
-    "homeStep": "Toque no HustleK para começar a salvar um registro.",
+    "homeStep": "Toque em Recortes para começar um registro.",
     "formatStep": "Primeiro escolha Memorando. Uma linha é suficiente.",
     "inputStep": "Escreva o que está pensando. Não precisa ser uma frase completa.",
     "saveStep": "Por fim, toque em Salvar para guardar este registro.",
+    "replayEndStep": "Salvar guarda o registro.",
+    "replayEndHint": "Esta segunda vez termina aqui, sem salvar.",
     "doneStep": "Seu registro foi salvo. Volte à constelação para vê-lo.",
     "targetHint": "Toque no controle destacado para continuar.",
     "inputHint": "Escreva pelo menos um caractere para continuar até Salvar.",

@@ -86,6 +86,7 @@
         "menuTag": "메뉴",
         "menu": "무엇을 할까요?",
         "travel": "여행하기",
+        "goToStar": "{{star}} 별로 가기",
         "later": "다음에",
         "returnToSky": "별자리로 돌아가기",
         "chatbot": "챗봇",

@@ -154,7 +154,7 @@
   "account": {
     "title": "Account",
     "status": "Manage your account details and connected accounts.",
-    "tip": "You can also export data or delete your account here.",
+    "tip": "You can also delete your account here.",
     "delete": "Delete account",
     "navProfile": "Profile",
     "navSettings": "Settings",
@@ -649,10 +649,12 @@
     "fallbackInsight": "Understand myself deeply, live more like myself."
   },
   "coachmarks": {
-    "homeStep": "Tap HustleK to start saving a record.",
+    "homeStep": "Tap Scrap to start a record.",
     "formatStep": "Choose Memo first. One line is enough.",
     "inputStep": "Write the thought on your mind. It does not need to be a complete sentence.",
     "saveStep": "Now tap Save to keep this record.",
+    "replayEndStep": "Save keeps the record.",
+    "replayEndHint": "This second look ends here, without saving.",
     "doneStep": "Your record is saved. Return to the constellation to see it.",
     "targetHint": "Tap the highlighted control to continue.",
     "inputHint": "Write at least one character to continue to Save.",

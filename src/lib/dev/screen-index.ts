@@ -590,7 +590,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         },
       },
       { file: "theme", href: "/theme", label: "테마", auth: true },
-      { file: "data", href: "/data", label: "데이터 관리", auth: true },
+      { file: "data", href: "/data", label: "내 데이터", auth: true },
       { file: "permissions", href: "/permissions", label: "권한 관리" },
       // 2026-10-04 W-02: 라우트의 리다이렉트는 legacy 반쪽(PrivacyLegacy) 안에만
       // 있었고, 배송되는 화면은 로그아웃이면 설정을 그린 채 '생년월일을 확인하는

@@ -11,10 +11,10 @@
  * Rendered only in the deep-space build. The deep-space-shell-a11y guard pins the
  * character accessibilityLabel pattern to THIS file.
  */
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type ReactNode, type RefObject } from "react";
 import { BackHandler, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, usePathname, type Href } from "expo-router";
 
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
@@ -72,6 +72,10 @@ export function DeepSpaceScreen({
   onBack,
   action,
   ownBack = false,
+  overlay,
+  dockItemRefs,
+  dockItemHints,
+  onDockSelect,
   children,
 }: {
   active: DeepSpaceTab;
@@ -100,6 +104,15 @@ export function DeepSpaceScreen({
   /** The screen draws its own back button in its body. Inside the dashboard
    *  phone the shell then adds no second one (Back lives in one place). */
   ownBack?: boolean;
+  /** Drawn above the body and the dock. The body's own children stop at the dock's top edge,
+   *  so a guide that points at a dock tab has to be drawn here. */
+  overlay?: ReactNode;
+  /** Refs to single dock tabs, for that guide to measure. */
+  dockItemRefs?: Partial<Record<DeepSpaceTab, RefObject<View | null>>>;
+  /** A hint read on single dock tabs (the guide's sentence, on the tab it points at). */
+  dockItemHints?: Partial<Record<DeepSpaceTab, string>>;
+  /** A screen may take a dock press itself. Returning true means it did. */
+  onDockSelect?: (tab: DeepSpaceTab) => boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation("home");
@@ -129,6 +142,7 @@ export function DeepSpaceScreen({
   const pathname = usePathname();
   const embed = usePhoneEmbed();
   const phone = usePhoneDesign();
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     if (active === "home" || !TABS.includes(active)) return;
     if (pathname !== TAB_ROUTE[active]) return;
@@ -144,6 +158,7 @@ export function DeepSpaceScreen({
     key,
     label: t("ds.dock." + key),
     accessibilityLabel: t("ds.dock." + key),
+    accessibilityHint: dockItemHints?.[key],
     icon: (color: string) => <TabIcon tab={key} color={color} size={24} />,
   }));
 
@@ -242,13 +257,22 @@ export function DeepSpaceScreen({
         items={dockItems}
         buttonLike
         style={styles.buttonDock}
+        itemRefs={dockItemRefs}
         onSelect={(tab) => {
+          if (onDockSelect?.(tab as DeepSpaceTab)) return;
           const target = TAB_ROUTE[tab as DeepSpaceTab];
           // Sub-screens highlight their owning root tab. Tapping that highlighted
           // item must still return to the root instead of becoming a no-op.
           if (tab !== active || pathname !== target) router.replace(target);
         }}
       />
+      {/* The overlay covers the body and the dock, and stays inside the safe area like they do:
+          an absolute child ignores this view's inset padding, so the insets are given here. */}
+      {overlay ? (
+        <View pointerEvents="box-none" style={[styles.overlayHost, { top: insets.top, bottom: insets.bottom }]}>
+          {overlay}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -275,6 +299,7 @@ const styles = StyleSheet.create({
     borderTopColor: m3.color.surfaceBright,
   },
   floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 6 },
+  overlayHost: { position: "absolute", left: 0, right: 0, zIndex: 40 },
   // Content clears the ~56dp bar zone (no blur, so "under the scrim" would
   // just be hidden; clearance matches the visual outcome).
   museumBody: { flex: 1, paddingTop: 60 },

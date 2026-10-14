@@ -38,7 +38,8 @@ import {
   monthGrid,
   todayISO,
   yearsDescending,
-  yearGridStartRow,
+  yearGridOpenOffset,
+  yearGridOpenRow,
 } from "./calendar-math";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 
@@ -211,6 +212,10 @@ const YEAR_ROW_HEIGHT = m3.minTouch + m3.spacing.s1 * 2;
 // that much low, and a sliver of the row above stayed in view and in the accessibility tree
 // (A-Z first-use check, round 7: the birth year list read as starting one row early).
 const YEAR_LIST_PAD = m3.spacing.s2;
+// The list is an even number of rows tall. With the chosen year's row in the middle, the rows at
+// the top and bottom edges are then cut in half, which shows there are years both ways (Z104).
+const YEAR_ROWS_SHOWN = 6;
+const YEAR_LIST_HEIGHT = YEAR_ROW_HEIGHT * YEAR_ROWS_SHOWN;
 
 function YearGrid({
   minYear,
@@ -225,7 +230,10 @@ function YearGrid({
 }) {
   const data = useMemo(() => yearsDescending(minYear, maxYear), [minYear, maxYear]);
   const listRef = useRef<FlatList<number>>(null);
-  const startRow = yearGridStartRow(minYear, maxYear, selectedYear, YEAR_COLUMNS);
+  // Open with the chosen year's row in the middle of the list, not on the newest year (a birth
+  // year sits decades down). The offset depends on how tall the list came out, so it is asked twice.
+  const layout = (viewport: number) => ({ rowHeight: YEAR_ROW_HEIGHT, pad: YEAR_LIST_PAD, viewport });
+  const openOffset = (viewport: number) => yearGridOpenOffset(minYear, maxYear, selectedYear, YEAR_COLUMNS, layout(viewport));
   const started = useRef(false);
   return (
     <FlatList
@@ -233,14 +241,17 @@ function YearGrid({
       data={data}
       keyExtractor={(y) => String(y)}
       numColumns={YEAR_COLUMNS}
-      // Open on the chosen year's row, not on the newest year (a birth year sits decades down).
-      initialScrollIndex={startRow}
+      // A list can only open on a whole row, so this is the row at the top edge for the list's usual height.
+      initialScrollIndex={yearGridOpenRow(openOffset(YEAR_LIST_HEIGHT), layout(YEAR_LIST_HEIGHT))}
       getItemLayout={(_, index) => ({ length: YEAR_ROW_HEIGHT, offset: YEAR_LIST_PAD + YEAR_ROW_HEIGHT * index, index })}
-      // The web list does not honour initialScrollIndex, so the first layout moves to the same row itself.
-      onLayout={() => {
-        if (started.current || startRow === 0) return;
+      // The first layout moves to the exact offset for the height the list really has. The web list
+      // does not honour initialScrollIndex at all, so there this is the only move.
+      onLayout={(event) => {
+        if (started.current) return;
         started.current = true;
-        listRef.current?.scrollToOffset({ offset: YEAR_LIST_PAD + YEAR_ROW_HEIGHT * startRow, animated: false });
+        const height = event.nativeEvent.layout.height;
+        const offset = openOffset(height > 0 ? height : YEAR_LIST_HEIGHT);
+        if (offset > 0) listRef.current?.scrollToOffset({ offset, animated: false });
       }}
       style={styles.yearList}
       contentContainerStyle={styles.yearListContent}
@@ -791,7 +802,7 @@ const styles = StyleSheet.create({
   dayToday: { borderWidth: 1, borderColor: m3.color.primary },
 
   // Year grid.
-  yearList: { maxHeight: 300, alignSelf: "stretch" },
+  yearList: { maxHeight: YEAR_LIST_HEIGHT, alignSelf: "stretch" },
   yearListContent: { paddingVertical: YEAR_LIST_PAD },
   yearCellWrap: { flex: 1, padding: m3.spacing.s1 },
   // ⚠ 높이가 패딩에서만 나오던 자리다. `--u` 2px 이주(2026-08-20)로 s3 가 12 -> 6 이

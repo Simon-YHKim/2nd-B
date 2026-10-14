@@ -58,9 +58,12 @@ export function SegBtn({
     >
       {segments.map((seg, i) => {
         const on = selected.includes(seg.key);
-        let fg: string = on ? m3.color.onSecondaryContainer : m3.color.onSurface;
+        // Z84 (Simon 2026-10-13): the chosen cell is filled with the app's bright blue, like the
+        // capture screen's kind selector, and the other cells dim. Before, the chosen cell was only a
+        // shade lighter with dimmer text, and it read as the one NOT chosen.
+        let fg: string = on ? m3.color.onPrimary : m3.color.onSurfaceVariant;
         if (disabled) {
-          fg = on ? m3.disabled.onSecondaryContainer : m3.disabled.onSurface;
+          fg = on ? m3.disabled.onPrimary : m3.disabled.onSurface;
         }
         if (phone) fg = disabled ? phoneIos.label2 : phoneIos.label;
         return (
@@ -123,7 +126,7 @@ const styles = StyleSheet.create({
   },
   divider: { borderLeftWidth: 1, borderLeftColor: m3.color.outline },
   dividerDisabled: { borderLeftWidth: 1, borderLeftColor: m3.disabled.outline },
-  segOn: { backgroundColor: m3.color.secondaryContainer },
-  segOnDisabled: { backgroundColor: m3.disabled.secondaryContainer },
+  segOn: { backgroundColor: m3.color.primary },
+  segOnDisabled: { backgroundColor: m3.disabled.primary },
   icon: { justifyContent: "center" },
 });

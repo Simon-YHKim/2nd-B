@@ -86,6 +86,7 @@
         "menuTag": "Menu",
         "menu": "Apa yang ingin kamu lakukan?",
         "travel": "Jelajahi",
+        "goToStar": "Ke {{star}}",
         "later": "Nanti",
         "returnToSky": "Kembali ke rasi bintang",
         "chatbot": "Chatbot",

@@ -154,7 +154,7 @@
   "account": {
     "title": "Cuenta",
     "status": "Revisa tus datos y las cuentas que has conectado.",
-    "tip": "Puedes exportar tus datos o eliminar tu cuenta cuando quieras.",
+    "tip": "Puedes eliminar tu cuenta cuando quieras.",
     "delete": "Eliminar cuenta",
     "navProfile": "Perfil",
     "navSettings": "Ajustes",
@@ -649,10 +649,12 @@
     "fallbackInsight": "Entenderme a fondo, vivir más como yo."
   },
   "coachmarks": {
-    "homeStep": "Toca HustleK para empezar a guardar un registro.",
+    "homeStep": "Toca Recortes para empezar un registro.",
     "formatStep": "Primero elige Nota. Una línea es suficiente.",
     "inputStep": "Escribe lo que tienes en mente. No hace falta una frase completa.",
     "saveStep": "Por último, toca Guardar para conservar este registro.",
+    "replayEndStep": "Guardar conserva el registro.",
+    "replayEndHint": "Esta segunda vuelta termina aquí, sin guardar.",
     "doneStep": "Tu registro está guardado. Vuelve a la constelación para verlo.",
     "targetHint": "Toca el control resaltado para continuar.",
     "inputHint": "Escribe al menos un carácter para continuar a Guardar.",
