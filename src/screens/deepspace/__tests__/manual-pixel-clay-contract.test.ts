@@ -66,7 +66,7 @@ describe("PIXEL-CLAY /manual content contract", () => {
       "/privacy",
     ]);
     expect(topics.flatMap(({ actions }) => actions.map(({ route }) => route))).toEqual(
-      expect.arrayContaining(["/privacy", "/iden", "/account?tool=export", "/support"]),
+      expect.arrayContaining(["/privacy", "/iden", "/data?open=account-export", "/support"]),
     );
   });
 

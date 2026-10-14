@@ -34,64 +34,58 @@ describe("the account hub keeps one door per place", () => {
 
 // The doors that carry the query: My data's export card and the manual's shortcut. Opening the
 // account screen any other way (settings' account row) does not draw the tool.
-describe("the export tool is drawn only for the visitor who came for it", () => {
+describe("the export lives in My data (Q-261014-61, Simon 2026-10-14)", () => {
   const screen = read("src/screens/deepspace/dds-account-screen.tsx");
-  const guard = screen.indexOf('{requestedTool === "export" ? (');
-  const guardEnd = screen.indexOf("              </>\n            ) : null}", guard);
-  const guarded = screen.slice(guard, guardEnd);
+  const dataScreen = read("src/screens/deepspace/dds-data-screen.tsx");
+  const panel = read("src/screens/deepspace/dds-account-export.tsx");
 
-  it("draws the export row and its body only for the visitor who came for it", () => {
-    expect(guard).toBeGreaterThan(-1);
-    expect(guardEnd).toBeGreaterThan(guard);
-    expect(guarded).toContain('accessibilityLabel={t("consent:account.export.label")}');
-    expect(guarded).toContain("onPress={() => void onExportData()}");
-    // Nothing of the export tool is drawn outside the guard.
-    const outside = screen.slice(0, guard) + screen.slice(guardEnd);
-    expect(outside).not.toContain('t("consent:account.export.label")');
-    expect(outside).not.toContain('t("consent:account.export.button")');
+  it("the account screen draws no export, and an old link to it opens My data's export card", () => {
+    expect(screen).not.toContain('t("consent:account.export.label")');
+    expect(screen).not.toContain('t("consent:account.export.button")');
+    expect(screen).not.toContain("exportAccountData");
+    expect(screen).toContain('if (requestedTool === "export") return <Redirect href="/data?open=account-export" />;');
+    // The redirect comes after the signed-out redirect, so a visitor who is not signed in goes to sign-in.
+    expect(screen.indexOf('if (!userId) return <Redirect href="/sign-in" />;')).toBeLessThan(screen.indexOf('if (requestedTool === "export")'));
   });
 
-  it("keeps the birth-date tool and the delete row outside that guard", () => {
-    expect(guarded).not.toContain('t("consent:account.dob.label")');
-    expect(guarded).not.toContain('router.push("/privacy?section=delete")');
-    expect(screen.indexOf('t("consent:account.dob.label")')).toBeLessThan(guard);
-    expect(screen.indexOf('router.push("/privacy?section=delete")')).toBeGreaterThan(guardEnd);
+  it("keeps the birth-date tool and the delete row on the account screen", () => {
+    expect(screen).toContain('t("consent:account.dob.label")');
+    expect(screen).toContain('router.push("/privacy?section=delete")');
   });
 
-  // The guard reads the route's own query through the closed list of two tools, nothing else.
   it("takes the tool from the route's query", () => {
     expect(screen).toContain("const { tool } = useScreenParams<{ tool?: string | string[] }>();");
     expect(screen).toContain("const requestedTool = accountToolFromParam(tool);");
-    // One assignment; every other mention is a comparison.
     expect(screen.split("const requestedTool").length - 1).toBe(1);
     expect(screen.split("requestedTool = ").length - 1).toBe(1);
-  });
-
-  it("still opens the tool when the visitor arrives with the query", () => {
-    expect(screen).toContain('setExportOpen(requestedTool === "export");');
     expect(accountToolFromParam("export")).toBe("export");
     expect(accountToolFromParam(["export"])).toBeNull();
     expect(accountToolFromParam("settings")).toBeNull();
   });
 
-  it("My data's export card and the manual's shortcut both carry the query", () => {
+  it("My data's export card runs the export in place, and the manual's shortcut opens that card", () => {
     const card = DATA_RIGHTS.find((item) => item.id === "account-export");
-    expect(card?.route).toBe("/account?tool=export");
-    expect(read("src/screens/deepspace/dds-manual-content.ts")).toContain('routes: ["/privacy", "/iden", "/account?tool=export", "/support"],');
+    expect(card?.route).toBeUndefined();
+    expect(dataScreen).toContain('{item.id === "account-export" ? (');
+    expect(dataScreen).toContain("<AccountExportPanel />");
+    expect(dataScreen).toContain("const { open } = useScreenParams<{ open?: string }>();");
+    expect(dataScreen).toContain("() => DATA_RIGHTS.find((item) => item.id === open)?.id ?? null,");
+    expect(read("src/screens/deepspace/dds-manual-content.ts")).toContain('routes: ["/privacy", "/iden", "/data?open=account-export", "/support"],');
   });
 
-  // The account row in settings opens the screen without the query: no export row there.
+  // The account row in settings opens the screen without the query.
   it("settings opens the account screen without the query", () => {
     const settings = read("src/app/settings.tsx");
     expect(settings).toContain('router.push("/account")');
     expect(settings).not.toContain("/account?tool=");
   });
 
-  // The export owner checks are untouched: the tool moved nowhere.
-  it("leaves the export call and its two owner checks as they were", () => {
-    expect(screen).toContain("const result = await exportAccountData({");
-    expect(screen).toContain("expectedUserId: requestedUser,");
-    expect(screen).toContain("activeUserRef.current === requestedUser &&");
+  // The export's owner checks moved with it, unchanged.
+  it("keeps the export call and its owner checks as they were", () => {
+    expect(panel).toContain("const result = await exportAccountData({");
+    expect(panel).toContain("expectedUserId: requestedUser,");
+    expect(panel).toContain("activeUserRef.current === requestedUser &&");
+    expect(panel).toContain("authEpochRef.current === requestedEpoch,");
   });
 });
 
