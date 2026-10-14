@@ -246,30 +246,62 @@ describe("callLlm", () => {
       };
     };
 
-    test("a red text reaches no model: no SDK call, neither proxy door, and both ledgers written", async () => {
-      const { classifyChatTextForCrisis } = jest.requireActual("../boundary") as typeof import("../boundary");
-      const live = liveHarness();
-      try {
-        expect(envModule.getEnv().EXPO_PUBLIC_LLM_MODE).toBe("live");
-        const result = await classifyChatTextForCrisis("죽고 싶어요", "ko", "chat-user", true);
+    // The routing must not depend on the deployment setting either. Production ships with the edge
+    // on (eas.json), and a branch in the shared routeCrisis keyed on live + edge + purpose could
+    // return null for chat there while the only live red test ran with the edge off (review G-03,
+    // 2026-10-14). So every crisis router built on routeCrisis runs in both settings, and must give
+    // the same fixed result it gives in this suite's default env.
+    const actual = jest.requireActual("../boundary") as typeof import("../boundary");
+    type Router = (text: string, locale: "en" | "ko", userId: string, minor?: boolean) => Promise<LlmResult<string> | null>;
+    const ROUTERS: [string, Router, string | undefined, string][] = [
+      ["classifyChatTextForCrisis", actual.classifyChatTextForCrisis, "secondb_chat", "input_red"],
+      ["classifyRecordTextForCrisis", actual.classifyRecordTextForCrisis, undefined, "record_save_red"],
+      ["classifyInterviewTextForCrisis", actual.classifyInterviewTextForCrisis, "interview_probe", "interview_input_red"],
+    ];
+    const RED_CASES = ROUTERS.flatMap(([name, route, purpose, tag]) =>
+      [false, true].map((viaEdge): [string, boolean, Router, string | undefined, string] => [name, viaEdge, route, purpose, tag]),
+    );
 
-        expect(result?.safety.zone).toBe("red");
-        expect(mockGenerateContent).not.toHaveBeenCalled();
-        expect(live.client).not.toHaveBeenCalled();
-        expect(live.capturedInvoke).not.toHaveBeenCalled();
-        expect(insertMock).toHaveBeenCalledTimes(1);
-        expect(insertMock.mock.calls[0]![0]).toMatchObject({
-          userId: "chat-user",
-          purpose: "secondb_chat",
-          safetyZone: "red",
-          modelUsed: "none-crisis-routed",
-        });
-        expect(crisisMock).toHaveBeenCalledTimes(1);
-        expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("input_red");
-      } finally {
-        live.restore();
-      }
-    });
+    test.each(RED_CASES)(
+      "%s, live with viaEdge=%s: the fixed guidance, no model, neither proxy door, both ledgers",
+      async (_name, viaEdge, route, purpose, tag) => {
+        // The reference: the same router, same text, in this suite's default env.
+        const reference = await route("죽고 싶어요", "ko", "chat-user", true);
+        if (!reference) throw new Error("red text must be routed in the default env");
+        expect(reference.audit.modelUsed).toBe("none-crisis-routed");
+        expect(reference.text).toContain("1388 또는 109");
+        await resetAuditWriteOutboxForTests();
+        insertMock.mockClear();
+        crisisMock.mockClear();
+
+        const live = liveHarness(viaEdge);
+        try {
+          expect(envModule.getEnv().EXPO_PUBLIC_LLM_MODE).toBe("live");
+          expect(envModule.getEnv().EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION).toBe(viaEdge);
+          const result = await route("죽고 싶어요", "ko", "chat-user", true);
+
+          // Not null: a null here is a turn the chat engine would go on to count.
+          expect(result).not.toBeNull();
+          expect(result).toEqual(reference);
+          expect(result?.safety.zone).toBe("red");
+          expect(result?.audit.modelUsed).toBe("none-crisis-routed");
+          expect(mockGenerateContent).not.toHaveBeenCalled();
+          expect(live.client).not.toHaveBeenCalled();
+          expect(live.capturedInvoke).not.toHaveBeenCalled();
+          expect(insertMock).toHaveBeenCalledTimes(1);
+          expect(insertMock.mock.calls[0]![0]).toMatchObject({
+            userId: "chat-user",
+            safetyZone: "red",
+            modelUsed: "none-crisis-routed",
+          });
+          expect(insertMock.mock.calls[0]![0]!.purpose).toBe(purpose);
+          expect(crisisMock).toHaveBeenCalledTimes(1);
+          expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain(tag);
+        } finally {
+          live.restore();
+        }
+      },
+    );
 
     test("control: in the same live harness a green call reaches the SDK", async () => {
       const live = liveHarness();
