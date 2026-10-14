@@ -258,18 +258,48 @@ describe("callLlm", () => {
       ["classifyRecordTextForCrisis", actual.classifyRecordTextForCrisis, undefined, "record_save_red"],
       ["classifyInterviewTextForCrisis", actual.classifyInterviewTextForCrisis, "interview_probe", "interview_input_red"],
     ];
+    // The input varies too. With every case a Korean minor, a branch for adults only (`minor !==
+    // true`, the default path, where the chat engine leaves minor out) passed all of them (review
+    // G-04, 2026-10-14). Each language runs as an adult with minor left out and as a minor, and the
+    // reference must carry that age's numbers: the youth line comes first for a Korean minor only.
+    interface RedInput {
+      label: string;
+      text: string;
+      locale: "en" | "ko";
+      minor?: boolean;
+      /** The numbers as the guidance joins them, and the primary line the classifier picks. */
+      numbers: string;
+      primary: string;
+      absent: string[];
+    }
+    const RED_INPUTS: RedInput[] = [
+      { label: "EN adult (minor left out)", text: "I want to die", locale: "en", numbers: "988", primary: "988", absent: ["1388", "109"] },
+      { label: "KO minor", text: "죽고 싶어요", locale: "ko", minor: true, numbers: "1388 또는 109", primary: "1388", absent: [] },
+      { label: "KO adult (minor left out)", text: "죽고 싶어요", locale: "ko", numbers: "109", primary: "109", absent: ["1388"] },
+      { label: "EN minor", text: "I want to die", locale: "en", minor: true, numbers: "988", primary: "988", absent: ["1388", "109"] },
+    ];
+    /** Calls the router as its callers do: an adult call leaves the age out instead of passing false. */
+    const send = (route: Router, input: RedInput): Promise<LlmResult<string> | null> =>
+      input.minor === undefined
+        ? route(input.text, input.locale, "chat-user")
+        : route(input.text, input.locale, "chat-user", input.minor);
+    type RedCase = [string, boolean, string, Router, string | undefined, string, RedInput];
     const RED_CASES = ROUTERS.flatMap(([name, route, purpose, tag]) =>
-      [false, true].map((viaEdge): [string, boolean, Router, string | undefined, string] => [name, viaEdge, route, purpose, tag]),
+      [false, true].flatMap((viaEdge) =>
+        RED_INPUTS.map((input): RedCase => [name, viaEdge, input.label, route, purpose, tag, input]),
+      ),
     );
 
     test.each(RED_CASES)(
-      "%s, live with viaEdge=%s: the fixed guidance, no model, neither proxy door, both ledgers",
-      async (_name, viaEdge, route, purpose, tag) => {
-        // The reference: the same router, same text, in this suite's default env.
-        const reference = await route("죽고 싶어요", "ko", "chat-user", true);
+      "%s, live with viaEdge=%s, %s: the fixed guidance, no model, neither proxy door, both ledgers",
+      async (_name, viaEdge, _label, route, purpose, tag, input) => {
+        // The reference: the same router, same input, in this suite's default env.
+        const reference = await send(route, input);
         if (!reference) throw new Error("red text must be routed in the default env");
         expect(reference.audit.modelUsed).toBe("none-crisis-routed");
-        expect(reference.text).toContain("1388 또는 109");
+        expect(reference.text).toContain(input.numbers);
+        for (const number of input.absent) expect([number, reference.text.includes(number)]).toEqual([number, false]);
+        expect(reference.safety.crisisRouting?.number).toBe(input.primary);
         await resetAuditWriteOutboxForTests();
         insertMock.mockClear();
         crisisMock.mockClear();
@@ -278,7 +308,7 @@ describe("callLlm", () => {
         try {
           expect(envModule.getEnv().EXPO_PUBLIC_LLM_MODE).toBe("live");
           expect(envModule.getEnv().EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION).toBe(viaEdge);
-          const result = await route("죽고 싶어요", "ko", "chat-user", true);
+          const result = await send(route, input);
 
           // Not null: a null here is a turn the chat engine would go on to count.
           expect(result).not.toBeNull();
@@ -296,6 +326,7 @@ describe("callLlm", () => {
           });
           expect(insertMock.mock.calls[0]![0]!.purpose).toBe(purpose);
           expect(crisisMock).toHaveBeenCalledTimes(1);
+          expect(crisisMock.mock.calls[0]![0]).toMatchObject({ locale: input.locale });
           expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain(tag);
         } finally {
           live.restore();
