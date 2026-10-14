@@ -1304,7 +1304,7 @@ describe("개발자 화면 목록", () => {
     // ?mode=divergent 는 트위비를 심는데 트위비는 pro(=brain) 전용이라 free·plus 에서는
     // effect 가 페르소나를 **조용히** 되돌린다. 그래서 이 변형에만 등급 안내가 붙는다.
     const note = devScreenVariants().find(({ variant }) => variant.href === "/secondb?mode=divergent")?.variant.note ?? "";
-    expect(note).toContain("Brain");
+    expect(note).toContain("북극성(pro)");
     expect(note).toContain("EXPO_PUBLIC_FORCE_TIER=brain");
 
     const secondb = readFileSync(join(APP, "secondb.tsx"), "utf8");
