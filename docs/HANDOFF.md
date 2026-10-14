@@ -1,5 +1,13 @@
 # 2nd-Brain Handoff
 
+## 2026-10-15 01:12 / 2ndb-79: 새벽 마감 — 위기 입력 붙임꼴 운영 반영 · 첫 화면 시범 끝 · #2516 보강 중 · Q-261015-80 대기
+
+- **운영 상태**: openai-proxy v154 · gemini-proxy v168 = main `2ac1916c`(붙임꼴 위기 검사 포함). **0255 운영 적용(10-17 23:20 뒤 Relay) 전에는 프록시 재배포 금지** — #2438(01:00 머지) 뒤의 main 프록시는 운영에 없는 begin_chat_turn_attempt · claim_chat_turn_for_audit 를 부른다(배포 게이트가 막음).
+- **열린 PR**: #2516(설명형 문구 CI 경고 · 1회차 BLOCK 넷 고치는 중 · 가지 `chore/explanatory-copy-warning` · 워크트리 `.worktrees/z40-chat-retry-261014`). #2483(Q-261014-81) · #2497(Q-261014-82)은 여전히 대표님 답 대기 — 8081 에서 위기로 끊긴 턴도 하루 횟수가 1 오르는 것을 다시 봤다(#2483 이 고치는 동작).
+- **대표님 답 대기**: Q-261015-80(남은 우회 꼴 · 보고서 2판) · Q-261014-81 · 82 · 83. 첫 화면 시범을 다른 화면으로 넓힐지(넓히면 설정 · 기록 남기기 · 가입 · 프로필 순).
+- **다음**: #2516 2회차 → 머지 · Q-261014-91(답 쪽 오탐 지시문 · 위기 입력 전체로 전 · 후 각 30회 이상 · 고정 안내 발동이 줄면 머지 안 함 · 측정 시각 범위를 기록해 2주 집계에서 뺄 것) · 화면 환불(#2438 새 계약: 다시 묻기는 가장 최근 턴에 한 번 · 보류 중인 턴 먼저 확인 · 확인 전 새 보내기 막기).
+- **캡처 스크립트**(재사용): `E:/Coding Infra/reports/devlab-261010/ui/z-crisis-joined/joined_shots.cjs` · `proxy_gate_probe.cjs` · `ui/z-capture-firstrun/firstrun_shots.cjs` · `ui/z-register86/chat_register_shots.cjs` (모두 `<before|after> <out-dir>`).
+
 ## 2026-10-15 01:07 / 2ndb-e7: #2438 8회차가 독립 검토를 통과해 머지(01:00 · main `51ffb91a`) - 0255 · 0258 블록 Relay 대기 - 다음 1개는 Relay 실행
 
 - **결과**: 8회차(서버가 시도가 닿은 순서로 첫째 · 둘째 칸에 적음 · 프록시 시계 없음) · 독립 검토 PASS WITH CONCERNS(00:51 · 차단 0 · `E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r8.txt`) · 머지 01:00:02. 가지 `fix/chat-refund-audit-bound-0255` 는 머지됨.
