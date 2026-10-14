@@ -516,8 +516,9 @@ Deno.serve(async (req: Request) => {
 
   // Z46 (0255 round 6): the id this call's audit row will carry is made before the model is asked, with the
   // turn the app named (chat only · read by shape · never written on the audit row). The server records this
-  // call as that turn's attempt first; only a turn's latest attempt can be bound to an answer, so an earlier
-  // attempt that ends late cannot take the turn from the re-ask. Bounded: false means this answer is not bound
+  // call as that turn's attempt first, numbered in the order the calls reach it (round 8). Only a recorded
+  // attempt can be bound, and a bound answer gives way only to the second attempt's, so an earlier attempt
+  // that ends late cannot take the turn from the re-ask. Bounded: false means this answer is not bound
   // (no refund for it), never that the answer stops.
   const consentAuditId = crypto.randomUUID();
   const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);

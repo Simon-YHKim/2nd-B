@@ -134,9 +134,10 @@ export function beginChatTurnAttempt(
 
 /**
  * After the audit row is written: asks the server to bind it to the turn the app named. The server decides: the
- * reservation must be this user's and this row must be its latest attempt's, begun in the last few minutes; the
- * audit row must be this user's chat row written by a proxy just now. A turn id that is someone else's, made up,
- * or whose latest attempt is another call's binds nothing.
+ * reservation must be this user's and this row one of its recorded attempts, the latest recorded in the last few
+ * minutes; the audit row must be this user's chat row written by a proxy just now. A turn not answered yet takes
+ * either attempt's row; an answered one takes only the second attempt's row in place of the first's. A turn id
+ * that is someone else's, made up, or that never recorded this call binds nothing.
  */
 export function claimChatTurn(
   admin: ClaimAdmin,
