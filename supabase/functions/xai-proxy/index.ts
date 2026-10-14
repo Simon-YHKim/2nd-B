@@ -44,7 +44,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
-import { insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
+import { claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
 import {
   BRAIN_RANK,
   LlmBodyError,
@@ -617,7 +617,8 @@ Deno.serve(async (req: Request) => {
   // Grok call will be confirmed: reasoning_vendor = 'xai'.
   const totalTokens = Number(data?.usage?.total_tokens) || null;
   const consentAuditId = crypto.randomUUID();
-  // Z46 (0255): a chat call may name the turn it answers. Only its shape is read here.
+  // Z46 (0255): a chat call may name the turn it answers. Only its shape is read here; it is not
+  // written on the audit row.
   const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
   // True only when this very row came back from the insert (see insertLlmAuditRow).
   const audited = await insertLlmAuditRow(supabaseAdmin, {
@@ -638,10 +639,6 @@ Deno.serve(async (req: Request) => {
     reasoning_effort: clampedEffort,
     key_combo: keyCombo,
     total_tokens: totalTokens,
-    // The turn goes on the row of the reply that is handed back, and on no other: a refused or cut-off
-    // call answers nothing, and a retry of that turn must still be able to carry it. One turn, one row:
-    // the table refuses a second row for a turn, and the helper then audits without it.
-    ...(chatTurnId && !refused && !truncated ? { chat_turn_id: chatTurnId } : {}),
   }, 'xai-proxy');
 
   if (refused) {
@@ -655,6 +652,14 @@ Deno.serve(async (req: Request) => {
   if (consentDenial) {
     await markConsentWithheld(supabaseAdmin, userId, consentAuditId, modelUsed);
     return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
+  }
+
+  // Z46 (0255): ask the server whether this answer belongs to the turn the app named. Only here, on the
+  // way out with a reply: a refused, cut-off or consent-withheld call has returned above and answers
+  // nothing. The server reads the owner, the state and the age of its own reservation row; the id the
+  // app sent decides nothing. Bounded: past the limit the reply goes out unbound (no refund for it).
+  if (audited && chatTurnId) {
+    await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'xai-proxy');
   }
 
   // Z46 (0255): the id of the audit row written above, only when it was written (see openai-proxy).

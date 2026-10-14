@@ -40,7 +40,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld, type LlmConsentLease } from '../_shared/llm-consent.ts';
-import { insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
+import { claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
 import { POLARIS_RESPONSE_SCHEMA, runPolarisGeneration } from '../_shared/polaris-generation.ts';
 import {
   BRAIN_RANK,
@@ -1063,7 +1063,8 @@ async function handleOpenAi(
   // D-27: usage tokens (OpenAI returns usage.total_tokens incl. reasoning).
   const openaiTotalTokens = Number(data?.usage?.total_tokens) || null;
   const consentAuditId = crypto.randomUUID();
-  // Z46 (0255): a chat call may name the turn it answers. Only its shape is read here.
+  // Z46 (0255): a chat call may name the turn it answers. Only its shape is read here; it is not
+  // written on the audit row.
   const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
   // True only when this very row came back from the insert (see insertLlmAuditRow).
   const audited = await insertLlmAuditRow(supabaseAdmin, {
@@ -1082,10 +1083,6 @@ async function handleOpenAi(
     reasoning_effort: clampedEffort,
     key_combo: keyCombo,
     total_tokens: openaiTotalTokens,
-    // The turn goes on the row of the reply that is handed back, and on no other: a refused or cut-off
-    // call answers nothing, and a retry of that turn must still be able to carry it. One turn, one row:
-    // the table refuses a second row for a turn, and the helper then audits without it.
-    ...(chatTurnId && !refused && !truncated ? { chat_turn_id: chatTurnId } : {}),
   }, 'openai-proxy');
 
   if (refused) {
@@ -1100,6 +1097,14 @@ async function handleOpenAi(
   if (consentDenial) {
     await markConsentWithheld(supabaseAdmin, userId, consentAuditId, modelUsed);
     return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
+  }
+
+  // Z46 (0255): ask the server whether this answer belongs to the turn the app named. Only here, on the
+  // way out with a reply: a refused, cut-off or consent-withheld call has returned above and answers
+  // nothing. The server reads the owner, the state and the age of its own reservation row; the id the
+  // app sent decides nothing. Bounded: past the limit the reply goes out unbound (no refund for it).
+  if (audited && chatTurnId) {
+    await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'openai-proxy');
   }
 
   // Z46 (0255): hand back the id of the audit row written above, and only when it

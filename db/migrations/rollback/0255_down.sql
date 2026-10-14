@@ -1,17 +1,17 @@
--- 0255 를 되돌린다: 턴에 묶인 환불 함수 · 턴 번호를 주는 올리기 · 최종 값을 보는 트리거 · 새 칸 둘과 인덱스를 걷고,
--- 0252 의 함수 둘을 그대로 되돌린다. 표 chat_turn_refunds 와 이미 쓴 줄, 원장은 건드리지 않는다.
+-- 0255 를 되돌린다: 턴에 묶인 환불 함수 · 프록시가 부르는 확인 함수 · 예약을 주는 올리기 · 최종 값을 보는 트리거 ·
+-- 예약 표를 걷고, 0252 의 함수 둘을 그대로 되돌린다. 표 chat_turn_refunds 와 이미 쓴 줄, 원장은 건드리지 않는다.
 -- 아래 두 함수 본문은 0252 의 파일에서 글자 그대로 가져온 것이다(정적 테스트가 같은지 본다).
 -- 되돌린 뒤에는 날짜 하나를 받는 환불 함수가 다시 열린다(턴에 묶이지 않은 길). 순서: 화면을 먼저 되돌리고(새 올리기와
--- 새 환불을 부르는 호출은 "함수 없음"으로 실패한다), 프록시를 되돌린 뒤(새 칸에 쓰는 감사 쓰기는 실패한다) 이 파일을 실행할 것.
--- 걷는 칸에 든 것은 턴 번호뿐이다(글 · 내용 없음). 걷으면 아직 돌려받지 않은 턴은 돌려받을 수 없게 된다.
+-- 새 환불을 부르는 호출은 "함수 없음"으로 실패한다), 프록시를 되돌린 뒤(확인 호출은 실패해도 답을 그대로 보낸다) 이 파일을
+-- 실행할 것. 삭제 등록부의 줄(0258)은 rollback/0258_down.sql 이 먼저 걷는다.
+-- 걷는 표에 든 것은 예약 번호 · 날짜 · 시각뿐이다(글 · 내용 없음). 걷으면 아직 돌려받지 않은 턴은 돌려받을 수 없게 된다.
 
 DROP TRIGGER IF EXISTS guard_ai_audit_server_verified_final ON public.ai_audit_log;
 DROP FUNCTION IF EXISTS public.guard_ai_audit_server_verified_final();
 DROP FUNCTION IF EXISTS public.refund_chat_turn_after_output_swap(uuid);
+DROP FUNCTION IF EXISTS public.claim_chat_turn_for_audit(uuid, uuid, uuid);
 DROP FUNCTION IF EXISTS public.bump_chat_usage_for_turn(uuid, date);
-DROP INDEX IF EXISTS public.ai_audit_log_chat_turn_id_key;
-ALTER TABLE public.ai_audit_log DROP COLUMN IF EXISTS chat_turn_id;
-ALTER TABLE public.chat_usage DROP COLUMN IF EXISTS refundable_turns;
+DROP TABLE IF EXISTS public.chat_turn_reservations;
 
 CREATE OR REPLACE FUNCTION public.guard_ai_audit_server_verified()
 RETURNS trigger
