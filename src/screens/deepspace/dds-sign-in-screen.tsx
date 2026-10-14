@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     lineHeight: m3.type.labelSmall.line,
   },
   providers: { flexDirection: "row", flexWrap: "wrap", alignItems: "stretch", gap: m3.spacing.s3 },
-  providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 112 },
+  providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 150 },
   providerContent: {
     minHeight: 56,
     flexDirection: "row",

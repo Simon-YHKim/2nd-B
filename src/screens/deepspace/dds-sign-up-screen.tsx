@@ -1043,7 +1043,7 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     gap: m3.spacing.s2,
   },
-  providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 112 },
+  providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 149 },
   providerContent: {
     minHeight: 56,
     flexDirection: "row",
