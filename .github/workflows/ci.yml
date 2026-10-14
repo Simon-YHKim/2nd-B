@@ -52,6 +52,12 @@ jobs:
         with:
           version: "0.11.19"
       - run: npm ci --legacy-peer-deps
+      # check:explanatory-copy (Q-261014-89) compares locales/ko with
+      # origin/main, which a pull_request checkout does not fetch. Without this
+      # the check cannot find its base and verify fails on every PR. HEAD is the
+      # PR merge commit, so the diff against main's tip is what the PR changes.
+      - name: Fetch main for the explanatory-copy warning
+        run: git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main
       # a2z audit 2026-07-11: this job used to hand-copy the verify steps and
       # had drifted — check:legal-review, check:anti-anthro and
       # check:mascot-voice ran locally but NOT here, so those regressions
