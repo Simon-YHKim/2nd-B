@@ -822,7 +822,11 @@ export function DeepSpacePrivacyDesignScreen() {
       // another device changed since, and the ledger (comparing with that same copy) would not
       // show it. A failed read throws and nothing is saved.
       const base = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
-      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      // Never for another account. A withdrawal is finished even if the screen was left during
+      // the read, like the other withdrawals on this screen; an opt-in is not started for a
+      // screen that is gone, or for an age that became minor or unknown during the read.
+      if (activeUserRef.current !== targetUserId) return;
+      if (next && (!privacyMountedRef.current || minorRef.current)) return;
       const updated: PrivacyPrefs = { ...base, [key]: next };
       await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en", before: base });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
@@ -834,6 +838,9 @@ export function DeepSpacePrivacyDesignScreen() {
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = committed;
       prefsUserRef.current = targetUserId;
+      // The save started from the stored choices, which may differ from what was on screen:
+      // show all of them, so the toggles and the copy the next press checks agree.
+      showPrefs(committed);
       if (key === "external_analytics") {
         setAnalyticsOn(effectiveNext);
         setAnalyticsConsent(effectiveNext, {
@@ -842,6 +849,14 @@ export function DeepSpacePrivacyDesignScreen() {
         });
       } else {
         setAdsOn(effectiveNext);
+        // The saved choices can show analytics off (changed on another device). This device
+        // follows that off at once; it is never turned on from here.
+        if (committed.external_analytics !== true) {
+          setAnalyticsConsent(false, {
+            isMinor: minorRef.current,
+            confirmedAdult: minorRef.current === false,
+          });
+        }
       }
     } catch {
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
