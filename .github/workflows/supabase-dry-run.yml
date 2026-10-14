@@ -1654,12 +1654,38 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reasoning_complete_skips_erased_regression.sql
+      # 0256, the second stage of 0253: the rows the old function left behind are removed once, in a
+      # transaction of its own. The file commits what it does, so it runs on a clone that is dropped.
+      - name: Exercise the one-time cleanup of proposals whose target is gone (0256)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="cleanup_0256_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0256 cleanup regression refuses an unsafe database name" >&2
+            exit 1
+          fi
+          drop_clone() {
+            psql -X -q -h localhost -U postgres -d "$source_db" -v ON_ERROR_STOP=1 \
+              -c "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)"
+          }
+          trap 'drop_clone || true' EXIT
+          psql -X -q -h localhost -U postgres -d "$source_db" -v ON_ERROR_STOP=1 \
+            -c "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          psql -X -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 \
+            -f db/tests/reasoning_orphan_proposals_cleanup_regression.sql
+          trap - EXIT
+          drop_clone
       # The same thing with the delete and the completion in flight together.
       # delete_first: the delete holds the record row, the completion waits for
       # it and then stores nothing. complete_first: the completion holds the row,
       # the delete waits, then removes the stored row through 0251's trigger and
       # closes the run. Neither order may end in a deadlock or leave a row whose
       # record is gone. source_delete_first is the first case again for a source.
+      # The two transition cases are the hand-over from the old function to the
+      # new one (0253, then 0256) with an old call still open.
       - name: Race a record delete against a reasoning completion
         env:
           PGPASSWORD: postgres
@@ -1683,15 +1709,29 @@ jobs:
           source_proposals="[{\"key\":\"source:$source\",\"refKind\":\"source\",\"refId\":\"$source\",\"title\":\"t\",\"domain\":\"growth\"}]"
           complete_source="public.complete_reasoning_run('$user', '$run_id', '$source_proposals'::jsonb)"
           delete_source="DELETE FROM public.sources WHERE id = '$source'"
-          race() { # <label> <first statement> <second statement> <expected: first rc/second rc/rows/run/records/sources>
-            local label="$1" first="$2" second="$3" want="$4"
-            local clone_db="race_0253_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
-            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+          # Every way out of a case ends its sessions and drops its clone: a normal end, a failed check and a
+          # command that fails under `set -e` alike (the EXIT trap). A clone that cannot be dropped fails the step.
+          active_db=""
+          end_case() {
+            local db="$active_db"
+            active_db=""
+            if [[ -n "$db" ]]; then
+              sql "$source_db" "SELECT pg_catalog.pg_terminate_backend(pid) FROM pg_catalog.pg_stat_activity
+                                 WHERE datname = '$db'" > /dev/null 2>&1 || true
+              wait 2> /dev/null || true
+              sql "$source_db" "DROP DATABASE IF EXISTS $db WITH (FORCE)"
+            fi
+          }
+          trap 'end_case || true' EXIT
+          clone() { # <label> : a clone with one user, one record, one source and one run that is still working
+            local db="race_0253_${1}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
               echo "0253 completion race refuses an unsafe database name" >&2
               return 1
             fi
-            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
-            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+            active_db="$db"
+            sql "$source_db" "CREATE DATABASE $db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 <<'SQL'
           SET session_replication_role = replica;
           INSERT INTO auth.users (id, email) VALUES ('26101354-0000-4000-8000-00000000000a', 'z66c-race@example.com');
           SET session_replication_role = origin;
@@ -1706,32 +1746,37 @@ jobs:
           VALUES ('26101354-3000-4000-8000-000000000001', '26101354-0000-4000-8000-00000000000a', 'z66c-race-0001', 'auto',
                   'running', 'none', '2026-W42', '2026-10');
           SQL
+          }
+          seen() { # <db> <what must become true> <query returning 1 when it is>
+            local n=0
+            until [[ "$(sql "$1" "$3")" == "1" ]]; do
+              n=$((n + 1))
+              if (( n > 150 )); then echo "$2" >&2; return 1; fi
+              sleep 0.2
+            done
+          }
+          row_state() { # <db> : rows/run/records/sources
+            sql "$1" "SELECT (SELECT count(*) FROM public.reasoning_run_proposals WHERE run_id = '$run_id')
+                       || '/' || (SELECT status FROM public.reasoning_runs WHERE id = '$run_id')
+                       || '/' || (SELECT count(*) FROM public.records WHERE id = '$record')
+                       || '/' || (SELECT count(*) FROM public.sources WHERE id = '$source')" | tr -d '\r'
+          }
+          race() { # <label> <first statement> <second statement> <expected: first rc/second rc/rows/run/records/sources>
+            local label="$1" first="$2" second="$3" want="$4"
+            clone "$label"
+            local clone_db="$active_db"
             # A barrier instead of a timed pause. A holder session keeps an advisory lock; the first session
             # runs its statement and then waits for that lock with its transaction open; only then is the
             # second session started. The case fails unless the second session is SEEN waiting for a lock
             # the first one holds. Two statements that merely ran one after the other do not pass.
             local key=2530253 h_app="race0253_h_$label" a_app="race0253_a_$label" b_app="race0253_b_$label"
             local a_rc=0 b_rc=0 a b state h_pid a_pid b_pid
-            seen() { # <what must become true> <query returning 1 when it is>
-              local n=0
-              until [[ "$(sql "$clone_db" "$2")" == "1" ]]; do
-                n=$((n + 1))
-                if (( n > 150 )); then echo "$label: $1" >&2; return 1; fi
-                sleep 0.2
-              done
-            }
-            give_up() {
-              sql "$clone_db" "SELECT pg_catalog.pg_terminate_backend(pid) FROM pg_catalog.pg_stat_activity
-                                WHERE application_name IN ('$h_app', '$a_app', '$b_app')" > /dev/null || true
-              wait 2> /dev/null || true
-              sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
-            }
             PGAPPNAME="$h_app" psql -X -q -h localhost -U postgres -d "$clone_db" -At \
               -c "SELECT pg_advisory_lock($key)" -c "SELECT pg_sleep(120)" > /dev/null 2>&1 &
             h_pid=$!
-            if ! seen "the holder never took the barrier" \
-                 "SELECT count(*) FROM pg_catalog.pg_locks l JOIN pg_catalog.pg_stat_activity s ON s.pid = l.pid
-                   WHERE l.locktype = 'advisory' AND l.granted AND s.application_name = '$h_app'"; then give_up; return 1; fi
+            seen "$clone_db" "$label: the holder never took the barrier" \
+              "SELECT count(*) FROM pg_catalog.pg_locks l JOIN pg_catalog.pg_stat_activity s ON s.pid = l.pid
+                WHERE l.locktype = 'advisory' AND l.granted AND s.application_name = '$h_app'"
             PGAPPNAME="$a_app" PGOPTIONS="-c statement_timeout=90s" \
               psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
               -c "BEGIN" \
@@ -1740,9 +1785,9 @@ jobs:
               -c "SELECT pg_advisory_xact_lock($key)" \
               -c "COMMIT" > "race_0253_a_$label.out" 2>&1 &
             a_pid=$!
-            if ! seen "the first session never reached the barrier" \
-                 "SELECT count(*) FROM pg_catalog.pg_locks l JOIN pg_catalog.pg_stat_activity s ON s.pid = l.pid
-                   WHERE l.locktype = 'advisory' AND NOT l.granted AND s.application_name = '$a_app'"; then give_up; return 1; fi
+            seen "$clone_db" "$label: the first session never reached the barrier" \
+              "SELECT count(*) FROM pg_catalog.pg_locks l JOIN pg_catalog.pg_stat_activity s ON s.pid = l.pid
+                WHERE l.locktype = 'advisory' AND NOT l.granted AND s.application_name = '$a_app'"
             PGAPPNAME="$b_app" PGOPTIONS="-c statement_timeout=90s" \
               psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
               -c "BEGIN" \
@@ -1751,11 +1796,11 @@ jobs:
               -c "COMMIT" > "race_0253_b_$label.out" 2>&1 &
             b_pid=$!
             # With the lock on the target gone, the second session runs through and this never becomes true.
-            if ! seen "the second session did not wait for a lock the first session holds" \
-                 "SELECT count(*) FROM pg_catalog.pg_stat_activity w
-                   WHERE w.application_name = '$b_app' AND w.wait_event_type = 'Lock'
-                     AND (SELECT f.pid FROM pg_catalog.pg_stat_activity f WHERE f.application_name = '$a_app')
-                         = ANY (pg_catalog.pg_blocking_pids(w.pid))"; then give_up; return 1; fi
+            seen "$clone_db" "$label: the second session did not wait for a lock the first session holds" \
+              "SELECT count(*) FROM pg_catalog.pg_stat_activity w
+                WHERE w.application_name = '$b_app' AND w.wait_event_type = 'Lock'
+                  AND (SELECT f.pid FROM pg_catalog.pg_stat_activity f WHERE f.application_name = '$a_app')
+                      = ANY (pg_catalog.pg_blocking_pids(w.pid))"
             # Open the barrier by ending the holder. The first session commits, then the second one goes on.
             sql "$clone_db" "SELECT pg_catalog.pg_terminate_backend(pid) FROM pg_catalog.pg_stat_activity
                               WHERE application_name = '$h_app'" > /dev/null
@@ -1764,11 +1809,8 @@ jobs:
             wait "$b_pid" || b_rc=$?
             a="$(tr -d '\r' < "race_0253_a_$label.out" | tr '\n' ' ')"
             b="$(tr -d '\r' < "race_0253_b_$label.out" | tr '\n' ' ')"
-            state="$(sql "$clone_db" "SELECT (SELECT count(*) FROM public.reasoning_run_proposals WHERE run_id = '$run_id')
-                                        || '/' || (SELECT status FROM public.reasoning_runs WHERE id = '$run_id')
-                                        || '/' || (SELECT count(*) FROM public.records WHERE id = '$record')
-                                        || '/' || (SELECT count(*) FROM public.sources WHERE id = '$source')" | tr -d '\r')"
-            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            state="$(row_state "$clone_db")"
+            end_case
             echo "$label: first session rc=$a_rc [$a] second session rc=$b_rc [$b] rows/run/records/sources $state"
             if [[ "$a_rc/$b_rc/$state" != "$want" ]]; then
               echo "$label: wanted $want" >&2
@@ -1779,12 +1821,124 @@ jobs:
               return 1
             fi
           }
+          # The hand-over (review round 2, Z66C-01). A completion that entered the OLD function before 0253
+          # was committed stores its row late. The old call is held inside the old body before it takes its
+          # run row: auth.uid(), the first thing that body evaluates, waits on a gate for that one session.
+          # 0253 is then committed, the record is deleted, and 0256 is started while the old call is open.
+          # released: 0256 must be SEEN waiting; the gate opens, the old call stores its row (stored=1 is the
+          # old body; the new one would store 0), and 0256 then removes that row and closes the run.
+          # held: the old call stays open, 0256 gives up after its 20 seconds having changed nothing; the old
+          # call then stores its row, nothing removes it, and a second 0256 does.
+          transition() { # <label> <released|held>
+            local label="$1" mode="$2"
+            clone "$label"
+            local db="$active_db" a_app="race0253_a_$label" c_app="race0253_c_$label"
+            local a_pid c_pid a_rc=0 c_rc=0 a c state
+            psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 -f db/migrations/rollback/0253_down.sql
+            if [[ "$(sql "$db" "SELECT pg_catalog.strpos(p.prosrc, 'FOR KEY SHARE') FROM pg_catalog.pg_proc AS p
+                                 WHERE p.oid = 'public.complete_reasoning_run(uuid, uuid, jsonb)'::regprocedure")" != "0" ]]; then
+              echo "$label: the clone does not start from the old function" >&2
+              return 1
+            fi
+            sql "$db" "CREATE TABLE public.z66c_gate (open boolean NOT NULL)"
+            sql "$db" "INSERT INTO public.z66c_gate VALUES (false)"
+            sql "$db" "CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE plpgsql AS \$gate\$
+                       BEGIN
+                         IF pg_catalog.current_setting('application_name') = '$a_app' THEN
+                           WHILE NOT (SELECT g.open FROM public.z66c_gate AS g) LOOP
+                             PERFORM pg_catalog.pg_sleep(0.05);
+                           END LOOP;
+                         END IF;
+                         RETURN NULLIF(pg_catalog.current_setting('request.jwt.claim.sub', true), '')::uuid;
+                       END \$gate\$"
+            PGAPPNAME="$a_app" PGOPTIONS="-c statement_timeout=90s" \
+              psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+              -c "SELECT 'stored=' || $complete" \
+              -c "COMMIT" > "race_0253_a_$label.out" 2>&1 &
+            a_pid=$!
+            seen "$db" "$label: the old call never reached the gate inside the old function" \
+              "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                WHERE application_name = '$a_app' AND state = 'active' AND wait_event = 'PgSleep'
+                  AND query LIKE '%complete_reasoning_run%'"
+            # The first stage, committed while the old call is open. Then the record goes.
+            psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 \
+              -f db/migrations/0253_reasoning_complete_skips_erased.sql
+            sql "$db" "$delete"
+            PGAPPNAME="$c_app" psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 \
+              -f db/migrations/0256_reasoning_orphan_proposals_cleanup.sql > "race_0253_c_$label.out" 2>&1 &
+            c_pid=$!
+            # Without the wait in 0256 it runs through, and this never becomes true.
+            seen "$db" "$label: 0256 did not wait for the transaction that was already open" \
+              "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                WHERE application_name = '$c_app' AND state = 'active' AND wait_event = 'PgSleep'"
+            state="$(row_state "$db")"
+            if [[ "$state" != "0/running/0/1" ]]; then
+              echo "$label: before the gate opened the state was $state" >&2
+              return 1
+            fi
+            if [[ "$mode" == "held" ]]; then
+              wait "$c_pid" || c_rc=$?
+              c="$(tr -d '\r' < "race_0253_c_$label.out" | tr '\n' ' ')"
+              if (( c_rc == 0 )) || ! grep -q "0256 cleanup refused: 1 older transaction(s) still open after 20 seconds" <<< "$c"; then
+                echo "$label: 0256 did not give up while the old call was open: rc=$c_rc [$c]" >&2
+                return 1
+              fi
+              state="$(row_state "$db")"
+              if [[ "$state" != "0/running/0/1" ]]; then
+                echo "$label: a 0256 that gave up changed the state to $state" >&2
+                return 1
+              fi
+            fi
+            sql "$db" "UPDATE public.z66c_gate SET open = true"
+            wait "$a_pid" || a_rc=$?
+            a="$(tr -d '\r' < "race_0253_a_$label.out" | tr '\n' ' ')"
+            if [[ "$mode" == "held" ]]; then
+              # The old body stored the row and nothing has removed it: this is the row 0256 exists for.
+              state="$(row_state "$db")"
+              if [[ "$state" != "1/proposed/0/1" ]]; then
+                echo "$label: after the old call the state was $state, not the row it should have left" >&2
+                return 1
+              fi
+              c_rc=0
+              PGAPPNAME="$c_app" psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 \
+                -f db/migrations/0256_reasoning_orphan_proposals_cleanup.sql > "race_0253_c_$label.out" 2>&1 || c_rc=$?
+            else
+              wait "$c_pid" || c_rc=$?
+            fi
+            c="$(tr -d '\r' < "race_0253_c_$label.out" | tr '\n' ' ')"
+            state="$(row_state "$db")"
+            end_case
+            echo "$label: old call rc=$a_rc [$a] 0256 rc=$c_rc [$c] rows/run/records/sources $state"
+            if [[ "$a_rc/$c_rc/$state" != "0/0/0/ratified/0/1" ]]; then
+              echo "$label: wanted 0/0/0/ratified/0/1" >&2
+              return 1
+            fi
+            if ! grep -q "stored=1" <<< "$a"; then
+              echo "$label: the open call did not run the old function body" >&2
+              return 1
+            fi
+            if ! grep -q "removed 1 proposal rows, closed 1 runs" <<< "$c"; then
+              echo "$label: 0256 did not remove the row the old call stored" >&2
+              return 1
+            fi
+          }
           # The delete is open when the completion arrives: nothing is stored, the run ends as proposed.
           race delete_first "$delete" "SELECT 'stored=' || $complete" "0/0/0/proposed/0/1"
           # The completion is open when the delete arrives: the row is stored, then removed with its record.
           race complete_first "SELECT 'stored=' || $complete" "$delete" "0/0/0/ratified/0/1"
           # The same as the first case for a source.
           race source_delete_first "$delete_source" "SELECT 'stored=' || $complete_source" "0/0/0/proposed/1/0"
+          # An old call is open across the hand-over: 0256 waits for it, then removes what it stored.
+          transition transition_released released
+          # The old call outlasts 0256's patience: 0256 changes nothing, and a later run finishes the job.
+          transition transition_held held
+          left="$(sql "$source_db" "SELECT count(*) FROM pg_catalog.pg_database WHERE datname LIKE 'race\_0253\_%'")"
+          if [[ "$left" != "0" ]]; then
+            echo "0253 completion race left $left clone database(s) behind" >&2
+            exit 1
+          fi
       # 0251: a deleted record or source takes its reasoning proposal rows with
       # it. The deletes run as `authenticated` through RLS, then the one-time
       # cleanup is replayed over rows shaped like the ones left behind.

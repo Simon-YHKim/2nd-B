@@ -199,12 +199,25 @@ SELECT pg_temp.z66c_assert(:n5 = 1 AND pg_temp.z66c_ordinals('26101353-3000-4000
                            'after the down file the old function did not store the row (the down file is not 0092''s body)');
 \ir ../migrations/0253_reasoning_complete_skips_erased.sql
 -- The row the old function just stored for an erased record is what the gap between 0251 and 0253 can leave
--- behind. Applying 0253 removes it and closes its run; the live rows of the other runs are untouched.
-SELECT pg_temp.z66c_assert(pg_temp.z66c_ordinals('26101353-3000-4000-8000-000000000005') = ''
-                           AND (SELECT status FROM public.reasoning_runs WHERE id = '26101353-3000-4000-8000-000000000005') = 'ratified',
-                           'applying 0253 left the row the old function stored for an erased record, or did not close its run');
+-- behind. 0253 only replaces the function: that row stays until 0256, which runs in a later transaction.
+SELECT pg_temp.z66c_assert(pg_temp.z66c_ordinals('26101353-3000-4000-8000-000000000005') = '0'
+                           AND (SELECT status FROM public.reasoning_runs WHERE id = '26101353-3000-4000-8000-000000000005') = 'proposed',
+                           'applying 0253 changed stored rows (the one-time cleanup belongs to 0256)');
 SELECT pg_temp.z66c_assert(pg_temp.z66c_ordinals('26101353-3000-4000-8000-000000000001') = :'z66c_run1_before',
-                           'the one-time cleanup of 0253 touched rows whose targets are live');
+                           'applying 0253 touched rows whose targets are live');
+-- 0256 in the very transaction that replaced the function (this file is one transaction): refused, and it
+-- removes nothing. A call that began before this transaction commits would still run the old body.
+SAVEPOINT z66c_same_transaction;
+\set ON_ERROR_STOP off
+\ir ../migrations/0256_reasoning_orphan_proposals_cleanup.sql
+\set z66c_same_state :SQLSTATE
+\set z66c_same_message :LAST_ERROR_MESSAGE
+\set ON_ERROR_STOP on
+ROLLBACK TO SAVEPOINT z66c_same_transaction;
+SELECT pg_temp.z66c_assert(:'z66c_same_state' = '55000' AND :'z66c_same_message' LIKE '%0253 is not committed yet%',
+                           '0256 ran in the transaction that replaced the function');
+SELECT pg_temp.z66c_assert(pg_temp.z66c_ordinals('26101353-3000-4000-8000-000000000005') = '0',
+                           'a refused 0256 removed a row');
 \ir ../migrations/0253_reasoning_complete_skips_erased.sql
 SET LOCAL ROLE authenticated;
 SELECT public.complete_reasoning_run('26101353-0000-4000-8000-00000000000a', '26101353-3000-4000-8000-000000000006', :'p_n6'::jsonb) AS n6 \gset
