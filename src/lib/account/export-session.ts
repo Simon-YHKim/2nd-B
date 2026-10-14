@@ -10,7 +10,8 @@
 // Do not delete it for having no callers.
 //
 // ⚠ CORRECTION, measured after the header above was written. main's pixel-clay
-// account screen ALREADY exports end to end: dds-account-actions.exportAccountData
+// My data's export card ALREADY exports end to end (the panel in dds-account-export.tsx, moved
+// from the account screen on 2026-10-14): dds-account-actions.exportAccountData
 // requests, times out, checks the session is still active, VERIFIES the bundle's
 // user_id against the initiating account, and hands off; dds-account-screen
 // delivers via Share on native and a blob download on web.

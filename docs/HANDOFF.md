@@ -1,5 +1,114 @@
 # 2nd-Brain Handoff
 
+## 2026-10-15 01:12 / 2ndb-79: 새벽 마감 — 위기 입력 붙임꼴 운영 반영 · 첫 화면 시범 끝 · #2516 보강 중 · Q-261015-80 대기
+
+- **운영 상태**: openai-proxy v154 · gemini-proxy v168 = main `2ac1916c`(붙임꼴 위기 검사 포함). **0255 운영 적용(10-17 23:20 뒤 Relay) 전에는 프록시 재배포 금지** — #2438(01:00 머지) 뒤의 main 프록시는 운영에 없는 begin_chat_turn_attempt · claim_chat_turn_for_audit 를 부른다(배포 게이트가 막음).
+- **열린 PR**: #2516(설명형 문구 CI 경고 · 1회차 BLOCK 넷 고치는 중 · 가지 `chore/explanatory-copy-warning` · 워크트리 `.worktrees/z40-chat-retry-261014`). #2483(Q-261014-81) · #2497(Q-261014-82)은 여전히 대표님 답 대기 — 8081 에서 위기로 끊긴 턴도 하루 횟수가 1 오르는 것을 다시 봤다(#2483 이 고치는 동작).
+- **대표님 답 대기**: Q-261015-80(남은 우회 꼴 · 보고서 2판) · Q-261014-81 · 82 · 83. 첫 화면 시범을 다른 화면으로 넓힐지(넓히면 설정 · 기록 남기기 · 가입 · 프로필 순).
+- **다음**: #2516 2회차 → 머지 · Q-261014-91(답 쪽 오탐 지시문 · 위기 입력 전체로 전 · 후 각 30회 이상 · 고정 안내 발동이 줄면 머지 안 함 · 측정 시각 범위를 기록해 2주 집계에서 뺄 것) · 화면 환불(#2438 새 계약: 다시 묻기는 가장 최근 턴에 한 번 · 보류 중인 턴 먼저 확인 · 확인 전 새 보내기 막기).
+- **캡처 스크립트**(재사용): `E:/Coding Infra/reports/devlab-261010/ui/z-crisis-joined/joined_shots.cjs` · `proxy_gate_probe.cjs` · `ui/z-capture-firstrun/firstrun_shots.cjs` · `ui/z-register86/chat_register_shots.cjs` (모두 `<before|after> <out-dir>`).
+
+## 2026-10-15 01:07 / 2ndb-e7: #2438 8회차가 독립 검토를 통과해 머지(01:00 · main `51ffb91a`) - 0255 · 0258 블록 Relay 대기 - 다음 1개는 Relay 실행
+
+- **결과**: 8회차(서버가 시도가 닿은 순서로 첫째 · 둘째 칸에 적음 · 프록시 시계 없음) · 독립 검토 PASS WITH CONCERNS(00:51 · 차단 0 · `E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r8.txt`) · 머지 01:00:02. 가지 `fix/chat-refund-audit-bound-0255` 는 머지됨.
+- **운영은 미완료**: 블록 `.bots/relay/inbox/coding-e7-0255-apply-block-0103.sql` → `coding-e7-0258-apply-block-0103.sql`(순서 그대로 · 메모 `coding-e7-0255-0258-apply-blocks-0103.note.md`). Relay 복귀(10-17 23:20) 뒤 실행. 0253 · 0256 · 0259 블록과는 서로 기대지 않는다.
+- **⚠ 0255 운영 적용 전에는 openai · gemini · claude · xai 프록시를 재배포하지 않는다.** main 의 프록시가 `begin_chat_turn_attempt` · `claim_chat_turn_for_audit` 를 부른다. 배포 게이트도 막는다. 지금 운영 배포본은 openai-proxy v154 · gemini-proxy v168(2ndb-79 · #2514 · 00:49).
+- **적용 뒤 할 일(2ndb-e7)**: 운영 읽기(함수 넷 · 예약 표 · 감사 표 트리거 둘 · 원장 줄) → 프록시 넷 재배포(두 창에 먼저 알림) → 대화 한 번으로 묶기 · 환불 확인 → 보고. 화면 쪽 환불 PR 은 2ndb-79(계약: 다시 묻기는 가장 최근 턴에 한 번 · 서버가 닿은 순서로 시도 둘 · turnBound=false 면 환불을 다시 부르는 것은 화면의 일).
+- **남은 우려(모두 돌려주지 않는 쪽)**: R2438-24 이른 끊김 · R2438-12 시간 넘긴 호출 · R2438-15 두 기기(이 창이 범위 밖으로 둔 것 · 대표님 결정 아님) · R2438-10 빠진 경합 · 프록시 실행 시험.
+- **운영 블록 생성기 · 시험**: `E:/Coding Infra/reports/codex-audit-261010/build_apply_0255_r8.py <ref> <out>` · `scratchpad/apply0255_r8_trials.sh <블록 폴더>`.
+- **질문 번호**: 이 창은 10-15 번호대를 아직 쓰지 않았다(10-14 는 40~49 중 40 만 씀).
+- **보고서**: https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg 17판.
+
+## 2026-10-14 23:43 / 2ndb-79: 밤 마감 — #2509 끝 · 보고서 둘 · 물음 여덟 대기
+
+- **끝난 것**: #2509(대화 지시문 148 · 189행 · 22:52 머지 · 폰 빌드 통과 · 8081 전 · 후 캡처). 22:20 말투 답 기록(#2508).
+- **대표님 답 대기**: Q-261014-81(#2483) · 82(#2497) · 83(검토 진행 방식) · 87 ~ 91(보고서 https://claude.ai/artifact/QCQHmEZHpLuHuhLUp72i6x). 서버 창은 Q-261014-40(#2438 · 그 창 보고서 16판) 대기.
+- **위기 쪽 주의**: 입력 위기 검사가 붙여 쓴 「다 끝내고싶어」 · 어미 변형(끝내버리고 싶어 · 끝낼게 · 끝내려고 · 끝낼래)을 못 잡는다(검사 코드 사본으로 확인 · 조사 결과 `tasks/wca4d151i.output` · 반례 스크립트 scratchpad `crisis-fp/critic/`). Q-90 답 전에는 낱말 · 예외를 바꾸지 말 것.
+- **다음(답이 추천대로면)**: STYLE.md 체크리스트 문서 PR → 위기 입력 붙여 쓰기 PR(독립 검토 + 반례) → 기록 남기기 첫 화면 시범(8081 전 · 후) → 답 쪽 오탐 지시문(엄격한 회귀 측정).
+
+## 2026-10-14 23:35 / 2ndb-e7: #2438 7회차가 독립 검토에서 막혀 멈춤 - 대표님께 Q-261014-40 - 다음 1개는 그 답
+
+- **판정**: 7회차 BLOCK(23:31 · `E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r7.txt` · 검토자는 셸이 막혀 첨부 코드만으로 판정). 잠금 순서 교착(R2438-22)은 닫힘. 6회차 막힘(R2438-21)은 시계가 맞을 때만 닫혀 일부. **새 막힘 R2438-23**: 시작 시각을 프록시 시계로 재므로, 프록시끼리 시계가 1.5초 넘게 어긋나면 늦게 닿은 첫 시도가 다시 묻기의 자리를 다시 빼앗는다.
+- **7회차 판**: 가지 `fix/chat-refund-audit-bound-0255` 머리 `c791a3bf` · CI 넷 초록 · 워크트리 `.worktrees/refund-bind-261013`(정션 있음). `begin_chat_turn_attempt(uuid, uuid, uuid, timestamptz)` 가 잠금 뒤 시계로 1.5초 지남 · 5초 앞날 · 적힌 시도보다 먼저 시작한 호출을 버린다. 올리기는 사용자별 잠금을 횟수를 세기 전에, 환불은 같은 열쇠를 맨 앞에서 잡는다. 시험: 회귀 T4 · T5 · CI 경합 넷(`late_first_attempt` · `reask_past_wait` · `bump_then_refund` · 세 세션 `bump_waits_for_row`) · 다시 적용 `rsv_round6_shape`.
+- **잰 것**: 로컬 변이 64건(7회차 아홉 모두 잡힘 · 놓침은 3회차부터 알던 `guard_one_place_only`) · 정적 63/63 · DB 안 시도 p95 0.23 ~ 0.26ms.
+- **운영 블록 생성기는 준비됨**: `E:/Coding Infra/reports/codex-audit-261010/build_apply_0255_r7.py <ref> <out>`(시도 함수가 없던 것 · 프록시만 · 정의자 모양을 확인) · 시험 `scratchpad/apply0255_r7_trials.sh <블록 폴더>` 일곱 갈래 통과(가지 머리 기준). 머지하면 main 에서 다시 만든다. 8회차로 가면 시도 함수 시그니처가 다시 바뀌므로 생성기의 `BEGIN_FN` 도 고친다.
+- **물음 Q-261014-40**(보고서 https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg 16판): 첫째(추천) 8회차 · 시계 없음(서버가 닿은 순서로 시도 1 · 2 번 · 묶인 답은 더 늦게 닿은 시도의 답만 대신 · 막히면 7회차 판 머지) / 둘째 7회차 판 지금 머지 / 셋째 8회차 · 막히면 다시 여쭘 / 넷째 4회차 판 / 다섯째 보류.
+- **다음 1개 = Q-261014-40 의 답.** 답이 2ndb-79 창에 붙으면 그 창의 기록에서 원문을 확인한 뒤 따른다. 운영 적용은 어느 답이든 Relay(10-17 23:20 뒤).
+- **질문 번호**: 이 창은 10-14 에 40~49 를 쓴다(30~39 소진 · 2ndb-79 = 80~99 · 2ndb-53 = 60~79).
+- **app:parity**: 22:33 에 "같음". 이 PR 은 문서만이라 8081 은 바뀌지 않는다.
+
+## 2026-10-14 23:03 / 2ndb-53: 가져오기 화면의 건강 동의가 읽지 못하면 저장하지 않음(#2507) - 8081 전 · 후 · 대조 "같음" - 다음 1개는 별 요약이 읽지 못할 때
+
+- **들어간 것**: #2507(22:42 · main `5e15b5d3`). `dds-import-inbox-screens.tsx` 의 `handleHealthConsent` 가 `withTimeout(readPrivacyPrefsStrict(owner), 10초)` 로 읽고, `beginAccountSessionLease(owner)` 로 읽는 사이 계정이 바뀌면 멈추고, 읽은 값을 `savePrivacyPrefs` 의 `before` 로 넘긴다. 검사 `src/screens/deepspace/__tests__/import-health-consent-strict-read.test.ts`(실제 처리기를 떼어 내 실행).
+- **고칠 때 알 것**:
+  - 이 파일은 `src/lib/inbox/__tests__/signals.test.ts` 가 **파일 전체 해시**로 고정한다. 바꾸면 그 주석에 줄을 더하고 다시 고정한다(주석이 그렇게 하라고 적음).
+  - `scripts/check-constraints.ts` 의 ImportI18nCopy 가 저장 호출 줄을 글자 그대로 박아 둔다(지금 `{ locale: ko ? "ko" : "en", before: current }`). 로컬에서 `check:constraints` 를 돌리면 **종료 코드**를 본다(끝 줄은 PASS 로 끝나도 중간에 FAIL 이 있을 수 있음).
+- **남긴 것(검토 · 모두 main 에 원래 있던 것)**: 저장 **도중** 로그아웃되면 건강 켜짐만 남고 민감정보 동의 기록이 빠질 수 있다(기록은 `savePrivacyPrefs` 안에서 씀) - 2ndb-e7 의 "한 항목 + 원장을 한 트랜잭션으로" 서버 함수와 함께 풀 일. 실패 때 화면에 말이 없다(새 문구라 안 넣음).
+- **다음 1개 = 별 요약이 읽지 못할 때**: `loadSummary` 가 오류를 삼켜 「0/5층」 · 「시작하기」를 보이거나 불러오는 중에 멈춘다. 이미 쓰는 「서버에 연결할 수 없습니다…」와 [다시 시도]로. 그 뒤 위키 목록의 기한 · 날씨용 위치 · 리즈닝 · 위키 페이지 · 리서치 · 스크랩 차례.
+- **캡처 도구**: `E:/Coding Infra/reports/codex-audit-261010/ui/shoot_import_health.cjs`(QA 계정 · 저장은 모두 그 브라우저에서 멈추고 본문만 기록 · 읽기용 rpc 만 통과 · `PROBE_FAIL_PREFS=1`).
+- **보고서**: 「PolaScope UI 저녁 작업 결과 (10-14)」 2판 https://claude.ai/artifact/71c5qzpYGVB9mSNx3kau8h.
+
+## 2026-10-14 22:27 / 2ndb-e7: #2438 6회차가 독립 검토에서 막혀 멈춤 - 대표님께 Q-261014-39 - 다음 1개는 그 답
+
+- **판정**: 6회차 BLOCK(22:24 · `gates/q67bind-daybreak-r6.txt`). 5회차 막힘(늦은 첫 묶기)과 우려 셋은 닫힘 · 받은 답 뒤 다시 묻기는 "대표가 받아들임". 새 막힘 R2438-21: 1.5초를 넘겨 늦게 닿은 첫 시도 등록이 다시 묻기의 등록을 덮음. 새 우려 R2438-22: 올리기 · 환불의 잠금 순서 교착.
+- **물음**: Q-261014-39(보고서 15판). 추천 = 7회차(시도 등록에 시작 시각 · 먼저 시작한 늦은 호출은 버림 · 잠금 순서 통일 · 두 세션 시험).
+- **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `4b76c554`(6회차 · CI 초록). 4회차 머리 `7e596603` · 5회차 머리 `f17900d7`. 워크트리 `.worktrees/refund-bind-261013`.
+- **다음 1개**: Q-39 의 답. 답 전에는 #2438 을 고치지 않는다.
+- **번호**: 10-14 물음은 이 세션 30 ~ 39(39 까지 다 씀 · 내일 번호대를 새로 정할 것).
+
+## 2026-10-14 22:19 / 2ndb-e7: #2438 6회차(모델 호출 전 시도 기록)를 지어 CI 초록 · 독립 검토 6회차 진행 중 - 다음 1개는 그 판정
+
+- **대표님 답(21:30:04 · 2ndb-79 창에 붙여 넣음 · 이 창 보고서의 Q-261014-38)**: 6회차(모델 호출 전에 서버가 시도 번호를 매기게 · 받은 답 뒤 다시 묻기의 환불은 받아들임). 원문은 DECISIONS 26.10.14 22:19 줄.
+- **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `4b76c554`(CI 넷 초록 21:57). 워크트리 `.worktrees/refund-bind-261013`(정션 있음).
+- **바꾼 것**: 예약의 시도 칸 셋 · `begin_chat_turn_attempt` · 가장 최근 시도만 묶는 묶기 · 올리기 시각 · 프록시 넷(감사 줄 id 와 시도를 모델 호출 앞으로) · 공용 도우미(두 질문을 같은 상한으로) · 회귀 T1 · T2 · T3 · CI 경합 둘 더.
+- **다음 1개**: 6회차 판정(`E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r6.txt`). 통과면 머지 → `build_apply_0255_r3.py` 를 6회차에 맞춰(시도 함수 · 권한 확인) main 에서 블록 → 로컬 시험 → Relay → 보고. 막히면 멈추고 여쭘.
+- **준비물**: 과제서 `q67bind-r6.md` · 잰 것 `gates/q67bind-facts-r6.md` · 묶음 생성기 `<scratchpad>/build_gate_q67bind_r6.py` · 변이 `verify_0255_v6.sh`(시도 잠금 변이는 `one_mut_step.sh r6_begin_no_lock`) · `mut_0255_static_v6.py` · 시간 `time_0255_v6.sh`.
+- **화면 쪽 계약**: 2ndb-79 가 받음(가장 최근 턴에 한 번 · 새 턴을 세면 앞 턴은 다시 물을 수 없음 · 보류 중인 턴부터 확인).
+## 2026-10-14 22:19 / 2ndb-79: 말투 스킬 검토 보고 · 물음 셋(Q-261014-84 · 85 · 86) 대기
+
+- **보고서**: https://claude.ai/artifact/7UeoU6JgyU4H3c7scKTVZS · 원고 scratchpad 의 `tone-review/brief.md` · 빌드 원본 `tone-build/` · 워크플로 결과 `tasks/wqtd8a9m9.output`.
+- **답이 '가'면 1단계 PR**: `locales/ko/profile.json` contextImport 28개 + `locales/ko/secondb.json` 리마인더 7개를 B안으로(사용자가 하는 말 · 제안 · consent · safety 제외 · 영어 원문 무변경) → `npm run verify` → PR → 머지 → app:parity → 8081 전 · 후(가져오기 화면 · 리마인더 안내). 화면 창(2ndb-53)이 같은 가져오기 화면의 코드(`dds-import-inbox-screens.tsx`)를 고치고 있으나 로케일은 건드리지 않는다고 했다(22:18).
+- **여전히 대기**: #2483(Q-261014-81) · #2497(Q-261014-82) · 검토 진행 방식(Q-261014-83). 서버 창 #2438 은 6회차 검토 중(머리 4b76c554 · 22:1x).
+
+## 2026-10-14 22:08 / 2ndb-53: 대표님이 이 창에서 답한 넷(20:33)대로 다섯을 넣음 - 개인정보 화면 · 모드 이름 · 별의 이야기 · 안내 밖 누름 · 내보내기 자리 - 8081 확인 · 대조 "같음" - 다음 1개는 가져오기 화면의 같은 결함
+
+- **들어간 것**: #2496(개인정보 화면이 읽지 못할 때 · 20:40) · #2498(모드 이름 · 20:52) · #2499(별 요약의 「기록 N개 ›」 · 21:20) · #2502(홈 안내 밖을 누르면 닫힘 · 21:37) · #2503(계정 데이터 내보내기를 내 데이터로 · 22:03). 결정 줄 20:33(답 넷 · 상충 · 순서)과 이 시각의 결과 줄.
+- **고칠 때 알 것**:
+  - 개인정보 화면: 저장하는 처리는 `withTimeout(readPrivacyPrefsStrict(...))` 로 읽고 그 값을 `savePrivacyPrefs` 의 `before` 로 넘긴다. 철회는 화면을 떠나도 끝까지, 켜기는 멈춘다. `fetchPrivacyPrefs`(실패 때 모두 꺼짐)는 이 화면에서 임베딩 백필의 동의 확인 한 곳만 쓴다(안전한 쪽). 검사 `privacy-screen-honest-read.test.ts`.
+  - 내보내기: 실행하는 곳은 `src/screens/deepspace/dds-account-export.tsx` 하나(검사가 지킴). 내 데이터의 카드는 접으면 숨기기만 한다(`detailFolded`). `/data?open=<카드 id>` 가 카드를 펴서 연다.
+  - 별의 이야기: `/records?period=<시기>` · 안드로이드 뒤로는 `useHardwareBack` 으로 별 요약에 돌아감 · 폰 안에서는 글자로만(`DashboardPhone` 의 노트 화면이 `period` 를 모름).
+  - 홈 안내: `FirstRecordCoachmark` 의 `onOutsidePress` 를 홈만 넘긴다(스크랩 화면의 걸음은 밖을 눌러도 안 닫힘).
+- **다음 1개 = 가져오기 화면의 같은 결함**: `dds-import-inbox-screens.tsx` 의 `handleHealthConsent` 가 `{ ...fetchPrivacyPrefs(), health_import: true }` 를 통째로 저장한다(읽기 실패 = 모두 꺼짐 위에). 개인정보 화면과 같은 방법(엄격한 읽기 · 실패면 저장하지 않음 · `before`)으로. `src/app/__tests__/minor-lock-unknown-age.test.ts` 가 그 처리기를 `fetchPrivacyPrefs` 대역으로 떼어 내니 함께 고친다. 건강 동의(민감정보)라 독립 검토를 받는다.
+- **그 뒤**: 읽지 못할 때 거짓을 보이는 화면들(별 요약 「0/5층」 · 위키 목록의 기한 · 날씨용 위치 · 리즈닝 · 위키 페이지 · 리서치 · 스크랩)을 하나씩 → 이름과 낱말.
+- **여쭐 것(급하지 않음)**: 별에서 들어온 목록에 화면 안 뒤로(‹) · 1년 넘은 기록의 날짜에 해 · 5,000줄을 넘는 계정의 "더 있음".
+- **폰**: 토요일(10-17) 23:20 뒤 2ndb-79 의 묶음(Y2 · 그리고 오늘 저녁의 다섯).
+- **보고서**: 「PolaScope UI 저녁 작업 결과 (10-14)」 https://claude.ai/artifact/71c5qzpYGVB9mSNx3kau8h (원본 `ui/ui-az15-1014.fragment.html`).
+- **질문 번호**: 10-14 는 이 세션 60 ~ 79(60 ~ 64 를 씀 · 다음 65).
+
+## 2026-10-14 21:24 / 2ndb-e7: #2438 5회차가 독립 검토에서 막혀 멈춤 - 대표님께 Q-261014-38 - 다음 1개는 그 답
+
+- **판정**: 5회차 BLOCK(21:18 · `gates/q67bind-daybreak-r5.txt`). 4회차 막힘(응답 유실 뒤 다시 묻기)은 닫힘. 새 막힘 R2438-17: 1.5초를 넘긴 첫 답의 늦은 묶기가 다시 물은 답의 묶임을 덮어씀. 새 우려: 다시 묶기 길로 변조한 앱이 앞선 답한 예약을 고름 · 받은 초록 뒤 다시 물어 빨강으로 환불 · 재시도 창 5분.
+- **물음**: Q-261014-38(보고서 14판 https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg). 추천 = 4회차 판으로 되돌려 머지(5회차 커밋을 `git revert` 로 되돌리되 R2438-16 의 시험 보강은 남김 · 4회차 BLOCK 을 대표님 결정으로).
+- **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `f17900d7`(5회차 · CI 초록). 4회차 머리는 `7e596603`. 워크트리 `.worktrees/refund-bind-261013`.
+- **다음 1개**: Q-38 의 답. 답 전에는 #2438 을 고치지 않는다.
+- **번호**: 10-14 물음은 이 세션 30 ~ 39(38 까지 씀 · 다음 39).
+
+## 2026-10-14 21:10 / 2ndb-e7: #2438 5회차(다시 묻기 한 번을 서버가 다시 묶음)를 지어 CI 초록 · 독립 검토 5회차 진행 중 - 다음 1개는 그 판정
+
+- **대표님 답(20:40 · 이 창에 직접)**: Q-261014-37 = 5회차(다시 묻기 한 번은 서버가 그 예약에 다시 묶게 + 응답 유실 회귀 → 5회차 검토). 원문은 DECISIONS 26.10.14 21:10 줄.
+- **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `f17900d7`(main 합침 · CI 넷 초록 20:55). 워크트리 `.worktrees/refund-bind-261013`(정션 있음).
+- **바꾼 것**: 예약의 `rebound` 칸 · 묶기가 답한 예약을 같은 번호의 다음 답에 한 번 다시 묶음 · 회귀의 응답 유실 절 · 예약 픽스처 시각과 4분 지침 · CI 묶기 경합 셋.
+- **다음 1개**: 5회차 판정(`E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r5.txt`). 통과면 머지 → `build_apply_0255_r3.py <main> <dir>` 로 0255 · 0258 블록 → `apply0255_r3_trials.sh` → Relay → 보고(운영 적용 · `openai-proxy` 재배포는 Relay 실행 뒤). 막히면 멈추고 여쭘.
+- **준비물**: 과제서 `q67bind-r5.md` · 잰 것 `gates/q67bind-facts-r5.md` · 묶음 생성기 `<scratchpad>/build_gate_q67bind_r5.py` · 변이 `verify_0255_v5.sh` · `mut_0255_static_v5.py`.
+- **번호**: 새 마이그레이션 0260 부터. 10-14 물음은 이 세션 30 ~ 39(37 까지 씀 · 다음 38).
+## 2026-10-14 21:10 / 2ndb-79: 밤 인수 — 옛 등급 이름 정리 끝(#2492) · 막힌 PR 둘(#2483 · #2497)이 대표님 답(Q-261014-81 · 82 · 83)을 기다림
+
+- **#2483**(위기 낱말로 앱이 끊은 대화를 횟수에서 빼기): 가지 `fix/chat-device-red-not-counted` · 워크트리 `.worktrees/z40-chat-retry-261014` · 머리 `946d03f5`(CI 초록) · 독립 검토 5회 모두 BLOCK(코드 결함 없음) · Q-261014-81. 머지하면 8081 '후': `crisiscount-shots` 방식 그대로 `node "E:/Coding Infra/reports/devlab-261010/ui/z-crisiscount/chat_device_red_shots.cjs" after <out>`(기대: 「오늘 14/250」 그대로 · bump 0 · 읽은 표 chat_usage 하나). 머지 뒤 `src/lib/legal/__tests__/conversation-cited-lines.test.ts`(#2497 이 넣을 예정)의 396 줄 수와 맞출 것.
+- **#2497**(대화 한도 말풍선): 가지 `fix/chat-limit-bubble-no-upsell` · 워크트리 `.worktrees/z117-chat-session-261014` · 머리 `b340d1a9` 위 main 합침 · 검토 3회 BLOCK · Q-261014-82. 머지하면 8081 '후': `node "E:/Coding Infra/reports/devlab-261010/ui/z-limit-bubble/chat_limit_bubble_shots.cjs" after <out>`(전 캡처는 같은 폴더 shots/before-*).
+- **다음 차례**(16:45 줄): Q-261014-25 프로필 등급 이름을 각 언어로(20:28 답 · 작은 PR) → Q-11 한도에 닿은 계정의 위기 글에 안내 먼저 → 안전 설계 둘의 다음 판(`E:/Coding Infra/reports/devlab-261010/gates/nosave-step1-design.v2.md` 의 검토 지적 반영 3판 · `interview-hotline-rule-design.md` 2판: 화면이 안내 줄을 버리지 않게 + 위협 레인) → 인터뷰 끝내는 규칙 → 캘린더(Q-27 · 28 · 켜기는 법무 뒤) → 공유 받기 확장(Q-29 · 새 APK).
+- **보고서**: https://claude.ai/artifact/XCvRDcxq2MSYtsTAVZvjWE (2판 15:15 · 원고 scratchpad 의 `interview6/brief.md` · 같은 경로로 다시 게시).
+- **번호**: 이 세션의 10-14 물음은 80 ~ 99(83 까지 씀). 화면 창 60 ~ 79 · 서버 창 30 ~ 59.
+
 ## 2026-10-14 15:16 / 2ndb-e7: PR #2438 4회차가 독립 검토에서 막혀 멈춤 - 대표님께 Q-261014-37 - 다음 1개는 그 답
 
 - **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `7e596603`(main `b8e7f407` 합침 · CI 넷 초록 14:50). 워크트리 `.worktrees/refund-bind-261013`(정션 있음 · 지울 때 정션부터 뗄 것).

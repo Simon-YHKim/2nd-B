@@ -12,9 +12,10 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useAppRouter } from "@/lib/nav/phone-embed";
+import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 
+import { AccountExportPanel } from "./dds-account-export";
 import {
   DATA_RIGHTS,
   DATA_SCREEN_META,
@@ -26,7 +27,12 @@ export function DeepSpaceDataScreen() {
   const router = useAppRouter();
   const { t } = useTranslation(["data", "common", "deepspace", "consent", "iden"]);
   const { userId, loading } = useAuth();
-  const [expandedId, setExpandedId] = useState<DataRightId | null>(null);
+  // ?open=<card> opens that card (the manual's shortcut and the old /account?tool=export link
+  // open the export card).
+  const { open } = useScreenParams<{ open?: string }>();
+  const [expandedId, setExpandedId] = useState<DataRightId | null>(
+    () => DATA_RIGHTS.find((item) => item.id === open)?.id ?? null,
+  );
 
   if (loading) {
     return (
@@ -82,6 +88,7 @@ export function DeepSpaceDataScreen() {
           <View style={styles.rightsList}>
             {DATA_RIGHTS.map((item) => {
               const expanded = item.id === expandedId;
+              const route = item.route;
               const accent = item.danger ? m3.color.error : m3.color.primary;
               return (
                 <View key={item.id} style={styles.rightBlock}>
@@ -111,34 +118,42 @@ export function DeepSpaceDataScreen() {
                     />
                   </PixelPressable>
 
-                  {expanded ? (
+                  {/* The export card's detail is folded by hiding it, not removing it: an export in
+                      progress keeps going and its result lines stay (a partial bundle's warning sits
+                      on the same screen as the delete card). */}
+                  {expanded || item.id === "account-export" ? (
                     <PixelSurface
                       variant="inset"
-                      style={styles.detailSurface}
+                      style={[styles.detailSurface, !expanded && styles.detailFolded]}
                       contentStyle={styles.detailContent}
                     >
                       <RNText style={[m3TextStyle("bodyMedium"), styles.detailText]}>
                         {t(item.bodyKey)}
                       </RNText>
-                      <PixelPressable
-                        variant="frame"
-                        onPress={() => router.push(item.route as Href)}
-                        accessibilityLabel={t(item.actionLabelKey)}
-                        accessibilityHint={t(item.actionHintKey)}
-                        accessibilityRole="link"
-                        fullWidth
-                        contentStyle={styles.actionContent}
-                      >
-                        <RNText
-                          style={[
-                            m3TextStyle("labelLarge"),
-                            item.danger ? styles.dangerAction : styles.actionText,
-                          ]}
+                      {item.id === "account-export" ? (
+                        // The export runs here, in the card (Q-261014-61, Simon 2026-10-14).
+                        <AccountExportPanel />
+                      ) : route ? (
+                        <PixelPressable
+                          variant="frame"
+                          onPress={() => router.push(route as Href)}
+                          accessibilityLabel={t(item.actionLabelKey)}
+                          accessibilityHint={t(item.actionHintKey)}
+                          accessibilityRole="link"
+                          fullWidth
+                          contentStyle={styles.actionContent}
                         >
-                          {t(item.actionLabelKey)}
-                        </RNText>
-                        <PixelGlyph name="arrowForward" color={accent} size={24} />
-                      </PixelPressable>
+                          <RNText
+                            style={[
+                              m3TextStyle("labelLarge"),
+                              item.danger ? styles.dangerAction : styles.actionText,
+                            ]}
+                          >
+                            {t(item.actionLabelKey)}
+                          </RNText>
+                          <PixelGlyph name="arrowForward" color={accent} size={24} />
+                        </PixelPressable>
+                      ) : null}
                     </PixelSurface>
                   ) : null}
                 </View>
@@ -152,6 +167,7 @@ export function DeepSpaceDataScreen() {
 }
 
 const styles = StyleSheet.create({
+  detailFolded: { display: "none" },
   screen: { flex: 1, minHeight: 0 },
   centerState: { flex: 1, alignItems: "center", justifyContent: "center" },
   topBar: {

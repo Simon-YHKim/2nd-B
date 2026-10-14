@@ -55,7 +55,7 @@ import {
 import { starLadderRungs } from "@/lib/interview/star-ladder";
 import { coveredDrillLayers, meStarStaticParams } from "@/lib/nav/me-star-route";
 import { RedirectHome } from "@/lib/nav/go-home";
-import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
+import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
 import { starEntryStatus, type StarEntryStatus } from "@/lib/persona/star-entry-tracks";
@@ -125,6 +125,9 @@ export default function StarSummaryRoute() {
   // Phone-aware: inside the dashboard phone, the interview opens in the phone,
   // back steps the phone, and `star` comes from the phone route (/me/now).
   const router = useAppRouter();
+  // Inside the dashboard phone, /records is the phone's own notes page, which does not narrow
+  // to a star. There the count stays a plain line, as it was.
+  const inPhone = usePhoneEmbed() !== null;
   const { t } = useTranslation(["home", "deepspace", "profile"]);
   const { star } = useScreenParams<{ star?: string }>();
   const { userId, loading, age } = useAuth();
@@ -347,9 +350,31 @@ export default function StarSummaryRoute() {
                   ))}
                 </View>
                 {summary.records > 0 ? (
-                  <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
-                    {t("ds.star.records", { count: summary.records })}
-                  </Text>
+                  inPhone ? (
+                    <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
+                      {t("ds.star.records", { count: summary.records })}
+                    </Text>
+                  ) : (
+                    // The count opens the wiki list on this star's stories (Z60, Simon 2026-10-13).
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("ds.star.records", { count: summary.records })}
+                      onPress={() => router.push({ pathname: "/records", params: { period: meta.period ?? "" } })}
+                      style={styles.recordsLink}
+                    >
+                      <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
+                        {t("ds.star.records", { count: summary.records })}
+                      </Text>
+                      <Text
+                        style={[m3TextStyle("bodySmall"), styles.muted]}
+                        aria-hidden
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                      >
+                        ›
+                      </Text>
+                    </Pressable>
+                  )
                 ) : null}
               </>
             ) : summary === null ? (
@@ -419,6 +444,7 @@ const styles = StyleSheet.create({
   range: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm },
   card: { marginTop: spacing.sm },
   muted: { color: m3.color.onSurfaceVariant },
+  recordsLink: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, minHeight: 44 },
   // 다섯 층 사다리. 높은 화면에서는 줄이 RUNG_MAX 까지 자라 아래 절반을 채우고,
   // 낮은 화면(대시보드 폰 안)에서는 RUNG_MIN 까지 줄어든 뒤 본문이 스크롤한다.
   ladder: {

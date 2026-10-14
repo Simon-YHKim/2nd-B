@@ -89,9 +89,6 @@
     "personal": "Salvo como seu formato pessoal.",
     "shared": "Seu novo formato foi salvo e compartilhado com seus formatos."
   },
-  "firstRun": {
-    "hint": "Uma frase vira seu primeiro registro salvo. Você pode encontrá-la de novo em Registros."
-  },
   "saved": {
     "title": "Registro salvo",
     "ocrTitle": "Sua nota de foto foi salva",

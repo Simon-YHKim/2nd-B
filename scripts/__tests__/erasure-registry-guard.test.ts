@@ -892,13 +892,16 @@ describe("the real registry's owner deletion classifications (r40 M1/M2)", () =>
     ]);
   });
 
-  test("the 15 account_delete_only tables still have no owner delete path", () => {
+  test("the 16 account_delete_only tables still have no owner delete path", () => {
     const replay = replayMigrations(migrationsDir(REPO_ROOT));
     const registry = loadRegistry(REPO_ROOT);
     const kept = Object.entries(registry.tables).filter(([, e]) => e.class === "account_delete_only");
     // Sessions and response blocks are content-erasable, not kept on content deletion.
-    expect(kept).toHaveLength(15);
-    expect(kept.map(([name]) => name)).toEqual(expect.arrayContaining(["dashboard_generation_settings", "dashboard_generation_runs"]));
+    // The sixteenth is the chat turn reservations (0255, registered by 0258): no policy at all.
+    expect(kept).toHaveLength(16);
+    expect(kept.map(([name]) => name)).toEqual(
+      expect.arrayContaining(["dashboard_generation_settings", "dashboard_generation_runs", "chat_turn_reservations"]),
+    );
     for (const table of ["interview_sessions", "ai_audit_context_blocks"]) {
       expect(kept.map(([name]) => name)).not.toContain(table);
     }

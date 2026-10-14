@@ -97,7 +97,9 @@
     "fallbackTitle": "Sin título",
     "graphEmpty": "Aún no hay conocimiento que conectar.",
     "loadError": "No se pudo cargar la lista. Tus fragmentos guardados no han cambiado. Inténtalo de nuevo.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "periodScope": "Historias: {{star}}",
+    "periodShowAll": "Ver todo"
   },
   "domains": {
     "title": "Mis áreas",

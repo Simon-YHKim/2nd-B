@@ -1,5 +1,5 @@
 export type DataRightId = "import" | "account-export" | "iden" | "deletion";
-export type DataRoute = "/import-hub" | "/account?tool=export" | "/iden" | "/privacy";
+export type DataRoute = "/import-hub" | "/iden" | "/privacy";
 export type DataGlyph = "uploadFile" | "download" | "iden" | "trash";
 
 export type DataTranslationKey =
@@ -38,7 +38,8 @@ export interface DataRightItem {
   bodyKey: DataTranslationKey;
   actionLabelKey: DataTranslationKey;
   actionHintKey: DataTranslationKey;
-  route: DataRoute;
+  /** Where the card's button goes. The account export has none: it runs inside the card (Q-261014-61). */
+  route?: DataRoute;
   danger?: true;
 }
 
@@ -66,7 +67,6 @@ export const DATA_RIGHTS: readonly DataRightItem[] = [
     bodyKey: "consent:account.export.body",
     actionLabelKey: "consent:account.export.button",
     actionHintKey: "consent:account.export.buttonHint",
-    route: "/account?tool=export",
   },
   {
     id: "iden",
