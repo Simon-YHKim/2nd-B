@@ -338,7 +338,8 @@ describe("the xai proxy keeps the shared guarantees", () => {
   test("C3: the call is audited as xai", () => {
     // The audit row is the only record of which vendor served a call, and the
     // only way the first live Grok call gets confirmed.
-    expect(XAI_PROXY).toContain("from('ai_audit_log')");
+    // The row is written through the shared insertLlmAuditRow (0255), which inserts into ai_audit_log.
+    expect(XAI_PROXY).toContain("insertLlmAuditRow(supabaseAdmin, {");
     expect(XAI_PROXY).toContain("reasoning_vendor: 'xai'");
   });
 
@@ -366,7 +367,7 @@ describe("what is unverified is behind a lever, not a literal", () => {
     // effort still bounds max_tokens and is still audited either way.
     expect(XAI_PROXY).toContain("XAI_SEND_REASONING_EFFORT");
     expect(XAI_PROXY).toMatch(/sendsReasoningEffort\(\) \? \{ reasoning_effort: clampedEffort \} : \{\}/);
-    expect(XAI_PROXY).toContain("reasoning_effort: clampedEffort,\n      key_combo");
+    expect(XAI_PROXY).toContain("reasoning_effort: clampedEffort,\n    key_combo");
   });
 
   test("the structured-output dialect can be downgraded without a redeploy", () => {
