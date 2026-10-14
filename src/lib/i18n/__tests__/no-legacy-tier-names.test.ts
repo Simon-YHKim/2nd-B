@@ -5,15 +5,13 @@
 // showed the old words: the journal advisor lock line on /capture-full ("(Brain)", "Brain 요금제")
 // and the plans.json f2 / f3 lines ("Everything in Soma", "Soma의 모든 기능").
 //
-// Two rules, because the two places hold different things:
-// - Shown text (locale values, the canon screens.json copies): every string there is something a
-//   person reads, so soma / cortex / brain count in any casing as a whole word ("(brain)",
-//   "Everything in soma", "(BrAiN)"). Ordinary uses ("a second brain") are listed one by one.
-// - App code (string literals, template pieces and JSX text under src): the same lowercase words are
-//   also the internal keys ("brain", tier === "brain", "?tier=brain", the route "core-brain"), and a
-//   string node cannot tell a key from a sentence. So code is checked for the shown form (Brain),
-//   all capitals (BRAIN), and any casing next to a plan word ("brain plan", "BRAIN 요금제"); a
-//   lowercase name standing alone in code is left to the review.
+// One rule everywhere: soma / cortex / brain as a whole word in any casing, and the Korean renderings.
+// It reads locale values, both canon screens.json copies, and every string literal, template piece and
+// JSX text under src (outside __tests__). In code the same words are also the internal keys
+// ("brain", tier === "brain", the route "core-brain"), so each of those spots is listed one by one
+// below (Simon, Q-261014-80 나, 2026-10-14): by file, the node's place in the syntax and its exact
+// text, with how many times it occurs there. No line numbers, so moving code does not break the list;
+// a new spot, a changed text, a changed count or a listed spot that is gone all fail.
 import fs from "node:fs";
 import path from "node:path";
 import * as ts from "typescript";
@@ -23,28 +21,14 @@ const root = process.cwd();
 // "Whole word" means no Latin letter on either side, so a Korean particle glued to the name still
 // counts ("Soma의 모든 기능" was a hit, and \b misses it), while "coreBrain" and "Brainstorm" do not.
 // 브레인스토밍 (brainstorming) is a different word.
-const KOREAN_NAMES = /소마|코텍스|코르텍스|브레인(?!스토밍)/;
-
-const SHOWN_TEXT_RULE: readonly RegExp[] = [
+const LEGACY_TIER_NAME: readonly RegExp[] = [
   /(?<![A-Za-z])(?:soma|cortex|brain)(?![A-Za-z])/i,
-  KOREAN_NAMES,
+  /소마|코텍스|코르텍스|브레인(?!스토밍)/,
 ];
 
-const APP_CODE_RULE: readonly RegExp[] = [
-  /(?<![A-Za-z])(?:Soma|Cortex|Brain)(?![A-Za-z])/,
-  // Digits and underscores count as part of the word, so environment names (FORCE_TIER_BRAIN) stay out.
-  /(?<![A-Za-z0-9_])(?:SOMA|CORTEX|BRAIN)(?![A-Za-z0-9_])/,
-  /(?<![A-Za-z])(?:soma|cortex|brain)\s*(?:plans?|tiers?|요금제|플랜|등급)(?![A-Za-z])/i,
-  /(?<![A-Za-z])(?:plans?|plano|paket|tiers?|요금제|플랜|등급)\s+(?:soma|cortex|brain)(?![A-Za-z])/i,
-  KOREAN_NAMES,
-];
+const namesLegacyTier = (text: string): boolean => LEGACY_TIER_NAME.some((rule) => rule.test(text));
 
-const matches = (rule: readonly RegExp[], text: string): boolean => rule.some((r) => r.test(text));
-
-// An exemption is one exact place and one exact string, never a pattern: a locale key path
-// ("<lang>/<namespace>.<key path>"), a canon file and key path ("<file>:<key path>") or a source
-// file, plus the string's full text. If either changes, the string is checked again. An exemption
-// nothing matches any more also fails.
+// Shown text (locale values, canon JSON): an exemption is one exact key path and one exact string.
 interface Exemption {
   where: string;
   text: string;
@@ -72,30 +56,17 @@ const CANON_EXEMPTIONS: readonly Exemption[] = CANON_SCREENS.map((file) => ({
   reason: "route id of the 북극성 screen (/core-brain), a path segment, not shown text; its title is 북극성",
 }));
 
-const SOURCE_EXEMPTIONS: readonly Exemption[] = [
-  {
-    where: "src/lib/google/calendar.ts",
-    text: "PRODID:-//2nd-Brain//Google Calendar import//EN",
-    reason: "iCalendar PRODID (RFC 5545) names the product that wrote the file; 2nd-Brain is the old product name, not a tier, and the file is parsed back by the app, not shown",
-  },
-  {
-    where: "src/lib/ops/push.ts",
-    text: "PRODID:-//2nd-Brain//ops//EN",
-    reason: "iCalendar PRODID (RFC 5545) of the hand-off .ics; the old product name, not a tier, and calendar apps do not show it",
-  },
-];
-
 interface Found {
   where: string;
   at: string;
   text: string;
 }
 
-function check(rule: readonly RegExp[], found: readonly Found[], exemptions: readonly Exemption[]): { hits: string[]; unused: Exemption[] } {
+function check(found: readonly Found[], exemptions: readonly Exemption[]): { hits: string[]; unused: Exemption[] } {
   const used = new Set<Exemption>();
   const hits: string[] = [];
   for (const item of found) {
-    if (!matches(rule, item.text)) continue;
+    if (!namesLegacyTier(item.text)) continue;
     const exemption = exemptions.find((e) => e.where === item.where && e.text === item.text);
     if (exemption) used.add(exemption);
     else hits.push(`${item.at}: ${item.text}`);
@@ -124,7 +95,7 @@ test("no locale string names a tier by its legacy name", () => {
   }
   // Sight control: the walk really read every language's bundles (21,985 strings on 2026-10-14).
   expect(found.length).toBeGreaterThan(15000);
-  expect(check(SHOWN_TEXT_RULE, found, LOCALE_EXEMPTIONS)).toEqual({ hits: [], unused: [] });
+  expect(check(found, LOCALE_EXEMPTIONS)).toEqual({ hits: [], unused: [] });
 });
 
 test("no canon screen string names a tier by its legacy name, in both copies", () => {
@@ -132,13 +103,13 @@ test("no canon screen string names a tier by its legacy name, in both copies", (
   for (const file of CANON_SCREENS) strings(readJson(file), `${file}:`, found);
   // Sight control: both copies were read (457 strings each on 2026-10-14).
   expect(found.length).toBeGreaterThan(800);
-  expect(check(SHOWN_TEXT_RULE, found, CANON_EXEMPTIONS)).toEqual({ hits: [], unused: [] });
+  expect(check(found, CANON_EXEMPTIONS)).toEqual({ hits: [], unused: [] });
   // The app reads public/proto; the reference app keeps the other copy. They must not drift apart.
   expect(readJson(CANON_SCREENS[1])).toEqual(readJson(CANON_SCREENS[0]));
 });
 
-test("each rule sees the strings that prompted it and leaves the rest alone", () => {
-  const prompted = [
+test("the rule sees the strings that prompted it and leaves the rest alone", () => {
+  for (const text of [
     "Ask HustleK about this entry (Brain)",
     "기록에 대한 답변은 Brain 요금제에서 받을 수 있습니다.",
     "Soma의 모든 기능",
@@ -147,46 +118,232 @@ test("each rule sees the strings that prompted it and leaves the rest alone", ()
     "브레인 트리니티 (은퇴)",
     "코르텍스 요금제",
     "Upgrade to BRAIN",
-    "the brain plan",
-    "BRAIN 요금제",
-    "cortex 등급",
-    "el plano brain",
-  ];
-  for (const text of prompted) {
-    expect([text, matches(SHOWN_TEXT_RULE, text), matches(APP_CODE_RULE, text)]).toEqual([text, true, true]);
-  }
-  // Shown text only: a lowercase or mixed-case name standing alone. In code it would also match keys.
-  for (const text of ["(brain)", "Everything in soma", "(BrAiN)", "A second brain built from what you write and save.", "\"brain\""]) {
-    expect([text, matches(SHOWN_TEXT_RULE, text), matches(APP_CODE_RULE, text)]).toEqual([text, true, false]);
-  }
-  // Neither: not the name, or not a word of its own.
+    "(brain)",
+    "Everything in soma",
+    "(BrAiN)",
+    "Upgrade to cortex",
+    "brain",
+  ]) expect([text, namesLegacyTier(text)]).toEqual([text, true]);
   for (const text of [
     "coreBrain",
     "Brainstorm a list",
     "브레인스토밍",
     "기록에 대한 답변은 북극성 요금제에서 받을 수 있습니다.",
     "⚠ 트위비는 북극성(pro) 전용",
-  ]) {
-    expect([text, matches(SHOWN_TEXT_RULE, text), matches(APP_CODE_RULE, text)]).toEqual([text, false, false]);
-  }
-  // Code lets internal keys and environment names through: "?tier=brain" is a key in a path.
-  expect(matches(APP_CODE_RULE, "/core-brain?tier=brain")).toBe(false);
-  expect(matches(APP_CODE_RULE, "확인하려면 EXPO_PUBLIC_FORCE_TIER=brain")).toBe(false);
-  expect(matches(APP_CODE_RULE, "FORCE_TIER_BRAIN")).toBe(false);
+  ]) expect([text, namesLegacyTier(text)]).toEqual([text, false]);
 });
 
 test("a use that is not a tier needs its own exact exemption", () => {
   const found: Found[] = [{ where: "ko/common.tagline", at: "ko/common.tagline", text: "세컨드 브레인처럼 쓰는 기록" }];
   const exempt: Exemption = { where: "ko/common.tagline", text: "세컨드 브레인처럼 쓰는 기록", reason: "a phrase, not a tier" };
   // Without the entry it fails; with it, it passes.
-  expect(check(SHOWN_TEXT_RULE, found, []).hits).toEqual(["ko/common.tagline: 세컨드 브레인처럼 쓰는 기록"]);
-  expect(check(SHOWN_TEXT_RULE, found, [exempt])).toEqual({ hits: [], unused: [] });
+  expect(check(found, []).hits).toEqual(["ko/common.tagline: 세컨드 브레인처럼 쓰는 기록"]);
+  expect(check(found, [exempt])).toEqual({ hits: [], unused: [] });
   // The entry is not a pattern: another key, or the same key with other words, is checked again.
-  expect(check(SHOWN_TEXT_RULE, [{ ...found[0], where: "ko/common.title", at: "ko/common.title" }], [exempt]).hits).toHaveLength(1);
-  expect(check(SHOWN_TEXT_RULE, [{ ...found[0], text: "세컨드 브레인 요금제" }], [exempt]).hits).toHaveLength(1);
+  expect(check([{ ...found[0], where: "ko/common.title", at: "ko/common.title" }], [exempt]).hits).toHaveLength(1);
+  expect(check([{ ...found[0], text: "세컨드 브레인 요금제" }], [exempt]).hits).toHaveLength(1);
   // An entry that nothing matches any more is reported, so the list cannot rot.
-  expect(check(SHOWN_TEXT_RULE, [], [exempt]).unused).toEqual([exempt]);
+  expect(check([], [exempt]).unused).toEqual([exempt]);
 });
+
+// ── App code ──────────────────────────────────────────────────────────────────────────────────
+
+// Where a string node sits, without line numbers: the nearest named declaration that holds it, and
+// the node's slot in the syntax ("operand of ===", "value of label", "literal type", "case label").
+function ownerOf(node: ts.Node): string {
+  for (let p = node.parent; p; p = p.parent) {
+    if ((ts.isVariableDeclaration(p) || ts.isFunctionDeclaration(p) || ts.isMethodDeclaration(p) || ts.isTypeAliasDeclaration(p)
+      || ts.isInterfaceDeclaration(p) || ts.isClassDeclaration(p) || ts.isPropertyDeclaration(p))
+      && p.name && ts.isIdentifier(p.name)) return p.name.text;
+  }
+  return "(module)";
+}
+
+function nameOf(expr: ts.Node): string {
+  if (ts.isIdentifier(expr) || ts.isPrivateIdentifier(expr)) return expr.text;
+  if (ts.isPropertyAccessExpression(expr)) return expr.name.text;
+  if (ts.isStringLiteral(expr) || ts.isNumericLiteral(expr)) return expr.text;
+  return ts.SyntaxKind[expr.kind];
+}
+
+function slotOf(node: ts.Node): string {
+  const p = node.parent;
+  if (ts.isImportDeclaration(p) || ts.isExportDeclaration(p) || ts.isExternalModuleReference(p)) return "module path";
+  if ((ts.isCallExpression(p) || ts.isNewExpression(p)) && p.expression !== node) return `argument of ${nameOf(p.expression)}`;
+  if (ts.isPropertyAssignment(p)) return p.initializer === node ? `value of ${nameOf(p.name)}` : "property name";
+  if (ts.isBinaryExpression(p)) return `operand of ${ts.tokenToString(p.operatorToken.kind)}`;
+  if (ts.isCaseClause(p)) return "case label";
+  if (ts.isLiteralTypeNode(p)) return "literal type";
+  if (ts.isArrayLiteralExpression(p)) return "array element";
+  if (ts.isJsxAttribute(p)) return `attribute ${p.name.getText()}`;
+  if (ts.isVariableDeclaration(p)) return "initializer";
+  return ts.SyntaxKind[p.kind];
+}
+
+const contextOf = (node: ts.Node): string => `${ownerOf(node)} › ${slotOf(node)}`;
+
+// [file, context, exact text, how many times]. Made once from main by a script outside this file
+// (2026-10-14); each group names why its words are not the tier name shown to people.
+type Spot = readonly [file: string, context: string, text: string, count: number];
+
+const SOURCE_EXEMPTIONS: readonly { reason: string; spots: readonly Spot[] }[] = [
+  {
+    reason: "internal tier key: the value code, database and server use for a tier (types, comparisons, maps, case labels)",
+    spots: [
+      ["src/app/secondb.tsx", "SecondBChatBody › operand of ??", "soma", 1],
+      ["src/lib/analytics/conversion-events.ts", "cleanConversionProps › operand of !==", "cortex", 1],
+      ["src/lib/analytics/conversion-events.ts", "cleanConversionProps › operand of !==", "brain", 1],
+      ["src/lib/analytics/conversion-events.ts", "ConversionTier › literal type", "cortex", 1],
+      ["src/lib/analytics/conversion-events.ts", "ConversionTier › literal type", "brain", 1],
+      ["src/lib/billing/paddle-checkout.ts", "CheckoutTier › literal type", "cortex", 1],
+      ["src/lib/billing/paddle-checkout.ts", "CheckoutTier › literal type", "brain", 1],
+      ["src/lib/chat/limits.ts", "NEXT_TIER › value of cortex", "brain", 1],
+      ["src/lib/chat/limits.ts", "NEXT_TIER › value of free", "soma", 1],
+      ["src/lib/chat/limits.ts", "NEXT_TIER › value of soma", "cortex", 1],
+      ["src/lib/entitlements/reasoning-cap.ts", "pricingLabel › case label", "cortex", 1],
+      ["src/lib/entitlements/reasoning-cap.ts", "pricingLabel › case label", "brain", 1],
+      ["src/lib/entitlements/reasoning-cap.ts", "pricingLabel › case label", "soma", 1],
+      ["src/lib/entitlements/tier-map.ts", "DB_TIER_BY_PUBLIC › value of plus", "cortex", 1],
+      ["src/lib/entitlements/tier-map.ts", "DB_TIER_BY_PUBLIC › value of pro", "brain", 1],
+      ["src/lib/payments/purchases-select.ts", "other › array element", "brain", 1],
+      ["src/lib/payments/purchases-select.ts", "other › array element", "cortex", 1],
+      ["src/lib/payments/purchases-select.ts", "requested › array element", "cortex", 1],
+      ["src/lib/payments/purchases-select.ts", "requested › array element", "brain", 1],
+      ["src/lib/persona/polaris-progress.ts", "isQaPolarisAutoEligible › operand of ===", "brain", 1],
+      ["src/lib/progression/dev-tier-url.ts", "URL_TIER_MAP › value of all", "brain", 1],
+      ["src/lib/progression/dev-tier-url.ts", "URL_TIER_MAP › value of brain", "brain", 1],
+      ["src/lib/progression/dev-tier-url.ts", "URL_TIER_MAP › value of cortex", "cortex", 1],
+      ["src/lib/progression/dev-tier-url.ts", "URL_TIER_MAP › value of plus", "cortex", 1],
+      ["src/lib/progression/dev-tier-url.ts", "URL_TIER_MAP › value of pro", "brain", 1],
+      ["src/lib/progression/dev-tier-url.ts", "URL_TIER_MAP › value of soma", "soma", 1],
+      ["src/lib/progression/entitlements.ts", "PREMIUM_MIN_TIER › value of advisor", "brain", 1],
+      ["src/lib/progression/entitlements.ts", "PREMIUM_MIN_TIER › value of planner", "brain", 1],
+      ["src/lib/progression/entitlements.ts", "SubscriptionTier › literal type", "soma", 1],
+      ["src/lib/progression/entitlements.ts", "SubscriptionTier › literal type", "cortex", 1],
+      ["src/lib/progression/entitlements.ts", "SubscriptionTier › literal type", "brain", 1],
+      ["src/lib/progression/pricing.ts", "SellableTier › literal type", "cortex", 1],
+      ["src/lib/progression/pricing.ts", "SellableTier › literal type", "brain", 1],
+      ["src/screens/deepspace/dds-plans-screen.tsx", "onNorthStar › operand of ===", "brain", 1],
+      ["src/screens/deepspace/dds-plans-screen.tsx", "onVoyager › operand of ===", "cortex", 1],
+      ["src/screens/deepspace/dds-plans-screen.tsx", "onVoyager › operand of ===", "soma", 1],
+      ["src/screens/deepspace/dds-plans-screen.tsx", "paddleTier › ConditionalExpression", "cortex", 2],
+      ["src/screens/deepspace/dds-plans-screen.tsx", "paddleTier › ConditionalExpression", "brain", 2],
+      ["src/screens/deepspace/dds-plans-screen.tsx", "yearlyOffered › argument of paddleCheckoutAvailable", "cortex", 2],
+      ["src/screens/deepspace/dds-plans-screen.tsx", "yearlyOffered › argument of paddleCheckoutAvailable", "brain", 2],
+    ],
+  },
+  {
+    reason: "path: the 북극성 screen's route /core-brain and its i18n namespace keep the internal name (only the name Core Brain is legacy, never the screen)",
+    spots: [
+      ["src/app/_layout.tsx", "RootLayout › attribute name", "core-brain", 1],
+      ["src/app/audit.tsx", "AuditScreenerShell › argument of useTranslation", "core-brain", 1],
+      ["src/app/brightness.tsx", "BrightnessTimelineScreen › argument of replace", "/core-brain", 1],
+      ["src/app/core-brain.tsx", "CoreBrainScreen › argument of useTranslation", "core-brain", 1],
+      ["src/app/core-brain.tsx", "CoreBrainScreen › argument of warn", "[core-brain] load failed", 1],
+      ["src/app/core-brain.tsx", "CoreBrainScreen › argument of warn", "[core-brain] evidence refresh failed", 1],
+      ["src/app/core-brain.tsx", "loadCoreBrainEvidence › argument of warn", "[core-brain] records query failed", 1],
+      ["src/app/core-brain.tsx", "loadCoreBrainEvidence › argument of warn", "[core-brain] sources query failed; records only", 1],
+      ["src/app/northstar.tsx", "NorthstarSentence › argument of useTranslation", "core-brain", 1],
+      ["src/app/persona.tsx", "Persona › attribute href", "/core-brain", 1],
+      ["src/app/ratifications.tsx", "empty › argument of replace", "/core-brain", 1],
+      ["src/app/trinity.tsx", "Trinity › attribute href", "/core-brain", 1],
+      ["src/components/dashboard/DashboardPhone.tsx", "phonePage › ReturnStatement", "/core-brain", 1],
+      ["src/components/dashboard/phone-screens.tsx", "(module) › module path", "@/app/core-brain", 1],
+      ["src/components/dashboard/phone-screens.tsx", "PHONE_ROUTE_SCREENS › property name", "/core-brain", 1],
+      ["src/components/deep-space/DeepSpaceScreen.tsx", "TAB_ROUTE › value of lens", "/core-brain", 1],
+      ["src/components/deep-space/DeepSpaceShell.tsx", "DeepSpaceShell › value of pathname", "/core-brain", 1],
+      ["src/components/deep-space/PolarisCardOverlay.tsx", "PolarisCardOverlay › argument of useTranslation", "core-brain", 1],
+      ["src/components/deep-space/PolarisCategorySlots.tsx", "PolarisCategorySlots › argument of useTranslation", "core-brain", 1],
+      ["src/components/deep-space/PolarisDeck.tsx", "PolarisDeck › argument of t", "core-brain:closeCard", 1],
+      ["src/components/deep-space/PolarisDeck.tsx", "PolarisDeck › array element", "core-brain", 1],
+      ["src/components/motion/WorldRouteTransition.tsx", "WorldRouteTransition › operand of ===", "core-brain", 1],
+      ["src/lib/dev/screen-index.ts", "DEV_SCREEN_GROUPS › value of file", "core-brain", 1],
+      ["src/lib/dev/screen-index.ts", "DEV_SCREEN_GROUPS › value of href", "/core-brain", 1],
+      ["src/lib/dev/screen-index.ts", "DEV_SCREEN_GROUPS › value of note", "'나를 보는 자리'의 정본은 /core-brain 이라 그리로 넘긴다. 레거시 실화면(PersonaLegacy)은 2026-10-05 EXPO_PUBLIC_UI 레버와 함께 빠졌다(Q-261004-11)", 1],
+      ["src/lib/dev/screen-index.ts", "DEV_SCREEN_GROUPS › value of note", "저장된 옛 링크 호환 전용. /persona 가 다시 /core-brain 으로 넘기므로 두 홉으로 /core-brain 까지 간다", 1],
+      ["src/lib/dev/screen-index.ts", "DEV_SCREEN_GROUPS › value of to", "/core-brain", 2],
+      ["src/lib/i18n/index.ts", "(module) › module path", "../../../locales/en/core-brain.json", 1],
+      ["src/lib/i18n/index.ts", "(module) › module path", "../../../locales/ko/core-brain.json", 1],
+      ["src/lib/i18n/index.ts", "NAMESPACES › array element", "core-brain", 1],
+      ["src/lib/i18n/index.ts", "resources › property name", "core-brain", 2],
+      ["src/lib/i18n/packs/es.ts", "(module) › module path", "../../../../locales/es/core-brain.json", 1],
+      ["src/lib/i18n/packs/es.ts", "pack › property name", "core-brain", 1],
+      ["src/lib/i18n/packs/id.ts", "(module) › module path", "../../../../locales/id/core-brain.json", 1],
+      ["src/lib/i18n/packs/id.ts", "pack › property name", "core-brain", 1],
+      ["src/lib/i18n/packs/pt.ts", "(module) › module path", "../../../../locales/pt/core-brain.json", 1],
+      ["src/lib/i18n/packs/pt.ts", "pack › property name", "core-brain", 1],
+      ["src/lib/motion/route-visibility.ts", "worldRouteVisible › operand of !==", "core-brain", 1],
+      ["src/lib/nav/tabs.ts", "DEEP_SPACE_DOCK_PATHS › array element", "/core-brain", 1],
+      ["src/screens/deepspace/dds-profile-screen.tsx", "routeGroups › value of key", "core-brain", 1],
+      ["src/screens/deepspace/dds-profile-screen.tsx", "routeGroups › value of route", "/core-brain", 1],
+      ["src/screens/deepspace/dds-wiki-records-screens.tsx", "DeepSpaceRecordsScreen › argument of push", "/core-brain", 2],
+      ["src/screens/deepspace/dds-wiki-records-screens.tsx", "DeepSpaceRecordsScreen › argument of t", "core-brain:roleGraphFiltered", 1],
+      ["src/screens/deepspace/dds-wiki-records-screens.tsx", "DeepSpaceRecordsScreen › argument of t", "core-brain:roleGraphEmpty", 1],
+      ["src/screens/deepspace/dds-wiki-records-screens.tsx", "DeepSpaceRecordsScreen › argument of t", "core-brain:roleOpenPolaris", 1],
+      ["src/screens/deepspace/DeepSpaceFlowMapScreen.tsx", "FLOW › value of path", "/core-brain", 1],
+      ["src/screens/deepspace/DeepSpaceFlowMapScreen.tsx", "FLOW_BY_LOCALE › operand of ===", "/core-brain", 1],
+      ["src/screens/deepspace/DeepSpaceFlowMapScreen.tsx", "FLOW_BY_LOCALE › value of path", "/core-brain", 4],
+      ["src/screens/deepspace/DeepSpaceHomeScreen.tsx", "travel › argument of push", "/core-brain", 1],
+    ],
+  },
+  {
+    reason: "environment value: EXPO_PUBLIC_FORCE_TIER takes the internal keys (its schema, and the dev screen note that names it)",
+    spots: [
+      ["src/lib/dev/screen-index.ts", "DEV_SCREEN_GROUPS › value of note", "`chatMode` 를 divergent 로, `rev2Persona` 를 트위비로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 트위비는 북극성(pro) 전용 — free·plus 로 열면 페르소나가 조용히 허슬케이로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)", 1],
+      ["src/lib/env.ts", "schema › array element", "soma", 1],
+      ["src/lib/env.ts", "schema › array element", "cortex", 1],
+      ["src/lib/env.ts", "schema › array element", "brain", 1],
+    ],
+  },
+  {
+    reason: "old product name 2nd-Brain in identifiers people do not read (iCalendar PRODID and UID, storage keys)",
+    spots: [
+      ["src/lib/google/calendar.ts", "lines › array element", "PRODID:-//2nd-Brain//Google Calendar import//EN", 1],
+      ["src/lib/i18n/languageDetector.ts", "STORAGE_KEY › initializer", "2nd-brain:locale", 1],
+      ["src/lib/ops/push.ts", "lines › array element", "PRODID:-//2nd-Brain//ops//EN", 1],
+      ["src/lib/ops/push.ts", "uid › TemplateSpan", "@2nd-brain", 1],
+      ["src/lib/theme/retired-theme-mode.ts", "RETIRED_THEME_MODE_KEY › initializer", "2nd-brain:theme-mode", 1],
+    ],
+  },
+  {
+    reason: "threshold registry (src/lib/sufficiency/registry.ts): declarations checked by its own test, not rendered; its notes and anchors name internal keys, a file path and server SQL",
+    spots: [
+      ["src/lib/sufficiency/registry.ts", "THRESHOLDS › argument of at", "src/app/core-brain.tsx", 7],
+      ["src/lib/sufficiency/registry.ts", "THRESHOLDS › argument of at", "v_cap := CASE COALESCE(v_tier,'free') WHEN 'brain' THEN NULL WHEN 'cortex' THEN 7 WHEN 'soma' THEN 7 ELSE 2 END;", 2],
+      ["src/lib/sufficiency/registry.ts", "THRESHOLDS › operand of +", "주간 심층 분석 남은 횟수가 0 이면 /plans 로 보낸다. free 2 · soma 7 · cortex 7 · brain 무제한, ", 1],
+      ["src/lib/sufficiency/registry.ts", "THRESHOLDS › value of output", "/core-brain 빈 상태 해제", 1],
+      ["src/lib/sufficiency/registry.ts", "THRESHOLDS › value of text", "free 2 · soma 7 · cortex 7 · brain 무제한. 넘으면 크레딧 1, 크레딧도 없으면 polaris_limit_exceeded", 1],
+      ["src/lib/sufficiency/registry.ts", "THRESHOLDS › value of text", "하루 대화 횟수. free 는 freeChatDaily() · soma 30 · cortex 80 · brain 250, 보상 광고 보너스 포함", 1],
+    ],
+  },
+];
+
+interface FoundNode {
+  file: string;
+  context: string;
+  at: string;
+  text: string;
+}
+
+const spotKey = (file: string, context: string, text: string): string => JSON.stringify([file, context, text]);
+
+function checkSource(found: readonly FoundNode[], groups: readonly { spots: readonly Spot[] }[]): { hits: string[]; unused: string[] } {
+  const listed = new Map<string, number>();
+  for (const group of groups) for (const [file, context, text, count] of group.spots) listed.set(spotKey(file, context, text), count);
+  const seen = new Map<string, number>();
+  const hits: string[] = [];
+  for (const node of found) {
+    if (!namesLegacyTier(node.text)) continue;
+    const key = spotKey(node.file, node.context, node.text);
+    seen.set(key, (seen.get(key) ?? 0) + 1);
+    if (!listed.has(key)) hits.push(`${node.at} [${node.context}]: ${node.text}`);
+  }
+  for (const [key, count] of listed) {
+    const actual = seen.get(key) ?? 0;
+    if (actual > 0 && actual !== count) hits.push(`${key}: found ${actual}, listed ${count}`);
+  }
+  return { hits, unused: [...listed.keys()].filter((key) => !seen.has(key)) };
+}
 
 // TODO(PR-1 chat limit bubble): TIER_DISPLAY in src/lib/chat/conversation.ts still turns the upgrade
 // tier into "Soma" / "Cortex" / "Brain" in the chat limit bubble. It waits for an owner decision and
@@ -230,10 +387,10 @@ function sourceFiles(dir: string, out: string[]): void {
   }
 }
 
-test("no app string names a tier by its legacy name, except the pending chat limit bubble", () => {
+test("no app string names a tier by its legacy name outside the listed internal spots", () => {
   const files: string[] = [];
   sourceFiles(path.join(root, "src"), files);
-  const found: Found[] = [];
+  const found: FoundNode[] = [];
   let pendingSeen = 0;
   for (const rel of files) {
     const source = parse(rel);
@@ -247,7 +404,7 @@ test("no app string names a tier by its legacy name, except the pending chat lim
         if (pending.has(node.getStart())) pendingSeen += 1;
         else {
           const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
-          found.push({ where: rel, at: `${rel}:${line}`, text: node.text });
+          found.push({ file: rel, context: contextOf(node), at: `${rel}:${line}`, text: node.text });
         }
       }
       ts.forEachChild(node, visit);
@@ -259,7 +416,29 @@ test("no app string names a tier by its legacy name, except the pending chat lim
   expect(files.length).toBeGreaterThan(500);
   expect(found.length).toBeGreaterThan(40000);
   expect(pendingSeen).toBe(PENDING_TIER_DISPLAY ? PENDING_TIER_DISPLAY.keys.length : 0);
-  expect(check(APP_CODE_RULE, found, SOURCE_EXEMPTIONS)).toEqual({ hits: [], unused: [] });
+  expect(checkSource(found, SOURCE_EXEMPTIONS)).toEqual({ hits: [], unused: [] });
+});
+
+test("a listed spot holds only its own place, text and count", () => {
+  const spot: Spot = ["src/x.ts", "TIERS › array element", "brain", 1];
+  const at = (context: string, text: string): FoundNode => ({ file: "src/x.ts", context, at: "src/x.ts:1", text });
+  expect(checkSource([at("TIERS › array element", "brain")], [{ spots: [spot] }])).toEqual({ hits: [], unused: [] });
+  // The same word in another slot or owner, another text, or once more than listed: all fail.
+  expect(checkSource([at("Badge › value of label", "brain")], [{ spots: [spot] }]).hits).toHaveLength(1);
+  expect(checkSource([at("TIERS › array element", "Brain")], [{ spots: [spot] }]).hits).toHaveLength(1);
+  expect(checkSource([at("TIERS › array element", "brain"), at("TIERS › array element", "brain")], [{ spots: [spot] }]).hits)
+    .toEqual([`${spotKey(spot[0], spot[1], spot[2])}: found 2, listed 1`]);
+  // A listed spot that is gone is reported.
+  expect(checkSource([], [{ spots: [spot] }]).unused).toHaveLength(1);
+  // The context names the place by syntax, not by line.
+  const probe = ts.createSourceFile("p.ts", "\n\nconst TIERS = [\"brain\"];\nfunction f(t: string) { return t === \"cortex\"; }\nconst B = { label: \"soma\" };", ts.ScriptTarget.Latest, true);
+  const contexts: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isStringLiteralLike(node)) contexts.push(`${contextOf(node)}: ${node.text}`);
+    ts.forEachChild(node, visit);
+  };
+  visit(probe);
+  expect(contexts).toEqual(["TIERS › array element: brain", "f › operand of ===: cortex", "B › value of label: soma"]);
 });
 
 test("the pending exception is exactly TIER_DISPLAY's three legacy values", () => {
