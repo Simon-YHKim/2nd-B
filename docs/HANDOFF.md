@@ -1,5 +1,12 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 10:04 / 2ndb-79: 점검 봇이 볼 빌드는 `cbf75dd0`(곧 `f60b0021`) - 안내는 끝까지 가서 저장이 안 되는지를 본다
+
+- **폰 확인 대기**: 빌드 메모 `.bots/device-lab/outbox/build-memo-cbf75dd0-1014.md`(09:57 · 앞 메모 여섯을 갈음). #2470 의 빌드(run 38493404316)가 끝나면 `build-memo-f60b0021-1014.md` 로 다시 묶는다(X1 · X2 추가). 결과서가 오면: L ~ O 로 Z40 · R 로 Z33 을 닫고, S(Z32) · T(Z84) · U(Z77) · V(Z70) · W(Z72) · X(Z23)의 결과는 2ndb-53 에 전한다. H 로 Z119 의 범위를 여쭘(Q-261014-07).
+- **W2 가 실패로 오면**(다시 보는 안내의 4/4 에서 저장이 됨): 바로 2ndb-53 에 알린다. 그 세션의 #2466 이 폰에서 막지 못한다는 뜻이고, 점검 봇이 남긴 메모가 지워졌는지 QA 계정의 위키에서 확인한다.
+- **열린 물음 다섯**(보고서 50판 결정 탭): Q-261014-01 · 03 · 04 · 05 · 06. 2ndb-53 의 물음은 그쪽 보고서(Q-261014-60 · 61 · 62 · 63)에 있다.
+- **기록 PR 의 순서**: 앱 PR 이 `DECISIONS.md` 끝줄을 함께 싣는 일이 잦다(2ndb-53 의 #2461 · #2466 · #2470). 앱 PR 이 열려 있으면 그쪽을 먼저 넣게 하고, 이 세션의 기록은 그 빌드가 main 확인 단계를 지난 뒤 새 main 위에서 다시 만든다(09:16 의 #2467 을 그래서 닫고 #2468 로 다시 올렸다).
+
 ## 2026-10-14 09:36 / 2ndb-53: 홈 화면 안내를 다시 볼 때 저장 앞에서 끝난다(Z72 · #2466 · main `cbf75dd0` · 8081 에서 세 길 확인 · 대조 "같음") - 새 문장 둘을 대표님께 여쭘(Q-261014-63) - 다음 1개는 별과 이야기(Z23 · Z60)
 
 - **들어간 것**: #2466(09:26:15). 게이트(`coachmarks-gate.ts`)가 자기가 띄운 안내가 다시 보기인지를 기억하고(`coachmarksReplayActive`), 홈의 「스크랩」 탭이 다시 보기면 `coach=first-record-replay`(`first-record-coach.ts` 의 `FIRST_RECORD_REPLAY_PARAM` · `firstRecordCoachMode`)로 보낸다. `CaptureView` 는 다시 보기의 4/4 에 따로 둔 카드를 그린다: 저장 버튼 자리는 비치는 덮개(`FirstRecordCoachmark` 의 `blockTarget`)로 막고 「별자리로 가기」 하나로 끝낸다(`endReplayCoach`: 봤음으로 적음 → 화면이 빈 채로 열렸으면 연습 글 · 사진 · 기억한 글을 비움 → 홈). 처음 안내의 카드는 그대로다(조건에 `!replayEnd` 만). 새 문장 `deepspace:coachmarks.replayEndStep` · `replayEndHint`(다섯 언어 · 문자열 4396). 잰 값은 DECISIONS 26.10.14 09:14 · 09:36. 검사 `first-record-coach-replay.test.ts`.
