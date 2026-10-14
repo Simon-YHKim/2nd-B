@@ -1,5 +1,14 @@
 # 2nd-Brain Handoff
 
+## 2026-10-14 21:10 / 2ndb-e7: #2438 5회차(다시 묻기 한 번을 서버가 다시 묶음)를 지어 CI 초록 · 독립 검토 5회차 진행 중 - 다음 1개는 그 판정
+
+- **대표님 답(20:40 · 이 창에 직접)**: Q-261014-37 = 5회차(다시 묻기 한 번은 서버가 그 예약에 다시 묶게 + 응답 유실 회귀 → 5회차 검토). 원문은 DECISIONS 26.10.14 21:10 줄.
+- **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `f17900d7`(main 합침 · CI 넷 초록 20:55). 워크트리 `.worktrees/refund-bind-261013`(정션 있음).
+- **바꾼 것**: 예약의 `rebound` 칸 · 묶기가 답한 예약을 같은 번호의 다음 답에 한 번 다시 묶음 · 회귀의 응답 유실 절 · 예약 픽스처 시각과 4분 지침 · CI 묶기 경합 셋.
+- **다음 1개**: 5회차 판정(`E:/Coding Infra/reports/codex-audit-261010/gates/q67bind-daybreak-r5.txt`). 통과면 머지 → `build_apply_0255_r3.py <main> <dir>` 로 0255 · 0258 블록 → `apply0255_r3_trials.sh` → Relay → 보고(운영 적용 · `openai-proxy` 재배포는 Relay 실행 뒤). 막히면 멈추고 여쭘.
+- **준비물**: 과제서 `q67bind-r5.md` · 잰 것 `gates/q67bind-facts-r5.md` · 묶음 생성기 `<scratchpad>/build_gate_q67bind_r5.py` · 변이 `verify_0255_v5.sh` · `mut_0255_static_v5.py`.
+- **번호**: 새 마이그레이션 0260 부터. 10-14 물음은 이 세션 30 ~ 39(37 까지 씀 · 다음 38).
+
 ## 2026-10-14 15:16 / 2ndb-e7: PR #2438 4회차가 독립 검토에서 막혀 멈춤 - 대표님께 Q-261014-37 - 다음 1개는 그 답
 
 - **가지 · 상태**: `fix/chat-refund-audit-bound-0255` · 머리 `7e596603`(main `b8e7f407` 합침 · CI 넷 초록 14:50). 워크트리 `.worktrees/refund-bind-261013`(정션 있음 · 지울 때 정션부터 뗄 것).
