@@ -830,6 +830,7 @@ Too much at once is as bad as overlap. Every screen earns attention with ONE thi
 - **One graphic supports it** — the visual IS the explanation. If you need explanatory text, the graphic failed → change the graphic, not add copy.
 - **Progressive disclosure** — detail appears only AFTER a tap/drilldown. First screen = the lure, detail = the catch.
 - Pairs with the touch rule (O-7): one touch should SIMPLIFY the screen, never add an overlapping layer (use a screen transition or bottom sheet, never a modal over the node). Back lives in exactly one place.
+- **UI copy** — 화면 문구를 쓰거나 고칠 때 `STYLE.md` 의 「설명 문구 줄이기」 체크리스트와 말투 규칙(B안 · 두 예외)을 따른다(Simon 2026-10-07 설명형 UI 문구 금지 · 2026-10-14 Q-261014-87).
 
 ## Worktrees & branches (Simon standing rule)
 
