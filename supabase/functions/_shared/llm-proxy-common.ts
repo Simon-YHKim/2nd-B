@@ -126,8 +126,14 @@ export const CRISIS_TERMS_KO: readonly string[] = [
   '더 이상 살', '끝내고 싶', '끝낼 거', '끝낼거', '자해',
   '목숨을 끊', '스스로 목숨', '유서', '마지막 인사',
   '짐이 되', '없어지는 게 나아', '사라지는 게 나', '다음 생에는',
-  '영영 잠들고 싶',
+  '영영 잠들고 싶', '끝내 버리고 싶', '끝내 버릴',
 ];
+
+// The spellings the gate reads for a KO term: fully spaced and fully joined (Q-261014-90), and for the
+// listed terms every partly joined one too (Q-261015-80). Mirrors src/lib/safety/classifier.ts
+// (KO_PARTIAL_SPACING_TERMS, koTermSpellings); gemini-proxy/index.ts holds the same two lines.
+const PARTIAL_SPACING_KO: readonly string[] = ['살고 싶지 않', '더 이상 살', '없어지는 게 나아', '사라지는 게 나', '끝내 버리고 싶'];
+const spacingForms = (t: string): string[] => (PARTIAL_SPACING_KO.includes(t) ? t.split(' ').reduce<string[]>((acc, w, i) => (i === 0 ? [w] : acc.flatMap((a) => [`${a} ${w}`, a + w])), []) : [t, t.replace(/ /g, '')]);
 
 // Fold whitespace and Unicode composition before matching, so the crisis gate
 // cannot be walked past with a newline / non-breaking space (U+00A0) / full-width
@@ -159,9 +165,9 @@ export function hasCrisisTerm(text: string): boolean {
     if (matchesTermEn(lower, term)) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
-    // Simon 2026-10-14 (Q-261014-90): a spaced term also matches typed without its spaces; the text
-    // keeps its own. Mirrors src/lib/safety/classifier.ts:matchesJoinedKoTerm.
-    if (lower.includes(normalizeForMatch(term)) || (term.includes(' ') && lower.includes(normalizeForMatch(term).replace(/ /g, '')))) return true;
+    // Simon 2026-10-14 (Q-261014-90) and 2026-10-15 (Q-261015-80): a spaced term also matches with
+    // any of its spaces left out; the text keeps its own. Mirrors classifier.ts:matchesJoinedKoTerm.
+    if (spacingForms(normalizeForMatch(term)).some((form) => lower.includes(form))) return true;
   }
   return false;
 }

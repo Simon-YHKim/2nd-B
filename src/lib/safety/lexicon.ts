@@ -33,10 +33,9 @@ export const FORBIDDEN_TERMS: Record<Locale, readonly string[]> = {
   ],
 } as const;
 
-// Crisis signals → RED zone. Routes to professional resources;
-// never reaches an LLM advisor call. Keep this list conservative;
-// false negatives are safer than false positives for crisis routing
-// when paired with the hotline UX (user can always close the modal).
+// Crisis signals → RED zone. Routes to professional resources; never reaches an LLM advisor call. Keep this list
+// conservative; false negatives are safer than false positives for crisis routing when paired with the hotline UX
+// (user can always close the modal).
 export const CRISIS_TERMS: Record<Locale, readonly string[]> = {
   en: [
     "suicide",
@@ -79,6 +78,7 @@ export const CRISIS_TERMS: Record<Locale, readonly string[]> = {
     "사라지는 게 나",
     "다음 생에는",
     "영영 잠들고 싶",
+    "끝내 버리고 싶", "끝내 버릴", // Q-261015-80: emphatic 끝내고 싶 · 끝낼 거 (20 · 21), appended; one line, docs/legal cite lines below
   ],
 } as const;
 

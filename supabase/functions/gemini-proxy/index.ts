@@ -304,15 +304,15 @@ const CRISIS_TERMS_KO: readonly string[] = [
   '더 이상 살', '끝내고 싶', '끝낼 거', '끝낼거', '자해',
   '목숨을 끊', '스스로 목숨', '유서', '마지막 인사',
   '짐이 되', '없어지는 게 나아', '사라지는 게 나', '다음 생에는',
-  '영영 잠들고 싶',
+  '영영 잠들고 싶', '끝내 버리고 싶', '끝내 버릴',
 ];
 
-// EN terms match only at word boundaries, ported from src/lib/safety/classifier.ts:matchesTerm
-// so a benign substring ("spending it" containing "ending it") doesn't 422 a legitimate prompt.
-// KO terms remain substring matches (Hangul has no whitespace word boundaries), and a spaced KO
-// term also matches typed without its spaces (Q-261014-90, classifier.ts:matchesJoinedKoTerm).
-// KEEP THE MATCHING SEMANTICS IN SYNC with the client classifier; the parity test extracts and
-// exercises this code. Same line count as before: docs/legal cites lines of this file.
+// EN terms match at word boundaries (classifier.ts:matchesTerm), so "spending it" does not 422 on "ending it".
+// KO terms stay substring matches, spaced ones also fully joined (Q-261014-90) and, for the listed ones, partly
+// joined (Q-261015-80): classifier.ts:koTermSpellings. KEEP THE MATCHING SEMANTICS IN SYNC with the client
+// classifier; the parity test runs this code. Same line count: docs/legal cites lines of this file.
+const PARTIAL_SPACING_KO: readonly string[] = ['살고 싶지 않', '더 이상 살', '없어지는 게 나아', '사라지는 게 나', '끝내 버리고 싶'];
+const spacingForms = (t: string): string[] => (PARTIAL_SPACING_KO.includes(t) ? t.split(' ').reduce<string[]>((acc, w, i) => (i === 0 ? [w] : acc.flatMap((a) => [`${a} ${w}`, a + w])), []) : [t, t.replace(/ /g, '')]);
 // Fold whitespace and Unicode composition before matching, so the crisis gate
 // cannot be walked past with a newline / non-breaking space (U+00A0) / full-width
 // space (U+3000) between the words of a multi-word term, or with NFD-decomposed
@@ -345,7 +345,7 @@ function hasCrisisTerm(text: string): boolean {
     if (matchesTermEn(lower, term)) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
-    if (lower.includes(normalizeForMatch(term)) || (term.includes(' ') && lower.includes(normalizeForMatch(term).replace(/ /g, '')))) return true;
+    if (spacingForms(normalizeForMatch(term)).some((form) => lower.includes(form))) return true;
   }
   return false;
 }

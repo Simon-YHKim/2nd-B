@@ -137,8 +137,9 @@ function main(): void {
     // vocabulary mirror. Check raw/nested strings, including JSON escapes.
     const inputs = [
       ...Object.values(CRISIS_EVAL).flat().map(({ text }) => text),
-      // The joined spelling of a spaced term counts too (Q-261014-90).
-      ...Object.values(CRISIS_TERMS).flat().flatMap((term) => [term, term.replace(/ /g, "\n"), term.replace(/ /g, ""), term.normalize("NFD")]),
+      // Every spelling the gate reads: fully joined (Q-261014-90), partly joined for the listed terms
+      // (Q-261015-80), and the partly joined spellings it must NOT read for the others.
+      ...Object.values(CRISIS_TERMS).flat().flatMap((term) => [term, term.replace(/ /g, "\n"), ...classifier.koSpacingForms(term), term.normalize("NFD")]),
     ];
     for (const text of inputs) {
       const expected = classifier.classifyInputAnyLocale(text, "en").zone === "red";
