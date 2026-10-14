@@ -81,7 +81,9 @@ describe("PIXEL-CLAY records root composition", () => {
   });
 
   it("opens on the real connection graph while keeping the complete FlatList one tap away", () => {
-    expect(src).toContain('useState<"list" | "graph">("graph")');
+    // The graph is still where the screen opens. Only a link to one star's stories
+    // (?period=, Z60) opens it as the list.
+    expect(src).toContain('useState<"list" | "graph">(periodStar ? "list" : "graph")');
     expect(src).toContain('onPress={() => setView("list")}');
     expect(src).toContain("<FlatList");
     expect(src).toContain("data={loadError ? [] : filtered}");

@@ -98,7 +98,7 @@
     "graphEmpty": "No knowledge to connect yet.",
     "loadError": "Couldn't load your archive. Try again.",
     "retry": "Try again",
-    "periodScope": "Stories of {{star}}",
+    "periodScope": "Stories: {{star}}",
     "periodShowAll": "Show all"
   },
   "domains": {

@@ -55,7 +55,7 @@ import {
 import { starLadderRungs } from "@/lib/interview/star-ladder";
 import { coveredDrillLayers, meStarStaticParams } from "@/lib/nav/me-star-route";
 import { RedirectHome } from "@/lib/nav/go-home";
-import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
+import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
 import { starEntryStatus, type StarEntryStatus } from "@/lib/persona/star-entry-tracks";
@@ -125,6 +125,9 @@ export default function StarSummaryRoute() {
   // Phone-aware: inside the dashboard phone, the interview opens in the phone,
   // back steps the phone, and `star` comes from the phone route (/me/now).
   const router = useAppRouter();
+  // Inside the dashboard phone, /records is the phone's own notes page, which does not narrow
+  // to a star. There the count stays a plain line, as it was.
+  const inPhone = usePhoneEmbed() !== null;
   const { t } = useTranslation(["home", "deepspace", "profile"]);
   const { star } = useScreenParams<{ star?: string }>();
   const { userId, loading, age } = useAuth();
@@ -347,23 +350,31 @@ export default function StarSummaryRoute() {
                   ))}
                 </View>
                 {summary.records > 0 ? (
-                  // The count opens the wiki list on this star's stories (Z60, Simon 2026-10-13).
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => router.push({ pathname: "/records", params: { period: meta.period ?? "" } })}
-                    style={styles.recordsLink}
-                  >
+                  inPhone ? (
                     <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
                       {t("ds.star.records", { count: summary.records })}
                     </Text>
-                    <Text
-                      style={[m3TextStyle("bodySmall"), styles.muted]}
-                      accessibilityElementsHidden
-                      importantForAccessibility="no-hide-descendants"
+                  ) : (
+                    // The count opens the wiki list on this star's stories (Z60, Simon 2026-10-13).
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("ds.star.records", { count: summary.records })}
+                      onPress={() => router.push({ pathname: "/records", params: { period: meta.period ?? "" } })}
+                      style={styles.recordsLink}
                     >
-                      ›
-                    </Text>
-                  </Pressable>
+                      <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
+                        {t("ds.star.records", { count: summary.records })}
+                      </Text>
+                      <Text
+                        style={[m3TextStyle("bodySmall"), styles.muted]}
+                        aria-hidden
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                      >
+                        ›
+                      </Text>
+                    </Pressable>
+                  )
                 ) : null}
               </>
             ) : summary === null ? (

@@ -518,8 +518,8 @@ export function DeepSpaceRecordsScreen() {
   const periodLine = periodStar ? (
     <View style={rStyles.periodLine}>
       <RNText style={rStyles.periodLineText}>{t("records.periodScope", { star: t(`home:ds.star.${periodStar.key}`) })}</RNText>
-      <RNText style={rStyles.periodLineDot} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">·</RNText>
-      <Pressable onPress={showAllPeriods} accessibilityRole="button" hitSlop={12} style={rStyles.periodLineAll}>
+      <RNText style={rStyles.periodLineDot} aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">·</RNText>
+      <Pressable onPress={showAllPeriods} accessibilityRole="button" style={rStyles.periodLineAll}>
         <RNText style={rStyles.periodLineAllText}>{t("records.periodShowAll")}</RNText>
       </Pressable>
     </View>
@@ -712,10 +712,10 @@ const rStyles = StyleSheet.create({
   wikiTitle: { color: colors.textTitle, fontSize: 26, fontWeight: "800", flexShrink: 1 },
   viewToggle: { width: 148, flexShrink: 0 },
   periodLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
-  periodLineText: { color: colors.textTitle, fontSize: 13.5, fontWeight: "700" },
-  periodLineDot: { color: colors.textMid, fontSize: 13.5 },
-  periodLineAll: { minHeight: 24, justifyContent: "center" },
-  periodLineAllText: { color: colors.cyanSoft, fontSize: 13.5, fontWeight: "700" },
+  periodLineText: { color: colors.textTitle, fontSize: 15, fontWeight: "700" },
+  periodLineDot: { color: colors.textMid, fontSize: 15 },
+  periodLineAll: { minHeight: 44, justifyContent: "center" },
+  periodLineAllText: { color: colors.cyanSoft, fontSize: 15, fontWeight: "700" },
   triageCard: {
     flexDirection: "row",
     alignItems: "center",

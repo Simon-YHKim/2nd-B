@@ -3,7 +3,12 @@
 // whose stories these are and returns to everything.
 //
 // The count on the summary and the rows in the list are the same set: both are the owner's
-// records whose audit_period is that star's period, with no date window on either side.
+// records whose audit_period is that star's period, with no date window on either side. Two
+// known edges: the list's read stops at 5,000 rows (list-all-records.ts), and inside the
+// dashboard phone /records is the phone's own notes page, so there the count is not pressed.
+//
+// These are pins on the source. What the screens do with them was looked at on a check server
+// (2026-10-14): count pressed -> /records?period=infancy, one row, the line; back to 47 rows.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -19,12 +24,16 @@ const READ = read("src/lib/records/list-all-records.ts");
 describe("the star summary: the count opens that star's stories", () => {
   it("the count is pressed, and it carries the star's period to the wiki list", () => {
     const at = SUMMARY.indexOf("{summary.records > 0 ? (");
-    const block = SUMMARY.slice(at, SUMMARY.indexOf(") : null}", at));
+    expect(at).toBeGreaterThan(-1);
+    const whole = SUMMARY.slice(at, SUMMARY.indexOf(") : null}", at));
+    const block = whole.slice(whole.indexOf(") : ("));
     expect(block).toContain('accessibilityRole="button"');
     expect(block).toContain('router.push({ pathname: "/records", params: { period: meta.period ?? "" } })');
-    expect(block).toContain('t("ds.star.records", { count: summary.records })');
-    // The chevron is drawn, not read out.
-    expect(block).toMatch(/accessibilityElementsHidden[\s\S]*›/);
+    // What is read out is the count: the control is named by it, and the chevron is drawn only.
+    expect(block).toContain('accessibilityLabel={t("ds.star.records", { count: summary.records })}');
+    expect(block).toMatch(/aria-hidden\s+accessibilityElementsHidden\s+importantForAccessibility="no-hide-descendants"\s*>\s*›\s*<\/Text>/);
+    // A target a thumb can hit.
+    expect(SUMMARY).toContain('recordsLink: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, minHeight: 44 },');
   });
 
   it("the count is still counted the same way: that period, no date window", () => {
@@ -32,9 +41,24 @@ describe("the star summary: the count opens that star's stories", () => {
     expect(SUMMARY).toContain('.eq("audit_period", period);');
   });
 
-  it("a star with no stories has nothing to press", () => {
+  it("a star with no stories has nothing to press, and there is one way in", () => {
     expect(SUMMARY.match(/pathname: "\/records"/g)).toHaveLength(1);
-    expect(SUMMARY).toContain("{summary.records > 0 ? (");
+    // One condition decides whether the line is there at all; no stories, no line and no control.
+    expect(SUMMARY.match(/\{summary\.records > 0 \? \(/g)).toHaveLength(1);
+  });
+
+  it("inside the dashboard phone the count stays a plain line: its notes page does not narrow", () => {
+    expect(SUMMARY).toContain("const inPhone = usePhoneEmbed() !== null;");
+    const at = SUMMARY.indexOf("{summary.records > 0 ? (");
+    const whole = SUMMARY.slice(at, SUMMARY.indexOf(") : null}", at));
+    expect(whole).toContain("inPhone ? (");
+    const plain = whole.slice(whole.indexOf("inPhone ? ("), whole.indexOf(") : ("));
+    expect(plain).toContain('t("ds.star.records", { count: summary.records })');
+    expect(plain).not.toContain("Pressable");
+    expect(plain).not.toContain("router.push");
+    // The phone's page reads tags only; when it learns ?period=, this guard can go.
+    const phone = read("src/components/dashboard/DashboardPhone.tsx");
+    expect(phone).not.toContain("period");
   });
 });
 
@@ -58,8 +82,11 @@ describe("the wiki list: opened on one star's stories", () => {
     const at = WIKI.indexOf("const periodLine = periodStar ? (");
     const line = WIKI.slice(at, WIKI.indexOf(") : null;", at));
     expect(line).toContain('t("records.periodScope", { star: t(`home:ds.star.${periodStar.key}`) })');
-    expect(line).toContain('<Pressable onPress={showAllPeriods} accessibilityRole="button"');
+    expect(line).toContain('<Pressable onPress={showAllPeriods} accessibilityRole="button" style={rStyles.periodLineAll}>');
     expect(line).toContain('t("records.periodShowAll")');
+    // The way back is a full-size target by itself, not by a slop around a 24px line.
+    expect(WIKI).toContain('periodLineAll: { minHeight: 44, justifyContent: "center" },');
+    expect(line).not.toContain("hitSlop");
     const header = WIKI.slice(WIKI.indexOf("ListHeaderComponent={"), WIKI.indexOf("ListEmptyComponent={"));
     expect(header.indexOf("{viewToggleRow}")).toBeLessThan(header.indexOf("{periodLine}"));
     expect(header.indexOf("{periodLine}")).toBeLessThan(header.indexOf("{triageCards}"));
@@ -92,10 +119,18 @@ describe("the two strings, in five languages", () => {
     expect(records.periodShowAll).toBe("전체 보기");
   });
 
-  it("every star that can be opened this way has a name to put in the line", () => {
-    const home = JSON.parse(read("locales/ko/home.json")) as { ds: { star: Record<string, unknown> } };
+  it.each(["ko", "en", "es", "pt", "id"])("%s: the line reads right with every real star name", (lng) => {
+    const home = JSON.parse(read(`locales/${lng}/home.json`)) as { ds: { star: Record<string, unknown> } };
+    const scope = (JSON.parse(read(`locales/${lng}/deepspace.json`)).records as Record<string, string>).periodScope;
     for (const star of SEVEN_STARS.filter((s) => s.period !== null)) {
-      expect(typeof home.ds.star[star.key]).toBe("string");
+      const name = home.ds.star[star.key];
+      expect(typeof name).toBe("string");
+      const line = scope.replace("{{star}}", name as string);
+      // A preposition in front of the name breaks on names that bring their own word:
+      // es "de De los 30 en adelante", pt "de Os 20 anos" (must contract to "dos").
+      expect(line).not.toMatch(/\b(de|of|da|do|dari) (De|Dos|Os|Los|Las|As|The)\b/);
+      expect(line).not.toMatch(/\b(de|of) \{\{star\}\}/);
     }
+    if (lng === "es" || lng === "pt" || lng === "en") expect(scope).not.toMatch(/\b(de|of) \{\{star\}\}/);
   });
 });

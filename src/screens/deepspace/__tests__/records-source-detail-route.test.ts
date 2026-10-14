@@ -241,12 +241,12 @@ describe("deep-space records source detail routing", () => {
       // star's period it opens as the list, keeps only the rows told under that star
       // (audit_period), and shows one line at the top that says so and returns to
       // everything; choosing the graph returns to everything too. Slice 20,830 ->
-      // 22,839 chars / 489 -> 522 lines. The read itself, the error state, the tag and
+      // 22,832 chars / 489 -> 522 lines. The read itself, the error state, the tag and
       // type filters, the counts and the detail routing are untouched. Verified before
       // re-pinning: the previous digest
       // 3c52b8a74b97388b39715e189c1f529a8d3f24b9ecedde299d5909daad952c6d recomputes
       // byte-for-byte from origin/main's copy of this file.
-      "d5eaeb6ac07516244eeeb542dedac1fc57838992f41bd2c20fc273f5735d7d2b",
+      "6ed107100ca563ba6ac5f7c5b669cc834f217e88218374b3518ec10935011ed6",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,

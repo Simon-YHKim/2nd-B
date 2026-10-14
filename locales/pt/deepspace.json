@@ -98,7 +98,7 @@
     "graphEmpty": "Ainda não há conhecimento para conectar.",
     "loadError": "Não foi possível carregar seus registros. Tente novamente.",
     "retry": "Tentar de novo",
-    "periodScope": "Histórias de {{star}}",
+    "periodScope": "Histórias: {{star}}",
     "periodShowAll": "Ver tudo"
   },
   "domains": {
