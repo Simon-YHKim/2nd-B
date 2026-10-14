@@ -58,7 +58,7 @@ describe("the star summary: the count opens that star's stories", () => {
     expect(plain).not.toContain("router.push");
     // The phone's page reads tags only; when it learns ?period=, this guard can go.
     const phone = read("src/components/dashboard/DashboardPhone.tsx");
-    expect(phone).not.toContain("period");
+    expect(phone).not.toMatch(/params\.period|get\(["']period["']\)|[?&]period=/);
   });
 });
 
@@ -101,6 +101,15 @@ describe("the wiki list: opened on one star's stories", () => {
 
   it("with no story left under that star, the list does not invite a first record", () => {
     expect(WIKI).toContain('typeFilter === "all" && !periodStar ? t("records.emptyAll") : t("records.emptyKind")');
+    const at = WIKI.indexOf("ListEmptyComponent={");
+    const empty = WIKI.slice(at, WIKI.indexOf("ItemSeparatorComponent", at));
+    expect(empty).toMatch(/\{periodStar \? null : \([\s\S]*router\.push\("\/capture"\)/);
+  });
+
+  it("on Android the device Back returns to the star summary it was opened from", () => {
+    expect(WIKI).toContain("const openedFromStar = SEVEN_STARS.some((star) => star.period !== null && star.period === recordsParams.period);");
+    expect(WIKI).toMatch(/const backToStar = useCallback\(\(\) => \{\s*if \(!openedFromStar \|\| !router\.canGoBack\(\)\) return false;\s*router\.back\(\);\s*return true;/);
+    expect(WIKI).toContain("useHardwareBack(backToStar);");
   });
 });
 

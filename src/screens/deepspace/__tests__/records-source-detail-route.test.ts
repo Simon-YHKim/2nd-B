@@ -240,13 +240,14 @@ describe("deep-space records source detail routing", () => {
       // opens that star's stories). The list reads ?period=, and when it names a
       // star's period it opens as the list, keeps only the rows told under that star
       // (audit_period), and shows one line at the top that says so and returns to
-      // everything; choosing the graph returns to everything too. Slice 20,830 ->
-      // 22,832 chars / 489 -> 522 lines. The read itself, the error state, the tag and
+      // everything; choosing the graph returns to everything too; on Android the device
+      // Back returns to the star summary it was opened from, and the narrowed empty list
+      // does not invite a first record. Slice 20,830 -> 23,568 chars / 489 -> 535 lines. The read itself, the error state, the tag and
       // type filters, the counts and the detail routing are untouched. Verified before
       // re-pinning: the previous digest
       // 3c52b8a74b97388b39715e189c1f529a8d3f24b9ecedde299d5909daad952c6d recomputes
       // byte-for-byte from origin/main's copy of this file.
-      "6ed107100ca563ba6ac5f7c5b669cc834f217e88218374b3518ec10935011ed6",
+      "56d241df78a284981b8795cfba3a108c586603f0be4ffb979a5734661b4645bb",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,

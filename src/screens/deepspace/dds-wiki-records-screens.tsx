@@ -26,7 +26,7 @@ import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
+import { useAppRouter, useHardwareBack, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { listRecordsByIds } from "@/lib/records/create";
 import { SEVEN_STARS } from "@/lib/persona/seven-stars";
@@ -321,6 +321,16 @@ export function DeepSpaceRecordsScreen() {
     if (periodStar) setView("list");
   }, [periodStar]);
   const showAllPeriods = useCallback(() => setPeriodShownAll(recordsParams.period ?? null), [recordsParams.period]);
+  // Opened from a star's summary, the device's Back returns to that summary. The tab's own Back
+  // (DeepSpaceScreen) goes home, which skipped the screen the person came from. This listener is
+  // added after the tab's, so it is asked first.
+  const openedFromStar = SEVEN_STARS.some((star) => star.period !== null && star.period === recordsParams.period);
+  const backToStar = useCallback(() => {
+    if (!openedFromStar || !router.canGoBack()) return false;
+    router.back();
+    return true;
+  }, [openedFromStar, router]);
+  useHardwareBack(backToStar);
 
   useEffect(() => {
     if (!userId) return;
@@ -617,9 +627,12 @@ export function DeepSpaceRecordsScreen() {
               ) : (
                 <View style={styles.wikiPageOpen}>
                   <Text variant="body" style={styles.wikiBody}>{typeFilter === "all" && !periodStar ? t("records.emptyAll") : t("records.emptyKind")}</Text>
-                  <Pressable style={styles.primary} onPress={() => router.push("/capture")} accessibilityRole="button">
-                    <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
-                  </Pressable>
+                  {/* A new record is not told under a star, so it would not appear in a star's list. */}
+                  {periodStar ? null : (
+                    <Pressable style={styles.primary} onPress={() => router.push("/capture")} accessibilityRole="button">
+                      <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+                    </Pressable>
+                  )}
                 </View>
               )
             }
