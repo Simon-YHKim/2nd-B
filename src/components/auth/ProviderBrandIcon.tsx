@@ -1,6 +1,7 @@
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Svg, { Rect } from "react-native-svg";
 import { PlainText as Text } from "@/components/ui/PlainText";
+import { providerColumns } from "@/lib/auth/provider-columns";
 import type { OAuthProvider } from "@/lib/supabase/auth";
 import { m3 } from "@/lib/theme/m3";
 import { semantic } from "@/lib/theme/tokens";
@@ -104,3 +105,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+/** How many provider buttons fit on one line at the current viewport width (Z122). */
+export function useProviderColumns(): 1 | 2 {
+  return providerColumns(useWindowDimensions().width);
+}
