@@ -498,21 +498,53 @@ describe("sendChatMessage", () => {
       expect(mentions("classifyChatTextForCrisis")).toBe(2);
     });
 
-    test("in sendChatMessage the cut is the two statements right after the limit check, and the helper is called nowhere else", () => {
+    // Every top-level statement up to the cut, as written: the usage read, the limit check, the
+    // verdict and its return, and nothing else. Holding only the two statements after the limit
+    // check let an aliased bump in front of it through for one value of an optional input
+    // (`const consume = bumpChatUsageIfUnderCap; await consume(...)` when mode is "analytic"), and
+    // the string checks above look for the literal call only (review G-02, 2026-10-14).
+    test("sendChatMessage up to the cut is exactly the usage read, the limit check, the verdict and its return", () => {
       const body = topLevelFn("sendChatMessage").body;
       if (!body) throw new Error("sendChatMessage has no body");
-      const isLimitCheck = (statement: ts.Statement): boolean =>
-        ts.isIfStatement(statement) && norm(statement.expression) === "!precheck.allowed";
-      expect(body.statements.filter(isLimitCheck)).toHaveLength(1);
-      const limitCheck = body.statements.findIndex(isLimitCheck);
-      // By statement index: nothing sits between the limit check and the cut, or between the
-      // verdict and its return.
-      expect(texts(body.statements.slice(limitCheck + 1, limitCheck + 3))).toEqual([
+      expect(texts(body.statements.slice(0, 7))).toEqual([
+        "const day = kstDateToday();",
+        "const limit = CHAT_DAILY_LIMIT[input.tier];",
+        "const { used: usedBefore, adBonus } = await readChatUsageDetail(input.userId, day);",
+        "const precheck = checkChatLimit(input.tier, usedBefore, adBonus);",
+        'if (!precheck.allowed) { return { status: "blocked", reason: "limit_reached", limit: precheck.limit, used: precheck.used, upgradeTo: precheck.upgradeTo, hint: BLOCKED_HINT[input.locale](precheck.limit, precheck.upgradeTo), }; }',
         "const cut = await answerDeviceRed(input, precheck);",
         "if (cut) return cut;",
       ]);
       // The helper's declaration and this one call.
       expect(mentions("answerDeviceRed")).toBe(2);
+    });
+
+    test("the bump is named twice in the file, its import and one call, and that call comes after the cut", () => {
+      const body = topLevelFn("sendChatMessage").body;
+      if (!body) throw new Error("sendChatMessage has no body");
+      const uses: string[] = [];
+      let callAt = -1;
+      const visit = (node: ts.Node): void => {
+        if (ts.isIdentifier(node) && node.text === "bumpChatUsageIfUnderCap") {
+          const parent = node.parent;
+          if (ts.isImportSpecifier(parent) && parent.name === node && !parent.propertyName) {
+            uses.push(`import from ${norm(parent.parent.parent.parent.moduleSpecifier)}`);
+          } else if (ts.isCallExpression(parent) && parent.expression === node) {
+            uses.push("call");
+            callAt = node.getStart(AST);
+          } else {
+            // An alias, a reference passed on, an import under another name: anything but a call.
+            uses.push(`other: ${norm(parent)}`);
+          }
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(AST);
+      expect(uses).toEqual(['import from "./usage"', "call"]);
+      const cutReturn = body.statements[6];
+      expect(norm(cutReturn)).toBe("if (cut) return cut;");
+      expect(callAt).toBeGreaterThan(cutReturn.getEnd());
+      expect(callAt).toBeLessThan(body.getEnd());
     });
   });
 

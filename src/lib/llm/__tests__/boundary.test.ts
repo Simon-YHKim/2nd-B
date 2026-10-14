@@ -206,42 +206,107 @@ describe("callLlm", () => {
     expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("interview_input_red");
   });
 
-  // Q-261014-30: the chat engine's device verdict in THIS suite's environment, which is not mock
-  // mode (the "C3: normal flow" test above shows a green call here does reach the SDK).
-  // boundary.mock.test.ts runs the same function in mock mode only, where a branch such as "route
-  // in mock mode, call the model otherwise" would look the same (review N-01, 2026-10-14).
-  test("chat red routing reaches no model outside mock mode: no SDK call, no Supabase client, both ledgers", async () => {
-    const { classifyChatTextForCrisis } = jest.requireActual("../boundary") as typeof import("../boundary");
-    // Every proxy path goes through one of these two. With both ledger inserts mocked, nothing
-    // else in the boundary asks for them.
-    const client = jest.spyOn(
-      jest.requireActual("../../supabase/client") as typeof import("../../supabase/client"),
-      "getSupabaseClient",
-    );
-    const capturedInvoke = jest.spyOn(
-      jest.requireActual("../../supabase/captured-session-client") as typeof import("../../supabase/captured-session-client"),
-      "invokeFunctionWithCapturedSession",
-    );
-    try {
-      const result = await classifyChatTextForCrisis("죽고 싶어요", "ko", "chat-user", true);
+  // Q-261014-30: the chat engine's device verdict with EXPO_PUBLIC_LLM_MODE=live. This suite's env
+  // mock leaves that key unset, and boundary.mock.test.ts runs in mock mode, so a send placed
+  // behind `=== "live"` (in the new function or in anything it calls, djb2 included) ran in
+  // neither (review N-01, G-01, 2026-10-14). Each test below turns live mode on for itself and
+  // gives it back. The two proxy doors throw instead of running, so a failing test reaches nothing
+  // real, and the controls show that each spy the red test counts at zero does see a call here.
+  describe("chat red routing in live mode (Q-261014-30)", () => {
+    const envModule = jest.requireMock("../../env") as typeof import("../../env");
+    const supabaseClient = jest.requireActual("../../supabase/client") as typeof import("../../supabase/client");
+    const capturedSessionClient = jest.requireActual(
+      "../../supabase/captured-session-client",
+    ) as typeof import("../../supabase/captured-session-client");
+    const GREEN = "Today I went for a walk.";
 
-      expect(result?.safety.zone).toBe("red");
-      expect(mockGenerateContent).not.toHaveBeenCalled();
-      expect(client).not.toHaveBeenCalled();
-      expect(capturedInvoke).not.toHaveBeenCalled();
-      expect(insertMock).toHaveBeenCalledTimes(1);
-      expect(insertMock.mock.calls[0]![0]).toMatchObject({
-        userId: "chat-user",
-        purpose: "secondb_chat",
-        safetyZone: "red",
-        modelUsed: "none-crisis-routed",
-      });
-      expect(crisisMock).toHaveBeenCalledTimes(1);
-      expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("input_red");
-    } finally {
-      client.mockRestore();
-      capturedInvoke.mockRestore();
-    }
+    /** This suite's env with LLM_MODE=live, and every proxy call routed to a throwing spy. */
+    const liveHarness = (viaEdge = false) => {
+      const base = envModule.getEnv();
+      const env = jest
+        .spyOn(envModule, "getEnv")
+        .mockImplementation(() => ({ ...base, EXPO_PUBLIC_LLM_MODE: "live", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: viaEdge }));
+      const reached = (): never => {
+        throw new Error("proxy door reached (fixture)");
+      };
+      // Every proxy path goes through one of these two. With both ledger inserts mocked, nothing
+      // else in the boundary asks for them.
+      const client = jest.spyOn(supabaseClient, "getSupabaseClient").mockImplementation(reached);
+      const capturedInvoke = jest
+        .spyOn(capturedSessionClient, "invokeFunctionWithCapturedSession")
+        .mockImplementation(reached);
+      return {
+        client,
+        capturedInvoke,
+        restore: (): void => {
+          env.mockRestore();
+          client.mockRestore();
+          capturedInvoke.mockRestore();
+        },
+      };
+    };
+
+    test("a red text reaches no model: no SDK call, neither proxy door, and both ledgers written", async () => {
+      const { classifyChatTextForCrisis } = jest.requireActual("../boundary") as typeof import("../boundary");
+      const live = liveHarness();
+      try {
+        expect(envModule.getEnv().EXPO_PUBLIC_LLM_MODE).toBe("live");
+        const result = await classifyChatTextForCrisis("죽고 싶어요", "ko", "chat-user", true);
+
+        expect(result?.safety.zone).toBe("red");
+        expect(mockGenerateContent).not.toHaveBeenCalled();
+        expect(live.client).not.toHaveBeenCalled();
+        expect(live.capturedInvoke).not.toHaveBeenCalled();
+        expect(insertMock).toHaveBeenCalledTimes(1);
+        expect(insertMock.mock.calls[0]![0]).toMatchObject({
+          userId: "chat-user",
+          purpose: "secondb_chat",
+          safetyZone: "red",
+          modelUsed: "none-crisis-routed",
+        });
+        expect(crisisMock).toHaveBeenCalledTimes(1);
+        expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("input_red");
+      } finally {
+        live.restore();
+      }
+    });
+
+    test("control: in the same live harness a green call reaches the SDK", async () => {
+      const live = liveHarness();
+      try {
+        expect(envModule.getEnv().EXPO_PUBLIC_LLM_MODE).toBe("live");
+        await callLlm({ userId: "chat-user", locale: "en", purpose: "reasoning_connect", user: GREEN });
+        expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      } finally {
+        live.restore();
+      }
+    });
+
+    test("control: in the same live harness routed through the edge, a green call reaches each proxy door", async () => {
+      const live = liveHarness(true);
+      try {
+        expect(envModule.getEnv().EXPO_PUBLIC_LLM_MODE).toBe("live");
+        // The doors throw, so these calls fail; what matters is that each door saw the call.
+        await callLlm({ userId: "chat-user", locale: "en", purpose: "reasoning_connect", user: GREEN }).catch(() => undefined);
+        expect(live.client).toHaveBeenCalled();
+        const controller = new AbortController();
+        const session = {
+          userId: "chat-user",
+          epoch: 1,
+          accessToken: "fixture-token",
+          signal: controller.signal,
+          assertCurrent: (): void => undefined,
+          abort: (): void => controller.abort(),
+          release: (): void => controller.abort(),
+        };
+        await callLlm({ userId: "chat-user", locale: "en", purpose: "reasoning_connect", user: GREEN, session }).catch(
+          () => undefined,
+        );
+        expect(live.capturedInvoke).toHaveBeenCalled();
+      } finally {
+        live.restore();
+      }
+    });
   });
 
   test.each([

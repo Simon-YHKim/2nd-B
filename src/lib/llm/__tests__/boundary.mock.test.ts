@@ -343,14 +343,15 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
   describe("in the source", () => {
     const SOURCE = readFileSync(join(__dirname, "..", "boundary.ts"), "utf8").replace(/\r\n/g, "\n");
     const file = ts.createSourceFile("boundary.ts", SOURCE, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-    const declaration = (): ts.FunctionDeclaration => {
+    /** The one top-level function declaration of that name. */
+    const topLevelFunction = (name: string): ts.FunctionDeclaration => {
       const found = file.statements.filter(
-        (node): node is ts.FunctionDeclaration =>
-          ts.isFunctionDeclaration(node) && node.name?.text === "classifyChatTextForCrisis",
+        (node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === name,
       );
-      expect(found).toHaveLength(1);
+      expect([name, found.length]).toEqual([name, 1]);
       return found[0]!;
     };
+    const declaration = (): ts.FunctionDeclaration => topLevelFunction("classifyChatTextForCrisis");
     /** A node as written, with every run of whitespace folded to one space. */
     const norm = (node: ts.Node): string => node.getText(file).replace(/\s+/g, " ");
     const texts = (nodes: readonly ts.Node[] | undefined): string[] => (nodes ?? []).map((node) => norm(node));
@@ -377,6 +378,67 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
         "const safety = classifyInputAnyLocale(text, locale, { minor });",
         'if (safety.zone !== "red") return null;',
         'return routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", { purpose: "secondb_chat" });',
+      ]);
+    });
+
+    // The three statements above hand the raw text to three names, so the spelling of the
+    // declaration is only as good as what those names are. A live-only send placed inside one of
+    // them (djb2 included) would leave the declaration as it is and never run in this mock-mode
+    // file (review G-01, 2026-10-14). Hold what each name is bound to, and djb2's own body.
+    /** Every place the file binds `name`, and every plain assignment to it. */
+    const bindingsOf = (name: string): string[] => {
+      const found: string[] = [];
+      const visit = (node: ts.Node): void => {
+        if (ts.isImportSpecifier(node) && node.name.text === name) {
+          const from = node.parent.parent.parent.moduleSpecifier;
+          found.push(`import ${(node.propertyName ?? node.name).text} from ${ts.isStringLiteral(from) ? from.text : norm(from)}`);
+        } else if (ts.isFunctionDeclaration(node) && node.name?.text === name) {
+          found.push(node.parent === file ? "top-level function" : "nested function");
+        } else if (
+          (ts.isVariableDeclaration(node) ||
+            ts.isParameter(node) ||
+            ts.isBindingElement(node) ||
+            ts.isFunctionExpression(node) ||
+            ts.isClassDeclaration(node) ||
+            ts.isImportClause(node) ||
+            ts.isNamespaceImport(node) ||
+            ts.isImportEqualsDeclaration(node)) &&
+          node.name !== undefined &&
+          ts.isIdentifier(node.name) &&
+          node.name.text === name
+        ) {
+          found.push(ts.SyntaxKind[node.kind]);
+        } else if (
+          ts.isBinaryExpression(node) &&
+          node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+          node.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
+          ts.isIdentifier(node.left) &&
+          node.left.text === name
+        ) {
+          found.push("assignment");
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(file);
+      return found;
+    };
+
+    test("the names the three statements call are bound once: the classifier's import, and two top-level functions", () => {
+      expect(bindingsOf("classifyInputAnyLocale")).toEqual(["import classifyInputAnyLocale from ../safety/classifier"]);
+      expect(bindingsOf("routeCrisis")).toEqual(["top-level function"]);
+      expect(bindingsOf("djb2")).toEqual(["top-level function"]);
+    });
+
+    test("djb2, which receives the raw text, is the same pure hash as written", () => {
+      const fn = topLevelFunction("djb2");
+      expect(texts(fn.modifiers)).toEqual([]);
+      expect(fn.asteriskToken).toBeUndefined();
+      expect(texts(fn.parameters)).toEqual(["s: string"]);
+      expect(fn.type ? norm(fn.type) : "").toBe("string");
+      expect(texts(fn.body?.statements)).toEqual([
+        "let h = 5381;",
+        "for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;",
+        "return (h >>> 0).toString(16);",
       ]);
     });
 

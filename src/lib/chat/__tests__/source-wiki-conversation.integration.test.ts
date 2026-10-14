@@ -185,6 +185,8 @@ const EVERY_OPTIONAL_INPUT: Required<Omit<SendMessageInput, "userId" | "message"
 const RED_TURNS: [string, Partial<typeof EVERY_OPTIONAL_INPUT>][] = [
   ["with the required inputs only", {}],
   ["with every optional input filled, history included", EVERY_OPTIONAL_INPUT],
+  // Both values of the one enum input, for the same reason (review G-02, 2026-10-14).
+  ["with every optional input filled and the analytic mode", { ...EVERY_OPTIONAL_INPUT, mode: "analytic" }],
 ];
 
 // Q-261014-30 (Simon 2026-10-14): the same turn seen from the seam. The engine, the boundary and
