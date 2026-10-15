@@ -12,7 +12,7 @@
 // are unit-testable under ts-jest; the Deno env read is the thin wrapper below).
 import { isUsableHeaderValue, pickApiKey } from './axis-key-name.ts';
 import { prepareCrisisScanText } from '../../../src/lib/safety/crisis-context.ts';
-
+import { matchAdditionalCrisisLanguage } from '../../../src/lib/safety/crisis-language.ts';
 export { isUsableHeaderValue };
 
 // --- server-owned purpose policy -------------------------------------------
@@ -158,8 +158,8 @@ function matchesTermEn(lowerHaystack: string, term: string): boolean {
   }
   return false;
 }
-
 export function hasCrisisTerm(text: string): boolean {
+  if (matchAdditionalCrisisLanguage(text)) return true;
   const lower = normalizeForMatch(prepareCrisisScanText(text));
   for (const term of CRISIS_TERMS_EN) {
     if (matchesTermEn(lower, term)) return true;

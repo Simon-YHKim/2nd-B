@@ -5,7 +5,7 @@ import { classifyInput, classifyInputAnyLocale, koSpacingForms, matchesJoinedKoT
 import { hasCrisisRiskContext } from "./crisis-context";
 import { CRISIS_EVENT_CATEGORY_LIMIT, classifierReportedCategories, recordableCrisisCategories } from "./crisis-event-categories";
 import { CRISIS_TERMS, type Locale } from "./lexicon";
-
+import { matchAdditionalCrisisLanguage } from "./crisis-language";
 // ── The closed list (Simon 2026-10-13, Q-261013-34 with D1-D3) ───────────────
 // The gate matches Korean terms as bare substrings, so a reply the model wrote
 // can hold a crisis term's letters inside an unrelated word: "다짐이 되어" holds
@@ -61,7 +61,7 @@ function escapeForPattern(term: string): string {
   return term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Gate terms of either language still standing in the masked reply. This is the
+// Gate terms of every supported language still in the masked reply. This is the
 // bare term test: none of the whole-message exceptions (a denial, a plain work
 // statement) is applied, because blanking a listed word must never be what
 // makes one of them fit. A spaced Korean term with some or all of its spaces left
@@ -71,14 +71,14 @@ export function gateTermsLeft(maskedReply: string): string[] {
   const en = CRISIS_TERMS.en.filter((term) =>
     new RegExp(`(^|[^a-z0-9])${escapeForPattern(term.normalize("NFKC").toLowerCase())}($|[^a-z0-9])`).test(maskedReply),
   );
-  return [...ko, ...en];
+  return [...ko, ...en].concat(matchAdditionalCrisisLanguage(maskedReply)?.phrase ?? []);
 }
 
 // Checks a MODEL REPLY. The strict answer is returned untouched in every case.
 // `candidate` is true only when all of these hold: the caller allowed the
 // overlaps; the user is a known adult (minor === false; unknown is treated as a
 // minor); the strict scan was red; with the listed words blanked, no gate term
-// of either language is left; and what is left carries no risk context (the
+// of any supported language is left; and what is left carries no risk context (the
 // test the existing exceptions sit behind). Never use this for what the user
 // wrote.
 export function checkModelReplyOverlaps(text: string, locale: Locale, opts: ModelReplyOptions = {}): ModelReplyOverlapCheck {

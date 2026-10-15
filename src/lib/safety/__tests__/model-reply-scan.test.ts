@@ -1,7 +1,7 @@
 import { classifyInput, classifyInputAnyLocale } from "../classifier";
 import { hasCrisisRiskContext } from "../crisis-context";
 import { CRISIS_EVENT_CATEGORY_LIMIT } from "../crisis-event-categories";
-import { CRISIS_TERMS } from "../lexicon";
+import { ADDITIONAL_CRISIS_PHRASES, CRISIS_TERMS } from "../lexicon";
 import {
   KO_CRISIS_TERM_CODES,
   MODEL_REPLY_BENIGN_OVERLAPS,
@@ -107,6 +107,18 @@ const A_LISTED_WORD_NEXT_TO_ANOTHER_GATE_TERM: string[] = [
 ];
 
 describe("checkModelReplyOverlaps", () => {
+  test.each(Object.values(ADDITIONAL_CRISIS_PHRASES).flat())("additional-language red cannot become a closed-overlap candidate: %s", (phrase) => {
+    for (const locale of ["en", "ko"] as const) {
+      for (const variant of [phrase, phrase.toUpperCase().normalize("NFD").replace(/ /g, "\n\u00a0")]) {
+        for (const reply of [variant, `오늘의 작은 다짐이 되어 줄 거예요. ${variant}`]) {
+          const check = checkModelReplyOverlaps(reply, locale, ADULT);
+          expect([check.strict.zone, check.candidate]).toEqual(["red", false]);
+          expect(gateTermsLeft(maskModelReplyOverlaps(reply))).toContain(phrase);
+        }
+      }
+    }
+  });
+
   test.each(ORDINARY_REPLIES)("an ordinary reply is a candidate, and its strict answer stays red: %s", (reply, term) => {
     const check = checkModelReplyOverlaps(reply, "ko", ADULT);
     expect(check.candidate).toBe(true);

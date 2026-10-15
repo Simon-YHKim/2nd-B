@@ -9,7 +9,7 @@
 // here is a silent crisis false-negative on the server boundary, so the build fails
 // on it rather than letting the second line of defence rot.
 
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { dirname, resolve } from "path";
 
 import * as ts from "typescript";
@@ -59,23 +59,30 @@ function loadHasCrisisTerm(src: string, relPath: string): (text: string) => bool
   if (end < 0) throw new Error("hasCrisisTerm end not found");
   const contextImport = src.match(/^import \{ prepareCrisisScanText \} from ['"][^'"]+['"];$/m)?.[0];
   if (!contextImport) throw new Error("shared crisis context import missing from proxy source");
-  const snippet = `${contextImport}\n${src.slice(start, end + 2)}\nexports.hasCrisisTerm = hasCrisisTerm;\n`;
+  const languageImport = src.match(/^import \{ matchAdditionalCrisisLanguage \} from ['"][^'"]+['"];$/m)?.[0];
+  if (!languageImport) throw new Error("shared additional language import missing from proxy source");
+  const snippet = `${contextImport}\n${languageImport}\n${src.slice(start, end + 2)}\nexports.hasCrisisTerm = hasCrisisTerm;\n`;
   const js = ts.transpileModule(snippet, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   const exportsObj: { hasCrisisTerm?: (text: string) => boolean } = {};
   // Resolve and transpile the REAL dependency using the Edge import path. A
   // stubbed allow decision here would conceal a broken production import.
-  const loadContext = (specifier: string) => {
-    const contextPath = resolve(dirname(resolve(__dirname, relPath)), specifier);
-    const contextJs = ts.transpileModule(readFileSync(contextPath, "utf8"), {
+  const modules = new Map<string, object>();
+  const loadDependency = (specifier: string, importer: string): object => {
+    const path = resolve(dirname(importer), specifier);
+    const modulePath = existsSync(path) ? path : `${path}.ts`;
+    const cached = modules.get(modulePath);
+    if (cached) return cached;
+    const moduleJs = ts.transpileModule(readFileSync(modulePath, "utf8"), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
     }).outputText;
-    const contextExports = {};
-    new Function("exports", contextJs)(contextExports);
-    return contextExports;
+    const moduleExports = {};
+    modules.set(modulePath, moduleExports);
+    new Function("exports", "require", moduleJs)(moduleExports, (dep: string) => loadDependency(dep, modulePath));
+    return moduleExports;
   };
-  new Function("exports", "require", js)(exportsObj, loadContext);
+  new Function("exports", "require", js)(exportsObj, (dep: string) => loadDependency(dep, resolve(__dirname, relPath)));
   if (typeof exportsObj.hasCrisisTerm !== "function") {
     throw new Error("hasCrisisTerm did not evaluate to a function");
   }
@@ -260,5 +267,44 @@ describe.each(Object.entries(PROXY_SOURCES))("%s hasCrisisTerm behaviour parity"
   test.each([...DAILY_SAMPLE, ...EMPHATIC_WORK_PAIRS])("KO: daily sample and work pairs agree on both sides: %s", (text, red) => {
     expect(classifyInput(text, "ko").zone === "red").toBe(red);
     expect(hasCrisisTerm(text)).toBe(red);
+  });
+});
+
+// Independently authored inputs run through actual Edge imports and the app's
+// single-locale paths (outputs/embedding scans) as well as dashboard's gate.
+describe.each(Object.entries(PROXY_SOURCES))("%s es/pt/id executable parity", (_name, relPath) => {
+  const hasCrisisTerm = loadHasCrisisTerm(readProxy(relPath), relPath);
+  test.each([
+    ["Ahora quiero suicidarme.", true],
+    ["Me quiero suicidar; necesito ayuda.", true],
+    ["Esta noche voy a quitarme la vida.", true],
+    ["No quiero seguir viviendo.", true],
+    ["Eu quero me matar.", true],
+    ["Agora vou tirar a minha vida.", true],
+    ["Não quero mais viver.", true],
+    ["Nao quero mais viver.", true],
+    ["Saya ingin bunuh diri.", true],
+    ["Aku mau bunuh diri malam ini.", true],
+    ["Saya ingin mengakhiri hidup saya.", true],
+    ["Aku melukai diri sendiri.", true],
+    ["Quiero terminar mi trabajo y descansar.", false],
+    ["Quero terminar o projeto amanhã.", false],
+    ["Saya ingin menyelesaikan pekerjaan ini.", false],
+    ["No quiero suicidarme.", true],
+    ["Eu não quero me matar.", true],
+    ["Saya tidak ingin bunuh diri.", true],
+    ['Ella dijo: "quiero suicidarme".', true],
+    ["équiero suicidarme", false],
+    ["𐐀quiero suicidarme", false],
+    ["xquero me matar. Eu quero me matar.", true],
+  ])("same conservative decision for %s", (text, red) => {
+    for (const variant of [text, text.toUpperCase(), text.normalize("NFD"), text.replace(/ /g, "\n\u00a0")]) {
+      expect(hasCrisisTerm(variant)).toBe(red);
+      for (const locale of ["en", "ko"] as const) {
+        const result = classifyInput(variant, locale);
+        expect(result.zone === "red").toBe(red);
+        if (red) expect(result.crisisRouting?.hotline).toBe(locale === "ko" ? "KR_109" : "GLOBAL_988");
+      }
+    }
   });
 });
