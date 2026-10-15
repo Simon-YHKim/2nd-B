@@ -870,6 +870,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               </View>
             ) : null}
 
+            <Text style={[m3TextStyle("bodySmall"), styles.processingNotice]}>
+              {t("drill.processingNotice")}
+            </Text>
             <TextInput
               value={draft}
               onChangeText={setDraft}
@@ -961,6 +964,7 @@ const styles = StyleSheet.create({
   introNote: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm, textAlign: "center" },
   notice: { color: m3.color.tertiary },
   turnLabel: { color: m3.color.onSurfaceVariant, marginTop: spacing.xs },
+  processingNotice: { color: m3.color.onSurfaceVariant, marginBottom: spacing.xs },
   input: {
     minHeight: 88,
     borderWidth: 1,

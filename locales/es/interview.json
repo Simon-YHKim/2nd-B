@@ -16,6 +16,7 @@
   "drill": {
     "opening": "¿Por qué etapa de tu vida empezamos? Basta con una escena que te venga a la mente.",
     "placeholder": "Escribe lo que quieras, poco o mucho",
+    "processingNotice": "La IA lee tus respuestas para crear la siguiente pregunta. Tus respuestas solo se guardan como registro cuando eliges guardarlas.",
     "send": "Enviar",
     "thinking": "Preparando la siguiente pregunta…",
     "enough": "Parar aquí",
