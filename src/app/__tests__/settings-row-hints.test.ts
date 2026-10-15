@@ -7,7 +7,8 @@ import path from "node:path";
 
 const ROOT = path.resolve(__dirname, "../../..");
 const screen = fs.readFileSync(path.join(ROOT, "src/app/settings.tsx"), "utf8");
-const RESTATING = ["account", "privacy", "theme", "data", "records", "support"] as const;
+// 2026-10-13 Q11 removes the redundant records row from settings.
+const RESTATING = ["account", "privacy", "theme", "data", "support"] as const;
 
 describe("settings rows: a line that restates the title is spoken, not drawn", () => {
   test("the link row keeps a spoken-only hint apart from the drawn subtitle", () => {
@@ -26,7 +27,7 @@ describe("settings rows: a line that restates the title is spoken, not drawn", (
     expect(screen.match(/sub=\{t\("[\w.]*Hint"\)\}/g)).toBeNull();
   });
 
-  test.each(["en", "ko", "es", "pt", "id"])("%s keeps the six spoken hints", (lng) => {
+  test.each(["en", "ko", "es", "pt", "id"])("%s keeps the remaining rows' spoken hints", (lng) => {
     const nav = (JSON.parse(fs.readFileSync(path.join(ROOT, "locales", lng, "settings.json"), "utf8")) as { nav: Record<string, unknown> }).nav;
     for (const key of RESTATING) {
       expect({ key, kind: typeof nav[`${key}Hint`] }).toEqual({ key, kind: "string" });

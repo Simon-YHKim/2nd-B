@@ -741,8 +741,6 @@ export default function Settings() {
           <M3Divider />
           <M3LinkRow icon="article" label={t("nav.data")} hint={t("nav.dataHint")} onPress={() => router.push("/data")} />
           <M3Divider />
-          <M3LinkRow icon="book" label={t("nav.records")} hint={t("nav.recordsHint")} onPress={() => router.push("/records")} />
-          <M3Divider />
           <M3LinkRow icon="lock" label={t("permissions")} onPress={() => router.push("/permissions")} />
         </M3Group>
 

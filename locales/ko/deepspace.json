@@ -66,7 +66,7 @@
     "headline": "‘{{title}}’에 가장 많은 기록이 연결돼 있습니다.",
     "chipPages": "페이지 {{count}}",
     "chipLinks": "연결 {{count}}",
-    "chipOrphans": "연결 없는 별가루 {{count}}",
+    "chipOrphans": "연결 없는 기록 {{count}}",
     "noLinks": "아직 서로 연결된 기록이 없습니다. 새 기록을 추가하면 관련된 내용을 찾을 수 있습니다.",
     "surprise": "‘{{from}}’과 ‘{{to}}’ 사이에 연결이 있습니다. 두 기록은 서로 다른 주제입니다.",
     "islandChip": "지식 묶음 {{count}}",
@@ -96,7 +96,7 @@
     "unfiledBadge": "미분류",
     "fallbackTitle": "제목 없음",
     "graphEmpty": "아직 연결할 지식이 없습니다.",
-    "loadError": "기록 보관소를 불러오지 못했습니다. 다시 시도해 주세요.",
+    "loadError": "위키를 불러오지 못했습니다. 다시 시도해 주세요.",
     "retry": "다시 시도",
     "periodScope": "{{star}} 별의 이야기",
     "periodShowAll": "전체 보기"
@@ -109,7 +109,7 @@
     "lead": "{{who}}의 영역을 한눈에",
     "empty": "기록에 태그를 붙이면 관련 주제에 모입니다. 오늘 있었던 일을 적어보세요.",
     "addData": "+ 기록 추가",
-    "unit": "별가루",
+    "unit": "기록",
     "noActivity": "기록 없음",
     "topicsLabel": "{{tag}} · 핵심 주제"
   },
@@ -489,7 +489,7 @@
     "loadError": "성과 기록을 불러오지 못했습니다. 다시 시도해 주세요.",
     "retry": "다시 시도",
     "empty": "아직 저장한 성과가 없습니다. 최근에 해낸 일을 적어보세요.",
-    "pieceFallback": "커리어 별가루",
+    "pieceFallback": "커리어 기록",
     "drillDown": "자세히 보기",
     "originalNote": "제목과 본문 미리보기는 저장된 언어 그대로입니다. 카드를 열면 전체 기록을 볼 수 있습니다.",
     "sourceInterview": "회상 인터뷰",
@@ -709,7 +709,7 @@
     "eyebrowConstellation": "나의 별자리",
     "footerWeek": "허슬케이가 함께 본 한 주",
     "starsLit": "{{count}}개 별이 빛나는 중",
-    "signature": "PolaScope · {{count}}개 별가루"
+    "signature": "PolaScope · 기록 {{count}}개"
   },
   "ds": {
     "network": {
@@ -907,8 +907,8 @@
       "healthRoutinesCompleted": "이 기록으로 완료 처리된 루틴: {{count}}개.",
       "healthAutoDaily": "자동 새로고침이 켜져 있으면 이 폰에서는 걸음·운동·수면을 하루 한 번 자동으로도 읽습니다.",
       "healthErrFailed": "건강 데이터를 반영하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-      "summaryPieces": "별가루 {{count}}개",
-      "summaryPieces_plural": "별가루 {{count}}개",
+      "summaryPieces": "기록 {{count}}개",
+      "summaryPieces_plural": "기록 {{count}}개",
       "resultAdded": "{{count}}개를 정리함에 추가했습니다",
       "resultAdded_plural": "{{count}}개를 정리함에 추가했습니다",
       "resultDuplicate": "중복 {{count}}개",

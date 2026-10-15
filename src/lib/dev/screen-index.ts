@@ -235,7 +235,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       {
         file: "records",
         href: "/records",
-        label: "별가루 목록",
+        label: "위키",
         auth: {
           gateFile: "src/screens/deepspace/dds-wiki-records-screens.tsx",
           component: "DeepSpaceRecordsScreen",
@@ -247,7 +247,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       {
         file: "record/[id]",
         href: "/record/sample",
-        label: "별가루 상세",
+        label: "기록 상세",
         auth: {
           gateFile: "src/screens/deepspace/dds-record-detail-screen.tsx",
           component: "DeepSpaceRecordDetailScreen",

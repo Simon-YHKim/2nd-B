@@ -165,21 +165,21 @@ describe("visible trust copy", () => {
       id.saved.recordsAiOptIn,
     ].join("\n");
 
-    expect(en.saved.recordsOwnership).toContain("Records");
+    expect(en.saved.recordsOwnership).toContain("Wiki");
     expect(en.saved.recordsOwnership).toContain("export");
     expect(en.saved.recordsOwnership).toContain("One sentence is enough");
     expect(en.saved.recordsAiOptIn).toContain("only");
     expect(en.saved.recordsAiOptIn).toContain("only if you turn on this switch");
-    expect(ko.saved.recordsOwnership).toContain("기록 보관소");
+    expect(ko.saved.recordsOwnership).toContain("위키");
     expect(ko.saved.recordsOwnership).toContain("내보내기");
     expect(ko.saved.recordsOwnership).toContain("작심이틀도 괜찮습니다");
     expect(ko.saved.recordsAiOptIn).toContain("이 스위치를 켜야");
     expect(es.saved.recordsOwnership).toContain("Una oración basta");
-    expect(es.saved.recordsOwnership).toContain("Registros");
+    expect(es.saved.recordsOwnership).toContain("Wiki");
     expect(pt.saved.recordsOwnership).toContain("Uma frase já basta");
-    expect(pt.saved.recordsOwnership).toContain("Registros");
+    expect(pt.saved.recordsOwnership).toContain("Wiki");
     expect(id.saved.recordsOwnership).toContain("Satu kalimat cukup");
-    expect(id.saved.recordsOwnership).toContain("Catatan");
+    expect(id.saved.recordsOwnership).toContain("Wiki");
     expect(combined).not.toMatch(
       /graph|local|local-first|local-only|device|on your device|not the app|anonymous|no account|without account|account-free|no sign-up|no signup/i,
     );
