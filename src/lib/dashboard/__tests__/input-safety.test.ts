@@ -243,3 +243,18 @@ describe.each(actions)("%s output wording gate", (action) => {
     expect(audits).not.toContain(word); expect(audits).not.toContain(json);
   });
 });
+
+// T23: same selected-input boundary for the three additional recognition languages.
+test.each(["Ahora quiero suicidarme.", "Não quero mais viver.", "Saya ingin bunuh diri."])(
+  "additional-language input is stopped before provider egress: %s", async (text) => {
+    expect(hasRedZoneInput({ benign: "Read", nested: [{ text }] })).toBe(true);
+    expect(hasCrisisTerm(text)).toBe(true);
+    for (const action of actions) {
+      const f = fixture(action, text);
+      await f.send();
+      expect(f.fetch).not.toHaveBeenCalled();
+      expect(f.rpc).toHaveBeenCalledWith("dashboard_generation_audit_attempt_v2", expect.objectContaining({ p_crisis: true }));
+      expect(JSON.stringify(f.rpc.mock.calls)).not.toContain(text);
+    }
+  },
+);
