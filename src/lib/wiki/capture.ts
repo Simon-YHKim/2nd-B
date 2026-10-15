@@ -9,7 +9,7 @@ import { buildSourcePayload } from "./ingest-helpers";
 import { throwIfAborted } from "../async/abort";
 import { createSource, getSource } from "./queries";
 import { storageSafeSlug } from "./slug";
-import { rawClippingPath, uploadRawClipping } from "./storage";
+import { deleteRawClipping, rawClippingPath, uploadRawClipping } from "./storage";
 import { contentHash, minhashSignature, lshBandKeys } from "../ingest/dedup";
 import { decideIngest, type GateDeps } from "../ingest/gate";
 import { makeSupabaseGateDeps } from "../ingest/gate-supabase";
@@ -163,20 +163,32 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     ...(storedToStorage ? {} : { _storage_pending: true, _body_fallback: built.body }),
   };
 
-  const source = await createSource({
-    user_id: input.userId,
-    kind: built.payload.kind,
-    title: built.payload.title,
-    source_url: built.payload.source_url,
-    storage_path: path,
-    frontmatter: mergedFrontmatter,
-    tags: mergedTags,
-    simon_relevance: scaleAiRelevance(input.simonRelevance) ?? built.payload.simon_relevance,
-    content_hash: hash,
-    dedup_signature: signature,
-    dedup_bands: bands,
-    dedup_of: dedupOf,
-  }, input.signal);
+  let source: SourceRow;
+  try {
+    source = await createSource({
+      user_id: input.userId,
+      kind: built.payload.kind,
+      title: built.payload.title,
+      source_url: built.payload.source_url,
+      storage_path: path,
+      frontmatter: mergedFrontmatter,
+      tags: mergedTags,
+      simon_relevance: scaleAiRelevance(input.simonRelevance) ?? built.payload.simon_relevance,
+      content_hash: hash,
+      dedup_signature: signature,
+      dedup_bands: bands,
+      dedup_of: dedupOf,
+    }, input.signal);
+  } catch (e) {
+    // 0223: the database refused a comms/location import for a minor account. The body was
+    // uploaded a moment ago, so remove it too: the account should hold neither the row nor the
+    // file. Only this refusal deletes. Any other insert error keeps the upload, because a
+    // concurrent capture of the same content may own the same path.
+    if (storedToStorage && isMinorImportLocked(e)) {
+      await deleteRawClipping(path).catch(() => undefined);
+    }
+    throw e;
+  }
   throwIfAborted(input.signal);
 
   return {
@@ -187,6 +199,13 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     storagePending: !storedToStorage,
     deduped: dedupOf ? "near_duplicate" : null,
   };
+}
+
+/** The refusal 0223 raises (and 0094 for relation_people): `minor_import_locked: ...`. */
+export function isMinorImportLocked(e: unknown): boolean {
+  if (typeof e !== "object" || e === null) return false;
+  const message = (e as { message?: unknown }).message;
+  return typeof message === "string" && message.startsWith("minor_import_locked");
 }
 
 // classifyClipper estimates relevance on a 0..1 scale, but sources.simon_relevance

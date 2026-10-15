@@ -78,7 +78,12 @@ export interface InterviewTurn {
   period?: LifePeriod;
   /** Session-only metadata, no change to stored transcript/schema. */
   sceneStart?: boolean;
+  /** Session-only: true = this answer earned its layer's cell, false = it did not.
+   *  Unset = no verdict yet: the answer the screen is sending now, or one that never got one. */
   answered?: boolean;
+  /** Session-only: the request that carried this answer failed (network or server error), so it
+   *  has no verdict. It is neither progress nor a miss; the screen asks again at the same layer. */
+  unsettled?: boolean;
 }
 
 /** A user's coverage across 25 cells (5 periods × 5 layers). Each cell is the
@@ -237,21 +242,36 @@ export function nextMove(
     // A refusal and exhausted scaffolds end questioning; empty cells are not a reason
     // to revisit a declined topic. No obligation to reach all five layers.
     if (last && answerDisposition(last.text, thread.locale) === "stop") return { kind: "finish" };
-    if (answers.length >= 8 || abandoned.length === DRILL_LAYERS.length) return { kind: "finish" };
+    // 장면은 **답의 개수로 끝나지 않는다** (QA 261005 R2F-09). 여기 있던 `answers.length >= 8`
+    // 은 인정 여부와 상관없이 답을 세서, 두 층에서 막혔다 회복한 사람의 장면을 울림(L5)을
+    // 묻기도 전에 끊었다. 장면을 끝내는 것은 인정된 진전(아래 `isPeriodComplete`: 다섯 층이 모두
+    // 인정됨)과 원래 있던 규칙들이다 -- 거절(위), 막힘(아래 `stuck`), 화면의 판정 경로에서 한
+    // 층을 세 번 인정받지 못함(interview.tsx). 그래서 장면 안의 판정 호출은 층마다 세 번이 넘지 않는다.
+    // 마지막 층도 같다 -- 다섯 층 x 3 = 장면당 판정 호출 15회가 상한이다(게이트 LAST-01).
+    if (abandoned.length === DRILL_LAYERS.length) return { kind: "finish" };
     if (stuck) return shouldScaffold(stuck.streak)
       ? { kind: "scaffold", layer: stuck.layer }
       : { kind: "finish" };
-    if (thread.concreteOnly) return answers.length >= 4
+    // 판정을 기다리는 답은 장면의 맨 끝 턴 하나다(화면의 ask 가 방금 보낸 답). 판정과 다음 질문이
+    // 한 호출에서 오므로 다음 층은 이 답이 인정된다고 보고 고른다. 그 가정으로 나온 `finish` 는
+    // 화면이 판정이 인정일 때만 따른다(interview.tsx, 게이트 LAST-01). 앞에 남은 답 중 판정이 없는
+    // 것(오류로 `unsettled` 가 된 답 · 위험 신호로 멈춘 답)은 진전으로도 셈으로도 세지 않는다.
+    const awaiting = (turn: InterviewTurn, index: number): boolean =>
+      index === scene.length - 1 && turn.answered === undefined && !turn.unsettled;
+    const progress = scene.filter((turn, index): turn is InterviewTurn & { layer: DrillLayer } =>
+      turn.role === "user" && turn.layer !== undefined
+      && (turn.answered === true || awaiting(turn, index))
+      && canCreditAnswer(turn.text, turn.layer, thread.locale));
+    // "사실만"의 4답 상한도 이 진전만 센다(게이트 LAST-02): 모델이 인정한 답과 지금 판정을 기다리는
+    // 답이다. 예전에는 장면의 답을 전부 세서, 오류로 판정을 못 받은 답 셋 뒤 네 번째 입력이 모델
+    // 판정 없이 끝났다. 인정 못 받은 답은 화면이 같은 층에 발판을 놓고 세 번째면 끝내므로 유한하다.
+    if (thread.concreteOnly) return progress.length >= 4
       ? { kind: "finish" }
       : { kind: "drill", layer: "fact" };
     // Past sessions may have every cell filled. A new event still starts with its own
     // scene, and follows its own answers. No cumulative coverage drives this path.
     const sceneCoverage = emptyCoverage();
-    for (const turn of answers) {
-      if (turn.layer && turn.answered !== false && canCreditAnswer(turn.text, turn.layer, thread.locale)) {
-        sceneCoverage[period][turn.layer] += 1;
-      }
-    }
+    for (const turn of progress) sceneCoverage[period][turn.layer] += 1;
     if (isPeriodComplete(sceneCoverage, period)) return { kind: "finish" };
     return { kind: "drill", layer: nextLayerSuggestion(sceneCoverage, period, abandoned) };
   }
@@ -279,8 +299,11 @@ export function nextLayerSuggestion(
 ): DrillLayer {
   const cov = c[period];
   const open = DRILL_LAYERS.filter((l) => !abandoned.includes(l));
-  // 전부 포기했으면 포기 목록을 무시한다 -- 달리 돌려줄 것이 없고,
-  // 턴 상한(MAX_TURNS)이 어차피 대화를 끝낸다.
+  // 전부 포기했으면 포기 목록을 무시한다 -- 달리 돌려줄 것이 없다.
+  // 대화를 끝내는 것은 이 함수가 아니다. 화면은 `nextMove` 에 thread 를 넘기고,
+  // 그 분기가 다섯 층을 모두 포기했을 때 `finish` 를 돌려준다(위 `abandoned.length
+  // === DRILL_LAYERS.length`). 여기 적혀 있던 "턴 상한(MAX_TURNS)이 어차피 끝낸다"는
+  // 그 상한과 함께 없어졌다(Simon 결정 2026-10-05, 12턴 상한 해제).
   const pool = open.length > 0 ? open : DRILL_LAYERS;
 
   if (pool.includes("fact") && cov.fact === 0) return "fact";
@@ -328,7 +351,7 @@ function buildSystemPrompt(
       `다음 깊이 단계: ${layerLabel} — ${layerGuide[nextLayer]}.`,
       "규칙:",
       "1) 한 번에 한 가지 질문만 합니다. 짧고, 구체적이고, 부드럽게.",
-      "말투는 쉬운 일상어와 자연스러운 해요체를 씁니다. 상투적인 칭찬·공감이나 추상적인 비유 없이 바로 묻고, 층·단계 같은 내부 용어를 질문에 드러내지 마세요.",
+      "말투는 쉬운 일상어로, 설명은 '~습니다', 질문은 '~나요?'·'~까요?'를 씁니다. 상투적인 칭찬·공감이나 추상적인 비유 없이 바로 묻고, 층·단계 같은 내부 용어를 질문에 드러내지 마세요.",
       "비밀이나 말하기 불편한 일을 요구하지 마세요. 기억나지 않는 내용을 상상해서 채우게 하지 마세요. 직접 기억한 것과 나중에 들은 이야기를 구분하세요. 사용자가 답하지 않겠다고 하면 그 뜻을 존중하는 것이 깊이 단계보다 우선합니다.",
       "2) 사용자의 마지막 답에 직접 이어붙입니다 — 답의 어느 부분을 더 듣고 싶은지 명확히 합니다.",
       "같은 장면의 사람·행동·사용자 표현을 이어갑니다. 질문에서 사용자의 '제가·나는' 같은 1인칭을 인터뷰어 자신의 말처럼 재사용하지 않습니다. 사용자 말로 명확히 인용하거나 주어를 생략합니다. 답에 없는 사건이나 속마음을 지어내지 않습니다. 짧아도 구체적인 답이면 충분합니다. 다른 장면으로 넘어가려면 사용자의 선택이 먼저입니다.",
@@ -432,6 +455,7 @@ export interface ProbeResult {
    */
   openers: string[];
   zone: "green" | "yellow" | "red";
+  hotline?: import("../safety/lexicon").HotlineId;
   /** The layer the next question is probing for. Caller increments coverage
    *  with this layer once the user answers. */
   layer: DrillLayer;
@@ -480,7 +504,7 @@ export async function nextProbe(
   // 구조화 출력이 깨져도 화면이 멈추지 않게 원문 첫 줄로 떨어진다.
   // 그 아래 대체 문장까지 있으니 두 겹이다.
   // ⚠ `callLlm` 은 스키마를 줘도 **문자열**을 돌려준다. 파싱은 부르는 쪽 몫이다
-  // (`audit/axis-estimate.ts` 가 같은 관용구를 쓴다). 실측 2026-08-24: 여기서
+  // (`persona/northstar.ts` 도 같은 관용구를 쓴다). 실측 2026-08-24: 여기서
   // 파싱된 객체를 기대했더니 `bodyType:"string"` 이라 판정이 통째로 버려졌고,
   // 겉으로는 그냥 "거부권이 안 걸리네" 로만 보였다.
   const parsed = parseProbeReply(typeof res.text === "string" ? res.text : "");
@@ -490,6 +514,7 @@ export async function nextProbe(
     question: usableQuestion(cleaned, history, layer, locale, scaffoldStreak),
     openers: readOpeners(parsed),
     zone: res.safety.zone,
+    hotline: res.safety.crisisRouting?.hotline,
     layer,
     answeredLayer: askedLayer === null ? undefined : readAnsweredLayer(parsed),
   };

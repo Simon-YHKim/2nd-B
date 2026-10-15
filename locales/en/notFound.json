@@ -8,24 +8,5 @@
   "actions": {
     "home": "Go home",
     "homeHint": "Opens the home screen."
-  },
-  "destinations": {
-    "title": "Pages you might need",
-    "capture": {
-      "label": "Capture",
-      "hint": "Opens Capture."
-    },
-    "audit": {
-      "label": "Past me",
-      "hint": "Opens the past-me timeline."
-    },
-    "persona": {
-      "label": "My summary",
-      "hint": "Opens your summary."
-    },
-    "manual": {
-      "label": "User Guide",
-      "hint": "Opens the user guide."
-    }
   }
 }

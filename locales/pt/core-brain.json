@@ -7,8 +7,8 @@
     "proposed": "Rascunho pronto para revisar",
     "filled": "Conectado a um cartão aprovado"
   },
-  "rewardFirstGoal": "Primeira aprovação: recompensa única de XP de persona.",
-  "rewardFirstReached": "Primeira aprovação alcançada. O XP é concedido uma vez por conta.",
+  "rewardFirstGoal": "Primeira meta: aprove um cartão para preencher sua primeira etapa.",
+  "rewardFirstReached": "Primeira meta alcançada. Sua primeira etapa está preenchida.",
   "rewardAllGoal": "Preencha as seis etapas para completar sua coleção Polaris.",
   "rewardAllReached": "Coleção Polaris completa",
   "generationAllowance": "Restam {{n}} de 2 gerações iniciais por conta. As adicionais usam a cota semanal de raciocínio do seu plano.",
@@ -22,7 +22,7 @@
   "loadError": "Não foi possível carregar seu resumo",
   "loadErrorBody": "Verifique sua conexão e tente novamente.",
   "tryAgain": "Tentar de novo",
-  "startSecondB": "Começar com o SecondB",
+  "startSecondB": "Começar com o HustleK",
   "sevenStars": "Explore suas sete estrelas",
   "threeMin": "Comece pelo teste de relacionamentos. Leva cerca de três minutos.",
   "startRelCheck": "Iniciar verificação de relações · 3 min",
@@ -44,7 +44,6 @@
   "roleGraphEmpty": "Sugira e aprove uma persona na Estrela Polar para ver aqui as conexões com seus registros.",
   "roleGraphFiltered": "Nenhuma evidência de uma persona aprovada corresponde a este filtro. Altere o filtro ou confira a Estrela Polar.",
   "roleOpenPolaris": "Abrir Estrela Polar",
-  "swipeCards": "Deslize para os lados para ver, para cima ou baixo para fechar",
   "closeCard": "Fechar o cartão da minha Estrela Polar",
   "brightness": "Brilho",
   "ratLog": "Registro de confirmações",
@@ -70,14 +69,14 @@
   "valuesAudit": "Auditoria de valores",
   "nextStep": "Próximo passo",
   "narrowStep": "Escolha algo para tentar a partir do seu resumo.",
-  "newAngleTwi": "Novo ângulo com o Twi-B",
+  "newAngleTwi": "Novo ângulo com o Joy-K",
   "reviewProposal": "Revisar uma proposta",
   "openDigest": "Revisar links sugeridos ({{n}})",
-  "askAboutCenter": "Perguntar ao SecondB sobre este resumo",
+  "askAboutCenter": "Perguntar ao HustleK sobre este resumo",
   "soulCoreEyebrow": "02. Estrela do Norte",
   "piecesGather": "Seus registros formam este resumo",
   "connectingLately": "Conexões entre seus registros recentes",
-  "askSecondB": "Perguntar ao SecondB",
+  "askSecondB": "Perguntar ao HustleK",
   "myCenter": "Estrela do Norte",
   "piecesWord": "registros",
   "selfPortrait": "autorretrato",
@@ -92,11 +91,37 @@
   "areasCount": "{{n}} áreas",
   "seePieces": "Ver {{n}} registros",
   "seeEvidencePieces": "Ver {{n}} registros de evidência",
-  "piecesBehindSub": "Registros usados pelo SecondB e no resumo da Estrela Polar.",
+  "piecesBehindSub": "Registros usados pelo HustleK e no resumo da Estrela Polar.",
   "profileStar": "Perfil",
   "selfChecks": "Autorrelatos. Mais leves, e não são instrumentos padronizados.",
   "ipipCheck": "Personalidade a fundo (120 itens)",
   "rlssCheck": "Satisfação com a vida",
   "auditCheck": "Revisão de vida",
-  "interviewCheck": "Conversar"
+  "interviewCheck": "Conversar",
+  "portrait": {
+    "label": {
+      "who": "Quem eu sou",
+      "forWhom": "Para quem",
+      "goal": "Aonde quero chegar",
+      "do": "O que eu faço",
+      "fuel": "O que me move"
+    },
+    "hint": {
+      "who": "Uma verificação de padrão de relações pode acrescentar mais uma pista sobre você.",
+      "forWhom": "Você pode contar uma história sobre alguém em uma entrevista · o resumo automático deste campo ainda está em preparação.",
+      "goal": "Você pode explorar um próximo passo no modo novo ângulo do HustleK · o resumo automático ainda está em preparação.",
+      "do": "Você pode anotar o que fez no registro de hoje · o resumo automático ainda está em preparação.",
+      "fuel": "Uma revisão de vida pode mostrar os valores aos quais você mais volta."
+    },
+    "evidenceHint": "Abre os registros que embasam este valor."
+  },
+  "savedResult": {
+    "title": "Resultado salvo anteriormente",
+    "body": "Resultado salvo anteriormente. A origem não foi registrada, então não o apresentamos como sua direção atual."
+  },
+  "polarisGraphicA11y": "Constelação de sete estrelas e a Estrela Polar. O brilho da Estrela Polar vem das seis estrelas, sem contar o perfil.",
+  "deck": {
+    "portrait": "AUTORRETRATO",
+    "evidence": "EVIDÊNCIAS"
+  }
 }

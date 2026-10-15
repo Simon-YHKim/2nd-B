@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 
 import {
   EXPO_ROUTER_HYDRATE_CSP_SOURCE,
@@ -122,7 +122,6 @@ describe("web document security policy", () => {
         EXPO_ROUTER_HYDRATE_CSP_SOURCE,
         "https://accounts.google.com/gsi/client",
         "https://www.googletagmanager.com",
-        "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js",
         "https://cdn.paddle.com/paddle/v2/paddle.js",
       ]),
     );
@@ -138,6 +137,41 @@ describe("web document security policy", () => {
     expect(img).not.toContain("https://zoacryukmdeivmolvyhj.supabase.co");
     const sandboxCsp = configuredCsp(sandbox);
     expect(sandboxCsp).toContain("https://isolatedsandbox.supabase.co/storage/v1/object/sign/record-photos/");
+  });
+
+  test("the retired web AdSense origins stay out of the policy while no shipped code requests them (2026-10-05)", () => {
+    // Q-261004-16 folded the web AdSense banner: AdSlot.tsx was the only code that
+    // loaded adsbygoogle.js, and web-security-policy.ts says every origin must
+    // match a request production code makes. Both halves are pinned together:
+    // bringing the banner back means editing this test on purpose, with
+    // docs/ADSENSE-WEB-RETIREMENT.md, not slipping one half in alone.
+    const ADSENSE = /googlesyndication\.com|doubleclick\.net/;
+    const policies = {
+      pages: GITHUB_PAGES_CSP,
+      vercel: vercelCsp(),
+      development: webDocumentCsp(true),
+      sandbox: configuredCsp(sandbox),
+      exportVerifier: EXPORT_VERIFIER,
+    };
+    const leaking = Object.entries(policies).filter(([, text]) => ADSENSE.test(text)).map(([name]) => name);
+    expect(leaking).toEqual([]);
+
+    const requesters: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name !== "__tests__") walk(full);
+        } else if (/\.(tsx?|jsx?)$/.test(entry.name)) {
+          // A URL, not a mention: prose that names the hosts is not a request.
+          if (/https:\/\/[a-z0-9.-]*(?:googlesyndication\.com|doubleclick\.net)/.test(readFileSync(full, "utf8"))) {
+            requesters.push(relative(ROOT, full).split("\\").join("/"));
+          }
+        }
+      }
+    };
+    walk(resolve(ROOT, "src"));
+    expect(requesters).toEqual([]);
   });
 
   test("the non-production Vercel header is exact parity plus header-only framing", () => {

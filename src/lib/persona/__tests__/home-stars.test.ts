@@ -71,7 +71,10 @@ describe("별자리 그림이 목록과 어긋나지 않는다", () => {
   it("별 이름을 공용 키에서 읽는다 (화면마다 다른 이름 금지)", () => {
     expect(home).toContain("t(`ds.star.${id}`)");
     const core = read("src/app/core-brain.tsx");
-    expect(core).toContain("tHome(`ds.star.${id}`)");
+    // 2026-10-05: 북극성 화면이 별 이름을 부르던 자리 `ds.star.${id}` 는 레거시 꼬리에
+    // 있었고 롤백 레버와 함께 빠졌다(Simon 결정 Q-261004-11 C). 배송 덱은 같은 공용 키를
+    // 일곱 별 정본(SEVEN_STARS)의 key 로 부른다 - 화면마다 다른 이름 금지는 그대로다.
+    expect(core).toContain("tHome(`ds.star.${star.key}`)");
   });
 });
 
@@ -98,8 +101,38 @@ describe("별을 누르면 그 별의 요약이 열린다 (Simon 결정 4 = B)",
   it("프로필 별의 채우기 CTA가 실제 입력 화면으로 직행한다", () => {
     const page = read("src/app/me/[star].tsx");
     expect(page).toContain('router.push("/profile-details")');
-    expect(page).toContain('router.push("/avatar-studio")');
     expect(page).not.toContain('router.push("/profile")');
+  });
+
+  // Simon 2026-10-06: 프로필 별은 설명 카드 대신 프로필을 바로 보여준다 - 아바타,
+  // 요약 한 줄, 버튼 하나(채운 칸이 없으면 설정, 있으면 수정). 아바타 꾸미기는 /profile 에.
+  it("프로필 별은 아바타와 요약 한 줄, 설정/수정 버튼 하나를 보여준다", () => {
+    const page = read("src/app/me/[star].tsx");
+    expect(page).toContain("<AvatarPreview spec=");
+    expect(page).toContain("PROFILE_DETAIL_FIELDS.flatMap");
+    expect(page).toContain("profileChoiceLabelKey(field.key, value)");
+    expect(page).toContain('t(countFilledDetails(profile.details) > 0 ? "ds.star.editProfile" : "ds.star.setupProfile")');
+    // 읽기 실패는 "프로필 없음"이 아니다 - 설정/수정을 고르지 않는다.
+    expect(page).toContain(': t("ds.star.openProfile");');
+    expect(page).not.toContain('router.push("/avatar-studio")');
+    expect(page).not.toContain('t("ds.star.profileBody")');
+  });
+
+  // Simon 2026-10-07: 두 줄 - 큰 아바타, 그다음 요약 세 줄. 제목은 왼쪽 위, 연필은 오른쪽 위.
+  it("프로필 별은 큰 아바타 · 요약 세 줄 · 오른쪽 위 연필로 그린다", () => {
+    const page = read("src/app/me/[star].tsx");
+    expect(page).toContain('<PixelGlyph name="edit"');
+    expect(page).toContain("accessibilityLabel={profileCta}");
+    // 10-07 2차: 아바타 폭 = 요약 상자 폭, 요약은 말줄임 없이 다섯 줄 높이에서 스크롤.
+    expect(page).toContain("size={avatarWidth} />");
+    expect(page).not.toContain("numberOfLines={1}");
+    expect(page).toContain("profileSummary: { maxHeight: m3.type.bodyLarge.line * 5 }");
+    expect(page.indexOf("styles.profileHeader")).toBeLessThan(page.indexOf("styles.profileAvatarRow"));
+    // Approved import design: real status, labeled facts, common flow and server history.
+    expect(page).toContain("Math.min(208, Math.floor(nativeEvent.layout.width))");
+    expect(page).toContain("fetchStatusMessage(userId)");
+    expect(page).toContain('router.push("/profile-import")');
+    expect(page).toContain('params: { mode: "history" }');
   });
 
   it("정적 웹 export도 일곱 요약 경로를 전부 만든다", () => {
@@ -127,5 +160,147 @@ describe("각 별에 이름이 있다 (다섯 로케일)", () => {
       expect((star[s.key] ?? "").length).toBeGreaterThan(0);
     }
     expect((star.editAvatar ?? "").length).toBeGreaterThan(0);
+    for (const key of ["setupProfile", "editProfile", "profileEmpty"]) {
+      expect((star[key] ?? "").length).toBeGreaterThan(0);
+    }
+  });
+});
+
+// QA 261004 W-08/D-10. The /me/<star> gauge labelled its five cells with the
+// interview's "L1 · Fact" … "L5 · Echo". In this app L1~L5 is the brightness
+// ladder, and coverage tops out at L4 (L5 comes only from ratification), so a
+// fully covered period showed a lit "L5 · Echo" next to a home star at L4. The
+// copy also called the layers "topics", and "{{n}} records" read "1 records".
+describe("/me/<star> 게이지는 층 이름만 쓰고 단위·복수를 맞춘다", () => {
+  const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
+  const LAYERS = ["fact", "feeling", "meaning", "belief", "echo"] as const;
+  type StarCopy = Record<string, unknown> & { layer?: Record<string, unknown> };
+  const starCopy = (loc: string) =>
+    (JSON.parse(read(`locales/${loc}/home.json`)) as { ds: { star: StarCopy } }).ds.star;
+
+  it("화면이 인터뷰의 L 번호 라벨을 그리지 않는다", () => {
+    const page = read("src/app/me/[star].tsx");
+    expect(page).not.toContain("LAYER_LABEL");
+    expect(page).toContain("t(`ds.star.layer.${layer}`)");
+    expect(page).toContain('t("ds.star.records", { count: summary.records })');
+  });
+
+  it.each(LOCALES)("%s: 층 이름에 L 번호가 없고, 단위가 '주제'가 아니다", (loc) => {
+    const star = starCopy(loc);
+    for (const layer of LAYERS) {
+      const name = star.layer?.[layer];
+      expect(typeof name).toBe("string");
+      expect({ layer, name }).not.toEqual({ layer, name: expect.stringMatching(/\bL\d|·/) });
+    }
+    for (const key of ["meter", "dug"]) {
+      expect({ key, value: star[key] }).not.toEqual({
+        key,
+        value: expect.stringMatching(/주제|topic|tema|etapa/i),
+      });
+    }
+  });
+
+  it.each(LOCALES)("%s: 기록 개수는 count 복수형 쌍이다", (loc) => {
+    const star = starCopy(loc);
+    expect(star.records).toEqual(expect.stringContaining("{{count}}"));
+    expect(star.records_plural).toEqual(expect.stringContaining("{{count}}"));
+  });
+
+  it("i18next(v3 호환)로 풀면 1 record / 2 records 가 된다", async () => {
+    const i18next = (await import("i18next")).default;
+    const inst = i18next.createInstance();
+    await inst.init({
+      lng: "en",
+      compatibilityJSON: "v3",
+      resources: Object.fromEntries(
+        LOCALES.map((loc) => [loc, { home: JSON.parse(read(`locales/${loc}/home.json`)) }]),
+      ),
+      defaultNS: "home",
+      interpolation: { escapeValue: false },
+    });
+    expect(inst.t("ds.star.records", { count: 1 })).toBe("1 record");
+    expect(inst.t("ds.star.records", { count: 2 })).toBe("2 records");
+    expect(inst.t("ds.star.records", { count: 1, lng: "es" })).toBe("1 registro");
+    expect(inst.t("ds.star.records", { count: 3, lng: "ko" })).toBe("기록 3개");
+    expect(inst.t("ds.star.layer.echo", { lng: "ko" })).toBe("울림");
+  });
+});
+
+// Simon 2026-10-12 (Q-261012-57, mock B). The star summary says its name once,
+// shows the layer count once, and draws the five layers as a ladder. The two
+// sentences that explained brightness stay as the screen reader's words only.
+// Source contracts: render tests are not available here; the rung order and
+// lighting are tested in src/lib/interview/__tests__/star-ladder.test.ts.
+describe("/me/<star> 요약은 사다리 하나로 말한다", () => {
+  const LOCALES = ["en", "ko", "es", "pt", "id"] as const;
+  const page = read("src/app/me/[star].tsx");
+  const star = (loc: string) =>
+    (JSON.parse(read(`locales/${loc}/home.json`)) as { ds: { star: Record<string, unknown> } }).ds.star;
+
+  it("머리줄은 어느 별이든 화면 이름이고, 별 이름은 본문에 한 번이다", () => {
+    expect(page).toContain('title={t("ds.star.pageLabel")}');
+    expect(page).not.toContain('title={isProfileStar ? t("ds.star.pageLabel") : name}');
+    // The page label is no longer repeated above the star's name.
+    expect(page.match(/t\("ds\.star\.pageLabel"\)/g)?.length).toBe(1);
+    expect(page).not.toContain("styles.pageLabel");
+  });
+
+  it("층 수는 한 번, 사다리의 켜진 층에서 센다", () => {
+    expect(page.match(/t\("ds\.star\.count"/g)?.length).toBe(1);
+    expect(page).toContain('t("ds.star.count", { n: ladder.filter((rung) => rung.on).length, total: ladder.length })');
+  });
+
+  it("밝기를 설명하던 문장 둘은 낭독 이름으로만 남는다", () => {
+    expect(page).toContain('accessibilityRole="progressbar"');
+    expect(page).toMatch(/accessibilityLabel=\{t\("ds\.star\.meter",/);
+    expect(page).toMatch(/text: t\("ds\.star\.dug",/);
+    // Neither sentence is drawn as visible text any more.
+    expect(page).not.toMatch(/<Text[^>]*>\s*\{t\("ds\.star\.(meter|dug)"/);
+    expect(page).not.toContain("ds.star.recordsLabel");
+  });
+
+  it("사다리는 한 곳에서 정한 순서로 그리고, 줄에는 층 이름만 쓴다", () => {
+    expect(page).toContain('import { starLadderRungs } from "@/lib/interview/star-ladder";');
+    expect(page).toContain("? starLadderRungs(summary.covered)");
+    expect(page).toContain("{ladder.map(({ layer, on }) => (");
+    expect(page).not.toMatch(/gaugeSegment|styles\.gauge/);
+  });
+
+  it("줄은 44 아래로 줄지 않고, 본문이 창 높이까지 자라 사다리가 남는 높이를 가져간다", () => {
+    expect(page).toContain("const RUNG_MIN = 44;");
+    expect(page).toContain("starBody: { flexGrow: 1 }");
+    expect(page).toMatch(/rung: \{[^}]*flexGrow: 1,[^}]*flexBasis: RUNG_MIN,[^}]*minHeight: RUNG_MIN/);
+    expect(page).toMatch(/ladder: \{[^}]*flexGrow: 1,[^}]*maxHeight: RUNG_MAX \* 5 \+ RUNG_GAP \* 4/);
+  });
+
+  it.each(LOCALES)("%s: 짧은 층 수 문자열이 있고 구역 제목은 없다", (loc) => {
+    const copy = star(loc);
+    expect(copy).not.toHaveProperty("recordsLabel");
+    expect(copy.count).toEqual(expect.stringContaining("{{n}}/{{total}}"));
+    // The spoken sentences are still there for the progress bar.
+    expect(typeof copy.meter).toBe("string");
+    expect(typeof copy.dug).toBe("string");
+  });
+
+  // Simon 2026-10-12 (Q-261012-62): a star with no story yet shows the same
+  // ladder, all five rungs off and "0/5", instead of one line of text.
+  it("이야기가 0 인 별도 사다리를 그린다: 한 줄 글은 불러오는 중에만 남는다", () => {
+    expect(page).toMatch(/const ladder = !isProfileStar && !locked && summary !== null && !waitingEmpty\s+\? starLadderRungs\(summary\.covered\)\s+: null;/);
+    // The one exception: an empty star still waiting on the star before it cannot be
+    // started, so it shows that one reason and nothing else (like a period not reached).
+    expect(page).toContain('const waitingEmpty = entry?.kind === "previous" && summary !== null && summary.cells === 0 && summary.records === 0;');
+    expect(page).not.toContain('t("ds.star.emptyBody")');
+    expect(page).toMatch(/\) : currentRead\.status === "loading" \? \(\s+<MdCard variant="outlined" style=\{styles\.card\}>\s+<Text[^>]*>\s+\{t\("ds\.star\.loading"\)\}/);
+    // No "0 records" line under an empty ladder.
+    expect(page).toContain("{summary.records > 0 ? (");
+    // The button already says Start until a first layer is covered.
+    expect(page).toContain('label={summary && (summary.cells ?? 0) > 0 ? t("ds.star.continue") : t("ds.star.start")}');
+  });
+
+  // The sentence itself stays in the locales: the records check screen (dds-audit-screen.tsx)
+  // still says it for a period with nothing in it.
+  it.each(LOCALES)("%s: 빈 상태 문장은 다른 화면이 쓰므로 로케일에 남는다", (loc) => {
+    expect(typeof star(loc).emptyBody).toBe("string");
+    expect(typeof star(loc).start).toBe("string");
   });
 });

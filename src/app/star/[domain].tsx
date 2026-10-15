@@ -1,3 +1,4 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // 도메인 별 렌즈 (rev2 11-star): tapping a life-domain star on the home
 // constellation opens THIS screen — a per-domain lens, not the flat wiki list.
 // Mirrors the reference 11-star: domain header, a 세컨비 briefing, the
@@ -9,9 +10,10 @@
 // discipline as the values/data/career screens). Structured sources such as
 // the ledger, people map, recreation items and health samples stay real too.
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import {
@@ -25,6 +27,7 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { RedirectHome } from "@/lib/nav/go-home";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { DOMAIN_STARS, getDomainStar, isDomainId, domainTagFor, type DomainId } from "@/lib/persona/domain-stars";
@@ -80,19 +83,19 @@ const DOMAIN_ACTION: Record<
     route: "/ledger",
   },
   growth: {
-    primary: { en: "Add a moment", ko: "장면 담기", es: "Añadir momento", pt: "Adicionar momento", id: "Tambah momen" },
+    primary: { en: "Add a moment", ko: "장면 추가", es: "Añadir momento", pt: "Adicionar momento", id: "Tambah momen" },
     secondary: { en: "Reflect", ko: "회상하기", es: "Reflexionar", pt: "Refletir", id: "Refleksi" },
     // Keep the source star through period selection and the interview so the
     // saved recall returns here and carries an explicit growth-domain intent.
     route: "/audit?origin=domain-growth",
   },
   relation: {
-    primary: { en: "Add a person", ko: "사람 담기", es: "Añadir persona", pt: "Adicionar pessoa", id: "Tambah orang" },
+    primary: { en: "Add a person", ko: "사람 추가", es: "Añadir persona", pt: "Adicionar pessoa", id: "Tambah orang" },
     secondary: { en: "People map", ko: "사람 지도", es: "Mapa de personas", pt: "Mapa de pessoas", id: "Peta orang" },
     route: "/people",
   },
   health: {
-    primary: { en: "Add a record", ko: "기록 담기", es: "Añadir registro", pt: "Adicionar registro", id: "Tambah catatan" },
+    primary: { en: "Add a record", ko: "기록 추가", es: "Añadir registro", pt: "Adicionar registro", id: "Tambah catatan" },
     secondary: { en: "Connect data", ko: "데이터 연결", es: "Conectar datos", pt: "Conectar dados", id: "Hubungkan data" },
     // "/import" hosts the actual device-health connect path (Health Connect /
     // HealthKit ingest into health_samples — the table this star's
@@ -102,12 +105,12 @@ const DOMAIN_ACTION: Record<
     route: "/import",
   },
   recreation: {
-    primary: { en: "Add rest", ko: "휴식 담기", es: "Añadir descanso", pt: "Adicionar descanso", id: "Tambah istirahat" },
+    primary: { en: "Add rest", ko: "휴식 추가", es: "Añadir descanso", pt: "Adicionar descanso", id: "Tambah istirahat" },
     secondary: { en: "Rest map", ko: "휴식 지도", es: "Mapa de descanso", pt: "Mapa de descanso", id: "Peta istirahat" },
     route: "/rest",
   },
   collect: {
-    primary: { en: "Capture", ko: "담기", es: "Capturar", pt: "Capturar", id: "Tangkap" },
+    primary: { en: "Capture", ko: "기록 추가", es: "Capturar", pt: "Capturar", id: "Tangkap" },
     secondary: { en: "See records", ko: "기록 보기", es: "Ver registros", pt: "Ver registros", id: "Lihat catatan" },
     route: "/records",
   },
@@ -163,7 +166,7 @@ export default function DomainStarScreen() {
   const { domain, pieceId } = useLocalSearchParams<{ domain: string; pieceId?: string | string[] }>();
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const locale = shippedLocale(i18n.resolvedLanguage ?? i18n.language);
+  const locale = shippedLocale(renderedUiLanguage(i18n));
   const { userId, loading } = useAuth();
 
   const [rows, setRows] = useState<DomainLensRecord[] | null>(null);
@@ -269,7 +272,8 @@ export default function DomainStarScreen() {
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
-  if (!domainId) return <Redirect href="/" />;
+  // 모르는 영역 이름이면 아래에 있는 홈으로 돌아간다(QA 261004 D-01).
+  if (!domainId) return <RedirectHome />;
 
   const name = ko ? getDomainStar(domainId).nameKo : getDomainStar(domainId).nameEn;
   const headerMeta = DOMAIN_HEADER_META[domainId][locale];

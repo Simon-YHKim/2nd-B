@@ -77,7 +77,7 @@ describe("user-owned avatar persistence", () => {
 
 describe("avatar storage draft boundary", () => {
   const root = process.cwd();
-  const draft = readFileSync(join(root, "db/migration-drafts/UNNUMBERED_users_avatar_spec.sql"), "utf8");
+  const draft = readFileSync(join(root, "db/migrations/0206_users_avatar_spec.sql"), "utf8");
   const rls = readFileSync(join(root, "db/migrations/0009_rls_policies.sql"), "utf8");
   const executable = draft.replace(/^\s*--.*$/gm, "");
 

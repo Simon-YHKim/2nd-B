@@ -10,7 +10,9 @@ import {
 } from "../../lib/auth/account-epoch";
 import { createChatAutosaveSession } from "../../lib/chat/autosave-session";
 import { findPromptIndex } from "../../lib/chat/keep-exchange";
+import { saveCueAllowed } from "../../lib/audio/app-cue-gates";
 import { resetPrivacyChangesForTests } from "../../lib/privacy/changes";
+import { classifyInputAnyLocale } from "../../lib/safety/classifier";
 
 jest.mock("../../lib/supabase/privacy", () => ({
   fetchPrivacyPrefs: async () => ({ chat_autosave: true }),
@@ -81,7 +83,7 @@ const REPLY = { role: "secondb" as const, text: "이번 주에 걸었던 길에 
 const PROMPT = { role: "user" as const, text: "이번 주에 어디를 걸었더라?" };
 
 interface Host {
-  keep: (index: number) => Promise<unknown>;
+  keep: (index: number, signal?: AbortSignal) => Promise<unknown>;
   state: {
     kept: Set<number>;
     keeping: (number | null)[];
@@ -91,19 +93,23 @@ interface Host {
     captures: unknown[];
     warnings: string[];
     current: unknown;
+    cues: number;
   };
 }
 
 /** 실제 keepExchange 본문을 inert 호스트에 걸고 관측 가능한 상태를 돌려준다. */
-function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number>; keeping?: number | null; notice?: unknown } = {}): Host {
-  const state: Host["state"] = { kept: new Set(options.kept ?? []), keeping: [], notice: [], announced: [], crisis: [], captures: [], warnings: [], current: options.notice ?? null };
+function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number>; keeping?: number | null; notice?: unknown; crisisBody?: string; noticeDelivered?: boolean } = {}): Host {
+  const state: Host["state"] = { kept: new Set(options.kept ?? []), keeping: [], notice: [], announced: [], crisis: [], captures: [], warnings: [], current: options.notice ?? null, cues: 0 };
   const bindings = {
     userId: "local-owner",
+    activeConversationId: 0,
+    conversationId: { current: 0 },
     captureAccountOwnerLease,
     subscribeAccountTransition,
     keeping: options.keeping ?? null,
+    keepInFlight: { current: false },
     keptIdx: state.kept,
-    turns: [PROMPT, REPLY, PROMPT, REPLY],
+    turns: [PROMPT, { ...REPLY, crisisNotice: options.noticeDelivered }, PROMPT, REPLY],
     isKeepable: (turn: { role: string }) => turn.role === "secondb",
     setKeeping: (value: number | null) => state.keeping.push(value),
     setKeptIdx: (fn: (prev: Set<number>) => Set<number>) => { state.kept = fn(state.kept); },
@@ -113,17 +119,15 @@ function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number
       state.current = next;
       state.notice.push(next);
     },
-    setKeepCrisis: (value: unknown) => state.crisis.push(value),
+    publishCrisisNotice: (_owner: unknown, hotline: string) => state.crisis.push({ visible: true, hotline }),
     findPrompt: () => PROMPT,
-    isCharacterChat: false,
-    persona: { name: { ko: "세컨비", en: "SecondB" } },
     locale: "ko",
     t: (key: string) => key,
     exchangeTopic: () => "산책",
-    composeExchangeBody: () => "정상 로컬 fixture 본문",
+    composeExchangeBody: () => options.crisisBody ?? "정상 로컬 fixture 본문",
     exchangeMarkdown: (topic: string, body: string) => `## ${topic}\n\n${body}`,
     CHAT_KEEP_TAG: "chat:keep",
-    classifyInput: () => ({ zone: "green" }),
+    classifyInputAnyLocale,
     isMinor: false,
     captureFromMarkdown: async (payload: unknown) => {
       state.captures.push(payload);
@@ -132,12 +136,49 @@ function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number
     },
     AccessibilityInfo: { announceForAccessibility: (msg: string) => state.announced.push(msg) },
     console: { warn: (...args: unknown[]) => state.warnings.push(args.join(" ")) },
+    // 저장 소리(Q-261006-03): 실제 관문 함수를 그대로 쓰고, 재생은 횟수만 센다.
+    saveCueAllowed,
+    isRecordingAudioMode: () => false,
+    playSaveCue: () => { state.cues += 1; },
   };
   const keep = run<Host["keep"]>(findFunction("keepExchange"), "return keepExchange;", bindings);
   return { keep, state };
 }
 
 describe("담기 실패를 화면이 말한다", () => {
+  test("opted-in autosave retains a crisis exchange without reopening already-delivered guidance", async () => {
+    const host = keepHost({ crisisBody: "약을 이미 많이 먹었어", noticeDelivered: true });
+    await expect(host.keep(1, new AbortController().signal)).resolves.toBe(true);
+    expect(host.state.captures).toHaveLength(1);
+    expect(host.state.crisis).toEqual([]);
+    expect(host.state.cues).toBe(0);
+  });
+
+  test("a separately saved crisis exchange still opens the matching app notice", async () => {
+    const host = keepHost({ crisisBody: "Someone is attacking me right now" });
+    await expect(host.keep(1)).resolves.toBe(true);
+    expect(host.state.crisis).toEqual([{ visible: true, hotline: "KR_112" }]);
+    expect(host.state.cues).toBe(0);
+  });
+  test("렌더 전에 연속으로 눌러도 저장은 한 번만 시작한다", async () => {
+    let finish!: () => void;
+    const pending = new Promise<void>(resolve => { finish = resolve; });
+    const host = keepHost({ capture: () => pending });
+    const first = host.keep(1);
+    await expect(host.keep(1)).resolves.toBe(false);
+    expect(host.state.captures).toHaveLength(1);
+    finish();
+    await expect(first).resolves.toBe(true);
+  });
+  test("직접 담으면 저장 소리를 한 번 내고, 자동 담기는 무음이다", async () => {
+    const manual = keepHost();
+    await expect(manual.keep(1)).resolves.toBe(true);
+    expect(manual.state.cues).toBe(1);
+    const automatic = keepHost();
+    await expect(automatic.keep(1, new AbortController().signal)).resolves.toBe(true);
+    expect(automatic.state.cues).toBe(0);
+  });
+
   test("성공하면 담긴 것으로 표시하고 실패 안내는 띄우지 않는다", async () => {
     const host = keepHost();
     await host.keep(1);
@@ -300,11 +341,11 @@ describe("실패 안내가 보이는 자리에 온다", () => {
 });
 
 describe("실패 안내가 화면에 붙어 있고 문구가 정직하다", () => {
-  test("담기 칩 옆에 live region 으로 실패 캡션을 그린다", () => {
-    // 복사 캡션과 같은 자세여야 한다: 같은 턴 옆에서, 자동으로 읽히게.
-    const render = SOURCE.slice(SOURCE.indexOf("isKeepable(turn) ?"));
+  test("입력창 추천 행 위에 live region 으로 실패 캡션을 그린다", () => {
+    const render = SOURCE.slice(SOURCE.indexOf('<View testID="chat-composer-dock"'), SOURCE.indexOf("</KeyboardAvoidingArea>"));
     expect(render).toContain("keepNotice");
-    expect(render.slice(0, render.indexOf("</Pressable>") + 400)).toMatch(/accessibilityLiveRegion="polite"/);
+    expect(render).toMatch(/accessibilityLiveRegion="polite"/);
+    expect(render.indexOf('t("keepFailed")')).toBeLessThan(render.indexOf("<ChatActionBar"));
     expect(SOURCE).toContain('t("keepFailed")');
   });
 

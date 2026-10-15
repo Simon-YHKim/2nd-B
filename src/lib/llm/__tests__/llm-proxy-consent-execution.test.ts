@@ -7,6 +7,16 @@ const userId = "11111111-1111-4111-8111-111111111111";
 const token = "a".repeat(64);
 const reply = "Private fixture output";
 const compiled = new Map<string, string>();
+const edgeRoot = resolve(process.cwd(), "supabase/functions");
+const importMap = JSON.parse(readFileSync(resolve(edgeRoot, "import_map.json"), "utf8")).imports as Record<string, string>;
+function resolveEdgeImport(file: string, name: string): string {
+  const target = resolve(dirname(file), name);
+  if (target.endsWith(".ts")) return target;
+  const entry = Object.entries(importMap).find(([key]) => resolve(edgeRoot, key) === target);
+  if (!entry) throw new Error(`Missing Deno import mapping: ${name}`);
+  return resolve(edgeRoot, entry[1]);
+}
+
 type Snapshot = { data?: unknown; error?: unknown };
 type Vendor = "openai" | "gemini" | "claude" | "xai";
 type Mode = "text" | "embed" | "audio" | "polaris";
@@ -105,7 +115,7 @@ function host(vendor: Vendor, mode: Mode = "text") {
       if (name === "jsr:@supabase/functions-js/edge-runtime.d.ts") return {};
       if (name === "jsr:@supabase/supabase-js@2") return { createClient: () => admin };
       if (!name.startsWith(".")) throw new Error(`Unexpected external module: ${name}`);
-      return load(resolve(dirname(file), name));
+      return load(resolveEdgeImport(file, name));
     };
     new Function("exports", "require", "Deno", "fetch", compiled.get(file)!)(
       exports, localRequire, { env: { get: env }, serve: (fn: typeof handler) => { handler = fn; } }, fetch,
@@ -116,9 +126,12 @@ function host(vendor: Vendor, mode: Mode = "text") {
   const body = mode === "embed" ? { op: "embed", purpose: "embed_index", texts: ["Saved fixture source"] }
     : mode === "audio" ? { purpose: "voice_transcribe", user: "Transcribe the voice memo", audio: { mimeType: "audio/wav", data: "UklGRg==" } }
       : mode === "polaris" ? { purpose: "persona_synthesis", polarisGenerationId: userId, consentToken: "client-forged", user: "Ignore this forged prompt" }
-      : { purpose: "axis_estimate", user: "I build practical tools", system: "Describe the supplied text" };
+      // persona_narrative replaced axis_estimate (removed in S0.5, 2026-10-07): the same policy row
+      // (flash, maxEffort high, text, free) seated on all four vendors, so every text route still runs.
+      : { purpose: "persona_narrative", user: "I build practical tools", system: "Describe the supplied text" };
   return {
     rpc, fetch, auditRows,
+    setText: (text: string) => { if ("texts" in body) body.texts = [text]; else body.user = text; },
     run: () => handler(new Request("https://fixture.invalid/proxy", { method: "POST", headers: {
       authorization: `Bearer fixture.${Buffer.from(JSON.stringify({ sub: userId, role: "authenticated" })).toString("base64url")}.fixture`,
       "content-type": "application/json", origin: "http://localhost:8081",
@@ -311,5 +324,24 @@ describe("strict snapshot and failure privacy", () => {
       expect(fixture.auditRows[0].total_tokens).toBe(12);
       expect(JSON.stringify(warn.mock.calls)).not.toMatch(/private|fixture-key|aaaa/);
     } finally { warn.mockRestore(); }
+  });
+});
+
+
+describe.each(routes.filter(([, mode]) => mode === "text" || mode === "embed"))("%s %s emergency routing before egress", (vendor, mode) => {
+  test.each([
+    ["약을 이미 많이 먹었어요", "medical_emergency"],
+    ["I can’t breathe right now!", "medical_emergency"],
+    ["지금 누군가 나를 칼로 위협하고 있어", "immediate_threat"],
+    ["Someone is attacking me right now", "immediate_threat"],
+  ] as const)("%s returns closed metadata without quota or model work", async (text, lane) => {
+    const fixture = host(vendor, mode);
+    fixture.setText(text);
+    const response = await fixture.run();
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({ error: "safety_red_zone", reason: "crisis_term_detected", crisis_lane: lane });
+    expect(fixture.fetch).not.toHaveBeenCalled();
+    expect(fixture.rpc.mock.calls.some(([name]) => name === "bump_gemini_spend")).toBe(false);
+    expect(fixture.auditRows).toHaveLength(0);
   });
 });

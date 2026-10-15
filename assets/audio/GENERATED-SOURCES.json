@@ -1,0 +1,305 @@
+{
+  "schema": "polascope-generated-audio/1",
+  "note": "Sounds generated locally with agent-audio and picked by Simon from a listening report (2026-10-06 00:53 KST). Not recordings: RECORDED-SOURCES.json stays the record of the two CC0 recordings.",
+  "license": {
+    "name": "Stability AI Community License",
+    "commercialRegistration": "Registered 2026-10-06 00:35 KST (Grok bot task vb-a4d6eca9, Simon GO). Free under US$1M annual revenue; above that an Enterprise license is required.",
+    "outputs": "Section 3(c)(iii): the licensee owns outputs generated from the Models. Outputs are excluded from the Derivative Works definition.",
+    "attribution": "Powered by Stability AI"
+  },
+  "generator": {
+    "tool": "agent-audio (github.com/AIEGOBOT/agent-audio), TFLite CPU backend, run through the benchmark command builder",
+    "modelRepo": "stabilityai/stable-audio-3-optimized",
+    "revision": "da6edc54ddba10bfd79a077102ded687f80e882b",
+    "files": {
+      "tflite/sa3-sm-sfx/dit_fp32.tflite": "6060ecfeca34c4ab35bc1912a37e680e8cd7aab6c4bd9de1bc2655414891b8d8",
+      "tflite/same-s/dec_w8a8.tflite": "90cad5ef81e6b18eb205012aee03bc53ed59e1c17033b79a84a4612674b1e03a",
+      "tflite/t5gemma/encoder_fp16.tflite": "8530d0b3e6b9b9dcf1239145c2a853fb749708eaddbb472ff8f0802b50059372"
+    },
+    "settings": {
+      "dit": "sm-sfx",
+      "decoder": "same-s",
+      "ditPrecision": "fp32",
+      "decoderPrecision": "w8a8",
+      "steps": 8,
+      "cfg": 1.0,
+      "threads": 8
+    },
+    "whySmall": "The installed default (medium, 5.8 GB DiT) needs about 11.6 GiB working set per generation and was stopped by the memory watchdog on 2026-10-06 00:39. small-sfx is the same family's sound-effects model."
+  },
+  "editRecipe": "Downmix stereo to mono, resample 44.1 kHz to 22.05 kHz (polyphase 1:2), trim leading silence at a -50 dBFS gate keeping 5 ms of pre-roll, cut at the per-use cap, 2 ms linear fade-in, cosine fade-out over the last fadeOutMs, peak-normalize to -3.1 dBFS (the opening Polaris ping's peak), 16-bit PCM.",
+  "assets": [
+    {
+      "file": "assets/audio/star-ratify-l5.wav",
+      "bytes": 97064,
+      "sha256": "be5b9aee3669daef862a09592ea253e2e6e920d6e7384ae8386b55b406c92459",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 2200
+      },
+      "use": "A ratify that first takes a life-period star to L5",
+      "decision": "Q-261006-01",
+      "candidate": "l5-a",
+      "generation": {
+        "prompt": "A single clear crystalline chime, a bright high bell tone with a soft shimmering tail, like a star lighting up, warm and gentle, isolated one-shot sound effect, no voice, no music",
+        "seconds": 3,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "f332fa392c90c030ef9633a513ce6a3ce206c6fac0d8df93f0163f695be19e43",
+        "sampleRate": 44100,
+        "durationMs": 3000
+      },
+      "edit": {
+        "trimStartMs": 0,
+        "capMs": 2200,
+        "fadeOutMs": 400
+      }
+    },
+    {
+      "file": "assets/audio/star-brighten.wav",
+      "bytes": 44144,
+      "sha256": "f09f222542ec73ff6bf41db071a0574c86ffbc8864fea7aecf0fe8ea8855e078",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 1000
+      },
+      "use": "A star brightening L1-L4 (wired in a later change)",
+      "decision": "Q-261006-02",
+      "candidate": "bright-b",
+      "generation": {
+        "prompt": "A quick soft twinkle, tiny bright sparkle rising in pitch, delicate and short, isolated user interface sound effect, no voice, no music",
+        "seconds": 2,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "ab3938f7c0d7fa28384a630fd94635fd063ef4da012a678387f84d65d5ca03ac",
+        "sampleRate": 44100,
+        "durationMs": 2000
+      },
+      "edit": {
+        "trimStartMs": 67,
+        "capMs": 1000,
+        "fadeOutMs": 200
+      }
+    },
+    {
+      "file": "assets/audio/record-save.wav",
+      "bytes": 3038,
+      "sha256": "2803ca096ce510b7e09a730e39615e5a06f8abe1249f71cd5679b8c194cc26d7",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 68
+      },
+      "use": "A record the user saved (memo, capture, interview keep, manual SecondB keep)",
+      "decision": "Q-261006-03",
+      "candidate": "save-a",
+      "generation": {
+        "prompt": "A very short soft tap, like a small pebble dropped into a glass jar, muted and gentle, isolated user interface sound effect, no voice, no music",
+        "seconds": 1,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "339bfbc9ca5a5e3b0d05d0f6672904e045fbe25aace0335221308e5bcce1cd8d",
+        "sampleRate": 44100,
+        "durationMs": 1000
+      },
+      "edit": {
+        "trimStartMs": 0,
+        "capMs": 350,
+        "fadeOutMs": 60
+      }
+    },
+    {
+      "file": "assets/audio/secondb-reply.wav",
+      "bytes": 13274,
+      "sha256": "08b8b50bbe0550fd7ec4abdc2edd6e0bee663135128db87122fe1f88bcaa11cd",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 300
+      },
+      "use": "A normal SecondB reply",
+      "decision": "Q-261006-04",
+      "candidate": "reply-b",
+      "generation": {
+        "prompt": "Two very short soft high plucks, gentle notification, quiet and warm, isolated user interface sound effect, no voice, no music",
+        "seconds": 1,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "773c6e1e2c6a6473bfe486e5a83f74ef083e1c8df34cc26d566e6a96be069a81",
+        "sampleRate": 44100,
+        "durationMs": 1000
+      },
+      "edit": {
+        "trimStartMs": 81,
+        "capMs": 300,
+        "fadeOutMs": 50
+      }
+    },
+    {
+      "file": "assets/audio/pocket-phone.wav",
+      "bytes": 2660,
+      "sha256": "1fb5b1d1a8547d8668eff5afda5362919ae815884bc6b6fb7f389ff8194743ed",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 59
+      },
+      "use": "Raising or lowering the pocket phone by hand",
+      "decision": "Q-261006-05",
+      "candidate": "phone-b",
+      "generation": {
+        "prompt": "A quick soft swipe swoosh, light air movement, short and subtle, isolated user interface sound effect, no voice, no music",
+        "seconds": 1,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "cee3cfc14e44b8cc164f9f34d41ed995c95e1a4d9f6bdc0fb8c0ea22c9d4d07d",
+        "sampleRate": 44100,
+        "durationMs": 1000
+      },
+      "edit": {
+        "trimStartMs": 81,
+        "capMs": 500,
+        "fadeOutMs": 80
+      }
+    },
+    {
+      "file": "assets/audio/onboarding-welcome.wav",
+      "bytes": 97064,
+      "sha256": "ff3ca5b113b958b3d1d73125aca61a22636e6385b9742b9ba6945b8e50c14a99",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 2200
+      },
+      "use": "Finishing onboarding (wired in a later change)",
+      "decision": "Q-261006-06",
+      "candidate": "welcome-b",
+      "generation": {
+        "prompt": "A gentle soft synth pad swell resolving into a bright soft bell, hopeful and calm, short, isolated sound effect, no voice, no music",
+        "seconds": 3,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "0fa4ec19bdf6930a062968194577d8f6a231e2572f2e75572b4cb22eecd1cd1c",
+        "sampleRate": 44100,
+        "durationMs": 3000
+      },
+      "edit": {
+        "trimStartMs": 32,
+        "capMs": 2200,
+        "fadeOutMs": 400
+      }
+    },
+    {
+      "file": "assets/audio/plan-purchase.wav",
+      "bytes": 64604,
+      "sha256": "0c421a8991417ff6b1d5879d57062514f7343051b0bb50ddff5fec8354053c04",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 1464
+      },
+      "use": "A paid plan the store confirmed",
+      "decision": "Q-261006-12",
+      "candidate": "buy-a",
+      "generation": {
+        "prompt": "A bright warm celebratory sparkle chime, gentle and short, premium unlock sound, isolated user interface sound effect, no voice, no music",
+        "seconds": 2,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "1404d68114414e96a621b1b6bc82a7584640ba90f6f2d8f77e8ac4d0b6a94d0e",
+        "sampleRate": 44100,
+        "durationMs": 2000
+      },
+      "edit": {
+        "trimStartMs": 22,
+        "capMs": 1500,
+        "fadeOutMs": 300
+      }
+    },
+    {
+      "file": "assets/audio/reward-credit.wav",
+      "bytes": 8866,
+      "sha256": "948c2b1852df263c8700c4ebc0633bf3f4a6b2d2335cdee4f3851ee80017fad2",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 200
+      },
+      "use": "A rewarded-ad credit the client actually granted",
+      "decision": "Q-261006-13",
+      "candidate": "coin-a",
+      "generation": {
+        "prompt": "A soft retro game coin pickup sound, gentle and quiet, short bright blip, isolated sound effect, no voice, no music",
+        "seconds": 1,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "f4b4eeeebb6c8f20c3f21da42dfb2fe11ba98b4ebaaf0177642a617025a5fd28",
+        "sampleRate": 44100,
+        "durationMs": 1000
+      },
+      "edit": {
+        "trimStartMs": 0,
+        "capMs": 600,
+        "fadeOutMs": 100
+      }
+    },
+    {
+      "file": "assets/audio/opening-ambience.wav",
+      "bytes": 446336,
+      "sha256": "f06d5e48f840c073f4011debf53e0496bbd17b2b33a6cb9ef96ba392f7d01df6",
+      "format": {
+        "container": "wav",
+        "codec": "pcm_s16le",
+        "channels": 1,
+        "sampleRate": 22050,
+        "durationMs": 10120
+      },
+      "use": "Opening ambience bed under the approved opening (native app only, separate player)",
+      "decision": "Q-261006-07",
+      "candidate": "amb-a",
+      "generation": {
+        "prompt": "Quiet night meadow ambience, soft crickets, a gentle breeze through tall grass, distant and calm, peaceful outdoor night atmosphere, no music, no voice",
+        "seconds": 10,
+        "seed": 20261006
+      },
+      "rawOutput": {
+        "sha256": "b997f77953d764cc359f0abeac73d6daf02a816cf0e5cb43045b043a69593b3d",
+        "sampleRate": 44100,
+        "durationMs": 10000
+      },
+      "edit": {
+        "trimStartMs": 0,
+        "lengthMs": 10120,
+        "fadeInMs": 1000,
+        "fadeOutMs": 1500,
+        "note": "Cut or padded to the approved opening's length (10,119.5 ms rounded up), linear fades, same downmix, 2:1 resample and -3.1 dBFS peak as the other cues. Played at volume 0.15 from the opening clock's position."
+      }
+    }
+  ]
+}

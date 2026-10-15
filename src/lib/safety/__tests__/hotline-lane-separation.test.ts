@@ -1,27 +1,16 @@
-// L2 (Simon 2026-08-16): 117 / 1366 / 119 / 112 joined HOTLINES for the
-// always-on help directory. They must NOT leak into crisis routing.
-//
-// The suicide/self-harm lane exists to hand someone a conversation. A police or
-// ambulance number on that lane reframes them as a case, and the app has no
-// signal that would justify it: the harm axis that could tell those situations
-// apart was reviewed and rejected this round, because the Korean matcher has no
-// word boundaries and the terms that would reach these numbers also reach
-// "해풍 맞고 자란 시금치".
-//
-// So this is the guard on a decision, not on an implementation detail. Someone
-// will eventually add a term and wire it "just for completeness", and this test
-// is what should stop them.
+// Q-261015-82 adds explicit emergency lanes. Self-harm alone still selects
+// the existing support lane; a bare noun never selects police or ambulance.
 import { crisisHotlines, classifyInput } from "../classifier";
 import { HOTLINES, type HotlineId } from "../lexicon";
 
-const DIRECTORY_ONLY: HotlineId[] = ["KR_117", "KR_1366", "KR_119", "KR_112"];
+const OUTSIDE_SUPPORT_LANE: HotlineId[] = ["KR_117", "KR_1366", "KR_119", "KR_112"];
 
 describe("hotline lane separation", () => {
-  it("keeps the directory-only numbers out of every crisis routing result", () => {
+  it("keeps emergency and directory numbers out of the support hotline list", () => {
     for (const locale of ["ko", "en"] as const) {
       for (const minor of [true, false]) {
         const ids = crisisHotlines(locale, minor).map((h) => h.id);
-        for (const banned of DIRECTORY_ONLY) {
+        for (const banned of OUTSIDE_SUPPORT_LANE) {
           expect(ids).not.toContain(banned);
         }
       }
@@ -33,13 +22,12 @@ describe("hotline lane separation", () => {
     expect(crisisHotlines("ko", false).map((h) => h.id)).toEqual(["KR_109"]);
   });
 
-  it("never attaches a directory-only number to a classified crisis result", () => {
-    // A red result carries crisisRouting for the modal. Whatever ends up there
-    // must come from the counselling lane.
+  it("never attaches an emergency number to self-harm alone", () => {
+    // Self-harm without a separate emergency must stay on the support lane.
     const red = classifyInput("죽고 싶어", "ko", { minor: true });
     expect(red.zone).toBe("red");
     const routed = red.crisisRouting?.hotline;
-    if (routed) expect(DIRECTORY_ONLY).not.toContain(routed);
+    if (routed) expect(OUTSIDE_SUPPORT_LANE).not.toContain(routed);
   });
 
   it("defines the four directory numbers with the digits a person would dial", () => {
@@ -55,7 +43,7 @@ describe("hotline lane separation", () => {
     // The forbidden-lexicon CI scan skips lexicon.ts (it is the source of the
     // banned list), so these labels are not covered by it. Check them here.
     const banned = ["정신건강", "심리치료", "심리상담", "치유", "우울증", "진단", "치료"];
-    for (const id of DIRECTORY_ONLY) {
+    for (const id of OUTSIDE_SUPPORT_LANE) {
       for (const word of banned) {
         expect(HOTLINES[id].label).not.toContain(word);
       }

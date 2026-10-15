@@ -26,7 +26,13 @@ const EXPECTED_CANONICAL_FILES = Object.freeze({
   "scripts/build-opening-strip.py":
     "e038d4f317f90215f58bd226905bb73f7e054fc82e3c80b8e5099e8e53a1af58",
   "docs/HUSTLEK-OPENING.md":
-    "58f7da55ab055e35b68a8a132cda5951d5cabe6675ad2c1ddc7eb1ff11bbd74c",
+    "96c9ba3c6f8fb356f2bba773b443f969c672f1a758f3b899f3b1d2b6daeaf847",
+  // The four-line archive banner precedes the unchanged v1 contract body
+  // (original body sha256: 58f7da55ab055e35b68a8a132cda5951d5cabe6675ad2c1ddc7eb1ff11bbd74c).
+  "docs/handoff/HUSTLEK-OPENING-v1-ARCHIVE.md":
+    "35f0701e71cef787dd031b7d0b7935f1f5aef89caa1860acabd37c53c3796bc2",
+  "assets/opening/hustlek-approved-261002/approved-settings.json":
+    "9d66ce82c7e2e2842592ccabd6a9f07171d9763fed1294acd8a37d98bf968ced",
 });
 
 const EXPECTED_TREES = Object.freeze({

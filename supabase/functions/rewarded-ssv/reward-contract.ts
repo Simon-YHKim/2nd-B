@@ -23,7 +23,47 @@ export type RewardCallback = {
   adUnitId: string;
   rewardAmount: number;
   rewardItem: string;
+  /** The signed timestamp exactly as received: digits only, at most 19. Its unit
+   * and freshness are judged after the signature check (index.ts), so a length
+   * the contract does not allow still reaches the GO-5b digit log instead of
+   * being refused unseen (security gate r2 DB2-04). 0213 reads the unit from the
+   * same digits. */
+  callbackTimestampText: string;
 };
+
+/** ADMOB-TS (2), Simon 2026-10-04 21:06 KST. AdMob documents the callback
+ * timestamp as epoch milliseconds, but its own example is 16 digits, so the unit
+ * comes from the digit count: 10 = seconds, 13 = milliseconds, 16 = microseconds.
+ * Anything else is refused. 0213 (reward_ssv_callback_is_fresh) applies the same
+ * rule; GO-5b narrows this to the one length production actually sends. */
+export const ALLOWED_TS_DIGITS: readonly number[] = [10, 13, 16];
+/** 0213 c_max_age (D3: one day), kept well below the 88-day purge (0211). */
+export const CALLBACK_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+/** 0213 c_skew. */
+export const CALLBACK_MAX_SKEW_MS = 5 * 60 * 1000;
+
+/** The shape parseRewardCallback accepts before the signature: digits only,
+ * bounded so the length log stays a small number. Unit and range are
+ * parseCallbackTimestamp's job, after the signature. */
+export const CALLBACK_TS_SHAPE = /^[0-9]{1,19}$/;
+
+/** A leading zero is refused: Postgres counts the digits of the bigint, so
+ * "0001790251200" would be seconds there and milliseconds here. */
+export function parseCallbackTimestamp(
+  raw: string,
+): { raw: number; digits: number; ms: number } | null {
+  if (!/^[1-9][0-9]*$/.test(raw) || !ALLOWED_TS_DIGITS.includes(raw.length)) return null;
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) return null;
+  const ms = raw.length === 10 ? value * 1000 : raw.length === 13 ? value : Math.floor(value / 1000);
+  return Number.isSafeInteger(ms) ? { raw: value, digits: raw.length, ms } : null;
+}
+
+/** The Edge half of 0213's window. The ticket's issue time is checked in the
+ * database only. */
+export function isCallbackFresh(callbackMs: number, nowMs: number): boolean {
+  return callbackMs <= nowMs + CALLBACK_MAX_SKEW_MS && callbackMs >= nowMs - CALLBACK_MAX_AGE_MS;
+}
 
 export type VerifierKey = { keyId: number; base64: string };
 
@@ -155,7 +195,7 @@ export function parseRewardCallback(
     !ticket || !TICKET_PATTERN.test(ticket) ||
     rewardAmountRaw !== String(config.rewardAmount) ||
     rewardItem !== config.rewardItem ||
-    !timestamp || !/^[1-9][0-9]{9,16}$/.test(timestamp) ||
+    !timestamp || !CALLBACK_TS_SHAPE.test(timestamp) ||
     !transactionId || !TRANSACTION_PATTERN.test(transactionId) ||
     transactionId.length % 2 !== 0 ||
     params.has('user_id')
@@ -167,6 +207,7 @@ export function parseRewardCallback(
     adUnitId,
     rewardAmount: config.rewardAmount,
     rewardItem,
+    callbackTimestampText: timestamp,
   };
 }
 

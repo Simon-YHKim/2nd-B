@@ -341,11 +341,23 @@ describe("별 이름표 자리", () => {
     expect(boxH).toBeCloseTo((VBH + VB_TOP) * u);
     expect(polarisFrame).toEqual({
       left: POLARIS.x * u - 60,
-      top: (POLARIS.y + VB_TOP) * u + (9 * k + 8),
+      // QA R2A-07 (2026-10-05): 헤일로 아래 광선 끝(23k) 바로 아래. 예전 9k + 8 은 광선 속이었다.
+      top: (POLARIS.y + VB_TOP) * u + (23 * k + 1),
       width: 120,
       fontSize: 10.5 * k,
       lineHeight: Math.round(14 * k),
     });
+  });
+
+  // QA R2A-07: 북극성 헤일로(PixelStarSvg r = POLARIS_HALO_R × k)의 아래 광선이 '북극성' 이름표의
+  // 가운데 글자 윗부분을 덮었다. 이름표 상자는 광선이 실제로 그려지는 끝(pixelStarSpan, 반올림 포함)
+  // 아래에서 시작한다. 변이 검증: 예전 9k + 8 로 되돌리면 모든 폭에서 이 검사가 빨갛다.
+  it.each(WIDTHS)("가로 %sdp: 북극성 이름표는 헤일로 아래 광선 끝보다 아래에서 시작한다", (winW) => {
+    const { k, polaris, polarisFrame } = homeLayout(winW);
+    const rayEnd = polaris.cy + pixelStarSpan(constNumber("POLARIS_HALO_R") * k);
+    expect(polarisFrame.top).toBeGreaterThan(rayEnd);
+    const old = polaris.cy + (9 * k + 8);
+    expect(old).toBeLessThan(rayEnd);
   });
 
   it.each(CASES)(
@@ -724,6 +736,13 @@ describe("화면 배선", () => {
     // 북극성 이름표 폭도 별 이름표 자리에 따라 정해지므로 같은 계산에서 나온 값을 쓴다.
     expect(labelsBlock).toContain("style={[styles.polarisLabel, starLabels.polaris,");
     expect(labelsBlock).toContain("scale: Animated.divide(1, worldZoom)");
+    // QA R2A-07: 초점이 맞으면 이름표가 카메라 상태 문구와 같은 띠에 겹쳤다. 별 이름표와 북극성
+    // 이름표 둘 다 조준이 끝나는 0.4 에서 계단으로 꺼지고, 돌아올 때 다시 켜진다.
+    expect(labelsBlock.match(/opacity: skyLabelOpacity, transform: \[\{ scale: Animated\.divide\(1, worldZoom\) \}\]/g)).toHaveLength(2);
+    expect(SRC).toContain(
+      "destinationProgress.interpolate({ inputRange: [0, 0.39, 0.4, 1], outputRange: [1, 1, 0, 0] })",
+    );
+    expect(SRC).toMatch(/const skyLabelOpacity = visualFocusId\s*\?/);
     expect(labelsBlock).not.toContain("left: px(s.x) - 40");
     // 테스트가 장애물로 쓰는 코어 크기와 화면이 넘기는 값이 같아야 한다.
     expect(SRC).toContain("coreHalfSpan: pixelStarSpan(DOMAIN_CORE_R * k * DOMAIN_FOCUS_MULT)");

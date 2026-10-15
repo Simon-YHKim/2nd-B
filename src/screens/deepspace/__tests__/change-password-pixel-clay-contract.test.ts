@@ -1,10 +1,8 @@
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const SCREEN = join(ROOT, "src", "screens", "deepspace", "dds-change-password-screen.tsx");
-const ROUTE = join(ROOT, "src", "app", "change-password.tsx");
 
 function read(path: string): string {
   return readFileSync(path, "utf8").replace(/\r\n/g, "\n");

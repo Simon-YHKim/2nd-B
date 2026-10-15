@@ -1,24 +1,28 @@
+import { subscribePrivacyChanges } from "@/lib/privacy/changes";
+import { PhoneFlatList as FlatList } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  FlatList,
   Linking,
   Platform,
   Share,
   StyleSheet,
   View,
 } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Rect } from "react-native-svg";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
-import { ringCells } from "@/components/pixel/pixel-line";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { Text } from "@/components/ui/Text";
+import { IosButton, IosCardHeader, IosGroup, IosIconButton, IosRow, IosText } from "@/components/dashboard/board/IosParts";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { withAiCopyTail } from "@/lib/chat/ai-mark";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import {
   OPS_GROUP_IDS,
@@ -29,7 +33,7 @@ import {
 import { gatherAdherenceStats } from "@/lib/ops/signals";
 import { adherenceChip } from "@/lib/ops/grounding";
 import { loadPickCandidates } from "@/lib/ops/load-picks";
-import { opsRouteForDomain } from "@/lib/ops/nav";
+import { opsRecommendationRoutineId, readOpsPresentation, writeOpsPresentationFor } from "@/lib/ops/presentation";
 import {
   recommendForDomain,
   recommendationsAllowed,
@@ -141,25 +145,18 @@ export const OPS_TODAY_ROUTES: Readonly<Record<PickId, string>> = {
 };
 
 export const OPS_TOOL_ROUTES = [
-  { icon: "timer", label: "tools.focus.label", sub: "tools.focus.sub", route: "/focus" },
-  { icon: "schedule", label: "tools.reminders.label", sub: "tools.reminders.sub", route: "/reminders" },
   { icon: "lightbulb", label: "tools.imagine.label", sub: "tools.imagine.sub", route: "/imagine" },
   { icon: "share", label: "tools.shareCard.label", sub: "tools.shareCard.sub", route: "/share-card" },
   { icon: "book", label: "tools.srs.label", sub: "tools.srs.sub", route: "/srs" },
   { icon: "bubble", label: "tools.callReflection.label", sub: "tools.callReflection.sub", route: "/call-reflection" },
   { icon: "book", label: "tools.reading.label", sub: "tools.reading.sub", route: "/reading" },
-  { icon: "badge", label: "tools.milestones.label", sub: "tools.milestones.sub", route: "/milestones" },
-  { icon: "box", label: "tools.ledger.label", sub: "tools.ledger.sub", route: "/ledger" },
   { icon: "sparkle", label: "tools.sideProject.label", sub: "tools.sideProject.sub", route: "/side-project" },
-  { icon: "fire", label: "tools.meals.label", sub: "tools.meals.sub", route: "/meals" },
 ] as const satisfies ReadonlyArray<{
   icon: AnyGlyphName;
   label: string;
   sub: string;
   route: string;
 }>;
-
-const RING_POINTS = ringCells(29, 29, 22, 6);
 
 function readKindFor(error: unknown): "timeout" | "error" {
   return error instanceof OpsReadTimeoutError ? "timeout" : "error";
@@ -233,24 +230,6 @@ function StatePanel({
   );
 }
 
-function ProgressRing({ done, total }: { done: number; total: number }) {
-  const lit = total > 0 ? Math.round(RING_POINTS.length * Math.min(1, done / total)) : 0;
-  return (
-    <Svg width={58} height={58} viewBox="0 0 58 58" accessibilityElementsHidden>
-      {RING_POINTS.map((point, index) => (
-        <Rect
-          key={`${point.x}-${point.y}`}
-          x={point.x}
-          y={point.y}
-          width={6}
-          height={6}
-          fill={index < lit ? m3.color.primary : m3.color.surfaceVariant}
-        />
-      ))}
-    </Svg>
-  );
-}
-
 function ChoiceButton({
   label,
   selected,
@@ -282,37 +261,6 @@ function ChoiceButton({
   );
 }
 
-function ActionButton({
-  icon,
-  label,
-  disabled = false,
-  busy = false,
-  onPress,
-}: {
-  icon: AnyGlyphName;
-  label: string;
-  disabled?: boolean;
-  busy?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <PixelPressable
-      fullWidth
-      rootStyle={styles.recActionRoot}
-      disabled={disabled}
-      onPress={onPress}
-      accessibilityLabel={label}
-      accessibilityState={{ busy }}
-      contentStyle={styles.recActionContent}
-    >
-      <PixelGlyph name={icon} color={disabled ? m3.color.onSurfaceVariant : m3.color.onSurface} size={18} />
-      <Text variant="caption" style={disabled ? styles.actionTextDisabled : styles.recActionText}>
-        {label}
-      </Text>
-    </PixelPressable>
-  );
-}
-
 function RecommendationCard({
   recommendation,
   itemKey,
@@ -337,18 +285,13 @@ function RecommendationCard({
   onSave: (recommendation: OpsRecommendation, itemKey: string) => void;
 }) {
   return (
-    <PixelSurface variant="bevel" contentStyle={styles.recContent}>
-      <View style={styles.recHeading}>
-        <PixelGlyph name="sparkle" color={m3.color.primary} size={20} />
-        <Text variant="heading" style={styles.recTitle}>
-          {recommendation.title}
-        </Text>
-      </View>
-      <Text variant="body" style={styles.recReason}>
+    <View style={boardStyles.recommendation}>
+      <IosCardHeader glyph="sparkle" title={recommendation.title} />
+      <IosText variant="body" style={boardStyles.text}>
         {recommendation.reason}
-      </Text>
+      </IosText>
       {recommendation.durationMinutes || recommendation.recurrence ? (
-        <Text variant="caption" style={styles.recMeta}>
+        <IosText variant="caption" style={boardStyles.muted}>
           {[
             recommendation.durationMinutes
               ? t("card.durationLabel", { minutes: recommendation.durationMinutes })
@@ -361,71 +304,85 @@ function RecommendationCard({
           ]
             .filter((value): value is string => value !== null)
             .join(" · ")}
-        </Text>
+        </IosText>
       ) : null}
-      <View style={styles.recActions}>
+      <View style={boardStyles.actions}>
         {deviceCalendar ? (
-          <ActionButton
-            icon="schedule"
+          <IosButton
+            glyph="schedule"
             label={t("card.addDevice")}
             onPress={() => onPush("device", recommendation)}
           />
         ) : null}
-        <ActionButton
-          icon="schedule"
+        <IosButton
+          glyph="schedule"
           label={t("card.addGoogle")}
           onPress={() => onPush("google", recommendation)}
         />
         {Platform.OS === "web" ? (
-          <ActionButton
-            icon="download"
+          <IosButton
+            glyph="download"
             label={t("card.downloadIcs")}
             onPress={() => onPush("ics", recommendation)}
           />
         ) : null}
-        <ActionButton
-          icon="share"
+        <IosButton
+          glyph="share"
           label={t("card.shareList")}
           onPress={() => onPush("share", recommendation)}
         />
         {deviceReminders ? (
-          <ActionButton
-            icon="schedule"
+          <IosButton
+            glyph="schedule"
             label={t("card.remind")}
             onPress={() => onRemind(recommendation)}
           />
         ) : null}
-        <ActionButton
-          icon="check"
+        <IosButton
+          glyph="check"
           label={saving ? t("card.saving") : saved ? t("card.saved") : t("card.saveRoutine")}
           disabled={saving || saved}
           busy={saving}
           onPress={() => onSave(recommendation, itemKey)}
         />
       </View>
-    </PixelSurface>
-  );
-}
-
-function SectionHeading({ icon, title, body }: { icon: AnyGlyphName; title: string; body?: string }) {
-  return (
-    <View style={styles.sectionHeading}>
-      <PixelGlyph name={icon} color={m3.color.primary} size={20} />
-      <View style={styles.sectionCopy}>
-        <Text variant="heading" style={styles.sectionTitle} accessibilityRole="header">
-          {title}
-        </Text>
-        {body ? (
-          <Text variant="caption" style={styles.sectionBody}>
-            {body}
-          </Text>
-        ) : null}
-      </View>
     </View>
   );
 }
 
-export function DeepSpaceOpsScreen() {
+// kind="label" names a group (a small header above it); kind="door" is the text
+// of a row that opens another screen. Simon 2026-10-12, Q-261012-60 pick A.
+function SectionHeading({ kind, icon, title, trailing }: {
+  kind: "label" | "door"; icon: AnyGlyphName; title: string; trailing?: string;
+}) {
+  const phone = usePhoneDesign();
+  if (phone) return (
+    <View style={styles.headingStack}>
+      <IosCardHeader glyph={icon} title={title} trailing={trailing ? (
+        <IosText variant="caption" style={phoneSettingsStyles.summary}>{trailing}</IosText>
+      ) : null} />
+    </View>
+  );
+  if (kind === "door") return (
+    <View style={styles.sectionHeading}>
+      <PixelGlyph name={icon} color={m3.color.primary} size={20} />
+      <Text variant="body" style={styles.doorTitle}>
+        {title}
+      </Text>
+    </View>
+  );
+  return (
+    <View style={styles.sectionHeading}>
+      <Text variant="caption" style={styles.sectionLabel} accessibilityRole="header">
+        {title}
+      </Text>
+      {trailing ? <Text variant="caption" style={styles.sectionSummary}>{trailing}</Text> : null}
+    </View>
+  );
+}
+
+export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settings" | "board" } = {}) {
+  const router = useAppRouter();
   const { t, i18n } = useTranslation(["ops", "common", "consent"]);
   const {
     userId,
@@ -439,12 +396,15 @@ export function DeepSpaceOpsScreen() {
   const locale = systemLocaleFor(i18n.language);
   const tEn = useMemo(() => i18n.getFixedT("en", "ops"), [i18n]);
 
-  const [group, setGroup] = useState<OpsGroupId | null>(null);
-  const [domain, setDomain] = useState<OpsDomainId | null>(null);
-  const [recommendations, setRecommendations] = useState<OpsRecommendation[]>([]);
-  const [adherence, setAdherence] = useState<string | null>(null);
+  const [group, setGroup] = useState<OpsGroupId | null>(() => readOpsPresentation().group);
+  const [domain, setDomain] = useState<OpsDomainId | null>(() => readOpsPresentation().domain);
+  const [recommendations, setRecommendations] = useState<OpsRecommendation[]>(() => readOpsPresentation().recommendations);
+  const [adherence, setAdherence] = useState<string | null>(() => readOpsPresentation().adherence);
   const [runState, setRunState] = useState<"idle" | "working" | "empty" | "error" | "limit" | "off">("idle");
-  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(() => new Set(readOpsPresentation().savedKeys));
+  // The account the saved view state above was loaded for. A render for the next account still holds
+  // the previous one's values until the reset effect below has run, and must not save them.
+  const [presentationOwner, setPresentationOwner] = useState<string | null>(userId);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
   const [consentOpen, setConsentOpen] = useState(false);
@@ -482,12 +442,14 @@ export function DeepSpaceOpsScreen() {
     pendingPushRef.current = null;
     setConsentOpen(false);
     setConsentSaving(false);
-    setGroup(null);
-    setDomain(null);
-    setRecommendations([]);
-    setAdherence(null);
+    const prior = readOpsPresentation();
+    setGroup(prior.group);
+    setDomain(prior.domain);
+    setRecommendations(prior.recommendations);
+    setAdherence(prior.adherence);
     setRunState("idle");
-    setSavedKeys(new Set());
+    setSavedKeys(new Set(readOpsPresentation().savedKeys));
+    setPresentationOwner(userId);
     setSavingKey(null);
     setCompletingIds(new Set());
     setNotice(null);
@@ -546,6 +508,14 @@ export function DeepSpaceOpsScreen() {
     };
   }, [authLoading, hasProfile, isCurrentOwner, profileProbeFailed, reloadNonce, userId]);
 
+  useEffect(() => subscribePrivacyChanges((change) => {
+    if (change.ownerId !== userId) return;
+    runRequestRef.current += 1;
+    setRecommendations([]); setAdherence(null); setSavedKeys(new Set());
+    setConsentOpen(false); pendingPushRef.current = null;
+    setRunState("idle"); setReloadNonce((value) => value + 1);
+  }), [userId]);
+
   const ownerPrefs = prefsState.ownerId === userId ? prefsState : { kind: "loading", ownerId: userId } as ReadState<PrivacyPrefs>;
   const ownerUsage = usageState.ownerId === userId ? usageState : { kind: "loading", ownerId: userId } as ReadState<number>;
   const ownerToday = todayState.ownerId === userId ? todayState : { kind: "loading", ownerId: userId } as ReadState<TodayData>;
@@ -571,11 +541,6 @@ export function DeepSpaceOpsScreen() {
 
   function selectDomain(nextDomain: OpsDomainId): void {
     if (runState === "working") return;
-    const route = opsRouteForDomain(nextDomain);
-    if (route) {
-      router.push(route);
-      return;
-    }
     setDomain(nextDomain);
     setRecommendations([]);
     setAdherence(null);
@@ -623,8 +588,12 @@ export function DeepSpaceOpsScreen() {
       if (!isCurrentOwner(ownerId) || requestId !== runRequestRef.current) return;
       setUsageState({ kind: "ready", ownerId, data: nextUsage });
       setRecommendations(result);
+      setSavedKeys(new Set());
       setAdherence(stats ? adherenceChip(stats, i18n.language?.toLowerCase().startsWith("ko") ?? false) : null);
       setRunState(result.length === 0 ? "empty" : "idle");
+      writeOpsPresentationFor(ownerId, { group, domain: selectedDomain, recommendations: result,
+        adherence: stats ? adherenceChip(stats, i18n.language?.toLowerCase().startsWith("ko") ?? false) : null, savedKeys: [] });
+      if (result.length > 0) router.push("/dashboard?panel=recommendations" as never);
     } catch {
       if (isCurrentOwner(ownerId) && requestId === runRequestRef.current) setRunState("error");
     }
@@ -679,7 +648,9 @@ export function DeepSpaceOpsScreen() {
     setNotice(null);
     let routine: OpsRoutine;
     try {
-      routine = await createRoutineFromRecommendation(ownerId, selectedDomain, recommendation);
+      const routineId = opsRecommendationRoutineId(ownerId, selectedDomain, recommendations, recommendations.indexOf(recommendation));
+      if (!routineId) throw new Error("Recommendation changed before routine save");
+      routine = await createRoutineFromRecommendation(ownerId, selectedDomain, recommendation, { routineId });
     } catch {
       if (isCurrentOwner(ownerId)) {
         setSavingKey(null);
@@ -736,7 +707,9 @@ export function DeepSpaceOpsScreen() {
   function eventFor(recommendation: OpsRecommendation): OpsEventInput {
     return {
       title: recommendation.title,
-      description: recommendation.reason,
+      // Live recommendations are unedited model results; mock previews use fixtures.
+      // Keep the disclosure in the outgoing calendar notes, not the saved routine.
+      description: withAiCopyTail(recommendation.reason, t("secondb:aiCopyTail")),
       startsAtIso: recommendation.startsAtIso ?? nextMorningIso(),
       durationMinutes: recommendation.durationMinutes,
       recurrence: recommendation.recurrence,
@@ -779,9 +752,12 @@ export function DeepSpaceOpsScreen() {
         return;
       }
       await Share.share({
-        message: buildChecklistShareText(
-          recommendation.title,
-          recommendation.checklist ?? [recommendation.reason],
+        message: withAiCopyTail(
+          buildChecklistShareText(
+            recommendation.title,
+            recommendation.checklist ?? [recommendation.reason],
+          ),
+          t("secondb:aiCopyTail"),
         ),
       });
     } catch {
@@ -843,19 +819,32 @@ export function DeepSpaceOpsScreen() {
     }
   }
 
-  const shell = (body: ReactNode) => (
+  useEffect(() => {
+    if (userId && presentationOwner === userId && isCurrentOwner(userId)) writeOpsPresentationFor(presentationOwner, { group, domain, recommendations, adherence, savedKeys: [...savedKeys] });
+  }, [userId, presentationOwner, group, domain, recommendations, adherence, savedKeys, isCurrentOwner]);
+
+  const shell = (body: ReactNode) => surface === "board" ? <>{body}</> : (
     <DeepSpaceScreen
       active="ops"
       header="none"
       variant="windowed"
-      title={t("todaysAssistant")}
+      title={t("phone.apps.assistant")}
       onBack={() => router.back()}
     >
       {body}
     </DeepSpaceScreen>
   );
 
+  const recommendationHeader = <IosCardHeader glyph="sparkle" title={t("phone.todayRecommendations")} trailing={
+    <IosIconButton glyph="settings" label={t("phone.recommendationSettings")} onPress={() => router.push("/ops")} />
+  } />;
+  const boardState = (message: string, retry?: () => void) => <View testID="board-recommendations" style={boardStyles.stack}>
+    {recommendationHeader}
+    <IosText variant="caption" accessibilityRole={retry ? "alert" : undefined} style={boardStyles.muted}>{message}</IosText>
+    {retry ? <IosButton glyph="refresh" label={t("common:actions.retry")} onPress={retry} /> : null}
+  </View>;
   if (authLoading) {
+    if (surface === "board") return boardState(t("common:states.loading"));
     return shell(
       <View style={styles.center}>
         <StatePanel icon="schedule" message={t("common:states.loading")} />
@@ -864,6 +853,7 @@ export function DeepSpaceOpsScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === null) {
+    if (surface === "board") return boardState(t("common:states.loading"));
     return shell(
       <View style={styles.center}>
         <StatePanel icon="schedule" message={t("common:states.loading")} />
@@ -871,6 +861,7 @@ export function DeepSpaceOpsScreen() {
     );
   }
   if (profileProbeFailed) {
+    if (surface === "board") return boardState(t("common:errors.network"), () => void refreshAuth());
     return shell(
       <View style={styles.center}>
         <StatePanel
@@ -894,76 +885,7 @@ export function DeepSpaceOpsScreen() {
 
   const listHeader = (
     <View style={styles.headerStack}>
-      <SectionHeading icon="schedule" title={t("today.heading")} />
-      {ownerToday.kind === "loading" ? (
-        <StatePanel icon="schedule" message={t("common:states.loading")} />
-      ) : ownerToday.kind === "timeout" || ownerToday.kind === "error" ? (
-        <StatePanel
-          icon="warning"
-          message={t(ownerToday.kind === "timeout" ? "common:errors.network" : "common:errors.unknown")}
-          retryLabel={t("common:actions.retry")}
-          onRetry={retryReads}
-        />
-      ) : (
-        <PixelSurface variant="bevel" background={m3.color.primaryContainer} contentStyle={styles.heroContent}>
-          <ProgressRing done={todayDone} total={todayData.routines.length} />
-          <View style={styles.heroCopy}>
-            <Text variant="heading" style={styles.heroCount}>
-              {t("home.ringCount", { done: todayDone, total: todayData.routines.length })}
-            </Text>
-            <Text variant="caption" style={styles.heroStreak}>
-              {t("today.streak", { count: todayData.streak })}
-            </Text>
-          </View>
-        </PixelSurface>
-      )}
-    </View>
-  );
-
-  const listFooter = (
-    <View style={styles.footerStack}>
-      {notice ? (
-        <PixelSurface variant="inset" contentStyle={styles.noticeContent}>
-          <PixelGlyph name={notice.tone === "danger" ? "warning" : "check"} color={notice.tone === "danger" ? m3.color.error : m3.color.primary} size={20} />
-          <Text
-            variant="body"
-            style={notice.tone === "danger" ? styles.noticeDanger : styles.noticeText}
-            accessibilityRole={notice.tone === "danger" ? "alert" : undefined}
-            accessibilityLiveRegion="polite"
-          >
-            {notice.keys.map((key) => t(key)).join(" ")}
-          </Text>
-        </PixelSurface>
-      ) : null}
-
-      <PixelPressable
-        fullWidth
-        onPress={() => router.push("/insights")}
-        accessibilityRole="link"
-        accessibilityLabel={t("home.patternsTitle")}
-        contentStyle={styles.patternContent}
-      >
-        <PixelGlyph name="sparkle" color={m3.color.primary} size={24} />
-        <View style={styles.patternCopy}>
-          <Text variant="body" style={styles.patternTitle}>{t("home.patternsTitle")}</Text>
-          <Text variant="caption" style={styles.patternBody}>{t("home.patternsSub")}</Text>
-        </View>
-        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={20} />
-      </PixelPressable>
-
-      <SectionHeading icon="sparkle" title={t("home.takeEyebrow")} body={t("hero.subtitle")} />
-      <PixelPressable
-        fullWidth
-        onPress={() => router.push("/reminders")}
-        accessibilityRole="link"
-        accessibilityLabel={t("card.remind")}
-        contentStyle={styles.actionContent}
-      >
-        <PixelGlyph name="schedule" color={m3.color.onSurface} size={18} />
-        <Text variant="body" style={styles.actionText}>{t("card.remind")}</Text>
-        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={18} />
-      </PixelPressable>
-
+      <SectionHeading kind="label" icon="sparkle" title={t("phone.recommendationSettings")} />
       <View style={styles.choiceGrid}>
         {OPS_GROUP_IDS.map((id) => (
           <ChoiceButton
@@ -987,9 +909,7 @@ export function DeepSpaceOpsScreen() {
             />
           ))}
         </View>
-      ) : (
-        <Text variant="body" style={styles.helperText}>{t("states.emptyDomain")}</Text>
-      )}
+      ) : null}
 
       {domain ? (
         recommendationReadsPending ? (
@@ -1023,95 +943,116 @@ export function DeepSpaceOpsScreen() {
       {runState === "empty" ? <Text variant="body" style={styles.helperText}>{t("recommend.empty")}</Text> : null}
       {runState === "error" ? <Text variant="body" style={styles.errorText} accessibilityRole="alert">{t("recommend.error")}</Text> : null}
       {runState === "off" ? <Text variant="body" style={styles.helperText}>{t("recommend.off")}</Text> : null}
-      {adherence && recommendations.length > 0 ? <Text variant="caption" style={styles.adherence}>{adherence}</Text> : null}
-
-      {consentOpen ? (
-        <PixelSurface variant="inset" contentStyle={styles.consentContent}>
-          <SectionHeading icon="share" title={t("consent.title")} body={t("consent.body")} />
-          <View style={styles.consentActions}>
-            <ActionButton
-              icon="check"
-              label={t("consent.agree")}
-              disabled={consentSaving}
-              busy={consentSaving}
-              onPress={() => void agreeAndPush()}
-            />
-            <ActionButton icon="close" label={t("consent.later")} disabled={consentSaving} onPress={declinePush} />
-          </View>
-        </PixelSurface>
-      ) : null}
-
-      <View style={styles.recommendations}>
-        {recommendations.map((recommendation, index) => {
-          const itemKey = `${domain ?? "none"}:${index}`;
-          return (
-            <RecommendationCard
-              key={itemKey}
-              recommendation={recommendation}
-              itemKey={itemKey}
-              saved={savedKeys.has(itemKey)}
-              saving={savingKey === itemKey}
-              deviceCalendar={deviceCalendar}
-              deviceReminders={deviceReminders}
-              t={t}
-              onPush={requestPush}
-              onRemind={(item) => void remindRecommendation(item)}
-              onSave={(item, key) => void saveRoutine(item, key)}
-            />
-          );
-        })}
-      </View>
-      {recommendations.length > 0 ? <Text variant="caption" style={styles.helperText}>{t("recommend.disclaimerBody")}</Text> : null}
-
-      <SectionHeading
-        icon="inbox"
-        title={t("today.title")}
-        body={ownerPicks.kind === "ready" ? t("today.hint") : ownerPicks.kind === "empty" ? t("today.nothingHint") : undefined}
-      />
-      {ownerPicks.kind === "loading" ? (
+      <SectionHeading kind="label" icon="schedule" title={t("hero.title")} trailing={
+        ownerToday.kind === "ready" || ownerToday.kind === "empty"
+          ? `${t("home.ringCount", { done: todayDone, total: todayData.routines.length })} · ${t("today.streak", { count: todayData.streak })}`
+          : undefined
+      } />
+      {ownerToday.kind === "loading" ? (
         <StatePanel icon="schedule" message={t("common:states.loading")} />
-      ) : ownerPicks.kind === "timeout" || ownerPicks.kind === "error" ? (
+      ) : ownerToday.kind === "timeout" || ownerToday.kind === "error" ? (
         <StatePanel
           icon="warning"
-          message={t(ownerPicks.kind === "timeout" ? "common:errors.network" : "common:errors.unknown")}
+          message={t(ownerToday.kind === "timeout" ? "common:errors.network" : "common:errors.unknown")}
           retryLabel={t("common:actions.retry")}
           onRetry={retryReads}
         />
-      ) : picksData ? (
-        <View style={styles.pickStack}>
-          {picksData.picks.map((id) => (
-            <PixelPressable
-              key={id}
-              fullWidth
-              onPress={() => router.push(OPS_TODAY_ROUTES[id] as never)}
-              accessibilityRole="link"
-              accessibilityLabel={t(`today.pick.${id}`)}
-              contentStyle={styles.routeContent}
-            >
-              <PixelGlyph name="check" color={m3.color.primary} size={18} />
-              <Text variant="body" style={styles.routeText}>{t(`today.pick.${id}`)}</Text>
-              <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={18} />
-            </PixelPressable>
-          ))}
-          {picksData.suggestions.map((id) => (
-            <PixelPressable
-              key={`next-${id}`}
-              fullWidth
-              variant="inset"
-              onPress={() => router.push(OPS_TODAY_ROUTES[id] as never)}
-              accessibilityRole="link"
-              accessibilityLabel={t(`today.next.${id}`)}
-              contentStyle={styles.routeContent}
-            >
-              <PixelGlyph name="arrow_forward" color={m3.color.onSurfaceVariant} size={18} />
-              <Text variant="body" style={styles.routeTextMuted}>{t(`today.next.${id}`)}</Text>
-              <PixelGlyph name="chevron_right" color={m3.color.onSurfaceVariant} size={18} />
-            </PixelPressable>
-          ))}
-        </View>
+      ) : null}
+    </View>
+  );
+
+  if (surface === "board") return <View testID="board-recommendations" style={boardStyles.stack}>
+    {recommendationHeader}
+    {notice ? <IosText variant="caption" accessibilityLiveRegion="polite" accessibilityRole={notice.tone === "danger" ? "alert" : undefined}
+      style={boardStyles.muted}>{notice.keys.map((key) => t(key)).join(" ")}</IosText> : null}
+    {ownerPrefs.kind === "loading" ? <IosText variant="caption" style={boardStyles.muted}>{t("common:states.loading")}</IosText>
+      : ownerPrefs.kind !== "ready" ? <View style={boardStyles.stack}>
+        <IosText variant="caption" accessibilityRole="alert" style={boardStyles.muted}>{t("common:errors.network")}</IosText>
+        <IosButton glyph="refresh" label={t("common:actions.retry")} onPress={retryReads} />
+      </View>
+      : !recommendationsAllowed(isMinor, ownerPrefs.data.recommendations) ? <IosText variant="caption" style={boardStyles.muted}>{t("recommend.off")}</IosText>
+      : <>
+        {recommendations.length === 0 ? <IosText variant="caption" style={boardStyles.muted}>{t("phone.noRecommendations")}</IosText> : null}
+        {adherence && recommendations.length > 0 ? <IosText variant="caption" style={boardStyles.muted}>{adherence}</IosText> : null}
+        {consentOpen ? <View style={boardStyles.stack}>
+          <IosCardHeader glyph="share" title={t("consent.title")} />
+          <IosText variant="caption" style={boardStyles.muted}>{t("consent.body")}</IosText>
+          <View style={boardStyles.actions}>
+            <IosButton glyph="check" label={t("consent.agree")} disabled={consentSaving} busy={consentSaving} onPress={() => void agreeAndPush()} />
+            <IosButton glyph="close" label={t("consent.later")} disabled={consentSaving} onPress={declinePush} />
+          </View>
+        </View> : null}
+        {recommendations.map((recommendation, index) => {
+          const itemKey = `${domain ?? "none"}:${index}`;
+          return <RecommendationCard key={itemKey} recommendation={recommendation} itemKey={itemKey}
+            saved={savedKeys.has(itemKey)} saving={savingKey === itemKey} deviceCalendar={deviceCalendar}
+            deviceReminders={deviceReminders} t={t} onPush={requestPush}
+            onRemind={(item) => void remindRecommendation(item)} onSave={(item, key) => void saveRoutine(item, key)} />;
+        })}
+        {recommendations.length > 0 ? <IosText variant="caption" style={boardStyles.muted}>{t("recommend.disclaimerBody")}</IosText> : null}
+        {recommendations.length > 0 ? <>
+        {ownerPicks.kind === "loading" ? <IosText variant="caption" style={boardStyles.muted}>{t("common:states.loading")}</IosText>
+          : ownerPicks.kind === "timeout" || ownerPicks.kind === "error" ? <View style={boardStyles.stack}>
+            <IosText variant="caption" accessibilityRole="alert" style={boardStyles.muted}>{t(ownerPicks.kind === "timeout" ? "common:errors.network" : "common:errors.unknown")}</IosText>
+            <IosButton glyph="refresh" label={t("common:actions.retry")} onPress={retryReads} />
+          </View> : null}
+        {picksData && (picksData.picks.length > 0 || picksData.suggestions.length > 0) ? <View style={boardStyles.stack}>
+          <IosCardHeader glyph="inbox" title={t("today.title")} />
+          <IosGroup>
+            {picksData.picks.map((id) => <IosRow key={id} title={t(`today.pick.${id}`)}
+              onPress={() => router.push(OPS_TODAY_ROUTES[id] as never)} />)}
+            {picksData.suggestions.map((id) => <IosRow key={`next-${id}`} title={t(`today.next.${id}`)}
+              onPress={() => router.push(OPS_TODAY_ROUTES[id] as never)} />)}
+          </IosGroup>
+        </View> : null}
+        </> : null}
+      </>}
+  </View>;
+
+  const listFooter = (
+    <View style={styles.footerStack}>
+      {notice ? (
+        <PixelSurface variant="inset" contentStyle={styles.noticeContent}>
+          <PixelGlyph name={notice.tone === "danger" ? "warning" : "check"} color={notice.tone === "danger" ? m3.color.error : m3.color.primary} size={20} />
+          <Text
+            variant="body"
+            style={notice.tone === "danger" ? styles.noticeDanger : styles.noticeText}
+            accessibilityRole={notice.tone === "danger" ? "alert" : undefined}
+            accessibilityLiveRegion="polite"
+          >
+            {notice.keys.map((key) => t(key)).join(" ")}
+          </Text>
+        </PixelSurface>
       ) : null}
 
-      <SectionHeading icon="box" title={t("home.toolsLabel")} />
+      <PixelPressable
+        fullWidth
+        onPress={() => router.push("/reminders")}
+        accessibilityRole="link"
+        accessibilityLabel={t("card.remind")}
+        contentStyle={styles.patternContent}
+      >
+        <View style={styles.sectionCopy}>
+          <SectionHeading kind="door" icon="schedule" title={t("card.remind")} />
+        </View>
+        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={20} />
+      </PixelPressable>
+
+      <PixelPressable
+        fullWidth
+        onPress={() => router.push("/insights")}
+        accessibilityRole="link"
+        accessibilityLabel={t("home.patternsTitle")}
+        accessibilityHint={t("home.patternsSub")}
+        contentStyle={styles.patternContent}
+      >
+        <View style={styles.sectionCopy}>
+          <SectionHeading kind="door" icon="sparkle" title={t("home.patternsTitle")} />
+        </View>
+        <PixelGlyph name="chevron_right" color={m3.color.onSurface} size={20} />
+      </PixelPressable>
+
+      <SectionHeading kind="label" icon="box" title={t("home.toolsLabel")} />
       <View style={styles.toolGrid}>
         {OPS_TOOL_ROUTES.map((tool) => (
           <PixelPressable
@@ -1179,14 +1120,12 @@ const styles = StyleSheet.create({
   stateSurface: { width: "100%" },
   stateContent: { gap: m3.spacing.s3, alignItems: "flex-start" },
   stateMessage: { color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodyMedium.line, paddingBottom: m3.spacing.s1 },
-  sectionHeading: { flexDirection: "row", alignItems: "flex-start", gap: m3.spacing.s3 },
+  headingStack: { gap: m3.spacing.s1 },
+  sectionHeading: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
   sectionCopy: { flex: 1, minWidth: 0, gap: m3.spacing.s1 },
-  sectionTitle: { color: m3.color.onSurface },
-  sectionBody: { color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodySmall.line },
-  heroContent: { minHeight: 92, flexDirection: "row", alignItems: "center", gap: m3.spacing.s4, paddingVertical: m3.spacing.s4 },
-  heroCopy: { flex: 1, gap: m3.spacing.s2 },
-  heroCount: { color: m3.color.onPrimaryContainer, fontFamily: m3.font.mono },
-  heroStreak: { color: m3.color.onSurfaceVariant },
+  sectionLabel: { flex: 1, minWidth: 0, color: m3.color.onSurface },
+  doorTitle: { flex: 1, minWidth: 0, color: m3.color.onSurface, lineHeight: m3.type.bodyMedium.line },
+  sectionSummary: { color: m3.color.onSurfaceVariant, flexShrink: 1, minWidth: 0, textAlign: "right" },
   routineContent: { minHeight: m3.minTouch, flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
   routineTitle: { flex: 1, minWidth: 0, color: m3.color.onSurface, lineHeight: m3.type.bodyMedium.line },
   routineDone: { flex: 1, minWidth: 0, color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodyMedium.line, textDecorationLine: "line-through" },
@@ -1195,9 +1134,6 @@ const styles = StyleSheet.create({
   noticeText: { flex: 1, color: m3.color.onSurface, lineHeight: m3.type.bodyMedium.line },
   noticeDanger: { flex: 1, color: m3.color.error, lineHeight: m3.type.bodyMedium.line },
   patternContent: { minHeight: m3.minTouch, flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
-  patternCopy: { flex: 1, minWidth: 0, gap: m3.spacing.s1 },
-  patternTitle: { color: m3.color.onSurface },
-  patternBody: { color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodySmall.line },
   actionContent: { minHeight: m3.minTouch, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: m3.spacing.s2 },
   actionText: { flex: 1, color: m3.color.onSurface, textAlign: "center" },
   choiceGrid: { flexDirection: "row", flexWrap: "wrap", gap: m3.spacing.s2 },
@@ -1233,4 +1169,17 @@ const styles = StyleSheet.create({
   toolCopy: { flex: 1, minWidth: 0, gap: m3.spacing.s1 },
   toolTitle: { color: m3.color.onSurface, lineHeight: m3.type.bodyMedium.line },
   toolSub: { color: m3.color.onSurfaceVariant, lineHeight: m3.type.bodySmall.line },
+});
+
+// Phone-only styles; the standalone /ops surface keeps its existing styles.
+const boardStyles = StyleSheet.create({
+  stack: { gap: 6 },
+  text: { color: phoneIos.label },
+  muted: { color: phoneIos.label2 },
+  recommendation: { gap: 6, paddingTop: 6, borderTopWidth: 2, borderTopColor: phoneIos.fill },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+});
+
+const phoneSettingsStyles = StyleSheet.create({
+  summary: { color: phoneIos.label2, flexShrink: 1, minWidth: 0, textAlign: "right" },
 });

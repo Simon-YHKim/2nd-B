@@ -16,7 +16,7 @@ const entries = readdirSync(new URL("../supabase/functions/", import.meta.url), 
 if (entries.length === 0) throw new Error("No Edge entrypoints found");
 
 const result = spawnSync(process.env.DENO_BINARY || "deno", [
-  "check", "--no-config", "--node-modules-dir=none", "--no-lock", ...entries,
+  "check", "--no-config", "--import-map=supabase/functions/import_map.json", "--node-modules-dir=none", "--no-lock", ...entries,
 ], { cwd: root, stdio: "inherit", env: { ...process.env, DENO_NO_UPDATE_CHECK: "1" } });
 if (result.error) {
   console.error(`Cannot run Deno: ${result.error.message}. Install Deno 2.9.7 or set DENO_BINARY.`);

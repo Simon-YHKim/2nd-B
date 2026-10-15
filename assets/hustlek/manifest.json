@@ -1,0 +1,584 @@
+{
+  "schemaVersion": 1,
+  "character": "HustleK",
+  "catalogVersion": "hustlek-expressions-261008-v1",
+  "approvedAt": "2026-10-08",
+  "expressions": [
+    {
+      "id": "A01",
+      "key": "neutral",
+      "labels": {
+        "ko": "담담한 기본",
+        "en": "Neutral"
+      },
+      "file": "png/A01-neutral.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "c6389cf8dc45bdff876a188ee6525acf1f124061cbcf03fb64d36e859f84bd84"
+    },
+    {
+      "id": "A02",
+      "key": "soft-smile",
+      "labels": {
+        "ko": "가벼운 미소",
+        "en": "Soft smile"
+      },
+      "file": "png/A02-soft-smile.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "cf402aafad471b23643ca895e38033a627572340b4beeeb54f5cf35777cfda02"
+    },
+    {
+      "id": "A03",
+      "key": "eye-smile",
+      "labels": {
+        "ko": "눈웃음",
+        "en": "Smiling eyes"
+      },
+      "file": "png/A03-eye-smile.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "4ac3a5eb0df6e7ab7e7d70734d065b18f8cbc15eb5a2edd92a0909d2ae04b348"
+    },
+    {
+      "id": "A04",
+      "key": "broad-grin",
+      "labels": {
+        "ko": "활짝 웃음",
+        "en": "Broad grin"
+      },
+      "file": "png/A04-broad-grin.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "050b0b07994f2abf3d46419d782fdd54e69562719e19b2830cc10948db7a3a3b"
+    },
+    {
+      "id": "A05",
+      "key": "laugh",
+      "labels": {
+        "ko": "소리 내어 웃음",
+        "en": "Laugh"
+      },
+      "file": "png/A05-laugh.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "121781bbd290e4982e6c1ae5a9e1cc2b75b68b1095e48b5999d02b66bab616ef"
+    },
+    {
+      "id": "A06",
+      "key": "hearty-laugh",
+      "labels": {
+        "ko": "크게 웃음",
+        "en": "Hearty laugh"
+      },
+      "file": "png/A06-hearty-laugh.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "38a35a4f4da729c37468616620d9eb9f3a697ac29c213508b4bd7bfbaecdd2c7"
+    },
+    {
+      "id": "A07",
+      "key": "proud",
+      "labels": {
+        "ko": "뿌듯함",
+        "en": "Proud"
+      },
+      "file": "png/A07-proud.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "6dee17aa1051518dd63868cf0e755a9c3b1b10b7def26da1adc141d0974710e2"
+    },
+    {
+      "id": "A08",
+      "key": "playful-smirk",
+      "labels": {
+        "ko": "장난스러운 미소",
+        "en": "Playful smirk"
+      },
+      "file": "png/A08-playful-smirk.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "b518ee37b3e5fa3c848e104419186b47cef37132e81af9af765d342d8f4aaa1e"
+    },
+    {
+      "id": "A09",
+      "key": "shy-smile",
+      "labels": {
+        "ko": "수줍은 미소",
+        "en": "Shy smile"
+      },
+      "file": "png/A09-shy-smile.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "18c44a6b79cbfbafc3982ca11fea06e2e9ee11994f3eb59d5ea8018038f5f41e"
+    },
+    {
+      "id": "A10",
+      "key": "relieved",
+      "labels": {
+        "ko": "안도",
+        "en": "Relieved"
+      },
+      "file": "png/A10-relieved.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "437ec22dc37fac013a08f8e8fd0531219c701e4b2743fdc2d13443588464132d"
+    },
+    {
+      "id": "A11",
+      "key": "grateful",
+      "labels": {
+        "ko": "고마움",
+        "en": "Grateful"
+      },
+      "file": "png/A11-grateful.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "6ee1c68d0ca8ea1ab38fa198b21405b410bfefa83e8370ce5c6f3d2e0ee75150"
+    },
+    {
+      "id": "A12",
+      "key": "delighted",
+      "labels": {
+        "ko": "기쁜 감탄",
+        "en": "Delighted"
+      },
+      "file": "png/A12-delighted.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "21b7c275281052330d2bbea049dfaaa49615637ee2b73e9b9e25092b60b012b5"
+    },
+    {
+      "id": "B01",
+      "key": "attentive",
+      "labels": {
+        "ko": "경청",
+        "en": "Attentive"
+      },
+      "file": "png/B01-attentive.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "b372bc3690739507bc6d11085ea9f81dce3c1200dc7445ec49edc8390206e11e"
+    },
+    {
+      "id": "B02",
+      "key": "focused",
+      "labels": {
+        "ko": "집중",
+        "en": "Focused"
+      },
+      "file": "png/B02-focused.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "0b8405473207449708a249fafec12bcdda67c7c42d875c61e6675928d4e0928a"
+    },
+    {
+      "id": "B03",
+      "key": "determined",
+      "labels": {
+        "ko": "결심",
+        "en": "Determined"
+      },
+      "file": "png/B03-determined.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "951546e79afed22e6b7ed061f2682ec33355755aff63eb4bd351838c4e5dc116"
+    },
+    {
+      "id": "B04",
+      "key": "thoughtful",
+      "labels": {
+        "ko": "곰곰이 생각",
+        "en": "Thoughtful"
+      },
+      "file": "png/B04-thoughtful.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "1c22a25179bd0025fbe5dc55aa29da4d86e1e03c8947de58fbb67eaeae261e53"
+    },
+    {
+      "id": "B05",
+      "key": "curious",
+      "labels": {
+        "ko": "호기심",
+        "en": "Curious"
+      },
+      "file": "png/B05-curious.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "4f3110df3e4f0e2c0225f38674feccd1afb28e6c41190db15cb91b56ce401ed6"
+    },
+    {
+      "id": "B06",
+      "key": "skeptical",
+      "labels": {
+        "ko": "의심",
+        "en": "Skeptical"
+      },
+      "file": "png/B06-skeptical.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "c7601306accf5dab7ac0818e25e1ba5a53c1ef58c24fc3b8d85ffdcf8a9fe0ae"
+    },
+    {
+      "id": "B07",
+      "key": "hesitant",
+      "labels": {
+        "ko": "망설임",
+        "en": "Hesitant"
+      },
+      "file": "png/B07-hesitant.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "a39bab232b7e525643b63891f97206a48c9a214060c538c65fe4846ab94fc267"
+    },
+    {
+      "id": "B08",
+      "key": "puzzled",
+      "labels": {
+        "ko": "갸우뚱한 마음",
+        "en": "Puzzled"
+      },
+      "file": "png/B08-puzzled.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "6a1488203c31514fb6a83f852d366bd8022f776c558f842dd56b6a1bfe5e248e"
+    },
+    {
+      "id": "B09",
+      "key": "embarrassed",
+      "labels": {
+        "ko": "머쓱함",
+        "en": "Embarrassed"
+      },
+      "file": "png/B09-embarrassed.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "d32c0cb22671038eeda87df1249bf55cc93fcc29369ca690221902ce3fb59e23"
+    },
+    {
+      "id": "B10",
+      "key": "apologetic",
+      "labels": {
+        "ko": "미안한 미소",
+        "en": "Apologetic smile"
+      },
+      "file": "png/B10-apologetic.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "7fd036bf64b4e178c3f29ee80116b929e218676e1fa98dace1703170121d997c"
+    },
+    {
+      "id": "B11",
+      "key": "expectant",
+      "labels": {
+        "ko": "기대",
+        "en": "Expectant"
+      },
+      "file": "png/B11-expectant.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "cd3e03aad8f8b5b176f40bb8cc208ab157ff2e2c94415d01c76e15735d78fdcf"
+    },
+    {
+      "id": "B12",
+      "key": "unimpressed",
+      "labels": {
+        "ko": "심드렁함",
+        "en": "Unimpressed"
+      },
+      "file": "png/B12-unimpressed.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "682cba48383c86611f8497f2507c4ae3f6cf85c1b06e34e0c579e8ff6dd5013e"
+    },
+    {
+      "id": "C01",
+      "key": "mild-surprise",
+      "labels": {
+        "ko": "작은 놀람",
+        "en": "Mild surprise"
+      },
+      "file": "png/C01-mild-surprise.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "20ec1e127d2421223ed4700a07701644169ef7c599dbe4bfe1ebb97fd79472a7"
+    },
+    {
+      "id": "C02",
+      "key": "startled",
+      "labels": {
+        "ko": "깜짝 놀람",
+        "en": "Startled"
+      },
+      "file": "png/C02-startled.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "7b6341b0474d07d7e98b674690676a00fb856b9b0a5bff03113cceb5f2695448"
+    },
+    {
+      "id": "C03",
+      "key": "shocked",
+      "labels": {
+        "ko": "충격",
+        "en": "Shocked"
+      },
+      "file": "png/C03-shocked.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "7cb001e60b9a06f149994ca5548ed85e8bd22d2cee29a49c307f362ea03d3b65"
+    },
+    {
+      "id": "C04",
+      "key": "disbelief",
+      "labels": {
+        "ko": "믿기 어려움",
+        "en": "Disbelief"
+      },
+      "file": "png/C04-disbelief.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "80a3e4609f844528802a981f7fb1375ea96760a8891269111c924fa63c1cb1c9"
+    },
+    {
+      "id": "C05",
+      "key": "frightened",
+      "labels": {
+        "ko": "겁먹음",
+        "en": "Frightened"
+      },
+      "file": "png/C05-frightened.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "a9d56bb7e821b0d236657138d8f93fcaedd3730f58c019e5ee450375b5824a43"
+    },
+    {
+      "id": "C06",
+      "key": "nervous",
+      "labels": {
+        "ko": "초조함",
+        "en": "Nervous"
+      },
+      "file": "png/C06-nervous.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "99ecf72f6b0c20fcf62b0e87013a86961c0a5547c87aa42c6796b4ed16feefb3"
+    },
+    {
+      "id": "C07",
+      "key": "worried",
+      "labels": {
+        "ko": "걱정",
+        "en": "Worried"
+      },
+      "file": "png/C07-worried.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "2a0765c79fa31780b592acaef2310942cb96bc1c1a0adc46069e1a5ecc3d2f1e"
+    },
+    {
+      "id": "C08",
+      "key": "sad",
+      "labels": {
+        "ko": "슬픔",
+        "en": "Sad"
+      },
+      "file": "png/C08-sad.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "13ded4994ca89e66760a93c6d4881e341f7e68a02ee2711c759adbc7466dd684"
+    },
+    {
+      "id": "C09",
+      "key": "teary",
+      "labels": {
+        "ko": "울먹임",
+        "en": "Teary"
+      },
+      "file": "png/C09-teary.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "7697e2e9e28eab2d2a94c5b26e81b823ed76f4ab7ca69a7f5106377f771a4ef7"
+    },
+    {
+      "id": "C10",
+      "key": "crying",
+      "labels": {
+        "ko": "눈물",
+        "en": "Crying"
+      },
+      "file": "png/C10-crying.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "b2483f20a7fd64d06b0af3ca9861822d8bb5776d1bd85d6bd716380a0ff63663"
+    },
+    {
+      "id": "C11",
+      "key": "sobbing",
+      "labels": {
+        "ko": "흐느낌",
+        "en": "Sobbing"
+      },
+      "file": "png/C11-sobbing.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "50765ac28ef2268ddaa2caa918f6f2318ae66c484ed97b269cb6be29e6fa0b94"
+    },
+    {
+      "id": "C12",
+      "key": "disappointed",
+      "labels": {
+        "ko": "실망",
+        "en": "Disappointed"
+      },
+      "file": "png/C12-disappointed.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "3f97108aaa612c6ae6ab4783f8ee1d307df77963d3449e966a181768f04645f3"
+    },
+    {
+      "id": "D01",
+      "key": "irritated",
+      "labels": {
+        "ko": "짜증",
+        "en": "Irritated"
+      },
+      "file": "png/D01-irritated.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "b0c173a86f80f27072b179844775e816ee9120e5bfa00f83a0d0db72362cc9b8"
+    },
+    {
+      "id": "D02",
+      "key": "angry",
+      "labels": {
+        "ko": "화남",
+        "en": "Angry"
+      },
+      "file": "png/D02-angry.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "82d25ee8bc5f85b1b3c6a75ac17e8c296a483b44404fbb21a5b079912e425063"
+    },
+    {
+      "id": "D03",
+      "key": "clenched-teeth",
+      "labels": {
+        "ko": "이를 악묾",
+        "en": "Clenched teeth"
+      },
+      "file": "png/D03-clenched-teeth.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "c45e78e79630429c350442c014aad3a3cacf4377f8484af490f93d8b575f05c7"
+    },
+    {
+      "id": "D04",
+      "key": "frustrated",
+      "labels": {
+        "ko": "답답함",
+        "en": "Frustrated"
+      },
+      "file": "png/D04-frustrated.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "682dc3edcb39272fdab1e5e93473bcc03bcefb4592c44f2db48fa6b493818b82"
+    },
+    {
+      "id": "D05",
+      "key": "disapproving",
+      "labels": {
+        "ko": "못마땅함",
+        "en": "Disapproving"
+      },
+      "file": "png/D05-disapproving.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "691fea97b96e55dcb90715f049fffb63dc2b6f14cc9dbd71ba09b7e8715d8d5a"
+    },
+    {
+      "id": "D06",
+      "key": "disgusted",
+      "labels": {
+        "ko": "질색",
+        "en": "Disgusted"
+      },
+      "file": "png/D06-disgusted.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "4fdc86f408a6645c9427242a14ded1ccd5fca2d67279acccc20f2565a0e9e989"
+    },
+    {
+      "id": "D07",
+      "key": "cynical",
+      "labels": {
+        "ko": "냉소",
+        "en": "Cynical"
+      },
+      "file": "png/D07-cynical.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "e3e9178a972c83420c30568b629b109bc0bd0a6bf564c9b02355542a76c8eaab"
+    },
+    {
+      "id": "D08",
+      "key": "assertive",
+      "labels": {
+        "ko": "단호한 말투",
+        "en": "Assertive"
+      },
+      "file": "png/D08-assertive.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "3a7432c453722a1e9f5dae00d65abe8e07a88f650b057ce6eeac704c7a5b9118"
+    },
+    {
+      "id": "D09",
+      "key": "tired",
+      "labels": {
+        "ko": "지침",
+        "en": "Tired"
+      },
+      "file": "png/D09-tired.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "a692f76f2bcdc143618e252e09c4227272ad13c0d97a0cc7a724a217d352fdf0"
+    },
+    {
+      "id": "D10",
+      "key": "sleepy",
+      "labels": {
+        "ko": "졸림",
+        "en": "Sleepy"
+      },
+      "file": "png/D10-sleepy.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "03e426a0a1118f3e489dfa0e95f4843b6613f72a00c43a8bce3dcc913c0fb890"
+    },
+    {
+      "id": "D11",
+      "key": "yawning",
+      "labels": {
+        "ko": "하품",
+        "en": "Yawning"
+      },
+      "file": "png/D11-yawning.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "77b7c1a174f7071ff005ab02f0ba97ddebdb6bac7fee20c5c1fcf3bffd5bbc2d"
+    },
+    {
+      "id": "D12",
+      "key": "peaceful",
+      "labels": {
+        "ko": "평온한 휴식",
+        "en": "Peaceful rest"
+      },
+      "file": "png/D12-peaceful.png",
+      "width": 362,
+      "height": 362,
+      "sha256": "d2999f60699e1bf7b32f9960fd42aaf40affc55b1ebe38556195ed8d1afefc21"
+    }
+  ]
+}

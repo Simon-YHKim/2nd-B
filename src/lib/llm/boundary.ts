@@ -25,11 +25,12 @@ import type { LlmVendor } from "./routing";
 import { retrieveEvidence } from "../knowledge/retrieve";
 import { loadDomainLevels } from "../persona/load-domain-levels";
 import { classifyInput, classifyInputAnyLocale, crisisHotlines, type SafetyResult } from "../safety/classifier";
+import { hasCrisisObfuscation } from "../safety/crisis-obfuscation";
 import { getSupabaseClient } from "../supabase/client";
 import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-client";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
 import { enqueueAuditWrite } from "./audit-write-outbox";
-import { classifySafety, fixedCrisisResponse } from "./safety";
+import { classifierReportedCategories, classifyObfuscatedInput, classifySafety, emergencyGuidance, emergencyRoute, fixedCrisisResponse, noteObfuscationUnavailable, parseEmergencyLane, recordableCrisisCategories, replySwapCategories } from "./safety";
 import {
   MODELS,
   PURPOSE_TIER,
@@ -40,8 +41,23 @@ import {
   type LlmResult,
   type PromptInput,
   type PromptPurpose,
+  type CrisisObserver,
   type ReasoningEffort,
 } from "./types";
+
+// Optional UI guidance runs once, after the same ownership/cancellation fence
+// as the result. Only routing metadata crosses this callback; UI exceptions
+// cannot skip the audit path or change the standard result.
+function crisisObserver(observer: CrisisObserver | undefined, fence: () => void): CrisisObserver | undefined {
+  if (!observer) return undefined;
+  let notified = false;
+  return (hotline) => {
+    fence();
+    if (notified) return;
+    notified = true;
+    try { observer(hotline); } catch { /* The audited result still follows. */ }
+  };
+}
 
 // Web Crypto SubtleCrypto fallback to a simple non-cryptographic hash when
 // running outside a browser/RN runtime (e.g. node tests). Audit hashes are
@@ -156,6 +172,20 @@ function assertDirectEgressAllowed(env: ReturnType<typeof getEnv>): void {
   }
 }
 
+// Purposes whose ONLY cost bound is the proxies' per-user counters (F2049-04).
+// The interview has no turn cap since Q-261004-24 (2026-10-04): it ends when the
+// user ends it or when a proxy answers 429 for today's purpose quota or daily
+// spend cap (interview/session-end.ts). The direct @google/genai branch has
+// neither counter, so the Vertex exemption above cannot hold for these purposes:
+// a live call goes to a proxy even when EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is off.
+// The output re-classification after a successful call stays one per answered
+// call, so it is bounded by the same counter.
+const SERVER_CAPPED_PURPOSES: ReadonlySet<PromptPurpose> = new Set(["interview_probe"]);
+
+function mustReachServerCap(env: ReturnType<typeof getEnv>, purpose: PromptPurpose): boolean {
+  return env.EXPO_PUBLIC_LLM_MODE === "live" && SERVER_CAPPED_PURPOSES.has(purpose);
+}
+
 async function writeAiAuditLog(
   userId: string,
   audit: AuditMeta,
@@ -187,7 +217,7 @@ async function writeCrisisEvent(
   await enqueueAuditWrite({
     kind: "crisis_event",
     ownerUserId: userId,
-    payload,
+    payload: { ...payload, triggerCategories: recordableCrisisCategories(payload.triggerCategories) },
     warnLabel,
   }, session ? {
     userId: session.userId,
@@ -205,15 +235,15 @@ async function writeCrisisEvent(
 // as ordinary product copy. The internal "mock"/no-key technical marker lives in
 // this comment and in modelUsed audit fields only.
 const MOCK_RESPONSES: Record<
-  "reasoning_connect" | "audit_qa" | "source_ingest" | "persona_narrative" | "gap_synthesize" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend" | "ops_daily_brief" | "northstar_propose",
+  "reasoning_connect" | "audit_qa" | "source_ingest" | "persona_narrative" | "gap_synthesize" | "secondb_chat" | "interview_probe" | "ops_recommend" | "ops_daily_brief" | "northstar_propose",
   Record<"en" | "ko", string>
 > = {
   // Schema-shaped sample ({"sentences":[...]}) so the 북극성 propose surface
   // renders its 3 draft cards in the offline-preview build. Before this entry
   // the generic preview line reached parseNorthstarReply, which THROWS on a
   // non-JSON reply (throw = network/format failure by contract), so offline
-  // preview showed an error card. axis_estimate / self_model_propose are
-  // deliberately absent: their parsers fail SOFT to null ("no estimate/proposal
+  // preview showed an error card. self_model_propose is
+  // deliberately absent: its parser fails SOFT to null ("no estimate/proposal
   // yet"), which is the honest offline behavior for a ratify surface.
   northstar_propose: {
     en: JSON.stringify({
@@ -263,35 +293,6 @@ const MOCK_RESPONSES: Record<
   interview_probe: {
     en: "What part of what you just said feels most alive to you right now?",
     ko: "방금 말한 것 중에서 지금 가장 살아 있는 느낌이 드는 부분은 무엇인가요?",
-  },
-  // Structured imagine sample in the :: delimited format parseImagineResult
-  // expects, so the result cards render in the offline-preview build (the
-  // default deployed build).
-  imagine: {
-    en:
-      "TITLE :: A lantern in the night alley\n" +
-      "WORLDLINE :: A story where one small piece lights the village's first lamp.\n" +
-      "SCENE :: The first lamp :: A single lantern flickers on in a dark alley.\n" +
-      "SCENE :: The path appears :: The lit lanterns trace a road forward.\n" +
-      "SCENE :: Friends gather :: Small pixel friends drift onto the path.\n" +
-      "OBJECT :: Lantern :: The little light your piece switched on.\n" +
-      "OBJECT :: Path :: A signal line linking piece to piece.\n" +
-      "OBJECT :: Note :: A place to jot what comes next.\n" +
-      "CHARACTER :: SecondB Divergent :: The guide who unfolds a thought from a new angle.\n" +
-      "CHARACTER :: Lumen :: The guide who brings back useful pieces.\n" +
-      "NEXTSTEP :: Write down one line of the scene you saw today.",
-    ko:
-      "TITLE :: 밤빛 골목의 등불\n" +
-      "WORLDLINE :: 작은 기록 하나가 마을의 첫 등불을 켜는 이야기예요.\n" +
-      "SCENE :: 첫 등불 :: 어두운 골목에 등불이 하나 켜져요.\n" +
-      "SCENE :: 이어지는 길 :: 켜진 등불을 따라 길이 이어져요.\n" +
-      "SCENE :: 모이는 친구들 :: 작은 친구들이 길 위로 모여요.\n" +
-      "OBJECT :: 등불 :: 오늘의 조각이 켠 작은 빛.\n" +
-      "OBJECT :: 길 :: 조각과 조각을 잇는 신호선.\n" +
-      "OBJECT :: 노트 :: 다음을 적어두는 자리.\n" +
-      "CHARACTER :: SecondB Divergent :: 생각을 낯선 각도에서 장면으로 펼쳐주는 길잡이.\n" +
-      "CHARACTER :: Lumen :: 쓸모 있는 새 조각을 가져오는 길잡이.\n" +
-      "NEXTSTEP :: 오늘 떠오른 장면 한 줄을 기록으로 남겨보기.",
   },
   // Structured JSON sample for the external-import ingest so /import works in
   // the default offline-preview build (parseIngestResult reads this shape).
@@ -354,33 +355,11 @@ const MOCK_RESPONSES: Record<
       side_project: [],
     }),
   },
-  import_ingest: {
-    en: JSON.stringify({
-      summary: "A reflective, curious person who values growth and close relationships.",
-      track: "daily",
-      tags: ["imported", "growth", "reflection"],
-      items: [
-        { section: "trait", title: "Openness", detail: "Drawn to new ideas and perspectives.", confidence: "medium" },
-        { section: "value", title: "Growth", detail: "Frames experiences as chances to learn.", confidence: "medium" },
-        { section: "relationship", title: "Close ties", detail: "Leans on a small circle of trusted people.", confidence: "low" },
-      ],
-    }),
-    ko: JSON.stringify({
-      summary: "성장과 가까운 관계를 중요하게 여기는, 호기심 많고 성찰적인 사람.",
-      track: "daily",
-      tags: ["imported", "성장", "성찰"],
-      items: [
-        { section: "trait", title: "개방성", detail: "새로운 생각과 관점에 끌려요.", confidence: "medium" },
-        { section: "value", title: "성장", detail: "경험을 배움의 기회로 받아들여요.", confidence: "medium" },
-        { section: "relationship", title: "가까운 관계", detail: "신뢰하는 소수에게 의지해요.", confidence: "low" },
-      ],
-    }),
-  },
 };
 
 type ProxyCrisisDecision = {
   route: boolean;
-  confirmedMarker: boolean;
+  confirmedMarker: boolean; lane?: import("../safety/emergency-routing").EmergencyLane | null;
 };
 
 export type LlmConsentErrorCode = "consent_required" | "consent_check_unavailable";
@@ -431,8 +410,8 @@ async function inspectProxyCrisisRejection(error: unknown): Promise<ProxyCrisisD
         ? ((ctx.clone as () => { json?: () => Promise<unknown> })())
         : (ctx as { json?: () => Promise<unknown> });
     if (typeof target.json !== "function") return { route: true, confirmedMarker: false };
-    const body = (await target.json()) as { error?: unknown } | null;
-    if (body?.error === "safety_red_zone") return { route: true, confirmedMarker: true };
+    const body = (await target.json()) as { error?: unknown; crisis_lane?: unknown } | null;
+    if (body?.error === "safety_red_zone") return { route: true, confirmedMarker: true, lane: parseEmergencyLane(body.crisis_lane) };
     return noRoute;
   } catch {
     return { route: true, confirmedMarker: false };
@@ -442,13 +421,13 @@ async function inspectProxyCrisisRejection(error: unknown): Promise<ProxyCrisisD
 // RED SafetyResult for a proxy-detected crisis. The client classifier
 // returned green/yellow, so there is no matched-term list — the proxy body
 // intentionally never echoes the matched term (no oracle).
-function proxyCrisisSafetyResult(locale: "en" | "ko", minor = false): SafetyResult {
+function proxyCrisisSafetyResult(locale: "en" | "ko", minor = false, lane?: unknown): SafetyResult {
   const h = crisisHotlines(locale, minor)[0];
   return {
     zone: "red",
     matched: [],
     categories: ["crisis"],
-    crisisRouting: { hotline: h.id, label: h.label, number: h.number },
+    crisisRouting: emergencyRoute(lane) ?? { hotline: h.id, label: h.label, number: h.number },
   };
 }
 
@@ -540,6 +519,7 @@ async function routeCrisis(
     recordCrisisEvent?: boolean;
     purpose?: string;
     session?: AuthenticatedAccountSessionLease;
+    classifierConfidence?: number;
   } = {},
 ): Promise<LlmResult<string>> {
   if (opts.session?.userId !== undefined && opts.session.userId !== userId) {
@@ -550,10 +530,10 @@ async function routeCrisis(
   // KO adult -> 109, KO minor -> 1388 + 109, EN -> 988.
   const numbers = crisisHotlines(locale, minor).map((hl) => hl.number);
   const joined = locale === "ko" ? numbers.join(" 또는 ") : numbers.join(" or ");
-  const text =
+  const text = emergencyGuidance(result.crisisRouting?.hotline, locale)?.text ?? (
     locale === "ko"
       ? `지금 많이 힘드신 것 같아요. 혼자 견디지 마시고 ${joined}로 연락해 주세요. 전문가가 24시간 함께합니다.`
-      : `It sounds like you're going through a lot right now. Please reach out to ${joined} - trained responders are available 24/7.`;
+      : `It sounds like you're going through a lot right now. Please reach out to ${joined} - trained responders are available 24/7.`);
   const audit = {
     promptHash,
     outputHash: djb2(text),
@@ -576,8 +556,9 @@ async function routeCrisis(
   // Separate restricted ledger (crisis_events), parity with callAdvisor's input-RED
   // path. Without this every callLlm surface (chat/journal/interview/persona/
   // import/clipper/phase1) intercepted a crisis but left NO categorical trace in the
-  // restricted log. routeCrisis only has the lexicon classifier's fields, so map
-  // them conservatively (RED confidence 0.95 like lexiconToResult; no C-SSRS level;
+  // restricted log. Map the classifier fields conservatively (RED confidence
+  // 0.95 like lexiconToResult unless a semantic input supplied its measured value;
+  // no C-SSRS level;
   // categories else "lexicon_match", tagged with sourceTag — input_red for the
   // client short-circuit, proxy_input_red for a confirmed server-gate 422
   // fallback, proxy_input_red_unconfirmed for an unreadable 422 UX fail-safe —
@@ -593,9 +574,9 @@ async function routeCrisis(
     await writeCrisisEvent(
       userId,
       {
-        classifierConfidence: 0.95,
+        classifierConfidence: opts.classifierConfidence ?? 0.95,
         triggerCategories: [...lexCategories, sourceTag],
-        routingTemplateVersion: "routecrisis-inline-v1",
+        routingTemplateVersion: emergencyGuidance(result.crisisRouting?.hotline, locale)?.version ?? "routecrisis-inline-v1",
         locale,
       },
       "[crisis_events] crisis insert failed",
@@ -636,6 +617,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     input.session?.assertCurrent();
   };
   fence();
+  const notifyCrisis = crisisObserver(input.onCrisisDetected, fence);
   assertRootObjectSchema(input.responseSchema);
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
   // Dual-locale: catch a crisis term written in the other language than the UI
@@ -644,6 +626,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   const inputSafety = classifyInputAnyLocale(input.user, input.locale, { minor: input.minor });
   const promptHash = djb2(`${input.system ?? ""}${input.user}`);
   if (inputSafety.zone === "red") {
+    notifyCrisis?.(inputSafety.crisisRouting?.hotline);
     return (await routeCrisis(
       inputSafety,
       input.locale,
@@ -653,6 +636,35 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       "input_red",
       { purpose: input.purpose, session: input.session },
     )) as unknown as LlmResult<T>;
+  }
+
+  // Q-261011-05: lexicon first, then app-only obfuscation gate, then meaning.
+  // Neither the gate alone nor an unavailable semantic result changes a verdict.
+  if (
+    input.purpose === "secondb_chat" &&
+    process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY === "true" &&
+    hasCrisisObfuscation(input.user)
+  ) {
+    const semanticInput = await classifyObfuscatedInput(input.user, input.locale, {
+      capturedSession: input.session,
+      signal,
+    });
+    fence();
+    if (semanticInput?.zone === "red") {
+      notifyCrisis?.(undefined);
+      return (await routeCrisis(
+        { zone: "red", matched: [], categories: ["crisis"] },
+        input.locale,
+        input.userId,
+        promptHash,
+        input.minor,
+        "input_semantic_red",
+        { purpose: input.purpose, session: input.session, classifierConfidence: semanticInput.confidence },
+      )) as unknown as LlmResult<T>;
+    }
+    if (semanticInput === null) {
+      noteObfuscationUnavailable(input.userId, inputSafety.zone, input.session, signal);
+    }
   }
 
   const env = getEnv();
@@ -749,9 +761,11 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
 
   // Route through an edge function when configured, OR whenever the vendor is
   // non-Gemini (Claude/OpenAI have no client-side path — the keys live only in
-  // their proxies). proxyFnForVendor picks the matching function.
+  // their proxies), OR when the purpose's cost bound is the server counter
+  // (mustReachServerCap). proxyFnForVendor picks the matching function.
   if (
     env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION ||
+    mustReachServerCap(env, input.purpose) ||
     (reasoningProvider != null && reasoningProvider !== "gemini")
   ) {
     const proxyBody = {
@@ -763,8 +777,13 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // and gives server logs call attribution. Labels are self-reported, so
       // the proxy's tier-aware cap + effort clamp are the hard ceilings.
       purpose: input.purpose,
-      // Optional image payload for multimodal OCR / vision prompts.
+      // The server claims each reasoning slot against its existing reservation.
+      ...(input.purpose === "reasoning_connect" ? {
+        reasoningRunId: input.reasoningRunId,
+        reasoningSlot: input.reasoningSlot,
+      } : {}),
       ...(input.polarisGenerationId ? { polarisGenerationId: input.polarisGenerationId, polarisLocale: input.locale } : {}),
+      // Optional image payload for multimodal OCR / vision prompts.
       ...(input.image ? { image: input.image } : {}),
       // Structured-output schema (e.g. phase1). The proxy sets
       // responseMimeType=application/json + responseSchema when present so
@@ -817,12 +836,14 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     // guard: retrying the proxy that just failed is not a failover.
     const failoverTarget = failoverVendor();
     const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
-    if (error && input.purpose !== "persona_synthesis" && failoverFn && failoverFn !== primaryFn) {
+    // Reservation-backed calls cannot reuse a claimed slot on another provider.
+    if (error && input.purpose !== "persona_synthesis" && input.purpose !== "reasoning_connect" && failoverFn && failoverFn !== primaryFn) {
       const vendorCrisis = await inspectProxyCrisisRejection(error);
       fence();
       if (vendorCrisis.route) {
+        notifyCrisis?.(proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane).crisisRouting?.hotline);
         return (await routeCrisis(
-          proxyCrisisSafetyResult(input.locale, input.minor),
+          proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane),
           input.locale,
           input.userId,
           promptHash,
@@ -856,8 +877,9 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       const proxyCrisis = await inspectProxyCrisisRejection(error);
       fence();
       if (proxyCrisis.route) {
+        notifyCrisis?.(proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane).crisisRouting?.hotline);
         return (await routeCrisis(
-          proxyCrisisSafetyResult(input.locale, input.minor),
+          proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane),
           input.locale,
           input.userId,
           promptHash,
@@ -929,9 +951,11 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // LlmResult.safety shape, but the swap DECISION + recorded zone use the
   // semantic (worst-case-merged) result.
   const lexical = classifyInput(text, input.locale, { minor: input.minor });
+  if (lexical.zone === "red") notifyCrisis?.(lexical.crisisRouting?.hotline);
   const semantic = await classifySafety(text, input.locale, {
     userId: input.userId,
     capturedSession: input.session,
+    ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
   });
   fence();
   const outputZone: "green" | "yellow" | "red" =
@@ -956,7 +980,8 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // proxyAudited meant the edge path recorded only the proxy's green row, so an
   // ai_audit_log query for interceptions missed this call entirely.
   if (outputZone === "red") {
-    const fixed = fixedCrisisResponse(input.locale, input.minor);
+    notifyCrisis?.(lexical.crisisRouting?.hotline);
+    const fixed = fixedCrisisResponse(input.locale, input.minor, lexical.crisisRouting?.hotline);
     const swapAudit = {
       promptHash,
       outputHash: djb2(fixed.text),
@@ -981,7 +1006,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         // when present (Flash); on the lexicon-only fallback these are the
         // lexicon's conservative values.
         classifierConfidence: semantic.confidence,
-        triggerCategories: [...semantic.triggers, "output_swap"],
+        triggerCategories: replySwapCategories(semantic.triggers, text, input.minor),
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -1058,9 +1083,9 @@ async function advisorProxyCrisisResult(
   // The vendor whose server gate fired — threaded from callAdvisor's resolved
   // routing (Phase 2 seat or legacy seam), NOT re-derived from the env, so the
   // restricted trail attributes the catch to the proxy that actually rejected.
-  reasoningProvider: LlmVendor,
+  reasoningProvider: LlmVendor, lane?: unknown,
 ): Promise<AdvisorResult> {
-  const fixed = fixedCrisisResponse(input.locale, input.minor);
+  const fixed = fixedCrisisResponse(input.locale, input.minor, emergencyRoute(lane)?.hotline);
   const proxyTrigger = confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed";
   const audit = {
     promptHash,
@@ -1088,7 +1113,7 @@ async function advisorProxyCrisisResult(
   }
   return {
     text: fixed.text,
-    zone: "red",
+    zone: "red", hotline: emergencyRoute(lane)?.hotline,
     triggers: [proxyTrigger],
     fixedTemplate: true,
     matchedBatches: ["crisis-detection"],
@@ -1268,6 +1293,8 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
 
 export interface TranscribeAudioInput {
   userId: string;
+  /** Optional early RED guidance, before audit awaits; never bypasses session fences. */
+  onCrisisDetected?: CrisisObserver;
   /** Immutable JWT + owner epoch captured before local audio is read. */
   session: AuthenticatedAccountSessionLease;
   locale: "en" | "ko";
@@ -1316,6 +1343,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     input.session.assertCurrent();
   };
   fence();
+  const notifyCrisis = crisisObserver(input.onCrisisDetected, fence);
   const env = getEnv();
   const model = MODELS.flash;
   const promptHash = djb2(`transcribe:${input.mimeType}:${input.base64.length}`);
@@ -1327,7 +1355,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     const t0 = Date.now();
     const text =
       input.locale === "ko"
-        ? "오프라인 미리보기 음성 받아쓰기입니다. 들은 내용을 검토하고 다듬은 뒤 담아 주세요."
+        ? "오프라인 미리보기 음성 받아쓰기입니다. 들은 내용을 검토하고 다듬은 뒤 저장해 주세요."
         : "This is an offline preview voice transcript. Review and edit what you heard, then save it.";
     const outputSafety = classifyInput(text, input.locale, { minor: input.minor });
     const audit: AuditMeta = {
@@ -1369,7 +1397,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     // REQ-260821-01 (#1300), and the console flipped
     // EXPO_PUBLIC_MULTIMODAL_VENDOR=openai (web 2026-08-22, native #1370), so
     // this resolves to openai-proxy in both deployed postures. ⚠ The wire
-    // purpose below is "voice_transcribe", not routing's "capture_voice" — the
+    // purpose below is "voice_transcribe" (routing has no voice seat since S0.5) — the
     // proxy allowlist keys on the wire name.
     const audioFn = proxyFnForVendor(multimodalVendor());
     const t0 = Date.now();
@@ -1420,9 +1448,11 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   // write an HONEST audit row (real model + latency + a +swap marker) and a
   // categorical crisis_event, exactly like callLlm's output swap.
   const lexical = classifyInput(text, input.locale, { minor: input.minor });
+  if (lexical.zone === "red") notifyCrisis?.(lexical.crisisRouting?.hotline);
   const semantic = await classifySafety(text, input.locale, {
     userId: input.userId,
     capturedSession: input.session,
+    ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
   });
   fence();
   const outputZone: "green" | "yellow" | "red" =
@@ -1434,7 +1464,8 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   const outputSafety: SafetyResult = { ...lexical, zone: outputZone };
 
   if (outputZone === "red") {
-    const fixed = fixedCrisisResponse(input.locale, input.minor);
+    notifyCrisis?.(lexical.crisisRouting?.hotline);
+    const fixed = fixedCrisisResponse(input.locale, input.minor, lexical.crisisRouting?.hotline);
     const swapAudit: AuditMeta = {
       promptHash,
       outputHash: djb2(fixed.text),
@@ -1459,7 +1490,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
       input.userId,
       {
         classifierConfidence: semantic.confidence,
-        triggerCategories: [...semantic.triggers, "output_swap"],
+        triggerCategories: replySwapCategories(semantic.triggers, text, input.minor),
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -1502,7 +1533,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   const safety = await classifySafety(input.userMessage, input.locale, { userId: input.userId });
 
   if (safety.zone === "red") {
-    const fixed = fixedCrisisResponse(input.locale, input.minor);
+    const fixed = fixedCrisisResponse(input.locale, input.minor, safety.hotline);
     const audit = {
       promptHash,
       outputHash: djb2(fixed.text),
@@ -1522,7 +1553,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       input.userId,
       {
         classifierConfidence: safety.confidence,
-        triggerCategories: safety.triggers,
+        triggerCategories: classifierReportedCategories(safety.triggers),
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -1530,7 +1561,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     );
     return {
       text: fixed.text,
-      zone: "red",
+      zone: "red", hotline: safety.hotline,
       triggers: safety.triggers,
       fixedTemplate: true,
       matchedBatches: ["crisis-detection"],
@@ -1662,7 +1693,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
           promptHash,
           env.EXPO_PUBLIC_USE_VERTEX,
           vendorCrisis.confirmedMarker,
-          reasoningProvider,
+          reasoningProvider, vendorCrisis.lane,
         );
       }
       if (typeof console !== "undefined") {
@@ -1685,7 +1716,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
           promptHash,
           env.EXPO_PUBLIC_USE_VERTEX,
           proxyCrisis.confirmedMarker,
-          servedByProvider,
+          servedByProvider, proxyCrisis.lane,
         );
       }
       throw error;
@@ -1723,7 +1754,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     // Don't ship the Pro text. Substitute the verbatim crisis template, audit
     // both the swapped text and the original (to keep a full audit trail), and
     // log a crisis_event with categorical metadata.
-    const fixed = fixedCrisisResponse(input.locale, input.minor);
+    const fixed = fixedCrisisResponse(input.locale, input.minor, outputSafety.hotline);
     const audit = {
       promptHash: djb2(systemPrompt + input.userMessage),
       outputHash: djb2(fixed.text),
@@ -1743,7 +1774,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       input.userId,
       {
         classifierConfidence: outputSafety.confidence,
-        triggerCategories: [...outputSafety.triggers, "output_swap"],
+        triggerCategories: replySwapCategories(outputSafety.triggers, text, input.minor),
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -1751,7 +1782,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     );
     return {
       text: fixed.text,
-      zone: "red",
+      zone: "red", hotline: outputSafety.hotline,
       triggers: [...outputSafety.triggers, "output_swap"],
       fixedTemplate: true,
       matchedBatches: ["crisis-detection"],
@@ -1791,4 +1822,19 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     })),
     audit,
   };
+}
+
+// Chat turns are classified by the conversation engine before it reads any
+// context or counts the turn (Simon 2026-10-14, Q-261014-30). RED gets the same
+// ledgers and fixed guidance as callLlm's own short-circuit (same source tag,
+// same purpose). GREEN returns null: no write, no model call.
+export async function classifyChatTextForCrisis(
+  text: string,
+  locale: "en" | "ko",
+  userId: string,
+  minor?: boolean,
+): Promise<LlmResult<string> | null> {
+  const safety = classifyInputAnyLocale(text, locale, { minor });
+  if (safety.zone !== "red") return null;
+  return routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", { purpose: "secondb_chat" });
 }

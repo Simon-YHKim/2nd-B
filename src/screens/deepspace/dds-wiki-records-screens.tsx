@@ -1,7 +1,9 @@
+import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { colors, spacing } from "@/theme/tokens";
@@ -24,8 +26,13 @@ import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureAccountOwnerLease, currentAccountEpoch, isCurrentAccountEpoch, subscribeAccountTransition } from "@/lib/auth/account-epoch";
+import { isTimeoutError, withTimeout } from "@/lib/async/with-timeout";
+import { useAppRouter, useHardwareBack, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
-import { listRecentRecords, listRecordsByIds } from "@/lib/records/create";
+import { listRecordsByIds } from "@/lib/records/create";
+import { SEVEN_STARS } from "@/lib/persona/seven-stars";
+import { listAllRecords } from "@/lib/records/list-all-records";
 import { buildRoleRecordsGraph } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { getWikiPageById, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
@@ -68,47 +75,56 @@ function dsTimeLabels(t: Tx): TimelineLabels {
  *  were loaded under. */
 interface OwnedWikiRows {
   ownerId: string | null;
+  epoch: number;
+  attempt: number;
+  status: "ready" | "error" | "timeout";
   pages: WikiPageRow[];
   edges: WikiEdge[];
 }
 
 /** Shared so an owner mismatch returns a stable reference and costs no re-render. */
-const NO_WIKI_ROWS: OwnedWikiRows = { ownerId: null, pages: [], edges: [] };
+const NO_WIKI_ROWS: OwnedWikiRows = { ownerId: null, epoch: -1, attempt: -1, status: "ready", pages: [], edges: [] };
+export const WIKI_PAGES_READ_TIMEOUT_MS = 10_000;
 
 function useWikiGraphData() {
   const { userId, loading: authLoading } = useAuth();
+  const accountEpoch = currentAccountEpoch();
+  const [attempt, setAttempt] = useState(0);
   const [held, setHeld] = useState<OwnedWikiRows>(NO_WIKI_ROWS);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || authLoading) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease || lease.epoch !== accountEpoch) return;
     let alive = true;
-    setLoading(true);
-    Promise.all([
+    // Pages and links are one snapshot. Missing links must not look like zero
+    // connections, and a missing page list must not look like an empty library.
+    const work = Promise.all([
       listWikiPages(userId, { limit: 200 }),
-      listAllWikiLinks(userId).catch(() => [] as WikiEdge[]),
-    ])
+      listAllWikiLinks(userId),
+    ]);
+    void withTimeout(work, WIKI_PAGES_READ_TIMEOUT_MS, "Wiki pages")
       .then(([p, e]) => {
-        if (!alive) return;
-        setHeld({ ownerId: userId, pages: p, edges: e });
+        if (!alive || !lease.isCurrent()) return;
+        setHeld({ ownerId: userId, epoch: accountEpoch, attempt, status: "ready", pages: p, edges: e });
       })
-      .catch(() => {
-        if (!alive) return;
-        setHeld({ ownerId: userId, pages: [], edges: [] });
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
+      .catch((error: unknown) => {
+        if (!alive || !lease.isCurrent()) return;
+        setHeld({ ownerId: userId, epoch: accountEpoch, attempt, status: isTimeoutError(error) ? "timeout" : "error", pages: [], edges: [] });
       });
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [accountEpoch, attempt, authLoading, userId]);
 
   // Read back only for the owner they were loaded under. The effect above overwrites
   // `held` only once the network answers, so without this the previous account's rows
   // would be what the screen draws for the whole refetch window.
-  const owned = held.ownerId !== null && held.ownerId === userId ? held : NO_WIKI_ROWS;
-  return { userId, authLoading, pages: owned.pages, edges: owned.edges, loading };
+  const owned = held.ownerId !== null && held.ownerId === userId && held.epoch === accountEpoch && held.attempt === attempt ? held : NO_WIKI_ROWS;
+  const loading = owned === NO_WIKI_ROWS;
+  const loadError = !loading && owned.status !== "ready" ? owned.status : null;
+  const retry = useCallback(() => setAttempt((previous) => previous + 1), []);
+  return { userId, authLoading, pages: owned.pages, edges: owned.edges, loading, loadError, retry };
 }
 
 function GraphLoading() {
@@ -154,7 +170,16 @@ export function FilterChip({ label, active, violet, onPress }: { label: string; 
 // without a dedicated column in the DB. Purely presentational.
 type RType = "text" | "link" | "voice" | "photo" | "todo";
 type RecordsOrigin = "record" | "source";
-type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string };
+type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string; audit_period?: string | null };
+export const WIKI_LIST_READ_TIMEOUT_MS = 10_000;
+const NO_RECORDS: RecordsTimelineRecord[] = [];
+interface RecordsRead {
+  ownerId: string;
+  epoch: number;
+  reloadKey: number;
+  rows: RecordsTimelineRecord[];
+  failed: boolean;
+}
 
 const TYPE_CHIPS: { id: RType | "all" | "unfiled"; labelKey: string }[] = [
   { id: "all", labelKey: "records.filterAll" },
@@ -260,11 +285,14 @@ function RecordSeparator() {
 }
 
 export function DeepSpaceRecordsScreen() {
+  // Phone-aware: inside the dashboard phone, links open in the phone and the
+  // query below is the phone route's, not /dashboard's.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const isKo = i18n.language === "ko";
   const { userId, loading: authLoading } = useAuth();
   // ?tags=a,b filters to pieces whose tags intersect the set (trinity 영역 drilldown).
-  const recordsParams = useLocalSearchParams<{ tags?: string }>();
+  const recordsParams = useScreenParams<{ tags?: string; period?: string }>();
   const tagFilter = useMemo(
     () =>
       (recordsParams.tags ?? "")
@@ -286,82 +314,86 @@ export function DeepSpaceRecordsScreen() {
     }
     return null;
   }, [tagFilter]);
-  const [records, setRecords] = useState<RecordsTimelineRecord[]>([]);
+  const accountEpoch = currentAccountEpoch();
+  const [recordsRead, setRecordsRead] = useState<RecordsRead | null>(null);
   const [roleCards, setRoleCards] = useState<RoleCard[]>([]);
   const [roleEvidenceRecords, setRoleEvidenceRecords] = useState<RecordsTimelineRecord[]>([]);
   const [roleCardsUserId, setRoleCardsUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [roleCardsEpoch, setRoleCardsEpoch] = useState<number | null>(null);
   // Bumped to re-run the load: on focus re-entry (useFocusRefetch) and on the
-  // error-state retry. The effect's alive-flag cleanup cancels any in-flight
-  // read before the next one commits, so overlapping loads never race.
+  // error-state retry. Rows belong to that request's owner, epoch and retry,
+  // so stale rows disappear in render before the next effect even starts.
   const [reloadKey, setReloadKey] = useState(0);
+  const currentRead = recordsRead?.ownerId === userId && recordsRead.epoch === accountEpoch && recordsRead.reloadKey === reloadKey
+    ? recordsRead : null;
+  const records = currentRead?.rows ?? NO_RECORDS;
+  const loading = currentRead === null;
+  const loadError = currentRead?.failed ?? false;
   const [typeFilter, setTypeFilter] = useState<RType | "all" | "unfiled">("all");
   // PIXEL-CLAY `records` is the connection map. Keep the real, virtualized list
   // one tap away instead of replacing it with the reference's sample corpus.
-  const [view, setView] = useState<"list" | "graph">("graph");
+  // ?period=<a star's period> opens the list on that star's stories (the star summary's
+  // record count leads here). The line at the top of the list says so and returns to
+  // everything; so does the graph, which is the map of all of it.
+  const [periodShownAll, setPeriodShownAll] = useState<string | null>(null);
+  const periodStar = useMemo(() => {
+    const asked = recordsParams.period;
+    if (!asked || asked === periodShownAll) return null;
+    return SEVEN_STARS.find((star) => star.period !== null && star.period === asked) ?? null;
+  }, [recordsParams.period, periodShownAll]);
+  const [view, setView] = useState<"list" | "graph">(periodStar ? "list" : "graph");
+  useEffect(() => {
+    if (periodStar) setView("list");
+  }, [periodStar]);
+  const showAllPeriods = useCallback(() => setPeriodShownAll(recordsParams.period ?? null), [recordsParams.period]);
+  // Opened from a star's summary, the device's Back returns to that summary. The tab's own Back
+  // (DeepSpaceScreen) goes home, which skipped the screen the person came from. This listener is
+  // added after the tab's, so it is asked first.
+  const openedFromStar = SEVEN_STARS.some((star) => star.period !== null && star.period === recordsParams.period);
+  const backToStar = useCallback(() => {
+    if (!openedFromStar || !router.canGoBack()) return false;
+    router.back();
+    return true;
+  }, [openedFromStar, router]);
+  useHardwareBack(backToStar);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || authLoading) return;
     let alive = true;
-    setLoading(true);
-    setLoadError(false);
+    const controller = new AbortController();
+    const current = () => alive && !controller.signal.aborted && isCurrentAccountEpoch(accountEpoch);
+    const unsubscribe = subscribeAccountTransition(() => {
+      if (!isCurrentAccountEpoch(accountEpoch)) controller.abort();
+    });
     // /records shows EVERY saved piece — including non-journal Capture/Import
-    // (글/링크/사진/file) that land in `sources`, not just `records` — so a
-    // source-only user no longer sees a false-empty list. Sources are
-    // best-effort: a sources failure degrades to records-only and never blanks
-    // the screen (mirrors core-brain's merged evidence read). Source rows keep
-    // their DB id for detail navigation while the list id stays collision-free.
-    (async () => {
-      // The canonical records read is NOT coerced to [] on failure. Doing so
-      // rendered the genuine-empty state ("아직 기록이 없어요" + 담기 CTA) to a
-      // user whose network/Supabase call merely failed — telling someone with
-      // records that they have none. A records-read failure is a distinct error
-      // state (retry) instead. Sources stay best-effort (source-only users still
-      // merge in below), so only the primary records read gates the error.
-      let recs: RecordsTimelineRecord[] = [];
-      let recordsFailed = false;
-      try {
-        recs = (await listRecentRecords(userId)) as RecordsTimelineRecord[];
-      } catch {
-        recordsFailed = true;
-      }
-      // Same source of truth as /insights. This read used to live here inline, and
-      // /insights had no equivalent at all -- which is exactly how the two screens came to
-      // disagree about how much the user had captured.
-      let srcRecs: RecordsTimelineRecord[] = [];
-      try {
-        srcRecs = (await listSourcePieces(userId)).map(
-          (s) =>
-            ({
-              id: s.id,
-              origin: "source",
-              sourceId: s.sourceId,
-              kind: "note",
-              summary: s.title,
-              topic: s.title,
-              body: null,
-              tags: s.tags,
-              created_at: s.created_at,
-            }) as RecordsTimelineRecord,
-        );
-      } catch {
-        // records-only fallback (sources stay best-effort)
-      }
-      if (!alive) return;
-      if (recordsFailed) {
-        setLoadError(true);
-        setLoading(false);
-        return;
-      }
+    // (글/링크/사진/file) in sources. Either failed read makes the list unknown,
+    // including a source-only account; a partial result must not look empty.
+    // One deadline bounds the whole paged read and sources, not each page.
+    const work = Promise.all([
+      listAllRecords(userId, { signal: controller.signal }),
+      listSourcePieces(userId),
+    ]).then(([recs, sources]) => {
+      const srcRecs: RecordsTimelineRecord[] = sources.map((s) => ({
+        id: s.id, origin: "source", sourceId: s.sourceId, kind: "note",
+        summary: s.title, topic: s.title, body: null, tags: s.tags, created_at: s.created_at,
+      }));
       const merged = [...recs, ...srcRecs].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-      setRecords(merged);
-      setLoading(false);
-    })();
+      return merged;
+    });
+    void withTimeout(work, WIKI_LIST_READ_TIMEOUT_MS, "Wiki records")
+      .then((rows) => {
+        if (current()) setRecordsRead({ ownerId: userId, epoch: accountEpoch, reloadKey, rows, failed: false });
+      })
+      .catch(() => {
+        if (current()) setRecordsRead({ ownerId: userId, epoch: accountEpoch, reloadKey, rows: NO_RECORDS, failed: true });
+      })
+      .finally(() => { unsubscribe(); controller.abort(); });
     return () => {
       alive = false;
+      unsubscribe();
+      controller.abort();
     };
-  }, [userId, reloadKey]);
+  }, [userId, authLoading, accountEpoch, reloadKey]);
 
   // Reload on focus re-entry so a delete on the record detail (then router.back)
   // is reflected here; the shared helper skips the initial mount, so this never
@@ -372,29 +404,33 @@ export function DeepSpaceRecordsScreen() {
     if (!userId) return;
     let alive = true;
     loadRoleCards(userId).then(async (cards) => {
+      if (!alive || !isCurrentAccountEpoch(accountEpoch)) return;
       const evidence = await listRecordsByIds(userId, roleEvidenceIds(cards)).catch(() => []);
-      if (alive) {
+      if (alive && isCurrentAccountEpoch(accountEpoch)) {
         setRoleCards(cards);
         setRoleEvidenceRecords(evidence as RecordsTimelineRecord[]);
         setRoleCardsUserId(userId);
+        setRoleCardsEpoch(accountEpoch);
       }
     }).catch(() => {
-      if (alive) {
+      if (alive && isCurrentAccountEpoch(accountEpoch)) {
         setRoleCards([]);
         setRoleEvidenceRecords([]);
         setRoleCardsUserId(userId);
+        setRoleCardsEpoch(accountEpoch);
       }
     });
     return () => { alive = false; };
-  }, [userId, reloadKey]);
-  const visibleRoleCards = roleCardsUserId === userId ? roleCards : [];
-  const visibleRoleEvidence = roleCardsUserId === userId ? roleEvidenceRecords : [];
+  }, [userId, accountEpoch, reloadKey]);
+  const ownsRoleCards = roleCardsUserId === userId && roleCardsEpoch === accountEpoch;
+  const visibleRoleCards = ownsRoleCards ? roleCards : [];
+  const visibleRoleEvidence = ownsRoleCards ? roleEvidenceRecords : [];
 
   // Stable across renders so the memoized RecordCard's onPress prop does not
   // change (React.memo keeps unchanged rows from re-rendering on filter taps).
   const openRecord = useCallback(
     (record: RecordsTimelineRecord) => router.push({ pathname: "/record/[id]", params: recordRouteParams(record) }),
-    [],
+    [router],
   );
 
   // Per-record time label reuses the tested timeline bucketer (방금 / N시간 전 / 어제 …).
@@ -402,14 +438,17 @@ export function DeepSpaceRecordsScreen() {
   // their own day label - without it every non-today record showed no time at all.
   const timeById = useMemo(() => {
     const m = new Map<string, string>();
-    buildRecordsTimeline(records, { labels: dsTimeLabels(t), labelEveryItem: true }).forEach((g) => g.items.forEach((it) => m.set(it.id, it.timeLabel)));
+    // maxGroups: the timeline labels only its first 8 day groups unless told otherwise, and a row
+    // past the eighth day then showed no time at all. This list holds every record, so every day.
+    buildRecordsTimeline(records, { labels: dsTimeLabels(t), labelEveryItem: true, maxGroups: Number.POSITIVE_INFINITY }).forEach((g) => g.items.forEach((it) => m.set(it.id, it.timeLabel)));
     return m;
   }, [records, t]);
 
   const scoped = useMemo(() => {
-    if (tagFilter.length === 0) return records;
-    return records.filter((r) => (r.tags ?? []).some((tag) => tagFilter.includes(tag.toLowerCase())));
-  }, [records, tagFilter]);
+    const ofStar = periodStar ? records.filter((r) => r.audit_period === periodStar.period) : records;
+    if (tagFilter.length === 0) return ofStar;
+    return ofStar.filter((r) => (r.tags ?? []).some((tag) => tagFilter.includes(tag.toLowerCase())));
+  }, [records, tagFilter, periodStar]);
   const unfiledCount = useMemo(() => scoped.filter(isUnfiled).length, [scoped]);
   const filtered = useMemo(() => {
     if (typeFilter === "all") return scoped;
@@ -458,8 +497,16 @@ export function DeepSpaceRecordsScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
+  // Z80 (Simon 2026-10-13): a count that was not read is not zero. While the records read is
+  // pending or has failed, the two counts show "..." the way the chat's daily count does.
+  const countsUnread = loading || loadError;
   const graphCount = recordsGraph.nodes.filter((node) => node.kind === "record").length;
-  const graphCountText = `${graphCount}${graphCount < graphSourceRecords.length ? ` / ${graphSourceRecords.length}` : ""} ${t("domains.unit")}`;
+  const graphCountText = countsUnread
+    ? `... ${t("domains.unit")}`
+    : `${graphCount}${graphCount < graphSourceRecords.length ? ` / ${graphSourceRecords.length}` : ""} ${t("domains.unit")}`;
+  const triageTitle = countsUnread
+    ? t("records.triageTitle", { replace: { count: "..." } })
+    : t("records.triageTitle", { count: unfiledCount });
 
   // The list header keeps the title, triage, and filters together inside the
   // FlatList. Graph mode uses the compact absolute rail below instead.
@@ -472,11 +519,24 @@ export function DeepSpaceRecordsScreen() {
           { key: "graph", label: t("records.viewGraph") },
         ]}
         selected={[view]}
-        onSelect={(key) => setView(key === "graph" ? "graph" : "list")}
+        onSelect={(key) => {
+          if (key === "graph") showAllPeriods();
+          setView(key === "graph" ? "graph" : "list");
+        }}
         style={rStyles.viewToggle}
       />
     </View>
   );
+
+  const periodLine = periodStar ? (
+    <View style={rStyles.periodLine}>
+      <RNText style={rStyles.periodLineText}>{t("records.periodScope", { star: t(`home:ds.star.${periodStar.key}`) })}</RNText>
+      <RNText style={rStyles.periodLineDot} aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">·</RNText>
+      <Pressable onPress={showAllPeriods} accessibilityRole="button" style={rStyles.periodLineAll}>
+        <RNText style={rStyles.periodLineAllText}>{t("records.periodShowAll")}</RNText>
+      </Pressable>
+    </View>
+  ) : null;
 
   const triageCards = (
     <>
@@ -504,13 +564,13 @@ export function DeepSpaceRecordsScreen() {
         // list's own 미분류 filter, one tap away on the same screen.
         onPress={() => setTypeFilter("unfiled")}
         accessibilityRole="button"
-        accessibilityLabel={t("records.triageTitle", { count: unfiledCount })}
+        accessibilityLabel={loadError ? t("records.loadError") : loading ? t("common:states.loading") : triageTitle}
       >
         <View style={rStyles.triageIcon}>
           <PixelGlyph name="inbox" color={colors.soul} size={20} />
         </View>
         <View style={rStyles.triageCol}>
-          <RNText style={rStyles.triageTitle}>{t("records.triageTitle", { count: unfiledCount })}</RNText>
+          <RNText style={rStyles.triageTitle}>{triageTitle}</RNText>
           <RNText style={rStyles.triageBody}>{t("records.triageBody")}</RNText>
         </View>
         <RNText style={rStyles.triageChev}>›</RNText>
@@ -544,6 +604,7 @@ export function DeepSpaceRecordsScreen() {
 
   return (
     <DeepSpaceScreen active="wiki" header="none" showSharedSky={view === "graph"}>
+      <SceneTransition transitionKey={view} kind="replace" animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
       {view === "list" ? (
         <View style={rStyles.listPane}>
           {/* The records list is virtualized (FlatList) and is the ONLY vertical
@@ -556,6 +617,7 @@ export function DeepSpaceRecordsScreen() {
             ListHeaderComponent={
               <View style={rStyles.listHeader}>
                 {viewToggleRow}
+                {periodLine}
                 {triageCards}
                 {chipStrip}
               </View>
@@ -567,10 +629,13 @@ export function DeepSpaceRecordsScreen() {
                 <GraphLoading />
               ) : (
                 <View style={styles.wikiPageOpen}>
-                  <Text variant="body" style={styles.wikiBody}>{typeFilter === "all" ? t("records.emptyAll") : t("records.emptyKind")}</Text>
-                  <Pressable style={styles.primary} onPress={() => router.push("/capture")} accessibilityRole="button">
-                    <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
-                  </Pressable>
+                  <Text variant="body" style={styles.wikiBody}>{typeFilter === "all" && !periodStar ? t("records.emptyAll") : t("records.emptyKind")}</Text>
+                  {/* A new record is not told under a star, so it would not appear in a star's list. */}
+                  {periodStar ? null : (
+                    <Pressable style={styles.primary} onPress={() => router.push("/capture")} accessibilityRole="button">
+                      <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+                    </Pressable>
+                  )}
                 </View>
               )
             }
@@ -635,6 +700,7 @@ export function DeepSpaceRecordsScreen() {
           )}
         </View>
       )}
+      </SceneTransition>
     </DeepSpaceScreen>
   );
 }
@@ -661,6 +727,11 @@ const rStyles = StyleSheet.create({
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   wikiTitle: { color: colors.textTitle, fontSize: 26, fontWeight: "800", flexShrink: 1 },
   viewToggle: { width: 148, flexShrink: 0 },
+  periodLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
+  periodLineText: { color: colors.textTitle, fontSize: 15, fontWeight: "700" },
+  periodLineDot: { color: colors.textMid, fontSize: 15 },
+  periodLineAll: { minHeight: 44, justifyContent: "center" },
+  periodLineAllText: { color: colors.cyanSoft, fontSize: 15, fontWeight: "700" },
   triageCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -733,16 +804,24 @@ const rStyles = StyleSheet.create({
 
 export { DeepSpaceRecordDetailScreen } from "./dds-record-detail-screen";
 
+const NO_FLOAT_CLEAR = { paddingTop: 0 } as const;
+
 export function DeepSpaceWikiScreen() {
+  // Phone-aware: inside the dashboard phone, /capture opens in the phone and
+  // focusPageId is read from the phone route's query.
+  const router = useAppRouter();
+  // The phone shell draws no floating companion header, so the 88px clearance
+  // for it would only push the graph below a short display.
+  const floatClear = usePhoneEmbed() ? [styles.wikiFloatClear, NO_FLOAT_CLEAR] : styles.wikiFloatClear;
   const { t, i18n } = useTranslation("deepspace");
   const isKo = i18n.language === "ko";
-  const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
+  const { userId, authLoading, pages, edges, loading, loadError, retry } = useWikiGraphData();
   // Deep-link to one page, by wiki_pages.id. Three screens hold a wiki page id and used
   // to push it at /record/[id], which looks a record up by that id and always 404s -- a
   // page id is not a record id. They send it here instead, which is where it belongs.
   // (The legacy wiki screen has focusSourceId, keyed on source_id; this is the live
   // deep-space screen and it read no params at all.)
-  const { focusPageId } = useLocalSearchParams<{ focusPageId?: string }>();
+  const { focusPageId } = useScreenParams<{ focusPageId?: string }>();
   const [activeTag, setActiveTag] = useState<string | null>(null);
   // Which page row is expanded. null until the user taps; the first page renders
   // expanded by default (matching the old fixed-open-first behaviour) but any row
@@ -789,7 +868,7 @@ export function DeepSpaceWikiScreen() {
     }
     // Absent from the list. Wait for the load to settle before concluding that -- an
     // id asked for mid-fetch is not yet known to be missing.
-    if (loading) return;
+    if (loading || loadError) return;
     honouredFocusRef.current = honour;
     let alive = true;
     void getWikiPageById(userId, focusPageId)
@@ -802,7 +881,7 @@ export function DeepSpaceWikiScreen() {
     return () => {
       alive = false;
     };
-  }, [focusPageId, pages, loading, userId]);
+  }, [focusPageId, pages, loading, loadError, userId]);
 
   // The fetched row joins the list for every downstream reader, so the tag chips, the
   // graph and the row list all agree about what exists -- but only for the account it
@@ -836,7 +915,7 @@ export function DeepSpaceWikiScreen() {
   if (authLoading) {
     return (
       <DeepSpaceScreen active="wiki" header="floating">
-        <View style={styles.wikiFloatClear}>
+        <View style={floatClear}>
           <DockBody title={t("wiki.title")}><GraphLoading /></DockBody>
         </View>
       </DeepSpaceScreen>
@@ -856,11 +935,11 @@ export function DeepSpaceWikiScreen() {
   // clears its height instead of being pushed by a header band.
   return (
     <DeepSpaceScreen active="wiki" header="floating">
-      <View style={styles.wikiFloatClear}>
+      <View style={floatClear}>
       <DockBody title={t("wiki.title")}>
       <View style={styles.wikiStatRow}>
-        <View style={styles.wikiStat}><Text variant="heading" style={styles.wikiStatNum}>{view.pageCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statPages")}</Text></View>
-        <View style={styles.wikiStat}><Text variant="heading" style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>{view.edgeCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statLinks")}</Text></View>
+        <View style={styles.wikiStat}><Text variant="heading" style={styles.wikiStatNum}>{loading || loadError ? "..." : view.pageCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statPages")}</Text></View>
+        <View style={styles.wikiStat}><Text variant="heading" style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>{loading || loadError ? "..." : view.edgeCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statLinks")}</Text></View>
       </View>
       <SegBtn
         segments={[
@@ -871,7 +950,7 @@ export function DeepSpaceWikiScreen() {
         onSelect={(key) => setWikiView(key === "graph" ? "graph" : "list")}
         style={styles.wikiViewToggle}
       />
-      {view.tagChips.length > 0 ? (
+      {!loading && !loadError && view.tagChips.length > 0 ? (
         <View style={styles.filterRow}>
           <FilterChip label={t("wiki.filterAll")} active={activeTag === null} onPress={() => setActiveTag(null)} />
           {view.tagChips.map((c) => (
@@ -884,8 +963,16 @@ export function DeepSpaceWikiScreen() {
           ))}
         </View>
       ) : null}
+      <SceneTransition transitionKey={wikiView} kind="replace" animateOnMount={false} style={{ gap: spacing.md }}>
       {loading ? (
         <GraphLoading />
+      ) : loadError ? (
+        <View style={styles.wikiPageOpen}>
+          <Text variant="body" style={styles.wikiBody}>{t(loadError === "timeout" ? "common:errors.network" : "common:errors.unknown")}</Text>
+          <Pressable style={styles.primary} onPress={retry} accessibilityRole="button">
+            <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
+          </Pressable>
+        </View>
       ) : wikiView === "graph" && graphPages.length > 0 ? (
         <WikiGraph
           pages={graphPages}
@@ -963,6 +1050,7 @@ export function DeepSpaceWikiScreen() {
           })}
         </>
       )}
+      </SceneTransition>
       </DockBody>
       </View>
     </DeepSpaceScreen>

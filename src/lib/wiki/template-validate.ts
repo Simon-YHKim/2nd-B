@@ -92,7 +92,7 @@ export function validateTemplateDraft(draft: TemplateDraft, locale: "en" | "ko")
   if (draftHasForbiddenTerm(draft)) {
     errors.push(
       locale === "ko"
-        ? "임상·의료 표현은 쓸 수 없어요. 일상적인 표현으로 바꿔 주세요."
+        ? "임상·의료 표현은 쓸 수 없습니다. 일상적인 표현으로 바꿔 주세요."
         : "Clinical or medical wording isn't allowed here. Use everyday language.",
     );
   }

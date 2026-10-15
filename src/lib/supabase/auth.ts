@@ -47,6 +47,7 @@ import {
   type AuthSessionExpectation,
 } from "../auth/session-mutation";
 import type { SignInProgressStage } from "../auth/sign-in-progress";
+import { readResendSignUpError, type ResendSignUpCodeResult } from "../auth/sign-up-resend";
 export { AuthSessionOwnerChangedError } from "../auth/session-mutation";
 // ⚠ #1517 은 여기서 `isJudgeEmail` 도 들여왔다. 되살리지 않는다 —
 // main 의 f42f4db2 가 C6 대회 제약과 함께 src/lib/judge/domains.ts 를 통째로
@@ -286,8 +287,8 @@ export function ageInYears(birthDate: string, now: Date = new Date()): number {
 // matching revision, so an older installed app cannot be stamped as if it had
 // shown newer documents. Any future document change needs a new revision and a
 // forward migration that maps it to server-owned versions.
-// Requires the server's email-v6 contract (0208) before this client is published.
-export const VERIFIED_EMAIL_SIGNUP_REVISION = "email-v6" as const;
+// Requires the server's email-v9 contract (0215) before this client is published.
+export const VERIFIED_EMAIL_SIGNUP_REVISION = "email-v9" as const;
 
 export interface SignUpArgs {
   email: string;
@@ -1079,6 +1080,27 @@ export async function verifySignUpCode(email: string, code: string): Promise<voi
       );
     }
   }, { requireCrossTab: true });
+}
+
+// Sends the sign-up confirmation mail again (the same code-only template). This is not a second
+// sign-up: the request carries the address and nothing else, so the birth date and the consent
+// choices given at submit are not sent again, and no session is read or written. That is also why
+// it runs outside the session mutation lock (auth-js 2.106.1: resend is a plain POST to /resend
+// that touches no stored session). The result never says whether the address has a sign-up
+// waiting for its code; "wait" covers both the interval for one address and the project's hourly
+// mail limit. Errors come back as a result, not a throw, so the screen has one path to read.
+export async function resendSignUpCode(email: string): Promise<ResendSignUpCodeResult> {
+  try {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
+      options: { emailRedirectTo: authRedirectTo("/sign-up") },
+    });
+    return error ? readResendSignUpError(error) : { ok: true };
+  } catch {
+    return { ok: false, reason: "failed" };
+  }
 }
 
 // Supabase Auth "Require current password when updating" was enabled on the

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
+import { useGlobalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 
+import { ShareRefusedLine } from "@/components/capture/ShareRefusedLine";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -17,6 +19,9 @@ export function EncryptedStorageRecoveryGate() {
   const [reviewing, setReviewing] = useState(false);
   const [working, setWorking] = useState(false);
   const [failed, setFailed] = useState(false);
+  // IntroGate draws this screen in place of every route, outside the Stack, so
+  // the share notice is read from the whole route (gate SG-R3-01).
+  const routeParams = useGlobalSearchParams();
 
   const confirm = async () => {
     if (working) return;
@@ -61,6 +66,8 @@ export function EncryptedStorageRecoveryGate() {
         >
           <Text style={styles.warning}>{t("auth:storageRecovery.warning")}</Text>
         </PixelSurface>
+
+        <ShareRefusedLine routeParams={routeParams} style={styles.shareRefused} />
 
         {failed ? (
           <Text accessibilityRole="alert" style={styles.failed}>
@@ -148,6 +155,7 @@ const styles = StyleSheet.create({
     lineHeight: m3.type.bodyMedium.line,
     textAlign: "center",
   },
+  shareRefused: { alignSelf: "stretch" },
   failed: {
     color: m3.color.error,
     fontFamily: m3.font.brand,

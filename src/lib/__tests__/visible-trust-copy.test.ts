@@ -17,7 +17,9 @@ describe("visible trust copy", () => {
       "README.md",
       "locales/en/common.json",
       "locales/ko/common.json",
-      "src/app/manual.tsx",
+      // 2026-10-05: /manual 라우트는 래퍼가 됐다(롤백 레버 제거, Q-261004-11 C).
+      // 사용자가 읽는 안내서 글은 배송 화면의 내용 모듈에 있다.
+      "src/screens/deepspace/dds-manual-content.ts",
     ].map((file) => readFileSync(path.join(root, file), "utf8"));
     const text = files.join("\n");
 
@@ -65,8 +67,10 @@ describe("visible trust copy", () => {
     expect(emailIdx).toBeGreaterThan(-1);
     expect(manualIdx).toBeGreaterThan(emailIdx);
     expect(screen).toContain('router.push("/manual")');
-    expect(en).toContain('"browseBeforeCommit": "Browse first, then decide"');
-    expect(ko).toContain('"browseBeforeCommit": "먼저 둘러보고 결정하기"');
+    // browseBeforeCommit 값 핀 둘을 뺐다(2026-10-05, R2E-08). 그 키는 #381(06-14)의
+    // "먼저 둘러보기" 문 이름이었고, 지금 가입 화면은 같은 문을 manualLink(아래)로 연다 —
+    // 화면이 부르는 곳이 0건이라 이 줄은 아무 화면도 지키지 않았다. 키는 다섯 로케일에서
+    // 지우고 원문은 E:/Legacy/2ndB 의 locales/*/auth.json 사본(batch qa261005-legkeys)에 있다.
     // 2026-08-26 Simon 결정 — 문 이름을 "사용 안내서"(EN User Guide)로 통일.
     // 이 검사가 지키는 것은 **가입 화면 첫 화면에 안내서 링크가 있고 그 카피가
     // 로케일에 산다**는 것이지 특정 문구가 아니다.
@@ -111,7 +115,7 @@ describe("visible trust copy", () => {
       "locales/en/secondb.json",
       "locales/ko/secondb.json",
       "src/app/index.tsx",
-      "src/app/manual.tsx",
+      "src/screens/deepspace/dds-manual-content.ts",
     ];
     const text = files.map((file) => readFileSync(path.join(root, file), "utf8")).join("\n");
 
@@ -135,33 +139,20 @@ describe("visible trust copy", () => {
   });
 
   test("first-run capture copy stays honest about records, not guest graph storage", () => {
+    // 2026-10-14 Q-261014-88: 첫 실행 줄(firstRun.hint)은 머리글 TIP 과 같은 말을
+    // 되풀이해서 다섯 로케일에서 지웠다. 그 줄이 하던 「기록 보관소에서 다시 찾는다」
+    // 는 사실은 저장 뒤 문장(saved.recordsOwnership)이 그대로 말하고 있어서, 이
+    // 검사는 그 문장과 AI 동의 문장으로 같은 정직성(그래프 · 기기 저장을 약속하지
+    // 않는다)을 계속 지킨다.
+    type CaptureLocale = { firstRun?: unknown; saved: { recordsOwnership: string; recordsAiOptIn: string } };
     const root = path.resolve(__dirname, "../../..");
-    const en = JSON.parse(readFileSync(path.join(root, "locales/en/capture.json"), "utf8")) as {
-      firstRun: { hint: string };
-      saved: { recordsOwnership: string; recordsAiOptIn: string };
-    };
-    const ko = JSON.parse(readFileSync(path.join(root, "locales/ko/capture.json"), "utf8")) as {
-      firstRun: { hint: string };
-      saved: { recordsOwnership: string; recordsAiOptIn: string };
-    };
-    const es = JSON.parse(readFileSync(path.join(root, "locales/es/capture.json"), "utf8")) as {
-      firstRun: { hint: string };
-      saved: { recordsOwnership: string; recordsAiOptIn: string };
-    };
-    const pt = JSON.parse(readFileSync(path.join(root, "locales/pt/capture.json"), "utf8")) as {
-      firstRun: { hint: string };
-      saved: { recordsOwnership: string; recordsAiOptIn: string };
-    };
-    const id = JSON.parse(readFileSync(path.join(root, "locales/id/capture.json"), "utf8")) as {
-      firstRun: { hint: string };
-      saved: { recordsOwnership: string; recordsAiOptIn: string };
-    };
+    const en = JSON.parse(readFileSync(path.join(root, "locales/en/capture.json"), "utf8")) as CaptureLocale;
+    const ko = JSON.parse(readFileSync(path.join(root, "locales/ko/capture.json"), "utf8")) as CaptureLocale;
+    const es = JSON.parse(readFileSync(path.join(root, "locales/es/capture.json"), "utf8")) as CaptureLocale;
+    const pt = JSON.parse(readFileSync(path.join(root, "locales/pt/capture.json"), "utf8")) as CaptureLocale;
+    const id = JSON.parse(readFileSync(path.join(root, "locales/id/capture.json"), "utf8")) as CaptureLocale;
+    for (const bundle of [en, ko, es, pt, id]) expect(bundle.firstRun).toBeUndefined();
     const combined = [
-      en.firstRun.hint,
-      ko.firstRun.hint,
-      es.firstRun.hint,
-      pt.firstRun.hint,
-      id.firstRun.hint,
       en.saved.recordsOwnership,
       en.saved.recordsAiOptIn,
       ko.saved.recordsOwnership,
@@ -174,25 +165,21 @@ describe("visible trust copy", () => {
       id.saved.recordsAiOptIn,
     ].join("\n");
 
-    expect(en.firstRun.hint).toContain("Start with a short note");
-    expect(en.firstRun.hint).toContain("Records");
     expect(en.saved.recordsOwnership).toContain("Records");
     expect(en.saved.recordsOwnership).toContain("export");
     expect(en.saved.recordsOwnership).toContain("One sentence is enough");
     expect(en.saved.recordsAiOptIn).toContain("only");
     expect(en.saved.recordsAiOptIn).toContain("only if you turn on this switch");
-    expect(ko.firstRun.hint).toContain("저장한 내용");
-    expect(ko.firstRun.hint).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("내보내기");
     expect(ko.saved.recordsOwnership).toContain("작심이틀도 괜찮습니다");
     expect(ko.saved.recordsAiOptIn).toContain("이 스위치를 켜야");
-    expect(es.firstRun.hint).toContain("podrás verla en Registros");
     expect(es.saved.recordsOwnership).toContain("Una oración basta");
-    expect(pt.firstRun.hint).toContain("primeiro registro salvo");
+    expect(es.saved.recordsOwnership).toContain("Registros");
     expect(pt.saved.recordsOwnership).toContain("Uma frase já basta");
-    expect(id.firstRun.hint).toContain("membacanya lagi di Catatan");
+    expect(pt.saved.recordsOwnership).toContain("Registros");
     expect(id.saved.recordsOwnership).toContain("Satu kalimat cukup");
+    expect(id.saved.recordsOwnership).toContain("Catatan");
     expect(combined).not.toMatch(
       /graph|local|local-first|local-only|device|on your device|not the app|anonymous|no account|without account|account-free|no sign-up|no signup/i,
     );
@@ -209,7 +196,14 @@ describe("visible trust copy", () => {
     const es = JSON.parse(readFileSync(path.join(root, "locales/es/capture.json"), "utf8")) as CaptureLocale;
     const pt = JSON.parse(readFileSync(path.join(root, "locales/pt/capture.json"), "utf8")) as CaptureLocale;
     const id = JSON.parse(readFileSync(path.join(root, "locales/id/capture.json"), "utf8")) as CaptureLocale;
-    const manual = readFileSync(path.join(root, "src/app/manual.tsx"), "utf8");
+    // 2026-10-05: 레거시 안내서(ManualLegacy)의 "gentle record-day counter" 양성 핀 둘은
+    // 그 안내서가 롤백 레버와 함께 빠지며 은퇴했다(Q-261004-11 C). 배송 안내서에는 기록일
+    // 카운터 설명이 없다 - 그래서 지키는 것은 "압박 문구가 없다" 는 부정 단언이다.
+    const manual = [
+      readFileSync(path.join(root, "src/screens/deepspace/dds-manual-content.ts"), "utf8"),
+      readFileSync(path.join(root, "locales/en/manual.json"), "utf8"),
+      readFileSync(path.join(root, "locales/ko/manual.json"), "utf8"),
+    ].join("\n");
     const visible = [
       en.journal.streak.label,
       en.journal.streak.missingToday,
@@ -228,8 +222,6 @@ describe("visible trust copy", () => {
     expect(ko.journal.streak.label).toBe("기록한 날: {{count}}일{{suffix}}");
     expect(en.journal.streak.missingToday).toContain("optional");
     expect(ko.journal.streak.missingToday).toContain("건너뛰어도");
-    expect(manual).toContain("gentle record-day counter");
-    expect(manual).toContain("부담 없는 기록일 카운터");
     expect(visible).not.toMatch(/streak|don't break|none today yet|missing today|racha|sequ[eê]ncia/i);
     expect(visible).not.toMatch(/스트릭|연속 기록|오늘은 아직|압박/);
   });
@@ -251,7 +243,8 @@ describe("visible trust copy", () => {
     const bundles = readdirSync(localeRoot, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .flatMap((entry) =>
-        ["home.json", "index.json", "deepspace.json"]
+        // (index.json 은 2026-10-05 에 다섯 로케일째 나갔다 - 옛 홈 GraphScreen 만 쓰던 번들.)
+        ["home.json", "deepspace.json"]
           .map((name) => path.join(localeRoot, entry.name, name))
           .filter((file) => existsSync(file))
           .map((file) => readFileSync(file, "utf8")),

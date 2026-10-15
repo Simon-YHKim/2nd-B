@@ -1,6 +1,7 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 /**
  * STEP 3 — <SecondbStatusHeader /> : the per-screen status bar from
- * legacy/design/prototype.dc.html. Left = small SecondbHead; right = a speech bubble
+ * E:/Legacy/2ndB/legacy/design/prototype.dc.html. Left = small SecondbHead; right = a speech bubble
  * (tail on the left, square corners since the PIXEL-CLAY rule-2 pass) carrying the
  * current `text` plus a TIP line. Every deep-space screen lays this at the top and
  * injects its own copy.
@@ -14,7 +15,7 @@
  * deep-space screen renders one implementation. It reserves BackArrow headroom
  * (below) for the screens that mount it outside DeepSpaceScreen.
  */
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { usePathname } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
@@ -23,6 +24,7 @@ import { Text } from "@/components/ui/Text";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { backArrowVisible } from "@/components/ui/BackArrow";
 import { SecondbHead, type SecondbMood } from "./SecondbHead";
+import { usePhoneEmbed } from "@/lib/nav/phone-embed";
 
 export function SecondbStatusHeader({
   text,
@@ -43,12 +45,18 @@ export function SecondbStatusHeader({
   // Reserve top headroom on sub-screens so the floating BackArrow chip does not
   // overlap the head/bubble. backArrowVisible() is false on tab roots and on the
   // deep-space dock routes (DeepSpaceScreen), so those add no extra room.
-  const needHeadroom = backArrowVisible(usePathname());
+  //
+  // Inside the dashboard phone the phone is the frame: no floating BackArrow
+  // to clear, and on a ~180px column the head and side gutters left the bubble
+  // one word wide (2026-10-02 QA). Keep the words, drop the head and gutters.
+  const pathname = usePathname();
+  const inPhone = usePhoneEmbed() !== null;
+  const needHeadroom = !inPhone && backArrowVisible(pathname);
   return (
-    <View style={[styles.row, needHeadroom ? styles.rowHeadroom : null]}>
-      <SecondbHead size={48} mood={mood} persona={persona} accessibilityLabel={accessibilityLabel} />
+    <View style={[styles.row, needHeadroom ? styles.rowHeadroom : null, inPhone ? styles.rowInPhone : null]}>
+      {inPhone ? null : <SecondbHead size={48} mood={mood} persona={persona} accessibilityLabel={accessibilityLabel} />}
       <View style={styles.bubble}>
-        <View style={styles.tail} />
+        {inPhone ? null : <View style={styles.tail} />}
         <Text variant="body" style={styles.text} accessibilityLabel={text}>{keepAllKo(text)}</Text>
         {tip ? (
           <View style={styles.tipRow}>
@@ -75,6 +83,7 @@ const styles = StyleSheet.create({
   },
   // Sub-screens: clear the floating BackArrow chip (top-left ~44pt) above the head.
   rowHeadroom: { marginTop: 52 },
+  rowInPhone: { paddingHorizontal: 0, marginHorizontal: 0, paddingTop: 8, paddingBottom: 10 },
   bubble: {
     flex: 1,
     position: "relative",

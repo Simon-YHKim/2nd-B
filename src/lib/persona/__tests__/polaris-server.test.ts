@@ -84,7 +84,7 @@ describe("Polaris provider transaction", () => {
 });
 
 describe("Polaris draft migration ownership and allowance", () => {
-  const sql = readFileSync(resolve(__dirname,"../../../../db/migration-drafts/UNNUMBERED_polaris_generation_allowance.sql"),"utf8");
+  const sql = readFileSync(resolve(__dirname,"../../../../db/migrations/0195_polaris_generation_allowance.sql"),"utf8");
   it("reserves two lifetime introductions before reusing the existing tier caps", () => {
     expect(sql).toContain("INSERT INTO public.polaris_generation_config VALUES (true, false)");
     expect(sql).toContain("AND status IN ('reserved','running','completed')) < 2");

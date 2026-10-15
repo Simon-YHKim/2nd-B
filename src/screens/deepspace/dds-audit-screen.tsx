@@ -1,6 +1,7 @@
+import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { Redirect, router } from "expo-router";
+import { StyleSheet } from "react-native";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -10,6 +11,7 @@ import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import {
   loadAuditProvenance,
   normalizeAuditOrigin,
@@ -94,6 +96,8 @@ function StarDisclosure({
   onToggle: () => void;
   t: Translate;
 }) {
+  // Phone-aware: inside the dashboard phone the interview opens in the phone.
+  const router = useAppRouter();
   const name = t(`home:ds.star.${star.key}`);
   const emptyCopy =
     star.id === "profile"
@@ -205,6 +209,8 @@ function StarDisclosure({
 }
 
 export function DdsAuditScreen() {
+  // Phone-aware: inside the dashboard phone Back and the ledger links stay in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation(["home", "brightness", "ratifications", "common"]);
   const {
     userId,

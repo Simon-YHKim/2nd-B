@@ -6,9 +6,18 @@ on:
       - "db/migrations/**"
       - "db/migration-drafts/**"
       - "db/tests/**"
+      - "db/ops/**"
       - "scripts/check-reward-ssv-db.sh"
       - "scripts/test-polaris-sql.mjs"
       - "scripts/test-signup-consent-sql.mjs"
+      - "scripts/test-weather-sql.mjs"
+      - "scripts/test-weather-consent-admission.mjs"
+      - "supabase/functions/weather/handler.ts"
+      - "scripts/test-dashboard-sql.mjs"
+      - "scripts/test-dashboard-lease-sql.mjs"
+      - "scripts/test-dashboard-recovery-replay.mjs"
+      - "supabase/functions/dashboard-generate/**"
+      - "scripts/test-profile-import-sql.mjs"
       - ".github/workflows/supabase-dry-run.yml"
 
 # Least privilege: this workflow only reads the repo (checkout + local tooling).
@@ -43,6 +52,11 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # The weather SQL fixture runs the real Edge with Node's built-in TS
+      # transform. No npm dependencies or app installation are needed here.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
       - name: Exercise Polaris allowance and concurrent reservation contract
         env:
           PGPASSWORD: postgres
@@ -61,6 +75,37 @@ jobs:
           CREATE DATABASE signup_test_ci OWNER signup_local;
           SQL
           node scripts/test-signup-consent-sql.mjs 5432 signup_local signup_test_ci
+      - name: Exercise weather location consent and adult lock
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE weather_local LOGIN SUPERUSER PASSWORD 'postgres';
+          CREATE DATABASE weather_test_ci OWNER weather_local;
+          SQL
+          node scripts/test-weather-sql.mjs 5432 weather_local weather_test_ci
+      - name: Exercise profile import ownership, withdrawal and concurrent saves
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE profile_import_local LOGIN SUPERUSER PASSWORD 'postgres';
+          CREATE DATABASE profile_import_test_ci OWNER profile_import_local;
+          SQL
+          node scripts/test-profile-import-sql.mjs 5432 profile_import_local profile_import_test_ci
+      # The lease fixture uses the real Edge modules with mocked vendor I/O.
+      # Reuse Node 24 above and locked TypeScript/Zod; no install hooks.
+      - name: Install existing Edge test dependencies
+        run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Exercise W1 generation locks, owner isolation and 0248 note backstop
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE dashboard_local LOGIN SUPERUSER PASSWORD 'postgres';
+          CREATE DATABASE dashboard_test_ci OWNER dashboard_local;
+          SQL
+          node scripts/test-dashboard-sql.mjs 5432 dashboard_test_ci
       - name: Seed Supabase compatibility layer (auth, roles, and storage stubs)
         env:
           PGPASSWORD: postgres
@@ -271,6 +316,10 @@ jobs:
             cp -- "$f" "$staged_project/supabase/migrations/"
           done
 
+          # Vanilla CI has no pg_cron; opt out explicitly for this scratch DB only.
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 \
+            -c "ALTER DATABASE postgres SET app.allow_missing_pg_cron = 'on'"
+
           # Four-digit 0147+ versions are a CI-scratch convention only. A
           # production bundle must receive separate monotonic timestamp versions
           # before any live db push. This command targets only the job-local DB;
@@ -344,30 +393,47 @@ jobs:
         run: |
           set -euo pipefail
           # The staged CLI push above already executed 0191-0201 once in order.
-          # Keep the retained draft fixtures byte-identical to those numbered
-          # files, then inspect the resulting scratch schema without replaying
-          # provisioning or rewriting the ledger.
-          for mapping in \
-            0191:signup_consent_admob_20260925 \
-            0192:account_deletion_completion_fence \
-            0193:effective_llm_consent_current_contract \
-            0194:llm_service_consent_management \
-            0195:polaris_generation_allowance \
-            0196:reward_ssv_hardening \
-            0197:paddle_refund_consequence_integrity \
-            0198:service_contract_erasure_registry \
-            0199:oauth_naver_rate_limit_completion \
-            0200:rss_proxy_quota \
-            0206:users_avatar_spec \
-            0207:users_display_name_update \
-            0208:signup_consent_privacy_20260929; do
-            version="${mapping%%:*}"
-            stem="${mapping#*:}"
-            if ! cmp -s "db/migration-drafts/UNNUMBERED_${stem}.sql" "db/migrations/${version}_${stem}.sql"; then
-              echo "promoted migration differs from its reviewed draft: ${version}_${stem}.sql" >&2
+          # One copy per migration (Simon decision Q-261005-07, 2026-10-05): a
+          # draft is deleted in the same change that gives it a number, so the
+          # numbered file is the only source. A draft still sitting beside its
+          # numbered twin fails here. The single exception is 0197, whose
+          # reviewed draft stays until production applies it, and it must stay
+          # byte-identical to its numbered file. With no second copy left, an
+          # edit to a numbered file alone is caught by the promoted-bytes digest
+          # pins in scripts/__tests__/supabase-security-drafts.test.ts (run by
+          # npm run verify on every PR). Then inspect the resulting scratch
+          # schema without replaying provisioning or rewriting the ledger.
+          retained_until_applied="0197:paddle_refund_consequence_integrity"
+          retained_seen=0
+          shopt -s nullglob
+          for draft in db/migration-drafts/UNNUMBERED_*.sql; do
+            stem="${draft##*/UNNUMBERED_}"
+            stem="${stem%.sql}"
+            numbered=(db/migrations/[0-9][0-9][0-9][0-9]_"${stem}".sql)
+            if (( ${#numbered[@]} == 0 )); then
+              continue
+            fi
+            if (( ${#numbered[@]} > 1 )); then
+              echo "more than one numbered migration shares the draft stem ${stem}" >&2
               exit 1
             fi
+            base="${numbered[0]##*/}"
+            version="${base%%_*}"
+            if [[ "${version}:${stem}" != "$retained_until_applied" ]]; then
+              echo "promoted draft still present beside ${numbered[0]}: delete ${draft}; the numbered file is the only copy" >&2
+              exit 1
+            fi
+            if ! cmp -s "$draft" "${numbered[0]}"; then
+              echo "retained draft differs from its numbered migration: ${numbered[0]}" >&2
+              exit 1
+            fi
+            retained_seen=1
           done
+          shopt -u nullglob
+          if (( retained_seen == 0 )); then
+            echo "the 0197 draft is gone: drop the retained_until_applied exception" >&2
+            exit 1
+          fi
           psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
           BEGIN;
           DO $verify$
@@ -385,7 +451,13 @@ jobs:
                   ('0199', 'oauth_naver_rate_limit_completion'),
                   ('0200', 'rss_proxy_quota'),
                   ('0201', 'rss_proxy_erasure_registry'))) <> 11
-               OR (SELECT count(*) FROM public.erasure_registry) <> 71
+               OR (SELECT count(*) FROM public.erasure_registry) <> 82
+               OR (SELECT count(*) FROM public.erasure_registry
+                   WHERE table_name='profile_context_imports' AND owner_column='user_id'
+                     AND class='retained' AND delete_order IS NULL AND cascades_from IS NULL) <> 1
+               OR (SELECT count(*) FROM public.erasure_registry
+                   WHERE table_name='chat_turn_reservations' AND owner_column='user_id'
+                     AND class='account_delete_only' AND delete_order IS NULL AND cascades_from IS NULL) <> 1
                OR (SELECT count(*) FROM public.erasure_registry WHERE table_name IN (
                  'account_deletion_tombstones', 'llm_consent_receipts',
                  'polaris_generations', 'reward_ssv_issue_rate_limits')) <> 4
@@ -399,6 +471,10 @@ jobs:
                OR (SELECT count(*) FROM public.erasure_registry
                    WHERE table_name = 'rss_proxy_quota_daily' AND class = 'retained') <> 1
                OR to_regprocedure('public.signup_consent_contract_status()') IS NULL
+               OR to_regprocedure('public.llm_service_consent_status_v2(uuid)') IS NULL
+               OR has_function_privilege('authenticated','public.llm_service_consent_status_v2(uuid)','EXECUTE')
+               OR to_regprocedure('public.llm_service_consent_status_v4(uuid)') IS NULL
+               OR has_function_privilege('authenticated','public.llm_service_consent_status_v4(uuid)','EXECUTE')
                OR to_regprocedure('public.llm_service_consent_status(uuid)') IS NULL
                OR to_regprocedure('public.settle_reward_ssv_ticket_v2(text,text,text,integer,text)') IS NULL
                OR NOT EXISTS (SELECT 1 FROM information_schema.columns
@@ -414,7 +490,7 @@ jobs:
           $verify$;
           ROLLBACK;
           SQL
-          echo "PASS: eleven numbered migrations executed once by CLI; draft bytes, 71 registry rows, contracts and ACL verified"
+          echo "PASS: eleven numbered migrations executed once by CLI; draft bytes, 82 registry rows, contracts and ACL verified"
       # db/migrations/rollback/0189_down.sql is run by hand, mid-incident, and the
       # next `db push` is then trusted to put everything back. Nothing exercised
       # that path, and it was broken. The rollback deleted only its OWN ledger row
@@ -577,7 +653,7 @@ jobs:
           port="${PGPORT:-5432}"
           source_db="${PGDATABASE:-postgres}"
           down="db/migrations/rollback/0189_down.sql"
-          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason"
+          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason interview_transcript_erasure_registry weather_erasure_registry dashboard_erasure_registry profile_context_import_erasure_registry chat_turn_reservations_erasure_registry"
           run_token="${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$_${RANDOM}"
           control_db="rollback_control_${run_token}"
           fixed_db="rollback_fixed_${run_token}"
@@ -645,7 +721,9 @@ jobs:
                       FROM supabase_migrations.schema_migrations AS m
                       WHERE m.name IN ('erasure_registry', 'lock_erase_my_data_authenticated',
                                        'service_contract_erasure_registry', 'rss_proxy_erasure_registry',
-                                       'credit_ledger_erasure_registry_reason')"
+                                       'credit_ledger_erasure_registry_reason',
+                                       'reward_records_erasure_registry_reason',
+                                       'interview_transcript_erasure_registry', 'weather_erasure_registry', 'dashboard_erasure_registry', 'profile_context_import_erasure_registry', 'chat_turn_reservations_erasure_registry')"
           }
           can_execute() { # <db> <role>
             sql "$1" "SELECT pg_catalog.has_function_privilege('$2', 'public.erase_my_data(text)', 'EXECUTE')"
@@ -928,7 +1006,7 @@ jobs:
             fi
           done
 
-          # The registry forwards (0198, 0201) and the reason revision (0205) are kept
+          # The registry forwards (0198, 0201, 0226, 0233, 0237, 0240, 0258) and the reason revisions (0205, 0212) are kept
           # with 0190: each one's guard refuses to run while erase_my_data is open, so
           # re-applying them here would stop the push before the control can look.
           echo "== control: retain 0190 and every registry forward, then replay only 0189"
@@ -938,7 +1016,9 @@ jobs:
                              WHERE name IN ('lock_erase_my_data_authenticated',
                                             'service_contract_erasure_registry',
                                             'rss_proxy_erasure_registry',
-                                            'credit_ledger_erasure_registry_reason')"
+                                            'credit_ledger_erasure_registry_reason',
+                                            'reward_records_erasure_registry_reason',
+                                            'interview_transcript_erasure_registry', 'weather_erasure_registry', 'dashboard_erasure_registry', 'profile_context_import_erasure_registry', 'chat_turn_reservations_erasure_registry')"
           roll_back "$control_db"
           # ON CONFLICT: if the rollback under test leaves the row in place (the very
           # regression this lane is for), the control still builds the same state
@@ -951,7 +1031,7 @@ jobs:
           push_again "$control_db"
           control_open="$(can_execute "$control_db" authenticated)"
           echo "control: ledger before the re-push [$control_ledger] -> authenticated EXECUTE after it = $control_open"
-          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason" ]]; then
+          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason interview_transcript_erasure_registry weather_erasure_registry dashboard_erasure_registry profile_context_import_erasure_registry chat_turn_reservations_erasure_registry" ]]; then
             fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected 0190 and every registry forward"
           fi
           if [[ "$control_open" != "t" ]]; then
@@ -1148,10 +1228,12 @@ jobs:
           # if it had been left off the list, and push again. If everything
           # owned_state reads still comes back, nothing visible here needs that
           # migration re-applied, and it is on the list for no reason this step can
-          # check: red. A push failure is evidence only when it is the exact causal
-          # 0190/42883 failure produced by retaining 0189's row. Every other failure
-          # is inconclusive and red; the causal case must recover after that one row
-          # is removed before the gate may call it necessary.
+          # check: red. A push failure is evidence only when it is one of the exact
+          # causal failures listed in needs(): 0190/42883 from retaining 0189's row,
+          # 0198/P0001 from retaining 0190's, and 0212/P0001 from retaining 0198's or
+          # 0205's (0212 finds the registry row those two write outside its recorded
+          # state). Every other failure is inconclusive and red; the causal case must
+          # recover after that one row is removed before the gate may call it necessary.
           #
           # This is the control's move, for every row instead of 0190's alone. The
           # control stays because it asks for more than "differs": it demands the
@@ -1200,6 +1282,19 @@ jobs:
                 && grep -Fq "erasure_additions_rpc_must_remain_locked" "$push_log" \
                 && grep -Fq "SQLSTATE P0001" "$push_log"; then
                 causal_failure="0198/P0001 unlocked function"
+              # 0212 restates reasons on rows 0198 adds (reward_ssv_issue_rate_limits)
+              # and 0205 rewrote (credit_ledger). Retaining either row skips its
+              # migration, so 0212 meets a row outside its recorded state and stops.
+              elif [[ "$1" == "service_contract_erasure_registry" ]] \
+                && grep -Fq "Applying migration 0212_reward_records_erasure_registry_reason.sql" "$push_log" \
+                && grep -Fq "erasure_revisions_row_not_in_recorded_state: reward_ssv_issue_rate_limits" "$push_log" \
+                && grep -Fq "SQLSTATE P0001" "$push_log"; then
+                causal_failure="0212/P0001 registry row 0198 adds"
+              elif [[ "$1" == "credit_ledger_erasure_registry_reason" ]] \
+                && grep -Fq "Applying migration 0212_reward_records_erasure_registry_reason.sql" "$push_log" \
+                && grep -Fq "erasure_revisions_row_not_in_recorded_state: credit_ledger" "$push_log" \
+                && grep -Fq "SQLSTATE P0001" "$push_log"; then
+                causal_failure="0212/P0001 credit_ledger reason 0205 writes"
               fi
               if [[ -z "$causal_failure" ]]; then
                 fail "INCONCLUSIVE necessity check: '$1' re-push exited $push_rc without a reviewed causal SQL failure. Infrastructure, CLI, authentication, timeout, and unrelated SQL failures are never evidence that a ledger row belongs in c_names."
@@ -1269,12 +1364,12 @@ jobs:
           if psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 >"$rls_log" 2>&1 <<'SQL'
           BEGIN;
           ALTER TABLE storage.objects DISABLE ROW LEVEL SECURITY;
-          \i db/migration-drafts/UNNUMBERED_account_deletion_completion_fence.sql
+          \i db/migrations/0192_account_deletion_completion_fence.sql
           ROLLBACK;
           SQL
           then
             cat "$rls_log"
-            echo "account-deletion draft accepted Storage with RLS disabled" >&2
+            echo "account-deletion migration accepted Storage with RLS disabled" >&2
             exit 1
           fi
           if ! grep -Fq "storage.objects RLS must be enabled before account-deletion policies" "$rls_log"; then
@@ -1334,6 +1429,198 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/promo_lot_account_erasure_regression.sql
+      # 0211: rewarded-ad records go 88 days after they were granted (policy max
+      # 90). Old ad lots go whole with no orphan rows or balance drift, purchase
+      # lots and recent records stay, a held transaction (and its month and day
+      # counters) stays until the hold is released, an account deletion still
+      # removes a held transaction, dispute audit rows go three years after the
+      # dispute ended, reviews push the deadline out by 90 days, and client
+      # roles cannot reach any of it. Rolled back.
+      - name: Exercise numbered SSV helper ACL with real service role
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reward_ssv_grant_helper_acl_regression.sql
+      - name: Exercise 88-day reward purge
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reward_records_90d_purge_regression.sql
+      # Security gate r1 (DB-01 / BL-01): placing a dispute hold and the purge
+      # queue on one advisory lock. Without it, a purge that started while a hold
+      # was still uncommitted deleted the ad lot (step 3-1 locks only the ledger)
+      # and left the transaction behind under SKIP LOCKED: an active hold over a
+      # record whose ledger was gone. Two sessions on a throw-away clone, because
+      # the hold leaves audit rows that the 0211 rollback round trip below refuses.
+      # txn-race-2 is the same age with no hold and must go, so the held one
+      # surviving proves the lock, not an ineligible fixture.
+      - name: Race a dispute hold against the 88-day purge
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="race_0211_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0211 hold race refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          trap 'sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true' EXIT
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('30000000-0000-0000-0000-000000000299', 'purge90-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('30000000-0000-0000-0000-000000000299', 'purge90-race@example.com', DATE '1990-01-01', 'en');
+          UPDATE public.users SET privacy_prefs = privacy_prefs || '{"ads": "true"}'::jsonb
+           WHERE id = '30000000-0000-0000-0000-000000000299';
+          SET request.jwt.claim.role = 'service_role';
+          DO $seed$
+          DECLARE
+            v_user constant uuid := '30000000-0000-0000-0000-000000000299';
+            v_month constant text := pg_catalog.to_char(pg_catalog.now() AT TIME ZONE 'Asia/Seoul', 'YYYY-MM');
+            v_shift constant interval := make_interval(days => 130);
+          BEGIN
+            PERFORM public.grant_reward_credits_ssv(v_user, v_month, 2, 'txn-race-1');
+            PERFORM public.grant_reward_credits_ssv(v_user, v_month, 2, 'txn-race-2');
+            UPDATE public.credit_ledger
+               SET created_at = created_at - v_shift,
+                   lot_opened_at = lot_opened_at - v_shift,
+                   lot_expires_at = lot_expires_at - v_shift
+             WHERE user_id = v_user AND kind = 'ad_reward';
+            UPDATE public.rewarded_ssv_txns SET granted_at = granted_at - v_shift WHERE user_id = v_user;
+            PERFORM public.expire_credit_lots(pg_catalog.now(), 500);
+          END
+          $seed$;
+          RESET request.jwt.claim.role;
+          SQL
+          state() { # lot present / txn rows / active holds for one transaction id
+            sql "$clone_db" "SELECT (SELECT (count(*) > 0)::int FROM public.credit_ledger WHERE memo = 'rewarded SSV $1')
+                                || '/' || (SELECT count(*) FROM public.rewarded_ssv_txns WHERE transaction_id = '$1')
+                                || '/' || (SELECT count(*) FROM public.reward_dispute_holds
+                                            WHERE transaction_id = '$1' AND released_at IS NULL)"
+          }
+          echo "before: txn-race-1 $(state txn-race-1), txn-race-2 $(state txn-race-2) (lot/txn/active hold)"
+          if [[ "$(state txn-race-1)" != "1/1/0" || "$(state txn-race-2)" != "1/1/0" ]]; then
+            echo "0211 hold race fixture is not in the expected state" >&2
+            exit 1
+          fi
+          # Session A places the hold and keeps its transaction open for three seconds.
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+            -c "BEGIN" \
+            -c "SELECT public.place_reward_dispute_hold('txn-race-1', 'user_dispute', 'CASE-RACE-1', 'ci', 'ci-approver')" \
+            -c "SELECT pg_sleep(3)" \
+            -c "COMMIT" > hold.out &
+          hold_pid=$!
+          waited=0
+          until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                        WHERE datname = current_database() AND state = 'active'
+                                          AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+            waited=$((waited + 1))
+            if (( waited > 50 )); then echo "the hold session never reached its pause" >&2; exit 1; fi
+            sleep 0.2
+          done
+          # The hold is placed and uncommitted. It must hold the purge's advisory lock.
+          if [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_locks
+                                  WHERE locktype = 'advisory' AND granted
+                                    AND database = (SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database())")" != "1" ]]; then
+            echo "place_reward_dispute_hold() did not take the purge advisory lock" >&2
+            exit 1
+          fi
+          # Session B: the purge must wait for A, then see its hold.
+          started="$(date +%s%N)"
+          sql "$clone_db" "SELECT public.purge_reward_records()" > purge.out
+          waited_ms=$(( ($(date +%s%N) - started) / 1000000 ))
+          wait "$hold_pid"
+          echo "purge waited ${waited_ms} ms: $(cat purge.out)"
+          echo "after: txn-race-1 $(state txn-race-1), txn-race-2 $(state txn-race-2)"
+          if [[ "$(state txn-race-1)" != "1/1/1" ]]; then
+            echo "the purge removed records of a transaction whose hold was being placed" >&2
+            exit 1
+          fi
+          if [[ "$(state txn-race-2)" != "0/0/0" ]]; then
+            echo "the unheld control was not purged, so the race proves nothing" >&2
+            exit 1
+          fi
+          if (( waited_ms < 500 )); then
+            echo "the purge did not wait for the hold session (${waited_ms} ms)" >&2
+            exit 1
+          fi
+      # rollback/0211_down.sql is run by hand mid-incident, like 0189's, and no
+      # other step here runs it. On a throw-away clone it must remove the eight
+      # functions, two tables and seven indexes 0211 made (the cron job too, when
+      # pg_cron exists), and 0211 must then apply twice in a row to the same set.
+      - name: Round-trip the 88-day reward purge rollback
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="rollback_0211_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0211 rollback round trip refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          apply() { # <db> <file>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -f "$2" >/dev/null
+          }
+          sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          trap 'sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true' EXIT
+          made="SELECT (SELECT pg_catalog.count(*) FROM pg_catalog.pg_proc AS p
+                          JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
+                         WHERE n.nspname = 'public'
+                           AND p.proname IN ('purge_reward_records', 'reward_retention_health',
+                                             'place_reward_dispute_hold', 'review_reward_dispute_hold',
+                                             'release_reward_dispute_hold', 'reward_hold_caller_role',
+                                             'reward_dispute_holds_log_delete',
+                                             'reward_dispute_hold_events_append_only'))
+                  || '/' ||
+                  (SELECT pg_catalog.count(*) FROM pg_catalog.pg_class AS c
+                     JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+                    WHERE n.nspname = 'public'
+                      AND c.relname IN ('reward_dispute_holds', 'reward_dispute_hold_events',
+                                        'reward_dispute_hold_events_case_idx',
+                                        'reward_dispute_hold_events_txn_idx',
+                                        'rewarded_ssv_txns_granted_at_idx',
+                                        'credit_ledger_ad_reward_opened_idx',
+                                        'usage_counters_reward_nonzero_idx',
+                                        'chat_usage_ad_bonus_nonzero_idx',
+                                        'reward_ssv_issue_rate_limits_updated_idx'))"
+          # cron.job may not exist on the scratch server. A static reference fails at
+          # plan time even under a CASE, so the job is counted in a separate call.
+          made_all() { # <db>
+            local cron="no_cron"
+            if [[ "$(sql "$1" "SELECT pg_catalog.to_regclass('cron.job') IS NOT NULL")" == "t" ]]; then
+              cron="$(sql "$1" "SELECT pg_catalog.count(*) FROM cron.job WHERE jobname = 'purge-reward-records-90d'")"
+            fi
+            echo "$(sql "$1" "$made")/$cron"
+          }
+          before="$(made_all "$clone_db")"
+          echo "0211 objects before the rollback: $before (functions/relations/cron)"
+          if [[ "$before" != 8/9/* ]]; then
+            echo "0211 rollback round trip cannot start: expected 8 functions and 9 relations, found [$before]" >&2
+            exit 1
+          fi
+          apply "$clone_db" db/migrations/rollback/0211_down.sql
+          after_down="$(made_all "$clone_db")"
+          echo "after rollback/0211_down.sql: $after_down"
+          if [[ "$after_down" != "0/0/0" && "$after_down" != "0/0/no_cron" ]]; then
+            echo "rollback/0211_down.sql left 0211 objects behind: [$after_down]" >&2
+            exit 1
+          fi
+          apply "$clone_db" db/migrations/0211_reward_records_90d_purge.sql
+          apply "$clone_db" db/migrations/0211_reward_records_90d_purge.sql
+          again="$(made_all "$clone_db")"
+          echo "after re-applying 0211 twice: $again"
+          if [[ "$again" != "$before" ]]; then
+            echo "0211 did not come back to the same set after its rollback: [$before] -> [$again]" >&2
+            exit 1
+          fi
       # 0203: the 2026-09-28 privacy policy is a NOTICE revision (Simon). A v5
       # signup must get the new tuple and an email-v5 receipt, an installed v4
       # client must still sign up, and LLM consent must count both tuples as
@@ -1367,14 +1654,1102 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/erasure_registry_regression.sql
+      # 0253: a record or source deleted while its reasoning run was still
+      # working. complete_reasoning_run must not store a proposal whose target is
+      # gone for that owner, and must store everything it cannot judge.
+      - name: Exercise reasoning completion against erased targets
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reasoning_complete_skips_erased_regression.sql
+      # 0256, the second stage of 0253: the rows the old function left behind are removed once, in a
+      # transaction of its own. The file commits what it does, so it runs on a clone that is dropped.
+      - name: Exercise the one-time cleanup of proposals whose target is gone (0256)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="cleanup_0256_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0256 cleanup regression refuses an unsafe database name" >&2
+            exit 1
+          fi
+          # The test role the file makes belongs to the cluster, not to the clone, so it goes on every
+          # way out as well (a failure inside the file would otherwise leave it on a reused local cluster).
+          drop_clone() {
+            psql -X -q -h localhost -U postgres -d "$source_db" -v ON_ERROR_STOP=1 \
+              -c "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" \
+              -c "DROP ROLE IF EXISTS z66d_plain"
+          }
+          trap 'drop_clone || true' EXIT
+          psql -X -q -h localhost -U postgres -d "$source_db" -v ON_ERROR_STOP=1 \
+            -c "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          psql -X -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 \
+            -f db/tests/reasoning_orphan_proposals_cleanup_regression.sql
+          trap - EXIT
+          drop_clone
+      # The same thing with the delete and the completion in flight together.
+      # delete_first: the delete holds the record row, the completion waits for
+      # it and then stores nothing. complete_first: the completion holds the row,
+      # the delete waits, then removes the stored row through 0251's trigger and
+      # closes the run. Neither order may end in a deadlock or leave a row whose
+      # record is gone. source_delete_first is the first case again for a source.
+      # The two transition cases are the hand-over from the old function to the
+      # new one (0253, then 0256) with an old call still open.
+      - name: Race a record delete against a reasoning completion
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0253 completion race refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          user="26101354-0000-4000-8000-00000000000a"
+          record="26101354-1000-4000-8000-0000000000a1"
+          source="26101354-2000-4000-8000-0000000000a1"
+          run_id="26101354-3000-4000-8000-000000000001"
+          proposals="[{\"key\":\"record:$record\",\"refKind\":\"record\",\"refId\":\"$record\",\"title\":\"t\",\"domain\":\"growth\"}]"
+          complete="public.complete_reasoning_run('$user', '$run_id', '$proposals'::jsonb)"
+          delete="DELETE FROM public.records WHERE id = '$record'"
+          source_proposals="[{\"key\":\"source:$source\",\"refKind\":\"source\",\"refId\":\"$source\",\"title\":\"t\",\"domain\":\"growth\"}]"
+          complete_source="public.complete_reasoning_run('$user', '$run_id', '$source_proposals'::jsonb)"
+          delete_source="DELETE FROM public.sources WHERE id = '$source'"
+          # Every way out of a case ends its sessions and drops its clone: a normal end, a failed check and a
+          # command that fails under `set -e` alike (the EXIT trap). A clone that cannot be dropped fails the step.
+          active_db=""
+          end_case() {
+            local db="$active_db"
+            active_db=""
+            if [[ -n "$db" ]]; then
+              sql "$source_db" "SELECT pg_catalog.pg_terminate_backend(pid) FROM pg_catalog.pg_stat_activity
+                                 WHERE datname = '$db'" > /dev/null 2>&1 || true
+              wait 2> /dev/null || true
+              sql "$source_db" "DROP DATABASE IF EXISTS $db WITH (FORCE)"
+            fi
+          }
+          trap 'end_case || true' EXIT
+          clone() { # <label> : a clone with one user, one record, one source and one run that is still working
+            local db="race_0253_${1}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0253 completion race refuses an unsafe database name" >&2
+              return 1
+            fi
+            active_db="$db"
+            sql "$source_db" "CREATE DATABASE $db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101354-0000-4000-8000-00000000000a', 'z66c-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101354-0000-4000-8000-00000000000a', 'z66c-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.records (id, user_id, kind, body)
+          VALUES ('26101354-1000-4000-8000-0000000000a1', '26101354-0000-4000-8000-00000000000a', 'note', 'deleted mid-run');
+          INSERT INTO public.sources (id, user_id, kind, title, storage_path)
+          VALUES ('26101354-2000-4000-8000-0000000000a1', '26101354-0000-4000-8000-00000000000a', 'article', 'deleted mid-run',
+                  'raw/z66c-race.md');
+          INSERT INTO public.reasoning_runs (id, user_id, idempotency_key, trigger_kind, status, spend, week_bucket, month_bucket)
+          VALUES ('26101354-3000-4000-8000-000000000001', '26101354-0000-4000-8000-00000000000a', 'z66c-race-0001', 'auto',
+                  'running', 'none', '2026-W42', '2026-10');
+          SQL
+          }
+          seen() { # <db> <what must become true> <query returning 1 when it is>
+            local n=0
+            until [[ "$(sql "$1" "$3")" == "1" ]]; do
+              n=$((n + 1))
+              if (( n > 150 )); then echo "$2" >&2; return 1; fi
+              sleep 0.2
+            done
+          }
+          row_state() { # <db> : rows/run/records/sources
+            sql "$1" "SELECT (SELECT count(*) FROM public.reasoning_run_proposals WHERE run_id = '$run_id')
+                       || '/' || (SELECT status FROM public.reasoning_runs WHERE id = '$run_id')
+                       || '/' || (SELECT count(*) FROM public.records WHERE id = '$record')
+                       || '/' || (SELECT count(*) FROM public.sources WHERE id = '$source')" | tr -d '\r'
+          }
+          race() { # <label> <first statement> <second statement> <expected: first rc/second rc/rows/run/records/sources>
+            local label="$1" first="$2" second="$3" want="$4"
+            clone "$label"
+            local clone_db="$active_db"
+            # A barrier instead of a timed pause. A holder session keeps an advisory lock; the first session
+            # runs its statement and then waits for that lock with its transaction open; only then is the
+            # second session started. The case fails unless the second session is SEEN waiting for a lock
+            # the first one holds. Two statements that merely ran one after the other do not pass.
+            local key=2530253 h_app="race0253_h_$label" a_app="race0253_a_$label" b_app="race0253_b_$label"
+            local a_rc=0 b_rc=0 a b state h_pid a_pid b_pid
+            PGAPPNAME="$h_app" psql -X -q -h localhost -U postgres -d "$clone_db" -At \
+              -c "SELECT pg_advisory_lock($key)" -c "SELECT pg_sleep(120)" > /dev/null 2>&1 &
+            h_pid=$!
+            seen "$clone_db" "$label: the holder never took the barrier" \
+              "SELECT count(*) FROM pg_catalog.pg_locks l JOIN pg_catalog.pg_stat_activity s ON s.pid = l.pid
+                WHERE l.locktype = 'advisory' AND l.granted AND s.application_name = '$h_app'"
+            PGAPPNAME="$a_app" PGOPTIONS="-c statement_timeout=90s" \
+              psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+              -c "$first" \
+              -c "SELECT pg_advisory_xact_lock($key)" \
+              -c "COMMIT" > "race_0253_a_$label.out" 2>&1 &
+            a_pid=$!
+            seen "$clone_db" "$label: the first session never reached the barrier" \
+              "SELECT count(*) FROM pg_catalog.pg_locks l JOIN pg_catalog.pg_stat_activity s ON s.pid = l.pid
+                WHERE l.locktype = 'advisory' AND NOT l.granted AND s.application_name = '$a_app'"
+            PGAPPNAME="$b_app" PGOPTIONS="-c statement_timeout=90s" \
+              psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+              -c "$second" \
+              -c "COMMIT" > "race_0253_b_$label.out" 2>&1 &
+            b_pid=$!
+            # With the lock on the target gone, the second session runs through and this never becomes true.
+            seen "$clone_db" "$label: the second session did not wait for a lock the first session holds" \
+              "SELECT count(*) FROM pg_catalog.pg_stat_activity w
+                WHERE w.application_name = '$b_app' AND w.wait_event_type = 'Lock'
+                  AND (SELECT f.pid FROM pg_catalog.pg_stat_activity f WHERE f.application_name = '$a_app')
+                      = ANY (pg_catalog.pg_blocking_pids(w.pid))"
+            # Open the barrier by ending the holder. The first session commits, then the second one goes on.
+            sql "$clone_db" "SELECT pg_catalog.pg_terminate_backend(pid) FROM pg_catalog.pg_stat_activity
+                              WHERE application_name = '$h_app'" > /dev/null
+            wait "$h_pid" 2> /dev/null || true
+            wait "$a_pid" || a_rc=$?
+            wait "$b_pid" || b_rc=$?
+            a="$(tr -d '\r' < "race_0253_a_$label.out" | tr '\n' ' ')"
+            b="$(tr -d '\r' < "race_0253_b_$label.out" | tr '\n' ' ')"
+            state="$(row_state "$clone_db")"
+            end_case
+            echo "$label: first session rc=$a_rc [$a] second session rc=$b_rc [$b] rows/run/records/sources $state"
+            if [[ "$a_rc/$b_rc/$state" != "$want" ]]; then
+              echo "$label: wanted $want" >&2
+              return 1
+            fi
+            if grep -q -i "deadlock" <<< "$a $b"; then
+              echo "$label: a session ended in a deadlock" >&2
+              return 1
+            fi
+          }
+          # The hand-over (review round 2, Z66C-01). A completion that entered the OLD function before 0253
+          # was committed stores its row late. The old call is held inside the old body before it takes its
+          # run row: auth.uid(), the first thing that body evaluates, waits on a gate for that one session.
+          # 0253 is then committed, the record is deleted, and 0256 is started while the old call is open.
+          # released: 0256 must be SEEN waiting; the gate opens, the old call stores its row (stored=1 is the
+          # old body; the new one would store 0), and 0256 then removes that row and closes the run.
+          # held: the old call stays open, 0256 gives up after its 20 seconds having changed nothing; the old
+          # call then stores its row, nothing removes it, and a second 0256 does.
+          transition() { # <label> <released|held>
+            local label="$1" mode="$2"
+            clone "$label"
+            local db="$active_db" a_app="race0253_a_$label" c_app="race0253_c_$label"
+            local a_pid c_pid a_rc=0 c_rc=0 a c state
+            psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 -f db/migrations/rollback/0253_down.sql
+            if [[ "$(sql "$db" "SELECT pg_catalog.strpos(p.prosrc, 'FOR KEY SHARE') FROM pg_catalog.pg_proc AS p
+                                 WHERE p.oid = 'public.complete_reasoning_run(uuid, uuid, jsonb)'::regprocedure")" != "0" ]]; then
+              echo "$label: the clone does not start from the old function" >&2
+              return 1
+            fi
+            sql "$db" "CREATE TABLE public.z66c_gate (open boolean NOT NULL)"
+            sql "$db" "INSERT INTO public.z66c_gate VALUES (false)"
+            sql "$db" "CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE plpgsql AS \$gate\$
+                       BEGIN
+                         IF pg_catalog.current_setting('application_name') = '$a_app' THEN
+                           WHILE NOT (SELECT g.open FROM public.z66c_gate AS g) LOOP
+                             PERFORM pg_catalog.pg_sleep(0.05);
+                           END LOOP;
+                         END IF;
+                         RETURN NULLIF(pg_catalog.current_setting('request.jwt.claim.sub', true), '')::uuid;
+                       END \$gate\$"
+            PGAPPNAME="$a_app" PGOPTIONS="-c statement_timeout=90s" \
+              psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+              -c "SELECT 'stored=' || $complete" \
+              -c "COMMIT" > "race_0253_a_$label.out" 2>&1 &
+            a_pid=$!
+            seen "$db" "$label: the old call never reached the gate inside the old function" \
+              "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                WHERE application_name = '$a_app' AND state = 'active' AND wait_event = 'PgSleep'
+                  AND query LIKE '%complete_reasoning_run%'"
+            # The first stage, committed while the old call is open. Then the record goes.
+            psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 \
+              -f db/migrations/0253_reasoning_complete_skips_erased.sql
+            sql "$db" "$delete"
+            PGAPPNAME="$c_app" psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 \
+              -f db/migrations/0256_reasoning_orphan_proposals_cleanup.sql > "race_0253_c_$label.out" 2>&1 &
+            c_pid=$!
+            # Without the wait in 0256 it runs through, and this never becomes true.
+            seen "$db" "$label: 0256 did not wait for the transaction that was already open" \
+              "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                WHERE application_name = '$c_app' AND state = 'active' AND wait_event = 'PgSleep'"
+            state="$(row_state "$db")"
+            if [[ "$state" != "0/running/0/1" ]]; then
+              echo "$label: before the gate opened the state was $state" >&2
+              return 1
+            fi
+            if [[ "$mode" == "held" ]]; then
+              wait "$c_pid" || c_rc=$?
+              c="$(tr -d '\r' < "race_0253_c_$label.out" | tr '\n' ' ')"
+              if (( c_rc == 0 )) || ! grep -q "0256 cleanup refused: 1 older transaction(s) still open after 20 seconds" <<< "$c"; then
+                echo "$label: 0256 did not give up while the old call was open: rc=$c_rc [$c]" >&2
+                return 1
+              fi
+              state="$(row_state "$db")"
+              if [[ "$state" != "0/running/0/1" ]]; then
+                echo "$label: a 0256 that gave up changed the state to $state" >&2
+                return 1
+              fi
+            fi
+            sql "$db" "UPDATE public.z66c_gate SET open = true"
+            wait "$a_pid" || a_rc=$?
+            a="$(tr -d '\r' < "race_0253_a_$label.out" | tr '\n' ' ')"
+            if [[ "$mode" == "held" ]]; then
+              # The old body stored the row and nothing has removed it: this is the row 0256 exists for.
+              state="$(row_state "$db")"
+              if [[ "$state" != "1/proposed/0/1" ]]; then
+                echo "$label: after the old call the state was $state, not the row it should have left" >&2
+                return 1
+              fi
+              c_rc=0
+              PGAPPNAME="$c_app" psql -X -q -h localhost -U postgres -d "$db" -v ON_ERROR_STOP=1 \
+                -f db/migrations/0256_reasoning_orphan_proposals_cleanup.sql > "race_0253_c_$label.out" 2>&1 || c_rc=$?
+            else
+              wait "$c_pid" || c_rc=$?
+            fi
+            c="$(tr -d '\r' < "race_0253_c_$label.out" | tr '\n' ' ')"
+            state="$(row_state "$db")"
+            end_case
+            echo "$label: old call rc=$a_rc [$a] 0256 rc=$c_rc [$c] rows/run/records/sources $state"
+            if [[ "$a_rc/$c_rc/$state" != "0/0/0/ratified/0/1" ]]; then
+              echo "$label: wanted 0/0/0/ratified/0/1" >&2
+              return 1
+            fi
+            if ! grep -q "stored=1" <<< "$a"; then
+              echo "$label: the open call did not run the old function body" >&2
+              return 1
+            fi
+            if ! grep -q "removed 1 proposal rows, closed 1 runs" <<< "$c"; then
+              echo "$label: 0256 did not remove the row the old call stored" >&2
+              return 1
+            fi
+          }
+          # The delete is open when the completion arrives: nothing is stored, the run ends as proposed.
+          race delete_first "$delete" "SELECT 'stored=' || $complete" "0/0/0/proposed/0/1"
+          # The completion is open when the delete arrives: the row is stored, then removed with its record.
+          race complete_first "SELECT 'stored=' || $complete" "$delete" "0/0/0/ratified/0/1"
+          # The same as the first case for a source.
+          race source_delete_first "$delete_source" "SELECT 'stored=' || $complete_source" "0/0/0/proposed/1/0"
+          # An old call is open across the hand-over: 0256 waits for it, then removes what it stored.
+          transition transition_released released
+          # The old call outlasts 0256's patience: 0256 changes nothing, and a later run finishes the job.
+          transition transition_held held
+          left="$(sql "$source_db" "SELECT count(*) FROM pg_catalog.pg_database WHERE datname LIKE 'race\_0253\_%'")"
+          if [[ "$left" != "0" ]]; then
+            echo "0253 completion race left $left clone database(s) behind" >&2
+            exit 1
+          fi
+      # 0251: a deleted record or source takes its reasoning proposal rows with
+      # it. The deletes run as `authenticated` through RLS, then the one-time
+      # cleanup is replayed over rows shaped like the ones left behind.
+      - name: Exercise reasoning proposal purge on record and source deletion
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reasoning_proposals_purge_regression.sql
+      # 0252 + 0255: a chat turn whose answer was swapped for the crisis notice is
+      # given back once, on the proxy-written audit row of that very turn and on
+      # the day that turn was counted on. Called as `authenticated` with the row's
+      # id; client rows, other purposes, old rows, another user's rows and turns,
+      # and rows without a counted turn must not count.
+      - name: Exercise chat turn refund on proxy evidence only
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/chat_turn_refund_regression.sql
+      # Two sessions of one user ask at the same moment. Each call names the
+      # proxy row of its turn and no day (0255): the day is the row of chat_usage
+      # on which that turn was counted. With ONE row, both calls name it. The first
+      # pass is the everyday case (READ COMMITTED): the per-user advisory lock
+      # makes the second call wait and then find the row used. The second pass is
+      # the one a snapshot cannot protect (REPEATABLE READ): the second call still
+      # reads the row as unused and ends with 40001 on the chat_usage row the first
+      # call changed; nothing of it is kept. With TWO rows the second call names
+      # the second row. When both turns were counted today, both calls get a turn
+      # under READ COMMITTED, and under REPEATABLE READ the second ends with 40001
+      # and its row gives the turn back to the next call. When the second turn was
+      # counted yesterday, it comes back on yesterday's row under either level:
+      # the two calls touch different rows. No row counts twice and no turn comes
+      # back on a day it was not counted on. The app calls through PostgREST, which
+      # is READ COMMITTED. The rest of the step applies 0252 again after both down
+      # files: once over its own ledger table, which must work, and then over nine
+      # tables of another shape, each of which must stop at the check named beside
+      # it and leave nothing of 0252 behind. Then the claim that binds an answer to
+      # a counted turn (0255): two answers asking for one reservation, and one
+      # answer asking for two reservations, at the same moment. One binds, the
+      # other gets false. Last, 0255 is applied again after its own down file: over
+      # the tables as 0252 left them and over a reservation table of the very shape
+      # it makes, which must work, and over a ledger key that is missing, may be
+      # deferred or covers another column, and a reservation table of another
+      # shape or with something more hanging on it, each of which must stop and
+      # leave 0252's function in place.
+      - name: Race two chat turn refunds over one proxy row
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0252 refund race refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          user="26101347-0000-4000-8000-00000000000a"
+          race() { # <label> <BEGIN statement> <days ago the second row's turn was counted> <proxy rows> <expected: a b today/yesterday/used> [expected of a later plain call]
+            local label="$1" begin="$2" offset="$3" rows="$4" want="$5" later="${6:-}"
+            # Three counted turns: two today, one yesterday. The first row answers the first of today's.
+            # Each answer is bound to its turn the way a proxy binds it: through the claim.
+            local turn_a="26101347-7000-4000-8000-000000007001" turn_b="26101347-7000-4000-8000-000000007002"
+            if [[ "$offset" == "1" ]]; then turn_b="26101347-7000-4000-8000-000000007011"; fi
+            # The first call names the first row. The second names the second row when there are two.
+            local row_a="26101347-4000-4000-8000-000000000001" row_b="26101347-4000-4000-8000-000000000001"
+            if [[ "$rows" == "2" ]]; then row_b="26101347-4000-4000-8000-000000000002"; fi
+            local clone_db="race_0252_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0252 refund race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.chat_usage (user_id, day, count) VALUES
+            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, 5),
+            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date - 1, 3);
+          INSERT INTO public.chat_turn_reservations (turn_id, user_id, counted_day) VALUES
+            ('26101347-7000-4000-8000-000000007001', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date),
+            ('26101347-7000-4000-8000-000000007002', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date),
+            ('26101347-7000-4000-8000-000000007011', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date - 1);
+          INSERT INTO public.ai_audit_log
+            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+          VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
+          SQL
+            if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000001', '$turn_a')" | tr -d '\r')" != "t" ]]; then
+              echo "$label: the first proxy call was not recorded as its turn's attempt" >&2
+              return 1
+            fi
+            if [[ "$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '26101347-4000-4000-8000-000000000001', '$turn_a')" | tr -d '\r')" != "t" ]]; then
+              echo "$label: the first proxy row was not bound to its turn" >&2
+              return 1
+            fi
+            if [[ "$rows" == "2" ]]; then
+              sql "$clone_db" "INSERT INTO public.ai_audit_log
+                (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+                VALUES ('26101347-4000-4000-8000-000000000002', '$user', '0a0b0c0d', '0e0f0a0b', 'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified')"
+              if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000002', '$turn_b')" | tr -d '\r')" != "t" ]]; then
+                echo "$label: the second proxy call was not recorded as its turn's attempt" >&2
+                return 1
+              fi
+              if [[ "$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '26101347-4000-4000-8000-000000000002', '$turn_b')" | tr -d '\r')" != "t" ]]; then
+                echo "$label: the second proxy row was not bound to its turn" >&2
+                return 1
+              fi
+            fi
+            local today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
+            # Session A takes the refund for its row and keeps its transaction open for three seconds.
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "$begin" \
+              -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+              -c "SELECT 'a=' || COALESCE(public.refund_chat_turn_after_output_swap('$row_a')::text, 'null')" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "refund_a_$label.out" &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the first refund session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            # Session B asks while A is still open. Its first statement is the call, so under
+            # REPEATABLE READ its snapshot is taken here, before A commits.
+            local b a state b_out
+            b_out="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -At \
+              -c "$begin" \
+              -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+              -c "SELECT 'b=' || COALESCE(public.refund_chat_turn_after_output_swap('$row_b')::text, 'null')" \
+              -c "COMMIT" 2>&1 || true)"
+            b="$(grep '^b=' <<<"$b_out" | tr -d '\r' || true)"
+            # A call that ended with an error is reported by its SQLSTATE.
+            if [[ -z "$b" ]]; then b="b=$(grep -o -m1 'ERROR: *[0-9A-Z]\{5\}' <<<"$b_out" | tr -d ' \r' || true)"; fi
+            wait "$a_pid"
+            a="$(grep '^a=' "refund_a_$label.out" | tr -d '\r')"
+            state="$(sql "$clone_db" "SELECT (SELECT count FROM public.chat_usage WHERE user_id = '$user' AND day = $today)
+                                        || '/' || (SELECT count FROM public.chat_usage WHERE user_id = '$user' AND day = $today - 1)
+                                        || '/' || (SELECT count(*) FROM public.chat_turn_refunds)" | tr -d '\r')"
+            local c=""
+            if [[ -n "$later" ]]; then
+              c="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+                -c "BEGIN" \
+                -c "SET LOCAL request.jwt.claim.sub = '$user'" \
+                -c "SELECT 'c=' || COALESCE(public.refund_chat_turn_after_output_swap('$row_b')::text, 'null')" \
+                -c "COMMIT" | grep '^c=' | tr -d '\r')"
+            fi
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: first session $a, second session $b, today/yesterday/used rows $state${c:+, a later call $c}"
+            if [[ "$a $b $state" != "$want" ]]; then
+              echo "$label: one proxy row gave back more than one turn, or none (wanted $want)" >&2
+              return 1
+            fi
+            if [[ "$c" != "$later" ]]; then
+              echo "$label: the row of the call that got nothing was lost (wanted $later)" >&2
+              return 1
+            fi
+          }
+          # The claim, twice at the same moment. turn: two fresh answers ask for one reservation. row: one fresh
+          # answer asks for two reservations. The first call keeps its transaction open for three seconds; the
+          # second is made while it is open. Exactly one binds; the other gets false and changes nothing.
+          claim_race() { # <label> <turn|row|retry> <expected: a b, then each reservation as state:answer:attempts:first,second attempt>
+            local label="$1" second="$2" want="$3"
+            local turn_a="26101347-7000-4000-8000-000000007001" turn_b="26101347-7000-4000-8000-000000007002"
+            local row_1="26101347-4000-4000-8000-000000000001" row_2="26101347-4000-4000-8000-000000000002"
+            local row_3="26101347-4000-4000-8000-000000000003"
+            # turn:  the first attempt (row 01) and the re-ask (row 02) were recorded; the re-ask's claim runs while
+            #        the first attempt's claim arrives late. row: one row was named as the attempt of two turns.
+            # retry: the first attempt's answer (row 03) was bound and never reached the app; two re-asks are
+            #        recorded at once.
+            local fn="claim_chat_turn_for_audit" a_args="'$row_2', '$turn_a'" b_args="'$row_1', '$turn_a'"
+            local -a setup=("'$row_1', '$turn_a'" "'$row_2', '$turn_a'")
+            if [[ "$second" == "row" ]]; then
+              a_args="'$row_1', '$turn_a'"; b_args="'$row_1', '$turn_b'"; setup=("'$row_1', '$turn_a'" "'$row_1', '$turn_b'")
+            fi
+            if [[ "$second" == "retry" ]]; then
+              fn="begin_chat_turn_attempt"; setup=("'$row_3', '$turn_a'")
+              a_args="'$row_1', '$turn_a'"; b_args="'$row_2', '$turn_a'"
+            fi
+            local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 claim race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.chat_usage (user_id, day, count) VALUES
+            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, 5);
+          -- Turn 7001 is the user's latest (7002 was counted a minute before it).
+          INSERT INTO public.chat_turn_reservations (turn_id, user_id, counted_day, issued_at) VALUES
+            ('26101347-7000-4000-8000-000000007001', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, pg_catalog.now()),
+            ('26101347-7000-4000-8000-000000007002', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, pg_catalog.now() - interval '1 minute');
+          INSERT INTO public.ai_audit_log
+            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+          VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified'),
+                 ('26101347-4000-4000-8000-000000000002', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified'),
+                 ('26101347-4000-4000-8000-000000000003', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
+          SQL
+            # What the proxies did before the race: each recorded its call as an attempt before asking the model.
+            local args
+            for args in "${setup[@]}"; do
+              if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', $args)" | tr -d '\r')" != "t" ]]; then
+                echo "$label: an attempt before the race was not recorded" >&2
+                return 1
+              fi
+            done
+            if [[ "$second" == "retry" ]]; then
+              if [[ "$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '$row_3', '$turn_a')" | tr -d '\r')" != "t" ]]; then
+                echo "$label: the first answer was not bound before the race" >&2
+                return 1
+              fi
+            fi
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SELECT 'a=' || public.$fn('$user', $a_args)::text" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "claim_a_$label.out" &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the first claim session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            local a b state b_out
+            b_out="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -At \
+              -c "BEGIN" \
+              -c "SELECT 'b=' || public.$fn('$user', $b_args)::text" \
+              -c "COMMIT" 2>&1 || true)"
+            b="$(grep '^b=' <<<"$b_out" | tr -d '\r' || true)"
+            if [[ -z "$b" ]]; then b="b=$(grep -o -m1 'ERROR: *[0-9A-Z]\{5\}' <<<"$b_out" | tr -d ' \r' || true)"; fi
+            wait "$a_pid"
+            a="$(grep '^a=' "claim_a_$label.out" | tr -d '\r')"
+            state="$(sql "$clone_db" "SELECT string_agg(r.state || ':' || COALESCE(right(r.audit_id::text, 2), '-') || ':' || r.attempts
+                                                        || ':' || COALESCE(right(r.attempt1_audit_id::text, 2), '-')
+                                                        || ',' || COALESCE(right(r.attempt2_audit_id::text, 2), '-'), '/' ORDER BY r.turn_id)
+                                        FROM public.chat_turn_reservations AS r" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: first session $a, second session $b, reservations $state"
+            if [[ "$a $b $state" != "$want" ]]; then
+              echo "$label: two calls at once did not end with exactly one answer bound to each turn (wanted $want)" >&2
+              return 1
+            fi
+          }
+          bump_race() { # <label> <expected: a b counted-reservations as count:day offsets>
+            local label="$1" want="$2"
+            local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 bump race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          SQL
+            local as_user="SET LOCAL request.jwt.claim.sub = '$user'"
+            local kst_today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'a=' || (public.bump_chat_usage_for_turn('$user', $kst_today - 1) ->> 'count')" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "bump_a_$label.out" &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the first bump session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            local a b counted
+            b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'b=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'count')" \
+              -c "COMMIT" | grep '^b=' | tr -d '\r')"
+            wait "$a_pid"
+            a="$(grep '^a=' "bump_a_$label.out" | tr -d '\r')"
+            counted="$(sql "$clone_db" "SELECT count(*) || ':' || COALESCE(string_agg(($kst_today - r.counted_day)::text, ',' ORDER BY r.counted_day DESC), '-')
+                                         FROM public.chat_turn_reservations AS r WHERE r.state = 'counted'" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: first session $a, second session $b, counted reservations $counted"
+            if [[ "$a $b $counted" != "$want" ]]; then
+              echo "$label: two bumps at once did not leave only the later reservation open (wanted $want)" >&2
+              return 1
+            fi
+          }
+          reask_race() { # <label> <expected: a b attempts:first,second attempt> : a re-ask recorded while a new turn is counted
+            local label="$1" want="$2"
+            local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 re-ask race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.ai_audit_log
+            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+          VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
+          SQL
+            local as_user="SET LOCAL request.jwt.claim.sub = '$user'"
+            local kst_today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
+            # The turn to be re-asked: counted, its first attempt recorded and its answer (row 01) bound.
+            local turn
+            turn="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'turn=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'turnId')" \
+              -c "COMMIT" | grep '^turn=' | sed 's/^turn=//' | tr -d '\r')"
+            if [[ ! "$turn" =~ ^[0-9a-f-]{36}$ ]]; then echo "$label: no turn was counted before the race" >&2; return 1; fi
+            if [[ "$(sql "$clone_db" "SELECT public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000001', '$turn')" | tr -d '\r')" != "t" ]] \
+               || [[ "$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '26101347-4000-4000-8000-000000000001', '$turn')" | tr -d '\r')" != "t" ]]; then
+              echo "$label: the first answer was not bound before the race" >&2
+              return 1
+            fi
+            # A new turn is being counted (and holds its transaction open) while the re-ask of the old one arrives.
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'a=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'count')" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "reask_a_$label.out" &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the bump session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            local a b state
+            b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "SELECT 'b=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000002', '$turn')::text" \
+              | grep '^b=' | tr -d '\r')"
+            wait "$a_pid"
+            a="$(grep '^a=' "reask_a_$label.out" | tr -d '\r')"
+            state="$(sql "$clone_db" "SELECT r.attempts || ':' || COALESCE(right(r.attempt1_audit_id::text, 2), '-')
+                                             || ',' || COALESCE(right(r.attempt2_audit_id::text, 2), '-')
+                                        FROM public.chat_turn_reservations AS r WHERE r.turn_id = '$turn'" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: first session $a, second session $b, the old turn's attempts $state"
+            if [[ "$a $b $state" != "$want" ]]; then
+              echo "$label: a re-ask was recorded on a turn that a new turn had just replaced (wanted $want)" >&2
+              return 1
+            fi
+          }
+          late_begin_race() { # <label> <expected: a b claim attempts:first,second state:bound>
+            # The re-ask (row 02) reaches the server first and holds its transaction open; the first call (row 01),
+            # whose proxy has given up waiting, arrives while it is open and waits for the user's lock. The server
+            # numbers them in that order: the late call is the second attempt and the re-ask's answer still binds.
+            local label="$1" want="$2"
+            local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 late attempt race refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.ai_audit_log
+            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+          VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified'),
+                 ('26101347-4000-4000-8000-000000000002', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
+          SQL
+            local as_user="SET LOCAL request.jwt.claim.sub = '$user'"
+            local kst_today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
+            local turn
+            turn="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'turn=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'turnId')" \
+              -c "COMMIT" | grep '^turn=' | sed 's/^turn=//' | tr -d '\r' || true)"
+            if [[ ! "$turn" =~ ^[0-9a-f-]{36}$ ]]; then echo "$label: no turn was counted before the race" >&2; return 1; fi
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SELECT 'a=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000002', '$turn')::text" \
+              -c "SELECT pg_sleep(3)" \
+              -c "COMMIT" > "late_a_$label.out" &
+            local a_pid=$! waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the first session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            local a b c state
+            b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "SELECT 'b=' || public.begin_chat_turn_attempt('$user', '26101347-4000-4000-8000-000000000001', '$turn')::text" \
+              2>&1 | grep '^b=' | tr -d '\r' || true)"
+            wait "$a_pid" || true
+            a="$(grep '^a=' "late_a_$label.out" | tr -d '\r' || true)"
+            # The re-ask's proxy binds its answer; the late call's proxy gave up and asks nothing.
+            c="c=$(sql "$clone_db" "SELECT public.claim_chat_turn_for_audit('$user', '26101347-4000-4000-8000-000000000002', '$turn')::text" | tr -d '\r' || true)"
+            state="$(sql "$clone_db" "SELECT r.attempts || ':' || COALESCE(right(r.attempt1_audit_id::text, 2), '-') || ','
+                                             || COALESCE(right(r.attempt2_audit_id::text, 2), '-') || ' ' || r.state || ':'
+                                             || COALESCE(right(r.audit_id::text, 2), '-')
+                                        FROM public.chat_turn_reservations AS r WHERE r.turn_id = '$turn'" | tr -d '\r' || true)"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            local got="${a:-a=missing} ${b:-b=missing} $c $state"
+            echo "$label: $got"
+            if [[ "$got" != "$want" ]]; then
+              echo "$label: the attempts were not numbered in the order they reached the server, or the late call took the turn (wanted $want)" >&2
+              return 1
+            fi
+          }
+          lock_order_race() { # <label> <who holds first: bump|row> <expected: sessions and what the refund waited on>
+            # A refund while a bump holds the user's turns (bump), or while a bump waits for today's usage row that a
+            # third session holds (row). Either way the refund waits on the user's lock, never on a row, because the
+            # bump takes that lock before it touches chat_usage and the refund takes it first (R2438-22).
+            local label="$1" first="$2" want="$3"
+            local clone_db="race_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 lock order race refuses an unsafe database name" >&2
+              return 1
+            fi
+            if [[ "$first" != "bump" && "$first" != "row" ]]; then echo "$label: no holder $first" >&2; return 1; fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            # A turn answered by a red row, counted three days ago on today's row (a re-ask may come that late), so
+            # the bump below removes it while the refund wants it: the case where the two met in opposite orders.
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101347-0000-4000-8000-00000000000a', 'z46-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.chat_usage (user_id, day, count) VALUES
+            ('26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date, 3);
+          INSERT INTO public.ai_audit_log
+            (id, user_id, prompt_hash, output_hash, model_used, vertex_backend, safety_zone, latency_ms, purpose, event_source)
+          VALUES ('26101347-4000-4000-8000-000000000001', '26101347-0000-4000-8000-00000000000a', '0a0b0c0d', '0e0f0a0b',
+                  'gpt-test', false, 'red', 10, 'secondb_chat', 'server_verified');
+          INSERT INTO public.chat_turn_reservations
+            (turn_id, user_id, counted_day, issued_at, state, audit_id, answered_at, attempts, attempt1_audit_id, attempted_at)
+          VALUES ('26101347-7000-4000-8000-000000007001', '26101347-0000-4000-8000-00000000000a', (pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date,
+                  pg_catalog.now() - interval '3 days', 'answered', '26101347-4000-4000-8000-000000000001', pg_catalog.now(),
+                  1, '26101347-4000-4000-8000-000000000001', pg_catalog.now());
+          SQL
+            local as_user="SET LOCAL request.jwt.claim.sub = '$user'"
+            local kst_today="(pg_catalog.now() AT TIME ZONE 'Asia/Seoul')::date"
+            local bump_sql="SELECT 'b=' || (public.bump_chat_usage_for_turn('$user', $kst_today) ->> 'count')"
+            if [[ "$first" == "row" ]]; then
+              psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+                -c "BEGIN" \
+                -c "SELECT 'a=' || cu.count FROM public.chat_usage AS cu WHERE cu.user_id = '$user' AND cu.day = $kst_today FOR UPDATE" \
+                -c "SELECT pg_sleep(4)" \
+                -c "COMMIT" > "order_a_$label.out" &
+            else
+              psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+                -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+                -c "$bump_sql" \
+                -c "SELECT pg_sleep(4)" \
+                -c "COMMIT" > "order_a_$label.out" &
+            fi
+            local a_pid=$! b_pid="" waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(4)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "$label: the first session never reached its pause" >&2; return 1; fi
+              sleep 0.2
+            done
+            if [[ "$first" == "row" ]]; then
+              # the bump arrives while today's row is held, and waits for it
+              psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+                -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+                -c "$bump_sql" \
+                -c "COMMIT" > "order_b_$label.out" &
+              b_pid=$!
+              waited=0
+              until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                            WHERE datname = current_database() AND state = 'active' AND wait_event_type = 'Lock'
+                                              AND query LIKE '%bump_chat_usage_for_turn%' AND pid <> pg_catalog.pg_backend_pid()")" == "1" ]]; do
+                waited=$((waited + 1))
+                if (( waited > 50 )); then echo "$label: the bump never waited for today's row" >&2; return 1; fi
+                sleep 0.2
+              done
+            fi
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" -c "$as_user" -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT 'r=' || COALESCE(public.refund_chat_turn_after_output_swap('26101347-4000-4000-8000-000000000001')::text, 'null')" \
+              -c "COMMIT" > "order_r_$label.out" &
+            local r_pid=$! wait_on="" tries=0
+            until [[ -n "$wait_on" ]]; do
+              tries=$((tries + 1))
+              if (( tries > 10 )); then break; fi
+              sleep 0.2
+              wait_on="$(sql "$clone_db" "SELECT a.wait_event_type || ':' || a.wait_event FROM pg_catalog.pg_stat_activity AS a
+                                            WHERE a.datname = current_database() AND a.state = 'active' AND a.wait_event IS NOT NULL
+                                              AND a.query LIKE '%refund_chat_turn_after_output_swap%' AND a.pid <> pg_catalog.pg_backend_pid()" | tr -d '\r')"
+            done
+            # a session the database ended (a deadlock) shows as a missing value below, not as a stopped step
+            wait "$a_pid" || true
+            if [[ -n "$b_pid" ]]; then wait "$b_pid" || true; fi
+            wait "$r_pid" || true
+            local a b r
+            a="$(grep '^a=' "order_a_$label.out" | tr -d '\r' || true)"
+            b="$(cat "order_a_$label.out" "order_b_$label.out" 2> /dev/null | grep '^b=' | tr -d '\r' || true)"
+            r="$(grep '^r=' "order_r_$label.out" | tr -d '\r' || true)"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            local got="${a:+$a }${b:-b=missing} ${r:-r=missing} wait=${wait_on:-nothing}"
+            echo "$label: $got"
+            if [[ "$got" != "$want" ]]; then
+              echo "$label: the refund did not wait for the user's lock (wanted $want)" >&2
+              return 1
+            fi
+          }
+          reapply_over() { # <label> <statement that leaves a ledger table of another shape, or ''> <the check that must stop it, or ''>
+            local label="$1" breakit="$2" want="$3"
+            local clone_db="reapply_0252_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0252 re-apply check refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            # Newest first: 0255's down file brings back what 0252 made, 0252's then removes it.
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/rollback/0255_down.sql
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/rollback/0252_down.sql
+            if [[ -n "$breakit" ]]; then sql "$clone_db" "$breakit"; fi
+            # One transaction, as every supported way of applying it is: a stop leaves nothing of 0252 behind.
+            local rc=0 gone guard
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose --single-transaction \
+              -f db/migrations/0252_chat_turn_refund.sql > "reapply_0252_$label.out" 2>&1 || rc=$?
+            gone="$(sql "$clone_db" "SELECT to_regprocedure('public.refund_chat_turn_after_output_swap(date)') IS NULL" | tr -d '\r')"
+            guard="$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_trigger WHERE tgname = 'guard_ai_audit_server_verified' AND NOT tgisinternal" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: re-apply rc=$rc, function absent=$gone, guard triggers=$guard"
+            if [[ -z "$want" ]]; then
+              if [[ "$rc" != "0" || "$gone" != "f" || "$guard" != "1" ]]; then
+                echo "$label: 0252 did not apply again over its own ledger table" >&2
+                cat "reapply_0252_$label.out" >&2
+                return 1
+              fi
+            elif [[ "$rc" == "0" || "$gone" != "t" || "$guard" != "0" ]] \
+              || ! grep -q -F "55000: 0252: chat_turn_refunds$want" "reapply_0252_$label.out"; then
+              echo "$label: 0252 was applied over a ledger table of another shape, or stopped at another check (wanted:$want)" >&2
+              cat "reapply_0252_$label.out" >&2
+              return 1
+            fi
+          }
+          reapply_0255_over() { # <label> <statement run first: it changes the ledger or leaves a reservation table, or ''> <the check that must stop it, or ''>
+            local label="$1" breakit="$2" want="$3"
+            local clone_db="reapply_0255_${label}_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+            if [[ ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+              echo "0255 re-apply check refuses an unsafe database name" >&2
+              return 1
+            fi
+            sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/rollback/0255_down.sql
+            if [[ -n "$breakit" ]]; then sql "$clone_db" "$breakit"; fi
+            # One transaction: a stop leaves the database as 0252 made it, with the call 0255 replaces still there.
+            local rc=0 bound unbound guards
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose --single-transaction \
+              -f db/migrations/0255_chat_turn_refund_bound_to_audit.sql > "reapply_0255_$label.out" 2>&1 || rc=$?
+            bound="$(sql "$clone_db" "SELECT to_regprocedure('public.refund_chat_turn_after_output_swap(uuid)') IS NOT NULL
+                                             AND to_regprocedure('public.bump_chat_usage_for_turn(uuid, date)') IS NOT NULL
+                                             AND to_regprocedure('public.claim_chat_turn_for_audit(uuid, uuid, uuid)') IS NOT NULL
+                                             AND to_regclass('public.chat_turn_reservations') IS NOT NULL" | tr -d '\r')"
+            unbound="$(sql "$clone_db" "SELECT to_regprocedure('public.refund_chat_turn_after_output_swap(date)') IS NOT NULL" | tr -d '\r')"
+            guards="$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_trigger
+                                        WHERE tgrelid = 'public.ai_audit_log'::regclass AND NOT tgisinternal
+                                          AND tgname IN ('guard_ai_audit_server_verified', 'guard_ai_audit_server_verified_final')" | tr -d '\r')"
+            sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true
+            echo "$label: re-apply rc=$rc, bound call=$bound, unbound call=$unbound, guard triggers=$guards"
+            if [[ -z "$want" ]]; then
+              if [[ "$rc" != "0" || "$bound" != "t" || "$unbound" != "f" || "$guards" != "2" ]]; then
+                echo "$label: 0255 did not apply again over the ledger as 0252 made it" >&2
+                cat "reapply_0255_$label.out" >&2
+                return 1
+              fi
+            elif [[ "$rc" == "0" || "$bound" != "f" || "$unbound" != "t" || "$guards" != "1" ]] \
+              || ! grep -q -F "55000: 0255: $want" "reapply_0255_$label.out"; then
+              echo "$label: 0255 was applied over a ledger it must refuse, or stopped at another check (wanted:$want)" >&2
+              cat "reapply_0255_$label.out" >&2
+              return 1
+            fi
+          }
+          race same_day "BEGIN" 0 1 "a=4 b=null 4/3/1"
+          # One row, a snapshot that cannot see the first call: the second ends with 40001 and keeps nothing.
+          race same_row_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 1 "a=4 b=ERROR:40001 4/3/1" "c=null"
+          # Two swapped turns counted today, two proxy rows, each call naming its own: both get a turn.
+          race two_rows "BEGIN" 0 2 "a=4 b=3 3/3/2"
+          # The same under REPEATABLE READ: the second call ends with 40001, and its row gives the turn to the next call.
+          race two_rows_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 0 2 "a=4 b=ERROR:40001 4/3/1" "c=3"
+          # The second turn was counted yesterday: it comes back on yesterday's row, at either level.
+          race other_day "BEGIN" 1 2 "a=4 b=2 4/2/2"
+          race other_day_rr "BEGIN ISOLATION LEVEL REPEATABLE READ" 1 2 "a=4 b=2 4/2/2"
+          # A ledger table that is already there, in another shape: stop before the function exists.
+          reapply_over same_table "" ""
+          reapply_over no_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey" " has no primary key on audit_id alone"
+          reapply_over no_audit_link "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_audit_id_fkey" ".audit_id does not follow ai_audit_log.id"
+          reapply_over link_to_other_column "ALTER TABLE public.ai_audit_log ADD COLUMN z46_other uuid UNIQUE; ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_audit_id_fkey, ADD CONSTRAINT chat_turn_refunds_audit_id_fkey FOREIGN KEY (audit_id) REFERENCES public.ai_audit_log (z46_other) ON DELETE CASCADE" ".audit_id does not follow ai_audit_log.id"
+          reapply_over day_as_text "ALTER TABLE public.chat_turn_refunds ALTER COLUMN day TYPE text" " has other columns or defaults"
+          reapply_over no_default "ALTER TABLE public.chat_turn_refunds ALTER COLUMN refunded_at DROP DEFAULT" " has other columns or defaults"
+          reapply_over unlogged "ALTER TABLE public.chat_turn_refunds SET UNLOGGED" " is not a plain permanent table"
+          reapply_over extra_unique "ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT z46_one_per_day UNIQUE (day)" " carries a constraint, index, trigger, rule or policy"
+          reapply_over extra_trigger "CREATE FUNCTION public.z46_noop() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TRIGGER z46_noop BEFORE INSERT ON public.chat_turn_refunds FOR EACH ROW EXECUTE FUNCTION public.z46_noop()" " carries a constraint, index, trigger, rule or policy"
+          reapply_over extra_policy "CREATE POLICY z46_read ON public.chat_turn_refunds FOR SELECT TO authenticated USING (true)" " carries a constraint, index, trigger, rule or policy"
+          # The re-ask's claim against the late claim of the first attempt (the late one binds nothing), one row
+          # for two turns (one binds), and two re-asks recorded at once of a turn whose answer was lost (one is).
+          claim_race two_answers_one_turn turn "a=true b=false answered:02:2:01,02/counted:-:0:-,-"
+          claim_race one_answer_two_turns row "a=true b=false answered:01:1:01,-/counted:-:1:01,-"
+          claim_race two_retries_one_turn retry "a=true b=false answered:03:2:03,01/counted:-:0:-,-"
+          # Two bumps at once for one user on two days (yesterday's turn, then today's): only the per-user lock
+          # puts them in line, and the later one closes the earlier one, so one reservation is left open.
+          bump_race two_bumps_two_days "a=1 b=1 1:0"
+          # A re-ask of the old turn arrives while a new turn is being counted: it waits for the bump's per-user
+          # lock and is refused once the new turn is in (only the latest turn can be re-asked).
+          reask_race reask_during_bump "a=2 b=false 1:01,-"
+          # A first call that started before the re-ask reaches the server after it (R2438-21): it writes nothing.
+          late_begin_race late_first_attempt "a=true b=true c=true 2:02,01 answered:02"
+          # A refund that arrives while a bump holds the user's turns waits on the user's lock, not on a row the bump
+          # holds (R2438-22); the bump removed the old turn, so the refund then finds nothing to give back.
+          lock_order_race bump_then_refund bump "b=4 r=null wait=Lock:advisory"
+          # A bump that waits for today's row (held by a third session) already holds the user's lock, so a refund
+          # that arrives then waits on that lock too and never takes the row the bump is waiting for.
+          lock_order_race bump_waits_for_row row "a=3 b=4 r=null wait=Lock:advisory"
+          # 0255 over the tables as 0252 left them, then over a ledger key that is missing, may raise at commit or
+          # covers another column.
+          reapply_0255_over same_ledger "" ""
+          reapply_0255_over no_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey" "chat_turn_refunds must have a primary key on audit_id alone that is not deferrable"
+          reapply_0255_over deferrable_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey; ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT chat_turn_refunds_pkey PRIMARY KEY (audit_id) DEFERRABLE INITIALLY IMMEDIATE" "chat_turn_refunds must have a primary key on audit_id alone that is not deferrable"
+          reapply_0255_over deferred_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey; ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT chat_turn_refunds_pkey PRIMARY KEY (audit_id) DEFERRABLE INITIALLY DEFERRED" "chat_turn_refunds must have a primary key on audit_id alone that is not deferrable"
+          reapply_0255_over wider_primary_key "ALTER TABLE public.chat_turn_refunds DROP CONSTRAINT chat_turn_refunds_pkey; ALTER TABLE public.chat_turn_refunds ADD CONSTRAINT chat_turn_refunds_pkey PRIMARY KEY (audit_id, day)" "chat_turn_refunds must have a primary key on audit_id alone that is not deferrable"
+          # A reservation table that is already there. In the shape 0255 makes it, the apply goes through; in any
+          # other shape it stops at the check named beside it.
+          # (rsv_ = reservations. A clone is named reapply_0255_<label>_<run id>_<attempt>_<pid>, and a
+          # database name ends at 63 bytes, so the labels stay short.)
+          good_table="CREATE TABLE public.chat_turn_reservations (turn_id uuid NOT NULL DEFAULT gen_random_uuid(), user_id uuid NOT NULL, counted_day date NOT NULL, issued_at timestamptz NOT NULL DEFAULT now(), state text NOT NULL DEFAULT 'counted', audit_id uuid, answered_at timestamptz, refunded_at timestamptz, attempts smallint NOT NULL DEFAULT 0, attempt1_audit_id uuid, attempt2_audit_id uuid, attempted_at timestamptz, CONSTRAINT chat_turn_reservations_pkey PRIMARY KEY (turn_id), CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), CONSTRAINT chat_turn_reservations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE, CONSTRAINT chat_turn_reservations_state_check CHECK (state IN ('counted', 'answered', 'refunded')), CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL)))"
+          broken() { # <text to find in the good table> <text to put there> : the good table with one thing changed
+            local changed="${good_table/"$1"/"$2"}"
+            if [[ "$changed" == "$good_table" ]]; then echo "0255 re-apply check: [$1] is not in the table text" >&2; return 1; fi
+            printf '%s' "$changed"
+          }
+          reapply_0255_over rsv_same_table "$good_table" ""
+          reapply_0255_over rsv_no_default "$(broken " DEFAULT gen_random_uuid()" "")" "chat_turn_reservations has other columns"
+          reapply_0255_over rsv_audit_as_text "$(broken "audit_id uuid," "audit_id text,")" "chat_turn_reservations has other columns"
+          reapply_0255_over rsv_extra_column "$(broken "refunded_at timestamptz," "refunded_at timestamptz, note text,")" "chat_turn_reservations has other columns"
+          reapply_0255_over rsv_round6_shape "$(broken " attempt1_audit_id uuid, attempt2_audit_id uuid," " pending_audit_id uuid,")" "chat_turn_reservations has other columns"
+          reapply_0255_over rsv_round7_shape "$(broken " attempt1_audit_id uuid, attempt2_audit_id uuid, attempted_at timestamptz," " pending_audit_id uuid, attempted_at timestamptz, attempt_started_at timestamptz,")" "chat_turn_reservations has other columns"
+          reapply_0255_over rsv_no_unique_answer "$(broken "CONSTRAINT chat_turn_reservations_audit_id_key UNIQUE (audit_id), " "")" "chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id"
+          reapply_0255_over rsv_deferrable_unique "$(broken "UNIQUE (audit_id)," "UNIQUE (audit_id) DEFERRABLE,")" "chat_turn_reservations lacks its primary key on turn_id or its unique on audit_id"
+          reapply_0255_over rsv_no_cascade "$(broken " ON DELETE CASCADE" "")" "chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE"
+          reapply_0255_over rsv_no_answer_check "$(broken ", CONSTRAINT chat_turn_reservations_answer_check CHECK ((state = 'counted') = (audit_id IS NULL))" "")" "chat_turn_reservations lacks its state checks"
+          reapply_0255_over rsv_unlogged "$(broken "CREATE TABLE" "CREATE UNLOGGED TABLE")" "chat_turn_reservations is not a permanent table with row security on"
+          reapply_0255_over rsv_generated_state "$(broken "state text NOT NULL DEFAULT 'counted'," "state text NOT NULL GENERATED ALWAYS AS ('counted'::text) STORED,")" "chat_turn_reservations has other columns"
+          reapply_0255_over rsv_check_other_meaning "$(broken "CHECK ((state = 'counted') = (audit_id IS NULL))" "CHECK (state IS NOT NULL)")" "chat_turn_reservations lacks its state checks"
+          reapply_0255_over rsv_deferrable_owner_link "$(broken " ON DELETE CASCADE," " ON DELETE CASCADE DEFERRABLE,")" "chat_turn_reservations.user_id does not follow public.users(id) with ON DELETE CASCADE"
+          reapply_0255_over rsv_extra_check "$good_table; ALTER TABLE public.chat_turn_reservations ADD CONSTRAINT z46_extra CHECK (counted_day IS NOT NULL)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_extra_index "$good_table; CREATE INDEX z46_extra ON public.chat_turn_reservations (counted_day)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_extra_rule "$good_table; CREATE RULE z46_extra AS ON UPDATE TO public.chat_turn_reservations DO ALSO NOTHING" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_with_child "$good_table; CREATE TABLE public.z46_child () INHERITS (public.chat_turn_reservations)" "chat_turn_reservations is not a permanent table with row security on"
+          reapply_0255_over rsv_extra_trigger "$good_table; CREATE FUNCTION public.z46_noop() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TRIGGER z46_noop BEFORE UPDATE ON public.chat_turn_reservations FOR EACH ROW EXECUTE FUNCTION public.z46_noop()" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_other_lookup_index "$good_table; CREATE UNIQUE INDEX chat_turn_reservations_user_issued_idx ON public.chat_turn_reservations (user_id, issued_at)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_include_lookup_index "$good_table; CREATE INDEX chat_turn_reservations_user_issued_idx ON public.chat_turn_reservations (user_id) INCLUDE (issued_at)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_brin_lookup_index "$good_table; CREATE INDEX chat_turn_reservations_user_issued_idx ON public.chat_turn_reservations USING brin (user_id, issued_at)" "chat_turn_reservations carries a constraint, index, trigger or rule this migration does not create"
+          reapply_0255_over rsv_open_policy "$good_table; CREATE POLICY z46_read ON public.chat_turn_reservations FOR SELECT TO authenticated USING (true)" "chat_turn_reservations is open to an application role"
       - name: Exercise public-data quota contract
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/public_data_quota_regression.sql
+      # 0259: the interview seat has a daily ceiling and a rolling seven-day budget; every other seat is as
+      # 0185 made it. The file seeds earlier days, refuses at both edges, checks other seats and tiers, and
+      # goes through 0259's down file and back. Everything it writes is rolled back.
+      - name: Exercise the weekly interview budget (0259)
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/interview_probe_weekly_budget_regression.sql
+      # 0259: two interview questions for the last place of the week, from two sessions at once. The week holds
+      # 139 of 140; the first session takes the 140th and keeps its transaction open; the second arrives while
+      # it is open. Exactly one is allowed, the other is refused with the week's numbers, and the week ends at
+      # 140. On a clone that is dropped on every way out.
+      - name: Race two interview questions for the last place of the week (0259)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="race_0259_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0259 race refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"; }
+          drop_clone() { sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)"; }
+          trap 'drop_clone || true' EXIT
+          sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('26101459-0000-4000-8000-0000000000aa', 'w59-race@example.com');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('26101459-0000-4000-8000-0000000000aa', 'w59-race@example.com', DATE '1990-01-01', 'en');
+          INSERT INTO public.llm_proxy_purpose_daily (user_id, kst_day, purpose, count) VALUES
+            ('26101459-0000-4000-8000-0000000000aa', (pg_catalog.clock_timestamp() AT TIME ZONE 'Asia/Seoul')::date - 1, 'interview_probe', 60),
+            ('26101459-0000-4000-8000-0000000000aa', (pg_catalog.clock_timestamp() AT TIME ZONE 'Asia/Seoul')::date - 2, 'interview_probe', 60),
+            ('26101459-0000-4000-8000-0000000000aa', (pg_catalog.clock_timestamp() AT TIME ZONE 'Asia/Seoul')::date - 3, 'interview_probe', 19);
+          SQL
+          call="SELECT q.allowed::text || '/' || q.used || '/' || q.quota_limit FROM public.consume_llm_proxy_purpose_quota('26101459-0000-4000-8000-0000000000aa', 'openai', 'interview_probe') AS q"
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+            -c "BEGIN" \
+            -c "SET LOCAL request.jwt.claim.role = 'service_role'" \
+            -c "SELECT 'a=' || ($call)" \
+            -c "SELECT pg_sleep(3)" \
+            -c "COMMIT" > race_0259_a.out &
+          a_pid=$!
+          waited=0
+          until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                        WHERE datname = current_database() AND state = 'active' AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+            waited=$((waited + 1))
+            if (( waited > 50 )); then echo "the first session never reached its pause" >&2; exit 1; fi
+            sleep 0.2
+          done
+          b="$(psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+                 -c "BEGIN" -c "SET LOCAL request.jwt.claim.role = 'service_role'" -c "SELECT 'b=' || ($call)" -c "COMMIT" | grep '^b=' | tr -d '\r')"
+          wait "$a_pid"
+          a="$(grep '^a=' race_0259_a.out | tr -d '\r')"
+          week="$(sql "$clone_db" "SELECT sum(count) FROM public.llm_proxy_purpose_daily
+                                    WHERE user_id = '26101459-0000-4000-8000-0000000000aa' AND purpose = 'interview_probe'" | tr -d '\r')"
+          echo "first session $a, second session $b, week $week"
+          if [[ "$a $b $week" != "a=true/1/60 b=false/140/140 140" ]]; then
+            echo "two questions at once did not end with exactly one allowed and the week at 140" >&2
+            exit 1
+          fi
+          trap - EXIT
+          drop_clone
+      # 0254: crisis_events.trigger_categories keeps names from the closed list
+      # only. This is the first step of the job that calls the two crisis write
+      # functions at all: the shared cases
+      # (db/tests/fixtures/crisis-category-cases.json), both write paths as a
+      # signed-in user, the once-only comparison, 0181's refusals and limiter,
+      # and the rollback round trip. psql reads the cases file from the
+      # repository root, which is where this step runs.
+      - name: Exercise the closed list for crisis record categories
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/crisis_category_closed_list_regression.sql
       - name: Exercise peer-response quota admission accounting
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/peer_response_rate_limit_regression.sql
+      - name: Exercise numbered 0225 interview transcript ledger on scratch schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/interview_transcript_ledger_regression.sql
+      - name: Exercise the 0225 rollback inside one rolled-back transaction
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/interview_transcript_ledger_rollback.sql
+      - name: Exercise D6 session and record deletion races on a local scratch clone
+        env:
+          PGPASSWORD: postgres
+          PGPORT: 5432
+        run: python3 db/tests/interview_transcript_ledger_concurrency.py --template postgres
+      - name: Exercise D6 rejected red, late red, account erasure and rollback guards
+        env:
+          PGPASSWORD: postgres
+          PGPORT: 5432
+        run: python3 db/tests/interview_transcript_ledger_security.py --template postgres
+      - name: Exercise records.system_tags, its hand move and its rollback (0218)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/records_system_tags_regression.sql
+          # The read-only survey the hand move starts from (operations step 2 and 6).
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 --single-transaction -f db/ops/0218_system_tags_survey.sql
+          # The rollback runs standalone only. Its first statement is a table lock,
+          # so outside one transaction it stops before it changes anything.
+          set +e
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/migrations/rollback/0218_down.sql > "$RUNNER_TEMP/0218-down-autocommit.log" 2>&1
+          down_rc=$?
+          set -e
+          cat "$RUNNER_TEMP/0218-down-autocommit.log"
+          if [ "$down_rc" -eq 0 ]; then echo "0218 rollback ran outside a transaction"; exit 1; fi
+          grep -q "LOCK TABLE can only be used in transaction blocks" "$RUNNER_TEMP/0218-down-autocommit.log"
+          column_count="$(psql -X -h localhost -U postgres -Atc "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'records' AND column_name = 'system_tags'")"
+          if [ "$column_count" != "1" ]; then echo "0218 rollback outside a transaction changed the schema"; exit 1; fi
       - name: Dry-run Paddle refund consequence draft
         env:
           PGPASSWORD: postgres
@@ -2631,7 +4006,192 @@ jobs:
             END IF;
           END $$;
           SQL
-      - name: Exercise inactive avatar column draft on scratch PostgreSQL
+      # 0210: the 2026-10-05 PolaScope contract (email-v7 / service-v2) is now a
+      # numbered migration that the CLI replay above already applied once. Run
+      # its regression after all other numbered-migration regressions without
+      # replaying the draft, preserving v4/v5/v6 and service-v1.
+      - name: Exercise the numbered 2026-10-05 PolaScope consent contract
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/polascope_consent_20261005_regression.sql
+      # 0215: email-v9 / service-v4 (D3+P1+P2, 잠정 2026-10-06). 공지형·재동의 없음.
+      # 번호 재생이 이미 적용했으므로 초안을 다시 돌리지 않는다. v4~v7·service-v1/v2 유지.
+      - name: Exercise the numbered 2026-10-06 email-v9 consent contract
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/consent_email_v9_20261006_regression.sql
+      - name: Exercise numbered 0206 avatar column contract on scratch PostgreSQL
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/users-avatar-spec-contract.sql
+      # 0219 (Q-261004-40 strict, docs/design/onboarding-server-261006.md): the
+      # numbered migration is already applied by the CLI replay above. This
+      # replays it twice on fixtures (backfill), then exercises the claim state
+      # machine, the session echo, the 0192 deletion fence and every refusal as
+      # the real authenticated role. Rolled back.
+      - name: Exercise numbered 0219 first-run claims (backfill, grants, one grant per kind, deletion fence)
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/onboarding_first_run_claims_regression.sql
+      # 0219 design 4.2 / gate CDA-01: two tabs of one account claim the welcome,
+      # then the first-day review, at the same moment. The conditional UPDATE
+      # queues the second claim on the row lock and re-checks after the first
+      # commits, so exactly one is granted. Tab A keeps its grant uncommitted for
+      # three seconds; tab B must wait for it and come back 'held'. Throw-away
+      # clone, because the grants are committed.
+      - name: Race two first-run claims for one account
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="race_0219_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0219 claim race refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          trap 'sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true' EXIT
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 <<'SQL'
+          SET session_replication_role = replica;
+          INSERT INTO auth.users (id, email) VALUES ('a0219e00-0000-4000-8000-000000000001', 'claims-race@example.test');
+          SET session_replication_role = origin;
+          INSERT INTO public.users (id, email, birth_date, locale)
+          VALUES ('a0219e00-0000-4000-8000-000000000001', 'claims-race@example.test', DATE '1990-01-01', 'en');
+          SQL
+          owner='a0219e00-0000-4000-8000-000000000001'
+          claim() { # <kind> <tab session id> <seconds to hold the transaction open>
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -At \
+              -c "BEGIN" \
+              -c "SET LOCAL request.jwt.claims = '{\"sub\": \"$owner\", \"session_id\": \"$2\"}'" \
+              -c "SET LOCAL ROLE authenticated" \
+              -c "SELECT (r ->> 'granted') || '|' || (r ->> 'reason') || '|' || COALESCE(r ->> 'session_id', '-') FROM public.claim_first_run('$owner', '$1') AS r" \
+              -c "SELECT pg_sleep($3)" \
+              -c "COMMIT"
+          }
+          race() { # <kind>
+            claim "$1" tab-a 3 > "race_0219_$1_a.out" &
+            local a_pid=$!
+            local waited=0
+            until [[ "$(sql "$clone_db" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                                          WHERE datname = current_database() AND state = 'active'
+                                            AND query = 'SELECT pg_sleep(3)'")" == "1" ]]; do
+              waited=$((waited + 1))
+              if (( waited > 50 )); then echo "tab A never reached its pause ($1)" >&2; exit 1; fi
+              sleep 0.2
+            done
+            local started
+            started="$(date +%s%N)"
+            claim "$1" tab-b 0 > "race_0219_$1_b.out"
+            local waited_ms=$(( ($(date +%s%N) - started) / 1000000 ))
+            wait "$a_pid"
+            local a b
+            a="$(head -n 1 "race_0219_$1_a.out")"
+            b="$(head -n 1 "race_0219_$1_b.out")"
+            echo "$1: tab A [$a], tab B [$b], tab B waited ${waited_ms} ms"
+            if [[ "$a" != "true|granted|tab-a" ]]; then
+              echo "tab A was not granted the $1 with its own session: [$a]" >&2
+              exit 1
+            fi
+            if [[ "$b" != "false|held|tab-b" ]]; then
+              echo "tab B was granted the $1 as well, or answered for another session: [$b]" >&2
+              exit 1
+            fi
+            if (( waited_ms < 500 )); then
+              echo "tab B did not wait for tab A's row lock (${waited_ms} ms), so the race proves nothing" >&2
+              exit 1
+            fi
+          }
+          race onboarding
+          race ttfv
+          after="$(sql "$clone_db" "SELECT (onboarding_claimed_at IS NOT NULL) || '/' || (ttfv_claimed_at IS NOT NULL)
+                                          || '/' || (ttfv_claim_token IS NOT NULL) || '/' || (ttfv_seen_at IS NULL)
+                                     FROM public.users WHERE id = '$owner'")"
+          if [[ "$after" != "true/true/true/true" ]]; then
+            echo "the raced account is not left with one grant per kind: [$after]" >&2
+            exit 1
+          fi
+      # rollback/0219_down.sql is run by hand mid-incident, and only as one
+      # transaction (0219 design P7; gate CD-04, CD2-04). On a throw-away clone:
+      # in autocommit it must refuse before dropping anything; \i-ed inside the
+      # caller's open transaction it must not commit that transaction; with
+      # --single-transaction it removes the three functions and five columns;
+      # 0219 then applies twice in a row back to the same set.
+      - name: Round-trip the 0219 first-run rollback (single transaction only)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          source_db="${PGDATABASE:-postgres}"
+          clone_db="rollback_0219_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$"
+          if [[ ! "$source_db" =~ ^[a-z_][a-z0-9_]{0,62}$ || ! "$clone_db" =~ ^[a-z_][a-z0-9_]{0,62}$ ]]; then
+            echo "0219 rollback round trip refuses an unsafe database name" >&2
+            exit 1
+          fi
+          sql() { # <db> <one statement>
+            psql -X -q -h localhost -U postgres -d "$1" -v ON_ERROR_STOP=1 -Atc "$2"
+          }
+          sql "$source_db" "CREATE DATABASE $clone_db TEMPLATE $source_db"
+          trap 'sql "$source_db" "DROP DATABASE IF EXISTS $clone_db WITH (FORCE)" || true' EXIT
+          down=db/migrations/rollback/0219_down.sql
+          made="SELECT (SELECT pg_catalog.count(*) FROM pg_catalog.pg_proc AS p
+                          JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
+                         WHERE n.nspname = 'public'
+                           AND p.proname IN ('claim_first_run', 'finish_first_run', 'first_run_marks_json'))
+                  || '/' ||
+                  (SELECT pg_catalog.count(*) FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'users'
+                      AND column_name IN ('onboarding_claimed_at', 'onboarding_completed_at',
+                                          'ttfv_claimed_at', 'ttfv_claim_token', 'ttfv_seen_at'))"
+          before="$(sql "$clone_db" "$made")"
+          echo "0219 objects before the rollback: $before (functions/columns)"
+          if [[ "$before" != "3/5" ]]; then
+            echo "0219 rollback round trip cannot start: expected 3 functions and 5 columns, found [$before]" >&2
+            exit 1
+          fi
+          if psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 -f "$down" > rollback_0219_autocommit.out 2>&1; then
+            echo "rollback/0219_down.sql ran outside one transaction" >&2
+            exit 1
+          fi
+          if ! grep -q "must run as one transaction" rollback_0219_autocommit.out; then
+            cat rollback_0219_autocommit.out >&2
+            echo "rollback/0219_down.sql refused autocommit for another reason" >&2
+            exit 1
+          fi
+          if [[ "$(sql "$clone_db" "$made")" != "3/5" ]]; then
+            echo "the refused autocommit run still dropped 0219 objects" >&2
+            exit 1
+          fi
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 \
+            -c "BEGIN" \
+            -c "CREATE TABLE public.rollback_0219_outer_probe (x integer)" \
+            -f "$down" \
+            -c "ROLLBACK" > /dev/null
+          if [[ "$(sql "$clone_db" "SELECT pg_catalog.to_regclass('public.rollback_0219_outer_probe') IS NULL")" != "t" ]]; then
+            echo "rollback/0219_down.sql committed the caller's open transaction (CD2-04)" >&2
+            exit 1
+          fi
+          if [[ "$(sql "$clone_db" "$made")" != "3/5" ]]; then
+            echo "the caller's ROLLBACK did not undo rollback/0219_down.sql" >&2
+            exit 1
+          fi
+          psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction -f "$down" > /dev/null
+          after_down="$(sql "$clone_db" "$made")"
+          echo "after rollback/0219_down.sql: $after_down"
+          if [[ "$after_down" != "0/0" ]]; then
+            echo "rollback/0219_down.sql left 0219 objects behind: [$after_down]" >&2
+            exit 1
+          fi
+          for _ in 1 2; do
+            psql -X -q -h localhost -U postgres -d "$clone_db" -v ON_ERROR_STOP=1 --single-transaction \
+              -f db/migrations/0219_users_first_run_claims.sql > /dev/null
+          done
+          again="$(sql "$clone_db" "$made")"
+          echo "after re-applying 0219 twice: $again"
+          if [[ "$again" != "$before" ]]; then
+            echo "0219 did not come back to the same set after its rollback: [$before] -> [$again]" >&2
+            exit 1
+          fi

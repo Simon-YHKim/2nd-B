@@ -1,8 +1,8 @@
 \set ON_ERROR_STOP on
 
+-- Run only on the CI scratch database after the numbered 0216 migration. The
+-- staged Supabase CLI push already applied it; this file never replays it.
 BEGIN;
-
-\ir ../migration-drafts/UNNUMBERED_peer_response_rate_limit.sql
 
 SET LOCAL request.jwt.claim.role = 'service_role';
 

@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import ts from "typescript";
 
 import { expectShape, expectNoShape } from "@/lib/testing/expect-shape";
+import { selectSignInBranch, selectSignInNoticePlacement } from "@/lib/auth/sign-in-branch";
 
 // Actual TSX/functions with a small synchronous hook host and fake store only.
 // This is not a React scheduler, RN/browser renderer, or accessibility-tree test.
@@ -51,13 +52,21 @@ function routeRenderer(path: string, functionName: string) {
   let form = { loading: false, userId: "still-present-owner" as string | null };
   const hook = jest.fn(() => current);
   const scope: Record<string, unknown> = {
+    selectSignInBranch,
+    selectSignInNoticePlacement,
     useTranslation: () => ({ t: translate, i18n: { language: "ko" } }),
-    useSignInForm: () => form, useRef: () => ({ current: null }), useKeyboard: () => 0,
+    // R6: the hook now returns the selected branch shared with Back ownership.
+    useSignInForm: (deletionNotice: Notice | null) => ({ ...form, branch: selectSignInBranch({ deletionNotice, ...form }) }),
+    useRef: () => ({ current: null }), useKeyboard: () => 0,
     // 이 하네스가 쓰이던 시점 이후 deep-space 로그인 화면이 useAuth 를 부른다
     // (세션 확인 실패를 "로그아웃"으로 오해하지 않기 위한 경계). 스텁이 없으면
     // 대상 결함이 아니라 ReferenceError 가 난다.
     useAuth: () => ({ sessionUnavailable: false, refresh: () => undefined }),
     useState: (initial: unknown) => [initial, () => undefined],
+    // Z122: the screen asks how many provider buttons fit on a line before any branch returns.
+    useProviderColumns: () => 2,
+    // Branch inspection only. Attachment timing has its own pure tests.
+    SignInExitNotice: "SignInExitNotice",
     // deep-space 로그인 화면의 로딩 가지가 쓰는 픽셀 셸 조각들. 이 하네스가
     // 만들어진 뒤에 들어온 것들이라 스텁이 없었다.
     PixelGateShell: "PixelGateShell", PixelSurface: "PixelSurface",
@@ -65,6 +74,8 @@ function routeRenderer(path: string, functionName: string) {
     useAccountDeletionNotice: hook, AccountDeletionNoticePanel: "AccountDeletionNoticePanel",
     AuthShell: "AuthShell", View: "View", ScrollView: "ScrollView", InlineLoader: "InlineLoader",
     Redirect: "Redirect", styles: { root: {}, scroll: {} }, Platform: { OS: "web" },
+    // QA 261004 D-01: the signed-in guard now pops to the home underneath.
+    RedirectHome: "RedirectHome",
   };
   const module = { exports: {} as Record<string, () => unknown> };
   new Function("require", "module", "exports", ...Object.keys(scope), code)(
@@ -100,6 +111,7 @@ test.each([
     // 이긴 것인지 렌더가 통째로 빈 것인지 구분되지 않았다.
     expectShape(nodes, { type: "AccountDeletionNoticePanel" }, "노드");
     expectNoShape(nodes, { type: "Redirect" }, "노드");
+    expectNoShape(nodes, { type: "RedirectHome" }, "노드");
     expectNoShape(nodes, { type: loader }, "노드");
   }
   expectShape(
@@ -108,7 +120,7 @@ test.each([
     "노드",
   );
   expectShape(screen.render(null, { loading: true, userId: null }), { type: loader }, "노드");
-  expect(screen.render(null, { loading: false, userId: "another-owner" }).some(node => node.type === "Redirect" && node.props?.href === "/")).toBe(true);
+  expect(screen.render(null, { loading: false, userId: "another-owner" }).some(node => node.type === "RedirectHome")).toBe(true);
   expect(screen.hook).toHaveBeenCalledTimes(5);
 });
 
@@ -137,6 +149,7 @@ function mountPanel(initial: Notice) {
   const modules: Record<string, unknown> = {
     react: hooks, "react-i18next": { useTranslation: () => ({ t: translate }) },
     "react-native": { View: "View", Pressable: "Pressable", StyleSheet: { create: (styles: unknown) => styles } },
+    "@/components/phone/PhoneUIKit": { PhoneView: "View", PhonePressable: "Pressable" },
     "@/components/ui/Text": { Text: "Text" },
     "@/components/m3": { MdButton: "MdButton", MdCard: "MdCard", m3TextStyle: () => ({}) },
     "@/lib/theme/m3": { m3: { spacing: { s2: 4, s3: 6, s4: 8 }, minTouch: 44 } },
@@ -257,22 +270,22 @@ test("five locales preserve subtree parity and three explicit English mirrors", 
   const keys = (value: Record<string, unknown>, prefix = ""): string[] => Object.entries(value).flatMap(([key, child]) =>
     child && typeof child === "object" ? keys(child as Record<string, unknown>, `${prefix}${key}.`) : `${prefix}${key}`).sort();
   const en = subtree("en"); const ko = subtree("ko");
-  expect(en.title).toBe("Account deletion confirmed"); expect(ko.title).toBe("계정 삭제를 확인했어요");
+  expect(en.title).toBe("Account deletion confirmed"); expect(ko.title).toBe("계정 삭제를 확인했습니다");
   expect(keys(ko)).toEqual(keys(en));
   for (const locale of ["es", "id", "pt"]) expect(subtree(locale)).toEqual(en);
   expect(en.scope).toContain("at the time");
   expect(en.scope).toContain("Missing results do not confirm that a check occurred");
   expect(en.notReported).toBe("No usable result was returned for this check.");
-  expect(ko.notReported).toBe("확인 가능한 결과가 응답에 없어요.");
+  expect(ko.notReported).toBe("확인 가능한 결과가 응답에 없습니다.");
   expect(en.proofConfirmed).toBe("Confirmed by the server.");
-  expect(ko.proofConfirmed).toBe("서버가 확인했어요.");
+  expect(ko.proofConfirmed).toBe("서버가 확인했습니다.");
   expect(en.proofReportedFalse).toBe("The server explicitly reported that this proof was not established.");
-  expect(ko.proofReportedFalse).toBe("서버가 이 증명이 성립하지 않았다고 명시적으로 보고했어요.");
+  expect(ko.proofReportedFalse).toBe("서버가 이 증명이 성립하지 않았다고 명시적으로 보고했습니다.");
   expect(en.localPurge["retry-scheduled"]).toContain("could not be confirmed");
   expect(en.localPurge["retry-scheduled"]).toContain("next app start");
   expect(ko.localPurge["retry-scheduled"]).toContain("다음 앱 시작");
   expect(en.localPurge["retry-scheduled"]).not.toContain("remains");
-  expect(ko.localPurge["retry-scheduled"]).not.toContain("남아 있어");
+  expect(ko.localPurge["retry-scheduled"]).not.toContain("남아 있"); // both registers (10-02 B안)
   expect(en.support).toContain("kim0405@hayangzip.com");
   expect(ko.support).toContain("kim0405@hayangzip.com");
 });

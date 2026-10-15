@@ -246,8 +246,9 @@ describe("발판은 네트워크 없이 즉시 보여준다", () => {
     const sendStart = SCREEN.indexOf("async function send(override?: string) {");
     const classifier = SCREEN.indexOf("classifyInputAnyLocale(text, locale, { minor: isMinor === true })", sendStart);
     const redStart = SCREEN.indexOf('if (safety.zone === "red") {', classifier);
-    const redReturn = SCREEN.indexOf("return;", redStart);
-    const nonAnswer = SCREEN.indexOf("isBlockedAnswer(text)", sendStart);
+    const redEnd = SCREEN.indexOf("const disposition =", redStart);
+    // 막힘 판정은 send() 가 `isLocalNonAnswer` 로 부른다(건너뛰기 가드와 같은 판정, F2049-02).
+    const nonAnswer = SCREEN.indexOf("isLocalNonAnswer(text, pendingLayer)", sendStart);
     const coverageWrite = SCREEN.indexOf("setCoverage(nextCoverage)", sendStart);
     const llmBoundary = SCREEN.indexOf("await ask(nextTurns, nextCoverage", sendStart);
 
@@ -257,13 +258,13 @@ describe("발판은 네트워크 없이 즉시 보여준다", () => {
     expect(coverageWrite).toBeGreaterThan(classifier);
     expect(llmBoundary).toBeGreaterThan(classifier);
 
-    const redBranch = SCREEN.slice(redStart, redReturn + "return;".length);
+    const redBranch = SCREEN.slice(redStart, redEnd);
     expect(SCREEN).toContain("const crisisRouting = useRef(false)");
     expect(redBranch).toContain("startInterviewCrisisRouting(");
     expect(redBranch).toContain("crisisRouting,");
-    expect(redBranch).toContain("setBusy(true)");
-    expect(redBranch).toContain("setCrisis({ visible: true, hotline: hotlineFor() })");
-    expect(redBranch.indexOf("setCrisis")).toBeLessThan(redBranch.indexOf("route.done"));
+    expect(redBranch).toContain("finish()");
+    expect(redBranch).toContain("publishCrisisNotice(owner, safety.crisisRouting?.hotline ?? hotlineFor())");
+    expect(redBranch.indexOf("publishCrisisNotice")).toBeLessThan(redBranch.indexOf("route.done"));
     expect(redBranch).toContain("void route.done.catch(");
     expect(redBranch).not.toContain("await classifyInterviewTextForCrisis");
     expect(redBranch).not.toMatch(/isNonAnswer|incrementCoverage|setCoverage|nextProbe|callLlm/);

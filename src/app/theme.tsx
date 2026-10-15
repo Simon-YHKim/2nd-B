@@ -1,15 +1,16 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Route: /theme. The screen itself is DeepSpaceThemeScreen.
 //
 // The auth gate stays here because it decides whether the screen renders at
 // all, which is not a skin question. The legacy-track copy of the screen that
-// used to sit below it is now legacy/screens/theme.tsx, out of the build but
+// used to sit below it is now E:/Legacy/2ndB/legacy/screens/theme.tsx, out of the build but
 // still readable. Accessibility comes from the shared SelectRow (role=radio +
 // checked state + label), not from hints written into this file.
 //
 // profileGate decides. A failed probe gets the retryable error (no dock),
 // not the loader it used to share: the T1a emulator run (vibe r260913, item 2)
 // found that shape stuck on /account and /data, and this route had it too.
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 

@@ -2,15 +2,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // Post-OAuth profile completion. Users who sign in via Google land here when
 // the public.users row doesn't exist yet — we need their date of birth to
 // satisfy C10 (age gate) before letting them into the app.
-
+import { RedirectHome } from "@/lib/nav/go-home";
 import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, ScrollView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useNavigationContainerRef } from "expo-router";
 import { PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
+import { GuardianSupervisionNotice } from "@/components/consent/GuardianSupervisionNotice";
+import { shouldEmphasizeGuardianSupervision } from "@/components/consent/guardian-supervision-emphasis";
 import { ResidenceCountryField } from "@/components/auth/ResidenceCountryField";
 import { GoalField, NameField } from "@/components/auth/ProfileIntakeFields";
 import { saveNorthstar } from "@/lib/persona/northstar";
@@ -31,6 +33,7 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
 import { PixelSurface } from "@/components/pixel";
+import { ShareRefusedLine } from "@/components/capture/ShareRefusedLine";
 import {
   emptyConsentSelections,
   allRequiredAcksChecked,
@@ -38,7 +41,7 @@ import {
 } from "@/lib/auth/consent-selections";
 import { submitCompleteProfile, signOutAndSettle } from "@/lib/auth/complete-profile-flow";
 import { recordConsentBestEffort } from "@/lib/supabase/consent";
-import { useKeyboard } from "@/lib/ui/useKeyboard";
+import { KeyboardAvoidingArea, useKeyboard } from "@/lib/ui/keyboard";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 const ADULT_AGE = 18;
@@ -161,7 +164,7 @@ function CompleteProfileBody() {
   // true) BEFORE the handler navigates, and this guard must not unmount the
   // screen (killing toasts and the handler's own navigation) in that window.
   if (userId && hasProfile && !submitting && !judgeWelcome && !crisis.visible) {
-    return <Redirect href={postEntryRoute} />;
+    return postEntryRoute === "/" ? <RedirectHome /> : <Redirect href={postEntryRoute} />;
   }
 
   // Not signed in at all — bounce to sign-in.
@@ -216,10 +219,12 @@ function CompleteProfileBody() {
         // replaced straight to "/" - the sentence is typed during sign-up, so a
         // 14-17 user in a red zone was pushed into the app with nothing shown.
         let northstarRedZone = false;
+        let northstarHotline: HotlineId | undefined;
         if (goal.trim() && userId) {
           try {
             const seeded = await saveNorthstar({ userId, locale, sentence: goal, minor: isMinorAge });
             northstarRedZone = seeded.followup?.zone === "red";
+            northstarHotline = seeded.crisisHotline;
           } catch (e) {
             console.error("[complete-profile] northstar seed failed", e);
           }
@@ -229,7 +234,7 @@ function CompleteProfileBody() {
           // modal lets the normal redirect through. Entry is never blocked.
           setCrisis({
             visible: true,
-            hotline: locale === "ko" ? (isMinorAge ? "KR_1388" : "KR_109") : "GLOBAL_988",
+            hotline: northstarHotline ?? (locale === "ko" ? (isMinorAge ? "KR_1388" : "KR_109") : "GLOBAL_988"),
           });
           return;
         }
@@ -309,8 +314,8 @@ function CompleteProfileBody() {
         <View style={[styles.star, styles.starB]} />
         <View style={[styles.star, styles.starC]} />
       </View>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <KeyboardAvoidingArea
+        // iOS padding / Android measured overlap: src/lib/ui/keyboard.tsx
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -330,6 +335,8 @@ function CompleteProfileBody() {
             </View>
           </PixelSurface>
         </View>
+
+        <ShareRefusedLine />
 
         <View style={styles.form}>
           {/* 0127 / L4. Optional, and it stays optional: onboarding is where
@@ -357,6 +364,7 @@ function CompleteProfileBody() {
               onChange={setBirthDate}
               minAge={minConsentAge}
             />
+            <GuardianSupervisionNotice emphasized={shouldEmphasizeGuardianSupervision(birthDate)} />
 
             {birthDate.length > 0 ? (
               <View style={styles.checklist}>
@@ -415,7 +423,7 @@ function CompleteProfileBody() {
           />
         </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">
           <PremiumToast message={toast.message} tone={toast.tone} />

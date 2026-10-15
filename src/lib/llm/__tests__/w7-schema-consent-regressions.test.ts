@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "fs";
+import { readFileSync } from "fs";
 import { resolve } from "path";
 
 import * as ts from "typescript";
@@ -8,9 +8,9 @@ const SHARED_PATH = resolve(ROOT, "supabase/functions/_shared/llm-proxy-common.t
 const GEMINI_PATH = resolve(ROOT, "supabase/functions/gemini-proxy/index.ts");
 const XAI_PATH = resolve(ROOT, "supabase/functions/xai-proxy/index.ts");
 const VENDOR_PLACEMENT_PATH = resolve(ROOT, "docs/LLM-VENDOR-PLACEMENT.md");
-const CONSENT_DRAFT_PATH = resolve(
+const CONSENT_FORWARD_PATH = resolve(
   ROOT,
-  "db/migration-drafts/UNNUMBERED_effective_llm_consent_current_contract.sql",
+  "db/migrations/0193_effective_llm_consent_current_contract.sql",
 );
 // The current signup contract: 0208 adds email-v6 (policy 2026-09-29, a
 // notice revision) next to email-v4 and email-v5 (0203).
@@ -18,16 +18,19 @@ const CONSENT_CONTRACT_PATH = resolve(
   ROOT,
   "db/migrations/0208_signup_consent_privacy_20260929.sql",
 );
+const POLASCOPE_CONTRACT_PATH = resolve(
+  ROOT,
+  "db/migrations/0215_consent_email_v9_20261006.sql",
+);
 const CONSENT_WRITER_PATH = resolve(ROOT, "src/lib/supabase/consent.ts");
 
 const sharedSource = readFileSync(SHARED_PATH, "utf8");
 const geminiSource = readFileSync(GEMINI_PATH, "utf8");
 const xaiSource = readFileSync(XAI_PATH, "utf8");
 const vendorPlacement = readFileSync(VENDOR_PLACEMENT_PATH, "utf8");
-const consentDraft = existsSync(CONSENT_DRAFT_PATH)
-  ? readFileSync(CONSENT_DRAFT_PATH, "utf8")
-  : "";
+const consentDraft = readFileSync(CONSENT_FORWARD_PATH, "utf8");
 const consentContract = readFileSync(CONSENT_CONTRACT_PATH, "utf8");
+const polascopeContract = readFileSync(POLASCOPE_CONTRACT_PATH, "utf8");
 const consentWriter = readFileSync(CONSENT_WRITER_PATH, "utf8");
 
 type Normalize = (node: unknown) => Record<string, unknown> | null;
@@ -149,7 +152,6 @@ describe("W7 Gemini schema wire contract", () => {
 
 describe("W7 current consent and xAI activation contract", () => {
   test("adds a forward-only provenance boundary for every current required ack", () => {
-    expect(consentDraft).toContain("INACTIVE DRAFT");
     expect(consentDraft).toContain("CREATE TABLE public.llm_consent_receipts");
     expect(consentDraft).toContain("CREATE OR REPLACE FUNCTION public.capture_llm_consent_provenance");
     expect(consentDraft).toContain("SECURITY INVOKER");
@@ -177,9 +179,9 @@ describe("W7 current consent and xAI activation contract", () => {
     expect(consentDraft).not.toMatch(/^\s*(?:BEGIN|COMMIT)\s*;/im);
   });
 
-  test("the server-owned email-v6 tuple matches the current client ledger constants", () => {
-    const tuple = consentContract.match(
-      /\('email-v6'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*true\)/,
+  test("the server-owned email-v9 tuple matches the current client ledger constants", () => {
+    const tuple = polascopeContract.match(
+      /\('email-v9'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*'([^']+)'::text,\s*true\)/,
     );
     expect(tuple).not.toBeNull();
     expect(tuple?.slice(1)).toEqual([
@@ -187,6 +189,12 @@ describe("W7 current consent and xAI activation contract", () => {
       readConst("PRIVACY_POLICY_VERSION"),
       readConst("TERMS_VERSION"),
     ]);
+    expect(consentContract).toContain("('email-v4'::text, '2026-09-07'::text, '2026-09-26'::text, '2026-08-16'::text, true)");
+    expect(consentContract).toContain("('email-v6'::text, '2026-09-07'::text, '2026-09-29'::text, '2026-08-16'::text, true)");
+    expect(polascopeContract).toContain("('email-v5'::text, '2026-09-07'::text, '2026-09-28'::text, '2026-08-16'::text, true)");
+    expect(polascopeContract).toContain("('email-v6'::text, '2026-09-07'::text, '2026-09-29'::text, '2026-08-16'::text, true)");
+    expect(polascopeContract).toContain("('email-v7'::text, '2026-10-05'::text, '2026-09-29'::text, '2026-10-05'::text, true)");
+    expect(polascopeContract).toContain("('email-v9'::text, '2026-10-06'::text, '2026-10-06'::text, '2026-10-05'::text, true)");
   });
 
   test("keeps xAI off by default before secrets, body parsing, or provider egress", () => {

@@ -1,3 +1,5 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 // /capture v2 — multi-mode "자재 반입" screen.
 //
 // 5 input modes per user directive (2026-05-27):
@@ -20,21 +22,23 @@ import {
   View,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   AppState,
   BackHandler,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { Image } from "expo-image";
 import {
   useAudioRecorder,
   RecordingPresets,
   requestRecordingPermissionsAsync,
-  setAudioModeAsync,
 } from "expo-audio";
+import { beginRecordingAudioMode, endRecordingAudioMode, isRecordingAudioMode, restoreEffectsAfterRecording } from "@/lib/audio/audio-session";
+import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 
 import { PremiumAppShell, PremiumModal } from "@/components/premium";
@@ -47,10 +51,13 @@ import { ShardArt } from "@/components/art/IslandArt";
 import { Input } from "@/components/ui/Input";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, flattenAlpha, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { useScrollToWhenSettled } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { galmuriFor } from "@/components/m3/typeface";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
+import { publishCrisisNotice } from "@/lib/safety/crisis-notice";
 import {
   beginAccountSessionLease,
   type PendingAccountSessionLease,
@@ -58,11 +65,13 @@ import {
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { isAbortError } from "@/lib/async/abort";
+import { discardSharedMedia, takeSharedImage } from "@/lib/capture/shared-media";
+import { sharedMediaError, sharedMediaToken } from "@/lib/capture/share-media-intent";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import {
   pickImageAsset,
   ocrImageAsset,
-  isImageOcrCrisisResultError,
+  isImageOcrCrisisResultError, imageOcrCrisisHotline,
   isImageOcrEmptyResultError,
   isImageCameraPermissionDeniedError,
   isImageOcrTooLargeError,
@@ -93,6 +102,7 @@ import {
   markCaptureSubmissionSaved,
   planCaptureParamConsumption,
   planSharedConsumption,
+  appendSharedChunk,
   saveCaptureDraftState,
   sharedDeliveryKey,
   submittedCaptureDraftMatchesCurrent,
@@ -119,8 +129,9 @@ import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
 import type { SourceKind } from "@/lib/wiki/types";
-import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
+import { classifyLinkOrClip, firstUrlIn, titledLinkIn } from "@/lib/wiki/link-or-clip";
 import { normalizeSharedCaptureParams } from "@/lib/capture/share-params";
+import { carriesShareMarker, shareRefusedHref } from "@/lib/capture/share-intent";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
 import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { composeStructured } from "@/lib/capture/structured";
@@ -144,7 +155,6 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { checkGate } from "@/lib/progression/gates";
 import { canUsePremium, checkUsage } from "@/lib/progression/entitlements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
@@ -160,7 +170,7 @@ import {
   withSelectedLifeArea,
   type LifeAreaId,
 } from "@/lib/capture/life-area-intent";
-import { FIRST_RECORD_COACH_PARAM } from "@/lib/onboarding/first-record-coach";
+import { firstRecordCoachMode } from "@/lib/onboarding/first-record-coach";
 
 // 이 넷은 크롬 라벨(칩·모드·버튼)이지 읽는 글이 아니다.
 //
@@ -172,13 +182,9 @@ import { FIRST_RECORD_COACH_PARAM } from "@/lib/onboarding/first-record-coach";
 // (Galmuri11 = 12px, Galmuri14 = 15px). 그래서 크기도 같이 스냅한다
 // (sm 14 -> 12, md 16 -> 15) 그리고 굵기는 보내지 않는다 - 비트맵 얼굴에
 // fontWeight 를 주면 RN 이 가짜 굵기를 합성해 격자가 깨진다. 굵기는 얼굴
-// 이름 안에 있다(Galmuri11Bold). 레거시 트랙은 손대지 않는다.
-const CAPTURE_DS = isDeepSpaceUI();
-const capSize = (legacy: number, grid: number): number => (CAPTURE_DS ? grid : legacy);
-const capFont = (grid: number, weight: "500" | "700"): string =>
-  CAPTURE_DS ? galmuriFor(grid, weight) : fontFamilies.pixelKo;
-const capWeight = (legacy: "600" | "700"): "600" | "700" | undefined =>
-  (CAPTURE_DS ? undefined : legacy);
+// 이름 안에 있다(Galmuri11Bold). 옛 레거시 트랙(크기 · 굵기를 그대로 두던 쪽)은
+// 2026-10-05 레버와 함께 빠졌다(Simon 결정 Q-261004-11).
+const capFont = (grid: number, weight: "500" | "700"): string => galmuriFor(grid, weight);
 
 // Unified 담기 (menu restructure Phase 2): the journal (오늘의 조각) and the
 // capture modes live on one screen. "일기" writes to `records` (createRecord —
@@ -351,9 +357,9 @@ function TrackGlyph({ id, color }: { id: WikiTrack; color: string }) {
 export default function Capture() {
   const { t } = useTranslation("capture");
   const { userId, loading, hasProfile } = useAuth();
-  // Deep-space build renders the design body inside the shared chrome; the legacy
-  // capture screen stays for the legacy track. isDeepSpaceUI() is build-constant,
-  // and the two hooks below run identically on every path so hook order is stable.
+  // The route renders the design body inside the shared deep-space chrome. The
+  // full multi-mode intake (CaptureLegacy, named for its history; it ships) opens
+  // inside the same chrome when share/mode/tag/first-run params ask for it.
   // Web Share Target(manifest.webmanifest share_target.action=/capture)은
   // 딥스페이스에서도 이 라우트로 들어오는데 CaptureView 는 share 파라미터를
   // 소비하지 않는다 — share/mode(ocr·voice 는 글로, 09-30)/tag/first-run 이 있으면 소비
@@ -368,9 +374,14 @@ export default function Capture() {
     mode?: string;
     tag?: string;
     coach?: string;
+    from?: string;
+    sharedMedia?: string;
+    sharedMediaError?: string;
   }>();
-  const firstRecordCoach = captureParams.coach === FIRST_RECORD_COACH_PARAM;
+  const coachMode = firstRecordCoachMode(captureParams.coach);
+  const firstRecordCoach = coachMode !== null;
   const hasFullCaptureParams =
+    sharedMediaToken(captureParams.sharedMedia) !== null || sharedMediaError(captureParams.sharedMediaError) !== null ||
     normalizeSharedCaptureParams({
       url: captureParams.url,
       text: captureParams.text,
@@ -393,23 +404,25 @@ export default function Capture() {
       </PremiumAppShell>
     );
   }
-  if (!userId) return <Redirect href="/sign-in" />;
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
-  if (isDeepSpaceUI()) {
-    if (hasFullCaptureParams || fullCaptureActive) {
-      return (
-        <DeepSpaceScreen active="capture" variant="windowed">
-          <CaptureLegacy embeddedInDock />
-        </DeepSpaceScreen>
-      );
-    }
+  // An Android share arrives here as /capture?text=&title=&from=share
+  // (src/lib/capture/share-intent.ts). These two redirects drop the route's
+  // params as they do for any link; for a share they also tell the screen they
+  // land on to say, in one line, that it was not added.
+  const shareMarked = carriesShareMarker(captureParams);
+  if (!userId) return <Redirect href={shareRefusedHref("/sign-in", shareMarked)} />;
+  if (hasProfile === false) return <Redirect href={shareRefusedHref("/complete-profile", shareMarked)} />;
+  if (hasFullCaptureParams || fullCaptureActive) {
     return (
-      <DeepSpaceScreen active="capture" header="none" variant="windowed">
-        <CaptureView firstRecordCoach={firstRecordCoach} />
+      <DeepSpaceScreen active="capture" variant="windowed">
+        <CaptureLegacy embeddedInDock />
       </DeepSpaceScreen>
     );
   }
-  return <CaptureLegacy />;
+  return (
+    <DeepSpaceScreen active="capture" header="none" variant="windowed">
+      <CaptureView firstRecordCoach={firstRecordCoach} coachReplay={coachMode === "replay"} />
+    </DeepSpaceScreen>
+  );
 }
 
 // Exported for /capture-full: the deep-space track reaches this full multi-mode
@@ -453,11 +466,11 @@ function CaptureLegacySession({
   const { t, i18n } = useTranslation("capture");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const lifeAreaCopy = LIFE_AREA_INTENT_COPY[resolveLifeAreaLocale(i18n.resolvedLanguage ?? i18n.language)];
+  const lifeAreaCopy = LIFE_AREA_INTENT_COPY[resolveLifeAreaLocale(renderedUiLanguage(i18n))];
   const insets = useSafeAreaInsets();
   const kbHeight = useKeyboard();
-  const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;
-  const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
+  // iOS keeps its old top offset; Android measures (src/lib/ui/keyboard.tsx).
+  const iosKeyboardVerticalOffset = insets.top;
   // KO eyebrows drop tracking to 0 (Hangul reads worse when tracked); EN keeps
   // the light caption tracking.
   const eyebrowTracking = { letterSpacing: locale === "ko" ? 0 : 0.3 };
@@ -465,14 +478,25 @@ function CaptureLegacySession({
   const modeHelp = (m: Mode) => t(`modes.${m}.help`);
   const trackLabel = (id: WikiTrack) => t(`tracks.${id}.label`);
 
-  // J4: onboarding hands off with entry=firstRun; until now the param was
-  // accepted and never read. First-run framing lowers the blank-page bar
-  // ("one sentence is enough") for the journey's very first save.
+  // J4: onboarding hands off with entry=firstRun; the route wrapper reads it to
+  // open this full intake. The extra first-run line under the hero is gone
+  // (Simon Q-261014-88, 2026-10-14): the header tip already says "a short note
+  // is fine", and one screen should not say it twice.
   // url/text/title arrive from the Web Share Target (manifest.webmanifest):
   // sharing a page from another app opens /capture with the payload here.
-  const { entry, url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam } =
-    useLocalSearchParams<{ entry?: string; url?: string; text?: string; title?: string; mode?: string; tag?: string }>();
-  const firstRun = entry === "firstRun";
+  const { url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam,
+    sharedMedia: sharedMediaParam, sharedMediaError: sharedMediaErrorParam } =
+    useLocalSearchParams<{ url?: string; text?: string; title?: string; mode?: string; tag?: string;
+      sharedMedia?: string; sharedMediaError?: string }>();
+  const incomingMedia = sharedMediaToken(sharedMediaParam);
+  const incomingMediaError = sharedMediaError(sharedMediaErrorParam);
+  const [receivingMedia, setReceivingMedia] = useState(false);
+  const sharedMediaAbort = useRef<AbortController | null>(null);
+  const transferredMedia = useRef(new Set<string>());
+  useEffect(() => () => {
+    sharedMediaAbort.current?.abort();
+    if (!incomingMedia || !transferredMedia.current.delete(incomingMedia)) discardSharedMedia(incomingMedia);
+  }, [incomingMedia]);
   const shared = useMemo(
     () => normalizeSharedCaptureParams({ url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam }),
     [sharedUrlParam, sharedTextParam, sharedTitleParam],
@@ -521,6 +545,13 @@ function CaptureLegacySession({
   // would DELETE the stored draft for the current mode (review finding #1).
   const shareSkippedRestoreRef = useRef(false);
   const [shareRestoreSkipped, setShareRestoreSkipped] = useState(false);
+  // A share that arrived while unsaved text sat in the link box. Nothing was merged: the card
+  // above the box asks whether to add it below that text or clear the text first (Q-261013-78).
+  const [heldShare, setHeldShare] = useState<{ content: string; tag: string | null } | null>(null);
+  // The link box sits below the first screenful. A share that lands in it (and the card that asks
+  // about unsaved text) is brought into view once the screen has settled; nothing else scrolls.
+  const { scrollRef: shareScrollRef, onContentSizeChange: followShareScroll, scrollToWhenSettled } = useScrollToWhenSettled();
+  const linkGroupTopRef = useRef<number | null>(null);
   const routeApplyPendingCommitRef = useRef(false);
   const [routeCommitGeneration, setRouteCommitGeneration] = useState(0);
   useLayoutEffect(() => {
@@ -642,8 +673,10 @@ function CaptureLegacySession({
   // probe; the one-line empty note covers the probe-then-cleared race.
   const [clipboardAvailable, setClipboardAvailable] = useState(false);
   const [clipboardEmptyNote, setClipboardEmptyNote] = useState(false);
-  // 루루 brief event moment on capture (companion pack §3: captureSaved → lulu).
+  // Brief saved-cue moment on capture (companion pack §3: captureSaved).
   const companion = useCompanionMoment();
+  // 저장 소리(Q-261006-03): 저장 완료 패널이 뜨는 세 경로에서 같은 소리. 위기 판정 · 녹음 중은 무음.
+  const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   // Title of the just-saved piece — drives the inline success panel.
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
   // J1: where the saved piece actually lives drives the success CTA. A journal
@@ -719,7 +752,7 @@ function CaptureLegacySession({
   // (transcribeAudio) is wired so the flow and tests work offline.
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderLifecycle = useMemo(
-    () => createRecorderLifecycle(audioRecorder),
+    () => createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording }),
     [audioRecorder],
   );
   const [voicePhase, setVoicePhase] = useState<VoicePhase>("idle");
@@ -812,6 +845,7 @@ function CaptureLegacySession({
         focusDraftHydratedRef.current = false;
         captureFocusedRef.current = false;
         setCaptureFocused(false);
+        sharedMediaAbort.current?.abort();
         asyncProducerGenerationRef.current += 1;
         setExtracting(false);
         stopVoiceCaptureForModeExitRef.current(DEFAULT_CAPTURE_DRAFT_MODE);
@@ -900,6 +934,8 @@ function CaptureLegacySession({
   }
 
   function beginAsyncProducer(): { generation: number; revision: number } {
+    sharedMediaAbort.current?.abort();
+    setReceivingMedia(false);
     // A newer producer owns the loading surface. This also releases a stale
     // OCR/audio spinner when the replacement action is a picker or paste that
     // does not set extracting=true itself.
@@ -932,6 +968,17 @@ function CaptureLegacySession({
   function changeBody(text: string): void {
     commitComposerMutation();
     setBody(text);
+  }
+
+  // The two answers to the card above the link box. Both go through the ordinary edit path, so the
+  // result is kept as a draft like anything typed. Clearing happens only on this explicit tap.
+  function resolveHeldShare(choice: "append" | "replace"): void {
+    if (heldShare === null) return;
+    const { content, tag } = heldShare;
+    setHeldShare(null);
+    changeBody(choice === "append" ? appendSharedChunk(body, content) : content);
+    if (choice === "replace") setTagsEditable(tag === null ? [] : [tag]);
+    else if (tag !== null) setTagsEditable((prev) => (prev.includes(tag) ? prev : [...prev, tag]));
   }
 
   function changeTopic(text: string): void {
@@ -1277,6 +1324,7 @@ function CaptureLegacySession({
       liveFourw: mode === "fourw" ? fourw : null,
       liveTags: tagsEditable,
       liveDomainIntent: domainIntent,
+      existingLinkText: "hold",
     });
     if (isCaptureTransientMode(plan.mode)) markTransientMutation(plan.mode);
     else markStorageMutation(plan.mode);
@@ -1290,6 +1338,9 @@ function CaptureLegacySession({
     setShowAdvancedModes(true);
     activeModeRef.current = plan.mode;
     setMode(plan.mode);
+    if (plan.mode === "linkclip") {
+      scrollToWhenSettled(() => (linkGroupTopRef.current === null ? null : linkGroupTopRef.current - spacing.md));
+    }
     if (isStorageMode(plan.mode)) {
       applyDraftToFields(plan.mode, plan.drafts[plan.mode]);
     } else if (plan.liveFourw !== null) {
@@ -1316,6 +1367,7 @@ function CaptureLegacySession({
     setTagsEditable(plan.liveTags);
     setDomainIntent(plan.liveDomainIntent);
     setTodoDone(plan.liveTodoDone);
+    setHeldShare(plan.held);
     const durableWrite = persistDrafts(plan.persistMode);
     if (plan.consumedModeParam !== null || plan.consumedTagParam !== null) {
       // param effect 가 같은 조합을 다시 소비하지 않게 latch 를 건다.
@@ -1325,9 +1377,9 @@ function CaptureLegacySession({
       // 서로 다른 별은 병합·재분류하지 않았다 — 어디에 담겼는지 알린다.
       // (capture 네임스페이스에 이 케이스의 키가 없어 인라인 이중언어로 둔다.)
       showFeedback(
-        locale === "ko" ? "쓰던 기록 초안의 별을 지켰어요" : "Kept your record draft intact",
+        locale === "ko" ? "쓰던 기록 초안의 별을 지켰습니다" : "Kept your record draft intact",
         locale === "ko"
-          ? "쓰던 기록 초안은 원래 별에 그대로 두고, 공유된 내용은 다른 자리에 담았어요."
+          ? "쓰던 기록 초안은 원래 별에 그대로 두고, 공유된 내용은 별도 초안으로 열었습니다."
           : "Your existing record draft kept its original star. The shared content was placed separately so nothing was refiled.",
       );
     }
@@ -1369,6 +1421,7 @@ function CaptureLegacySession({
     locale,
     stopVoiceCaptureForModeExit,
     captureFocused,
+    scrollToWhenSettled,
   ]);
 
   // Deep links can open a specific composer with a pre-attached tag:
@@ -1469,9 +1522,9 @@ function CaptureLegacySession({
     }
     if (plan.journalConflict !== null) {
       showFeedback(
-        locale === "ko" ? "쓰던 별 초안을 그대로 지켰어요" : "Kept your star draft intact",
+        locale === "ko" ? "쓰던 별 초안을 그대로 지켰습니다" : "Kept your star draft intact",
         locale === "ko"
-          ? "기존 초안을 저장하거나 비운 뒤 다른 별에서 다시 담아 주세요. 내용과 별은 바꾸지 않았어요."
+          ? "기존 초안을 저장하거나 비운 뒤 다른 별에서 다시 기록을 추가해 주세요. 내용과 별은 바꾸지 않았습니다."
           : "Save or clear the existing draft before capturing from another star. Its text and star were not changed.",
       );
       // 충돌 억제는 "이 파라미터로 바꿀 durable 상태가 없다" 는 **확정 판정**이라
@@ -1703,10 +1756,18 @@ function CaptureLegacySession({
   // violates rules-of-hooks, and a userId/loading flip on a later render would
   // skip them and blank the screen (React #300). rules-of-hooks now guards this.
   const linkClipKind = useMemo(() => classifyLinkOrClip(body), [body]);
+  // A browser's share carries a title and one address. That is a link with a title (Z113).
+  const titledLink = useMemo(() => (linkClipKind === "markdown" ? titledLinkIn(body) : null), [linkClipKind, body]);
   const detectedKind = useMemo(
-    () => (linkClipKind === "url" ? detectClipperKind(body.trim()) : "inbox"),
-    [linkClipKind, body],
+    () => (linkClipKind === "url" ? detectClipperKind(body.trim()) : titledLink !== null ? detectClipperKind(titledLink.url) : "inbox"),
+    [linkClipKind, titledLink, body],
   );
+  // Once the unsaved text is gone (saved, or cleared by hand) there is nothing left to ask about:
+  // the held share takes the empty box.
+  useEffect(() => {
+    if (heldShare === null || mode !== "linkclip" || submitting || body.trim().length > 0) return;
+    resolveHeldShare("replace");
+  }, [heldShare, mode, submitting, body]);
   const advancedModesExpanded = showAdvancedModes || mode !== "journal";
   const secondaryOpen = advancedModesExpanded;
   const visibleModes = advancedModesExpanded ? CAPTURE_MODES : BASIC_CAPTURE_MODES;
@@ -1750,11 +1811,11 @@ function CaptureLegacySession({
           {draftHydrationError ? (
             <>
               <Text variant="heading">
-                {locale === "ko" ? "초안을 불러오지 못했어요" : "Couldn't load your draft"}
+                {locale === "ko" ? "초안을 불러오지 못했습니다" : "Couldn't load your draft"}
               </Text>
               <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
                 {locale === "ko"
-                  ? "기존 초안을 보호하기 위해 입력 화면을 열지 않았어요. 저장소를 확인한 뒤 다시 시도해 주세요."
+                  ? "기존 초안을 보호하기 위해 입력 화면을 열지 않았습니다. 저장소를 확인한 뒤 다시 시도해 주세요."
                   : "The editor stayed closed to protect your existing draft. Check storage and try again."}
               </Text>
               <Button
@@ -1851,9 +1912,9 @@ function CaptureLegacySession({
   function showDraftCleanupFailure(): void {
     if (!captureOwnsFocusedSession()) return;
     showFeedback(
-      locale === "ko" ? "저장은 끝났지만 초안을 정리하지 못했어요" : "Saved, but draft cleanup failed",
+      locale === "ko" ? "저장은 끝났지만 초안을 정리하지 못했습니다" : "Saved, but draft cleanup failed",
       locale === "ko"
-        ? "기록은 안전하게 저장됐어요. 앱을 다시 열면 같은 초안이 보일 수 있으니 다시 저장하지 말고 비워 주세요."
+        ? "기록은 안전하게 저장됐습니다. 앱을 다시 열면 같은 초안이 보일 수 있으니 다시 저장하지 말고 비워 주세요."
         : "Your record is safe. If the same draft reappears after restart, clear it instead of saving it again.",
     );
   }
@@ -1949,9 +2010,9 @@ function CaptureLegacySession({
     if (claim.accepted) return claim.ticket;
 
     showFeedback(
-      locale === "ko" ? "같은 내용의 저장을 확인하고 있어요" : "Checking the same save",
+      locale === "ko" ? "같은 내용의 저장을 확인하고 있습니다" : "Checking the same save",
       locale === "ko"
-        ? "이전 화면에서 시작한 저장 결과를 확인한 뒤 초안을 다시 불러올게요. 다른 내용은 계속 담을 수 있어요."
+        ? "이전 화면에서 시작한 저장 결과를 확인한 뒤 초안을 다시 불러오겠습니다. 다른 내용은 계속 추가할 수 있습니다."
         : "We'll reload the draft after checking the save started on the previous screen. You can still capture different content.",
     );
     void claim.completion.then((outcome) => {
@@ -1963,8 +2024,8 @@ function CaptureLegacySession({
         submittedDraftEpoch(submitted) === startModeEpoch
       ) {
         showFeedback(
-          locale === "ko" ? "이전 저장이 끝나지 않았어요" : "The previous save didn't finish",
-          locale === "ko" ? "초안은 그대로예요. 다시 저장해 주세요." : "Your draft is unchanged. Please save it again.",
+          locale === "ko" ? "이전 저장이 끝나지 않았습니다" : "The previous save didn't finish",
+          locale === "ko" ? "초안은 그대로입니다. 다시 저장해 주세요." : "Your draft is unchanged. Please save it again.",
         );
       }
     });
@@ -2047,6 +2108,7 @@ function CaptureLegacySession({
       setSelectedLifeArea(null);
     }
     if (nextMode === mode) return;
+    sharedMediaAbort.current?.abort();
     // 저장 A는 사용자가 이미 확정한 snapshot이라 끝까지 보낸다. 모드 전환은
     // revision만 올려 A의 UI 정리 권한을 회수한다(Storage upload orphan 방지).
     advanceCaptureRevision();
@@ -2144,11 +2206,52 @@ function CaptureLegacySession({
     }
   }
 
+  async function receiveSharedPhoto(): Promise<void> {
+    if (!userId || !incomingMedia || receivingMedia || sharedMediaAbort.current || mode !== "ocr" || isMinor === null) return;
+    const ticket = beginAsyncProducer();
+    const controller = new AbortController();
+    sharedMediaAbort.current = controller;
+    setReceivingMedia(true);
+    let image: PickedImage | null = null;
+    try {
+      image = await takeSharedImage(userId, incomingMedia, controller.signal);
+      if (!asyncProducerIsCurrent(ticket, "ocr") || controller.signal.aborted) return;
+      // The button explicitly says the old photo/text will be replaced. OCR
+      // still requires its own Extract tap and the existing save approval.
+      commitComposerMutation();
+      replacePickedImage(image);
+      image = null;
+      setBody("");
+      setOcrReviewApproved(false);
+      // The image now owns its release. Do not abort it when params are cleared.
+      sharedMediaAbort.current = null;
+      transferredMedia.current.add(incomingMedia);
+      router.setParams({ sharedMedia: undefined, sharedMediaError: undefined });
+    } catch (error) {
+      if (!isAbortError(error) && asyncProducerIsCurrent(ticket, "ocr")) {
+        showFeedback(t("alerts.imageOpen.title"), t("sharedMedia.unreadable"));
+      }
+    } finally {
+      await image?.release();
+      if (sharedMediaAbort.current === controller) sharedMediaAbort.current = null;
+      if (sessionActiveRef.current && sharedMediaAbort.current === null) setReceivingMedia(false);
+    }
+  }
+
   async function runExtract() {
     if (!userId || !pickedImage || extracting) return;
+    const safetyOwner = captureAccountOwnerLease(userId);
+    if (!safetyOwner) return;
     const ticket = beginAsyncProducer();
     const accountLease = beginAccountSessionLease(userId);
     ocrAccountLeaseRef.current = accountLease;
+    let crisisNotified = false;
+    const notifyCrisis = (hotline: HotlineId | undefined): void => {
+      if (crisisNotified || !sessionActiveRef.current) return;
+      try { accountLease.assertCurrent(); } catch { return; }
+      crisisNotified = true;
+      publishCrisisNotice(safetyOwner, hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988"));
+    };
     setExtracting(true);
     try {
       const authenticated = await accountLease.authenticate();
@@ -2158,6 +2261,7 @@ function CaptureLegacySession({
         locale,
         pickedImage,
         isMinor === true,
+        notifyCrisis,
       );
       authenticated.assertCurrent();
       if (!asyncProducerIsCurrent(ticket, "ocr")) return;
@@ -2179,7 +2283,7 @@ function CaptureLegacySession({
       // blocking finding). Route to the crisis modal like the journal path.
       if (isImageOcrCrisisResultError(e)) {
         if (!sessionActiveRef.current) return;
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        notifyCrisis(imageOcrCrisisHotline(e));
         return;
       }
       if (!asyncProducerIsCurrent(ticket, "ocr")) return;
@@ -2288,7 +2392,7 @@ function CaptureLegacySession({
       if (reply.safety?.zone === "red") {
         if (!sessionActiveRef.current) return;
         setFileNotice(null);
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       // Appending is safe across body edits, but not across a mode switch or a
@@ -2506,7 +2610,7 @@ ${transcript}`;
       });
       submissionSettled = true;
       if (res.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
       } else {
         enqueueAutoReasoningRecord({
           userId,
@@ -2531,6 +2635,7 @@ ${transcript}`;
           requestDurableSubmittedDraftAck(submitted, startModeEpoch);
           reset();
           companion.fire("journalSaved");
+          if (saveCueAllowed({ crisis: res.followup?.zone === "red", recording: isRecordingAudioMode() })) playSaveCue();
           setSavedTitle(savedTopic.length > 0 ? savedTopic : t("savedTitleFallback"));
           setSavedKind("records");
           setSavedMode("journal");
@@ -2666,7 +2771,7 @@ ${transcript}`;
       // save wrote the safety ledger and showed the user NOTHING. Same hotline
       // modal, same followup card.
       if (res.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
       } else {
         enqueueAutoReasoningRecord({
           userId,
@@ -2693,6 +2798,7 @@ ${transcript}`;
           requestDurableSubmittedDraftAck(submitted, startModeEpoch);
           reset();
           companion.fire("captureSaved");
+          if (saveCueAllowed({ crisis: res.followup?.zone === "red", recording: isRecordingAudioMode() })) playSaveCue();
           setSavedTitle(savedBody.length > 0 ? savedBody : t("savedTitleFallback"));
           setSavedKind("records");
           setSavedMode(noteMode);
@@ -2786,7 +2892,7 @@ ${transcript}`;
         setVoiceNotice(t("voice.permissionDenied"));
         return;
       }
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await beginRecordingAudioMode();
       ownerGuard.assertCurrent();
       await audioRecorder.prepareToRecordAsync();
       prepared = true;
@@ -2809,6 +2915,8 @@ ${transcript}`;
         recorderLifecycle.begin(userId);
         await recorderLifecycle.cancel();
       }
+      // A start that failed before any session began still left the recording mode on.
+      void endRecordingAudioMode();
       if (isAbortError(error) || ownerGuard.signal.aborted) return;
       try {
         ownerGuard.assertCurrent();
@@ -2860,7 +2968,7 @@ ${transcript}`;
       if (reply.safety?.zone === "red") {
         if (!sessionActiveRef.current) return;
         updateVoicePhase("idle");
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       // Appending is safe across newer voice text, but not across a mode switch
@@ -2948,15 +3056,18 @@ ${transcript}`;
       // memo / ocr already have body. linkclip: a bare URL becomes a titled
       // stub; pasted markdown is used as-is. file falls back to filename.
       const isBareLink = submittedMode === "linkclip" && classifyLinkOrClip(sourceDraft.body) === "url";
+      const titledLinkDraft = submittedMode === "linkclip" && !isBareLink ? titledLinkIn(sourceDraft.body) : null;
       // fallbackUrl: the bare URL, or the first URL found inside clipped md.
       const fallbackUrl =
         submittedMode === "linkclip"
-          ? (isBareLink ? sourceDraft.body.trim() : firstUrlIn(sourceDraft.body))
+          ? (isBareLink ? sourceDraft.body.trim() : titledLinkDraft?.url ?? firstUrlIn(sourceDraft.body))
           : null;
 
       let finalBody = sourceDraft.body.trim();
       if (isBareLink) {
         finalBody = `# ${sourceDraft.body.trim()}\n\n${sourceDraft.body.trim()}`;
+      } else if (titledLinkDraft !== null) {
+        finalBody = `# ${titledLinkDraft.title}\n\n${titledLinkDraft.url}`;
       }
       if (submittedMode === "file" && submittedPickedFile && finalBody.length === 0) {
         finalBody = `# ${submittedPickedFile.name}\n\nFile attachment - ${submittedPickedFile.mimeType}, ${submittedPickedFile.size} bytes.`;
@@ -3080,7 +3191,7 @@ ${transcript}`;
           if (!submitIsCurrent(submitController)) return;
           if (crisis) {
             memoCrisisDetected = true;
-            setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+            setCrisis({ visible: true, hotline: crisis.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
           }
         } catch (e) {
           if (!submitIsCurrent(submitController)) return;
@@ -3115,8 +3226,9 @@ ${transcript}`;
         ) {
           if (submitted !== null) requestDurableSubmittedDraftAck(submitted, startModeEpoch);
           reset();
-          // 루루 carries the shard home; an imported link gets the "success" beat.
+          // The shard cue on save; an imported link gets the delight face instead.
           companion.fire(isBareLink ? "linkImported" : "captureSaved");
+          if (saveCueAllowed({ crisis: memoCrisisDetected, recording: isRecordingAudioMode() })) playSaveCue();
           // Inline success panel (journal-capture pack §3/§7) replaces the alert.
           setSavedTitle(result.source.title);
           setSavedKind("source");
@@ -3267,12 +3379,14 @@ ${transcript}`;
 
   return (
     <PremiumAppShell bottomClearanceOwner={embeddedInDock ? "parent" : "shell"}>
-      <KeyboardAvoidingView
-        behavior={keyboardBehavior}
-        keyboardVerticalOffset={keyboardVerticalOffset}
+      <KeyboardAvoidingArea
+        iosKeyboardVerticalOffset={iosKeyboardVerticalOffset}
         style={{ flex: 1 }}
       >
+        <SceneTransition transitionKey={mode} kind="replace" animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
         <ScrollView
+          ref={shareScrollRef}
+          onContentSizeChange={followShareScroll}
           contentContainerStyle={[
             styles.scroll,
             Platform.OS === "android" && {
@@ -3286,13 +3400,10 @@ ${transcript}`;
             style={styles.primaryHeader}
             accessible
             accessibilityLabel={
-              // P2-12: the firstRun hint renders INSIDE this accessible
-              // container, so the fixed label swallowed it — TalkBack users
-              // never heard "one sentence is enough" on their very first
-              // capture. Fold it into the spoken label while it is visible.
-              firstRun && !savedTitle && mode === "journal"
-                ? `${t("hero.title")} ${t("hero.subtitle")} ${t("firstRun.hint")}`
-                : `${t("hero.title")} ${t("hero.subtitle")}`
+              // P2-12 folded the first-run line into this label because it
+              // rendered inside the container. That line is gone
+              // (Q-261014-88), so the label is the hero alone again.
+              `${t("hero.title")} ${t("hero.subtitle")}`
             }
             accessibilityHint={
               // J1: the spoken hint must match where the piece actually went —
@@ -3315,40 +3426,27 @@ ${transcript}`;
               <Text variant="heading" numberOfLines={2}>
                 {savedTitle ? (savedIsOcr ? t("saved.ocrTitle") : t("saved.title")) : t("hero.title")}
               </Text>
-              {firstRun && !savedTitle && mode === "journal" ? (
-                // J4: first-run framing under the hero — one quiet line that
-                // lowers the blank-page bar for the journal default. Hidden in
-                // the other modes ("one sentence" reads wrong over a PDF pick)
-                // and once a save lands.
-                <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
-                  {t("firstRun.hint")}
-                </Text>
-              ) : null}
             </View>
           </View>
 
-          {/* O-31 Stage③ (nav-contract §3): in deep-space mode, surface the
-              담기 second-tier so 형식 /formats, 가져오기 /import, 받은항목 /inbox
-              and 수동입력 /manual are reachable directly from 담기 (누락 0).
-              Legacy mode renders nothing here — its 형식 entry is the inline
-              manage-formats link below. */}
-          {isDeepSpaceUI() ? (
-            <DeepSpaceLinks
-              groups={[
-                {
-                  title: t("captureTab"),
-                  items: [
-                    // med#11: this entry means the clipper FORMAT MANAGER, not
-                    // the export screen the bare route renders in deep-space.
-                    { key: "formats", label: t("formatsTab"), route: "/formats?view=manager" },
-                    { key: "import", label: t("importTab"), route: "/import" },
-                    { key: "inbox", label: t("inboxTab"), route: "/inbox" },
-                    { key: "manual", label: t("manualTab"), route: "/manual" },
-                  ],
-                },
-              ]}
-            />
-          ) : null}
+          {/* O-31 Stage③ (nav-contract §3): surface the 담기 second-tier so
+              형식 /formats, 가져오기 /import, 받은항목 /inbox and 수동입력 /manual
+              are reachable directly from 담기 (누락 0). */}
+          <DeepSpaceLinks
+            groups={[
+              {
+                title: t("captureTab"),
+                items: [
+                  // med#11: this entry means the clipper FORMAT MANAGER, not
+                  // the export screen the bare route renders in deep-space.
+                  { key: "formats", label: t("formatsTab"), route: "/formats?view=manager" },
+                  { key: "import", label: t("importTab"), route: "/import" },
+                  { key: "inbox", label: t("inboxTab"), route: "/inbox" },
+                  { key: "manual", label: t("manualTab"), route: "/manual" },
+                ],
+              },
+            ]}
+          />
 
           {enableLifeAreaIntents && !savedTitle ? (
             <View style={styles.lifeAreaSection}>
@@ -3856,10 +3954,23 @@ ${transcript}`;
               inside a bordered group so the URL/body boxes never read as one
               shared field across modes (2026-05-31 directive). */}
           {mode === "linkclip" ? (
-            <View style={styles.fieldGroup}>
+            <View style={styles.fieldGroup} onLayout={(event) => { linkGroupTopRef.current = event.nativeEvent.layout.y; }}>
               <Text variant="caption" color="textMuted">
                 {t("linkClip.label")}
               </Text>
+              {heldShare !== null ? (
+                <View accessibilityRole="alert" style={styles.heldShare} testID="capture-held-share">
+                  <Text variant="body">{t("sharedOverDraft.title")}</Text>
+                  <View style={styles.heldShareActions}>
+                    <Pressable onPress={() => resolveHeldShare("append")} accessibilityRole="button" accessibilityLabel={t("sharedOverDraft.append")} style={styles.heldShareButton} testID="capture-held-share-append">
+                      <Text variant="subtle" color="brand">{t("sharedOverDraft.append")}</Text>
+                    </Pressable>
+                    <Pressable onPress={() => resolveHeldShare("replace")} accessibilityRole="button" accessibilityLabel={t("sharedOverDraft.replace")} style={styles.heldShareButton} testID="capture-held-share-replace">
+                      <Text variant="subtle" color="brand">{t("sharedOverDraft.replace")}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
               <Input
                 value={body}
                 onChangeText={changeBody}
@@ -3872,9 +3983,9 @@ ${transcript}`;
                 textAlignVertical="top"
                 style={styles.textarea}
               />
-              {linkClipKind === "url" ? (
+              {linkClipKind === "url" || titledLink !== null ? (
                 <Text variant="subtle" color="textSubtle">
-                  {t("linkClip.detected", { kind: detectedKind })}
+                  {t("linkClip.detected", { kind: t(`formats:builtIn.kinds.${detectedKind}.name`) })}
                 </Text>
               ) : linkClipKind === "markdown" ? (
                 <Text variant="subtle" color="textSubtle">
@@ -4047,6 +4158,24 @@ ${transcript}`;
               <Text variant="subtle" color="textSubtle">
                 {t("fourw.note")}
               </Text>
+            </View>
+          ) : null}
+
+          {mode === "ocr" && (incomingMedia || incomingMediaError) ? (
+            <View style={styles.ocrDisclosureCard}>
+              <Text variant="subtle" accessibilityLiveRegion="polite">
+                {incomingMediaError ? t(`sharedMedia.${incomingMediaError}`) : t("sharedMedia.photoReady")}
+              </Text>
+              {incomingMedia && !incomingMediaError ? (
+                <Button label={t("sharedMedia.photoReplace")} variant="primary"
+                  onPress={() => void receiveSharedPhoto()} loading={receivingMedia}
+                  disabled={receivingMedia || isMinor === null} />
+              ) : null}
+              <Button label={t("sharedMedia.discard")} variant="secondary" onPress={() => {
+                sharedMediaAbort.current?.abort();
+                discardSharedMedia(incomingMedia);
+                router.setParams({ sharedMedia: undefined, sharedMediaError: undefined });
+              }} />
             </View>
           ) : null}
 
@@ -4281,8 +4410,10 @@ ${transcript}`;
             </Pressable>
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
-      {/* 루루 appears briefly to carry the new shard (companion pack §3) */}
+        </SceneTransition>
+      </KeyboardAvoidingArea>
+      {/* The new shard's cue appears briefly (companion pack §3) */}
+
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.captureFlash} />
       ) : null}
@@ -4434,6 +4565,22 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     alignSelf: "stretch",
+  },
+  heldShare: {
+    gap: spacing.xs,
+    borderColor: semantic.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
+    padding: spacing.sm,
+  },
+  heldShareActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  heldShareButton: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    borderColor: semantic.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
   },
   voiceControlRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   voiceStatusRow: {
@@ -4670,8 +4817,8 @@ const styles = StyleSheet.create({
   },
   trackChipActive: { backgroundColor: semantic.brand, borderColor: semantic.brand },
   trackGlyph: { width: 16, height: 16 },
-  trackChipText: { color: semantic.textMuted, fontSize: capSize(typography.sizes.sm, 12), fontWeight: capWeight("600"), fontFamily: capFont(12, "500") },
-  trackChipTextActive: { color: semantic.background, fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
+  trackChipText: { color: semantic.textMuted, fontSize: 12, fontFamily: capFont(12, "500") },
+  trackChipTextActive: { color: semantic.background, fontFamily: capFont(12, "700") },
   modeRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -4708,9 +4855,9 @@ const styles = StyleSheet.create({
   },
   modeMoreTabExpanded: { borderColor: semantic.brand },
   modeGlyph: { width: 24, height: 24 },
-  modeLabel: { color: semantic.textMuted, fontSize: capSize(typography.sizes.xs, 12), fontWeight: capWeight("600"), fontFamily: capFont(12, "500") },
-  modeLabelActive: { color: semantic.background, fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
-  modeMoreLabel: { color: semantic.brand, fontSize: capSize(typography.sizes.sm, 12), fontWeight: capWeight("700"), fontFamily: capFont(12, "700") },
+  modeLabel: { color: semantic.textMuted, fontSize: 12, fontFamily: capFont(12, "500") },
+  modeLabelActive: { color: semantic.background, fontFamily: capFont(12, "700") },
+  modeMoreLabel: { color: semantic.brand, fontSize: 12, fontFamily: capFont(12, "700") },
   modeHelp: { lineHeight: 18, marginTop: spacing.xs },
   fieldGroup: {
     gap: spacing.xs,
@@ -4867,6 +5014,6 @@ const styles = StyleSheet.create({
   },
   // 15px = Galmuri14 x1. 이 얼굴에는 굵은 변형이 없어서(galmuri 패키지는 Galmuri11-Bold
   // 하나만 판다) 딥스페이스에서는 크기가 강조를 지고, 굵기는 합성하지 않는다.
-  tossBtnText: { color: semantic.background, fontSize: capSize(typography.sizes.md, 15), fontWeight: capWeight("700"), fontFamily: capFont(15, "700") },
+  tossBtnText: { color: semantic.background, fontSize: 15, fontFamily: capFont(15, "700") },
   tossBtnTextDisabled: { color: CAPTURE_BTN_DISABLED_INK },
 });

@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 가치관 (rev2 P3b): values self-report + populated read.
 //
 // Flow: on mount, load the latest values self-report. If there is NONE, the
@@ -8,10 +9,11 @@
 // HONESTY: this is a self-report ESTIMATE of the user's OWN stated importance —
 // not a medical assessment. Confidence is shown and capped well under 100%; the
 // populated layout only ever shows the user's real answers (values-survey.ts).
-import { useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +24,7 @@ import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tok
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { AxisCheckScreen } from "@/components/deep-space/AxisCheck";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useHardwareBack } from "@/lib/nav/phone-embed";
 import { createRecord } from "@/lib/records/create";
 import { loadLatestValues, type LoadedValues } from "@/lib/persona/build";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -101,13 +104,13 @@ const VALUES_COPY: Record<
     loading: "불러오는 중...",
     title: "가치 자기보고",
     description:
-      "무엇을 중요하게 여기는지 스스로 답하는 짧은 자기보고예요. 각 문장이 나와 얼마나 맞는지 1(전혀 나 같지 않다) ~ 6(매우 나 같다)로 답해 주세요. 정답은 없고, 진단이 아니라 추정이에요.",
+      "무엇을 중요하게 여기는지 스스로 답하는 짧은 자기보고입니다. 각 문장이 나와 얼마나 맞는지 1(전혀 나 같지 않다) ~ 6(매우 나 같다)로 답해 주세요. 정답은 없고, 진단이 아니라 추정입니다.",
     citation: "Schwartz 가치 이론에서 착안 · 자기보고 추정",
     prompt: "다음 문장이 당신과 얼마나 맞는지 골라주세요.",
     topic: "가치 자기보고",
     conclusion: "자기보고 추정 (진단 아님).",
-    saveError: "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요.",
-    saved: "가치 자기보고를 저장했어요.",
+    saveError: "저장하지 못했습니다. 답변은 그대로 남아 있으니 다시 시도해 주세요.",
+    saved: "가치 자기보고를 저장했습니다.",
     exitLabel: "종료 확인",
     exitTitle: "그만두시겠어요?",
     exitBody: "정말 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다.",
@@ -118,16 +121,16 @@ const VALUES_COPY: Record<
     loading: "Cargando...",
     title: "Autoinforme de valores",
     description:
-      "Un autoinforme breve sobre lo que consideras importante. Puntua cuanto encaja cada frase contigo de 1 (no se parece en nada a mi) a 6 (se parece mucho a mi). No hay respuestas correctas y es una estimacion, no una evaluacion medica.",
-    citation: "Inspirado en la teoria de valores de Schwartz · estimacion de autoinforme",
-    prompt: "Cuanto encaja cada frase contigo?",
+      "Un autoinforme breve sobre lo que consideras importante. Puntúa cuánto encaja cada frase contigo de 1 (no se parece en nada a mí) a 6 (se parece mucho a mí). No hay respuestas correctas y es una estimación, no una evaluación médica.",
+    citation: "Inspirado en la teoría de valores de Schwartz · estimación de autoinforme",
+    prompt: "¿Cuánto encaja cada frase contigo?",
     topic: "Autoinforme de valores",
-    conclusion: "Estimacion de autoinforme (no es una evaluacion medica).",
-    saveError: "No se pudo guardar. Tus respuestas siguen aqui; intentalo de nuevo.",
-    saved: "Tu autoinforme de valores se guardo.",
-    exitLabel: "Confirmacion de salida",
-    exitTitle: "Salir de la encuesta?",
-    exitBody: "Seguro que quieres salir? Tu progreso no se guardara.",
+    conclusion: "Estimación de autoinforme (no es una evaluación médica).",
+    saveError: "No se pudo guardar. Tus respuestas siguen aquí; inténtalo de nuevo.",
+    saved: "Tu autoinforme de valores se guardó.",
+    exitLabel: "Confirmación de salida",
+    exitTitle: "¿Salir de la encuesta?",
+    exitBody: "¿Seguro que quieres salir? Tu progreso no se guardará.",
     keepGoing: "Continuar",
     exit: "Salir",
   },
@@ -135,16 +138,16 @@ const VALUES_COPY: Record<
     loading: "Carregando...",
     title: "Autorrelato de valores",
     description:
-      "Um autorrelato curto sobre o que e importante para voce. Avalie o quanto cada frase combina com voce de 1 (nada parecido comigo) a 6 (muito parecido comigo). Nao ha respostas certas, e isto e uma estimativa, nao uma avaliacao medica.",
+      "Um autorrelato curto sobre o que é importante para você. Avalie o quanto cada frase combina com você de 1 (nada parecido comigo) a 6 (muito parecido comigo). Não há respostas certas, e isto é uma estimativa, não uma avaliação médica.",
     citation: "Inspirado na teoria de valores de Schwartz · estimativa de autorrelato",
-    prompt: "Quanto cada frase combina com voce?",
+    prompt: "Quanto cada frase combina com você?",
     topic: "Autorrelato de valores",
-    conclusion: "Estimativa de autorrelato (nao e avaliacao medica).",
-    saveError: "Nao foi possivel salvar. Suas respostas continuam aqui; tente novamente.",
+    conclusion: "Estimativa de autorrelato (não é avaliação médica).",
+    saveError: "Não foi possível salvar. Suas respostas continuam aqui; tente novamente.",
     saved: "Seu autorrelato de valores foi salvo.",
-    exitLabel: "Confirmacao de saida",
+    exitLabel: "Confirmação de saída",
     exitTitle: "Sair da pesquisa?",
-    exitBody: "Tem certeza de que deseja sair? Seu progresso nao sera salvo.",
+    exitBody: "Tem certeza de que deseja sair? Seu progresso não será salvo.",
     keepGoing: "Continuar",
     exit: "Sair",
   },
@@ -175,6 +178,8 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // after the save celebration so the caller reloads into the populated lens;
 // onCancel backs out of the intro (caller shows the not-measured state).
 function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete: () => void; onCancel: () => void; registerBackGuard?: (fn: (() => boolean) | null) => void }) {
+  // Phone-aware: inside the dashboard phone the first-star nudge opens in the phone.
+  const router = useAppRouter();
   const { i18n } = useTranslation("home");
   const { userId, loading } = useAuth();
   const locale = assessmentLocaleFor(i18n.language);
@@ -191,19 +196,19 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
   const result = useMemo(() => scoreValues(responses), [responses]);
 
   // Android hardware back: while mid-survey with answers, confirm before losing.
-  useEffect(() => {
-    if (!started || Object.keys(responses).length === 0 || saved) return;
-    const onBackPress = () => {
-      setExitConfirmOpen(true);
-      return true;
-    };
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => subscription.remove();
-  }, [started, responses, saved]);
+  // useHardwareBack removes the listener on blur and unmount, and inside the
+  // dashboard phone claims Back through the phone instead. Nothing to lose ->
+  // false, so Back keeps its default.
+  useHardwareBack(useCallback(() => {
+    if (!started || Object.keys(responses).length === 0 || saved) return false;
+    setExitConfirmOpen(true);
+    return true;
+  }, [started, responses, saved]));
 
   // med#8: the top app-bar back arrow must honor the same mid-survey exit
   // confirm as the hardware back — it used to bypass it and silently drop
-  // every answer in progress.
+  // every answer in progress. Inside the dashboard phone the same onBack is
+  // the phone's back row, so the confirm holds there too.
   useEffect(() => {
     if (!registerBackGuard) return;
     registerBackGuard(() => {
@@ -292,7 +297,7 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
       ) : null}
 
       {started ? (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingArea style={{ flex: 1 }}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
               {copy.title}
@@ -341,7 +346,7 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
               );
             }}
           />
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingArea>
       ) : null}
 
       {saved ? (
@@ -397,6 +402,8 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
 }
 
 export default function ValuesCheck() {
+  // Phone-aware: inside the dashboard phone Back steps the phone's stack.
+  const router = useAppRouter();
   const { t } = useTranslation("home");
   const { userId, loading } = useAuth();
   // undefined = still loading; null = no stored result; object = has result.

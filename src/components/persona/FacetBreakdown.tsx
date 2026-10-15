@@ -1,20 +1,22 @@
+import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 // The IPIP-NEO-120 facet lens: the 5 Big Five domains each expanded into their 6
 // facets (label + bar). This is the precision payoff over BFI-44's domain-only
 // view. Self-contained presentational component; the grouping/scoring is the pure
 // facetRows helper. Canon result surface for /ipip-neo.
 
-import { View, StyleSheet, ScrollView, Pressable } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { Text } from "@/components/ui/Text";
-import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { facetRows } from "@/lib/persona/facet-rows";
 import { type BigFiveTrait } from "@/lib/persona/bfi";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
 const NOTE_COPY: Record<string, string> = {
   en: "Each of the 5 domains, broken into its facets. Bars are from your own self-report.",
-  ko: "5가지 축을 그 아래 세부 특질까지 펼쳐봤어요. 막대는 자기보고 기준이에요.",
+  ko: "5가지 축을 그 아래 세부 특질까지 펼쳐봤습니다. 막대는 자기보고 기준입니다.",
   es: "Cada uno de los 5 dominios, dividido en sus facetas. Las barras vienen de tu autoinforme.",
   pt: "Cada um dos 5 domínios, dividido em suas facetas. As barras vêm do seu autorrelato.",
   id: "Masing-masing dari 5 domain, dipecah menjadi fasetnya. Batang berasal dari laporan dirimu sendiri.",
@@ -40,7 +42,7 @@ export function FacetBreakdown({
   onRetake?: () => void;
 }) {
   const { t, i18n } = useTranslation("common");
-  const language = (i18n.resolvedLanguage ?? i18n.language ?? locale).split("-")[0];
+  const language = renderedUiLanguage(i18n);
   const noteCopy = NOTE_COPY[language] ?? NOTE_COPY[locale] ?? NOTE_COPY.en;
   const groups = facetRows(facets, domains, locale);
   return (

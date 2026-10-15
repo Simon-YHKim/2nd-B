@@ -35,7 +35,7 @@ INSERT INTO public.erasure_registry(table_name,owner_column,class,delete_order,r
   ('records','user_id','client_erasable',30,'Local fixture records'),
   ('personas','user_id','client_erasable',41,'Local fixture personas');
 \ir ../../migrations/0190_lock_erase_my_data_authenticated.sql
-\ir ../UNNUMBERED_polaris_generation_allowance.sql
+\ir ../../migrations/0195_polaris_generation_allowance.sql
 
 INSERT INTO auth.users VALUES ('11111111-1111-4111-8111-111111111111'),('22222222-2222-4222-8222-222222222222');
 INSERT INTO public.users(id) SELECT id FROM auth.users;

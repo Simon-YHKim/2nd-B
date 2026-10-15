@@ -15,8 +15,8 @@ interface DockItem {
 }
 
 const DOCK_ITEMS: DockItem[] = [
-  { key: "capture", label: "담기", accessibilityLabel: "담기 탭" },
-  { key: "secondb", label: "세컨비", accessibilityLabel: "세컨비 탭" },
+  { key: "capture", label: "기록 추가", accessibilityLabel: "기록 추가 탭" },
+  { key: "secondb", label: "허슬케이", accessibilityLabel: "허슬케이 탭" },
   { key: "trend", label: "트렌드", accessibilityLabel: "트렌드 탭" },
   { key: "review", label: "점검", accessibilityLabel: "점검 탭" },
 ];
@@ -48,6 +48,7 @@ export function DeepSpaceHubDock({ active, onChange }: DeepSpaceHubDockProps) {
             key={item.key}
             accessibilityRole="tab"
             accessibilityState={{ selected }}
+            aria-selected={selected}
             accessibilityLabel={item.accessibilityLabel}
             onPress={() => onChange(item.key)}
             style={styles.item}

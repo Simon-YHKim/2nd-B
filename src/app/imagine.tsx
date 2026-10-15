@@ -6,14 +6,16 @@
 // 나 lens) lives on in the core-brain lens track — it just no longer squats on
 // this route. The generation engine (src/lib/llm/imagine.ts) stays dormant.
 
-import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { ImagineDivergentView } from "@/components/deep-space/DeepSpaceViews";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 
 function ImagineDeepSpace() {
-  const { t, i18n } = useTranslation("imagine");
+  // Phone-aware: inside the dashboard phone, back steps the phone's stack.
+  const router = useAppRouter();
+  const { t } = useTranslation("imagine");
   return (
     <DeepSpaceScreen
       active="lens"
@@ -22,7 +24,8 @@ function ImagineDeepSpace() {
       title={t("title")}
       onBack={() => router.back()}
     >
-      <ImagineDivergentView isKo={i18n.language === "ko"} />
+      {/* The view reads the painted language itself (renderedUiLanguage). */}
+      <ImagineDivergentView />
     </DeepSpaceScreen>
   );
 }

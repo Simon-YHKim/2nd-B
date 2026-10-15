@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import {
   resolveKnowledgeSourceLink,
   safeDoiHref,
@@ -181,17 +178,10 @@ describe("resolveKnowledgeSourceLink", () => {
     expect(resolveKnowledgeSourceLink({ doi: null, url: null })).toBeNull();
   });
 
-  test("keeps the archived research renderer behind the shared safe-link boundary", () => {
-    const source = readFileSync(
-      join(process.cwd(), "legacy", "screens", "research.tsx"),
-      "utf8",
-    ).replace(/\r\n/g, "\n");
-
-    expect(source).toContain('import { resolveKnowledgeSourceLink } from "@/lib/knowledge/source-link";');
-    expect(source).toContain("const sourceLink = resolveKnowledgeSourceLink(s);");
-    expect(source).toContain("Linking.openURL(sourceLink.href)");
-    expect(source).toContain("{sourceLink.label}");
-    expect(source).not.toMatch(/Linking\.openURL\([^)]*s\.(?:doi|url)/u);
-    expect(source).not.toContain("`https://doi.org/${s.doi}`");
-  });
+  // "keeps the archived research renderer behind the shared safe-link boundary" 는
+  // 2026-10-05 에 은퇴했다. 그 대상인 보관본 legacy/screens/research.tsx 가 롤백 레버
+  // 제거와 함께 E:/Legacy/2ndB 로 나갔고(Simon 결정 Q-261004-11 C), 검사는 보관본을
+  // 읽지 않는다(legacy-archive-integrity.test.ts). ⚠ 그래서 지금 src 안에서
+  // resolveKnowledgeSourceLink 를 부르는 배송 화면은 0곳이다(배송 /research 에는 출처
+  // 목록이 없다). 출처 링크를 다시 그리는 화면이 생기면 그 화면에 이 경계 단언을 다시 건다.
 });

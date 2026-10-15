@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 프로필 프로브가 실패했을 때 화면이 보이는 자리 (vibe r260914 R3-A).
 //
 // T1a 에뮬레이터 검증(vibe r260913 항목 2)에서 첫 프로브가 실패하면 /account ·
@@ -16,8 +17,7 @@
 // 할 수 있는 일은 다시 묻기, 이 계정에서 나가기(로그아웃), 뒤로 가기뿐이다. 뒤로 간 곳이
 // 기능 라우트여도 라우트 게이트(app/_layout.tsx 의 IntroGate · ProfileProbeScope)가 다시 붙든다.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
-import { router } from "expo-router";
+import { Platform, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { MdTopAppBar } from "@/components/m3/MdTopAppBar";
@@ -27,13 +27,24 @@ import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { signOut } from "@/lib/supabase/auth";
 import { m3 } from "@/lib/theme/m3";
 
-/** 딥링크로 들어와 돌아갈 곳이 없으면 홈으로 간다. 홈도 실패 중이면 라우트 게이트가 같은 다시 시도를 보인다. */
-function backOrHome(): void {
-  if (router.canGoBack()) router.back();
-  else router.replace("/");
+/**
+ * 딥링크로 들어와 돌아갈 곳이 없으면 홈으로 간다. 홈도 실패 중이면 라우트 게이트가 같은 다시 시도를 보인다.
+ *
+ * 훅인 이유: 대시보드 폰 안에서는 뒤로가 앱 스택이 아니라 폰의 한 단계 뒤로여야 한다
+ * (lib/nav/phone-embed.tsx). 폰 밖에서 `useAppRouter()` 는 expo-router 의 `router` 그
+ * 자체라 단독 라우트 동작은 그대로다. 네비게이터 훅을 쓰지 않으므로 네비게이터가 없는
+ * 전역 게이트(IntroGate · ProfileProbeScope)에서 불러도 안전하다.
+ */
+function useBackOrHome(): () => void {
+  const router = useAppRouter();
+  return useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/");
+  }, [router]);
 }
 
 /**
@@ -79,7 +90,9 @@ function ProfileProbeRetryPanel() {
 
   // 다시 물어도 답이 오지 않을 때 이 계정에서 나가는 길. 성공하면 AuthContext 가 로그아웃을
   // 게시하고, 라우트 게이트가 붙들기를 풀어 로그인으로 보낸다. 여기서 따로 이동하지 않는다.
-  // 전역 게이트 안에서는 이동을 받을 네비게이터가 마운트돼 있지 않다.
+  // 이동은 붙들기를 푼 쪽이 정한다. (2026-10-05 R2A-01 부터 전역 게이트 IntroGate 는 라우트를
+  // 내리지 않고 덮개로 덮는다(components/ui/GateCover.tsx). 그래서 "전역 게이트 안에는 네비게이터가
+  // 없다" 는 더는 사실이 아니지만, 여기서 이동하지 않는 이유는 그대로다.)
   const onSignOut = useCallback(() => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
@@ -156,6 +169,7 @@ export function ProfileProbeRetryScreen({
   title?: string;
   onBack?: () => void;
 }) {
+  const backOrHome = useBackOrHome();
   return (
     <PixelGateShell contentContainerStyle={styles.shell}>
       {title === undefined ? null : <MdTopAppBar title={title} onBack={onBack ?? backOrHome} />}

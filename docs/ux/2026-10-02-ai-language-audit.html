@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2nd-Brain UI 언어 진단 보고서 · "사용하는 언어가 왜 AI스러운가?" · 2026-10-02</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #030712;
+    --surface: #0f172a;
+    --surface-elevated: #1e293b;
+    --border: rgba(148, 163, 184, 0.15);
+    --border-accent: rgba(56, 189, 248, 0.3);
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-subtle: #64748b;
+    --accent: #38bdf8;
+    --accent-glow: rgba(56, 189, 248, 0.15);
+    --warning: #f59e0b;
+    --warning-bg: rgba(245, 158, 11, 0.1);
+    --danger: #ef4444;
+    --danger-bg: rgba(239, 68, 68, 0.1);
+    --success: #10b981;
+    --success-bg: rgba(16, 185, 129, 0.1);
+    --purple: #a855f7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 48px 24px 80px; }
+  header { margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid var(--border-accent);
+    margin-bottom: 14px;
+  }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 10px; }
+  .lead { font-size: 16px; color: var(--text-muted); line-height: 1.6; }
+  .meta { font-size: 13px; color: var(--text-subtle); margin-top: 14px; }
+
+  .summary-banner {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(168, 85, 247, 0.05));
+    border: 1px solid var(--border-accent);
+    border-radius: 14px;
+    padding: 24px;
+    margin: 32px 0;
+  }
+  .summary-banner h2 { font-size: 18px; margin-bottom: 10px; color: var(--accent); }
+  .summary-banner p { color: var(--text); font-size: 15px; }
+
+  h2 { font-size: 20px; font-weight: 700; margin: 44px 0 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 10px; color: #e2e8f0; }
+
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 18px; margin: 20px 0; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card strong { color: var(--text); font-size: 15px; }
+  .card p { color: var(--text-muted); font-size: 13.5px; margin-top: 6px; }
+  .card code {
+    background: rgba(0,0,0,0.4);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: #38bdf8;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+  }
+
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+  th, td { padding: 12px 14px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { background: var(--surface-elevated); color: var(--text-muted); font-weight: 600; font-size: 13px; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .pill-ai { color: var(--danger); background: var(--danger-bg); padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
+  .pill-human { color: var(--success); background: var(--success-bg); padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
+
+  .quote-box {
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    background: rgba(56, 189, 248, 0.04);
+    border-radius: 0 8px 8px 0;
+    margin: 14px 0;
+    font-size: 14px;
+    color: #cbd5e1;
+  }
+  .quote-box.warn {
+    border-left-color: var(--warning);
+    background: var(--warning-bg);
+    color: #fde68a;
+  }
+
+  .step-box {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+    border-radius: 12px;
+  }
+  .step-num {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .step-body h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .step-body p { font-size: 13.5px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge">UX & COPYWRITING AUDIT</span>
+    <h1>"우리 프로젝트 앱 언어, 왜 이렇게 AI스러울까?"</h1>
+    <p class="lead">localhost(8081)로 구동되는 2nd-Brain의 사용자 접점 언어·톤앤매너 심층 진단 보고서</p>
+    <div class="meta">작성일: 2026-10-02 · 대상: localhost UI 카피 (locales/**/*.json) 및 대화 엔진 프롬프트</div>
+  </header>
+
+  <div class="summary-banner">
+    <h2>💡 진단 결론: "네, 맞습니다. 매우 강하게 'AI(연구용 시스템)' 냄새가 납니다."</h2>
+    <p>
+      현재 앱의 문구들은 일상 생활에서 쓰는 따뜻한 서비스가 아니라, <strong>"AI 모델의 기술적 한계와 데이터 파이프라인을 사용자에게 끝없이 증명하고 변명하는 연구용 시스템 인터페이스"</strong>에 가깝습니다.
+      이는 단순한 작문 실수가 아니라, 과거 XPRIZE 심사 기준·CI 하드 제약(D-19 등)·엔지니어링 중심 설계가 겹쳐서 만들어낸 구조적 산물입니다.
+    </p>
+  </div>
+
+  <h2>1. 왜 이렇게 'AI스럽게' 느껴지는가? (4대 핵심 원인)</h2>
+
+  <div class="grid-2">
+    <div class="card">
+      <span class="pill-ai">원인 ① 아키텍처 용어 누출</span>
+      <h3 style="margin-top: 10px;">엔지니어링·AI 모델 용어의 직접 노출</h3>
+      <p>개발자나 AI 연구자가 쓰는 단어들이 사용자 화면 전면에 그대로 노출되어 있습니다.</p>
+      <div class="quote-box">
+        • <code>"플랜의 주간 리즈닝 횟수를 사용해요."</code> (core-brain.json:14)<br>
+        • <code>"AI 연결 제안 받기 (87% 일치, 거절/승인)"</code> (deepspace.json:81)<br>
+        • <code>"이 페르소나 승인(Ratify)"</code> (core-brain.json:41)<br>
+        • <code>"근거 수준 L1~L5", "IDEN", "백링크"</code> (manual.json:30)
+      </div>
+      <p>사용자는 친구/비서와 대화하러 왔는데, <strong>AI 모델의 파라미터와 결과물을 결재(Ratify)하는 감리자</strong> 역할을 요구받습니다.</p>
+    </div>
+
+    <div class="card">
+      <span class="pill-ai">원인 ② 방어적 면책문 남발</span>
+      <h3 style="margin-top: 10px;">과도한 'AI 추정 면책'과 데이터 투명성 편집증</h3>
+      <p>AI의 오차나 환각 책임을 회피하기 위한 법적·학술적 단서 조항이 화면마다 붙어 있습니다.</p>
+      <div class="quote-box">
+        • <code>"AI가 기록을 바탕으로 추정한 결과예요. 여러 해석 중 하나이니, 나와 맞는지 확인해 주세요."</code><br>
+        • <code>"최근 80개만 읽었어요. 실제 건수는 더 많을 수 있어요."</code> (ops.json:32)<br>
+        • <code>"최근 기록 80개에서 영역이 붙은 수예요. 점수가 아니에요."</code> (ops.json:95)<br>
+        • <code>"자료를 임의로 표시하지 않습니다."</code> (ops.json:21)
+      </div>
+      <p>투명성을 지키려던 의도(Calibrated Humility)가 사용자에게는 <strong>"매 순간 방어벽을 치는 관료주의적 AI 기계"</strong>로 다가옵니다.</p>
+    </div>
+
+    <div class="card">
+      <span class="pill-ai">원인 ③ 인격화 금지가 낳은 정색</span>
+      <h3 style="margin-top: 10px;">Anti-Anthro & Lexicon 가드로 인한 정서적 거세</h3>
+      <p>D-19 규율과 CI 가드(<code>check-anti-anthro.ts</code>)가 인간적인 온기 표현을 원천 차단했습니다.</p>
+      <div class="quote-box">
+        • "보고 싶었어요", "당신을 기억해요", "곁에 있을게요" 금지<br>
+        • "심리상담", "치료", "우울" 금지 → "자기 이해", "되돌아보기", "점검"<br>
+        • <code>conversation.ts</code>: "상투적 공감 금지, 평서문 '~습니다' 강제, 기록 속 패턴만 진술"
+      </div>
+      <p>그 결과 세컨비는 Simon의 의도(<strong>"친구 같은 심리상담 + 개인 비서"</strong>)와 달리 <strong>"로그 데이터만 읽어주는 차가운 AI 감사관"</strong>이 되었습니다.</p>
+    </div>
+
+    <div class="card">
+      <span class="pill-ai">원인 ④ 번역투와 존댓말 불일치</span>
+      <h3 style="margin-top: 10px;">영문 정본(C7)의 직역투 및 합쇼/해요체 혼재</h3>
+      <p>영어(EN)를 기준으로 작성된 UI를 한국어로 직역하면서 기계적인 어투가 남았습니다.</p>
+      <div class="quote-box">
+        • <code>"기억을 더 분명히 떠올릴 수 있도록 같은 내용을 조금씩 다르게 물어요."</code><br>
+        • <code>"이 핸드폰에서는 짧은 메모를 저장할 수 있어요. 인터뷰와 다른 방식은 별도 화면에서 제공됩니다."</code>
+      </div>
+      <p>코드베이스 주석에서도 고백하듯, <strong>합쇼체(~습니다, 644개)와 해요체(~해요, 235개)가 뒤섞여</strong> 한 화면 안에서도 어조가 갈라집니다.</p>
+    </div>
+  </div>
+
+  <h2>2. 실제 화면 카피 대조: 현재 vs 사람이 쓰는 언어</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 18%;">위치 / 맥락</th>
+        <th style="width: 41%;">현재 카피 (AI / 시스템 관점)</th>
+        <th style="width: 41%;">개선 카피 (사람 / 비서 관점)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>요금제 / 생성 안내</strong><br><small>core-brain.json</small></td>
+        <td>
+          <span class="pill-ai">현재</span><br>
+          "플랜의 주간 <strong>리즈닝 횟수</strong>를 사용해요."
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "이번 주 <strong>심층 분석(또는 깊은 생각)</strong> 횟수가 차감돼요."
+        </td>
+      </tr>
+      <tr>
+        <td><strong>북극성 카드 제안</strong><br><small>core-brain.json</small></td>
+        <td>
+          <span class="pill-ai">현재</span><br>
+          "기록으로 <strong>페르소나 제안</strong> 받기" / "이 페르소나 <strong>승인(Ratify)</strong>"
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "내 기록으로 <strong>나의 모습 요약하기</strong>" / "<strong>내 모습으로 담기</strong> (또는 맞아요)"
+        </td>
+      </tr>
+      <tr>
+        <td><strong>AI 분석 결과 면책</strong><br><small>core-brain.json</small></td>
+        <td>
+          <span class="pill-ai">현재</span><br>
+          "AI가 기록을 바탕으로 추정한 결과예요. 여러 해석 중 하나이니, 나와 맞는지 확인해 주세요."
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "남겨주신 기록들을 토대로 정리해 봤어요. 내가 느끼는 내 모습과 잘 맞는지 살펴봐 주세요."
+        </td>
+      </tr>
+      <tr>
+        <td><strong>대시보드 통계</strong><br><small>ops.json</small></td>
+        <td>
+          <span class="pill-ai">현재</span><br>
+          "최근 <strong>80개만 읽었어요. 실제 건수는 더 많을 수 있어요.</strong> ... 점수가 아니에요."
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "최근에 남긴 80개의 기록을 기준으로 분석했어요."
+        </td>
+      </tr>
+      <tr>
+        <td><strong>위키 지식 연결</strong><br><small>deepspace.json</small></td>
+        <td>
+          <span class="pill-ai">현재</span><br>
+          "<strong>AI 연결 제안</strong> 받기" (87% 일치, 거절 / 승인)
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "함께 이어볼 만한 기록 찾기" (관련 있는 생각 묶어보기)
+        </td>
+      </tr>
+      <tr>
+        <td><strong>세컨비 대화 톤</strong><br><small>conversation.ts</small></td>
+        <td>
+          <span class="pill-ai">현재</span><br>
+          "당신은 개인 매니저입니다. 평서문 '~습니다'를 씁니다. 기록 속 패턴만 말하고 공감/과장을 쓰지 마세요."
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "내 기록을 누구보다 곁에서 잘 기억해 주는 든든한 페이스메이커. 친구처럼 따뜻한 해요체(~해요, ~인가요?). 과장하지 않되 성의 있게 귀 기울이기."
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>3. 역사적 배경: 왜 이렇게 굳어졌는가?</h2>
+  <div class="quote-box warn">
+    <strong>XPRIZE 심사용 방어 논리의 유산</strong><br>
+    2026-08-15 XPRIZE가 종료되기 전, 이 프로젝트는 엄격한 심사위원 규정집(Rulebook), 의료법 위반 방지, 아동보호법(COPPA/PIPA), 윤리적 AI 기준(Hallucination 방지, Calibrated Humility)을 통과해야 했습니다.<br>
+    그 과정에서 <code>check-forbidden-lexicon.ts</code>, <code>check-anti-anthro.ts</code>, <code>check-constraints.ts</code> 등 무관용 CI 게이트들이 연달아 생겨났고, 에이전트와 개발자들은 빌드를 통과시키기 위해 <strong>가장 무미건조하고, 가장 방어적이며, 기계적인 어휘</strong>만을 채택하게 되었습니다.
+  </div>
+  <p style="margin-top: 10px;">
+    하지만 XPRIZE는 끝났고 심사자는 더 이상 없습니다. 8월 17일 Simon의 지침은 <strong>"실사용자에게 쓸모 있는 친구 같은 심리상담과 개인 비서"</strong>였습니다.
+    현재의 언어 체계는 과거의 방어 규율이 실사용자의 정서적 몰입을 가로막고 있는 상태입니다.
+  </p>
+
+  <h2>4. 개선을 위한 4단계 실행 제안</h2>
+
+  <div class="step-box">
+    <div class="step-num">01</div>
+    <div class="step-body">
+      <h4>엔지니어링 & AI 어휘의 'UI 마스킹'</h4>
+      <p>'리즈닝(Reasoning)', '승인(Ratify)', '프롬프트', '백링크', 'L1~L5' 등 시스템 내부 용어를 사용자 언어로 전면 교체합니다. 시스템은 그대로 돌리되, 보여주는 라벨만 사람의 말로 바꿉니다.</p>
+    </div>
+  </div>
+
+  <div class="step-box">
+    <div class="step-num">02</div>
+    <div class="step-body">
+      <h4>약관식 면책문을 '친절한 대화체'로 완화</h4>
+      <p>"서버에서 80개만 읽었으며 임의로 표시하지 않습니다" 식의 기술적 면책 조항을 "최근 기록들을 모아 살펴봤어요"처럼 일상적인 설명으로 부드럽게 감쌉니다.</p>
+    </div>
+  </div>
+
+  <div class="step-box">
+    <div class="step-num">03</div>
+    <div class="step-body">
+      <h4>세컨비 대화의 '온도(Warmth)'와 '해요체' 일원화</h4>
+      <p>챗봇 프롬프트에서 지나치게 경직된 합쇼체(~습니다) 제약을 풀고, 화면 UI와 통일된 자연스러운 '해요체'를 도입합니다. 무조건적인 아첨은 막되, 따뜻한 경청과 자연스러운 리액션을 허용합니다.</p>
+    </div>
+  </div>
+
+  <div class="step-box">
+    <div class="step-num">04</div>
+    <div class="step-body">
+      <h4>CI 언어 가드레일(Anti-Anthro / Lexicon)의 합리적 재조정</h4>
+      <p>가짜 의존성을 유발하는 유해 표현(가스라이팅, 과잉 애착)은 막되, 자연스러운 유대감과 친구 같은 지지 표현까지 과도하게 빨간 줄을 긋지 않도록 패턴을 정교화합니다.</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

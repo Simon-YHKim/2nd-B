@@ -156,6 +156,7 @@ Simon: 지시 내용
 - **Claude**: 디스패치·스샷·보드 ⑤-rev 카드(채택방향 강조)+썸네일 추가·배포.
 **검증**: 스샷=⑤ 대비 분명히 밝아짐(중앙 nebula·신경망 라인 가시화), 거리/크기/밝기 다양·자연 산포, 글레어 계속 억제(차분). 경량 유지(box-shadow 제외).
 **다음(별도 오더)**: ⑤ vs ⑤-rev 중 Simon 최종 확정 → 본체 새UI 배경(`buildBackdrop`/deep-space 셸)에 반영.
+**접음(2026-10-05)**: Q-261004-28 로 시안 보드(public/landing/bg-concepts)를 E:/Legacy 로 옮기며 이 후속을 접었습니다(#2047). 공개 URL 은 다음 웹 게시 때 내려갑니다.
 
 
 ### [O-27 🔄 landing 데모 / 2026-06-15 21:30 KST] WoW 레벨업 연출(눈색 cyan) — landing 구현·데모 (진행중→RN 포팅)
@@ -304,6 +305,7 @@ Simon: 지시 내용
 
 ### [O-21 ✅ / 2026-06-15 11:38 KST] landing-clone → 2nd-B 정식 통합 + 진짜 라이브 — 완료
 **🔴 LIVE: https://simon-yhkim.github.io/2nd-B/landing/** (8777 로컬/터널 졸업 → GitHub Pages 진짜 라이브)
+**접음(2026-10-06)**: Q-261005-06 으로 랜딩 습작(public/landing)을 E:/Legacy 로 옮겼습니다(batch qa261006-landing). 공개 URL 은 다음 웹 게시 때 내려갑니다.
 **접근(후보① Expo public/ 정적 호스팅, 실행자 판단)**: gitignored `landing-clone`(O-13~O-20 반영본: nebula·표정 상황연동/다양화·nav IA·눈색토큰·idle/숨쉬기·얼굴탭 hit-test·사람 아이콘)을 **`public/landing/`로 승격** → `expo export --platform web`가 `dist/landing/`로 복사 → Pages 배포. RN 앱 **미변경**(Three.js 포팅 대공사 회피, 비용대비 정적이 정답).
 **verify 게이트 무영향 검증**: `public/**`는 eslint.config.mjs ignore + tsconfig include 밖 + 모든 `check:*`(emdash=locales json만·lexicon=src+supabase·anti-anthro/mascot=특정 src·constraints=하드코딩 src) 스캔범위 밖. → 통합이 게이트 안 건드림(분석 후 진행).
 **경량화**: billboard PNG 1개(860KB)만 번들(미사용 앵글변형 20MB는 로컬 프로토타입 잔류). 전부 상대경로+CDN importmap → `/landing/` 서브패스 base-path 변경 불필요.

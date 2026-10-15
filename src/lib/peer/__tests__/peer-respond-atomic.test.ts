@@ -12,10 +12,9 @@ const config = read("supabase/config.toml");
 const migration = read("db/migrations/0182_peer_response_atomicity.sql");
 const workflow = read(".github/workflows/supabase-dry-run.yml");
 const quotaRegression = read("db/tests/peer_response_rate_limit_regression.sql");
-const quotaMigrationPath = join(root, "db/migration-drafts/UNNUMBERED_peer_response_rate_limit.sql");
-const quotaMigration = existsSync(quotaMigrationPath)
-  ? read("db/migration-drafts/UNNUMBERED_peer_response_rate_limit.sql")
-  : "";
+// Promoted to 0216 on 2026-10-05 (Q-261005-04). The draft was deleted in the
+// same change (Q-261005-07), so a missing file must fail here, not read as "".
+const quotaMigration = read("db/migrations/0216_peer_response_rate_limit.sql");
 
 describe("peer response capability boundary", () => {
   test("keeps gateway JWT verification for the no-account responder", () => {
@@ -174,6 +173,15 @@ describe("peer response pre-capability rate limit migration", () => {
     expect(quotaMigration.slice(keyedDenied, globalIncrement)).toMatch(
       /RETURN QUERY SELECT false AS allowed[\s\S]*RETURN;/,
     );
+  });
+
+  test("is the numbered 0216 alone, applied by the staged push before its regression", () => {
+    expect(existsSync(join(root, "db/migration-drafts/UNNUMBERED_peer_response_rate_limit.sql"))).toBe(false);
+    expect(quotaMigration.split("\n")[0]).toBe("-- 0216_peer_response_rate_limit.sql");
+    expect(quotaMigration).not.toMatch(/LOCAL DRAFT ONLY/);
+    expect(quotaRegression).not.toMatch(/^\\i(?:r)?\s/m);
+    expect(quotaRegression).toContain("after the numbered 0216 migration");
+    expect(quotaRegression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
   });
 
   test("executes accepted-only global accounting in scratch Postgres", () => {

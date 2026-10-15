@@ -1,3 +1,4 @@
+import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 // "오늘의 정리" — the pull-style daily review (D-25 Phase 3, morning-brief PULL
 // version; the push/scheduler version is deferred per the D-25 debate, so this
 // runs ON OPEN only, never on a timer, and never claims a notification it cannot
@@ -6,20 +7,21 @@
 // already-stored inferred links and writes the user's verdict.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { View, StyleSheet, ScrollView, Pressable } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { reactExpression } from "@/lib/companion/expression";
+import { WIKI_LINK_CUE } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { planResurface } from "@/lib/resurface/plan";
 import { recordResurfaceDecision, recordResurfaceShown } from "@/lib/resurface/ledger";
@@ -49,11 +51,14 @@ function bandLabel(confidence: number, t: TFunction<"ratifications">): string {
 }
 
 export default function Digest() {
+  // Phone-aware: inside the dashboard phone, links open in the phone.
+  const router = useAppRouter();
   const { userId, loading } = useAuth();
   const { t } = useTranslation("ratifications");
   const [items, setItems] = useState<InferredLinkDetail[] | null>(null);
   const [actingKey, setActingKey] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const playLinkCue = useUiSound(WIKI_LINK_CUE.source, WIKI_LINK_CUE);
 
   const refresh = useCallback(async () => {
     if (!userId) return;
@@ -109,7 +114,10 @@ export default function Digest() {
         // 유일한 흔적이다.
         void recordResurfaceDecision(userId, p.from_page, p.to_page, confirm ? "ratified" : "rejected");
         // 승인 = the app-wide ratify wink (rejections stay face-neutral).
-        if (confirm) reactExpression("wink");
+        if (confirm) {
+          reactExpression("wink");
+          playLinkCue(); // 위키 연결 확인 소리(Q-261006-14). 거절은 무음.
+        }
         await refresh();
       } catch {
         // best-effort; the row stays for a retry
@@ -117,7 +125,7 @@ export default function Digest() {
         setActingKey(null);
       }
     },
-    [userId, refresh],
+    [userId, refresh, playLinkCue],
   );
 
   // Opt-in daily-review reminder (native-only). OFF by default; the user turns
@@ -336,7 +344,7 @@ export default function Digest() {
         {remindersOk ? (
           <View style={styles.reminder}>
             <PreferenceToggleRow
-              label={t("digest.reminder.label")}
+              label={t("digest.reminder.label", { time: formatDailyReviewHour(reminderHour) })}
               description={t("digest.reminder.desc")}
               value={reminderOn}
               disabled={reminderBusy}
@@ -407,22 +415,14 @@ export default function Digest() {
 // ⚠ active="lens" 는 TABS 밖이라 어떤 탭도 잘못 하이라이트되지 않고,
 // DeepSpaceScreen 의 '루트 탭 → 홈' 하드웨어 뒤로가기 특례도 걸리지 않는다.
 function Frame({ children }: { children: ReactNode }) {
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="lens" header="none">
-        {children}
-      </DeepSpaceScreen>
-    );
-  }
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+    <DeepSpaceScreen active="lens" header="none">
       {children}
-    </SafeAreaView>
+    </DeepSpaceScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: deepSpace.bg },
   flex: { flex: 1 },
   body: { padding: deepSpaceSpacing.lg, gap: deepSpaceSpacing.md },
   header: { flexDirection: "row", gap: deepSpaceSpacing.sm, alignItems: "flex-start" },

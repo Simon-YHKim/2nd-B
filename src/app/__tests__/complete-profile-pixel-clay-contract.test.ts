@@ -52,8 +52,11 @@ describe("/complete-profile PIXEL-CLAY profilesetup contract", () => {
     expect(source).toContain("submitCompleteProfile({");
     expect(source).toContain("signOutAndSettle({ signOutUser: signOut, refreshAuth: refresh })");
     expect(source).toContain('return <Redirect href="/sign-in" />');
-    expect(source).toContain('return <Redirect href={postEntryRoute} />');
+    // QA 261004 D-01: the home landing pops back to the home underneath.
+    expect(source).toContain('return postEntryRoute === "/" ? <RedirectHome /> : <Redirect href={postEntryRoute} />');
     expect(source).toContain('result.consentRecorded === null ? "/" : "/avatar-studio?setup=1"');
+    // PR #2044 8th round: the move after submit is the user's own action and stays
+    // the pre-PR replace; only the mount-time guard above pops to the home below.
     expect(source).toContain("router.replace(nextRoute)");
   });
 });

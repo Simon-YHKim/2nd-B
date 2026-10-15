@@ -1,9 +1,10 @@
 {
-  "title": "SecondB",
+  "title": "HustleK",
   "subtitle": "Tanya tentang wikimu. Jawaban menyertakan halaman yang digunakan.",
-  "empty": "Mulai percakapan. Misalnya: \"Topik apa yang berulang dalam catatanku bulan ini?\"",
-  "placeholder": "Tanyakan ke SecondB...",
-  "inputA11y": "Tanyakan ke SecondB",
+  "empty": "Ajukan pertanyaan. Misalnya: \"Topik apa saja yang ada di wikiku?\"",
+  "placeholder": "Tanyakan ke HustleK...",
+  "composerPlaceholder": "Pesan…",
+  "inputA11y": "Tanyakan ke {{name}}",
   "send": "Kirim",
   "clearChat": "Hapus",
   "clearChatA11y": "Hapus obrolan",
@@ -11,146 +12,56 @@
   "viewPlans": "Lihat paket",
   "viewPlansHint": "Membuka layar paket.",
   "serverLimitReached": "Akun ini telah mencapai batas obrolan hari ini. Batas direset pada tengah malam waktu Korea (KST).",
-  "intro_title": "Hai, aku SecondB",
-  "intro_body": "SecondB menjawab berdasarkan halaman wikimu dan mencantumkan sumbernya agar bisa kamu periksa. Kamu bisa bertanya, misalnya, pola apa yang berulang bulan ini.",
   "reference_piece_meta": "catatan yang dirujuk",
-  "intro_ok": "Mengerti",
-  "intro_mute": "Jangan tampilkan lagi hari ini",
   "heroSpeech": {
-    "sending": "Sedang membaca catatan yang terkait.",
+    "sending": "Sedang membaca halaman wiki yang terkait…",
     "divergent": "Sedang mempertimbangkan kemungkinan lain.",
-    "default": "Apa yang ingin kamu bahas dari catatanmu?"
+    "default": "Apa yang ingin kamu ketahui tentang wiki yang disusun dari catatanmu?"
   },
   "personaHero": {
     "speech": "Lihat pola yang berulang di catatanmu."
-  },
-  "monologues": {
-    "secondb": [
-      "Bagian mana dari catatanmu yang ingin kamu pahami lebih jauh?",
-      "Adakah catatan lain yang berkaitan dengan ini?",
-      "Kamu bisa memeriksa catatan atau mencoba ide lain.",
-      "Buka sumbernya untuk memeriksa jawaban."
-    ],
-    "archi": [
-      "Bagaimana keadaan pekerjaanmu sekarang?",
-      "Pengalaman mana yang bisa membantu kamu mempertimbangkan pilihan ini?",
-      "Jika langkah berikutnya terlalu besar, pecah menjadi lebih kecil.",
-      "Apa yang bisa kamu coba saat bekerja nanti?"
-    ],
-    "gadi": [
-      "Apa yang terjadi di antara kalian?",
-      "Apa yang belum terucap dalam percakapan itu?",
-      "Bagaimana perasaanmu saat percakapan itu berlangsung?",
-      "Apa yang ingin kamu ubah dalam hubungan ini?"
-    ],
-    "lulu": [
-      "Di mana pengetahuan ini bisa dipakai?",
-      "Bagian mana yang masih membingungkan?",
-      "Adakah catatan lain tentang topik ini?",
-      "Bisakah kamu memberi contoh dari kehidupan sehari-hari?"
-    ],
-    "momo": [
-      "Pilih kategori agar catatan ini mudah ditemukan nanti.",
-      "Tulis apa yang terjadi dan kapan agar mudah ditemukan nanti.",
-      "Kamu ingat kapan ini terjadi?",
-      "Tambahkan kapan dan di mana agar catatan mudah ditemukan."
-    ],
-    "lumi": [
-      "Apa yang sedang kamu senangi belakangan ini?",
-      "Apakah ada waktu untuk kegiatan ini hari ini?",
-      "Apa yang masih kamu nikmati dari kegiatan ini?",
-      "Apa yang menarik perhatianmu hari ini?"
-    ]
-  },
-  "personas": {
-    "secondb": {
-      "greeting": "Catatanmu ada di sini. Apa yang ingin kamu lihat dulu?",
-      "systemHint": "Bicaralah sebagai SecondB, yang menyusun ringkasan Bintang Utara. Hubungkan catatan yang berkaitan. Dalam mode Analitik, jelaskan pola yang berulang beserta sumbernya. Dalam mode Divergen, ajukan kemungkinan lain. Gunakan bahasa sehari-hari. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna."
-    },
-    "archi": {
-      "greeting": "Bagian mana dari pekerjaanmu yang ingin kamu bahas?",
-      "systemHint": "Bicaralah sebagai Archon, yang membahas pekerjaan dan perkembangan pengguna. Gunakan pengalaman kerja dan situasi saat ini untuk menyarankan langkah yang bisa dicoba. Gunakan bahasa sehari-hari. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna."
-    },
-    "gadi": {
-      "greeting": "Ada hubungan atau percakapan yang ingin kamu lihat lagi?",
-      "systemHint": "Bicaralah sebagai Relia, yang membahas hubungan dan pola yang berulang dalam catatan pengguna sendiri. Gunakan nada ramah, tetapi jangan mengklaim memiliki hubungan pribadi yang nyata dengan pengguna atau bergantung secara emosional kepadanya. Jangan mengklaim mengenal pengguna lebih baik daripada dirinya sendiri. Sapa pengguna secara langsung dengan kata sehari-hari, tanpa label khusus. Hindari pujian berlebihan dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna."
-    },
-    "lulu": {
-      "greeting": "Apa yang ingin kamu pahami dari catatan yang tersimpan?",
-      "systemHint": "Bicaralah sebagai Lumen, yang membantu pengguna belajar. Gunakan materi yang disimpan untuk menjelaskan pertanyaan pengguna dan memberi contoh penerapannya. Jangan memakai gaya bicara seorang guru bijak. Gunakan bahasa sehari-hari. Hindari metafora berlebihan, pujian umum, dan ungkapan empati yang dibuat-buat. Ajukan pertanyaan hanya jika berguna."
-    },
-    "momo": {
-      "greeting": "Catatan tentang apa yang ingin kamu cari?",
-      "systemHint": "Bicaralah sebagai Momo, yang menyusun dan mencari catatan. Kelompokkan dan cari catatan agar pengguna bisa menemukan apa yang terjadi dan kapan. Fokus pada penyusunan dan pencarian, tanpa memberi nasihat. Gunakan bahasa sehari-hari. Jangan mengaku sudah menyusun atau menyimpan catatan tanpa memeriksanya."
-    },
-    "lumi": {
-      "greeting": "Apa yang sedang kamu minati?",
-      "systemHint": "Bicaralah sebagai Lumina, yang membahas hobi dan minat. Gunakan minat yang tercatat untuk menyarankan kegiatan yang bisa dicoba, dengan mempertimbangkan waktu kerja dan istirahat. Gunakan bahasa sehari-hari. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna."
-    }
-  },
-  "characters": {
-    "secondb": {
-      "line": "Periksa catatanmu dan pertimbangkan kemungkinan lain."
-    },
-    "momo": {
-      "line": "Susun catatan agar mudah ditemukan nanti."
-    },
-    "lulu": {
-      "line": "Di mana kamu bisa memakai hal yang sudah dipelajari?"
-    },
-    "archi": {
-      "line": "Aku akan melihat pilihan yang sesuai dengan situasi ini."
-    },
-    "gadi": {
-      "line": "Aku akan melihat hubungan dan perasaan yang kamu tulis."
-    },
-    "lumi": {
-      "line": "Apa yang ingin kamu coba dari hal yang kamu sukai?"
-    }
   },
   "rev2": {
     "selectorA11y": "Pilih asisten",
     "lockVoyager": "Penjelajah",
     "lockNorthstar": "Bintang Utara",
     "lockedA11y": "Terkunci · terbuka dengan paket {{plan}}",
+    "usageToday": "Hari ini",
     "secondb": {
-      "name": "2nd-B",
+      "name": "HustleK",
       "role": "Empati",
-      "lensName": "SecondB",
-      "tag": "2nd-B",
-      "desc": "Asisten yang menggunakan catatanmu sebagai konteks"
+      "lensName": "HustleK",
+      "tag": "HustleK",
+      "desc": "Menjawab dari wiki catatanmu"
     },
     "meta": {
-      "name": "Meta-B",
+      "name": "Fact-K",
       "role": "Objektif",
-      "systemHint": "Persona: Meta-B. Pertahankan semua aturan sumber, kutipan, dan keamanan. Fokus pada fakta serta pola yang didukung angka dan tanggal dalam catatan pengguna. Gunakan bahasa sehari-hari dan kalimat yang jelas. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna.",
-      "lensName": "Meta-B",
-      "tag": "Meta-B",
-      "desc": "Melihat pola berdasarkan catatanmu"
+      "systemHint": "Persona: Fact-K. Pertahankan semua aturan sumber, kutipan, dan keamanan. Fokus pada fakta serta pola yang didukung angka dan tanggal dalam catatan pengguna. Gunakan bahasa sehari-hari dan kalimat yang jelas. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna.",
+      "lensName": "Fact-K",
+      "tag": "Fact-K",
+      "desc": "Fakta dari wiki catatanmu"
     },
     "twi": {
-      "name": "Twi-B",
+      "name": "Joy-K",
       "role": "Imajinasi",
-      "systemHint": "Persona: Twi-B dari 2nd-B. Pertahankan semua aturan landasan, kutipan, dan keamanan. Jelajahi beberapa kemungkinan \"bagaimana jika\" berdasarkan catatan pengguna. Gunakan bahasa sehari-hari. Hindari pujian umum, metafora berlebihan, dan pertanyaan atau saran penutup yang dipaksakan.",
-      "lensName": "Twi-B",
-      "tag": "Twi-B",
-      "desc": "Mencoba sudut lain dari catatanmu"
+      "systemHint": "Persona: Joy-K dari PolaScope. Pertahankan semua aturan landasan, kutipan, dan keamanan. Jelajahi beberapa kemungkinan \"bagaimana jika\" berdasarkan catatan pengguna. Gunakan bahasa sehari-hari. Hindari pujian umum, metafora berlebihan, dan pertanyaan atau saran penutup yang dipaksakan.",
+      "lensName": "Joy-K",
+      "tag": "Joy-K",
+      "desc": "Sudut lain dari wiki catatanmu"
     }
   },
   "replyFailed": "Tidak bisa mendapatkan balasan. Coba lagi sebentar lagi.",
   "yourMessage": "Pesanmu",
-  "secondbAnswer": "Jawaban SecondB",
+  "secondbAnswer": "Jawaban {{name}}",
   "longPressCopy": "Tekan lama untuk menyalin",
   "fillsComposer": "Mengisi kolom pesan",
   "keep": "Simpan",
+  "keepSuggestionHint": "Simpan pertanyaan dan jawaban terakhir ke wiki dalam kata-kata aslinya.",
   "keepToWiki": "Simpan ke wiki",
   "keptToWiki": "Tersimpan",
   "keeping": "Menyimpan...",
   "usedDeepQuestions": "Kamu sudah memakai pertanyaan mendalam minggu ini",
-  "analysisMode": "Mode analisis",
-  "analysisChip": "Analisis",
-  "newAngleMode": "Mode sudut baru",
-  "newAngleChip": "Sudut baru",
   "voiceInput": "Input suara",
   "voice": {
     "stop": "Berhenti dan transkripsikan",
@@ -160,16 +71,14 @@
     "transcribeFailed": "Tidak bisa mengubah rekaman itu menjadi teks. Coba lagi, atau ketik pesanmu.",
     "transcriptEmpty": "Kami tidak bisa menangkap kata apa pun. Coba lagi lebih dekat ke mikrofon, atau ketik saja."
   },
-  "closeIntro": "Tutup intro",
-  "closeIntroHint": "Menutup jendela intro",
   "closeReferenced": "Tutup catatan sumber",
   "closeReferencedHint": "Menutup daftar catatan yang dirujuk",
   "piecesReferenced": "Catatan yang dirujuk",
   "piecesReferencedBody": "Catatan yang digunakan dalam jawaban ini. Buka untuk memeriksa isinya.",
   "closeChip": "Tutup",
-  "eyebrow": "06. Obrolan SecondB",
+  "eyebrow": "06. Obrolan HustleK",
   "newPerspectives": "Perspektif baru & pengandaian",
-  "readyToChat": "SecondB siap mengobrol",
+  "readyToChat": "HustleK siap mengobrol",
   "longPressCopyThis": "Tekan lama untuk menyalin pesan ini",
   "copied": "Disalin",
   "copyFailed": "Gagal menyalin. Pilih teksnya untuk menyalin.",
@@ -181,7 +90,88 @@
   "askLens": "Tanya {{lens}}…",
   "nPieces": "{{n}} serpihan",
   "chatSaveNotice": "Percakapan ini tidak disimpan",
-  "chatSaveNoticeBody": "Nyalakan penyimpanan obrolan di pengaturan privasi untuk menyimpannya. Yang diucapkan sebelumnya tidak tersimpan.",
   "chatSaveNoticeOpen": "Buka pengaturan",
-  "chatSaveNoticeDismiss": "Tutup"
+  "chatSaveNoticeDismiss": "Tutup",
+  "planSuggestion": {
+    "routineButton": "Buat rutinitas",
+    "reminderButton": "Buat pengingat",
+    "reviewHint": "Periksa dan ubah detail sebelum menyimpan.",
+    "routineTitle": "Tinjau rutinitas",
+    "reminderTitle": "Tinjau pengingat",
+    "titleLabel": "Kegiatan",
+    "dateLabel": "Tanggal",
+    "timeLabel": "Waktu",
+    "timeOptional": "Waktu · opsional",
+    "cadence": "Pengulangan",
+    "category": "Kategori",
+    "daily": "Setiap hari",
+    "weekly": "Setiap minggu",
+    "weekday": "Hari",
+    "saveRoutine": "Simpan rutinitas",
+    "scheduleReminder": "Jadwalkan",
+    "exportCalendar": "Buat berkas kalender",
+    "webNotice": "Pengingat tidak berbunyi di browser ini. Tambahkan berkas ke aplikasi kalender, lalu periksa pengaturan notifikasinya.",
+    "exportConsent": "Saya setuju mengekspor judul, tanggal, dan waktu acara ini ke berkas kalender.",
+    "saving": "Menyimpan…",
+    "routineSaved": "Rutinitas disimpan.",
+    "reminderSaved": "Pengingat dijadwalkan.",
+    "calendarCreated": "Berkas kalender dibuat. Tambahkan ke aplikasi kalender Anda.",
+    "saveFailed": "Tidak dapat menyimpan. Periksa detailnya dan coba lagi.",
+    "unavailable": "Saran ini belum dapat disimpan. Buka lagi dari percakapan.",
+    "validation": {
+      "title": "Masukkan kegiatan.",
+      "date": "Pilih hari ini atau tanggal berikutnya.",
+      "time": "Masukkan waktu dalam format 24 jam, seperti 09:30.",
+      "weekday": "Pilih hari pengulangan.",
+      "exportConsent": "Setujui ekspor sebelum membuat berkas kalender.",
+      "past": "Pilih tanggal dan waktu mendatang.",
+      "category": "Pilih kategori."
+    },
+    "weekdays": {
+      "0": "Min",
+      "1": "Sen",
+      "2": "Sel",
+      "3": "Rab",
+      "4": "Kam",
+      "5": "Jum",
+      "6": "Sab"
+    },
+    "routineSavedNoReminder": "Rutinitas disimpan. Pengingat belum diatur.",
+    "routineSavedReminderDenied": "Rutinitas disimpan. Pengingat tidak dijadwalkan karena izin notifikasi dinonaktifkan.",
+    "routineSavedReminderFailed": "Rutinitas disimpan, tetapi pengingat tidak dapat dijadwalkan.",
+    "stale": "Percakapan telah berubah. Buka kembali saran terbaru.",
+    "reminderDenied": "Izin notifikasi dinonaktifkan. Aktifkan di pengaturan dan coba lagi.",
+    "reminderSavedNoReminder": "Pengingat disimpan di perangkat ini. Notifikasi tidak dapat dijadwalkan di lingkungan ini.",
+    "reminderSavedReminderDenied": "Pengingat disimpan di perangkat ini. Tidak ada notifikasi yang dijadwalkan karena izin ditolak.",
+    "reminderSavedReminderFailed": "Pengingat disimpan di perangkat ini. Penjadwalan notifikasi gagal. Aktifkan lagi di Pengingat.",
+    "oneOff": {
+      "title": "Pengingat tersimpan dari percakapan",
+      "deviceNote": "Pengingat akun ini disimpan di perangkat ini.",
+      "loading": "Memuat pengingat…",
+      "empty": "Belum ada pengingat tersimpan dari percakapan.",
+      "loadFailed": "Tidak dapat memuat pengingat.",
+      "retry": "Muat ulang",
+      "unavailable": "Notifikasi tidak dapat dijadwalkan di lingkungan ini.",
+      "past": "Waktunya sudah lewat",
+      "toggleLabel": "Notifikasi untuk {{title}}",
+      "on": "Notifikasi aktif",
+      "off": "Notifikasi nonaktif",
+      "alarmFailed": "Tidak dapat mengubah notifikasi. Periksa izin notifikasi perangkat ini lalu coba lagi.",
+      "delete": "Hapus",
+      "deleteLabel": "Hapus pengingat: {{title}}",
+      "deletePrompt": "Hapus pengingat ini dan batalkan notifikasi terjadwalnya?",
+      "confirmDelete": "Konfirmasi hapus",
+      "cancel": "Batal",
+      "deleteFailed": "Tidak dapat menghapus pengingat. Coba lagi sebentar lagi.",
+      "previous": "Sebelumnya",
+      "next": "Berikutnya",
+      "page": "{{current}} dari {{total}}"
+    }
+  },
+  "aiLine": "{{name}} adalah AI dan bisa keliru. Periksa informasi penting.",
+  "aiNotice": {
+    "body": "{{name}} adalah AI. Jawabannya dibuat oleh AI dan hanya sebagai referensi. Periksa informasi penting.",
+    "confirm": "Mengerti"
+  },
+  "aiCopyTail": "Konten buatan AI (PolaScope)"
 }

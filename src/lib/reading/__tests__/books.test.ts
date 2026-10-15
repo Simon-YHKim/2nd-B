@@ -2,7 +2,9 @@ import {
   buildBooksSearchUrl,
   extractYear,
   httpsOnly,
+  isBooksRateLimited,
   parseGoogleBooksResponse,
+  searchBooks,
 } from "../books";
 
 describe("httpsOnly (link scheme guard)", () => {
@@ -117,5 +119,47 @@ describe("parseGoogleBooksResponse (network proposes, this clamps)", () => {
     const out = parseGoogleBooksResponse(json);
     expect(out).toHaveLength(1);
     expect(out[0].infoLink).toBeUndefined();
+  });
+});
+
+// R2C-02 (2026-10-05): the keyless quota answered every search with HTTP 429 and the
+// screen showed "no suggestions yet" as if nothing had happened. The screen can only
+// say the right thing if the failure arrives as a failure, and a quota refusal has to
+// be told apart from a network blip: retrying will not help, adding by title will.
+describe("searchBooks failures arrive typed, never as an empty result", () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+  const answer = (status: number, body: unknown = {}) => {
+    global.fetch = jest.fn(async () => ({ ok: status >= 200 && status < 300, status, json: async () => body })) as unknown as typeof fetch;
+  };
+
+  test("HTTP 429 (the keyless quota) is rate_limited", async () => {
+    answer(429, { error: { status: "RESOURCE_EXHAUSTED" } });
+    await expect(searchBooks("demian")).rejects.toBe("rate_limited");
+  });
+
+  test("any other non-2xx is fetch_failed, not rate_limited", async () => {
+    answer(503);
+    await expect(searchBooks("demian")).rejects.toBe("fetch_failed");
+  });
+
+  test("a network error is fetch_failed", async () => {
+    global.fetch = jest.fn(async () => {
+      throw new TypeError("network");
+    }) as unknown as typeof fetch;
+    await expect(searchBooks("demian")).rejects.toBe("fetch_failed");
+  });
+
+  test("a real zero-hit answer is an empty list, not an error", async () => {
+    answer(200, { totalItems: 0 });
+    await expect(searchBooks("zzqqxx")).resolves.toEqual([]);
+  });
+
+  test("isBooksRateLimited reads only the quota refusal", () => {
+    expect(isBooksRateLimited("rate_limited")).toBe(true);
+    expect(isBooksRateLimited("fetch_failed")).toBe(false);
+    expect(isBooksRateLimited(new Error("rate_limited"))).toBe(false);
   });
 });

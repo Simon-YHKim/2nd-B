@@ -15,6 +15,15 @@
 // 그 노드의 언어 표시도 한국어로 남는다. 즉 표시된 언어가 항상 실제로 그려진
 // 언어다 — 절반만 번역된 타임라인이 보조기술에게 거짓말을 하지 않는다.
 // 번역을 채우는 것은 이 파일을 건드리지 않는 순수 콘텐츠 작업이 된다.
+//
+// **캐논을 읽는 것은 한국어 로케일뿐이다 (R2B-04, 2026-10-05).** 처음 규칙은
+// "로케일이 en 이고 번역이 있으면 en, 그 밖은 ko" 였다. 그래서 es·pt·id 사용자는
+// 영어 번역 43건이 다 있는데도 한국어 캐논을 받았다(크롬은 스페인어, 카드는
+// 한국어). 그렇게 정한 결정은 없다 — R24-MUSEUM-04 ② 는 "영어 번역 추가"뿐이고,
+// 앱 전체 fallbackLng 은 en 이다. 지금 규칙은 앱과 같다: ko 로케일은 캐논,
+// 그 밖의 로케일은 번역이 있으면 en, 없으면 ko. 언어 표시는 여전히 그린
+// 언어 그대로다(en 을 그리면 en 이라고 단다). es 번역 파일이 생기면
+// `MuseumLanguage` 에 "es" 를 넣고 이 규칙에 갈래를 하나 더한다.
 
 import { CANON_MUSEUM_LANGUAGE } from "@/lib/canon/museum";
 
@@ -23,6 +32,15 @@ import type { MuseumDetail, MuseumEvent } from "./museum-timeline-data";
 
 /** 번역이 존재하는 언어. 늘어나면 여기에 파일을 하나 더 붙인다. */
 export type MuseumLanguage = "ko" | "en";
+
+/**
+ * 이 UI 로케일이 캐논(한국어)을 그대로 읽는가. 한국어 로케일만 그렇다.
+ * 사건 본문 · 참고자료 종류 · lane 범례가 모두 이 술어 하나를 쓴다 —
+ * 한 화면에서 규칙이 갈리면 같은 lane 이 범례와 카드에서 다른 언어로 나온다.
+ */
+export function readsMuseumCanon(locale: string): boolean {
+  return locale.toLowerCase().startsWith(CANON_MUSEUM_LANGUAGE);
+}
 
 interface EventTranslation {
   title: string;
@@ -43,12 +61,13 @@ export const MUSEUM_REF_KIND_LABEL_EN = translations.refKinds as Record<string, 
 /**
  * 이 UI 로케일에서 이 사건이 실제로 그려질 언어.
  *
- * 로케일이 en 이어도 그 id 의 번역이 없으면 **ko** 다. 화면은 이 값을
+ * 한국어 로케일은 언제나 ko(캐논)다. 그 밖의 로케일(en·es·pt·id)은 번역이
+ * 있으면 en, 그 id 의 번역이 없으면 **ko** 다. 화면은 이 값을
  * `accessibilityLanguage` 에 그대로 넘긴다 — 그래서 표시가 항상 참이다.
  * 로케일과 언어를 같은 것으로 다루면 부분 번역이 곧 거짓 표시가 된다.
  */
 export function museumContentLanguage(eventId: string, locale: string): MuseumLanguage {
-  return locale.startsWith("en") && EN[eventId] ? "en" : CANON_MUSEUM_LANGUAGE;
+  return !readsMuseumCanon(locale) && EN[eventId] ? "en" : CANON_MUSEUM_LANGUAGE;
 }
 
 /** 이 로케일에서 이 사건에 쓸 번역이 있는가. */
@@ -96,9 +115,9 @@ export function resolveMuseumDetail(
   return { ...detail, long: t.long, facts: t.facts, cause: t.cause, effect: t.effect };
 }
 
-/** 참고자료 종류 라벨(논문/제품/사건/영상)도 로케일을 탄다. */
+/** 참고자료 종류 라벨(논문/제품/사건/영상)도 로케일을 탄다. 규칙은 사건과 같다. */
 export function resolveMuseumRefKindLabel(kind: string, koLabel: string, locale: string): string {
-  return locale.startsWith("en") ? MUSEUM_REF_KIND_LABEL_EN[kind] ?? koLabel : koLabel;
+  return readsMuseumCanon(locale) ? koLabel : MUSEUM_REF_KIND_LABEL_EN[kind] ?? koLabel;
 }
 
 /** 진행률 — 번역이 얼마나 채워졌는지. 가드와 보고가 같은 수를 읽게 한다. */

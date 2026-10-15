@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2nd-Brain 코드베이스 결함 및 잠재 버그 정밀 진단 보고서 · 2026-10-02</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #030712;
+    --surface: #0f172a;
+    --surface-elevated: #1e293b;
+    --border: rgba(148, 163, 184, 0.16);
+    --border-accent: rgba(56, 189, 248, 0.35);
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-subtle: #64748b;
+    --accent: #38bdf8;
+    --accent-glow: rgba(56, 189, 248, 0.15);
+    --warning: #f59e0b;
+    --warning-bg: rgba(245, 158, 11, 0.12);
+    --danger: #ef4444;
+    --danger-bg: rgba(239, 68, 68, 0.15);
+    --success: #10b981;
+    --success-bg: rgba(16, 185, 129, 0.12);
+    --purple: #a855f7;
+    --purple-bg: rgba(168, 85, 247, 0.12);
+    --code-bg: #090d16;
+  }
+  [data-theme="light"] {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-elevated: #f1f5f9;
+    --border: #e2e8f0;
+    --border-accent: rgba(2, 132, 199, 0.35);
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-subtle: #64748b;
+    --accent: #0284c7;
+    --accent-glow: rgba(2, 132, 199, 0.1);
+    --warning: #d97706;
+    --warning-bg: #fef3c7;
+    --danger: #dc2626;
+    --danger-bg: #fee2e2;
+    --success: #059669;
+    --success-bg: #d1fae5;
+    --purple: #9333ea;
+    --purple-bg: #f3e8ff;
+    --code-bg: #1e293b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-elevated: #f1f5f9;
+      --border: #e2e8f0;
+      --border-accent: rgba(2, 132, 199, 0.35);
+      --text: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #64748b;
+      --accent: #0284c7;
+      --accent-glow: rgba(2, 132, 199, 0.1);
+      --warning: #d97706;
+      --warning-bg: #fef3c7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --success: #059669;
+      --success-bg: #d1fae5;
+      --purple: #9333ea;
+      --purple-bg: #f3e8ff;
+      --code-bg: #1e293b;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 48px 24px 80px; }
+  
+  .top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 36px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .top-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+  }
+  .theme-toggle-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 10px; }
+  .lead { font-size: 16px; color: var(--text-muted); line-height: 1.6; }
+  .meta-tags { display: flex; gap: 12px; margin-top: 14px; font-size: 13px; color: var(--text-subtle); flex-wrap: wrap; }
+  .meta-tag { background: var(--surface-elevated); padding: 3px 8px; border-radius: 4px; }
+
+  /* Summary Cards */
+  .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 28px 0; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+  }
+  .stat-num { font-size: 32px; font-weight: 800; line-height: 1; margin-bottom: 6px; }
+  .stat-label { font-size: 13px; color: var(--text-muted); }
+
+  h2 { font-size: 21px; font-weight: 700; margin: 44px 0 18px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+  
+  /* Bug Detail Cards */
+  .bug-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .bug-header {
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-elevated);
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .bug-title-group { display: flex; align-items: center; gap: 12px; }
+  .bug-title { font-size: 16px; font-weight: 700; color: var(--text); }
+  .bug-file { font-size: 13px; color: var(--text-subtle); font-family: monospace; }
+  
+  .severity-badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .sev-critical { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
+  .sev-high { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning); }
+  .sev-medium { background: var(--accent-glow); color: var(--accent); border: 1px solid var(--accent); }
+  
+  .bug-body { padding: 20px; font-size: 14.5px; }
+  .bug-section-title { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin: 14px 0 6px; letter-spacing: 0.5px; }
+  .bug-section-title:first-child { margin-top: 0; }
+  
+  code {
+    background: var(--surface-elevated);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: var(--accent);
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 14px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 8px 0;
+    color: #e2e8f0;
+    border: 1px solid var(--border);
+  }
+
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+  th, td { padding: 12px 14px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { background: var(--surface-elevated); color: var(--text-muted); font-weight: 600; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="top-nav">
+    <div class="top-badge">
+      <span>🚨 DEFECT & VULNERABILITY AUDIT</span>
+      <span>·</span>
+      <span>2026-10-02</span>
+    </div>
+    <button class="theme-toggle-btn" onclick="toggleTheme()">
+      <span id="themeIcon">☀️</span>
+      <span id="themeText">라이트 모드</span>
+    </button>
+  </nav>
+
+  <header>
+    <h1>2nd-Brain 코드베이스 결함 및 잠재 버그 정밀 진단</h1>
+    <p class="lead">
+      현재 작업 브랜치(<code>Simon-YHKim/TTL-Work_rev2</code>) 및 최신 변경 코드 전반에 걸친 테스트 실패, 런타임 크래시 위험, Android 네이티브 UX 결함을 전수 조사한 결과 보고서입니다.
+    </p>
+    <div class="meta-tags">
+      <span class="meta-tag">검수 대상: Jest 848 Suites (10,900+ Tests)</span>
+      <span class="meta-tag">검수 영역: CI 무관용 가드, Android 생명주기, React 동시성</span>
+      <span class="meta-tag">상태: 5건 검출 (Critical 1, High 1, Medium 3)</span>
+    </div>
+  </header>
+
+  <div class="grid-4">
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--danger);">1건</div>
+      <div class="stat-label">CRITICAL (CI 게이트 파괴)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--warning);">1건</div>
+      <div class="stat-label">HIGH (Android UX 트랩)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--accent);">3건</div>
+      <div class="stat-label">MEDIUM (크래시/상태 위험)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--success);">846개</div>
+      <div class="stat-label">정상 통과 테스트 스위트</div>
+    </div>
+  </div>
+
+  <h2>🔍 상세 결함 내역 (5건)</h2>
+
+  <!-- Bug 1 -->
+  <div class="bug-card">
+    <div class="bug-header">
+      <div class="bug-title-group">
+        <span class="severity-badge sev-critical">CRITICAL</span>
+        <span class="bug-title">1. 법무 문서 인용 오프셋 및 앵커 불일치 버그 (CI Fail)</span>
+      </div>
+      <span class="bug-file">src/lib/chat/conversation.ts</span>
+    </div>
+    <div class="bug-body">
+      <div class="bug-section-title">증상 및 실패 테스트</div>
+      <p>
+        <code>npx jest src/lib/legal/__tests__/legal-doc-citations.test.ts</code> 및 <code>dpia-crisis-rail-anchors.test.ts</code> 실패.<br>
+        <code>DPIA-2ndB-minors-draft.md:350, 364</code>가 인용하는 라인이 빈 줄 및 닫는 괄호(<code>);</code>)를 가리킴.
+      </p>
+      <pre>FAIL src/lib/legal/__tests__/legal-doc-citations.test.ts
+  ● 인용한 줄에 내용이 있다 - 빈 줄·닫는 괄호만 가리키지 않는다
+    - Expected: []
+    + Received: [
+        "DPIA-2ndB-minors-draft.md:350 -> src/lib/chat/conversation.ts:256,257",
+        "DPIA-2ndB-minors-draft.md:364 -> src/lib/chat/conversation.ts:256,257",
+      ]</pre>
+      
+      <div class="bug-section-title">근본 원인 (Root Cause)</div>
+      <p>
+        <code>SYSTEM_PROMPT_HEADER.ko</code> 수정 시 주석이 기존 5줄에서 3줄로 2줄 축소되면서, 파일 하단의 라인 번호가 2줄씩 당겨졌습니다. 그 결과 법무 문서(DPIA)가 인용하던 256~257번 라인(<code>bodyCharLimit: 600</code>)이 254~255번으로 이동하여, 256~257번이 빈 줄과 닫는 괄호가 되었습니다.
+      </p>
+
+      <div class="bug-section-title">해결 방안</div>
+      <p>
+        <code>conversation.ts</code>의 주석 라인 수를 2줄 복원하여 불변식 라인(256~257, 303, 345)을 정확히 원위치시키면 테스트가 즉시 통과합니다.
+      </p>
+    </div>
+  </div>
+
+  <!-- Bug 2 -->
+  <div class="bug-card">
+    <div class="bug-header">
+      <div class="bug-title-group">
+        <span class="severity-badge sev-high">HIGH</span>
+        <span class="bug-title">2. Android 하드웨어 백버튼 무한 루프 트랩 (BackHandler Loop)</span>
+      </div>
+      <span class="bug-file">src/components/dashboard/DashboardPhone.tsx:118-130</span>
+    </div>
+    <div class="bug-body">
+      <div class="bug-section-title">증상 및 UX 영향</div>
+      <p>
+        안드로이드 실기기에서 핸드폰(DashboardPhone) 모달 루트 상태일 때 하드웨어 백버튼을 누르면 <strong>종료 확인 모달이 열렸다 닫혔다를 무한 반복</strong>하며, 백버튼으로 핸드폰 화면을 절대 닫을 수 없습니다.
+      </p>
+
+      <div class="bug-section-title">근본 원인 (Root Cause)</div>
+      <pre><code>// DashboardPhone.tsx
+const backInside = useCallback(() => {
+  scrollY.current = 0;
+  if (exitPrompt) { setExitPrompt(false); return; } // ① 확인창 열린 상태에서 백버튼 누르면 창만 닫음
+  ...
+  if (tab === "tools") { setTab("dashboard"); return; }
+  setExitPrompt(true); // ② 루트에서 백버튼 누르면 확인창을 엶
+}, [exitPrompt, ...]);
+
+useEffect(() => {
+  const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+    backInside();
+    return true; // ③ 항상 true를 반환하여 Android 시스템 기본 뒤로가기(닫기)를 차단함
+  });
+  return () => listener.remove();
+}, [backInside]);</code></pre>
+      <p>
+        루트에서 백버튼 클릭 → <code>exitPrompt(true)</code> → 다시 백버튼 클릭 → <code>exitPrompt(false)</code> → 다시 클릭 → <code>exitPrompt(true)</code>로 무한 루프를 돕니다. <code>closePhone()</code>이 절대 호출되지 않습니다.
+      </p>
+
+      <div class="bug-section-title">해결 방안</div>
+      <p>
+        <code>exitPrompt</code>가 이미 활성화된 상태에서 한 번 더 하드웨어 백버튼을 누르면 <code>closePhone()</code>을 호출하여 닫히도록 수정해야 합니다.
+      </p>
+    </div>
+  </div>
+
+  <!-- Bug 3 -->
+  <div class="bug-card">
+    <div class="bug-header">
+      <div class="bug-title-group">
+        <span class="severity-badge sev-medium">MEDIUM</span>
+        <span class="bug-title">3. 집중 타이머 상태 업데이터 내 동기적 부수 효과 (React 18 위반)</span>
+      </div>
+      <span class="bug-file">src/components/dashboard/DashboardPhone.tsx:133-136</span>
+    </div>
+    <div class="bug-body">
+      <div class="bug-section-title">증상 및 위험도</div>
+      <p>
+        React Concurrent Mode에서 상태 불일치 및 <em>"Cannot update a component while rendering a different component"</em> 런타임 경고 발생 가능.
+      </p>
+
+      <div class="bug-section-title">근본 원인 (Root Cause)</div>
+      <pre><code>const timer = setInterval(() => setFocusSeconds((seconds) => {
+  if (seconds <= 1) { 
+    setFocusRunning(false); // ⚠️ 순수해야 할 setFocusSeconds 업데이터 내부에서 다른 setState를 동기 호출!
+    return 0; 
+  }
+  return seconds - 1;
+}), 1000);</code></pre>
+
+      <div class="bug-section-title">해결 방안</div>
+      <p>
+        <code>focusSeconds</code>의 카운트다운 완료 판단을 <code>useEffect</code> 기반으로 분리하거나, 부수 효과를 업데이터 함수 밖으로 추출해야 합니다.
+      </p>
+    </div>
+  </div>
+
+  <!-- Bug 4 -->
+  <div class="bug-card">
+    <div class="bug-header">
+      <div class="bug-title-group">
+        <span class="severity-badge sev-medium">MEDIUM</span>
+        <span class="bug-title">4. 잘못된 레코드 라우트 시 Uncaught `URIError` 크래시</span>
+      </div>
+      <span class="bug-file">src/components/dashboard/DashboardPhone.tsx:303</span>
+    </div>
+    <div class="bug-body">
+      <div class="bug-section-title">증상 및 위험도</div>
+      <p>
+        잘못 인코딩된 URL(예: 단독 <code>%</code> 또는 비표준 인코딩)을 통해 <code>/record/...</code> 라우트에 진입할 경우 React 전체 컴포넌트 트리가 Uncaught <code>URIError</code>로 화이트아웃/크래시됩니다.
+      </p>
+
+      <div class="bug-section-title">근본 원인 (Root Cause)</div>
+      <pre><code>const selected = route.startsWith("/record/") 
+  ? [...records, ...interviews].find((record) => record.id === decodeURIComponent(route.slice(8))) 
+  : null;</code></pre>
+      <p>
+        <code>decodeURIComponent()</code>가 <code>try...catch</code> 방어 코드 없이 컴포넌트 렌더링 본문에서 직접 호출됩니다.
+      </p>
+
+      <div class="bug-section-title">해결 방안</div>
+      <p>
+        안전한 헬퍼 함수 <code>safeDecodeURIComponent(str)</code>를 사용하여 예외 발생 시 원본 문자열을 폴백으로 반환하도록 방어합니다.
+      </p>
+    </div>
+  </div>
+
+  <!-- Bug 5 -->
+  <div class="bug-card">
+    <div class="bug-header">
+      <div class="bug-title-group">
+        <span class="severity-badge sev-medium">MEDIUM</span>
+        <span class="bug-title">5. 핸드폰 종료 시 온보딩 페이지로의 예기치 않은 강제 이탈</span>
+      </div>
+      <span class="bug-file">src/components/dashboard/DashboardPhone.tsx:75, DeepSpaceShell.tsx:107</span>
+    </div>
+    <div class="bug-body">
+      <div class="bug-section-title">증상 및 UX 영향</div>
+      <p>
+        직접 링크나 브라우저 새로고침 후 핸드폰(DashboardPhone)을 닫았을 때, 별자리 메인이 나오는 대신 <strong>3단계 온보딩 슬라이드 화면(<code>/onboarding</code>)으로 튕기는 현상</strong> 발생 (2026-09-30 QA 보고서 기재 확인).
+      </p>
+
+      <div class="bug-section-title">근본 원인 (Root Cause)</div>
+      <p>
+        <code>closePhone()</code>에서 <code>transparentBackdrop</code>이 false일 때 <code>router.replace("/")</code>로 이동하는데, 홈 화면(<code>DeepSpaceShell</code>)의 <code>if (!onboardingComplete) return &lt;Redirect href="/onboarding" /&gt;;</code> 게이트가 저장된 온보딩 완료 플래그가 없는 QA/신규 세션에서 홈 렌더를 차단하고 온보딩으로 강제 추방합니다.
+      </p>
+    </div>
+  </div>
+
+  <h2>📋 요약 및 즉각 조치 권장사항</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>우선순위</th>
+        <th>결함명</th>
+        <th>소요 시간</th>
+        <th>조치 내용</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>P0</strong></td>
+        <td>법무 문서 인용 오프셋 버그</td>
+        <td>2분</td>
+        <td><code>conversation.ts</code> 주석 라인 수 2줄 복원하여 CI 올패스 달성</td>
+      </tr>
+      <tr>
+        <td><strong>P1</strong></td>
+        <td>Android BackHandler 무한 루프</td>
+        <td>5분</td>
+        <td><code>exitPrompt</code> 상태에서 백버튼 2차 누름 시 <code>closePhone()</code> 호출</td>
+      </tr>
+      <tr>
+        <td><strong>P2</strong></td>
+        <td>집중 타이머 setState 부수 효과</td>
+        <td>3분</td>
+        <td><code>setFocusRunning(false)</code>를 업데이터 밖으로 분리</td>
+      </tr>
+      <tr>
+        <td><strong>P3</strong></td>
+        <td>decodeURIComponent 예외 가드</td>
+        <td>2분</td>
+        <td><code>try...catch</code> 안전 디코딩 헬퍼 적용</td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>
+
+<script>
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    updateThemeBtn(next);
+  }
+
+  function updateThemeBtn(theme) {
+    const icon = document.getElementById('themeIcon');
+    const text = document.getElementById('themeText');
+    if (theme === 'light') {
+      icon.textContent = '🌙';
+      text.textContent = '다크 모드';
+    } else {
+      icon.textContent = '☀️';
+      text.textContent = '라이트 모드';
+    }
+  }
+
+  (function() {
+    const saved = localStorage.getItem('theme');
+    if (saved) {
+      document.documentElement.setAttribute('data-theme', saved);
+      updateThemeBtn(saved);
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      updateThemeBtn(prefersDark ? 'dark' : 'light');
+    }
+  })();
+</script>
+</body>
+</html>

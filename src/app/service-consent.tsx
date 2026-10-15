@@ -1,6 +1,7 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Redirect, router } from "expo-router";
+import { StyleSheet } from "react-native";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard } from "@/components/m3";
@@ -9,6 +10,8 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { accountTransitionPendingFromSnapshot, accountTransitionSnapshot, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { allRequiredAcksChecked, emptyConsentSelections, REQUIRED_ACK_KEYS } from "@/lib/auth/consent-selections";
 import { isAvailableUiLocale, type AvailableUiLocale } from "@/lib/i18n/locales";
+import { useGoHomeStop } from "@/lib/nav/go-home";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { loadServiceConsent, matchesServiceConsentContract, saveServiceConsent, ServiceConsentError, type ServiceConsentStatus } from "@/lib/privacy/service-consent";
 import { m3 } from "@/lib/theme/m3";
 
@@ -19,6 +22,8 @@ const ACK_COPY = {
 
 /** The key fences both account changes and an A -> B -> A epoch transition. */
 export default function ServiceConsentScreen() {
+  // Phone-aware: inside the dashboard phone, back and the links stay in the phone.
+  const router = useAppRouter();
   const { userId, loading } = useAuth();
   const { t, i18n } = useTranslation("consent");
   const transition = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
@@ -35,6 +40,7 @@ export default function ServiceConsentScreen() {
 }
 
 function ConsentForm({ userId, locale }: { userId: string; locale: AvailableUiLocale }) {
+  const router = useAppRouter();
   const { t } = useTranslation("consent");
   const [status, setStatus] = useState<ServiceConsentStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,6 +51,13 @@ function ConsentForm({ userId, locale }: { userId: string; locale: AvailableUiLo
   const [reload, setReload] = useState(0);
   const lifecycle = useRef<AbortController | null>(null);
   const inFlight = useRef(false);
+
+  // A home jump from a route above (RedirectHome, tab-root Back) stops here
+  // while this form holds something it would lose (gate NAV-S7-01): unmounting
+  // aborts a save that is out, the acknowledgements under review live only
+  // here, and so does the notice that says whether the save or withdrawal
+  // landed. A load error is not kept; the reload button recovers it.
+  useGoHomeStop(() => inFlight.current || busy || reviewing || (notice !== null && notice !== "loadError"));
 
   useEffect(() => {
     const controller = new AbortController();
@@ -113,8 +126,6 @@ function ConsentForm({ userId, locale }: { userId: string; locale: AvailableUiLo
             <MdButton label={t("serviceControl.review")} disabled={busy} onPress={() => { setSelections(emptyConsentSelections()); setReviewing(true); }} />
           ) : null}
           {reviewing ? <View style={styles.review}>
-            {/* PolaScope 병기 안내: 약관 적용일(2026-10-05) 전까지만. 약관·동의 개정 PR 에서 지운다 (DECISIONS 26.09.28). */}
-            <Text variant="subtle">{t("common:app.renameNote")}</Text>
             <Text variant="body">{t("notice.intro")}</Text>
             <Text variant="subtle">{t("serviceControl.versions", { consent: status.consent_version, policy: status.policy_version, terms: status.terms_version })}</Text>
             {REQUIRED_ACK_KEYS.map((key) => <Pressable key={key}

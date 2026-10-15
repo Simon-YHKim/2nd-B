@@ -1,20 +1,29 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // The 6 Ops/assistant domain screens (Claude Design ops-assistant.dc.html).
 // Each assembles the shared kit (components/deepspace/ops) and renders/operates
 // the already-built backing data libs. deepSpace.* tokens only, no auto-execution
 // (every write is behind a user tap). Strings come from the bilingual ops copy.
 
-import { useEffect, useMemo, useState, type DependencyList } from "react";
-import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type DependencyList } from "react";
+import { Linking, Platform, Share, StyleSheet } from "react-native";
+import { PhonePressable as Pressable, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { ChatRemindersList } from "@/components/secondb/ChatRemindersList";
 import { PlainText as RNText } from "@/components/ui/PlainText";
+import { PixelDither } from "@/components/pixel/PixelDither";
 
 import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { DateField, MdButton, MdCard } from "@/components/m3";
+import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { phoneStyleSheet } from "@/lib/theme/phone-design";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { accountTransitionSnapshot, captureAccountOwnerLease, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { useTranslation } from "react-i18next";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import {
@@ -24,6 +33,7 @@ import {
   OpsDomainPicker,
   OpsFrame,
   OpsPushSheet,
+  OpsPhoneSwitch,
   OpsRecommendationCard,
   OpsState,
   OpsStatusChip,
@@ -43,21 +53,34 @@ import { recommendForDomain, type OpsRecommendation } from "@/lib/ops/recommend"
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { buildChecklistShareText, buildGoogleCalendarUrl, type OpsEventInput } from "@/lib/ops/push";
 import { searchBooks, type BookResult } from "@/lib/reading/books";
-import { addToShelf, listShelf, readingProgress, setShelfStatus, type Shelf } from "@/lib/reading/shelf";
+import {
+  addToShelf,
+  listShelf,
+  manualBook,
+  pageCountEdit,
+  parsePageDraft,
+  readingProgress,
+  removeFromShelf,
+  setShelfStatus,
+  shelfVolumeIds,
+  updateShelfEntry,
+  type Shelf,
+} from "@/lib/reading/shelf";
 import {
   createMilestone,
+  deleteMilestone,
   domainProgress,
   listMilestones,
   milestoneOverdue,
   updateMilestone,
   type Milestone,
-  type MilestoneStatus,
 } from "@/lib/ops/milestones";
-import { createLedgerEntry, deleteLedgerEntry, listEntriesForMonth, localDayKey, monthBucket, summarizeMonth } from "@/lib/finance/ledger";
+import { createLedgerEntry, deleteLedgerEntry, ledgerAmountEdit, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
 import { fetchPushActivity, summarizeGithubActivity, type PushActivity } from "@/lib/projects/github";
 import { searchFoods, type FoodNutrition } from "@/lib/nutrition/foods";
 import {
   buildWeekGrid,
+  clearMeal,
   listWeek,
   MEAL_SLOTS,
   setMeal,
@@ -69,14 +92,37 @@ import {
 import { listActiveRoutines, type OpsRoutine } from "@/lib/ops/routines";
 import {
   disableReminder,
-  enableReminder,
+  enableReminderWithResult,
   getReminderStates,
   getScheduledRoutineIds,
+  sweepResidualReminderNotifications,
   remindersSupported,
 } from "@/lib/ops/reminders";
 import { getGithubUsername, setGithubUsername } from "@/lib/projects/github-link";
 import { monthDelta, prevMonthKey } from "@/lib/finance/trend";
 import { trendChip } from "@/lib/ops/grounding";
+import { RECORD_SAVE_CUE, milestoneDoneCueAllowed } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
+import {
+  bookSearchFailed,
+  bookSearchSettled,
+  DELETE_ARM_MS,
+  editorAfterDelete,
+  mealClearArmKey,
+  mealSaveAction,
+  mealSheetAfterWrite,
+  mealSheetDismiss,
+  mealWriteLock,
+  MILESTONE_NEXT,
+  milestoneChip,
+  pageWriteLock,
+  runExclusive,
+  sheetAfterWrite,
+  shelfView,
+  tapDelete,
+  type BookSearchView,
+  type MilestoneChipKey,
+} from "./tool-logic";
 
 // ── 이 화면들의 바탕 (PIXEL-CLAY 절대 규칙 4) ────────────────────────
 //
@@ -123,7 +169,7 @@ function useAsync<T>(fn: () => Promise<T>, deps: DependencyList): Async<T> {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // fn stays out of this list on purpose: every caller passes what fn reads as deps.
   }, [...deps, nonce]);
   return { status, data, reload: () => setNonce((n) => n + 1) };
 }
@@ -184,12 +230,57 @@ function buildCommitHeatmap(
 // the list is still there and still valid, only the thing the user just did did not
 // happen. So this sits inline, above the list, and does not take the data away.
 function SaveErrorBanner({ text }: { text: string }) {
+  const styles = useOpsScreenStyles();
   return (
     <View style={styles.saveErrBanner}>
       <Text variant="caption" style={styles.saveErrText} accessibilityRole="alert" accessibilityLiveRegion="polite">
         {text}
       </Text>
     </View>
+  );
+}
+
+// --- hand-entry tool helpers (QA round 2, 2026-10-05) ---------------------------
+
+/** R2C-10: the tool screens showed the assistant's "NEW / No suggestions yet" card
+ *  while loading, with the suggestion screen's body text. A wait is the shared loader. */
+function ToolLoading() {
+  const { t } = useTranslation("ops");
+  return <DeepSpaceLoader variant="dots" caption={t("toolScreens.loading")} />;
+}
+
+/**
+ * R2C-16 / R2C-07: a delete takes two taps on the same row (tapDelete), and an armed
+ * row lets go on its own after DELETE_ARM_MS. The ledger's ✕ used to delete on the
+ * first tap, and the shelf, goals and meals had no delete at all.
+ */
+function useTwoTapDelete(onCommit: (id: string) => void): { armedId: string | null; press: (id: string) => void } {
+  const [armedId, setArmedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (armedId === null) return undefined;
+    const timer = setTimeout(() => setArmedId(null), DELETE_ARM_MS);
+    return () => clearTimeout(timer);
+  }, [armedId]);
+  const press = (id: string) => {
+    const tap = tapDelete(armedId, id);
+    setArmedId(tap.armedId);
+    if (tap.commit) onCommit(id);
+  };
+  return { armedId, press };
+}
+
+function DeleteChip({ armed, name, onPress, disabled }: { armed: boolean; name: string; onPress: () => void; disabled?: boolean }) {
+  const { t } = useTranslation("ops");
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={armed ? t("toolScreens.delete.confirmA11y", { name }) : t("toolScreens.delete.a11y", { name })}
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={8}
+    >
+      <OpsStatusChip tone={armed ? "danger" : "muted"} label={armed ? t("toolScreens.delete.confirm") : t("toolScreens.delete.arm")} />
+    </Pressable>
   );
 }
 
@@ -326,29 +417,69 @@ export function OpsHomeScreen() {
 // --- (2) Reading · books -----------------------------------------------
 
 export function ReadingScreen() {
+  const styles = useOpsScreenStyles();
   const c = useOpsCopy();
+  const { t } = useTranslation("ops");
   const { userId } = useAuth();
   // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
   // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
   // just silently did nothing.
   const [saveErr, setSaveErr] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<BookResult[]>([]);
+  // R2C-02: "not searched yet", "nothing matched" and "the search failed" are three
+  // different answers. The old catch set the results to [] and the screen fell onto
+  // the assistant's "No suggestions yet" card, so a refused search looked like nothing.
+  const [search, setSearch] = useState<BookSearchView>({ kind: "idle" });
+  const [manual, setManual] = useState<BookResult | null>(null);
+  const searchSeq = useRef(0);
+  // R2C-08: the "0 / 200" under NOW READING could not be changed.
+  // `session` is new on every opening of the editor (gate BL-09): a save closes only the
+  // opening it started from, never one opened after it.
+  const [pageEdit, setPageEdit] = useState<{
+    session: number; id: string; cur: string; total: string; curOverflow: boolean; totalOverflow: boolean;
+  } | null>(null);
+  const pageEditSeq = useRef(0);
+  const [pageErr, setPageErr] = useState(false);
+  // One page-count save per book at a time (gate BL-09), under the book's shared lock
+  // (pageWriteLock). `pageWrites` counts this screen's own saves in flight; while any
+  // runs, the editor takes no input and no second submit.
+  const [pageWrites, setPageWrites] = useState(0);
+  const pageSaving = pageWrites > 0;
   const shelf = useAsync<Shelf>(
     () => (userId ? listShelf(userId) : Promise.resolve({ want: [], reading: [], done: [] })),
     [userId],
   );
-  const reading = shelf.data?.reading[0];
+  const view = shelfView(shelf.data);
+  const reading = view.hero;
+  const onShelf = shelfVolumeIds(shelf.data);
 
-  const onSearch = async () => {
+  const onSearch = async (query: string = q) => {
+    const trimmed = query.trim();
+    if (trimmed.length === 0) return;
+    const seq = ++searchSeq.current;
+    setManual(null);
+    setSearch({ kind: "searching", q: trimmed });
+    let next: BookSearchView;
     try {
-      setResults(await searchBooks(q));
-    } catch {
-      setResults([]);
+      const items = await searchBooks(trimmed);
+      next = bookSearchSettled(trimmed, items);
+    } catch (e) {
+      next = bookSearchFailed(trimmed, e);
     }
+    if (seq !== searchSeq.current) return;
+    try {
+      const book = next.kind === "none" || next.kind === "failed" ? await manualBook(trimmed) : null;
+      if (seq === searchSeq.current) setManual(book);
+    } catch (e) {
+      next = bookSearchFailed(trimmed, e);
+    }
+    if (seq === searchSeq.current) setSearch(next);
   };
   const onAdd = async (b: BookResult) => {
-    if (!userId) return;
+    if (!userId || busy) return;
+    setBusy(true);
+    setSaveErr(false);
     try {
       await addToShelf(userId, b, "want");
       shelf.reload();
@@ -356,6 +487,8 @@ export function ReadingScreen() {
       // The write failed. Say so: reload() lives inside the try above, so on this path
       // it never ran and nothing surfaced anywhere.
       setSaveErr(true);
+    } finally {
+      setBusy(false);
     }
   };
   // med#21: the shelf had no way to MOVE a book between statuses, so the
@@ -370,6 +503,49 @@ export function ReadingScreen() {
       setSaveErr(true);
     }
   };
+  // R2C-07: a book put on the shelf by mistake could never be taken off.
+  const onRemove = async (entryId: string) => {
+    if (!userId) return;
+    setSaveErr(false);
+    try {
+      await removeFromShelf(userId, entryId);
+      // Gate CD-R2-01: read the editor as it is now. Another book's page editor can open while
+      // this delete is in flight, and its draft must survive this.
+      setPageEdit((open) => editorAfterDelete(open, entryId));
+      shelf.reload();
+    } catch {
+      setSaveErr(true);
+    }
+  };
+  const del = useTwoTapDelete((id) => void onRemove(id));
+  // Gate BL-09: two saves used to go out side by side (20, then 30 before the first
+  // answered) and whichever UPDATE landed last won, so the book could end at 20. The save
+  // now runs under the book's lock, the editor is off while it runs, and when it settles
+  // only the opening it started from closes. A failed save keeps the editor and its draft.
+  const onSavePages = async () => {
+    if (!userId || !pageEdit || pageSaving) return;
+    const edit = pageEdit;
+    const pages = parsePageDraft(edit.cur, edit.total);
+    if (!pages || edit.curOverflow || edit.totalOverflow) {
+      setPageErr(true);
+      return;
+    }
+    setPageErr(false);
+    const outcome = await runExclusive(pageWriteLock(userId, edit.id), async () => {
+      setPageWrites((n) => n + 1);
+      setSaveErr(false);
+      try {
+        await updateShelfEntry(userId, edit.id, pages);
+      } finally {
+        setPageWrites((n) => n - 1);
+      }
+    });
+    if (outcome === "busy") return;
+    if (outcome === "done") {
+      setPageEdit((open) => sheetAfterWrite(open, edit.session));
+      shelf.reload();
+    } else setSaveErr(true);
+  };
 
   return (
     <OpsFrame title={c.myShelf} bubble={c.whatReading} tip={c.add}>
@@ -378,13 +554,66 @@ export function ReadingScreen() {
         <TextInput
           value={q}
           onChangeText={setQ}
-          onSubmitEditing={onSearch}
+          onSubmitEditing={() => void onSearch()}
           placeholder={c.searchBooks}
           placeholderTextColor={deepSpace.textLo}
           style={styles.searchInput}
           returnKeyType="search"
+          accessibilityLabel={c.searchBooks}
         />
       </View>
+
+      {search.kind === "searching" ? (
+        <Text variant="subtle" style={styles.toolNote}>{t("toolScreens.reading.searching")}</Text>
+      ) : search.kind === "results" ? (
+        <View style={styles.section}>
+          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.searchBooks}</Text>
+          {search.items.map((b) =>
+            onShelf.has(b.id) ? (
+              <View key={b.id} style={styles.bookRow}>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
+                <Text variant="caption" style={styles.bookOnShelf}>{t("toolScreens.reading.onShelf")}</Text>
+              </View>
+            ) : (
+              <Pressable key={b.id} accessibilityRole="button" onPress={() => void onAdd(b)} disabled={busy} hitSlop={6} style={styles.bookRow}>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
+                <Text variant="caption" style={styles.bookAdd}>＋ {c.add}</Text>
+              </Pressable>
+            ),
+          )}
+        </View>
+      ) : search.kind === "none" || search.kind === "failed" ? (
+        <View style={styles.section}>
+          {search.kind === "none" ? (
+            <Text variant="subtle" style={styles.toolNote}>{t("toolScreens.reading.noResults", { q: search.q })}</Text>
+          ) : (
+            <OpsState
+              variant={search.rate ? "rate" : "error"}
+              title={search.rate ? t("toolScreens.reading.rateTitle") : t("toolScreens.reading.failedTitle")}
+              body={search.rate ? t("toolScreens.reading.rateBody") : t("toolScreens.reading.failedBody")}
+              ctaLabel={c.retry}
+              onCta={() => void onSearch(search.q)}
+            />
+          )}
+          {/* The search is a third-party API that can refuse every request, and it was the
+              only way onto the shelf. Adding by the typed title keeps the shelf usable. */}
+          {manual ? (
+            onShelf.has(manual.id) ? (
+              <View style={styles.bookRow}>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{manual.title}</Text>
+                <Text variant="caption" style={styles.bookOnShelf}>{t("toolScreens.reading.onShelf")}</Text>
+              </View>
+            ) : (
+              <Pressable accessibilityRole="button" onPress={() => void onAdd(manual)} disabled={busy} hitSlop={6} style={styles.bookRow}>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">
+                  {t("toolScreens.reading.addByTitle", { title: manual.title })}
+                </Text>
+                <Text variant="caption" style={styles.bookAdd}>＋ {c.add}</Text>
+              </Pressable>
+            )
+          ) : null}
+        </View>
+      ) : null}
 
       {reading ? (
         <View style={styles.hero}>
@@ -398,47 +627,176 @@ export function ReadingScreen() {
             <View style={{ marginTop: 10 }}>
               <ProgressBar value={readingProgress(reading.current_page, reading.total_pages)} />
             </View>
-            <Text variant="subtle" style={styles.heroMeta}>
-              {reading.current_page} / {reading.total_pages ?? "?"}
-            </Text>
-            <Pressable accessibilityRole="button" onPress={() => void onMove(reading.id, "done")} hitSlop={8}>
-              <OpsStatusChip tone="muted" label={c.finishedReading} />
-            </Pressable>
+            {pageEdit?.id === reading.id ? (
+              <>
+                {/* Gate BL-09: while a save runs, both fields, the keyboard's done and the
+                    save chip take nothing, so no newer draft can be typed and then lost
+                    under the save that is still out. */}
+                <View style={styles.pageEdit}>
+                  <TextInput
+                    value={pageEdit.cur}
+                    editable={!pageSaving}
+                    onChangeText={(v) => {
+                      if (pageSaving) return;
+                      setPageEdit((p) => {
+                        if (!p) return p;
+                        const edit = pageCountEdit(p.cur, v);
+                        return { ...p, cur: edit.text, curOverflow: edit.overflow };
+                      });
+                    }}
+                    placeholder={t("toolScreens.reading.currentPage")}
+                    placeholderTextColor={deepSpace.textLo}
+                    style={styles.searchInput}
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={() => {
+                      if (!pageSaving) void onSavePages();
+                    }}
+                    accessibilityLabel={t("toolScreens.reading.currentPage")}
+                    accessibilityState={{ disabled: pageSaving }}
+                  />
+                  <Text variant="subtle" style={styles.heroMeta}>/</Text>
+                  <TextInput
+                    value={pageEdit.total}
+                    editable={!pageSaving}
+                    onChangeText={(v) => {
+                      if (pageSaving) return;
+                      setPageEdit((p) => {
+                        if (!p) return p;
+                        const edit = pageCountEdit(p.total, v);
+                        return { ...p, total: edit.text, totalOverflow: edit.overflow };
+                      });
+                    }}
+                    placeholder={t("toolScreens.reading.totalPages")}
+                    placeholderTextColor={deepSpace.textLo}
+                    style={styles.searchInput}
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={() => {
+                      if (!pageSaving) void onSavePages();
+                    }}
+                    accessibilityLabel={t("toolScreens.reading.totalPages")}
+                    accessibilityState={{ disabled: pageSaving }}
+                  />
+                </View>
+                {pageErr || pageEdit.curOverflow || pageEdit.totalOverflow ? (
+                  <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
+                    {t("toolScreens.reading.pagesInvalid")}
+                  </Text>
+                ) : null}
+                <View style={styles.chipRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: pageSaving }}
+                    disabled={pageSaving}
+                    onPress={() => void onSavePages()}
+                    hitSlop={8}
+                  >
+                    <OpsStatusChip tone={pageSaving ? "muted" : "positive"} label={t("toolScreens.reading.savePages")} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setPageEdit(null);
+                      setPageErr(false);
+                    }}
+                    hitSlop={8}
+                  >
+                    <OpsStatusChip tone="muted" label={c.cancel} />
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("toolScreens.reading.editPages")}
+                // Gate BL-09: no new opening while a save is out. Its draft would start from
+                // the page count the save is about to replace.
+                accessibilityState={{ disabled: pageSaving }}
+                disabled={pageSaving}
+                onPress={() => {
+                  pageEditSeq.current += 1;
+                  setPageEdit({
+                    session: pageEditSeq.current,
+                    id: reading.id,
+                    cur: String(reading.current_page),
+                    total: reading.total_pages ? String(reading.total_pages) : "",
+                    curOverflow: false,
+                    totalOverflow: false,
+                  });
+                }}
+                hitSlop={6}
+              >
+                <Text variant="subtle" style={styles.heroMeta}>
+                  {reading.current_page} / {reading.total_pages ?? "?"} · {t("toolScreens.reading.editPages")}
+                </Text>
+              </Pressable>
+            )}
+            <View style={styles.chipRow}>
+              <Pressable accessibilityRole="button" onPress={() => void onMove(reading.id, "done")} hitSlop={8}>
+                <OpsStatusChip tone="muted" label={c.finishedReading} />
+              </Pressable>
+              <DeleteChip armed={del.armedId === reading.id} name={reading.title} onPress={() => del.press(reading.id)} />
+            </View>
           </View>
         </View>
       ) : null}
 
-      {results.length > 0 ? (
-        <View style={styles.section}>
-          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.searchBooks}</Text>
-          {results.map((b) => (
-            <Pressable key={b.id} onPress={() => onAdd(b)} hitSlop={6} style={styles.bookRow}>
-              <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
-              <Text variant="caption" style={styles.bookAdd}>＋ {c.add}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-
-      {shelf.status === "loading" && !reading && results.length === 0 ? (
-        <OpsState variant="empty" title="…" body={c.emptyBody} />
+      {shelf.status === "loading" && shelf.data === null ? (
+        <ToolLoading />
       ) : shelf.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={shelf.reload} />
-      ) : !reading && (shelf.data?.want.length ?? 0) === 0 && results.length === 0 ? (
-        <OpsState variant="empty" title={c.emptyTitle} body={c.whatReading} />
-      ) : (shelf.data?.want.length ?? 0) > 0 ? (
-        <View style={styles.section}>
-          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.wantToRead}</Text>
-          {shelf.data?.want.map((b) => (
-            <View key={b.id} style={styles.bookRow}>
-              <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
-              <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
-                <OpsStatusChip tone="positive" label={c.startReading} />
-              </Pressable>
+      ) : view.empty ? (
+        search.kind === "idle" ? (
+          <OpsState variant="empty" title={t("toolScreens.reading.emptyTitle")} body={t("toolScreens.reading.emptyBody")} />
+        ) : null
+      ) : (
+        <>
+          {view.alsoReading.length > 0 ? (
+            <View style={styles.section}>
+              <Text variant="caption" pixelEn style={styles.pixelLabel}>{t("toolScreens.reading.alsoReading")}</Text>
+              {view.alsoReading.map((b) => (
+                <View key={b.id} style={styles.bookRow}>
+                  <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
+                  <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "done")} hitSlop={8}>
+                    <OpsStatusChip tone="muted" label={c.finishedReading} />
+                  </Pressable>
+                  <DeleteChip armed={del.armedId === b.id} name={b.title} onPress={() => del.press(b.id)} />
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-      ) : null}
+          ) : null}
+          {view.want.length > 0 ? (
+            <View style={styles.section}>
+              <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.wantToRead}</Text>
+              {view.want.map((b) => (
+                <View key={b.id} style={styles.bookRow}>
+                  <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
+                  <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
+                    <OpsStatusChip tone="positive" label={c.startReading} />
+                  </Pressable>
+                  <DeleteChip armed={del.armedId === b.id} name={b.title} onPress={() => del.press(b.id)} />
+                </View>
+              ))}
+            </View>
+          ) : null}
+          {/* R2C-08: "Finished" used to make a book vanish (done was never drawn). */}
+          {view.done.length > 0 ? (
+            <View style={styles.section}>
+              <Text variant="caption" pixelEn style={styles.pixelLabel}>{t("toolScreens.reading.finished")}</Text>
+              {view.done.map((b) => (
+                <View key={b.id} style={styles.bookRow}>
+                  <Text variant="body" style={styles.bookDone} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
+                  <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
+                    <OpsStatusChip tone="info" label={t("toolScreens.reading.readAgain")} />
+                  </Pressable>
+                  <DeleteChip armed={del.armedId === b.id} name={b.title} onPress={() => del.press(b.id)} />
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </>
+      )}
     </OpsFrame>
   );
 }
@@ -447,17 +805,12 @@ export function ReadingScreen() {
 
 const MILESTONE_DOMAINS: OpsDomainId[] = ["learning_goals", "career_check"];
 
-// status advances todo → doing → done → todo (one tap cycles the chip).
-const NEXT_STATUS: Record<MilestoneStatus, MilestoneStatus> = {
-  todo: "doing",
-  doing: "done",
-  done: "todo",
-};
-
 export function MilestonesScreen() {
+  const styles = useOpsScreenStyles();
   const c = useOpsCopy();
   const { t } = useTranslation("ops");
   const { userId } = useAuth();
+  const playDoneCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
   // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
   // just silently did nothing.
@@ -477,11 +830,13 @@ export function MilestonesScreen() {
   const list = ms.data ?? [];
   const prog = domainProgress(list);
 
-  const chipFor = (m: Milestone): { tone: OpsChipTone; label: string } => {
-    if (milestoneOverdue(m)) return { tone: "danger", label: c.overdue };
-    if (m.status === "doing") return { tone: "positive", label: c.inProgress };
-    if (m.status === "done") return { tone: "muted", label: c.done };
-    return { tone: "info", label: c.planning };
+  // R2C-09: the chip shows the status and only the status. It used to answer "overdue"
+  // first, so on an overdue goal the todo → doing tap was saved but nothing changed on
+  // screen. Overdue now lives on the due-date line below.
+  const chipLabel: Record<MilestoneChipKey, string> = { planning: c.planning, inProgress: c.inProgress, done: c.done };
+  const chipFor = (m: Milestone): { tone: OpsChipTone; label: string; nextLabel: string } => {
+    const chip = milestoneChip(m.status);
+    return { tone: chip.tone, label: chipLabel[chip.key], nextLabel: chipLabel[milestoneChip(MILESTONE_NEXT[m.status]).key] };
   };
 
   // [데이터 추가]: the user NAMES the goal. The old handler hardcoded
@@ -533,7 +888,9 @@ export function MilestonesScreen() {
     setBusy(true);
     setSaveErr(false);
     try {
-      await updateMilestone(userId, m.id, { status: NEXT_STATUS[m.status] });
+      await updateMilestone(userId, m.id, { status: MILESTONE_NEXT[m.status] });
+      // 완료 소리(Q-261006-15, 저장 소리 재사용)는 쓰기가 성공한 뒤, '완료'로 바뀔 때만.
+      if (milestoneDoneCueAllowed({ from: m.status, to: MILESTONE_NEXT[m.status] })) playDoneCue();
       ms.reload();
     } catch {
       // The write failed. Say so: reload() lives inside the try above, so on this path
@@ -543,6 +900,25 @@ export function MilestonesScreen() {
       setBusy(false);
     }
   };
+
+  // R2C-07: a goal made by mistake could never be removed (deleteMilestone had no caller).
+  const onDelete = async (id: string) => {
+    if (!userId || busy) return;
+    setBusy(true);
+    setSaveErr(false);
+    try {
+      await deleteMilestone(userId, id);
+      // Gate CD-R1-01: close only the deleted goal's editor. While the delete is in flight
+      // another goal's title can open its editor, and that draft must survive this.
+      setEditing((open) => editorAfterDelete(open, id));
+      ms.reload();
+    } catch {
+      setSaveErr(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const delGoal = useTwoTapDelete((id) => void onDelete(id));
 
   const tabs: DomainTab[] = MILESTONE_DOMAINS.map((d) => ({
     id: d,
@@ -581,14 +957,15 @@ export function MilestonesScreen() {
         <Text variant="caption" style={styles.addRowText}>＋ {c.emptyCta}</Text>
       </Pressable>
       {ms.status === "loading" ? (
-        <OpsState variant="empty" title="…" body={c.emptyBody} />
+        <ToolLoading />
       ) : ms.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={ms.reload} />
       ) : list.length === 0 ? (
-        <OpsState variant="empty" title={c.emptyTitle} body={c.goals} />
+        <OpsState variant="empty" title={t("toolScreens.goals.emptyTitle")} body={t("toolScreens.goals.emptyBody")} />
       ) : (
         list.map((m) => {
           const chip = chipFor(m);
+          const overdue = milestoneOverdue(m);
           return (
             <View key={m.id} style={styles.msRow}>
               <View style={styles.msTop}>
@@ -621,7 +998,13 @@ export function MilestonesScreen() {
                     >
                       <Text variant="heading" style={styles.msTitle}>{m.title}</Text>
                     </Pressable>
-                    <Pressable accessibilityRole="button" onPress={() => onAdvance(m)} hitSlop={8} disabled={busy}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("toolScreens.goals.chipA11y", { state: chip.label, next: chip.nextLabel })}
+                      onPress={() => onAdvance(m)}
+                      hitSlop={8}
+                      disabled={busy}
+                    >
                       <OpsStatusChip tone={chip.tone} label={chip.label} />
                     </Pressable>
                   </>
@@ -646,10 +1029,12 @@ export function MilestonesScreen() {
                       <OpsStatusChip tone="muted" label={c.dueClear} />
                     </Pressable>
                   ) : null}
+                  <DeleteChip armed={delGoal.armedId === m.id} name={m.title} onPress={() => delGoal.press(m.id)} disabled={busy} />
                 </View>
               ) : m.target_date ? (
-                <Text variant="caption" style={styles.msDue}>
+                <Text variant="caption" style={[styles.msDue, overdue && styles.msDueOver]}>
                   {c.dueDate} · {m.target_date}
+                  {overdue ? ` · ${c.overdue}` : ""}
                 </Text>
               ) : null}
               {m.note ? <Text variant="body" style={styles.msNote}>{m.note}</Text> : null}
@@ -664,13 +1049,14 @@ export function MilestonesScreen() {
 // --- (4) Ledger · money ------------------------------------------------
 
 export function LedgerScreen() {
+  const styles = useOpsScreenStyles();
   const c = useOpsCopy();
   const { userId } = useAuth();
   // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
   // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
   // just silently did nothing.
   const [saveErr, setSaveErr] = useState(false);
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("ops");
   const ko = i18n.language?.toLowerCase().startsWith("ko");
   const month = monthBucket(new Date());
   const prevMonth = prevMonthKey(month);
@@ -699,6 +1085,10 @@ export function LedgerScreen() {
   // deleteLedgerEntry exists); only the UI was missing.
   const [kind, setKind] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
+  // Gate OPSFIX-A1-04: the last edit of the amount was too long and was not taken
+  // (ledgerAmountEdit). The field keeps what it had; this keeps the add button off and the
+  // format hint up until the next edit the field takes.
+  const [amountOverflow, setAmountOverflow] = useState(false);
   const [category, setCategory] = useState("");
   // Booking day. createLedgerEntry always accepted occurred_on and only fell back
   // to today, but the form never sent one -- so yesterday's coffee could not be
@@ -706,8 +1096,18 @@ export function LedgerScreen() {
   // (see the picker below): the list/summary are strictly `month`, so a date
   // outside it would insert a row the user can never see.
   const [occurredOn, setOccurredOn] = useState(localDayKey());
-  const amountNum = Math.floor(Number(amount.replace(/[^0-9]/g, "")));
-  const canAdd = !busy && amountNum > 0;
+  // R2C-16: the amount had no ceiling. 25 digits went out as `1e+25` (HTTP 400, and the
+  // retry sent the same 400); 16-18 digits were stored rounded. parseLedgerAmount keeps
+  // digits only and refuses anything above MAX_LEDGER_KRW, so the add button stays off
+  // and the reason is shown under the field instead of a generic "try again".
+  const amountParsed = parseLedgerAmount(amount);
+  const amountNum = amountParsed.kind === "ok" ? amountParsed.value : 0;
+  const amountTooLarge = amountParsed.kind === "tooLarge";
+  // Gate S-02 (2026-10-07): "-500", "1e3" and "12.34" used to be saved as 500, 13 and 1234.
+  // Text that is not whole won is now refused, and the field says what it takes. So is an
+  // edit too long to take (gate OPSFIX-A1-04).
+  const amountInvalid = amountOverflow || amountParsed.kind === "invalid";
+  const canAdd = !busy && amountParsed.kind === "ok" && !amountOverflow;
 
   const onAddEntry = async () => {
     if (!userId || !canAdd) return;
@@ -720,7 +1120,12 @@ export function LedgerScreen() {
         amount_krw: amountNum,
         category: category.trim() || (ko ? "기타" : "Other"),
       });
+      // Gate OPSFIX-A3-02 (2026-10-07): the field stays editable while the add runs, so an
+      // edit refused as too long (amountOverflow) can come in meanwhile. Emptying the field
+      // here does not go through onChangeText, so the refusal is cleared with it; otherwise
+      // the format hint stayed up under an empty field.
       setAmount("");
+      setAmountOverflow(false);
       setCategory("");
       setOccurredOn(localDayKey());
       entries.reload();
@@ -744,6 +1149,9 @@ export function LedgerScreen() {
       setBusy(false);
     }
   };
+  // R2C-16: ✕ deleted the row on the first tap, with no confirm and no undo. The first
+  // tap now only arms the row; the second tap on the same row deletes it.
+  const delEntry = useTwoTapDelete((id) => void onDeleteEntry(id));
 
   return (
     <OpsFrame title={c.monthCheck} bubble={`${c.left} ${summary.net.toLocaleString()}`} tip={c.record}>
@@ -798,12 +1206,23 @@ export function LedgerScreen() {
           maxDate={localDayKey()}
         />
         <View style={styles.searchRow}>
+          {/* No maxLength here: it counts separators too, so 13 cut a pasted
+              "1,000,000,000,000" to "1,000,000,000" and saved 1,000x less (gate S-01 /
+              BL-01). parseLedgerAmount reads the whole string and is the only ceiling.
+              Gate S3-02 / OPSFIX-A1-04: a huge paste is not held at all, and never held cut
+              short either. An edit longer than the parser reads is not taken (ledgerAmountEdit):
+              the field keeps what it had and says so, so no prefix of a paste can become an
+              amount after a later edit. */}
           <TextInput
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={(v) => {
+              const edit = ledgerAmountEdit(amount, v);
+              setAmount(edit.text);
+              setAmountOverflow(edit.overflow);
+            }}
             placeholder={c.amountPlaceholder}
             placeholderTextColor={deepSpace.textLo}
-            style={[styles.searchInput, { flex: 0, width: 118 }]}
+            style={[styles.searchInput, styles.amountInput]}
             keyboardType="number-pad"
             returnKeyType="next"
             accessibilityLabel={c.amountPlaceholder}
@@ -827,14 +1246,23 @@ export function LedgerScreen() {
             <Text variant="caption" style={[styles.addBtnTxt, !canAdd && styles.addBtnTxtOff]}>{c.addEntry}</Text>
           </Pressable>
         </View>
+        {amountTooLarge ? (
+          <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
+            {t("toolScreens.ledger.amountTooLarge", { max: MAX_LEDGER_KRW.toLocaleString() })}
+          </Text>
+        ) : amountInvalid ? (
+          <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
+            {t("toolScreens.ledger.amountInvalid")}
+          </Text>
+        ) : null}
       </View>
 
       {entries.status === "loading" ? (
-        <OpsState variant="empty" title="…" body={c.emptyBody} />
+        <ToolLoading />
       ) : entries.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={entries.reload} />
       ) : summary.byCategory.length === 0 ? (
-        <OpsState variant="empty" title={c.emptyTitle} body={c.record} />
+        <OpsState variant="empty" title={t("toolScreens.ledger.emptyTitle")} body={t("toolScreens.ledger.emptyBody")} />
       ) : (
         <View style={styles.section}>
           <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.byCategory}</Text>
@@ -867,22 +1295,37 @@ export function LedgerScreen() {
               <Text variant="body" style={[styles.entryAmt, e.kind === "income" && { color: deepSpace.mint }]}>
                 {e.kind === "expense" ? "-" : "+"}{e.amount_krw.toLocaleString()}
               </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${e.category} ${c.deleteEntry}`}
-                onPress={() => void onDeleteEntry(e.id)}
-                disabled={busy}
-                hitSlop={8}
-                style={styles.entryDel}
-              >
-                <RNText style={styles.entryDelTxt}>✕</RNText>
-              </Pressable>
+              {delEntry.armedId === e.id ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("toolScreens.delete.confirmA11y", { name: e.category })}
+                  onPress={() => delEntry.press(e.id)}
+                  disabled={busy}
+                  hitSlop={8}
+                >
+                  <OpsStatusChip tone="danger" label={t("toolScreens.delete.confirm")} />
+                </Pressable>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${e.category} ${c.deleteEntry}`}
+                  onPress={() => delEntry.press(e.id)}
+                  disabled={busy}
+                  hitSlop={8}
+                  style={styles.entryDel}
+                >
+                  <RNText style={styles.entryDelTxt}>✕</RNText>
+                </Pressable>
+              )}
             </View>
           ))}
         </View>
       ) : null}
 
-      <Text variant="subtle" style={styles.fxNote}>{c.fxNote}</Text>
+      {/* R2C-11: this note used to claim other currencies were converted for you. The form
+          takes won only, ops_ledger has no currency column and nothing calls
+          lib/finance/fx.ts, so the note now states what the screen actually does. */}
+      <Text variant="subtle" style={styles.footNote}>{t("toolScreens.ledger.currencyNote")}</Text>
     </OpsFrame>
   );
 }
@@ -890,6 +1333,7 @@ export function LedgerScreen() {
 // --- (5) Side project · github -----------------------------------------
 
 export function SideProjectScreen({ userId }: { userId: string }) {
+  const styles = useOpsScreenStyles();
   type GithubError = "rate" | "storage-read" | "storage-write" | null;
 
   const c = useOpsCopy();
@@ -1010,7 +1454,7 @@ export function SideProjectScreen({ userId }: { userId: string }) {
           {summary.repos.map((repo) => (
             <View key={repo} style={styles.repoRow}>
               <View style={[styles.dotSm, { backgroundColor: deepSpace.soul }]} />
-              <Text variant="heading" style={styles.repoName}>{repo}</Text>
+              <Text variant="heading" style={styles.repoName} numberOfLines={2} ellipsizeMode="tail">{repo}</Text>
             </View>
           ))}
         </>
@@ -1021,25 +1465,61 @@ export function SideProjectScreen({ userId }: { userId: string }) {
 
 // --- (6) Meals · foods -------------------------------------------------
 
-const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
-const DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** Weekday labels, Monday first like buildWeekGrid (ops bundle toolScreens.meals.days.*).
+ *  These were a Korean and an English array picked with "Korean, otherwise English",
+ *  so es/pt/id painted Mon..Sun (R2B-03). */
+const MEAL_DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+/** Fixed meal ideas (ops bundle toolScreens.meals.ideas.*), after the PIXEL-CLAY sheet's list. */
+const MEAL_IDEA_KEYS = ["i1", "i2", "i3", "i4", "i5", "i6"] as const;
+
+type FoodLookup = { kind: "idle" } | { kind: "busy" } | { kind: "done"; items: FoodNutrition[] } | { kind: "failed" };
+/** Bounded session cache of successful food lookups, including genuine zero matches. */
+const FOOD_LOOKUP_CACHE = new Map<string, FoodNutrition[]>();
+const FOOD_LOOKUP_CACHE_MAX = 30;
+
+/** One opening of the meal sheet: the cell, the stored meal, the opening's own session, and
+ *  whether its last write failed (gate S3-01). */
+type MealSheet = { session: number; date: string; slot: MealSlot; day: string; current: string | null; failed: boolean };
 
 export function MealsScreen() {
+  const styles = useOpsScreenStyles();
+  const phone = usePhoneDesign();
   const c = useOpsCopy();
   const { userId } = useAuth();
-  // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
-  // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
-  // just silently did nothing.
-  const [saveErr, setSaveErr] = useState(false);
-  const { i18n } = useTranslation();
+  // A failed WRITE. The empty catches here used to claim it was "surfaced on reload", but
+  // reload() sat INSIDE the try, so on the failure path it never ran and the tap silently
+  // did nothing. Gate S3-01 (2026-10-07, simplified the same day): there is no screen-wide
+  // flag for it either. The failure belongs to the open sheet (`pending.failed`): the sheet
+  // stays open with the draft and says so, and closing the sheet drops both.
+  const { t, i18n } = useTranslation("ops");
   const ko = i18n.language?.toLowerCase().startsWith("ko");
-  const dayLabels = ko ? DAYS : DAYS_EN;
+  const dayLabels = MEAL_DAY_KEYS.map((k) => t(`toolScreens.meals.days.${k}`));
   const thisWeek = weekStartKey();
 
   const [weekStart, setWeekStart] = useState(thisWeek);
-  const [pending, setPending] = useState<{ date: string; slot: MealSlot } | null>(null);
+  // `day` and `current` ride along so the sheet can say which cell it is editing
+  // (R2C-15) and so emptying a filled cell clears it instead of keeping it (R2C-07).
+  // `session` is new on every open (gate BL-02 / BL-03): an armed clear and a late write
+  // belong to the opening they started in, never to a later one.
+  const [pending, setPending] = useState<MealSheet | null>(null);
+  const sheetSeq = useRef(0);
+  // One meal write per cell at a time (gate BL-03): save and clear take the cell's lock
+  // (mealWriteLock), so a clear can no longer race an earlier save whose UPSERT lands after
+  // the DELETE. The lock lives outside this component (gate r3), so the route and the
+  // phone hub, or this screen remounted mid-write, share it. `mealWrites` counts this
+  // screen's own writes in flight; while any runs, the sheet takes no input (gate BL-07).
+  const [mealWrites, setMealWrites] = useState(0);
+  const mealWriting = mealWrites > 0;
   const [draft, setDraft] = useState("");
-  const [ideas, setIdeas] = useState<FoodNutrition[]>([]);
+  const [lookup, setLookup] = useState<FoodLookup>({ kind: "idle" });
+  // BL-04: every query edit, sheet transition and new lookup retires older responses.
+  const lookupSeq = useRef(0);
+  const resetLookup = () => {
+    lookupSeq.current += 1;
+    setLookup({ kind: "idle" });
+  };
+  useEffect(() => () => { lookupSeq.current += 1; }, []);
 
   const week = useAsync<MealEntry[]>(
     () => (userId ? listWeek(userId, weekStart) : Promise.resolve([])),
@@ -1053,35 +1533,129 @@ export function MealsScreen() {
     setWeekStart(weekStartKey(next));
   };
 
-  const openCell = async (date: string, slot: MealSlot, current: MealEntry | null) => {
-    setPending({ date, slot });
+  // R2C-15: opening a cell used to search the food DB for a hardcoded "닭"/"chicken"
+  // every time, spending the user's daily public-data quota for the same four chips.
+  // Opening a cell now makes no request; the chips are a fixed idea list, and the food
+  // DB is asked only when the user taps "look up" for what they typed.
+  const openCell = (date: string, slot: MealSlot, current: MealEntry | null, day: string) => {
+    // Gate S3-01: nothing opens while a meal write runs (its sheet cannot close meanwhile).
+    if (mealWriting) return;
+    sheetSeq.current += 1;
+    // Every opening starts from the stored meal, with no failure: nothing of an earlier
+    // opening's failed write is kept or handed back (gate S3-01, simplified 2026-10-07).
+    setPending({ session: sheetSeq.current, date, slot, day, current: current?.title ?? null, failed: false });
     setDraft(current?.title ?? "");
-    try {
-      setIdeas(await searchFoods(ko ? "닭" : "chicken"));
-    } catch {
-      setIdeas([]);
+    resetLookup();
+  };
+
+  // The food DB (MFDS) is searched by its Korean food name (FOOD_NM_KR), so the lookup
+  // is offered on the Korean screen only. Answers are kept for the session.
+  const onLookUp = async () => {
+    if (!pending || mealWriting) return;
+    const query = draft.trim();
+    if (!ko || query.length === 0) return;
+    const seq = ++lookupSeq.current;
+    const cached = FOOD_LOOKUP_CACHE.get(query);
+    if (cached) {
+      setLookup({ kind: "done", items: cached });
+      return;
     }
+    setLookup({ kind: "busy" });
+    try {
+      const items = await searchFoods(query);
+      if (seq !== lookupSeq.current) return;
+      if (FOOD_LOOKUP_CACHE.size >= FOOD_LOOKUP_CACHE_MAX) {
+        const oldest = FOOD_LOOKUP_CACHE.keys().next().value;
+        if (oldest !== undefined) FOOD_LOOKUP_CACHE.delete(oldest);
+      }
+      FOOD_LOOKUP_CACHE.set(query, items);
+      setLookup({ kind: "done", items });
+    } catch {
+      if (seq === lookupSeq.current) setLookup({ kind: "failed" });
+    }
+  };
+
+  // Save and clear both go through here (gate BL-03): one write per cell at a time under
+  // the cell's shared lock, and the sheet is off while it runs. A write asked for meanwhile
+  // is refused, not raced. Gate S3-01 (simplified 2026-10-07): the sheet cannot be closed
+  // while this runs (closeSheet). Only a write that landed reloads the week and closes the
+  // sheet; a failed one leaves the sheet open with its draft and marks it failed, so the
+  // sheet says so (mealSheetAfterWrite).
+  const writeMeal = async (sheet: MealSheet, write: () => Promise<unknown>) => {
+    if (!userId) return;
+    const outcome = await runExclusive(mealWriteLock(userId, sheet.date, sheet.slot), async () => {
+      resetLookup();
+      setMealWrites((n) => n + 1);
+      try {
+        await write();
+      } finally {
+        setMealWrites((n) => n - 1);
+      }
+    });
+    if (outcome === "busy") return;
+    if (outcome === "done") week.reload();
+    // A failed write says so (it used to be swallowed, with reload() never reached).
+    setPending((open) => mealSheetAfterWrite(open, sheet.session, outcome));
   };
 
   const saveCell = async () => {
-    if (!userId || !pending || draft.trim().length === 0) {
+    if (!userId || !pending) {
+      resetLookup();
       setPending(null);
       return;
     }
-    try {
-      await setMeal(userId, pending.date, pending.slot, draft.trim());
-      week.reload();
-    } catch {
-      // The write failed. Say so: reload() lives inside the try above, so on this path
-      // it never ran and nothing surfaced anywhere.
-      setSaveErr(true);
+    // R2C-07: an emptied draft used to just close the sheet, so the old meal stayed.
+    const action = mealSaveAction(draft, pending.current);
+    if (action === "close") {
+      resetLookup();
+      setPending(null);
+      return;
     }
-    setPending(null);
+    const sheet = pending;
+    const title = draft.trim();
+    await writeMeal(sheet, () =>
+      action === "clear" ? clearMeal(userId, sheet.date, sheet.slot) : setMeal(userId, sheet.date, sheet.slot, title),
+    );
   };
+
+  // Gate BL-02: "clear this meal" took one tap. It now takes two in the same sheet opening
+  // (mealClearArmKey); the arm never carries over to another cell or a reopened sheet.
+  const clearArm = useTwoTapDelete((key) => {
+    if (!userId || !pending || mealClearArmKey(pending) !== key) return;
+    const sheet = pending;
+    // Gate OPSFIX-A3-01 (2026-10-07): a failed clear left the stored meal in the input, so the
+    // save button compared it with the stored meal, wrote nothing and closed the sheet: the
+    // clear was never tried again. The confirmed clear is now the empty draft's write. Once it
+    // holds the cell's lock it empties the input, so a failed clear leaves the sheet open on an
+    // empty draft and the same save button clears again (mealSaveAction). A clear refused as
+    // busy never gets here and changes nothing.
+    void writeMeal(sheet, () => {
+      setDraft("");
+      return clearMeal(userId, sheet.date, sheet.slot);
+    });
+  });
+  const clearArmed = pending !== null && clearArm.armedId === mealClearArmKey(pending);
+
+  // Gate S3-01 (simplified 2026-10-07): the backdrop and the hardware back (Escape on the web)
+  // close the sheet here, and do nothing while its write runs (mealSheetDismiss). Closing is
+  // the user's own choice to drop the draft: the failure line goes with it, and the next
+  // opening starts from the stored meal. To try again, the same save button saves the draft
+  // as it stands then.
+  const closeSheet = () => {
+    if (!mealWriting) resetLookup();
+    setPending((open) => mealSheetDismiss(open, mealWriting));
+  };
+  // The sheet's failure line, hidden while a write runs.
+  const sheetFailed = pending !== null && pending.failed && !mealWriting;
+
+  // Food names can repeat in the DB answer; a chip list keyed by name must not.
+  const ideaChips: string[] =
+    lookup.kind === "done" && lookup.items.length > 0
+      ? [...new Set(lookup.items.map((f) => f.name))].slice(0, 4)
+      : MEAL_IDEA_KEYS.map((k) => t(`toolScreens.meals.ideas.${k}`));
 
   return (
     <OpsFrame title={c.weeklyMeals} bubble={c.weeklyMeals} tip={c.whatToEatNow}>
-      {saveErr ? <SaveErrorBanner text={c.saveFailed} /> : null}
       <View style={styles.weekNav}>
         <Pressable onPress={() => shiftWeek(-7)} hitSlop={10} style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={c.prevWeek}>
           <RNText style={styles.weekArrowText}>‹</RNText>
@@ -1107,11 +1681,15 @@ export function MealsScreen() {
               return (
                 <Pressable
                   key={slot}
-                  onPress={() => openCell(day.date, slot, cell)}
+                  onPress={() => openCell(day.date, slot, cell, dayLabels[i] ?? "")}
                   accessibilityRole="button"
                   accessibilityLabel={`${day.date} ${dayLabels[i]} ${c[slot]}: ${cell?.title ?? c.planMeal}`}
                   hitSlop={4}
-                  style={[styles.gridCell, cell ? styles.gridCellFilled : null]}
+                  style={[
+                    styles.gridCell,
+                    cell ? styles.gridCellFilled : null,
+                    pending?.date === day.date && pending.slot === slot ? styles.gridCellOpen : null,
+                  ]}
                 >
                   <Text variant="subtle" style={cell ? styles.gridCellText : styles.gridPlus} numberOfLines={1}>
                     {cell ? cell.title : "＋"}
@@ -1122,33 +1700,107 @@ export function MealsScreen() {
           </View>
         ))}
       </View>
-      <Text variant="subtle" style={styles.fxNote}>{c.nutritionNote}</Text>
+      <Text variant="subtle" style={styles.footNote}>{c.nutritionNote}</Text>
 
-      <Modal visible={pending !== null} transparent animationType="slide" onRequestClose={() => setPending(null)}>
-        <Pressable style={styles.mealBackdrop} onPress={() => setPending(null)} />
+      <Modal visible={pending !== null} transparent animationType="slide" onRequestClose={closeSheet}>
+        <Pressable style={styles.mealBackdrop} onPress={closeSheet} disabled={mealWriting}>
+          {phone ? <PixelDither density={50} /> : null}
+        </Pressable>
         <View style={styles.mealSheet}>
           <View style={styles.sheetGrip} />
           <Text variant="heading" style={styles.mealSheetTitle}>{c.planMeal}</Text>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={c.mealIdeas}
-            placeholderTextColor={deepSpace.textLo}
-            style={styles.searchInput}
-            returnKeyType="done"
-            onSubmitEditing={saveCell}
-          />
-          {ideas.length > 0 ? (
-            <View style={styles.ideaChips}>
-              {ideas.slice(0, 4).map((f) => (
-                <Pressable key={f.name} onPress={() => setDraft(f.name)} hitSlop={4} style={styles.ideaChip}>
-                  <Text variant="body" style={styles.ideaChipText}>{f.name}</Text>
-                </Pressable>
-              ))}
-            </View>
+          {/* R2C-15: the sheet never said which day and meal it was editing. */}
+          {pending ? (
+            <Text variant="subtle" style={styles.mealSheetSub}>
+              {t("toolScreens.meals.sheetSubtitle", { day: pending.day, date: pending.date, slot: c[pending.slot] })}
+            </Text>
           ) : null}
-          <Pressable onPress={saveCell} hitSlop={6} style={styles.mealSave}>
-            <Text variant="caption" style={styles.mealSaveText}>{c.save}</Text>
+          {/* Gate BL-07: while a meal write runs, the input, the idea chips and the keyboard's
+              done take nothing. A second draft typed then used to be refused as busy, and the
+              first write's completion closed the sheet over it, so it was lost unsaved. */}
+          <View style={styles.searchRow}>
+            <TextInput
+              value={draft}
+              editable={!mealWriting}
+              onChangeText={(v) => {
+                if (mealWriting) return;
+                setDraft(v);
+                resetLookup();
+              }}
+              placeholder={t("toolScreens.meals.placeholder")}
+              placeholderTextColor={deepSpace.textLo}
+              style={styles.searchInput}
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                if (!mealWriting) void saveCell();
+              }}
+              accessibilityLabel={c.whatToEatNow}
+              accessibilityState={{ disabled: mealWriting }}
+            />
+            {ko && draft.trim().length > 0 ? (
+              <Pressable accessibilityRole="button" onPress={() => void onLookUp()} disabled={mealWriting || lookup.kind === "busy"} hitSlop={6} style={styles.ideaChip}>
+                <Text variant="body" style={styles.ideaChipText}>{t("toolScreens.meals.lookUp")}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          <Text variant="caption" style={styles.mealIdeasLabel}>{c.mealIdeas}</Text>
+          <View style={styles.ideaChips}>
+            {ideaChips.map((name) => (
+              <Pressable
+                key={name}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: mealWriting }}
+                disabled={mealWriting}
+                onPress={() => {
+                  if (mealWriting) return;
+                  setDraft(name);
+                  resetLookup();
+                }}
+                hitSlop={4}
+                style={styles.ideaChip}
+              >
+                <Text variant="body" style={styles.ideaChipText}>{name}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {lookup.kind === "busy" ? <Text variant="caption" style={styles.toolNote}>{t("toolScreens.loading")}</Text> : null}
+          {lookup.kind === "failed" || (lookup.kind === "done" && lookup.items.length === 0) ? (
+            <Text variant="caption" style={styles.toolNote} accessibilityLiveRegion="polite">
+              {lookup.kind === "failed" ? t("toolScreens.meals.lookUpFailed") : t("toolScreens.meals.lookUpNone")}
+            </Text>
+          ) : null}
+          {/* Gate S3-01 (simplified 2026-10-07): a failed write keeps this sheet and its draft
+              open and says so here, in one line. The same save button tries again with the
+              draft as it stands (after a failed clear that draft is empty: OPSFIX-A3-01);
+              closing the sheet drops both. Hidden while a write runs. */}
+          {sheetFailed ? (
+            <Text variant="caption" style={styles.saveErrText} accessibilityRole="alert" accessibilityLiveRegion="polite">
+              {t("toolScreens.meals.saveFailed")}
+            </Text>
+          ) : null}
+          {pending?.current ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: mealWriting }}
+              disabled={mealWriting}
+              onPress={() => clearArm.press(mealClearArmKey(pending))}
+              hitSlop={6}
+              style={[styles.mealClear, clearArmed && styles.mealClearArmed]}
+            >
+              <Text variant="caption" style={[styles.mealClearText, clearArmed && styles.mealClearTextArmed]}>
+                {clearArmed ? t("toolScreens.delete.confirm") : t("toolScreens.meals.clear")}
+              </Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: mealWriting }}
+            disabled={mealWriting}
+            onPress={() => void saveCell()}
+            hitSlop={6}
+            style={[styles.mealSave, mealWriting && styles.addBtnOff]}
+          >
+            <Text variant="caption" style={[styles.mealSaveText, mealWriting && styles.addBtnTxtOff]}>{c.save}</Text>
           </Pressable>
         </View>
       </Modal>
@@ -1174,12 +1826,17 @@ type ReminderVM = {
   star: string; // "" hides the "· {star} 별" suffix (real routines)
   on: boolean;
   interactive: boolean;
+  feedback?: string;
 };
 
-function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: string; onToggle?: () => void }) {
+function ReminderCard({ vm, starWord, onToggle, onPermissionSettings }: {
+  vm: ReminderVM; starWord: string; onToggle?: () => void; onPermissionSettings?: () => void;
+}) {
+  const phone = usePhoneDesign();
+  const remStyles = phone ? phoneReminderStyles : clayReminderStyles;
   const source = vm.star ? `${vm.src} · ${vm.star} ${starWord}` : vm.src;
   return (
-    <MdCard variant="outlined" style={[remStyles.card, !vm.on && remStyles.cardOff]}>
+    <MdCard variant="outlined" style={[remStyles.card, !vm.on && !vm.feedback && remStyles.cardOff]}>
       <View style={remStyles.row}>
         <View style={remStyles.iconBox}>
           <View style={remStyles.iconDots}>
@@ -1201,8 +1858,12 @@ function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: st
             <View style={remStyles.srcDot} />
             <Text variant="caption" style={remStyles.srcText}>{source}</Text>
           </View>
+          {vm.feedback ? <Text variant="caption" accessibilityRole="alert" accessibilityLiveRegion="polite">{vm.feedback}</Text> : null}
+          {onPermissionSettings ? <ReminderPermissionSettings onPress={onPermissionSettings} /> : null}
         </View>
-        {onToggle ? (
+        {onToggle && phone ? (
+          <OpsPhoneSwitch checked={vm.on} label={vm.title} onPress={onToggle} />
+        ) : onToggle ? (
           <Pressable
             accessibilityRole="switch"
             accessibilityState={{ checked: vm.on }}
@@ -1218,9 +1879,23 @@ function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: st
   );
 }
 
-export function RemindersScreen() {
+function ReminderPermissionSettings({ onPress }: { onPress: () => void }) {
+  const { t } = useTranslation("secondb");
+  return <MdButton variant="tonal" label={t("chatSaveNoticeOpen")} onPress={onPress} />;
+}
+
+export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => void } = {}) {
+  const remStyles = usePhoneDesign() ? phoneReminderStyles : clayReminderStyles;
   const c = useOpsCopy();
+  const { t } = useTranslation(["ops", "secondb", "common"]);
   const { userId } = useAuth();
+  const scope = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
+  const mounted = useRef(true);
+  const pendingToggles = useRef(new Set<string>());
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const supported = remindersSupported();
   const routines = useAsync<OpsRoutine[]>(
     () => (userId ? listActiveRoutines(userId) : Promise.resolve([])),
@@ -1238,9 +1913,10 @@ export function RemindersScreen() {
   // on/off lives device-local, not in the owner-scoped ops_routines table).
   // Default = ON: every reminder is on unless explicitly toggled off.
   const [states, setStates] = useState<Record<string, boolean>>({});
-  // Routines the user tried to enable but the OS permission was denied — they
-  // render the row's "권한 필요" state instead of crashing or silently failing.
-  const [denied, setDenied] = useState<Record<string, true>>({});
+  // A failed schedule is not necessarily a denied permission. Keep the real
+  // outcome and account generation so an old response cannot label a new row.
+  const [feedback, setFeedback] = useState<{ scope: number; rows: Record<string, "denied" | "unavailable" | "error"> }>({ scope, rows: {} });
+  const [chatReminderCount, setChatReminderCount] = useState(0);
 
   // Hydrate on/off from the persisted flag AND the real OS schedule. ON now
   // means "an OS notification is actually scheduled" — the old flag-only state
@@ -1252,15 +1928,18 @@ export function RemindersScreen() {
       return;
     }
     let alive = true;
-    void Promise.all([
-      getReminderStates(userId, withReminder.map((r) => r.id)),
-      getScheduledRoutineIds(userId),
-    ]).then(([flags, scheduled]) => {
+    void (async () => {
+      if (Platform.OS !== "web") await sweepResidualReminderNotifications(userId);
+      if (!alive) return;
+      const [flags, scheduled] = await Promise.all([
+        getReminderStates(userId, withReminder.map((r) => r.id)),
+        getScheduledRoutineIds(userId),
+      ]);
       if (!alive) return;
       const next: Record<string, boolean> = {};
       for (const r of withReminder) next[r.id] = flags[r.id] !== false && scheduled.has(r.id);
       setStates(next);
-    });
+    })();
     return () => {
       alive = false;
     };
@@ -1289,53 +1968,74 @@ export function RemindersScreen() {
 
   const toggle = async (r: OpsRoutine) => {
     if (!userId) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease || accountTransitionSnapshot() !== scope) return;
     const id = r.id;
+    const pendingKey = `${scope}:${id}`;
+    if (pendingToggles.current.has(pendingKey)) return;
+    pendingToggles.current.add(pendingKey);
+    const current = () => mounted.current && lease.isCurrent();
+    const showFeedback = (result?: "denied" | "unavailable" | "error") => {
+      if (!current()) return;
+      setFeedback(prev => {
+        const rows = prev.scope === scope ? { ...prev.rows } : {};
+        if (result) rows[id] = result;
+        else delete rows[id];
+        return { scope, rows };
+      });
+    };
+    showFeedback();
     const currentlyOn = states[id] === true;
-    if (currentlyOn) {
-      // Cancels the scheduled OS notification too (not just the flag).
-      await disableReminder(userId, id);
-      setStates((prev) => ({ ...prev, [id]: false }));
-      setDenied((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      return;
-    }
-    // Enabling: ask for the OS permission first (propose->ratify — the tap is
-    // the user action), then actually SCHEDULE under the routine's identifier.
-    // Denied → keep it off and show "권한 필요".
-    const event = eventForRoutine(r);
-    if (!event) return; // unparsable reminder_time: nothing real to schedule
-    const ok = await enableReminder(userId, id, event);
-    if (ok) {
-      setStates((prev) => ({ ...prev, [id]: true }));
-      setDenied((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-    } else {
-      setDenied((prev) => ({ ...prev, [id]: true }));
+    try {
+      if (currentlyOn) {
+        // Cancels the scheduled OS notification too (not just the flag).
+        await disableReminder(userId, id, { strict: true });
+        if (current()) setStates(prev => ({ ...prev, [id]: false }));
+        return;
+      }
+      // The tap requests permission, then schedules under the routine's ID.
+      // A denial keeps the switch off and exposes the explicit Settings action.
+      const event = eventForRoutine(r);
+      if (!event) { showFeedback("error"); return; }
+      const result = await enableReminderWithResult(userId, id, event);
+      if (!current() || result === "stale") return;
+      setStates(prev => ({ ...prev, [id]: result === "enabled" }));
+      if (result !== "enabled") showFeedback(result);
+    } catch {
+      showFeedback("error");
+    } finally {
+      pendingToggles.current.delete(pendingKey);
     }
   };
 
-  // Real routines when present; otherwise the sb-more demo reminders so the
-  // list state renders (QA account has no scheduled routines).
+  // Only real routines; an empty account has no invented reminder rows.
   const hasReal = withReminder.length > 0;
-  const rows: { vm: ReminderVM; onToggle?: () => void }[] = hasReal
+  const rows: { vm: ReminderVM; onToggle?: () => void; onPermissionSettings?: () => void }[] = hasReal
     ? withReminder.map((r) => {
-        const isDenied = !!denied[r.id];
+        const outcome = feedback.scope === scope ? feedback.rows[r.id] : undefined;
         // ON = actually scheduled (states is hydrated against the OS schedule).
-        const on = supported && !isDenied && states[r.id] === true;
+        const on = supported && states[r.id] === true;
         const repeat = r.recurrence === "daily" ? c.daily : r.recurrence === "weekly" ? c.weekly : c.once;
         return {
-          vm: { key: r.id, title: r.title, when: reminderSchedule(r, c), repeat, src: c.assistantSource, star: "", on, interactive: supported },
+          vm: { key: r.id, title: r.title, when: reminderSchedule(r, c), repeat, src: c.assistantSource, star: "", on, interactive: supported,
+            feedback: outcome === "denied" ? t("secondb:planSuggestion.reminderDenied") :
+              outcome === "unavailable" ? c.notOnThisDevice : outcome === "error" ? t("common:errors.unknown") : undefined },
           onToggle: supported ? () => void toggle(r) : undefined,
+          onPermissionSettings: outcome === "denied" ? () => {
+            if (!userId || accountTransitionSnapshot() !== scope || !captureAccountOwnerLease(userId)) return;
+            void Promise.resolve().then(() => {
+              if (!mounted.current || accountTransitionSnapshot() !== scope) return;
+              return Linking.openSettings();
+            }).catch(() => {
+              if (mounted.current && accountTransitionSnapshot() === scope) {
+                setFeedback(prev => ({ scope, rows: { ...(prev.scope === scope ? prev.rows : {}), [r.id]: "error" } }));
+              }
+            });
+          } : undefined,
         };
       })
     : [];
-  const onCount = rows.filter((r) => r.vm.on).length;
+  const onCount = rows.filter((r) => r.vm.on).length + chatReminderCount;
   const countLabel = c.remindersCountTemplate.replace("{n}", String(onCount));
 
   return (
@@ -1344,9 +2044,10 @@ export function RemindersScreen() {
       bubble={c.scheduledReminders}
       tip={c.remindersTip}
       footer={
-        <MdButton variant="tonal" label={c.addFromAssistant} onPress={() => router.push("/ops")} />
+        <MdButton variant="tonal" label={c.addFromAssistant} onPress={onOpenAssistant ?? (() => router.push("/ops"))} />
       }
     >
+      {userId ? <ChatRemindersList key={userId} ownerId={userId} onCountChange={setChatReminderCount} /> : null}
       {routines.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={routines.reload} />
       ) : (
@@ -1364,7 +2065,7 @@ export function RemindersScreen() {
 
           <View style={remStyles.list}>
             {rows.map((r) => (
-              <ReminderCard key={r.vm.key} vm={r.vm} starWord={c.starWord} onToggle={r.onToggle} />
+              <ReminderCard key={r.vm.key} vm={r.vm} starWord={c.starWord} onToggle={r.onToggle} onPermissionSettings={r.onPermissionSettings} />
             ))}
           </View>
         </>
@@ -1373,7 +2074,7 @@ export function RemindersScreen() {
   );
 }
 
-const remStyles = StyleSheet.create({
+const clayReminderStyles = StyleSheet.create({
   info: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   infoIcon: {
     width: 24,
@@ -1440,7 +2141,7 @@ const remStyles = StyleSheet.create({
 
 // --- screen-local styles (deepSpace tokens only) -----------------------
 
-const styles = StyleSheet.create({
+const clayStyles = StyleSheet.create({
   saveErrBanner: {
     borderRadius: m3.shape.small,
     backgroundColor: opsAlpha(deepSpace.danger, 0.12),
@@ -1450,8 +2151,12 @@ const styles = StyleSheet.create({
   },
   saveErrText: { color: deepSpace.danger },
   searchRow: { flexDirection: "row", gap: deepSpaceSpacing.sm },
+  // Shrinks to 64px inside the dashboard phone (~180px column at 320x568); 118px
+  // otherwise. `flex: 0` would reach RN-web as CSS `0 1 0%` and ignore the width.
+  amountInput: { flexGrow: 0, flexShrink: 1, flexBasis: 118, minWidth: 64 },
   searchInput: {
     flex: 1,
+    minWidth: 0,
     minHeight: 44,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
@@ -1492,6 +2197,7 @@ const styles = StyleSheet.create({
 
   bookRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: 8,
     minHeight: 44,
@@ -1501,8 +2207,14 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.medium,
     backgroundColor: deepSpace.card,
   },
-  bookTitle: { flex: 1, fontSize: 14, color: deepSpace.textHi },
+  bookTitle: { flex: 1, minWidth: 0, fontSize: 14, color: deepSpace.textHi },
+  bookDone: { flex: 1, minWidth: 0, fontSize: 14, color: deepSpace.textMid },
   bookAdd: { fontSize: 12, color: deepSpace.mint },
+  bookOnShelf: { fontSize: 12, color: deepSpace.textLo },
+  toolNote: { fontSize: 13, color: deepSpace.textMid },
+  fieldErr: { fontSize: 12, color: deepSpace.danger },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 8 },
+  pageEdit: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
 
   progressHeader: { gap: 6 },
   progressLabel: { fontSize: 12, color: deepSpace.textMuted },
@@ -1539,6 +2251,7 @@ const styles = StyleSheet.create({
   msTitleInput: { flex: 1, minHeight: 40 },
   msNote: { fontSize: 12, color: deepSpace.textLo },
   msDue: { fontSize: 12, color: deepSpace.textLo },
+  msDueOver: { color: deepSpace.danger },
   msDueEdit: { flexDirection: "row", alignItems: "center", gap: 8 },
   msDueField: { flex: 1 },
   dueField: { marginTop: deepSpaceSpacing.sm },
@@ -1555,7 +2268,7 @@ const styles = StyleSheet.create({
   ledgerStat: { fontSize: 12, color: deepSpace.textMid, flexShrink: 1 },
   catRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
   catName: { fontSize: 13, color: deepSpace.textMid },
-  fxNote: { fontSize: 12, color: deepSpace.textLo },
+  footNote: { fontSize: 12, color: deepSpace.textLo },
   ledgerForm: { gap: deepSpaceSpacing.sm, marginBottom: deepSpaceSpacing.sm },
   kindToggle: { flexDirection: "row", gap: deepSpaceSpacing.xs },
   kindBtn: {
@@ -1579,7 +2292,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: deepSpace.cardLine,
   },
   entryDay: { fontSize: 12, color: deepSpace.textLo, fontVariant: ["tabular-nums"] },
-  entryCat: { flex: 1, fontSize: 13, color: deepSpace.textMid },
+  entryCat: { flex: 1, minWidth: 0, fontSize: 13, color: deepSpace.textMid },
   entryAmt: { fontSize: 13, color: deepSpace.textHi, fontVariant: ["tabular-nums"] },
   entryDel: { padding: 4 },
   entryDelTxt: { fontSize: 15, color: deepSpace.textLo },
@@ -1606,7 +2319,7 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.medium,
     backgroundColor: deepSpace.card,
   },
-  repoName: { flex: 1, fontSize: 14, color: deepSpace.textHi },
+  repoName: { flex: 1, minWidth: 0, fontSize: 14, color: deepSpace.textHi },
 
   quickMode: {
     flexDirection: "row",
@@ -1641,6 +2354,7 @@ const styles = StyleSheet.create({
   },
   gridPlus: { fontSize: 14, color: deepSpace.textLo },
   gridCellFilled: { borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.cardPressed },
+  gridCellOpen: { borderColor: deepSpace.accent },
   gridCellText: { fontSize: 9, color: deepSpace.accentSoft, paddingHorizontal: 3 },
 
   weekNav: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: deepSpaceSpacing.md },
@@ -1662,6 +2376,20 @@ const styles = StyleSheet.create({
   },
   sheetGrip: { width: 40, height: 4, borderRadius: m3.shape.none, backgroundColor: deepSpace.cardLineStrong, alignSelf: "center" },
   mealSheetTitle: { fontSize: 15, color: deepSpace.textHi },
+  mealSheetSub: { fontSize: 12, color: deepSpace.textMid },
+  mealIdeasLabel: { fontSize: 12, color: deepSpace.textLo, marginTop: 4 },
+  mealClear: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: m3.shape.medium,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLineStrong,
+  },
+  mealClearText: { fontSize: 14, color: deepSpace.textMid },
+  // Armed: the next tap clears (gate BL-02). Same danger tone the delete chip uses.
+  mealClearArmed: { borderColor: deepSpace.danger },
+  mealClearTextArmed: { color: deepSpace.danger },
   ideaChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   ideaChip: {
     minHeight: 36,
@@ -1683,3 +2411,72 @@ const styles = StyleSheet.create({
   },
   mealSaveText: { fontSize: 14, color: deepSpace.onMint },
 });
+
+const phoneBaseStyles = phoneStyleSheet(clayStyles);
+const phoneScreenStyles = {
+  ...phoneBaseStyles,
+  saveErrBanner: { ...phoneBaseStyles.saveErrBanner, backgroundColor: phoneIos.cell },
+  saveErrText: { color: phoneIos.red },
+  pixelLabel: { ...clayStyles.pixelLabel, fontSize: 12, lineHeight: 18, letterSpacing: 0, color: phoneIos.label2, paddingHorizontal: 4 },
+  searchInput: { ...phoneBaseStyles.searchInput, backgroundColor: phoneIos.cell, fontFamily: "Galmuri14", fontSize: 15, lineHeight: 22 },
+  bookRow: { ...phoneBaseStyles.bookRow, minHeight: 52, borderWidth: 0, backgroundColor: phoneIos.cell, paddingVertical: 8 },
+  bookAdd: { ...clayStyles.bookAdd, color: phoneIos.blue },
+  bookDone: { ...clayStyles.bookDone, color: phoneIos.label2 },
+  hero: { ...phoneBaseStyles.hero, borderWidth: 0, backgroundColor: phoneIos.cell },
+  heroTitle: { ...clayStyles.heroTitle, color: phoneIos.label, lineHeight: 22 },
+  msRow: { ...phoneBaseStyles.msRow, borderWidth: 0, backgroundColor: phoneIos.cell },
+  msTitleInput: { ...clayStyles.msTitleInput, minHeight: 44 },
+  msTitlePress: { ...clayStyles.msTitlePress, minHeight: 44, justifyContent: "center" as const },
+  addRow: { ...phoneBaseStyles.addRow, borderWidth: 0, backgroundColor: phoneIos.cell },
+  addRowText: { ...clayStyles.addRowText, color: phoneIos.blue },
+  ledgerCard: { ...phoneBaseStyles.ledgerCard, borderWidth: 0, backgroundColor: phoneIos.cell },
+  kindToggle: { ...clayStyles.kindToggle, backgroundColor: phoneIos.fill, padding: 2 },
+  kindBtn: { ...phoneBaseStyles.kindBtn, borderWidth: 0, minHeight: 44 },
+  kindBtnOn: { borderColor: phoneIos.cell, backgroundColor: phoneIos.cell },
+  kindTxtOn: { color: phoneIos.blue },
+  addBtn: { ...phoneBaseStyles.addBtn, backgroundColor: phoneIos.blue },
+  addBtnOff: { backgroundColor: phoneIos.fill },
+  addBtnTxt: { ...clayStyles.addBtnTxt, color: phoneIos.onBlue },
+  addBtnTxtOff: { color: phoneIos.label2 },
+  entryRow: { ...phoneBaseStyles.entryRow, backgroundColor: phoneIos.cell, paddingHorizontal: 10, minHeight: 48 },
+  entryDel: { ...clayStyles.entryDel, minWidth: 44, minHeight: 44, alignItems: "center" as const, justifyContent: "center" as const },
+  ghCard: { ...phoneBaseStyles.ghCard, borderWidth: 0, backgroundColor: phoneIos.cell },
+  repoRow: { ...phoneBaseStyles.repoRow, borderWidth: 0, backgroundColor: phoneIos.cell },
+  heatCell0: { backgroundColor: phoneIos.fill, borderWidth: 0, borderColor: phoneIos.fill },
+  heatCell1: { backgroundColor: phoneIos.lightBlue },
+  heatCell2: { backgroundColor: phoneIos.blue },
+  heatCell3: { backgroundColor: phoneIos.bluePressed },
+  gridCell: { ...phoneBaseStyles.gridCell, borderWidth: 0, backgroundColor: phoneIos.cell },
+  gridCellFilled: { borderColor: phoneIos.cell, backgroundColor: phoneIos.cell },
+  gridCellOpen: { borderWidth: 2, borderColor: phoneIos.blue },
+  gridCellText: { ...clayStyles.gridCellText, color: phoneIos.label, fontSize: 11, lineHeight: 16 },
+  weekArrowText: { ...clayStyles.weekArrowText, color: phoneIos.blue },
+  weekLabelNow: { color: phoneIos.blue },
+  mealBackdrop: { flex: 1, backgroundColor: "transparent", opacity: 1 },
+  mealSheet: { ...phoneBaseStyles.mealSheet, backgroundColor: phoneIos.grouped, borderTopWidth: 0 },
+  sheetGrip: { ...phoneBaseStyles.sheetGrip, backgroundColor: phoneIos.gray3 },
+  mealClear: { ...phoneBaseStyles.mealClear, backgroundColor: phoneIos.cell, borderWidth: 0 },
+  mealClearText: { ...clayStyles.mealClearText, color: phoneIos.red },
+  ideaChip: { ...phoneBaseStyles.ideaChip, minHeight: 44, backgroundColor: phoneIos.cell, borderWidth: 0 },
+  ideaChipText: { ...clayStyles.ideaChipText, color: phoneIos.blue },
+  mealSave: { ...phoneBaseStyles.mealSave, backgroundColor: phoneIos.blue },
+  mealSaveText: { ...clayStyles.mealSaveText, color: phoneIos.onBlue },
+};
+
+const phoneBaseReminderStyles = phoneStyleSheet(clayReminderStyles);
+const phoneReminderStyles = {
+  ...phoneBaseReminderStyles,
+  cardOff: { opacity: 1 },
+  title: { ...clayReminderStyles.title, color: phoneIos.label, lineHeight: 22 },
+  timePill: { ...phoneBaseReminderStyles.timePill, backgroundColor: phoneIos.fill },
+  timePillText: { ...clayReminderStyles.timePillText, color: phoneIos.blue },
+  srcChip: { ...phoneBaseReminderStyles.srcChip, backgroundColor: phoneIos.grouped },
+  toggleOn: { ...clayReminderStyles.toggleOn, backgroundColor: phoneIos.green },
+  toggleOff: { ...clayReminderStyles.toggleOff, backgroundColor: phoneIos.fill },
+  knobOn: { backgroundColor: phoneIos.cell },
+  knobOff: { backgroundColor: phoneIos.cell },
+};
+
+function useOpsScreenStyles() {
+  return usePhoneDesign() ? phoneScreenStyles : clayStyles;
+}

@@ -15,13 +15,11 @@ const PATHS: SignOutPath[] = [
     source: readFileSync(resolve(ROOT, "src/app/settings.tsx"), "utf8").replace(/\r\n/g, "\n"),
     navigationOwner: "success",
   },
-  {
-    label: "legacy account deletion",
-    // 레거시 렌더러가 legacy/screens/account.tsx 로 나갔다. 이 단언의 대상은 그
-    // 렌더러이므로 보관본을 읽는다 — 라이브 쪽 같은 규칙은 아래 deep-space 항목이 진다.
-    source: readFileSync(resolve(ROOT, "legacy/screens/account.tsx"), "utf8").replace(/\r\n/g, "\n"),
-    navigationOwner: "finally",
-  },
+  // ("legacy account deletion" 항목은 2026-10-05 에 걷었다. 그 렌더러의 보관본
+  //  legacy/screens/account.tsx 가 E:/Legacy/2ndB 로 나갔고(롤백 레버 제거, Simon 결정
+  //  Q-261004-11 C), 검사는 보관본을 읽지 않는다(legacy-archive-integrity.test.ts).
+  //  배송 화면의 같은 규칙은 아래 deep-space 항목이 진다. "finally" 모양 분기는 그대로
+  //  둔다 - 새 경로가 그 모양으로 들어오면 다시 쓰인다.)
   {
     label: "deep-space account deletion",
     source: readFileSync(

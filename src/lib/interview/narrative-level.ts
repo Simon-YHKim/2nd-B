@@ -1,5 +1,6 @@
-// Map interview Coverage to the star2 (회상 / narrative) ladder level, so the
-// confidence-based drill-stop rule can consume a level for the narrative axis.
+// Map interview Coverage to the star2 (회상 / narrative) ladder level. The consumer
+// is persona/narrative-star.ts (star brightness), not an interview stop rule: the
+// drill-stop rule that once read this level moved to E:/Legacy on 2026-10-05.
 // Mirrors the CONTEXT.md value ladder as a data-quality signal: more covered
 // cells => a higher level. Pure, lean v1 (no IRT, per D3); L5 is never
 // auto-derived from coverage (ratification is the only path to L5, per the
@@ -16,8 +17,8 @@
 // 12/25 = 0.48, 5/25 = 0.20. 즉 기존 5시기 사용자에게는 판정이 바뀌지 않는다.
 //
 // `periods` 를 **필수 인자로** 둔 것도 일부러다. 기본값을 주면 호출부가 옛 가정을
-// 그대로 물려받고, 그건 조용히 틀린다. 이 함수는 아직 호출부가 없다 -- 등급 배선은
-// 다음 작업이고, 그때 이 인자가 "누구의 시기인지"를 반드시 말하게 만든다.
+// 그대로 물려받고, 그건 조용히 틀린다. 등급 배선(`persona/narrative-star.ts`)이
+// 이 인자로 "누구의 시기인지"를 반드시 말한다.
 
 import type { LadderLevel } from "../persona/brightness";
 import { DRILL_LAYERS, type Coverage, type LifePeriod } from "./probe";

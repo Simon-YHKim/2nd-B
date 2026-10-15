@@ -155,10 +155,9 @@ describe("클라이언트가 실제로 프록시를 탄다", () => {
     expect(fx).toContain('source: "exim"');
   });
 
-  test("키 없음과 로그인 없음은 빈 결과로 강등된다", () => {
-    // 예전 동작 유지: 키가 없으면 아이디어 전용 / KRW 전용으로 조용히 내려간다.
+  test("식품 조회 실패는 캐시할 빈 결과가 아니며 환율의 기존 폴백은 유지된다", () => {
     expect(invoke).toContain("status === 503 || status === 401");
-    expect(foods).toContain('if (outcome.reason === "unconfigured") return [];');
+    expect(foods).not.toContain('if (outcome.reason === "unconfigured") return [];');
     expect(fx).toContain('if (outcome.reason === "unconfigured") return [];');
   });
 });

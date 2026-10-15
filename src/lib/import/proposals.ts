@@ -13,7 +13,8 @@ import type { ImportKind } from "./detect";
 import { aggregateRelationSignals, countAppointmentHints, parseKakaoExport, type KakaoRelationSignal } from "./kakao";
 import { countSmsAppointmentHints, parseSmsBackup } from "./sms";
 import { parseTakeoutLocations, summarizeLocations } from "./location";
-import { parseIcs } from "./ics";
+import { eventWhen } from "./event-when";
+import { parseIcs, type CalendarEvent } from "./ics";
 import { parseAppleHealthExport, summarizeHealth } from "./health-export";
 import { emailLooksLikeAppointment, parseEml } from "./email";
 import { parseFinanceCsv, type FinanceTxn } from "./finance-csv";
@@ -40,7 +41,30 @@ export interface ImportProposal {
    * ones, mirroring the #1075 relation-alias "propose, then persist" law.
    */
   ledgerEntry?: FinanceTxn;
+  /**
+   * Health measurements (Apple Health totals): kept as the person's record but never sent to
+   * an AI provider (lib/wiki/ai-exclusion.ts). proposalsToMarkdown marks the source with it.
+   */
+  aiExcluded?: "health_measurements";
+  /**
+   * Comms/location imports (KakaoTalk, SMS, Google Takeout location) are locked for minor
+   * accounts. The hub screen checks the age before ratify; this mark rides into the source's
+   * frontmatter (`import_kind`) so the database can refuse the row too (0223). A tampered
+   * client can still drop the mark, so this backs up an honest client that loses its own
+   * check, the same posture as 0094 for relation_people.
+   */
+  lockedImport?: MinorLockedImportKind;
 }
+
+/** Import kinds whose results a minor account never holds (0094 relation_people, 0223 sources). */
+export type MinorLockedImportKind = "kakao" | "sms" | "takeout-location";
+export const MINOR_LOCKED_IMPORT_KINDS: ReadonlySet<ImportKind> = new Set<ImportKind>(["kakao", "sms", "takeout-location"]);
+
+/** The frontmatter key 0223 reads. Kept beside the kind list so the two cannot drift. */
+export const IMPORT_KIND_FRONTMATTER_KEY = "import_kind";
+
+/** The routing line of an Apple Health measurement; ai-exclusion.ts recognises older imports by it. */
+export const HEALTH_PROPOSAL_SUB = "건강 → 루틴 자동완료";
 
 export interface ImportSummary {
   appointments: number;
@@ -128,11 +152,11 @@ export function buildProposals(kind: ImportKind, content: string, localeTag: str
   } else if (kind === "ics") {
     const events = parseIcs(content);
     summary.events = events.length;
-    for (const e of events) proposals.push({ id: `ics-${proposals.length}`, label: e.title, sub: "일정 → 캘린더", sensitive: false });
+    proposals.push(...calendarEventProposals(events));
   } else if (kind === "apple-health") {
     const s = summarizeHealth(parseAppleHealthExport(content));
     summary.health = s.byType.length;
-    for (const t of s.byType) proposals.push({ id: `hk-${proposals.length}`, label: `${t.type} ${Math.round(t.total)}${t.unit}`, sub: "건강 → 루틴 자동완료", sensitive: true });
+    for (const t of s.byType) proposals.push({ id: `hk-${proposals.length}`, label: `${t.type} ${Math.round(t.total)}${t.unit}`, sub: HEALTH_PROPOSAL_SUB, sensitive: true, aiExcluded: "health_measurements" });
   } else if (kind === "email") {
     const email = parseEml(content);
     if (email && emailLooksLikeAppointment(email)) {
@@ -197,10 +221,30 @@ export function buildProposals(kind: ImportKind, content: string, localeTag: str
     }
   }
 
+  const lockedKind = MINOR_LOCKED_IMPORT_KINDS.has(kind) ? (kind as MinorLockedImportKind) : null;
   return {
-    proposals: proposals.slice(0, PROPOSAL_CAP),
+    proposals: proposals.slice(0, PROPOSAL_CAP).map((p) => (lockedKind ? { ...p, lockedImport: lockedKind } : p)),
     summary,
     ...(relationSignals && relationSignals.length > 0 ? { relationSignals } : {}),
+  };
+}
+
+/**
+ * One review row per calendar event, its time in front of its title. Shared by .ics files,
+ * Google Calendar (which arrives as .ics text) and the phone calendar (phone-calendar.ts).
+ */
+export function calendarEventProposals(events: ReadonlyArray<CalendarEvent>): ImportProposal[] {
+  return events.map((event, i) => {
+    const when = eventWhen(event);
+    return { id: `ics-${i}`, label: when ? `${when} ${event.title}` : event.title, sub: "일정 → 캘린더", sensitive: false };
+  });
+}
+
+/** The import outcome for events that arrive as data rather than as a file (the phone calendar). */
+export function calendarEventsOutcome(events: ReadonlyArray<CalendarEvent>): ImportOutcome {
+  return {
+    proposals: calendarEventProposals(events).slice(0, PROPOSAL_CAP),
+    summary: { ...empty, events: events.length },
   };
 }
 
@@ -244,7 +288,13 @@ export function proposalsToMarkdown(
   chosen: ReadonlyArray<ImportProposal>,
   locale: SystemLocale = systemLocaleFor(i18next.language),
 ): string {
-  const lines = [locale === "ko" ? `# ${sourceName} 가져오기` : `# ${sourceName} import`, ""];
+  // ai_excluded is AI_EXCLUDED_KEY in lib/wiki/ai-exclusion.ts (not imported: that module imports this one).
+  const fields: string[] = [];
+  if (chosen.some((p) => p.aiExcluded)) fields.push("ai_excluded: health_measurements");
+  const locked = chosen.find((p) => p.lockedImport)?.lockedImport;
+  if (locked) fields.push(`${IMPORT_KIND_FRONTMATTER_KEY}: ${locked}`);
+  const mark = fields.length > 0 ? ["---", ...fields, "---"] : [];
+  const lines = [...mark, locale === "ko" ? `# ${sourceName} 가져오기` : `# ${sourceName} import`, ""];
   for (const p of chosen) {
     if (p.body) {
       lines.push(`## ${p.label}`, "", p.body, "");

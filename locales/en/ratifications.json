@@ -9,7 +9,6 @@
   "held": "For later",
   "declined": "Declined",
   "cited": "{{n}} cited",
-  "undo": "Undo",
   "hideUnchanged": "Hide results that stayed the same",
   "showUnchanged": "Show {{n}} recalculations with no change",
   "originRatify": "You approved",
@@ -17,7 +16,7 @@
   "originRecorded": "Recorded",
   "emptyAll": "No approved changes yet. Review and approve a suggestion in North Star to see it here.",
   "emptyFilter": "No records in this filter. Applied changes are listed under Approved.",
-  "subtitle": "SecondB proposes; you always decide. Nothing reaches a star without your consent.",
+  "subtitle": "HustleK proposes; you always decide. Nothing reaches a star without your consent.",
   "digest": {
     "title": "Today's review",
     "intro": "These records may be related. Check whether the connections make sense to you.",

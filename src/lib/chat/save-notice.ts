@@ -18,7 +18,7 @@
 // 매번 띄우면 그건 안내가 아니라 압박이다(다크패턴). 한 번 보고 닫으면 다시 안 뜬다.
 // 자동 저장을 켰다가 다시 끄는 사람은 이미 존재를 아는 사람이므로 또 알릴 이유가 없다.
 //
-// 저장 방식은 `onboarding/core-hint.ts` 와 같다 — 웹 localStorage, 네이티브
+// 저장 방식은 `onboarding/comfort-offer.ts` 와 같다 — 웹 localStorage, 네이티브
 // AsyncStorage, 둘 다 없으면 메모리.
 
 import { useCallback, useEffect, useState } from "react";

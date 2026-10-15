@@ -1,22 +1,12 @@
 {
   "title": "Wawancara mendalam",
   "loading": "Memuat wawancara…",
-  "reflected": "Tersimpan. Membuka hasil pemeriksaan.",
   "retryHint": "Simpan lagi untuk mencoba menerapkan hasil wawancara.",
-  "ratifyTitle": "Setujui perubahan ini?",
-  "ratifyBody1": "Perubahan yang diusulkan dari jawabanmu. ",
-  "ratifyBodyStrong": "Hanya yang kamu setujui",
-  "ratifyBody2": " yang diterapkan pada lensa.",
-  "again": "Ulangi",
   "approve": "Setujui dan terapkan",
-  "question": "Pertanyaan {{n}} dari {{total}}",
   "notice": "Pemberitahuan umpan balik wawancara",
   "reflectError": "Perubahan belum bisa diterapkan",
   "dismiss": "Tutup",
   "tryAgain": "Coba lagi",
-  "ratifyDeltaNote": "Jawabanmu disimpan apa adanya. Kami tidak mengarang perkiraan sekarang; bintang-bintangmu makin terang seiring catatanmu bertambah.",
-  "progressLabel": "Pertanyaan {{n}} / {{total}} · Wawancara kenangan",
-  "screenerSubtitle": "Pertanyaan melihat topik yang sama dari beberapa sisi agar jawabanmu lebih jelas.",
   "reflectErrorBody": "Jawabanmu masih ada di sini. Coba lagi sebentar lagi.",
   "loopCheck": {
     "stuckLoop": "Hal yang terus kamu pikirkan itu, apakah memberi kamu sesuatu yang baru, atau kamu selalu sampai pada kesimpulan yang sama?",
@@ -26,10 +16,12 @@
   "drill": {
     "opening": "Mulai dari periode hidup yang mana? Satu adegan yang terlintas sudah cukup.",
     "placeholder": "Tulis sebanyak atau sesedikit yang kamu mau",
+    "processingNotice": "AI membaca jawaban Anda untuk membuat pertanyaan berikutnya. Jawaban Anda menjadi catatan tersimpan hanya saat Anda memilih untuk menyimpan.",
     "send": "Kirim",
     "thinking": "Menyiapkan pertanyaan…",
     "enough": "Cukup untuk sekarang",
     "closing": "Simpan percakapan sampai di sini?",
+    "dayLimit": "Batas penggunaan telah tercapai.",
     "turnLabel": "Giliran {{n}}",
     "loopNote": "Kita beralih ke sisi lain.",
     "failed": "Tidak bisa mengambil pertanyaan berikutnya. Silakan coba lagi.",
@@ -37,6 +29,7 @@
     "saveTitle": "Simpan percakapan hari ini?",
     "saveBody": "Jawabanmu disimpan apa adanya. Belum ada perkiraan yang dibuat dari jawaban ini. Catatan yang bertambah akan mengisi bintang-bintangmu.",
     "saved": "Tersimpan.",
+    "saveMeta": "{{star}} · Jawaban: {{n}}",
     "scaffoldNote": "Tidak tahu tidak apa-apa. Kamu bisa menceritakan fakta yang diingat atau melewati ini.",
     "intro": "Ceritakan hanya yang kamu mau. Kamu bisa melewati atau berhenti kapan saja.",
     "dontKnow": "Belum tahu",
@@ -45,12 +38,5 @@
     "anotherScene": "Adakah kejadian lain yang lebih ingin kamu ceritakan?",
     "concreteQuestion": "Apa satu hal yang kamu ingat pernah lakukan saat itu?",
     "openerHint": "Ketuk untuk memulai, lalu ubah"
-  },
-  "period": {
-    "childhood": "Masa kecil",
-    "teens": "Remaja",
-    "twenties": "Usia 20-an",
-    "thirties": "Usia 30-an",
-    "current": "Sekarang"
   }
 }

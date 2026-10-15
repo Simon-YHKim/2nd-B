@@ -56,6 +56,17 @@ describe("classifySafety (layered)", () => {
     mockInsertAudit.mockClear();
   });
 
+  test.each([
+    ["약을 이미 많이 먹었어", "KR_119"],
+    ["Someone is attacking me right now", "KR_112"],
+  ] as const)("explicit emergency %s never waits for a model", async (text, hotline) => {
+    mockEnv.mockReturnValue(LIVE_ENV);
+    const result = await classifySafety(text, "en");
+    expect(result.zone).toBe("red");
+    expect(result.hotline).toBe(hotline);
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+  });
+
   test("mock mode: Gemini Flash never called, lexicon-only result", async () => {
     mockEnv.mockReturnValue(MOCK_ENV);
     const r = await classifySafety("자살하고 싶다", "ko");

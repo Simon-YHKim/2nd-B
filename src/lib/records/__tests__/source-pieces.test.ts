@@ -19,16 +19,31 @@ jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({ from: (...args: unknown[]) => from(...args) }),
 }));
 
-function mockQuery(result: { data: unknown; error: unknown }): void {
+function mockQuery(result: { data: unknown; error: unknown }): Record<string, unknown> {
   const chain: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "order"]) chain[m] = jest.fn(() => chain);
-  chain.limit = jest.fn(async () => result);
+  for (const m of ["select", "eq", "order", "limit", "is"]) chain[m] = jest.fn(() => chain);
+  chain.then = (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve);
   from.mockReturnValue(chain);
+  return chain;
 }
 
 afterEach(() => jest.clearAllMocks());
 
 describe("listSourcePieces", () => {
+  test("reasoning filters managed imports in the owner-scoped query before loading source bodies", async () => {
+    const query = mockQuery({ data: [], error: null });
+    await listSourcePieces("u1", { excludeProfileImports: true });
+    expect(query.is).toHaveBeenCalledWith("frontmatter->profile_context_import_id", null);
+    expect(query.eq).toHaveBeenCalledWith("user_id", "u1");
+    expect(query.select).toHaveBeenCalledWith("id, title, captured_at, tags");
+  });
+
+  test("ordinary record lists retain profile imports", async () => {
+    const query = mockQuery({ data: [], error: null });
+    await listSourcePieces("u1");
+    expect(query.is).not.toHaveBeenCalled();
+  });
+
   test("maps a source row onto the shape a record row has", () => {
     mockQuery({
       data: [{ id: "abc", title: "A link I clipped", captured_at: "2026-07-10T09:00:00Z", tags: ["link"] }],

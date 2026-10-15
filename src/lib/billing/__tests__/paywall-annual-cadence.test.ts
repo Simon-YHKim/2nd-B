@@ -51,7 +51,6 @@ import {
 
 const ROOT = join(__dirname, "..", "..", "..");
 const src = readFileSync(join(ROOT, "screens", "deepspace", "dds-plans-screen.tsx"), "utf8");
-const app = readFileSync(join(ROOT, "app", "plans.tsx"), "utf8");
 const checkout = readFileSync(join(ROOT, "lib", "billing", "paddle-checkout.ts"), "utf8");
 const purchasesSource = readFileSync(join(ROOT, "lib", "payments", "purchases.ts"), "utf8");
 

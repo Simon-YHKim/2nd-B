@@ -1,18 +1,11 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Deep-space plans: PIXEL-CLAY renderer over the existing, real billing rails.
 // Prices come from the entitlement SoT, the current plan comes only from the
 // users row via useProgression, and entitlement changes remain webhook-owned.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
-import { Redirect, router, usePathname } from "expo-router";
+import { ActivityIndicator, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { Redirect, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { PurchasesPackage } from "react-native-purchases";
 
@@ -25,6 +18,7 @@ import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { Text } from "@/components/ui/Text";
 import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
+import { showsMinorPurchaseNotice } from "@/lib/billing/minor-purchase-notice";
 import {
   openPaddleCheckout,
   paddleCheckoutAvailable,
@@ -37,8 +31,10 @@ import {
   TIER_PRICE_KRW,
   TIER_PRICE_KRW_YEARLY,
 } from "@/lib/entitlements/tiers";
+import { PRO_COMING_SOON } from "@/lib/entitlements/plan-availability";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { addRewardCredits, monthBucket, weekBucket } from "@/lib/entitlements/usage";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import {
   arePurchasesAvailable,
   configurePurchases,
@@ -49,6 +45,7 @@ import {
 } from "@/lib/payments/purchases";
 import { resolvePrivacyPrefs } from "@/lib/privacy/prefs";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { resolveJurisdiction } from "@/lib/auth/consent-age";
 import {
   createOwnerActionGate,
   rewardCapAllowsWatch,
@@ -56,9 +53,9 @@ import {
   useProgression,
 } from "@/lib/progression/useProgression";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { requestGlobalCue } from "@/lib/audio/global-cues";
 import { m3 } from "@/lib/theme/m3";
 
-const PRO_COMING_SOON = true;
 const READ_TIMEOUT_MS = 8_000;
 const NOOP = () => {};
 
@@ -179,6 +176,8 @@ function krw(value: number): string {
 }
 
 function DockShell({ children, title }: { children: ReactNode; title?: string }) {
+  // Phone-aware: inside the dashboard phone, back steps the phone's stack.
+  const router = useAppRouter();
   return (
     <DeepSpaceScreen
       active="lens"
@@ -312,12 +311,16 @@ function GateState({
 }
 
 export function DeepSpacePlansScreen() {
+  // Phone-aware: inside the dashboard phone, links open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language === "ko";
   const auth = useAuth();
   const progression = useProgression();
   const pathname = usePathname();
-  const { userId, hasProfile, isMinor, profileProbeFailed, loading: authLoading } = auth;
+  const { userId, hasProfile, isMinor, age, profileProbeFailed, loading: authLoading } = auth;
+  // 미성년 결제 고지의 만 18세 확장은 한국 법역에서만 쓴다(GS-2069-01). 다른 가입 화면처럼 한 번만 읽는다.
+  const jurisdictionCountry = useMemo(() => resolveJurisdiction().country, []);
   const {
     tier: currentTier,
     loading: tierLoading,
@@ -597,6 +600,10 @@ export function DeepSpacePlansScreen() {
       if (authOwnerRef.current !== owner) return;
       if (outcome.status === "purchased") {
         setPurchaseState("purchased");
+        // 구매 소리(Q-261006-12)는 스토어가 결제를 확정한 이 분기에서만. 취소 · 오류 · 복원 ·
+        // 웹 Paddle 넘김(등급은 웹훅이 나중에 연다)은 무음이다. 결제 시트가 막 닫힌 자리라
+        // 화면 소리 관문 대신 루트의 GlobalCueHost 가 낸다.
+        requestGlobalCue("planPurchased");
         await refreshTier();
       } else if (outcome.status === "cancelled") {
         setPurchaseState("cancelled");
@@ -726,6 +733,10 @@ export function DeepSpacePlansScreen() {
     // The grant used to swallow its own failure, so this screen had nothing to
     // say when a watched ad paid nothing. Now it reports, and the sheet says it.
     const grant = await addRewardCredits(owner, credits);
+    // 보상 소리(Q-261006-13)는 적립 호출이 실제로 성공했을 때만. 위의 '귀속 불가' 분기도 시트에는
+    // "granted" 로 돌아가지만 적립이 없으므로 여기까지 오지 않는다. SSV 모드에서는 서버가
+    // 적립하므로 "processing" 이 와서 무음이다.
+    if (grant === "granted") requestGlobalCue("rewardCredited");
     if (activeOwnerRef.current !== owner) return grant;
     const generation = ++usageGeneration.current;
     const settlement = await settleAsyncRead(readReasoningUsageStrict(owner), READ_TIMEOUT_MS);
@@ -792,7 +803,8 @@ export function DeepSpacePlansScreen() {
         </View>
       </PixelSurface>
 
-      {isMinor === true ? (
+      {/* 문구의 "만 19세 미만" 은 한국 민법 숫자다. 만 18세는 법역이 한국일 때만 더한다(GS-2069-01). */}
+      {showsMinorPurchaseNotice({ isMinor, age, country: jurisdictionCountry }) ? (
         <PixelSurface variant="frame" contentStyle={s.noticeContent}>
           <View style={s.honestyRow}>
             <PixelGlyph name="info" color={m3.color.onSurfaceVariant} size={18} />

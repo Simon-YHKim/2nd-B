@@ -4,18 +4,24 @@
 // in where the dock sits today (router wiring stays in the SCREEN, not here).
 // The active state is cued by a pill indicator (not colour alone) + label
 // weight + accessibilityState, keeping the tab-bar-active-cue lineage.
-import type { ReactNode } from "react";
-import { Pressable, StyleSheet, type StyleProp, View, type ViewStyle } from "react-native";
+import { useState, type ReactNode, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
+import { Platform, StyleSheet, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { m3 } from "@/lib/theme/m3";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
 import { chromeFaceFor, m3TextStyle } from "./typeface";
+import { NAV_BAR_GEOMETRY, navLabelLayout, navSlotWidths, recordNavSlotWidth, type NavSlotMeasurements } from "./nav-label-layout";
 
 export interface MdNavItem {
   key: string;
   label: string;
   accessibilityLabel?: string;
+  /** Read after the label, e.g. while a guide points at this tab. */
+  accessibilityHint?: string;
   /** icon renderer - receives the resolved token colour so active/inactive tint. */
   icon: (color: string) => ReactNode;
   /** center-emphasised slot (e.g. 세컨비) - uses the tertiary (violet) indicator. */
@@ -29,6 +35,8 @@ export interface MdNavBarProps {
   bottomInset?: number;
   buttonLike?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Refs to single tabs, by item key: a guide that points at one tab measures it. */
+  itemRefs?: Partial<Record<string, RefObject<View | null>>>;
 }
 
 export function MdNavBar({
@@ -38,7 +46,14 @@ export function MdNavBar({
   bottomInset = 0,
   buttonLike = false,
   style,
+  itemRefs,
 }: MdNavBarProps) {
+  const [measurements, setMeasurements] = useState<NavSlotMeasurements>({});
+  const { width: windowWidth, fontScale, scale: pixelRatio } = useWindowDimensions();
+  const { i18n } = useTranslation();
+  const web = Platform.OS === "web";
+  const slotWidths = navSlotWidths(items, measurements, windowWidth, buttonLike, pixelRatio);
+  const labelLayout = navLabelLayout(items, slotWidths, fontScale, pixelRatio, Platform.OS, renderedUiLanguage(i18n));
   return (
     <View
       style={[
@@ -61,6 +76,8 @@ export function MdNavBar({
         return (
           <View
             key={item.key}
+            ref={itemRefs?.[item.key]}
+            collapsable={false}
             style={[
               styles.tab,
               buttonLike && styles.buttonTab,
@@ -68,11 +85,16 @@ export function MdNavBar({
             ]}
           >
             <Pressable
+              onLayout={web ? undefined : (event) => {
+                const width = event.nativeEvent.layout.width;
+                setMeasurements(previous => recordNavSlotWidth(previous, item.key, width, windowWidth));
+              }}
               onPress={() => onSelect(item.key)}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
               aria-selected={on}
               accessibilityLabel={item.accessibilityLabel ?? item.label}
+              accessibilityHint={item.accessibilityHint}
               android_ripple={{ color: m3.color.secondaryContainer, borderless: true }}
               style={styles.press}
             >
@@ -80,6 +102,7 @@ export function MdNavBar({
                 style={[
                   styles.indicator,
                   item.center && styles.indicatorCenter,
+                  !web && { height: labelLayout.indicatorHeight },
                   on && { backgroundColor: buttonLike ? undefined : pillBg },
                 ]}
               >
@@ -91,7 +114,11 @@ export function MdNavBar({
                   styles.label,
                   { color: labelColor },
                   on && { fontFamily: chromeFaceFor("700") },
+                  !web && { fontSize: labelLayout.fontSize, lineHeight: labelLayout.lineHeight },
                 ]}
+                // Apply the system scale once in navLabelLayout. RN 0.85 Android
+                // caps fontSize but scales lineHeight with the uncapped setting.
+                allowFontScaling={web}
                 numberOfLines={1}
               >
                 {item.label}
@@ -111,23 +138,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: m3.color.surfaceContainer,
     paddingTop: 12,
-    paddingHorizontal: m3.spacing.s2,
+    paddingHorizontal: NAV_BAR_GEOMETRY.paddingHorizontal,
     borderTopWidth: 1,
     borderTopColor: m3.color.surfaceVariant,
   },
   buttonBar: {
-    gap: m3.spacing.s2,
+    gap: NAV_BAR_GEOMETRY.buttonGap,
     paddingTop: m3.spacing.s2,
   },
-  tab: { flex: 1, minHeight: 52, justifyContent: "center" },
+  tab: { flex: 1, minHeight: NAV_BAR_GEOMETRY.pressHeight, justifyContent: "center" },
   buttonTab: {
     minWidth: 0,
     overflow: "hidden",
     backgroundColor: m3.color.surfaceContainer,
-    borderTopWidth: m3.spacing.s1,
-    borderLeftWidth: m3.spacing.s1,
-    borderBottomWidth: m3.spacing.s1,
-    borderRightWidth: m3.spacing.s1,
+    borderTopWidth: NAV_BAR_GEOMETRY.buttonBorder,
+    borderLeftWidth: NAV_BAR_GEOMETRY.buttonBorder,
+    borderBottomWidth: NAV_BAR_GEOMETRY.buttonBorder,
+    borderRightWidth: NAV_BAR_GEOMETRY.buttonBorder,
     borderTopColor: m3.color.surfaceBright,
     borderLeftColor: m3.color.surfaceBright,
     borderBottomColor: m3.color.surface,
@@ -140,14 +167,14 @@ const styles = StyleSheet.create({
     borderBottomColor: m3.color.surfaceBright,
     borderRightColor: m3.color.surfaceBright,
   },
-  press: { alignItems: "center", gap: m3.spacing.s1, justifyContent: "center", minHeight: 52 },
+  press: { alignItems: "center", gap: NAV_BAR_GEOMETRY.gap, justifyContent: "center", minHeight: NAV_BAR_GEOMETRY.pressHeight },
   indicator: {
     width: 64,
-    height: 32,
+    height: NAV_BAR_GEOMETRY.indicatorHeight,
     borderRadius: m3.shape.full,
     alignItems: "center",
     justifyContent: "center",
   },
-  indicatorCenter: { width: 64, height: 32 },
+  indicatorCenter: { width: 64, height: NAV_BAR_GEOMETRY.indicatorHeight },
   label: { textAlign: "center" },
 });

@@ -68,6 +68,7 @@ describe("edge schema dependency gate", () => {
       functions: ["consume_quota", "draft_only"],
       tables: ["records"],
       columns: ["records.event_source", "records.key_combo"],
+      selectColumns: [],
       functionContracts: [
         { name: "consume_quota", signature: "uuid", argNames: ["p"] },
         { name: "draft_only", signature: "uuid", argNames: ["p"] },
@@ -186,6 +187,37 @@ describe("edge schema dependency gate", () => {
 });
 
 describe("edge schema dependency gate on the real repository", () => {
+  it("G4-05 requires the 0243 column grants, not just the existing table", () => {
+    const deps = JSON.parse(run(["list", "export-account"]).stdout);
+    expect(deps.tables).toContain("profile_context_imports");
+    expect(deps.selectColumns).toEqual([
+      "created_at", "id", "item_count", "profile_change_count", "profile_restored", "status", "user_id", "withdrawn_at",
+    ].map((column) => `profile_context_imports.${column}`));
+    const body = JSON.parse(run(["query", "export-account"]).stdout);
+    expect(body.query).toContain("has_column_privilege('service_role', c.oid, a.attnum, 'SELECT')");
+    expect(body.query).toContain("when 'select_column' then exists");
+    const dir = mkdtempSync(path.join(tmpdir(), "g4export-deps-"));
+    try {
+      const file = path.join(dir, "response.json");
+      const rows = [
+        ...deps.functionContracts.map((entry: { name: string; signature: string }) => ({ kind: "function", name: `${entry.name}(${entry.signature})`, present: true })),
+        ...deps.tables.map((name: string) => ({ kind: "table", name, present: true })),
+        ...deps.columns.map((name: string) => ({ kind: "column", name, present: true })),
+        ...deps.selectColumns.map((name: string) => ({ kind: "select_column", name, present: true })),
+      ];
+      writeFileSync(file, JSON.stringify(rows));
+      expect(run(["verify", "export-account", file]).status).toBe(0);
+      for (const name of deps.selectColumns) {
+        writeFileSync(file, JSON.stringify(rows.map((entry) => entry.name === name ? { ...entry, present: false } : entry)));
+        const rejected = run(["verify", "export-account", file]);
+        expect(rejected.status).toBe(1);
+        expect(rejected.stderr).toContain(`select_column:${name}`);
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("sees the capacity RPCs the LLM proxies reach through the shared wrapper", () => {
     const deps = JSON.parse(run(["list", "openai-proxy"]).stdout);
     expect(deps.functions).toEqual(
@@ -207,6 +239,31 @@ describe("edge schema dependency gate on the real repository", () => {
     expect(deps.functions).toEqual(
       expect.arrayContaining(["issue_oauth_naver_state", "consume_oauth_naver_state", "consume_oauth_naver_rate_limit"]),
     );
+  });
+
+  it("holds the rewarded-ssv deploy until 0213's v3 settlement exists, with the callback timestamp argument", () => {
+    // GO-4 (0213) must reach production before GO-5 (this Edge). The gate reads
+    // the RPC from the source, so the deploy stops while the function is missing.
+    const deps = JSON.parse(run(["list", "rewarded-ssv"]).stdout);
+    expect(deps.functions).toContain("settle_reward_ssv_ticket_v3");
+    expect(deps.functions).not.toContain("settle_reward_ssv_ticket_v2");
+    const v3 = deps.functionContracts.find((c: { name: string }) => c.name === "settle_reward_ssv_ticket_v3");
+    expect(v3).toEqual(expect.objectContaining({
+      signature: "text,text,text,integer,text,bigint",
+      argNames: ["p_token_hash", "p_txn_id", "p_ad_unit_id", "p_reward_amount", "p_reward_item", "p_callback_ts"],
+    }));
+  });
+
+  it("requires 0245 lease RPCs before the new dashboard Edge can deploy", () => {
+    const deps = JSON.parse(run(["list", "dashboard-generate"]).stdout);
+    expect(deps.functionContracts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "dashboard_generation_audit_attempt_v2", signature: "uuid,uuid,text,text,text,boolean,uuid" }),
+      expect.objectContaining({ name: "dashboard_generation_audit_result_v2", signature: "uuid,uuid,text,text,integer,text,integer,uuid" }),
+      expect.objectContaining({ name: "dashboard_generation_request_v2", signature: "uuid,text,text,text" }),
+      expect.objectContaining({ name: "dashboard_generation_finish_v2", signature: "uuid,uuid,jsonb,uuid" }),
+      expect.objectContaining({ name: "dashboard_generation_begin_classification_v2", signature: "uuid,uuid,uuid" }),
+      expect.objectContaining({ name: "dashboard_generation_block_v2", signature: "uuid,uuid,uuid" }),
+    ]));
   });
 
   it("can derive exact contracts for every deployable Edge function", () => {

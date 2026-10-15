@@ -1,12 +1,7 @@
 {
-  "ads": {
-    "label": "Patrocinado",
-    "removeUpsell": "¿Prefieres sin anuncios? Las suscripciones los eliminan."
-  },
   "app": {
     "name": "PolaScope",
-    "tagline": "Un segundo cerebro construido a partir de lo que escribes y guardas.",
-    "renameNote": "PolaScope es el nuevo nombre de 2nd-Brain. Hasta que cambien los Términos el 5 de octubre de 2026, 2nd-Brain en el texto de consentimiento y en los Términos se refiere a PolaScope."
+    "tagline": "Un segundo cerebro construido a partir de lo que escribes y guardas."
   },
   "actions": {
     "continue": "Continuar",
@@ -38,12 +33,6 @@
   "states": {
     "loading": "Cargando…"
   },
-  "progression": {
-    "maxLevelTrailing": "{{xp}} XP · nivel máximo",
-    "nextLevelTrailing": "{{xp}} XP para el siguiente nivel",
-    "progressLabel": "Nivel {{level}}, progreso de XP {{pct}}%",
-    "maxLevelHint": "Ya estás en el nivel máximo."
-  },
   "journal": {
     "privacyFootnote": "Tus entradas se mantienen cifradas y nunca entrenan ningún modelo.",
     "relativeJustNow": "justo ahora",
@@ -66,67 +55,14 @@
     "opening": "Abriendo PolaScope",
     "loading": "Cargando PolaScope",
     "enterHint": "Toca dos veces para entrar a la pantalla principal.",
-    "skipHint": "Toca dos veces para saltar la animación de inicio."
+    "skipHint": "Toca dos veces para saltar la animación de inicio.",
+    "skip": "Saltar apertura",
+
+    "skipShort": "Omitir",
+    "retry": "Reintentar apertura"
   },
-  "worldview": {
-    "soulCore": "Estrella del Norte",
-    "growthCore": "Núcleo de crecimiento",
-    "bondCore": "Núcleo de vínculos",
-    "wisdomCore": "Núcleo de sabiduría",
-    "narrativeCore": "Núcleo narrativo",
-    "museCore": "Núcleo musa",
-    "patternCore": "Núcleo de patrones",
-    "patternData": "Datos de patrones",
-    "log": "Registro",
-    "patternLink": "Enlace de patrones"
-  },
-  "navGraph": {
-    "drilldown": {
-      "back": "Volver a la constelación",
-      "backHint": "Vuelve a la constelación completa.",
-      "coreEyebrow": "Núcleo de patrones",
-      "dataEyebrow": "Fragmentos conectados",
-      "touch": "¡Toca!",
-      "coreIntro": {
-        "work": "Growth Core reúne tus fragmentos sobre trabajo y crecimiento.",
-        "relation": "Bond Core reúne recuerdos, promesas y conversaciones.",
-        "knowledge": "Wisdom Core reúne lo que has aprendido.",
-        "records": "Narrative Core reúne los fragmentos que guardaste.",
-        "taste": "Muse Core reúne cosas que te gustan e ideas que guardaste."
-      },
-      "dataFallback": "Una pieza que conectaste con {{core}}.",
-      "noDataTitle": "Aún no hay fragmentos conectados",
-      "noDataBody": "Aquí aparecen los fragmentos que escribes o guardas. Guarda uno y se mostrará como un pequeño copo de nieve.",
-      "dataDetailHint": "Abre el fragmento seleccionado."
-    }
-  },
-  "navPiece": "fragmento",
-  "navPieceSummary": "Abre el resumen y las etiquetas de este fragmento",
-  "navVillageNode": "Abre esta estrella",
-  "navCenterVillage": "Abre la Estrella Polar",
-  "navResetView": "Restablecer vista",
-  "navResetHint": "Restablece el desplazamiento y el zoom del gráfico",
-  "navReset": "Restablecer",
-  "navPrevCategory": "Categoría anterior",
-  "navPrevHint": "Selecciona la estrella anterior",
   "navPrev": "Ant.",
-  "navOpenSettings": "Abrir opciones",
-  "navSettingsHint": "Abre la pantalla de opciones",
-  "navSettings": "Opciones",
-  "navNextCategory": "Categoría siguiente",
-  "navNextHint": "Selecciona la estrella siguiente",
   "navNext": "Sig.",
-  "navClose": "Cerrar",
-  "navCloseVillage": "Cierra los detalles de la estrella",
-  "navPiecesConnected": "fragmentos que conecté",
-  "navLookAround": "Echar un vistazo",
-  "navOpenAngleVillage": "Abre esta estrella en SecondB desde un nuevo ángulo",
-  "navOpenNewAngle": "Ver de otra forma",
-  "navClosePiece": "Cierra los detalles del fragmento",
-  "navNoSummary": "Aún no hay resumen.",
-  "navDetails": "Detalles",
-  "navConnectedCount": "{{n}} fragmentos que conecté",
-  "navOpenAngleName": "Abrir {{name}} desde un nuevo ángulo",
   "quantBeforeStart": "Antes de empezar",
   "quantItems": "Ítems",
   "quantTime": "Tiempo",
@@ -145,10 +81,17 @@
   "facet30": "30 rasgos de personalidad en detalle",
   "facetRetakeLabel": "Repetir la evaluación",
   "facetRetake": "Repetir",
-  "reflectDismiss": "Cerrar",
   "drillLayerPeriod": "tema / periodo",
-  "charSelfTalk": "Abre el comentario de este personaje.",
   "backToGraph": "Volver al gráfico",
   "backToGraphHint": "Abre la pantalla de inicio del gráfico.",
-  "clearContext": "Borrar texto de referencia"
+  "clearContext": "Borrar texto de referencia",
+  "deviceLock": {
+    "title": "Verifica con el bloqueo del teléfono",
+    "fallback": "Usar código del teléfono",
+    "unlock": "Desbloquear",
+    "checking": "Verificando…",
+    "setup": "Primero configura un bloqueo de pantalla en los ajustes del teléfono.",
+    "unavailable": "La autenticación del dispositivo no está disponible. Instala la última versión de la app e inténtalo de nuevo.",
+    "failed": "No se pudo desbloquear. Inténtalo de nuevo."
+  }
 }

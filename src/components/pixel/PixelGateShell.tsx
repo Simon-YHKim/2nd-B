@@ -6,7 +6,6 @@
 // 한 곳에 고정한다.
 import type { ReactNode, Ref } from "react";
 import {
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -17,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { SbStarfield } from "@/components/deep-space/SbStarfield";
 import { m3 } from "@/lib/theme/m3";
-import { useKeyboard } from "@/lib/ui/useKeyboard";
+import { KeyboardAvoidingArea, useKeyboard } from "@/lib/ui/keyboard";
 
 import { pixelGateBottomPadding } from "./pixel-gate";
 
@@ -27,15 +26,15 @@ export interface PixelGateShellProps {
   scrollRef?: Ref<ScrollView>;
   /** 화면별 정렬만 추가한다. safe-area/IME 여백은 셸이 계속 소유한다. */
   contentContainerStyle?: StyleProp<ViewStyle>;
-  /** 네이티브 헤더가 있는 iOS 호스트에서만 필요하다. */
-  keyboardVerticalOffset?: number;
+  /** 네이티브 헤더가 있는 iOS 호스트에서만 필요하다. Android 는 영역이 재서 정한다. */
+  iosKeyboardVerticalOffset?: number;
 }
 
 export function PixelGateShell({
   children,
   scrollRef,
   contentContainerStyle,
-  keyboardVerticalOffset = 0,
+  iosKeyboardVerticalOffset = 0,
 }: PixelGateShellProps) {
   const keyboardHeight = useKeyboard();
   const paddingBottom = pixelGateBottomPadding(Platform.OS, keyboardHeight);
@@ -43,9 +42,8 @@ export function PixelGateShell({
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
       <SbStarfield cosmic />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={keyboardVerticalOffset}
+      <KeyboardAvoidingArea
+        iosKeyboardVerticalOffset={iosKeyboardVerticalOffset}
         style={styles.keyboard}
       >
         <ScrollView
@@ -59,7 +57,7 @@ export function PixelGateShell({
         >
           {children}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </SafeAreaView>
   );
 }

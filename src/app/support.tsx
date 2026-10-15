@@ -1,15 +1,16 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Route: /support — user-facing "지원" (A-to-Z Phase 12).
 //
 // The auth gate stays here because it decides whether the screen renders at
 // all; the screen itself is DeepSpaceSupportDesignScreen. The legacy-track copy that
-// used to sit below this gate is now legacy/screens/support.tsx, out of the build
+// used to sit below this gate is now E:/Legacy/2ndB/legacy/screens/support.tsx, out of the build
 // but still readable. Its accessibility hints moved with it — the live screen
 // keys label/hint/role per action off its own data (see check:constraints A11y).
 //
 // profileGate decides. A failed probe gets the retryable error (no dock),
 // not the loader it used to share: the T1a emulator run (vibe r260913, item 2)
 // found that shape stuck on /account and /data, and this route had it too.
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 

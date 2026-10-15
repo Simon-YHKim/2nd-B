@@ -1,10 +1,11 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // /canon - reference surface for the proto_rev2 JSON canon (dev/design aid,
 // not linked from user nav). Renders the screen registry, nav tabs and
 // constellation routes straight from src/lib/canon so a broken canon file is
 // visible in-app, and links to the live prototype that consumes the same data.
 // Read-only, no auth, no LLM, no schema work.
 
-import { ScrollView, View, StyleSheet, Platform, Linking, Pressable } from "react-native";
+import { View, StyleSheet, Platform, Linking, Pressable } from "react-native";
 
 import { DevOnlyRoute } from "@/components/ui/DevOnlyRoute";
 

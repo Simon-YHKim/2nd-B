@@ -33,9 +33,13 @@ describe("records screen honest error state + focus refetch + virtualized list",
   const src = read(RECORDS);
 
   it("does not coerce a records-read failure to an empty list (false-empty)", () => {
+    // The read's name changed on 2026-10-14 (the list now reads every record); the guard follows
+    // it, and keeps the old name too so neither spelling of the false-empty can come back.
+    expect(src).not.toContain("listAllRecords(userId).catch(() => [])");
     expect(src).not.toContain("listRecentRecords(userId).catch(() => [])");
-    expect(src).toContain("recordsFailed = true");
-    expect(src).toContain("setLoadError(true)");
+    expect(src).toContain("listAllRecords(userId, { signal: controller.signal })");
+    expect(src).toContain("withTimeout(work, WIKI_LIST_READ_TIMEOUT_MS");
+    expect(src).toContain("rows: NO_RECORDS, failed: true");
   });
 
   it("renders a distinct error state with a retry, using both-locale keys", () => {
@@ -77,7 +81,9 @@ describe("PIXEL-CLAY records root composition", () => {
   });
 
   it("opens on the real connection graph while keeping the complete FlatList one tap away", () => {
-    expect(src).toContain('useState<"list" | "graph">("graph")');
+    // The graph is still where the screen opens. Only a link to one star's stories
+    // (?period=, Z60) opens it as the list.
+    expect(src).toContain('useState<"list" | "graph">(periodStar ? "list" : "graph")');
     expect(src).toContain('onPress={() => setView("list")}');
     expect(src).toContain("<FlatList");
     expect(src).toContain("data={loadError ? [] : filtered}");

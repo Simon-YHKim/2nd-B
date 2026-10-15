@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 const root = resolve(__dirname, "../..");
 const checker = join(root, "scripts/check-definer-grants.ts");
 const tsx = require.resolve("tsx/cli");
-const draft = readFileSync(join(root, "db/migration-drafts/UNNUMBERED_signup_consent_admob_20260925.sql"), "utf8");
+const draft = readFileSync(join(root, "db/migrations/0191_signup_consent_admob_20260925.sql"), "utf8");
 const grant = "GRANT EXECUTE ON FUNCTION public.signup_consent_contract_status() TO anon, authenticated;";
 const tempPrefix = join(tmpdir(), "2ndb-definer-grants-");
 let fixture: string;

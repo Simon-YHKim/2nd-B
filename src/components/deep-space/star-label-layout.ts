@@ -58,8 +58,15 @@ export type StarLabelFrame = { frame: LabelFrame; maxLines: 1 | 2 };
 /** 별 이름표 (sb-home: 점 아래, 10.5px/600). */
 export const STAR_LABEL = { width: 80, fontSize: 10.5, lineHeight: 14, dropPerK: 6, drop: 8 } as const;
 
-/** 북극성 이름표. 구가 더 커서 `9k + 8` 아래에 놓이고 폭은 120 이다. 늘 한 줄이다. */
-export const POLARIS_LABEL = { width: 120, fontSize: 10.5, lineHeight: 14, dropPerK: 9, drop: 8 } as const;
+/**
+ * 북극성 이름표. 폭은 120 이고 늘 한 줄이다.
+ *
+ * 자리는 헤일로 아래 광선 끝(`POLARIS_HALO_R` 23 × k, ConstellationHome.tsx) 바로 아래 `23k + 1` 이다.
+ * 도메인 별 이름표가 광선 끝(1.6 × 8 ≈ 13k) 바로 아래 `6k + 8`(k ≈ 1 에서 14)에 놓이는 것과 같은 관계다.
+ * 예전 `9k + 8` 은 광선 끝보다 약 6k 위라, 아래 광선이 '북극성' 의 가운데 글자 윗부분을 덮었다
+ * (QA R2A-07, 2026-10-05). k 에 비례하므로 넓은 화면에서도 광선 밑으로 들어가지 않는다.
+ */
+export const POLARIS_LABEL = { width: 120, fontSize: 10.5, lineHeight: 14, dropPerK: 23, drop: 1 } as const;
 
 /**
  * 이름표 상자가 조건 없이 글꼴 배율만큼 넓어지는 배율. **글자 크기 상한이 아니다.** 글자는 기기 배율을

@@ -3,11 +3,6 @@
   "main": "expo-router/entry",
   "version": "0.0.1",
   "private": true,
-  "expo": {
-    "autolinking": {
-      "exclude": ["react-native-google-mobile-ads"]
-    }
-  },
   "scripts": {
     "postinstall": "patch-package --error-on-warn",
     "eas-build-pre-install": "node scripts/check-signup-consent-deployment.cjs --eas-build",
@@ -20,7 +15,7 @@
     "localhost:stop": "node scripts/app-parity.cjs stop",
     "app:parity": "node scripts/app-parity.cjs status",
     "app:qa-release": "node scripts/app-parity.cjs qa-release",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "type-check": "tsc --noEmit",
     "check:edge-runtime": "node scripts/check-edge-runtime.mjs",
     "test": "jest",
@@ -37,6 +32,8 @@
     "check:supabase-auth-config": "tsx scripts/check-supabase-auth-config.ts",
     "check:safety-consent-locale": "tsx scripts/check-safety-consent-locale.ts",
     "check:emdash": "tsx scripts/check-no-emdash.ts",
+    "check:explanatory-copy": "tsx scripts/check-explanatory-copy.ts",
+    "check:copy-endings": "tsx scripts/check-copy-endings.ts",
     "check:pixel-rules": "tsx scripts/check-pixel-rules.ts",
     "check:anti-anthro": "tsx scripts/check-anti-anthro.ts",
     "check:mascot-voice": "tsx scripts/check-mascot-voice.ts",
@@ -45,15 +42,13 @@
     "check:canon-data": "node design/proto_rev2/tools/validate-data.mjs",
     "check:design-ref": "node design/pixel_clay_260825/tools/validate-ref.mjs",
     "test:ui-work0": "node --test design/pixel_clay_260825/tools/__tests__/work0-hardening.test.mjs",
-    "build:static": "npm run build:static:landing",
-    "build:static:landing": "npx --no-install esbuild public/landing/main.js --bundle --format=esm --platform=browser --target=es2020 --outfile=dist/landing/main.bundle.js",
-    "postbuild:static:landing": "npm run build:static:proto",
+    "build:static": "npm run build:static:proto",
     "build:static:proto": "node scripts/build-proto.mjs",
     "capture:screens": "node scripts/capture-screens.mjs",
     "qc:mobile-web": "node scripts/qc-mobile-web.mjs",
     "qc:mobile-web:serve": "node scripts/qc-mobile-web.mjs --serve",
     "notice:release": "tsx scripts/release-notice.ts",
-    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:i18n-untranslated && npm run check:lexicon && npm run check:crisis-parity && npm run check:legal-review && npm run check:legal-html && npm run check:legal-snapshot && npm run check:llm-boundary && npm run check:constraints && npm run check:definer-grants && npm run check:erasure-registry && npm run check:supabase-auth-config && npm run check:safety-consent-locale && npm run check:emdash && npm run check:pixel-rules && npm run check:anti-anthro && npm run check:mascot-voice && npm run check:asset-exts && npm run check:cycles && npm run check:canon-data && npm run check:design-ref && npm run check:ota-runtime && npm run test:ui-work0 && npm test -- --ci",
+    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:i18n-untranslated && npm run check:lexicon && npm run check:crisis-parity && npm run check:legal-review && npm run check:legal-html && npm run check:legal-snapshot && npm run check:llm-boundary && npm run check:constraints && npm run check:definer-grants && npm run check:erasure-registry && npm run check:supabase-auth-config && npm run check:safety-consent-locale && npm run check:emdash && npm run check:explanatory-copy && npm run check:copy-endings && npm run check:pixel-rules && npm run check:anti-anthro && npm run check:mascot-voice && npm run check:asset-exts && npm run check:cycles && npm run check:canon-data && npm run check:design-ref && npm run check:ota-runtime && npm run test:ui-work0 && npm test -- --ci",
     "check:i18n-untranslated": "tsx scripts/check-i18n-untranslated.ts",
     "check:asset-exts": "tsx scripts/check-asset-exts.ts",
     "verify:web": "node scripts/verify-web-export.js",
@@ -90,11 +85,15 @@
     "expo-image-manipulator": "~56.0.20",
     "expo-image-picker": "~56.0.19",
     "expo-linking": "~56.0.14",
+    "expo-local-authentication": "~56.0.4",
     "expo-localization": "~56.0.6",
+    "expo-location": "~56.0.19",
+    "expo-network": "~56.0.5",
     "expo-notifications": "~56.0.19",
-    "expo-secure-store": "~56.0.4",
     "expo-router": "~56.2.12",
+    "expo-secure-store": "~56.0.4",
     "expo-sharing": "~56.0.19",
+    "expo-speech": "~56.0.3",
     "expo-splash-screen": "~56.0.11",
     "expo-status-bar": "~56.0.4",
     "expo-system-ui": "~56.0.5",
@@ -158,6 +157,14 @@
     },
     "xcode": {
       "uuid": "11.1.1"
+    }
+  },
+  "expo": {
+    "autolinking": {
+      "buildFromSource": [
+        "expo-local-authentication",
+        "expo-network"
+      ]
     }
   }
 }

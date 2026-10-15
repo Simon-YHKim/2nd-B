@@ -10,15 +10,16 @@
 //   await shareInsightCard({ variant: "A", insight, handle, litCount });
 //
 // deriveCardProps() maps real domain data (core-brain 북극성 문장 +
-// star_tier_history lit count) to ShareCard props with canonical fallbacks.
+// star_tier_history lit count) to ShareCard props. The fallback sentence comes
+// from the caller's locale bundle; an unknown lit count stays unknown (null).
 
 import { Platform } from "react-native";
 
 import type { ShareCardProps } from "@/components/deepspace/ShareCard";
 import { SITE_ORIGIN } from "@/lib/site-meta";
 
-/** Canonical fallbacks when real data is missing. */
-export const FALLBACK_INSIGHT = "깊이 이해하고, 더 나답게 산다.";
+/** Default lit count for captureCardProps when the caller passes none. The
+ *  share screen never relies on it: it waits for the real count instead. */
 export const FALLBACK_LIT_COUNT = 4;
 
 /** The capture target — design canon is 1080×1080. */
@@ -46,23 +47,29 @@ export interface ShareInsightOptions {
  *   - litStars: how many of the 7 북두칠성 lenses are lit, from the user's
  *     star_tier_history (count of stars whose current tier ≥ L1, i.e. ignited).
  *   - handle: the user's public handle (without "@").
+ *   - fallbackInsight: the localized default sentence, from the caller's
+ *     bundle (deepspace:shareCard.fallbackInsight).
  *
- * Any missing / blank field falls back to the canonical sentence + 4 lit stars
- * so the card is always shippable. litStars is clamped to 0..7.
+ * A missing / blank sentence falls back to fallbackInsight. It used to be a
+ * Korean constant, so every en/es/pt/id user without a saved 북극성 문장 shared
+ * a Korean card (QA 261004 W-04/D-09). A missing / non-finite litStars yields
+ * litCount null: the count is unknown and the card must not invent one.
+ * litStars is clamped to 0..7.
  */
 export function deriveCardProps(input: {
   northStarSentence?: string | null;
   litStars?: number | null;
   handle?: string | null;
-}): { insight: string; handle: string; litCount: number } {
+  fallbackInsight: string;
+}): { insight: string; handle: string; litCount: number | null } {
   const sentence = (input.northStarSentence ?? "").trim();
-  const insight = sentence.length > 0 ? sentence : FALLBACK_INSIGHT;
+  const insight = sentence.length > 0 ? sentence : input.fallbackInsight.trim();
 
   const rawLit = input.litStars;
   const litCount =
     typeof rawLit === "number" && Number.isFinite(rawLit)
       ? Math.max(0, Math.min(7, Math.round(rawLit)))
-      : FALLBACK_LIT_COUNT;
+      : null;
 
   const handle = (input.handle ?? "").trim() || "me";
 

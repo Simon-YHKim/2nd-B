@@ -1,22 +1,12 @@
 {
   "title": "Questions to reflect on",
   "loading": "Loading interview…",
-  "reflected": "Answers saved. Opening your results.",
   "retryHint": "Tries saving your answers again.",
-  "ratifyTitle": "Save your answers?",
-  "ratifyBody1": "Your answers are saved as records. ",
-  "ratifyBodyStrong": "Your records",
-  "ratifyBody2": " brighten your stars over time.",
-  "again": "Again",
   "approve": "Save and apply",
-  "question": "Question {{n}} of {{total}}",
   "notice": "Saving your answers",
   "reflectError": "Couldn't save your answers",
   "dismiss": "Dismiss",
   "tryAgain": "Try again",
-  "ratifyDeltaNote": "Your answers are saved as they are. No result is estimated yet. As records build up, they affect star brightness.",
-  "progressLabel": "Question {{n}} / {{total}} · Recall interview",
-  "screenerSubtitle": "Some questions cover the same topic in different ways to help you recall details.",
   "reflectErrorBody": "Your answers are still here. Give it another try in a moment.",
   "loopCheck": {
     "stuckLoop": "The thing you keep coming back to - is it telling you something new, or are you arriving at the same conclusion each time?",
@@ -26,10 +16,12 @@
   "drill": {
     "opening": "Which time in your life would you like to talk about? Start with a scene you remember.",
     "placeholder": "Write as much or as little as you like",
+    "processingNotice": "AI reads your answers to create the next question. Your answers become a saved record only when you choose to save.",
     "send": "Send",
     "thinking": "Preparing the next question…",
     "enough": "Stop here",
     "closing": "Would you like to save what you have shared so far?",
+    "dayLimit": "Your usage limit has been reached.",
     "turnLabel": "Turn {{n}}",
     "loopNote": "Let me change direction for a moment.",
     "failed": "Could not fetch the next question. Please try again.",
@@ -37,6 +29,7 @@
     "saveTitle": "Save today's conversation?",
     "saveBody": "Your conversation is saved as it is. No result is estimated yet. As records build up, they affect star brightness.",
     "saved": "Saved.",
+    "saveMeta": "{{star}} · Answers: {{n}}",
     "scaffoldNote": "Not knowing is fine. You can describe a fact you remember or skip this.",
     "intro": "Share only what you want to. You can skip or stop at any time.",
     "dontKnow": "I'm not sure",
@@ -45,12 +38,5 @@
     "anotherScene": "Is there another moment you would like to talk about instead?",
     "concreteQuestion": "What is one thing you remember doing in that moment?",
     "openerHint": "Tap to start writing, then edit it"
-  },
-  "period": {
-    "childhood": "Childhood",
-    "teens": "Teens",
-    "twenties": "Twenties",
-    "thirties": "Thirties",
-    "current": "Now"
   }
 }

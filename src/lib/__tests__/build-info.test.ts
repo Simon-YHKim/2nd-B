@@ -93,3 +93,57 @@ describe("빌드 줄: 내장 번들과 OTA 는 isEmbeddedLaunch 로 가른다", 
     expect(buildInfoLine()).toBe("v? · dev");
   });
 });
+
+// R2A-08 (QA 2026-10-05): 네이티브는 '없음' 을 null 이 아니라 빈 문자열로 준다.
+// expo-updates 56.0.20 Android IUpdatesController.kt:112,114 · iOS AppController.swift:77,79
+// 가 `?: ""` · `?? ""` 이고, JS 의 `?? null` 은 "" 를 그대로 넘긴다. 위 목은 null 만
+// 흉내 내서 CI gradle APK(채널 헤더 없음)의 실제 화면 "v… ·  · embedded 2b33a046" 을
+// 놓쳤다. 아래는 그 기기에서 읽은 값 그대로다(round2/R2A-android/ui/set_full.xml).
+describe("빌드 줄: 네이티브가 주는 빈 문자열도 모르는 값이다 (R2A-08)", () => {
+  const DIAGNOSTIC_APK = {
+    isEnabled: true,
+    runtimeVersion: "8f9881d0d1106b5446ef2a047744446b887b3974",
+    channel: "",
+    updateId: "2b33a046-0000-4000-8000-000000000000",
+    isEmbeddedLaunch: true,
+  };
+
+  it("채널이 빈 문자열이면 ? 로 적어 구분점이 겹치지 않는다", () => {
+    setUpdates(DIAGNOSTIC_APK);
+    const line = buildInfoLine();
+    expect(line).toBe("v8f9881d0d1106b5446ef2a047744446b887b3974 · ? · embedded 2b33a046");
+    expect(line).not.toContain("·  ·");
+  });
+
+  it("런타임 버전이 빈 문자열이어도 v? 다 (꺼진 컨트롤러 · 켜진 컨트롤러 둘 다)", () => {
+    setUpdates({ isEnabled: false, runtimeVersion: "" });
+    expect(buildInfoLine()).toBe("v? · dev");
+    setUpdates({ ...DIAGNOSTIC_APK, runtimeVersion: "" });
+    expect(buildInfoLine()).toBe("v? · ? · embedded 2b33a046");
+  });
+
+  it("업데이트 id 가 빈 문자열이면 OTA 는 ?, 내장은 id 를 빼고 적는다", () => {
+    setUpdates({ ...DIAGNOSTIC_APK, updateId: "", isEmbeddedLaunch: false });
+    expect(buildInfoLine()).toBe("v8f9881d0d1106b5446ef2a047744446b887b3974 · ? · OTA ?");
+    setUpdates({ ...DIAGNOSTIC_APK, updateId: "", isEmbeddedLaunch: true });
+    expect(buildInfoLine()).toBe("v8f9881d0d1106b5446ef2a047744446b887b3974 · ? · embedded");
+  });
+
+  it("어느 칸이 비어도 빈 칸 · 겹친 구분점 · 끝 공백이 나오지 않는다", () => {
+    for (const isEnabled of [true, false]) {
+      for (const isEmbeddedLaunch of [true, false]) {
+        for (const runtimeVersion of ["", null, "rt"]) {
+          for (const channel of ["", null, "preview"]) {
+            for (const updateId of ["", null, "c437df67-3120-4c1a-aa8a-f1d57dbe20e2"]) {
+              setUpdates({ isEnabled, isEmbeddedLaunch, runtimeVersion, channel, updateId });
+              const line = buildInfoLine();
+              expect(line).not.toMatch(/·\s*·/);
+              expect(line).not.toMatch(/^v ?·|\s$/);
+              expect(line.split(" · ").every((part) => part.length > 0)).toBe(true);
+            }
+          }
+        }
+      }
+    }
+  });
+});

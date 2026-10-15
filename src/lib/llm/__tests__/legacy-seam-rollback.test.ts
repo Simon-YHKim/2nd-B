@@ -28,7 +28,10 @@ afterEach(() => {
   }
 });
 
-const PRO_SEATS = ["advisor", "persona_synthesis", "axis_estimate"] as const;
+// northstar_propose replaces axis_estimate (removed in S0.5, 2026-10-07): the
+// same kind of row - an openai Phase-2 seat on the flash tier with high effort
+// - so the set still spans an openai pro seat, a claude seat and a flash seat.
+const PRO_SEATS = ["advisor", "persona_synthesis", "northstar_propose"] as const;
 
 describe("explicit gemini rollback survives the legacy seam", () => {
   test("EXPO_PUBLIC_LLM_VENDOR=gemini with the seam UNSET stays gemini on every pro-tier seat", () => {

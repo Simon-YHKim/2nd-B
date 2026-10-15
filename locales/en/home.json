@@ -1,50 +1,12 @@
 {
-  "soulCore": {
-    "a11y": "North Star brightness"
-  },
   "character": {
-    "a11y": "SecondB character"
-  },
-  "bubble": {
-    "fresh": "What would you like to note?"
-  },
-  "progress": {
-    "lit": "{{lit}}/{{total}} stars lit",
-    "next": "next: {{step}} ({{min}})"
-  },
-  "nextStep": {
-    "bigFive": {
-      "label": "Big Five",
-      "min": "5 min",
-      "cta": "Light a star with Big Five"
-    },
-    "attachment": {
-      "label": "Attachment",
-      "min": "3 min",
-      "cta": "Light a star with the relationship check"
-    },
-    "esm": {
-      "label": "Record your mood",
-      "min": "1 min",
-      "cta": "Record your mood to light a star"
-    },
-    "values": {
-      "label": "Values",
-      "min": "4 min",
-      "cta": "Light a star with the values audit"
-    }
-  },
-  "menu": {
-    "graph": "Graph",
-    "capture": "Scrap",
-    "secondb": "SecondB",
-    "profile": "Me"
+    "a11y": "HustleK character"
   },
   "ds": {
     "dock": {
       "home": "Home",
       "capture": "Scrap",
-      "chat": "SecondB",
+      "chat": "HustleK",
       "ops": "Assistant",
       "account": "Me",
       "lens": "Me",
@@ -67,7 +29,7 @@
       },
       "capture": {
         "text": "Write down the thought you just had.",
-        "tip": "A short note is fine. You can read it again after saving."
+        "tip": "A short note is fine."
       },
       "chat": {
         "text": "Ask a question about your records.",
@@ -88,7 +50,6 @@
     },
     "home": {
       "polaris": "North Star",
-      "profileName": "Profile",
       "domainName": {
         "career": "Career",
         "finance": "Finance",
@@ -108,25 +69,24 @@
         "values": "My values"
       },
       "inbox": "Notifications",
-      "headA11y": "Ask SecondB",
-      "dialogueOpen": "Open SecondB dialogue",
-      "dialogueClose": "Close SecondB dialogue",
+      "headA11y": "Ask HustleK",
+      "dialogueOpen": "Open HustleK dialogue",
+      "dialogueClose": "Close HustleK dialogue",
       "kind": {
         "domain": "Area",
         "profile": "How others see me"
       },
       "bubble": {
         "introTag": "Intro",
-        "intro": "I'm SecondB. Tap my head to open the chat and assistant menus.",
+        "intro": "I'm HustleK. Tap my head to open the chat and assistant menus.",
         "tipTag": "Quick tip",
         "tip1": "Tap a star to review the records from that part of your life.",
         "tip2": "Use Add in the bottom bar to save a new record right away.",
         "tip3": "Your North Star brings your records into one sentence you can revise.",
-        "next": "Next",
-        "openMenu": "Feature menu",
         "menuTag": "Menu",
         "menu": "What would you like to do?",
         "travel": "Travel",
+        "goToStar": "Go to {{star}}",
         "later": "Later",
         "returnToSky": "Return to the constellation",
         "chatbot": "Chatbot",
@@ -173,9 +133,7 @@
         "now": {
           "line": "Record what interests you, your choices, and your days right now."
         }
-      },
-      "museumEntry": "AI museum",
-      "communityEntry": "Community"
+      }
     },
     "capture": {
       "title": "Capture",
@@ -207,7 +165,7 @@
           "hint": "What was on your mind"
         }
       },
-      "linkHint": "Paste a link and SecondB pulls the title and summary.",
+      "linkHint": "Paste a link and HustleK pulls the title and summary.",
       "linkPlaceholder": "https://",
       "photoAdd": "Attach photo",
       "photoAddHint": "Pick a photo from your album. It is saved with this note.",
@@ -215,7 +173,7 @@
       "photoRemove": "Remove photo {{n}}",
       "photoAttached": "Attached photo {{n}}",
       "photoPickError": "Could not add that photo. Try another one.",
-      "ocr": "OCR",
+      "ocr": "Scan text",
       "ocrA11y": "Read text from a photo (OCR)",
       "ocrHint": "Pick a photo and AI reads its text. The photo is not saved.",
       "ocrTitle": "Read text from a photo",
@@ -231,7 +189,7 @@
       "ocrInserted": "Added the text.",
       "todoHint": "To-do",
       "todoAdd": "Add a to-do",
-      "banner": "When you save, SecondB adds related stars and tags.",
+      "banner": "When you save, HustleK adds related stars and tags.",
       "save": "Capture",
       "saving": "Saving",
       "saved": "Saved",
@@ -249,9 +207,6 @@
       "suggestImagine": "Imagine mode"
     },
     "lens": {
-      "toggleFilled": "Filled",
-      "toggleEmpty": "Empty",
-      "toggleError": "Error",
       "emptyTitle": "This star is still dark",
       "emptyBody": "Finish the personality check to light your Me now star.",
       "emptyCta": "Start the check",
@@ -302,24 +257,6 @@
       "title": "Recall",
       "tag": "MY STORY",
       "eyebrow": "Which era made the person I am now",
-      "hint": "Choose a period to answer questions about it.",
-      "footer": "Some questions may repeat to help you recall the details.",
-      "p1Name": "Infancy",
-      "p1Age": "0–6",
-      "p2Name": "Childhood",
-      "p2Age": "7–12",
-      "p3Name": "Early teens",
-      "p3Age": "13–15",
-      "p4Name": "Mid teens",
-      "p4Age": "16–17",
-      "p5Name": "Late teens",
-      "p5Age": "18–19",
-      "p6Name": "Early 20s",
-      "p6Age": "20–23",
-      "p7Name": "First job years",
-      "p7Age": "24–27",
-      "p8Name": "Now",
-      "p8Age": "28–",
       "emptyTitle": "No memories saved yet",
       "emptyBody": "Choose a time in your life and write what you remember. You can read those stories here."
     },
@@ -329,13 +266,6 @@
       "eyebrow": "How close is the me others see to the me I see",
       "legendSelf": "My view",
       "legendOther": "Others' views",
-      "traitExtraversion": "Extraversion",
-      "traitConscientiousness": "Conscientiousness",
-      "traitAgreeableness": "Agreeableness",
-      "diffExtraversion": "diff +18",
-      "diffConscientiousness": "diff +4",
-      "diffAgreeableness": "diff −7",
-      "conclusion": "Others see you as a more lively person. You may be more extraverted than you think.",
       "survey": "View survey",
       "share": "Share",
       "obsTitleGap": "My view and others' views",
@@ -356,15 +286,6 @@
       "title": "Rhythm",
       "tag": "ESM",
       "eyebrow": "When am I most myself",
-      "subhead": "Last 7 days · mood rhythm",
-      "mon": "Mon",
-      "tue": "Tue",
-      "wed": "Wed",
-      "thu": "Thu",
-      "fri": "Fri",
-      "sat": "Sat",
-      "sun": "Sun",
-      "caption": "Most yourself: Saturday morning. You feel best when absorbed in making something.",
       "logNow": "+ Log mood now",
       "emptyTitle": "Not enough mood entries yet",
       "emptyBody": "Record your mood for a few days to see when you felt better or worse."
@@ -383,22 +304,12 @@
       "rewrite": "Rewrite",
       "add": "+ Add",
       "emptyTitle": "No future goals written yet",
-      "emptyBody": "Talk with Twi-B about who you want to become, then save your ideas here."
+      "emptyBody": "Talk with Joy-K about who you want to become, then save your ideas here."
     },
     "relational": {
       "title": "Relations",
       "tag": "RELATIONS",
       "eyebrow": "Me inside relationships and knowledge",
-      "peopleHead": "People who show up often",
-      "person1": "Minjun · 24",
-      "person2": "Mom · 18",
-      "person3": "Jiwoo · 12",
-      "personMore": "+9",
-      "knowledgeHead": "Interests",
-      "topic1": "Design·tools",
-      "topic2": "Psychology·self-understanding",
-      "topic3": "AI·productivity",
-      "conclusion": "Your records show frequent, lasting contact with a few people.",
       "addData": "+ Add a record",
       "emptyTitle": "No records about people or interests yet",
       "emptyBody": "Write about people and interests to see them here."
@@ -426,39 +337,43 @@
       "sectionAngles": "Ideas to explore",
       "sectionSteps": "Things to try first",
       "toCapture": "Move to Capture",
-      "more": "Keep talking with SecondB"
+      "more": "Keep talking with HustleK",
+      "seeds": {
+        "expand": {
+          "angle": "Expand",
+          "title": "If you took a year off",
+          "body": "Erase money, work, and ties for a moment - what would you do first?",
+          "step1": "Write 3 things you want to do",
+          "step2": "Taste one with a single hour this month",
+          "step3": "Picture who joins you on the relations star"
+        },
+        "reverse": {
+          "angle": "Reverse",
+          "title": "If you lived the exact opposite",
+          "body": "Improvise instead of plan, together instead of alone. What pulls you from the far side?",
+          "step1": "Try one thing you never do this week",
+          "step2": "Note what felt awkward with HustleK",
+          "step3": "Capture it to the rest star and watch the pattern"
+        },
+        "connect": {
+          "angle": "Connect",
+          "title": "Career × rest, combined",
+          "body": "Force the two stars together - what odd idea falls out?",
+          "step1": "Write a one-line project from the two keywords",
+          "step2": "Prototype it in two weekend hours",
+          "step3": "Log it on the growth star as an experiment"
+        }
+      }
     },
     "audit": {
       "title": "Past me",
       "subtitle": "Pick a period and bring that version of you back to mind.",
-      "vividness": "Vividness L{{level}}",
-      "eraInfancy": "Early childhood",
-      "eraChild": "Childhood",
-      "eraTeen": "Adolescence",
-      "eraYoung": "Young adulthood",
-      "eraNow": "Now",
-      "rangeInfancy": "Ages 0–6",
-      "rangeChild": "Ages 7–12",
-      "rangeTeen": "Ages 13–18",
-      "rangeYoung": "Ages 19–28",
-      "period": {
-        "childhood": "Childhood",
-        "teens": "Teens",
-        "twenties": "Twenties",
-        "thirties": "Thirties",
-        "forties": "Forties",
-        "fifties": "Fifties",
-        "sixties": "Sixties",
-        "seventies": "Seventies",
-        "current": "Right now"
-      },
       "rangeSpan": "{{from}}–{{to}}",
       "rangeUnder": "Before {{to}}",
       "rangeFrom": "{{from}} and up",
       "notYet": "Not there yet"
     },
     "me": {
-      "title": "North Star",
       "eyebrow": "North Star · seven-star summary",
       "headline": "Understand myself deeply, live more like myself.",
       "synthMeta": "Seven-star summary · confidence",
@@ -604,15 +519,26 @@
       "profileBody": "Review and add to the basic information you entered at sign-up. This star gets brighter as you fill it in.",
       "openProfile": "Open profile",
       "editAvatar": "Customize my avatar",
+      "setupProfile": "Set up profile",
+      "editProfile": "Edit profile",
+      "profileEmpty": "You haven't filled in your profile yet.",
       "loading": "Loading…",
       "emptyBody": "No stories here yet. Start a conversation to add one.",
-      "dug": "{{n}} of {{total}} topics discussed",
-      "records": "{{n}} records",
+      "dug": "{{n}} of {{total}} layers discussed",
+      "records": "{{count}} record",
+      "records_plural": "{{count}} records",
       "start": "Start",
       "continue": "Keep going",
       "pageLabel": "Star summary",
-      "meter": "Brighter as you share more · {{n}}/{{total}} topics",
-      "recordsLabel": "What you have kept so far"
+      "meter": "Brighter as you share more · {{n}}/{{total}} layers",
+      "count": "{{n}}/{{total}} layers",
+      "layer": {
+        "fact": "Fact",
+        "feeling": "Feeling",
+        "meaning": "Meaning",
+        "belief": "Belief",
+        "echo": "Echo"
+      }
     },
     "dashboard": {
       "title": "Your life in your records",

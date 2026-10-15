@@ -14,9 +14,10 @@
 // choke point for InlineLoader and PremiumLoadingState, so changing it updates
 // every route/data wait instead of leaving a cold-refresh exception behind.
 //
-// NOTE: the boot screen (ui/LoadingScreen.tsx) is deliberately NOT covered — it
-// is the one-time first-entry experience (typewriter + tap to open), not a
-// data wait.
+// NOTE: the boot screen (ui/LoadingScreen.tsx) plays the opening and shows no
+// loading screen before it (Simon 2026-10-03). Its one remaining wait, after the
+// opening while the app is still getting ready, is DeepSpaceLoader "dots" too;
+// hustlek-opening-runtime.test.ts pins that.
 
 import { readFileSync } from "fs";
 import { join } from "path";

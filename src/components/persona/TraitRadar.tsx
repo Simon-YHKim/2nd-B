@@ -132,7 +132,7 @@ export function TraitRadar({
             ? `${instrument} 검사 기반`
             : `From your ${instrument} assessment`
           : locale === "ko"
-            ? "기록에서 만든 근사치예요. 검증 검사로 더 정확해져요."
+            ? "기록에서 만든 근사치입니다. 검증 검사로 더 정확해집니다."
             : "An approximation from your records. A validated check sharpens it."}
       </Text>
     </View>

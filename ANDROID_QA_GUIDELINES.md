@@ -9,7 +9,7 @@
 - **절대 위치 탭바(Absolute Tab Bar) 콘텐츠 가림**: `position: absolute` 탭바를 사용할 때는, 모든 ScrollView의 `contentContainerStyle.paddingBottom`에 탭바 높이와 안드로이드 투명 네비게이션 바(Insets)를 합산한 동적 패딩을 삽입해야 합니다.
 
 ## 2. 폼 & 스크롤 (Forms & Scroll)
-- **키보드 패딩 고정값 절대 금지**: `KeyboardAvoidingView` 안에서 `ScrollView`의 하단 여백을 고정 픽셀(예: `spacing.xl`)로 주면 안드로이드(`adjustResize` 동작)에서 하단 버튼이 영원히 키보드 밑에 가려집니다. `useKeyboard` 등의 훅을 통해 패딩을 동적으로 할당하세요.
+- **키보드 피하기는 `KeyboardAvoidingArea` 하나로, 패딩 고정값 절대 금지**: 화면은 RN `KeyboardAvoidingView` 나 `behavior={Platform.OS === "ios" ? "padding" : undefined}` 같은 플랫폼 분기를 직접 쓰지 말고 `src/lib/ui/keyboard.tsx` 의 `KeyboardAvoidingArea` 를 쓰세요(`src/lib/ui/__tests__/keyboard-avoidance.test.ts` 가 지킵니다). Expo 56 · targetSdk 36 의 edge-to-edge 창에서는 `adjustResize` 가 창을 줄이지 않아서, Android 를 비워 두면 하단 입력창이 키보드 밑에 그대로 깔립니다(2026-10-05 /secondb, API 36 에뮬레이터). 그 안의 `ScrollView` 하단 여백도 고정 픽셀(예: `spacing.xl`)로 두지 말고 `useKeyboard` 등의 훅으로 동적으로 주세요.
 - **TextInput 흐름(Flow) 보장**: `onSubmitEditing` 릴레이와 `returnKeyType="next"` 설정을 누락하지 마세요. 사용자가 매번 키보드를 내려야 하는 최악의 UX를 초래합니다.
 - **Gestures 충돌 금지**: 기본 `<ScrollView>` 안에서 Reanimated 등 터치를 가로채는 제스처를 혼용하면 안드로이드 터치 시스템이 꼬입니다. 필요 시 `react-native-gesture-handler`의 `ScrollView`로 교체하세요.
 
@@ -26,10 +26,11 @@
   > (타일은 개당 78~82바이트 · 4x4~12x12 라 이 규칙이 막으려는 OOM 표면이 아닙니다).
   > 이 예외는 `src/lib/release/__tests__/android-qa-guidelines.test.ts` 가 지킵니다.
 - **Reanimated 애니메이션 누수**: 언마운트 시점(`useEffect`의 cleanup)에서 `cancelAnimation`을 호출해 백그라운드 Worklet 좀비 현상을 제거하세요.
-- **SVG 브릿지 병목**: 다량의 SVG 노드(`NavGraph` 등)는 JS-Native 통신량을 폭증시킵니다. 안드로이드에서는 `hardwareAccelerated` 최적화나 Skia 전환 등을 고려해야 합니다.
+- **SVG 브릿지 병목**: 다량의 SVG 노드(옛 홈 그래프 `NavGraph` 같은 것, 2026-10-04 `E:/Legacy` 로 이동)는 JS-Native 통신량을 폭증시킵니다. 안드로이드에서는 `hardwareAccelerated` 최적화나 Skia 전환 등을 고려해야 합니다.
 
 ## 4. 생태계 & 생명주기 (Lifecycle & Permissions)
 - **하드웨어 백버튼 (BackHandler) 필수 연동**: 커스텀 모달이나 바텀시트가 열려 있을 때 안드로이드 시스템 뒤로가기 버튼을 누르면 화면이 닫혀야 합니다. 연동하지 않으면 앱이 강제 종료되거나 스택이 꼬입니다.
+- **덮인 화면의 Modal 은 화면 포커스와 묶기 (R2A-03, 2026-10-05)**: RN `Modal` 은 화면의 자식이 아니라 별도 창(Dialog)입니다. Expo Router 는 덮인 화면을 언마운트하지 않으므로, 모달이 열린 화면 위로 다른 화면이 올라가면(알림 탭 · 딥링크 · 공유 인텐트) 그 모달은 React 에서 계속 `visible` 입니다. `MainActivity` 의 `configChanges`(Expo 템플릿 기본값 `0x2fb4`)에는 `fontScale` · `density` · `fontWeightAdjustment` 가 없어서 글꼴 크기 · 화면 크기 · 굵은 글꼴 설정을 바꾸면 액티비티가 재생성됩니다. 그때 덮인 화면의 모달 호스트가 창에 붙기 전에 `Dialog.show()` 를 불러 지금 보이는 화면 위로 다시 뜨고, 리스너를 못 단 그 호스트는 다음 재생성에서 `IllegalArgumentException: … not attached to window manager`(`ReactModalHostManager.onDropViewInstance`) 네이티브 크래시를 냅니다(에뮬레이터 재현 2/2, 모달이 맨 위인 경우 0/1). RN 0.85 는 미리 빌드된 AAR 이라 패치할 수 없고 upstream main 도 같은 코드입니다. **라우트 화면의 모달은 `src/components/ui/ScreenModal.tsx` 를 쓰세요** — RN `Modal` 과 props 가 같고 `visible` 만 `useIsFocused()` 와 묶습니다. 열림 상태는 그대로 두므로 화면으로 돌아오면 다시 뜹니다. 내비게이션 문맥 밖(루트 레이아웃 · 프로바이더)에서는 `useIsFocused` 가 던지므로 거기서는 쓰지 마세요. `configChanges` 에 `fontScale|density` 를 넣는 우회는 이미 그려진 글자가 다시 측정되지 않아 위험이 더 큽니다. 2026-10-05 에 옮긴 곳은 `/secondb` 의 두 모달뿐이고, RN `Modal` 을 직접 쓰는 파일이 19개 남아 있습니다(파일마다 내비게이션 문맥 안인지 따로 판정해야 합니다). `src/lib/ui/__tests__/screen-modal.test.ts` 가 지킵니다.
 - **백그라운드 타이머 누수**: `setInterval`을 사용했다면 컴포넌트 해제 시 무조건 `clearInterval`을 보장하여 App Standby 모드에서의 CPU 낭비를 차단하세요.
 - **권한 누락 방지 (Permissions)**: 미디어·카메라·캘린더·건강 접근은 **플랫폼마다 계약이 다릅니다.**
   `app.json` `plugins` 의 권한 **설명 문구**(`photosPermission`·`cameraPermission`·`microphonePermission`)는
@@ -71,22 +72,22 @@
   > `NSPhotoLibraryUsageDescription` 으로만 흘러갑니다.
   >
   > 설치본을 **우리 `app.json` 의 `expo.android` 를 베이스로** 직접 호출해 받은 표입니다
-  > (2026-09-20 R50 실측). 그 베이스에는 `CAMERA`·`RECORD_AUDIO` 를 포함한 권한 **10개**가 있습니다(2026-10-01 라쳇 햅틱용 일반 권한 `VIBRATE` 로 9 → 10):
+  > (2026-09-20 R50 실측). 그 베이스에는 `CAMERA`·`RECORD_AUDIO` 를 포함한 권한 **11개**가 있습니다(2026-10-01 라쳇 햅틱용 일반 권한 `VIBRATE` 로 9 → 10, 2026-10-07 시계 줄 날씨용 대략 위치 `ACCESS_COARSE_LOCATION` 으로 10 → 11):
   >
   > | `app.json` plugin 옵션 | `expo.android.permissions` 결과 |
   > |---|---|
-  > | `{}` | 10개 그대로 |
-  > | `{photosPermission:false}` | 10개 그대로 — `{}` 와 **완전히 동일** |
-  > | 세 키 모두 문구 | 10개 그대로 — `{}` 와 **완전히 동일** |
-  > | `{cameraPermission:false}` | **`CAMERA` 가 빠진 9개** (+ manifest 에 `CAMERA tools:node="remove"`) |
-  > | `{microphonePermission:false}` | **`RECORD_AUDIO` 가 빠진 9개** (+ manifest 에 `RECORD_AUDIO tools:node="remove"`) |
+  > | `{}` | 11개 그대로 |
+  > | `{photosPermission:false}` | 11개 그대로 — `{}` 와 **완전히 동일** |
+  > | 세 키 모두 문구 | 11개 그대로 — `{}` 와 **완전히 동일** |
+  > | `{cameraPermission:false}` | **`CAMERA` 가 빠진 10개** (+ manifest 에 `CAMERA tools:node="remove"`) |
+  > | `{microphonePermission:false}` | **`RECORD_AUDIO` 가 빠진 10개** (+ manifest 에 `RECORD_AUDIO tools:node="remove"`) |
   >
   > ⚠ **베이스를 빈 `android: {}` 로 잡고 재면 답이 달라집니다 — R50 의 첫 측정이 그렇게 재서**
   > **"`cameraPermission:false` 는 배열을 바꾸지 않는다"는 틀린 줄을 하나 더 썼습니다.**
   > `withBlockedPermissions` 는 `config.android.permissions` 가 **이미 있을 때만** 그 배열을 걸러냅니다
   > (`node_modules/@expo/config-plugins/build/android/Permissions.js`). 빈 베이스에는 거를 배열이 없어
   > 차단이 manifest 에만 보이고, `microphonePermission:false` 의 결과도 `[]` 가 아니라 **`undefined`**
-  > 입니다. **우리 저장소에는 그 10개가 실재하므로 위 표가 우리 답입니다.** 권한을 잴 때는 베이스를
+  > 입니다. **우리 저장소에는 그 11개가 실재하므로 위 표가 우리 답입니다.** 권한을 잴 때는 베이스를
   > 반드시 실제 `app.json` 으로 두세요.
   >
   > **"Android 는 무조건 선언한다"도 모든 플러그인에 일반화할 수 없습니다.** 같은 방식으로 실행한

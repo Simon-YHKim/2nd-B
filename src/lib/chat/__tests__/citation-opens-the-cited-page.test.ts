@@ -31,6 +31,8 @@ import ts from "typescript";
 
 import { buildDeepWikiView, snippetOf, type WikiEdge } from "@/screens/deepspace/wiki-graph-view";
 import type { WikiPageRow } from "@/lib/wiki/types";
+import { captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "@/lib/auth/account-epoch";
+import { isTimeoutError, withTimeout } from "@/lib/async/with-timeout";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 
@@ -46,10 +48,10 @@ const QUERIES = "src/lib/wiki/queries.ts";
 describe("a cited piece opens the piece", () => {
   test("the scanner is reading the real chat screen", () => {
     const src = read(CHAT);
+    // 2026-10-05: the file lost its legacy chrome with the EXPO_PUBLIC_UI lever
+    // (Simon decision Q-261004-11 C), so it holds one drawer. It used
+    // to assert `variant === "deep-space"` here to prove both chromes lived in it.
     expect(src.length).toBeGreaterThan(50_000);
-    // Both chromes really do live in this one file, so "two drawers" is a fact
-    // about the file rather than an assumption this test is making.
-    expect(src).toContain('const isDeepSpace = variant === "deep-space";');
     expect(src).toContain("setRefDrawer(");
   });
 
@@ -61,12 +63,13 @@ describe("a cited piece opens the piece", () => {
     expect(hits).toEqual([]);
   });
 
-  test("the slug is resolved in exactly one place, so the two chromes cannot drift", () => {
+  test("the slug is resolved in exactly one place, and the drawer reaches it", () => {
     const src = read(CHAT);
     // One lookup...
     expect([...src.matchAll(/getWikiPage\(/g)]).toHaveLength(1);
-    // ...reached from both drawers, and from nothing else.
-    expect([...src.matchAll(/onPress=\{\(\) => openCitedPage\(slug\)\}/g)]).toHaveLength(2);
+    // ...reached from the drawer, and from nothing else. This counted 2 until
+    // 2026-10-05: the legacy chrome had a second drawer, which left with the lever.
+    expect([...src.matchAll(/onPress=\{\(\) => openCitedPage\(slug\)\}/g)]).toHaveLength(1);
     // The miss still lands on the list: the old behaviour kept as a fallback,
     // not deleted.
     expect(src).toMatch(/else router\.push\("\/wiki"\);/);
@@ -93,7 +96,9 @@ describe("a cited piece opens the piece", () => {
     // failure mode this repo already keeps a guard family for
     // (route-params-have-a-reader).
     const src = read(WIKI);
-    expect(src).toMatch(/useLocalSearchParams<\{ focusPageId\?: string \}>\(\)/);
+    // useScreenParams is useLocalSearchParams outside the dashboard phone and the
+    // phone route's query inside it (src/lib/nav/phone-embed.tsx).
+    expect(src).toMatch(/useScreenParams<\{ focusPageId\?: string \}>\(\)/);
     expect(src).toMatch(/setExpandedId\(focusPageId\)/);
   });
 
@@ -480,6 +485,7 @@ describe("a fetched citation row belongs to the account that fetched it", () => 
       "return WikiFocus;",
       {
         buildDeepWikiView,
+        loadError: null,
         getWikiPageById: async (userId: string, id: string) => {
           fetched.push({ userId, id });
           return library[userId]?.[id] ?? null;
@@ -545,6 +551,7 @@ describe("a fetched citation row belongs to the account that fetched it", () => 
       "return WikiFocus;",
       {
         buildDeepWikiView,
+        loadError: null,
         getWikiPageById: async (userId: string, id: string) => {
           fetched.push({ userId, id });
           return library[userId]?.[id] ?? null;
@@ -599,7 +606,7 @@ interface OwnedRows {
 describe("the loaded window belongs to the account that loaded it", () => {
   test("the lifted pieces are the real ones", () => {
     expect(ROWS_PIECES[1].startsWith("useEffect(")).toBe(true);
-    expect(ROWS_PIECES[1]).toContain("setHeld({ ownerId: userId, pages: p, edges: e })");
+    expect(ROWS_PIECES[1]).toContain('setHeld({ ownerId: userId, epoch: accountEpoch, attempt, status: "ready", pages: p, edges: e })');
     expect(ROWS_PIECES[2]).toContain("held.ownerId === userId");
   });
 
@@ -614,6 +621,9 @@ describe("the loaded window belongs to the account that loaded it", () => {
         "function WikiRows(props, H) {",
         "  const { useState, useEffect } = H;",
         "  const { userId } = props;",
+        "  const authLoading = false;",
+        "  const accountEpoch = currentAccountEpoch();",
+        "  const attempt = 0;",
         ROWS_PIECES.join("\n"),
         "  return owned;",
         "}",
@@ -621,7 +631,11 @@ describe("the loaded window belongs to the account that loaded it", () => {
       "return WikiRows;",
       {
         NO_WIKI_ROWS: { ownerId: null, pages: [], edges: [] } as OwnedRows,
-        setLoading: () => undefined,
+        captureAccountOwnerLease,
+        currentAccountEpoch,
+        withTimeout,
+        isTimeoutError,
+        WIKI_PAGES_READ_TIMEOUT_MS: 10_000,
         listWikiPages: async (userId: string) => {
           loaded.push(userId);
           return library[userId] ?? [];
@@ -631,8 +645,11 @@ describe("the loaded window belongs to the account that loaded it", () => {
     );
 
     const runtime = focusRuntime();
-    const render = (userId: string | null): Promise<OwnedRows> =>
-      runtime.render(rows as never, { userId } as never) as unknown as Promise<OwnedRows>;
+    const render = (userId: string | null): Promise<OwnedRows> => {
+      noteResolvedOwner(userId);
+      clearAccountTransition(currentAccountEpoch());
+      return runtime.render(rows as never, { userId } as never) as unknown as Promise<OwnedRows>;
+    };
 
     const asA = await render("owner-a");
     expect(loaded).toEqual(["owner-a"]);
@@ -640,6 +657,8 @@ describe("the loaded window belongs to the account that loaded it", () => {
 
     // The owner flips. This is the commit straight after, with B's own load still
     // in flight - the window the fence exists for.
+    noteResolvedOwner("owner-b");
+    clearAccountTransition(currentAccountEpoch());
     const firstAsB = runtime.renderOnce<OwnedRows>(rows as never, { userId: "owner-b" });
     expect(firstAsB.pages).toEqual([]);
     expect(firstAsB.edges).toEqual([]);

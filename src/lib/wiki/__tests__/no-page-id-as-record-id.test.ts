@@ -103,7 +103,8 @@ describe("a wiki page id is never used as a record id", () => {
     // Adding the param to the callers is only half a fix if nothing reads it -- the kind
     // of half-fix that looks complete and does nothing.
     const src = read(join(ROOT, "src/screens/deepspace/dds-wiki-records-screens.tsx"));
-    expect(src).toMatch(/useLocalSearchParams<\{ focusPageId\?: string \}>\(\)/);
+    // useScreenParams = useLocalSearchParams outside the dashboard phone (phone-embed.tsx).
+    expect(src).toMatch(/useScreenParams<\{ focusPageId\?: string \}>\(\)/);
     expect(src).toMatch(/setExpandedId\(focusPageId\)/);
     // And it must not blow past a stale/foreign id: guard on the page actually existing.
     expect(src).toMatch(/pages\.some\(\(p\) => p\.id === focusPageId\)/);

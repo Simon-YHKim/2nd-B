@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Photos attached to a 글 record (2026-09-30), shown on the record detail screen.
 //
 // The files sit in the owner's private Storage folder (lib/capture/record-photos.ts),
@@ -6,7 +7,7 @@
 // pile up private copies under names nobody reuses.
 
 import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { Image } from "expo-image";
 
 import { m3TextStyle } from "@/components/m3";

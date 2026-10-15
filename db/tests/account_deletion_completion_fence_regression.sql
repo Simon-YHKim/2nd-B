@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 
 BEGIN;
-\i db/migration-drafts/UNNUMBERED_account_deletion_completion_fence.sql
+\i db/migrations/0192_account_deletion_completion_fence.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.assert_true(p_ok boolean, p_message text)
 RETURNS void

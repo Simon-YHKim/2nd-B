@@ -1,50 +1,12 @@
 {
-  "soulCore": {
-    "a11y": "Brillo de la Estrella del Norte"
-  },
   "character": {
-    "a11y": "Personaje SecondB"
-  },
-  "bubble": {
-    "fresh": "¿Qué te gustaría anotar?"
-  },
-  "progress": {
-    "lit": "{{lit}}/{{total}} estrellas encendidas",
-    "next": "siguiente: {{step}} ({{min}})"
-  },
-  "nextStep": {
-    "bigFive": {
-      "label": "Big Five",
-      "min": "5 min",
-      "cta": "Enciende una estrella con Big Five"
-    },
-    "attachment": {
-      "label": "Apego",
-      "min": "3 min",
-      "cta": "Enciende una estrella con el chequeo de relaciones"
-    },
-    "esm": {
-      "label": "Registrar cómo estoy",
-      "min": "1 min",
-      "cta": "Registra cómo estás para encender una estrella"
-    },
-    "values": {
-      "label": "Valores",
-      "min": "4 min",
-      "cta": "Enciende una estrella con la revisión de valores"
-    }
-  },
-  "menu": {
-    "graph": "Grafo",
-    "capture": "Recortes",
-    "secondb": "SecondB",
-    "profile": "Yo"
+    "a11y": "Personaje HustleK"
   },
   "ds": {
     "dock": {
       "home": "Inicio",
       "capture": "Recortes",
-      "chat": "SecondB",
+      "chat": "HustleK",
       "ops": "Asistente",
       "account": "Yo",
       "lens": "Yo",
@@ -67,7 +29,7 @@
       },
       "capture": {
         "text": "Anota lo que se te acaba de ocurrir.",
-        "tip": "Una nota corta está bien. Podrás volver a leerla después de guardarla."
+        "tip": "Una nota corta está bien."
       },
       "chat": {
         "text": "Pregunta lo que quieras saber de tus registros.",
@@ -88,7 +50,6 @@
     },
     "home": {
       "polaris": "Estrella Polar",
-      "profileName": "Perfil",
       "domainName": {
         "career": "Carrera",
         "finance": "Finanzas",
@@ -108,25 +69,24 @@
         "values": "Valores y aspiraciones"
       },
       "inbox": "Notificaciones",
-      "headA11y": "Preguntar a SecondB",
-      "dialogueOpen": "Abrir diálogo con SecondB",
-      "dialogueClose": "Cerrar diálogo con SecondB",
+      "headA11y": "Preguntar a HustleK",
+      "dialogueOpen": "Abrir diálogo con HustleK",
+      "dialogueClose": "Cerrar diálogo con HustleK",
       "kind": {
         "domain": "Área",
         "profile": "Cómo te ven"
       },
       "bubble": {
         "introTag": "Presentación",
-        "intro": "Soy SecondB. Toca mi cabeza para abrir el chat y el asistente.",
+        "intro": "Soy HustleK. Toca mi cabeza para abrir el chat y el asistente.",
         "tipTag": "Consejo",
         "tip1": "Pulsa una estrella para revisar los registros de esa etapa de tu vida.",
         "tip2": "Usa Añadir en la barra inferior para guardar un registro nuevo.",
         "tip3": "Tu Estrella Polar reúne tus registros en una frase que puedes revisar.",
-        "next": "Siguiente",
-        "openMenu": "Menú de funciones",
         "menuTag": "Menú",
         "menu": "¿Qué quieres hacer?",
         "travel": "Viajar",
+        "goToStar": "Ir a {{star}}",
         "later": "Luego",
         "returnToSky": "Volver a la constelación",
         "chatbot": "Chatbot",
@@ -173,9 +133,7 @@
         "now": {
           "line": "Registra tus intereses, decisiones y días de ahora."
         }
-      },
-      "museumEntry": "Museo de la IA",
-      "communityEntry": "Comunidad"
+      }
     },
     "capture": {
       "title": "Capturar",
@@ -207,7 +165,7 @@
           "hint": "Qué tenías en mente"
         }
       },
-      "linkHint": "Pega un enlace y SecondB obtiene el título y el resumen.",
+      "linkHint": "Pega un enlace y HustleK obtiene el título y el resumen.",
       "linkPlaceholder": "https://",
       "photoAdd": "Adjuntar foto",
       "photoAddHint": "Elige una foto de tu álbum. Se guarda con esta nota.",
@@ -215,7 +173,7 @@
       "photoRemove": "Quitar la foto {{n}}",
       "photoAttached": "Foto adjunta {{n}}",
       "photoPickError": "No se pudo añadir esa foto. Prueba con otra.",
-      "ocr": "OCR",
+      "ocr": "Leer texto",
       "ocrA11y": "Leer texto de una foto (OCR)",
       "ocrHint": "Elige una foto y la IA lee su texto. La foto no se guarda.",
       "ocrTitle": "Leer texto de una foto",
@@ -231,7 +189,7 @@
       "ocrInserted": "Texto añadido.",
       "todoHint": "Tarea",
       "todoAdd": "Añadir una tarea",
-      "banner": "Al guardar, SecondB añade estrellas y etiquetas relacionadas.",
+      "banner": "Al guardar, HustleK añade estrellas y etiquetas relacionadas.",
       "save": "Capturar",
       "saving": "Guardando",
       "saved": "Guardado",
@@ -249,9 +207,6 @@
       "suggestImagine": "Modo imaginar"
     },
     "lens": {
-      "toggleFilled": "Lleno",
-      "toggleEmpty": "Vacío",
-      "toggleError": "Error",
       "emptyTitle": "Esta estrella sigue apagada",
       "emptyBody": "Completa el test de personalidad para encender la estrella Yo ahora.",
       "emptyCta": "Empezar el chequeo",
@@ -302,24 +257,6 @@
       "title": "Recuerdo",
       "tag": "MI HISTORIA",
       "eyebrow": "Qué época hizo a la persona que soy ahora",
-      "hint": "Elige un periodo para responder preguntas sobre él.",
-      "footer": "Algunas preguntas se repiten para ayudarte a recordar los detalles.",
-      "p1Name": "Primera infancia",
-      "p1Age": "0–6",
-      "p2Name": "Infancia",
-      "p2Age": "7–12",
-      "p3Name": "Adolescencia temprana",
-      "p3Age": "13–15",
-      "p4Name": "Adolescencia media",
-      "p4Age": "16–17",
-      "p5Name": "Adolescencia tardía",
-      "p5Age": "18–19",
-      "p6Name": "Primeros 20",
-      "p6Age": "20–23",
-      "p7Name": "Primeros años laborales",
-      "p7Age": "24–27",
-      "p8Name": "Ahora",
-      "p8Age": "28–",
       "emptyTitle": "Aún no hay recuerdos guardados",
       "emptyBody": "Elige una etapa y escribe lo que recuerdes. Podrás volver a leer esas historias aquí."
     },
@@ -329,13 +266,6 @@
       "eyebrow": "Qué tanto se parece el yo que ven otros al yo que veo",
       "legendSelf": "Cómo me veo",
       "legendOther": "Cómo me ven",
-      "traitExtraversion": "Extraversión",
-      "traitConscientiousness": "Responsabilidad",
-      "traitAgreeableness": "Amabilidad",
-      "diffExtraversion": "dif +18",
-      "diffConscientiousness": "dif +4",
-      "diffAgreeableness": "dif −7",
-      "conclusion": "Otros te ven como alguien más vivaz. Quizá eres más extravertido de lo que crees.",
       "survey": "Ver encuesta",
       "share": "Compartir",
       "obsTitleGap": "Mi opinión y la de los demás",
@@ -356,15 +286,6 @@
       "title": "Ritmo",
       "tag": "ESM",
       "eyebrow": "Cuándo soy más yo",
-      "subhead": "Últimos 7 días · ritmo de ánimo",
-      "mon": "Lun",
-      "tue": "Mar",
-      "wed": "Mié",
-      "thu": "Jue",
-      "fri": "Vie",
-      "sat": "Sáb",
-      "sun": "Dom",
-      "caption": "Más tú: sábado por la mañana. Te sientes mejor cuando estás absorto creando algo.",
       "logNow": "+ Registrar ánimo ahora",
       "emptyTitle": "Aún faltan registros de ánimo",
       "emptyBody": "Registra tu ánimo durante unos días para ver cuándo te sentiste mejor o peor."
@@ -383,22 +304,12 @@
       "rewrite": "Reescribir",
       "add": "+ Añadir",
       "emptyTitle": "Aún no has escrito metas para el futuro",
-      "emptyBody": "Habla con Twi-B sobre cómo te gustaría ser y guarda tus ideas aquí."
+      "emptyBody": "Habla con Joy-K sobre cómo te gustaría ser y guarda tus ideas aquí."
     },
     "relational": {
       "title": "Relaciones",
       "tag": "RELACIONES",
       "eyebrow": "El yo dentro de las relaciones y el conocimiento",
-      "peopleHead": "Personas que aparecen seguido",
-      "person1": "Minjun · 24",
-      "person2": "Mamá · 18",
-      "person3": "Jiwoo · 12",
-      "personMore": "+9",
-      "knowledgeHead": "Intereses",
-      "topic1": "Diseño·herramientas",
-      "topic2": "Psicología·autoconocimiento",
-      "topic3": "IA·productividad",
-      "conclusion": "Tus registros muestran contacto frecuente y duradero con pocas personas.",
       "addData": "+ Añadir un registro",
       "emptyTitle": "Aún no hay registros sobre personas e intereses",
       "emptyBody": "Escribe sobre personas e intereses para verlos aquí."
@@ -426,39 +337,43 @@
       "sectionAngles": "Ideas para explorar",
       "sectionSteps": "Qué probar primero",
       "toCapture": "Llevar a Capturar",
-      "more": "Seguir hablando con SecondB"
+      "more": "Seguir hablando con HustleK",
+      "seeds": {
+        "expand": {
+          "angle": "Ampliar",
+          "title": "Si te tomaras un año libre",
+          "body": "Olvida por un momento el dinero, el trabajo y los compromisos. ¿Qué harías primero?",
+          "step1": "Escribe 3 cosas que quieras hacer",
+          "step2": "Prueba una con una sola hora este mes",
+          "step3": "Imagina quién te acompaña en la estrella de Relaciones"
+        },
+        "reverse": {
+          "angle": "Invertir",
+          "title": "Si vivieras justo al revés",
+          "body": "Improvisar en lugar de planear, en compañía en lugar de a solas. ¿Qué te atrae del otro lado?",
+          "step1": "Prueba esta semana algo que nunca haces",
+          "step2": "Anota con HustleK lo que te resultó incómodo",
+          "step3": "Captúralo en la estrella de Descanso y observa el patrón"
+        },
+        "connect": {
+          "angle": "Conectar",
+          "title": "Carrera × descanso, combinados",
+          "body": "Junta las dos estrellas a la fuerza. ¿Qué idea curiosa sale?",
+          "step1": "Escribe un proyecto de una línea con las dos palabras clave",
+          "step2": "Haz un prototipo en dos horas del fin de semana",
+          "step3": "Regístralo en la estrella de Crecimiento como un experimento"
+        }
+      }
     },
     "audit": {
       "title": "El yo del pasado",
       "subtitle": "Elige una época y vuelve a recordar cómo eras entonces.",
-      "vividness": "Nitidez L{{level}}",
-      "eraInfancy": "Primera infancia",
-      "eraChild": "Niñez",
-      "eraTeen": "Adolescencia",
-      "eraYoung": "Juventud",
-      "eraNow": "Ahora",
-      "rangeInfancy": "0–6 años",
-      "rangeChild": "7–12 años",
-      "rangeTeen": "13–18 años",
-      "rangeYoung": "19–28 años",
-      "period": {
-        "childhood": "Infancia",
-        "teens": "Adolescencia",
-        "twenties": "Los 20",
-        "thirties": "Los 30",
-        "forties": "Los 40",
-        "fifties": "Los 50",
-        "sixties": "Los 60",
-        "seventies": "Los 70",
-        "current": "Ahora mismo"
-      },
       "rangeSpan": "{{from}}–{{to}} años",
       "rangeUnder": "Antes de los {{to}}",
       "rangeFrom": "desde los {{from}}",
       "notYet": "Aún no has llegado"
     },
     "me": {
-      "title": "Estrella Polar",
       "eyebrow": "Estrella Polar · resumen de 7 estrellas",
       "headline": "Entenderme a fondo para vivir más como yo mismo.",
       "synthMeta": "Resumen de 7 estrellas · confianza",
@@ -604,15 +519,26 @@
       "profileBody": "Revisa los datos básicos que escribiste al registrarte. La estrella brilla más cuando añades información.",
       "openProfile": "Abrir perfil",
       "editAvatar": "Personalizar mi avatar",
+      "setupProfile": "Configurar perfil",
+      "editProfile": "Editar perfil",
+      "profileEmpty": "Todavía no has completado tu perfil.",
       "loading": "Cargando…",
       "emptyBody": "Aún no hay historias aquí. Inicia una conversación para añadir una.",
-      "dug": "{{n}} de {{total}} temas tratados",
-      "records": "{{n}} registros",
+      "dug": "{{n}} de {{total}} capas tratadas",
+      "records": "{{count}} registro",
+      "records_plural": "{{count}} registros",
       "start": "Empezar",
       "continue": "Seguir",
       "pageLabel": "Resumen de la estrella",
-      "meter": "Más brillo al contar más · {{n}}/{{total}} temas",
-      "recordsLabel": "Lo que has guardado hasta ahora"
+      "meter": "Más brillo al contar más · {{n}}/{{total}} capas",
+      "count": "{{n}}/{{total}} capas",
+      "layer": {
+        "fact": "Hecho",
+        "feeling": "Sentimiento",
+        "meaning": "Significado",
+        "belief": "Creencia",
+        "echo": "Eco"
+      }
     },
     "dashboard": {
       "title": "Tu vida en tus registros",

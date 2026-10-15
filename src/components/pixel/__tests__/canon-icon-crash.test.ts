@@ -163,7 +163,9 @@ describe("그리는 쪽의 색인은 전역 함수다", () => {
       .split("\n")
       .filter(l => !l.trim().startsWith("//"))
       .join("\n");
-    expect(code).toMatch(/glyphRects\(name\)/);
+    // The phone may substitute its back-chevron, but both branches must still
+    // pass through glyphRects' total fallback rather than indexing the table.
+    expect(code).toMatch(/glyphRects\(\s*(?:phoneBack\s*\?\s*"chevron_left"\s*:\s*)?name\s*\)/);
     expect(code).not.toMatch(/PIXEL_GLYPHS\[/);
   });
 });

@@ -11,6 +11,12 @@
 // actionable-takeaway, tags, summary) are produced by the classifier for every
 // kind, so they live in the classifier output rather than per-template.
 //
+// The en/ko `name` / `what` / `describe` pairs below feed the classifier prompt
+// (by SystemLocale). The /formats screen does NOT paint them: it reads the
+// formats bundle (builtIn.kinds.<kind>.name / .what / .props.<name>) so es/pt/id
+// get their own text (Q-261005-01 = A, R2B-03). The bundle's en/ko values must
+// stay equal to these; tr2-locale-copy.test.ts compares them, so change both.
+//
 // Vocabulary stays in the project register (no clinical / internal-tech terms).
 
 import type { SourceKind } from "./types";

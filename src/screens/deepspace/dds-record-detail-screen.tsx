@@ -1,13 +1,12 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect, router, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -23,6 +22,7 @@ import type { AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 import { parseRecordPhotos } from "@/lib/capture/record-photos";
 import { parseStructured, structuredFieldLabel } from "@/lib/capture/structured";
 import { RecordPhotoGallery } from "@/components/records/RecordPhotoGallery";
+import { ProfileContextSummary } from "@/components/profile-import/summary";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   DOMAIN_TAG_PREFIX,
@@ -44,7 +44,7 @@ import {
   updateRecordTags,
 } from "@/lib/records/create";
 import { domainScreenRoute, filedDomainOf } from "@/lib/records/domain-screen";
-import { getPieceById, pieceIdFor, SOURCE_ID_PREFIX, type PieceDetail } from "@/lib/records/get-piece";
+import { editedBodyPatch, getPieceById, pieceIdFor, SOURCE_ID_PREFIX, titleRepeatsBody, type PieceDetail } from "@/lib/records/get-piece";
 import {
   recordsEmbeddingAllowed,
   relatedRecordsByEmbedding,
@@ -335,7 +335,7 @@ function stateShell(
 }
 
 export function DeepSpaceRecordDetailScreen() {
-  const { t, i18n } = useTranslation(["deepspace", "recordDetail", "common"]);
+  const { t, i18n } = useTranslation(["deepspace", "recordDetail", "common", "profile"]);
   const {
     userId,
     loading: authLoading,
@@ -547,9 +547,9 @@ export function DeepSpaceRecordDetailScreen() {
     setEditBusy(true);
     setActionError(null);
     setEditing(false);
-    updateReadyPiece({ ...previous, body: nextBody });
+    updateReadyPiece({ ...previous, ...editedBodyPatch(previous, nextBody) });
     try {
-      await updateRecord(userId, recordId, { body: nextBody });
+      await updateRecord(userId, recordId, editedBodyPatch(previous, nextBody));
     } catch {
       if (isCurrent(identity)) {
         updateReadyPiece(previous);
@@ -705,6 +705,7 @@ export function DeepSpaceRecordDetailScreen() {
       primary.status !== "ready" ||
       primary.identity !== identity ||
       primary.piece.origin !== "source" ||
+      primary.piece.profileImportManaged ||
       !userId ||
       !recordId ||
       !identity
@@ -826,11 +827,14 @@ export function DeepSpaceRecordDetailScreen() {
   // 글 notes may carry photos (records.structured.photos, 2026-09-30). Only the
   // viewer's own paths are accepted; sources never have any.
   const photos = piece.origin === "source" ? [] : parseRecordPhotos(piece.structured, userId ?? undefined);
-  const displayTitle = titleOf(
+  const displayTitle = piece.profileImportManaged ? t("profile:contextImport.title") : titleOf(
     piece,
     t("deepspace:recordDetail.kindFallback"),
     !assessment.isAssessment,
   );
+  // Z86: a piece with no title of its own drew the start of its body as the headline and then
+  // the body under it. Imported profiles and assessments draw no body, so they keep the title.
+  const bodyRepeatsTitle = !piece.profileImportManaged && !assessment.isAssessment && titleRepeatsBody(displayTitle, piece.body);
   const date = evidenceDateLabel(piece.created_at, i18n.language === "ko" ? "ko" : "en");
   const domain = canonicalDomain(piece.tags ?? []);
   const relatedItems = mergedRelated(piece, related, t("deepspace:recordDetail.kindFallback"));
@@ -862,10 +866,7 @@ export function DeepSpaceRecordDetailScreen() {
 
   return (
     <DeepSpaceScreen active="wiki" variant="windowed" header="none" title={title} onBack={goBack}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <KeyboardAvoidingArea style={styles.flex}>
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.scroll}
@@ -886,12 +887,14 @@ export function DeepSpaceRecordDetailScreen() {
             </View>
           </PixelSurface>
 
-          <RNText
-            accessibilityRole="header"
-            style={[m3TextStyle("headlineSmall"), styles.pieceTitle]}
-          >
-            {displayTitle}
-          </RNText>
+          {bodyRepeatsTitle ? null : (
+            <RNText
+              accessibilityRole="header"
+              style={[m3TextStyle("headlineSmall"), styles.pieceTitle]}
+            >
+              {displayTitle}
+            </RNText>
+          )}
 
           {actionError ? (
             <PixelSurface variant="frame" background={m3.color.errorContainer}>
@@ -905,7 +908,9 @@ export function DeepSpaceRecordDetailScreen() {
             </PixelSurface>
           ) : null}
 
-          {assessment.isAssessment ? (
+          {piece.profileImportManaged && piece.profileImportContext ? (
+            <ProfileContextSummary context={piece.profileImportContext} />
+          ) : assessment.isAssessment ? (
             <PixelSurface variant="inset" contentStyle={styles.bodySurface}>
               <RNText style={[m3TextStyle("bodyMedium"), styles.bodyText]}>
                 {t("deepspace:recordDetail.assessmentBody")}
@@ -981,7 +986,7 @@ export function DeepSpaceRecordDetailScreen() {
           {structured ? (
             <PixelSurface variant="inset" contentStyle={styles.structuredSurface}>
               <RNText style={[m3TextStyle("labelLarge"), styles.sectionLabel]}>
-                {structured.form === "fourw" ? "4W1H" : "3C4P"}
+                {structured.form === "fourw" ? t("capture:modes.fourw.label") : t(`recordDetail:structuredForm.${structured.form}`)}
               </RNText>
               {Object.entries(structured.fields).map(([key, value]) => (
                 <View key={key} style={styles.structuredRow}>
@@ -1151,7 +1156,19 @@ export function DeepSpaceRecordDetailScreen() {
             </PixelPressable>
           ) : null}
 
-          {source ? (
+          {source && piece.profileImportManaged ? (
+            <PixelPressable
+              onPress={() => router.push("/profile-import?mode=history")}
+              accessibilityLabel={t("profile:contextImport.history")}
+              fullWidth
+              contentStyle={styles.actionContent}
+            >
+              <PixelGlyph name="arrowForward" color={m3.color.primary} size={24} />
+              <RNText style={[m3TextStyle("labelLarge"), styles.secondaryLabel]}>
+                {t("profile:contextImport.history")}
+              </RNText>
+            </PixelPressable>
+          ) : source ? (
             <PixelPressable
               onPress={() => void promoteToWiki()}
               disabled={promoting || promoted}
@@ -1234,7 +1251,7 @@ export function DeepSpaceRecordDetailScreen() {
             </View>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
 
       {source ? null : (
         <>

@@ -1,7 +1,7 @@
 // UMP (User Messaging Platform) seam, NATIVE side of the platform split --
 // Google's regulatory consent form (EU GDPR / US state messages, both
 // published in the AdMob console), DISTINCT from the app's own ads consent:
-// policy.ts (canShowAds/canShowRewardedAds) decides whether we may enter an
+// policy.ts (canShowRewardedAds) decides whether we may enter an
 // ad flow AT ALL; UMP decides whether Google may serve ads to this user in
 // regulated regions. Both gates must pass, in that order.
 //
@@ -105,9 +105,9 @@ let initialized = false;
 
 /**
  * Initialize the Google Mobile Ads SDK once per process. Call AFTER
- * ensureUmpConsent() resolves canRequestAds -- Google's recommended order.
- * The native SDK is excluded from builds during the legal hold because a JS
- * gate alone cannot control native process-start providers.
+ * ensureUmpConsent() resolves canRequestAds -- Google's recommended order,
+ * so no ad infrastructure spins up for users without a consent signal.
+ * delayAppMeasurementInit (app.json) keeps app start free of ad-SDK work.
  */
 export async function ensureAdsInitialized(): Promise<boolean> {
   if (!adNetworkPublicationReady()) return false;

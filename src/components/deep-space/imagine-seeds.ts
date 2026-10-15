@@ -1,6 +1,10 @@
-// The reference ImagineScreen's three divergent seeds (sb-more IMAGINE_SEEDS),
-// KO canonical / EN mirrored; other locales fall back to EN like the
-// 460-ternary surfaces. Static demo content by design — no dynamic generation
+// The reference ImagineScreen's three divergent seeds (sb-more IMAGINE_SEEDS).
+// KO is the design canon; every other language reads the home bundle under
+// ds.imagine.seeds.<key>.* (Q-261005-01 = A, R2B-03). The English used to be an
+// in-code mirror that es/pt/id fell back to, so /imagine painted English seeds
+// under translated chrome. The en bundle values are that mirror byte for byte,
+// and the ko bundle values mirror the canon (tr2-locale-copy.test.ts).
+// Static demo content by design — no dynamic generation
 // (src/lib/llm/imagine.ts stays dormant; "세컨비와 더" deep-links Divergent chat).
 // Kept in a .ts module (not the .tsx view) so canon tests can import it without
 // dragging JSX through jest's classic transform.
@@ -12,7 +16,14 @@ import { canonMore } from "@/lib/canon";
 const IMAGINE_SEED_ICONS = ["expand", "cached", "hub"] as const;
 export type ImagineSeedIcon = (typeof IMAGINE_SEED_ICONS)[number];
 
-interface ImagineSeedCopy {
+/** Bundle keys of the three seeds, index-aligned with canonMore.imagineSeeds. */
+export const IMAGINE_SEED_KEYS = ["expand", "reverse", "connect"] as const;
+export type ImagineSeedKey = (typeof IMAGINE_SEED_KEYS)[number];
+
+/** Bundle keys of each seed's three next-steps, in order. */
+export const IMAGINE_STEP_KEYS = ["step1", "step2", "step3"] as const;
+
+export interface ImagineSeedCopy {
   angle: string;
   title: string;
   body: string;
@@ -21,34 +32,27 @@ interface ImagineSeedCopy {
 
 export interface ImagineSeed {
   icon: ImagineSeedIcon;
+  key: ImagineSeedKey;
   ko: ImagineSeedCopy;
-  en: ImagineSeedCopy;
 }
-
-// EN mirror stays in code, keyed by index against canonMore.imagineSeeds.
-const EN_MIRROR: ImagineSeedCopy[] = [
-  {
-    angle: "Expand",
-    title: "If you took a year off",
-    body: "Erase money, work, and ties for a moment - what would you do first?",
-    steps: ["Write 3 things you want to do", "Taste one with a single hour this month", "Picture who joins you on the relations star"],
-  },
-  {
-    angle: "Reverse",
-    title: "If you lived the exact opposite",
-    body: "Improvise instead of plan, together instead of alone. What pulls you from the far side?",
-    steps: ["Try one thing you never do this week", "Note what felt awkward with SecondB", "Capture it to the rest star and watch the pattern"],
-  },
-  {
-    angle: "Connect",
-    title: "Career × rest, combined",
-    body: "Force the two stars together - what odd idea falls out?",
-    steps: ["Write a one-line project from the two keywords", "Prototype it in two weekend hours", "Log it on the growth star as an experiment"],
-  },
-];
 
 export const IMAGINE_SEEDS: ImagineSeed[] = canonMore.imagineSeeds.map((seed, i) => ({
   icon: IMAGINE_SEED_ICONS[i],
+  key: IMAGINE_SEED_KEYS[i],
   ko: { angle: seed.angle, title: seed.title, body: seed.body, steps: seed.steps },
-  en: EN_MIRROR[i],
 }));
+
+/**
+ * The seed copy for the painted language: the canon on the Korean screen, the
+ * home bundle (`t` bound to the "home" namespace) everywhere else.
+ */
+export function imagineSeedCopy(seed: ImagineSeed, ko: boolean, t: (key: string) => string): ImagineSeedCopy {
+  if (ko) return seed.ko;
+  const at = (field: string) => t(`ds.imagine.seeds.${seed.key}.${field}`);
+  return {
+    angle: at("angle"),
+    title: at("title"),
+    body: at("body"),
+    steps: IMAGINE_STEP_KEYS.map((step) => at(step)),
+  };
+}

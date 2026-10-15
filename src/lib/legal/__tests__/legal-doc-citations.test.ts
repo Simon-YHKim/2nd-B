@@ -117,6 +117,29 @@ test("법무 문서의 모든 경로 인용이 실재하는 파일을 가리킨�
   expect(missing).toEqual([]);
 });
 
+/** 빌드 밖 보관본을 가리키는 인용. 경로가 `legacy/` 로 시작한다. */
+function archiveCitations(found: readonly Citation[]): string[] {
+  return found.filter(c => /^legacy\//.test(c.file)).map(c => `${c.doc}:${c.docLine} -> ${c.file}`);
+}
+
+test("법무 문서가 빌드 밖 보관본(legacy/)을 인용하지 않는다", () => {
+  // 2026-10-05 에 legal-citations-not-in-dead-renderers 를 은퇴시키며 그 성질을 이 자리로
+  // 옮겼다: "어떤 배포도 그리지 않는 코드를 법무 문서가 가리키지 않는다". 옛 검사는
+  // 라우트 파일 안의 죽은 반쪽(`if (isDeepSpaceUI()) …; return <Legacy />;`)을 찾았는데,
+  // 롤백 레버 EXPO_PUBLIC_UI 가 없어지며(Simon 결정 Q-261004-11 C) 그 반쪽은 저장소 안
+  // 보관 폴더 legacy/screens/ 의 되살리기 원본이 됐다. legacy/ 는 tsconfig · jest ·
+  // eslint · metro 에서 제외돼 있어 거기 인용된 줄은 파일이 있고 줄이 맞아도 어떤
+  // 빌드에도 없다. 보관본의 위치를 적어야 하면 백틱 없이 산문으로 적는다(DPIA:495 처럼).
+  expect(archiveCitations(citations)).toEqual([]);
+});
+
+test("양성 대조 - 보관본 인용을 실제로 알아본다", () => {
+  // 위 검사가 아무것도 못 보는 자가 아니라는 증거. 2026-10-05 이전 DPIA:816 이 정확히
+  // 이 모양(되살리기 원본으로 옮겨진 data.tsx 의 62-71줄)을 인용 아닌 인용문으로 적었다.
+  const fixture = collect("see `legacy/screens/data.tsx:62-71` and `src/app/data.tsx:20`", "fixture.md");
+  expect(archiveCitations(fixture)).toEqual(["fixture.md:1 -> legacy/screens/data.tsx"]);
+});
+
 /** `:179-187` - 파일 이름 없이 줄 범위만 적은 이어쓰기 인용. */
 const CONTINUATION = /`:[0-9][0-9,\-\s]*`/g;
 

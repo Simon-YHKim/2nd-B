@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
-import { Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { Animated, BackHandler, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { pixelStepsFor } from '@/lib/motion/pixel-physical';
 import { markPhoneStowed, phoneLastStowedAt, shouldPlayPhoneGlare } from '@/lib/motion/phone-glare';
 import { useReducedMotionPref } from '@/lib/motion/use-reduced-motion';
+import { POCKET_PHONE_CUE, pocketPhoneCueAllowed } from '@/lib/audio/app-cues';
+import { useUiSound } from '@/lib/audio/use-ui-sound';
+import { createPocketPhoneBackHandler } from '@/lib/nav/pocket-phone-back';
+import { homeCoachmarkBack } from '@/lib/nav/home-coachmark-back';
 export const POCKET_PHONE_WIDTH = 104;
 export const POCKET_PHONE_HEIGHT = 192;
 export const POCKET_PHONE_PEEK = 44;
@@ -48,6 +53,7 @@ export function PocketPhone({ label, openLabel, revealHint, stowHint, active, on
 }) {
   const reducedMotion = useReducedMotionPref();
   const slide = useRef(new Animated.Value(0)).current;
+  const playPhoneCue = useUiSound(POCKET_PHONE_CUE.source, POCKET_PHONE_CUE);
   const expanded = useRef(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const dragStart = useRef(0);
@@ -71,6 +77,9 @@ export function PocketPhone({ label, openLabel, revealHint, stowHint, active, on
     // Only a collapsed -> raised move takes the phone out. Re-settling an
     // already raised phone (a short drag) is not a new take-out.
     const raising = next && !expanded.current;
+    // 폰 소리(Q-261006-05): settle 은 사람이 올리고 내릴 때만 불린다. 대시보드로 가며
+    // 내려가는 것과 홈을 떠나며 되돌아가는 것은 settle 을 거치지 않아 무음이다.
+    if (pocketPhoneCueAllowed({ wasRaised: expanded.current, raised: next, byUser: true, reducedMotion })) playPhoneCue();
     if (!next && expanded.current) stow();
     if (expanded.current !== next) onExpandedChangeRef.current(next);
     expanded.current = next;
@@ -91,7 +100,19 @@ export function PocketPhone({ label, openLabel, revealHint, stowHint, active, on
         if (expanded.current) onGlareRef.current?.({ x, y, width, height });
       });
     });
-  }, [reducedMotion, slide, stow]);
+  }, [playPhoneCue, reducedMotion, slide, stow]);
+  // D3: subscribe while home is active, before a tap/swipe can raise the phone.
+  // The live ref consumes Back only when raised; settle clears glare/backdrop.
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS !== 'android' || !active) return;
+    const onBackPress = createPocketPhoneBackHandler({
+      isExpanded: () => expanded.current,
+      lower: () => settle(false),
+      isCoachmarkVisible: homeCoachmarkBack.isVisible,
+    });
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [active, settle]));
   const activate = useCallback(() => {
     if (Date.now() - lastSwipeAt.current < 400) return;
     if (!expanded.current) { settle(true); return; }

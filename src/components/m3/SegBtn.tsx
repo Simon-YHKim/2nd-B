@@ -11,13 +11,14 @@
 import type { ReactNode } from "react";
 import {
   type DimensionValue,
-  Pressable,
   StyleSheet,
   type StyleProp,
-  View,
   type ViewStyle,
 } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
 
 import { m3 } from "@/lib/theme/m3";
 
@@ -26,6 +27,7 @@ import { m3TextStyle } from "./typeface";
 export interface SegBtnSegment {
   key: string;
   label: string;
+  accessibilityHint?: string;
   icon?: ReactNode;
 }
 
@@ -47,18 +49,23 @@ export function SegBtn({
   disabled = false,
   style,
 }: SegBtnProps) {
+  const phone = usePhoneDesign();
   const segWidth = `${100 / Math.max(1, segments.length)}%` as DimensionValue;
   return (
     <View
-      style={[styles.group, disabled && styles.groupDisabled, style]}
+      style={[styles.group, disabled && styles.groupDisabled, style, phone && { backgroundColor: phoneIos.fill, borderWidth: 0 }]}
       accessibilityRole={multiSelect ? undefined : "radiogroup"}
     >
       {segments.map((seg, i) => {
         const on = selected.includes(seg.key);
-        let fg: string = on ? m3.color.onSecondaryContainer : m3.color.onSurface;
+        // Z84 (Simon 2026-10-13): the chosen cell is filled with the app's bright blue, like the
+        // capture screen's kind selector, and the other cells dim. Before, the chosen cell was only a
+        // shade lighter with dimmer text, and it read as the one NOT chosen.
+        let fg: string = on ? m3.color.onPrimary : m3.color.onSurfaceVariant;
         if (disabled) {
-          fg = on ? m3.disabled.onSecondaryContainer : m3.disabled.onSurface;
+          fg = on ? m3.disabled.onPrimary : m3.disabled.onSurface;
         }
+        if (phone) fg = disabled ? phoneIos.label2 : phoneIos.label;
         return (
           <View
             key={seg.key}
@@ -67,6 +74,7 @@ export function SegBtn({
               { width: segWidth },
               i > 0 && (disabled ? styles.dividerDisabled : styles.divider),
               on && (disabled ? styles.segOnDisabled : styles.segOn),
+              phone && { borderLeftWidth: 0, backgroundColor: on ? phoneIos.cell : "transparent" },
             ]}
           >
             <Pressable
@@ -75,7 +83,9 @@ export function SegBtn({
               disabled={disabled}
               accessibilityRole={multiSelect ? "checkbox" : "radio"}
               accessibilityState={{ selected: on, checked: on, disabled }}
+              aria-checked={on}
               accessibilityLabel={seg.label}
+              accessibilityHint={seg.accessibilityHint}
               style={styles.hit}
             >
               {seg.icon ? <View style={styles.icon}>{seg.icon}</View> : null}
@@ -116,7 +126,7 @@ const styles = StyleSheet.create({
   },
   divider: { borderLeftWidth: 1, borderLeftColor: m3.color.outline },
   dividerDisabled: { borderLeftWidth: 1, borderLeftColor: m3.disabled.outline },
-  segOn: { backgroundColor: m3.color.secondaryContainer },
-  segOnDisabled: { backgroundColor: m3.disabled.secondaryContainer },
+  segOn: { backgroundColor: m3.color.primary },
+  segOnDisabled: { backgroundColor: m3.disabled.primary },
   icon: { justifyContent: "center" },
 });

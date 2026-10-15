@@ -8,17 +8,18 @@
 
 | Layer | Where | State |
 |---|---|---|
-| Ad policy (single source of truth) | `src/lib/ads/policy.ts` (+tests) | paying tiers / minors / no-consent / sensitive routes always OFF |
-| Web AdSense slot | `src/components/ads/AdSlot.tsx` | records list footer only; AdBlock/no-fill → subscription upsell line |
-| Build flags | `EXPO_PUBLIC_ENABLE_ADS` (default false), `EXPO_PUBLIC_ADSENSE_CLIENT`, `EXPO_PUBLIC_ADSENSE_SLOT_RECORDS` | unset = invisible |
+| Ad policy (single source of truth) | `src/lib/ads/policy.ts` (+tests) | rewarded only: paying tiers / minors / no-consent / unlisted routes always OFF |
+| Ad publication gate | `src/lib/ads/legal-readiness.ts` | `adNetworkPublicationReady()` 가 `false` 를 돌려줘 어떤 광고 요청도 나가지 않는다 |
+| ~~Web AdSense slot~~ | ~~`src/components/ads/AdSlot.tsx`~~ | **2026-10-05 물러남** (Simon Q-261004-16). 09-08 이후 이 슬롯을 그리는 배송 화면이 없었다. 원본은 E:/Legacy, 기록은 `docs/ADSENSE-WEB-RETIREMENT.md` |
+| Build flag | `EXPO_PUBLIC_ENABLE_ADS` (default false) | unset = invisible. AdSense 두 변수(`_ADSENSE_CLIENT` · `_ADSENSE_SLOT_RECORDS`)는 코드와 빌드 주입에서 빠졌다 |
 | Web analytics (GA4) | `src/lib/analytics` + consent/runtime gate | confirmed adult + explicit consent + runtime ON일 때만 로드 |
 | Clarity / native Firebase / Sentry | `src/lib/analytics`, `src/app/_layout.tsx` | 새 JS에서 **hard OFF**; 환경 id나 DSN만으로 켤 수 없음 |
 | Build wiring | `.github/workflows/web-deploy.yml` | Variables가 빌드에 들어가도 source hard-off를 우회하지 못함 |
 
-Deliberate rollout gate: the **ads-consent toggle is not collected yet** (privacy
-screen wiring, register item I1). Until it ships, `AdSlot` passes
-`adsConsent: null` and policy rule 3 keeps every slot inert even with all
-Variables set. Never default that to true.
+Deliberate rollout gate: `users.privacy_prefs.ads` 는 예전 UI 선택이고, AdMob 에 필요한
+제3자 제공 · 국외 이전 동의가 아니다(`src/lib/ads/legal-readiness.ts` 머리 주석). 그래서
+게시 게이트가 닫혀 있는 동안에는 빌드 플래그와 정책 규칙을 모두 통과해도 광고가 열리지
+않는다. Never default that to true.
 
 ## Simon console steps (in order of value)
 
@@ -29,19 +30,18 @@ Variables set. Never default that to true.
    각각의 개인정보·법적 재활성화 게이트를 먼저 통과한다(`docs/sentry-setup.md`).
 4. PostHog는 2026-08-10 제거됐다. 환경 변수만으로 다시 켤 수 없다.
 
-### 2. AdSense (web) — needs site approval
-1. adsense.google.com → add site `simon-yhkim.github.io` (approval review takes days; content policy applies).
-2. Create one display ad unit ("records-footer") → copy client (`ca-pub-…`) and slot id.
-3. Variables: `EXPO_PUBLIC_ENABLE_ADS=true`, `EXPO_PUBLIC_ADSENSE_CLIENT`, `EXPO_PUBLIC_ADSENSE_SLOT_RECORDS`.
-4. `ads.txt`: GitHub Pages user-site root must serve `https://simon-yhkim.github.io/ads.txt` with the publisher line AdSense gives you. (Repo `Simon-YHKim/simon-yhkim.github.io`, not this repo.)
-5. Legal gate: 개인정보처리방침에 광고 쿠키/식별자 항목 추가 — D-03 법무 트랙과 함께.
+### 2. ~~AdSense (web)~~ — 물러남 (2026-10-05, Simon Q-261004-16)
+웹 AdSense 배너는 접었다. 이 절에 있던 운영 절차(사이트 승인 · 광고 단위 · Variables 세 개 ·
+`ads.txt` · 방침 개정)는 **더 이상 실행해도 아무것도 뜨지 않는다** — 슬롯 컴포넌트, 배너 정책
+(`canShowAds` · `/records` 허용목록), CSP 의 AdSense 출처, 빌드 주입 줄이 모두 빠졌다.
+무엇이 어디서 빠졌는지와 되살리는 순서는 `docs/ADSENSE-WEB-RETIREMENT.md` 에 있다.
 
 ### 3. AdMob (native) — ships with the EAS/store track, NOT now
 1. admob.google.com → register the Android/iOS app → APP IDs.
-2. Code: `npx expo install react-native-google-mobile-ads` + app.json plugin block with the APP IDs (native rebuild required — do not add the package before the native build track resumes; it is a config-plugin native module).
+2. Code: SDK 패키지는 이미 들어 있다(`package.json` 의 `react-native-google-mobile-ads`). 보상형 경계는 `src/lib/ads/rewarded.native.ts`, 서버 확인은 `supabase/functions/rewarded-ssv` 다. 앱 ID 를 네이티브 빌드에 넣는 배선은 이 문서 갱신(2026-10-05) 때 확인하지 않았다(미확인).
 3. `app-ads.txt` on the developer site domain.
 4. iOS: ATT prompt + Google UMP consent form before personalized ads; KR/EU non-personalized fallback.
-5. Same in-app policy layer applies (`canShowAds`); AdMob banner goes only where AdSense goes on web.
+5. Same in-app policy layer applies (`canShowRewardedAds`, `REWARDED_AD_ALLOWED_ROUTE_PREFIXES`). 배너 형식은 없다 — 웹 배너가 물러나면서 "AdSense 가 가는 곳에만 AdMob 배너" 라는 기준도 같이 없어졌다. 배너를 다시 만들려면 새 정책 검토부터 한다.
 
 ### 4. Firebase Analytics (native) — 현재 새 JS에서 OFF-only
 Native SDK가 일부 바이너리에 링크돼 있어도 현재 JS는 collection/consent OFF 명령만 보낸다.
@@ -53,6 +53,7 @@ native build와 실기기 전송 검증이 필요하다.
 - Subscribers never see ads — ad removal is a paid benefit (the upsell loop
   is ads → "remove ads with a subscription", never the reverse).
 - Minors (C10 band) see no ads at all — product call over the legal minimum.
-- Crisis, consent, auth, and writing surfaces never carry ads.
-- One placement to start (records footer). Expansion = new policy review, and
-  interstitial/rewarded formats need a fresh frequency-cap design first.
+- Crisis, consent, auth, and writing surfaces never carry display ads — 지금은 화면에 깔리는
+  광고(배너 · 전면)가 어디에도 없다. 기록 목록 하단 배너가 유일한 자리였고 2026-10-05 물러났다.
+- 보상형 진입은 허용목록(`/plans` · `/secondb` · 홈 `/` · `/reasoning`)에서 사용자가 직접
+  눌렀을 때만 열린다. 새 자리 = 새 정책 검토, interstitial 은 frequency-cap 설계가 먼저다.

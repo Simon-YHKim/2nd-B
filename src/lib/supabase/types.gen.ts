@@ -2703,6 +2703,7 @@ export type Database = {
           privacy_prefs: Json
           profile_details: Json
           reasoning_prefs: Json
+          status_message: string | null
           subscription_event_at: string | null
           subscription_expires_at: string | null
           subscription_provider: string | null
@@ -2727,6 +2728,7 @@ export type Database = {
           privacy_prefs?: Json
           profile_details?: Json
           reasoning_prefs?: Json
+          status_message?: string | null
           subscription_event_at?: string | null
           subscription_expires_at?: string | null
           subscription_provider?: string | null
@@ -2751,6 +2753,7 @@ export type Database = {
           privacy_prefs?: Json
           profile_details?: Json
           reasoning_prefs?: Json
+          status_message?: string | null
           subscription_event_at?: string | null
           subscription_expires_at?: string | null
           subscription_provider?: string | null

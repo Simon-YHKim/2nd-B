@@ -12,7 +12,7 @@
  * Build prereq (worktrees can't expo-export — metro blockList blocks
  * `.worktrees` paths): git archive HEAD | tar -x into E:/_tmp-livepass
  * (same drive as node_modules), junction node_modules, copy .env, then
- *   EXPO_PUBLIC_UI=deep-space EXPO_USE_STATIC=true EXPO_PUBLIC_LLM_MODE=mock \
+ *   EXPO_USE_STATIC=true EXPO_PUBLIC_LLM_MODE=mock \
  *   npx expo export --platform web --output-dir dist
  *
  * Usage:  node scripts/clone-live-pass.mjs [name1,name2,...]

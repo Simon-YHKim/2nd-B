@@ -40,6 +40,7 @@ jest.mock("../../supabase/client", () => ({
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import * as ts from "typescript";
 
 import { createRecord } from "../create";
 
@@ -60,6 +61,18 @@ describe("createRecord — Advisor premium gate", () => {
     mockCallLlm.mockReset().mockResolvedValue({ text: "ok", safety: { zone: "green" } });
     mockClassifyRecordCrisis.mockReset().mockResolvedValue(null);
     mockInsert.mockClear();
+  });
+
+  test.each(["KR_119", "KR_112"] as const)("returns %s for the screen without storing routing metadata", async (hotline) => {
+    mockClassifyRecordCrisis.mockResolvedValue({ text: "fixed emergency guidance", safety: { zone: "red", crisisRouting: { hotline } } });
+    const result = await createRecord({ userId: "u1", locale: "ko", kind: "note", body: "explicit emergency", withFollowup: false });
+    expect(result.crisisHotline).toBe(hotline);
+    expect(result.followup?.zone).toBe("red");
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+    expect(mockInsert.mock.calls[0][0]).not.toHaveProperty("crisisHotline");
+    expect(mockInsert.mock.calls[0][0].ai_followup).not.toHaveProperty("hotline");
+    expect(mockCallAdvisor).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
   });
 
   test("C9 is not premium: a free-tier journal save still runs the local crisis classifier", async () => {
@@ -495,7 +508,7 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     );
   });
 
-  test("durable ACK만 URL을 지우고 이전 배달·이전 session ACK는 무시한다", () => {
+  test("텍스트·모드 URL은 durable ACK만 지우고 이전 배달·이전 session ACK는 무시한다", () => {
     expect(src).toContain("sharedAckGenerationRef.current !== ackGeneration");
     expect(src).toContain("paramAckGenerationRef.current !== ackGeneration");
     expect(src).toContain("!sessionActiveRef.current");
@@ -506,13 +519,52 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(src).toContain("sharedAckGenerationRef.current += 1;");
     expect(src).toContain("paramAckGenerationRef.current += 1;");
     // Promise completion publishes evidence only. The focused, latest-render
-    // effects own the only two router mutations (shared + param).
+    // effects own both text/param mutations. Media intake has a separate ACK:
+    // it may clear only its own opaque token/error, never the durable draft URL.
     expect(src).toContain("setSharedDurableAck({");
     expect(src).toContain("setParamDurableAck({");
     expect(src).toContain("sharedDelivery !== sharedDurableAck.delivery");
     expect(src).toContain("paramDeliveryIdentity !== paramDurableAck.identity");
     expect(src).toContain("!captureFocusedRef.current");
-    expect((src.match(/router\.setParams\(/g) ?? []).length).toBe(2);
+    const source = ts.createSourceFile("capture.tsx", src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const writes: ts.CallExpression[] = [];
+    const visit = (node: ts.Node): void => {
+      if (ts.isCallExpression(node) && node.expression.getText(source) === "router.setParams") writes.push(node);
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+    const isMediaAck = (call: ts.CallExpression): boolean => {
+      const params = call.arguments[0];
+      if (call.arguments.length !== 1 || !params || !ts.isObjectLiteralExpression(params)) return false;
+      return params.properties.length === 2 && ["sharedMedia", "sharedMediaError"].every((key) =>
+        params.properties.some((prop) => ts.isPropertyAssignment(prop) && prop.name.getText(source) === key &&
+          ts.isIdentifier(prop.initializer) && prop.initializer.text === "undefined"));
+    };
+    const durableWrites = writes.filter((call) => !isMediaAck(call));
+    expect(durableWrites).toHaveLength(2);
+    // Keep the two mutations inside their corresponding guarded effects.
+    for (const [index, ack] of ["sharedDurableAck", "paramDurableAck"].entries()) {
+      let enclosing: ts.Node | undefined = durableWrites[index].parent;
+      while (enclosing && !ts.isArrowFunction(enclosing)) enclosing = enclosing.parent;
+      expect(enclosing?.parent.getText(source)).toMatch(/^useEffect\(/);
+      expect(enclosing?.getText(source)).toContain(`${ack} === null`);
+      expect(enclosing?.getText(source)).toContain("!captureFocusedRef.current");
+      expect(enclosing?.getText(source)).toContain("!sessionActiveRef.current");
+    }
+    const mediaWrites = writes.filter(isMediaAck);
+    expect(mediaWrites).toHaveLength(2);
+    // One media ACK follows local image ownership transfer, the other belongs
+    // to the explicit discard button. Neither can clear text/mode/tag params.
+    let receive: ts.Node | undefined = mediaWrites[0].parent;
+    while (receive && !ts.isFunctionDeclaration(receive)) receive = receive.parent;
+    expect(receive && ts.isFunctionDeclaration(receive) ? receive.name?.text : undefined).toBe("receiveSharedPhoto");
+    expect(receive?.getText(source)).toContain("transferredMedia.current.add(incomingMedia)");
+    let discard: ts.Node | undefined = mediaWrites[1].parent;
+    while (discard && !ts.isJsxAttribute(discard)) discard = discard.parent;
+    expect(discard && ts.isJsxAttribute(discard) ? discard.name.getText(source) : undefined).toBe("onPress");
+    expect(discard?.parent.getText(source)).toContain('label={t("sharedMedia.discard")}');
+    expect(discard?.getText(source)).toContain("sharedMediaAbort.current?.abort()");
+    expect(discard?.getText(source)).toContain("discardSharedMedia(incomingMedia)");
   });
 
   test("share write 대기 중 편집도 최신 snapshot으로 다시 저장된다", () => {
@@ -654,8 +706,12 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     expect(wrapper).toContain('captureParams.entry === "firstRun"');
     expect(wrapper).toContain("useState(hasFullCaptureParams)");
     expect(wrapper).toContain("hasFullCaptureParams || fullCaptureActive");
-    expect(wrapper).toContain("<CaptureLegacy />");
-    expect(wrapper).toContain("<CaptureView firstRecordCoach={firstRecordCoach} />");
+    // 2026-10-05: 맨 `<CaptureLegacy />` 는 롤백 레버의 legacy 반환이었고 레버와 함께
+    // 빠졌다(Simon 결정 Q-261004-11 C). 공유 진입이 실제로 닿는 full intake 는 dock 안의
+    // 이 반환 하나다.
+    expect(wrapper).toContain("<CaptureLegacy embeddedInDock />");
+    expect(wrapper).not.toMatch(/<CaptureLegacy \/>/);
+    expect(wrapper).toContain('<CaptureView firstRecordCoach={firstRecordCoach} coachReplay={coachMode === "replay"} />');
     expect(wrapper).not.toContain("sharedEverRef.current =");
   });
 

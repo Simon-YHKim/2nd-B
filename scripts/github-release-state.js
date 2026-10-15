@@ -193,7 +193,7 @@ function runCli(command) {
           requiredEnv("IOS_FILE"),
           "SHA256SUMS.txt",
         ],
-        name: `2nd-Brain ${requiredEnv("VERSION")}`,
+        name: requiredEnv("RELEASE_NAME"),
         targetCommitish: requiredEnv("RELEASE_COMMIT"),
         body: fs.readFileSync(notesFile, "utf8"),
       });

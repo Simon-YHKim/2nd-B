@@ -90,6 +90,28 @@ const SWITCHES = [
 ] as const;
 
 describe("D-26 vendor routing — live edge-path wiring", () => {
+  test.each(["records", "sources"] as const)("reasoning passes its reservation and %s slot to the proxy", async (slot) => {
+    mockInvoke.mockResolvedValueOnce(okPayload("gpt-5.4"));
+    await callLlm({
+      userId: "u1", locale: "en", purpose: "reasoning_connect", user: "My reading habit.",
+      reasoningRunId: "11111111-1111-4111-8111-111111111111", reasoningSlot: slot,
+    });
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(mockInvoke.mock.calls[0][1].body).toMatchObject({
+      purpose: "reasoning_connect",
+      reasoningRunId: "11111111-1111-4111-8111-111111111111", reasoningSlot: slot,
+    });
+  });
+  test("a failed reasoning reservation never dispatches an unmetered fallback", async () => {
+    process.env.EXPO_PUBLIC_FAILOVER_VENDOR = "gemini";
+    const error = { context: { status: 403, json: async () => ({ error: "reasoning_reservation_required" }) } };
+    mockInvoke.mockResolvedValueOnce({ data: null, error });
+    await expect(callLlm({
+      userId: "u1", locale: "en", purpose: "reasoning_connect", user: "My reading habit.",
+      reasoningRunId: "11111111-1111-4111-8111-111111111111", reasoningSlot: "records",
+    })).rejects.toBe(error);
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+  });
   test("Polaris carries its reservation to OpenAI even with a different vendor override", async () => {
     process.env.EXPO_PUBLIC_LLM_VENDOR = "claude";
     mockInvoke.mockResolvedValueOnce(okPayload("gpt-5.4"));

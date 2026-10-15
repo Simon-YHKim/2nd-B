@@ -1,13 +1,15 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import { WeatherPrivacyControl } from "@/components/privacy/WeatherPrivacyControl";
+import { AppState, Linking, Platform, Share, StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router, useNavigation } from "expo-router";
+import { useAppRouter, useStartAtEndWhen } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import Svg, { Rect, SvgXml } from "react-native-svg";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import { colors, spacing } from "@/theme/tokens";
 import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
 import { ringCells, stepLine } from "@/components/pixel/pixel-line";
@@ -25,35 +27,27 @@ import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
 import { reactExpression } from "@/lib/companion/expression";
 import { kstDateToday } from "@/lib/chat/limits";
-import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
+import { MdButton, MdCard, MdChip, m3TextStyle } from "@/components/m3";
 import { PremiumModal } from "@/components/premium";
-import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
-import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
-import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { Text } from "@/components/ui/Text";
 import { HelpDirectory } from "@/components/safety/HelpDirectory";
-import { useTheme } from "@/lib/theme/ThemeContext";
+// (No theme-mode hook: the dark/light choice was removed on 2026-10-05, Q-261005-02.)
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useLiteMode } from "@/lib/settings/lite-mode";
+import { useSoundEffects } from "@/lib/settings/sound-effects";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { FilterChip } from "./dds-wiki-records-screens";
-import { buildInfoLine } from "@/lib/build-info";
+import { appVersion, buildInfoLine } from "@/lib/build-info";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { gatherRisingInterests } from "@/lib/trends/gather";
 import type { RisingInterest } from "@/lib/trends/rising";
-import { useSignInForm } from "@/lib/auth/useSignInForm";
-import { useSignUpForm } from "@/lib/auth/useSignUpForm";
-import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import {
   AuthSessionOwnerChangedError,
-  ageInYears,
   captureSignOutExpectation,
-  MIN_SELF_CONSENT_AGE,
   signOutExpected,
-  type OAuthProvider,
 } from "@/lib/supabase/auth";
 import { requestAccountDeletion } from "@/lib/records/delete-bulk";
 import {
@@ -69,7 +63,9 @@ import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
-import { recordSevenTiers } from "@/lib/persona/seven-tier-history";
+import { loadSevenRatified, recordSevenTiers } from "@/lib/persona/seven-tier-history";
+import { RATIFY_L5_CUE, WIKI_LINK_CUE, ratifyL5CueAllowed } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 import {
   buildSevenProposalContext,
   sevenRatifiableTargets,
@@ -90,24 +86,9 @@ import type { StarId } from "@/lib/persona/stars";
 import { loadEvidenceShards } from "@/lib/persona/load-evidence-shards";
 import { type EvidenceShard } from "@/lib/persona/evidence";
 import { RatifySheet, runRatifyDecisionOnce } from "@/components/persona/RatifySheet";
-import {
-  allRequiredAcksChecked,
-  setAllRequiredAcks,
-  type ConsentSelections,
-} from "@/lib/auth/consent-selections";
-import { formatBirthDateInput } from "@/lib/account/dob";
-import { useProgression } from "@/lib/progression/useProgression";
-import {
-  arePurchasesAvailable,
-  configurePurchases,
-  getOfferings,
-  getProStatus,
-  purchasePackage,
-  restorePurchases,
-} from "@/lib/payments/purchases";
-import type { PurchasesPackage } from "react-native-purchases";
-import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { readPrivacyPrefsStrict } from "@/lib/supabase/privacy-strict";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
 import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
 import {
@@ -115,47 +96,39 @@ import {
   clearRecordEmbeddings,
   embedVendorLabel,
 } from "@/lib/records/records-embeddings";
-import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
-import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
-import { availableHealthSources } from "@/lib/health/registry";
-import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
-import { opsRouteForDomain } from "@/lib/ops/nav";
-import { loadPickCandidates } from "@/lib/ops/load-picks";
-import { pickToday, type PickId, type TodayPicks } from "@/lib/ops/today-picks";
-import { gatherAdherenceStats } from "@/lib/ops/signals";
-import { adherenceChip } from "@/lib/ops/grounding";
-import { recommendForDomain, recommendationVendorLabel, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
-import { buildGoogleCalendarUrl } from "@/lib/ops/push";
+import { recordRecommendationsConsent } from "@/lib/supabase/consent";
+import { HealthWithdrawCard } from "./dds-health-withdraw-card";
+import { recommendationVendorLabel } from "@/lib/ops/recommend";
 import {
   notifyNow,
-  scheduleRoutineReminder,
-  type ReminderResult,
 } from "@/lib/ops/reminders";
 import { loadNotifications } from "@/lib/ops/notifications-sdk";
 import {
   applyFocusSessionComplete,
   applyLanguageReviewComplete,
-  createRoutineFromRecommendation,
-  deriveReminder,
-  listCompletionsSince,
-  listTodayRoutines,
-  localDayKey,
-  logRoutineCompletion,
-  weekStreak,
-  type OpsRoutine,
 } from "@/lib/ops/routines";
 import { createCard, listDueCards, recordReview, type SrsCardRow } from "@/lib/srs/queries";
 import type { SrsRating } from "@/lib/srs/scheduler";
+import { readFocusClock, startFocusRun } from "@/lib/ops/focus-clock";
 import {
   createPomodoro,
-  focusJustCompleted,
   pause,
   reset,
   start,
-  tick,
   type PomodoroState,
 } from "@/lib/ops/pomodoro";
-import { OPS_DAILY_LIMIT, bumpOpsUsage, readOpsUsage } from "@/lib/ops/usage";
+import {
+  EMPTY_FOCUS_DAY,
+  FOCUS_AREAS,
+  completeFocusSession,
+  focusTallyToSave,
+  focusedMinutesToday,
+  freshFocusTally,
+  restoreFocusTally,
+  type FocusTally,
+} from "@/lib/ops/focus-tally";
+import { loadFocusArea, loadFocusDay, saveFocusArea, saveFocusDay } from "@/lib/ops/focus-store";
+import type { LifeArea } from "@/lib/dashboard/model";
 import {
   listAllWikiLinks,
   listInferredLinkDetails,
@@ -174,9 +147,7 @@ import { recordsToResearchGraph } from "@/lib/records/records-research";
 import type { GraphRecord } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { summarizeWeeklyInsights, weeklyDomainFocus } from "@/lib/insights/weekly";
-import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
-import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
-import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
+import type { WikiPageRow } from "@/lib/wiki/types";
 import {
   buildDeepResearchView,
   buildDomainsView,
@@ -185,25 +156,15 @@ import {
   type WikiEdge,
 } from "./wiki-graph-view";
 import {
-  type TimelineLabels,
-} from "./records-timeline";
-import {
   INTEGRATION_ENTRYPOINTS,
   type IntegrationEntrypoint,
 } from "./integrations/sources";
 
+/** /review 끝의 '이력에 남는다' 문구. 이력 원장이 생기기 전까지 끈다(설계 대화 발주 a, 2026-10-07). */
+const REVIEW_LEDGER_NOTE = false;
+
 // i18n label builders for the pure date helpers (which stay i18n-free).
 type Tx = (key: string, options?: Record<string, unknown>) => string;
-function dsTimeLabels(t: Tx): TimelineLabels {
-  return {
-    today: t("time.today"),
-    yesterday: t("time.yesterday"),
-    monthDay: (m, d) => t("time.monthDay", { month: m, day: d }),
-    now: t("time.now"),
-    hoursAgo: (h) => t("time.hoursAgo", { count: h }),
-    fallbackTitle: t("time.recordFallback"),
-  };
-}
 function dsRecencyLabels(t: Tx): RecencyLabels {
   return {
     today: t("time.today"),
@@ -292,10 +253,12 @@ function GraphLoading() {
 // screen floats as a radius-24 window over the shared sky (sb-app §4). Routes
 // moving from Shell to DockShell must also join DEEP_SPACE_DOCK_PATHS so the
 // floating BackArrow chip yields to the top bar.
-function DockShell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
+function DockShell({ children, title, subtitle, scroll }: { children: ReactNode; title?: string; subtitle?: string; scroll?: ReturnType<typeof useStartAtEndWhen> }) {
+  // Phone-aware: inside the dashboard phone, back steps the phone's stack.
+  const router = useAppRouter();
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title ?? ""} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scroll?.scrollRef} onContentSizeChange={scroll?.onContentSizeChange} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}
         {children}
       </ScrollView>
@@ -320,8 +283,8 @@ function DockShell({ children, title, subtitle }: { children: ReactNode; title?:
 // (a) 어떤 탭도 잘못 하이라이트되지 않고 (b) DeepSpaceScreen 의 BackHandler
 // 특례가 걸리지 않아 **하드웨어 뒤로가기 동선이 바뀌지 않는다**(기본 pop 유지).
 // 제목은 상단 앱바가 갖는다 — 화면 안에 또 큰 제목을 두면 같은 말이 두 번 나온다.
-function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
-  return <DockShell title={title} subtitle={subtitle}>{children}</DockShell>;
+function Shell({ children, title, subtitle, scroll }: { children: ReactNode; title?: string; subtitle?: string; scroll?: ReturnType<typeof useStartAtEndWhen> }) {
+  return <DockShell title={title} subtitle={subtitle} scroll={scroll}>{children}</DockShell>;
 }
 
 // Scroll-only body for screens that already sit inside DeepSpaceScreen (which
@@ -355,7 +318,7 @@ function Action({ label, value, onPress }: Row) {
 function Toggle({ label, value, on = true, onPress, disabled = false }: Row) {
   const body = (
     <>
-      <View><Text variant="body" style={styles.actionLabel}>{label}</Text>{value ? <Text variant="body" style={styles.actionValue}>{value}</Text> : null}</View>
+      <View style={TOGGLE_TEXT}><Text variant="body" style={styles.actionLabel}>{label}</Text>{value ? <Text variant="body" style={styles.actionValue}>{value}</Text> : null}</View>
       <View style={[styles.toggle,on&&styles.toggleOn]}><View style={[styles.knob,on&&styles.knobOn]} /></View>
     </>
   );
@@ -411,7 +374,7 @@ function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: 
             <CloneIcon name={source.icon} color={m3.color.onSurfaceVariant} size={22} />
           </PixelSurface>
           <View style={cx.flex1}>
-            <RNText numberOfLines={1} style={[m3TextStyle("titleSmall"), cx.integrationName]}>{name}</RNText>
+            <RNText numberOfLines={2} style={[m3TextStyle("titleSmall"), cx.integrationName]}>{name}</RNText>
             <RNText numberOfLines={2} style={[m3TextStyle("bodySmall"), cx.integrationDetail]}>{detail}</RNText>
           </View>
           <PixelSurface
@@ -421,7 +384,7 @@ function IntegrationEntryRow({ source, t }: { source: IntegrationEntrypoint; t: 
             style={cx.integrationActionFrame}
             contentStyle={cx.integrationAction}
           >
-            <RNText numberOfLines={2} style={[m3TextStyle("labelSmall"), cx.integrationActionText]}>{action}</RNText>
+            <RNText numberOfLines={3} style={[m3TextStyle("labelSmall"), cx.integrationActionText]}>{action}</RNText>
           </PixelSurface>
         </PixelSurface>
       </View>
@@ -463,36 +426,20 @@ export function DeepSpaceIntegrationsScreen() {
 }
 
 // ── gaps.json canon content (support / privacy / manual) ──────────────────
-// KO copy renders straight from canonGaps (pixel contract, verbatim). EN mirrors
-// are index-aligned against the SAME canon arrays (museum/iden bilingual pattern),
-// so no new locale keys are added (avoids 5-locale key-parity churn).
-const GAPS_FAQ_EN: { q: string; a: string }[] = [
-  { q: "What's the difference between brightness (starlight) and confidence?", a: "Starlight is how much you've captured in that area; confidence is how well SecondB's estimate has been verified. The two move independently." },
-  { q: "Does a paid plan make it smarter?", a: "No. Answer quality is the same on every plan. Only the limits on counts, retention, and export differ." },
-  // HONESTY (audit follow-up): transcription is CLOUD STT (Gemini via the
-  // spend-capped proxy) — the old copy claimed on-device. What IS true: the
-  // original audio is deleted from the device right after transcription.
-  { q: "Is call recording safe?", a: "Recordings are transcribed over an encrypted connection on the AI server, and the original audio is deleted from your device right after. Only the text and signals are kept, encrypted." },
-];
-const GAPS_NOTICE_EN: { t: string; tag: string }[] = [
-  { t: "SecondB three modes launched", tag: "New" },
-  { t: "AI Museum: 8 collections now open", tag: "Content" },
-  { t: "Voice transcription improved", tag: "Improved" },
-];
-const GAPS_FACT_EN: { label: string; v: string }[] = [
-  { label: "On-device first", v: "Imported raw content is analyzed on your device; only derived signals are kept, encrypted." },
-  { label: "What we collect", v: "Captured stardust, lens scores, usage patterns. Location and comms only with consent." },
-  { label: "Retention", v: "While your account is active; fully removed within 30 days of leaving." },
-  { label: "Right to delete", v: "You can remove individual items or everything, anytime." },
-];
-const GAPS_CONCEPT_EN: { title: string; body: string }[] = [
-  { title: "Stars = areas of life", body: "The six visible home stars are career, finances, growth, relationships, health, and rest. Capturing is an invisible intake area that feeds those six stars." },
-  { title: "North Star = your whole self", body: "It brings together data from all seven areas into one sentence about who you are. Its brightness becomes clearer as the six visible stars brighten evenly." },
-  { title: "Starlight is not confidence", body: "Starlight is how much you've captured; confidence is how well it's verified. If it doesn't know, it says so." },
-  { title: "Ratify (propose then ratify)", body: "SecondB's estimates are only proposals. Only what you ratify with \"that's right\" is reflected in you." },
-  { title: "Capturing", body: "Capture notes, links, photos, voice, and to-dos instead of letting them slip by. SecondB helps sort them." },
-  { title: "SecondB three modes", body: "SecondB (knows you), MetaB (objective), TwB (creative). Switch between them as the moment needs." },
-];
+// KO copy renders straight from canonGaps (pixel contract, verbatim). Every other
+// language reads the deepspace keys below, index-aligned with the SAME canon
+// arrays (Q-261005-01 = A, R2B-03). Until 2026-10-06 these were EN mirrors in
+// this file, so es/pt/id fell back to English. The ko values of these keys
+// mirror the canon byte for byte (tr1-locale-copy.test.ts) and only keep the
+// five-locale key parity; the ko screen still reads the canon.
+//
+// HONESTY (audit follow-up) for support.faqs.call: transcription is cloud STT
+// through the spend-capped LLM proxy, not on-device; the old copy claimed
+// on-device. What IS true: the original audio is deleted from the device right
+// after transcription.
+const GAPS_FAQ_KEYS = ["brightness", "plan", "call"] as const;
+const GAPS_NOTICE_KEYS = ["modes", "museum", "voice"] as const;
+const GAPS_FACT_KEYS = ["onDevice", "collect", "retention", "delete"] as const;
 
 // Map a canon Material-symbol icon name to a local CLONE_ICON glyph, falling
 // back to a sensible sparkle when a name has no glyph yet.
@@ -512,13 +459,13 @@ const gap = StyleSheet.create({
   tagText: { color: colors.cyanSoft, fontSize: 11 },
   factRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", paddingVertical: spacing.sm },
   factText: { flex: 1, gap: 2 },
-  conceptRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
-  conceptText: { flex: 1, gap: 3 },
 });
 
 export function DeepSpaceSupportDesignScreen() {
+  // Phone-aware: inside the dashboard phone, links open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const ko = renderedUiLanguage(i18n) === "ko";
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   return (
     <Shell title={t("support.title")}>
@@ -533,8 +480,9 @@ export function DeepSpaceSupportDesignScreen() {
       <Card>
         <Text variant="caption" style={styles.section}>{t("support.faqTitle")}</Text>
         {canonGaps.faqs.map((f, i) => {
-          const q = ko ? f.q : GAPS_FAQ_EN[i]?.q ?? f.q;
-          const a = ko ? f.a : GAPS_FAQ_EN[i]?.a ?? f.a;
+          const key = GAPS_FAQ_KEYS[i];
+          const q = ko || !key ? f.q : t(`support.faqs.${key}.q`);
+          const a = ko || !key ? f.a : t(`support.faqs.${key}.a`);
           const open = openFaq === i;
           return (
             <View key={f.q} style={[gap.row, i < canonGaps.faqs.length - 1 && gap.rowDivider]}>
@@ -558,8 +506,9 @@ export function DeepSpaceSupportDesignScreen() {
       <Card>
         <Text variant="caption" style={styles.section}>{t("support.noticesTitle")}</Text>
         {canonGaps.notices.map((n, i) => {
-          const title = ko ? n.t : GAPS_NOTICE_EN[i]?.t ?? n.t;
-          const tag = ko ? n.tag : GAPS_NOTICE_EN[i]?.tag ?? n.tag;
+          const key = GAPS_NOTICE_KEYS[i];
+          const title = ko || !key ? n.t : t(`support.notices.${key}.t`);
+          const tag = ko || !key ? n.tag : t(`support.notices.${key}.tag`);
           return (
             <View key={n.t} style={[gap.noticeRow, i < canonGaps.notices.length - 1 && gap.rowDivider]}>
               <View style={gap.tag}><Text variant="caption" style={gap.tagText}>{tag}</Text></View>
@@ -570,7 +519,7 @@ export function DeepSpaceSupportDesignScreen() {
         })}
       </Card>
 
-      <Text variant="subtle" style={styles.footer}>{t("support.footer")}</Text>
+      <Text variant="subtle" style={styles.footer}>{t("support.footer", { version: appVersion() ?? "?" })}</Text>
     </Shell>
   );
 }
@@ -595,7 +544,7 @@ export function DeepSpaceAccountDesignScreen() {
           <Action label={t("account.navPassword")} onPress={() => router.push("/change-password")} />
           <Action label={t("account.navSettings")} onPress={() => router.push("/settings")} />
           <Action label={t("account.navData")} onPress={() => router.push("/data")} />
-          <Action label="IDEN" onPress={() => router.push("/iden")} />
+          <Action label={t("account.navIden")} onPress={() => router.push("/iden")} />
           <Action label={t("account.navBeyond")} onPress={() => router.push("/beyond")} />
         </Card>
         {/* Build/OTA identifier — lets a tester confirm which bundle is live
@@ -606,12 +555,23 @@ export function DeepSpaceAccountDesignScreen() {
   );
 }
 
+// How long the privacy screen waits for the stored choices before it says it could not reach the
+// server. A connection that never answers otherwise left "loading" on screen for good.
+const PRIVACY_READ_TIMEOUT_MS = 10_000;
+
 export function DeepSpacePrivacyDesignScreen() {
+  // Phone-aware: links open in the phone; the post-deletion replace("/sign-in") still leaves it (auth exit path).
+  const startAtDelete = useStartAtEndWhen("section", "delete"); // the account screen's delete row lands on the delete card, the last one
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { t: consentT } = useTranslation("consent");
+  const { t: commonT } = useTranslation("common");
   const navigation = useNavigation();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const { userId, isMinor } = useAuth();
+  // Picks the canon fact copy and the consent-ledger locale below. Every other
+  // string on this screen reads a deepspace key, so es/pt/id see their own
+  // language (Q-261005-01 = A, R2B-03).
+  const ko = renderedUiLanguage(i18n) === "ko";
+  const { userId, isMinor, loading: authLoading } = useAuth();
   // AuthContext derives this from users.birth_date. Unknown age fails closed,
   // so Clarity/GA4 and ads cannot be enabled while the profile is resolving.
   const minor = isMinor !== false;
@@ -622,6 +582,17 @@ export function DeepSpacePrivacyDesignScreen() {
   const privacyMountedRef = useRef(true);
   const prefsRef = useRef<PrivacyPrefs | null>(null);
   const prefsUserRef = useRef<string | null>(null);
+  // The stored choices could not be read (an error, or no answer in time). The cards that show
+  // and save them stay closed until a read succeeds: this screen used to read fail-soft, so a
+  // failed read showed every choice OFF as if stored, and a save could start from that guess.
+  const [prefsReadFailed, setPrefsReadFailed] = useState(false);
+  const [prefsReload, setPrefsReload] = useState(0);
+  const showPrefs = (shown: PrivacyPrefs) => {
+    setAnalyticsOn(shown.external_analytics === true);
+    setAdsOn(shown.ads === true);
+    setRecOn(shown.recommendations === true);
+    setEmbedOn(shown.records_embedding === true);
+  };
   const [analyticsOn, setAnalyticsOn] = useState<boolean | null>(null);
   const [adsOn, setAdsOn] = useState<boolean | null>(null);
   const [externalError, setExternalError] = useState<{
@@ -636,7 +607,12 @@ export function DeepSpacePrivacyDesignScreen() {
   const [embedUnderstanding, setEmbedUnderstanding] = useState(false);
   const [embedErr, setEmbedErr] = useState(false);
   // Right-to-erasure in deep-space (was legacy-only). Terminal + irreversible, so
-  // it is gated behind a typed "DELETE" confirm and reuses the proven cascade.
+  // it is gated behind the displayed language's deletion word and the proven cascade.
+  const deleteConfirmLanguage = renderedUiLanguage(i18n);
+  const deleteConfirmWord = commonT("actions.delete").toLocaleUpperCase(deleteConfirmLanguage);
+  // A queued callback from a previous render cannot accept an old language's word.
+  const deleteConfirmWordRef = useRef(deleteConfirmWord);
+  deleteConfirmWordRef.current = deleteConfirmWord;
   const [delConfirm, setDelConfirm] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -649,6 +625,12 @@ export function DeepSpacePrivacyDesignScreen() {
   const deleteConfirmUserRef = useRef<string | null>(null);
 
   useEffect(() => {
+    setDelConfirm("");
+    setDeleteConfirmOpen(false);
+    deleteConfirmUserRef.current = null;
+  }, [deleteConfirmLanguage, deleteConfirmWord]);
+
+  useEffect(() => {
     privacyMountedRef.current = true;
     return () => {
       privacyMountedRef.current = false;
@@ -659,7 +641,8 @@ export function DeepSpacePrivacyDesignScreen() {
     if (
       !userId
       || deleteInFlightRef.current
-      || delConfirm !== "DELETE"
+      || delConfirm !== deleteConfirmWord
+      || deleteConfirmWordRef.current !== deleteConfirmWord
       || deleteConfirmUserRef.current !== userId
     ) return;
     const targetUserId = userId;
@@ -683,10 +666,10 @@ export function DeepSpacePrivacyDesignScreen() {
       receipt = await requestAccountDeletion(authExpectation);
     } catch {
       deleteInFlightRef.current = false;
-      if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
-        setDelError(true);
-        setDeleting(false);
-      }
+      // Lift the fence whoever owns the screen now: a stuck `deleting` exempts a signed-out visitor from the guard below.
+      if (privacyMountedRef.current) setDeleting(false);
+      // Only the account that asked sees its failure.
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setDelError(true);
       return;
     }
 
@@ -743,14 +726,14 @@ export function DeepSpacePrivacyDesignScreen() {
   }
 
   function requestDeleteAccountConfirm() {
-    if (!userId || deleteInFlightRef.current || delConfirm !== "DELETE") return;
+    if (!userId || deleteInFlightRef.current || delConfirm !== deleteConfirmWord
+      || deleteConfirmWordRef.current !== deleteConfirmWord) return;
     deleteConfirmUserRef.current = userId;
     setDeleteConfirmOpen(true);
   }
 
-  // Shell's top back action and persistent dock both remove this route. Once
-  // the user confirms terminal erasure, keep the screen mounted until the Edge
-  // Function reports success/failure so navigation cannot strand a half-flow.
+  // Shell's top back action and persistent dock both remove this route. Once the user confirms terminal
+  // erasure, keep the screen mounted until the Edge Function reports success/failure so navigation cannot strand a half-flow.
   useEffect(() => {
     // Register once instead of waiting for the deleting-state render. The ref
     // flips synchronously inside runDeleteAccount, so even a same-frame dock tap
@@ -760,6 +743,7 @@ export function DeepSpacePrivacyDesignScreen() {
       event.preventDefault();
     });
   }, [navigation]);
+  useGoHomeStop(() => deleteInFlightRef.current && !allowDeletionNavigationRef.current); // gate NS-02
 
   useEffect(() => {
     prefsRef.current = null;
@@ -785,23 +769,36 @@ export function DeepSpacePrivacyDesignScreen() {
       setDelError(false);
       allowDeletionNavigationRef.current = false;
     }
+  }, [userId]);
+
+  useEffect(() => {
     if (!userId) return;
     const targetUserId = userId;
     let cancelled = false;
-    void fetchPrivacyPrefs(targetUserId).then((p) => {
-      if (!cancelled && activeUserRef.current === targetUserId) {
-        prefsRef.current = p;
-        prefsUserRef.current = targetUserId;
-        setAnalyticsOn(p.external_analytics === true);
-        setAdsOn(p.ads === true);
-        setRecOn(p.recommendations === true);
-        setEmbedOn(p.records_embedding === true);
-      }
-    });
+    setPrefsReadFailed(false);
+    void withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs").then(
+      (p) => {
+        if (cancelled || activeUserRef.current !== targetUserId) return;
+        // A save or a strict read on this screen (the health card) may have landed first;
+        // this read is older then and must not become the copy saves start from.
+        if (prefsUserRef.current !== targetUserId) {
+          prefsRef.current = p;
+          prefsUserRef.current = targetUserId;
+        }
+        showPrefs(prefsRef.current ?? p);
+      },
+      () => {
+        if (cancelled || activeUserRef.current !== targetUserId) return;
+        // The health card's own strict read may already know the stored choices.
+        if (prefsUserRef.current === targetUserId && prefsRef.current) showPrefs(prefsRef.current);
+        else setPrefsReadFailed(true);
+      },
+    );
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+    // showPrefs only calls state setters; a new copy each render changes nothing the read needs.
+  }, [userId, prefsReload]);
 
   async function toggleExternalPreference(
     key: Extract<PrivacyPrefKey, "external_analytics" | "ads">,
@@ -821,7 +818,6 @@ export function DeepSpacePrivacyDesignScreen() {
     if (prefsRef.current[key] === next) return;
 
     const targetUserId = userId;
-    const updated: PrivacyPrefs = { ...prefsRef.current, [key]: next };
     setExternalError(null);
     setBusy(true);
 
@@ -835,16 +831,30 @@ export function DeepSpacePrivacyDesignScreen() {
     }
 
     try {
-      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en" });
+      // The stored choices at the moment of the press, read strictly: the save writes the whole
+      // object, so building it from the copy this screen read earlier would put back anything
+      // another device changed since, and the ledger (comparing with that same copy) would not
+      // show it. A failed read throws and nothing is saved.
+      const base = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
+      // Never for another account. A withdrawal is finished even if the screen was left during
+      // the read, like the other withdrawals on this screen; an opt-in is not started for a
+      // screen that is gone, or for an age that became minor or unknown during the read.
+      if (activeUserRef.current !== targetUserId) return;
+      if (next && (!privacyMountedRef.current || minorRef.current)) return;
+      const updated: PrivacyPrefs = { ...base, [key]: next };
+      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en", before: base });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       const effectiveNext = minorRef.current ? false : next;
       const committed: PrivacyPrefs = { ...updated, [key]: effectiveNext };
       // If age became unresolved/minor while an opt-in was saving, persist the
       // fail-closed value too instead of merely hiding a stale server grant.
-      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed, { locale: ko ? "ko" : "en" });
+      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed, { locale: ko ? "ko" : "en", before: updated });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = committed;
       prefsUserRef.current = targetUserId;
+      // The save started from the stored choices, which may differ from what was on screen:
+      // show all of them, so the toggles and the copy the next press checks agree.
+      showPrefs(committed);
       if (key === "external_analytics") {
         setAnalyticsOn(effectiveNext);
         setAnalyticsConsent(effectiveNext, {
@@ -853,6 +863,14 @@ export function DeepSpacePrivacyDesignScreen() {
         });
       } else {
         setAdsOn(effectiveNext);
+        // The saved choices can show analytics off (changed on another device). This device
+        // follows that off at once; it is never turned on from here.
+        if (committed.external_analytics !== true) {
+          setAnalyticsConsent(false, {
+            isMinor: minorRef.current,
+            confirmedAdult: minorRef.current === false,
+          });
+        }
       }
     } catch {
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
@@ -872,20 +890,22 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setRecError(false);
     try {
-      const current = await fetchPrivacyPrefs(targetUserId);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) return;
       const prefs = { ...current, recommendations: true };
-      await savePrivacyPrefs(targetUserId, prefs);
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false }, { before: prefs });
         return;
       }
       // recordConsentBestEffort retries, then REPORTS failure instead of
@@ -906,14 +926,14 @@ export function DeepSpacePrivacyDesignScreen() {
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false }, { before: prefs });
         return;
       }
       if (!consentRecorded) {
         // Same rollback the session guards above perform, for the same reason:
         // this is a state we must not leave behind. Retrying is the user's to
         // choose, and the existing error line already says to try again.
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false }, { before: prefs });
         setRecError(true);
         return;
       }
@@ -934,8 +954,11 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setRecError(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), recommendations: false };
-      await savePrivacyPrefs(targetUserId, prefs);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
+      const prefs = { ...current, recommendations: false };
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = prefs;
       prefsUserRef.current = targetUserId;
@@ -956,20 +979,22 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setEmbedErr(false);
     try {
-      const current = await fetchPrivacyPrefs(targetUserId);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) return;
       const prefs = { ...current, records_embedding: true };
-      await savePrivacyPrefs(targetUserId, prefs);
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, records_embedding: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, records_embedding: false }, { before: prefs });
         return;
       }
       prefsRef.current = prefs;
@@ -1016,8 +1041,11 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setEmbedErr(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), records_embedding: false };
-      await savePrivacyPrefs(targetUserId, prefs);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
+      const prefs = { ...current, records_embedding: false };
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       // Consent revoked → forget the index (honest "off deletes vectors").
       await clearRecordEmbeddings(targetUserId);
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
@@ -1032,21 +1060,34 @@ export function DeepSpacePrivacyDesignScreen() {
     }
   }
 
+  // Signed out, this screen used to draw the settings and wait forever on a
+  // birth date that never arrives; the redirect lived only in the legacy half.
+  // Every owner change, the deletion's own A -> null included, remounts this
+  // scene (AccountScope in _layout.tsx keys it by account epoch), so no state
+  // or ref reaches the next owner. `deleting` fences this instance only: a
+  // loading flip mid-deletion must not swap the flow out for the loader.
+  if (authLoading && !deleting) {
+    return <Shell title={t("privacy.title")}><GraphLoading /></Shell>;
+  }
+  if (!userId && !deleting) return <Redirect href="/sign-in" />;
+
   return (
-    <Shell title={t("privacy.title")}>
+    <Shell title={t("privacy.title")} scroll={startAtDelete}>
       <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
       <Text variant="body" style={styles.lead}>{t("privacy.lead")}</Text>
 
       <Card>
         <Action label={consentT("serviceControl.title")} value={t("privacy.view")} onPress={() => router.push("/service-consent")} />
+        <WeatherPrivacyControl />
       </Card>
 
       {/* 한눈에 / At a glance (canonGaps.privacyFacts) — icon + label + value. */}
       <Card>
-        <Text variant="caption" style={styles.section}>{ko ? "한눈에" : "At a glance"}</Text>
+        <Text variant="caption" style={styles.section}>{t("privacy.atGlance")}</Text>
         {canonGaps.privacyFacts.map((f, i) => {
-          const label = ko ? f.label : GAPS_FACT_EN[i]?.label ?? f.label;
-          const v = ko ? f.v : GAPS_FACT_EN[i]?.v ?? f.v;
+          const key = GAPS_FACT_KEYS[i];
+          const label = ko || !key ? f.label : t(`privacy.facts.${key}.label`);
+          const v = ko || !key ? f.v : t(`privacy.facts.${key}.v`);
           return (
             <View key={f.label} style={[gap.factRow, i < canonGaps.privacyFacts.length - 1 && gap.rowDivider]}>
               <CloneIcon name={gapGlyph(f.icon)} color={colors.cyanSoft} size={20} />
@@ -1059,49 +1100,44 @@ export function DeepSpacePrivacyDesignScreen() {
         })}
       </Card>
 
+      {prefsReadFailed ? (
+        // The stored choices were not read. Say so with the sentence the app already uses, offer
+        // another read, and show no control that could save from a guess.
+        <Card>
+          <Text variant="body" style={styles.lead}>{t("common:errors.network")}</Text>
+          <Pressable style={styles.secondary} onPress={() => setPrefsReload((n) => n + 1)} accessibilityRole="button">
+            <Text variant="body" style={styles.secondaryText}>{t("common:actions.retry")}</Text>
+          </Pressable>
+        </Card>
+      ) : (
+      <>
       <Card>
         <Text variant="caption" style={styles.section}>
-          {ko ? "사용 통계와 광고" : "Usage analytics and ads"}
+          {t("privacy.analytics.title")}
         </Text>
         <Text variant="body" style={styles.lead}>
           {isMinor === null
-            ? ko
-              ? "생년월일을 확인한 뒤 사용 통계와 광고 설정을 보여드려요."
-              : "Usage analytics and ad settings appear after your birth date is confirmed."
+            ? t("privacy.analytics.pendingAge")
             : minor
-            ? ko
-              ? "생년월일 기준 만 18세 미만은 사용 통계와 광고가 잠겨 있어요."
-              : "Usage analytics and ads are locked when the birth date shows an age under 18."
-            : ko
-              ? "선택 사항이며 설정은 저장돼요. 웹에서는 Google Analytics에 적용되고, Android의 Firebase Analytics와 Microsoft Clarity는 현재 비활성화되어 있어요."
-              : "Optional. Your choice is saved and applies to Google Analytics on the web. Firebase Analytics and Microsoft Clarity are currently disabled on Android."}
+            ? t("privacy.analytics.minorLocked")
+            : t("privacy.analytics.adultLead")}
         </Text>
         {analyticsOn === null || adsOn === null ? (
           <Text variant="subtle" style={styles.footer}>
             {isMinor === null
-              ? ko
-                ? "생년월일을 확인하는 중…"
-                : "Checking your birth date…"
-              : ko
-                ? "설정을 불러오는 중…"
-                : "Loading settings…"}
+              ? t("privacy.analytics.checkingAge")
+              : t("privacy.analytics.loadingSettings")}
           </Text>
         ) : (
           <>
             <Toggle
-              label={ko ? "사용 통계 허용" : "Allow usage analytics"}
+              label={t("privacy.analytics.allow")}
               value={
                 minor
-                  ? ko
-                    ? "만 18세 미만 잠금"
-                    : "Locked under 18"
+                  ? t("privacy.analytics.lockedUnder18")
                   : analyticsOn
-                    ? ko
-                      ? "웹 GA4 적용 · Android Firebase·Clarity 비활성"
-                      : "Web GA4 applied · Android Firebase and Clarity disabled"
-                    : ko
-                      ? "꺼짐"
-                      : "Off"
+                    ? t("privacy.analytics.applied")
+                    : t("privacy.off")
               }
               on={!minor && analyticsOn}
               disabled={minor || busy}
@@ -1113,9 +1149,7 @@ export function DeepSpacePrivacyDesignScreen() {
               label={consentT("privacy.keys.ads.label")}
               value={
                 minor
-                  ? ko
-                    ? "만 18세 미만 잠금"
-                    : "Locked under 18"
+                  ? t("privacy.analytics.lockedUnder18")
                   : adsOn
                     ? consentT("privacy.keys.ads.savedDesc")
                     : consentT("privacy.keys.ads.desc")
@@ -1130,114 +1164,139 @@ export function DeepSpacePrivacyDesignScreen() {
           <Text variant="subtle" style={styles.footer}>
             {externalError.key === "external_analytics"
               ? externalError.attemptedOn
-                ? ko
-                  ? "통계 설정을 켜지 못했어요. 다시 시도해 주세요."
-                  : "Couldn't enable analytics. Please try again."
-                : ko
-                  ? "저장에 실패했어요. 통계 철회는 이 기기에서 즉시 적용됐지만 다시 저장해 주세요."
-                  : "Couldn't save. Analytics withdrawal took effect on this device; please try saving again."
-              : ko
-                ? "광고 설정을 저장하지 못했어요. 다시 시도해 주세요."
-                : "Couldn't save the ads setting. Please try again."}
+                ? t("privacy.analytics.enableFailed")
+                : t("privacy.analytics.withdrawSaveFailed")
+              : t("privacy.analytics.adsSaveFailed")}
           </Text>
         ) : null}
       </Card>
 
       <Card>
-        <Text variant="caption" style={styles.section}>{ko ? "맞춤 추천" : "Recommendations"}</Text>
+        <Text variant="caption" style={styles.section}>{t("privacy.recommend.title")}</Text>
         {minor ? (
           <Text variant="subtle" style={styles.footer}>
-            {ko ? "맞춤 추천은 보호를 위해 꺼져 있고 켤 수 없어요." : "Recommendations are off and locked for your protection."}
+            {t("privacy.recommend.minorLocked")}
           </Text>
         ) : recOn === null ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
+          <Text variant="subtle" style={styles.footer}>{t("common:states.loading")}</Text>
         ) : recOn ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "켜져 있어요. 기록을 분석해 연결을 제안합니다." : "On. Your records are analyzed to suggest connections."}
+              {t("privacy.recommend.onBody")}
             </Text>
-            <Pressable style={styles.secondary} onPress={() => void disableRecommendations()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "추천 끄기" : "Turn off recommendations"}>
-              <Text variant="body" style={styles.secondaryText}>{ko ? "추천 끄기" : "Turn off"}</Text>
+            <Pressable style={styles.secondary} onPress={() => void disableRecommendations()} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.recommend.turnOffA11y")}>
+              <Text variant="body" style={styles.secondaryText}>{t("privacy.recommend.turnOff")}</Text>
             </Pressable>
           </>
         ) : !understanding ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "꺼져 있어요. 켜면 기록에서 연결·패턴을 제안받을 수 있어요." : "Off. Turn it on to get suggested connections from your records."}
+              {t("privacy.recommend.offBody")}
             </Text>
-            <Pressable style={styles.secondary} onPress={() => setUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "추천 켜기" : "Turn on recommendations"}>
-              <Text variant="body" style={styles.secondaryText}>{ko ? "추천 켜기" : "Turn on"}</Text>
+            <Pressable style={styles.secondary} onPress={() => setUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.recommend.turnOnA11y")}>
+              <Text variant="body" style={styles.secondaryText}>{t("privacy.recommend.turnOn")}</Text>
             </Pressable>
           </>
         ) : (
           <>
+            {/* The overseas-processing disclosure stays KO/EN on purpose. It is
+                cross-border consent copy (F2: never machine-translated until a
+                human reviews it), and recordRecommendationsConsent logs the
+                consent with locale ko or en, so an es/pt/id rendering here
+                would not match what the ledger says the person read. The
+                buttons around it are translated. */}
             <Text variant="body" style={styles.lead}>
               {ko
-                ? `켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 ${recommendationVendorLabel()} 서버로 전송돼요(해외에서 처리). 연결·패턴 제안에만 쓰이고 언제든 끌 수 있어요. 동의는 기록에 남습니다.`
+                ? `켜기 전에 알아두세요. 추천을 켜면 당신의 기록 묶음이 분석을 위해 ${recommendationVendorLabel()} 서버로 전송됩니다(해외에서 처리). 연결·패턴 제안에만 쓰이고 언제든 끌 수 있습니다. 동의는 기록에 남습니다.`
                 : `Before you turn it on. Your records are sent to ${recommendationVendorLabel()} for analysis (processed overseas), used only to suggest connections and patterns. You can turn it off anytime. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>
-              <Pressable style={styles.secondary} onPress={() => setUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "취소" : "Cancel"}>
-                <Text variant="body" style={styles.secondaryText}>{ko ? "취소" : "Cancel"}</Text>
+              <Pressable style={styles.secondary} onPress={() => setUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("common:actions.cancel")}>
+                <Text variant="body" style={styles.secondaryText}>{t("common:actions.cancel")}</Text>
               </Pressable>
-              <Pressable style={styles.primary} onPress={() => void enableRecommendations()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "이해했고 켭니다" : "I understand, turn it on"}>
-                <Text variant="body" style={styles.primaryText}>{ko ? "이해했고 켜기" : "I understand, turn on"}</Text>
+              <Pressable style={styles.primary} onPress={() => void enableRecommendations()} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.understandA11y")}>
+                <Text variant="body" style={styles.primaryText}>{t("privacy.understand")}</Text>
               </Pressable>
             </View>
           </>
         )}
         {recError ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "저장에 실패했어요. 잠시 후 다시 시도해 주세요." : "Couldn't save. Please try again."}</Text>
+          <Text variant="subtle" style={styles.footer}>{t("privacy.saveFailed")}</Text>
         ) : null}
       </Card>
 
       <Card>
-        <Text variant="caption" style={styles.section}>{ko ? "기록 의미 연결" : "Semantic record connections"}</Text>
+        <Text variant="caption" style={styles.section}>{t("privacy.semantic.title")}</Text>
         {minor ? (
           <Text variant="subtle" style={styles.footer}>
-            {ko ? "기록 의미 연결은 보호를 위해 꺼져 있고 켤 수 없어요." : "Semantic connections are off and locked for your protection."}
+            {t("privacy.semantic.minorLocked")}
           </Text>
         ) : embedOn === null ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "불러오는 중…" : "Loading…"}</Text>
+          <Text variant="subtle" style={styles.footer}>{t("common:states.loading")}</Text>
         ) : embedOn ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "켜져 있어요. 기록을 의미로 색인해 비슷한 기록을 이어 보여줘요." : "On. Records are indexed by meaning to surface similar ones."}
+              {t("privacy.semantic.onBody")}
             </Text>
-            <Pressable style={styles.secondary} onPress={() => void disableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "의미 연결 끄기" : "Turn off semantic connections"}>
-              <Text variant="body" style={styles.secondaryText}>{ko ? "끄고 벡터 삭제" : "Turn off and delete vectors"}</Text>
+            <Pressable style={styles.secondary} onPress={() => void disableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.semantic.turnOffA11y")}>
+              <Text variant="body" style={styles.secondaryText}>{t("privacy.semantic.turnOff")}</Text>
             </Pressable>
           </>
         ) : !embedUnderstanding ? (
           <>
             <Text variant="body" style={styles.lead}>
-              {ko ? "꺼져 있어요. 켜면 태그가 겹치지 않아도 의미가 비슷한 기록을 이어 보여줘요." : "Off. Turn it on to connect records that are similar in meaning, even without shared tags."}
+              {t("privacy.semantic.offBody")}
             </Text>
-            <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "의미 연결 켜기" : "Turn on semantic connections"}>
-              <Text variant="body" style={styles.secondaryText}>{ko ? "의미 연결 켜기" : "Turn on"}</Text>
+            <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.semantic.turnOnA11y")}>
+              <Text variant="body" style={styles.secondaryText}>{t("privacy.semantic.turnOn")}</Text>
             </Pressable>
           </>
         ) : (
           <>
+            {/* Stays KO/EN for the same F2 reason as the recommendations
+                disclosure above: cross-border consent copy. The consent row
+                this toggle writes (savePrivacyPrefs, no locale passed) records
+                locale "en", so it has no es/pt/id reading to match either. */}
             <Text variant="body" style={styles.lead}>
               {ko
-                ? `켜기 전에 알아두세요. 켜면 지금까지 담아 둔 기록과 앞으로 담는 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드려요. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않아요. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제돼요. 동의는 기록에 남습니다.`
+                ? `켜기 전에 알아두세요. 켜면 지금까지 저장한 기록과 앞으로 저장할 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드립니다. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않습니다. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제됩니다. 동의는 기록에 남습니다.`
                 : `Before you turn it on. Your existing records and every new record will be turned into meaning vectors and stored so similar records can be linked. To do that, record text is sent to ${embedVendorLabel()} (processed overseas). Crisis-related content is not sent. Adults only; turning it off stops indexing and deletes the stored vectors. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>
-              <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "취소" : "Cancel"}>
-                <Text variant="body" style={styles.secondaryText}>{ko ? "취소" : "Cancel"}</Text>
+              <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("common:actions.cancel")}>
+                <Text variant="body" style={styles.secondaryText}>{t("common:actions.cancel")}</Text>
               </Pressable>
-              <Pressable style={styles.primary} onPress={() => void enableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "이해했고 켭니다" : "I understand, turn it on"}>
-                <Text variant="body" style={styles.primaryText}>{ko ? "이해했고 켜기" : "I understand, turn on"}</Text>
+              <Pressable style={styles.primary} onPress={() => void enableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.understandA11y")}>
+                <Text variant="body" style={styles.primaryText}>{t("privacy.understand")}</Text>
               </Pressable>
             </View>
           </>
         )}
         {embedErr ? (
-          <Text variant="subtle" style={styles.footer}>{ko ? "저장에 실패했어요. 잠시 후 다시 시도해 주세요." : "Couldn't save. Please try again."}</Text>
+          <Text variant="subtle" style={styles.footer}>{t("privacy.saveFailed")}</Text>
         ) : null}
       </Card>
+      </>
+      )}
+
+      <HealthWithdrawCard
+        busy={busy}
+        onBusyChange={setBusy}
+        onOpenImport={() => router.push("/import?mode=account")}
+        onPrefsKnown={(ownerId, known) => {
+          if (activeUserRef.current !== ownerId) return;
+          prefsRef.current = known;
+          prefsUserRef.current = ownerId;
+          // The screen's own read may have failed while this one got through: show what it read.
+          if (prefsReadFailed) {
+            showPrefs(known);
+            setPrefsReadFailed(false);
+          }
+        }}
+        onPrefsUnknown={(ownerId) => {
+          if (prefsUserRef.current === ownerId) prefsUserRef.current = null;
+        }}
+      />
 
       <Card>
         {/* audit med#17: these rows rendered as buttons with no onPress — dead
@@ -1258,24 +1317,23 @@ export function DeepSpacePrivacyDesignScreen() {
       </Card>
 
       <Card>
-        <Text variant="caption" style={styles.section}>{ko ? "계정 삭제" : "Delete account"}</Text>
+        <Text variant="caption" style={styles.section}>{t("account.delete")}</Text>
         <Text variant="subtle" style={styles.footer}>
-          {ko
-            ? "기록·캡처·위키·세컨비 사용량과 계정이 영구 삭제돼요. 되돌릴 수 없어요. 필요한 내용은 먼저 내보내기로 챙겨두세요."
-            : "Your records, captures, wiki, usage and account are permanently erased. This cannot be undone. Export anything you need first."}
+          {t("privacy.deleteAccount.body")}
         </Text>
+        {/* The displayed word is the same value checked by both destructive-action gates. */}
         <Text variant="subtle" style={styles.footer}>
-          {ko ? '진행하려면 "DELETE" 라고 입력하세요.' : 'Type "DELETE" to proceed.'}
+          {t("privacy.deleteAccount.typePrompt", { phrase: deleteConfirmWord })}
         </Text>
         <TextInput
           value={delConfirm}
           onChangeText={setDelConfirm}
-          placeholder="DELETE"
+          autoComplete="off"
           placeholderTextColor={colors.textLo}
           autoCapitalize="characters"
           autoCorrect={false}
           style={styles.input}
-          accessibilityLabel={ko ? "삭제 확인 입력" : "Deletion confirmation"}
+          accessibilityLabel={t("privacy.deleteAccount.inputA11y")}
           returnKeyType="done"
           onSubmitEditing={() => {
             requestDeleteAccountConfirm();
@@ -1286,25 +1344,23 @@ export function DeepSpacePrivacyDesignScreen() {
             styles.danger,
             // ⚠ 비활성은 **미리 합성한 색 한 쌍**이다(PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
             //   바탕만 바꾸고 글자를 그대로 두면 비활성이 활성보다 또렷해진다.
-            (delConfirm !== "DELETE" || deleting) && {
+            (delConfirm !== deleteConfirmWord || deleting) && {
               backgroundColor: m3.disabled.primary,
               borderColor: m3.disabled.outline,
             },
           ]}
           onPress={requestDeleteAccountConfirm}
-          disabled={delConfirm !== "DELETE" || deleting}
+          disabled={delConfirm !== deleteConfirmWord || deleting}
           accessibilityRole="button"
-          accessibilityLabel={ko ? "계정 영구 삭제" : "Delete account permanently"}
+          accessibilityLabel={t("privacy.deleteAccount.buttonA11y")}
         >
           <Text variant="body" style={styles.dangerText}>
-            {deleting ? (ko ? "삭제 중…" : "Deleting…") : ko ? "계정 영구 삭제" : "Delete account"}
+            {deleting ? t("privacy.deleteAccount.deleting") : t("privacy.deleteAccount.button")}
           </Text>
         </Pressable>
         {delError ? (
           <Text variant="subtle" style={styles.footer}>
-            {ko
-              ? "삭제를 끝내지 못했어요. 일부 데이터가 남아 있을 수 있어요. 잠시 후 다시 시도해 주세요."
-              : "Couldn't finish deletion. Some data may remain. Please try again shortly."}
+            {t("privacy.deleteAccount.failed")}
           </Text>
         ) : null}
       </Card>
@@ -1343,8 +1399,9 @@ export function DeepSpacePrivacyDesignScreen() {
 }
 
 export function DeepSpaceInsightsScreen() {
-  const { t, i18n } = useTranslation("deepspace");
-  const ko = i18n.language === "ko";
+  // Phone-aware: inside the dashboard phone, the cards open in the phone.
+  const router = useAppRouter();
+  const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
 
   // Real week-over-week data. We reuse listRecentRecords (the same client other
@@ -1588,20 +1645,20 @@ export function DeepSpaceDataDesignScreen() {
   const rights: { icon: CloneIconName; label: string; sub: string; route: string; danger?: boolean }[] = [
     { icon: "download", label: ko ? "내 데이터 전체 내보내기" : "Export all my data", sub: ko ? "IDEN · 원문 · 파생 신호" : "IDEN, raw, derived signals", route: "/iden" },
     { icon: "cloud_off", label: ko ? "파생 신호만 초기화" : "Reset derived signals only", sub: ko ? "원문은 두고 추정만 지우기" : "Keep raw, clear inferences", route: "/privacy" },
-    { icon: "trash", label: ko ? "계정·데이터 영구 삭제" : "Delete account and data", sub: ko ? "되돌릴 수 없어요" : "This cannot be undone", route: "/privacy", danger: true },
+    { icon: "trash", label: ko ? "계정·데이터 영구 삭제" : "Delete account and data", sub: ko ? "되돌릴 수 없습니다" : "This cannot be undone", route: "/privacy", danger: true },
   ];
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={ko ? "내 데이터 리뷰" : "My data review"} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={cx.body} keyboardShouldPersistTaps="handled">
-        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{ko ? "내 데이터가 어떻게 쓰이는지 전부 보여줘요. 무엇이든 열람하고 지울 수 있어요." : "I show exactly how your data is used. You can open and delete anything."}</RNText>
+        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{ko ? "내 데이터가 어떻게 쓰이는지 전부 보여줍니다. 무엇이든 열람하고 지울 수 있습니다." : "I show exactly how your data is used. You can open and delete anything."}</RNText>
 
         <MdCard variant="outlined" style={cx.sourceCard}>
           <RNText style={[m3TextStyle("titleSmall"), cx.signalTo]}>
-            {ko ? "아직 모아둔 데이터가 없어요" : "No data gathered yet"}
+            {ko ? "아직 모아둔 데이터가 없습니다" : "No data gathered yet"}
           </RNText>
           <RNText style={[m3TextStyle("bodySmall"), cx.lead]}>
             {ko
-              ? "기록이 쌓이면 원문 조각과 파생 신호를 여기서 열람하고 지울 수 있어요."
+              ? "기록이 쌓이면 원문 조각과 파생 신호를 여기서 열람하고 지울 수 있습니다."
               : "As your records build up, you can review and delete the raw pieces and derived signals here."}
           </RNText>
         </MdCard>
@@ -1649,24 +1706,16 @@ function SelectRow({ selected, label, onPress }: { selected: boolean; label: str
 
 export function DeepSpaceThemeScreen() {
   const { t } = useTranslation("deepspace");
-  // Same hooks the legacy ThemeScreenLegacy (src/app/theme.tsx) drives, so the
-  // deep-space rows read and write the real settings. Theme labels map to the
-  // ThemeContext modes: 딥스페이스 = dark (default), 미드나잇 = light.
-  const { mode, setMode } = useTheme();
+  // The rows read and write the real settings. The dark/light section (딥스페이스
+  // / 미드나잇 and its "applies to some screens only" note) is gone: Simon removed
+  // the choice (Q-261005-02, 2026-10-05) and the app is always dark, so this
+  // screen is font + motion (and, since #2082, sound effects). The route stays /theme.
   const { fontStyle, setFontStyle } = useFontStyle();
   const { liteMode, setLiteMode } = useLiteMode();
+  const { soundEffects, setSoundEffects } = useSoundEffects();
   return (
     <Shell title={t("theme.title")}>
       <SecondbStatusHeader text={t("theme.status")} tip={t("theme.tip")} />
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("theme.sectionTheme")}</Text>
-        <SelectRow selected={mode === "dark"} label={t("theme.themeDeepspace")} onPress={() => setMode("dark")} />
-        <SelectRow selected={mode === "light"} label={t("theme.themeMidnight")} onPress={() => setMode("light")} />
-        {/* audit med#19: the pick persists (ThemeContext) but deep-space
-            surfaces read the static m3 palette at module scope, so 미드나잇
-            visibly changes little today — say so instead of looking broken. */}
-        <Text variant="subtle" style={styles.footer}>{t("theme.midnightNote")}</Text>
-      </Card>
       <Card>
         <Text variant="heading" style={styles.section}>{t("theme.sectionFont")}</Text>
         <SelectRow selected={fontStyle === "pixel"} label={t("theme.fontPixel")} onPress={() => setFontStyle("pixel")} />
@@ -1678,63 +1727,10 @@ export function DeepSpaceThemeScreen() {
           the one real control here, wired to lite mode (motion chokepoint). */}
       <Card>
         <Toggle label={t("theme.reduceMotion")} on={liteMode} onPress={() => setLiteMode(!liteMode)} />
+        {/* Q-261005-02 (2026-10-05): sound effects on by default; off silences every effect player. */}
+        <Toggle label={t("theme.soundEffects")} on={soundEffects} onPress={() => setSoundEffects(!soundEffects)} />
+        <Text variant="subtle" style={styles.footer}>{t("theme.soundEffectsNote")}</Text>
       </Card>
-    </Shell>
-  );
-}
-
-export function DeepSpaceManualScreen() {
-  const { t, i18n } = useTranslation("deepspace");
-  const { userId } = useAuth();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  return (
-    <Shell title={t("manual.title")}>
-      <SecondbStatusHeader text={t("manual.status")} tip={t("manual.tip")} />
-      <View style={styles.searchBox}><Text variant="body" style={styles.searchText}>{t("manual.search")}</Text></View>
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("manual.sectionStart")}</Text>
-        <Action label={t("manual.q1")} onPress={() => router.push("/support")} />
-        <Action label={t("manual.q2")} onPress={() => router.push("/support")} />
-        <Action label={t("manual.q3")} onPress={() => router.push("/support")} />
-      </Card>
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("manual.sectionData")}</Text>
-        <Action label={t("manual.q4")} onPress={() => router.push("/support")} />
-        <Action label={t("manual.q5")} onPress={() => router.push("/support")} />
-        <Action label={t("manual.askDirect")} onPress={() => router.push('/secondb')} />
-        {/* 홈 코치마크 다시 보기 — 레퍼런스가 안내서에 두는 줄이다.
-            같은 기능이 `/settings` 에도 있고 **거기 것을 없애지 않았다**. 설정에서
-            "리셋"을 찾는 것과 안내서에서 "다시 보기"를 찾는 것은 다른 행동이라
-            문이 둘인 편이 맞다. 동작은 하나다 — 이 계정의 다시 보기를 켜고 홈으로 돌아가면
-            다음 홈 방문에서 4단계 가이드가 다시 재생된다. */}
-        <Action
-          label={t("manual.replayCoachmarks")}
-          onPress={() => {
-            if (userId) {
-              resetCoachmarks(userId);
-              router.replace("/");
-            }
-          }}
-        />
-      </Card>
-
-      {/* 핵심 개념 / Core concepts (canonGaps.manualConcepts) — icon + title + body. */}
-      <Text variant="heading" style={styles.section}>{t("manual.conceptsTitle")}</Text>
-      {canonGaps.manualConcepts.map((c, i) => {
-        const title = ko ? c.title : GAPS_CONCEPT_EN[i]?.title ?? c.title;
-        const body = ko ? c.body : GAPS_CONCEPT_EN[i]?.body ?? c.body;
-        return (
-          <Card key={c.title}>
-            <View style={gap.conceptRow}>
-              <CloneIcon name={gapGlyph(c.icon)} color={colors.cyanSoft} size={20} />
-              <View style={gap.conceptText}>
-                <Text variant="body" style={styles.actionLabel}>{title}</Text>
-                <Text variant="body" style={styles.planFeatDim}>{body}</Text>
-              </View>
-            </View>
-          </Card>
-        );
-      })}
     </Shell>
   );
 }
@@ -1812,6 +1808,8 @@ function PermissionRow({ kind, label, value }: { kind: keyof typeof permissionAd
 }
 
 export function DeepSpacePermissionsScreen() {
+  // Phone-aware: "continue" steps the phone back instead of leaving the dashboard.
+  const router = useAppRouter();
   const { t } = useTranslation("deepspace");
   // Web has no equivalent OS permission model for these capture features, so the
   // rows are hidden there rather than shown as controls that cannot act.
@@ -1852,6 +1850,7 @@ export function DeepSpacePermissionsScreen() {
 // Counts, not percentages: a tag that went 0 -> 3 has no meaningful percentage, and
 // inventing one would repeat the original sin in a smaller font.
 export function DeepSpaceDiscoverScreen() {
+  const router = useAppRouter(); // Phone-aware: inside the dashboard phone, the cards open in the phone.
   const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
   // undefined = still loading, null = the read failed, [] = genuinely nothing yet.
@@ -1917,6 +1916,8 @@ interface DeepSpaceReviewSessionProps {
   isMinor: boolean | null;
 }
 
+const RATIFY_L5_CUE_DELAY_MS = 400;
+
 export function DeepSpaceReviewScreen() {
   const { userId, isMinor } = useAuth();
   // A keyed ownership boundary prevents an in-flight proposal for user A from
@@ -1927,7 +1928,9 @@ export function DeepSpaceReviewScreen() {
 }
 
 function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps) {
+  const router = useAppRouter(); // Phone-aware: inside the dashboard phone, a cited record opens in the phone.
   const { t, i18n } = useTranslation("deepspace");
+  const playRatifyCue = useUiSound(RATIFY_L5_CUE.source, RATIFY_L5_CUE);
   // 시기 별 버튼의 이름은 홈 별자리와 **같은 키**에서 온다 -- 화면마다 다른
   // 이름을 배우면 사용자는 같은 별을 두 개로 안다.
   const { t: tHome } = useTranslation("home");
@@ -1952,6 +1955,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const ratifyPendingRef = useRef(false);
+  const clearProposalAfterExit = useRef(false);
   const [ratifyPending, setRatifyPending] = useState(false);
 
   // 무엇을 되돌릴 수 있는가는 카드가 정한다. 예전에는 이 화면이 `"now"` 를
@@ -2009,6 +2013,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         setCurrentLevel(nextCurrentLevel);
         setEvidenceRefs(nextEvidenceRefs);
         setReceipts(nextReceipts);
+        clearProposalAfterExit.current = false;
         setProposal(p);
         setSheetOpen(true);
       } else {
@@ -2048,6 +2053,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         setCurrentLevel(ctx.currentLevel);
         setEvidenceRefs(ctx.evidenceRefs);
         setReceipts(nextReceipts);
+        clearProposalAfterExit.current = false;
         setProposal(p);
         setSheetOpen(true);
       } else {
@@ -2071,7 +2077,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
           proposalDecided({ flow: "self_model", decision: decision === "ratify" ? "ratify" : "decline", count: 1 }),
         );
         if (decision === "decline") {
-          setProposal(null);
+          clearProposalAfterExit.current = true;
           setSheetOpen(false);
           setResult(t("reviewLeftAsIs"));
           return;
@@ -2088,14 +2094,22 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
             citations: evidenceRefs,
           });
         }
+        let l5Cue = false;
         if (userId && proposal?.target.kind === "sevenStar") {
+          // L5 소리(Q-261006-01)는 처음 L5 가 될 때만 난다. 이미 비준한 별을 다시 비준하면
+          // 무음이라, 쓰기 전에 지금 비준 원장을 먼저 읽는다(쓴 뒤에 읽으면 새 행이 보인다).
+          const wasL5Before = (await loadSevenRatified(userId))[proposal.target.star] === 5;
           // ⚠ recordStarTiers 재사용 금지 -- 그쪽 마일스톤이 옛 일곱 기준이라 새 키를
           // 넘기면 조용히 틀린 숫자가 나간다(seven-tier-history.ts 헤더). 새 별 비준은
           // seven: 접두사를 다는 자기 경로로만 원장에 남는다. 인용 규율(0060)은 동일.
           persisted = await recordSevenTiers(userId, { [proposal.target.star]: r.resultingLevel }, "ratify", evidenceRefs);
+          l5Cue = ratifyL5CueAllowed({ decision, targetKind: "sevenStar", persisted, wasL5Before });
         }
         setSheetOpen(false);
-        if (persisted) setProposal(null);
+        // 비준 시트는 네이티브 Modal 이라 안드로이드에서 닫히는 동안 창 포커스가 돌아오지 않아
+        // 소리 관문이 막힐 수 있다. 시트가 닫힌 뒤에 울린다.
+        if (l5Cue) setTimeout(playRatifyCue, RATIFY_L5_CUE_DELAY_MS);
+        if (persisted) clearProposalAfterExit.current = true;
         setResult(
           persisted
             ? t("reviewRatifiedMoved", { level: r.resultingLevel })
@@ -2224,8 +2238,10 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         </Card>
       ) : null}
       {/* 거절도 승인도 이력에 남는다는 것을 화면 끝에서 한 번 더 말한다 —
-          되돌릴 수 있다는 확신이 있어야 사람이 솔직하게 아니라고 한다. */}
-      <Text variant="subtle" style={styles.footer}>{t("review.ledgerNote")}</Text>
+          되돌릴 수 있다는 확신이 있어야 사람이 솔직하게 아니라고 한다.
+          설계 대화 발주 a(2026-10-07): 그 이력 원장이 아직 없어 사실과 다른 말이라 내린다.
+          키(review.ledgerNote)는 남겨 두고, 원장이 생기면 REVIEW_LEDGER_NOTE 를 true 로 되돌린다. */}
+      {REVIEW_LEDGER_NOTE ? <Text variant="subtle" style={styles.footer}>{t("review.ledgerNote")}</Text> : null}
       <RatifySheet
         proposal={proposal}
         locale={locale}
@@ -2233,6 +2249,12 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         pending={ratifyPending}
         pendingLabel={t("career.saving")}
         onDecision={handleDecision}
+        onHidden={() => {
+          if (clearProposalAfterExit.current) {
+            clearProposalAfterExit.current = false;
+            setProposal(null);
+          }
+        }}
         onClose={() => {
           if (!ratifyPendingRef.current) setSheetOpen(false);
         }}
@@ -2241,7 +2263,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
   );
 }
 
-export { DeepSpaceInboxScreen, DeepSpaceImportScreen } from "./dds-import-inbox-screens";
+export { DeepSpaceImportScreen } from "./dds-import-inbox-screens";
 
 // Fixed satellite slots around the central god-node; we light up as many as
 // there are real hubs (capped at 4). STEP 3 will replace this with true
@@ -2254,7 +2276,9 @@ const RESEARCH_SAT = [
 ] as const;
 
 export function DeepSpaceResearchScreen() {
+  const router = useAppRouter(); // Phone-aware: inside the dashboard phone, links and proposals open in the phone.
   const { t, i18n } = useTranslation("deepspace");
+  const playLinkCue = useUiSound(WIKI_LINK_CUE.source, WIKI_LINK_CUE);
   // D-27 Phase 1c: the research view runs on RECORDS, the ratified node-set.
   // It used to read useWikiGraphData(), and wiki_pages has never held a single
   // row in production — so this screen told users with hundreds of records
@@ -2264,21 +2288,27 @@ export function DeepSpaceResearchScreen() {
   // orphans / islands all keep working, now over real data. $0: pure tag
   // overlap, no LLM and no embeddings (the kNN layer stays consent-gated).
   const { userId, loading: authLoading } = useAuth();
-  const [records, setRecords] = useState<GraphRecord[] | null>(null);
+  // Every load below is held WITH the account it was loaded for, and read back
+  // only while that account is still the one signed in. The route can stay
+  // mounted across an account change (A out, B in); a bare value kept A's
+  // records, tag chips and link proposals on B's screen until B's own loads
+  // answered (QA 261004 SG-02). A different owner reads as "not loaded yet".
+  const [heldRecords, setHeldRecords] = useState<{ ownerId: string; rows: GraphRecord[] } | null>(null);
   useEffect(() => {
     if (!userId) return;
     let alive = true;
     void listRecentRecords(userId)
       .then((rows) => {
-        if (alive) setRecords(rows as GraphRecord[]);
+        if (alive) setHeldRecords({ ownerId: userId, rows: rows as GraphRecord[] });
       })
       .catch(() => {
-        if (alive) setRecords([]);
+        if (alive) setHeldRecords({ ownerId: userId, rows: [] });
       });
     return () => {
       alive = false;
     };
   }, [userId]);
+  const records = heldRecords !== null && userId !== null && heldRecords.ownerId === userId ? heldRecords.rows : null;
   const loading = userId != null && records === null;
   const view = useMemo(() => {
     const graph = recordsToResearchGraph(records ?? [], {
@@ -2289,10 +2319,14 @@ export function DeepSpaceResearchScreen() {
   // Cluster chip selection. The research view derives from graph-stats (no
   // server-side re-cluster), so selecting a chip drives the highlight + the
   // graph's focused tag label rather than refetching.
-  const [activeCluster, setActiveCluster] = useState<string | null>(null);
+  // The picked chip is one of the owner's own tag names, and the graph caption
+  // prints it, so it is held with its owner like the records it came from.
+  const [clusterPick, setClusterPick] = useState<{ ownerId: string; tag: string } | null>(null);
+  const activeCluster = clusterPick !== null && userId !== null && clusterPick.ownerId === userId ? clusterPick.tag : null;
 
   // propose->ratify: AI-proposed (inferred) links awaiting the user's verdict.
-  const [proposals, setProposals] = useState<InferredLinkDetail[]>([]);
+  const [heldProposals, setHeldProposals] = useState<{ ownerId: string; rows: InferredLinkDetail[] } | null>(null);
+  const proposals = heldProposals !== null && userId !== null && heldProposals.ownerId === userId ? heldProposals.rows : [];
   const [proposing, setProposing] = useState(false);
   const [actingKey, setActingKey] = useState<string | null>(null);
   // Screen-reader feedback for ratify/reject: the row removal alone is silent,
@@ -2300,16 +2334,21 @@ export function DeepSpaceResearchScreen() {
   const [announce, setAnnounce] = useState("");
 
   const loadProposals = useMemo(
-    () => async (uid: string) => {
+    () => async (uid: string, current: () => boolean = () => true) => {
       const rows = await listInferredLinkDetails(uid).catch(() => [] as InferredLinkDetail[]);
-      setProposals(rows);
+      if (current()) setHeldProposals({ ownerId: uid, rows });
     },
     [],
   );
 
   useEffect(() => {
     if (!userId) return;
-    void loadProposals(userId);
+    // A slow answer for the previous owner must not land after this owner's.
+    let alive = true;
+    void loadProposals(userId, () => alive);
+    return () => {
+      alive = false;
+    };
   }, [userId, loadProposals]);
 
   async function findProposals() {
@@ -2354,6 +2393,7 @@ export function DeepSpaceResearchScreen() {
       await ratifyLink(userId, p.from_page, p.to_page);
       // 승인 = the app-wide ratify wink.
       reactExpression("wink");
+      playLinkCue(); // 위키 연결 확인 소리(Q-261006-14)
       setAnnounce(t("connectionConfirmed"));
       await loadProposals(userId);
     } catch {
@@ -2419,7 +2459,7 @@ export function DeepSpaceResearchScreen() {
                   label={`${c.tag} · ${c.count}`}
                   active={activeCluster === c.tag}
                   violet={activeCluster === null ? i === 0 : false}
-                  onPress={() => setActiveCluster((prev) => (prev === c.tag ? null : c.tag))}
+                  onPress={() => setClusterPick(activeCluster === c.tag ? null : { ownerId: userId, tag: c.tag })}
                 />
               ))}
             </View>
@@ -2566,7 +2606,7 @@ const FORMAT_CARDS: { id: ExportFormat; name: string; descKey: string }[] = [
 
 export function DeepSpaceFormatsScreen() {
   const { t, i18n } = useTranslation("deepspace");
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, loading: authLoading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [format, setFormat] = useState<ExportFormat>("iden");
@@ -2576,22 +2616,27 @@ export function DeepSpaceFormatsScreen() {
   const [note, setNote] = useState<"copied" | "copyFailed" | "error" | null>(null);
 
   async function runExport() {
-    if (!userId || exporting) return;
+    // C10 / DPIA 5A-R7: .iden, HTML and JSON all build the persona (exportIden /
+    // buildIdenDoc -> buildPersona -> callLlm persona_narrative), and its crisis output
+    // picks the hotline from `minor`. These calls used to pass no age, so buildIdenDoc
+    // fell back to adult routing for a minor (QA 261004 L1-07). Same contract as /review:
+    // nothing builds while the age is unresolved, then the resolved age goes along.
+    if (!userId || isMinor === null || exporting) return;
     setExporting(true);
     setResult(null);
     setNote(null);
     try {
       if (format === "iden") {
-        const r = await exportIden(userId, { locale });
+        const r = await exportIden(userId, { locale, minor: isMinor === true });
         setResult({ text: r.iden, name: r.idenFilename });
       } else if (format === "html") {
-        const r = await exportIden(userId, { locale });
+        const r = await exportIden(userId, { locale, minor: isMinor === true });
         setResult({ text: r.html, name: r.htmlFilename });
       } else if (format === "markdown") {
         const r = await exportUserWiki(userId, { locale, includeRecords });
         setResult({ text: r.prompt, name: "polascope-wiki.md" });
       } else {
-        const doc = await buildIdenDoc(userId, { locale });
+        const doc = await buildIdenDoc(userId, { locale, minor: isMinor === true });
         setResult({ text: JSON.stringify(doc, null, 2), name: "polascope-iden.json" });
       }
     } catch {
@@ -2678,7 +2723,13 @@ export function DeepSpaceFormatsScreen() {
           <Text variant="subtle" style={styles.footer}>{t("formats.scope3MarkdownOnly")}</Text>
         )}
       </Card>
-      <Pressable style={[styles.soulPrimary, exporting && { opacity: 0.6 }]} onPress={() => void runExport()} disabled={exporting}>
+      <Pressable
+        style={[styles.soulPrimary, (exporting || isMinor === null) && { opacity: 0.6 }]}
+        onPress={() => void runExport()}
+        disabled={exporting || isMinor === null}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: exporting || isMinor === null }}
+      >
         <Text variant="caption" style={styles.primaryText}>{exporting ? t("formats.exporting") : t("formats.export")}</Text>
       </Pressable>
       {note === "error" ? <Text variant="body" style={styles.opsReason}>{t("formats.exportError")}</Text> : null}
@@ -2709,501 +2760,6 @@ export function DeepSpaceFormatsScreen() {
         </View>
       ) : null}
     </Shell>
-  );
-}
-
-// Calendar hand-off needs a start time even for untimed ideas; "tomorrow 9am"
-// is an honest, editable default (the calendar app shows the form before save).
-function opsNextMorningIso(now: Date = new Date()): string {
-  const next = new Date(now);
-  next.setDate(next.getDate() + 1);
-  next.setHours(9, 0, 0, 0);
-  return next.toISOString();
-}
-
-type OpsRunState = "idle" | "working" | "empty" | "error" | "limit" | "off";
-
-/** 오늘의 두 가지가 카드마다 여는 자리. 후보 여섯 개 전부 갈 곳이 있어야 한다. */
-const TODAY_ROUTE: Readonly<Record<PickId, string>> = {
-  routine: "/reminders",
-  milestone: "/milestones",
-  reading: "/reading",
-  meals: "/meals",
-  records: "/records",
-  esm: "/esm",
-};
-
-export function DeepSpaceOpsScreen() {
-  const { t, i18n } = useTranslation("ops");
-  const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
-  const progression = useProgression();
-  const locale = systemLocaleFor(i18n.language);
-  // The model anchors on the EN canonical domain label regardless of UI language.
-  const tEn = useMemo(() => i18n.getFixedT("en", "ops"), [i18n]);
-
-  const [group, setGroup] = useState<OpsGroupId | null>(null);
-  // 오늘의 두 가지: 여섯 소스의 존재·최신성만 훑어 두 개를 고른다(LLM 없음).
-  // null 인 동안에는 아무것도 그리지 않는다 - 카드 모양의 자리표시자는 잠깐이라도
-  // "무언가 있다" 로 읽히는데 실제로 없을 수 있다.
-  const [todayPicks, setTodayPicks] = useState<TodayPicks | null>(null);
-  useEffect(() => {
-    if (!userId) return;
-    let alive = true;
-    void loadPickCandidates(userId)
-      .then((c) => {
-        if (alive) setTodayPicks(pickToday(c, Date.now()));
-      })
-      .catch(() => {
-        // 실패는 카드를 감추는 방향으로 - 없는 것을 지어내지 않는다.
-        if (alive) setTodayPicks({ picks: [], suggestions: [] });
-      });
-    return () => {
-      alive = false;
-    };
-  }, [userId]);
-  const [domain, setDomain] = useState<OpsDomainId | null>(null);
-  const [recs, setRecs] = useState<OpsRecommendation[]>([]);
-  // A grounding: adherence chip shown with the recommendations.
-  const [adherence, setAdherence] = useState<string | null>(null);
-  const [runState, setRunState] = useState<OpsRunState>("idle");
-  const [usedToday, setUsedToday] = useState(0);
-  const [recommendations, setRecommendations] = useState<boolean | null>(null);
-  const [todayRoutines, setTodayRoutines] = useState<OpsRoutine[]>([]);
-  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
-  const [streak, setStreak] = useState(0);
-  const [savingKey, setSavingKey] = useState<string | null>(null);
-  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
-  const [reminderToast, setReminderToast] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    void fetchPrivacyPrefs(userId).then((v) => {
-      if (!cancelled) setRecommendations(v?.recommendations ?? false);
-    });
-    void readOpsUsage(userId).then((c) => {
-      if (!cancelled) setUsedToday(c);
-    });
-    void loadToday();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  async function loadToday() {
-    if (!userId) return;
-    try {
-      const now = new Date();
-      const due = await listTodayRoutines(userId, now);
-      setTodayRoutines(due);
-      const today = localDayKey(now);
-      const logs = await listCompletionsSince(userId, today);
-      setCompletedIds(new Set(logs.map((l) => l.routine_id)));
-      // 7-day window is enough for the capped weekStreak helper.
-      const weekAgo = new Date(now);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekLogs = await listCompletionsSince(userId, localDayKey(weekAgo));
-      setStreak(weekStreak(weekLogs, now));
-    } catch {
-      // best-effort: the today section just stays as-is
-    }
-  }
-
-  if (authLoading) {
-    return (
-      <DeepSpaceScreen
-        active="ops"
-        header="none"
-        variant="windowed"
-        title={t("todaysAssistant")}
-        onBack={() => router.back()}
-      >
-        <DockBody title={t("hero.title")}><GraphLoading /></DockBody>
-      </DeepSpaceScreen>
-    );
-  }
-  if (!userId) return <Redirect href="/sign-in" />;
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
-
-  const dailyLimit = OPS_DAILY_LIMIT[progression.tier];
-  const limitReached = usedToday >= dailyLimit;
-  const domains = group ? domainsForGroup(group) : [];
-
-  async function runRecommend() {
-    if (!userId || !domain || runState === "working") return;
-    // D-20 / PROTOCOL §36: honor the minor recommendations lock at the gate
-    // (mirrors OpsLegacy). Adults are unaffected; a server-locked minor never
-    // reaches the LLM snapshot.
-    if (!recommendationsAllowed(isMinor, recommendations)) {
-      setRunState("off");
-      return;
-    }
-    if (limitReached) {
-      setRunState("limit");
-      return;
-    }
-    setRunState("working");
-    setRecs([]);
-    setAdherence(null);
-    try {
-      const out = await recommendForDomain({
-        userId,
-        locale,
-        domainId: domain,
-        domainLabel: tEn(`domains.${domain}`),
-        minor: isMinor === true,
-        recommendationsPref: recommendations,
-        // Explicit user run (and a quota bump below) - never serve the cache.
-        forceFresh: true,
-      });
-      const used = await bumpOpsUsage(userId);
-      setUsedToday(used);
-      setRecs(out);
-      setRunState(out.length === 0 ? "empty" : "idle");
-      if (out.length > 0) {
-        const stats = await gatherAdherenceStats(userId, domain);
-        setAdherence(stats ? adherenceChip(stats, i18n.language?.toLowerCase().startsWith("ko") ?? false) : null);
-      }
-    } catch {
-      setRunState("error");
-    }
-  }
-
-  function addToCalendar(rec: OpsRecommendation) {
-    const url = buildGoogleCalendarUrl({
-      title: rec.title,
-      description: rec.reason,
-      startsAtIso: rec.startsAtIso ?? opsNextMorningIso(),
-      durationMinutes: rec.durationMinutes,
-      recurrence: rec.recurrence,
-    });
-    if (url) void Linking.openURL(url).catch(() => {});
-  }
-
-  function shareStep(rec: OpsRecommendation) {
-    void Share.share({ message: `${rec.title}\n${rec.reason}` }).catch(() => {});
-  }
-
-  function reminderNote(result: ReminderResult): string {
-    if (result === "scheduled") return t("push.reminderSetNote");
-    if (result === "denied") return t("push.reminderDeniedNote");
-    if (result === "unavailable") return t("push.reminderUnavailableNote");
-    return t("push.reminderFailedNote");
-  }
-
-  async function saveRoutine(rec: OpsRecommendation, key: string) {
-    if (!userId || !domain || savingKey) return;
-    setSavingKey(key);
-    try {
-      await createRoutineFromRecommendation(userId, domain, rec);
-      // The reminder fires from the SAME existing scheduler used by the
-      // recommendation cards; a non-recurring rec becomes a one-shot at its
-      // start (or next morning if it had none).
-      const { reminder_time } = deriveReminder(rec);
-      const startsAtIso = rec.startsAtIso ?? opsNextMorningIso();
-      const result = await scheduleRoutineReminder({
-        title: rec.title,
-        description: rec.reason,
-        startsAtIso,
-        durationMinutes: rec.durationMinutes,
-        recurrence: rec.recurrence,
-      });
-      // reminder_time only informs the persisted row; the toast reflects the
-      // scheduler outcome regardless.
-      void reminder_time;
-      setSavedKeys((prev) => new Set(prev).add(key));
-      setRunState("idle");
-      // Surface the scheduler outcome and refresh the today list.
-      setReminderToast(reminderNote(result));
-      await loadToday();
-    } catch {
-      setReminderToast(t("recommend.error"));
-    } finally {
-      setSavingKey(null);
-    }
-  }
-
-  async function completeRoutine(routine: OpsRoutine) {
-    if (!userId || completedIds.has(routine.id)) return;
-    // Optimistic check — the unique-key upsert is idempotent so a failed write
-    // is harmless to retry, and the today list reload reconciles either way.
-    setCompletedIds((prev) => new Set(prev).add(routine.id));
-    try {
-      await logRoutineCompletion(userId, routine.id, localDayKey());
-      await loadToday();
-    } catch {
-      setCompletedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(routine.id);
-        return next;
-      });
-    }
-  }
-
-  // Hero ring is driven by the REAL today list (not the reference mock counts).
-  const totalR = todayRoutines.length;
-  const doneR = todayRoutines.filter((r) => completedIds.has(r.id)).length;
-  const pct = totalR > 0 ? doneR / totalR : 0;
-  const HERO_R = 22;
-  const HERO_C = 2 * Math.PI * HERO_R;
-  const opsTools: { icon: CloneIconName; label: string; sub: string; route: string }[] = [
-    { icon: "timer", label: t("tools.focus.label"), sub: t("tools.focus.sub"), route: "/focus" },
-    { icon: "schedule", label: t("tools.reminders.label"), sub: t("tools.reminders.sub"), route: "/reminders" },
-    { icon: "lightbulb", label: t("tools.imagine.label"), sub: t("tools.imagine.sub"), route: "/imagine" },
-    { icon: "share", label: t("tools.shareCard.label"), sub: t("tools.shareCard.sub"), route: "/share-card" },
-    // Doors for two screens that were fully built but unreachable in the
-    // canonical nav (audit pattern B): SRS review's only link lived on the
-    // legacy home graph, and call reflection had no entry point at all.
-    { icon: "book", label: t("tools.srs.label"), sub: t("tools.srs.sub"), route: "/srs" },
-    { icon: "bubble", label: t("tools.callReflection.label"), sub: t("tools.callReflection.sub"), route: "/call-reflection" },
-    // 2026-08-18 (Simon D7): 같은 패턴의 두 번째 라운드. 아래 다섯은 전부
-    // 만들어져 있고 각자 라우트도 있는데 이 격자에 없어서 딥링크로만 닿았다
-    // (파일 주석에 ops domain 태그까지 붙어 있는 것들이다). 위 두 줄이 말하는
-    // "built but unreachable" 이 다섯 개 더 남아 있었다.
-    { icon: "book", label: t("tools.reading.label"), sub: t("tools.reading.sub"), route: "/reading" },
-    { icon: "badge", label: t("tools.milestones.label"), sub: t("tools.milestones.sub"), route: "/milestones" },
-    { icon: "box", label: t("tools.ledger.label"), sub: t("tools.ledger.sub"), route: "/ledger" },
-    { icon: "sparkle", label: t("tools.sideProject.label"), sub: t("tools.sideProject.sub"), route: "/side-project" },
-    { icon: "fire", label: t("tools.meals.label"), sub: t("tools.meals.sub"), route: "/meals" },
-  ];
-
-  return (
-    // Primary "비서" hub: render inside the persistent deep-space chrome so the
-    // rev2 windowed sub-screen: the M3 top app bar carries TITLES verbatim
-    // (오늘의 비서). The reference OpsScreen leads with the routine ring hero.
-    <DeepSpaceScreen
-      active="ops"
-      header="none"
-      variant="windowed"
-      title={t("todaysAssistant")}
-      onBack={() => router.back()}
-    >
-      <DockBody>
-      {/* hero — today's routine ring (real counts + streak) */}
-      <MdCard variant="elevated" style={cx.opsHero}>
-        <View style={cx.heroRow}>
-          {/* 진행 링 — 테두리를 도는 칸 중 앞에서부터 n칸(규칙 1). */}
-          <Svg width={58} height={58} viewBox="0 0 58 58">
-            {(() => {
-              const cells = ringCells(29, 29, HERO_R, 6);
-              const lit = Math.round(cells.length * Math.max(0, Math.min(1, pct)));
-              return cells.map((p, i) => (
-                <Rect key={i} x={p.x} y={p.y} width={6} height={6} fill={i < lit ? m3.color.primary : m3.color.surfaceVariant} />
-              ));
-            })()}
-          </Svg>
-          <View style={cx.flex1}>
-            <RNText style={[m3TextStyle("labelMedium"), cx.heroLabel]}>{t("today.heading")}</RNText>
-            <RNText style={[m3TextStyle("headlineSmall"), cx.heroCount]}>{t("home.ringCount", { done: doneR, total: totalR })}</RNText>
-          </View>
-          {streak > 0 ? (
-            <View style={cx.heroStreak}>
-              <View style={cx.heroStreakRow}>
-                <CloneIcon name="fire" color={m3.accent.alertDot} size={22} fill />
-                <RNText style={cx.heroStreakNum}>{streak}</RNText>
-              </View>
-              <RNText style={[m3TextStyle("labelSmall"), cx.heroStreakCap]}>{t("home.streakLabel")}</RNText>
-            </View>
-          ) : null}
-        </View>
-        <ProgressLinear value={pct} color={m3.color.primary} style={cx.heroBar} />
-      </MdCard>
-
-      {/* routines */}
-      {todayRoutines.length === 0 ? (
-        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{t("today.empty")}</RNText>
-      ) : (
-        <View style={cx.stack8}>
-          {todayRoutines.map((routine) => {
-            const done = completedIds.has(routine.id);
-            return (
-              <Pressable
-                key={routine.id}
-                style={cx.routineRow}
-                onPress={() => void completeRoutine(routine)}
-                disabled={done}
-                {...checkboxSpaceKeyProps(() => void completeRoutine(routine), !done)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: done }}
-                accessibilityLabel={done ? t("today.doneA11y", { title: routine.title }) : t("today.completeA11y", { title: routine.title })}
-              >
-                <View style={[cx.routineDot, done && cx.routineDotOn]} />
-                <RNText style={[m3TextStyle("bodyLarge"), cx.routineLabel, done && cx.routineLabelDone]}>{routine.title}</RNText>
-                <RNText style={[m3TextStyle("labelSmall"), cx.routineStar]}>{routine.recurrence === "daily" ? t("card.daily") : t("card.weekly")}</RNText>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
-      {reminderToast ? <Text variant="subtle" style={styles.footerLeft}>{reminderToast}</Text> : null}
-
-      {/* 이번 주 패턴 분석 — hands off to the real weekly insights screen */}
-      <MdCard variant="filled" style={cx.analysisCard}>
-        <View style={cx.rowCenter}>
-          <CloneIcon name="sparkle" color={m3.color.tertiary} size={20} />
-          <View style={cx.flex1}>
-            <RNText style={[m3TextStyle("bodyLarge"), cx.analysisTitle]}>{t("home.patternsTitle")}</RNText>
-            <RNText style={[m3TextStyle("bodySmall"), cx.analysisSub]}>{t("home.patternsSub")}</RNText>
-          </View>
-          <MdButton label={t("home.patternsRun")} variant="tonal" onPress={() => router.push("/insights")} style={cx.smallBtnCompact} />
-        </View>
-      </MdCard>
-
-      {/* 오늘의 종합 의견 — the real recommendation engine (C9 classifier + the
-          C1/C3 LLM gateway inside recommendForDomain). Reference-app leads this
-          section with a 세컨비 head + the "one important thing" framing. */}
-      <RNText style={[m3TextStyle("labelSmall"), cx.eyebrow]}>{t("home.takeEyebrow")}</RNText>
-      <Text variant="body" style={styles.lead}>{t("hero.subtitle")}</Text>
-      {/* IA (ops-ia §4): single entry from the /ops hub into the scheduled
-          reminders surface. */}
-      <Pressable style={styles.secondary} onPress={() => router.push("/reminders")}>
-        <Text variant="caption" style={styles.secondaryText}>{t("card.remind")}</Text>
-      </Pressable>
-      <View style={styles.filterRow}>
-        {OPS_GROUP_IDS.map((id) => (
-          <FilterChip
-            key={id}
-            label={t(`groups.${id}`)}
-            active={group === id}
-            onPress={() => {
-              setGroup(id);
-              setDomain(null);
-              setRecs([]);
-              setAdherence(null);
-              setRunState("idle");
-            }}
-          />
-        ))}
-      </View>
-      {group ? (
-        <View style={styles.filterRow}>
-          {domains.map((id) => (
-            <FilterChip
-              key={id}
-              label={t(`domains.${id}`)}
-              active={domain === id}
-              violet
-              onPress={() => {
-                // IA (ops-ia §2): the picker is a router. Domains with a
-                // dedicated screen push to it (depth 2, Back → /ops); the rest
-                // stay in the /ops recommendation flow.
-                const route = opsRouteForDomain(id);
-                if (route) router.push(route);
-                else setDomain(id);
-              }}
-            />
-          ))}
-        </View>
-      ) : null}
-      {domain ? (
-        <Pressable
-          style={[styles.primary, (runState === "working" || limitReached) && { opacity: 0.6 }]}
-          disabled={runState === "working" || limitReached}
-          onPress={() => void runRecommend()}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: runState === "working" || limitReached, busy: runState === "working" }}
-        >
-          <Text variant="caption" style={styles.primaryText}>{runState === "working" ? t("recommend.working") : t("recommend.cta")}</Text>
-        </Pressable>
-      ) : null}
-      {runState === "limit" || (domain && limitReached) ? <Text variant="body" style={styles.opsReason}>{t("recommend.limit")}</Text> : null}
-      {runState === "empty" ? <Text variant="body" style={styles.opsReason}>{t("recommend.empty")}</Text> : null}
-      {runState === "error" ? <Text variant="body" style={styles.opsReason}>{t("recommend.error")}</Text> : null}
-      {runState === "off" ? <Text variant="body" style={styles.opsReason}>{t("recommend.off")}</Text> : null}
-      {adherence && recs.length > 0 ? (
-        <View style={styles.recMetaRow}>
-          <Text variant="subtle" style={styles.timeChipMint}>{adherence}</Text>
-        </View>
-      ) : null}
-      {recs.map((rec, i) => (
-        <View key={`${i}-${rec.title}`} style={styles.opsStep}>
-          <View style={styles.opsStepHead}>
-            <Text variant="heading" style={styles.opsStepTitle}>{rec.title}</Text>
-            {rec.recurrence ? (
-              <Text variant="subtle" style={styles.timeChipMint}>{rec.recurrence === "daily" ? t("card.daily") : t("card.weekly")}</Text>
-            ) : null}
-          </View>
-          <Text variant="body" style={styles.opsReason}>{rec.reason}</Text>
-          <View style={styles.opsStepFoot}>
-            <Pressable style={styles.smallBtnGhost} onPress={() => shareStep(rec)} accessibilityRole="button" accessibilityLabel={t("card.shareA11y")}>
-              <Text variant="caption" style={styles.smallBtnGhostText}>{t("card.share")}</Text>
-            </Pressable>
-            <Pressable style={styles.smallBtnGhost} onPress={() => addToCalendar(rec)} accessibilityRole="button" accessibilityLabel={t("card.addCalendarA11y")}>
-              <Text variant="caption" style={styles.smallBtnGhostText}>{t("card.addCalendar")}</Text>
-            </Pressable>
-            {(() => {
-              const key = `${i}-${rec.title}`;
-              const saved = savedKeys.has(key);
-              const saving = savingKey === key;
-              return (
-                <Pressable
-                  style={[styles.smallBtn, (saving || saved) && { opacity: 0.6 }]}
-                  disabled={saving || saved}
-                  onPress={() => void saveRoutine(rec, key)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("card.saveRoutineA11y")}
-                  accessibilityState={{ disabled: saving || saved, busy: saving }}
-                >
-                  <Text variant="caption" style={styles.smallBtnText}>
-                    {saving ? t("card.saving") : saved ? t("card.saved") : t("card.saveRoutine")}
-                  </Text>
-                </Pressable>
-              );
-            })()}
-          </View>
-        </View>
-      ))}
-      {recs.length > 0 ? <Text variant="subtle" style={styles.footerLeft}>{t("recommend.disclaimerBody")}</Text> : null}
-
-      {/* 오늘의 두 가지 (Simon D6) — 접근 가능한 것 중 실제로 쌓인 것만 고른다.
-          비어 있으면 예시로 채우지 않고 "다음 걸음" 만 말한다. 근거는
-          lib/ops/today-picks.ts 헤더. */}
-      {todayPicks ? (
-        <>
-          <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("today.title")}</RNText>
-          <RNText style={[m3TextStyle("labelSmall"), cx.toolSub]}>
-            {todayPicks.picks.length > 0 ? t("today.hint") : t("today.nothingHint")}
-          </RNText>
-          {todayPicks.picks.map((id: PickId) => (
-            <MdCard
-              key={id}
-              variant="filled"
-              onPress={() => router.push(TODAY_ROUTE[id] as never)}
-              accessibilityLabel={t(`today.pick.${id}`)}
-            >
-              <RNText style={[m3TextStyle("titleSmall"), cx.toolTitle]}>{t(`today.pick.${id}`)}</RNText>
-            </MdCard>
-          ))}
-          {todayPicks.suggestions.map((id: PickId) => (
-            <MdCard
-              key={`next-${id}`}
-              variant="outlined"
-              onPress={() => router.push(TODAY_ROUTE[id] as never)}
-              accessibilityLabel={t(`today.next.${id}`)}
-            >
-              <RNText style={[m3TextStyle("labelSmall"), cx.toolSub]}>{t(`today.next.${id}`)}</RNText>
-            </MdCard>
-          ))}
-        </>
-      ) : null}
-
-      {/* 비서 도구 — 2×2 tool grid (real routes) */}
-      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("home.toolsLabel")}</RNText>
-      <View style={cx.toolGrid}>
-        {opsTools.map((tool) => (
-          <MdCard key={tool.route} variant="filled" onPress={() => router.push(tool.route as never)} style={cx.toolCard} accessibilityLabel={tool.label}>
-            <View style={cx.rowCenter}>
-              <CloneIcon name={tool.icon} color={m3.color.tertiary} size={20} />
-              <View style={cx.flex1}>
-                <RNText style={[m3TextStyle("titleSmall"), cx.toolTitle]}>{tool.label}</RNText>
-                <RNText style={[m3TextStyle("labelSmall"), cx.toolSub]}>{tool.sub}</RNText>
-              </View>
-            </View>
-          </MdCard>
-        ))}
-      </View>
-      </DockBody>
-    </DeepSpaceScreen>
   );
 }
 
@@ -3297,108 +2853,131 @@ const RING_R = 120;
 const RING_C = 2 * Math.PI * RING_R; // circumference for the dasharray
 // KO copy sourced from the design canon (src/lib/canon → public/proto/data)
 const FOCUS_PRESETS = canonMore.focusPresets;
-const FOCUS_STARS = canonMore.focusStars;
+// The picker is NOT the canon's focusStars any more: those five (성장 · 커리어 · 학습 ·
+// 관계 · 건강) were neither the seven stars nor the six life areas, and "별에 기록"
+// was never true. It offers the dashboard's six areas (lib/ops/focus-tally, R2C-12).
 
 // rev2 clone (25-focus / reference FocusScreen): windowed 일일 집중 timer. The
 // proven pomodoro engine + ANDROID_QA single-interval handling are preserved; the
-// UI adopts the reference layout (presets, star picker, today summary). A focus
+// UI adopts the reference layout (presets, area picker, today summary). A focus
 // block auto-completes to a fresh idle block (no break phase in the reference)
 // while still ticking daily_focus (applyFocusSessionComplete) + a local notify.
 export function DeepSpaceFocusScreen() {
-  const { t, i18n } = useTranslation("ops");
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const { t } = useTranslation("ops");
   const { userId, loading: authLoading, hasProfile } = useAuth();
 
   const [timer, setTimer] = useState<PomodoroState>(() => createPomodoro());
-  // Per-day tally; survives reset (not the in-cycle session count).
-  const [doneToday, setDoneToday] = useState(0);
-  const [starIdx, setStarIdx] = useState(0);
-  // Per-star per-day tally (device-local): the "어떤 별을 위해?" pick counts for
-  // real now. Before, the selection lived and died in this mount's state while
-  // the copy promised "그 별에 한 걸음" — decoration posing as data.
-  const [doneByStar, setDoneByStar] = useState<Record<string, number>>({});
+  // Today's tally: sessions, minutes actually focused, sessions per life area.
+  // Survives reset (not the in-cycle session count). Device-local and per account
+  // (lib/ops/focus-store): the only server effect of a finished session is the
+  // daily_focus routine tick below. The tally carries its owner and whether the
+  // stored record was read back (lib/ops/focus-tally FocusTally, gate FC-01 · FC-03).
+  const [tally, setTally] = useState<FocusTally>(() => freshFocusTally(null));
+  const [area, setArea] = useState<LifeArea>(FOCUS_AREAS[0]);
 
-  // ANDROID_QA §4: a single 1s interval drives tick(); cleared on unmount AND
+  // ANDROID_QA §4: a single 1s interval drives the timer; cleared on unmount AND
   // whenever `running` flips off, so a paused/idle timer holds no live interval.
   const timerRef = useRef(timer);
   timerRef.current = timer;
-  // The completion branch runs inside the interval closure — read the star via
+  // The completion branch runs inside the interval closure — read the area via
   // a ref (same pattern as timerRef) so a mid-session pick isn't stale.
-  const starIdxRef = useRef(starIdx);
-  starIdxRef.current = starIdx;
+  const areaRef = useRef(area);
+  areaRef.current = area;
+
+  // Every press that changes the timer ends the run that is ticking, at once: the mark moves
+  // before React renders, so a tick that was already queued finds it is no longer the owner and
+  // cannot write its older state over the pause (Z109).
+  const runMarkRef = useRef(0);
+  const [runMark, setRunMark] = useState(0);
+  const changeTimer = (update: (state: PomodoroState) => PomodoroState) => {
+    runMarkRef.current += 1;
+    setRunMark(runMarkRef.current);
+    setTimer(update);
+  };
 
   useEffect(() => {
     if (!timer.running) return;
-    const id = setInterval(() => {
-      const prev = timerRef.current;
-      const next = tick(prev, 1000);
-      if (next === prev) return;
-      if (focusJustCompleted(prev, next)) {
+    // Time is measured, not counted. A tick that adds one second each time it fires stops when
+    // the app goes to the background: the timer stood at 12:51 for fifteen minutes (Z109). The
+    // run (lib/ops/focus-clock) measures by the clocks and catches up when the app comes back.
+    const run = startFocusRun(timerRef.current, AppState.currentState === "active", {
+      read: readFocusClock,
+      owns: () => runMarkRef.current === runMark,
+      onAdvance: (next) => {
+        timerRef.current = next;
+        setTimer(next);
+      },
+      onComplete: (prev) => {
         // Sensor auto-complete: tick daily_focus + notify, then return to a fresh
         // idle focus block (the reference timer has no break phase).
-        setTimer(createPomodoro(prev.config));
-        setDoneToday((n) => n + 1);
-        const starAt = starIdxRef.current;
-        setDoneByStar((m) => ({ ...m, [String(starAt)]: (m[String(starAt)] ?? 0) + 1 }));
-        if (userId) void applyFocusSessionComplete(userId).catch(() => {});
-        const starLabel = ko ? FOCUS_STARS[starAt] : t(`focus.stars.s${starAt}`);
-        void notifyNow(t("focus.alarmFocusTitle"), t("focus.alarmFocusBodyStar", { star: starLabel })).catch(() => {});
-      } else {
-        setTimer(next);
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [timer.running, userId, t, ko]);
-
-  // Per-day tally persists across app restarts (keyed by today's date), so the
-  // count reflects all of today's focus sessions, not just this mount's — the
-  // previous useState(0) reset the tally to zero every time the screen remounted.
-  useEffect(() => {
-    let alive = true;
-    void AsyncStorage.getItem(`focus_done_${kstDateToday()}`)
-      .then((v) => {
-        if (alive && v) setDoneToday(Number(v) || 0);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
-  useEffect(() => {
-    if (doneToday <= 0) return;
-    void AsyncStorage.setItem(`focus_done_${kstDateToday()}`, String(doneToday)).catch(() => {});
-  }, [doneToday]);
-
-  // Star pick + per-star tally survive remounts the same way doneToday does.
-  useEffect(() => {
-    let alive = true;
-    void AsyncStorage.getItem("focus_star_idx")
-      .then((v) => {
-        const n = v == null ? NaN : Number(v);
-        if (alive && Number.isInteger(n) && n >= 0 && n < FOCUS_STARS.length) setStarIdx(n);
-      })
-      .catch(() => {});
-    void AsyncStorage.getItem(`focus_star_done_${kstDateToday()}`)
-      .then((v) => {
-        if (!alive || !v) return;
-        try {
-          setDoneByStar(JSON.parse(v) as Record<string, number>);
-        } catch {
-          // corrupted tally: start fresh rather than crash the screen
+        const idle = createPomodoro(prev.config);
+        timerRef.current = idle;
+        setTimer(idle);
+        // The finished session's OWN length goes into today's minutes, so picking
+        // another preset later cannot rewrite what was done (R2C-13).
+        const doneArea = areaRef.current;
+        setTally((cur) => ({ ...cur, day: completeFocusSession(cur.day, doneArea, prev.config.focusMinutes) }));
+        if (userId) {
+          void applyFocusSessionComplete(userId).catch(() => {});
+          // The account goes first: without it notifyNow shows nothing on a phone (Z107).
+          void notifyNow(userId, t("focus.alarmFocusTitle"), t("focus.alarmFocusBodyArea", { area: t(`phone.areas.${doneArea}`) })).catch(() => {});
         }
-      })
-      .catch(() => {});
+      },
+    });
+    const id = setInterval(run.step, 1000);
+    const sub = AppState.addEventListener("change", (state) => run.appInFront(state === "active"));
+    return () => {
+      run.close();
+      clearInterval(id);
+      sub.remove();
+    };
+  }, [timer.running, runMark, userId, t]);
+
+  // Today's tally and the area pick persist across app restarts, per account, so
+  // the summary covers all of today's sessions, not just this mount's. A read that
+  // fails leaves the tally unrestored: what was counted meanwhile stays in memory,
+  // nothing is written over the record that could not be read, and the next
+  // finished session reads again (restoreFocusTally adds the two, gate FC-03).
+  const restoreTally = useCallback((owner: string) => {
+    void loadFocusDay(owner, kstDateToday()).then(
+      (stored) => setTally((cur) => restoreFocusTally(cur, owner, stored)),
+      () => {},
+    );
+  }, []);
+  // Another account starts from its own empty tally and its own pick (gate FC-01).
+  useEffect(() => {
+    setTally(freshFocusTally(userId));
+    setArea(FOCUS_AREAS[0]);
+    if (!userId) return;
+    let alive = true;
+    restoreTally(userId);
+    void loadFocusArea(userId).then(
+      (stored) => {
+        if (alive) setArea(stored);
+      },
+      () => {},
+    );
     return () => {
       alive = false;
     };
-  }, []);
+  }, [userId, restoreTally]);
   useEffect(() => {
-    void AsyncStorage.setItem("focus_star_idx", String(starIdx)).catch(() => {});
-  }, [starIdx]);
+    if (tally.owner && !tally.restored && tally.day.count > 0) restoreTally(tally.owner);
+  }, [tally, restoreTally]);
   useEffect(() => {
-    if (Object.keys(doneByStar).length === 0) return;
-    void AsyncStorage.setItem(`focus_star_done_${kstDateToday()}`, JSON.stringify(doneByStar)).catch(() => {});
-  }, [doneByStar]);
+    const save = focusTallyToSave(tally);
+    if (save) void saveFocusDay(save.owner, kstDateToday(), save.day);
+  }, [tally]);
+  // The pick is written when the person picks, not from an effect: an effect would
+  // also fire on mount with the default and could overwrite the stored pick
+  // before it is read back.
+  const pickArea = (next: LifeArea) => {
+    setArea(next);
+    if (userId) void saveFocusArea(userId, next);
+  };
+  // Never show a tally counted for another account, even for the one render
+  // before the effect above swaps it.
+  const day = tally.owner === userId ? tally.day : EMPTY_FOCUS_DAY;
 
   if (authLoading) {
     return <DockShell title={t("focus.title")}><GraphLoading /></DockShell>;
@@ -3415,23 +2994,26 @@ export function DeepSpaceFocusScreen() {
   const dashoffset = RING_C * remainingFrac;
   const clock = formatClock(shownMs);
   const ringSub = idle ? t("focus.ringReady") : timer.running ? t("focus.ringFocusing") : t("focus.ringPaused");
-  // ko stays on the canon array; other locales resolve focus.stars.s{i} keys.
-  const focusStarLabel = (i: number) => (ko ? FOCUS_STARS[i] : t(`focus.stars.s${i}`));
-  const starName = focusStarLabel(starIdx);
+  // The dashboard's own area labels (ops phone.areas.*), one source for both screens.
+  const areaLabel = (a: LifeArea) => t(`phone.areas.${a}`);
+  const areaName = areaLabel(area);
   const target = 4;
-  const filled = Math.min(doneToday, target);
+  const filled = Math.min(day.count, target);
+  // null = part of today was counted before lengths were stored: no honest total.
+  const minutesToday = focusedMinutesToday(day);
+  const areaToday = day.byArea[area] ?? 0;
   const setPreset = (m: number) => {
     // Idle-only: mid-session this used to createPomodoro() with no guard and
     // silently destroy the running session (audit: /focus bug-open).
     if (!idle) return;
-    setTimer(createPomodoro({ ...timer.config, focusMinutes: m }));
+    changeTimer(() => createPomodoro({ ...timer.config, focusMinutes: m }));
   };
 
   return (
     <DockShell title={t("focus.title")}>
       <RNText style={[m3TextStyle("bodyMedium"), cx.focusLead]}>
         {t("focus.leadPre")}
-        <RNText style={cx.leadStrong}>{t("focus.leadStar", { star: starName })}</RNText>
+        <RNText style={cx.leadStrong}>{t("focus.leadArea", { area: areaName })}</RNText>
         {t("focus.leadPost")}
       </RNText>
 
@@ -3484,29 +3066,29 @@ export function DeepSpaceFocusScreen() {
           label={timer.running ? t("focus.pause") : t("focus.startFocus")}
           variant={timer.running ? "tonal" : "filled"}
           icon={<CloneIcon name={timer.running ? "pause" : "play_arrow"} color={timer.running ? m3.color.onSecondaryContainer : m3.color.onPrimary} size={18} fill={!timer.running} />}
-          onPress={() => setTimer((s) => (s.running ? pause(s) : start(s)))}
+          onPress={() => changeTimer((s) => (s.running ? pause(s) : start(s)))}
           style={{ flex: 2 }}
         />
         <MdButton
           label={t("focus.resetBtn")}
           variant="outlined"
           icon={<CloneIcon name="replay" color={m3.color.primary} size={18} />}
-          onPress={() => setTimer((s) => reset(s))}
+          onPress={() => changeTimer((s) => reset(s))}
           style={{ flex: 1 }}
         />
       </View>
 
-      {/* linked star */}
-      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("focus.forWhichStar")}</RNText>
+      {/* life area this focus counts toward (device-local, see lib/ops/focus-tally) */}
+      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("focus.forWhichArea")}</RNText>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={cx.chipScroll}>
-        {FOCUS_STARS.map((_, i) => (
+        {FOCUS_AREAS.map((a) => (
           <MdChip
-            key={i}
+            key={a}
             kind="filter"
-            selected={starIdx === i}
-            label={focusStarLabel(i)}
-            icon={<CloneIcon name={starIdx === i ? "check" : "star_shine"} color={starIdx === i ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant} size={15} />}
-            onPress={() => setStarIdx(i)}
+            selected={area === a}
+            label={areaLabel(a)}
+            icon={area === a ? <CloneIcon name="check" color={m3.color.onSecondaryContainer} size={15} /> : undefined}
+            onPress={() => pickArea(a)}
           />
         ))}
       </ScrollView>
@@ -3519,11 +3101,15 @@ export function DeepSpaceFocusScreen() {
           ))}
         </View>
         <View style={cx.flex1}>
-          <RNText style={[m3TextStyle("bodyLarge"), cx.summaryTitle]}>{t("focus.todayCount", { sessions: doneToday })}</RNText>
-          <RNText style={[m3TextStyle("bodySmall"), cx.summarySub]}>{t("focus.todaySub", { min: doneToday * focusMin, goal: target })}</RNText>
-          {(doneByStar[String(starIdx)] ?? 0) > 0 ? (
+          <RNText style={[m3TextStyle("bodyLarge"), cx.summaryTitle]}>{t("focus.todayCount", { sessions: day.count })}</RNText>
+          <RNText style={[m3TextStyle("bodySmall"), cx.summarySub]}>
+            {minutesToday === null
+              ? t("focus.todaySubGoalOnly", { goal: target })
+              : t("focus.todaySub", { min: minutesToday, goal: target })}
+          </RNText>
+          {areaToday > 0 ? (
             <RNText style={[m3TextStyle("bodySmall"), cx.summarySub]}>
-              {t("focus.todayStarCount", { star: starName, n: doneByStar[String(starIdx)] })}
+              {t("focus.todayAreaCount", { area: areaName, n: areaToday })}
             </RNText>
           ) : null}
         </View>
@@ -3710,7 +3296,6 @@ export function DeepSpaceSrsScreen() {
 // re-exported here so existing route imports keep working unchanged.
 export {
   DeepSpaceSignInDesignScreen,
-  DeepSpaceSignUpDesignScreen,
   DeepSpaceResetPasswordDesignScreen,
 } from "./dds-auth-screens";
 
@@ -3763,34 +3348,13 @@ const cx = StyleSheet.create({
   lead: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 14 },
   leadStrong: { color: m3.color.onSurface, fontFamily: m3.font.brand, fontWeight: "700" },
   sectionLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 22, marginBottom: 10 },
-  eyebrow: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.4, color: m3.color.primary, marginTop: 22, marginBottom: 8, marginHorizontal: 2 },
 
   // ── ops hero ──
-  opsHero: { padding: 16, marginTop: 4, backgroundColor: m3.color.primaryContainer },
-  heroRow: { flexDirection: "row", alignItems: "center", gap: 16 },
-  heroLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
-  heroCount: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 2 },
-  heroStreak: { alignItems: "center" },
-  heroStreakRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  heroStreakNum: { fontFamily: m3.font.mono, fontSize: 24, fontWeight: "800", color: m3.accent.alertDot },
-  heroStreakCap: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
-  heroBar: { marginTop: 12 },
 
   // ── routine rows ──
-  routineRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, borderRadius: m3.shape.none, backgroundColor: m3.color.surfaceContainerHighest },
-  routineDot: { width: 20, height: 20, borderRadius: m3.shape.none, borderWidth: 2, borderColor: m3.color.outline },
-  routineDotOn: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
-  routineLabel: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand },
-  routineLabelDone: { color: m3.color.onSurfaceVariant, textDecorationLine: "line-through" },
-  routineStar: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
-  stack8: { gap: 8, marginTop: 12 },
 
   // ── analysis card ──
-  analysisCard: { padding: 14, marginTop: 12 },
-  rowCenter: { flexDirection: "row", alignItems: "center", gap: 12 },
   flex1: { flex: 1, minWidth: 0 },
-  analysisTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
-  analysisSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 
   // ── 종합 의견 (세컨비 advice) ──
   adviceCard: { padding: 16, backgroundColor: m3.color.surfaceContainerHigh },
@@ -3807,10 +3371,6 @@ const cx = StyleSheet.create({
   adviceRefreshRow: { flexDirection: "row", justifyContent: "center", marginTop: 4 },
 
   // ── 비서 도구 grid ──
-  toolGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  toolCard: { width: "48%", padding: 13 },
-  toolTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
-  toolSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 
   // ── focus ──
   focusLead: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, textAlign: "center", marginTop: 4, marginBottom: 18, lineHeight: 20 },
@@ -3850,7 +3410,6 @@ const cx = StyleSheet.create({
 
   // ── datareview ──
   sourceCard: { padding: 14 },
-  smallBtnCompact: { paddingHorizontal: 12, minHeight: 36 },
   statGrid: { flexDirection: "row", gap: 8 },
   statCard: { flex: 1, padding: 12, alignItems: "center" },
   statNum: { fontFamily: m3.font.mono, fontSize: 15, fontWeight: "700", color: m3.color.onSurface, marginTop: 6 },
@@ -3867,3 +3426,9 @@ const cx = StyleSheet.create({
   rightsLabelDanger: { color: m3.color.error, fontFamily: m3.font.brand },
   rightsSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 });
+
+// Toggle's text column shares the row with the switch. Without a flex basis it
+// kept its natural width and long labels ran past narrow screens (132px in the
+// dashboard phone, 2026-10-02 QA). Kept at the end of the file so the line
+// citations into this file (DPIA) do not move.
+const TOGGLE_TEXT = { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 } as const;

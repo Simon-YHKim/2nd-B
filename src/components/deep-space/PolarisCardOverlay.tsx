@@ -1,3 +1,4 @@
+import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 /**
  * 북극성 카드 오버레이 (Simon localhost QA 2026-09-30).
  *
@@ -12,6 +13,8 @@
  *   - Up / down: dismiss, only when the card body is at that edge
  *     (lib/polaris/card-dismiss.ts), so a long card still scrolls.
  *   - Tapping the scrim, the accessibility escape gesture and Android back also close.
+ *   - The deck head's back arrow closes too (Simon 2026-10-12). Not inside the
+ *     dashboard phone: its shell already draws the one back row.
  *
  * Everything inside is drawn on the violet card ground, so the overlay hands its
  * children a palette (PaletteOverride) and a button tint (MdButtonTintProvider)
@@ -19,8 +22,7 @@
  * for links. Values: m3.polarisCard, contrast pinned by polaris-card-contrast.test.ts.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Animated, PanResponder, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
-import { router } from "expo-router";
+import { Animated, PanResponder, Platform, StyleSheet, useWindowDimensions } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { MdButtonTintProvider, type MdButtonTint } from "@/components/m3";
@@ -28,13 +30,15 @@ import { PixelScrim } from "@/components/pixel/PixelDither";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { cardDismissDirection, shouldCompleteCardDismiss, type CardEdges } from "@/lib/polaris/card-dismiss";
+import { isOverHome } from "@/lib/nav/over-home";
+import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { m3 } from "@/lib/theme/m3";
 import { PaletteOverride, type Palette } from "@/lib/theme/ThemeContext";
 import { semantic } from "@/lib/theme/tokens";
 
 import { DeepSpaceScreen } from "./DeepSpaceScreen";
-import { PolarisCardEdgeContext } from "./polaris-card-edges";
+import { PolarisCardCloseContext, PolarisCardEdgeContext } from "./polaris-card-edges";
 
 /**
  * The home's top bar (ConstellationHome `topBar`: absolute, height 52) and its
@@ -79,11 +83,21 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
   // setting flips; subscribing here re-renders them (DeepSpaceScreen did this
   // when /core-brain was a page).
   useFontStyle();
+  // Inside the dashboard phone the card closes back through the phone's stack,
+  // and there is no home top bar above it to clear.
+  const router = useAppRouter();
+  const embed = usePhoneEmbed();
   const { t } = useTranslation("core-brain");
   const { height } = useWindowDimensions();
   // Opened from the sky, the home stays visible under the scrim; opened from a
   // link with nothing underneath, DeepSpaceScreen paints the shared sky instead.
-  const [overSky] = useState(() => router.canGoBack());
+  // "Something to go back to" is not "the home is underneath": /records,
+  // /profile, the empty-state replaces and the /persona redirect all open this
+  // card over another screen, which then showed through the dither (QA 261004
+  // D-05). Only the home's own entry says overlay=home, the /dashboard rule
+  // (DashboardPhone.tsx).
+  const { overlay } = useScreenParams<{ overlay?: string }>();
+  const [overSky] = useState(() => isOverHome(overlay, router.canGoBack()));
   const reducedMotion = useReducedMotionPref();
   const edges = useRef<CardEdges>({ top: true, bottom: true });
   const offsetY = useRef(new Animated.Value(0)).current;
@@ -101,7 +115,7 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
   const close = useCallback(() => {
     if (router.canGoBack()) router.back();
     else router.replace("/");
-  }, []);
+  }, [router]);
 
   const slide = useCallback(
     (toValue: number, duration: number, done?: () => void) => {
@@ -157,6 +171,8 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
     edges.current = next;
   }, []);
 
+  const closeFromHead = useMemo(() => (embed ? null : () => dismiss("down")), [dismiss, embed]);
+
   return (
     <DeepSpaceScreen active="home" header="none" variant="fullbleed" showSharedSky transparentBackdrop={overSky}>
       <View style={styles.root}>
@@ -168,21 +184,24 @@ export function PolarisCardOverlay({ children }: { children: ReactNode }) {
         >
           <PixelScrim style={styles.scrimImage} />
         </Pressable>
-        <Animated.View
+        <PhoneAnimatedView
           {...pan.panHandlers}
           pointerEvents="box-none"
           onAccessibilityEscape={() => dismiss("down")}
           style={[
             styles.column,
+            embed ? styles.columnEmbedded : null,
             { transform: [{ translateY: offsetY }] },
           ]}
         >
           <PolarisCardEdgeContext.Provider value={reportEdges}>
-            <PaletteOverride palette={POLARIS_CARD_PALETTE}>
-              <MdButtonTintProvider tint={POLARIS_CARD_BUTTONS}>{children}</MdButtonTintProvider>
-            </PaletteOverride>
+            <PolarisCardCloseContext.Provider value={closeFromHead}>
+              <PaletteOverride palette={POLARIS_CARD_PALETTE}>
+                <MdButtonTintProvider tint={POLARIS_CARD_BUTTONS}>{children}</MdButtonTintProvider>
+              </PaletteOverride>
+            </PolarisCardCloseContext.Provider>
           </PolarisCardEdgeContext.Provider>
-        </Animated.View>
+        </PhoneAnimatedView>
       </View>
     </DeepSpaceScreen>
   );
@@ -208,6 +227,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     zIndex: 400,
   },
+  columnEmbedded: { paddingHorizontal: 8, paddingTop: 4 },
   surface: {
     flex: 1,
     justifyContent: "center",

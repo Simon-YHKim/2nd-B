@@ -145,6 +145,18 @@ describe("본문이 실제로 그려진 언어로 표시된다", () => {
     // 한국어 로케일에서는 둘 다 ko 다.
     expect(museumContentLanguage(translated, "ko")).toBe("ko");
     expect(museumContentLanguage("no-such-event-id", "ko")).toBe("ko");
+    expect(museumContentLanguage(translated, "ko-KR")).toBe("ko");
+  });
+
+  test("es · pt · id 는 한국어 캐논이 아니라 영어 번역을 받는다 (R2B-04)", () => {
+    // 앱 전체 fallbackLng 은 en 이다. 이 화면만 ko 로 떨어지던 것이 결함이었다:
+    // 크롬은 그 로케일로, 사건 카드 41줄은 한국어로 그려졌다(2026-10-05 실측).
+    // 언어 표시는 그린 언어 그대로다 - en 을 그리면 en, 짝이 없으면 ko.
+    const translated = MUSEUM[0].id;
+    for (const locale of ["es", "pt", "id", "pt-BR"]) {
+      expect(museumContentLanguage(translated, locale)).toBe("en");
+      expect(museumContentLanguage("no-such-event-id", locale)).toBe("ko");
+    }
   });
 
   test("번역되는 크롬에는 달지 않는다", () => {

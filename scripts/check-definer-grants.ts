@@ -91,10 +91,36 @@ const triggerOnlyOptOut = /--\s*definer-grants-lint:\s*trigger-only/i;
 // capture priority, current LLM list, verify block and comments; the only
 // DEFINER is signup_consent_contract_status with search_path='' and unchanged
 // anon/authenticated grants. Same model vendor as the author, as for 0203.
+// 2026-10-05: 0215 (email-v9 / service-v4, D3 동의 화면 + 방침 P1·P2, 잠정 게시일
+// 2026-10-06) is pinned the same way. 공지형·재동의 없음(D3-4). The same pinned
+// file also covers the service-consent v4 writer: the new DEFINER
+// llm_service_consent_status_v4(uuid), write_llm_service_consent with
+// service-v1/v2/v4 paths, the service_role GRANTs, and the drop/re-add of
+// llm_consent_receipts_contract_revision_check (email-v9 added). Only the one
+// public status-RPC grant below is exempted from Rule A.
+// REVIEW: PENDING fresh-context review, 2026-10-05. normalized sha256
+// e5f38f6a6fa856729d24caf811dd2d300405a403b4129a842c6f27f2c30670e6.
+// 2026-10-04: 0210 (PolaScope email-v7 / service-v2, 2026-10-05 terms and
+// consent dates, policy 2026-09-29) is pinned the same way. It is NOT a pure
+// signup-metadata migration (review F2): the same pinned file also covers the
+// service-consent v2 writer: the new DEFINER llm_service_consent_status_v2(uuid),
+// write_llm_service_consent replaced with service-v1/service-v2 paths, the two
+// service_role GRANTs on those two functions, and the drop/re-add of
+// llm_consent_receipts_contract_revision_check. Only the one public status-RPC
+// grant below is exempted from Rule A; the service_role grants need no exemption.
+// First fresh-context review (2026-10-04 15:59 KST) of 02331977... FAILED only on
+// the GRANT spacing (F1, fixed: one space) and asked for 0208-style $verify$
+// checks (F3, added, verification-only); F2 is recorded here.
+// REVIEW: second independent fresh-context review PASS, 2026-10-04 KST, no
+// blocking findings (/workspace/outbox-dev-infra/review2-0210-signup-consent.md),
+// recomputed normalized sha256
+// 12a40e2208601f237cbccac5a3b49043f004719e916f828078eccf388f407b9f.
 const REVIEWED_SIGNUP_METADATA_SHA256S: ReadonlySet<string> = new Set([
   "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648", // 0191 email-v4
   "58ad7625ee30499a87d840eadf152f0b2d599553f3b416f3a432bf313c7b4290", // 0203 email-v5
   "8c7e758936650a982c60fe1f0d828db683c4252ff45124f4766ca016a495e64a", // 0208 email-v6 (reviewed 2026-09-29)
+  "12a40e2208601f237cbccac5a3b49043f004719e916f828078eccf388f407b9f", // 0210 email-v7 + service-v2 writer (reviewed 2026-10-04, second review PASS)
+  "e5f38f6a6fa856729d24caf811dd2d300405a403b4129a842c6f27f2c30670e6", // 0215 email-v9 + service-v4 writer (PENDING fresh-context review, 2026-10-05)
 ]);
 const REVIEWED_SIGNUP_METADATA_GRANT =
   "GRANT EXECUTE ON FUNCTION public.signup_consent_contract_status() TO anon, authenticated;";

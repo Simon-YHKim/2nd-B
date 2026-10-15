@@ -1,5 +1,12 @@
 {
   "phone": {
+    "summaryDetails": "Resumo detalhado",
+    "noteUpdatedAt": "Última redação · {{time}}",
+    "dismissHandle": "Baixar telefone: deslize para cima ou para baixo",
+    "assistantSettings": "Configurações do assistente",
+    "recommendationSettings": "Configurações de recomendações",
+    "todayRecommendations": "Recomendações de hoje",
+    "noRecommendations": "Ainda não há recomendações.",
     "bannerTitle": "Continue sua história",
     "bannerSubtitle": "Pequenos registros abrem caminhos ✦",
     "pageControls": "Páginas do telefone",
@@ -44,6 +51,15 @@
     "title": "Meu telefone",
     "brand": "MEU DIA",
     "returnToStars": "Voltar à constelação",
+    "internal": {
+      "back": "Voltar", "wikiGraph": "Grafo e etiquetas", "closePhone": "Fechar telefone", "exitTitle": "Fechar o telefone?", "exitHint": "Voltar à constelação sem alterar os dados salvos.", "cancel": "Continuar vendo",
+      "captureScope": "Salve uma nota curta aqui. Entrevistas e outros modos de captura continuam em telas próprias.",
+      "noteInput": "Escreva algo para guardar", "startNote": "Escrever uma nota", "saveNote": "Salvar nota", "saved": "Nota salva.",
+      "focusLocal": "Este temporizador funciona apenas enquanto sua tela está aberta.", "start": "Iniciar", "pause": "Pausar", "reset": "Redefinir",
+      "searchRecords": "Buscar registros salvos", "untitledRecord": "Registro sem texto", "settingsScope": "Gerencie conexões e frequência de atualização nas Configurações.",
+      "profileSummary": "Foram lidos {{count}} registros recentes. Não é o total nem o conteúdo do perfil.",
+      "unavailable": "Esta função ainda não tem tela interna no telefone. Nenhum dado é inventado."
+    },
     "tabs": {
       "dashboard": "Painel",
       "sources": "Fontes",
@@ -155,8 +171,7 @@
       "settings": "Configurações",
       "more": "Mais"
     },
-    "appsBack": "Voltar aos apps",
-    "noticeListBack": "Lista de avisos",
+    "appsBack": "Voltar",
     "noticeLoading": "Carregando avisos…",
     "noticeEmpty": "Ainda não há avisos.",
     "noticeUnread": "Não lido",
@@ -181,12 +196,203 @@
     "lastRead": "Última leitura · {{date}}",
     "noData": "Nenhum dado foi lido ainda.",
     "refresh": "Atualizar",
-    "unknownDate": "Data indisponível"
+    "unknownDate": "Data indisponível",
+    "board": {
+      "generation": {
+        "next": "Próximo item",
+        "waiting": "Será preparado novamente na próxima atualização.",
+        "loading": "Preparando o resumo de hoje.",
+        "denied": "Confira as recomendações e o consentimento do serviço de IA.",
+        "limited": "Uma nova atualização estará disponível na próxima renovação.",
+        "disabled": "Temporariamente indisponível.",
+        "unavailable": "Não foi possível carregar. Tente novamente.",
+        "noteEmpty": "Adicione um lembrete para hoje para receber uma nota do dia.",
+        "triageEmpty": "Ainda não há lembretes para organizar.",
+        "summaryEmpty": "Adicione um lembrete para resumir os lembretes e as tarefas concluídas de hoje.",
+        "settings": "Consentimento",
+        "reminders": "Lembretes"
+      },
+      "weather": {
+        "title": "Tempo",
+        "body": "Use sua localização neste dispositivo para escolher uma observação meteorológica próxima. Sua localização não sai do dispositivo, e você pode desativar a função quando quiser.",
+        "terms": "Ver termos",
+        "enable": "Ativar",
+        "cancel": "Cancelar",
+        "failed": "Não foi possível salvar. Tente novamente.",
+        "settingsBody": "O acesso à localização está desativado nas configurações do dispositivo.",
+        "webSettingsBody": "Permita a localização nas configurações do site deste navegador.",
+        "settings": "Abrir configurações",
+        "done": "Concluído",
+        "setting": "Localização para o tempo",
+        "on": "Ativada",
+        "off": "Desativada",
+        "source": "Observações próximas da NOAA/NWS, a até 50 km e com no máximo 90 minutos. Sem dados, o tempo fica oculto. Usamos cinco desenhos e temperaturas arredondadas; não é um produto oficial nem tem o endosso da NOAA/NWS.",
+        "sourceTerms": "Termos de uso dos dados"
+      },
+      "evidence": "Ver a fonte",
+      "addWidget": "Adicionar um widget",
+      "clock": {
+        "weatherPrompt": "Escolha seu bairro para ver o tempo.",
+        "pickArea": "Escolher bairro",
+        "sky": {
+          "clear": "Céu limpo",
+          "partlyCloudy": "Parcialmente nublado",
+          "cloudy": "Nublado",
+          "rain": "Chuva",
+          "snow": "Neve"
+        },
+        "temp": "{{temp}} graus"
+      },
+      "note": {
+        "tapHint": "Abrir os detalhes da nota de hoje",
+        "empty": "A nota de hoje aparece depois do seu primeiro registro.",
+        "slot": {
+          "morning": "Manhã",
+          "day": "Tarde",
+          "evening": "Noite"
+        }
+      },
+      "reminders": {
+        "title": "Lembretes",
+        "previous": "Dia anterior",
+        "next": "Dia seguinte",
+        "anytime": "Sem horário",
+        "alarm": "Aviso às {{time}}",
+        "add": "Adicionar",
+        "dismiss": "Dispensar",
+        "days": {
+          "yesterday": "Ontem",
+          "today": "Hoje",
+          "tomorrow": "Amanhã",
+          "dayAfter": "Depois de amanhã"
+        },
+        "empty": {
+          "yesterday": "Não havia nada planejado ontem.",
+          "today": "Não há nada planejado para hoje.",
+          "tomorrow": "Não há nada planejado para amanhã.",
+          "dayAfter": "Não há nada planejado para depois de amanhã."
+        },
+        "status": {
+          "upcoming": "Em breve",
+          "done": "Feito",
+          "passed": "Ficou para trás"
+        }
+      },
+      "queue": {
+        "title": "Para resolver {{index}}/{{total}}",
+        "empty": "Nada está esperando por você hoje.",
+        "done": "Já fiz",
+        "later": "Depois",
+        "notImportant": "Não é importante",
+        "sources": {
+          "mail": "E-mail",
+          "notification": "Aviso",
+          "app": "App"
+        }
+      },
+      "health": {
+        "title": "Saúde",
+        "locked": "Conecte a saúde para ver o sono da noite passada.",
+        "empty": "Traga seus registros de saúde e eles aparecem aqui.",
+        "openSetup": "Configurações de conexão",
+        "synced": "{{source}} · sincronizado às {{time}}",
+        "minutes": "{{value}} minutos",
+        "metrics": {
+          "sleep": "Sono",
+          "steps": "Passos",
+          "workout": "Exercício",
+          "meal": "Refeições"
+        },
+        "sources": {
+          "health_connect": "Health Connect",
+          "healthkit": "Saúde da Apple",
+          "manual": "Inserido por você"
+        }
+      },
+      "spend": {
+        "title": "Gastos",
+        "empty": "Traga um extrato e o total do mês aparece aqui.",
+        "open": "Abrir finanças",
+        "add": "Adicionar",
+        "reject": "Não"
+      },
+      "changes": {
+        "title": "Além disso"
+      },
+      "custom": {
+        "empty": "Conforme seus registros crescem, seus próprios widgets aparecem aqui.",
+        "capture": "Guardar",
+        "make": "Criar",
+        "skip": "Não, obrigado",
+        "previous": "Widget anterior",
+        "next": "Próximo widget"
+      },
+      "locked": {
+        "open": "Configurações de conexão",
+        "weather": "O tempo abre quando você escolhe um bairro.",
+        "aiConsent": "A nota de hoje abre com o processamento por IA ativado.",
+        "calendar": "Conecte uma agenda para ver seus planos aqui.",
+        "inbox": "Conecte e-mail ou avisos para ver o que resolver.",
+        "ledger": "Traga um extrato para ver seus gastos.",
+        "sources": "Conecte uma fonte para ver o que mudou.",
+        "records": "Seus próprios widgets abrem conforme seus registros crescem."
+      },
+      "summary": {
+        "titleDefault": "Resumo do dia",
+        "title": {
+          "morning": "Resumo da manhã",
+          "day": "Resumo da tarde",
+          "evening": "Resumo da noite"
+        },
+        "read": "Ler em voz alta",
+        "stop": "Parar",
+        "close": "Fechar",
+        "notReady": "O resumo de hoje ainda não está pronto.",
+        "noValue": "sem registro",
+        "mutedNote": "O modo silencioso está ativado, então o resumo aparece só como texto."
+      },
+      "shelf": {
+        "title": "Gerenciar widgets",
+        "onScreen": "Na tela",
+        "offScreen": "Fora da tela",
+        "allOnScreen": "Todos os widgets estão na tela.",
+        "show": "Ativar de novo",
+        "hide": "Ocultar {{name}}",
+        "moveUp": "Mover {{name}} para cima",
+        "moveDown": "Mover {{name}} para baixo",
+        "reasons": {
+          "preparing": "Este widget ainda está sendo preparado.",
+          "adultOnly": "A conexão de saúde é só para adultos.",
+          "hidden": "Você ocultou este widget."
+        },
+        "parts": {
+          "clock": "Relógio e tempo",
+          "note": "Nota de hoje",
+          "reminders": "Lembretes",
+          "queue": "Para resolver",
+          "health": "Saúde",
+          "spend": "Gastos",
+          "changes": "Além disso",
+          "custom": "Seus widgets"
+        }
+      },
+      "transcribe": {
+        "title": "Transcrever",
+        "adultOnly": "A transcrição é só para adultos.",
+        "ownTalkOnly": "Grava só conversas de que você participa.",
+        "lockedStart": "Começar a gravar, ainda não disponível",
+        "afterTitle": "Quando a gravação terminar, o resultado aparece aqui.",
+        "sections": {
+          "head": "Resumo em uma linha",
+          "todos": "Tarefas e próximos contatos",
+          "transcript": "Transcrição completa"
+        }
+      }
+    }
   },
   "loading": "Abrindo suas rotinas…",
   "hero": {
-    "title": "Rotinas",
-    "subtitle": "Escolha uma área. Receba alguns próximos passos concretos."
+    "title": "Rotinas"
   },
   "groups": {
     "body": "Corpo",
@@ -211,13 +417,6 @@
     "news_digest": "Resumo rápido de notícias",
     "side_project": "Projeto criativo paralelo"
   },
-  "picker": {
-    "groupHint": "Mostra as áreas deste grupo.",
-    "domainHint": "Cria sugestões para esta área.",
-    "optionA11yLabel": "{{label}}, opção {{index}} de {{total}}, {{state}}.",
-    "stateSelected": "selecionada",
-    "stateAvailable": "disponível"
-  },
   "recommend": {
     "off": "As sugestões de rotina estão desativadas nesta conta, então suas anotações ficam privadas.",
     "cta": "Sugerir próximos passos",
@@ -232,32 +431,20 @@
     "durationLabel": "{{minutes}} min",
     "daily": "Todo dia",
     "weekly": "Toda semana",
-    "share": "Compartilhar",
-    "shareA11y": "Compartilhar este passo",
-    "addCalendar": "Adicionar ao calendário",
-    "addCalendarA11y": "Adicionar ao calendário",
     "saveRoutine": "Salvar como rotina",
-    "saveRoutineA11y": "Salvar este passo como uma rotina gerenciada",
     "saving": "Salvando…",
     "saved": "Salvo",
     "addDevice": "Meu calendário",
-    "addDeviceHint": "Abre o formulário de calendário do dispositivo com este item preenchido.",
     "addGoogle": "Google Calendar",
-    "addGoogleHint": "Abre o Google Calendar com este evento preenchido.",
     "downloadIcs": "Arquivo de calendário",
-    "downloadIcsHint": "Baixa um arquivo .ics que abre no seu app de calendário.",
     "shareList": "Enviar checklist",
-    "shareListHint": "Abre o compartilhamento com este checklist como texto.",
-    "remind": "Me lembrar",
-    "remindHint": "Agenda um lembrete no dispositivo no horário deste item."
+    "remind": "Me lembrar"
   },
   "consent": {
     "title": "Enviar itens para seus apps?",
     "body": "Os itens aprovados vão para seu calendário ou compartilhamento. Perguntado uma vez: continue permitindo a partir de agora e desative quando quiser em Privacidade.",
     "agree": "Permitir e continuar",
-    "agreeHint": "Salva a escolha e realiza este envio.",
-    "later": "Agora não",
-    "laterHint": "Fecha sem enviar. O item permanece nesta tela."
+    "later": "Agora não"
   },
   "today": {
     "heading": "Rotinas de hoje",
@@ -287,10 +474,8 @@
   },
   "home": {
     "ringCount": "{{done}} / {{total}} feitas",
-    "streakLabel": "dias seguidos",
     "patternsTitle": "Padrões desta semana",
     "patternsSub": "A análise roda em segundo plano. Continue usando o app.",
-    "patternsRun": "Analisar registros",
     "takeEyebrow": "RESUMO DE HOJE",
     "toolsLabel": "Ferramentas do assistente"
   },
@@ -340,78 +525,36 @@
       "sub": "O plano desta semana"
     }
   },
-  "states": {
-    "emptyDomain": "Escolha uma área acima para começar."
-  },
   "push": {
     "savedNote": "Enviado ao seu calendário.",
     "deniedNote": "Permissão de calendário desativada. Permita nas configurações do dispositivo para usar isso.",
     "reminderSetNote": "Lembrete definido neste dispositivo.",
     "reminderDeniedNote": "Permissão de notificações desativada. Permita nas configurações do dispositivo para usar lembretes.",
     "reminderFailedNote": "Não foi possível definir o lembrete. Verifique o horário do item e tente novamente.",
-    "reminderUnavailableNote": "Salvo. Lembretes precisam do app instalado, então este não vai tocar aqui."
-  },
-  "health": {
-    "autoCompleted": "Marcado automaticamente pela sua atividade",
-    "autoCompletedHint": "Um treino registrado ou passos acima da sua meta marcaram isto."
+    "reminderUnavailableNote": "Salvo. Lembretes precisam do app instalado, então este não vai tocar aqui.",
+    "deviceReminderBody": "Está na hora do seu lembrete.",
+    "deviceTimerBody": "Seu temporizador terminou.",
+    "deviceChannelName": "Lembretes"
   },
   "focus": {
     "title": "Foco diário",
-    "status": "Faça uma sessão de foco.",
-    "tip": "Terminar um bloco de foco marca sua rotina de foco do dia.",
-    "phaseIdle": "Pronto",
-    "phaseFocus": "Foco",
-    "phaseBreak": "Pausa",
-    "start": "Iniciar",
     "pause": "Pausar",
-    "reset": "Reiniciar",
-    "doneToday": "Sessões de foco feitas hoje: {{count}}",
     "alarmFocusTitle": "Bloco de foco concluído",
-    "alarmFocusBody": "Bom trabalho. Hora de uma pausa curta.",
-    "alarmFocusBodyStar": "Bom trabalho. Uma sessão de foco salva para {{star}}.",
-    "alarmBreakTitle": "Pausa encerrada",
-    "alarmBreakBody": "De volta ao seu próximo bloco de foco.",
-    "subIdle": "Pronto quando você estiver",
-    "subFocus": "Concentrando",
-    "subBreak": "Dando uma pausa",
-    "eyebrowFocus": "FOCO",
-    "eyebrowBreak": "PAUSA",
-    "completeTitle": "Foco concluído",
-    "completeBody": "Você concluiu {{minutes}} min de foco",
-    "btnBreak": "Descansar",
-    "btnAgain": "Mais uma",
-    "skip": "Pular",
-    "settings": "Duração",
-    "close": "Fechar",
-    "sessionLength": "DURAÇÃO DA SESSÃO",
-    "labelFocus": "Foco",
-    "labelBreak": "Pausa",
-    "focusHint": "Duração de cada sessão",
-    "breakHint": "Descanso entre sessões",
-    "unitMin": "min",
-    "decrease": "Diminuir",
-    "increase": "Aumentar",
-    "save": "Salvar",
+    "alarmFocusBodyArea": "Sessão de foco de {{area}} concluída.",
     "ringReady": "Pronto",
     "ringFocusing": "Concentrando",
     "ringPaused": "Pausado",
-    "leadPre": "Concentre-se em uma tarefa. Ao terminar, a sessão será registrada na ",
-    "leadStar": "estrela {{star}}",
+    "leadPre": "Concentre-se em uma tarefa. Ao terminar, conta como uma sessão de ",
+    "leadArea": "{{area}}",
     "leadPost": ".",
     "preset": "{{min}} min",
     "startFocus": "Iniciar foco",
     "resetBtn": "Reiniciar",
-    "forWhichStar": "Para qual estrela?",
+    "forWhichArea": "Para qual área é este foco?",
     "todayCount": "{{sessions}} sessões de foco hoje",
     "todaySub": "Cerca de {{min}} min · meta {{goal}}",
-    "todayStarCount": "Estrela {{star}} · {{n}} hoje",
-    "stars": {
-      "s0": "Crescimento",
-      "s1": "Carreira",
-      "s2": "Aprendizado",
-      "s3": "Relações",
-      "s4": "Saúde"
-    }
+    "todaySubGoalOnly": "Meta {{goal}}",
+    "todayAreaCount": "{{area}} · {{n}} hoje"
   },
   "srs": {
     "title": "Revisão de idioma",
@@ -435,5 +578,182 @@
     "save": "Salvar",
     "cancel": "Cancelar"
   },
-  "todaysAssistant": "Assistente de hoje"
+  "todaysAssistant": "Assistente de hoje",
+  "toolScreens": {
+    "loading": "Carregando…",
+    "delete": {
+      "arm": "Excluir",
+      "confirm": "Toque de novo para excluir",
+      "a11y": "Excluir {{name}}",
+      "confirmA11y": "Toque de novo para excluir {{name}}"
+    },
+    "reading": {
+      "emptyTitle": "Sua estante está vazia",
+      "emptyBody": "Busque um livro acima ou adicione-o pelo título.",
+      "searching": "Buscando…",
+      "noResults": "Nenhum livro corresponde a {{q}}.",
+      "failedTitle": "A busca de livros não está funcionando agora",
+      "failedBody": "Sua estante está bem. Tente de novo ou adicione o livro pelo título.",
+      "rateTitle": "A busca de livros atingiu o limite",
+      "rateBody": "O serviço de busca não está aceitando pedidos agora. Adicione o livro pelo título ou tente mais tarde.",
+      "addByTitle": "Adicionar pelo título: {{title}}",
+      "onShelf": "Na estante",
+      "alsoReading": "Também lendo",
+      "finished": "Lidos",
+      "readAgain": "Ler de novo",
+      "editPages": "Atualizar páginas",
+      "currentPage": "Página",
+      "totalPages": "Total de páginas",
+      "savePages": "Salvar",
+      "pagesInvalid": "Digite números de página inteiros de 0 a 100000, com no máximo 6 dígitos."
+    },
+    "goals": {
+      "emptyTitle": "Ainda não há metas",
+      "emptyBody": "Escreva o nome de uma meta acima para adicioná-la.",
+      "chipA11y": "{{state}}. Toque para mudar para {{next}}."
+    },
+    "ledger": {
+      "emptyTitle": "Nenhum gasto registrado neste mês",
+      "emptyBody": "Digite um valor acima e ele será agrupado aqui por categoria.",
+      "currencyNote": "Os valores são registrados em wons (KRW).",
+      "amountTooLarge": "Esse valor é grande demais. Um registro aceita até {{max}} wons.",
+      "amountInvalid": "Digite wons inteiros, como 12000, 12,000, ₩12,000 ou 12,000원. Sinais e casas decimais não são aceitos."
+    },
+    "meals": {
+      "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
+      "placeholder": "ex.: arroz bibimbap",
+      "clear": "Limpar esta refeição",
+      "lookUp": "Buscar alimentos",
+      "lookUpNone": "Nenhum alimento corresponde.",
+      "lookUpFailed": "Não foi possível buscar. Tente de novo.",
+      "saveFailed": "Esta alteração não foi salva. O que você digitou continua aqui. Tente de novo.",
+      "days": {
+        "mon": "Seg",
+        "tue": "Ter",
+        "wed": "Qua",
+        "thu": "Qui",
+        "fri": "Sex",
+        "sat": "Sáb",
+        "sun": "Dom"
+      },
+      "ideas": {
+        "i1": "Arroz bibimbap",
+        "i2": "Ensopado de pasta de soja",
+        "i3": "Tigela de salada",
+        "i4": "Ensopado de kimchi",
+        "i5": "Filé de salmão",
+        "i6": "Tigela de arroz com tofu",
+        "i7": "Salada de peito de frango",
+        "i8": "Sopa de algas"
+      }
+    }
+  },
+  "copy": {
+    "todaysRoutine": "Rotina de hoje",
+    "send": "Enviar",
+    "share": "Compartilhar",
+    "sendToApps": "Enviar para meus apps",
+    "receivedOnly": "Só os passos que você aceitar vão para seus apps.",
+    "notMedical": "Não é orientação médica: são ideias a partir dos seus registros.",
+    "toolsTitle": "Suas ferramentas",
+    "toolsHint": "Abra uma diretamente, sem esperar uma sugestão.",
+    "toolReading": "Leitura",
+    "toolMilestones": "Metas",
+    "toolLedger": "Revisão de gastos",
+    "toolSideProject": "Projeto paralelo",
+    "toolMeals": "Refeições",
+    "toolFocus": "Temporizador de foco",
+    "toolSrs": "Revisão de idioma",
+    "toolReminders": "Lembretes",
+    "retry": "Tentar novamente",
+    "whereToSend": "Para onde enviar esta rotina?",
+    "consentOnce": "Só uma vez. Permita o acesso ao calendário.",
+    "deviceCalendar": "Calendário do dispositivo",
+    "deviceCalendarSub": "Apple · Samsung · Outlook automático",
+    "googleCalendar": "Google Calendar",
+    "googleCalendarSub": "Abrir na web",
+    "icsFile": "Arquivo de calendário (.ics)",
+    "icsFileSub": "Exportar pelo compartilhamento",
+    "shareChecklist": "Compartilhar checklist",
+    "shareChecklistSub": "Para apps de notas ou tarefas",
+    "recommended": "Recomendado",
+    "allowAndContinue": "Permitir e continuar",
+    "scheduledReminders": "Lembretes agendados",
+    "active": "Ativo",
+    "needsPermission": "Precisa de permissão",
+    "notOnThisDevice": "Indisponível neste dispositivo",
+    "enableNotifications": "Ativar notificações",
+    "reminderUnavailableNote": "Você pode agendar isso no app completo.",
+    "remindersDeviceNote": "Enviados só como notificações do dispositivo. Nada sai do seu dispositivo.",
+    "remindersCountTemplate": "{n} lembretes agendados",
+    "addFromAssistant": "Adicionar pelo assistente de hoje",
+    "assistantSource": "Assistente de hoje",
+    "starWord": "estrela",
+    "emptyTitle": "Ainda não há sugestões",
+    "emptyBody": "Conforme seus registros crescerem, aparecerão passos para você",
+    "emptyCta": "Adicionar um registro",
+    "errorTitle": "Não foi possível carregar agora",
+    "errorBody": "Verifique sua conexão",
+    "saveFailed": "Não foi possível salvar. Nada foi registrado. Tente de novo.",
+    "unlinkedTitle": "Ainda não conectado",
+    "unlinkedBody": "Conecte para ser automático, ou escreva você mesmo",
+    "unlinkedCta": "Conectar",
+    "rateTitle": "Um momento",
+    "rateBody": "Muitas solicitações: uma pausa breve, voltamos logo",
+    "myShelf": "Minha estante",
+    "searchBooks": "Buscar por título ou autor",
+    "nowReading": "LENDO AGORA",
+    "wantToRead": "Quero ler",
+    "add": "Adicionar",
+    "whatReading": "O que você está lendo?",
+    "goals": "Metas",
+    "inProgress": "Em andamento",
+    "planning": "Planejamento",
+    "done": "Concluído",
+    "overdue": "Atrasada",
+    "nextStep": "Próximo passo",
+    "monthCheck": "Este mês",
+    "income": "Receitas",
+    "expense": "Gastos",
+    "left": "Restante",
+    "record": "Registrar",
+    "byCategory": "Por categoria",
+    "amountPlaceholder": "Valor",
+    "categoryPlaceholder": "Categoria (ex.: Alimentação)",
+    "addEntry": "Adicionar",
+    "entriesLabel": "Registros deste mês",
+    "entryDate": "Data",
+    "deleteEntry": "Excluir registro",
+    "sideProject": "Projeto paralelo",
+    "thisWeek": "ESTA SEMANA",
+    "commits": "commits",
+    "githubLinked": "GitHub conectado",
+    "manage": "Gerenciar",
+    "repos": "repositórios",
+    "githubHandle": "GitHub @usuário",
+    "weeklyMeals": "Refeições desta semana",
+    "prevWeek": "Semana anterior",
+    "nextWeek": "Próxima semana",
+    "whatToEatNow": "O que eu como agora?",
+    "quickMode": "Modo rápido",
+    "breakfast": "Café da manhã",
+    "lunch": "Almoço",
+    "dinner": "Jantar",
+    "mealIdeas": "Ideias de refeições",
+    "nutritionNote": "Os valores nutricionais são só uma referência; não são orientação alimentar nem médica.",
+    "planMeal": "Planejar uma refeição",
+    "save": "Salvar",
+    "daily": "Todo dia",
+    "weekly": "Toda semana",
+    "once": "Uma vez",
+    "remindersTip": "Você pode desativar qualquer um quando quiser.",
+    "remindersEntry": "Lembretes agendados",
+    "goalTitlePlaceholder": "Dê um nome à meta",
+    "goalRename": "Renomear esta meta",
+    "cancel": "Cancelar",
+    "dueDate": "Prazo",
+    "dueClear": "Limpar",
+    "startReading": "Começar a ler",
+    "finishedReading": "Lido"
+  }
 }

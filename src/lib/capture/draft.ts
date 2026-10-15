@@ -787,6 +787,13 @@ export interface SharedRoutePlan {
    * 그대로 두고 payload 는 sources/linkclip 으로 보내며 사용자에게 알린다.
    */
   starConflict: { existing: DomainId | null; incoming: DomainId | null } | null;
+  /**
+   * The share was NOT folded in: the link box already holds unsaved text and the caller asked to
+   * hold (Q-261013-78). The linkclip draft is exactly as it was; the screen asks the user whether
+   * to add the share below that text or clear the text and start with the share. `tag` is the
+   * ordinary tag that came with the delivery, applied only with the user's choice.
+   */
+  held: { content: string; tag: string | null } | null;
 }
 
 /** tagParam 에서 유효 별 intent 만 뽑는다 (isDomainTag 대소문자 무시 규약). */
@@ -802,7 +809,7 @@ function starIntentFromTagParam(tagParam: unknown): DomainId | null {
  * occupies a whole paragraph block. Substring matching is unsafe: sharing
  * "alpha" after writing "alphabet soup" is a new piece, not a duplicate.
  */
-function appendSharedChunk(existingRaw: string, contentRaw: string): string {
+export function appendSharedChunk(existingRaw: string, contentRaw: string): string {
   const existing = existingRaw.trim();
   const content = contentRaw.trim();
   if (content.length === 0) return existing;
@@ -844,6 +851,12 @@ export function planSharedConsumption(input: {
   /** 지금 composer 의 칩·typed intent — transient 모드 재배달도 파괴하지 않는다. */
   liveTags?: readonly string[];
   liveDomainIntent?: DomainId | null;
+  /**
+   * What to do when the link box already holds unsaved text. "append" (default) keeps the
+   * long-standing behaviour: the share goes below it. "hold" changes nothing in that draft and
+   * returns the share in `held`, for the screen to ask first. Other target modes always append.
+   */
+  existingLinkText?: "append" | "hold";
 }): SharedRoutePlan {
   const rawMode =
     typeof input.modeParam === "string" && input.modeParam.trim().length > 0
@@ -919,8 +932,21 @@ export function planSharedConsumption(input: {
   let liveTodoDone = false;
   let liveDomainIntent: DomainId | null = null;
   let liveOrdinaryTags: string[] = [];
+  let held: SharedRoutePlan["held"] = null;
 
-  if (isCaptureDraftMode(mode)) {
+  const heldLinkDraft = mode === "linkclip" && input.existingLinkText === "hold" ? next.linkclip : undefined;
+  const heldLinkBody = (heldLinkDraft?.body ?? "").trim();
+  if (
+    heldLinkDraft !== undefined &&
+    heldLinkBody.length > 0 &&
+    appendSharedChunk(heldLinkBody, input.content) !== heldLinkBody
+  ) {
+    // Unsaved text is in the link box and this share would be added to it. Leave the draft
+    // exactly as it is and hand the share back; nothing is merged until the user picks.
+    held = { content: input.content.trim(), tag: ordinaryTag };
+    liveBody = heldLinkDraft.body;
+    liveOrdinaryTags = sanitizeChips(heldLinkDraft.tags);
+  } else if (isCaptureDraftMode(mode)) {
     const existing = next[mode];
     const mergedBody = appendSharedChunk(existing?.body ?? "", input.content);
     const storedTags = ordinaryTag === null
@@ -1008,6 +1034,7 @@ export function planSharedConsumption(input: {
     consumedModeParam: rawMode,
     consumedTagParam: rawTag,
     starConflict,
+    held,
   };
 }
 

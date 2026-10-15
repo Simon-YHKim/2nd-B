@@ -1,5 +1,12 @@
 {
   "phone": {
+    "summaryDetails": "Detailed summary",
+    "noteUpdatedAt": "Last written · {{time}}",
+    "dismissHandle": "Lower phone: swipe up or down",
+    "assistantSettings": "Assistant settings",
+    "recommendationSettings": "Recommendation settings",
+    "todayRecommendations": "Today’s recommendations",
+    "noRecommendations": "No recommendations yet.",
     "title": "My phone",
     "brand": "MY DAY",
     "bannerTitle": "Keep your story going",
@@ -11,6 +18,15 @@
     "navLabel": "Phone shortcuts",
     "nav": { "home": "Home", "note": "Notes", "add": "Add", "search": "Search", "profile": "Profile" },
     "returnToStars": "Return to constellation",
+    "internal": {
+      "back": "Back", "wikiGraph": "Graph and tags", "closePhone": "Close phone", "exitTitle": "Close the phone?", "exitHint": "Return to the constellation without changing your saved data.", "cancel": "Keep viewing",
+      "captureScope": "Save a short note here. Interviews and other capture modes remain in their dedicated screens.",
+      "noteInput": "Write something to keep", "startNote": "Write a note", "saveNote": "Save note", "saved": "Note saved.",
+      "focusLocal": "This timer runs only while its screen is open.", "start": "Start", "pause": "Pause", "reset": "Reset",
+      "searchRecords": "Search saved records", "untitledRecord": "Record without text", "settingsScope": "Manage data links and refresh cadence in Settings.",
+      "profileSummary": "Read {{count}} recent records. This is not your total or your profile content.",
+      "unavailable": "This feature has no phone-internal screen yet. No data is invented."
+    },
     "operational": {
       "title": "Personal dashboard",
       "scope": "See your next step, recent change, and the evidence behind it.",
@@ -147,7 +163,7 @@
       "growth": "Goals",
       "meals": "Meals",
       "museum": "AI Museum",
-      "notifications": "Notifications",
+      "notifications": "Notices",
       "community": "Community",
       "avatarPalette": "Avatar Palette",
       "avatarPaletteShort": "Palette",
@@ -155,10 +171,9 @@
       "settings": "Settings",
       "more": "More"
     },
-    "appsBack": "Back to apps",
-    "noticeListBack": "Notifications list",
-    "noticeLoading": "Loading notifications…",
-    "noticeEmpty": "No notifications yet.",
+    "appsBack": "Back",
+    "noticeLoading": "Loading notices…",
+    "noticeEmpty": "No notices yet.",
     "noticeUnread": "Unread",
     "notifications": "Phone reminders",
     "push": {
@@ -181,12 +196,203 @@
     "lastRead": "Last read · {{date}}",
     "noData": "No data has been read yet.",
     "refresh": "Refresh",
-    "unknownDate": "Date unavailable"
+    "unknownDate": "Date unavailable",
+    "board": {
+      "generation": {
+        "next": "Next item",
+        "waiting": "This will be prepared again at the next refresh.",
+        "loading": "Preparing today’s overview.",
+        "denied": "Review recommendations and AI service consent.",
+        "limited": "A new update will be available at the next refresh.",
+        "disabled": "Temporarily unavailable.",
+        "unavailable": "Could not load. Please try again.",
+        "noteEmpty": "Add a reminder for today to get a daily note.",
+        "triageEmpty": "No reminders to sort yet.",
+        "summaryEmpty": "Add a reminder to summarize today’s reminders and completed tasks.",
+        "settings": "Consent settings",
+        "reminders": "Reminders"
+      },
+      "weather": {
+        "title": "Weather",
+        "body": "Use your location on this device to choose a nearby weather observation. Your location never leaves the device, and you can turn this off at any time.",
+        "terms": "View terms",
+        "enable": "Turn on",
+        "cancel": "Cancel",
+        "failed": "Could not save. Please try again.",
+        "settingsBody": "Location access is off in device settings.",
+        "webSettingsBody": "Allow location in this browser’s site settings.",
+        "settings": "Open settings",
+        "done": "Done",
+        "setting": "Location for weather",
+        "on": "On",
+        "off": "Off",
+        "source": "Nearby observations from NOAA/NWS, within 50 km and 90 minutes old. Hidden when unavailable. We use five drawings and rounded temperatures; this is not an official NOAA/NWS product or endorsement.",
+        "sourceTerms": "Data use terms"
+      },
+      "evidence": "Show the source",
+      "addWidget": "Add a widget",
+      "clock": {
+        "weatherPrompt": "Pick your neighborhood to see the weather.",
+        "pickArea": "Pick neighborhood",
+        "sky": {
+          "clear": "Clear",
+          "partlyCloudy": "Partly cloudy",
+          "cloudy": "Cloudy",
+          "rain": "Rain",
+          "snow": "Snow"
+        },
+        "temp": "{{temp}} degrees"
+      },
+      "note": {
+        "tapHint": "Open today’s note details",
+        "empty": "Today's note appears after your first record.",
+        "slot": {
+          "morning": "Morning",
+          "day": "Afternoon",
+          "evening": "Evening"
+        }
+      },
+      "reminders": {
+        "title": "Reminders",
+        "previous": "Previous day",
+        "next": "Next day",
+        "anytime": "Any time",
+        "alarm": "Alert at {{time}}",
+        "add": "Add",
+        "dismiss": "Dismiss",
+        "days": {
+          "yesterday": "Yesterday",
+          "today": "Today",
+          "tomorrow": "Tomorrow",
+          "dayAfter": "Day after"
+        },
+        "empty": {
+          "yesterday": "Nothing was planned yesterday.",
+          "today": "Nothing is planned for today.",
+          "tomorrow": "Nothing is planned for tomorrow.",
+          "dayAfter": "Nothing is planned for the day after."
+        },
+        "status": {
+          "upcoming": "Coming up",
+          "done": "Done",
+          "passed": "Let go"
+        }
+      },
+      "queue": {
+        "title": "To handle {{index}}/{{total}}",
+        "empty": "Nothing is waiting on you today.",
+        "done": "I did it",
+        "later": "Later",
+        "notImportant": "Not important",
+        "sources": {
+          "mail": "Mail",
+          "notification": "Alert",
+          "app": "App"
+        }
+      },
+      "health": {
+        "title": "Health",
+        "locked": "Connect health to see last night's sleep.",
+        "empty": "Bring in health records and they show here.",
+        "openSetup": "Connection settings",
+        "synced": "{{source}} · synced {{time}}",
+        "minutes": "{{value}} min",
+        "metrics": {
+          "sleep": "Sleep",
+          "steps": "Steps",
+          "workout": "Workout",
+          "meal": "Meals"
+        },
+        "sources": {
+          "health_connect": "Health Connect",
+          "healthkit": "Apple Health",
+          "manual": "Entered by you"
+        }
+      },
+      "spend": {
+        "title": "Spending",
+        "empty": "Bring in a statement and this month's total shows here.",
+        "open": "Open ledger",
+        "add": "Add",
+        "reject": "No"
+      },
+      "changes": {
+        "title": "Also"
+      },
+      "custom": {
+        "empty": "As your records grow, your own widgets appear here.",
+        "capture": "Capture",
+        "make": "Make it",
+        "skip": "No thanks",
+        "previous": "Previous widget",
+        "next": "Next widget"
+      },
+      "locked": {
+        "open": "Connection settings",
+        "weather": "Weather opens once a neighborhood is chosen.",
+        "aiConsent": "Today's note opens with AI processing turned on.",
+        "calendar": "Connect a calendar to see plans here.",
+        "inbox": "Connect mail or alerts to see what to handle.",
+        "ledger": "Bring in a statement to see spending.",
+        "sources": "Connect a source to see what changed.",
+        "records": "Your own widgets open as records grow."
+      },
+      "summary": {
+        "titleDefault": "Today's summary",
+        "title": {
+          "morning": "Morning summary",
+          "day": "Afternoon summary",
+          "evening": "Evening summary"
+        },
+        "read": "Read aloud",
+        "stop": "Stop",
+        "close": "Close",
+        "notReady": "Today's summary is not ready yet.",
+        "noValue": "no record",
+        "mutedNote": "Silent mode is on, so the summary shows as text only."
+      },
+      "shelf": {
+        "title": "Manage widgets",
+        "onScreen": "On screen",
+        "offScreen": "Not on screen",
+        "allOnScreen": "Every widget is on screen.",
+        "show": "Turn back on",
+        "hide": "Hide {{name}}",
+        "moveUp": "Move {{name}} up",
+        "moveDown": "Move {{name}} down",
+        "reasons": {
+          "preparing": "This widget is still being prepared.",
+          "adultOnly": "Health connection is for adults only.",
+          "hidden": "You hid this widget."
+        },
+        "parts": {
+          "clock": "Clock and weather",
+          "note": "Today's note",
+          "reminders": "Reminders",
+          "queue": "To handle",
+          "health": "Health",
+          "spend": "Spending",
+          "changes": "Also",
+          "custom": "Your own widgets"
+        }
+      },
+      "transcribe": {
+        "title": "Transcribe",
+        "adultOnly": "Transcription is for adults only.",
+        "ownTalkOnly": "Records only conversations you take part in.",
+        "lockedStart": "Start recording, not open yet",
+        "afterTitle": "After a recording, the results show here.",
+        "sections": {
+          "head": "One-line summary",
+          "todos": "To-dos and next contacts",
+          "transcript": "Full transcript"
+        }
+      }
+    }
   },
   "loading": "Loading routines…",
   "hero": {
-    "title": "Routines",
-    "subtitle": "Pick an area to get ideas you can try."
+    "title": "Routines"
   },
   "groups": {
     "body": "Body",
@@ -211,13 +417,6 @@
     "news_digest": "Quick news digest",
     "side_project": "Creative side project"
   },
-  "picker": {
-    "groupHint": "Shows the areas in this group.",
-    "domainHint": "Suggests things to try in this area.",
-    "optionA11yLabel": "{{label}}, option {{index}} of {{total}}, {{state}}.",
-    "stateSelected": "selected",
-    "stateAvailable": "available"
-  },
   "recommend": {
     "off": "Routine suggestions are off for this account, so your saved pieces stay private.",
     "cta": "Get suggestions",
@@ -232,32 +431,20 @@
     "durationLabel": "{{minutes}} min",
     "daily": "Every day",
     "weekly": "Every week",
-    "share": "Share",
-    "shareA11y": "Share this suggestion",
-    "addCalendar": "Add to calendar",
-    "addCalendarA11y": "Add to calendar",
     "saveRoutine": "Save as routine",
-    "saveRoutineA11y": "Save this suggestion as a routine",
     "saving": "Saving…",
     "saved": "Saved",
     "addDevice": "My calendar",
-    "addDeviceHint": "Opens your device calendar form with this item prefilled.",
     "addGoogle": "Google Calendar",
-    "addGoogleHint": "Opens Google Calendar with this event prefilled.",
     "downloadIcs": "Calendar file",
-    "downloadIcsHint": "Downloads an .ics file that opens in your calendar app.",
     "shareList": "Send checklist",
-    "shareListHint": "Opens the sharing menu with this checklist as text.",
-    "remind": "Remind me",
-    "remindHint": "Schedules an on-device reminder at this item's time."
+    "remind": "Remind me"
   },
   "consent": {
     "title": "Send to another app?",
     "body": "Approved items go to your calendar or sharing menu. Once you allow this, you will not be asked again. You can turn it off anytime in Privacy.",
     "agree": "Allow and send",
-    "agreeHint": "Saves your choice and sends the selected item.",
-    "later": "Not now",
-    "laterHint": "Closes without sending. The item stays on this screen."
+    "later": "Not now"
   },
   "today": {
     "heading": "Today's routines",
@@ -287,10 +474,8 @@
   },
   "home": {
     "ringCount": "{{done}} / {{total}} done",
-    "streakLabel": "day streak",
     "patternsTitle": "This week's patterns",
     "patternsSub": "You can keep using the app during analysis.",
-    "patternsRun": "Analyze",
     "takeEyebrow": "TODAY'S SUMMARY",
     "toolsLabel": "Assistant tools"
   },
@@ -340,78 +525,36 @@
       "sub": "This week's plan"
     }
   },
-  "states": {
-    "emptyDomain": "Pick an area above to get started."
-  },
   "push": {
     "savedNote": "Sent to your calendar.",
     "deniedNote": "Calendar permission is off. Allow it in your device settings to use this.",
     "reminderSetNote": "Reminder set on this device.",
     "reminderDeniedNote": "Notification permission is off. Allow it in your device settings to use reminders.",
     "reminderFailedNote": "The reminder could not be set. Check the item's time and try again.",
-    "reminderUnavailableNote": "Saved. Reminders only work in the installed app. You will not get an alert here."
-  },
-  "health": {
-    "autoCompleted": "Auto-checked from your activity",
-    "autoCompletedHint": "A logged workout or steps over your goal ticked this off."
+    "reminderUnavailableNote": "Saved. Reminders only work in the installed app. You will not get an alert here.",
+    "deviceReminderBody": "It's time for your reminder.",
+    "deviceTimerBody": "Your timer is done.",
+    "deviceChannelName": "Reminders"
   },
   "focus": {
     "title": "Focus timer",
-    "status": "Set a timer and focus on one task.",
-    "tip": "Finish the timer to mark your daily focus routine complete.",
-    "phaseIdle": "Ready",
-    "phaseFocus": "Focus",
-    "phaseBreak": "Break",
-    "start": "Start",
     "pause": "Pause",
-    "reset": "Reset",
-    "doneToday": "Focus sessions done today: {{count}}",
     "alarmFocusTitle": "Focus session complete",
-    "alarmFocusBody": "Your focus session is over. Take a short break.",
-    "alarmFocusBodyStar": "One focus session saved for {{star}}.",
-    "alarmBreakTitle": "Break over",
-    "alarmBreakBody": "Time for your next focus session.",
-    "subIdle": "Ready when you are",
-    "subFocus": "Focusing",
-    "subBreak": "Taking a breather",
-    "eyebrowFocus": "FOCUS",
-    "eyebrowBreak": "BREAK",
-    "completeTitle": "Focus complete",
-    "completeBody": "You focused for {{minutes}} min",
-    "btnBreak": "Take a break",
-    "btnAgain": "One more",
-    "skip": "Skip",
-    "settings": "Session length",
-    "close": "Close",
-    "sessionLength": "SESSION LENGTH",
-    "labelFocus": "Focus",
-    "labelBreak": "Break",
-    "focusHint": "Time for each focus session",
-    "breakHint": "Rest between sessions",
-    "unitMin": "min",
-    "decrease": "Decrease",
-    "increase": "Increase",
-    "save": "Save",
+    "alarmFocusBodyArea": "One {{area}} focus session done.",
     "ringReady": "Ready",
     "ringFocusing": "Focusing",
     "ringPaused": "Paused",
-    "leadPre": "Focus on one thing, then save the session to your ",
-    "leadStar": "{{star}} star",
-    "leadPost": ".",
+    "leadPre": "Focus on one thing. When it ends, it counts as one ",
+    "leadArea": "{{area}}",
+    "leadPost": " session.",
     "preset": "{{min}} min",
     "startFocus": "Start focus",
     "resetBtn": "Reset",
-    "forWhichStar": "Which star should this count toward?",
+    "forWhichArea": "Which area is this focus for?",
     "todayCount": "{{sessions}} focus sessions today",
     "todaySub": "About {{min}} min · goal {{goal}}",
-    "todayStarCount": "{{star}} star · {{n}} today",
-    "stars": {
-      "s0": "Growth",
-      "s1": "Career",
-      "s2": "Learning",
-      "s3": "Relations",
-      "s4": "Health"
-    }
+    "todaySubGoalOnly": "Goal {{goal}}",
+    "todayAreaCount": "{{area}} · {{n}} today"
   },
   "srs": {
     "title": "Language review",
@@ -435,5 +578,182 @@
     "save": "Save",
     "cancel": "Cancel"
   },
-  "todaysAssistant": "Today's assistant"
+  "todaysAssistant": "Today's assistant",
+  "toolScreens": {
+    "loading": "Loading…",
+    "delete": {
+      "arm": "Delete",
+      "confirm": "Tap again to delete",
+      "a11y": "Delete {{name}}",
+      "confirmA11y": "Tap again to delete {{name}}"
+    },
+    "reading": {
+      "emptyTitle": "Your shelf is empty",
+      "emptyBody": "Search for a book above, or add one by its title.",
+      "searching": "Searching…",
+      "noResults": "No books matched {{q}}.",
+      "failedTitle": "Book search isn't working right now",
+      "failedBody": "Your shelf is fine. Try again, or add the book by its title.",
+      "rateTitle": "Book search has reached its limit",
+      "rateBody": "The search service is not taking requests right now. Add the book by its title, or try again later.",
+      "addByTitle": "Add by title: {{title}}",
+      "onShelf": "On shelf",
+      "alsoReading": "Also reading",
+      "finished": "Finished",
+      "readAgain": "Read again",
+      "editPages": "Update pages",
+      "currentPage": "Page",
+      "totalPages": "Total pages",
+      "savePages": "Save",
+      "pagesInvalid": "Enter whole page numbers from 0 to 100000, using at most 6 digits."
+    },
+    "goals": {
+      "emptyTitle": "No goals yet",
+      "emptyBody": "Name a goal above to add it.",
+      "chipA11y": "{{state}}. Tap to change it to {{next}}."
+    },
+    "ledger": {
+      "emptyTitle": "No spending logged this month",
+      "emptyBody": "Enter an amount above and it is grouped by category here.",
+      "currencyNote": "Amounts are recorded in won (KRW).",
+      "amountTooLarge": "That amount is too large. One entry can hold up to {{max}} won.",
+      "amountInvalid": "Enter whole won, like 12000, 12,000, ₩12,000 or 12,000원. Signs and decimal points are not taken."
+    },
+    "meals": {
+      "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
+      "placeholder": "e.g. Bibimbap",
+      "clear": "Clear this meal",
+      "lookUp": "Look up foods",
+      "lookUpNone": "No foods matched.",
+      "lookUpFailed": "Couldn't look that up. Try again.",
+      "saveFailed": "This change was not saved. What you entered is still here. Try again.",
+      "days": {
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat",
+        "sun": "Sun"
+      },
+      "ideas": {
+        "i1": "Bibimbap",
+        "i2": "Soybean paste stew",
+        "i3": "Salad bowl",
+        "i4": "Kimchi stew",
+        "i5": "Salmon steak",
+        "i6": "Tofu rice bowl",
+        "i7": "Chicken breast salad",
+        "i8": "Seaweed soup"
+      }
+    }
+  },
+  "copy": {
+    "todaysRoutine": "Today's routine",
+    "send": "Send",
+    "share": "Share",
+    "sendToApps": "Send to my apps",
+    "receivedOnly": "Only the steps you accept go to your apps.",
+    "notMedical": "Not medical advice - ideas from your records.",
+    "toolsTitle": "Your tools",
+    "toolsHint": "Open one directly, without waiting for a suggestion.",
+    "toolReading": "Reading",
+    "toolMilestones": "Goals",
+    "toolLedger": "Money check",
+    "toolSideProject": "Side project",
+    "toolMeals": "Meals",
+    "toolFocus": "Focus timer",
+    "toolSrs": "Language review",
+    "toolReminders": "Reminders",
+    "retry": "Try again",
+    "whereToSend": "Where should this routine go?",
+    "consentOnce": "Just once. Allow calendar access.",
+    "deviceCalendar": "Device calendar",
+    "deviceCalendarSub": "Apple · Samsung · Outlook auto",
+    "googleCalendar": "Google Calendar",
+    "googleCalendarSub": "Open on the web",
+    "icsFile": "Calendar file (.ics)",
+    "icsFileSub": "Export via share",
+    "shareChecklist": "Share checklist",
+    "shareChecklistSub": "To notes / to-do apps",
+    "recommended": "Recommended",
+    "allowAndContinue": "Allow and continue",
+    "scheduledReminders": "Scheduled reminders",
+    "active": "Active",
+    "needsPermission": "Needs permission",
+    "notOnThisDevice": "Not on this device",
+    "enableNotifications": "Turn on notifications",
+    "reminderUnavailableNote": "You can schedule this in the full app.",
+    "remindersDeviceNote": "Sent as device notifications only. Nothing leaves your device.",
+    "remindersCountTemplate": "{n} scheduled reminders",
+    "addFromAssistant": "Add from today's assistant",
+    "assistantSource": "Today's assistant",
+    "starWord": "star",
+    "emptyTitle": "No suggestions yet",
+    "emptyBody": "As your records grow I'll pick steps for you",
+    "emptyCta": "Add a record",
+    "errorTitle": "Couldn't load just now",
+    "errorBody": "Please check your connection",
+    "saveFailed": "Couldn't save that. Nothing was recorded. Try again.",
+    "unlinkedTitle": "Not connected yet",
+    "unlinkedBody": "Connect for automatic, or just write it yourself",
+    "unlinkedCta": "Connect",
+    "rateTitle": "One moment",
+    "rateBody": "Lots of requests - resting briefly, back soon",
+    "myShelf": "My shelf",
+    "searchBooks": "Search title or author",
+    "nowReading": "NOW READING",
+    "wantToRead": "Want to read",
+    "add": "Add",
+    "whatReading": "What are you reading?",
+    "goals": "Goals",
+    "inProgress": "In progress",
+    "planning": "Planning",
+    "done": "Done",
+    "overdue": "Overdue",
+    "nextStep": "Next step",
+    "monthCheck": "This month",
+    "income": "Income",
+    "expense": "Spent",
+    "left": "Left",
+    "record": "Record",
+    "byCategory": "By category",
+    "amountPlaceholder": "Amount",
+    "categoryPlaceholder": "Category (e.g. Food)",
+    "addEntry": "Add",
+    "entriesLabel": "This month's entries",
+    "entryDate": "Date",
+    "deleteEntry": "Delete entry",
+    "sideProject": "Side project",
+    "thisWeek": "THIS WEEK",
+    "commits": "commits",
+    "githubLinked": "GitHub linked",
+    "manage": "Manage",
+    "repos": "repos",
+    "githubHandle": "GitHub @username",
+    "weeklyMeals": "This week's meals",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "whatToEatNow": "What should I eat now?",
+    "quickMode": "Quick mode",
+    "breakfast": "Breakfast",
+    "lunch": "Lunch",
+    "dinner": "Dinner",
+    "mealIdeas": "Meal ideas",
+    "nutritionNote": "Nutrition values are a reference - not dietary or medical advice.",
+    "planMeal": "Plan a meal",
+    "save": "Save",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "once": "Once",
+    "remindersTip": "Turn any of them off anytime.",
+    "remindersEntry": "Scheduled reminders",
+    "goalTitlePlaceholder": "Name the goal",
+    "goalRename": "Rename this goal",
+    "cancel": "Cancel",
+    "dueDate": "Due date",
+    "dueClear": "Clear",
+    "startReading": "Start reading",
+    "finishedReading": "Finished"
+  }
 }

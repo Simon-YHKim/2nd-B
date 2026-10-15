@@ -1,5 +1,7 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 /**
- * STEP 4 — the deep-space dock views, translated from legacy/design/prototype.dc.html:
+ * STEP 4 — the deep-space dock views, translated from E:/Legacy/2ndB/legacy/design/prototype.dc.html:
  *   CaptureView (담기) · ChatView (세컨비) · LensView (나, empty/error/filled) ·
  *   IdenView (IDEN).
  *
@@ -13,11 +15,11 @@
  * (document-global svg ids) never clashes across instances.
  */
 import { forwardRef, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, Keyboard, type DimensionValue, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { AccessibilityInfo, Keyboard, type DimensionValue, Platform, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { canonCaptureModes } from "@/lib/canon";
@@ -28,11 +30,15 @@ import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { createRecord } from "@/lib/records/create";
+import { enqueueAutoReasoningRecord } from "@/app/reasoning";
+import { useProgression } from "@/lib/progression/useProgression";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { type HotlineId } from "@/lib/safety/lexicon";
-import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
+import { MdButton, MdCard, ProgressLinear, SegBtn, m3TextStyle } from "@/components/m3";
 import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
+import { forgetCaptureViewDraft, keepCaptureViewDraft, readCaptureViewDraft } from "@/lib/capture/view-draft";
 import {
   MAX_RECORD_PHOTOS,
   RECORD_PHOTOS_ENABLED,
@@ -76,9 +82,14 @@ import { buildSeenRows, seenGapLines, type SeenRow } from "@/lib/persona/seen-ro
 import { SEVEN_STARS, isUnlived } from "@/lib/persona/seven-stars";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callLlm } from "@/lib/llm/boundary";
-import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
+import { IMAGINE_SEEDS, imagineSeedCopy, type ImagineSeedIcon } from "./imagine-seeds";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { FirstRecordCoachmark } from "./FirstRecordCoachmark";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { markCoachmarksSeen } from "@/lib/onboarding/coachmarks-gate";
+import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
+import { isRecordingAudioMode } from "@/lib/audio/audio-session";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 import {
   advanceFirstRecordCoach,
   type FirstRecordCoachStep,
@@ -350,23 +361,36 @@ const CaptureTodoInput = forwardRef<TextInput, {
   );
 });
 
-export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: boolean } = {}) {
+export function CaptureView({
+  firstRecordCoach = false,
+  coachReplay = false,
+}: { firstRecordCoach?: boolean; coachReplay?: boolean } = {}) {
   const { t, i18n } = useTranslation(["home", "capture", "deepspace"]);
   const { userId, isMinor } = useAuth();
+  const progression = useProgression();
   const locale = i18n.language === "ko" ? "ko" : "en";
+  const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   // rev2 P4a (device QA 2026-07-02) + clone-audit 06-capture: all modes save
   // through the same createRecord(kind:"note") path. Three modes since 2026-09-30
   // (메모 · 링크 · 할 일); photos attach to 메모 instead of a tab of their own.
-  const [mode, setMode] = useState<CaptureMode>("text");
-  // 2026-09-30 (Simon): the 메모/4W1H radio became one toggle. OFF (the default)
-  // is the plain memo; ON shows the 4W1H fields. Both keep their text while the
-  // toggle moves, and the save picks the one that is showing: OFF saves tag
-  // "memo" with the memo text, ON saves tag "fourw" with the composed 4W1H body,
-  // exactly as the two radio options did. (The old radio opened on 4W1H.)
-  const [fourwOn, setFourwOn] = useState(false);
-  const [fourw, setFourw] = useState<FourWFields>(EMPTY_FOURW);
-  const [text, setText] = useState(""); // memo text / link
-  const [todos, setTodos] = useState<string[]>(["", ""]);
+  // Unsaved writing comes back after a visit to another tab (Z79). Session
+  // memory only; with nothing typed the screen opens on its defaults below.
+  const [kept] = useState(() => readCaptureViewDraft(userId));
+  // Z72: a replayed guide takes its practice writing with it, but never a draft the
+  // screen had already opened on.
+  const openedEmptyRef = useRef(kept === undefined);
+  const [mode, setMode] = useState<CaptureMode>(kept?.mode ?? "text");
+  // 2026-10-08 (Simon): 일반 and 4W1H are both visible in a segmented control.
+  // Plain text remains the default. Each draft survives format changes; saving
+  // uses the visible format's body and its existing "memo" / "fourw" tag.
+  const [fourwOn, setFourwOn] = useState(kept?.fourwOn ?? false);
+  const fillAvailableSpace = mode === "link" || (mode === "text" && !fourwOn);
+  const [fourw, setFourw] = useState<FourWFields>(kept?.fourw ?? EMPTY_FOURW);
+  const [text, setText] = useState(kept?.text ?? ""); // memo text / link
+  const [todos, setTodos] = useState<string[]>(kept?.todos ?? ["", ""]);
+  useEffect(() => {
+    keepCaptureViewDraft(userId, { mode, fourwOn, text, fourw, todos });
+  }, [userId, mode, fourwOn, text, fourw, todos]);
   // Photos attached to the 글 note (메모 and 4W1H share them). Local previews
   // until save; uploaded to the owner's private Storage folder only on save.
   const [photos, setPhotos] = useState<PickedAttachmentImage[]>([]);
@@ -398,6 +422,12 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   const memoCoachTargetRef = useRef<View>(null);
   const inputCoachTargetRef = useRef<View>(null);
   const saveCoachTargetRef = useRef<View>(null);
+  const keyboardHostRef = useRef<View>(null);
+  const [iosKeyboardOffset, setIosKeyboardOffset] = useState(0);
+  const measureKeyboardHost = () => {
+    if (Platform.OS !== "ios") return;
+    keyboardHostRef.current?.measureInWindow((_x, y) => setIosKeyboardOffset(y));
+  };
   // Crisis safety net (parity with the journal path): createRecord runs the
   // local crisis lexicon on every note save; a red zone must surface the same
   // locale/minor-aware hotline here as everywhere else, not a silent "saved".
@@ -552,7 +582,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       if (failure.kind === "crisis") {
         // Never "try a clearer photo" for crisis content: close and show the hotline.
         closeOcr();
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: failure.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       setOcrFailure(failure);
@@ -665,9 +695,23 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       // detection — surface the hotline exactly like the journal path
       // (capture.tsx handleJournalSubmit) instead of discarding the result.
       if (res.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
+      } else {
+        // Same opt-in queue as full capture; saving itself never waits for AI.
+        enqueueAutoReasoningRecord({
+          userId,
+          locale,
+          minor: isMinor === true,
+          tier: progression.tier,
+          id: res.id,
+          body,
+          title: topic,
+          tags: res.tags,
+        });
       }
       setSaved(true);
+      // 저장 소리(Q-261006-03): 위기 안내가 뜨는 메모는 '저장됨' 이 켜져도 무음이다.
+      if (saveCueAllowed({ crisis: res.followup?.zone === "red", recording: isRecordingAudioMode() })) playSaveCue();
       if (firstRecordCoach) {
         markCoachmarksSeen(userId);
         // The real save button can be used before the guide's input confirmation.
@@ -681,6 +725,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       // WCAG 4.1.3 status message: the saved outcome is otherwise only a button
       // label/state change, silent to a screen reader. Announce it.
       AccessibilityInfo.announceForAccessibility(t("ds.capture.saved"));
+      forgetCaptureViewDraft(userId);
       setFourw(EMPTY_FOURW);
       setText("");
       setTodos(["", ""]);
@@ -693,6 +738,21 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       setSaving(false);
     }
   }
+
+  // Z72 (Simon 2026-10-13): a replayed guide ends in front of Save. Nothing is saved, and the
+  // practice writing goes with it unless the screen had opened on a kept draft.
+  const endReplayCoach = () => {
+    if (userId) markCoachmarksSeen(userId);
+    if (openedEmptyRef.current) {
+      forgetCaptureViewDraft(userId);
+      setFourw(EMPTY_FOURW);
+      setText("");
+      setTodos(["", ""]);
+      clearPhotos();
+    }
+    setCoachStep(null);
+    router.replace("/");
+  };
 
   // W4H1 single-line fields relay focus when→where→who→what on Android.
   const whatRef = useRef<TextInput>(null);
@@ -711,6 +771,8 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         ? inputCoachTargetRef
         : saveCoachTargetRef;
   const coachCount = coachStep === "done" ? t("deepspace:coachmarks.doneCount") : `${coachStep === "format" ? 2 : coachStep === "input" ? 3 : 4}/4`;
+  // A replay's last step has its own card below: Save is shown, not pressed.
+  const replayEnd = coachReplay && coachStep === "save";
   const coachMessage =
     coachStep === "format"
       ? t("deepspace:coachmarks.formatStep")
@@ -801,13 +863,17 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
   );
 
   return (
-    <View style={styles.capCoachRoot}>
+    // Keep save below the scrolling form in every format (Simon 2026-10-10).
+    // The area moves BOTH siblings above the keyboard: measured Android overlap,
+    // iOS padding. Measure its parent's screen origin to include safe-area/window
+    // offsets; the inner area's local y is zero. Scroll-only insets miss the footer.
+    <View ref={keyboardHostRef} collapsable={false} style={styles.capCoachRoot} onLayout={measureKeyboardHost}>
+    <KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset} iosOffsetCoordinateSpace="window">
       <ScrollView
         ref={scrollRef}
         style={styles.capScroll}
-        contentContainerStyle={styles.capBody}
+        contentContainerStyle={[styles.capBody, fillAvailableSpace && styles.capFillSpace]}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
       >
       {/* Fixed square tiles, not a scrolling chip row (three since 2026-09-30). */}
       <View style={styles.capModeRow} accessibilityRole="tablist">
@@ -843,38 +909,26 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
       </View>
 
       {/* mode-specific input */}
+      <SceneTransition transitionKey={`${mode}:${fourwOn}`} kind="replace" animateOnMount={false} style={fillAvailableSpace && styles.capFillSpace}>
       {mode === "text" ? (
         <>
-          {/* 4W1H is a switch, not a second format tile (Simon 2026-09-30). One
-              row, one touch: the whole row flips it, and it reads as a switch. */}
-          <Pressable
-            onPress={() => {
-              setFourwOn((on) => !on);
+          <SegBtn
+            segments={[
+              { key: "general", label: t("capture:textFormat.general"), accessibilityHint: t("capture:modes.memo.help") },
+              { key: "fourw", label: t("capture:modes.fourw.label"), accessibilityHint: t("capture:modes.fourw.help") },
+            ]}
+            selected={[fourwOn ? "fourw" : "general"]}
+            onSelect={(key) => {
+              const next = key === "fourw";
+              if (next === fourwOn) return;
+              setFourwOn(next);
               dirty();
             }}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: fourwOn }}
-            // react-native-web does not turn accessibilityState into aria-checked;
-            // a switch without it reads as unchecked forever (2026-09-30 QA).
-            aria-checked={fourwOn}
-            accessibilityLabel={t("capture:modes.fourw.label")}
-            accessibilityHint={t("capture:modes.fourw.help")}
-            style={styles.capToggleRow}
-          >
-            <CaptureIcon name="grid" color={fourwOn ? m3.color.primary : m3.color.onSurfaceVariant} size={16} />
-            <Text style={styles.capToggleLabel}>{t("capture:modes.fourw.label")}</Text>
-            <View style={styles.capToggleSpacer} />
-            <PixelSurface
-              variant={fourwOn ? "bevel" : "inset"}
-              background={fourwOn ? m3.color.primaryContainer : m3.color.surfaceVariant}
-              contentStyle={styles.capSwitchTrack}
-            >
-              <View style={[styles.capSwitchThumb, fourwOn ? styles.capSwitchThumbOn : styles.capSwitchThumbOff]} />
-            </PixelSurface>
-          </Pressable>
+            style={styles.capTextFormat}
+          />
           {!fourwOn ? (
-            <View style={styles.capForm}>
-              <View ref={inputCoachTargetRef} collapsable={false}>
+            <View style={[styles.capForm, styles.capFillSpace]}>
+              <View ref={inputCoachTargetRef} collapsable={false} style={styles.capFillSpace}>
                 <TextInput
                   value={text}
                   onChangeText={(next) => {
@@ -885,7 +939,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
                   placeholderTextColor={m3.color.onSurfaceVariant}
                   multiline
                   textAlignVertical="top"
-                  style={[styles.capFieldInput, styles.capFreeInput]}
+                  style={[styles.capFieldInput, styles.capFreeInput, styles.capFillSpace]}
                   accessibilityLabel={t("capture:modes.memo.label")}
                 />
               </View>
@@ -994,6 +1048,9 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         </View>
       )}
 
+      </SceneTransition>
+      </ScrollView>
+      <View style={styles.capFooter}>
       <View ref={saveCoachTargetRef} collapsable={false} style={styles.capSubmit}>
         <CaptureTile
           role="button"
@@ -1020,6 +1077,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
           <Text style={styles.capErrorText}>{f("saveError")}</Text>
         </View>
       ) : null}
+      </View>
 
       <CrisisRouter
         visible={crisis.visible}
@@ -1041,8 +1099,20 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
         onInsert={insertOcr}
         onClose={closeOcr}
       />
-      </ScrollView>
-      {coachStep ? (
+      {replayEnd ? (
+        // Z72: a replayed guide's last step. Save sits under a cover, and the card's own button ends it.
+        <FirstRecordCoachmark
+          targetRef={saveCoachTargetRef}
+          countLabel="4/4"
+          message={t("deepspace:coachmarks.replayEndStep")}
+          hint={t("deepspace:coachmarks.replayEndHint")}
+          actionLabel={t("deepspace:coachmarks.goHome")}
+          onAction={endReplayCoach}
+          blockTarget
+          refreshKey={`replay-end:${fourwOn}:${canSave}`}
+        />
+      ) : null}
+      {coachStep && !replayEnd ? (
         <FirstRecordCoachmark
           targetRef={coachTargetRef}
           countLabel={coachCount}
@@ -1067,6 +1137,7 @@ export function CaptureView({ firstRecordCoach = false }: { firstRecordCoach?: b
           refreshKey={`${coachStep}:${fourwOn}:${canSave}`}
         />
       ) : null}
+    </KeyboardAvoidingArea>
     </View>
   );
 }
@@ -1662,6 +1733,9 @@ function SeenBarRow({ row }: { row: SeenRow }) {
 }
 
 export function SeenLensView() {
+  // Phone-aware: /seen draws this. Inside the dashboard phone its survey and
+  // share links open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("home");
   const isKo = i18n.language === "ko";
   const locale = isKo ? "ko" : "en";
@@ -1725,8 +1799,8 @@ export function SeenLensView() {
         purpose: "gap_synthesize",
         system:
           locale === "ko"
-            ? "당신은 자기이해 앱의 세컨비. 아래는 사용자의 자기보고와 지인 " + informantCount + "명의 합산 관찰(비식별 수치)이다. 두 그림의 간극을 2~3문장으로, 따뜻하고 검증적인 톤으로 짚어라. 진단이나 단정은 금지, 수치 나열 금지, 존중하는 제안 하나로 끝내라.\n" + lines
-            : "You are SecondB in a self-understanding app. Below are the user's self-report and a combined, de-identified view from " + informantCount + " people who know them. Name the gap between the two pictures in 2-3 sentences, warm and non-judgmental. No verdicts, no number-listing; end with one respectful suggestion.\n" + lines,
+            ? "당신은 자기이해 앱의 허슬케이. 아래는 사용자의 자기보고와 지인 " + informantCount + "명의 합산 관찰(비식별 수치)이다. 두 그림의 간극을 2~3문장으로, 따뜻하고 검증적인 톤으로 짚어라. 진단이나 단정은 금지, 수치 나열 금지, 존중하는 제안 하나로 끝내라.\n" + lines
+            : "You are HustleK in a self-understanding app. Below are the user's self-report and a combined, de-identified view from " + informantCount + " people who know them. Name the gap between the two pictures in 2-3 sentences, warm and non-judgmental. No verdicts, no number-listing; end with one respectful suggestion.\n" + lines,
         user: locale === "ko" ? "내가 보는 나와 남이 보는 나의 간극을 짚어줘." : "Read the gap between how I see myself and how others see me.",
       });
       setSynth(res.text);
@@ -1956,11 +2030,18 @@ function ImagineGlyph({ kind, color, size = 19 }: { kind: ImagineSeedIcon; color
   return <PixelGlyph name={glyph[kind]} color={color} size={size} />;
 }
 
-export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
-  const { t } = useTranslation("home");
+export function ImagineDivergentView() {
+  // Phone-aware: /imagine draws this. Inside the dashboard phone its 담기 and
+  // chat links open in the phone.
+  const router = useAppRouter();
+  const { t, i18n } = useTranslation("home");
   const [picked, setPicked] = useState<string | null>(null);
-  const lang = isKo ? "ko" : "en";
+  // The canon on the Korean screen, the home bundle in every other language
+  // (es/pt/id used to fall back to an English mirror here, R2B-03).
+  const ko = renderedUiLanguage(i18n) === "ko";
+  const copyOf = (s: (typeof IMAGINE_SEEDS)[number]) => imagineSeedCopy(s, ko, (key) => t(key));
   const seed = IMAGINE_SEEDS.find((s) => s.ko.angle === picked) ?? null;
+  const seedCopy = seed ? copyOf(seed) : null;
   return (
     <ScrollView contentContainerStyle={styles.body}>
       {/* intro card — ref: linear-gradient(135deg, tertiary-container → surface-container-low). */}
@@ -1978,7 +2059,7 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
       <Text style={styles.imgSection}>{t("ds.imagine.sectionAngles")}</Text>
       <View style={styles.imgSeedList}>
         {IMAGINE_SEEDS.map((s) => {
-          const c = s[lang];
+          const c = copyOf(s);
           const on = picked === s.ko.angle;
           return (
             // Fabric guard (MdChip LAYOUT NOTE): the outer View owns the
@@ -2008,11 +2089,11 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
         })}
       </View>
 
-      {seed ? (
+      {seedCopy ? (
         <>
           <Text style={styles.imgSection}>{t("ds.imagine.sectionSteps")}</Text>
           <View style={styles.imgStepList}>
-            {seed[lang].steps.map((step, i) => (
+            {seedCopy.steps.map((step, i) => (
               <Pressable
                 key={step}
                 accessibilityRole="button"
@@ -2035,7 +2116,7 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
               style={styles.imgBtnFlex}
               onPress={() =>
                 // secondb.tsx twiby-branch precedent: /capture reads `text` as a draft prefill.
-                router.push({ pathname: "/capture", params: { text: `${seed[lang].title} · ${seed[lang].body}` } })
+                router.push({ pathname: "/capture", params: { text: `${seedCopy.title} · ${seedCopy.body}` } })
               }
             />
             <MdButton
@@ -2085,9 +2166,13 @@ function starRangeLabel(
 }
 
 export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
+  // Phone-aware: /interview draws this when its period is missing. Inside the
+  // dashboard phone the picked era opens in the phone, and `origin` is the
+  // phone route's query, not /dashboard's.
+  const router = useAppRouter();
   const { t } = useTranslation("home");
   const { age } = useAuth();
-  const { origin: originParam } = useLocalSearchParams<{ origin?: string | string[] }>();
+  const { origin: originParam } = useScreenParams<{ origin?: string | string[] }>();
   const growthOrigin = (Array.isArray(originParam) ? originParam[0] : originParam) === "domain-growth";
   void isKo; // copy is t()-driven; prop kept for caller-convention parity
   // 별 일곱 그대로. 인터뷰가 없는 프로필은 여기 목록에 안 낸다 -- 이 화면은
@@ -2404,29 +2489,15 @@ const styles = StyleSheet.create({
 
   // ── 담기 / Capture (M3 track, clone-audit 06-capture) ──────────────────────
   capCoachRoot: { flex: 1, minHeight: 0 },
-  capScroll: { flex: 1 },
-  capBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 20 },
+  capScroll: { flex: 1, minHeight: 0 },
+  capBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 0 },
+  capFooter: { flexShrink: 0, paddingHorizontal: m3.spacing.s6, paddingBottom: m3.spacing.s8 + m3.spacing.s2 },
+  // Keep the intrinsic basis: short viewports scroll, while spare height reaches
+  // the memo input. RN web's flex shorthand would replace that basis with zero.
+  capFillSpace: { flexGrow: 1 },
   capModeRow: { flexDirection: "row", gap: 4 },
   capModeCell: { flex: 1, minWidth: 0 },
-  // 4W1H switch row (2026-09-30): the whole row is the touch target.
-  capToggleRow: {
-    minHeight: 48,
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: m3.color.outlineVariant,
-    borderRadius: m3.shape.none,
-    backgroundColor: m3.color.surfaceContainerHigh,
-  },
-  capToggleLabel: { ...m3TextStyle("labelLarge"), color: m3.color.onSurface },
-  capToggleSpacer: { flex: 1 },
-  capSwitchTrack: { width: 36, height: 20, paddingHorizontal: 0, paddingVertical: 0, justifyContent: "center" },
-  capSwitchThumb: { position: "absolute", width: 12, height: 12 },
-  capSwitchThumbOn: { right: m3.spacing.s2, backgroundColor: m3.color.onPrimaryContainer },
-  capSwitchThumbOff: { left: m3.spacing.s2, backgroundColor: m3.color.onSurfaceVariant },
+  capTextFormat: { marginTop: 8 },
   capTileHit: { width: "100%", minHeight: 48 },
   capTileRest: { flex: 1 },
   capTileSunk: { flex: 1, transform: [{ translateY: m3.spacing.s1 }] },

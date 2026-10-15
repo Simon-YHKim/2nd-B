@@ -35,7 +35,7 @@ Simon 의 판단을 요청했다. 회신은 **"PIXEL-CLAY v4 로 전환"** 이�
 
 | 이름 | 상태 | 무엇인가 | 어디 있나 |
 |---|---|---|---|
-| **cosmic-pixel** | 🔴 **폐기** | 2026-06 이전의 원래 스킨. Cosmic Pixel Graph Village · phytoncide 토큰 · 마을 그래프 | `EXPO_PUBLIC_UI=legacy` 롤백 스킨으로만 생존. 새 작업의 참조 금지 |
+| **cosmic-pixel** | 🔴 **폐기** | 2026-06 이전의 원래 스킨. Cosmic Pixel Graph Village · phytoncide 토큰 · 마을 그래프 | git 이력과 E:/Legacy/2ndB 에만 있다(롤백 레버 `EXPO_PUBLIC_UI` 는 2026-10-05 에 없어졌다 · Simon 결정 Q-261004-11). 새 작업의 참조 금지 |
 | **M3-deepspace** | 🟡 **현행 (이주 출발점)** | 지금 사용자에게 배포돼 있는 것. Material 3 + 딥스페이스. `src/lib/theme/m3` | `src/` 전역. 이주가 끝날 때까지 **살아 있는 계약**이다 |
 | **PIXEL-CLAY v4** | 🟢 **채택 (이주 목적지)** | 2026-08-18 Claude Design 산출 픽셀아트 체계. Galmuri · radius 0 · 디더 · steps() | `design/pixel_clay_v4/` (웹 프로토타입 + 디자인 시스템 번들) |
 
@@ -205,7 +205,11 @@ M3 어휘 30개를 PIXEL-CLAY 시맨틱으로 별칭)、35개 모듈 스코프 �
 
 ## 6. 이 결정이 바꾸지 않는 것
 
-- `EXPO_PUBLIC_UI=legacy` = cosmic-pixel 롤백 스킨. 그대로 둔다.
+- ~~`EXPO_PUBLIC_UI=legacy` = cosmic-pixel 롤백 스킨. 그대로 둔다.~~ **2026-10-05 정정 — 레버는
+  없어졌다(Simon 결정 Q-261004-11 C).** 어떤 배포도 그 레버를 켜지 않았고(웹 · 8081 · APK 실측),
+  레버와 레거시 반쪽이 함께 빠졌다. cosmic-pixel 은 git 이력과 E:/Legacy/2ndB 에만 있고, 되돌리기는
+  git revert 뿐이다. 되살릴 기능이 남은 반쪽은 빌드 밖 `legacy/screens/` 에 되살리기 원본으로 있다
+  (Q-261004-12).
 - 개념 3층(별자리 · 북극성 · 북두칠성) · propose→ratify · L1~L5 · 세컨비.
 - C1~C12 하드 제약 전부.
 - 정보 밀도 규칙(한 화면 한 메시지) · 터치 44px · reduced-motion 존중.

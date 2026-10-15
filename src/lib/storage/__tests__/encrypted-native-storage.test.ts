@@ -155,6 +155,26 @@ function setCapacityLedger(h: ReturnType<typeof createHarness>, total: number): 
 }
 
 describe("encrypted native storage core", () => {
+  test("persists one-off reminder details encrypted across adapter restarts and supports scoped purge", async () => {
+    const h = createHarness();
+    const key = "ops.one-off-reminders.v1.owner-a";
+    const otherKey = "ops.one-off-reminders.v1.owner-b";
+    const details = JSON.stringify({ v: 1, items: [{
+      id: "chat-00000000-0000-4000-8000-000000000001",
+      title: "Private task title", startsAtIso: "2026-10-10T12:00:00.000Z",
+    }] });
+    await h.storage.setItem(key, details);
+    await h.storage.setItem(otherKey, "other owner data");
+    expect(h.values.get(key)).toMatch(/^SBENC1:/);
+    expect(h.values.get(key)).not.toContain("Private task title");
+    expect(h.values.get(key)).not.toContain("2026-10-10");
+    const restarted = createEncryptedNativeStorage(h.dependencies);
+    await expect(restarted.getItem(key)).resolves.toBe(details);
+    await restarted.removeItem(key);
+    expect(h.values.has(key)).toBe(false);
+    await expect(restarted.getItem(otherKey)).resolves.toBe("other owner data");
+  });
+
   test("accepts private avatar palette drafts only through the encrypted managed namespace", async () => {
     const h = createHarness();
     const key = "avatar.palette.drafts.v1.owner-a";

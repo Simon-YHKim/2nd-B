@@ -4,6 +4,7 @@
   "version": "3.0.0",
   "createdFor": "2ndB Cosmic Pixel Graph Village — Soul Core world v-final",
   "recommendedPath": "public/assets/cosmic-pixel-v3-soulcore/",
+  "movedToLegacy": "2026-10-04: files listed here that are no longer in this folder were moved to E:/Legacy/2ndB (same relative path; MANIFEST.jsonl, batch qa261004-art). This list is the original pack inventory.",
   "tokens": {
     "space950": "#070A18",
     "space900": "#0D1530",

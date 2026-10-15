@@ -5,6 +5,7 @@ import {
   rev2PersonaMode,
   rev2PersonaName,
   rev2PersonaRole,
+  rev2PersonaTag,
 } from "../rev2-personas";
 import { m3 } from "@/lib/theme/m3";
 
@@ -19,7 +20,7 @@ describe("rev2 세컨비 personas (PRD v2.0)", () => {
     expect(rev2PersonaHint("secondb", "ko")).toBeNull();
   });
 
-  test("메타비/트위비 carry distinct localized voice hints", () => {
+  test("팩트케이/조이케이 carry distinct localized voice hints", () => {
     for (const id of ["meta", "twi"] as const) {
       for (const locale of ["en", "ko"] as const) {
         const hint = rev2PersonaHint(id, locale);
@@ -38,11 +39,15 @@ describe("rev2 세컨비 personas (PRD v2.0)", () => {
         expect(rev2PersonaRole(id, locale).length).toBeGreaterThan(0);
       }
     }
-    expect(rev2PersonaName("meta", "ko")).toBe("메타비");
-    expect(rev2PersonaName("twi", "ko")).toBe("트위비");
+    expect(rev2PersonaName("meta", "ko")).toBe("팩트케이");
+    expect(rev2PersonaName("twi", "ko")).toBe("조이케이");
+    expect(rev2PersonaName("secondb", "en")).toBe("HustleK");
+    expect(rev2PersonaName("secondb", "ko")).toBe("허슬케이");
+    expect(rev2PersonaTag("secondb", "en")).toBe("HustleK");
+    expect(rev2PersonaTag("secondb", "ko")).toBe("HustleK");
   });
 
-  test("트위비 owns the divergent engine mode; the others stay analytic", () => {
+  test("조이케이 owns the divergent engine mode; the others stay analytic", () => {
     expect(rev2PersonaMode("twi")).toBe("divergent");
     expect(rev2PersonaMode("secondb")).toBe("analytic");
     expect(rev2PersonaMode("meta")).toBe("analytic");

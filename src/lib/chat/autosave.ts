@@ -25,9 +25,11 @@
 // 켰다면 그건 순서가 틀린 것이다.
 //
 // ⚠ **2026-09-08 실측 — 그 전제가 지금 배송에서 충족되지 않는다.**
-// `deleteWikiPage` 를 부르는 곳은 `src/app/wiki.tsx:292` 하나뿐이고 그것은
-// `WikiLegacy` 안이다. 어느 배포도 그 반쪽을 그리지 않는다(`EXPO_PUBLIC_UI=legacy`
-// 를 켜는 배포가 0). 배송되는 위키 화면(`dds-wiki-records-screens.tsx`)에는 삭제
+// `deleteWikiPage` 를 부르는 곳은 `e0b274d0:src/app/wiki.tsx:292` 하나뿐이었고 그것은
+// `WikiLegacy` 안이다. 어느 배포도 그 반쪽을 그리지 않았다(`EXPO_PUBLIC_UI=legacy`
+// 를 켜는 배포가 0). 2026-10-05 에 레버가 없어지며 그 반쪽은 라우트에서 빠져 빌드 밖
+// 되살리기 원본(legacy/screens/wiki.tsx)이 됐고, src 의 호출부는 이제 0곳이다
+// (autosave-undo-path.test.ts). 배송되는 위키 화면(`dds-wiki-records-screens.tsx`)에는 삭제
 // 어포던스가 **0건**이다. 남아 있는 것은 `/settings` 의 `deleteAllWikiPages` —
 // **전부 지우기**이고, 자동 저장된 대화 한 건을 되돌리는 길이 아니다.
 //

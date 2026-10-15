@@ -23,7 +23,6 @@ import { resolve } from "node:path";
 const ROOT = resolve(__dirname, "../../../..");
 
 type Factory = () => (modulePath: string) => number;
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const moduleId = require(resolve(ROOT, "metro-module-id.js")) as {
   createDeterministicModuleIdFactory: (projectRoot: string) => Factory;
   ID_SALT: string;

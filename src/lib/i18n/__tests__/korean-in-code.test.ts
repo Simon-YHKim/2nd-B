@@ -47,7 +47,14 @@ const NOT_PRODUCT_SURFACE = [
 const KOREAN_BY_DESIGN: Record<string, string> = {
   // ── 매칭 규칙: 번역하면 기능이 죽는다 ──
   "src/lib/records/detect-domain.ts": "도메인 분류용 한국어 키워드 목록",
+  "src/lib/chat/plan-suggestions.ts": "대화의 반복 의도·취소·오전/오후를 해석하는 한국어 매칭 규칙. UI 문구는 secondb.json에서 번역",
+  "src/lib/chat/sources.ts": "치환된 인용 이름 뒤의 한국어 조사 쌍을 josaFor에 연결하는 문법 규칙. 중립 낱말은 화면에서 번역해 전달",
+  "src/lib/safety/emergency-routing.ts": "앱과 Edge 공용 한국어 문법 규칙 및 ko/en 고정 긴급 안내. 런타임 i18n 없이 같은 안내를 반환하며 각 UI 언어의 번호·본문은 emergency-dialog 검사로 대조",
   "src/lib/safety/lexicon.ts": "금지어 패턴 (안전 분류기 입력)",
+  "src/lib/safety/crisis-context.ts": "의도 부인과 업무·휴식 문맥을 판별하는 한국어 문법 규칙. 사용자에게 표시하는 문구가 아님",
+  "src/lib/safety/classifier.ts": "위기 입력 검사가 띄어쓰기를 일부만 뺀 꼴까지 읽는 위기 낱말의 이름 목록(Q-261015-80). 사용자에게 표시하는 문구가 아님",
+  "src/lib/safety/model-reply-scan.ts": "모델 답 검사에서만 넘기는 닫힌 겹침 낱말 목록과 위기 낱말의 고정 번호표. 사용자에게 표시하는 문구가 아님",
+  "src/lib/safety/crisis-obfuscation.ts": "쪼갠 입력을 의미 판정에 보낼지 정하는 낱말·글자 규칙. 번역할 UI 문구가 아님",
   "src/lib/safety/anthro.ts": "의인화 금지 패턴",
   "src/lib/safety/crisis-eval-corpus.ts": "위기 분류 평가 픽스처 — 번역하면 평가가 무의미",
   "src/lib/import/finance-csv.ts": "한국 은행 CSV 컬럼명",
@@ -65,6 +72,7 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/ops/recommend.ts": "LLM 시스템 프롬프트",
   "src/lib/ops/daily-brief.ts": "LLM 시스템 프롬프트",
   "src/lib/persona/profile-details.ts": "LLM 프롬프트용 필드 설명",
+  "src/lib/import/profile-context-prompt.ts": "외부 LLM에 복사할 추출 프롬프트의 한국어·영어 분기와 JSON 계약. 앱 UI는 profile.json에서 번역하며 프롬프트의 로케일별 출력은 별도 테스트로 검증",
   "src/lib/persona/persona-synthesis.ts": "LLM 페르소나 합성 시스템 프롬프트 — UI 카피가 아니고 모델 동작 계약",
 
   // ── 개념 이름: 데이터에 가깝다 ──
@@ -75,6 +83,9 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   // 사람이 읽는 자리는 CLAUDE.md 지 UI 가 아니다. i18n 으로 빼면 명세와 검사가
   // 갈라진다.
   "src/lib/lenses/registry.ts": "렌즈 명세 (관문 ③ 채점 정의) — UI 카피 아님",
+  // 문턱 표의 사람용 설명(output · dataKind · text)은 화면 카피가 아니라 **명세**다. 출처 검사
+  // (registry.test.ts) 가 같은 파일을 읽고, 대시보드 화면은 문장이 아니라 숫자 칸만 읽는다.
+  "src/lib/sufficiency/registry.ts": "문턱 명세 (출처 앵커 · 사람용 설명) — UI 카피 아님",
 
   // ── 한국어 폴백: 화면은 이미 i18n 을 쓰고, 이건 인자 없을 때의 기본값 ──
   "src/screens/deepspace/records-timeline.ts": "라벨 폴백 — 화면은 dsTimeLabels(t) 로 i18n 을 넘긴다",
@@ -85,7 +96,6 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/google/tasks.ts": "가져오기 출처 라벨",
   "src/lib/import/ledger-ratify.ts": "가져오기 출처 라벨",
   "src/lib/relation/import-signals.ts": "카카오 별칭 안내 (한국 기능 전용)",
-  "src/lib/share/insight-card.ts": "공유 카드 기본 문구",
   // 정적 웹 셸의 <title>·description·og 태그. 하이드레이션 전에 그려지고
   // static export 는 모든 라우트에 같은 셸 하나를 쓰므로 t() 를 부를 자리가
   // 없다. 셸이 이미 lang="ko" 로 한국어 우선을 선언하고 있고, 문구는
@@ -174,59 +184,62 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/call-reflection.tsx": 9,
   "src/app/capture.tsx": 14,
   "src/app/career-drilldown.tsx": 47,
-  "src/app/career.tsx": 9,
-  "src/app/core-brain.tsx": 9,
+  // career.tsx 는 2026-10-06 에 9 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A, QA 261006 tr3:
+  // 쌓아온 길 제목 · 메인/사이드 · 공식 이력 칩 다섯 · 안내 문장을 deepspace career.* 로).
+  // 2026-10-05 롤백 레버 제거(Simon 결정 Q-261004-11 C): 레거시 반쪽과 함께 빚이 빠졌다.
+  // **고친 것이 아니라 빠진 것**이다 - core-brain 9 -> 6, inbox 30 · manual 42 · persona 32 ·
+  // wiki 9 · BackArrow 31 은 0 이 되어 줄을 지웠고, premium/tab-bar.tsx(4)는 파일째 나갔다.
+  // 되살리기 원본(legacy/screens/)으로 간 반쪽의 한국어는 되살릴 때 다시 만난다.
+  // core-brain 은 2026-10-06 에 6 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A,
+  // 저장 결과 카드 · 덱 제목 · 그래픽 라벨 · 내보내기를 core-brain/persona 키로).
   "src/app/iden.tsx": 7,
-  "src/app/inbox.tsx": 30,
-  "src/app/interview.tsx": 4,
+  "src/app/interview.tsx": 3,
   "src/app/ipip-neo.tsx": 16,
-  "src/app/manual.tsx": 42,
   "src/app/motivation.tsx": 6,
-  "src/app/notices.tsx": 38,
+  "src/app/notices.tsx": 9, // 38 -> 10: D-06 목업 제거; 10 -> 9: T49 제목을 번역 키로 연결
   "src/app/onboarding.tsx": 1,
   "src/app/peer-invites.tsx": 1,
-  "src/app/persona.tsx": 32,
   "src/app/processing-log.tsx": 24,
-  "src/app/reasoning.tsx": 56,
+  // 56 -> 2: Q-261005-01 = A (QA 261006 tr3) 화면 문구 54 를 deepspace ds.reasoningScreen.* 로. 남은 2 =
+  // 연결 프롬프트(reasoning_connect) 의 한국어 시스템 지시문 두 벌 - UI 가 아니라 모델 지시문이다
+  "src/app/reasoning.tsx": 2,
   "src/app/rlss.tsx": 10,
-  "src/app/secondb.tsx": 10,
-  "src/app/settings.tsx": 11,
+  "src/app/secondb.tsx": 8,
+  "src/app/settings.tsx": 8, // 11 -> 8: 2026-10-07 소식 · 공지사항 행이 설정에서 빠졌다(Simon)
   "src/app/star/[domain].tsx": 20,
   "src/app/strengths.tsx": 20,
   "src/app/values.tsx": 20,
-  "src/app/wiki.tsx": 9,
   "src/components/deep-space/AutoReasoningIntroSheet.tsx": 6,
   "src/components/deep-space/AxisCheck.tsx": 13,
-  "src/components/deep-space/ConstellationHome.tsx": 16,
+  "src/components/deep-space/ConstellationHome.tsx": 14,
   "src/components/deep-space/DeepSpaceViews.tsx": 3,
   "src/components/deep-space/DomainStarLens.tsx": 54,
   "src/components/deepspace/BackgroundTaskDock.tsx": 4,
   "src/components/deepspace/CompletionToast.tsx": 4,
   "src/components/deepspace/DeepSpaceLoader.tsx": 7,
-  "src/components/deepspace/ops/copy.ts": 105,
-  "src/components/graph/CharacterPathLayer.tsx": 1,
-  "src/components/graph/NavGraph.tsx": 31,
+  // ops/copy.ts 는 2026-10-06 에 104 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A, QA 261006 tr2:
+  // en/ko 두 사전을 ops 번들 copy.* 로, es/pt/id 번역).
   "src/components/m3/date-picker/DatePicker.tsx": 38,
   "src/components/persona/FacetBreakdown.tsx": 1,
   "src/components/persona/TraitRadar.tsx": 3,
   "src/components/premium/graph-bits.tsx": 2,
-  "src/components/premium/tab-bar.tsx": 4,
   "src/components/quant/LikertChoiceGroup.tsx": 3,
   "src/components/quant/QuantIntroModal.tsx": 2,
-  "src/components/ui/BackArrow.tsx": 31,
   "src/components/ui/DrillProgress.tsx": 10,
   "src/lib/audit/axis-checks.ts": 24,
-  "src/lib/audit/axis-estimate.ts": 8,
   "src/lib/audit/frameworkLabels.ts": 18,
   "src/lib/audit/questions.ts": 25,
   "src/lib/capture/fourw.ts": 5,
   "src/lib/capture/life-area-intent.ts": 22,
   "src/lib/capture/structured.ts": 4,
   "src/lib/career/achievement-form.ts": 12,
-  "src/lib/characters.ts": 12,
-  "src/lib/chat/conversation.ts": 24,
+  // characters.ts(12) · chat/personas.ts(12) 는 2026-10-05 에 파일째 E:/Legacy 로 갔다
+  // (Simon 결정 Q-261004-14 A). **고친 것이 아니라 빠진 것**이다.
+  // 24 -> 28: 2026-10-11 Q-261011-11 위기 전화번호 원칙(crisisNumberRule). KO/EN 한 쌍의 모델 지시문이고
+  // UI 문구가 아니다 - 같은 파일의 SYSTEM_PROMPT_HEADER 와 같은 성질이라 번들로 빼지 않는다.
+  // 28 -> 25: 2026-10-14 Q-261014-24 한도 말풍선의 업그레이드 권유 문장(템플릿 세 조각)을 뺐다.
+  "src/lib/chat/conversation.ts": 25,
   "src/lib/chat/keep-exchange.ts": 3,
-  "src/lib/chat/personas.ts": 12,
   "src/lib/chat/rag.ts": 1,
   "src/lib/entitlements/reasoning-cap.ts": 4,
   "src/lib/graph/relatedness.ts": 72,
@@ -242,7 +255,9 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/interview/stuck.ts": 10,
   "src/lib/journal/daily-prompts.ts": 15,
   "src/lib/knowledge/retrieve.ts": 30,
-  "src/lib/llm/boundary.ts": 49,
+  // 2026-10-07 S0.5: 49 -> 29. MOCK_RESPONSES 에서 호출부 없는 좌석 imagine(ko 11줄) 과
+  // import_ingest(ko 9줄) 의 미리보기 견본이 빠졌다. **고친 것이 아니라 빠진 것**이다.
+  "src/lib/llm/boundary.ts": 29,
   "src/lib/llm/safety.ts": 4,
   "src/lib/llm/untrusted.ts": 1,
   "src/lib/notices/adapt.ts": 2,
@@ -259,12 +274,11 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/persona/northstar.ts": 6,
   "src/lib/persona/proposal-display.ts": 11,
   "src/lib/persona/propose-self-model.ts": 9,
-  "src/lib/persona/reflection-scaffold.ts": 4,
+  // reflection-scaffold.ts(4) 는 2026-10-06 에 파일째 E:/Legacy 로 갔다
+  // (Simon 결정 Q-261005-08 B). **고친 것이 아니라 빠진 것**이다.
   "src/lib/persona/rlss.ts": 15,
-  "src/lib/persona/self-portrait.ts": 11,
   "src/lib/persona/seven-proposal-context.ts": 3,
   "src/lib/persona/strengths-survey.ts": 25,
-  "src/lib/persona/tier-history.ts": 4,
   "src/lib/persona/trait-radar-geometry.ts": 5,
   "src/lib/persona/values-survey.ts": 30,
   "src/lib/records/create.ts": 6,
@@ -280,14 +294,19 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/wiki/phase1.ts": 7,
   "src/lib/wiki/propose-template.ts": 15,
   "src/lib/wiki/template-validate.ts": 2,
-  "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 66,
+  // 66 -> 15: Q-261005-01 = A (QA 261006 tr1) /privacy 문구를 deepspace 키로. 남은 15 = 국외 이전 고지 두 문단(F2,
+  // 템플릿 조각 4) + 다른 화면 11
+  "src/screens/deepspace/DeepSpaceDesignScreens.tsx": 15,
   "src/screens/deepspace/dds-record-detail-screen.tsx": 4,
   "src/screens/deepspace/dds-wiki-records-screens.tsx": 4,
-  "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx": 14,
-  "src/screens/deepspace/import/ImportHubScreen.tsx": 87,
+  // WeeklyGrowthScreen(14) · ImportHubScreen(86) 은 2026-10-06 에 0 으로 **갚아서** 줄을 지웠다
+  // (Q-261005-01 = A, QA 261006 tr3: 별마다의 관찰 · 다음 걸음은 deepspace ds.growth.steps.* 로,
+  // 가져오기 허브의 COPY(ko) 표와 소스 열 개의 이름 · 부제 · 설명은 import hub.* 로).
   "src/screens/deepspace/museum/AiMuseumScreen.tsx": 86,
   "src/screens/deepspace/onboarding/TTFVScreen.tsx": 29,
-  "src/screens/deepspace/ops/screens.tsx": 14,
+  // 14 -> 13: R2C-15 (QA 261005) 고정 검색어 "닭" 제거. 13 -> 6: Q-261005-01 = A (QA 261006 tr2) /meals 요일
+  // 일곱 글자를 ops 번들 toolScreens.meals.days 로. 남은 6 = 그룹 탭 이름 5(OPS_GROUP_LABEL) + 가계 분류 기본값 "기타"
+  "src/screens/deepspace/ops/screens.tsx": 6,
 };
 
 describe("코드에 박힌 한국어", () => {

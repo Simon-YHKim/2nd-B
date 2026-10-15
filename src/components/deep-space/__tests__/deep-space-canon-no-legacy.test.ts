@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 /**
- * Canon guard for the deep-space conversion (design/FIX_TASKS.md).
+ * Canon guard for the deep-space conversion (design/FIX_TASKS.md, retired 2026-10-04 to E:/Legacy/2ndB/design/).
  *
  * The deep-space CANON surfaces — the shell (`src/components/deep-space`) and the
  * reference screens (`src/screens/deepspace`) that every legacy "engine screen"
@@ -12,7 +12,7 @@ import path from "node:path";
  * pattern source itself picked up a legacy import, every future conversion would
  * inherit it.
  *
- * Forbidden list mirrors FIX_TASKS.md / DESIGN_AUDIT.md. fs source-discipline
+ * Forbidden list mirrors FIX_TASKS.md / DESIGN_AUDIT.md (now in E:/Legacy/2ndB/design/). fs source-discipline
  * idiom (no React Native render mocks), same as the sibling deep-space tests, so
  * it stays robust across the churn.
  */

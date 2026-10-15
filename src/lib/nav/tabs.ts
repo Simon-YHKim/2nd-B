@@ -29,12 +29,11 @@ export function isProfileChildPath(pathname: string): boolean {
 
 // Deep-space routes that render the persistent bottom dock (DeepSpaceScreen).
 // On these the floating BackArrow chip is redundant AND overlaps the
-// SecondbStatusHeader head, so it is hidden in deep-space mode (the dock — plus
-// hardware back — is the nav affordance there). The primary tab roots
-// (/, /capture, /secondb) also render the dock but are already hidden by
-// isPrimaryTabPath, so they are intentionally omitted here. Legacy mode
-// (EXPO_PUBLIC_UI=legacy) uses PremiumAppShell with no dock, so the chip stays —
-// callers MUST gate this list behind isDeepSpaceUI().
+// SecondbStatusHeader head, so it is hidden there (the dock — plus hardware
+// back — is the nav affordance). The primary tab roots (/, /capture, /secondb)
+// also render the dock but are already hidden by isPrimaryTabPath, so they are
+// intentionally omitted here. (Until 2026-10-05 callers also gated this list on
+// the `EXPO_PUBLIC_UI=legacy` lever, whose PremiumAppShell had no dock.)
 export const DEEP_SPACE_DOCK_PATHS = [
   // 2026-08-30: 아래 라우트들은 DeepSpaceDesignScreens 의 로컬 `Shell` 을 쓰는데,
   // 그 Shell 이 dock 없는 순수 View 였다가 DockShell(=DeepSpaceScreen) 로 위임되면서
@@ -118,6 +117,7 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // 내 생활 정보 (D2, 2026-08-18) — 프로필 별을 채우는 폼. /profile 메뉴에서
   // 들어간다. 부모와 같은 규칙: dock 이 내비게이션이고 떠 있는 칩은 없다.
   "/profile-details",
+  "/profile-import",
   // 사용자 아바타 편집도 DeepSpaceScreen 독과 자체 상단 뒤로를 함께 쓴다.
   "/avatar-studio",
   // 휴대전화의 로컬 아바타 팔레트도 같은 독과 자체 뒤로 버튼을 쓴다.
@@ -131,8 +131,7 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/capture-full",
   // 북극성 문장 편집 (Screen-Spec 21) — direct-render dock screen.
   "/northstar",
-  // 설정 — rev2 windowed ROOT tab (5th dock slot); conditional render behind
-  // isDeepSpaceUI so the drift guard's direct-render scan doesn't see it.
+  // 설정 — rev2 windowed ROOT tab (5th dock slot).
   "/settings",
   // 리즈닝·공지 — rev2 windowed sub-screens. Both use DeepSpaceScreen's
   // persistent dock plus their own M3 top-app-bar back, so the root floating
@@ -208,8 +207,7 @@ export const BACK_ARROW_HIDDEN_PATHS = [
   "/deepspace-home",
 ] as const;
 
-/** True when the route renders the deep-space bottom dock (DeepSpaceScreen).
- *  Gate behind isDeepSpaceUI() — legacy mode has no dock. */
+/** True when the route renders the deep-space bottom dock (DeepSpaceScreen). */
 export function isDeepSpaceDockPath(pathname: string): boolean {
   return (
     (DEEP_SPACE_DOCK_PATHS as readonly string[]).includes(pathname) ||

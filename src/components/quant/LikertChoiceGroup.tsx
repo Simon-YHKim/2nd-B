@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { StyleSheet } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
@@ -39,6 +40,7 @@ export function LikertChoiceGroup({ choices, locale, onSelect, question, value }
             hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
             accessibilityRole="radio"
             accessibilityState={{ checked: active }}
+            aria-checked={active}
             accessibilityLabel={optionLabel}
             accessibilityHint={active ? selectedHint : selectHint}
           >

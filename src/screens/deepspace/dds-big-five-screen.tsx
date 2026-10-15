@@ -1,6 +1,7 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { BackHandler, Modal, ScrollView, StyleSheet, View } from "react-native";
-import { router } from "expo-router";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -8,8 +9,10 @@ import { m3TextStyle } from "@/components/m3";
 import { PixelDither, PixelGateShell, PixelPressable, PixelScrim, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { Text } from "@/components/ui/Text";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { prefersReducedMotion } from "@/lib/motion/signature";
+import { useAppRouter, useHardwareBack } from "@/lib/nav/phone-embed";
 import { consumeFirstStarChatNudge } from "@/lib/onboarding/state";
 import {
   BFI_PAGE_COUNT,
@@ -163,6 +166,8 @@ function ReadyLens({
   traits: BfiLensTraits;
   onRetake: () => void;
 }) {
+  // Phone-aware: inside the dashboard phone these links open in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation(["home", "common"]);
   const rows: { key: keyof BfiLensTraits; label: string }[] = [
     { key: "openness", label: t("home:ds.lens.traitOpenness") },
@@ -267,6 +272,8 @@ function LensShell({
   onStart: () => void;
   onRetry: () => void;
 }) {
+  // Phone-aware: inside the dashboard phone Back steps the phone back.
+  const router = useAppRouter();
   const { t } = useTranslation("home");
   return (
     <DeepSpaceScreen
@@ -298,6 +305,8 @@ function GateLoading() {
 }
 
 function SignedOutGate() {
+  // Phone-aware: a replace to /sign-in leaves the dashboard phone.
+  const router = useAppRouter();
   const { t } = useTranslation(["auth", "deepspace"]);
   return (
     <PixelGateShell contentContainerStyle={styles.gateContent}>
@@ -327,6 +336,8 @@ function ProfileGate({
   retrying: boolean;
   onRetry: () => void;
 }) {
+  // Phone-aware: Back and the profile link stay in the dashboard phone.
+  const router = useAppRouter();
   const { t } = useTranslation(["home", "auth"]);
   return (
     <DeepSpaceScreen
@@ -616,12 +627,15 @@ function PixelBigFiveSurvey({
   onComplete: (ownerId: string) => void;
   onCancel: () => void;
 }) {
+  // Phone-aware: inside the dashboard phone the first-star nudge opens in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation(["big-five", "common", "deepspace", "home"]);
   const locale = (i18n.language === "ko" ? "ko" : "en") as BfiLocale;
   const copy = bfiSurveyCopy(locale);
   const [phase, setPhase] = useState<"intro" | "questions" | "saved">("intro");
   const [responses, setResponses] = useState<BfiResponses>({});
   const [page, setPage] = useState(0);
+  const [pageMotion, setPageMotion] = useState<"page-forward" | "page-back">("page-forward");
   const [submitting, setSubmitting] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [exitOpen, setExitOpen] = useState(false);
@@ -662,7 +676,7 @@ function PixelBigFiveSurvey({
       },
       onComplete: () => onComplete(ownerId),
     });
-  }, [activeOwnerIdRef, onComplete, ownerId, t]);
+  }, [activeOwnerIdRef, onComplete, ownerId, router, t]);
 
   const requestBack = useCallback(() => {
     if (submitting) return;
@@ -677,17 +691,17 @@ function PixelBigFiveSurvey({
     onCancel();
   }, [dirty, handleSavedDone, onCancel, phase, submitting]);
 
-  useEffect(() => {
-    if (phase !== "saved" && !submitting && (phase !== "questions" || !dirty)) return;
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (submitting) return true;
-      if (phase === "saved") handleSavedDone();
-      else if (exitOpen) setExitOpen(false);
-      else setExitOpen(true);
-      return true;
-    });
-    return () => subscription.remove();
-  }, [dirty, exitOpen, handleSavedDone, phase, submitting]);
+  // Android Back. useHardwareBack is the same focused BackHandler listener
+  // standalone (removed on blur and unmount) and goes through the phone's claim
+  // stack inside the dashboard phone. Nothing to guard -> false, default Back.
+  useHardwareBack(useCallback(() => {
+    if (phase !== "saved" && !submitting && (phase !== "questions" || !dirty)) return false;
+    if (submitting) return true;
+    if (phase === "saved") handleSavedDone();
+    else if (exitOpen) setExitOpen(false);
+    else setExitOpen(true);
+    return true;
+  }, [dirty, exitOpen, handleSavedDone, phase, submitting]));
 
   function setResponse(itemId: number, value: number) {
     if (submitting) return;
@@ -728,6 +742,7 @@ function PixelBigFiveSurvey({
       title={t("big-five:counter")}
       onBack={requestBack}
     >
+      <SceneTransition transitionKey={`${phase}:${page}`} kind={phase === "questions" ? pageMotion : "replace"} animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
       {phase === "intro" ? (
         <ScrollView contentContainerStyle={styles.surveyScroll} keyboardShouldPersistTaps="handled">
           <SurveyIntro locale={locale} onStart={() => setPhase("questions")} onCancel={onCancel} />
@@ -798,7 +813,7 @@ function PixelBigFiveSurvey({
             <PixelAction
               label={t("common:quantBack")}
               icon="arrow_back"
-              onPress={() => setPage((current) => Math.max(0, current - 1))}
+              onPress={() => { setPageMotion("page-back"); setPage((current) => Math.max(0, current - 1)); }}
               disabled={page === 0 || submitting}
               accessibilityHint={t("common:quantPrevHint")}
             />
@@ -816,7 +831,7 @@ function PixelBigFiveSurvey({
               <PixelAction
                 label={t("common:quantNext")}
                 icon="arrow_forward"
-                onPress={() => setPage((current) => Math.min(BFI_PAGE_COUNT - 1, current + 1))}
+                onPress={() => { setPageMotion("page-forward"); setPage((current) => Math.min(BFI_PAGE_COUNT - 1, current + 1)); }}
                 disabled={submitting}
                 tone="primary"
                 accessibilityHint={t("common:quantNextHint")}
@@ -826,6 +841,7 @@ function PixelBigFiveSurvey({
         </ScrollView>
       )}
 
+      </SceneTransition>
       <ExitConfirm
         visible={exitOpen && phase === "questions" && !submitting}
         locale={locale}

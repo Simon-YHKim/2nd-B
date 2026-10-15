@@ -5,6 +5,11 @@
 // Why this is the right harness-first pick (PERSONAL-ASSISTANT-ROADMAP §0):
 //   - Public REST, NO API key for search, CORS-enabled → works on web AND native
 //     with a plain fetch. No proxy/edge function (unlike RSS), no OAuth gate.
+//     ⚠ 2026-10-05 (R2C-02): keyless calls are billed to Google's shared consumer
+//     project, whose daily quota measured 0, so every search came back 429. A key
+//     (proxy secret or a restricted client key) is a cost/config decision that is
+//     still open. Until then the screen must SAY the search failed and offer the
+//     add-by-title path; that is why a 429 has its own error below.
 //   - Deterministic: the API IS the source of truth. No LLM, so no C1/C3/C9
 //     surface, no cost. $0/mo holds (blueprint §5).
 //   - No new dependency — uses the platform fetch.
@@ -130,7 +135,17 @@ export function parseGoogleBooksResponse(json: unknown, max = RESULT_MAX): BookR
   return out;
 }
 
-export type BooksSearchError = "empty_query" | "fetch_failed" | "bad_response";
+/**
+ * `rate_limited` is the HTTP 429 the keyless quota returns. It is split from
+ * `fetch_failed` because the screen says something different: retrying in a
+ * second will not help, adding the book by its title will.
+ */
+export type BooksSearchError = "empty_query" | "fetch_failed" | "rate_limited" | "bad_response";
+
+/** True when a thrown search error is the quota refusal (HTTP 429). */
+export function isBooksRateLimited(error: unknown): boolean {
+  return error === "rate_limited";
+}
 
 /**
  * Search Google Books (keyless). Thin async wrapper over the pure helpers; on any
@@ -149,6 +164,7 @@ export async function searchBooks(
   } catch {
     throw "fetch_failed" as BooksSearchError;
   }
+  if (res.status === 429) throw "rate_limited" as BooksSearchError;
   if (!res.ok) throw "fetch_failed" as BooksSearchError;
   let json: unknown;
   try {

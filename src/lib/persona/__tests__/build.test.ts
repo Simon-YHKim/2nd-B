@@ -410,7 +410,7 @@ describe("buildPersona", () => {
   test("no assessments → heuristic source, mbti/attachment null", async () => {
     tableFixtures["records:select"] = { data: [], error: null };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     expect(card.traitsSource).toBe("heuristic");
     expect(card.mbti).toBeNull();
     expect(card.attachment).toBeNull();
@@ -425,7 +425,7 @@ describe("buildPersona", () => {
     (callLlm as jest.Mock).mockClear();
     tableFixtures["records:select"] = { data: [], error: null };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     // With zero audit/journal rows there is nothing to summarize: the LLM must
     // not be asked to invent a narrative.
     expect(callLlm).not.toHaveBeenCalled();
@@ -450,7 +450,7 @@ describe("buildPersona", () => {
       error: null,
     };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    const card = await buildPersona("u1", "ko");
+    const card = await buildPersona("u1", "ko", false);
     expect(card.mbti).toEqual({
       type: "INTJ",
       scores: { E: 0, I: 4, S: 0, N: 4, T: 4, F: 0, J: 4, P: 0 },
@@ -472,7 +472,7 @@ describe("buildPersona", () => {
       error: null,
     };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     expect(card.mbti).toBeNull();
     expect(card.markdownExport).not.toContain("## MBTI");
   });
@@ -488,7 +488,7 @@ describe("buildPersona", () => {
       error: null,
     };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     expect(card.attachment).toEqual({ style: "secure", anxiety: 2.5, avoidance: 1.8 });
     expect(card.markdownExport).toContain("Attachment style");
     // Phase A: a completed ECR-S lights star5 (관계의 나) to L4.
@@ -514,7 +514,7 @@ describe("buildPersona", () => {
       error: null,
     };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     expect(card.traitsSource).toBe("bfi");
     // BFI 1-5 → 0-1: norm(v) = (v - 1) / 4
     // neuroticism 1.5 → (1.5 - 1) / 4 = 0.125 — preserved, NOT inverted
@@ -539,7 +539,7 @@ describe("buildPersona", () => {
       error: null,
     };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     expect(card.traitsSource).toBe("ipip");
     // same (v-1)/4 normalize as BFI; neuroticism measured directly (no inversion)
     expect(card.traits.openness).toBeCloseTo((4 - 1) / 4, 5);
@@ -565,7 +565,7 @@ describe("buildPersona", () => {
       error: null,
     };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     expect(card.traitsSource).toBe("ipip");
     // IPIP openness 5 → 1.0, NOT BFI's 1 → 0.0
     expect(card.traits.openness).toBeCloseTo(1, 5);
@@ -582,7 +582,7 @@ describe("buildPersona", () => {
       error: null,
     };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     expect(card.traitsSource).toBe("heuristic");
     expect(card.traits.conscientiousness).toBeGreaterThan(0);
     expect(card.traitConfidence?.conscientiousness.source).toBe("journal_text");
@@ -600,7 +600,7 @@ describe("buildPersona", () => {
       error: null,
     };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     expect(card.evidenceRefs).toEqual([
       "record:bbbbbbbb-2222-2222-2222-222222222222",
       "record:aaaaaaaa-1111-1111-1111-111111111111",
@@ -610,14 +610,14 @@ describe("buildPersona", () => {
   test("evidenceRefs is empty for a card with no written entries", async () => {
     tableFixtures["records:select"] = { data: [], error: null };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     expect(card.evidenceRefs).toEqual([]);
   });
 
   test("persona row upserted with version 1", async () => {
     tableFixtures["records:select"] = { data: [], error: null };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
-    await buildPersona("u1", "en");
+    await buildPersona("u1", "en", false);
     const personaUpsert = upsertCalls.find((c) => c.table === "personas");
     expect(personaUpsert).toBeDefined();
     expect((personaUpsert?.payload as { version: number }).version).toBe(1);
@@ -631,7 +631,7 @@ describe("buildPersona", () => {
       data: [{ patterns: { role_cards_v1: '[{"id":"builder","status":"ratified"}]' } }],
       error: null,
     };
-    await buildPersona("u1", "en");
+    await buildPersona("u1", "en", false);
     const upsert = upsertCalls.find((call) => call.table === "personas");
     expect((upsert?.payload as { patterns?: Record<string, string> }).patterns?.role_cards_v1)
       .toContain('"status":"ratified"');
@@ -658,7 +658,7 @@ describe("buildPersona", () => {
       safety: { zone: "green" },
       audit: { modelUsed: "mock:gemini-2.5-flash" },
     });
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     // traits stay BFI-derived (norm = (v-1)/4), untouched by the garbage reply.
     expect(card.traitsSource).toBe("bfi");
     expect(card.traits.openness).toBeCloseTo((4 - 1) / 4, 5);
@@ -686,13 +686,13 @@ describe("buildPersona", () => {
         {
           patterns: {
             summary: "cached mirror",
-            __summary_sig: personaSummarySig("en", 2, "2026-01-03T00:00:00Z"),
+            __summary_sig: personaSummarySig("en", false, 2, "2026-01-03T00:00:00Z"),
           },
         },
       ],
       error: null,
     };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     expect(card.patterns.summary).toBe("cached mirror");
     expect(callLlm).not.toHaveBeenCalled();
   });
@@ -709,20 +709,92 @@ describe("buildPersona", () => {
           patterns: {
             summary: "old mirror",
             // Signature from when only one row existed — stale now.
-            __summary_sig: personaSummarySig("en", 1, "2026-01-02T00:00:00Z"),
+            __summary_sig: personaSummarySig("en", false, 1, "2026-01-02T00:00:00Z"),
           },
         },
       ],
       error: null,
     };
-    const card = await buildPersona("u1", "en");
+    const card = await buildPersona("u1", "en", false);
     expect(callLlm).toHaveBeenCalledTimes(1);
     expect(card.patterns.summary).toBe("mock summary");
-    expect(card.patterns.__summary_sig).toBe(personaSummarySig("en", 2, "2026-01-05T00:00:00Z"));
+    expect(card.patterns.__summary_sig).toBe(personaSummarySig("en", false, 2, "2026-01-05T00:00:00Z"));
     const personaUpsert = upsertCalls.find((u) => u.table === "personas");
     expect(
       (personaUpsert?.payload as { patterns?: Record<string, string> })?.patterns?.__summary_sig,
-    ).toBe(personaSummarySig("en", 2, "2026-01-05T00:00:00Z"));
+    ).toBe(personaSummarySig("en", false, 2, "2026-01-05T00:00:00Z"));
+  });
+
+  // C10 (QA 261004 gate r3, C10-CACHE-001). The summary is crisis-capable: callLlm swaps a
+  // red-zone reply for the crisis message of the age it was handed. The cache signature
+  // used to sign only locale and rows, so a summary built on adult routing (the export
+  // screen left the age out until L1-07) matched a later build for the same minor, and
+  // that build reused it without reaching callLlm({ minor: true }).
+  describe("summary cache: the age is part of the signature", () => {
+    const LAST = "2026-01-03T00:00:00Z";
+    const twoRows = () => {
+      tableFixtures["records:select"] = {
+        data: [
+          { id: "r2", prompt: "Q2", body: "A2", created_at: LAST, tags: [] },
+          { id: "r1", prompt: "Q1", body: "A1", created_at: "2026-01-02T00:00:00Z", tags: [] },
+        ],
+        error: null,
+      };
+    };
+    const cached = (sig: string) => {
+      tableFixtures["personas:select"] = {
+        data: [{ patterns: { summary: "summary on the other age's routing", __summary_sig: sig } }],
+        error: null,
+      };
+    };
+    const storedSig = () =>
+      (upsertCalls.find((u) => u.table === "personas")?.payload as { patterns?: Record<string, string> })
+        ?.patterns?.__summary_sig;
+
+    test("the same locale and rows sign differently for a minor and an adult", () => {
+      expect(personaSummarySig("en", true, 2, LAST)).not.toBe(personaSummarySig("en", false, 2, LAST));
+    });
+
+    test("a summary cached for the other age is rebuilt on the age the caller resolved", async () => {
+      for (const [cachedMinor, minor] of [
+        [false, true],
+        [true, false],
+      ] as const) {
+        reset();
+        twoRows();
+        cached(personaSummarySig("en", cachedMinor, 2, LAST));
+        const card = await buildPersona("u1", "en", minor);
+        expect(callLlm).toHaveBeenCalledTimes(1);
+        expect(callLlm).toHaveBeenCalledWith(expect.objectContaining({ purpose: "persona_narrative", minor }));
+        expect(card.patterns.summary).toBe("mock summary");
+        expect(storedSig()).toBe(personaSummarySig("en", minor, 2, LAST));
+      }
+    });
+
+    test("a summary cached for the same age is still reused", async () => {
+      for (const minor of [true, false]) {
+        reset();
+        twoRows();
+        cached(personaSummarySig("en", minor, 2, LAST));
+        const card = await buildPersona("u1", "en", minor);
+        expect(callLlm).not.toHaveBeenCalled();
+        expect(card.patterns.summary).toBe("summary on the other age's routing");
+      }
+    });
+
+    test("a row cached before the age was signed (v1) misses once for either age", async () => {
+      // The exact v1 shape: `v1:<locale>:<rows>:<newest created_at>`, with no age in it.
+      for (const minor of [true, false]) {
+        reset();
+        twoRows();
+        cached(`v1:en:2:${LAST}`);
+        const card = await buildPersona("u1", "en", minor);
+        expect(callLlm).toHaveBeenCalledTimes(1);
+        expect(callLlm).toHaveBeenCalledWith(expect.objectContaining({ purpose: "persona_narrative", minor }));
+        expect(card.patterns.summary).toBe("mock summary");
+        expect(storedSig()).toBe(personaSummarySig("en", minor, 2, LAST));
+      }
+    });
   });
 
   test("summary windowing: interview transcripts are excluded and bodies clipped", async () => {
@@ -733,13 +805,46 @@ describe("buildPersona", () => {
       { id: "r1", prompt: "Q1", body: "short answer", created_at: "2026-01-02T00:00:00Z", tags: [] },
     ];
     tableFixtures["records:select"] = { data: rows, error: null };
-    await buildPersona("u1", "en");
+    await buildPersona("u1", "en", false);
     const arg = (callLlm as jest.Mock).mock.calls[0]![0] as { user: string };
     expect(arg.user).not.toContain("TTTT"); // interview body excluded
     expect(arg.user).toContain("short answer");
     // Long non-interview bodies are clipped to the window cap (500 chars).
     expect(arg.user).toContain("B".repeat(500));
     expect(arg.user).not.toContain("B".repeat(501));
+  });
+
+  // C10 (QA 261004 gate r2, C10-001): `minor` used to default to false, so a caller that
+  // dropped it built a minor's persona on adult crisis routing without any error. The
+  // type now requires it, and a value that is not a boolean (a JS caller, an `as` cast)
+  // is refused before the first read, so nothing reaches callLlm on a guessed age.
+  test("the age is required: a non-boolean minor rejects before any read or LLM call", async () => {
+    tableFixtures["records:select"] = {
+      data: [{ id: "r1", prompt: "Q1", body: "A1", created_at: "2026-01-02T00:00:00Z", tags: [] }],
+      error: null,
+    };
+    for (const bad of [undefined, null, "true", 0]) {
+      selectCalls.length = 0;
+      upsertCalls.length = 0;
+      (callLlm as jest.Mock).mockClear();
+      await expect(buildPersona("u1", "en", bad as unknown as boolean)).rejects.toThrow(TypeError);
+      expect(selectCalls).toEqual([]);
+      expect(upsertCalls).toEqual([]);
+      expect(callLlm).not.toHaveBeenCalled();
+    }
+  });
+
+  test("the resolved age reaches the persona_narrative call unchanged", async () => {
+    for (const minor of [true, false]) {
+      reset();
+      tableFixtures["records:select"] = {
+        data: [{ id: "r1", prompt: "Q1", body: "A1", created_at: "2026-01-02T00:00:00Z", tags: [] }],
+        error: null,
+      };
+      await buildPersona("u1", "en", minor);
+      expect(callLlm).toHaveBeenCalledTimes(1);
+      expect(callLlm).toHaveBeenCalledWith(expect.objectContaining({ purpose: "persona_narrative", minor }));
+    }
   });
 });
 

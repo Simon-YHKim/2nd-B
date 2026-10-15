@@ -4,6 +4,7 @@
     "zoom": "Acercando la estrella",
     "focus": "Ajustando el enfoque",
     "ready": "Enfoque fijado · Listo para viajar",
+    "held": "Enfoque fijado",
     "return": "Volviendo a la constelación",
     "shutter": "Tomando una foto"
   },
@@ -41,9 +42,6 @@
   },
   "wiki": {
     "title": "Conocimiento",
-    "headerGrowing": "Tienes {{count}} fragmentos guardados.",
-    "headerEmpty": "Aún no hay contenido en tu wiki. Puedes guardar el primer fragmento hoy.",
-    "tip": "Filtra por etiqueta.",
     "statPages": "Páginas",
     "statLinks": "Enlaces",
     "filterAll": "Todo",
@@ -82,20 +80,9 @@
     "gettingProposals": "Buscando conexiones…"
   },
   "records": {
-    "title": "Archivo",
-    "headerCount": "Has guardado {{count}} fragmentos en tu wiki.",
-    "headerCount_plural": "Has guardado {{count}} fragmentos en tu wiki.",
-    "headerEmpty": "Aún no has guardado ninguna pieza.",
-    "tip": "Hay {{count}} fragmentos sin clasificar en la bandeja.",
-    "tip_plural": "Hay {{count}} fragmentos sin clasificar en la bandeja.",
-    "lead": "Todo lo que has guardado, en una sola línea de tiempo",
     "filterAll": "Todo",
-    "filterJournal": "Diario",
-    "filterNote": "Nota",
-    "filterAudit": "Revisión",
     "emptyAll": "Aún no hay registros. Guarda uno para verlo aquí por fecha.",
     "emptyKind": "Aún no hay registros de este tipo.",
-    "tipClear": "Todo está clasificado.",
     "wikiTitle": "Wiki",
     "viewList": "Lista",
     "viewGraph": "Grafo",
@@ -110,7 +97,9 @@
     "fallbackTitle": "Sin título",
     "graphEmpty": "Aún no hay conocimiento que conectar.",
     "loadError": "No se pudo cargar la lista. Tus fragmentos guardados no han cambiado. Inténtalo de nuevo.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "periodScope": "Historias: {{star}}",
+    "periodShowAll": "Ver todo"
   },
   "domains": {
     "title": "Mis áreas",
@@ -124,33 +113,10 @@
     "noActivity": "Sin registros",
     "topicsLabel": "{{tag}} · temas clave"
   },
-  "inbox": {
-    "title": "Por organizar",
-    "headerPending": "Hay {{count}} fragmentos por organizar.",
-    "headerEmpty": "Nada que ordenar. Todo en orden.",
-    "tip": "Revisa cada fragmento para guardarlo o descartarlo.",
-    "emptyDone": "Todo ordenado. Las piezas nuevas llegarán aquí.",
-    "remaining": "Quedan {{count}} por revisar",
-    "archive": "Archivar",
-    "archiving": "Archivando…",
-    "nextUp": "Siguiente",
-    "a11yDiscard": "Descartar esta pieza",
-    "a11yArchive": "Archivar esta pieza",
-    "untitled": "Pieza sin título",
-    "suggestedLabel": "Etiquetas sugeridas",
-    "getSuggestions": "Obtener etiquetas sugeridas por IA",
-    "gettingSuggestions": "Obteniendo sugerencias…"
-  },
   "recordDetail": {
     "title": "Detalle del registro",
     "headerLinked": "Esta pieza está conectada con {{count}} registros.",
     "headerAlone": "Vuelve a leer este fragmento.",
-    "tip": "Enlaza con registros que comparten la misma etiqueta.",
-    "author": "Escrito por ti",
-    "notFound": "No se encontró este registro. Vuelve al archivo y ábrelo de nuevo.",
-    "toArchive": "Al archivo",
-    "linkedRecords": "Registros enlazados",
-    "newRecord": "Nuevo registro",
     "a11yDelete": "Eliminar este registro",
     "deleteConfirmTitle": "¿Eliminar este registro?",
     "deleteConfirmBody": "Esto no se puede deshacer.",
@@ -166,38 +132,17 @@
     "kindFallback": "Registro"
   },
   "auth": {
-    "appName": "PolaScope",
     "signInLead": "En la era de la IA, el activo eres tú. Tus registros forman tu Estrella Polar.",
     "signIn": "Iniciar sesión",
-    "createAccount": "Crear cuenta",
     "signUpTitle": "Empezar",
     "signUpLead": "Empieza por guardar un fragmento sobre ti.",
-    "fieldEmail": "Correo",
-    "fieldPassword": "Contraseña",
-    "fieldBirthYear": "Año de nacimiento",
-    "signUp": "Registrarse",
     "resetTitle": "Restablecer contraseña",
-    "resetPrompt": "Revisa tu correo, por favor",
-    "resetBody": "Introduce el código de 6 dígitos para configurarla de nuevo.",
-    "resend": "Reenviar {{time}}",
-    "confirm": "Confirmar",
-    "noAccount": "¿Primera vez? Crea una cuenta",
-    "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "or": "o",
     "ageNotice": "Puedes crear una cuenta si tienes {{minAge}} años o más.",
     "brandLabel": "POLASCOPE",
-    "signInTitle": "Qué bueno verte de nuevo",
-    "emailContinue": "Continuar con correo",
-    "signUpPrompt": "¿Primera vez?",
+    "signInTitle": "Iniciar sesión",
     "legalConsent": "Al continuar, aceptas las Condiciones del servicio y la Política de privacidad.",
-    "continueShort": {
-      "google": "Continuar con Google",
-      "apple": "Continuar con Apple",
-      "kakao": "Continuar con Kakao",
-      "facebook": "Continuar con Facebook",
-      "github": "Continuar con GitHub"
-    },
     "business": {
       "company": "Empresa",
       "ceo": "Director general",
@@ -211,20 +156,13 @@
   "account": {
     "title": "Cuenta",
     "status": "Revisa tus datos y las cuentas que has conectado.",
-    "tip": "Puedes exportar tus datos o eliminar tu cuenta cuando quieras.",
-    "joined": "Te uniste en {{date}} · Plan gratis",
-    "labelName": "Nombre",
-    "labelEmail": "Correo",
-    "labelPassword": "Contraseña",
-    "valueChange": "Cambiar",
-    "labelLinked": "Cuenta vinculada",
-    "labelLanguage": "Idioma",
-    "valueLanguage": "Español",
+    "tip": "Puedes eliminar tu cuenta cuando quieras.",
     "delete": "Eliminar cuenta",
     "navProfile": "Perfil",
     "navSettings": "Ajustes",
     "navData": "Mis datos",
-    "navBeyond": "Fuera de la app",
+    "navIden": "Exportar mi resumen",
+    "navBeyond": "Widgets y alertas",
     "navPassword": "Cambiar contraseña"
   },
   "privacy": {
@@ -232,9 +170,6 @@
     "status": "Los registros se usan solo para apoyar tu autoconocimiento.",
     "tip": "Las decisiones sensibles siempre se muestran y se confirman primero.",
     "lead": "Ajusta tú mismo cómo se usan tus datos.",
-    "toggleAnalysis": "Usar registros para el análisis de autoconocimiento",
-    "toggleStats": "Estadísticas anónimas de mejora del producto",
-    "toggleLock": "Bloqueo de app (biometría)",
     "on": "Activado",
     "off": "Desactivado",
     "policy": "Política de privacidad",
@@ -245,41 +180,117 @@
     "none": "0 elementos",
     "footer": "El tratamiento y almacenamiento de los datos depende de cada función. Consulta su aviso de uso de datos.",
     "dataReview": "Revisión de mis datos",
-    "open": "Abrir"
+    "open": "Abrir",
+    "atGlance": "De un vistazo",
+    "facts": {
+      "onDevice": {
+        "label": "Primero en el dispositivo",
+        "v": "El contenido original que importas se analiza en tu dispositivo; solo se guardan, cifradas, las señales derivadas."
+      },
+      "collect": {
+        "label": "Qué recopilamos",
+        "v": "Las motas de estrella que guardas, las puntuaciones de lentes y los patrones de uso. Ubicación y comunicaciones, solo con tu consentimiento."
+      },
+      "retention": {
+        "label": "Plazo de conservación",
+        "v": "Mientras tu cuenta esté activa; si te das de baja, se elimina por completo en un plazo de 30 días."
+      },
+      "delete": {
+        "label": "Derecho a borrar",
+        "v": "Puedes borrar elementos concretos o todo, cuando quieras."
+      }
+    },
+    "analytics": {
+      "title": "Estadísticas de uso y anuncios",
+      "pendingAge": "Los ajustes de estadísticas de uso y anuncios aparecen cuando se confirma tu fecha de nacimiento.",
+      "minorLocked": "Las estadísticas de uso y los anuncios están bloqueados si la fecha de nacimiento indica menos de 18 años.",
+      "adultLead": "Opcional. Tu elección se guarda y se aplica a Google Analytics en la web. Firebase Analytics y Microsoft Clarity están desactivados por ahora en Android.",
+      "checkingAge": "Comprobando tu fecha de nacimiento…",
+      "loadingSettings": "Cargando ajustes…",
+      "allow": "Permitir estadísticas de uso",
+      "lockedUnder18": "Bloqueado para menores de 18",
+      "applied": "GA4 activo en la web · Firebase y Clarity desactivados en Android",
+      "enableFailed": "No se pudieron activar las estadísticas. Inténtalo de nuevo.",
+      "withdrawSaveFailed": "No se pudo guardar. La retirada de las estadísticas ya se aplicó en este dispositivo; vuelve a intentar guardar.",
+      "adsSaveFailed": "No se pudo guardar el ajuste de anuncios. Inténtalo de nuevo."
+    },
+    "recommend": {
+      "title": "Recomendaciones",
+      "minorLocked": "Las recomendaciones están desactivadas y no se pueden activar.",
+      "onBody": "Activadas. Tus registros se analizan para sugerir conexiones.",
+      "turnOffA11y": "Desactivar recomendaciones",
+      "turnOff": "Desactivar",
+      "offBody": "Desactivadas. Actívalas para recibir sugerencias de conexiones a partir de tus registros.",
+      "turnOnA11y": "Activar recomendaciones",
+      "turnOn": "Activar"
+    },
+    "semantic": {
+      "title": "Conexiones de registros por significado",
+      "minorLocked": "Las conexiones por significado están desactivadas y no se pueden activar.",
+      "onBody": "Activadas. Los registros se indexan por significado para mostrar los que se parecen.",
+      "turnOffA11y": "Desactivar las conexiones por significado",
+      "turnOff": "Desactivar y borrar vectores",
+      "offBody": "Desactivadas. Actívalas para conectar registros de significado parecido, aunque no compartan etiquetas.",
+      "turnOnA11y": "Activar las conexiones por significado",
+      "turnOn": "Activar"
+    },
+    "understandA11y": "Lo entiendo y quiero activarlo",
+    "understand": "Entiendo, activar",
+    "saveFailed": "No se pudo guardar. Inténtalo de nuevo en un momento.",
+    "deleteAccount": {
+      "body": "Tus registros, capturas, wiki, uso y cuenta se borran de forma permanente. No se puede deshacer. Exporta antes lo que necesites.",
+      "typePrompt": "Escribe \"{{phrase}}\" para continuar.",
+      "inputA11y": "Confirmación de eliminación",
+      "buttonA11y": "Eliminar la cuenta de forma permanente",
+      "button": "Eliminar cuenta",
+      "deleting": "Eliminando…",
+      "failed": "No se pudo completar la eliminación. Puede que queden algunos datos. Vuelve a intentarlo en un momento."
+    }
   },
   "support": {
     "title": "Soporte",
     "prompt": "¿Qué necesitas resolver?",
-    "askSecondb": "Preguntar a SecondB",
+    "askSecondb": "Preguntar a HustleK",
     "viewManual": "Ver el manual",
     "emailUs": "Escríbenos",
     "reportBug": "Reportar un error",
-    "footer": "PolaScope v1.0.0 · 2 días hábiles KST",
+    "footer": "PolaScope v{{version}} · 2 días hábiles KST",
     "faqTitle": "Preguntas frecuentes",
-    "noticesTitle": "Avisos"
-  },
-  "integrations": {
-    "title": "Integraciones de apps",
-    "status": "Siempre confirmas las apps externas antes de importar.",
-    "tip": "Revisa los datos antes de guardarlos.",
-    "sectionAssistant": "Conectar asistente de IA",
-    "pending": "Pendiente",
-    "sectionSources": "Fuentes de captura",
-    "notionValue": "Páginas y bases de datos",
-    "obsidianValue": "Markdown local",
-    "healthLabel": "Salud · Calendario",
-    "permissionNeeded": "Permiso necesario",
-    "footer": "Revisas los datos de integración antes de importar y puedes desconectarlos cuando quieras."
+    "noticesTitle": "Avisos",
+    "faqs": {
+      "brightness": {
+        "q": "¿En qué se diferencian el brillo (la luz de las estrellas) y la confianza?",
+        "a": "La luz de las estrellas indica cuánto has guardado en esa área; la confianza, cuánto se ha comprobado la estimación de HustleK. Las dos cambian por separado."
+      },
+      "plan": {
+        "q": "¿Un plan de pago lo hace más inteligente?",
+        "a": "No. La calidad de las respuestas es la misma en todos los planes. Solo cambian los límites de cantidad, conservación y exportación."
+      },
+      "call": {
+        "q": "¿Es segura la grabación de llamadas?",
+        "a": "Las grabaciones se transcriben en el servidor de IA mediante una conexión cifrada, y el audio original se borra de tu dispositivo justo después. Solo se guardan, cifrados, el texto y las señales."
+      }
+    },
+    "notices": {
+      "modes": {
+        "t": "Llegan los tres modos de HustleK",
+        "tag": "Nuevo"
+      },
+      "museum": {
+        "t": "Museo de la IA: ya hay 8 colecciones abiertas",
+        "tag": "Contenido"
+      },
+      "voice": {
+        "t": "Mejoras en la transcripción de voz",
+        "tag": "Mejora"
+      }
+    }
   },
   "connect": {
     "title": "Sincronización de datos",
     "lead": "Importa registros de otras apps para actualizar tus estrellas. El procesamiento empieza en tu dispositivo.",
     "consent": "El contenido original nunca se guarda; solo se conservan las señales derivadas, cifradas, y puedes desconectar y borrar cuando quieras.",
-    "connected": "Conectado",
     "connect": "Conectar",
-    "a11yStatus": "{{name}} {{status}}",
-    "a11yConnected": "conectado",
-    "a11yConnect": "conectar",
     "openImport": "Importar desde archivo",
     "openCapture": "Traer con captura",
     "a11yGo": "Abrir importación de {{name}}",
@@ -288,16 +299,11 @@
         "name": "Google Calendar",
         "sub": "Importa citas desde un archivo de calendario"
       },
-      "health": {
-        "name": "Apple Health",
-        "sub": "Importa un archivo exportado de tu app de salud"
-      },
       "notion": {
         "sub": "Importa notas y documentos"
       },
       "photos": {
-        "name": "Álbum de fotos",
-        "sub": "Lee el texto de una foto y guárdalo como nota"
+        "name": "Álbum de fotos"
       },
       "gpt": {
         "name": "Exportación de ChatGPT",
@@ -330,55 +336,20 @@
     "sectionDiscover": "Qué capturar ahora",
     "discoverLead": "Mira qué intereses aparecen en tus registros recientes."
   },
-  "data": {
-    "title": "Mis datos",
-    "subtitle": "Qué has guardado y cómo se usa",
-    "status": "Consulta dónde están tus datos y para qué se usan.",
-    "tip": "Los datos sensibles pueden quedarse solo en tu dispositivo.",
-    "statPieces": "Piezas guardadas",
-    "statChecks": "Pruebas hechas",
-    "sectionStorage": "Ubicación de almacenamiento",
-    "onDevice": "En el dispositivo (datos sensibles)",
-    "encrypted": "Cifrado",
-    "cloudSync": "Sincronización en la nube",
-    "on": "Activado",
-    "exportAll": "Exportar todos los datos",
-    "deleteAll": "Eliminar todos los datos",
-    "buildIndex": "Preparar búsqueda por significado",
-    "indexing": "Preparando la búsqueda…",
-    "indexed": "{{count}} preparados para la búsqueda"
-  },
   "theme": {
-    "title": "Tema · Fuente",
-    "status": "Elige un tema y una fuente cómodos.",
+    "title": "Fuente · Movimiento",
+    "status": "Elige una fuente cómoda.",
     "tip": "Reduce el movimiento si prefieres menos animaciones.",
-    "sectionTheme": "Tema",
-    "themeDeepspace": "Espacio profundo",
-    "themeMidnight": "Medianoche",
-    "midnightNote": "Midnight se aplica por ahora solo a algunas pantallas. Las pantallas deep-space siguen en adaptación.",
     "sectionFont": "Fuente",
     "fontPixel": "Píxel · Galmuri",
     "fontReadable": "Legible · Pretendard",
-    "sectionSize": "Tamaño del texto",
-    "small": "Pequeño",
-    "large": "Grande",
-    "reduceMotion": "Reducir movimiento"
+    "reduceMotion": "Reducir movimiento",
+    "soundEffects": "Efectos de sonido",
+    "soundEffectsNote": "Sonidos del telescopio, la foto de estrella y la apertura. No suenan si el teléfono está en silencio o en vibración."
   },
   "manual": {
-    "title": "Guía de uso",
-    "status": "Consulta cómo guardar registros y aprobar cambios en tu resumen.",
-    "tip": "Si no lo encuentras, pregunta a SecondB.",
-    "search": "¿Qué te da curiosidad?",
-    "sectionStart": "Primeros pasos",
-    "q1": "¿Cuáles son las 7 estrellas de la Osa Mayor?",
-    "q2": "¿Cómo se ilumina la Estrella Polar?",
-    "q3": "¿Cómo interpreto los resultados?",
-    "sectionData": "Datos · Privacidad",
-    "q4": "¿Qué es un archivo IDEN?",
-    "q5": "¿Dónde se almacenan mis datos?",
-    "askDirect": "Preguntar directamente a SecondB",
-    "replayCoachmarks": "Volver a ver la guía de inicio",
-    "conceptsTitle": "Conceptos clave"
+    "askDirect": "Preguntar directamente a HustleK",
+    "replayCoachmarks": "Volver a ver la guía de inicio"
   },
   "plans": {
     "title": "Planes",
@@ -387,11 +358,11 @@
     "recommended": "Recomendado",
     "perMonth": "/ mes",
     "proFeat1": "Tests ilimitados · repetir y comparar",
-    "proFeat2": "Chat ilimitado con SecondB · imaginar",
+    "proFeat2": "Chat ilimitado con HustleK · imaginar",
     "proFeat3": "Exportación IDEN completa",
     "proFeat4": "Sugerencias de tendencia · revisión",
     "currentPlan": "Activo actualmente",
-    "freeFeat": "Guardado básico · 1 prueba por estrella · 5 chats SecondB/día",
+    "freeFeat": "Guardado básico · 1 prueba por estrella · 5 chats HustleK/día",
     "startPro": "Empezar un plan de pago",
     "loadingOffers": "Cargando planes...",
     "purchasing": "Procesando...",
@@ -417,7 +388,7 @@
     "photoValue": "Guardar por foto",
     "mic": "Micrófono",
     "micValue": "Guardar por voz",
-    "continue": "Continuar"
+    "continue": "Listo"
   },
   "graph": {
     "title": "Mapa de mis registros",
@@ -448,16 +419,6 @@
   "review": {
     "title": "Revisión",
     "status": "Comprueba si los cambios propuestos encajan contigo.",
-    "tip": "Nada se aplica hasta que lo apruebes.",
-    "lead": "Revisa los cambios propuestos",
-    "section": "Sugerencia de SecondB",
-    "body": "Los registros recientes sugieren que tu extraversión ha subido. ¿Subir el brillo de la estrella?",
-    "now": "Ahora",
-    "suggest": "Sugerido",
-    "evidence": "{{count}} registros de respaldo",
-    "footer": "Nada se aplica hasta que lo apruebes · cada sugerencia queda en tus registros",
-    "hold": "Esperar",
-    "approve": "Aprobar",
     "rule": "Nada se aplica hasta que lo confirmes · L5 solo se abre aquí",
     "groupSeven": "Estrellas de cada etapa · con dos temas o más",
     "groupTest": "A partir de tus pruebas",
@@ -490,52 +451,12 @@
     "htmlDesc": "Página lista para imprimir. Ábrela e imprime, o guárdala como PDF, desde tu navegador."
   },
   "import": {
-    "title": "Importar",
-    "status": "También puedes traer registros de otras apps.",
-    "tip": "Siempre confirmas antes de importar.",
-    "lead": "Registros de otros lugares, en un solo sitio",
-    "notionDesc": "Páginas · bases de datos",
-    "obsidianDesc": "Importa archivos .md / texto de tu vault",
     "healthName": "Salud",
-    "healthDesc": "Sueño · actividad",
-    "healthConnect": "Activar la sincronización de actividad",
-    "healthConnectHint": "Permite que un entrenamiento registrado marque tu rutina de actividad.",
-    "healthConsentNeeded": "Aceptar para traer tu actividad",
-    "healthIngest": "Añadir la actividad de hoy",
-    "healthIngestHint": "Guarda la actividad de hoy y actualiza las rutinas que coincidan.",
-    "healthIngested": "Se añadió la actividad de hoy.",
-    "healthMinorLocked": "La sincronización de actividad está desactivada en esta cuenta.",
-    "connect": "Conectar",
-    "soon": "Próximamente",
-    "reviewLabel": "Revisar antes de importar",
-    "mapFrom1": "Título de Notion",
-    "mapTo1": "Título del registro",
-    "mapFrom2": "Etiquetas",
-    "mapTo2": "Etiquetas automáticas",
-    "mapFrom3": "Fecha de creación",
-    "mapTo3": "Momento guardado",
-    "footer": "Importando {{count}} elementos. Nada se aplica sin tu aprobación.",
-    "cancel": "Cancelar",
-    "importCount": "Importar {{count}}",
-    "pasteLabel": "Pegar markdown",
-    "placeholder": "Pega aquí tus notas en markdown. Separa varias notas con una línea ---.",
-    "detected": "{{count}} notas para importar",
-    "untitled": "Nota sin título",
-    "andMore": "y {{count}} más",
-    "empty": "Pega notas arriba y aquí aparece una vista previa.",
-    "resultDone": "Se añadieron {{count}} a tu bandeja.",
-    "resultDuplicate": "{{count}} duplicada(s) omitida(s)",
-    "resultFailed": "{{count}} fallida(s)",
-    "importing": "Importando…",
-    "clear": "Borrar",
-    "connectorsLabel": "Apps para conectar",
-    "pickFiles": "Elegir archivos",
-    "picking": "Abriendo…"
+    "healthMinorLocked": "La sincronización de actividad está desactivada en esta cuenta."
   },
   "reviewNoChange": "No hay ningún cambio que proponer ahora mismo.",
   "reviewLoadError": "No pudimos cargar una propuesta. Inténtalo de nuevo.",
   "reviewLeftAsIs": "Esta propuesta no se aplicó ni se guardó.",
-  "reviewGetProposal": "Obtener una propuesta",
   "reviewReopenProposal": "Reabrir la propuesta",
   "reviewLoading": "Cargando…",
   "reviewRecordsBehind": "Registros consultados",
@@ -575,7 +496,18 @@
     "sourceRecord": "Registro de carrera guardado",
     "entryUiKorean": "Pantalla al guardar: coreano",
     "entryUiEnglish": "Pantalla al guardar: inglés",
-    "untitled": "(sin título)"
+    "untitled": "(sin título)",
+    "pathTitle": "Trayectoria",
+    "trackMain": "Principal",
+    "trackSide": "Secundaria",
+    "credentials": {
+      "education": "Formación",
+      "military": "Servicio militar",
+      "awards": "Premios",
+      "licenses": "Certificaciones",
+      "experience": "Experiencia"
+    },
+    "sideNote": "Los registros oficiales, como formación, servicio militar, premios, certificaciones y experiencia, se ordenan aquí cuando conectas una fuente. Por ahora, tus propios logros se van sumando en Principal."
   },
   "careerInput": {
     "screenTitle": "Registrar logro",
@@ -655,7 +587,6 @@
     "save": "Guardar",
     "privacyNote": "Solo lo mínimo sobre otras personas, para tu propia memoria. Se guarda únicamente en tu cuenta.",
     "openingMap": "Abriendo el mapa…",
-    "empty": "Añade a las personas cercanas para encender la estrella de relaciones.",
     "me": "yo",
     "kind": {
       "family": "Familia",
@@ -664,9 +595,7 @@
       "colleague": "Colega",
       "mentor": "Mentor",
       "other": "Otro"
-    },
-    "contactSuffix": " · contacto {{cadence}}",
-    "lastSuffix": " · última vez {{date}}"
+    }
   },
   "rest": {
     "title": "Descanso",
@@ -700,12 +629,12 @@
   },
   "careerDrilldown": {
     "summaryFallback": "una experiencia profesional",
-    "intro": "Describe tu logro con 3C para explicar por qué y 4P para explicar qué hiciste y cómo. Después, SecondB hará preguntas sobre lo que escribiste.",
+    "intro": "Describe tu logro con 3C para explicar por qué y 4P para explicar qué hiciste y cómo. Después, HustleK hará preguntas sobre lo que escribiste.",
     "summaryLabel": "Resumen en una línea",
     "summaryPlaceholder": "Qué hiciste y cuál fue el resultado - en una línea",
     "expTypeA11y": "Tipo de experiencia",
     "expTypePlaceholder": "Elige un tipo de experiencia",
-    "submit": "Seguir con preguntas de SecondB",
+    "submit": "Seguir con preguntas de HustleK",
     "saveFailed": "No se pudo guardar. Lo que escribiste sigue aquí; inténtalo de nuevo."
   },
   "shareCard": {
@@ -719,13 +648,15 @@
     "opening": "Abriendo…",
     "share": "Compartir",
     "introPrivacy": "Los registros originales y las cifras nunca van en la tarjeta. Solo la frase que elijas.",
-    "starsFallback": "No pudimos leer tus estrellas; dibujamos el valor por defecto."
+    "fallbackInsight": "Entenderme a fondo, vivir más como yo."
   },
   "coachmarks": {
-    "homeStep": "Toca SecondB para empezar a guardar un registro.",
+    "homeStep": "Toca Recortes para empezar un registro.",
     "formatStep": "Primero elige Nota. Una línea es suficiente.",
     "inputStep": "Escribe lo que tienes en mente. No hace falta una frase completa.",
     "saveStep": "Por último, toca Guardar para conservar este registro.",
+    "replayEndStep": "Guardar conserva el registro.",
+    "replayEndHint": "Esta segunda vuelta termina aquí, sin guardar.",
     "doneStep": "Tu registro está guardado. Vuelve a la constelación para verlo.",
     "targetHint": "Toca el control resaltado para continuar.",
     "inputHint": "Escribe al menos un carácter para continuar a Guardar.",
@@ -733,7 +664,6 @@
     "inputReady": "Ir a Guardar",
     "goHome": "Ir a la constelación",
     "doneCount": "Listo",
-    "secondbName": "SecondB",
     "dontShowAgain": "No volver a mostrar"
   },
   "museum": {
@@ -757,16 +687,10 @@
     "a11yGraph": "Grafo de conexión de registros",
     "a11yZoomOut": "Alejar",
     "a11yZoomIn": "Acercar",
-    "hintSelected": "{{label}} · toca de nuevo para abrir",
-    "openRecord": "Abrir registro",
-    "hintDefault": "Discontinua = registros unidos por una etiqueta compartida. Toca para seleccionar, toca de nuevo para abrir",
-    "untitled": "(sin título)",
-    "tagLinks": "Enlaces de etiqueta"
+    "openRecord": "Abrir registro"
   },
   "wikiGraph": {
     "a11yGraph": "Grafo de nodos de la wiki",
-    "a11yZoomOut": "Alejar",
-    "a11yZoomIn": "Acercar",
     "hintSelected": "{{title}} · toca de nuevo para abrir",
     "hintDefault": "Toca para seleccionar un nodo, toca de nuevo para abrir",
     "kindConcept": "Concepto",
@@ -783,11 +707,14 @@
   "shareCardImg": {
     "eyebrowWeek": "POLASCOPE · ESTA SEMANA",
     "eyebrowConstellation": "MI CONSTELACIÓN",
-    "footerWeek": "Resumen semanal de SecondB",
+    "footerWeek": "Resumen semanal de HustleK",
     "starsLit": "{{count}} estrellas brillando",
     "signature": "PolaScope · {{count}} motas de estrella"
   },
   "ds": {
+    "network": {
+      "offline": "Sin conexión a internet."
+    },
     "growth": {
       "title": "Mi cambio",
       "bubble": "Mira cómo cambió el brillo esta semana.",
@@ -815,7 +742,37 @@
       "startRoutine": "Empezar una rutina",
       "reanalyze": "Volver a analizar mis estrellas",
       "reanalyzing": "Analizando tus estrellas",
-      "reanalyzingTip": "Te avisaremos cuando termine."
+      "reanalyzingTip": "Te avisaremos cuando termine.",
+      "steps": {
+        "profile": {
+          "obs": "Esta semana completaste más de tu información básica.",
+          "step": "Completa un campo del perfil"
+        },
+        "infancy": {
+          "obs": "Exploraste tus recuerdos más tempranos.",
+          "step": "Anota una escena que te vino a la mente"
+        },
+        "school": {
+          "obs": "Repasaste tus años de escuela.",
+          "step": "Explora una escena más de esa época"
+        },
+        "twenties": {
+          "obs": "Profundizaste en tus veinte.",
+          "step": "Escribe una decisión de esa época"
+        },
+        "later": {
+          "obs": "Miraste cómo cambiaste después de los treinta.",
+          "step": "Escribe una línea sobre lo que cambió"
+        },
+        "work": {
+          "obs": "Te observaste en el trabajo.",
+          "step": "Anota una escena del trabajo de esta semana"
+        },
+        "now": {
+          "obs": "Te detuviste a mirarte a menudo.",
+          "step": "Una línea de reflexión hoy"
+        }
+      }
     },
     "plans": {
       "title": "Planes",
@@ -848,17 +805,17 @@
       "freeName": "Observador de estrellas",
       "freeSub": "Recién empezando",
       "freePrice": "Gratis",
-      "freeFeat1": "5 chats al día con SecondB",
+      "freeFeat1": "5 chats al día con HustleK",
       "freeFeat2": "Buscar conexiones 2 veces por semana",
       "freeFeat3": "Las 7 estrellas · registros ilimitados",
       "plusName": "Viajero",
       "plusSub": "Un viajero constante",
-      "plusFeat1": "Chat con Meta-B",
+      "plusFeat1": "Chat con Fact-K",
       "plusFeat2": "80 chats al día",
       "plusFeat3": "Buscar conexiones 7 veces por semana",
       "proName": "Estrella Polar",
       "proSub": "Para los que profundizan",
-      "proFeat1": "Chat con Meta-B y Twi-B",
+      "proFeat1": "Chat con Fact-K y Joy-K",
       "proFeat2": "250 chats al día",
       "proFeat3": "Buscar conexiones sin límite",
       "comingSoon": "Próximamente",
@@ -879,9 +836,6 @@
       }
     },
     "wikiRecords": {
-      "relationships": "Relaciones",
-      "justNow": "Justo ahora",
-      "seeEvidence": "Ver evidencia ↗",
       "tags": "Etiquetas",
       "addTag": "Añadir etiqueta",
       "linkedRecords": "Registros vinculados",
@@ -891,7 +845,6 @@
       "fillStar": "Completar esta estrella",
       "fillStarBody": "Añade información sobre esta área.",
       "secondbLinked": "Este fragmento se conecta con tu estrella '{{star}}'. {{n}} registros similares están en el mismo periodo.",
-      "secondbUnlinked": "Este fragmento todavía no está conectado a una estrella.",
       "makeWikiPage": "Crear página wiki",
       "wikiPageMade": "Página wiki creada"
     },
@@ -930,7 +883,7 @@
       "toggleAccount": "Conectar cuenta",
       "sectionChooseFile": "Elige un archivo",
       "sectionAccounts": "Cuentas para conectar",
-      "dropTitle": "Suelta un archivo aquí o elige uno",
+      "dropTitle": "Elige archivos de tu dispositivo para importarlos",
       "btnOpening": "Abriendo",
       "btnImporting": "Importando",
       "btnChooseFile": "Elegir archivo",
@@ -964,41 +917,11 @@
       "a11yImportExportFile": "Importar el archivo de exportación de {{name}}",
       "a11yRevokeImport": "Retirar la importación de {{name}}"
     },
-    "ttfv": {
-      "pageTitle": "Empieza con una experiencia",
-      "stageA11y": "Ilustración de la estrella polar y un tema, no una medición del brillo",
-      "defaultInsight": {
-        "star": "Relaciones",
-        "phrase": "da el primer paso"
-      },
-      "secondbName": "SecondB",
-      "insightLead": "¿Sueles ser quien ",
-      "insightTail": "?",
-      "sub": "Es una pregunta para empezar, no una conclusión basada en tus registros.",
-      "grounds": "Acerca de esta pregunta",
-      "affirm": "Es cierto",
-      "differ": "Un poco diferente",
-      "consent": "Al elegir una respuesta, la guardas como nota. También puedes salir sin responder.",
-      "ratifySoft": "Tu punto de vista diferente está guardado.",
-      "ratifyTitle": "Tu respuesta está guardada.",
-      "ratifySub": "Puedes encontrar esta respuesta en tus registros.",
-      "enter": "Entrar en tu constelación",
-      "evidence1": {
-        "q": "Ahora mismo",
-        "a": "Este ejemplo inicia una conversación. No es un hallazgo sobre ti."
-      },
-      "evidence2": {
-        "q": "De ahora en adelante",
-        "a": "Tu elección se guarda como nota, no como un cambio confirmado en el brillo de las estrellas."
-      },
-      "whyFootnote": "Indica si esta descripción encaja contigo.",
-      "eyebrow": "PRIMERA LUZ"
-    },
     "northstar": {
       "title": "Frase de la Estrella Polar",
-      "sub": "SecondB ha preparado esta frase con tus siete estrellas. Cámbiala con tus propias palabras.",
+      "sub": "HustleK ha preparado esta frase con tus siete estrellas. Cámbiala con tus propias palabras.",
       "placeholder": "Entenderme a fondo y vivir más como yo.",
-      "suggestLabel": "Borradores de SecondB",
+      "suggestLabel": "Borradores de HustleK",
       "thinking": "Preparando borradores",
       "propose": "Ver otros borradores",
       "cancel": "Cancelar",
@@ -1046,8 +969,56 @@
     "reasoningScreen": {
       "autoTitle": "Conexiones automáticas",
       "autoPaused": "Límite alcanzado · se reanuda el lunes",
-      "autoBody": "SecondB busca conexiones cuando guardas un fragmento.",
-      "autoNote": "Cada búsqueda automática usa una de las búsquedas semanales. Siempre se reserva una para que la inicies tú."
+      "autoBody": "HustleK busca conexiones cuando guardas un fragmento.",
+      "autoNote": "Cada búsqueda automática usa una de las búsquedas semanales. Siempre se reserva una para que la inicies tú.",
+      "queuedRecord": "Registro nuevo · en cola",
+      "queuedSource": "Fuente nueva · en cola",
+      "justNow": "Ahora mismo",
+      "hoursAgo": "Hace {{n}} h",
+      "yesterday": "Ayer",
+      "daysAgo": "Hace {{n}} d",
+      "untitledRecord": "Registro sin título",
+      "untitledSource": "Fuente sin título",
+      "kindJournal": "Diario",
+      "kindNote": "Nota",
+      "kindLink": "Enlace",
+      "backgroundFailed": "El razonamiento en segundo plano no terminó. Inténtalo de nuevo.",
+      "loadFailed": "No se pudieron cargar tus elementos.",
+      "busyOther": "Espera a que termine la tarea actual.",
+      "taskTitle": "Conectando los elementos seleccionados",
+      "taskTip": "Revisa las nuevas conexiones.",
+      "runFailed": "No se pudieron conectar estos elementos. Inténtalo de nuevo.",
+      "applyFailed": "No se pudieron aplicar las propuestas seleccionadas. Inténtalo de nuevo.",
+      "title": "Razonamiento",
+      "reviewTitle": "Revisar resultados",
+      "selectedTitle": "{{n}} seleccionados",
+      "progressDone": "Todos los elementos están conectados",
+      "progressRunning": "Conectando tus estrellas",
+      "unlimited": "Conexiones ilimitadas",
+      "weeklyLeft": "Búsquedas disponibles esta semana: {{left}} de {{cap}} · se reinician el lunes",
+      "cancel": "Cancelar",
+      "applySelected": "Aplicar {{n}} seleccionados",
+      "keepAll": "Dejar todo como está",
+      "weeklyLimitReached": "Límite semanal alcanzado",
+      "reasonN": "Razonar sobre {{n}} elementos",
+      "reasonSelected": "Razonar sobre los elementos seleccionados",
+      "depletedTitle": "Has usado el razonamiento básico de esta semana",
+      "viewPlans": "Ver planes",
+      "doneSummary": "Se propusieron {{n}} conexiones. Selecciona solo las que quieras aplicar.",
+      "runningSummary": "Leyendo {{total}} elementos · {{done}} / {{total}}",
+      "doneNote": "Solo se aplican las propuestas seleccionadas. Los elementos no seleccionados no cambian.",
+      "runningNote": "Puedes salir de esta pantalla. HustleK te avisará cuando esté listo.",
+      "weekLabel": "Razonamiento de esta semana",
+      "capturedItems": "Elementos guardados",
+      "selectProposals": "Seleccionar propuestas",
+      "processing": "Procesando",
+      "selectionCount": "{{n}} / {{max}} seleccionados",
+      "loadingItems": "Cargando tus elementos",
+      "emptyItems": "Aún no has guardado elementos",
+      "captureFirst": "Guarda tu primer elemento",
+      "readingItem": "Leyendo…",
+      "proposedFor": "Propuesto para {{domain}}",
+      "runHint": "Selecciona elementos para activar el razonamiento."
     },
     "sources": {
       "title": "Material recibido",
@@ -1080,56 +1051,59 @@
   },
   "beyond": {
     "preview": "Vista previa",
-    "title": "Fuera de la app",
-    "lead": "Vista previa de los widgets y las notificaciones.",
+    "title": "Widgets y alertas",
     "widgetsSection": "Widgets de la pantalla de inicio",
     "todaysStar": "Estrella de hoy",
     "brightestStar": "Tu estrella más brillante",
-    "tapToOpen": "Toca para abrir la estrella de hoy",
     "captureTitle": "Guarda lo que tienes en mente",
     "capture": "Guardar",
     "captureByVoice": "Guardar con la voz",
     "lockSection": "Pantalla de bloqueo",
     "lockNotif": "¿Quieres dejar una línea sobre hoy?",
     "pushSection": "Notificaciones push",
-    "pushHead": "SecondB · ahora",
+    "pushHead": "HustleK · ahora",
     "pushBody": "Hay una nueva propuesta para revisar. Se aplicará a tu estrella si la apruebas.",
     "notifSettings": "Ajustes de notificaciones"
   },
   "star": {
-    "capture": "Guardar",
-    "seeRecords": "Ver registros",
     "loading": "Cargando…",
     "loadError": "No se pudo cargar ahora mismo. Inténtalo de nuevo.",
     "retry": "Reintentar",
-    "empty": "Guarda tu primer registro para encender esta estrella.",
-    "recordFallback": "registro",
     "untitled": "(sin título)",
     "pieceHere": "Guardado aquí",
     "pieceOpenHint": "Abre este registro.",
     "briefingOpening": "Abriendo esta estrella…",
-    "briefingEmpty": "Aún no hay registros en esta estrella. Guarda uno para que SecondB pueda usarlo.",
+    "briefingEmpty": "Aún no hay registros en esta estrella. Guarda uno para que HustleK pueda usarlo.",
     "briefingCountOne": "{{n}} registro en esta estrella, primero el más reciente.",
-    "briefingCount": "{{n}} registros en esta estrella, primero los más recientes.",
-    "drillCareer": "Tu camino",
-    "drillGrowth": "Recordar más",
-    "drillRelation": "Entrevista de relaciones",
-    "drillRecreation": "Obtener ideas",
-    "relToday": "hoy",
-    "relYesterday": "ayer",
-    "relDays": "hace {{n}} d",
-    "relWeeks": "hace {{n}} sem",
-    "relMonths": "hace {{n}} mes"
+    "briefingCount": "{{n}} registros en esta estrella, primero los más recientes."
   },
   "onboarding": {
     "nextHint": "Va a la siguiente diapositiva.",
     "skipHint": "Omite la introducción y abre la pantalla de inicio de sesión.",
     "authHint": "Abre la pantalla de inicio de sesión.",
-    "authLabel": "Inicia sesión para empezar",
-    "secondbName": "SecondB",
+    "secondbName": "HustleK",
     "authTitle": "¿Empezamos?",
     "authBody": "Tus registros son tuyos. Tú decides qué cambios se aplican a tu resumen.",
-    "next": "Siguiente"
+    "next": "Siguiente",
+    "skip": "Omitir",
+    "saveFailed": "No se pudo guardar.",
+    "goHome": "Ir al inicio",
+    "slides": {
+      "intro": {
+        "title": "Una IA que llega\na conocerte",
+        "body": "HustleK usa tus notas\npara ayudarte a ordenar tus ideas\ny planear tu día."
+      },
+      "stars": {
+        "tag": "Conocerte",
+        "title": "Cuenta tu historia\nen siete estrellas",
+        "body": "Etapa escolar, trabajo o ahora:\nelige una estrella para empezar."
+      },
+      "approve": {
+        "tag": "Tú decides",
+        "title": "Los resúmenes de la IA\nnecesitan tu aprobación",
+        "body": "Un resumen sobre ti es una propuesta.\nSolo se aplica si lo apruebas."
+      }
+    }
   },
   "trends": {
     "title": "Tendencia de brillo",
@@ -1142,7 +1116,7 @@
   },
   "profileDetails": {
     "screenTitle": "Sobre tu vida",
-    "nameLabel": "Nombre visible",
+    "nameLabel": "Apodo",
     "nameHint": "El nombre que aparece en tu perfil. Es opcional y admite hasta 40 caracteres.",
     "nameLoading": "Cargando tu nombre…",
     "nameLoadError": "No se pudo cargar tu nombre actual. Inténtalo de nuevo.",
@@ -1158,9 +1132,9 @@
     "unset": "Sin definir",
     "occupationLabel": "A qué te dedicas",
     "occupationHint": "Estudiante, enfermera, autónomo...",
-    "regionLabel": "Dónde vives",
+    "regionLabel": "Ciudad de residencia",
     "regionHint": "Basta con la ciudad o provincia.",
-    "householdLabel": "Con quién vives",
+    "householdLabel": "Familia",
     "householdHint": "Solo, con familia, con compañero de piso...",
     "busiestSeasonLabel": "Tu época más ocupada",
     "busiestSeasonHint": "Por ejemplo: exámenes, fin de año o temporada alta de verano",
@@ -1183,10 +1157,53 @@
     "daysWeekdays": "Entre semana",
     "daysWeekends": "Fines de semana",
     "daysShift": "Por turnos",
-    "daysVaries": "Varía"
+    "daysVaries": "Varía",
+    "emailLabel": "Correo electrónico",
+    "birthDateLabel": "Fecha de nacimiento",
+    "genderLabel": "Género",
+    "genderHint": "Puedes dejarlo sin elegir.",
+    "genderFemale": "Mujer",
+    "genderMale": "Hombre",
+    "genderOther": "Otro",
+    "genderUndisclosed": "Prefiero no decirlo",
+    "nationalityLabel": "Nacionalidad",
+    "nationalityHint": "p. ej., Corea del Sur",
+    "maritalLabel": "Estado civil",
+    "maritalHint": "Puedes dejarlo sin elegir.",
+    "maritalSingle": "Soltero/a",
+    "maritalMarried": "Casado/a",
+    "maritalOther": "Otro",
+    "maritalUndisclosed": "Prefiero no decirlo",
+    "mottoLabel": "Lema personal",
+    "mottoHint": "Es mejor no incluir datos sensibles como salud, creencias o religión.",
+    "statusMessageLabel": "Mensaje de estado",
+    "statusMessageHint": "Una línea corta que se muestra en tu perfil, de hasta 60 caracteres.",
+    "statusMessageSaveError": "No se pudo guardar el mensaje de estado. Inténtalo de nuevo.",
+    "statusMessageLoadError": "No se pudo cargar el mensaje de estado."
   },
   "reviewAxisNow": "Revisar mi Big Five",
   "reviewAxisRelational": "Revisar mi estilo de apego",
   "reviewAxisValues": "Revisar mis valores",
-  "reviewNothingToReview": "Haz una prueba primero: aún no hay nada medido que revisar."
+  "reviewNothingToReview": "Haz una prueba primero: aún no hay nada medido que revisar.",
+  "privacyHealth": {
+    "title": "Vínculo de datos de salud",
+    "onBody": "Activado. Registros de salud guardados en la app: {{count}}. Al desactivarlo se borran de inmediato y se detiene la lectura automática.",
+    "onBodyNoCount": "Activado. Al desactivarlo se borran de inmediato los registros de salud guardados en la app y se detiene la lectura automática.",
+    "keeps": "Este botón no borra los originales ni el permiso en la app de salud del teléfono, las rutinas marcadas como hechas ni los registros de salud importados desde un archivo.",
+    "turnOff": "Desactivar y borrar registros de salud",
+    "residueBody": "Desactivado, pero aún quedan registros de salud guardados ({{count}}).",
+    "deleteRest": "Borrar los registros de salud restantes",
+    "residueUnknown": "Desactivado. No se pudo comprobar si quedan registros de salud.",
+    "deleteFailed": "No se pudieron borrar los registros de salud restantes. Inténtalo de nuevo en un momento.",
+    "offBody": "Desactivado. Puedes activarlo desde la pantalla de importación.",
+    "openImport": "Abrir la pantalla de importación",
+    "loadFailed": "No se pudo cargar el estado del vínculo.",
+    "retryLoad": "Cargar de nuevo",
+    "unchanged": "No se pudo desactivar. No cambió nada. Inténtalo de nuevo en un momento.",
+    "uncertain": "No se pudo confirmar si el vínculo se desactivó. Vuelve a cargar el estado.",
+    "partial": "El vínculo está desactivado, así que no entran registros nuevos. Registros de salud aún sin borrar: {{count}}. Vuelve a borrarlos.",
+    "partialNoCount": "El vínculo está desactivado, así que no entran registros nuevos. No se pudo confirmar que se borraran todos los registros de salud. Vuelve a borrarlos.",
+    "done": "Registros de salud borrados: {{count}}. El vínculo está desactivado.",
+    "doneNone": "El vínculo está desactivado y no quedan registros de salud."
+  }
 }

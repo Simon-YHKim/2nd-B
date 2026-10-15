@@ -33,7 +33,6 @@ import {
   screenRender,
   type DevScreen,
   type DevScreenVariant,
-  type ModeRender,
 } from "@/lib/dev/screen-index";
 import { m3 } from "@/lib/theme/m3";
 
@@ -54,13 +53,6 @@ export default function DevScreensRoute() {
   );
 }
 
-/** UI 모드 한쪽의 렌더 결과를 배지 문구로. */
-function modeRenderText(mode: ModeRender): string {
-  if (mode.kind === "screen") return "실화면";
-  if (mode.kind === "redirect") return `→ ${mode.to}`;
-  return `dev 실화면 · 아니면 → ${mode.productionRedirect}`;
-}
-
 /** 한 화면에 붙는 표시들. 왜 비어 보이는지를 누르기 **전에** 알려주는 것이 목적이다. */
 function badgesFor(s: DevScreen): string[] {
   const out: string[] = [];
@@ -74,9 +66,6 @@ function badgesFor(s: DevScreen): string[] {
   if (entry.kind === "dev") out.push("Design Lab");
   const render = screenRender(s);
   if (render.kind === "redirect") out.push(`항상 → ${render.to}`);
-  if (render.kind === "ui-mode-split") {
-    out.push(`딥스페이스 ${modeRenderText(render.deepspace)} · legacy ${modeRenderText(render.legacy)}`);
-  }
   if (s.dev) out.push("개발 전용");
   if (s.auth !== undefined) out.push("로그인 필요");
   if (s.sample) out.push("견본 값");
@@ -295,7 +284,7 @@ function RegistryHeader({ counts }: { counts: ReturnType<typeof entryRoleCounts>
           {counts.legacyLink} · Design Lab {counts.designLab}
         </Text>
         <Text variant="caption">
-          항상 redirect {counts.alwaysRedirect} · UI 모드 분기 {counts.modeSplit} · 개발 전용 {counts.devOnly} ·
+          항상 redirect {counts.alwaysRedirect} · 개발 전용 {counts.devOnly} ·
           로그인 필요 {counts.authRequired}
         </Text>
         <Text variant="caption">

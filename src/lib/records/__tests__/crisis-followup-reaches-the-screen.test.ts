@@ -40,6 +40,7 @@ const USER_PROSE: readonly string[] = [
   "src/app/northstar.tsx",
   "src/app/(auth)/complete-profile.tsx",
   "src/components/deep-space/DeepSpaceViews.tsx",
+  "src/components/dashboard/DashboardPhone.tsx",
 ];
 
 /** Call sites whose `body` is machine-built, with the reason. Crisis text
@@ -80,8 +81,9 @@ const NOT_USER_PROSE: Readonly<Record<string, string>> = {
  *  `<AuditDeepSpace />` when `isDeepSpaceUI()`, that path renders
  *  `DdsAuditScreen`, and `dds-audit-screen.tsx` contains no `createRecord` at
  *  all - the shipped /audit is a provenance hub, not a questionnaire. UI_MODE
- *  defaults to deep-space (`src/lib/ui-mode.ts:31`) and all three delivery
- *  paths set it explicitly, so the questionnaire is unreachable.
+ *  defaulted to deep-space (e0b274d0:src/lib/ui-mode.ts:31; the lever was removed
+ *  on 2026-10-05) and all three delivery paths set it explicitly, so the
+ *  questionnaire was thought unreachable.
  *
  *  This is the same shape as the DPIA's Q-H1 citation (round 60): a real-looking
  *  surface that no deployment draws. Fixing it would have been effort spent on
@@ -140,7 +142,9 @@ test("사용자가 타이핑한 본문을 저장하는 화면은 red 위기 인�
       broken.push(`${rel}: 저장 결과의 red 를 보지 않는다`);
       continue;
     }
-    if (!/CrisisRouter/.test(src)) {
+    const appHost = rel === "src/app/interview.tsx"
+      && /if \(saved.followup\?\.zone === "red"\) \{\s*publishCrisisNotice\(owner, saved\.crisisHotline \?\? hotlineFor\(\)\)/.test(src);
+    if (!/CrisisRouter/.test(src) && !appHost) {
       broken.push(`${rel}: red 를 보지만 CrisisRouter 를 그리지 않는다`);
     }
   }

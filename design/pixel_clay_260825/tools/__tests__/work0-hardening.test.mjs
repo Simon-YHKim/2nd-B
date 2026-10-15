@@ -150,7 +150,8 @@ test('preview export rejects incomplete or mock env and shell-quotes public valu
     "export EXPO_PUBLIC_LLM_MODE='live'",
     "export EXPO_PUBLIC_SUPABASE_ANON_KEY='public'\"'\"'anonymous'",
     "export EXPO_PUBLIC_SUPABASE_URL='https://project.supabase.co'",
-    "export EXPO_PUBLIC_UI='deep-space'",
+    // EXPO_PUBLIC_UI 줄은 2026-10-05 에 빠졌다 - 롤백 레버가 없어져(Simon 결정
+    // Q-261004-11 C) 미리보기 빌드가 넣어 줄 스킨 값이 없다.
   ]);
   assert.equal(lines.join('\n').includes('must-not-appear'), false);
 });
@@ -931,11 +932,38 @@ test('notice dismissal prefers the visible confirmation over a covered scrim tar
 
 test('notice modal explicitly restores pointer events inside the RN-web portal', () => {
   const noticeSource = readFileSync(NOTICE_UI, 'utf8');
-  assert.match(noticeSource, /if \(!visible\) return null;[\s\S]*return \(\s*<Modal/);
+  assert.match(noticeSource, /<ScreenModal\s+visible=\{visible && !closing\}/);
   assert.match(
     noticeSource,
-    /<View\s+style=\{styles\.scrim\}\s+pointerEvents="auto"\s+accessibilityViewIsModal>/,
+    /<View\s+style=\{\[styles\.scrim,\s*phone && \{ backgroundColor: "transparent" \}\]\}\s+pointerEvents="auto"\s+accessibilityViewIsModal>/,
   );
+  // The phone swaps only the backdrop ink. The same live modal still owns
+  // pointer events and accessibility focus above the RN-web portal.
+  assert.match(noticeSource, /phone \? <PixelScrim style=\{\{ tintColor: phoneIos\.label2 \}\} \/> : null/);
+});
+
+test('notice exit disables input immediately, removes closed content and preserves read callbacks', () => {
+  const noticeSource = readFileSync(NOTICE_UI, 'utf8');
+  const modalSource = readFileSync(path.join(REPO, 'src/components/ui/MotionModal.tsx'), 'utf8');
+  const screenSource = readFileSync(path.join(REPO, 'src/components/ui/ScreenModal.tsx'), 'utf8');
+  // Normal dismissal stays present only for its exit. Screen blur bypasses
+  // that presence immediately; a closed portal must never retain its inputs.
+  assert.match(noticeSource, /useModalExit\(visible\)/);
+  assert.match(noticeSource, /onRequestClose=\{\(\) => requestClose\(onClose\)\}/);
+  assert.match(noticeSource, /onExitComplete=\{completeClose\}/);
+  assert.match(screenSource, /visible=\{screenModalVisible\(props\.visible, screenFocused\)\} active=\{screenFocused\}/);
+  assert.match(modalSource, /const shown = active && \(requested \|\| \(!reduced && present\)\);/);
+  // The window geometry providers share the same shown/null lifetime as the
+  // animated content. Neither may keep closed or blurred inputs mounted.
+  assert.match(modalSource, /\{shown \? \(\s*<SafeAreaProvider\b[^>]*>\s*<KeyboardFrameOffsetContext\.Provider value=\{0\}>\s*<Animated\.View[\s\S]*\{children\}[\s\S]*<\/Animated\.View>\s*<\/KeyboardFrameOffsetContext\.Provider>\s*<\/SafeAreaProvider>\s*\) : null\}/);
+  assert.match(modalSource, /pointerEvents=\{open \? "auto" : "none"\}/);
+  assert.match(modalSource, /accessibilityElementsHidden=\{!open\}/);
+  assert.match(modalSource, /aria-hidden=\{!open\}/);
+  assert.match(modalSource, /setPresent\(false\);\s*setReady\(false\);\s*exitCallback\.current\?\.\(\);/);
+  // The dialog still reports confirmation to the existing read-state owner.
+  // Updates retain their immediate read-before-unload ordering.
+  assert.match(noticeSource, /onPress=\{needsUpdate \? onUpdatePress : \(\) => requestClose\(onConfirm\)\}/);
+  assert.match(noticeSource, /const onUpdatePress = \(\) => \{\s*onConfirm\(\);[\s\S]*window\.location\.reload\(\);/);
 });
 
 test('capture and score dismiss a late authenticated notice before measuring pixels', () => {
@@ -6076,7 +6104,9 @@ test('salvage plan classifies every non-direct frame and production route exactl
   // 27 -> 28 (2026-09-28): /avatar-palette adds a local in-phone pixel editor.
   // 28 -> 29 (2026-09-28): /data-connections moves data-source management
   // out of the phone dashboard and into settings.
-  assert.equal(expectedActualHrefs.length, 29);
+  // 29 -> 30 (2026-10-09): /profile-import adds the approved context review flow.
+  assert.equal(expectedActualHrefs.length, 30);
+  assert.equal(salvage.actualRoutes['/profile-import'].strategy, 'derive-pattern');
   assert.equal(salvage.actualRoutes['/dashboard'].strategy, 'redesign');
   assert.equal(salvage.actualRoutes['/data-connections'].strategy, 'adapt-reference');
   assert.deepEqual(Object.keys(salvage.actualRoutes).sort(), expectedActualHrefs);

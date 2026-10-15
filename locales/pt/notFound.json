@@ -8,24 +8,5 @@
   "actions": {
     "home": "Ir para o início",
     "homeHint": "Abre a tela inicial."
-  },
-  "destinations": {
-    "title": "Destinos comuns",
-    "capture": {
-      "label": "Captura",
-      "hint": "Abre a captura a partir da página não encontrada."
-    },
-    "audit": {
-      "label": "Eu do passado",
-      "hint": "Abre a linha do tempo do eu passado."
-    },
-    "persona": {
-      "label": "Meu resumo",
-      "hint": "Abre seu resumo pessoal."
-    },
-    "manual": {
-      "label": "Guia de uso",
-      "hint": "Abre o guia de uso a partir da tela 404."
-    }
   }
 }

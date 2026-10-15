@@ -10,9 +10,10 @@ Applies to: React Native, Android, iOS, and web
 
 This file contains only the active deep-space design contract. The former
 Cosmic Pixel, Game Boy, village, Soul Core, Pattern Core, character-voice, and
-old visual-tier systems are legacy rollback material. They remain available in
-git history and behind `EXPO_PUBLIC_UI=legacy`, but they are never references
-for new work.
+old visual-tier systems are legacy material. They remain available in git
+history (and in the out-of-repo archive E:/Legacy/2ndB), but they are never
+references for new work. The `EXPO_PUBLIC_UI=legacy` rollback lever that used
+to draw them was removed on 2026-10-05 (Simon decision Q-261004-11).
 
 ## 1. Source of truth and conflict order
 
@@ -167,6 +168,50 @@ must remain available.
 Material icons use the approved rounded symbol geometry. New one-off SVGs need a
 clear functional reason and must follow the Android SVG limits.
 
+### In-app phone: pixel iPhone (Simon, 2026-10-08)
+
+The screens the dashboard phone draws itself (status bar, the daily board's two
+pages, the dock, the app grid, notifications, and the phone's own small pages
+such as capture, focus, records, wiki, the daily summary and the widget shelf)
+follow iOS light defaults instead of the deep-space palette: grouped grey
+background, white cells, system blue, iOS-style grouped lists, large titles and
+a dock. They stay pixel art: rounded corners are 2px stair steps built from
+integer rects (`PixelRoundRect`, never `borderRadius`), text is Galmuri, and
+translucency is banding or dither. So the PIXEL-CLAY rules (curves, radius,
+blur, static alpha) still hold there. Colours come from
+`src/lib/theme/phone-ios.ts`, not hex literals in components; shared parts are
+in `src/components/dashboard/board/IosParts.tsx`.
+
+All screens opened through the phone, including the personal assistant,
+settings, subscription and interview, share this iOS pixel design.
+`PhoneDesignProvider` scopes the shared controls and `PhoneUIKit` adapts the
+hosted screens' surfaces without changing their standalone appearance.
+The approved phone frame is a 230×408 cell drawing, rendered on a uniform
+2px grid even at smaller sizes. Its lossless source is
+`src/lib/dashboard/phone-frame-cells.json`. The home pages use the home
+handset's navy constellation wallpaper. Launcher icons have individual
+system-color backgrounds, stepped corners and pixel glyphs.
+
+### Screen transitions (Simon, 2026-10-08)
+
+Inside the phone, movement follows iPhone conventions: app surfaces open from
+a small scale, deeper pages arrive from the right, Back reveals from the left,
+and home pages move horizontally. Use the shared `sceneMotion("phone", …)`
+non-overshooting ease-out (280–320ms). This is a scoped exception to stepped
+easing for movement, not to pixel drawing or settled geometry.
+
+Outside the phone, route and page transitions use six discrete steps
+(180–240ms), whole-pixel translations, and no scaling. Modals and sheets use
+the same scope as their screen. Native platform transitions are disabled where
+the shared scene wrapper owns the motion, including on web.
+
+The OS reduced-motion preference and in-app lite mode settle movement
+immediately, including when toggled during a transition. Scene changes keep
+only the current content mounted; animation never delays navigation or keeps
+an old account's screen alive. Modal exits retain the native window only while
+its route is focused; blur tears it down immediately.
+Screens outside the phone continue to follow this document's general rules.
+
 ## 6. Reasoning contract
 
 Reasoning is an explicit deep run over selected captured material. It is not a
@@ -281,11 +326,14 @@ Before OTA:
 
 ## 11. Legacy boundary
 
-Legacy exists only for explicit rollback through `EXPO_PUBLIC_UI=legacy`.
-Do not copy its components, names, fonts, palette, motion, route structure, or
-visual tiers into deep-space work. If rollback behavior must change, isolate it
-in a legacy-only change and do not edit this active contract to make the legacy
-skin look canonical.
+There is no rollback skin any more. The `EXPO_PUBLIC_UI=legacy` lever was
+removed on 2026-10-05 (Simon decision Q-261004-11); reverting is a git revert,
+and `src/lib/__tests__/ui-lever-retired.test.ts` keeps the lever from coming
+back without that decision. Do not copy legacy components, names, fonts,
+palette, motion, route structure, or visual tiers into deep-space work. A
+feature worth keeping from a legacy half is revived by moving it onto the
+shipped screen (Q-261004-12), not by bringing the skin branch back, and this
+active contract is never edited to make the legacy skin look canonical.
 
 The compatibility identifier `Muse/Lumina` may remain only where old persisted
 data or a migration contract requires it. It is not a visible home star, a

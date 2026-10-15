@@ -8,24 +8,39 @@ const fieldSource = readFileSync(join(root, "src/components/m3/Field.tsx"), "utf
 describe("/profile-details PIXEL-CLAY contract", () => {
   test("derives only the profilesetup surface pattern from real profile-detail state", () => {
     expect(source).toContain('import { PixelSurface } from "@/components/pixel"');
-    expect(source).toMatch(/<PixelSurface\s+variant="inset"/);
     expect(source).toContain('variant="frame"');
-    expect(source).toContain('accessibilityRole="progressbar"');
-    expect(source).toContain("accessibilityLabel={title}");
-    // 위와 같은 이유로 핀을 헬퍼 형태로 옮긴다.
-    expect(source).toMatch(/\{\.\.\.a11yValue\(\{\s*text: t\("deepspace:profileDetails\.progress"/);
-    expect(source).toContain("PROFILE_DETAIL_FIELDS.map");
-    expect(source).toContain("details[field.key]?.trim()");
+    // 혼인 여부 같은 성인 전용 칸은 성인에게만 그린다(Simon Q-261007-02).
+    expect(source).toContain("PROFILE_DETAIL_FIELDS.filter((field) => !field.adultOnly || adult).map(");
+    expect(source).toContain("const adult = isMinor === false;");
+    // 이메일 · 생년월일은 보여주기만(Q-261007-04). 상태 메시지(0231)는 나이 제한 · 중복 확인 없이, 바뀐 경우에만 쓴다.
+    expect(source).toContain('t("deepspace:profileDetails.emailLabel")');
+    expect(source).toContain('t("deepspace:profileDetails.birthDateLabel")');
+    expect(source).toContain("const statusChanged = statusReady && statusMessage.trim() !== savedStatusRef.current.trim();");
+    expect(source).not.toContain("chatNameAvailable");
+    // 아바타는 상자 폭을 채우는 정사각형, 수정은 오른쪽 위 연필(Simon 2026-10-07). 버튼은 없다.
+    expect(source).toContain("<AvatarPreview spec={avatar.spec} size={avatarWidth} />");
+    expect(source).toContain('<PixelGlyph name="edit"');
+    expect(source).not.toContain('label={t("profile:avatarStudio.label")}');
+    // Simon 2026-10-07: 안내 · 진행 칸 · 민감정보 안내 상자와 이름 설명 · 이름 저장 버튼을 걷어냈다.
+    expect(source).not.toMatch(/<PixelSurface\s+variant="inset"/);
+    expect(source).not.toContain('accessibilityRole="progressbar"');
+    expect(source).not.toContain('t("deepspace:profileDetails.intro")');
+    expect(source).not.toContain('t("deepspace:profileDetails.notSensitive")');
+    expect(source).not.toContain('t("deepspace:profileDetails.nameHint")');
+    expect(source).not.toContain('t("deepspace:profileDetails.nameSave")');
 
     // profilesetup의 목업 계정·아바타·고정 3/4를 이 편집 화면에 복제하지 않는다.
     expect(source).not.toContain("SecondbHead");
+    // 실제 저장된 아바타 초상화와 스튜디오 진입은 있다(Simon 2026-10-07).
+    expect(source).toContain("<AvatarPreview spec={avatar.spec} size={avatarWidth} />");
+    expect(source).toContain('onPress={() => router.push("/avatar-studio")}');
     expect(source).not.toContain("localStorage");
     expect(source).not.toContain("3 / 4");
   });
 
   test("keeps every real field, reversible filter choices, and the save/error contract", () => {
-    expect(source).toContain("fetchProfileDetails(userId)");
-    expect(source).toContain("saveProfileDetails(saveUserId, details)");
+    expect(source).toContain("fetchProfileDetailsSnapshot(userId)");
+    expect(source).toContain("saveProfileDetails(saveUserId, details, detailsRevision.current)");
     expect(source).toContain('kind="filter"');
     expect(source).toContain("selected={value === choice}");
     expect(source).toContain('set(field.key, value === choice ? "" : choice)');
@@ -35,9 +50,12 @@ describe("/profile-details PIXEL-CLAY contract", () => {
   });
 
   test("scopes Android back to focus and keeps a safe deep-link fallback", () => {
-    expect(source).toContain("useFocusEffect(");
-    expect(source).toContain('BackHandler.addEventListener("hardwareBackPress"');
-    expect(source).toContain("return () => sub.remove()");
+    // 2026-10-02 (dashboard phone): Back goes through useHardwareBack, a focused
+    // BackHandler listener standalone and the phone's claim stack inside the
+    // phone, and navigation through useAppRouter() (lib/nav/phone-embed.tsx).
+    expect(source).toContain("useHardwareBack(");
+    expect(source).toContain("const router = useAppRouter();");
+    expect(source).not.toContain("BackHandler.addEventListener");
     expect(source).toContain("router.canGoBack()");
     expect(source).toContain('router.replace("/profile")');
     expect(source.match(/onBack=\{onCancel\}/g)).toHaveLength(6);
@@ -61,7 +79,7 @@ describe("/profile-details PIXEL-CLAY contract", () => {
 
   test("keeps the form above the Android keyboard and gives Korean text a bottom-safe line box", () => {
     expect(source).toContain("const kbHeight = useKeyboard()");
-    expect(source).toContain("<KeyboardAvoidingView");
+    expect(source).toContain("<KeyboardAvoidingArea");
     expect(source).toContain('Platform.OS === "android"');
     expect(source).toContain("kbHeight + deepSpaceSpacing.lg");
     expect(source).toContain("lineHeight: m3.type.bodyLarge.line");
@@ -89,7 +107,12 @@ describe("/profile-details PIXEL-CLAY contract", () => {
     expect(source).toContain("fetchDisplayName(userId)");
     expect(source).toContain('setNameLoadState({ userId, status: "error" })');
     expect(source).toContain('nameLoadState.userId === userId && nameLoadState.status === "ready"');
-    expect(source).toContain("if (!userId || !nameReadyForUser || nameSaving) return");
+    // The one save button writes the name too, only for a name read from its owner and then changed.
+    expect(source).toContain("if (nameReadyForUser && displayName !== savedNameRef.current) {");
+    // The box starts with the name the app shows (Simon 2026-10-07); that shown name is also the baseline,
+    // so an untouched email-derived name is never written back as the display name.
+    expect(source).toContain("const shown = name?.trim() ? name : await loadProfileIdentity(userId).catch(() => null);");
+    expect(source).toContain('savedNameRef.current = shown ?? "";');
     expect(source).toContain("saveDisplayName(saveUserId, displayName)");
     expect(source).toContain("activeUserIdRef.current === saveUserId");
     expect(source).toContain("invalidateProfileStarLevel(saveUserId)");
@@ -120,10 +143,4 @@ describe("/profile-details PIXEL-CLAY contract", () => {
     expect(source).toContain("if (isCurrentOperation()) setSaving(false)");
   });
 
-  test("announces progress once through the progressbar semantics", () => {
-    expect(source).toContain("accessibilityRole=\"progressbar\"");
-    expect(source).toMatch(
-      /<Text\s+accessible=\{false\}\s+accessibilityElementsHidden\s+importantForAccessibility="no"\s+style=\{styles\.progress\}/,
-    );
-  });
 });

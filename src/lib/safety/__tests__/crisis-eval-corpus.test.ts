@@ -14,7 +14,6 @@ describe("crisis eval corpus — Layer 1 (lexicon) benchmark", () => {
 
   test("metrics summary (informational)", () => {
     // Surfaced in CI logs; makes the Layer-2 gap visible and trackable.
-    // eslint-disable-next-line no-console
     console.log(
       "[crisis-eval] Layer-1 metrics\n" +
         `  RED_EXPLICIT recall: ${(m.redExplicit.recall * 100).toFixed(0)}% (${m.redExplicit.caught}/${m.redExplicit.total})\n` +

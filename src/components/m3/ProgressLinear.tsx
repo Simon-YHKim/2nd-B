@@ -5,6 +5,8 @@ import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, type StyleProp, View, type ViewStyle } from "react-native";
 
 import { m3 } from "@/lib/theme/m3";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 
 export interface ProgressLinearProps {
@@ -17,6 +19,7 @@ export interface ProgressLinearProps {
 }
 
 export function ProgressLinear({ value, color, trackColor, accessibilityLabel, style }: ProgressLinearProps) {
+  const phone = usePhoneDesign();
   const indeterminate = value == null;
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -34,8 +37,8 @@ export function ProgressLinear({ value, color, trackColor, accessibilityLabel, s
   }, [indeterminate, anim]);
 
   const pct = Math.max(0, Math.min(1, value ?? 0));
-  const barColor = color ?? m3.color.primary;
-  const track = trackColor ?? m3.color.surfaceContainerHighest;
+  const barColor = phone ? phoneIos.blue : color ?? m3.color.primary;
+  const track = phone ? phoneIos.fill : trackColor ?? m3.color.surfaceContainerHighest;
 
   return (
     <View

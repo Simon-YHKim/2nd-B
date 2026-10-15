@@ -1,7 +1,7 @@
 -- The management API is service-only; the Edge binds p_user_id to its verified
 -- bearer identity and checks the single off/collect/enforce mode before RPC.
 BEGIN;
-\ir ../UNNUMBERED_llm_service_consent_management.sql
+\ir ../../migrations/0194_llm_service_consent_management.sql
 COMMIT;
 DO $$ BEGIN
   IF to_regprocedure('public.llm_service_consent_status(uuid)') IS NULL THEN
@@ -163,3 +163,5 @@ DO $$ DECLARE coverage jsonb; BEGIN
 END $$;
 ROLLBACK;
 SELECT 'PASS: service consent writer, ACL, exact ACKs, owner CAS/ABA, optional history, age and read-only full-cohort coverage';
+\ir polascope-consent-forward-contract.sql
+\ir consent-email-v9-forward-contract.sql

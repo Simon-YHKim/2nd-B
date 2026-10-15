@@ -1,3 +1,4 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // 관계 사람 지도: relation_people의 owner-scoped 실제 읽기/쓰기 화면.
 //
 // 디자인 번들의 PeopleMapScreen은 샘플 상태라 이식하지 않는다. 실제 사람은
@@ -6,13 +7,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BackHandler,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -573,10 +573,7 @@ function PeopleMapBody({ userId }: { userId: string }) {
       title={t("deepspace:people.title")}
       onBack={handleBack}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.fill}
-      >
+      <KeyboardAvoidingArea style={styles.fill}>
         <ScrollView
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
@@ -647,7 +644,7 @@ function PeopleMapBody({ userId }: { userId: string }) {
             </PixelSurface>
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </DeepSpaceScreen>
   );
 }

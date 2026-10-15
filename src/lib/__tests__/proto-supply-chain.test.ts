@@ -16,11 +16,13 @@ const workflow = read(".github/workflows/web-deploy.yml");
 const buildScript = readMaybe("scripts/build-proto.mjs");
 const tweaksSource = read("public/proto/tweaks-panel.jsx");
 const protoIndex = read("public/proto/index.html");
-const landingReadme = read("public/landing/README.md");
 const thirdPartyNotices = readMaybe("public/THIRD_PARTY_NOTICES.txt");
 const packageJson = JSON.parse(read("package.json")) as {
   devDependencies?: Record<string, string>;
   scripts?: Record<string, string>;
+};
+const packageLock = JSON.parse(read("package-lock.json")) as {
+  packages?: Record<string, { devDependencies?: Record<string, string>; version?: string }>;
 };
 
 const JSX_OUTPUT_ORDER = [
@@ -251,11 +253,15 @@ describe("standalone proto supply chain", () => {
   });
 
   test("chains the deterministic proto compiler into the existing static build", () => {
-    expect(packageJson.scripts?.["build:static"]).toBe("npm run build:static:landing");
+    // The standalone landing study (public/landing/) left the repo on 2026-10-06
+    // (Simon decision Q-261005-06 A, batch qa261006-landing, E:/Legacy/2ndB). The
+    // proto build used to hang off its postbuild hook, so build:static now calls
+    // it directly. Dropping only the landing step would have dropped the proto JS
+    // and the notices with it, so both halves are pinned here.
+    expect(packageJson.scripts?.["build:static"]).toBe("npm run build:static:proto");
     expect(packageJson.scripts?.["build:static:proto"]).toBe("node scripts/build-proto.mjs");
-    expect(packageJson.scripts?.["postbuild:static:landing"]).toBe(
-      "npm run build:static:proto",
-    );
+    expect(packageJson.scripts?.["build:static:landing"]).toBeUndefined();
+    expect(packageJson.scripts?.["postbuild:static:landing"]).toBeUndefined();
     expect(buildScript).toContain('createRequire(import.meta.url)');
     expect(buildScript).toContain('require("esbuild")');
     expect(buildScript).toContain('import React from "react"');
@@ -272,10 +278,22 @@ describe("standalone proto supply chain", () => {
     expect(buildScript).toContain("isSymbolicLink()");
     expect(buildScript).toContain("realpath(");
 
+    // Order kept from the retired landing-supply-chain test: the static build
+    // augments the Expo export and runs before the Pages artifact is sealed.
     const exportIndex = workflow.indexOf("expo export --platform web --output-dir dist");
     const staticBuildIndex = workflow.indexOf("npm run build:static");
+    const artifactCheckIndex = workflow.indexOf("Reject unsafe Pages artifact entries");
     expect(exportIndex).toBeGreaterThanOrEqual(0);
     expect(staticBuildIndex).toBeGreaterThan(exportIndex);
+    expect(artifactCheckIndex).toBeGreaterThan(staticBuildIndex);
+  });
+
+  test("pins the local bundler the proto build resolves", () => {
+    // Moved from the retired landing-supply-chain test: build-proto.mjs requires
+    // esbuild, so its exact version is part of this build's determinism.
+    expect(packageJson.devDependencies?.esbuild).toBe("0.28.2");
+    expect(packageLock.packages?.[""]?.devDependencies?.esbuild).toBe("0.28.2");
+    expect(packageLock.packages?.["node_modules/esbuild"]?.version).toBe("0.28.2");
   });
 
   test("ships complete notices for every bundled runtime dependency", () => {
@@ -402,13 +420,6 @@ describe("standalone proto supply chain", () => {
     expect(protoIndex).not.toMatch(/https?:\/\//i);
   });
 
-  test("documents the local deterministic landing build", () => {
-    expect(landingReadme).toContain("npm run build:static");
-    expect(landingReadme).toContain("dist/landing");
-    expect(landingReadme).toMatch(/local.*three|three.*local/i);
-    expect(landingReadme).toContain("esbuild");
-    expect(packageJson.devDependencies?.three).toBe("0.160.0");
-    expect(landingReadme).toContain("three.js r160 (local pinned package)");
-    expect(landingReadme).not.toMatch(/No build step|loads from a CDN/i);
-  });
+  // "documents the local deterministic landing build" pinned public/landing/README.md
+  // and left with it on 2026-10-06 (Q-261005-06 A). Nothing is left for it to read.
 });

@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -11,9 +10,10 @@ import {
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const ROUTE = join(ROOT, "src", "app", "profile.tsx");
-// ProfileLegacy 는 2026-09-08 에 아카이브로 나갔다. 아래 바이트 핀은 지우지 않고
-// 대상만 옮긴다 — 같은 마커·같은 해시·다른 파일이면 옮기면서 안 고쳤다는 증거다.
-const LEGACY = join(ROOT, "legacy", "screens", "profile.tsx");
+// ProfileLegacy 는 2026-09-08 에 아카이브(legacy/screens/profile.tsx)로 나갔고, 그
+// 보관본은 2026-10-05 롤백 레버 제거와 함께 E:/Legacy/2ndB 로 나갔다(Simon 결정
+// Q-261004-11 C, 같은 바이트). 검사는 보관본을 읽지 않으므로(legacy-archive-integrity.test.ts)
+// 그 바이트 핀(914e93c5…)은 은퇴했고, 바이트는 E:/Legacy MANIFEST 의 sha256 이 기록한다.
 const SCREEN = join(ROOT, "src", "screens", "deepspace", "dds-profile-screen.tsx");
 const IDENTITY = join(ROOT, "src", "screens", "deepspace", "dds-profile-identity.ts");
 const PIXEL_RULES = join(ROOT, "scripts", "check-pixel-rules.ts");
@@ -23,23 +23,13 @@ function read(path: string): string {
 }
 
 describe("PIXEL-CLAY /profile contract", () => {
-  test("delegates only the gated renderer and leaves the legacy renderer body unchanged", () => {
+  test("delegates only to the shipped renderer", () => {
     const route = read(ROUTE);
-    const legacyArchive = read(LEGACY);
     expect(route).toContain("import { DeepSpaceProfileScreen }");
     // 폴백이 사라졌다 — 라우트는 배송 화면 하나만 그린다.
     expect(route).toContain("return <DeepSpaceProfileScreen />;");
     expect(route).not.toContain("ProfileLegacy");
-    expect(route).not.toContain("isDeepSpaceUI");
-
-    const marker = "function ProfileLegacy() {";
-    const legacyStart = legacyArchive.indexOf(marker);
-    expect(legacyStart).toBeGreaterThan(-1);
-    expect(
-      createHash("sha256").update(legacyArchive.slice(legacyStart + marker.length)).digest("hex"),
-    ).toBe(
-      "914e93c5f180bed953ae000516427e3faa70a5b5e17971e851c2e214e777af87",
-    );
+    expect(route).not.toContain("isDeepSpace" + "UI");
   });
 
   test("holds on auth loading and redirects only after a resolved signed-out session", () => {

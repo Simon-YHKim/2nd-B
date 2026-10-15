@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 세컨비가 나를 어떻게 보고 있는지 -- 생활 여섯 영역의 현재 상태.
 //
 // ⚠ 2026-08-24: 이 여섯은 **더 이상 별이 아니다.** 커리어·재정·성장·관계·건강·휴식은
@@ -13,13 +14,13 @@
 // 하나만 말한다는 규율(Simon standing rule)을 지키려면 여기서 다 펼치면 안 된다.
 
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { DOMAIN_STARS, type DomainId } from "@/lib/persona/domain-stars";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace, flattenAlpha, spacing, withAlpha } from "@/lib/theme/tokens";
@@ -33,6 +34,8 @@ const LIFE_DOMAINS = DOMAIN_STARS.filter((d) => d.id !== "collect");
 const fillOf = (level: LadderLevel): number => 0.36 + (level / 5) * 0.64;
 
 export function DomainDashboard({ userId, onDismiss }: { userId: string; onDismiss?: () => void }) {
+  // Phone-aware: inside the dashboard phone, a row opens its area in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("home");
   const locale = i18n.language === "ko" ? "ko" : "en";
   const [levels, setLevels] = useState<Record<DomainId, LadderLevel> | null>(null);

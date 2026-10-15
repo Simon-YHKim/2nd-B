@@ -50,7 +50,7 @@ interface RecordingApi {
   ) => Promise<void>;
   stopAndDiscardRecording?: (recorder: RecorderForTest) => Promise<void>;
   waitForRecordingCleanup?: (recorder: RecorderForTest) => Promise<void>;
-  createRecorderLifecycle?: (recorder: RecorderForTest) => {
+  createRecorderLifecycle?: (recorder: RecorderForTest, options?: { onIdle?: () => void }) => {
     begin(ownerUserId: string): boolean;
     cancel(): Promise<void>;
     stopForTranscription(signal: AbortSignal): Promise<{
@@ -358,6 +358,45 @@ describe("owned recorder temp lifecycle", () => {
     __resetAccountEpochForTests();
   });
 
+  // Q-261005-01 follow-up: the screens pass the audio session's restore here, so the
+  // effects mode comes back however a session ends. One call per ended session.
+  test("onIdle runs once when a session ends by cancel or owner change, never while it runs", async () => {
+    const { __resetAccountEpochForTests, noteResolvedOwner } = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
+    __resetAccountEpochForTests();
+    noteResolvedOwner("account-a");
+    const dispose = jest.fn().mockResolvedValue({ ok: true, status: "deleted" });
+    ownedTempMock.leaseOwnedTempFile.mockResolvedValue({ ok: true, lease: { dispose } });
+    const recorder: RecorderForTest = {
+      uri: "file:///app-cache/idle-a.m4a",
+      stop: jest.fn().mockResolvedValue(undefined),
+      getStatus: () => ({ isRecording: true, canRecord: true }),
+    };
+    const { createRecorderLifecycle } = recordingApi();
+    expect(typeof createRecorderLifecycle).toBe("function");
+    if (!createRecorderLifecycle) return;
+    const onIdle = jest.fn();
+    const lifecycle = createRecorderLifecycle(recorder, { onIdle });
+
+    expect(lifecycle.begin("account-a")).toBe(true);
+    expect(onIdle).not.toHaveBeenCalled();
+    await lifecycle.cancel();
+    await lifecycle.cancel();
+    expect(onIdle).toHaveBeenCalledTimes(1);
+
+    recorder.uri = "file:///app-cache/idle-b.m4a";
+    expect(lifecycle.begin("account-a")).toBe(true);
+    noteResolvedOwner("account-b");
+    await lifecycle.cancel();
+    expect(onIdle).toHaveBeenCalledTimes(2);
+
+    // A throwing hook must not break recorder cleanup.
+    const throwing = createRecorderLifecycle({ ...recorder, uri: "file:///app-cache/idle-c.m4a" }, { onIdle: () => { throw new Error("hook"); } });
+    noteResolvedOwner("account-a");
+    expect(throwing.begin("account-a")).toBe(true);
+    await expect(throwing.cancel()).resolves.toBeUndefined();
+    __resetAccountEpochForTests();
+  });
+
   test("disposes a completed transfer if its signal aborts at the handoff fence", async () => {
     const { __resetAccountEpochForTests, noteResolvedOwner } = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
     __resetAccountEpochForTests();
@@ -543,7 +582,7 @@ describe("recorder caller lifecycle contract", () => {
 
   test("all stop-to-transcribe paths require writer proof and a captured account session", () => {
     for (const source of Object.values(recorderCallers)) {
-      expect(source).toContain("createRecorderLifecycle(audioRecorder)");
+      expect(source).toContain("createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording })");
       expect(source).toContain("recorderLifecycle.stopForTranscription(accountLease.signal)");
       expect(source).toContain("const authenticated = await accountLease.authenticate()");
       expect(source).toContain("session: authenticated");
@@ -596,6 +635,17 @@ describe("recorder caller lifecycle contract", () => {
     );
     expect(captureStartFlow).toContain("await recorderLifecycle.cancel()");
     expect(captureStartFlow).toContain("if (prepared || audioRecorder.uri)");
+    // Recording mode goes through the session module, and a start that fails before
+    // any session began restores it before the abort early-return (Q-261005-01).
+    for (const source of Object.values(recorderCallers)) {
+      expect(source).toContain("await beginRecordingAudioMode()");
+      expect(source).not.toContain("setAudioModeAsync");
+      const startCatch = source.slice(source.indexOf("} catch (error) {", source.indexOf("await beginRecordingAudioMode()")));
+      const restore = startCatch.indexOf("void endRecordingAudioMode()");
+      const abortReturn = startCatch.indexOf("if (isAbortError(error) || ownerGuard.signal.aborted) return;");
+      expect(restore).toBeGreaterThan(-1);
+      expect(abortReturn).toBeGreaterThan(restore);
+    }
     expect(recorderCallers.secondb).toContain("if (prepared || audioRecorder.uri)");
     expect(captureStartFlow).not.toContain("(e as Error).message");
     expect(captureTranscriptionFlow).not.toContain("(e as Error).message");

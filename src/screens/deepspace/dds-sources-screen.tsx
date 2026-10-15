@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 들어온 자료를 읽어 주는 자리.
 //
 // ── 왜 이 화면이 생겼나 (실측 2026-09-13) ────────────────────────────────
@@ -8,7 +9,9 @@
 //
 // 그래서 Phase 1(자료를 읽고 요약과 되새김 질문 넷을 만드는 길)의 **배송
 // 호출부가 0건**이었다. 호출부 둘은 둘 다 배송되지 않는 반쪽 안에 있었고
-// (`src/app/inbox.tsx:452`, `src/app/wiki.tsx:318`),
+// (`e0b274d0:src/app/inbox.tsx:452`, `e0b274d0:src/app/wiki.tsx:318` — 커밋을 박은
+// 인용이다. 그 반쪽은 2026-10-05 롤백 레버 제거로 라우트에서 빠져 legacy/screens/ 의
+// 되살리기 원본이 됐다),
 // `DeepSpaceDesignScreens.tsx` 는 152·159·160 세 줄에서
 // `listSources` · `generateSourcePage` · `runPhase1` 을 **import 만 하고 한
 // 번도 쓰지 않았다** — 이 화면을 만들려다 멈춘 자리다. eslint 의
@@ -20,7 +23,7 @@
 //
 // ── 왜 알림 허브 안이 아니라 별도 화면인가 ───────────────────────────────
 //
-// 옛 `/inbox`(858줄)는 소스 목록이었고 지금 `/inbox`(145줄)는 신호 허브다.
+// 옛 `/inbox`(858줄)는 소스 목록이었고 지금 `/inbox`(dds-inbox-screen.tsx)는 신호 허브다.
 // 목록을 허브 안에 넣으면 허브가 목록이 된다 — "화면 하나에 메시지 하나"와
 // O-7(터치는 화면을 단순하게)을 정면으로 어긴다. 그래서 허브에는 **한 줄
 // 신호**만 두고, 누르면 이 화면으로 **전환**한다. 기능은 하나도 안 줄었다.
@@ -34,9 +37,10 @@
 // 파라미터 없이 연다. 점프는 위키 회차(검색·지표와 같은 묶음)에서 받는 쪽을
 // 먼저 만들고 잇는다.
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
 
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -50,6 +54,9 @@ import { listSources } from "@/lib/wiki/queries";
 import { downloadRawClipping } from "@/lib/wiki/storage";
 import { readPhase1, runPhase1, type Phase1Result } from "@/lib/wiki/phase1";
 import { generateSourcePage } from "@/lib/wiki/phase2";
+import { isProfileContextImportSource } from "@/lib/wiki/profile-context-source";
+import { fetchProfileImportedContext, type ProfileImportedContext } from "@/lib/supabase/profile-context-import";
+import { ProfileContextSummary } from "@/components/profile-import/summary";
 import type { SourceKind, SourceRow } from "@/lib/wiki/types";
 
 /** 미리보기로 보여 주는 앞부분 길이. 본문 전체는 열지 않는다 — 이 화면은
@@ -78,7 +85,7 @@ function promptLocale(language: string | undefined): "en" | "ko" {
   return language?.toLowerCase().startsWith("ko") === true ? "ko" : "en";
 }
 
-type BodyState = { kind: "loading" } | { kind: "text"; text: string } | { kind: "error" };
+type BodyState = { kind: "loading" } | { kind: "text"; text: string } | { kind: "context"; context: ProfileImportedContext } | { kind: "error" };
 
 function Loading() {
   return (
@@ -89,6 +96,8 @@ function Loading() {
 }
 
 export function DeepSpaceSourcesScreen() {
+  // Phone-aware: inside the dashboard phone, Back and links stay in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
 
@@ -102,10 +111,11 @@ export function DeepSpaceSourcesScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  return <SourcesBody userId={userId} title={title} />;
+  return <SourcesBody key={userId} userId={userId} title={title} />;
 }
 
 function SourcesBody({ userId, title }: { userId: string; title: string }) {
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { isMinor } = useAuth();
   const locale = promptLocale(i18n.language);
@@ -140,18 +150,29 @@ function SourcesBody({ userId, title }: { userId: string; title: string }) {
       setExpandedId(next);
       if (next === null) return;
       const cached = bodyById[row.id];
-      if (cached !== undefined && cached.kind === "text") return;
+      if (cached !== undefined && (cached.kind === "text" || cached.kind === "context")) return;
       setBodyById((prev) => ({ ...prev, [row.id]: { kind: "loading" } }));
-      void downloadRawClipping(row.storage_path)
-        .then((text) => setBodyById((prev) => ({ ...prev, [row.id]: { kind: "text", text } })))
+      if (isProfileContextImportSource(row.frontmatter)) {
+        void fetchProfileImportedContext(userId, row.id)
+          .then((context) => setBodyById((prev) => ({ ...prev, [row.id]: { kind: "context", context } })))
+          .catch(() => setBodyById((prev) => ({ ...prev, [row.id]: { kind: "error" } })));
+        return;
+      }
+      const inline = row.frontmatter?._body_fallback;
+      const fallback = typeof inline === "string" && inline.trim().length > 0 ? inline : null;
+      const read = row.storage_path?.trim()
+        ? downloadRawClipping(row.storage_path).catch(() => fallback)
+        : Promise.resolve(fallback);
+      void read
+        .then((text) => setBodyById((prev) => ({ ...prev, [row.id]: text === null ? { kind: "error" } : { kind: "text", text } })))
         .catch(() => setBodyById((prev) => ({ ...prev, [row.id]: { kind: "error" } })));
     },
-    [expandedId, bodyById],
+    [expandedId, bodyById, userId],
   );
 
   const makeBrief = useCallback(
     async (row: SourceRow) => {
-      if (briefId !== null) return;
+      if (briefId !== null || isProfileContextImportSource(row.frontmatter)) return;
       setBriefId(row.id);
       setNotice(null);
       try {
@@ -171,7 +192,7 @@ function SourcesBody({ userId, title }: { userId: string; title: string }) {
 
   const makePage = useCallback(
     async (row: SourceRow) => {
-      if (pageId !== null) return;
+      if (pageId !== null || isProfileContextImportSource(row.frontmatter)) return;
       setPageId(row.id);
       setNotice(null);
       try {
@@ -245,6 +266,7 @@ function SourcesBody({ userId, title }: { userId: string; title: string }) {
                 onHideBrief={() => setOpenBrief(null)}
                 onMakePage={() => void makePage(row)}
                 onOpenWiki={() => router.push("/wiki")}
+                onImportHistory={() => router.push("/profile-import?mode=history")}
               />
             ))}
           </View>
@@ -272,13 +294,15 @@ interface CardProps {
   onHideBrief: () => void;
   onMakePage: () => void;
   onOpenWiki: () => void;
+  onImportHistory: () => void;
 }
 
 function SourceCard(p: CardProps) {
-  const { t } = useTranslation("deepspace");
+  const { t } = useTranslation(["deepspace", "profile"]);
   const { row } = p;
-  const name = sourceTitle(row, t);
   const hasBrief = readPhase1(row.frontmatter) !== null;
+  const managed = isProfileContextImportSource(row.frontmatter);
+  const name = managed ? t("profile:contextImport.title") : sourceTitle(row, t);
 
   return (
     <MdCard variant="filled" style={s.card}>
@@ -319,6 +343,8 @@ function SourceCard(p: CardProps) {
             <RNText style={[m3TextStyle("bodySmall"), s.dim]}>{t("ds.sources.previewLoading")}</RNText>
           ) : p.body.kind === "error" ? (
             <RNText style={[m3TextStyle("bodySmall"), s.dim]}>{t("ds.sources.previewError")}</RNText>
+          ) : p.body.kind === "context" ? (
+            <ProfileContextSummary context={p.body.context} />
           ) : (
             <RNText style={[m3TextStyle("bodySmall"), s.previewText]}>
               {p.body.text.slice(0, PREVIEW_CHARS)}
@@ -329,7 +355,15 @@ function SourceCard(p: CardProps) {
       ) : null}
 
       <View style={s.actions}>
-        {hasBrief ? (
+        {managed ? (
+          <MdButton
+            label={t("profile:contextImport.history")}
+            variant="text"
+            onPress={p.onImportHistory}
+            accessibilityLabel={t("profile:contextImport.history")}
+            style={s.action}
+          />
+        ) : hasBrief ? (
           <MdButton
             label={p.brief !== null ? t("ds.sources.briefHide") : t("ds.sources.briefView")}
             variant="text"
@@ -357,7 +391,7 @@ function SourceCard(p: CardProps) {
             accessibilityLabel={t("ds.sources.pageOpenFor", { title: name })}
             style={s.action}
           />
-        ) : (
+        ) : managed ? null : (
           <MdButton
             label={p.pageRunning ? t("ds.sources.pageRunning") : t("ds.sources.page")}
             variant="text"

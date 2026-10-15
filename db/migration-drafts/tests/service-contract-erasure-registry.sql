@@ -42,10 +42,10 @@ BEGIN
   END IF;
 END $forward_preconditions$;
 BEGIN;
-\ir ../UNNUMBERED_service_contract_erasure_registry.sql
+\ir ../../migrations/0198_service_contract_erasure_registry.sql
 COMMIT;
 BEGIN;
-\ir ../UNNUMBERED_service_contract_erasure_registry.sql
+\ir ../../migrations/0198_service_contract_erasure_registry.sql
 COMMIT;
 DO $$ BEGIN
   IF EXISTS(SELECT * FROM registry_existing_before EXCEPT SELECT * FROM public.erasure_registry)
@@ -66,8 +66,8 @@ END $$;
 BEGIN;
 -- @LOAD_ACTUAL_BASE_REGISTRY_SEED@
 CREATE TEMP TABLE registry_66_before AS SELECT * FROM public.erasure_registry;
-\ir ../UNNUMBERED_service_contract_erasure_registry.sql
-\ir ../UNNUMBERED_service_contract_erasure_registry.sql
+\ir ../../migrations/0198_service_contract_erasure_registry.sql
+\ir ../../migrations/0198_service_contract_erasure_registry.sql
 DO $$ BEGIN
   IF (SELECT count(*) FROM registry_66_before)<>66 OR (SELECT count(*) FROM public.erasure_registry)<>70
     OR EXISTS(SELECT * FROM registry_66_before EXCEPT SELECT * FROM public.erasure_registry)
@@ -99,7 +99,7 @@ DO $replay_control$ BEGIN
   EXCEPTION WHEN duplicate_table THEN NULL;
   END;
 END $replay_control$;
-\ir ../UNNUMBERED_service_contract_erasure_registry.sql
+\ir ../../migrations/0198_service_contract_erasure_registry.sql
 DO $$ BEGIN
   IF (SELECT count(*) FROM public.erasure_registry)<>(SELECT count(*)+4 FROM registry_existing_before)
     OR EXISTS(SELECT * FROM registry_existing_before EXCEPT SELECT * FROM public.erasure_registry)

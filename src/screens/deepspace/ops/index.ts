@@ -8,3 +8,4 @@ export {
   MealsScreen,
   RemindersScreen,
 } from "./screens";
+export { OpsPhoneContent, type OpsPhoneScreen } from "./PhoneOpsContent";

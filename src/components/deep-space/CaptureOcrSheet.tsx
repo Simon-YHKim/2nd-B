@@ -1,3 +1,5 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 메모 OCR popup (Simon 2026-09-30): the picked image on top, a text box with
 // what was read below it, then "메모에 넣기" and 닫기.
 //
@@ -7,21 +9,12 @@
 //
 // A bottom sheet on a dithered scrim (PIXEL-CLAY rule 4: no translucent
 // scrims), opened from a button in the memo panel, not stacked on a node.
-// animationType "none": nothing moves, so reduced motion has nothing to cut.
+// ScreenModal owns scoped entry/exit and the reduced-motion preference.
 // Android back and the scrim close it (onRequestClose), per the
 // ANDROID_QA_GUIDELINES back-button rule.
 
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 
@@ -76,13 +69,11 @@ export function CaptureOcrSheet({
       visible={visible}
       transparent
       animationType="none"
+      transitionKind="sheet"
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.root}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <KeyboardAvoidingArea style={styles.root}>
         <Pressable
           style={styles.backdrop}
           onPress={onClose}
@@ -191,7 +182,7 @@ export function CaptureOcrSheet({
             </View>
           </PixelSurface>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </Modal>
   );
 }

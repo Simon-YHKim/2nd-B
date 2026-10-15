@@ -1,0 +1,41 @@
+name: Configure dashboard generation
+on:
+  workflow_dispatch:
+    inputs:
+      enabled:
+        description: Enable the reviewed dashboard backend after migration and consent checks
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: supabase-production-mutations
+  cancel-in-progress: false
+jobs:
+  configure:
+    if: github.repository == 'Simon-YHKim/2nd-B' && github.ref == 'refs/heads/main'
+    environment: Production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Require current main
+        env:
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin '+refs/heads/main:refs/remotes/origin/main'
+          test "$(git rev-parse HEAD)" = "$RUN_SHA"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$RUN_SHA"
+      - name: Configure only the dashboard switches
+        env:
+          PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PRODUCTION_SUPABASE_ACCESS_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DASHBOARD_CRON_SECRET: ${{ secrets.DASHBOARD_CRON_SECRET }}
+          DASHBOARD_ENABLED: ${{ inputs.enabled }}
+          DASHBOARD_MODEL: claude-sonnet-5
+        run: node scripts/dashboard-runtime-config.mjs configure

@@ -1,8 +1,10 @@
--- Scratch-only contract for the inactive users.avatar_spec draft. The CI
--- database is discarded; this never applies the draft to a real Supabase DB.
+-- Scratch-only contract for the numbered 0206 users.avatar_spec migration
+-- (its draft was deleted at promotion). The CI database is discarded; this
+-- never applies anything to a real Supabase DB. 0206 is replayed twice to
+-- prove it is idempotent.
 -- Run after all numbered migrations so the current users ACL/RLS is present.
-\ir ../UNNUMBERED_users_avatar_spec.sql
-\ir ../UNNUMBERED_users_avatar_spec.sql
+\ir ../../migrations/0206_users_avatar_spec.sql
+\ir ../../migrations/0206_users_avatar_spec.sql
 
 BEGIN;
 

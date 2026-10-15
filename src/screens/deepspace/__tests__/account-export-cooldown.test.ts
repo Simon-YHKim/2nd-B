@@ -79,7 +79,7 @@ describe("exportAccountData", () => {
 
 describe("account screen says how long to wait", () => {
   const root = path.resolve(__dirname, "../../../..");
-  const screen = fs.readFileSync(path.join(root, "src/screens/deepspace/dds-account-screen.tsx"), "utf8");
+  const screen = fs.readFileSync(path.join(root, "src/screens/deepspace/dds-account-export.tsx"), "utf8");
 
   test("the screen renders the cooldown line with minutes", () => {
     expect(screen).toContain('result.status === "cooldown"');

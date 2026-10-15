@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2nd-Brain UI 톤앤매너 설계안 · 합쇼체(설명) + 해요체(질문) 결합 모델 · 2026-10-02</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #030712;
+    --surface: #0f172a;
+    --surface-elevated: #1e293b;
+    --border: rgba(148, 163, 184, 0.15);
+    --border-accent: rgba(56, 189, 248, 0.3);
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-subtle: #64748b;
+    --accent: #38bdf8;
+    --accent-glow: rgba(56, 189, 248, 0.15);
+    --warning: #f59e0b;
+    --warning-bg: rgba(245, 158, 11, 0.1);
+    --danger: #ef4444;
+    --danger-bg: rgba(239, 68, 68, 0.1);
+    --success: #10b981;
+    --success-bg: rgba(16, 185, 129, 0.1);
+    --purple: #a855f7;
+    --purple-bg: rgba(168, 85, 247, 0.1);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-elevated: #f1f5f9;
+      --border: #e2e8f0;
+      --border-accent: rgba(2, 132, 199, 0.3);
+      --text: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #64748b;
+      --accent: #0284c7;
+      --accent-glow: rgba(2, 132, 199, 0.1);
+      --warning: #d97706;
+      --warning-bg: #fef3c7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --success: #059669;
+      --success-bg: #d1fae5;
+      --purple: #9333ea;
+      --purple-bg: #f3e8ff;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 48px 24px 80px; }
+  header { margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid var(--border-accent);
+    margin-bottom: 14px;
+  }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 10px; }
+  .lead { font-size: 16px; color: var(--text-muted); line-height: 1.6; }
+  .meta { font-size: 13px; color: var(--text-subtle); margin-top: 14px; }
+
+  .summary-banner {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(168, 85, 247, 0.05));
+    border: 1px solid var(--border-accent);
+    border-radius: 14px;
+    padding: 24px;
+    margin: 32px 0;
+  }
+  .summary-banner h2 { font-size: 18px; margin-bottom: 10px; color: var(--accent); }
+  .summary-banner p { color: var(--text); font-size: 15px; }
+
+  h2 { font-size: 20px; font-weight: 700; margin: 44px 0 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 10px; color: var(--text); }
+
+  .formula-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: var(--surface);
+    border: 2px dashed var(--accent);
+    padding: 24px;
+    border-radius: 16px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+  }
+  .formula-part {
+    text-align: center;
+    padding: 12px 20px;
+    border-radius: 10px;
+    background: var(--surface-elevated);
+  }
+  .formula-part strong { display: block; font-size: 16px; color: var(--accent); }
+  .formula-part span { font-size: 13px; color: var(--text-muted); }
+  .formula-plus { font-size: 22px; font-weight: 800; color: var(--text-subtle); }
+  .formula-equals { font-size: 22px; font-weight: 800; color: var(--success); }
+
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 18px; margin: 20px 0; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card strong { color: var(--text); font-size: 15px; }
+  .card p { color: var(--text-muted); font-size: 13.5px; margin-top: 6px; }
+
+  /* Mockup styles */
+  .mockup-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    margin: 24px 0;
+  }
+  .mockup-phone {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+  }
+  .mockup-header {
+    font-size: 13px;
+    font-weight: 700;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .chat-bubble {
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin-bottom: 12px;
+    max-width: 90%;
+  }
+  .bubble-ai {
+    background: var(--surface-elevated);
+    border-bottom-left-radius: 4px;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .bubble-human {
+    background: var(--accent);
+    color: #ffffff;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+  }
+
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+  th, td { padding: 12px 14px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { background: var(--surface-elevated); color: var(--text-muted); font-weight: 600; font-size: 13px; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .pill-ai { color: var(--danger); background: var(--danger-bg); padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
+  .pill-human { color: var(--success); background: var(--success-bg); padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
+
+  .quote-box {
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    background: var(--accent-glow);
+    border-radius: 0 8px 8px 0;
+    margin: 14px 0;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .step-box {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+    border-radius: 12px;
+  }
+  .step-num {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .step-body h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .step-body p { font-size: 13.5px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge">DECISION & EXECUTION SPEC</span>
+    <h1>UI 톤앤매너 설계안: 합쇼체 + 해요체 결합 모델</h1>
+    <p class="lead">Simon의 방향성 승인("세컨비의 편안한 친구 말투 + 합쇼체/해요체의 적절한 조화")에 따른 구체적 실행 설계</p>
+    <div class="meta">작성일: 2026-10-02 · 대상: localhost/모바일 앱 UI 로케일 및 대화 엔진 시스템 프롬프트</div>
+  </header>
+
+  <div class="summary-banner">
+    <h2>🎯 확정된 지침 요약 (Simon 결정 기반)</h2>
+    <p>
+      1. <strong>심층분석 / 페르소나 / 아키텍처 용어 최소화 / 인격화 방지 개선 / 번역투 방지</strong> 방향 합의 완료.<br>
+      2. <strong>세컨비의 정체성</strong>: 곁에서 함께 걷는 편안한 친구 같은 말투 (경직된 관찰자 탈피).<br>
+      3. <strong>표현 공식</strong>: <code>"000은 000합니다. [이름]님은 어떤가요?"</code> 방식의 합쇼체(설명)+해요체(질문) 황금 조합 적용.
+    </p>
+  </div>
+
+  <h2>1. 톤앤매너 황금 공식: '단정한 신뢰' + '다정한 말걸기'</h2>
+
+  <div class="formula-box">
+    <div class="formula-part">
+      <strong>합쇼체 (~합니다 / ~입니다)</strong>
+      <span>객관적 사실 · 분석 데이터 · 시스템 상태</span>
+    </div>
+    <div class="formula-plus">+</div>
+    <div class="formula-part">
+      <strong>해요체 (~어떤가요? / ~해볼까요?)</strong>
+      <span>사용자 생각 묻기 · 다정한 제안 · 공감 유도</span>
+    </div>
+    <div class="formula-equals">=</div>
+    <div class="formula-part" style="background: var(--accent-glow); border: 1px solid var(--border-accent);">
+      <strong style="color: var(--text);">친구 같은 개인 비서</strong>
+      <span style="color: var(--accent);">신뢰성 + 친근감 동시 확보</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <strong>왜 이 조합이 탁월한가?</strong>
+      <p>
+        • <strong>전문성 유지</strong>: "최근 기록을 분석했습니다"처럼 데이터 집계는 단정하게 전달하여 AI 서비스의 정확도와 신뢰감을 줍니다.<br>
+        • <strong>정서적 연결</strong>: "어떤 생각이 드시나요?"처럼 사용자에게 마이크를 넘겨 일방적인 평가나 훈계가 아닌 <strong>대화형 성찰(Reflective Dialogue)</strong>을 만듭니다.
+      </p>
+    </div>
+    <div class="card">
+      <strong>호칭 디테일: '당신'의 배제와 '{{who}}님' 활용</strong>
+      <p>
+        • 한국어에서 '당신'은 영문(You) 직역투를 풍기거나 거리감을 줍니다.<br>
+        • 따라서 <code>'당신은 어떤가요?'</code> 대신 <strong><code>'{{who}}님은 어떤가요?'</code></strong> 또는 주어를 생략한 <strong><code>'어떤 생각이 드시나요?' / '어떠세요?'</code></strong>로 정제합니다.
+      </p>
+    </div>
+  </div>
+
+  <h2>2. 세컨비 대화창 목업 비교 (Before vs After)</h2>
+
+  <div class="mockup-container">
+    <div class="mockup-phone">
+      <div class="mockup-header">
+        <span style="color: var(--danger);">AS-IS (냉혈한 AI 관찰자)</span>
+        <span style="font-size: 11px; color: var(--text-subtle);">기존 프롬프트 강제</span>
+      </div>
+      <div class="chat-bubble bubble-human">
+        요즘 회사 일 때문에 너무 지치고 마음이 복잡해.
+      </div>
+      <div class="chat-bubble bubble-ai">
+        기록에서 관련된 내용을 확인했습니다. 최근 14일간 '직장' 관련 기록이 6회 작성되었습니다.
+        <br><br>
+        기록 속 패턴에서는 마감 일정에 대한 부담이 반복적으로 나타납니다.
+        <br><br>
+        오늘 업무에서 구체적으로 어떤 상황이 가장 힘들었나요?
+      </div>
+      <p style="font-size: 12px; color: var(--text-subtle); margin-top: 10px;">
+        ⚠️ 문제점: 지나치게 분석 보고서 같고, 정색하며 통계를 읊는 감찰관 느낌.
+      </p>
+    </div>
+
+    <div class="mockup-phone" style="border-color: var(--border-accent);">
+      <div class="mockup-header">
+        <span style="color: var(--success);">TO-BE (친구 같은 든든한 비서)</span>
+        <span style="font-size: 11px; color: var(--accent);">Simon 제안 결합 모델</span>
+      </div>
+      <div class="chat-bubble bubble-human">
+        요즘 회사 일 때문에 너무 지치고 마음이 복잡해.
+      </div>
+      <div class="chat-bubble bubble-ai">
+        남겨주신 일기들을 다시 살펴보았습니다. 최근 며칠 동안 마감 일정과 새로운 업무 이야기로 가득 차 있었네요. 많이 버거우셨겠습니다.
+        <br><br>
+        오늘 [이름]님의 마음을 가장 무겁게 짓누르고 있는 일은 무엇인가요? 가볍게 털어놓아 주셔도 괜찮아요.
+      </div>
+      <p style="font-size: 12px; color: var(--success); margin-top: 10px;">
+        ✨ 개선점: 사실은 단정하게 확인(합쇼체)하되, 공감과 질문은 따뜻하게 건넴(해요체).
+      </p>
+    </div>
+  </div>
+
+  <h2>3. 화면별 카피 리라이팅 매트릭스</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 18%;">영역 / 파일</th>
+        <th style="width: 41%;">AS-IS (기계적 / 연구용 AI)</th>
+        <th style="width: 41%;">TO-BE (합쇼체 설명 + 해요체 질문)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>북극성 카드 제안</strong><br><small>core-brain.json</small></td>
+        <td>
+          <span class="pill-ai">기존</span><br>
+          "AI가 기록을 바탕으로 추정한 결과예요. 여러 해석 중 하나이니 나와 맞는지 확인해 주세요."
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "남겨주신 기록들을 토대로 정리한 나의 모습입니다. <strong>[이름]님이 생각하는 내 모습과 잘 맞나요?</strong>"
+        </td>
+      </tr>
+      <tr>
+        <td><strong>대시보드 통계</strong><br><small>ops.json</small></td>
+        <td>
+          <span class="pill-ai">기존</span><br>
+          "최근 80개만 읽었어요. 실제 건수는 더 많을 수 있어요. 점수가 아니에요."
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "최근 남겨주신 80개의 기록을 바탕으로 분석했습니다. <strong>요즘 내 일상과 가장 가까운 영역은 어디인가요?</strong>"
+        </td>
+      </tr>
+      <tr>
+        <td><strong>루틴 마감 안내</strong><br><small>ops.json</small></td>
+        <td>
+          <span class="pill-ai">기존</span><br>
+          "오늘의 루틴을 마쳤어요. 다음 작은 행동을 개인 비서에서 정할 수 있어요."
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "오늘 계획된 루틴을 모두 마쳤습니다. <strong>편히 쉬어갈까요, 아니면 내일을 위해 작은 준비를 해볼까요?</strong>"
+        </td>
+      </tr>
+      <tr>
+        <td><strong>위키 지식 연결</strong><br><small>deepspace.json</small></td>
+        <td>
+          <span class="pill-ai">기존</span><br>
+          "AI 연결 제안 받기 (87% 일치, 거절 / 승인)"
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "서로 이어지는 생각들을 찾아보았습니다. <strong>이 두 기록을 함께 묶어둘까요?</strong>"
+        </td>
+      </tr>
+      <tr>
+        <td><strong>세컨비 대화 인트로</strong><br><small>secondb.json</small></td>
+        <td>
+          <span class="pill-ai">기존</span><br>
+          "기록에서 무엇을 찾아볼까요?"
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "오늘도 [이름]님의 하루를 함께 기억할 준비가 되었습니다. <strong>지금 어떤 생각이 가장 먼저 떠오르시나요?</strong>"
+        </td>
+      </tr>
+      <tr>
+        <td><strong>요금제 생성 안내</strong><br><small>core-brain.json</small></td>
+        <td>
+          <span class="pill-ai">기존</span><br>
+          "플랜의 주간 리즈닝 횟수를 사용해요."
+        </td>
+        <td>
+          <span class="pill-human">개선</span><br>
+          "이번 주 심층 분석 횟수가 차감됩니다. <strong>지금 자세한 이야기를 풀어볼까요?</strong>"
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4. CI 가드레일과의 호환성 검토</h2>
+  <div class="quote-box">
+    <strong>✅ CI 가드 충돌 0건 확인 완료</strong><br>
+    • <code>check-anti-anthro.ts</code>: 차단 대상은 "보고 싶었어요", "사랑해요", "너를 기억해" 같은 <strong>허위 감정 연기 및 가스라이팅</strong>입니다. "이야기를 살펴보았습니다. 어떤 생각이 드시나요?" 형태의 성실한 경청 질문은 가드에 일절 저촉되지 않습니다.<br>
+    • <code>check-forbidden-lexicon.ts</code>: 임상 용어(치료, 진단, 상담)를 사용하지 않고도 일상적인 지지와 경청 어조를 완벽히 구현할 수 있습니다.
+  </div>
+
+  <h2>5. 순차 실행 로드맵 (Action Steps)</h2>
+
+  <div class="step-box">
+    <div class="step-num">01</div>
+    <div class="step-body">
+      <h4>대화 엔진 시스템 프롬프트 업데이트 (conversation.ts)</h4>
+      <p>경직된 어투 규칙("평서문은 반드시 ~습니다만 쓴다")을 해제하고, '단정한 사실 공유 + 다정한 생각 묻기' 톤으로 프롬프트 헤더 리파인.</p>
+    </div>
+  </div>
+
+  <div class="step-box">
+    <div class="step-num">02</div>
+    <div class="step-body">
+      <h4>핵심 로케일 파일 순차 리라이팅 (core-brain, ops, home, secondb)</h4>
+      <p>위 매트릭스에 정의된 공식을 바탕으로, 연구용 AI 냄새가 나는 문구들을 사람 중심의 카피로 점진적 전환.</p>
+    </div>
+  </div>
+
+  <div class="step-box">
+    <div class="step-num">03</div>
+    <div class="step-body">
+      <h4>검증 및 Parity 확인 (npm run verify & app:parity)</h4>
+      <p>CI 전체 통과 여부를 검증하고, Simon의 폰 앱과 localhost 8081이 동등한 릴리스 상태를 유지하도록 보장.</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

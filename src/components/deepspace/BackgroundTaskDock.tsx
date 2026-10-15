@@ -1,3 +1,4 @@
+import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Global background-task dock (Claude Design loading.dc.html, D).
 // Mounted once in app/_layout. Visible only while a task runs in the background,
 // so the user keeps using the app uninterrupted: a rotating ring around the
@@ -6,7 +7,7 @@
 // sits above the tab bar. Token-only, copy follows shipped locales.
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Animated, StyleSheet } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Rect } from "react-native-svg";
@@ -93,7 +94,7 @@ export function BackgroundTaskDock() {
         style={[styles.dock, collapsed ? styles.dockCollapsed : null]}
       >
         <View style={styles.ringWrap}>
-          <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate }] }]}>
+          <PhoneAnimatedView style={[StyleSheet.absoluteFill, { transform: [{ rotate }] }]}>
             {/* 진행 링 — 사각 테두리를 도는 칸 중 앞 4분의 1을 칠한다(규칙 1). */}
             <Svg width={30} height={30}>
               {(() => {
@@ -104,7 +105,7 @@ export function BackgroundTaskDock() {
                 ));
               })()}
             </Svg>
-          </Animated.View>
+          </PhoneAnimatedView>
           <LoadingPolaris size={18} accessibilityLabel={copy.label} />
         </View>
         {!collapsed ? (

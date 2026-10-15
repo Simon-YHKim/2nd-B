@@ -1,3 +1,4 @@
+import { PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 북극성 문장 (rev2 Screen-Spec 21): the propose->ratify editor for the one-line
 // 북극성 identity (layer C output). The violet "NORTH STAR" hero card IS the
 // editor — the current sentence loads from the newest NORTHSTAR_TAG record and
@@ -9,9 +10,10 @@ import { useCallback, useEffect, useState } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
 
 import { reactExpression } from "@/lib/companion/expression";
-import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { requestGlobalCue } from "@/lib/audio/global-cues";
+import { Platform, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
@@ -22,6 +24,7 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { spacing, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import {
@@ -33,7 +36,7 @@ import {
 import { useProgression } from "@/lib/progression/useProgression";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, incrementReasoningUsage } from "@/lib/entitlements/usage";
-import { keepAllKo } from "@/lib/i18n/keep-all";
+import { keepAllKo, keepAllPlaceholder } from "@/lib/i18n/keep-all";
 
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
@@ -43,6 +46,9 @@ function Glyph({ name, color, size = 20 }: { name: string; color: string; size?:
 }
 
 export default function NorthstarSentence() {
+  // Phone-aware: inside the dashboard phone, back, cancel and the paywall stay
+  // in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { t: tCore } = useTranslation("core-brain");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -131,7 +137,7 @@ export default function NorthstarSentence() {
     } finally {
       setProposing(false);
     }
-  }, [userId, locale, isMinor, proposing, reasoningUnlimited, reasoningRemaining]);
+  }, [userId, locale, isMinor, proposing, reasoningUnlimited, reasoningRemaining, router]);
 
   const save = useCallback(async () => {
     if (!userId || saving || draft.trim().length === 0) return;
@@ -145,11 +151,14 @@ export default function NorthstarSentence() {
         // gap the map flagged (call-reflection shows the modal; this screen
         // did not). router.back() runs when the user closes the modal.
         setSaving(false);
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       // 북극성 문장이 갱신됐다 — the head lights up with it.
       reactExpression("delight");
+      // L5 소리 재사용(Q-261006-08). 바로 뒤로 가므로 루트의 GlobalCueHost 가 끝까지 낸다.
+      // 위기 판정은 위에서 먼저 돌아가 여기까지 오지 않는다.
+      requestGlobalCue("polarisRatified");
       router.back();
     } catch {
       // A failed save must SAY so: the button un-spinning alone reads as
@@ -157,7 +166,7 @@ export default function NorthstarSentence() {
       setSaveErr(true);
       setSaving(false);
     }
-  }, [userId, locale, draft, isMinor, saving]);
+  }, [userId, locale, draft, isMinor, saving, router]);
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
@@ -197,7 +206,8 @@ export default function NorthstarSentence() {
           value={draft}
           onChangeText={setDraft}
           multiline
-          placeholder={t("ds.northstar.placeholder")}
+          // Native hint keeps Korean words whole ("찾 / 고" at font scale 1.3, QA R2A-06).
+          placeholder={keepAllPlaceholder(t("ds.northstar.placeholder"), Platform.OS)}
           placeholderTextColor={flattenAlpha(m3.color.onSurface, 0.4, NORTHSTAR_GROUND)}
           style={styles.heroInput}
         />
@@ -318,11 +328,22 @@ const makeStyles = () => StyleSheet.create({
     elevation: 0,
   },
   heroLabel: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.2, color: m3.color.tertiary },
+  // D-08: Android draws the placeholder with the font's own spacing, not
+  // lineHeight, and adds font padding from Galmuri11's yMax/yMin (1700/-400 of
+  // 1200 upem = +10dp top, +4dp bottom at 24). The box was measured as 2x28 = 56dp
+  // and the second placeholder line lost its lower ~6dp. Drop the font padding.
+  // R2A-06 (QA 2026-10-05): no fixed lineHeight either. Fabric measures an empty
+  // input from the placeholder WITH lineHeight (a sp value Android 14+ scales
+  // non-linearly: 32sp stays ~32dp at font scale 1.3), while the EditText draws
+  // the hint WITHOUT it, at the face's own spacing, which grows with the font.
+  // A fixed 32 held the box at 64dp and cut the second hint line at 1.3. With no
+  // lineHeight, measuring and drawing use the same spacing at every scale.
   heroInput: {
     fontFamily: m3.font.plain,
     fontSize: 24,
     fontWeight: "600",
-    lineHeight: 28,
+    includeFontPadding: false,
+    textAlignVertical: "top",
     color: m3.color.onSurface,
     padding: 0,
   },

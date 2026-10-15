@@ -5,7 +5,6 @@ import { semantic, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3, type M3TypeRole } from "@/lib/theme/m3";
 import { galmuriFor } from "@/components/m3/typeface";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useThemePalette } from "@/lib/theme/ThemeContext";
 
@@ -62,10 +61,8 @@ const VARIANT_STYLE: Record<Variant, { fontSize: number; fontWeight: "400" | "50
 // everything, so the two text systems disagreed. Size stays identical across
 // the swap. Guarded by src/components/ui/__tests__/text-pixel-first.test.ts.
 //
-// DS_M3 stays for pixelEn micro-labels (m3.font.mono on deep-space, Press
-// Start 2P on the legacy track). isDeepSpaceUI() is build-constant, so this
-// resolves once per bundle, not per render.
-const DS_M3 = isDeepSpaceUI();
+// pixelEn micro-labels use m3.font.mono. (Press Start 2P was the old
+// `EXPO_PUBLIC_UI=legacy` track's face; that lever left on 2026-10-05.)
 
 const VARIANT_ROLE: Record<Variant, M3TypeRole> = {
   display: "displaySmall",
@@ -97,7 +94,7 @@ export function Text({ variant = "body", color, style, maxFontSizeMultiplier, pi
   const fontFamily = readable
     ? fontFamilies.readable
     : pixelEn
-      ? (DS_M3 ? m3.font.mono : fontFamilies.pixelEn)
+      ? m3.font.mono
       : galmuriFor(role.size, galmuriWeight(v.fontWeight));
 
   // Set logical font scale limits based on variant.

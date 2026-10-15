@@ -4,7 +4,7 @@
 // `EXPO_PUBLIC_UI=legacy` track — the village graph, GraphScreen — and pick
 // between them at render. Every delivery path pins deep-space and
 // `ui-mode.ts` defaults to it, so that branch had been unreachable for months;
-// it now lives in legacy/screens/index.tsx, out of the build but still readable.
+// it now lives in E:/Legacy/2ndB/legacy/screens/index.tsx, out of the build but still readable.
 //
 // Simon approved retiring that skin (Q-260905-02) with "migrate the guards
 // first"; that migration is #1781.

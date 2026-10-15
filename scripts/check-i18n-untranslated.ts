@@ -19,7 +19,7 @@
 //      translate, and they change often enough that listing them would rot.
 //
 //   3. scripts/i18n-identical-allowlist.json. Reviewed 2026-08-11: every entry
-//      is a proper noun (2nd-Brain, SecondB, Wiki, Google Calendar, Big Five,
+//      is a proper noun (PolaScope, SecondB, Wiki, Google Calendar, Big Five,
 //      IPIP-NEO-120, Voyager, North Star, Pomodoro ...) or a word that is
 //      genuinely spelled the same in the target language (es/pt "Manual",
 //      "Error", "Mentor"; id "Data", "Museum", "Format", "Status"). Translating

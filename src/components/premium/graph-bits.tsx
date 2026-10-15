@@ -1,7 +1,10 @@
 // Premium graph / chat building blocks (Part 1): the reference shard card
-// (참고한 별가루), graph node chip (village island label + gold count), the
-// character badge (companion avatar with a glow ring), and the context pill
-// shown when the chat is entered from a node.
+// (참고한 별가루), graph node chip (village island label + gold count), and the
+// context pill shown when the chat is entered from a node.
+//
+// 옛 캐릭터 배지(CharacterBadge · COMPANION_ACCENT)는 2026-10-05 에 뺐다(QA L4-08 ·
+// Simon 결정 Q-261004-14 A · 15 A). 그리는 곳은 0이었는데 이 파일이 명부
+// (characters.ts)를 값으로 import 해서 premium 배럴을 타고 배송 번들에 실렸다.
 
 import { memo, type ReactNode } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
@@ -12,9 +15,6 @@ import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { m3 } from "@/lib/theme/m3";
 import { cosmic, deepSpace, flattenAlpha, spacing, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
-import { CHARACTERS, type CharacterId } from "@/lib/characters";
-import { SecondBSprite } from "@/components/art/SecondBSprite";
-import { CompanionSprite, type CompanionName } from "@/components/art/CompanionSprite";
 
 // ── 이 파일의 바탕 (PIXEL-CLAY 절대 규칙 4) ──────────────────────────
 //
@@ -107,40 +107,6 @@ export const GraphNodeChip = memo(function GraphNodeChip({
   );
 });
 
-const COMPANION_ACCENT: Record<CharacterId, string> = {
-  secondb: cosmic.soulViolet,
-  momo: cosmic.moonWhite, // Narrative — monochrome
-  lulu: cosmic.signalMint,
-  archi: cosmic.signalBlue,
-  gadi: cosmic.pixelLamp, // Bond / Relia — amber
-  lumi: cosmic.dreamPink, // Muse / Lumina
-};
-
-/** Companion avatar with a glowing ring. SecondB uses its own sprite. */
-export function CharacterBadge({ id, size = 48, label, glow = true }: { id: CharacterId; size?: number; label?: boolean; glow?: boolean }) {
-  const locale = useCurrentLocale();
-  const accent = COMPANION_ACCENT[id];
-  const meta = CHARACTERS[id];
-  return (
-    <View style={styles.badgeWrap} accessible accessibilityRole="image" accessibilityLabel={meta.name[locale]}>
-      <View
-        style={[
-          styles.badgeRing,
-          { width: size + 12, height: size + 12, borderRadius: (size + 12) / 2, borderColor: accent },
-          glow ? pixelShadowStyle(accent) : null,
-        ]}
-      >
-        {id === "secondb" ? (
-          <SecondBSprite state="idle" size={size} />
-        ) : (
-          <CompanionSprite companion={id as CompanionName} state="idle" size={size} />
-        )}
-      </View>
-      {label ? <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>{meta.name[locale]}</Text> : null}
-    </View>
-  );
-}
-
 /** Context pill — "○○에서 질문" when chat is entered from a node. */
 export function ContextPill({ label, onClose }: { label: string; onClose?: () => void }) {
   const { t } = useTranslation("common");
@@ -207,13 +173,6 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: gbAlpha(cosmic.signalMint, 0.08) },
   chipLabel: { flexShrink: 1, minWidth: 0 },
   chipDot: { width: 7, height: 7, borderRadius: gameboy.radius },
-  badgeWrap: { alignItems: "center" },
-  badgeRing: {
-    borderWidth: gameboy.borderWidth,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: gbAlpha(cosmic.space900, 0.6),
-  },
   pill: {
     flexDirection: "row",
     alignItems: "center",

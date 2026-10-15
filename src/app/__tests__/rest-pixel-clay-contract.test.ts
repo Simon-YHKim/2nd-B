@@ -93,7 +93,7 @@ describe("/rest PIXEL-CLAY contract", () => {
   });
 
   test("keeps the inline form keyboard-safe on Android", () => {
-    expect(SOURCE).toContain("<KeyboardAvoidingView");
+    expect(SOURCE).toContain("<KeyboardAvoidingArea");
     expect(SOURCE).toContain("const kbHeight = useKeyboard()");
     expect(SOURCE).toContain('Platform.OS === "android"');
     expect(SOURCE).toContain("kbHeight + deepSpaceSpacing.lg");

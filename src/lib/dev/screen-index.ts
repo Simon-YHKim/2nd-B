@@ -45,21 +45,19 @@ export type SpecialScreenEntry =
 /** `entry` 를 생략한 화면은 기존 앱 안의 정상 진입을 그대로 뜻한다. */
 export type ScreenEntry = { kind: "standard" } | SpecialScreenEntry;
 
-/** UI 모드 한쪽에서의 렌더 결과. */
-export type ModeRender =
-  | { kind: "screen" }
-  | { kind: "redirect"; to: string }
-  /** 개발 빌드에서만 실화면, production 빌드는 redirect (예: /trinity). */
-  | { kind: "dev-gated-screen"; productionRedirect: string };
-
-/** UI 모드별 렌더 축 — 실화면이 아닌 라우트만 명시한다. */
+/**
+ * 렌더 축 — 실화면이 아닌 라우트만 명시한다.
+ *
+ * 2026-10-05: 여기 있던 두 번째 갈래 `ui-mode-split`(딥스페이스와 legacy 가 서로 다른
+ * 것을 그린다)과 그 한쪽 결과 타입 ModeRender 를 걷었다. 롤백 레버 EXPO_PUBLIC_UI 가
+ * 없어져(Simon 결정 Q-261004-11 C) 라우트가 모드에 따라 갈릴 수 없고, 그 축을 쓰던
+ * /persona · /trinity 는 /core-brain 리다이렉트 전용이 됐다(Q-261004-33 B).
+ */
 export type SpecialRenderBehavior =
-  /** 어느 모드에서든 다른 라우트로 넘기기만 한다. 은퇴 화면의 호환 경로. */
-  | { kind: "redirect"; to: string; lifecycle: "retired" }
-  /** 딥스페이스(기본)와 legacy(EXPO_PUBLIC_UI=legacy)가 서로 다른 것을 그린다. */
-  | { kind: "ui-mode-split"; deepspace: ModeRender; legacy: ModeRender };
+  /** 다른 라우트로 넘기기만 한다. 은퇴 화면의 호환 경로. */
+  { kind: "redirect"; to: string; lifecycle: "retired" };
 
-/** `render` 를 생략한 화면은 어느 모드에서든 실화면을 그린다. */
+/** `render` 를 생략한 화면은 실화면을 그린다. */
 export type RenderBehavior = { kind: "screen" } | SpecialRenderBehavior;
 
 const STANDARD_SCREEN_ENTRY = { kind: "standard" } as const satisfies ScreenEntry;
@@ -167,7 +165,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         label: "별자리 홈",
         // 2026-09-08: 라우트가 래퍼가 되면서 로그인 리다이렉트도 화면으로 내려갔다.
         // 전에는 index.tsx 안의 GraphScreen 이 직접 `!userId -> /sign-in` 을 했고,
-        // 그 반쪽은 legacy/screens/index.tsx 로 나갔다. 이제 게이트는 셸이 진다.
+        // 그 반쪽은 legacy/screens/index.tsx 로 나갔고 2026-10-05 에 E:/Legacy/2ndB 로 갔다. 이제 게이트는 셸이 진다.
         auth: {
           gateFile: "src/components/deep-space/DeepSpaceShell.tsx",
           component: "DeepSpaceShell",
@@ -175,33 +173,33 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       },
       { file: "core-brain", href: "/core-brain", label: "북극성", auth: true },
       { file: "northstar", href: "/northstar", label: "북극성 문장", auth: true },
-      { file: "star/[domain]", href: "/star/career", label: "도메인 별 (커리어)", auth: true, sample: true, note: "career · finance · growth · relation · health · recreation · collect. 2026-08-24 부터 홈 별자리에서는 안 열린다 — 생활 도메인은 세컨비 대시보드로 갔다" },
+      { file: "star/[domain]", href: "/star/career", label: "도메인 별 (커리어)", auth: true, sample: true, note: "career · finance · growth · relation · health · recreation · collect. 2026-08-24 부터 홈 별자리에서는 안 열린다 — 생활 도메인은 허슬케이 대시보드로 갔다" },
       { file: "me/[star]", href: "/me/school", label: "별 요약", auth: true, sample: true, note: "profile · infancy · school · twenties · later · work · now. 홈에서 별을 누르면 여기로 온다(Simon 결정 4 = B)" },
       { file: "career-drilldown", href: "/career-drilldown", label: "별 파고들기", auth: true },
       { file: "brightness", href: "/brightness", label: "밝기 변화 8주", auth: true },
-      { file: "beyond", href: "/beyond", label: "앱 밖에서", auth: true },
+      { file: "beyond", href: "/beyond", label: "위젯 · 알림", auth: true },
     ],
   },
   {
-    title: "담기 · 기록",
+    title: "기록 추가 · 기록 보기",
     screens: [
       {
         file: "capture",
         href: "/capture",
-        label: "담기",
+        label: "기록 추가",
         auth: true,
         qaVariants: [
           {
-            label: "첫 실행 안내",
+            label: "첫 실행 진입",
             href: "/capture?entry=firstRun",
-            note: "온보딩이 넘겨주는 진입. `firstRun` 플래그가 일기 모드에 '한 문장이면 충분' 힌트를 붙이고, `hasFullCaptureParams` 가 딥스페이스에서 CaptureView 대신 전체 intake 를 연다",
+            note: "온보딩이 넘겨주는 진입. `hasFullCaptureParams` 가 딥스페이스에서 CaptureView 대신 전체 intake 를 연다. 일기 모드 아래 따로 붙던 첫 실행 줄은 머리글 TIP 과 같은 말이라 지웠다(Q-261014-88)",
           },
         ],
       },
       {
         file: "capture-full",
         href: "/capture-full",
-        label: "담기 전체 (메모·링크·클립·OCR·파일)",
+        label: "기록 추가 전체 (메모·링크·클립·OCR·파일)",
         // 이 파일에는 `<Redirect href="/sign-in" />` 리터럴이 **없다** — 인증 경계를
         // `CaptureLegacy`(→ `CaptureLegacySession`)에 위임하기 때문이다. 그래도
         // 로그인은 실제로 필요하다. 라우트 파일 안만 보는 판정은 여기서 거짓 음성을
@@ -243,8 +241,32 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           component: "DeepSpaceRecordsScreen",
         },
       },
-      { file: "record/[id]", href: "/record/sample", label: "별가루 상세", auth: true, sample: true, note: "실제 id 가 아니라서 '없음' 상태가 보인다" },
-      { file: "wiki", href: "/wiki", label: "위키 둘러보기", auth: true },
+      // record/[id] · wiki 의 라우트 리다이렉트는 legacy 반쪽(RecordDetailLegacy ·
+      // WikiLegacy) 안에만 있다. 배송되는 딥스페이스 화면이 자기 가드를 갖고 있어서
+      // 로그인은 실제로 필요하고, 그 가드가 있는 곳을 적는다(2026-10-04).
+      {
+        file: "record/[id]",
+        href: "/record/sample",
+        label: "별가루 상세",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-record-detail-screen.tsx",
+          component: "DeepSpaceRecordDetailScreen",
+        },
+        sample: true,
+        note: "실제 id 가 아니라서 '없음' 상태가 보인다",
+      },
+      {
+        file: "wiki",
+        href: "/wiki",
+        label: "위키 둘러보기",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-wiki-records-screens.tsx",
+          component: "DeepSpaceWikiScreen",
+        },
+      },
+      // 2026-10-04 W-02: 로그아웃이면 빈 렌즈('검사 시작')가 먼저 보였다. 라우트의
+      // 리다이렉트가 '검사 시작' 뒤의 설문 안에만 있었기 때문이다. 이제 배송되는
+      // AttachmentDeepSpace 가 직접 가드를 갖는다(screen-index.test 배송 경로 가드).
       { file: "attachment", href: "/attachment", label: "애착 유형", auth: true },
       {
         file: "journal",
@@ -274,16 +296,20 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "share-card", href: "/share-card", label: "공유 카드", auth: true },
       // 위임 게이트 — 이 파일에는 리다이렉트 리터럴이 없고 `DeepSpaceSrsScreen` 이 갖는다.
       { file: "srs", href: "/srs", label: "언어 복습 (SRS)", auth: { gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", component: "DeepSpaceSrsScreen" }, note: "로그인이 필요하다 — 게이트는 이 파일이 아니라 DeepSpaceSrsScreen 에 있다" },
-      { file: "reading", href: "/reading", label: "읽기 · 배움 선반" },
+      // 2026-10-04 W-13: 아래 여덟 화면(reading · review · milestones · ledger · growth ·
+      // meals · discover · reminders)은 로그아웃 상태로 URL 을 열면 입력 UI 를 그렸고
+      // 저장은 조용히 아무 일도 안 했다. 대시보드 폰 안의 같은 화면은 이미
+      // PhoneOpsContent 가 막고 있었다. 이제 라우트 파일이 직접 리다이렉트한다.
+      { file: "reading", href: "/reading", label: "읽기 · 배움 선반", auth: true },
     ],
   },
   {
-    title: "세컨비 · 대화",
+    title: "허슬케이 · 대화",
     screens: [
       {
         file: "secondb",
         href: "/secondb",
-        label: "세컨비 대화",
+        label: "허슬케이 대화",
         auth: true,
         // 셋 다 **초기 state 만** 심는다 — mount 가 LLM 을 부르지 않는다.
         // 보낼지는 사람이 정한다. `?character=` 는 일부러 뺐다(사람 흉내 화면).
@@ -291,18 +317,18 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           {
             label: "대시보드 펴고 시작",
             href: "/secondb?panel=dashboard",
-            note: "세컨비 머리를 터치했을 때의 진입(Simon 결정 6). 생활 여섯 영역이 대화창 안에 펴진다. `showDashboard` 의 초기값이 이 값을 읽는다",
+            note: "허슬케이 머리를 터치했을 때의 진입(Simon 결정 6). 생활 여섯 영역이 대화창 안에 펴진다. `showDashboard` 의 초기값이 이 값을 읽는다",
           },
           {
             label: "새 관점 모드",
             href: "/secondb?mode=divergent",
-            // ⚠ 이 변형만 등급을 탄다. 트위비는 pro(=brain) 전용이라
+            // ⚠ 이 변형만 등급을 탄다. 조이케이는 pro(=brain) 전용이라
             // (`personaAllowed`, tier-map `pro ↔ brain`) free·plus 에서는 tier 를
             // 알게 된 직후 effect 가 `rev2Persona` 를 조용히 secondb 로 되돌린다.
             // 에러도 잠금 표시도 없다 — 이 목록이 막으려는 그 조용한 되돌림과
-            // 같은 모양이라, 안내 없이 두면 검수자가 "트위비가 원래 이렇구나" 한다.
+            // 같은 모양이라, 안내 없이 두면 검수자가 "조이케이가 원래 이렇구나" 한다.
             // 담기 모드 할당량과는 **별개 이야기**다(그쪽은 등급 제한이 없다).
-            note: "`chatMode` 를 divergent 로, `rev2Persona` 를 트위비로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 트위비는 Brain(pro) 전용 — free·plus 로 열면 페르소나가 조용히 2nd-B 로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)",
+            note: "`chatMode` 를 divergent 로, `rev2Persona` 를 조이케이로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 조이케이는 북극성(pro) 전용 — free·plus 로 열면 페르소나가 조용히 허슬케이로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)",
           },
           {
             label: "노드에서 이어 묻기 (견본)",
@@ -326,7 +352,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         file: "imagine",
         href: "/imagine",
         label: "공상하기",
-        note: "진입: /ops 도구 격자 · /growth. legacy 트랙일 때 /secondb 의 Divergent 모드로 넘기던 분기는 은퇴했다 (legacy/screens/INDEX.md)",
+        note: "진입: /ops 도구 격자 · /growth. legacy 트랙일 때 /secondb 의 Divergent 모드로 넘기던 분기는 은퇴했다 (E:/Legacy/2ndB/legacy/screens/INDEX.md)",
       },
       // 게이트가 라우트에서 화면으로 모였다 — change-password 와 같은 모양이다.
       {
@@ -339,7 +365,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         },
       },
       { file: "reasoning", href: "/reasoning", label: "리즈닝", auth: true },
-      { file: "review", href: "/review", label: "제안 확인 (propose→ratify)" },
+      { file: "review", href: "/review", label: "제안 확인 (propose→ratify)", auth: true },
       { file: "ratifications", href: "/ratifications", label: "확인 이력", auth: true },
     ],
   },
@@ -350,11 +376,21 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         file: "persona",
         href: "/persona",
         label: "페르소나",
-        auth: true,
-        render: { kind: "ui-mode-split", deepspace: { kind: "redirect", to: "/core-brain" }, legacy: { kind: "screen" } },
-        note: "딥스페이스(기본)에서 '나를 보는 자리'의 정본은 /core-brain 이라 그리로 넘긴다. legacy 는 실화면",
+        render: { kind: "redirect", to: "/core-brain", lifecycle: "retired" },
+        note: "'나를 보는 자리'의 정본은 /core-brain 이라 그리로 넘긴다. 레거시 실화면(PersonaLegacy)은 2026-10-05 EXPO_PUBLIC_UI 레버와 함께 빠졌다(Q-261004-11)",
       },
-      { file: "big-five", href: "/big-five", label: "Big Five", auth: true },
+      // big-five 는 리다이렉트하지 않는다 - 로그아웃이면 일부러 둔 인라인 로그인 카드
+      // (dds-big-five-screen 의 SignedOutGate)를 그린다. 2026-10-04 까지 `auth: true` 였던
+      // 근거는 라우트의 legacy 반쪽(BigFiveSurveyOwner)에 있던 리터럴이었고, 그 반쪽은
+      // 2026-10-05 롤백 레버와 함께 빠졌다(Q-261004-11 C).
+      {
+        file: "big-five",
+        href: "/big-five",
+        label: "Big Five",
+        note: "로그아웃이면 리다이렉트 대신 인라인 로그인 카드(SignedOutGate)를 그린다",
+      },
+      // 2026-10-04 W-02: attachment 와 같은 모양이었다. 배송되는 IpipNeoDeepSpace 가
+      // 이제 직접 가드를 갖는다.
       { file: "ipip-neo", href: "/ipip-neo", label: "IPIP-NEO-120", auth: true },
       { file: "rlss", href: "/rlss", label: "삶의 만족도 (RLSS)", auth: true },
       { file: "values", href: "/values", label: "가치관", auth: true },
@@ -367,7 +403,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         label: "MBTI (은퇴)",
         entry: { kind: "legacy-link" },
         render: { kind: "redirect", to: "/persona", lifecycle: "retired" },
-        note: "저장된 옛 링크 호환 전용. /persona 가 스킨 분기를 소유해서 딥스페이스에선 두 홉으로 /core-brain 까지 간다",
+        note: "저장된 옛 링크 호환 전용. /persona 가 다시 /core-brain 으로 넘기므로 두 홉으로 /core-brain 까지 간다",
       },
       { file: "iden", href: "/iden", label: "IDEN 포터블 정체성", auth: true },
       {
@@ -375,7 +411,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         href: "/seen",
         label: "보여지는 나",
         auth: true,
-        note: "legacy 트랙일 때 독립 스킨이 없어 /persona 종합으로 넘기던 분기는 은퇴했다 (legacy/screens/INDEX.md). 진입: 프로필 허브 분석 그룹",
+        note: "legacy 트랙일 때 독립 스킨이 없어 /persona 종합으로 넘기던 분기는 은퇴했다 (E:/Legacy/2ndB/legacy/screens/INDEX.md). 진입: 프로필 허브 분석 그룹",
       },
       {
         file: "audit",
@@ -398,11 +434,11 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     screens: [
       { file: "career", href: "/career", label: "커리어 타임라인", auth: true },
       { file: "career-input", href: "/career-input", label: "성과 입력", auth: true },
-      { file: "milestones", href: "/milestones", label: "목표 · 마일스톤" },
-      { file: "ledger", href: "/ledger", label: "돈 점검" },
-      { file: "growth", href: "/growth", label: "나의 변화" },
+      { file: "milestones", href: "/milestones", label: "목표 · 마일스톤", auth: true },
+      { file: "ledger", href: "/ledger", label: "돈 점검", auth: true },
+      { file: "growth", href: "/growth", label: "나의 변화", auth: true },
       { file: "rest", href: "/rest", label: "취미 · 여가", auth: true },
-      { file: "meals", href: "/meals", label: "주간 식사" },
+      { file: "meals", href: "/meals", label: "주간 식사", auth: true },
       { file: "side-project", href: "/side-project", label: "사이드 프로젝트", auth: true },
       { file: "people", href: "/people", label: "사람 기록", auth: true },
       { file: "call-reflection", href: "/call-reflection", label: "통화 회고", auth: true },
@@ -417,7 +453,8 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       {
         file: "ops",
         href: "/ops",
-        label: "오늘의 비서",
+        label: "개인 비서",
+        note: "진입: 폰 앱 바둑판. 추천 설정 · 루틴 · 알림 설정과 앱이 없는 도구",
         auth: {
           gateFile: "src/screens/deepspace/dds-ops-screen.tsx",
           component: "DeepSpaceOpsScreen",
@@ -445,22 +482,28 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         file: "discover",
         href: "/discover",
         label: "발견",
-        note: "실화면. legacy 트랙일 때 /insights 로 넘기던 분기는 은퇴했다 (legacy/screens/INDEX.md). 진입: /insights 카드",
+        auth: true,
+        note: "실화면. legacy 트랙일 때 /insights 로 넘기던 분기는 은퇴했다 (E:/Legacy/2ndB/legacy/screens/INDEX.md). 진입: /insights 카드",
       },
-      { file: "reminders", href: "/reminders", label: "예약 리마인더" },
-      { file: "inbox", href: "/inbox", label: "알림함", auth: true },
+      { file: "reminders", href: "/reminders", label: "예약 리마인더", auth: true },
+      // 라우트 리다이렉트는 legacy 반쪽(InboxLegacy) 안에만 있다. 배송되는
+      // DeepSpaceInboxScreen 이 자기 가드를 갖는다(2026-10-04).
+      {
+        file: "inbox",
+        href: "/inbox",
+        label: "알림함",
+        auth: {
+          gateFile: "src/screens/deepspace/dds-inbox-screen.tsx",
+          component: "DeepSpaceInboxScreen",
+        },
+      },
       { file: "museum", href: "/museum", label: "AI 뮤지엄" },
       {
         file: "trinity",
         href: "/trinity",
-        label: "브레인 트리니티 (레거시)",
-        auth: true,
-        render: {
-          kind: "ui-mode-split",
-          deepspace: { kind: "dev-gated-screen", productionRedirect: "/core-brain" },
-          legacy: { kind: "screen" },
-        },
-        note: "딥스페이스 production 빌드는 /core-brain 으로 넘어가고, 개발 빌드는 M3 리메이크를 참조용으로 연다. legacy 는 /profile quickGrid 에서 실화면으로 들어간다",
+        label: "트리니티 (은퇴)",
+        render: { kind: "redirect", to: "/core-brain", lifecycle: "retired" },
+        note: "리다이렉트 전용(Simon 결정 Q-261004-33 B). TrinityLegacy 와 개발 빌드의 M3 리메이크가 둘 다 2026-10-05 에 빠졌다",
       },
     ],
   },
@@ -468,7 +511,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     title: "커뮤니티 · 지인",
     screens: [
       { file: "community", href: "/community", label: "커뮤니티", auth: true },
-      { file: "community/[room]", href: "/community/sample", label: "커뮤니티 방", auth: true, sample: true, note: "실제 방 id 가 아니라서 목록으로 되돌아간다" },
+      { file: "community/[room]", href: "/community/sample", label: "커뮤니티 방", auth: true, sample: true, note: "실제 방 id 가 아니라서 '방을 찾지 못했다'는 안내와 목록으로 가는 버튼이 보인다(재시도 없음)" },
       {
         file: "community/join/[token]",
         href: "/community/join/sample",
@@ -532,6 +575,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         },
       },
       { file: "profile-details", href: "/profile-details", label: "내 생활 정보", auth: true },
+      { file: "profile-import", href: "/profile-import", label: "AI 대화에서 가져오기", auth: true },
       { file: "avatar-studio", href: "/avatar-studio", label: "아바타 꾸미기", auth: true },
       {
         file: "change-password",
@@ -546,9 +590,21 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         },
       },
       { file: "theme", href: "/theme", label: "테마", auth: true },
-      { file: "data", href: "/data", label: "데이터 관리", auth: true },
+      { file: "data", href: "/data", label: "내 데이터", auth: true },
       { file: "permissions", href: "/permissions", label: "권한 관리" },
-      { file: "privacy", href: "/privacy", label: "개인정보 한눈에", auth: true },
+      // 2026-10-04 W-02: 라우트의 리다이렉트는 legacy 반쪽(PrivacyLegacy) 안에만
+      // 있었고, 배송되는 화면은 로그아웃이면 설정을 그린 채 '생년월일을 확인하는
+      // 중' 에서 멈췄다. 가드를 그 화면에 넣었으므로 위임으로 적는다. 계정 삭제가
+      // 진행 중일 때만 리다이렉트를 미룬다(삭제 흐름이 직접 /sign-in 으로 보낸다).
+      {
+        file: "privacy",
+        href: "/privacy",
+        label: "개인정보 한눈에",
+        auth: {
+          gateFile: "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+          component: "DeepSpacePrivacyDesignScreen",
+        },
+      },
       { file: "service-consent", href: "/service-consent", label: "AI 처리 동의", auth: true },
       { file: "processing-log", href: "/processing-log", label: "데이터 처리 기록", auth: true },
       { file: "notices", href: "/notices", label: "공지", auth: true },
@@ -697,9 +753,8 @@ export interface EntryRoleCounts {
   deepLink: number;
   legacyLink: number;
   designLab: number;
-  /** 렌더 축. 항상 redirect (은퇴 호환) / UI 모드 분기. */
+  /** 렌더 축. 항상 redirect (은퇴 호환). */
   alwaysRedirect: number;
-  modeSplit: number;
   /** 진입·렌더 축과 직교하는 DevOnlyRoute 접근 게이트 수. */
   devOnly: number;
   /** `<Redirect href="/sign-in" />` 를 가진 화면 수. */
@@ -715,7 +770,6 @@ export function entryRoleCounts(screens: readonly DevScreen[] = devScreens()): E
     legacyLink: 0,
     designLab: 0,
     alwaysRedirect: 0,
-    modeSplit: 0,
     devOnly: 0,
     authRequired: 0,
   };
@@ -728,7 +782,6 @@ export function entryRoleCounts(screens: readonly DevScreen[] = devScreens()): E
     if (entry.kind === "dev" && entry.collection === "design-lab") counts.designLab += 1;
     const render = screenRender(screen);
     if (render.kind === "redirect") counts.alwaysRedirect += 1;
-    if (render.kind === "ui-mode-split") counts.modeSplit += 1;
     if (screen.dev) counts.devOnly += 1;
     if (screen.auth) counts.authRequired += 1;
   }

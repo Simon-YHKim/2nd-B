@@ -81,6 +81,8 @@ describe("something reads the rows", () => {
   });
 
   test("and it counts into the total that decides whether to raise an issue", () => {
-    expect(TRIPWIRE).toMatch(/TOTAL=\$\(\( CONFLICT \+ STUCK \+ REVIEW \+ STALE \+ UNHANDLED \+ CDRIFT \+ BDRIFT \+ VENDORFAIL \)\)/);
+    // Later tripwires may append their own term (0211 adds RETENTION); every term
+    // that was already there, VENDORFAIL included, has to stay in the sum.
+    expect(TRIPWIRE).toMatch(/TOTAL=\$\(\( CONFLICT \+ STUCK \+ REVIEW \+ STALE \+ UNHANDLED \+ CDRIFT \+ BDRIFT \+ VENDORFAIL(?: \+ [A-Z]+)* \)\)/);
   });
 });

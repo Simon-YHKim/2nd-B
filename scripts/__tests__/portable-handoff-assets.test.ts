@@ -1,6 +1,6 @@
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const ROOT = resolve(__dirname, "../..");
@@ -15,6 +15,7 @@ type Verification = {
     count?: number;
     treeSha256?: string;
     matches?: string[];
+    files?: Array<{ path: string; status: "PASS" | "FAIL"; expectedSha256: string; actualSha256: string | null }>;
   }>;
 };
 
@@ -67,6 +68,38 @@ describe("portable handoff asset verifier", () => {
       expect(report.checks.some((check) => check.status === "FAIL")).toBe(true);
     } finally {
       rmSync(empty, { recursive: true, force: true });
+    }
+  });
+
+  test.each([
+    "docs/HUSTLEK-OPENING.md",
+    "docs/handoff/HUSTLEK-OPENING-v1-ARCHIVE.md",
+    "assets/opening/hustlek-approved-261002/approved-settings.json",
+  ])("opening contract hash rejects changed index bytes: %s", (file) => {
+    const fixture = mkdtempSync(join(tmpdir(), "2ndb-portable-opening-hash-"));
+    try {
+      expect(spawnSync("git", ["init", "-q", fixture]).status).toBe(0);
+      const target = join(fixture, file);
+      mkdirSync(dirname(target), { recursive: true });
+      // Disable Git newline conversion: the contract pins the exact source bytes.
+      writeFileSync(join(fixture, ".gitattributes"), "* -text\n");
+      copyFileSync(join(ROOT, file), target);
+      expect(spawnSync("git", ["-C", fixture, "add", ".gitattributes", file]).status).toBe(0);
+      const original = JSON.parse(run(fixture).stdout) as Verification;
+      const pinned = original.checks.find(check => check.id === "canonical-file-hashes")
+        ?.files?.find(item => item.path === file);
+      expect(pinned).toMatchObject({ path: file, status: "PASS" });
+
+      writeFileSync(target, Buffer.concat([readFileSync(target), Buffer.from("\n")]));
+      expect(spawnSync("git", ["-C", fixture, "add", file]).status).toBe(0);
+      const changed = JSON.parse(run(fixture).stdout) as Verification;
+      const rejected = changed.checks.find(check => check.id === "canonical-file-hashes")
+        ?.files?.find(item => item.path === file);
+      expect(rejected).toMatchObject({ path: file, status: "FAIL", expectedSha256: pinned?.expectedSha256 });
+      expect(rejected?.actualSha256).not.toBe(pinned?.actualSha256);
+    } finally {
+      expect(dirname(resolve(fixture))).toBe(resolve(tmpdir()));
+      rmSync(fixture, { recursive: true, force: true });
     }
   });
 

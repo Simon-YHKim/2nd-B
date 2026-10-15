@@ -68,9 +68,9 @@ The client side is wired in `src/lib/supabase/auth.ts`:
 
 **Off by default** behind two layers, so nothing shows or runs until the operator opts in:
 
-1. **Database:** apply migration `0183_oauth_naver_rate_limit.sql`, then reserve a real migration
-   number for `db/migration-drafts/UNNUMBERED_oauth_naver_rate_limit_completion.sql`, review/apply
-   that forward migration, and verify both postconditions. The completion migration removes the
+1. **Database:** apply migration `0183_oauth_naver_rate_limit.sql`, then the forward migration
+   `0199_oauth_naver_rate_limit_completion.sql` (numbered from its draft, which was deleted on
+   2026-10-05 so the numbered file is the only copy), and verify both postconditions. The completion migration removes the
    attacker-cardinality state ledger, adds global/peer/subject quotas, bounds request-path cleanup,
    and narrows the durable state redirect to the one production HTTPS callback. The function fails
    closed while any service-only limiter, state, or identity RPC is absent.

@@ -16,7 +16,8 @@ test("data controls live in Settings, not inside the phone's app tabs", () => {
   const phone = read("src/components/dashboard/DashboardPhone.tsx");
   const settings = read("src/app/settings.tsx");
   const dataSettings = read("src/app/data-connections.tsx");
-  expect(phone).toContain('const TABS: Tab[] = ["dashboard", "tools"]');
+  // The tab row is gone (Simon 2026-10-06), but the pages are still only dashboard + apps.
+  expect(phone).toContain('type Tab = "dashboard" | "tools";');
   expect(phone).not.toContain('"sources" | "tools"');
   expect(phone).not.toContain('t("phone.controls")');
   expect(phone).not.toContain('t("phone.operational.sources")');
@@ -28,7 +29,8 @@ test("data controls live in Settings, not inside the phone's app tabs", () => {
   expect(phone).toContain('useFocusEffect(useCallback(() => {');
   expect(phone).toContain('void loadDashboard(ownerId, isMinor)');
   expect(settings).toContain('router.push("/data-connections")');
-  expect(settings).toContain('router.push("/reminders")');
+  expect(settings).not.toContain('router.push("/reminders")');
+  expect(phone).toContain('{ id: "reminders", route: "/reminders" }');
   expect(dataSettings).toContain("SOURCE_GROUPS.map((group)");
   expect(dataSettings).toContain("sourceGroup(source) === group");
   expect(dataSettings).toContain("setRefreshSettings(ownerId, next)");
@@ -42,7 +44,7 @@ test("data controls live in Settings, not inside the phone's app tabs", () => {
   expect(phone).not.toContain('ListFooterComponent=');
   expect(phone).toContain("nextRefreshAt(new Date(), refreshSettings)");
   expect(phone).toContain("shouldRefreshAfterResume(");
-  expect(phone).not.toContain("setInterval(");
+  expect(phone).toContain('if (!focusRunning || insideRoute !== "/focus") return;');
   expect(phone).toContain('AppState.currentState === "active"');
 });
 

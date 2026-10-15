@@ -1,8 +1,10 @@
+import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useRef, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { Redirect, router, useFocusEffect, type Href } from "expo-router";
+import { StyleSheet } from "react-native";
+import { Redirect, useFocusEffect, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
@@ -34,6 +36,8 @@ export default function DataConnections() {
 }
 
 function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: boolean | null }) {
+  // Phone-aware: inside the dashboard phone, links and Back stay in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation(["settings", "ops", "common"]);
   const [refreshSettings, setRefreshSettingsState] = useState<RefreshSettings>(DEFAULT_REFRESH_SETTINGS);
   const [timeSheetOpen, setTimeSheetOpen] = useState(false);
@@ -208,7 +212,7 @@ function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: b
           })}
         </View>;
       })}
-      <PixelPressable onPress={() => router.push("/import-hub")} accessibilityLabel={t("ops:phone.importHistory")} contentStyle={styles.action}>
+      <PixelPressable onPress={() => router.push("/import-hub?view=history")} accessibilityLabel={t("ops:phone.importHistory")} contentStyle={styles.action}>
         <Text variant="caption">{t("ops:phone.importHistory")}</Text>
       </PixelPressable>
       <PixelPressable onPress={() => router.push("/privacy")} accessibilityLabel={t("ops:phone.dataConsent")} contentStyle={styles.action}>

@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 내 생활 정보 — 프로필 상세 입력 (Simon 2026-08-18, D2).
 //
 // 일곱 번째 별이 프로필로 확정되면서 "채운 만큼 밝아지는" 별이 됐는데, 채울
@@ -10,98 +11,59 @@
 //
 // ⚠ 민감정보는 여기서 묻지 않는다(PIPA 제23조). 근거는
 // `lib/persona/profile-details.ts` 헤더와 0132 마이그레이션 주석에 있다.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  BackHandler,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
-import { Redirect, router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Platform, StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
+import { Redirect, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
+import { AvatarPreview } from "@/components/avatar/AvatarPreview";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { Field, MdButton, MdChip } from "@/components/m3";
 import { PixelSurface } from "@/components/pixel";
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState, PremiumToast } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { DEFAULT_AVATAR_SPEC, type AvatarSpec } from "@/lib/avatar";
+import { fetchAvatarSpec } from "@/lib/supabase/avatar-spec";
+import { useAppRouter, useHardwareBack } from "@/lib/nav/phone-embed";
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { invalidateProfileStarLevel } from "@/lib/persona/load-profile-star";
 import {
   PROFILE_DETAIL_FIELDS,
-  PROFILE_DETAIL_TOTAL,
-  countFilledDetails,
   type ProfileDetailKey,
   type ProfileDetails,
+  profileChoiceLabelKey,
 } from "@/lib/persona/profile-details";
-import { fetchProfileDetails, saveProfileDetails } from "@/lib/supabase/profile-details";
+import { fetchProfileDetailsSnapshot, saveProfileDetails } from "@/lib/supabase/profile-details";
 import {
   DISPLAY_NAME_MAX_LENGTH,
   fetchDisplayName,
   saveDisplayName,
 } from "@/lib/supabase/display-name";
-import { a11yValue } from "@/lib/a11y/accessibility-value";
-
-/** 선택지 값 -> 로케일 키. 값 자체를 화면에 보여주면 안 되므로 표로 잇는다. */
-const CHOICE_LABEL: Readonly<Record<string, string>> = {
-  morning: "rhythmMorning",
-  evening: "rhythmEvening",
-  flexible: "rhythmFlexible",
-  irregular: "rhythmIrregular",
-  dawn: "hoursDawn",
-  afternoon: "hoursAfternoon",
-  night: "hoursNight",
-  varies: "hoursVaries",
-  weekdays: "daysWeekdays",
-  weekends: "daysWeekends",
-  shift: "daysShift",
-};
-
-/**
- * `morning` 이 하루 리듬과 근무 시간대 양쪽에 있어서 키가 겹친다. 필드별로
- * 접두사를 붙여 각자의 라벨을 찾는다 - 표 하나로 뭉개면 "오전" 과 "아침형" 이
- * 같은 말이 된다.
- */
-function choiceLabelKey(field: ProfileDetailKey, value: string): string {
-  if (field === "workHours") {
-    const map: Record<string, string> = {
-      dawn: "hoursDawn",
-      morning: "hoursMorning",
-      afternoon: "hoursAfternoon",
-      evening: "hoursEvening",
-      night: "hoursNight",
-      varies: "hoursVaries",
-    };
-    return map[value] ?? value;
-  }
-  if (field === "workDays") {
-    const map: Record<string, string> = {
-      weekdays: "daysWeekdays",
-      weekends: "daysWeekends",
-      shift: "daysShift",
-      varies: "daysVaries",
-    };
-    return map[value] ?? value;
-  }
-  return CHOICE_LABEL[value] ?? value;
-}
+import { loadProfileIdentity } from "@/screens/deepspace/dds-profile-identity";
+import { STATUS_MESSAGE_MAX, fetchStatusMessage, saveStatusMessage } from "@/lib/supabase/status-message";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { fetchAccountBasics, type AccountBasics } from "@/lib/supabase/account-basics";
 
 export default function ProfileDetailsScreen() {
-  const { t } = useTranslation(["deepspace", "common"]);
+  // Phone-aware: inside the dashboard phone, cancel steps the phone's stack.
+  const router = useAppRouter();
+  const { t } = useTranslation(["deepspace", "common", "profile"]);
   const {
     userId,
     hasProfile,
     profileProbeFailed,
     loading: authLoading,
     refresh: refreshAuth,
+    isMinor,
   } = useAuth();
+  // 혼인 여부는 성인에게만(Simon Q-261007-02). 나이를 모르면(null) 묻지 않는다.
+  const adult = isMinor === false;
   const [details, setDetails] = useState<ProfileDetails>({});
+  const detailsRevision = useRef(0);
   const [loadState, setLoadState] = useState<{
     userId: string | null;
     status: "idle" | "loading" | "ready" | "error";
@@ -114,13 +76,19 @@ export default function ProfileDetailsScreen() {
     status: "idle" | "loading" | "ready" | "error";
   }>({ userId: null, status: "idle" });
   const [nameReloadKey, setNameReloadKey] = useState(0);
-  const [nameSaving, setNameSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "danger" } | null>(null);
   const regionRef = useRef<TextInput>(null);
   const householdRef = useRef<TextInput>(null);
   const activeUserIdRef = useRef(userId);
   const saveOperationRef = useRef(0);
-  const nameSaveOperationRef = useRef(0);
+  // 마지막으로 읽었거나 저장한 이름. 저장 버튼은 이름이 이것과 다를 때만 이름도 쓴다.
+  const savedNameRef = useRef("");
+  // 상태 메시지(0231, Simon 2026-10-07 정정: 카카오톡 상태 메시지). 닉네임처럼 읽은 값이 저장
+  // 기준값이고, 바뀐 경우에만 쓴다. 겹쳐도 되고 나이 제한도 없다.
+  const [statusMessage, setStatusMessage] = useState("");
+  const [statusLoad, setStatusLoad] = useState<{ userId: string | null; status: "idle" | "loading" | "ready" | "error" }>({ userId: null, status: "idle" });
+  const savedStatusRef = useRef("");
+  const [account, setAccount] = useState<{ owner: string; value: AccountBasics } | null>(null);
   const kbHeight = useKeyboard();
   activeUserIdRef.current = userId;
 
@@ -132,17 +100,17 @@ export default function ProfileDetailsScreen() {
       return;
     }
     router.replace("/profile");
-  }, []);
+  }, [router]);
 
-  useFocusEffect(
+  // Through the phone's claim stack inside the dashboard phone (see useHardwareBack).
+  useHardwareBack(
     useCallback(() => {
-      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-        onCancel();
-        return true;
-      });
-      return () => sub.remove();
+      onCancel();
+      return true;
     }, [onCancel]),
   );
+
+  useEffect(() => { setToast(null); }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -153,12 +121,12 @@ export default function ProfileDetailsScreen() {
     saveOperationRef.current += 1;
     setSaving(false);
     setDetails({});
-    setToast(null);
     setLoadState({ userId, status: "loading" });
-    void fetchProfileDetails(userId)
+    void fetchProfileDetailsSnapshot(userId)
       .then((d) => {
         if (!alive) return;
-        setDetails(d);
+        setDetails(d.details);
+        detailsRevision.current = d.revision;
         setLoadState({ userId, status: "ready" });
       })
       .catch(() => {
@@ -174,14 +142,18 @@ export default function ProfileDetailsScreen() {
   useEffect(() => {
     if (!userId) return;
     let alive = true;
-    nameSaveOperationRef.current += 1;
-    setNameSaving(false);
+    savedNameRef.current = "";
     setDisplayName("");
     setNameLoadState({ userId, status: "loading" });
     void fetchDisplayName(userId)
-      .then((name) => {
+      .then(async (name) => {
+        // 저장된 이름이 없으면 앱이 지금 이름으로 보여 주는 값(/profile 과 같은 규칙: 로그인
+        // 이메일 앞부분)을 칸에 미리 채운다(Simon 2026-10-07). 기준값도 그 값이라 사용자가
+        // 고치지 않으면 저장하지 않는다 - 이메일 앞부분이 저절로 이름으로 굳지 않게.
+        const shown = name?.trim() ? name : await loadProfileIdentity(userId).catch(() => null);
         if (!alive) return;
-        setDisplayName(name ?? "");
+        savedNameRef.current = shown ?? "";
+        setDisplayName(shown ?? "");
         setNameLoadState({ userId, status: "ready" });
       })
       .catch(() => {
@@ -192,7 +164,43 @@ export default function ProfileDetailsScreen() {
     return () => { alive = false; };
   }, [userId, nameReloadKey]);
 
-  const filled = useMemo(() => countFilledDetails(details), [details]);
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    savedStatusRef.current = "";
+    setStatusMessage("");
+    setStatusLoad({ userId, status: "loading" });
+    void fetchStatusMessage(userId)
+      .then((text) => {
+        if (!alive) return;
+        savedStatusRef.current = text ?? "";
+        setStatusMessage(text ?? "");
+        setStatusLoad({ userId, status: "ready" });
+      })
+      .catch(() => { if (alive) setStatusLoad({ userId, status: "error" }); });
+    // 이메일 · 생년월일은 보여주기만 한다(Q-261007-04). 못 읽으면 그 줄을 비워 둔다.
+    void fetchAccountBasics(userId).then(
+      (value) => { if (alive) setAccount({ owner: userId, value }); },
+      () => undefined,
+    );
+    return () => { alive = false; };
+  }, [userId]);
+
+  // 아바타 초상화(Simon 2026-10-07). 저장된 것이 없거나 못 읽으면 기본 아바타를 그린다 -
+  // 그림일 뿐이라 이 화면의 저장을 막지 않는다. 스튜디오에서 돌아오면 다시 읽는다.
+  const [avatar, setAvatar] = useState<{ owner: string; spec: AvatarSpec } | null>(null);
+  // 아바타는 상자 폭을 채우는 정사각형으로 그린다(Simon 2026-10-07). 폭은 재야 안다.
+  const [avatarWidth, setAvatarWidth] = useState(0);
+  useFocusEffect(useCallback(() => {
+    if (!userId) return;
+    let alive = true;
+    void fetchAvatarSpec(userId).then(
+      (spec) => { if (alive) setAvatar({ owner: userId, spec: spec ?? DEFAULT_AVATAR_SPEC }); },
+      () => { if (alive) setAvatar({ owner: userId, spec: DEFAULT_AVATAR_SPEC }); },
+    );
+    return () => { alive = false; };
+  }, [userId]));
+
   const readyForUser = loadState.userId === userId && loadState.status === "ready";
   const nameReadyForUser = nameLoadState.userId === userId && nameLoadState.status === "ready";
 
@@ -206,39 +214,53 @@ export default function ProfileDetailsScreen() {
     const operation = ++saveOperationRef.current;
     const isCurrentOperation = () =>
       saveOperationRef.current === operation && activeUserIdRef.current === saveUserId;
+    // 상태 메시지는 읽은 값에서 바뀐 경우에만 쓴다. 못 읽었으면 쓰지 않는다(있던 한 줄을 지우지 않게).
+    const statusReady = statusLoad.userId === saveUserId && statusLoad.status === "ready";
+    const statusChanged = statusReady && statusMessage.trim() !== savedStatusRef.current.trim();
     setSaving(true);
+    // 이름 저장 버튼은 없어졌다(Simon 2026-10-07). 이름도 이 저장이 함께 한다 - 확인된 주인의
+    // 이름을 읽었고(nameReadyForUser) 그 뒤 바뀐 경우에만. 읽기에 실패한 이름은 쓰지 않는다
+    // (빈 값으로 덮어쓰지 않기 위해).
+    let step: "details" | "name" | "status" = "details";
     try {
-      await saveProfileDetails(saveUserId, details);
+      const savedRevision = await saveProfileDetails(saveUserId, details, detailsRevision.current);
       if (!isCurrentOperation()) return;
+      detailsRevision.current = savedRevision;
+      if (nameReadyForUser && displayName !== savedNameRef.current) {
+        step = "name";
+        const savedName = await saveDisplayName(saveUserId, displayName);
+        if (!isCurrentOperation()) return;
+        savedNameRef.current = savedName ?? "";
+        setDisplayName(savedName ?? "");
+      }
+      if (statusChanged) {
+        step = "status";
+        await saveStatusMessage(saveUserId, statusMessage);
+        if (!isCurrentOperation()) return;
+        savedStatusRef.current = statusMessage.trim();
+        setStatusMessage(statusMessage.trim());
+      }
+      invalidateProfileStarLevel(saveUserId);
       setToast({ message: t("deepspace:profileDetails.saved"), tone: "success" });
-    } catch {
+    } catch (error) {
       if (!isCurrentOperation()) return;
-      setToast({ message: t("deepspace:profileDetails.saveError"), tone: "danger" });
+      if (error && typeof error === "object" && "message" in error && String(error.message).includes("profile_conflict")) {
+        setToast({ message: t("profile:contextImport.profileConflict"), tone: "danger" });
+        setReloadKey((key) => key + 1);
+        return;
+      }
+      setToast({
+        message: step === "name"
+          ? t("deepspace:profileDetails.nameSaveError")
+          : step === "status"
+            ? t("deepspace:profileDetails.statusMessageSaveError")
+            : t("deepspace:profileDetails.saveError"),
+        tone: "danger",
+      });
     } finally {
       if (isCurrentOperation()) setSaving(false);
     }
-  }, [userId, readyForUser, details, saving, t]);
-
-  const onSaveName = useCallback(async () => {
-    if (!userId || !nameReadyForUser || nameSaving) return;
-    const saveUserId = userId;
-    const operation = ++nameSaveOperationRef.current;
-    const isCurrentOperation = () =>
-      nameSaveOperationRef.current === operation && activeUserIdRef.current === saveUserId;
-    setNameSaving(true);
-    try {
-      const savedName = await saveDisplayName(saveUserId, displayName);
-      if (!isCurrentOperation()) return;
-      setDisplayName(savedName ?? "");
-      invalidateProfileStarLevel(saveUserId);
-      setToast({ message: t("deepspace:profileDetails.nameSaved"), tone: "success" });
-    } catch {
-      if (!isCurrentOperation()) return;
-      setToast({ message: t("deepspace:profileDetails.nameSaveError"), tone: "danger" });
-    } finally {
-      if (isCurrentOperation()) setNameSaving(false);
-    }
-  }, [userId, nameReadyForUser, nameSaving, displayName, t]);
+  }, [userId, readyForUser, nameReadyForUser, details, displayName, saving, t, statusLoad, statusMessage]);
 
   const title = t("deepspace:profileDetails.screenTitle");
 
@@ -351,10 +373,7 @@ export default function ProfileDetailsScreen() {
       title={title}
       onBack={onCancel}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.fill}
-      >
+      <KeyboardAvoidingArea style={styles.fill}>
         <ScrollView
           contentContainerStyle={[
             styles.content,
@@ -365,13 +384,57 @@ export default function ProfileDetailsScreen() {
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
         >
+          {/* 아바타(Simon 2026-10-07): 상자 폭을 채우는 정사각형, 오른쪽 위 연필로 꾸미기. */}
+          <PixelSurface
+            variant="frame"
+            style={styles.fieldSurface}
+            contentStyle={styles.fieldContent}
+          >
+            <View
+              style={styles.avatarBox}
+              onLayout={({ nativeEvent }) => {
+                const next = Math.floor(nativeEvent.layout.width);
+                setAvatarWidth((current) => (current === next ? current : next));
+              }}
+            >
+              {avatar?.owner === userId && avatarWidth > 0 ? (
+                <AvatarPreview spec={avatar.spec} size={avatarWidth} />
+              ) : (
+                <View style={[styles.avatarPlaceholder, { height: avatarWidth }]} />
+              )}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("profile:avatarStudio.label")}
+                onPress={() => router.push("/avatar-studio")}
+                style={styles.avatarEdit}
+              >
+                <PixelGlyph name="edit" size={24} color={m3.color.primary} />
+              </Pressable>
+            </View>
+          </PixelSurface>
+
+          {/* 이메일 · 생년월일은 보여주기만 한다(Simon Q-261007-04). */}
+          <PixelSurface
+            variant="frame"
+            style={styles.fieldSurface}
+            contentStyle={styles.fieldContent}
+          >
+            <View style={styles.readonlyRow}>
+              <Text style={styles.label}>{t("deepspace:profileDetails.emailLabel")}</Text>
+              <Text style={styles.readonlyValue} selectable>{account?.owner === userId ? account.value.email ?? "" : ""}</Text>
+            </View>
+            <View style={styles.readonlyRow}>
+              <Text style={styles.label}>{t("deepspace:profileDetails.birthDateLabel")}</Text>
+              <Text style={styles.readonlyValue}>{account?.owner === userId ? account.value.birthDate ?? "" : ""}</Text>
+            </View>
+          </PixelSurface>
+
           <PixelSurface
             variant="frame"
             style={styles.fieldSurface}
             contentStyle={styles.fieldContent}
           >
             <Text style={styles.label}>{t("deepspace:profileDetails.nameLabel")}</Text>
-            <Text style={styles.hint}>{t("deepspace:profileDetails.nameHint")}</Text>
             {nameLoadState.userId === userId && nameLoadState.status === "error" ? (
               <View style={styles.nameError} accessibilityRole="alert">
                 <Text style={styles.nameErrorText}>
@@ -384,76 +447,48 @@ export default function ProfileDetailsScreen() {
                 />
               </View>
             ) : nameReadyForUser ? (
-              <>
-                <Field
-                  value={displayName}
-                  onChangeText={(value) => setDisplayName(value.slice(0, DISPLAY_NAME_MAX_LENGTH))}
-                  maxLength={DISPLAY_NAME_MAX_LENGTH}
-                  editable={!nameSaving}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  accessibilityLabel={t("deepspace:profileDetails.nameLabel")}
-                />
-                <MdButton
-                  variant="outlined"
-                  label={t("deepspace:profileDetails.nameSave")}
-                  loading={nameSaving}
-                  disabled={!nameReadyForUser || nameSaving}
-                  onPress={() => void onSaveName()}
-                  style={styles.saveButton}
-                />
-              </>
+              <Field
+                value={displayName}
+                onChangeText={(value) => setDisplayName(value.slice(0, DISPLAY_NAME_MAX_LENGTH))}
+                maxLength={DISPLAY_NAME_MAX_LENGTH}
+                editable={!saving}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                accessibilityLabel={t("deepspace:profileDetails.nameLabel")}
+              />
             ) : (
               <Text style={styles.hint}>{t("deepspace:profileDetails.nameLoading")}</Text>
             )}
           </PixelSurface>
 
-          {/* profilesetup의 inset+진행 레일 패턴만 파생한다. 아바타·핸들·목업
-              진행률은 만들지 않고 실제 생활정보 7칸만 센다. */}
+          {/* 상태 메시지(0231): 프로필에 보일 짧은 한 줄. 겹쳐도 되고 나이 제한이 없다. */}
           <PixelSurface
-            variant="inset"
-            style={styles.summarySurface}
-            contentStyle={styles.summaryContent}
+            variant="frame"
+            style={styles.fieldSurface}
+            contentStyle={styles.fieldContent}
           >
-            <Text style={styles.intro}>{t("deepspace:profileDetails.intro")}</Text>
-            <View style={styles.progressRow}>
-                  <View
-                    accessible
-                    accessibilityRole="progressbar"
-                    accessibilityLabel={title}
-                    {...a11yValue({
-                      text: t("deepspace:profileDetails.progress", {
-                        filled,
-                        total: PROFILE_DETAIL_TOTAL,
-                      }),
-                    })}
-                style={styles.progressTrack}
-              >
-                {PROFILE_DETAIL_FIELDS.map((field) => (
-                  <View
-                    key={field.key}
-                    style={[
-                      styles.progressCell,
-                      details[field.key]?.trim() ? styles.progressCellDone : null,
-                    ]}
-                  />
-                ))}
-              </View>
-              <Text
-                accessible={false}
-                accessibilityElementsHidden
-                importantForAccessibility="no"
-                style={styles.progress}
-              >
-                {t("deepspace:profileDetails.progress", { filled, total: PROFILE_DETAIL_TOTAL })}
+            <Text style={styles.label}>{t("deepspace:profileDetails.statusMessageLabel")}</Text>
+            <Text style={styles.hint}>{t("deepspace:profileDetails.statusMessageHint")}</Text>
+            {statusLoad.userId === userId && statusLoad.status === "ready" ? (
+              <Field
+                value={statusMessage}
+                onChangeText={setStatusMessage}
+                maxLength={STATUS_MESSAGE_MAX}
+                editable={!saving}
+                returnKeyType="done"
+                accessibilityLabel={t("deepspace:profileDetails.statusMessageLabel")}
+              />
+            ) : (
+              <Text style={styles.hint}>
+                {statusLoad.status === "error" ? t("deepspace:profileDetails.statusMessageLoadError") : t("deepspace:profileDetails.nameLoading")}
               </Text>
-            </View>
-            {/* 무엇을 안 묻는지도 말해 준다. 안 묻는다는 사실은 물어보는 것만큼 중요하다. */}
-            <Text style={styles.notSensitive}>{t("deepspace:profileDetails.notSensitive")}</Text>
+            )}
           </PixelSurface>
 
-          {PROFILE_DETAIL_FIELDS.map((field) => {
+          {/* 안내 · 진행 칸 · 민감정보 안내 상자는 Simon 이 걷어냈다(2026-10-07). 민감정보는 여전히
+              묻지 않는다 - 항목 목록(PROFILE_DETAIL_FIELDS)에 없다. */}
+          {PROFILE_DETAIL_FIELDS.filter((field) => !field.adultOnly || adult).map((field) => {
             const value = details[field.key] ?? "";
             return (
               <PixelSurface
@@ -495,7 +530,7 @@ export default function ProfileDetailsScreen() {
                         key={choice}
                         kind="filter"
                         style={styles.choiceChip}
-                        label={t(`deepspace:profileDetails.${choiceLabelKey(field.key, choice)}`)}
+                        label={t(`deepspace:profileDetails.${profileChoiceLabelKey(field.key, choice)}`)}
                         selected={value === choice}
                         // 같은 칩을 다시 누르면 해제된다. 한 번 고르면 못 무르는
                         // 선택지는 "선택 입력" 이 아니다. 저장 중에는 핸들러 자체를
@@ -520,7 +555,7 @@ export default function ProfileDetailsScreen() {
             style={styles.saveButton}
           />
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
       {toast ? <PremiumToast message={toast.message} tone={toast.tone} /> : null}
     </DeepSpaceScreen>
   );
@@ -551,40 +586,19 @@ const styles = StyleSheet.create({
       ? { width: "100%" as const, maxWidth: 520, alignSelf: "center" as const }
       : {}),
   },
-  summarySurface: { alignSelf: "stretch" },
-  summaryContent: { gap: deepSpaceSpacing.sm, padding: deepSpaceSpacing.md },
-  intro: {
-    fontSize: m3.type.bodyLarge.size,
-    lineHeight: m3.type.bodyLarge.line,
-    paddingBottom: m3.spacing.s1,
-    color: deepSpace.textHi,
-  },
-  progressRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
-  progressTrack: {
-    flex: 1,
-    height: m3.spacing.s4,
-    flexDirection: "row",
-    gap: m3.spacing.s1,
-    padding: m3.spacing.s1,
-    backgroundColor: m3.color.surface,
-  },
-  progressCell: { flex: 1, backgroundColor: deepSpace.cardLine },
-  progressCellDone: { backgroundColor: m3.color.primary },
-  progress: {
-    flexShrink: 0,
-    fontSize: m3.type.bodySmall.size,
-    lineHeight: m3.type.bodySmall.line,
-    paddingBottom: m3.spacing.s1,
-    color: deepSpace.accentSoft,
-  },
-  notSensitive: {
-    fontSize: m3.type.bodySmall.size,
-    lineHeight: m3.type.bodySmall.line,
-    paddingBottom: m3.spacing.s1,
-    color: deepSpace.textLo,
-  },
   fieldSurface: { alignSelf: "stretch" },
   fieldContent: { gap: m3.spacing.s2, padding: deepSpaceSpacing.md },
+  readonlyRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: m3.spacing.s2 },
+  readonlyValue: {
+    flexShrink: 1,
+    textAlign: "right",
+    fontSize: m3.type.bodyMedium.size,
+    lineHeight: m3.type.bodyMedium.line,
+    color: deepSpace.textLo,
+  },
+  avatarBox: { alignSelf: "stretch" },
+  avatarPlaceholder: { alignSelf: "stretch" },
+  avatarEdit: { position: "absolute", top: 0, right: 0, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   nameError: { gap: m3.spacing.s2 },
   nameErrorText: { color: m3.color.error, lineHeight: m3.type.bodyMedium.line },
   label: {

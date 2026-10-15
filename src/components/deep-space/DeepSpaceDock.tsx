@@ -1,6 +1,6 @@
 /**
  * STEP 4 — <DeepSpaceDock /> : the bottom 5-tab dock from
- * legacy/design/prototype.dc.html (홈 ✦ · 담기 ✎ · 세컨비 💬 · 나 ◐ · IDEN 🪪). The
+ * E:/Legacy/2ndB/legacy/design/prototype.dc.html (홈 ✦ · 담기 ✎ · 세컨비 💬 · 나 ◐ · IDEN 🪪). The
  * design used emoji placeholders; per DESIGN.md (emoji-as-decoration banned) the
  * glyphs are drawn as **integer rects** (PIXEL-CLAY rule 1) tinted with the
  * caller's color. The coordinates live in components/pixel/pixel-glyphs.ts.

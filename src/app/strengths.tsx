@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 강점 (rev2 P3b): strengths self-report + populated read.
 //
 // Flow: on mount, load the latest strengths self-report. If there is NONE, the
@@ -9,10 +10,11 @@
 // HONESTY: this is a self-report ESTIMATE of the user's OWN strengths — not a
 // medical assessment. Confidence is shown and capped well under 100%; the
 // populated layout only ever shows the user's real answers (strengths-survey.ts).
-import { useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Button } from "@/components/ui/Button";
@@ -23,6 +25,7 @@ import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tok
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { AxisCheckScreen } from "@/components/deep-space/AxisCheck";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useHardwareBack } from "@/lib/nav/phone-embed";
 import { createRecord } from "@/lib/records/create";
 import { loadLatestStrengths, type LoadedStrengths } from "@/lib/persona/build";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -54,21 +57,21 @@ const SCALE: { value: number; label: Record<AvailableUiLocale, string> }[] = [
     label: {
       en: "Not like me at all",
       ko: "전혀 나 같지 않다",
-      es: "No se parece nada a mi",
+      es: "No se parece nada a mí",
       pt: "Nada parecido comigo",
       id: "Sama sekali bukan saya",
     },
   },
   {
     value: 2,
-    label: { en: "Unlike me", ko: "나 같지 않다", es: "No se parece a mi", pt: "Pouco parecido comigo", id: "Kurang seperti saya" },
+    label: { en: "Unlike me", ko: "나 같지 않다", es: "No se parece a mí", pt: "Pouco parecido comigo", id: "Kurang seperti saya" },
   },
   {
     value: 3,
     label: {
       en: "Somewhat unlike me",
       ko: "별로 나 같지 않다",
-      es: "Se parece poco a mi",
+      es: "Se parece poco a mí",
       pt: "Um pouco diferente de mim",
       id: "Agak kurang seperti saya",
     },
@@ -78,21 +81,21 @@ const SCALE: { value: number; label: Record<AvailableUiLocale, string> }[] = [
     label: {
       en: "Somewhat like me",
       ko: "조금 나 같다",
-      es: "Se parece algo a mi",
+      es: "Se parece algo a mí",
       pt: "Um pouco parecido comigo",
       id: "Agak seperti saya",
     },
   },
   {
     value: 5,
-    label: { en: "Like me", ko: "나 같다", es: "Se parece a mi", pt: "Parecido comigo", id: "Seperti saya" },
+    label: { en: "Like me", ko: "나 같다", es: "Se parece a mí", pt: "Parecido comigo", id: "Seperti saya" },
   },
   {
     value: 6,
     label: {
       en: "Very much like me",
       ko: "매우 나 같다",
-      es: "Se parece mucho a mi",
+      es: "Se parece mucho a mí",
       pt: "Muito parecido comigo",
       id: "Sangat seperti saya",
     },
@@ -141,13 +144,13 @@ const STRENGTHS_COPY: Record<
     loading: "불러오는 중...",
     topic: "강점 자기보고",
     conclusion: "자기보고 추정 (진단 아님).",
-    saveError: "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요.",
+    saveError: "저장하지 못했습니다. 답변은 그대로 남아 있으니 다시 시도해 주세요.",
     title: "강점 자기보고",
     description:
-      "어떤 강점이 나와 얼마나 맞는지 스스로 답하는 짧은 자기보고예요. 각 문장이 나와 얼마나 맞는지 1(전혀 나 같지 않다) ~ 6(매우 나 같다)로 답해 주세요. 정답은 없고, 진단이 아니라 추정이에요.",
+      "어떤 강점이 나와 얼마나 맞는지 스스로 답하는 짧은 자기보고입니다. 각 문장이 나와 얼마나 맞는지 1(전혀 나 같지 않다) ~ 6(매우 나 같다)로 답해 주세요. 정답은 없고, 진단이 아니라 추정입니다.",
     citation: "성격 강점 관점에서 착안 · 자기보고 추정",
     prompt: "다음 문장이 당신과 얼마나 맞는지 골라주세요.",
-    saved: "강점 자기보고를 저장했어요.",
+    saved: "강점 자기보고를 저장했습니다.",
     exitLabel: "종료 확인",
     exitTitle: "그만두시겠어요?",
     exitBody: "정말 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다.",
@@ -157,34 +160,34 @@ const STRENGTHS_COPY: Record<
   es: {
     loading: "Cargando...",
     topic: "Autoinforme de fortalezas",
-    conclusion: "Estimacion de autoinforme (no es una evaluacion medica).",
-    saveError: "No se pudo guardar. Tus respuestas siguen aqui; intentalo de nuevo.",
+    conclusion: "Estimación de autoinforme (no es una evaluación médica).",
+    saveError: "No se pudo guardar. Tus respuestas siguen aquí; inténtalo de nuevo.",
     title: "Autoinforme de fortalezas",
     description:
-      "Un autoinforme breve sobre que fortalezas se sienten propias. Valora cada frase del 1 (no se parece nada a mi) al 6 (se parece mucho a mi). No hay respuestas correctas; es una estimacion, no una evaluacion medica.",
-    citation: "Basado en una mirada de fortalezas personales · estimacion de autoinforme",
-    prompt: "¿Que tan bien encaja cada frase contigo?",
-    saved: "Tu autoinforme de fortalezas se guardo.",
-    exitLabel: "Confirmacion de salida",
+      "Un autoinforme breve sobre qué fortalezas se sienten propias. Valora cada frase del 1 (no se parece nada a mí) al 6 (se parece mucho a mí). No hay respuestas correctas; es una estimación, no una evaluación médica.",
+    citation: "Basado en una mirada de fortalezas personales · estimación de autoinforme",
+    prompt: "¿Qué tan bien encaja cada frase contigo?",
+    saved: "Tu autoinforme de fortalezas se guardó.",
+    exitLabel: "Confirmación de salida",
     exitTitle: "¿Salir de la encuesta?",
-    exitBody: "¿Seguro que quieres salir? Tu progreso no se guardara.",
+    exitBody: "¿Seguro que quieres salir? Tu progreso no se guardará.",
     keepGoing: "Continuar",
     exit: "Salir",
   },
   pt: {
     loading: "Carregando...",
     topic: "Autorrelato de fortalezas",
-    conclusion: "Estimativa de autorrelato (nao e uma avaliacao medica).",
-    saveError: "Nao foi possivel salvar. Suas respostas ainda estao aqui; tente novamente.",
+    conclusion: "Estimativa de autorrelato (não é uma avaliação médica).",
+    saveError: "Não foi possível salvar. Suas respostas ainda estão aqui; tente novamente.",
     title: "Autorrelato de fortalezas",
     description:
-      "Um autorrelato curto sobre quais fortalezas parecem suas. Avalie cada frase de 1 (nada parecido comigo) a 6 (muito parecido comigo). Nao ha respostas certas; e uma estimativa, nao uma avaliacao medica.",
-    citation: "Baseado em uma visao de fortalezas pessoais · estimativa de autorrelato",
-    prompt: "Quanto cada frase combina com voce?",
+      "Um autorrelato curto sobre quais fortalezas parecem suas. Avalie cada frase de 1 (nada parecido comigo) a 6 (muito parecido comigo). Não há respostas certas; é uma estimativa, não uma avaliação médica.",
+    citation: "Baseado em uma visão de fortalezas pessoais · estimativa de autorrelato",
+    prompt: "Quanto cada frase combina com você?",
     saved: "Seu autorrelato de fortalezas foi salvo.",
-    exitLabel: "Confirmacao de saida",
+    exitLabel: "Confirmação de saída",
     exitTitle: "Sair da pesquisa?",
-    exitBody: "Tem certeza de que quer sair? Seu progresso nao sera salvo.",
+    exitBody: "Tem certeza de que quer sair? Seu progresso não será salvo.",
     keepGoing: "Continuar",
     exit: "Sair",
   },
@@ -213,6 +216,8 @@ const STRENGTHS_COPY: Record<
 // fires after the save celebration so the caller reloads into the populated lens;
 // onCancel backs out of the intro (caller shows the not-measured state).
 function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete: () => void; onCancel: () => void; registerBackGuard?: (fn: (() => boolean) | null) => void }) {
+  // Phone-aware: inside the dashboard phone the first-star nudge opens in the phone.
+  const router = useAppRouter();
   const { i18n } = useTranslation("home");
   const { userId, loading } = useAuth();
   const displayLocale = displayLocaleFor(i18n.language);
@@ -230,19 +235,19 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
   const result = useMemo(() => scoreStrengths(responses), [responses]);
 
   // Android hardware back: while mid-survey with answers, confirm before losing.
-  useEffect(() => {
-    if (!started || Object.keys(responses).length === 0 || saved) return;
-    const onBackPress = () => {
-      setExitConfirmOpen(true);
-      return true;
-    };
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => subscription.remove();
-  }, [started, responses, saved]);
+  // useHardwareBack removes the listener on blur and unmount, and inside the
+  // dashboard phone claims Back through the phone instead. Nothing to lose ->
+  // false, so Back keeps its default.
+  useHardwareBack(useCallback(() => {
+    if (!started || Object.keys(responses).length === 0 || saved) return false;
+    setExitConfirmOpen(true);
+    return true;
+  }, [started, responses, saved]));
 
   // med#8: the top app-bar back arrow must honor the same mid-survey exit
   // confirm as the hardware back — it used to bypass it and silently drop
-  // every answer in progress.
+  // every answer in progress. Inside the dashboard phone the same onBack is
+  // the phone's back row, so the confirm holds there too.
   useEffect(() => {
     if (!registerBackGuard) return;
     registerBackGuard(() => {
@@ -331,7 +336,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
       ) : null}
 
       {started ? (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingArea style={{ flex: 1 }}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
               {copy.title}
@@ -380,7 +385,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
               );
             }}
           />
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingArea>
       ) : null}
 
       {saved ? (
@@ -436,6 +441,8 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
 }
 
 export default function StrengthsCheck() {
+  // Phone-aware: inside the dashboard phone Back steps the phone's stack.
+  const router = useAppRouter();
   const { t } = useTranslation("home");
   const { userId, loading } = useAuth();
   // undefined = still loading; null = no stored result; object = has result.

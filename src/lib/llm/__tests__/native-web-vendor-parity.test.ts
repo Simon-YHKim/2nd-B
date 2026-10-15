@@ -45,11 +45,8 @@ const WEB_POSTURE: Record<string, string> = {
   EXPO_PUBLIC_MULTIMODAL_VENDOR: "openai",
   EXPO_PUBLIC_BACKBONE_VENDOR: "openai",
   EXPO_PUBLIC_EMBED_VENDOR: "openai",
-  // Moved out of INTENDED_DIFFERENCES on 2026-08-24: the console's alpha order
-  // asked for the current GH variables to reach the eas.json path too, naming
-  // CROSSCHECK=1 among them. Its blast radius is one purpose
-  // (CROSSCHECKABLE = persona_synthesis) at up to 2 rounds, not 3x everything.
-  EXPO_PUBLIC_CROSSCHECK: "1",
+  // EXPO_PUBLIC_CROSSCHECK left on 2026-10-07 (S0.5): crosscheck.ts is gone, so
+  // no build reads it. The repo Variable stays; see docs/LLM-SEAT-RETIREMENT-S05.md.
   // Promoted from WEB_POSTURE_REQUESTED on 2026-08-29: the repo Variable was
   // set at 12:33 KST (`gh variable list` → none, 2026-08-29T03:33:19Z), ten
   // minutes after this file had recorded it as unset. WHO set it is unknown —

@@ -51,7 +51,9 @@ describe("0091_chat_ad_bonus_ssv.sql - structure", () => {
 
 describe("rewarded-ssv edge function - kind routing", () => {
   test("delegates opaque ticket resolution and kind routing to one atomic RPC", () => {
-    const settleAt = edge.indexOf("settle_reward_ssv_ticket_v2");
+    // Since 0213 the Edge settles through v3, which checks the callback
+    // timestamp and then runs v2's single atomic resolution.
+    const settleAt = edge.indexOf("settle_reward_ssv_ticket_v3");
 
     expect(settleAt).toBeGreaterThan(0);
     expect(edge).not.toContain("callbackUserId");

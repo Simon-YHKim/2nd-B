@@ -1,7 +1,8 @@
+import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router, type Href } from "expo-router";
+import { Redirect, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -11,8 +12,10 @@ import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 
+import { AccountExportPanel } from "./dds-account-export";
 import {
   DATA_RIGHTS,
   DATA_SCREEN_META,
@@ -20,9 +23,16 @@ import {
 } from "./dds-data-content";
 
 export function DeepSpaceDataScreen() {
+  // Phone-aware: inside the dashboard phone, links and back stay in the phone.
+  const router = useAppRouter();
   const { t } = useTranslation(["data", "common", "deepspace", "consent", "iden"]);
   const { userId, loading } = useAuth();
-  const [expandedId, setExpandedId] = useState<DataRightId | null>(null);
+  // ?open=<card> opens that card (the manual's shortcut and the old /account?tool=export link
+  // open the export card).
+  const { open } = useScreenParams<{ open?: string }>();
+  const [expandedId, setExpandedId] = useState<DataRightId | null>(
+    () => DATA_RIGHTS.find((item) => item.id === open)?.id ?? null,
+  );
 
   if (loading) {
     return (
@@ -35,8 +45,10 @@ export function DeepSpaceDataScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
+  // ownBack: the top bar below draws this screen's back button, so the phone
+  // shell adds no second one. The loading state above has none and keeps it.
   return (
-    <DeepSpaceScreen active="settings" header="none">
+    <DeepSpaceScreen active="settings" header="none" ownBack>
       <View style={styles.screen}>
         <View style={styles.topBar}>
           <PixelPressable
@@ -76,6 +88,7 @@ export function DeepSpaceDataScreen() {
           <View style={styles.rightsList}>
             {DATA_RIGHTS.map((item) => {
               const expanded = item.id === expandedId;
+              const route = item.route;
               const accent = item.danger ? m3.color.error : m3.color.primary;
               return (
                 <View key={item.id} style={styles.rightBlock}>
@@ -105,34 +118,42 @@ export function DeepSpaceDataScreen() {
                     />
                   </PixelPressable>
 
-                  {expanded ? (
+                  {/* The export card's detail is folded by hiding it, not removing it: an export in
+                      progress keeps going and its result lines stay (a partial bundle's warning sits
+                      on the same screen as the delete card). */}
+                  {expanded || item.id === "account-export" ? (
                     <PixelSurface
                       variant="inset"
-                      style={styles.detailSurface}
+                      style={[styles.detailSurface, !expanded && styles.detailFolded]}
                       contentStyle={styles.detailContent}
                     >
                       <RNText style={[m3TextStyle("bodyMedium"), styles.detailText]}>
                         {t(item.bodyKey)}
                       </RNText>
-                      <PixelPressable
-                        variant="frame"
-                        onPress={() => router.push(item.route as Href)}
-                        accessibilityLabel={t(item.actionLabelKey)}
-                        accessibilityHint={t(item.actionHintKey)}
-                        accessibilityRole="link"
-                        fullWidth
-                        contentStyle={styles.actionContent}
-                      >
-                        <RNText
-                          style={[
-                            m3TextStyle("labelLarge"),
-                            item.danger ? styles.dangerAction : styles.actionText,
-                          ]}
+                      {item.id === "account-export" ? (
+                        // The export runs here, in the card (Q-261014-61, Simon 2026-10-14).
+                        <AccountExportPanel />
+                      ) : route ? (
+                        <PixelPressable
+                          variant="frame"
+                          onPress={() => router.push(route as Href)}
+                          accessibilityLabel={t(item.actionLabelKey)}
+                          accessibilityHint={t(item.actionHintKey)}
+                          accessibilityRole="link"
+                          fullWidth
+                          contentStyle={styles.actionContent}
                         >
-                          {t(item.actionLabelKey)}
-                        </RNText>
-                        <PixelGlyph name="arrowForward" color={accent} size={24} />
-                      </PixelPressable>
+                          <RNText
+                            style={[
+                              m3TextStyle("labelLarge"),
+                              item.danger ? styles.dangerAction : styles.actionText,
+                            ]}
+                          >
+                            {t(item.actionLabelKey)}
+                          </RNText>
+                          <PixelGlyph name="arrowForward" color={accent} size={24} />
+                        </PixelPressable>
+                      ) : null}
                     </PixelSurface>
                   ) : null}
                 </View>
@@ -146,6 +167,7 @@ export function DeepSpaceDataScreen() {
 }
 
 const styles = StyleSheet.create({
+  detailFolded: { display: "none" },
   screen: { flex: 1, minHeight: 0 },
   centerState: { flex: 1, alignItems: "center", justifyContent: "center" },
   topBar: {

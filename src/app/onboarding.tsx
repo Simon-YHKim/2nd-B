@@ -1,11 +1,16 @@
-// First-run onboarding stays a PRE-AUTH three-slide carousel. Its final frame is
-// only a handoff: date-of-birth input, consent, storage, and age-tier decisions
-// remain owned by the real /sign-up and /complete-profile boundaries (C10).
+// First-run onboarding is a three-slide carousel. It is not gated on auth, but
+// since the login wall (Simon 2026-07-15: "/" sends signed-out visitors to
+// /sign-in) the usual way in is AFTER sign-in, as a welcome; a signed-out visitor
+// only arrives by opening /onboarding directly. Its final frame is only a
+// handoff: date-of-birth input, consent, storage, and age-tier decisions remain
+// owned by the real /sign-up and /complete-profile boundaries (C10).
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BackHandler, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
+import { router } from "expo-router";
+import { RedirectHome } from "@/lib/nav/go-home";
 
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -13,36 +18,33 @@ import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { Text } from "@/components/ui/Text";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { canonFlows } from "@/lib/canon";
 import { markOnboardingComplete, useOnboardingComplete } from "@/lib/onboarding/state";
+import { welcomeCueAllowed } from "@/lib/audio/app-cues";
+import { requestGlobalCue } from "@/lib/audio/global-cues";
 import { m3 } from "@/lib/theme/m3";
+
+type SlideCopy = { tag: string; title: string; body: string };
 
 interface Slide {
   icon: AnyGlyphName;
-  tag: { ko: string; en: string };
-  title: { ko: string; en: string };
-  body: { ko: string; en: string };
+  /** Verbatim canon copy, painted when the UI is Korean. */
+  ko: SlideCopy;
+  /** deepspace keys painted in every other language; null past the key list. */
+  keys: SlideCopy | null;
 }
 
-// KO is verbatim canon copy. The existing approved EN mirror remains index-
-// aligned; the final handoff uses the five-locale onboarding/auth resources.
-const SLIDE_EN: { tag: string; title: string; body: string }[] = [
-  {
-    tag: "POLASCOPE",
-    title: "An AI that gets\nto know you",
-    body: "SecondB uses your notes\nto help organize your thoughts\nand plan your day.",
-  },
-  {
-    tag: "Getting to know you",
-    title: "Tell your story\nacross seven stars",
-    body: "School years, work, or now:\nchoose a star to start with.",
-  },
-  {
-    tag: "Your choice",
-    title: "AI summaries need\nyour approval",
-    body: "A summary about you is a proposal.\nIt is applied only if you approve it.",
-  },
+// KO is verbatim canon copy. Every other language reads these deepspace keys,
+// index-aligned with the canon slides (Q-261005-01 = A, R2B-03). Until
+// 2026-10-06 this was an EN mirror, so es/pt/id saw English slides under a
+// translated "Next" button. The first tag is the brand label every locale
+// already shares.
+const SLIDE_KEYS: SlideCopy[] = [
+  { tag: "auth.brandLabel", title: "onboarding.slides.intro.title", body: "onboarding.slides.intro.body" },
+  { tag: "onboarding.slides.stars.tag", title: "onboarding.slides.stars.title", body: "onboarding.slides.stars.body" },
+  { tag: "onboarding.slides.approve.tag", title: "onboarding.slides.approve.title", body: "onboarding.slides.approve.body" },
 ];
 
 const SLIDES: Slide[] = canonFlows.onboardingSlides.map((slide, index) => ({
@@ -51,9 +53,8 @@ const SLIDES: Slide[] = canonFlows.onboardingSlides.map((slide, index) => ({
   // 넣으면 그대로 렌더까지 흘러갔다. `canonGlyph` 는 그려진 이름으로 좁히고,
   // 없으면 `sparkle` 로 떨어뜨린다.
   icon: canonGlyph(slide.icon),
-  tag: { ko: slide.tag, en: SLIDE_EN[index]?.tag ?? slide.tag },
-  title: { ko: slide.title, en: SLIDE_EN[index]?.title ?? slide.title },
-  body: { ko: slide.body, en: SLIDE_EN[index]?.body ?? slide.body },
+  ko: { tag: slide.tag, title: slide.title, body: slide.body },
+  keys: SLIDE_KEYS[index] ?? null,
 }));
 
 const AUTH_STEP = SLIDES.length;
@@ -61,17 +62,33 @@ type HandoffDestination = "/" | "/sign-up" | "/sign-in";
 
 export default function Onboarding() {
   const { t, i18n } = useTranslation(["deepspace", "auth", "common"]);
-  const locale = i18n.resolvedLanguage?.split("-")[0] === "ko" ? "ko" : "en";
-  // check:constraints pins the literal Korean skip label in this file.
-  const skipLabel = locale === "ko" ? "건너뛰기" : "Skip";
+  const ko = renderedUiLanguage(i18n) === "ko";
+  // check:constraints pins the literal Korean skip label in this file; every
+  // other language reads onboarding.skip.
+  const skipLabel = ko ? "건너뛰기" : t("onboarding.skip");
   const { userId, loading } = useAuth();
-  const onboardingComplete = useOnboardingComplete();
+  // Signed in: has this ACCOUNT finished the welcome (server, 0219)? Signed out:
+  // this device's flag. The first answer for an owner stays while the screen is
+  // up, so finishing here does not swap the closing slide for a redirect.
+  const onboardingComplete = useOnboardingComplete(userId, !loading);
   const [step, setStep] = useState(0);
+  const [stepMotion, setStepMotion] = useState<"page-forward" | "page-back">("page-forward");
+  // 환영 소리(Q-261006-06)는 건너뛰기를 누른 사람에게는 내지 않는다. 건너뛰기도 같은 마지막
+  // 단계로 이어지므로, 눌렀다는 사실을 따로 기억한다.
+  const [skipped, setSkipped] = useState(false);
+  // A signed-in finish waits for the server (design 5.3, 8 seconds). If it is not
+  // stored, the screen says so and offers retry or home. Going home is safe: the
+  // welcome does not open by itself again either way (its grant is stored).
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const ownerRef = useRef(userId);
+  ownerRef.current = userId;
 
   // Android hardware Back reverses one slide, including the final handoff frame.
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       if (step > 0) {
+        setStepMotion("page-back");
         setStep((current) => current - 1);
         return true;
       }
@@ -81,12 +98,29 @@ export default function Onboarding() {
   }, [step]);
 
   if (loading || onboardingComplete === null) return <InlineLoader />;
-  if (onboardingComplete === true) return <Redirect href="/" />;
+  if (onboardingComplete === true) return <RedirectHome />;
 
   // Completion is deliberately written only when a real destination is chosen.
   // Merely mounting the route, paging, or skipping to the handoff does not write.
-  function finishOnboarding(destination: HandoffDestination) {
-    markOnboardingComplete();
+  async function finishOnboarding(destination: HandoffDestination) {
+    if (saving) return;
+    const owner = userId;
+    setSaving(true);
+    setSaveFailed(false);
+    const stored = await markOnboardingComplete(owner, skipped ? "skipped" : "completed");
+    setSaving(false);
+    // The sign-in changed while this was out: this answer is not for the screen now.
+    if (ownerRef.current !== owner) return;
+    if (!stored) {
+      setSaveFailed(true);
+      return;
+    }
+    leaveOnboarding(destination);
+  }
+
+  function leaveOnboarding(destination: HandoffDestination) {
+    // 누르는 순간 화면이 바뀌어 이 화면의 소리는 잘린다. 루트의 GlobalCueHost 가 끝까지 낸다.
+    if (welcomeCueAllowed({ destination, skipped })) requestGlobalCue("onboardingWelcome");
     if (destination === "/") {
       router.replace("/");
       return;
@@ -100,6 +134,8 @@ export default function Onboarding() {
 
   const isAuth = step >= AUTH_STEP;
   const slide = SLIDES[Math.min(step, AUTH_STEP - 1)];
+  const slideCopy = (field: keyof SlideCopy): string =>
+    ko || !slide.keys ? slide.ko[field] : t(slide.keys[field]);
   const nextHint = t("onboarding.nextHint");
   const skipHint = t("onboarding.skipHint");
   const authHint = t("onboarding.authHint");
@@ -113,7 +149,7 @@ export default function Onboarding() {
             background={m3.color.surfaceContainer}
             accessibilityLabel={skipLabel}
             accessibilityHint={skipHint}
-            onPress={() => setStep(AUTH_STEP)}
+            onPress={() => { setSkipped(true); setStepMotion("page-forward"); setStep(AUTH_STEP); }}
             contentStyle={styles.skipContent}
           >
             <Text variant="caption" style={styles.skipText}>{skipLabel}</Text>
@@ -121,6 +157,7 @@ export default function Onboarding() {
         ) : null}
       </View>
 
+      <SceneTransition transitionKey={step} kind={stepMotion} animateOnMount={false} style={{ flexGrow: 1 }}>
       {isAuth ? (
         <View style={styles.finalHero}>
           <SecondbHead
@@ -133,18 +170,24 @@ export default function Onboarding() {
             <Text variant="heading" style={styles.title}>{t("onboarding.authTitle")}</Text>
             <Text variant="body" style={styles.body}>{t("onboarding.authBody")}</Text>
           </View>
-          <PixelSurface
-            variant="inset"
-            background={m3.color.surfaceVariant}
-            style={styles.ageSurface}
-            contentStyle={styles.ageContent}
-          >
-            <PixelGlyph name="today" size={24} color={m3.color.primary} />
-            <View style={styles.ageCopy}>
-              <Text variant="body" style={styles.ageTitle}>{t("auth:signUp.ageNotice")}</Text>
-              <Text variant="caption" style={styles.ageHelper}>{t("auth:signUp.birthDateHelper")}</Text>
-            </View>
-          </PixelSurface>
+          {/* The sign-up age floor is for someone about to sign up, so only a
+              signed-out visitor sees it, and it is said once. The login wall
+              ("/" sends signed-out users to /sign-in) means most people reach
+              this slide already signed in, where it read as a second, irrelevant
+              notice; and the helper line repeated the same floor (QA 261004 W-11). */}
+          {userId ? null : (
+            <PixelSurface
+              variant="inset"
+              background={m3.color.surfaceVariant}
+              style={styles.ageSurface}
+              contentStyle={styles.ageContent}
+            >
+              <PixelGlyph name="today" size={24} color={m3.color.primary} />
+              <View style={styles.ageCopy}>
+                <Text variant="body" style={styles.ageTitle}>{t("auth:signUp.ageNotice")}</Text>
+              </View>
+            </PixelSurface>
+          )}
         </View>
       ) : (
         <View style={styles.slideHero}>
@@ -156,18 +199,50 @@ export default function Onboarding() {
           >
             <PixelGlyph name={slide.icon} size={48} color={m3.accent.entryTag} />
           </PixelSurface>
-          <Text variant="caption" style={styles.tag}>{slide.tag[locale]}</Text>
-          <Text variant="heading" style={styles.title}>{slide.title[locale]}</Text>
-          <Text variant="body" style={styles.body}>{slide.body[locale]}</Text>
+          <Text variant="caption" style={styles.tag}>{slideCopy("tag")}</Text>
+          <Text variant="heading" style={styles.title}>{slideCopy("title")}</Text>
+          <Text variant="body" style={styles.body}>{slideCopy("body")}</Text>
         </View>
       )}
 
+      </SceneTransition>
       {isAuth ? (
         <View style={styles.authActions}>
-          {userId ? (
+          {userId && saveFailed ? (
+            <>
+              <Text variant="body" style={styles.saveFailed} accessibilityLiveRegion="polite">
+                {t("onboarding.saveFailed")}
+              </Text>
+              <PixelPressable
+                fullWidth
+                background={m3.color.primary}
+                disabled={saving}
+                accessibilityState={{ busy: saving }}
+                accessibilityLabel={t("common:actions.retry")}
+                accessibilityHint={authHint}
+                onPress={() => finishOnboarding("/")}
+                contentStyle={styles.primaryButtonContent}
+              >
+                <Text variant="body" style={styles.primaryButtonText}>{t("common:actions.retry")}</Text>
+              </PixelPressable>
+              <PixelPressable
+                fullWidth
+                background={m3.color.surfaceContainerHigh}
+                disabled={saving}
+                accessibilityLabel={t("onboarding.goHome")}
+                accessibilityHint={authHint}
+                onPress={() => leaveOnboarding("/")}
+                contentStyle={styles.secondaryButtonContent}
+              >
+                <Text variant="body" style={styles.secondaryButtonText}>{t("onboarding.goHome")}</Text>
+              </PixelPressable>
+            </>
+          ) : userId ? (
             <PixelPressable
               fullWidth
               background={m3.color.primary}
+              disabled={saving}
+              accessibilityState={{ busy: saving }}
               accessibilityLabel={t("common:actions.continue")}
               accessibilityHint={authHint}
               onPress={() => finishOnboarding("/")}
@@ -216,7 +291,7 @@ export default function Onboarding() {
             background={m3.color.primary}
             accessibilityLabel={t("onboarding.next")}
             accessibilityHint={nextHint}
-            onPress={() => setStep((current) => Math.min(current + 1, AUTH_STEP))}
+            onPress={() => { setStepMotion("page-forward"); setStep((current) => Math.min(current + 1, AUTH_STEP)); }}
             contentStyle={styles.nextContent}
           >
             <Text variant="body" style={styles.primaryButtonText}>{t("onboarding.next")}</Text>
@@ -323,12 +398,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingBottom: m3.spacing.s1,
   },
-  ageHelper: {
-    color: m3.color.onSurfaceVariant,
-    fontSize: 12,
-    lineHeight: 18,
-    paddingBottom: m3.spacing.s1,
-  },
   bottomBar: {
     minHeight: 56,
     flexDirection: "row",
@@ -390,6 +459,14 @@ const styles = StyleSheet.create({
     color: m3.color.onSurface,
     fontSize: 15,
     lineHeight: 22,
+    paddingBottom: m3.spacing.s1,
+  },
+  saveFailed: {
+    width: "100%",
+    color: m3.color.error,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
     paddingBottom: m3.spacing.s1,
   },
 });

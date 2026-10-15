@@ -43,7 +43,13 @@ Simon 원문(09-29): *"앱과 localhost는 같은 s/w여야 한다고. 그리고
    때만** 한다 - 같은 코드 · 같은 설정의 빌드를 골라(없으면 기본 입력으로 새로 돌려) QA pre-release 로
    올린다(`--latest=false`). 번들에 들어가는 파일은 전부 워크플로의 `on.push.paths` 안에 있어야 한다
    (`app-parity.test.ts` 가 src 의 import 를 풀어 검사한다) - 밖에 있으면 CI 가 APK 를 다시 안 만든다.
-4. **세션을 끝내기 전에 `npm run app:parity` 가 "같음" 이어야 한다.** 같음 = 8081 이 origin/main
+4. **수정 작업 완료 = localhost:8081에서 실제 수정사항을 확인할 수 있는 상태다**(Simon, 2026-10-08).
+   로컬 구현·테스트·커밋만으로 완료라고 보고하지 않는다. 요청받은 수정은 PR → CI → 머지 →
+   8081 반영까지 이어가고, 브라우저에서 바뀐 동작과 QA 경로를 직접 확인한다. 서버 적용·기능 활성화가
+   필요한 변경은 그 실행까지 확인해야 한다. 기존 main의 parity 통과는 이번 변경의 반영 증거가 아니다.
+   보안 BLOCK·다른 세션의 적용 중 표시 등으로 반영하지 못하면 **미완료**와 구체적인 원인을 알린다.
+   이 완료 기준은 보안·동의·서버 선행 조건을 건너뛰라는 뜻이 아니다.
+   **세션을 끝내기 전에 `npm run app:parity` 가 "같음" 이어야 한다.** 같음 = 8081 이 origin/main
    과 앱 경로 차이 0 · 설정(워크플로 env + 저장소 Variables) · 의존성(lockfile · patches)이 같음 ·
    같은 코드 · 같은 설정의 폰용 APK 빌드가 성공했거나 진행 중(끊길 것이 확실한 대기 빌드 · 설정 주석을
    아직 안 남긴 수동 빌드는 세지 않는다). 저장소 Variables 만 바꿨거나 빌드가 게이트에서 끊겼으면 그
@@ -66,7 +72,7 @@ npm run app:qa-release          # Simon 이 폰에서 볼 때만
 
 ## Project context
 
-- **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화.
+- **What**: PolaScope(앱 표시 이름; 저장소 식별자는 2nd-B 유지) — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화.
 - **Deadline**: 없음. 외부 마감에 맞춘 스코프 압축을 하지 말 것.
 
 > ### XPRIZE 는 종료됐다 (Simon 결정, 2026-08-15)
@@ -429,8 +435,10 @@ PRD 는 **Draft v4**(#1385, 2026-08-25)가 정본이다 — 일곱 한 벌·화�
 새 KPI. `docs/CONSTELLATION-DESIGN.md` 는 역사 기록 배너가 붙었다. Claude Design
 재발주 프롬프트는 `design/CLAUDE-DESIGN-BRIEF-260825.md`.
 
-세컨비 → 허슬케이 개명은 구조가 자리 잡은 뒤로 미뤘다(Simon 명시). 앱 이름(Polar
-Scope 검토 → 충돌 2건 검증됨, Merak 등 대안 후보)과 **한 체계로 함께** 결정한다.
+**2026-10-08 Simon 결정: 캐릭터는 허슬케이(HustleK)로 교체한다.** 제공한 초상화
+표정 48종(`assets/hustlek`)을 쓰며, 세컨비의 그림·사용자 표시 이름·대화 소개를
+교체한다. 기존 개명 보류는 해제됐다. 앱 표시 이름은 PolaScope다.
+`/secondb`, `secondb_chat`, 저장 키와 기존 컴포넌트 진입점은 호환을 위해 유지한다.
 
 ---
 
@@ -537,7 +545,7 @@ Simon 이 결정 콘솔로 항목별 판단을 냈고, 외부 법률·시장 조
 
 ### 2026-08-16 F그룹 재결정 결과 (확정)
 
-- **F1 미성년 개인화 광고 → 18세 미만 차단 유지.** `src/lib/ads/policy.ts:58,95` 그대로.
+- **F1 미성년 개인화 광고 → 18세 미만 차단 유지.** `src/lib/ads/policy.ts` 의 `canShowRewardedAds` 미성년 fail-closed(`isMinor !== false`) 그대로. (2026-10-05: 웹 배너 갈래 `canShowAds` 는 AdSlot 과 함께 접혀 E:/Legacy 로 갔다(Q-261004-16). 남은 광고 경로는 보상형 하나다.)
   광고 런치 시 TFAT 마이그레이션만 추가.
 - **F2 상시 녹음 → 반려.** 로드맵에서 제외. 재론 금지.
 - **F3 통화녹음 → 파일 업로드 경로로 전환.** Simon: "현재 통화녹음 파일 업로드 할 수 있는
@@ -564,7 +572,7 @@ Simon 이 결정 콘솔로 항목별 판단을 냈고, 외부 법률·시장 조
 
 - **미성년 개인화 광고**: 한국 *법률*로는 위법이 아니지만 **Google Ads 정책이 18세 미만
   개인 맞춤 광고를 계약으로 금지**한다(2022-08-15 시행). 위반 결과는 과징금이 아니라
-  계정 정지·수익 몰수. `src/lib/ads/policy.ts:58,95` 의 fail-closed 미성년 차단을
+  계정 정지·수익 몰수. `src/lib/ads/policy.ts` `canShowRewardedAds` 의 fail-closed 미성년 차단을
   **되돌리지 말 것.** 광고 런치 시 deprecated 된 TFUA/TFCD 대신 **TFAT** 을 쓴다.
 - **상시 녹음(화면 꺼도 지속)**: 통비법 제3조 위반 시 제16조 제1항 **1년 이상 10년 이하 징역,
   벌금형 없음.** 대법원 2020도1538(2024-01-11)이 정확히 같은 구조를 유죄로 봤다.
@@ -629,12 +637,13 @@ NOT drawn on home, so the home constellation shows 6 domains + 뮤지엄), B) th
 = the aggregate output / persona synthesis (drop the "Soul Core" name; **the ROUTE is `/core-brain` and it is LIVE** — the file's own header says "user-facing name is 북극성", home's Polaris tap and the deep-space `lens` dock slot both point at it. Only the *name* Core Brain / Soul Core is legacy, never the screen) + the L1~L5 brightness
 ladder + propose->ratify.
 
-**LEGACY (rollback skin only, never the reference for new work):** the gameboy track, the
+**LEGACY (never the reference for new work):** the gameboy track, the
 *Cosmic Pixel Graph Village* system, *phytoncide* tokens, *Brain Trinity* naming, **the "Soul
 Core" name, the 5 Pattern Core layer + Pattern Tesseract, the v3 tesseract art, the character
 voices (아치/가디/루루/모모/루미), and the old 4-tier Visual Tier node-names** (Soul Core 128px /
-Pattern Core x5 / snowflake / crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded
-concept docs remain in git history.
+Pattern Core x5 / snowflake / crystal). ~~Preserved behind `EXPO_PUBLIC_UI=legacy`~~ — the rollback
+lever was removed on 2026-10-05 (Simon decision Q-261004-11 C); these now live only in git history and
+E:/Legacy/2ndB, and superseded concept docs remain in git history.
 
 > ### ⚠ `/graph` 와 `/trinity` 는 이 목록에서 뺐다 (2026-09-07 실측)
 >
@@ -645,15 +654,18 @@ concept docs remain in git history.
 > | 라우트 | 실제 게이트 | 실제로 그리는 것 |
 > |---|---|---|
 > | `/graph` | **`DevOnlyRoute`** (dev 전용) | `DeepSpaceGraphDesignScreen` — **deep-space** 화면이지 마을 그래프가 아니다. 파일 헤더가 스스로 밝힌다: 중심별·군집별 좌표가 **고정 목업**이고 노드/링크 개수만 실제라, 실데이터로 레이아웃을 그리기 전까지 dev 참조로 둔다. 프로덕션 내비게이션은 여기로 링크하지 않는다(그래프 탭은 `/`) |
-> | `/trinity` | **없음 — 일반 라우트다** | 기록 태그(건강/앱/뇌/재정) 위의 파생 대시보드. 새 스키마 없음. `__DEV__` 는 M3 리메이크 변형을 끼워 넣을 뿐이고 라우트 자체를 막지 않는다 |
+> | `/trinity` | ~~없음 — 일반 라우트다~~ **2026-10-05: 리다이렉트 전용** | ~~기록 태그(건강/앱/뇌/재정) 위의 파생 대시보드~~ 아무것도 그리지 않고 `/core-brain` 으로 넘긴다. TrinityLegacy 와 개발 빌드의 M3 리메이크가 둘 다 E:/Legacy/2ndB 로 나갔다(Simon 결정 Q-261004-33 B) |
 >
 > **legacy 인 것은 *이름*이지 화면이 아니다** — 바로 위 `/core-brain` 항목과 같은 구분이다.
-> "Brain Trinity" 라는 **명명**은 legacy 로 남기되, `/trinity` **화면은 살아 있다.**
-> `src/lib/dev/screen-index.ts` 도 그렇게 잡고 있다(`/trinity` 는 `dev` 플래그 없음,
+> "Brain Trinity" 라는 **명명**은 legacy 로 남기되, ~~`/trinity` **화면은 살아 있다.**~~
+> **⚠ 2026-10-05 정정 — Simon 결정 Q-261004-33 B 가 이 문장과 08-18 D1 "감추기≠지우기"를
+> `/trinity` 에 한해 대체한다.** 그 라우트는 이제 화면이 아니라 `/core-brain` 리다이렉트다.
+> `src/lib/dev/screen-index.ts` 도 그렇게 잡고 있다(`/trinity` 는 은퇴 리다이렉트,
 > `/graph` 만 `dev: true`). `src/app/index.tsx:235` 주석이 이미 "`/graph` … is a DEV-ONLY
 > mock design" 이라고 **코드에서 정정**하고 있었는데 이 파일이 안 따라왔다.
 >
-> **인용 금지**: "`/graph` 는 legacy 스킨이니 손대지 않는다" · "`/trinity` 는 롤백 전용이다".
+> **인용 금지**: "`/graph` 는 legacy 스킨이니 손대지 않는다" · "`/trinity` 는 롤백 전용이다" ·
+> "`/trinity` 화면은 살아 있다"(2026-10-05 부터 사실이 아니다).
 
 ## The 12 hard constraints
 
@@ -703,7 +715,7 @@ The single source of truth for both runtime classification and CI scan is `src/l
 > 도형 자유 → **정수 `rect`** · 깊이 그림자/블러 → **4방향 베벨 + z-index**.
 >
 > ⚠ **이름 세 개를 갈라 부른다 (V5). "픽셀" 단독 사용 금지:**
-> **cosmic-pixel** = 폐기된 원래 스킨 (`EXPO_PUBLIC_UI=legacy` 롤백으로만 생존) ·
+> **cosmic-pixel** = 폐기된 원래 스킨 (git 이력 · E:/Legacy/2ndB 에만 있다. 롤백 레버 `EXPO_PUBLIC_UI` 는 2026-10-05 제거 · Q-261004-11) ·
 > **M3-deepspace** = 지금 배포돼 있는 것, 이주의 **출발점** ·
 > **PIXEL-CLAY v4** = 이주의 **목적지**.
 > cosmic-pixel 과 PIXEL-CLAY v4 는 둘 다 픽셀아트지만 **같은 물건이 아니다.**
@@ -732,7 +744,7 @@ not eyeballing a mockup.
 **STALE — do not use as the reference for new work:** `legacy/design/*.dc.html` and the `legacy/docs/ui-audit/`
 trio (`DESIGN_INDEX.md` / `SCREEN_TREE_SPEC.md` / `CLONE_PROTOCOL.md`). Those are a pre-M3 snapshot
 (2026-06-24) from the deep-space cosmic-pixel era, superseded by the reference app above. They are
-kept for history. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
+kept for history **outside the repo**: `E:/Legacy/2ndB/legacy/design/` · `E:/Legacy/2ndB/legacy/docs/ui-audit/` 로 이동(2026-10-04). 같은 06월 핸드오프 묶음(`design/FIX_TASKS.md` · `DESIGN_AUDIT.md` · `screenshots/` · zip 둘)은 `E:/Legacy/2ndB/design/` 에 있다. 그 사본은 읽기용이고, 저장소로 되살릴 때는 git 이력을 쓴다(`E:/Legacy/2ndB/README.md` 의 "되살리는 명령" ②: `git -C E:/2ndB worktree add` 로 복원 전용 새 워크트리를 만들고, 그 최상위 · 브랜치 · 깨끗함을 확인한 뒤에만 `git -C "<그 워크트리>" checkout <sourceCommit> -- "<path>"`. 위치를 적지 않은 `git checkout` 은 지금 셸이 서 있는 폴더에 쓰므로 치지 않는다). `MANIFEST.jsonl` 의 `restore` 칸은 정본 `E:/2ndB` 작업 트리에 쓰는 기록이라 그대로 치지 않는다. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
 40 routes; **the app has 101** — `src/app` 아래 `.tsx` 105개에서 `_layout` 2개와 `+` 특수
 파일 2개를 뺀 수, 2026-09-19 실측(origin/main `d0929429`). 09-07 의 100 · 그 전의 85 는 낡은 값이다).
 
@@ -818,6 +830,7 @@ Too much at once is as bad as overlap. Every screen earns attention with ONE thi
 - **One graphic supports it** — the visual IS the explanation. If you need explanatory text, the graphic failed → change the graphic, not add copy.
 - **Progressive disclosure** — detail appears only AFTER a tap/drilldown. First screen = the lure, detail = the catch.
 - Pairs with the touch rule (O-7): one touch should SIMPLIFY the screen, never add an overlapping layer (use a screen transition or bottom sheet, never a modal over the node). Back lives in exactly one place.
+- **UI copy** — 화면 문구를 쓰거나 고칠 때 `STYLE.md` 의 「설명 문구 줄이기」 체크리스트와 말투 규칙(B안 · 두 예외)을 따른다(Simon 2026-10-07 설명형 UI 문구 금지 · 2026-10-14 Q-261014-87).
 
 ## Worktrees & branches (Simon standing rule)
 
@@ -873,6 +886,23 @@ every agent: Claude, Codex, Antigravity, Grok.
   eslint). Keep those excludes: they stop the nested copies from polluting
   `npm run verify` and the Metro bundler.
 
+## 결정 먼저 확인 (Simon 2026-10-07)
+
+PR을 열기 전과 마이그레이션 번호를 잡기 전에 origin/main의 DECISIONS.md 최신 30줄을 읽는다. 결정과 어긋나는 작업은 멈추고 _sync로 묻는다.
+
+> 이유: #2131(0220 판정 원장)은 그 결정(`DECISIONS.md:82`)이 한 우편함(재설계 세션)으로만 가서 다른 세션이 모른 채
+> 반대로 만들었다. 저장소 규칙에 두면 모든 세션이 같은 것을 읽는다. 읽기: `git fetch origin` 뒤
+> `git show origin/main:DECISIONS.md | tail -30`(Git Bash 는 `MSYS_NO_PATHCONV=1` 을 앞에 붙인다).
+
+## 운영 게시 · 적용 중 표시 (Simon 2026-10-07)
+
+운영 게시(웹 publish · QA APK)나 운영 마이그레이션 적용을 시작하면 `_sync/TO-CLI.md` 에 시작 시각과 함께
+"게시 중"(또는 "적용 중")을 올리고, 끝나면 "완료" 로 내린다. 다른 세션은 그 사이 main 머지를 멈춘다.
+
+> 이유: 2026-10-07 웹 게시가 세 번 "main moved during the build" 로 멈췄다 — 게시 워크플로는 빌드하는 동안
+> main 이 움직이면 승인 전에 스스로 멈춘다. 우편함으로 머지를 미뤄 달라고 한 네 번째에 성공했다.
+> 그 방식을 규칙으로 굳힌 것이다(DECISIONS 26.10.07 11:07 보충).
+
 ## What never to do in this repo
 
 - Commit `.env`. (gitignored — verify before staging.)
@@ -880,6 +910,10 @@ every agent: Claude, Codex, Antigravity, Grok.
   `C:\Coding Infra\_worktrees\`). See **Worktrees & branches** above.
 - Push to `main` directly. Always PR.
 - Use `git rebase -i` or `git push --force` without explicit user confirmation.
+  (2026-10-07: `.claude/settings.json` 의 `permissions.deny` 가 Claude 의 Bash 도구에서 `--force` ·
+  `--force-with-lease` · `--force-if-includes` · `-f` · `+refspec` 푸시를 막는다. 규칙은 명령 문자열
+  일치라 `bash -c "..."` 안이나 별칭 · 스크립트로 감싼 푸시는 못 잡을 수 있다 — 이 줄이 여전히 규칙이다.
+  확인된 사용자 지시로 꼭 필요하면 사람이 직접 친다.)
 - Add a dependency without checking the free-tier impact (blueprint §5 promises $0/mo).
 - Skip the safety classifier in any LLM call path.
 - Stage `.claude/settings.local.json` (per-user, gitignored).

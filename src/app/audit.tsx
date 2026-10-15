@@ -1,18 +1,22 @@
+import { PhoneView as View, PhoneScrollView as ScrollView } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
+import { StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, useLocalSearchParams, useNavigation } from "expo-router";
+import { Redirect, useNavigation } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
+import { PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { semantic, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { DdsAuditScreen } from "@/screens/deepspace/dds-audit-screen";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter, useHardwareBack, useScreenParams } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { questionsForPeriod, type AuditPeriod } from "@/lib/audit/questions";
 import { isUnlived, type SevenStarId } from "@/lib/persona/seven-stars";
 import { createRecord } from "@/lib/records/create";
@@ -76,29 +80,29 @@ const DISPLAY_COPY: Record<
   },
   es: {
     periodDescription:
-      "Un conjunto fijo de preguntas basado en marcos como Big Five, apego y SDT. Para explorar con mas libertad, usa /interview.",
-    saveError: "No pudimos guardar tu respuesta. Tu texto sigue aqui; intenta de nuevo.",
-    completeBody: (count) => `${count} respuestas estan listas para sintetizar tu modelo personal.`,
+      "Un conjunto fijo de preguntas basado en marcos como Big Five, apego y SDT. Para explorar con más libertad, usa /interview.",
+    saveError: "No pudimos guardar tu respuesta. Tu texto sigue aquí; intenta de nuevo.",
+    completeBody: (count) => `${count} respuestas están listas para sintetizar tu modelo personal.`,
     interviewDescription:
-      "Preguntas basadas en Big Five, teoria del apego y teoria de la autodeterminacion. No hay una respuesta correcta; mientras mas respondas, mas claros se vuelven los patrones de tu modelo personal.",
-    tooShort: "Un poco mas de detalle ayuda",
+      "Preguntas basadas en Big Five, teoría del apego y teoría de la autodeterminación. No hay una respuesta correcta; mientras más respondas, más claros se vuelven los patrones de tu modelo personal.",
+    tooShort: "Un poco más de detalle ayuda",
     enough: "Se ve bien",
     finish: "Finalizar",
     next: "Siguiente pregunta",
-    exitBody: "¿Seguro que quieres salir? Tu progreso no se guardara.",
+    exitBody: "¿Seguro que quieres salir? Tu progreso no se guardará.",
   },
   pt: {
     periodDescription:
       "Um conjunto fixo de perguntas baseado em Big Five, apego e SDT. Para explorar com mais liberdade, use /interview.",
-    saveError: "Nao foi possivel salvar sua resposta. Seu texto continua aqui; tente de novo.",
-    completeBody: (count) => `${count} respostas estao prontas para sintetizar seu modelo pessoal.`,
+    saveError: "Não foi possível salvar sua resposta. Seu texto continua aqui; tente de novo.",
+    completeBody: (count) => `${count} respostas estão prontas para sintetizar seu modelo pessoal.`,
     interviewDescription:
-      "Perguntas baseadas em Big Five, teoria do apego e teoria da autodeterminacao. Nao existe resposta certa; quanto mais voce responde, mais claros ficam os padroes do seu modelo pessoal.",
+      "Perguntas baseadas em Big Five, teoria do apego e teoria da autodeterminação. Não existe resposta certa; quanto mais você responde, mais claros ficam os padrões do seu modelo pessoal.",
     tooShort: "Um pouco mais de detalhe ajuda",
-    enough: "Esta bom",
+    enough: "Está bom",
     finish: "Finalizar",
-    next: "Proxima pergunta",
-    exitBody: "Tem certeza de que quer sair? Seu progresso nao sera salvo.",
+    next: "Próxima pergunta",
+    exitBody: "Tem certeza de que quer sair? Seu progresso não será salvo.",
   },
   id: {
     periodDescription:
@@ -130,23 +134,23 @@ function dataLocaleFor(language: string | undefined): AuditDataLocale {
 
 function AuditScreenerShell({ children, onBack }: { children: ReactNode; onBack: () => void }) {
   const { t } = useTranslation("core-brain");
-  if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen
-        active="lens"
-        header="none"
-        variant="windowed"
-        title={t("auditCheck")}
-        onBack={onBack}
-      >
-        {children}
-      </DeepSpaceScreen>
-    );
-  }
-  return <PremiumAppShell>{children}</PremiumAppShell>;
+  return (
+    <DeepSpaceScreen
+      active="lens"
+      header="none"
+      variant="windowed"
+      title={t("auditCheck")}
+      onBack={onBack}
+    >
+      {children}
+    </DeepSpaceScreen>
+  );
 }
 
 function AuditLegacy() {
+  // Phone-aware: /audit?screener=1 draws this in every skin. Inside the
+  // dashboard phone Back and the exits go through the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("audit");
   const { userId, loading, isMinor, hasProfile, age } = useAuth();
   const navigation = useNavigation();
@@ -185,7 +189,7 @@ function AuditLegacy() {
 
     router.back();
     return true;
-  }, [done, hasUnsavedProgress, period]);
+  }, [done, hasUnsavedProgress, period, router]);
 
   useEffect(() => {
     if (!toast) return;
@@ -195,12 +199,13 @@ function AuditLegacy() {
 
   // Android hardware back handler: intercept navigation back requests while the
   // life audit session is in progress to prevent accidental loss of written answers.
-  useEffect(() => {
-    if (period === null || done) return;
-
-    const subscription = BackHandler.addEventListener("hardwareBackPress", requestBack);
-    return () => subscription.remove();
-  }, [done, period, requestBack]);
+  // useHardwareBack: the same focused listener standalone (removed on blur and
+  // unmount), the phone's claim stack inside the dashboard phone. Outside a
+  // session -> false, so Back keeps its default.
+  useHardwareBack(useCallback(
+    () => (period === null || done ? false : requestBack()),
+    [done, period, requestBack],
+  ));
 
   // The persistent deep-space dock navigates inside DeepSpaceScreen, outside
   // AuditScreenerShell's onBack prop. Gate every route removal while a response
@@ -222,6 +227,9 @@ function AuditLegacy() {
       setExitConfirmOpen(true);
     });
   }, [hasUnsavedProgress, navigation]);
+  // A home jump from a screen above this one stops here instead of meeting
+  // the guard out of sight (gate NS-02, lib/nav/go-home.ts).
+  useGoHomeStop(() => hasUnsavedProgress && !allowNavigationRef.current);
 
   if (loading) {
     return (
@@ -248,10 +256,10 @@ function AuditLegacy() {
       // wrote the safety ledger and showed the user NOTHING - the gap capture.tsx
       // (:2497) and northstar.tsx (:141) already closed.
       //
-      // ⚠ Round 61 wired this, then reverted it after reading only
-      // `if (isDeepSpaceUI()) return <AuditDeepSpace />;` and concluding the
-      // questionnaire was unreachable. It is reachable: line 550 sends
-      // `/audit?screener=1` here BEFORE the skin check, in every build.
+      // ⚠ Round 61 wired this, then reverted it after reading only the old skin
+      // branch (`return <AuditDeepSpace />`) and concluding the questionnaire was
+      // unreachable. It is reachable: the default export sends
+      // `/audit?screener=1` here first, in every build.
       const res = await createRecord({
         userId,
         locale,
@@ -268,14 +276,14 @@ function AuditLegacy() {
         // the next prompt is the "cheerful next screen, no hotline" shape.
         setCrisis({
           visible: true,
-          hotline: locale === "ko" ? (isMinor === true ? "KR_1388" : "KR_109") : "GLOBAL_988",
+          hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor === true ? "KR_1388" : "KR_109") : "GLOBAL_988"),
         });
         return;
       }
       setAnswer("");
       if (index + 1 >= questions.length) {
         setDone(true);
-        // 모모 reads back the finished interview before it's filed (companion pack §3).
+        // The saved cue plays as the finished interview is filed (companion pack §3).
         companion.fire("auditCompleted");
       } else {
         setIndex(index + 1);
@@ -295,7 +303,7 @@ function AuditLegacy() {
   if (period === null) {
     return (
       <AuditScreenerShell onBack={requestBack}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingArea style={{ flex: 1 }}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
@@ -331,7 +339,7 @@ function AuditLegacy() {
             />
           </View>
         </ScrollView>
-</KeyboardAvoidingView>
+</KeyboardAvoidingArea>
       </AuditScreenerShell>
     );
   }
@@ -364,7 +372,7 @@ function AuditLegacy() {
             />
           </View>
         </View>
-        {/* 모모 appears briefly to file the finished interview (companion pack §3) */}
+        {/* The saved cue appears briefly as the finished interview is filed (companion pack §3) */}
         {companion.moment ? (
           <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
         ) : null}
@@ -374,7 +382,8 @@ function AuditLegacy() {
 
   return (
     <AuditScreenerShell onBack={requestBack}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingArea style={{ flex: 1 }}>
+      <SceneTransition transitionKey={index} kind="page-forward" animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {index === 0 ? (
           <View style={styles.introCard}>
@@ -445,7 +454,8 @@ function AuditLegacy() {
           onPress={() => router.replace("/capture")}
         />
       </ScrollView>
-</KeyboardAvoidingView>
+      </SceneTransition>
+</KeyboardAvoidingArea>
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">
           <PremiumToast message={toast.message} tone={toast.tone} />
@@ -573,11 +583,11 @@ function AuditDeepSpace() {
 }
 
 export default function Audit() {
-  const { screener } = useLocalSearchParams<{ screener?: string }>();
-  // `/audit` is currently the deep-space PastMe compatibility entry. The
-  // assessment registry uses this explicit query so the period-specific
-  // 5–15-question Life Audit remains reachable regardless of the active visual skin.
+  // useScreenParams: inside the dashboard phone `screener` is the phone route's query.
+  const { screener } = useScreenParams<{ screener?: string }>();
+  // `/audit` is the deep-space PastMe compatibility entry. The assessment
+  // registry uses this explicit query so the period-specific 5–15-question Life
+  // Audit (AuditLegacy, named for its history; it ships) stays reachable.
   if (screener === "1") return <AuditLegacy />;
-  if (isDeepSpaceUI()) return <AuditDeepSpace />;
-  return <AuditLegacy />;
+  return <AuditDeepSpace />;
 }

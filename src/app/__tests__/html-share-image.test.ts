@@ -29,7 +29,8 @@ describe("웹 셸의 공유 카드", () => {
   });
 
   it("사이트 이름은 SITE_NAME 하나에서 나온다 (og:site_name · 제목 앞부분)", () => {
-    // 광고 앱 이름(2ndB, 2026-09-27)과 랜딩 표기가 다시 갈라지지 않게 한 곳에 둔다.
+    // 공개 웹 이름과 랜딩 표기가 다시 갈라지지 않게 한 곳에 둔다.
+    expect(SITE_NAME).toBe("PolaScope");
     expect(html).toContain('<meta property="og:site_name" content={SITE_NAME} />');
     expect(SITE_TITLE.startsWith(`${SITE_NAME} · `)).toBe(true);
     expect(html).not.toContain('og:site_name" content="');
@@ -38,6 +39,17 @@ describe("웹 셸의 공유 카드", () => {
     };
     expect(web.expo.web.name).toBe(SITE_NAME);
     expect(web.expo.web.shortName).toBe(SITE_NAME);
+  });
+
+  it("PWA도 같은 이름을 표시한다", () => {
+    // 공개 랜딩 습작(public/landing/)의 제목 · og:site_name 핀은 2026-10-06 에 그 페이지와
+    // 함께 빠졌다(Simon 결정 Q-261005-06 A, batch qa261006-landing, E:/Legacy/2ndB).
+    const manifest = JSON.parse(
+      readFileSync(path.join(root, "public/manifest.webmanifest"), "utf8"),
+    ) as { name: string; short_name: string };
+
+    expect(manifest.name).toBe(SITE_NAME);
+    expect(manifest.short_name).toBe(SITE_NAME);
   });
 
   it("자산이 실재하고 선언한 크기와 같다", () => {

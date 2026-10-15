@@ -9,6 +9,14 @@ const localeCopy = Object.fromEntries(
     JSON.parse(readFileSync(resolve(localeRoot, locale, "import.json"), "utf8")).markdownRetention,
   ]),
 );
+// The hub's general copy left the screen's COPY(ko) table for import hub.* in all five
+// locales (Q-261005-01 = A, QA 261006 tr3), so the general consent is read from there.
+const hubCopy = Object.fromEntries(
+  ["en", "ko", "es", "pt", "id"].map((locale) => [
+    locale,
+    JSON.parse(readFileSync(resolve(localeRoot, locale, "import.json"), "utf8")).hub as Record<string, string>,
+  ]),
+);
 
 describe("Markdown import retention disclosure", () => {
   test("five locales disclose that selected note text is kept, with its limit", () => {
@@ -24,13 +32,16 @@ describe("Markdown import retention disclosure", () => {
   test("consent covers content detection and the review does not claim zero raw notes", () => {
     // A file may be detected as Markdown even when opened from another tile.
     // The general consent must therefore avoid a universal raw-discard claim.
-    const generalCopy = [...screen.matchAll(/whereBody: "([^"]+)"/g)].map((match) => match[1]);
-    expect(generalCopy).toHaveLength(2);
-    expect(generalCopy[0]).not.toMatch(/원문.*버/);
-    expect(generalCopy[1]).not.toMatch(/raw.*discard/i);
-    expect(screen).toContain('localAnalysis: "파일 분석은 이 기기에서"');
-    expect(screen).toContain('localAnalysis: "File analyzed on device"');
+    expect(hubCopy.ko.whereBody).not.toMatch(/원문.*버/);
+    expect(hubCopy.en.whereBody).not.toMatch(/raw.*discard/i);
+    expect(hubCopy.es.whereBody).not.toMatch(/descart/i);
+    expect(hubCopy.pt.whereBody).not.toMatch(/descart/i);
+    expect(hubCopy.id.whereBody).not.toMatch(/buang/i);
+    expect(hubCopy.ko.localAnalysis).toBe("파일 분석은 이 기기에서");
+    expect(hubCopy.en.localAnalysis).toBe("File analyzed on device");
     expect(screen).not.toContain("Process on this device only");
+    expect(hubCopy.en.localAnalysis).not.toContain("Process on this device only");
+    expect(screen).toContain("const t = (k: string) => importT(`hub.${k}`);");
 
     expect(screen).toContain('useTranslation("import")');
     expect(screen).toContain('s.kind === "markdown" ? importT("markdownRetention.consent") : t("whereBody")');

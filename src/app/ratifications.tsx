@@ -1,17 +1,19 @@
+import { PhoneFlatList as FlatList, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 적용된 별 변화의 읽기 전용 원장.
 //
 // 실제 star_tier_history observation만 newest-first로 보여 준다. 이 화면에는
 // 비준/되돌리기/write가 없으며, 실패를 빈 이력으로 바꾸지 않는다.
 import { useEffect, useRef, useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { addressTerm } from "@/lib/persona/address";
 import { ratificationEmptyState, type RatificationEntry } from "@/lib/persona/brightness-timeline";
@@ -95,6 +97,8 @@ function GateFrame({
   retryLabel?: string;
   onRetry?: () => void;
 }) {
+  // Phone-aware: inside the dashboard phone Back steps the phone's stack.
+  const router = useAppRouter();
   return (
     <DeepSpaceScreen
       active="lens"
@@ -168,6 +172,8 @@ function RatificationEntryCard({
 
 /** Mounted only after auth + a genuine profile answer, so both reads stay behind the gate. */
 function RatificationsReady({ ownerId }: { ownerId: string }) {
+  // Phone-aware: inside the dashboard phone Back and the Polaris CTA stay in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("ratifications");
   useAddressTerm(ownerId, i18n.language);
 

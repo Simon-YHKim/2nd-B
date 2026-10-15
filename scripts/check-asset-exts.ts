@@ -19,7 +19,6 @@ const ROOT = process.cwd();
 // Metro's defaults and then adds/removes extensions, so reading the resolved
 // config avoids guessing at internals whose subpaths are not exported.
 function metroAssetExts(): Set<string> {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const config = require(join(ROOT, "metro.config.js"));
   const exts: string[] = config?.resolver?.assetExts ?? [];
   if (exts.length === 0) throw new Error("metro.config.js exposed no resolver.assetExts");

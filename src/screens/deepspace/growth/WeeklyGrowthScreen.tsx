@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // "나의 변화" weekly growth review (Claude Design weekly-growth.dc.html).
 // Synthesizes star_tier_history + ops_routine_logs + milestones + records into a
 // this-week vs last-week summary (lib/growth). The 7 stars keep their existing
@@ -6,12 +7,11 @@
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import Svg, { Rect, Text as SvgText } from "react-native-svg";
 import { ringCells, stepPolyline } from "@/components/pixel/pixel-line";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
-import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceSpacing, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
@@ -20,10 +20,13 @@ import { Text } from "@/components/ui/Text";
 import { MetaChip, OpsFrame, OpsState } from "@/components/deepspace/ops";
 import { SecondbHead } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { gatherWeeklyGrowth } from "@/lib/growth/gather";
 import { startTask } from "@/lib/tasks/store";
 import type { StarChange, WeeklyGrowth } from "@/lib/growth/weekly";
 import { createRoutineFromRecommendation } from "@/lib/ops/routines";
+import { runWeeklyGrowthSave, weeklyGrowthSessionRoutineId } from "@/lib/growth/routine-save";
 import { getSevenStar, type SevenStarId } from "@/lib/persona/seven-stars";
 import type { OpsDomainId } from "@/lib/ops/domains";
 
@@ -59,27 +62,34 @@ const starRoute = (id: SevenStarId): string => `/me/${id}`;
 // Deterministic observation + next step per grown star (no LLM — synthesis only).
 // 2026-08-25: 새 일곱(나를 알아가는 자리) 기준으로 재작성. 프로필만 인터뷰가
 // 없는 별이라 다음 걸음도 항목 채우기다.
-const STEP: Record<SevenStarId, { obsKo: string; obsEn: string; stepKo: string; stepEn: string; domain: OpsDomainId }> = {
-  profile: { obsKo: "내 기본 정보를 채워간 한 주였어요.", obsEn: "You filled in more of your basics this week.", stepKo: "프로필 항목 하나 채우기", stepEn: "Fill in one profile field", domain: "daily_focus" },
-  infancy: { obsKo: "가장 이른 기억을 파본 한 주였어요.", obsEn: "You dug into your earliest memories.", stepKo: "떠오른 장면 한 조각 적어두기", stepEn: "Note one scene that came up", domain: "learning_goals" },
-  school: { obsKo: "학창시절을 되짚은 한 주였어요.", obsEn: "You revisited your school years.", stepKo: "그 시절 한 장면 더 파보기", stepEn: "Dig into one more scene from then", domain: "learning_goals" },
-  twenties: { obsKo: "20대의 나를 깊게 판 한 주였어요.", obsEn: "You went deep on your twenties.", stepKo: "그때의 선택 하나 적어보기", stepEn: "Write down one choice from then", domain: "learning_goals" },
-  later: { obsKo: "서른 이후의 변화를 돌아본 한 주였어요.", obsEn: "You looked at how you changed after thirty.", stepKo: "달라진 것 한 줄 적기", stepEn: "Write one line about what changed", domain: "daily_focus" },
-  work: { obsKo: "일하는 나를 들여다본 한 주였어요.", obsEn: "You looked at yourself at work.", stepKo: "이번 주 일의 한 장면 적기", stepEn: "Note one scene from work this week", domain: "career_check" },
-  now: { obsKo: "지금의 나를 자주 들여다봤어요.", obsEn: "You checked in on yourself often.", stepKo: "오늘 한 줄 돌아보기", stepEn: "One line of reflection today", domain: "daily_focus" },
+// 문구(관찰 한 줄 · 다음 걸음)는 deepspace ds.growth.steps.<별>.{obs,step} 에 다섯 언어로
+// 있다(Q-261005-01 = A, QA 261006 tr3). 예전에는 obsKo/obsEn · stepKo/stepEn 두 벌이라
+// es/pt/id 가 영어 문장을 받았다. 여기에는 루틴을 붙일 도메인만 남는다.
+const STEP_DOMAIN: Record<SevenStarId, OpsDomainId> = {
+  profile: "daily_focus",
+  infancy: "learning_goals",
+  school: "learning_goals",
+  twenties: "learning_goals",
+  later: "daily_focus",
+  work: "career_check",
+  now: "daily_focus",
 };
 
 export function WeeklyGrowthScreen() {
-  const { t, i18n } = useTranslation("deepspace");
+  // Phone-aware: inside the dashboard phone, back and links stay in the phone.
+  const router = useAppRouter();
+  const { t } = useTranslation("deepspace");
+  const stepObs = (id: SevenStarId) => t(`ds.growth.steps.${id}.obs`);
+  const stepText = (id: SevenStarId) => t(`ds.growth.steps.${id}.step`);
   // 별 이름은 홈 별자리와 같은 키에서 온다 -- 화면마다 다른 이름 금지.
   const { t: tHome } = useTranslation("home");
   const starName = (id: SevenStarId) => tHome(`ds.star.${getSevenStar(id).key}`);
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId } = useAuth();
 
   const [data, setData] = useState<WeeklyGrowth | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [saved, setSaved] = useState(false);
+  const savingRef = useRef(false);
   // The background reanalyze task outlives this screen, so guard its setState.
   const mounted = useRef(true);
   useEffect(() => () => { mounted.current = false; }, []);
@@ -125,21 +135,29 @@ export function WeeklyGrowthScreen() {
 
   const saveStep = async () => {
     if (!userId || !top || saved) return;
-    const step = STEP[top.id];
+    const owner = captureAccountOwnerLease(userId);
+    if (!owner) return;
     try {
-      // med#20: without a schedule this saved recurrence=none + reminder=null,
-      // so the routine was never "due today" — invisible in the ops list the
-      // button promises. Anchor it as a daily 9AM routine (same default the
-      // ops hub uses), which also makes the reminder derivable.
-      const at = new Date();
-      at.setHours(9, 0, 0, 0);
-      await createRoutineFromRecommendation(userId, step.domain, {
-        title: ko ? step.stepKo : step.stepEn,
-        reason: ko ? step.obsKo : step.obsEn,
-        startsAtIso: at.toISOString(),
-        recurrence: "daily",
+      const didSave = await runWeeklyGrowthSave(savingRef, async () => {
+        const routineId = weeklyGrowthSessionRoutineId(userId, top.id);
+        const domainId = STEP_DOMAIN[top.id];
+        const recommendation = {
+          title: stepText(top.id),
+          reason: stepObs(top.id),
+        };
+        // med#20: without a schedule this saved recurrence=none + reminder=null,
+        // so the routine was never "due today" — invisible in the ops list the
+        // button promises. Anchor it as a daily 9AM routine (same default the
+        // ops hub uses), which also makes the reminder derivable.
+        const at = new Date();
+        at.setHours(9, 0, 0, 0);
+        await createRoutineFromRecommendation(userId, domainId, {
+          ...recommendation,
+          startsAtIso: at.toISOString(),
+          recurrence: "daily",
+        }, { routineId });
       });
-      setSaved(true);
+      if (didSave && owner.isCurrent() && mounted.current) setSaved(true);
     } catch {
       /* best-effort */
     }
@@ -160,7 +178,6 @@ export function WeeklyGrowthScreen() {
   );
 
   function renderGrowth(g: WeeklyGrowth, hero: StarChange) {
-    const step = STEP[hero.id];
     return (
       <>
         <View style={styles.heroBox}>
@@ -221,7 +238,7 @@ export function WeeklyGrowthScreen() {
         <View style={styles.obsCard}>
           <View style={styles.obsHead}>
             <SecondbHead size={22} mood="neutral" />
-            <Text variant="body" style={styles.obsText}>{ko ? step.obsKo : step.obsEn}</Text>
+            <Text variant="body" style={styles.obsText}>{stepObs(hero.id)}</Text>
           </View>
           <Pressable
             accessibilityRole="button"

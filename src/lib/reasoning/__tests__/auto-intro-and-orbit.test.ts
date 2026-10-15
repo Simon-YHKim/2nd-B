@@ -33,7 +33,7 @@ describe("spec A — first-ON consumption-rules sheet", () => {
   });
 
   test("the sheet states the consumption rule in both locales (spec A 카피)", () => {
-    expect(sheet).toContain("직접 실행할 1회는 항상 남겨 둬요");
+    expect(sheet).toContain("직접 실행할 1회는 항상 남겨 둡니다");
     expect(sheet).toContain("always reserve one for manual use");
   });
 });

@@ -15,7 +15,6 @@
 // The synthesis NEVER writes the self-model; it is a proposal (propose->ratify).
 
 import { callLlm } from "../llm/boundary";
-import { crosscheck } from "../llm/crosscheck";
 import { INJECTION_GUARD, sanitizeUntrusted } from "../llm/untrusted";
 import { containsForbiddenLexicon } from "../safety/classifier";
 import type { LadderLevel } from "./brightness";
@@ -283,33 +282,13 @@ export async function synthesizePersonas(
   if (reply.audit.modelUsed.startsWith("mock:")) throw new Error("polaris_live_required");
   const personas = parsePersonaSynthesis(reply.text, input);
 
-  // Adversarial cross-check (REQ-260823-03). Off unless an operator enables it
-  // AND the two sides resolve to different vendors; crosscheck() answers both
-  // questions itself and returns the draft untouched when either is false, so
-  // this costs nothing in the default configuration.
-  //
-  // Guarded on the way back in. The defender rewrites free-form and this
-  // surface needs parseable JSON, so a rewrite yielding FEWER grounded personas
-  // is discarded: a check that quietly deletes half of what it was checking is
-  // worse than no check, and the loss would read as a thin corpus rather than
-  // as a bug.
   // The metered server has already persisted and settled this exact draft.
   // Its reserved snapshot may be newer than this client's preliminary input.
   // The caller reloads the authoritative cards; do not reject that success
   // because the local parser had an older domain list.
   if (polarisGenerationId) return personas;
   if (personas.length === 0) throw new Error("polaris_no_grounded_result");
-  if (input.sourceKind === "life_star") return personas;
-  const checked = await crosscheck({
-    draft: reply.text,
-    evidence: user,
-    purpose: "persona_synthesis",
-    userId,
-    locale,
-    minor,
-    outputContract: "Return the SAME JSON shape you were given. No prose, no commentary, JSON only.",
-  });
-  if (checked.skipped || checked.text === reply.text) return personas;
-  const revised = parsePersonaSynthesis(checked.text, input);
-  return revised.length >= personas.length ? revised : personas;
+  // The adversarial cross-check (REQ-260823-03) was removed in S0.5 (2026-10-07): its only caller
+  // always arrived with a generation id or a life_star input, so it never ran outside tests.
+  return personas;
 }

@@ -9,14 +9,11 @@
 import { useSyncExternalStore } from "react";
 import { TouchableOpacity, StyleSheet, View, I18nManager } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useLocalSearchParams, usePathname } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { hasOwnBack, subscribeOwnBack } from "@/lib/nav/own-back";
-import { Text } from "@/components/ui/Text";
-import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { isPrimaryTabPath, isDeepSpaceDockPath, BACK_ARROW_HIDDEN_PATHS } from "@/lib/nav/tabs";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { cosmic, deepSpace, flattenAlpha, semantic } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -45,79 +42,26 @@ const HIDDEN_PATHS = new Set<string>(BACK_ARROW_HIDDEN_PATHS);
 const BACK_GROUND = flattenAlpha(m3.accent.stageFloor, 0.92, deepSpace.bgEdge);
 const BACK_ARROW_BG = flattenAlpha(cosmic.soulViolet, 0.16, BACK_GROUND);
 const BACK_ARROW_BORDER = flattenAlpha(cosmic.signalMint, 0.42, BACK_GROUND);
-const BACK_LABEL_BG = flattenAlpha(cosmic.space950, 0.74, BACK_GROUND);
-const BACK_LABEL_BORDER = flattenAlpha(cosmic.signalMint, 0.28, BACK_GROUND);
-
-type Locale = "en" | "ko";
-
-const ROUTE_LABELS: Record<string, { en: string; ko: string }> = {
-  "/+not-found": { en: "Not found", ko: "찾을 수 없음" },
-  "/account": { en: "Account", ko: "계정" },
-  "/attachment": { en: "Attachment", ko: "애착" },
-  "/audit": { en: "Audit", ko: "감사" },
-  "/big-five": { en: "Big Five", ko: "빅파이브" },
-  "/capture": { en: "Scrap", ko: "스크랩" },
-  "/core-brain": { en: "North Star", ko: "북극성" },
-  "/data": { en: "Data", ko: "데이터" },
-  "/formats": { en: "Formats", ko: "형식" },
-  "/import": { en: "Import", ko: "가져오기" },
-  "/imagine": { en: "New angle", ko: "새 관점" },
-  "/inbox": { en: "Inbox", ko: "받은편지함" },
-  "/insights": { en: "Insights", ko: "인사이트" },
-  "/interview": { en: "Interview", ko: "인터뷰" },
-  "/secondb": { en: "SecondB", ko: "세컨비" },
-  "/journal": { en: "Journal", ko: "일기" },
-  "/manual": { en: "Manual", ko: "매뉴얼" },
-  "/museum": { en: "AI Museum", ko: "AI 뮤지엄" },
-  "/mbti": { en: "Persona", ko: "페르소나" },
-  "/onboarding": { en: "Onboarding", ko: "온보딩" },
-  "/permissions": { en: "Permissions", ko: "권한" },
-  "/persona": { en: "Persona", ko: "페르소나" },
-  "/privacy": { en: "Privacy", ko: "개인정보" },
-  "/profile": { en: "Profile", ko: "프로필" },
-  "/research": { en: "Research", ko: "리서치" },
-  "/settings": { en: "Settings", ko: "설정" },
-  "/support": { en: "Support", ko: "지원" },
-  "/theme": { en: "Theme", ko: "테마" },
-  "/trends": { en: "Trends", ko: "트렌드" },
-  "/trinity": { en: "My areas", ko: "내 영역" },
-};
-
-function titleForRoute(pathname: string, domain: string | undefined, locale: Locale): string | null {
-  if (pathname === "/records") {
-    if (VILLAGE_IDS.includes(domain as VillageId)) return VILLAGE_LABEL[domain as VillageId][locale];
-    return locale === "ko" ? "기록" : "Records";
-  }
-  if (pathname === "/wiki") return VILLAGE_LABEL.knowledge[locale];
-  if (pathname.startsWith("/record/")) return VILLAGE_LABEL.records[locale];
-  return ROUTE_LABELS[pathname]?.[locale] ?? null;
-}
 
 /** True when the back arrow is shown on this route (i.e. not the landing /
  *  pre-auth pages). Screens use this to reserve top-left headroom so the
  *  floating arrow never overlaps their first heading/text. */
 export function backArrowVisible(pathname: string): boolean {
-  // Matches the render logic: hidden on pre-auth/"/"/onboarding AND on the
-  // primary tab roots (the bottom tab bar is the nav there). Screens use this to
-  // reserve top headroom only where the floating arrow actually shows.
+  // Matches the render logic: hidden on pre-auth/"/"/onboarding, on the primary
+  // tab roots and on the deep-space dock screens (the dock is the nav there).
+  // Screens use this to reserve top headroom only where the floating arrow
+  // actually shows.
   return (
     !HIDDEN_PATHS.has(pathname) &&
     !isPrimaryTabPath(pathname) &&
-    !(isDeepSpaceUI() && isDeepSpaceDockPath(pathname))
+    !isDeepSpaceDockPath(pathname)
   );
-}
-
-/** True when the route is a bottom-tab destination (brand chip top-left). */
-export function isTabPath(pathname: string): boolean {
-  return isPrimaryTabPath(pathname);
 }
 
 export function BackArrow() {
   const pathname = usePathname();
-  const params = useLocalSearchParams<{ domain?: string }>();
-  const { t, i18n } = useTranslation("common");
+  const { t } = useTranslation("common");
   const insets = useSafeAreaInsets();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as Locale;
   // Screens that carry their own back affordance (MdTopAppBar) register while
   // focused. Native stacks keep buried screens mounted, so mount-scoped
   // registration would hide this chip on unrelated screens pushed above them.
@@ -135,13 +79,11 @@ export function BackArrow() {
 
   // Deep-space dock screens (DeepSpaceScreen) already carry the persistent
   // bottom dock for nav and render the SecondbStatusHeader head top-left, which
-  // the floating chip overlaps. Hide it here (hardware back still works). Gated
-  // on isDeepSpaceUI() so legacy mode — PremiumAppShell, no dock — keeps the arrow.
-  if (isDeepSpaceUI() && isDeepSpaceDockPath(pathname)) return null;
+  // the floating chip overlaps. Hide it here (hardware back still works).
+  if (isDeepSpaceDockPath(pathname)) return null;
 
   const leftBase = insets.left + 12;
   const left = leftBase;
-  const routeTitle = titleForRoute(pathname, params.domain, locale);
 
   // E20 RTL Support: Position right instead of left, flip arrow direction.
   const isRTL = I18nManager.isRTL;
@@ -168,15 +110,6 @@ export function BackArrow() {
           <View style={[styles.chevronStroke, styles.chevronBottom]} />
         </View>
       </TouchableOpacity>
-      {routeTitle && !isDeepSpaceUI() ? (
-        // Deep-space screens render their own title/header, so the floating
-        // label is redundant there — show the bare arrow only (legacy keeps it).
-        <View style={styles.labelPill} pointerEvents="none">
-          <Text variant="caption" color="text" numberOfLines={2} style={styles.labelText}>
-            {routeTitle}
-          </Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -228,26 +161,5 @@ const styles = StyleSheet.create({
   chevronBottom: {
     transform: [{ rotate: "42deg" }],
     bottom: 4,
-  },
-  labelPill: {
-    maxWidth: 220,
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: m3.shape.none,
-    borderWidth: 1,
-    borderColor: BACK_LABEL_BORDER,
-    backgroundColor: BACK_LABEL_BG,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    shadowColor: semantic.brand,
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-    ...androidElevationStyle(androidElevation.card),
-  },
-  labelText: {
-    letterSpacing: 0,
-    textAlign: "center",
   },
 });

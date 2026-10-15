@@ -45,17 +45,27 @@ const ROOT = process.cwd();
  * left to explain" are different states and both are worth hearing about.
  */
 const PINNED_WITHOUT_A_RENDERER: Readonly<Record<string, string>> = {
-  ConsentDialog:
-    "C5 후기(testimonial) 동의 UI. 앱에 testimonials INSERT 가 0건이라 띄운 적 없는 기능이고, " +
-    "share_with_judges_flag 가 대회 잔재다. CLAUDE.md 가 대회 잔재의 임의 제거를 금지하고 " +
-    "C5 는 아직 하드 제약이므로, 기능이 켜질 때 필요한 a11y 핀을 그대로 둔다.",
-  XpBar: "docs/handoff/master-handoff.html 이 아는 컴포넌트. 처분 미정.",
+  // ConsentDialog 줄은 2026-10-05 에 걷었다. 위 순서의 2단계(등가물 없음 → 사람에게)를
+  // 거쳐 Simon 이 Q-261004-17 로 결론 냈다: 후기 동의 창은 E:/Legacy 로, C5 는 DB 제약만.
+  // XpBar 줄도 같은 날 같은 길로 걷었다(Q-261004-18): XP 는 내부 수치, 막대는 E:/Legacy.
   TraitRadar: "handoff 브리프 2건이 아는 컴포넌트. 처분 미정.",
   DeepSpaceDomainsScreen:
     "tools-reachable 의 바이트 핀이 이 슬라이스를 못박는다. docs/FIDELITY_AUDIT.md(2026-06-21 " +
     "스냅샷)가 /trinity 구현으로 적었지만 trinity.tsx 는 이 이름을 import 하지 않는다 - " +
     "참조는 06-22 에 사라졌다(리다이렉트가 아니라 import 제거가 원인).",
-  RleCell: "문서 흔적 0건. 이 명단에서 유일하게 근거가 없는 줄 - 처분을 먼저 정할 것.",
+  MeSynthView:
+    "src/lib/nav/__tests__/go-home.test.ts 의 홈 이동 전수 목록이 이 컴포넌트 안의 " +
+    "router.replace(\"/\") 한 곳을 AST 바깥 함수 이름으로 센다(PR #2044 8회차가 사람이 누르는 " +
+    "홈 이동을 origin/main 의 원래 호출로 되돌리면서 생긴 행). 이 컴포넌트의 계약을 지키는 핀이 " +
+    "아니라 '목록 밖 홈 이동이 새로 생기지 않는다' 는 전수 계약의 한 줄이라 옮길 배송 등가물이 " +
+    "없다. rev2 클론(#745)에서 온 컴포넌트로 배송 코드가 렌더하지 않는다. 처분 미정 - " +
+    "컴포넌트를 걷어내면 그 목록 행도 함께 빠진다.",
+  // SecondBSprite 줄도 2026-10-05 에 걷었다. 여기 미뤄 둔 처분을 QA R2E-11 이 끝냈다: 그리는 곳
+  // 0 인 세컨비의 걷는 몸 스프라이트와 WorkerSprite · PNG 두 장을 E:/Legacy/2ndB 로 옮겼고
+  // (batch qa261005-secondb-sprite), ArtA11ySemantics 의 이름 계약은 배송 머리 SecondbHead 로,
+  // pixel-rules 이식 목록 줄은 은퇴 주석으로 정리했다.
+  // RleCell은 승인 PNG 렌더러로 교체됨. 바이트·픽셀·표시 계약은
+  // src/lib/opening/__tests__/hustlek-approved.test.ts와 src/lib/__tests__/hustlek-opening-runtime.test.ts가 지킨다.
 };
 
 /**

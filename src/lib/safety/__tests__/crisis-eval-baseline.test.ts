@@ -29,7 +29,6 @@ describe("crisis eval — Layer-1 baseline", () => {
       lines.push(`RED false-positives (benign flagged) — ${report.redFalsePositives.length}:`);
       for (const s of report.redFalsePositives) lines.push(`  [${s.id}] ${s.text}`);
     }
-    // eslint-disable-next-line no-console
     console.info(lines.join("\n"));
     expect(report.total).toBeGreaterThan(0);
   });

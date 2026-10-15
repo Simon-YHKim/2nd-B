@@ -10,6 +10,27 @@ export interface UiSoundControl {
   stop: () => void;
 }
 
+// 효과음 켜기 · 끄기 (Simon Q-261005-02 = A, 2026-10-05, 기본 켜짐). 저장은
+// src/lib/settings/sound-effects.ts 가 하고, 여기는 모든 재생기(UI · 반복 라쳇 · 오프닝)가
+// 재생 직전에 함께 보는 한 칸이다. 끄면 이미 나고 있는 반복음과 오프닝도 멈춘다.
+let soundEffectsOn = true;
+const soundEffectsListeners = new Set<(on: boolean) => void>();
+
+export function areSoundEffectsOn(): boolean {
+  return soundEffectsOn;
+}
+
+export function setSoundEffectsOn(on: boolean): void {
+  if (soundEffectsOn === on) return;
+  soundEffectsOn = on;
+  for (const listener of soundEffectsListeners) listener(on);
+}
+
+export function onSoundEffectsChange(listener: (on: boolean) => void): () => void {
+  soundEffectsListeners.add(listener);
+  return () => { soundEffectsListeners.delete(listener); };
+}
+
 export function reportUiSoundError(error: unknown): void {
   const name = typeof error === "object" && error !== null && "name" in error ? error.name : undefined;
   if (name === "AbortError" || name === "NotAllowedError") return;
@@ -32,7 +53,7 @@ export function createUiSoundPlayer(media: SoundMedia, options: UiSoundOptions) 
   return {
     async play(): Promise<void> {
       const now = Date.now();
-      if (disposed || pending !== null || now - lastPlayedAt < options.minIntervalMs) return;
+      if (disposed || !soundEffectsOn || pending !== null || now - lastPlayedAt < options.minIntervalMs) return;
       lastPlayedAt = now;
       const ticket = ++generation;
       pending = ticket;
@@ -81,7 +102,7 @@ export function createNativeUiSoundPlayer(driver: {
   return {
     play() {
       const now = Date.now();
-      if (disposed || queued || pending !== null || now - lastPlayedAt < minIntervalMs) return;
+      if (disposed || !soundEffectsOn || queued || pending !== null || now - lastPlayedAt < minIntervalMs) return;
       lastPlayedAt = now; queued = true; void start();
     },
     setReady(value: boolean) {

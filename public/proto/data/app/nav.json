@@ -7,12 +7,12 @@
     },
     {
       "id": "capture",
-      "label": "담기",
+      "label": "기록 추가",
       "icon": "add_circle"
     },
     {
       "id": "chat",
-      "label": "세컨비",
+      "label": "허슬케이",
       "icon": "forum"
     },
     {

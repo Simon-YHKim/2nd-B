@@ -6,31 +6,6 @@
     "subtitle": "Response time · contact · help",
     "speech": "Email us with the screen you were on and what went wrong."
   },
-  "response": {
-    "eyebrow": "Response time",
-    "body": "We reply to messages within 2 business days (KST)."
-  },
-  "contact": {
-    "eyebrow": "Get in touch",
-    "button": "Send an email",
-    "accessibilityLabel": "Email support",
-    "accessibilityHint": "Opens your mail app with the support address."
-  },
-  "faqLabel": "FAQ",
-  "faq": [
-    {
-      "question": "How do I start capturing?",
-      "answer": "Write what comes to mind on the capture screen. PolaScope helps organize it later."
-    },
-    {
-      "question": "How is my data stored, and can I export it?",
-      "answer": "Your entries stay tied to your account only. Use Export in Settings to download your data as a file anytime."
-    },
-    {
-      "question": "Is the AI safe?",
-      "answer": "AI organizes notes and finds related content. Its answers can be wrong, so check important details and make your own decisions."
-    }
-  ],
   "help": {
     "title": "Places you can get help",
     "lead": "You can call the numbers below when you need help.",

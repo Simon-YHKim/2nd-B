@@ -14,13 +14,15 @@
 // classifySafety() at the top of every Advisor call.
 
 import { GoogleGenAI } from "@google/genai";
-
+import { emergencyGuidance, emergencyHotlineForText } from "../safety/emergency-routing";
 import { getEnv } from "../env";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { abortError, throwIfAborted } from "../async/abort";
+import { isTimeoutError, withTimeout } from "../async/with-timeout";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
 import { proxyFnForVendor, safetyVendor } from "./routing";
-import { MODELS } from "./types";
+import { MODELS, type CrisisObserver } from "./types";
 // C3: the Flash classifier makes a real Gemini call client-side (not via the
 // gemini-proxy), so the proxy never logs it. This module audits its own call.
 // safety.ts is a sanctioned LLM-boundary module (already C1-allowlisted for
@@ -31,7 +33,7 @@ import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-
 export type SafetyZone = "green" | "yellow" | "red";
 
 export interface SafetyResult {
-  zone: SafetyZone;
+  zone: SafetyZone; hotline?: import("../safety/lexicon").HotlineId;
   triggers: string[];
   confidence: number;
   source: "lexicon" | "llm" | "lexicon+llm" | "lexicon-fallback";
@@ -52,8 +54,22 @@ ZONES:
          work overwhelm, identity confusion. NOT crisis.
 - GREEN → neutral or positive content. Daily reflection, ideas, planning, gratitude.
 
-CONSERVATIVE RULE: when in doubt between RED and YELLOW, choose RED. False-positive cost is low
-(user sees a hotline they don't need). False-negative cost is catastrophic.
+HOW TO READ THE MESSAGE (apply this before the marker lists):
+- Judge what the writer is saying about themselves, not which letters appear. A marker counts only
+  when the message, read as a whole, expresses the writer's own wish, plan or act of suicide or self-harm.
+- Words may be broken up by punctuation, symbols, spaces, line breaks or invisible characters.
+  Read the message with those removed. If the restored sentence is a first-person risk statement,
+  classify it exactly as if it had been written plainly (RED).
+- If the restored text is not such a statement, the marker does not apply. These are not statements
+  about the writer: source code, identifiers, variable or field names, file paths, URLs, e-mail
+  addresses, titles, events in games or fiction, sports and other technical terms.
+- Everyday sentences that merely share letters with a marker are not RED: finishing or ending a task,
+  where or with whom someone wants to live, asking someone to look at something, a date or a name.
+- A plain denial of suicidal thoughts is not RED by itself.
+
+CONSERVATIVE RULE: when the writer does make a first-person statement about dying, disappearing or
+harming themselves and its seriousness is unclear, choose RED over YELLOW. False-negative cost is
+catastrophic. This rule does not turn text that is not about the writer into RED.
 
 KOREAN markers (Suicide CARE 2.0, Na et al. 2020):
   Active RED: 자살, 죽고 싶, 죽고싶, 살고 싶지 않, 사라지고 싶, 더 이상 살, 끝내고 싶,
@@ -171,7 +187,7 @@ function noteSemanticUnavailable(opts?: {
 function lexiconToResult(text: string, locale: "en" | "ko"): SafetyResult {
   const r = lexiconClassify(text, locale);
   return {
-    zone: r.zone,
+    zone: r.zone, hotline: emergencyHotlineForText(text),
     triggers: r.categories.length > 0 ? r.categories : r.matched.length > 0 ? ["lexicon_match"] : [],
     confidence: r.zone === "red" ? 0.95 : r.zone === "yellow" ? 0.6 : 0.4,
     source: "lexicon-fallback",
@@ -196,7 +212,7 @@ function mergeResults(a: SafetyResult, b: SafetyResult): SafetyResult {
   // recognized zone instead of leaking the unknown string downstream.
   const winnerZone: SafetyZone = order.includes(winner.zone) ? winner.zone : order[0];
   return {
-    zone: winnerZone,
+    zone: winnerZone, hotline: a.hotline ?? b.hotline,
     triggers: [...new Set([...a.triggers, ...b.triggers])],
     confidence: Math.max(a.confidence, b.confidence),
     source: "lexicon+llm",
@@ -226,11 +242,96 @@ async function classifyViaProxy(
   locale: "en" | "ko",
   capturedSession?: AuthenticatedAccountSessionLease,
 ): Promise<SafetyResult | null> {
+  capturedSession?.assertCurrent();
+  // Direct read: babel-preset-expo inlines this independent, default-off flag.
+  if (process.env.EXPO_PUBLIC_SERVER_SAFETY !== "true") return null;
+  return requestProxyClassification(userMessage, locale, capturedSession);
+}
+
+// R1: 449 production-seat round trips on 2026-10-11 measured median 1.5s,
+// p95 1.8s, max 4.2s. Allow 5s, then let this optional input check fail open.
+const OBFUSCATION_TIMEOUT_MS = 5_000;
+
+// Q-261011-05: this entry only asks for meaning; it never unions with lexicon.
+// Transport/payload failures return null. Session invalidation/abort still escape.
+export async function classifyObfuscatedInput(
+  userMessage: string,
+  locale: "en" | "ko",
+  opts?: { capturedSession?: AuthenticatedAccountSessionLease; signal?: AbortSignal },
+): Promise<SafetyResult | null> {
+  const assertActive = (): void => {
+    opts?.capturedSession?.assertCurrent();
+    throwIfAborted(opts?.capturedSession?.signal);
+    throwIfAborted(opts?.signal);
+  };
+  assertActive();
+  if (process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY !== "true") return null;
+  const controller = new AbortController();
+  const signals = [opts?.signal, opts?.capturedSession?.signal];
+  let onAbort!: () => void;
+  const cancelled = new Promise<never>((_, reject) => {
+    onAbort = () => {
+      controller.abort();
+      reject(abortError());
+    };
+    for (const signal of signals) signal?.addEventListener("abort", onAbort, { once: true });
+  });
+  try {
+    // Bound the wait even if the transport ignores signal. Cancellation also
+    // races independently so a stalled proxy cannot delay a user's abort.
+    const result = await withTimeout(Promise.race([
+      requestProxyClassification(userMessage, locale, opts?.capturedSession, controller.signal, true),
+      cancelled,
+    ]), OBFUSCATION_TIMEOUT_MS, "Obfuscated input classification");
+    assertActive();
+    return result;
+  } catch (error) {
+    // Abort the transport on timeout; the aborted signal also discards late
+    // payloads before parsing. Recheck callers AFTER abort: cancellation wins
+    // even when it arrives during the timeout's continuation.
+    if (isTimeoutError(error)) controller.abort();
+    assertActive();
+    if (isTimeoutError(error)) return null;
+    throw error;
+  } finally {
+    for (const signal of signals) signal?.removeEventListener("abort", onAbort);
+  }
+}
+
+// One best-effort health row for this failed gated attempt, without input text.
+// The caller checks the flag and fences the completed request before recording.
+export function noteObfuscationUnavailable(
+  userId: string,
+  lexiconZone: SafetyZone,
+  capturedSession?: AuthenticatedAccountSessionLease,
+  signal?: AbortSignal,
+): void {
+  try {
+    void insertAiAuditLog({
+      userId,
+      promptHash: "",
+      outputHash: "",
+      modelUsed: "obfuscation-safety-unavailable",
+      vertexBackend: false,
+      safetyZone: lexiconZone,
+      latencyMs: 0,
+      purpose: "safety_classify",
+    }, capturedSession?.accessToken, capturedSession?.signal ?? signal).catch(() => {});
+  } catch {
+    // Best effort, like noteSemanticUnavailable; generation must remain available.
+  }
+}
+
+async function requestProxyClassification(
+  userMessage: string,
+  locale: "en" | "ko",
+  capturedSession?: AuthenticatedAccountSessionLease,
+  signal?: AbortSignal,
+  strictPayload = false,
+): Promise<SafetyResult | null> {
   try {
     capturedSession?.assertCurrent();
-    // Direct process.env read so babel-preset-expo inlines the flag at build time
-    // (default undefined -> off). Do not route through getEnv (not in its schema).
-    if (process.env.EXPO_PUBLIC_SERVER_SAFETY !== "true") return null;
+    throwIfAborted(signal);
     // The vendor is a switch now, not a literal. See safetyVendor() for why the
     // September failure here is quieter than a break: this function catches
     // everything and returns null, so a dead key does not error - it silently
@@ -267,7 +368,9 @@ async function classifyViaProxy(
           },
         },
       },
-      signal: capturedSession?.signal,
+      // Only the obfuscated-input caller supplies a composed request signal.
+      // The legacy classifyViaProxy caller retains its captured session signal.
+      signal: signal ?? capturedSession?.signal,
     };
     const { data, error } = capturedSession
       ? await invokeFunctionWithCapturedSession<Record<string, unknown>>(
@@ -277,6 +380,7 @@ async function classifyViaProxy(
         )
       : await getSupabaseClient().functions.invoke(proxyFnForVendor(vendor), request);
     capturedSession?.assertCurrent();
+    throwIfAborted(signal);
     if (error || !data) return null;
     const text = String((data as { text?: unknown }).text ?? "").trim();
     if (!text) return null;
@@ -286,6 +390,12 @@ async function classifyViaProxy(
       confidence?: number;
     };
     if (parsed.zone !== "red" && parsed.zone !== "yellow" && parsed.zone !== "green") return null;
+    // The new fail-open input check requires the complete wire shape. Keep the
+    // legacy classifier's optional-field defaults unchanged for its own switch.
+    if (strictPayload && (
+      !Array.isArray(parsed.triggers) || !parsed.triggers.every((trigger) => typeof trigger === "string") ||
+      typeof parsed.confidence !== "number" || !Number.isFinite(parsed.confidence)
+    )) return null;
     return {
       zone: parsed.zone,
       triggers: parsed.triggers ?? [],
@@ -298,6 +408,7 @@ async function classifyViaProxy(
     };
   } catch {
     capturedSession?.assertCurrent();
+    throwIfAborted(signal);
     return null; // the safety path must never throw
   }
 }
@@ -305,9 +416,14 @@ async function classifyViaProxy(
 export async function classifySafety(
   userMessage: string,
   locale: "en" | "ko",
-  opts?: { userId?: string; capturedSession?: AuthenticatedAccountSessionLease },
+  opts?: { userId?: string; capturedSession?: AuthenticatedAccountSessionLease; onRed?: CrisisObserver },
 ): Promise<SafetyResult> {
   opts?.capturedSession?.assertCurrent();
+  const notifyRed = (result: SafetyResult): void => {
+    if (result.zone !== "red" || !opts?.onRed) return;
+    opts.capturedSession?.assertCurrent();
+    try { opts.onRed(result.hotline); } catch { /* Continue the classifier's audit/result. */ }
+  };
   // Layer 1: lexicon. Always runs synchronously. Dual-locale: catch a crisis
   // term written in the other language than the UI locale (mirrors the proxy
   // EN+KO gate + classifyInputAnyLocale) - the largest single-locale blind spot.
@@ -317,13 +433,18 @@ export async function classifySafety(
     if (lexOther.zone === "red") lex = lexOther;
   }
 
-  // Layer 2: Gemini Flash, only when we have a real client.
+  notifyRed(lex);
+  if (lex.hotline) return lex; // Explicit emergencies never wait for a model classification.
   const client = getFlashClient();
   if (!client) {
     // D4 (flag-gated): try the server-side classifier before degrading to lexicon.
     const viaProxy = await classifyViaProxy(userMessage, locale, opts?.capturedSession);
     opts?.capturedSession?.assertCurrent();
-    if (viaProxy) return mergeResults(lex, viaProxy);
+    if (viaProxy) {
+      const result = mergeResults(lex, viaProxy);
+      notifyRed(result);
+      return result;
+    }
     noteSemanticUnavailable({
       userId: opts?.userId,
       lexiconZone: lex.zone,
@@ -385,6 +506,7 @@ export async function classifySafety(
         if (typeof console !== "undefined") console.warn("[safety] classifier payload unparseable, using lexicon");
       }
     }
+    notifyRed(result);
     // C3: a real Gemini Flash call happened. The classifier runs client-side (not
     // via the gemini-proxy), so the proxy never logs it — audit it here,
     // best-effort, when attributable to a user. On the public web build the Flash
@@ -435,8 +557,9 @@ export async function classifySafety(
 // commit, and reconstructing "what did red-ko-v3 say" needs this line to be exact.
 export function fixedCrisisResponse(
   locale: "en" | "ko",
-  minor = false,
+  minor = false, hotline?: import("../safety/lexicon").HotlineId,
 ): { text: string; version: string } {
+  const emergency = emergencyGuidance(hotline, locale); if (emergency) return emergency;
   const hotlineBlock = crisisHotlines(locale, minor)
     .map((h) => (locale === "ko" ? `📞 ${h.number} - ${h.label} (24시간, 무료)` : `📞 ${h.number} - ${h.label}`))
     .join("\n");
@@ -464,3 +587,10 @@ If calling is hard, you can go to your nearest emergency room.`,
     version: "red-en-v2",
   };
 }
+
+// Re-exported from here so boundary.ts can name them on the import line it already
+// has. The legal document (DPIA) cites boundary.ts by line number, and a new
+// import line there would move every cited line.
+export { classifierReportedCategories, recordableCrisisCategories } from "../safety/crisis-event-categories";
+export { replySwapCategories } from "../safety/model-reply-scan";
+export { emergencyGuidance, emergencyRoute, parseEmergencyLane } from "../safety/emergency-routing";

@@ -45,8 +45,9 @@ describe("chat voice input (queue E)", () => {
 
   test("a red-zone transcript routes to the crisis surface, not the draft", () => {
     expect(voiceChain).toContain('reply.safety?.zone === "red"');
-    expect(voiceChain).toContain("setCrisis({ visible: true");
-    expect(screen).toContain("<CrisisRouter");
+    expect(voiceChain).toContain("const noticeOwner = captureAccountOwnerLease(userId)");
+    expect(voiceChain).toContain("publishCrisisNotice(noticeOwner, reply.safety.crisisRouting?.hotline");
+    expect(screen).not.toContain("<CrisisRouter");
   });
 
   test("writer-end proof and account authentication precede the bounded read and transcription", () => {
@@ -93,7 +94,7 @@ describe("chat voice input (queue E)", () => {
     expect(lifecycleCleanup).toContain("voiceAccountLeaseRef.current?.abort()");
     expect(lifecycleCleanup).toContain("recorderLifecycle.dispose()");
     expect(lifecycleCleanup).not.toContain("setVoicePhase(");
-    expect(screen).toContain("createRecorderLifecycle(audioRecorder)");
+    expect(screen).toContain("createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording })");
     expect(screen).toContain("await recorderLifecycle.waitForIdle()");
     expect(screen).toContain("beginAccountSessionLease(userId)");
 

@@ -1,5 +1,5 @@
 /**
- * Shared deep-space chrome — a 1:1 clone of legacy/design/prototype.dc.html's frame:
+ * Shared deep-space chrome — a 1:1 clone of E:/Legacy/2ndB/legacy/design/prototype.dc.html's frame:
  * SecondbStatusHeader at the top, the screen body, and the primary dock at the
  * bottom. No extra chrome (the design home has no top-right icons). The OS status
  * bar is handled by the safe-area inset.
@@ -11,10 +11,10 @@
  * Rendered only in the deep-space build. The deep-space-shell-a11y guard pins the
  * character accessibilityLabel pattern to THIS file.
  */
-import { useEffect, type ReactNode } from "react";
-import { BackHandler, StyleSheet, View } from "react-native";
+import { useEffect, type ReactNode, type RefObject } from "react";
+import { BackHandler, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, usePathname, type Href } from "expo-router";
 
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
@@ -24,6 +24,12 @@ import { MdNavBar, MdTopAppBar } from "@/components/m3";
 import { SecondbStatusHeader } from "./SecondbStatusHeader";
 import { SbStarfield } from "./SbStarfield";
 import { TabIcon, type DeepSpaceTab } from "./DeepSpaceDock";
+import { Text } from "@/components/ui/Text";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { goHome } from "@/lib/nav/go-home";
+import { usePhoneEmbed } from "@/lib/nav/phone-embed";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -65,6 +71,11 @@ export function DeepSpaceScreen({
   title,
   onBack,
   action,
+  ownBack = false,
+  overlay,
+  dockItemRefs,
+  dockItemHints,
+  onDockSelect,
   children,
 }: {
   active: DeepSpaceTab;
@@ -90,6 +101,18 @@ export function DeepSpaceScreen({
   title?: string;
   onBack?: () => void;
   action?: ReactNode;
+  /** The screen draws its own back button in its body. Inside the dashboard
+   *  phone the shell then adds no second one (Back lives in one place). */
+  ownBack?: boolean;
+  /** Drawn above the body and the dock. The body's own children stop at the dock's top edge,
+   *  so a guide that points at a dock tab has to be drawn here. */
+  overlay?: ReactNode;
+  /** Refs to single dock tabs, for that guide to measure. */
+  dockItemRefs?: Partial<Record<DeepSpaceTab, RefObject<View | null>>>;
+  /** A hint read on single dock tabs (the guide's sentence, on the tab it points at). */
+  dockItemHints?: Partial<Record<DeepSpaceTab, string>>;
+  /** A screen may take a dock press itself. Returning true means it did. */
+  onDockSelect?: (tab: DeepSpaceTab) => boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation("home");
@@ -112,12 +135,19 @@ export function DeepSpaceScreen({
   // default pop behavior — both when `active` is not in TABS AND when a
   // sub-screen reuses a tab's `active` for dock highlight (e.g. /capture-full
   // with active="capture"): only the tab's ROOT route gets the home-back rule.
+  // goHome pops to the home already in the stack (or swaps this route for one
+  // when there is none). replace("/") put a SECOND home on top whenever the tab
+  // root had been pushed over home, so Back then needed two more presses to
+  // leave the app and the extra homes stayed mounted (QA 261004 D-12, D-01).
   const pathname = usePathname();
+  const embed = usePhoneEmbed();
+  const phone = usePhoneDesign();
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     if (active === "home" || !TABS.includes(active)) return;
     if (pathname !== TAB_ROUTE[active]) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      router.replace("/");
+      goHome();
       return true;
     });
     return () => sub.remove();
@@ -128,8 +158,34 @@ export function DeepSpaceScreen({
     key,
     label: t("ds.dock." + key),
     accessibilityLabel: t("ds.dock." + key),
+    accessibilityHint: dockItemHints?.[key],
     icon: (color: string) => <TabIcon tab={key} color={color} size={24} />,
   }));
+
+  // Inside the dashboard phone the phone is the frame: no sky, window, safe
+  // area or dock (the dock would navigate the app, not the phone). One back
+  // row, wired to the screen's own back (converted to useAppRouter) or the
+  // phone's history. The screen keeps its own scroll; the phone hosts it in
+  // a bounded view outside its list.
+  if (embed) {
+    return (
+      <View style={[styles.embedded, phone && styles.phoneEmbedded]}>
+        {ownBack && !title && !action ? null : <View style={[styles.embeddedHeader, phone && styles.phoneHeader]}>
+          {ownBack ? null : <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("ops:phone.internal.back")}
+            onPress={onBack ?? embed.back}
+            style={styles.embeddedBack}
+          >
+            <PixelGlyph name={phone ? "chevron_left" : "arrow_back"} color={phone ? phoneIos.blue : deepSpace.accentBright} size={24} />
+          </Pressable>}
+          {title ? <Text variant="heading" numberOfLines={2} style={[styles.embeddedTitle, phone && styles.phoneTitle]}>{title}</Text> : <View style={styles.embeddedTitle} />}
+          {action}
+        </View>}
+        <View style={styles.embeddedBody}>{children}</View>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.root, transparentBackdrop && styles.rootTransparent]} edges={["top", "bottom"]}>
@@ -201,18 +257,35 @@ export function DeepSpaceScreen({
         items={dockItems}
         buttonLike
         style={styles.buttonDock}
+        itemRefs={dockItemRefs}
         onSelect={(tab) => {
+          if (onDockSelect?.(tab as DeepSpaceTab)) return;
           const target = TAB_ROUTE[tab as DeepSpaceTab];
           // Sub-screens highlight their owning root tab. Tapping that highlighted
           // item must still return to the root instead of becoming a no-op.
           if (tab !== active || pathname !== target) router.replace(target);
         }}
       />
+      {/* The overlay covers the body and the dock, and stays inside the safe area like they do:
+          an absolute child ignores this view's inset padding, so the insets are given here. */}
+      {overlay ? (
+        <View pointerEvents="box-none" style={[styles.overlayHost, { top: insets.top, bottom: insets.bottom }]}>
+          {overlay}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  phoneEmbedded: { backgroundColor: phoneIos.grouped },
+  phoneHeader: { minHeight: 48, backgroundColor: phoneIos.grouped, borderBottomWidth: 2, borderBottomColor: phoneIos.fill },
+  phoneTitle: { color: phoneIos.label, fontFamily: "Galmuri11Bold", fontSize: 18, lineHeight: 24, paddingBottom: 2 },
+  embedded: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0, backgroundColor: deepSpace.bgMid },
+  embeddedHeader: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 4 },
+  embeddedBack: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  embeddedTitle: { flexGrow: 1, flexShrink: 1, flexBasis: 0, color: deepSpace.accentBright },
+  embeddedBody: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 },
   root: { flex: 1, backgroundColor: deepSpace.bgEdge },
   rootTransparent: { backgroundColor: "transparent" },
   spaceWash: { ...StyleSheet.absoluteFill, overflow: "hidden" },
@@ -226,6 +299,7 @@ const styles = StyleSheet.create({
     borderTopColor: m3.color.surfaceBright,
   },
   floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 6 },
+  overlayHost: { position: "absolute", left: 0, right: 0, zIndex: 40 },
   // Content clears the ~56dp bar zone (no blur, so "under the scrim" would
   // just be hidden; clearance matches the visual outcome).
   museumBody: { flex: 1, paddingTop: 60 },

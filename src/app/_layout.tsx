@@ -7,12 +7,14 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useTranslation } from "react-i18next";
+import "@/lib/capture/shared-media-native";
 
 import { useAddressTerm } from "@/lib/persona/use-address";
 import {
   Stack,
   Redirect,
   router,
+  useGlobalSearchParams,
   useRootNavigationState,
   usePathname,
   useSegments,
@@ -21,7 +23,6 @@ import {
   ThemeProvider as NavThemeProvider,
   DarkTheme as NavDarkTheme,
 } from "expo-router";
-import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
@@ -41,22 +42,32 @@ import {
 } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
 import { HealthAutoReadSync } from "@/components/health/HealthAutoReadSync";
+import { ChatReminderResponseSync } from "@/components/secondb/ChatReminderResponseSync";
+import { GlobalCueHost } from "@/components/audio/GlobalCueHost";
+import { AppCrisisHost } from "@/components/safety/CrisisRouter";
+import { DeviceLockGate } from "@/components/auth/DeviceLockGate";
+import { OfflineBannerFrame } from "@/components/ui/OfflineBannerFrame";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
 import { profileRouteHold } from "@/lib/auth/profile-probe";
+import { isMarkedShareCapture, shareRefusedHref } from "@/lib/capture/share-intent";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
+import { configureEffectsAudioSession } from "@/lib/audio/audio-session";
+import { ensureSoundEffectsHydration } from "@/lib/settings/sound-effects";
+import { GateCover } from "@/components/ui/GateCover";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { AvatarSetupGate, AvatarSetupSceneGuard } from "@/components/avatar/AvatarSetupGate";
 import { EncryptedStorageRecoveryGate } from "@/screens/deepspace/storage-recovery-gate";
 import { BackArrow } from "@/components/ui/BackArrow";
+import { IntroExitShield } from "@/components/ui/IntroExitShield";
+import { startIntroExitShield } from "@/lib/nav/intro-exit-shield";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
-import { PremiumTabBar } from "@/components/premium";
-import { pixelStackTransition } from "@/lib/motion/pixel-physical";
-import { fontAssets } from "@/theme/typography";
-import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
+import { WorldRouteTransition } from "@/components/motion/WorldRouteTransition";
+import { useAppFonts } from "@/lib/fonts/use-app-fonts";
+import { clearRetiredThemeMode, useThemePalette } from "@/lib/theme/ThemeContext";
 import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
 import { Helmet } from "expo-router/vendor/react-helmet-async/lib";
 
@@ -89,9 +100,11 @@ import {
   accountTransitionPendingFromSnapshot,
   accountTransitionSnapshot,
   clearAccountTransition,
+  isAccountNavigationResetPending,
   shouldReleaseAccountTransition,
   subscribeAccountTransition,
 } from "@/lib/auth/account-epoch";
+import { accountRestartPending } from "@/lib/auth/account-restart";
 
 // Expo Router uses a route's named `ErrorBoundary` export as that segment's
 // render-error fallback. Exporting it from the root layout makes it the app-wide
@@ -106,6 +119,12 @@ export { ErrorBoundary } from "@/components/ui/RootErrorBoundary";
 void armWebRecoveryPendingFromLocation().catch(() => undefined);
 initI18n();
 void initAnalytics();
+// Sound effects must not take audio focus from other apps' music (QA 261004 D-02). This runs at
+// module scope so the mode is sent before RootLayout mounts LoadingScreen and its opening players.
+// Native only: the .web module is an empty function. audio-session.test.ts holds the placement.
+void configureEffectsAudioSession();
+// The sound effects switch (Q-261005-02): load the stored value before the opening's first cue.
+ensureSoundEffectsHydration();
 
 // ⚠ #1517 은 여기서 네이티브 크래시 리포팅 SDK 초기화를 켰다. 되살리지 않는다 —
 // main 이 `964db854 fix(analytics): hard-disable Sentry runtimes (#1586)` 로 껐다.
@@ -127,20 +146,23 @@ void initAnalytics();
 // 함수 이름을 **주석에도 적으면 안 된다**. 스캐너는 주석을 걸러내지 않는다.
 void SplashScreen.preventAutoHideAsync();
 
+/** The web plays the opening while the app fonts download; native waits for them under the splash. */
+const OPENING_LOADS_FONTS = Platform.OS === "web";
+
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts(fontAssets);
+  const [fontsLoaded, fontError] = useAppFonts();
+  const fontsReady = fontsLoaded || !!fontError;
   // Synchronously true for en/ko (their packs are in the entry), so those
   // users keep today's first-render timing to the frame. A lazy locale
   // (es/pt/id) holds the loader until its pack chunk is attached, so the
   // first paint is in that language instead of EN keys flashing.
   const i18nReady = useI18nReady();
-  const fadeTransition = pixelStackTransition("fade");
 
   useEffect(() => {
-    if ((fontsLoaded || fontError) && i18nReady) {
+    if (fontsReady && i18nReady) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError, i18nReady]);
+  }, [fontsReady, i18nReady]);
 
   // The first-star chat nudge is persisted to AsyncStorage but nothing read it
   // back, so on native it re-armed on every cold start and re-nudged users who
@@ -149,6 +171,8 @@ export default function RootLayout() {
   // one extra nudge.
   useEffect(() => {
     void hydrateFirstStarChatNudge();
+    // Q-261005-02: the dark/light choice is gone. Drop its stale key once (nothing reads it).
+    void clearRetiredThemeMode();
   }, []);
 
   // The served page has two <title> tags and the FIRST one wins: Expo Router's
@@ -185,11 +209,22 @@ export default function RootLayout() {
   // Brief minimal loader during font resolution. The branded cell-team
   // intro now lives inside IntroGate (gated on auth) — unauthenticated
   // visitors should land on /sign-in immediately, NOT see the loader.
-  if ((!fontsLoaded && !fontError) || !i18nReady) {
+  // On the web the opening plays while the fonts download (use-app-fonts.web.ts):
+  // they are not on its critical path, and IntroGate holds only the hand-over
+  // until they are in. Native keeps waiting here, under the splash screen.
+  //
+  // R2A-04: no caption while the fonts are out. Android caches a text measurement
+  // under the font family NAME ("Galmuri11"), not under the face that answered, so
+  // a caption laid out here, before Galmuri is registered, is measured in the
+  // fallback face, and every later loader with the same words reuses that width.
+  // Galmuri is wider, the last word wrapped onto a second line the box had no room
+  // for, and the loader read "불러오는" (ko) or "Loadin" (en, D-08). Drawing no
+  // text until the face is in leaves nothing stale to reuse, in any language.
+  if ((!fontsReady && !OPENING_LOADS_FONTS) || !i18nReady) {
     return (
       <>
         {SITE_HEAD}
-        <InlineLoader />
+        <InlineLoader bare={!fontsReady} />
       </>
     );
   }
@@ -198,7 +233,6 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       {SITE_HEAD}
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <ThemeProvider>
           <AuthProvider>
             <ThemedStatusBar />
             <PendingAccountTransitionResolver />
@@ -206,11 +240,16 @@ export default function RootLayout() {
             <AddressTermSync />
             <AuditWriteOutboxSync />
             <HealthAutoReadSync />
+            <ChatReminderResponseSync />
+            {/* 화면이 바뀌어도 끝까지 나야 하는 소리(온보딩 끝). lib/audio/global-cues.ts */}
+            <GlobalCueHost />
             {/* Big SecondB head follows touch on every screen (auto by size >= 80);
                 bubbling onTouch* so it never steals taps. Dock + Toast are global
                 overlays for the background-task loading system. */}
+            <DeviceLockGate>
+            <OfflineBannerFrame>
             <SecondbHeadTrackProvider>
-            <IntroGate>
+            <IntroGate fontsReady={fontsReady}>
               <AvatarSetupGate>
               {/* O-23 Stage③: the Stack mounts every route in BOTH UI modes (the
                   flag only swaps which component `index` renders — see index.tsx —
@@ -236,7 +275,7 @@ export default function RootLayout() {
               <Stack.Screen name="jarvis" />
               <Stack.Screen name="plans" />
               <Stack.Screen name="subscription" />
-              <Stack.Screen name="wiki" options={fadeTransition} />
+              <Stack.Screen name="wiki" />
               <Stack.Screen name="manual" />
               <Stack.Screen name="museum" />
               <Stack.Screen name="big-five" />
@@ -255,36 +294,35 @@ export default function RootLayout() {
               <Stack.Screen name="account" />
               <Stack.Screen name="import" />
               <Stack.Screen name="interview" />
-              {/* Village detail + center: crossfade so the graph→village
-                  transition reads as the zoomed island resolving into the
-                  screen, and BACK doesn't hard-cut to a re-popping graph. The
-                  five Pattern Cores route to /records + /wiki; the center to
-                  /core-brain. (/imagine is now a redirect into Divergent mode.) */}
-              <Stack.Screen name="records" options={fadeTransition} />
+              {/* The shared world transition owns graph/list route changes. */}
+              <Stack.Screen name="records" />
               {/* 북극성 is a card over the sky, not a page (Simon 2026-09-30):
                   the home stays underneath, PolarisCardOverlay draws the scrim. */}
               <Stack.Screen name="core-brain" options={{ presentation: "transparentModal", contentStyle: { backgroundColor: "transparent" } }} />
               <Stack.Screen name="+not-found" />
               </ThemedStack>
               <BackArrow />
-              <AppTabBar />
               <BackgroundTaskDock />
               <CompletionToast />
               </AvatarSetupGate>
             </IntroGate>
+            {/* W-05: for a moment after the opening ends, a tap that was aimed
+                at its skip button must not land on the dock tab underneath. */}
+            <IntroExitShield />
             </SecondbHeadTrackProvider>
+            </OfflineBannerFrame>
+            </DeviceLockGate>
+            <AppCrisisHost />
           </AuthProvider>
-        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
-/** Wraps <Stack> so its contentStyle.backgroundColor tracks the theme
- *  toggle without forcing every screen to set its own bg. */
+/** Wraps <Stack> so every scene sits on the app's dark ground without each
+ *  screen setting its own bg. There is no theme toggle (Q-261005-02). */
 function ThemedStack({ children }: { children: React.ReactNode }) {
   const palette = useThemePalette();
-  const transition = pixelStackTransition();
   // ⚠ **`contentStyle` 만으로는 뒤가 안 칠해진다.**
   //
   // 그건 각 화면의 내용 컨테이너만 칠한다. 그 바깥의 네비게이션 루트 뷰는
@@ -296,7 +334,7 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
   // 셸 탓임이 드러났다. 눈으로는 잘 안 보인다 — 앱이 그 위를 거의 다 덮기 때문에
   // 로딩 순간·전환 틈·오버스크롤에서만 새어 나온다.
   //
-  // 팔레트는 항상 어두운 값이다(아래 ForceDark 주석). `card` 도 같이 맞춰야
+  // 팔레트는 항상 어두운 값이다(라이트 팔레트를 고르는 길이 없다, Q-261005-02). `card` 도 같이 맞춰야
   // 헤더·카드 기본값이 흰색으로 남지 않는다.
   const navTheme = useMemo(
     () => ({
@@ -311,13 +349,18 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
         screenLayout={({ children: screen, route }) => (
           <ProfileProbeScope routeName={route.name}>
             <AvatarSetupSceneGuard routeName={route.name}>
-              <AccountScope routeName={route.name}>{screen}</AccountScope>
+              <WorldRouteTransition routeName={route.name} routeKey={route.key}>
+                <AccountScope routeName={route.name}>{screen}</AccountScope>
+              </WorldRouteTransition>
             </AvatarSetupSceneGuard>
           </ProfileProbeScope>
         )}
         screenOptions={{
           headerShown: false,
-          ...transition,
+          // SceneTransition supplies the same stepped motion on native/web.
+          // A platform push here would add a second, smooth animation.
+          animation: "none",
+          animationDuration: 0,
           contentStyle: { backgroundColor: palette.background },
         }}
       >
@@ -380,10 +423,16 @@ const ACCOUNT_RESET_RETRY_RENDER_PASSES = 2;
 const ACCOUNT_RESET_MAX_ATTEMPTS = 3;
 
 /**
- * Reset retained navigation for a new owner, but release the opaque hold only
- * after both the route segments and root stack prove that `/` is the sole
- * scene. Expo Router imperative actions are queued, so clearing in the same
- * effect that dispatches them would expose the old scene for one commit.
+ * A different owner starts the app again (Simon Q-261013-29): a fresh realm has
+ * nothing of the previous owner in it, so there is nothing to prove about the
+ * retained tree. The request does not wait for the router: the phone restarts
+ * at home by itself, and the web goes to its home address (account-restart.ts).
+ *
+ * Where the build cannot restart, the old path stays: reset retained navigation
+ * and release the opaque hold only after both the route segments and root stack
+ * prove that `/` is the sole scene. Expo Router imperative actions are queued,
+ * so clearing in the same effect that dispatches them would expose the old
+ * scene for one commit.
  */
 function PendingAccountTransitionResolver(): null {
   const transitionSnapshot = useSyncExternalStore(
@@ -410,6 +459,9 @@ function PendingAccountTransitionResolver(): null {
     // Keep password recovery/sign-up uninterrupted. The pending proof is
     // resolved as soon as the user exits the auth group.
     if (segments[0] === "(auth)") return;
+    // A different owner is published: ask for the restart before anything below
+    // that depends on navigation state. While it is on its way the hold stays.
+    if (isAccountNavigationResetPending() && accountRestartPending(() => setResetPass((pass) => pass + 1))) return;
     if (shouldReleaseAccountTransition(segments, rootState)) {
       clearAccountTransition(epoch);
       resetDispatchRef.current = null;
@@ -449,18 +501,12 @@ function PendingAccountTransitionResolver(): null {
   return null;
 }
 
-/** Locale-aware premium bottom tab bar (shows only on primary routes). */
-function AppTabBar() {
-  const { i18n } = useTranslation();
-  return <PremiumTabBar locale={i18n.language === "ko" ? "ko" : "en"} />;
-}
-
 
 /**
- * App content is always dark — every screen is wrapped in PremiumAppShell's
- * ForceDark and useThemePalette returns the dark palette even in Light mode
- * (the "village stays dark" design rule). So status-bar icons must always be
- * light to stay visible; tying them to `mode` rendered dark-on-dark in Light.
+ * App content is always dark: there is no light mode (Simon Q-261005-02 removed
+ * the toggle), and useThemePalette has no input that could return a light
+ * palette. So status-bar icons are always light; the old tie to `mode` once
+ * rendered dark-on-dark.
  */
 function ThemedStatusBar() {
   return <StatusBar style="light" />;
@@ -492,7 +538,7 @@ function markIntroPlayed(): void {
   introPlayedThisRuntime = true;
 }
 
-function IntroGate({ children }: { children: React.ReactNode }) {
+function IntroGate({ children, fontsReady = true }: { children: React.ReactNode; fontsReady?: boolean }) {
   const {
     userId,
     loading,
@@ -505,6 +551,12 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   } = useAuth();
   const segments = useSegments();
   const pathname = usePathname();
+  // An Android share opens /capture?text=&title=&from=share. When a redirect
+  // below turns that route away, its params are dropped as for any link, and
+  // the screen it lands on (the storage recovery screen too) says in one line
+  // that the share was not added (src/lib/capture/share-intent.ts). Nothing is
+  // held for later.
+  const shareTurnedAway = isMarkedShareCapture(pathname, useGlobalSearchParams());
   // Play the opening only once per running app/tab. A fresh auth event
   // (including the signed-out -> signed-in transition) must not restart it.
   const [introDone, setIntroDone] = useState(introAlreadyPlayed);
@@ -516,9 +568,10 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   if (!introDone) {
     return (
       <LoadingScreen
-        ready={!loading && recoveryReady && profileHold !== "loading"}
+        ready={fontsReady && !loading && recoveryReady && profileHold !== "loading"}
         onContinue={() => {
           markIntroPlayed();
+          startIntroExitShield();
           setIntroDone(true);
         }}
       />
@@ -533,6 +586,15 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // ordinary bootstrap wait it requires a user decision. Render the explicit
   // Pixel-Clay consent gate before recoveryReady's loader so it is reachable
   // from every route and no authenticated screen remains mounted underneath.
+  // The opening already waited for the fonts before handing over; this only
+  // matters when the intro was played earlier in this tab and the fonts are not.
+  // Bare for the same reason as RootLayout's font wait (R2A-04).
+  if (!fontsReady) return <InlineLoader bare />;
+  // A share is not kept through a storage recovery (gate SG-R3-01, Simon
+  // 2026-10-07 13:33). Before that screen shows, the route drops text, title
+  // and marker and keeps only the notice, which the screen draws as its line.
+  // The next render reads /capture?notice=shareRefused and takes the line below.
+  if (storageRecoveryRequired && shareTurnedAway) return <Redirect href={shareRefusedHref("/capture", true)} />;
   if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;
   if (!recoveryReady) return <InlineLoader />;
 
@@ -540,7 +602,7 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // pathname matching also catches pushes to another route inside `(auth)`;
   // a group-level exemption would let /sign-in escape the mandatory reset.
   if ((recoveryUserId || recoveryPendingGlobal) && pathname !== "/reset-password") {
-    return <Redirect href="/reset-password" />;
+    return <Redirect href={shareRefusedHref("/reset-password", shareTurnedAway)} />;
   }
 
   // A FAILED profile probe is unknown: not "no profile", not "has profile", and
@@ -552,7 +614,17 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // C10 ones, (auth) and read-only onboarding; ProfileProbeScope (ThemedStack)
   // holds every scene the same way, so leaving an exemption cannot mount a
   // feature route either.
-  if (profileHold === "retry") return <ProfileProbeRetryScreen />;
+  //
+  // R2A-01: "hold" here means COVER, not unmount (components/ui/GateCover.tsx).
+  // Returning the retry screen or the loader in place of the children unmounted the
+  // root Stack, and with no Stack state useSegments() reads the last deep link left
+  // in the root slot's params. AvatarSetupGate froze the app that way on device. This
+  // gate had the same shape: after a signed-out deep link to /sign-in, a failed first
+  // profile probe on "/" would read "(auth)" there, release, remount the Stack at "/",
+  // hold again, and loop (modelled in gate-cover-loop.test.ts, not reproduced on a
+  // device). Under the cover the Stack stays mounted, the segments stay live, and
+  // ProfileProbeScope still holds every scene, so nothing behind it renders.
+  if (profileHold === "retry") return <GateCover cover={<ProfileProbeRetryScreen />}>{children}</GateCover>;
 
   // A signed-in user whose profile has not been answered yet is not known either.
   // The first resolve publishes userId with loading=true before the probe, and the
@@ -562,7 +634,7 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // is not failing (profileGate in profile-probe.ts). The boot opening already
   // waited for this state on cold start; this loader handles later profile
   // re-probes without replaying the opening.
-  if (profileHold === "loading") return <InlineLoader />;
+  if (profileHold === "loading") return <GateCover cover={<InlineLoader />}>{children}</GateCover>;
 
   // Global C10 + PIPA-consent gate (re-audit 2026-06-03: per-screen gating was
   // leaky — inbox/wiki kept slipping through). An authenticated session with NO
@@ -590,12 +662,13 @@ function IntroGate({ children }: { children: React.ReactNode }) {
     segments[0] !== "(auth)" &&
     segments[0] !== "onboarding"
   ) {
-    return <Redirect href="/complete-profile" />;
+    return <Redirect href={shareRefusedHref("/complete-profile", shareTurnedAway)} />;
   }
 
   // The opening is complete for this runtime, so auth events and navigation
-  // render in place without replacing a form or replaying the animation.
-  return <>{children}</>;
+  // render in place without replacing a form or replaying the animation. Same
+  // GateCover as the holds above, so lifting a hold does not remount the routes.
+  return <GateCover cover={null}>{children}</GateCover>;
 }
 
 // M1 (round-4): gate product analytics on the SERVER decision, not the

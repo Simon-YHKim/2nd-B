@@ -1,5 +1,7 @@
 # Tesseract Clean Cutout Asset Package v10
 
+> 2026-10-04: only `soul_core.png` (the /core-brain empty and load-error art) stays here. The six pattern-core PNGs were moved to `E:/Legacy/2ndB` (batch `qa261004-art`); `manifest.json` still lists them as the original inventory.
+
 이번 버전은 v9 리뷰에서 발견된 문제를 반영해 다시 만든 누끼 패키지입니다.
 
 ## 핵심 변경

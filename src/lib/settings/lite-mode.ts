@@ -4,10 +4,10 @@
 //   1) Motion: prefersReducedMotion() (src/lib/motion/signature.ts) ORs this
 //      flag in, so every animation consumer (graph spawn/zoom, save pop,
 //      companion sprites, celebrations) collapses to its no-motion branch.
-//   2) Decorative crew: useCrewCount() returns 0 sprites. The stored density
-//      preference is untouched - switching lite off restores it.
-//   3) Graph glow LOD: NodeGlow draws 2 of the 4 pixel-halo rings. Per-tier
-//      alpha scaling is unchanged, so the visual tier hierarchy holds.
+//   2) Decorative crew: retired. useCrewCount() lived in crew-density.ts and
+//      left for E:/Legacy with the old graph home (NavGraph) on 2026-10-04.
+//   3) Graph glow LOD: retired the same day. NodeGlow was NavGraph's own halo,
+//      so no shipped screen read this lever before or after the move.
 //
 // Persisted like readable-font (web localStorage / native AsyncStorage /
 // memory fallback), with a SYNC getter for pure call sites. On native the

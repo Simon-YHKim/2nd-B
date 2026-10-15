@@ -21,7 +21,7 @@ const latestFunctions = ["credit_refund_spend_internal","spend_credits"].map((na
 const erasure = readFileSync(resolve(root,"db/migrations/0189_erasure_registry.sql"),"utf8");
 const erasureTable = erasure.match(/CREATE TABLE IF NOT EXISTS public\.erasure_registry \([\s\S]*?\n\);/)?.[0];
 const erasureRpc = erasure.match(/CREATE OR REPLACE FUNCTION public\.erase_my_data\([\s\S]*?\$erase_my_data\$;/)?.[0];
-const tombstone = readFileSync(resolve(root,"db/migration-drafts/UNNUMBERED_account_deletion_completion_fence.sql"),"utf8")
+const tombstone = readFileSync(resolve(root,"db/migrations/0192_account_deletion_completion_fence.sql"),"utf8")
   .match(/CREATE TABLE IF NOT EXISTS public\.account_deletion_tombstones \([\s\S]*?\n\);/)?.[0];
 if (!erasureTable || !erasureRpc || !tombstone) throw new Error("Missing current erasure/deletion fence contracts");
 const consentFixture = resolve(root,"db/migration-drafts/tests/llm-consent-snapshot-contract.sql");
@@ -31,14 +31,14 @@ const emailTrigger = readFileSync(resolve(root,"db/migrations/0086_require_email
   .match(/CREATE TRIGGER trg_complete_verified_email_signup\s[\s\S]*?EXECUTE FUNCTION public\.complete_verified_email_signup\(\);/)?.[0];
 if (!billingRole || !emailTrigger) throw new Error("Missing actual consent role/trigger helpers");
 const registryFixture = resolve(root,"db/migration-drafts/tests/service-contract-erasure-registry.sql");
-const rewardRateTable = readFileSync(resolve(root,"db/migration-drafts/UNNUMBERED_reward_ssv_hardening.sql"),"utf8")
+const rewardRateTable = readFileSync(resolve(root,"db/migrations/0196_reward_ssv_hardening.sql"),"utf8")
   .match(/CREATE TABLE IF NOT EXISTS public\.reward_ssv_issue_rate_limits \([\s\S]*?FROM PUBLIC, anon, authenticated, service_role;/)?.[0];
 const baseRegistrySeed = erasure.match(/-- <<< erasure-registry:generated[\s\S]*?-- <<< \/erasure-registry:generated >>>/)?.[0];
-const polarisProvisioning = readFileSync(resolve(root,"db/migration-drafts/UNNUMBERED_polaris_generation_allowance.sql"),"utf8");
+const polarisProvisioning = readFileSync(resolve(root,"db/migrations/0195_polaris_generation_allowance.sql"),"utf8");
 if (!rewardRateTable || !baseRegistrySeed) throw new Error("Missing actual rate-table/registry seed contracts");
 const registrySql = readFileSync(registryFixture,"utf8")
   .replace("-- @LOAD_ACTUAL_REWARD_RATE_TABLE@",() => rewardRateTable)
-  .replace("-- @LOAD_ACTUAL_REGISTRY_FORWARD@",() => readFileSync(resolve(root,"db/migration-drafts/UNNUMBERED_service_contract_erasure_registry.sql"),"utf8"))
+  .replace("-- @LOAD_ACTUAL_REGISTRY_FORWARD@",() => readFileSync(resolve(root,"db/migrations/0198_service_contract_erasure_registry.sql"),"utf8"))
   .replace("-- @LOAD_ACTUAL_BASE_REGISTRY_SEED@",() => baseRegistrySeed)
   .replace("-- @RECREATE_ACTUAL_ERASURE_OBJECTS@",() => `${erasureTable}\n${erasureRpc}`)
   .replace("-- @REPLAY_POLARIS_PROVISIONING@",() => `EXECUTE $provisioning$${polarisProvisioning}$provisioning$;`)

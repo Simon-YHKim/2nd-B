@@ -15,6 +15,8 @@ import { readPhase1 } from "./phase1";
 import { materializeGraphFromPhase1 } from "./materialize";
 import { getSource, getWikiPage, markSourceIngested, syncWikiLinks, upsertWikiPage } from "./queries";
 import { slugForTitle, toSlug } from "./slug";
+import { isAiExcludedSource, SourceAiExcludedError } from "./ai-exclusion";
+import { isProfileContextImportSource, SourceImportManagedError } from "./profile-context-source";
 import { downloadRawClipping } from "./storage";
 import { embedAndStorePage } from "./embeddings";
 import { getEnv } from "../env";
@@ -69,6 +71,7 @@ function bodyFallback(frontmatter: Record<string, unknown> | null): string | nul
 export async function generateSourcePage(userId: string, sourceId: string): Promise<GenerateSourcePageResult> {
   const source = await getSource(userId, sourceId);
   if (!source) throw new SourceNotFoundError(sourceId);
+  if (isProfileContextImportSource(source.frontmatter)) throw new SourceImportManagedError(sourceId);
 
   // storage_path being set is NOT evidence the object exists: capture.ts writes
   // the canonical path onto the row even when the upload failed, stashing the
@@ -77,8 +80,12 @@ export async function generateSourcePage(userId: string, sourceId: string): Prom
   // import whose upload failed, 48 bytes sitting in _body_fallback) could never
   // become a wiki page. get-piece.ts already reads the same fallback, so the
   // detail screen rendered the body fine while promotion died on it.
+  // Health measurements never become a wiki page: the page body is embedded (OpenAI) and read
+  // into the chat context, both AI providers (ai-exclusion.ts). The source record stays.
+  if (isAiExcludedSource(source.frontmatter)) throw new SourceAiExcludedError(sourceId);
   const body = (await downloadRawClipping(source.storage_path).catch(() => null)) ?? bodyFallback(source.frontmatter);
   if (body === null) throw new SourceBodyUnavailableError(sourceId);
+  if (isAiExcludedSource(null, body)) throw new SourceAiExcludedError(sourceId);
   // slugForTitle (not toSlug) so a title written purely in CJK/Cyrillic/Thai
   // doesn't collapse to "" and overwrite another foreign-titled page on the
   // (user_id, slug) upsert key.

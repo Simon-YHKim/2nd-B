@@ -12,6 +12,15 @@ const FLOWS = JSON.parse(
 ) as {
   onboardingSlides: { tag: string; title: string; icon: string; body: string }[];
 };
+// The non-Korean slide copy moved from an EN mirror in onboarding.tsx to the
+// deepspace bundles (Q-261005-01 = A, 2026-10-06). The EN assertions below read
+// the canonical en bundle, which the other locales translate.
+type SlideCopy = { tag?: string; title: string; body: string };
+const EN_SLIDES = (
+  JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, "..", "..", "..", "locales", "en", "deepspace.json"), "utf8"),
+  ) as { onboarding: { slides: { intro: SlideCopy; stars: SlideCopy; approve: SlideCopy } } }
+).onboarding.slides;
 
 function functionBody(name: string): string {
   const start = SRC.indexOf(`function ${name}(`);
@@ -31,9 +40,12 @@ function functionBody(name: string): string {
 
 describe("/onboarding PIXEL-CLAY handoff contract", () => {
   test("keeps the signed-out pre-auth carousel and redirects only after completion", () => {
-    expect(SRC).toContain("useOnboardingComplete()");
+    // Q-261004-40 (0219): signed in, the account's server mark once the session
+    // is restored; signed out, this device's flag.
+    expect(SRC).toContain("useOnboardingComplete(userId, !loading)");
     expect(SRC).not.toMatch(/if\s*\(\s*!userId\s*\)[^\n]*Redirect/);
-    expect(SRC).toMatch(/onboardingComplete === true[\s\S]{0,60}<Redirect href="\/"/);
+    // QA 261004 D-01: back to the home underneath, never a second home.
+    expect(SRC).toMatch(/onboardingComplete === true[\s\S]{0,60}<RedirectHome \/>/);
     expect(SRC).toMatch(/loading \|\| onboardingComplete === null/);
   });
 
@@ -47,14 +59,15 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
 
   test("introduces the current seven-star model with concrete starting examples", () => {
     const koBody = FLOWS.onboardingSlides[1]?.body ?? "";
-    const enBody =
-      SRC.match(/tag: "Getting to know you",[\s\S]*?body: "([^"]+)"/)?.[1] ?? "";
+    const enBody = EN_SLIDES.stars.body;
 
     expect(FLOWS.onboardingSlides[1]?.title).toContain("일곱 별");
     for (const star of ["학창시절", "직장", "지금"]) {
       expect(koBody).toContain(star);
     }
-    expect(SRC).toContain("across seven stars");
+    expect(SRC).toContain('"onboarding.slides.stars.body"');
+    expect(EN_SLIDES.stars.tag).toBe("Getting to know you");
+    expect(EN_SLIDES.stars.title).toContain("across seven stars");
     for (const star of ["School years", "work", "now"]) {
       expect(enBody).toContain(star);
     }
@@ -68,17 +81,22 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
 
     expect(FLOWS.onboardingSlides[2]).toEqual({
       tag: "내가 결정하기",
-      title: "AI의 요약은\n내가 확인해요",
+      title: "AI의 요약은\n내가 확인합니다",
       icon: "check_circle",
-      body: "나에 대한 요약은 제안이에요.\n내가 승인해야 반영돼요.",
+      body: "나에 대한 요약은 제안입니다.\n내가 승인해야 반영됩니다.",
     });
-    expect(SRC).toContain('tag: "Your choice"');
-    expect(SRC).toContain('title: "AI summaries need\\nyour approval"');
-    expect(SRC).toContain('body: "A summary about you is a proposal.\\nIt is applied only if you approve it."');
+    expect(SRC).toContain('"onboarding.slides.approve.tag"');
+    expect(EN_SLIDES.approve).toEqual({
+      tag: "Your choice",
+      title: "AI summaries need\nyour approval",
+      body: "A summary about you is a proposal.\nIt is applied only if you approve it.",
+    });
 
+    const enSlideCopy = JSON.stringify(EN_SLIDES);
     for (const removed of ["AI의 원리", "AI 뮤지엄", "함께 배우기", "Learning together", "AI Museum"]) {
       expect(canonCopy).not.toContain(removed);
       expect(SRC).not.toContain(removed);
+      expect(enSlideCopy).not.toContain(removed);
     }
   });
 
@@ -93,14 +111,20 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
 
   test("completion is recorded only inside a final handoff action", () => {
     const handoff = functionBody("finishOnboarding");
-    expect(handoff).toContain("markOnboardingComplete();");
-    expect(handoff).toContain('router.replace("/");');
-    expect(handoff).toContain('router.replace("/sign-up");');
-    expect(handoff).toContain('router.replace("/sign-in");');
-    expect(handoff.indexOf("markOnboardingComplete();")).toBeLessThan(
-      handoff.indexOf('router.replace("/");'),
-    );
-    expect(SRC.match(/markOnboardingComplete\(\)/g)).toHaveLength(1);
+    const leave = functionBody("leaveOnboarding");
+    const record = 'await markOnboardingComplete(owner, skipped ? "skipped" : "completed");';
+    expect(handoff).toContain(record);
+    expect(handoff).toContain("leaveOnboarding(destination);");
+    // The screen leaves only after the server stored it (design 5.3); if it was
+    // not stored, it says so and stays, with retry and home.
+    expect(handoff.indexOf(record)).toBeLessThan(handoff.indexOf("leaveOnboarding(destination);"));
+    expect(handoff).toMatch(/if \(!stored\) \{\s*setSaveFailed\(true\);\s*return;\s*\}/);
+    expect(leave).toContain('router.replace("/");');
+    expect(leave).toContain('router.replace("/sign-up");');
+    expect(leave).toContain('router.replace("/sign-in");');
+    expect(SRC).toContain('onPress={() => leaveOnboarding("/")}');
+    expect(SRC).toContain('t("onboarding.saveFailed")');
+    expect(SRC.match(/markOnboardingComplete\(/g)).toHaveLength(1);
     expect(SRC).toMatch(/onPress=\{\(\) => finishOnboarding\("\/sign-up"\)\}/);
     expect(SRC).toMatch(/onPress=\{\(\) => finishOnboarding\("\/sign-in"\)\}/);
   });
@@ -109,7 +133,24 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
     expect(SRC).not.toMatch(/BirthDateField|TextInput|setBirthDate|ageInYears|MIN_SELF_CONSENT_AGE/);
     expect(SRC).not.toMatch(/18\+|adultState|guardianState|pending_guardian_consent/);
     expect(SRC).toContain('t("auth:signUp.ageNotice")');
-    expect(SRC).toContain('t("auth:signUp.birthDateHelper")');
+  });
+
+  test("the sign-up age floor is shown once, and only to a signed-out visitor (QA 261004 W-11)", () => {
+    // The final slide showed ageNotice as a title and birthDateHelper (the same
+    // floor again, plus a birth-date line with no birth-date field here) under
+    // it, to every visitor. Behind the login wall that is mostly signed-in users.
+    const code = SRC.replace(/^\s*\/\/.*$/gm, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+    expect(code.match(/t\("auth:signUp\.ageNotice"\)/g) ?? []).toHaveLength(1);
+    expect(code).not.toContain("auth:signUp.birthDateHelper");
+    const gate = code.indexOf("{userId ? null : (");
+    const notice = code.indexOf('t("auth:signUp.ageNotice")');
+    expect(gate).toBeGreaterThan(-1);
+    expect(notice).toBeGreaterThan(gate);
+    // The gated block is exactly the age card: it opens right after the gate
+    // and its PixelSurface closes after the notice.
+    const close = code.indexOf("</PixelSurface>", notice);
+    expect(close).toBeGreaterThan(notice);
+    expect(code.slice(gate, close).match(/<PixelSurface\b/g) ?? []).toHaveLength(1);
   });
 
   test("uses Pixel primitives with the Fabric-safe 44dp press contract", () => {

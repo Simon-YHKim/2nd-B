@@ -54,10 +54,9 @@ import { readOpsUsage } from "@/lib/ops/usage";
 
 const ROOT = join(__dirname, "..", "..", "..", "..", "..");
 const APP_OPS = readFileSync(join(ROOT, "src", "app", "ops.tsx"), "utf8");
-// 은퇴한 렌더러는 legacy/ 로 나갔지만 **바이트는 그대로다.** 아래 digest 핀이
-// 그것을 증명한다 — 같은 마커, 같은 해시. "읽을 수 있게 보관한다"는 약속이
-// 지켜지는지를 검사로 지킨다.
-const LEGACY_OPS = readFileSync(join(ROOT, "legacy", "screens", "ops.tsx"), "utf8");
+// (은퇴한 OpsLegacy 의 보관본 legacy/screens/ops.tsx 는 2026-10-05 롤백 레버 제거와 함께
+//  E:/Legacy/2ndB 로 나갔다 - Simon 결정 Q-261004-11 C, 같은 바이트. 검사는 보관본을
+//  읽지 않으므로(legacy-archive-integrity.test.ts) 그 digest 핀도 아래에서 은퇴했다.)
 const GIANT = readFileSync(join(ROOT, "src", "screens", "deepspace", "DeepSpaceDesignScreens.tsx"), "utf8");
 const PIXEL_RULES = readFileSync(join(ROOT, "scripts", "check-pixel-rules.ts"), "utf8");
 
@@ -79,15 +78,11 @@ function sourceSlice(source: string, start: string, end: string): string {
  * 문자열로 파일 경로를 박아 두면 이 검사가 다시 거짓 초록불이 된다.
  */
 function hubSourceFile(): string {
-  // 모양이 둘이다. 레거시 렌더러가 살아 있던 동안에는 분기였고
-  //   if (isDeepSpaceUI()) return <DeepSpaceOpsScreen />;
-  // 은퇴 후에는 라우트가 그 화면 하나만 그린다
-  //   return <DeepSpaceOpsScreen />;
-  // 둘 다 받는다. ⚠ 하나만 받으면 은퇴가 이 스위트를 **실패**시키는 게 아니라
-  // **못 뜨게** 만든다 - CI 요약에서 그 둘은 같은 빨간색이라 원인을 가려준다.
-  const m =
-    APP_OPS.match(/if\s*\(isDeepSpaceUI\(\)\)\s*return\s*<(\w+)\s*\/>/) ??
-    APP_OPS.match(/return\s*<(\w+)\s*\/>;/);
+  // 라우트는 그 화면 하나만 그린다: `return <DeepSpaceOpsScreen />;`
+  // 2026-10-05 까지는 레거시 렌더러가 살아 있던 시절의 분기 모양
+  // (`if (isDeepSpaceUI()) return <DeepSpaceOpsScreen />;`)도 받았다. 롤백 레버가 없어져
+  // (Simon 결정 Q-261004-11 C) 그 모양은 더 생길 수 없으므로 래퍼 모양 하나만 받는다.
+  const m = APP_OPS.match(/return\s*<(\w+)\s*\/>;/);
   if (!m) throw new Error("ops.tsx 가 그리는 화면을 못 찾았다 - 구조가 바뀌었으면 이 검사를 고쳐야 한다");
   const component = m[1];
   const imp = APP_OPS.match(new RegExp(`import\\s*\\{[^}]*\\b${component}\\b[^}]*\\}\\s*from\\s*"([^"]+)"`));
@@ -104,17 +99,12 @@ const HUB = readFileSync(hubSourceFile(), "utf8");
 
 /** 허브 격자가 열어야 하는 비서 도구. */
 const TOOLS = [
-  "focus",
-  "reminders",
   "imagine",
   "share-card",
   "srs",
   "call-reflection",
   "reading",
-  "milestones",
-  "ledger",
   "side-project",
-  "meals",
 ] as const;
 
 /** 오늘의 두 가지가 고를 수 있는 후보. 전부 갈 곳이 있어야 한다. */
@@ -152,11 +142,11 @@ describe("비서 허브 ↔ 도구 배선", () => {
     }
   });
 
-  it("domain은 정본 route helper를 통하고 전용 route가 없는 것만 추천 대상으로 남긴다", () => {
+  it("모든 domain은 추천 대상으로 선택되며 도구 이동과 분리된다", () => {
     const select = sourceSlice(HUB, "function selectDomain", "async function runRecommendation");
-    expect(select).toContain("opsRouteForDomain(nextDomain)");
-    expect(select).toContain("router.push(route)");
-    expect(select.indexOf("setDomain(nextDomain)")).toBeGreaterThan(select.indexOf("if (route)"));
+    expect(select).not.toContain("opsRouteForDomain(nextDomain)");
+    expect(select).not.toContain("router.push(");
+    expect(select).toContain("setDomain(nextDomain)");
   });
 
   it("오늘의 두 가지가 실제로 렌더된다", () => {
@@ -168,7 +158,10 @@ describe("비서 허브 ↔ 도구 배선", () => {
   it("빈 자리를 예시 데이터로 채우지 않는다", () => {
     // 카드가 아니라 "다음 걸음" 문구를 쓴다. 원본 대시보드 원리보다 한 걸음 더
     // 정직한 쪽 - lib/ops/today-picks.ts 헤더 참조.
-    expect(HUB).toContain("today.nothingHint");
+    // phonehome-3: an empty board recommendation card is a title and one status line.
+    // Preserve real picks/next links; do not add a second empty-state heading.
+    expect(HUB).not.toContain("today.nothingHint");
+    expect(HUB).toContain("picksData && (picksData.picks.length > 0 || picksData.suggestions.length > 0)");
     expect(HUB).toContain("today.next.");
   });
 
@@ -320,7 +313,7 @@ describe("비서 허브 auth·상태·비용 계약", () => {
     expect(run).toContain('setRunState(result.length === 0 ? "empty" : "idle")');
     expect(run).toContain('setRunState("error")');
 
-    const mountEffects = sourceSlice(HUB, "export function DeepSpaceOpsScreen()", "async function runRecommendation()");
+    const mountEffects = sourceSlice(HUB, "export function DeepSpaceOpsScreen(", "async function runRecommendation()");
     expect(mountEffects).not.toContain("recommendForDomain({");
     expect(mountEffects).not.toContain("bumpOpsUsage(");
   });
@@ -378,7 +371,7 @@ describe("비서 허브 실제 상태·mutation 계약", () => {
     expect(consent.indexOf("!persisted")).toBeGreaterThan(consent.indexOf("await pending.run()"));
     expect(consent).toContain("consent:privacy.saveError");
 
-    const effects = sourceSlice(HUB, "export function DeepSpaceOpsScreen()", "async function runRecommendation()");
+    const effects = sourceSlice(HUB, "export function DeepSpaceOpsScreen(", "async function runRecommendation()");
     for (const mutation of [
       "scheduleRoutineReminder(",
       "addEventToDeviceCalendar(",
@@ -394,24 +387,34 @@ describe("비서 허브 실제 상태·mutation 계약", () => {
 // GIANT 의 "Calendar hand-off" slice digest 를 재고정했다(2026-09-07). 오늘 루틴
 // 완료 Pressable 에 웹 스페이스키 배선 한 줄(`checkboxSpaceKeyProps`)이 들어갔다.
 // 나머지 세 digest 는 그대로다 = 인접 슬라이스는 실제로 안 건드렸다는 뜻이 유지된다.
+// 2026-10-05 (롤백 레버 제거, Simon 결정 Q-261004-11 C): 핀 넷 중 둘이 대상을 잃었다.
+//   OpsLegacy digest(409e77b6…)        보관본이 E:/Legacy/2ndB 로 나갔다 -> 은퇴
+//   "Calendar hand-off" digest(35125838…) 그 구간은 라우트가 import 하지 않던 /ops 그림자
+//                                       사본(DeepSpaceOpsScreen)이었고 사본과 함께 나갔다 -> 은퇴
+// 남은 둘은 그대로다. Formats 구간은 끝 표지("// Calendar hand-off needs")가 사라져 다음
+// 표지(재수출 줄)로 옮겼는데, 바이트가 같아 digest 0ae10b95… 가 **한 글자도 안 바뀌었다** —
+// 그림자를 걷으면서 이웃 화면을 안 건드렸다는 증거다.
 describe("비서 허브 PIXEL·legacy 회귀", () => {
-  it("legacy OpsLegacy/styles와 인접 giant export slice는 byte-stable이다", () => {
-    // 2026-09-08: OpsLegacy 가 legacy/screens/ops.tsx 로 나갔다. 슬라이스 대상만
-    // 바꿨고 **digest 는 한 글자도 안 바꿨다** — 옮기면서 고치지 않았다는 증거다.
-    expect(sha256(sourceSlice(LEGACY_OPS, "function OpsLegacy()", "export default function Ops()"))).toBe(
-      "409e77b64c30861003f7cc08b886422a0b12b5f5309f66d368788fef10ab7c2f",
-    );
+  it("인접 giant export slice는 byte-stable이다", () => {
     // 2026-09-28: two download names in this slice became polascope-wiki.md /
     // polascope-iden.json (PolaScope rename, DECISIONS 26.09.28). Only those two
     // string literals changed; the other digests stay as they were.
-    expect(sha256(sourceSlice(GIANT, "export function DeepSpaceFormatsScreen()", "// Calendar hand-off needs"))).toBe(
-      "933d633702712e0703021fc7a52c82e56a6384df37c005e7174f1d3eb574aeb4",
-    );
-    expect(sha256(sourceSlice(GIANT, "// Calendar hand-off needs", "export { DeepSpaceRecordsScreen"))).toBe(
-      "7a451802f2b3ca545760fffdc9e71998d50a63cba7c74d3cbea1c676c31e0159",
+    // 2026-10-04 (QA 261004 L1-07): the export now waits for the resolved age and
+    // passes it (`isMinor === null` return, `minor: isMinor === true` on the three
+    // persona-building calls, the button disabled meanwhile). That property is held by
+    // src/lib/persona/__tests__/persona-build-minor-callsites.test.ts; this digest only
+    // moved with it. The other two digests did not change.
+    // 2026-10-05 (QA R2C-12): the Domains slice ends at the Focus export, so it also
+    // holds the focus constants just above that export. Only those moved: the
+    // `const FOCUS_STARS = canonMore.focusStars;` line became a three-line comment and
+    // "star picker" became "area picker" in the next comment. The Domains screen
+    // itself is byte-identical (slice diff checked, 2 hunks, both in the focus header);
+    // the focus rules are held by src/lib/ops/__tests__/focus-tally.test.ts.
+    expect(sha256(sourceSlice(GIANT, "export function DeepSpaceFormatsScreen()", "export { DeepSpaceRecordsScreen"))).toBe(
+      "0ae10b95e13affbf453974a11e420f73792a352895ec4fee4e9d310c81ed5902",
     );
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceDomainsScreen()", "export function DeepSpaceFocusScreen()"))).toBe(
-      "c8c263bb1bef6540299578c0e20b69b7bdc4549fdad8f464540e34dc96891a24",
+      "07f1e37cb47a85bd6b4b277bfead83688d793a1c64e71fa9633ce5cf99703c6d",
     );
   });
 
@@ -421,11 +424,12 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
     expect(APP_OPS).not.toContain("OpsHomeScreen");
   });
 
-  it("PixelSurface/PixelPressable, rect ring, FlatList, 44dp, a11y와 reflow를 고정한다", () => {
+  it("PixelSurface/PixelPressable, compact progress, FlatList, 44dp, a11y와 reflow를 고정한다", () => {
     expect(HUB).toContain("PixelSurface");
     expect(HUB).toContain("PixelPressable");
-    expect(HUB).toContain("ringCells");
-    expect(HUB).toContain("<Rect");
+    expect(HUB).not.toContain("ringCells");
+    expect(HUB).not.toContain("<ProgressRing");
+    expect(HUB).toContain('t("home.ringCount", { done: todayDone, total: todayData.routines.length })');
     expect(HUB).toContain("<FlatList");
     expect(HUB).toContain("minHeight: m3.minTouch");
     expect(HUB).toContain('accessibilityRole="checkbox"');

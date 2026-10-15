@@ -1,9 +1,10 @@
 {
-  "title": "SecondB",
-  "subtitle": "Pergunte sobre seus registros. As respostas mostram as páginas usadas.",
-  "empty": "Comece uma conversa. Por exemplo: \"Quais assuntos se repetem nas minhas notas deste mês?\"",
-  "placeholder": "Pergunte ao SecondB...",
-  "inputA11y": "Pergunte ao SecondB",
+  "title": "HustleK",
+  "subtitle": "Pergunte sobre sua wiki. As respostas mostram as páginas usadas.",
+  "empty": "Faça uma pergunta. Por exemplo: \"Quais assuntos estão na minha wiki?\"",
+  "placeholder": "Pergunte ao HustleK...",
+  "composerPlaceholder": "Mensagem…",
+  "inputA11y": "Pergunte a {{name}}",
   "send": "Enviar",
   "clearChat": "Limpar",
   "clearChatA11y": "Limpar conversa",
@@ -11,146 +12,56 @@
   "viewPlans": "Ver planos",
   "viewPlansHint": "Abre a tela de planos.",
   "serverLimitReached": "Esta conta atingiu o limite de conversas de hoje. O limite é restabelecido à meia-noite, no horário da Coreia (KST).",
-  "intro_title": "Olá, sou o SecondB",
-  "intro_body": "O SecondB responde usando suas páginas da wiki e mostra quais consultou. Abra essas páginas para conferir. Você pode perguntar, por exemplo, quais assuntos se repetem nos registros do mês.",
   "reference_piece_meta": "registro usado na resposta",
-  "intro_ok": "Entendi",
-  "intro_mute": "Não mostrar hoje",
   "heroSpeech": {
-    "sending": "Consultando os registros relacionados.",
+    "sending": "Consultando as páginas da sua wiki…",
     "divergent": "Considerando outra forma de olhar para a questão.",
-    "default": "Sobre o que você quer conversar hoje?"
+    "default": "O que você quer saber sobre a wiki criada a partir dos seus registros?"
   },
   "personaHero": {
     "speech": "Veja o que se repete nos seus registros. Você pode conferir as fontes e decidir o que fazer a seguir."
-  },
-  "monologues": {
-    "secondb": [
-      "Qual assunto dos seus registros você quer entender melhor?",
-      "Que outro registro pode estar relacionado a este?",
-      "Você pode analisar os registros ou explorar outras ideias.",
-      "Abra as fontes para conferir a resposta."
-    ],
-    "archi": [
-      "Como está seu trabalho hoje?",
-      "Que experiência sua ajuda a pensar nesta decisão?",
-      "Se o próximo passo for grande demais, divida em partes menores.",
-      "O que você poderia tentar no próximo dia de trabalho?"
-    ],
-    "gadi": [
-      "O que aconteceu entre vocês?",
-      "Ficou algo que você queria ter dito?",
-      "Como você se sentiu durante essa conversa?",
-      "O que você gostaria de mudar nessa relação?"
-    ],
-    "lulu": [
-      "Onde você poderia usar o que aprendeu?",
-      "Qual parte ainda ficou confusa?",
-      "Que outra nota fala sobre esse assunto?",
-      "Consegue pensar em um exemplo do dia a dia?"
-    ],
-    "momo": [
-      "Escolha uma categoria para encontrar este registro depois.",
-      "Anote o que aconteceu e quando para encontrar o registro depois.",
-      "Lembra em que dia isso aconteceu?",
-      "Um título específico facilita encontrar o registro depois."
-    ],
-    "lumi": [
-      "O que você tem gostado de fazer ultimamente?",
-      "Essa atividade cabe no seu dia de hoje?",
-      "Quanto tempo você gostaria de reservar para esse hobby?",
-      "O que chamou sua atenção hoje?"
-    ]
-  },
-  "personas": {
-    "secondb": {
-      "greeting": "Seus registros estão aqui. O que você quer olhar primeiro?",
-      "systemHint": "Fale como SecondB, responsável pelo resumo da Estrela Polar. Conecte registros relacionados. No modo Analítico, descreva padrões recorrentes e suas fontes. No modo Divergente, sugira outras possibilidades. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis."
-    },
-    "archi": {
-      "greeting": "O que você quer mudar no seu trabalho? Conte como está a situação hoje.",
-      "systemHint": "Fale como Archon, responsável por trabalho e crescimento. Use o histórico profissional e a situação atual do usuário para sugerir coisas específicas que ele pode tentar. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis."
-    },
-    "gadi": {
-      "greeting": "Sobre qual relação ou conversa você quer pensar?",
-      "systemHint": "Fale como Relia, responsável pelos relacionamentos. Mostre relações e padrões recorrentes nos próprios registros do usuário. Use um tom amigável, mas não diga que tem uma relação pessoal real com o usuário ou que depende dele emocionalmente. Não diga que conhece o usuário melhor do que ele mesmo. Dirija-se ao usuário com palavras simples, sem rótulos especializados. Evite elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis."
-    },
-    "lulu": {
-      "greeting": "O que você quer aprender ou colocar em prática?",
-      "systemHint": "Fale como Lumen, responsável por aprendizado e conhecimento. Use os materiais salvos para explicar o que o usuário pergunta e dar exemplos de como aplicar isso. Não adote a voz de um sábio. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis."
-    },
-    "momo": {
-      "greeting": "Qual registro você quer encontrar? Você pode indicar o assunto ou a data.",
-      "systemHint": "Fale como Momo, responsável por organizar e encontrar registros. Classifique e recupere registros para que o usuário encontre o que aconteceu e quando. Concentre-se na organização e na busca; não dê conselhos. Use linguagem simples. Não afirme que organizou ou salvou registros sem verificar."
-    },
-    "lumi": {
-      "greeting": "O que você tem gostado de fazer? Podemos procurar outras atividades parecidas.",
-      "systemHint": "Fale como Lumina, responsável por hobbies e interesses. Use os interesses registrados pelo usuário para sugerir atividades específicas, considerando o equilíbrio entre trabalho e descanso. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis."
-    }
-  },
-  "characters": {
-    "secondb": {
-      "line": "Podemos analisar seus registros e considerar outras ideias."
-    },
-    "momo": {
-      "line": "Organize seus registros para encontrar o que aconteceu e quando."
-    },
-    "lulu": {
-      "line": "Como você usaria esse conhecimento no dia a dia?"
-    },
-    "archi": {
-      "line": "Conte sua situação de trabalho para pensar no que fazer a seguir."
-    },
-    "gadi": {
-      "line": "O que aconteceu e como você se sentiu?"
-    },
-    "lumi": {
-      "line": "Que atividade você gostaria de experimentar?"
-    }
   },
   "rev2": {
     "selectorA11y": "Escolha um estilo de conversa",
     "lockVoyager": "Viajante",
     "lockNorthstar": "Estrela Polar",
     "lockedA11y": "Bloqueado · abre com o plano {{plan}}",
+    "usageToday": "Hoje",
     "secondb": {
-      "name": "2nd-B",
+      "name": "HustleK",
       "role": "Empatia",
-      "lensName": "SecondB",
-      "tag": "2nd-B",
-      "desc": "Responde a partir dos seus registros"
+      "lensName": "HustleK",
+      "tag": "HustleK",
+      "desc": "Responde com sua wiki de registros"
     },
     "meta": {
-      "name": "Meta-B",
+      "name": "Fact-K",
       "role": "Objetivo",
-      "systemHint": "Persona: Meta-B. Mantenha todas as regras de fundamentação, citação e segurança. Concentre-se nos fatos e descreva padrões apoiados por números e datas dos registros do usuário. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis.",
-      "lensName": "Meta-B",
-      "tag": "Meta-B",
-      "desc": "Analisa fatos e padrões nos seus registros"
+      "systemHint": "Persona: Fact-K. Mantenha todas as regras de fundamentação, citação e segurança. Concentre-se nos fatos e descreva padrões apoiados por números e datas dos registros do usuário. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis.",
+      "lensName": "Fact-K",
+      "tag": "Fact-K",
+      "desc": "Fatos da sua wiki de registros"
     },
     "twi": {
-      "name": "Twi-B",
+      "name": "Joy-K",
       "role": "Imaginar",
-      "systemHint": "Persona: Twi-B. Mantenha todas as regras de fundamentação, citação e segurança. Sugira possibilidades com base nos próprios registros do usuário, separando fatos de cenários imaginados. Se for útil, explique como testar uma sugestão. Não use sempre a mesma frase de encerramento. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis.",
-      "lensName": "Twi-B",
-      "tag": "Twi-B",
-      "desc": "Explora outras ideias a partir dos seus registros"
+      "systemHint": "Persona: Joy-K. Mantenha todas as regras de fundamentação, citação e segurança. Sugira possibilidades com base nos próprios registros do usuário, separando fatos de cenários imaginados. Se for útil, explique como testar uma sugestão. Não use sempre a mesma frase de encerramento. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis.",
+      "lensName": "Joy-K",
+      "tag": "Joy-K",
+      "desc": "Outras ideias da sua wiki de registros"
     }
   },
   "replyFailed": "Não foi possível obter uma resposta. Tente de novo em um instante.",
   "yourMessage": "Sua mensagem",
-  "secondbAnswer": "Resposta do SecondB",
+  "secondbAnswer": "Resposta de {{name}}",
   "longPressCopy": "Pressione e segure para copiar",
   "fillsComposer": "Preenche o campo de texto",
   "keep": "Guardar",
+  "keepSuggestionHint": "Guarde a última pergunta e resposta na sua wiki, com as palavras originais.",
   "keepToWiki": "Guardar na wiki",
   "keptToWiki": "Guardado",
   "keeping": "Guardando...",
   "usedDeepQuestions": "Você usou todas as perguntas detalhadas desta semana",
-  "analysisMode": "Modo análise",
-  "analysisChip": "Análise",
-  "newAngleMode": "Modo novo ângulo",
-  "newAngleChip": "Novo ângulo",
   "voiceInput": "Entrada de voz",
   "voice": {
     "stop": "Parar e transcrever",
@@ -160,16 +71,14 @@
     "transcribeFailed": "Não foi possível transformar essa gravação em texto. Tente de novo ou digite sua mensagem.",
     "transcriptEmpty": "Não conseguimos distinguir nenhuma palavra. Tente de novo mais perto do microfone ou digite."
   },
-  "closeIntro": "Fechar a introdução",
-  "closeIntroHint": "Fecha a janela de introdução",
   "closeReferenced": "Fechar os registros usados",
   "closeReferencedHint": "Fecha a lista de registros usados na resposta",
   "piecesReferenced": "Registros usados",
   "piecesReferencedBody": "Estes registros foram usados na resposta. Abra um para conferir.",
   "closeChip": "Fechar",
-  "eyebrow": "06. Chat com o SecondB",
+  "eyebrow": "06. Chat com o HustleK",
   "newPerspectives": "Novas perspectivas e hipóteses",
-  "readyToChat": "SecondB pronto para conversar",
+  "readyToChat": "HustleK pronto para conversar",
   "longPressCopyThis": "Pressione e segure para copiar esta mensagem",
   "copied": "Copiado",
   "copyFailed": "Não foi possível copiar. Selecione o texto para copiá-lo.",
@@ -181,7 +90,88 @@
   "askLens": "Pergunte ao {{lens}}…",
   "nPieces": "{{n}} registros",
   "chatSaveNotice": "Esta conversa não está sendo guardada",
-  "chatSaveNoticeBody": "Ative o salvamento de conversas na privacidade para mantê-la. O que foi dito antes não é salvo.",
   "chatSaveNoticeOpen": "Abrir ajustes",
-  "chatSaveNoticeDismiss": "Fechar"
+  "chatSaveNoticeDismiss": "Fechar",
+  "planSuggestion": {
+    "routineButton": "Criar uma rotina",
+    "reminderButton": "Criar um lembrete",
+    "reviewHint": "Confira e edite os detalhes antes de salvar.",
+    "routineTitle": "Revisar rotina",
+    "reminderTitle": "Revisar lembrete",
+    "titleLabel": "Tarefa",
+    "dateLabel": "Data",
+    "timeLabel": "Horário",
+    "timeOptional": "Horário · opcional",
+    "cadence": "Repetição",
+    "category": "Categoria",
+    "daily": "Todos os dias",
+    "weekly": "Toda semana",
+    "weekday": "Dia da semana",
+    "saveRoutine": "Salvar rotina",
+    "scheduleReminder": "Agendar",
+    "exportCalendar": "Criar arquivo de calendário",
+    "webNotice": "Os lembretes não tocam neste navegador. Adicione o arquivo ao seu calendário e confira as configurações de alerta.",
+    "exportConsent": "Concordo em exportar o título, a data e o horário deste evento para um arquivo de calendário.",
+    "saving": "Salvando…",
+    "routineSaved": "Rotina salva.",
+    "reminderSaved": "Lembrete agendado.",
+    "calendarCreated": "Arquivo de calendário criado. Adicione-o ao seu aplicativo de calendário.",
+    "saveFailed": "Não foi possível salvar. Confira os detalhes e tente novamente.",
+    "unavailable": "Não é possível salvar esta sugestão agora. Abra-a novamente pela conversa.",
+    "validation": {
+      "title": "Digite uma tarefa.",
+      "date": "Escolha hoje ou uma data futura.",
+      "time": "Digite um horário no formato de 24 horas, como 09:30.",
+      "weekday": "Escolha um dia de repetição.",
+      "exportConsent": "Concorde com a exportação antes de criar o arquivo de calendário.",
+      "past": "Escolha uma data e um horário futuros.",
+      "category": "Escolha uma categoria."
+    },
+    "weekdays": {
+      "0": "Dom",
+      "1": "Seg",
+      "2": "Ter",
+      "3": "Qua",
+      "4": "Qui",
+      "5": "Sex",
+      "6": "Sáb"
+    },
+    "routineSavedNoReminder": "Rotina salva. Nenhum lembrete foi definido.",
+    "routineSavedReminderDenied": "Rotina salva. O lembrete não foi agendado porque a permissão de notificações está desativada.",
+    "routineSavedReminderFailed": "Rotina salva, mas não foi possível agendar o lembrete.",
+    "stale": "A conversa mudou. Abra novamente a sugestão mais recente.",
+    "reminderDenied": "A permissão de notificações está desativada. Ative-a nas configurações e tente novamente.",
+    "reminderSavedNoReminder": "Lembrete salvo neste dispositivo. Não é possível agendar notificações neste ambiente.",
+    "reminderSavedReminderDenied": "Lembrete salvo neste dispositivo. Nenhuma notificação foi agendada porque a permissão foi negada.",
+    "reminderSavedReminderFailed": "Lembrete salvo neste dispositivo. Não foi possível agendar a notificação. Ative-a novamente em Lembretes.",
+    "oneOff": {
+      "title": "Lembretes salvos da conversa",
+      "deviceNote": "Os lembretes desta conta ficam salvos neste dispositivo.",
+      "loading": "Carregando lembretes…",
+      "empty": "Nenhum lembrete salvo da conversa.",
+      "loadFailed": "Não foi possível carregar os lembretes.",
+      "retry": "Recarregar",
+      "unavailable": "Não é possível agendar notificações neste ambiente.",
+      "past": "Horário já passou",
+      "toggleLabel": "Notificação de {{title}}",
+      "on": "Aviso ativado",
+      "off": "Aviso desativado",
+      "alarmFailed": "Não foi possível alterar a notificação. Confira a permissão de notificações do dispositivo e tente novamente.",
+      "delete": "Excluir",
+      "deleteLabel": "Excluir lembrete: {{title}}",
+      "deletePrompt": "Excluir este lembrete e cancelar sua notificação agendada?",
+      "confirmDelete": "Confirmar exclusão",
+      "cancel": "Cancelar",
+      "deleteFailed": "Não foi possível excluir o lembrete. Tente novamente em instantes.",
+      "previous": "Anterior",
+      "next": "Próxima",
+      "page": "{{current}} de {{total}}"
+    }
+  },
+  "aiLine": "{{name}} é uma IA e pode errar. Confira as informações importantes.",
+  "aiNotice": {
+    "body": "{{name}} é uma IA. As respostas são geradas por IA e servem apenas como referência. Confira as informações importantes.",
+    "confirm": "Entendi"
+  },
+  "aiCopyTail": "Conteúdo gerado por IA (PolaScope)"
 }

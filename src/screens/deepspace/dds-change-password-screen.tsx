@@ -1,14 +1,9 @@
+import { PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useRef, type ReactNode } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { Platform, StyleSheet } from "react-native";
+import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -19,6 +14,7 @@ import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useChangePasswordForm } from "@/lib/auth/useChangePasswordForm";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { m3 } from "@/lib/theme/m3";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
@@ -57,6 +53,9 @@ function PasswordField({
 }
 
 export function DeepSpaceChangePasswordScreen() {
+  // Phone-aware: inside the dashboard phone, the top bar's back and the
+  // re-sign-in link go through the phone.
+  const router = useAppRouter();
   const { t } = useTranslation(["auth", "common"]);
   const { userId, loading } = useAuth();
   const form = useChangePasswordForm();
@@ -86,12 +85,11 @@ export function DeepSpaceChangePasswordScreen() {
   const submitBackground = submitDisabled ? m3.color.surfaceVariant : m3.color.primary;
   const submitForeground = submitDisabled ? m3.disabled.onSurface : m3.color.onPrimary;
 
+  // ownBack: the top bar below draws this screen's back button, so the phone
+  // shell adds no second one. The loading state above has none and keeps it.
   return (
-    <DeepSpaceScreen active="settings" header="none">
-      <KeyboardAvoidingView
-        style={styles.screen}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+    <DeepSpaceScreen active="settings" header="none" ownBack>
+      <KeyboardAvoidingArea style={styles.screen}>
         <View style={styles.topBar}>
           <PixelPressable
             onPress={() => router.back()}
@@ -257,7 +255,7 @@ export function DeepSpaceChangePasswordScreen() {
             </View>
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </DeepSpaceScreen>
   );
 }

@@ -4,6 +4,7 @@
     "zoom": "Memperbesar bintang",
     "focus": "Menyesuaikan fokus",
     "ready": "Fokus terkunci · Siap berkunjung",
+    "held": "Fokus terkunci",
     "return": "Kembali ke rasi bintang",
     "shutter": "Memotret"
   },
@@ -41,9 +42,6 @@
   },
   "wiki": {
     "title": "Pengetahuan",
-    "headerGrowing": "Ada {{count}} catatan tersimpan di wikimu.",
-    "headerEmpty": "Wikimu masih kosong. Tambahkan catatan untuk memulai.",
-    "tip": "Persempit berdasarkan tag.",
     "statPages": "Halaman",
     "statLinks": "Tautan",
     "filterAll": "Semua",
@@ -82,20 +80,9 @@
     "gettingProposals": "Mencari keterkaitan…"
   },
   "records": {
-    "title": "Arsip",
-    "headerCount": "Kamu sudah menyimpan {{count}} catatan ke wiki.",
-    "headerCount_plural": "Kamu sudah menyimpan {{count}} catatan ke wiki.",
-    "headerEmpty": "Belum ada catatan tersimpan.",
-    "tip": "Ada {{count}} catatan di kotak masuk yang belum dikategorikan.",
-    "tip_plural": "Ada {{count}} catatan di kotak masuk yang belum dikategorikan.",
-    "lead": "Semua yang kamu simpan, dalam satu lini masa",
     "filterAll": "Semua",
-    "filterJournal": "Jurnal",
-    "filterNote": "Catatan",
-    "filterAudit": "Tinjauan",
     "emptyAll": "Arsip masih kosong. Catatan yang kamu simpan akan tampil berurutan menurut waktu.",
     "emptyKind": "Belum ada catatan dengan tipe ini.",
-    "tipClear": "Semua sudah tertata.",
     "wikiTitle": "Wiki",
     "viewList": "Daftar",
     "viewGraph": "Grafik",
@@ -110,7 +97,9 @@
     "fallbackTitle": "Tanpa judul",
     "graphEmpty": "Belum ada pengetahuan untuk dihubungkan.",
     "loadError": "Arsipmu belum bisa dimuat. Coba lagi.",
-    "retry": "Coba lagi"
+    "retry": "Coba lagi",
+    "periodScope": "Cerita: {{star}}",
+    "periodShowAll": "Lihat semua"
   },
   "domains": {
     "title": "Area saya",
@@ -124,33 +113,10 @@
     "noActivity": "Tidak ada catatan",
     "topicsLabel": "{{tag}} · topik utama"
   },
-  "inbox": {
-    "title": "Kotak masuk",
-    "headerPending": "Ada {{count}} catatan yang belum ditata.",
-    "headerEmpty": "Tidak ada yang perlu dirapikan. Semua rapi.",
-    "tip": "Tinjau dan arsipkan catatan satu per satu.",
-    "emptyDone": "Semua sudah ditata. Catatan baru akan muncul di sini.",
-    "remaining": "Tersisa {{count}} catatan untuk ditata",
-    "archive": "Arsipkan",
-    "archiving": "Mengarsipkan…",
-    "nextUp": "Berikutnya",
-    "a11yDiscard": "Buang catatan ini",
-    "a11yArchive": "Arsipkan catatan ini",
-    "untitled": "Catatan tanpa judul",
-    "suggestedLabel": "Tag yang disarankan",
-    "getSuggestions": "Dapatkan saran tag AI",
-    "gettingSuggestions": "Mengambil saran…"
-  },
   "recordDetail": {
     "title": "Detail catatan",
     "headerLinked": "Catatan ini terhubung dengan {{count}} catatan lain.",
     "headerAlone": "Baca kembali catatan ini.",
-    "tip": "Catatan ini tertaut ke catatan lain dengan tag yang sama.",
-    "author": "Ditulis olehmu",
-    "notFound": "Catatan ini tidak ditemukan. Kembali ke arsip dan buka lagi.",
-    "toArchive": "Ke arsip",
-    "linkedRecords": "Catatan tertaut",
-    "newRecord": "Catatan baru",
     "a11yDelete": "Hapus catatan ini",
     "deleteConfirmTitle": "Hapus catatan ini?",
     "deleteConfirmBody": "Ini tidak bisa dibatalkan.",
@@ -166,38 +132,17 @@
     "kindFallback": "Catatan"
   },
   "auth": {
-    "appName": "PolaScope",
     "signInLead": "Di era AI, asetnya adalah kamu. Catatanmu menumpuk menjadi Bintang Utaramu.",
     "signIn": "Masuk",
-    "createAccount": "Buat akun",
     "signUpTitle": "Mulai",
     "signUpLead": "Mulai dengan catatan pertamamu.",
-    "fieldEmail": "Alamat email",
-    "fieldPassword": "Kata sandi",
-    "fieldBirthYear": "Tahun lahir",
-    "signUp": "Daftar",
     "resetTitle": "Atur ulang kata sandi",
-    "resetPrompt": "Silakan periksa emailmu",
-    "resetBody": "Masukkan kode 6 digit untuk mengaturnya lagi.",
-    "resend": "Kirim ulang {{time}}",
-    "confirm": "Konfirmasi",
-    "noAccount": "Baru di sini? Buat akun",
-    "haveAccount": "Sudah punya akun? Masuk",
     "forgotPassword": "Lupa kata sandi?",
     "or": "atau",
     "ageNotice": "Kamu bisa membuat akun jika berusia {{minAge}} tahun atau lebih.",
     "brandLabel": "POLASCOPE",
-    "signInTitle": "Senang bertemu lagi",
-    "emailContinue": "Lanjut dengan email",
-    "signUpPrompt": "Baru di sini?",
+    "signInTitle": "Masuk",
     "legalConsent": "Dengan melanjutkan, kamu menyetujui Ketentuan Layanan dan Kebijakan Privasi.",
-    "continueShort": {
-      "google": "Lanjut dengan Google",
-      "apple": "Lanjut dengan Apple",
-      "kakao": "Lanjut dengan Kakao",
-      "facebook": "Lanjut dengan Facebook",
-      "github": "Lanjut dengan GitHub"
-    },
     "business": {
       "company": "Perusahaan",
       "ceo": "Direktur",
@@ -211,20 +156,13 @@
   "account": {
     "title": "Akun",
     "status": "Kelola informasi akun dan akun lain yang kamu hubungkan.",
-    "tip": "Kamu bisa memulai penghapusan atau ekspor sendiri kapan saja.",
-    "joined": "Bergabung {{date}} · Paket gratis",
-    "labelName": "Nama",
-    "labelEmail": "Alamat email",
-    "labelPassword": "Kata sandi",
-    "valueChange": "Ubah",
-    "labelLinked": "Akun tertaut",
-    "labelLanguage": "Bahasa",
-    "valueLanguage": "Indonesia",
+    "tip": "Kamu bisa memulai penghapusan akun sendiri kapan saja.",
     "delete": "Hapus akun",
     "navProfile": "Profil",
     "navSettings": "Pengaturan",
     "navData": "Dataku",
-    "navBeyond": "Di luar aplikasi",
+    "navIden": "Ekspor ringkasanku",
+    "navBeyond": "Widget dan notifikasi",
     "navPassword": "Ubah kata sandi"
   },
   "privacy": {
@@ -232,9 +170,6 @@
     "status": "Catatan hanya digunakan untuk mendukung pemahaman dirimu.",
     "tip": "Pilihan sensitif selalu ditampilkan dan dikonfirmasi lebih dulu.",
     "lead": "Atur sendiri bagaimana datamu digunakan.",
-    "toggleAnalysis": "Gunakan catatan untuk analisis pemahaman diri",
-    "toggleStats": "Statistik perbaikan produk anonim",
-    "toggleLock": "Kunci aplikasi (biometrik)",
     "on": "Aktif",
     "off": "Nonaktif",
     "policy": "Kebijakan privasi",
@@ -245,41 +180,117 @@
     "none": "0 item",
     "footer": "Cara data diproses dan disimpan bergantung pada fiturnya. Baca penjelasan penggunaan data pada fitur tersebut.",
     "dataReview": "Tinjauan data saya",
-    "open": "Buka"
+    "open": "Buka",
+    "atGlance": "Sekilas",
+    "facts": {
+      "onDevice": {
+        "label": "Diproses di perangkat lebih dulu",
+        "v": "Konten asli yang kamu impor dianalisis di perangkatmu; hanya sinyal turunannya yang disimpan dalam bentuk terenkripsi."
+      },
+      "collect": {
+        "label": "Yang kami kumpulkan",
+        "v": "Serpihan bintang yang kamu simpan, skor lensa, dan pola penggunaan. Lokasi dan komunikasi hanya dengan persetujuanmu."
+      },
+      "retention": {
+        "label": "Masa penyimpanan",
+        "v": "Selama akunmu aktif; jika kamu menghapus akun, semuanya terhapus dalam 30 hari."
+      },
+      "delete": {
+        "label": "Hak menghapus",
+        "v": "Kamu bisa menghapus item tertentu atau semuanya, kapan saja."
+      }
+    },
+    "analytics": {
+      "title": "Statistik penggunaan dan iklan",
+      "pendingAge": "Pengaturan statistik penggunaan dan iklan muncul setelah tanggal lahirmu dikonfirmasi.",
+      "minorLocked": "Statistik penggunaan dan iklan dikunci jika tanggal lahir menunjukkan usia di bawah 18 tahun.",
+      "adultLead": "Opsional. Pilihanmu disimpan dan berlaku untuk Google Analytics di web. Firebase Analytics dan Microsoft Clarity saat ini nonaktif di Android.",
+      "checkingAge": "Memeriksa tanggal lahirmu…",
+      "loadingSettings": "Memuat pengaturan…",
+      "allow": "Izinkan statistik penggunaan",
+      "lockedUnder18": "Terkunci untuk usia di bawah 18",
+      "applied": "GA4 aktif di web · Firebase dan Clarity nonaktif di Android",
+      "enableFailed": "Statistik tidak dapat diaktifkan. Coba lagi.",
+      "withdrawSaveFailed": "Gagal menyimpan. Penarikan statistik sudah berlaku di perangkat ini; coba simpan lagi.",
+      "adsSaveFailed": "Pengaturan iklan gagal disimpan. Coba lagi."
+    },
+    "recommend": {
+      "title": "Rekomendasi",
+      "minorLocked": "Rekomendasi dinonaktifkan dan tidak dapat diaktifkan.",
+      "onBody": "Aktif. Catatanmu dianalisis untuk menyarankan koneksi.",
+      "turnOffA11y": "Matikan rekomendasi",
+      "turnOff": "Matikan",
+      "offBody": "Nonaktif. Aktifkan untuk mendapat saran koneksi dari catatanmu.",
+      "turnOnA11y": "Aktifkan rekomendasi",
+      "turnOn": "Aktifkan"
+    },
+    "semantic": {
+      "title": "Koneksi catatan berdasarkan makna",
+      "minorLocked": "Koneksi berdasarkan makna dinonaktifkan dan tidak dapat diaktifkan.",
+      "onBody": "Aktif. Catatan diindeks berdasarkan makna untuk menampilkan yang mirip.",
+      "turnOffA11y": "Matikan koneksi berdasarkan makna",
+      "turnOff": "Matikan dan hapus vektor",
+      "offBody": "Nonaktif. Aktifkan untuk menghubungkan catatan yang maknanya mirip, meski tidak punya tag yang sama.",
+      "turnOnA11y": "Aktifkan koneksi berdasarkan makna",
+      "turnOn": "Aktifkan"
+    },
+    "understandA11y": "Saya mengerti dan ingin mengaktifkannya",
+    "understand": "Saya mengerti, aktifkan",
+    "saveFailed": "Gagal menyimpan. Coba lagi sebentar lagi.",
+    "deleteAccount": {
+      "body": "Catatan, tangkapan, wiki, data penggunaan, dan akunmu dihapus permanen. Ini tidak bisa dibatalkan. Ekspor dulu apa pun yang kamu perlukan.",
+      "typePrompt": "Ketik \"{{phrase}}\" untuk melanjutkan.",
+      "inputA11y": "Konfirmasi penghapusan",
+      "buttonA11y": "Hapus akun secara permanen",
+      "button": "Hapus akun",
+      "deleting": "Menghapus…",
+      "failed": "Penghapusan belum selesai. Sebagian data mungkin masih tersisa. Coba lagi sebentar lagi."
+    }
   },
   "support": {
     "title": "Dukungan",
     "prompt": "Apa yang ingin kamu tanyakan?",
-    "askSecondb": "Tanya SecondB",
+    "askSecondb": "Tanya HustleK",
     "viewManual": "Lihat manual",
     "emailUs": "Email kami",
     "reportBug": "Laporkan bug",
-    "footer": "PolaScope v1.0.0 · 2 hari kerja KST",
+    "footer": "PolaScope v{{version}} · 2 hari kerja KST",
     "faqTitle": "Pertanyaan umum",
-    "noticesTitle": "Pengumuman"
-  },
-  "integrations": {
-    "title": "Integrasi aplikasi",
-    "status": "Kamu selalu mengonfirmasi aplikasi eksternal sebelum mengimpor.",
-    "tip": "Tinjau isi yang akan disimpan sebelum mengimpor.",
-    "sectionAssistant": "Hubungkan asisten AI",
-    "pending": "Menunggu",
-    "sectionSources": "Bahan tersimpan",
-    "notionValue": "Halaman dan basis data",
-    "obsidianValue": "Markdown lokal",
-    "healthLabel": "Kesehatan · Kalender",
-    "permissionNeeded": "Perlu izin",
-    "footer": "Kamu meninjau data integrasi sebelum mengimpor, dan bisa memutuskan kapan saja."
+    "noticesTitle": "Pengumuman",
+    "faqs": {
+      "brightness": {
+        "q": "Apa beda kecerahan (cahaya bintang) dan tingkat keyakinan?",
+        "a": "Cahaya bintang menunjukkan seberapa banyak yang sudah kamu simpan di area itu; tingkat keyakinan menunjukkan seberapa jauh perkiraan HustleK sudah diverifikasi. Keduanya bergerak sendiri-sendiri."
+      },
+      "plan": {
+        "q": "Apakah paket berbayar membuatnya lebih pintar?",
+        "a": "Tidak. Kualitas jawaban sama di semua paket. Yang berbeda hanya batas jumlah, masa simpan, dan ekspor."
+      },
+      "call": {
+        "q": "Apakah rekaman panggilan aman?",
+        "a": "Rekaman ditranskripsikan di server AI melalui koneksi terenkripsi, lalu audio aslinya langsung dihapus dari perangkatmu. Hanya teks dan sinyalnya yang disimpan dalam bentuk terenkripsi."
+      }
+    },
+    "notices": {
+      "modes": {
+        "t": "Tiga mode HustleK telah hadir",
+        "tag": "Baru"
+      },
+      "museum": {
+        "t": "Museum AI: 8 koleksi kini dibuka",
+        "tag": "Konten"
+      },
+      "voice": {
+        "t": "Transkripsi suara ditingkatkan",
+        "tag": "Peningkatan"
+      }
+    }
   },
   "connect": {
     "title": "Sinkronisasi data",
     "lead": "Impor catatan dari aplikasi lain untuk mengisi bintangmu. Pemrosesan dimulai di perangkatmu.",
     "consent": "Konten asli tidak pernah disimpan; hanya sinyal turunan yang disimpan, terenkripsi, dan kamu bisa memutus dan menghapusnya kapan saja.",
-    "connected": "Terhubung",
     "connect": "Hubungkan",
-    "a11yStatus": "{{name}} {{status}}",
-    "a11yConnected": "terhubung",
-    "a11yConnect": "hubungkan",
     "openImport": "Impor dari file",
     "openCapture": "Tambahkan lewat halaman Simpan",
     "a11yGo": "Buka impor untuk {{name}}",
@@ -288,16 +299,11 @@
         "name": "Google Calendar",
         "sub": "Impor jadwal dari file kalender"
       },
-      "health": {
-        "name": "Apple Health",
-        "sub": "Impor file yang diekspor dari aplikasi kesehatan"
-      },
       "notion": {
         "sub": "Impor catatan dan dokumen"
       },
       "photos": {
-        "name": "Album foto",
-        "sub": "Baca teks dalam foto dan simpan sebagai catatan"
+        "name": "Album foto"
       },
       "gpt": {
         "name": "Ekspor ChatGPT",
@@ -330,55 +336,20 @@
     "sectionDiscover": "Apa yang ingin kamu simpan berikutnya",
     "discoverLead": "Lihat minat yang naik di catatan terbarumu."
   },
-  "data": {
-    "title": "Data saya",
-    "subtitle": "Lihat data yang tersimpan dan cara penggunaannya",
-    "status": "Lihat tempat penyimpanan data dan cara penggunaannya.",
-    "tip": "Data sensitif bisa disimpan hanya di perangkatmu.",
-    "statPieces": "Catatan tersimpan",
-    "statChecks": "Tes selesai",
-    "sectionStorage": "Lokasi penyimpanan",
-    "onDevice": "Di perangkat (data sensitif)",
-    "encrypted": "Terenkripsi",
-    "cloudSync": "Sinkronisasi awan",
-    "on": "Aktif",
-    "exportAll": "Ekspor semua data",
-    "deleteAll": "Hapus semua data",
-    "buildIndex": "Siapkan pencarian berdasarkan makna",
-    "indexing": "Menyiapkan pencarian…",
-    "indexed": "{{count}} catatan siap dicari"
-  },
   "theme": {
-    "title": "Tema · Font",
-    "status": "Pilih tema dan font yang nyaman.",
+    "title": "Jenis huruf · Gerakan",
+    "status": "Pilih jenis huruf yang nyaman.",
     "tip": "Mengurangi gerakan membuat layar lebih tenang.",
-    "sectionTheme": "Tema",
-    "themeDeepspace": "Ruang dalam",
-    "themeMidnight": "Tengah malam",
-    "midnightNote": "Midnight saat ini hanya berlaku di sebagian layar. Layar deep-space masih disesuaikan.",
     "sectionFont": "Jenis huruf",
     "fontPixel": "Piksel · Galmuri",
     "fontReadable": "Mudah dibaca · Pretendard",
-    "sectionSize": "Ukuran teks",
-    "small": "Kecil",
-    "large": "Besar",
-    "reduceMotion": "Kurangi gerakan"
+    "reduceMotion": "Kurangi gerakan",
+    "soundEffects": "Efek suara",
+    "soundEffectsNote": "Suara teleskop, foto bintang, dan pembukaan. Tetap mati saat ponsel dalam mode senyap atau getar."
   },
   "manual": {
-    "title": "Panduan penggunaan",
-    "status": "Catatanmu milikmu; ringkasannya yang kamu setujui. Temukan cara kerjanya di sini.",
-    "tip": "Kalau tidak ketemu, langsung tanya SecondB.",
-    "search": "Apa yang ingin kamu ketahui?",
-    "sectionStart": "Memulai",
-    "q1": "Apa itu 7 bintang Biduk?",
-    "q2": "Bagaimana Bintang Utara menyala?",
-    "q3": "Bagaimana cara membaca hasil penilaian?",
-    "sectionData": "Data · Privasi",
-    "q4": "Apa itu berkas IDEN?",
-    "q5": "Di mana dataku disimpan?",
-    "askDirect": "Tanya SecondB langsung",
-    "replayCoachmarks": "Putar ulang panduan beranda",
-    "conceptsTitle": "Konsep inti"
+    "askDirect": "Tanya HustleK langsung",
+    "replayCoachmarks": "Putar ulang panduan beranda"
   },
   "plans": {
     "title": "Paket",
@@ -387,11 +358,11 @@
     "recommended": "Direkomendasikan",
     "perMonth": "/ bln",
     "proFeat1": "Tes tanpa batas · konsistensi berulang",
-    "proFeat2": "Obrolan SecondB tanpa batas · berimajinasi",
+    "proFeat2": "Obrolan HustleK tanpa batas · berimajinasi",
     "proFeat3": "Ekspor IDEN penuh",
     "proFeat4": "Saran tren · tinjauan",
     "currentPlan": "Sedang aktif",
-    "freeFeat": "Simpan dasar · 1 tes per bintang · 5 obrolan SecondB/hari",
+    "freeFeat": "Simpan dasar · 1 tes per bintang · 5 obrolan HustleK/hari",
     "startPro": "Mulai paket berbayar",
     "loadingOffers": "Memuat paket...",
     "purchasing": "Memproses...",
@@ -417,7 +388,7 @@
     "photoValue": "Simpan lewat foto",
     "mic": "Mikrofon",
     "micValue": "Simpan lewat suara",
-    "continue": "Lanjut"
+    "continue": "Selesai"
   },
   "graph": {
     "title": "Peta otakku",
@@ -448,16 +419,6 @@
   "review": {
     "title": "Tinjauan",
     "status": "Kalau kamu berubah, kita tinjau bintangnya bersama.",
-    "tip": "Tidak ada yang berlaku sampai kamu menyetujui.",
-    "lead": "Kalau kamu berubah, tinjau bintangnya bersama",
-    "section": "Saran SecondB",
-    "body": "Catatan terbaru menunjukkan ekstraversimu naik. Naikkan kecerahan bintang?",
-    "now": "Sekarang",
-    "suggest": "Disarankan",
-    "evidence": "{{count}} catatan pendukung",
-    "footer": "Tidak ada yang berlaku sampai kamu menyetujui · tiap saran tersimpan di catatanmu",
-    "hold": "Tahan",
-    "approve": "Setujui",
     "rule": "Tidak ada yang berlaku sampai kamu konfirmasi · L5 hanya terbuka di sini",
     "groupSeven": "Bintang periode · yang digali dua lapis atau lebih",
     "groupTest": "Dari tes kamu",
@@ -490,52 +451,12 @@
     "htmlDesc": "Halaman siap cetak. Buka lalu cetak, atau simpan sebagai PDF, dari peramban."
   },
   "import": {
-    "title": "Impor",
-    "status": "Kamu juga bisa membawa catatan dari aplikasi lain.",
-    "tip": "Kamu selalu mengonfirmasi sebelum mengimpor.",
-    "lead": "Catatan dari tempat lain, dalam satu tempat",
-    "notionDesc": "Halaman · basis data",
-    "obsidianDesc": "Impor file .md / teks dari vault-mu",
     "healthName": "Kesehatan",
-    "healthDesc": "Tidur · aktivitas",
-    "healthConnect": "Nyalakan sinkronisasi aktivitas",
-    "healthConnectHint": "Membuat latihan yang dicatat menandai rutinitas aktivitasmu.",
-    "healthConsentNeeded": "Setujui untuk membawa aktivitas masuk",
-    "healthIngest": "Tambahkan aktivitas hari ini",
-    "healthIngestHint": "Menyimpan aktivitas hari ini dan memperbarui rutinitas yang cocok.",
-    "healthIngested": "Aktivitas hari ini ditambahkan.",
-    "healthMinorLocked": "Sinkronisasi aktivitas nonaktif untuk akun ini.",
-    "connect": "Hubungkan",
-    "soon": "Segera hadir",
-    "reviewLabel": "Tinjau sebelum mengimpor",
-    "mapFrom1": "Judul Notion",
-    "mapTo1": "Judul catatan",
-    "mapFrom2": "Tag",
-    "mapTo2": "Tag otomatis",
-    "mapFrom3": "Tanggal dibuat",
-    "mapTo3": "Waktu disimpan",
-    "footer": "Mengimpor {{count}} item. Tidak ada yang berlaku tanpa persetujuanmu.",
-    "cancel": "Batal",
-    "importCount": "Impor {{count}}",
-    "pasteLabel": "Tempel markdown",
-    "placeholder": "Tempel catatan markdown-mu di sini. Pisahkan beberapa catatan dengan baris ---.",
-    "detected": "{{count}} catatan untuk diimpor",
-    "untitled": "Catatan tanpa judul",
-    "andMore": "dan {{count}} lagi",
-    "empty": "Tempel catatan di atas dan pratinjau muncul di sini.",
-    "resultDone": "{{count}} catatan ditambahkan ke kotak masuk.",
-    "resultDuplicate": "{{count}} duplikat dilewati",
-    "resultFailed": "{{count}} gagal",
-    "importing": "Mengimpor…",
-    "clear": "Bersihkan",
-    "connectorsLabel": "Konektor aplikasi",
-    "pickFiles": "Pilih file",
-    "picking": "Membuka…"
+    "healthMinorLocked": "Sinkronisasi aktivitas nonaktif untuk akun ini."
   },
   "reviewNoChange": "Belum ada perubahan untuk diusulkan saat ini.",
   "reviewLoadError": "Tidak dapat memuat usulan. Coba lagi.",
   "reviewLeftAsIs": "Disimpan. Usulan ini tidak diterapkan dan tidak meninggalkan catatan.",
-  "reviewGetProposal": "Dapatkan usulan",
   "reviewReopenProposal": "Buka lagi usulan",
   "reviewLoading": "Memuat…",
   "reviewRecordsBehind": "Catatan yang menjadi sumber",
@@ -575,7 +496,18 @@
     "sourceRecord": "Catatan karier tersimpan",
     "entryUiKorean": "Layar saat menyimpan: Korea",
     "entryUiEnglish": "Layar saat menyimpan: Inggris",
-    "untitled": "(tanpa judul)"
+    "untitled": "(tanpa judul)",
+    "pathTitle": "Jalur yang dibangun",
+    "trackMain": "Utama",
+    "trackSide": "Sampingan",
+    "credentials": {
+      "education": "Pendidikan",
+      "military": "Wajib militer",
+      "awards": "Penghargaan",
+      "licenses": "Sertifikasi",
+      "experience": "Pengalaman"
+    },
+    "sideNote": "Catatan resmi seperti pendidikan, wajib militer, penghargaan, sertifikasi, dan pengalaman akan tertata di sini setelah kamu menghubungkan sumber. Untuk sekarang, pencapaianmu sendiri terkumpul di Utama."
   },
   "careerInput": {
     "screenTitle": "Catat pencapaian",
@@ -655,7 +587,6 @@
     "save": "Simpan",
     "privacyNote": "Cukup seperlunya tentang orang lain, demi ingatanmu sendiri. Disimpan hanya di akunmu.",
     "openingMap": "Membuka peta…",
-    "empty": "Belum ada orang yang ditambahkan. Mulai dari orang yang ingin kamu catat.",
     "me": "aku",
     "kind": {
       "family": "Keluarga",
@@ -664,9 +595,7 @@
       "colleague": "Rekan",
       "mentor": "Mentor",
       "other": "Lainnya"
-    },
-    "contactSuffix": " · kontak {{cadence}}",
-    "lastSuffix": " · terakhir {{date}}"
+    }
   },
   "rest": {
     "title": "Istirahat",
@@ -700,12 +629,12 @@
   },
   "careerDrilldown": {
     "summaryFallback": "sebuah pengalaman karier",
-    "intro": "Uraikan pencapaianmu: 3C untuk alasannya, 4P untuk tindakan dan caranya. Setelah itu, SecondB akan menanyakan detailnya.",
+    "intro": "Uraikan pencapaianmu: 3C untuk alasannya, 4P untuk tindakan dan caranya. Setelah itu, HustleK akan menanyakan detailnya.",
     "summaryLabel": "Ringkasan satu baris",
     "summaryPlaceholder": "Apa yang kamu lakukan dan hasilnya - dalam satu baris",
     "expTypeA11y": "Jenis pengalaman",
     "expTypePlaceholder": "Pilih jenis pengalaman",
-    "submit": "Telusuri bersama SecondB",
+    "submit": "Telusuri bersama HustleK",
     "saveFailed": "Tidak dapat menyimpan. Yang kamu tulis masih ada; coba lagi."
   },
   "shareCard": {
@@ -719,13 +648,15 @@
     "opening": "Membuka…",
     "share": "Bagikan",
     "introPrivacy": "Catatan asli dan angka tidak pernah masuk ke kartu. Hanya kalimat yang kamu pilih.",
-    "starsFallback": "Tidak bisa membaca bintangmu; jadi kami gambar versi bawaannya."
+    "fallbackInsight": "Memahami diriku secara mendalam, hidup lebih seperti diriku."
   },
   "coachmarks": {
-    "homeStep": "Ketuk SecondB untuk mulai menyimpan catatan.",
+    "homeStep": "Ketuk Klip untuk memulai catatan.",
     "formatStep": "Pilih Memo terlebih dahulu. Satu baris sudah cukup.",
     "inputStep": "Tulis pikiranmu saat ini. Tidak harus berupa kalimat lengkap.",
     "saveStep": "Terakhir, ketuk Simpan untuk menyimpan catatan ini.",
+    "replayEndStep": "Simpan akan menyimpan catatan.",
+    "replayEndHint": "Tayangan ulang ini berakhir di sini, tanpa menyimpan.",
     "doneStep": "Catatanmu sudah tersimpan. Kembali ke rasi untuk melihatnya.",
     "targetHint": "Ketuk kontrol yang disorot untuk melanjutkan.",
     "inputHint": "Tulis setidaknya satu karakter untuk lanjut ke Simpan.",
@@ -733,7 +664,6 @@
     "inputReady": "Ke Simpan",
     "goHome": "Ke rasi bintang",
     "doneCount": "Selesai",
-    "secondbName": "SecondB",
     "dontShowAgain": "Jangan tampilkan lagi"
   },
   "museum": {
@@ -757,16 +687,10 @@
     "a11yGraph": "Grafik koneksi catatan",
     "a11yZoomOut": "Perkecil",
     "a11yZoomIn": "Perbesar",
-    "hintSelected": "{{label}} · ketuk lagi untuk membuka",
-    "openRecord": "Buka catatan",
-    "hintDefault": "Putus-putus = catatan yang terhubung oleh tag yang sama. Ketuk untuk memilih, ketuk lagi untuk membuka",
-    "untitled": "(tanpa judul)",
-    "tagLinks": "Tautan tag"
+    "openRecord": "Buka catatan"
   },
   "wikiGraph": {
     "a11yGraph": "Grafik simpul wiki",
-    "a11yZoomOut": "Perkecil",
-    "a11yZoomIn": "Perbesar",
     "hintSelected": "{{title}} · ketuk lagi untuk membuka",
     "hintDefault": "Ketuk untuk memilih simpul, ketuk lagi untuk membuka",
     "kindConcept": "Konsep",
@@ -783,11 +707,14 @@
   "shareCardImg": {
     "eyebrowWeek": "POLASCOPE · MINGGU INI",
     "eyebrowConstellation": "KONSTELASI SAYA",
-    "footerWeek": "Seminggu yang dilihat bersama SecondB",
+    "footerWeek": "Seminggu yang dilihat bersama HustleK",
     "starsLit": "{{count}} bintang bersinar",
     "signature": "PolaScope · {{count}} serpihan bintang"
   },
   "ds": {
+    "network": {
+      "offline": "Tidak ada koneksi internet."
+    },
     "growth": {
       "title": "Perubahanku",
       "bubble": "Lihat apa yang berubah minggu ini.",
@@ -815,7 +742,37 @@
       "startRoutine": "Mulai satu rutinitas",
       "reanalyze": "Baca ulang bintangku",
       "reanalyzing": "Membaca ulang bintangmu",
-      "reanalyzingTip": "Kami akan memberi tahu saat selesai."
+      "reanalyzingTip": "Kami akan memberi tahu saat selesai.",
+      "steps": {
+        "profile": {
+          "obs": "Minggu ini kamu melengkapi lebih banyak info dasarmu.",
+          "step": "Isi satu kolom profil"
+        },
+        "infancy": {
+          "obs": "Kamu menggali kenangan paling awalmu.",
+          "step": "Catat satu adegan yang muncul"
+        },
+        "school": {
+          "obs": "Kamu menengok kembali masa sekolahmu.",
+          "step": "Gali satu adegan lagi dari masa itu"
+        },
+        "twenties": {
+          "obs": "Kamu mendalami usia dua puluhanmu.",
+          "step": "Tulis satu pilihan dari masa itu"
+        },
+        "later": {
+          "obs": "Kamu melihat bagaimana dirimu berubah setelah usia tiga puluh.",
+          "step": "Tulis satu baris tentang apa yang berubah"
+        },
+        "work": {
+          "obs": "Kamu mengamati dirimu saat bekerja.",
+          "step": "Catat satu adegan kerja minggu ini"
+        },
+        "now": {
+          "obs": "Kamu sering menengok dirimu sendiri.",
+          "step": "Satu baris refleksi hari ini"
+        }
+      }
     },
     "plans": {
       "title": "Paket",
@@ -848,17 +805,17 @@
       "freeName": "Pengamat bintang",
       "freeSub": "Baru memulai",
       "freePrice": "Gratis",
-      "freeFeat1": "5 obrolan sehari dengan SecondB",
+      "freeFeat1": "5 obrolan sehari dengan HustleK",
       "freeFeat2": "Cari keterkaitan 2x seminggu",
       "freeFeat3": "Semua 7 bintang · catatan tanpa batas",
       "plusName": "Penjelajah",
       "plusSub": "Penjelajah yang tekun",
-      "plusFeat1": "Asisten Meta-B",
+      "plusFeat1": "Asisten Fact-K",
       "plusFeat2": "80 obrolan sehari",
       "plusFeat3": "Cari keterkaitan 7x seminggu",
       "proName": "Bintang Utara",
       "proSub": "Untuk yang mendalami",
-      "proFeat1": "Asisten Meta-B + Twi-B",
+      "proFeat1": "Asisten Fact-K + Joy-K",
       "proFeat2": "250 obrolan sehari",
       "proFeat3": "Cari keterkaitan tanpa batas",
       "comingSoon": "Segera hadir",
@@ -879,9 +836,6 @@
       }
     },
     "wikiRecords": {
-      "relationships": "Hubungan",
-      "justNow": "Baru saja",
-      "seeEvidence": "Lihat bukti ↗",
       "tags": "Tag",
       "addTag": "Tambah tag",
       "linkedRecords": "Catatan tertaut",
@@ -891,7 +845,6 @@
       "fillStar": "Isi bintang ini",
       "fillStarBody": "Tambahkan informasi untuk bidang ini.",
       "secondbLinked": "Catatan ini terhubung dengan bintang '{{star}}'. Ada {{n}} catatan serupa dalam rentang waktu yang sama.",
-      "secondbUnlinked": "Serpihan ini belum terhubung ke bintang mana pun. Kami akan menghubungkannya segera.",
       "makeWikiPage": "Buat halaman wiki",
       "wikiPageMade": "Halaman wiki dibuat"
     },
@@ -930,7 +883,7 @@
       "toggleAccount": "Hubungkan akun",
       "sectionChooseFile": "Pilih file",
       "sectionAccounts": "Akun untuk dihubungkan",
-      "dropTitle": "Letakkan file di sini atau pilih satu",
+      "dropTitle": "Pilih file dari perangkatmu untuk diimpor",
       "btnOpening": "Membuka",
       "btnImporting": "Mengimpor",
       "btnChooseFile": "Pilih file",
@@ -964,41 +917,11 @@
       "a11yImportExportFile": "Impor file ekspor {{name}}",
       "a11yRevokeImport": "Cabut impor {{name}}"
     },
-    "ttfv": {
-      "pageTitle": "Mulai dari satu pengalaman",
-      "stageA11y": "Ilustrasi bintang utara dan sebuah topik, bukan hasil pengukuran kecerahan",
-      "defaultInsight": {
-        "star": "Relasi",
-        "phrase": "memulai percakapan"
-      },
-      "secondbName": "SecondB",
-      "insightLead": "Apakah kamu biasanya orang yang ",
-      "insightTail": "?",
-      "sub": "Ini pertanyaan pembuka, bukan kesimpulan berdasarkan catatanmu.",
-      "grounds": "Tentang pertanyaan ini",
-      "affirm": "Benar",
-      "differ": "Sedikit berbeda",
-      "consent": "Memilih jawaban akan menyimpannya sebagai catatan. Kamu juga bisa keluar tanpa menjawab.",
-      "ratifySoft": "Pandanganmu yang berbeda sudah disimpan.",
-      "ratifyTitle": "Jawabanmu sudah disimpan.",
-      "ratifySub": "Kamu bisa menemukan jawaban ini di daftar catatanmu.",
-      "enter": "Masuk ke konstelasimu",
-      "evidence1": {
-        "q": "Saat ini",
-        "a": "Contoh ini memulai percakapan. Ini bukan temuan tentang dirimu."
-      },
-      "evidence2": {
-        "q": "Ke depannya",
-        "a": "Pilihanmu menjadi catatan, bukan perubahan kecerahan bintang yang sudah dikonfirmasi."
-      },
-      "whyFootnote": "Pilih apakah penjelasan ini sesuai dengan dirimu.",
-      "eyebrow": "CAHAYA PERTAMA"
-    },
     "northstar": {
       "title": "Kalimat Bintang Utara",
-      "sub": "SecondB menyusunnya dari tujuh bintangmu. Ubah dengan kata-katamu sendiri.",
+      "sub": "HustleK menyusunnya dari tujuh bintangmu. Ubah dengan kata-katamu sendiri.",
       "placeholder": "Memahami diriku secara mendalam dan hidup lebih seperti diriku.",
-      "suggestLabel": "Draf SecondB",
+      "suggestLabel": "Draf HustleK",
       "thinking": "Menyusun draf",
       "propose": "Lihat draf lain",
       "cancel": "Batal",
@@ -1046,8 +969,56 @@
     "reasoningScreen": {
       "autoTitle": "Keterkaitan otomatis",
       "autoPaused": "Batas tercapai · otomatis lanjut Senin",
-      "autoBody": "SecondB menghubungkan setiap item saat kamu menyimpannya",
-      "autoNote": "Jalankan otomatis memakai satu jatah mingguan dan selalu menyisakan satu untuk manual."
+      "autoBody": "HustleK menghubungkan setiap item saat kamu menyimpannya",
+      "autoNote": "Jalankan otomatis memakai satu jatah mingguan dan selalu menyisakan satu untuk manual.",
+      "queuedRecord": "Catatan baru · dalam antrean",
+      "queuedSource": "Sumber baru · dalam antrean",
+      "justNow": "Baru saja",
+      "hoursAgo": "{{n}} jam lalu",
+      "yesterday": "Kemarin",
+      "daysAgo": "{{n}} hari lalu",
+      "untitledRecord": "Catatan tanpa judul",
+      "untitledSource": "Sumber tanpa judul",
+      "kindJournal": "Jurnal",
+      "kindNote": "Catatan",
+      "kindLink": "Tautan",
+      "backgroundFailed": "Penalaran di latar belakang tidak selesai. Coba lagi.",
+      "loadFailed": "Item-mu tidak dapat dimuat.",
+      "busyOther": "Tunggu hingga tugas saat ini selesai.",
+      "taskTitle": "Menghubungkan item yang dipilih",
+      "taskTip": "Tinjau keterkaitan yang baru.",
+      "runFailed": "Item ini tidak dapat dihubungkan. Coba lagi.",
+      "applyFailed": "Usulan yang dipilih tidak dapat diterapkan. Coba lagi.",
+      "title": "Penalaran",
+      "reviewTitle": "Tinjau hasil",
+      "selectedTitle": "{{n}} dipilih",
+      "progressDone": "Semua item sudah terhubung",
+      "progressRunning": "Menghubungkan bintangmu",
+      "unlimited": "Keterkaitan tanpa batas",
+      "weeklyLeft": "Sisa {{left}} dari {{cap}} jatah minggu ini · reset hari Senin",
+      "cancel": "Batal",
+      "applySelected": "Terapkan {{n}} yang dipilih",
+      "keepAll": "Biarkan semua seperti semula",
+      "weeklyLimitReached": "Batas mingguan tercapai",
+      "reasonN": "Jalankan penalaran untuk {{n}} item",
+      "reasonSelected": "Jalankan penalaran untuk item yang dipilih",
+      "depletedTitle": "Jatah penalaran dasar minggu ini sudah habis",
+      "viewPlans": "Lihat paket",
+      "doneSummary": "{{n}} keterkaitan diusulkan. Pilih hanya yang ingin kamu terapkan.",
+      "runningSummary": "Membaca {{total}} item · {{done}} / {{total}}",
+      "doneNote": "Hanya usulan yang dipilih yang diterapkan. Item yang tidak dipilih tetap seperti semula.",
+      "runningNote": "Kamu boleh meninggalkan layar ini. HustleK akan memberi tahu saat sudah siap.",
+      "weekLabel": "Penalaran minggu ini",
+      "capturedItems": "Item yang disimpan",
+      "selectProposals": "Pilih usulan",
+      "processing": "Memproses",
+      "selectionCount": "{{n}} / {{max}} dipilih",
+      "loadingItems": "Memuat item-mu",
+      "emptyItems": "Belum ada item yang disimpan",
+      "captureFirst": "Simpan item pertamamu",
+      "readingItem": "Membaca…",
+      "proposedFor": "Diusulkan untuk {{domain}}",
+      "runHint": "Pilih item untuk mengaktifkan penalaran."
     },
     "sources": {
       "title": "Materi yang masuk",
@@ -1080,56 +1051,59 @@
   },
   "beyond": {
     "preview": "Pratinjau",
-    "title": "Di luar aplikasi",
-    "lead": "Akses SecondB lewat widget dan notifikasi saat aplikasi tertutup.",
+    "title": "Widget dan notifikasi",
     "widgetsSection": "Widget layar utama",
     "todaysStar": "Bintang hari ini",
     "brightestStar": "Bintang paling terangmu",
-    "tapToOpen": "Ketuk untuk membuka bintang hari ini",
     "captureTitle": "Simpan yang ada di pikiranmu",
     "capture": "Simpan",
     "captureByVoice": "Simpan dengan suara",
     "lockSection": "Layar kunci",
     "lockNotif": "Mau menuliskan satu baris tentang hari ini?",
     "pushSection": "Notifikasi push",
-    "pushHead": "SecondB · sekarang",
+    "pushHead": "HustleK · sekarang",
     "pushBody": "Ada wawasan baru menunggu ulasanmu. Setujui dan itu akan tampil di bintangmu.",
     "notifSettings": "Pengaturan notifikasi"
   },
   "star": {
-    "capture": "Simpan",
-    "seeRecords": "Lihat catatan",
     "loading": "Memuat…",
     "loadError": "Belum bisa memuat sekarang. Coba lagi.",
     "retry": "Coba lagi",
-    "empty": "Simpan catatan pertamamu untuk menyalakan bintang ini.",
-    "recordFallback": "catatan",
     "untitled": "(tanpa judul)",
     "pieceHere": "Tersimpan di sini",
     "pieceOpenHint": "Membuka catatan ini.",
     "briefingOpening": "Membuka bintang ini…",
-    "briefingEmpty": "Belum ada catatan di bintang ini. Simpan sesuatu dan SecondB membaca polanya.",
+    "briefingEmpty": "Belum ada catatan di bintang ini. Simpan sesuatu dan HustleK membaca polanya.",
     "briefingCountOne": "{{n}} catatan di bintang ini, yang terbaru dulu.",
-    "briefingCount": "{{n}} catatan di bintang ini, yang terbaru dulu.",
-    "drillCareer": "Perjalananmu",
-    "drillGrowth": "Ingat lebih banyak",
-    "drillRelation": "Wawancara hubungan",
-    "drillRecreation": "Dapatkan ide",
-    "relToday": "hari ini",
-    "relYesterday": "kemarin",
-    "relDays": "{{n}} hr lalu",
-    "relWeeks": "{{n}} mgg lalu",
-    "relMonths": "{{n}} bln lalu"
+    "briefingCount": "{{n}} catatan di bintang ini, yang terbaru dulu."
   },
   "onboarding": {
     "nextHint": "Ke slide berikutnya.",
     "skipHint": "Melewati intro dan membuka layar masuk.",
     "authHint": "Membuka layar masuk.",
-    "authLabel": "Masuk untuk memulai",
-    "secondbName": "SecondB",
+    "secondbName": "HustleK",
     "authTitle": "Siap memulai?",
     "authBody": "Catatanmu tetap milikmu. Kamu meninjau dan menyetujui ringkasannya sebelum diterapkan.",
-    "next": "Berikutnya"
+    "next": "Berikutnya",
+    "skip": "Lewati",
+    "saveFailed": "Tidak dapat menyimpan.",
+    "goHome": "Ke beranda",
+    "slides": {
+      "intro": {
+        "title": "AI yang mengenal\ndirimu",
+        "body": "HustleK memakai catatanmu\nuntuk membantu merapikan pikiran\ndan merencanakan harimu."
+      },
+      "stars": {
+        "tag": "Mengenal dirimu",
+        "title": "Ceritakan kisahmu\ndi tujuh bintang",
+        "body": "Masa sekolah, kerja, atau sekarang:\npilih bintang untuk memulai."
+      },
+      "approve": {
+        "tag": "Kamu yang memutuskan",
+        "title": "Ringkasan AI perlu\npersetujuanmu",
+        "body": "Ringkasan tentang dirimu adalah usulan.\nRingkasan itu hanya diterapkan jika kamu menyetujuinya."
+      }
+    }
   },
   "trends": {
     "title": "Tren kecerahan",
@@ -1142,7 +1116,7 @@
   },
   "profileDetails": {
     "screenTitle": "Tentang hidupmu",
-    "nameLabel": "Nama tampilan",
+    "nameLabel": "Nama panggilan",
     "nameHint": "Nama yang tampil di profilmu. Opsional, maksimal 40 karakter.",
     "nameLoading": "Memuat namamu…",
     "nameLoadError": "Nama saat ini gagal dimuat. Coba lagi.",
@@ -1158,9 +1132,9 @@
     "unset": "Belum diatur",
     "occupationLabel": "Pekerjaanmu",
     "occupationHint": "Pelajar, perawat, pekerja lepas...",
-    "regionLabel": "Tempat tinggalmu",
+    "regionLabel": "Kota tempat tinggal",
     "regionHint": "Cukup kota atau provinsi.",
-    "householdLabel": "Tinggal dengan siapa",
+    "householdLabel": "Keluarga",
     "householdHint": "Sendiri, dengan keluarga, dengan teman...",
     "busiestSeasonLabel": "Waktu tersibukmu",
     "busiestSeasonHint": "Misalnya: masa ujian, akhir tahun, atau musim liburan",
@@ -1183,10 +1157,53 @@
     "daysWeekdays": "Hari kerja",
     "daysWeekends": "Akhir pekan",
     "daysShift": "Sif",
-    "daysVaries": "Berubah-ubah"
+    "daysVaries": "Berubah-ubah",
+    "emailLabel": "Alamat email",
+    "birthDateLabel": "Tanggal lahir",
+    "genderLabel": "Jenis kelamin",
+    "genderHint": "Boleh tidak dipilih.",
+    "genderFemale": "Perempuan",
+    "genderMale": "Laki-laki",
+    "genderOther": "Lainnya",
+    "genderUndisclosed": "Tidak ingin menjawab",
+    "nationalityLabel": "Kewarganegaraan",
+    "nationalityHint": "mis. Korea Selatan",
+    "maritalLabel": "Status pernikahan",
+    "maritalHint": "Boleh tidak dipilih.",
+    "maritalSingle": "Belum menikah",
+    "maritalMarried": "Menikah",
+    "maritalOther": "Lainnya",
+    "maritalUndisclosed": "Tidak ingin menjawab",
+    "mottoLabel": "Moto pribadi",
+    "mottoHint": "Sebaiknya tidak menulis hal sensitif seperti kesehatan, keyakinan, atau agama.",
+    "statusMessageLabel": "Pesan status",
+    "statusMessageHint": "Satu baris singkat yang tampil di profilmu, hingga 60 karakter.",
+    "statusMessageSaveError": "Pesan status tidak dapat disimpan. Coba lagi.",
+    "statusMessageLoadError": "Pesan status tidak dapat dimuat."
   },
   "reviewAxisNow": "Tinjau Big Five saya",
   "reviewAxisRelational": "Tinjau gaya kelekatan saya",
   "reviewAxisValues": "Tinjau nilai-nilai saya",
-  "reviewNothingToReview": "Ikuti satu tes dulu. Belum ada hasil terukur untuk ditinjau."
+  "reviewNothingToReview": "Ikuti satu tes dulu. Belum ada hasil terukur untuk ditinjau.",
+  "privacyHealth": {
+    "title": "Tautan data kesehatan",
+    "onBody": "Aktif. Catatan kesehatan yang tersimpan di aplikasi: {{count}}. Jika dimatikan, catatan itu langsung dihapus dan pembacaan otomatis berhenti.",
+    "onBodyNoCount": "Aktif. Jika dimatikan, catatan kesehatan yang tersimpan di aplikasi langsung dihapus dan pembacaan otomatis berhenti.",
+    "keeps": "Tombol ini tidak menghapus data asli dan izin di aplikasi kesehatan ponsel, centang rutinitas, atau catatan kesehatan yang diimpor dari file.",
+    "turnOff": "Matikan dan hapus catatan kesehatan",
+    "residueBody": "Nonaktif, tetapi masih ada catatan kesehatan yang tersimpan ({{count}}).",
+    "deleteRest": "Hapus sisa catatan kesehatan",
+    "residueUnknown": "Nonaktif. Belum dapat dipastikan apakah masih ada catatan kesehatan.",
+    "deleteFailed": "Sisa catatan kesehatan tidak dapat dihapus. Coba lagi sebentar lagi.",
+    "offBody": "Nonaktif. Aktifkan dari layar impor.",
+    "openImport": "Buka layar impor",
+    "loadFailed": "Status tautan tidak dapat dimuat.",
+    "retryLoad": "Muat ulang",
+    "unchanged": "Tidak dapat dimatikan. Tidak ada yang berubah. Coba lagi sebentar lagi.",
+    "uncertain": "Belum dapat dipastikan apakah tautan sudah dimatikan. Muat ulang statusnya.",
+    "partial": "Tautan sudah nonaktif, jadi catatan baru tidak masuk. Catatan kesehatan yang belum terhapus: {{count}}. Hapus sekali lagi.",
+    "partialNoCount": "Tautan sudah nonaktif, jadi catatan baru tidak masuk. Belum dapat dipastikan semua catatan kesehatan terhapus. Hapus sekali lagi.",
+    "done": "Catatan kesehatan dihapus: {{count}}. Tautan nonaktif.",
+    "doneNone": "Tautan nonaktif dan tidak ada catatan kesehatan yang tersisa."
+  }
 }

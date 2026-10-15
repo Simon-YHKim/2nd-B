@@ -28,20 +28,20 @@ import type { PromptPurpose } from "../types";
 // "permanent" revert this file's header described. The stopgap is now PARTIAL,
 // so the lists are split rather than the guard being loosened: a seat drifting
 // between these two arrays is still a CI event.
-const CLAUDE_SEATS: PromptPurpose[] = ["persona_narrative", "persona_synthesis", "crosscheck_defend"];
+//
+// S0.5 (2026-10-07) removed six seats from these lists with their unreachable
+// callers: crosscheck_defend (claude) and axis_estimate, digest_weekly,
+// ttfv_first_insight, cluster_infer, crosscheck_challenge (openai). The
+// cover-the-whole-map test below is what proves none of them is left behind.
+const CLAUDE_SEATS: PromptPurpose[] = ["persona_narrative", "persona_synthesis"];
 
 const STOPGAP_SEATS: PromptPurpose[] = [
   "advisor",
   "gap_synthesize",
   "self_model_propose",
   "northstar_propose",
-  "axis_estimate",
   "ops_recommend",
   "ops_daily_brief",
-  "digest_weekly",
-  "ttfv_first_insight",
-  "cluster_infer",
-  "crosscheck_challenge",
 ];
 
 // process.env coerces `= undefined` to the string "undefined", which is not the

@@ -13,23 +13,23 @@ describe("PIXEL-CLAY /capture screen contract", () => {
 
   test("keeps the production route on the shared shell without legacy companion chrome", () => {
     expect(route).toContain('<DeepSpaceScreen active="capture" header="none" variant="windowed">');
-    expect(route).toContain("<CaptureView firstRecordCoach={firstRecordCoach} />");
+    expect(route).toContain('<CaptureView firstRecordCoach={firstRecordCoach} coachReplay={coachMode === "replay"} />');
   });
 
   // 2026-09-30 (Simon): five tiles became three - 사진 and 음성 left the row, and
   // a photo now attaches to 글 (both formats) instead. The tiles still come from
   // the canon JSON, which dropped the two ids in the same change.
-  // 2026-09-30 (Simon, later the same day): the first tile is 메모 (edit_note), the
-  // 메모/4W1H radio is gone, and 4W1H is a switch that starts OFF (plain memo).
-  test("matches the reference hierarchy with three tiles and a 4W1H switch", () => {
+  // 2026-10-08 (Simon): both 일반 and 4W1H stay visible in a segmented control.
+  // The three top-level tiles and initial plain-text format remain unchanged.
+  test("keeps three tiles and a segmented choice between general text and 4W1H", () => {
     expect(renderer).toContain("CAPTURE_MODE_ROW.map");
     expect(renderer).toContain('accessibilityRole="tablist"');
-    expect(renderer).not.toContain('accessibilityRole="radiogroup"');
-    expect(renderer).not.toContain("CaptureTextFormat");
-    expect(renderer).toContain("const [fourwOn, setFourwOn] = useState(false);");
-    expect(renderer).toContain('accessibilityRole="switch"');
-    expect(renderer).toContain("accessibilityState={{ checked: fourwOn }}");
-    expect(renderer).toContain("aria-checked={fourwOn}");
+    expect(renderer).toContain("<SegBtn");
+    // 2026-10-13 (Z79): unsaved writing returns with the format it was written in;
+    // with nothing kept the format still starts on plain text.
+    expect(renderer).toContain("const [fourwOn, setFourwOn] = useState(kept?.fourwOn ?? false);");
+    expect(renderer).not.toContain('accessibilityRole="switch"');
+    expect(renderer).toContain('t("capture:textFormat.general")');
     expect(renderer).toContain('t("capture:modes.fourw.label")');
     const text = (JSON.parse(read("public/proto/data/core/capture-modes.json")) as {
       modes: { id: string; icon: string; label: string }[];
@@ -48,7 +48,9 @@ describe("PIXEL-CLAY /capture screen contract", () => {
     expect(renderer).toContain("await createRecord({");
     expect(renderer).toContain('res.followup?.zone === "red"');
     expect(renderer).toContain("setError(true)");
-    expect(renderer).toContain("automaticallyAdjustKeyboardInsets");
+    // Both platforms move the input scroll and its sibling save footer together
+    // (R2A-02: the 4W1H "how" field and save must stay reachable above the keyboard).
+    expect(renderer).toContain('<KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset} iosOffsetCoordinateSpace="window">');
     expect(renderer).toContain("onSubmitEditing={() => whatRef.current?.focus()}");
     expect(renderer).toContain("minHeight: 44");
   });

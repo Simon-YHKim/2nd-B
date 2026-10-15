@@ -1,18 +1,16 @@
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { PixelScrim } from "@/components/pixel/PixelDither";
+import { ScreenModal } from "@/components/ui/ScreenModal";
+import { useModalExit } from "@/components/ui/useModalExit";
+import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  FlatList,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Linking, Platform, StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -57,134 +55,23 @@ export type { LocalizedNoticeText, NoticeKind, ProductNotice };
 /** Release notes baked into the binary. They describe THIS build, so they are
  *  authored here rather than published to the notices table; anything an
  *  operator needs to say after a release goes in the table instead
- *  (db/migrations/0113_notices.sql, docs/OPERATIONS-NOTICES.md). */
-export const PRODUCT_NOTICES: readonly ProductNotice[] = [
-  {
-    id: "patch-1.4.0",
-    sortAt: "2026-07-17T00:00:00+09:00",
-    kind: "patch",
-    eyebrow: { ko: "NEW", en: "NEW" },
-    version: "v1.4.0",
-    when: { ko: "2026.07.17 · 패치노트", en: "2026.07.17 · Patch notes" },
-    listMeta: { ko: "패치 v1.4.0 · 오늘", en: "Patch v1.4.0 · Today" },
-    title: { ko: "리즈닝 실행 방식이 새로워졌어요", en: "Reasoning has a new workflow" },
-    body: [
-      {
-        kind: "bullet",
-        text: {
-          ko: "자동 리즈닝 토글이 생겼어요. 담은 자료의 연결을 제안해요.",
-          en: "Automatic reasoning is now available. It proposes connections for captured items.",
-        },
-      },
-      {
-        kind: "bullet",
-        text: {
-          ko: "실행 전에 자료를 직접 고를 수 있어요.",
-          en: "You can choose the items before each manual run.",
-        },
-      },
-      {
-        kind: "bullet",
-        text: {
-          ko: "위키 그래프가 더 부드럽게 움직여요.",
-          en: "The Wiki graph now moves more smoothly.",
-        },
-      },
-    ],
-  },
-  {
-    id: "developer-letter-2026-07",
-    sortAt: "2026-07-14T00:00:00+09:00",
-    kind: "developer",
-    eyebrow: { ko: "개발자 공지", en: "DEVELOPER NOTE" },
-    when: { ko: "2026.07.14 · 세컨비 팀", en: "2026.07.14 · SecondB team" },
-    listMeta: { ko: "공지 · 3일 전", en: "Note · 3 days ago" },
-    title: {
-      ko: "세컨비의 편지: 우리가 별을 그리는 이유",
-      en: "A letter from SecondB: Why we draw stars",
-    },
-    body: [
-      {
-        kind: "paragraph",
-        text: {
-          ko: "안녕하세요, 세컨비를 만드는 팀이에요.",
-          en: "Hello, we're the team building SecondB.",
-        },
-      },
-      {
-        kind: "paragraph",
-        text: {
-          ko: "여러분이 담아준 별가루가 이번 달에만 12만 개를 넘었어요. 하나하나가 누군가의 하루라 생각하면 조심스럽고 고맙습니다.",
-          en: "You captured more than 120,000 pieces this month. Each one holds part of someone's day, and we handle that trust with care.",
-        },
-      },
-      {
-        kind: "paragraph",
-        text: {
-          ko: "다음 업데이트에선 '북극성'을 더 또렷하게 다듬고 있어요. 조금만 기다려 주세요.",
-          en: "We're refining Polaris for the next update. Thank you for waiting with us.",
-        },
-      },
-    ],
-  },
-  {
-    id: "maintenance-2026-07-20",
-    sortAt: "2026-07-20T00:00:00+09:00",
-    kind: "maintenance",
-    eyebrow: { ko: "점검 안내", en: "MAINTENANCE" },
-    when: { ko: "2026.07.20 · 03:00–05:00", en: "2026.07.20 · 03:00–05:00 KST" },
-    listMeta: { ko: "점검 · 1주 전", en: "Maintenance · 1 week ago" },
-    title: { ko: "정기 서버 점검 안내", en: "Scheduled server maintenance" },
-    body: [
-      {
-        kind: "paragraph",
-        text: {
-          ko: "일요일 새벽 서버 점검이 있어요. 이 시간엔 담기·리즈닝이 잠시 멈춰요. 담아둔 자료는 안전하게 보관되고 연결되면 자동 동기화돼요.",
-          en: "Server maintenance is scheduled for early Sunday. Capture and reasoning will pause briefly. Saved items remain stored and sync automatically after service returns.",
-        },
-      },
-    ],
-  },
-  {
-    id: "patch-1.3.0",
-    sortAt: "2026-06-26T00:00:00+09:00",
-    kind: "patch",
-    eyebrow: { ko: "패치노트", en: "PATCH NOTES" },
-    version: "v1.3.0",
-    when: { ko: "2026.06.26 · 패치노트", en: "2026.06.26 · Patch notes" },
-    listMeta: { ko: "패치 v1.3.0 · 3주 전", en: "Patch v1.3.0 · 3 weeks ago" },
-    title: { ko: "v1.3.0: AI 뮤지엄이 열렸어요", en: "v1.3.0: AI Museum is open" },
-    body: [
-      {
-        kind: "paragraph",
-        text: {
-          ko: "AI 뮤지엄에서 지금까지 담은 자료와 새로 발견한 연결을 시간의 흐름으로 둘러볼 수 있어요.",
-          en: "Explore captured items and newly found connections over time in AI Museum.",
-        },
-      },
-    ],
-  },
-  {
-    id: "beta-thanks-2026-06",
-    sortAt: "2026-06-05T00:00:00+09:00",
-    kind: "developer",
-    eyebrow: { ko: "공지", en: "NOTE" },
-    when: { ko: "2026.06.05 · 세컨비 팀", en: "2026.06.05 · SecondB team" },
-    listMeta: { ko: "공지 · 6주 전", en: "Note · 6 weeks ago" },
-    title: { ko: "베타에 함께해줘서 고마워요", en: "Thank you for joining the beta" },
-    body: [
-      {
-        kind: "paragraph",
-        text: {
-          ko: "여러분이 남겨준 기록과 의견 덕분에 별자리가 조금씩 또렷해지고 있어요. 함께 만들어줘서 고마워요.",
-          en: "Your records and feedback are helping the constellation take shape. Thank you for building it with us.",
-        },
-      },
-    ],
-  },
-] as const;
-
-export const LATEST_NOTICE = PRODUCT_NOTICES[0];
+ *  (db/migrations/0113_notices.sql, docs/OPERATIONS-NOTICES.md).
+ *
+ *  Empty on purpose (D-06, QA 261004). The five entries that lived here
+ *  (patch-1.4.0, developer-letter-2026-07, maintenance-2026-07-20, patch-1.3.0,
+ *  beta-thanks-2026-06) were never release notes: they were the design
+ *  prototype's mock data (design/pixel_clay_v4/app/sb-data.jsx), carried in by
+ *  #1061 and never updated. A fresh install greeted every account with a
+ *  "v1.4.0" popup from July on a 0.x app, the list showed frozen "Today /
+ *  1 week ago" labels next to real dates, and a letter quoted a usage figure
+ *  nobody measured. Announcements go out as remote notices (DECISIONS
+ *  26.09.28). The removed text is preserved outside the repo at
+ *  E:/Legacy/2ndB/src/app/notices.tsx (MANIFEST batch qa261004-ui-misc).
+ *
+ *  An entry added here must describe a real build: its `version` no higher
+ *  than app.json's, and dates, never relative-time strings, in its labels
+ *  (src/lib/notices/__tests__/bundled-notices-honest.test.ts). */
+export const PRODUCT_NOTICES: readonly ProductNotice[] = [];
 
 /**
  * The notice centre: bundled release notes plus operator-published rows from
@@ -311,7 +198,7 @@ export function useNoticeCenter(userId: string | null) {
       // Bundled notices share a single "last seen id" cursor, so only the newest
       // one moves it. Reading an older history item must not accidentally clear
       // a newer announcement.
-      if (noticeId !== LATEST_NOTICE.id) return;
+      if (noticeId !== PRODUCT_NOTICES[0]?.id) return;
       setSeenId(noticeId);
       await writeNoticeSeenId(userId, noticeId).catch(() => undefined);
     },
@@ -377,15 +264,11 @@ export function NoticeDialog({
    *  are merged in, so the count comes from the caller. */
   total?: number;
 }) {
+  const phone = usePhoneDesign();
+  const { closing, requestClose, completeClose } = useModalExit(visible);
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const title = noticeText(notice.title, ko);
-  const shortTitle =
-    notice.id === "developer-letter-2026-07"
-      ? ko
-        ? "세컨비의 편지"
-        : "A letter from SecondB"
-      : title;
   const tone = kindColor(notice.kind);
 
   // A major notice published by the release pipeline carries the version it
@@ -404,10 +287,10 @@ export function NoticeDialog({
     ? ""
     : reloads
       ? ko
-        ? `${updateVersion} 버전부터 쓸 수 있어요. 새로고침하면 최신 버전으로 바뀌어요.`
+        ? `${updateVersion} 버전부터 쓸 수 있습니다. 새로고침하면 최신 버전으로 바뀝니다.`
         : `This arrives in version ${updateVersion}. Reload the page to get it.`
       : ko
-        ? `${updateVersion} 버전부터 쓸 수 있어요. 스토어에서 앱을 업데이트해 주세요.`
+        ? `${updateVersion} 버전부터 쓸 수 있습니다. 스토어에서 앱을 업데이트해 주세요.`
         : `This arrives in version ${updateVersion}. Update the app in the store to get it.`;
   const confirmLabel = !needsUpdate
     ? ko
@@ -457,23 +340,20 @@ export function NoticeDialog({
     }
   };
 
-  // RN-web keeps a Modal portal mounted after `visible` flips in some route
-  // transitions. Do not leave an invisible dialog subtree available to input
-  // or capture tooling; native receives the same explicit unmount contract.
-  if (!visible) return null;
-
   return (
-    <Modal
-      visible={visible}
+    <ScreenModal
+      visible={visible && !closing}
       transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={() => requestClose(onClose)}
+      onExitComplete={completeClose}
     >
-      <View style={styles.scrim} pointerEvents="auto" accessibilityViewIsModal>
+      <View style={[styles.scrim, phone && { backgroundColor: "transparent" }]} pointerEvents="auto" accessibilityViewIsModal>
+        {phone ? <PixelScrim style={{ tintColor: phoneIos.label2 }} /> : null}
         <Pressable
           style={StyleSheet.absoluteFill}
-          onPress={onClose}
+          onPress={() => requestClose(onClose)}
           accessibilityRole="button"
           accessibilityLabel={ko ? "공지 닫기" : "Close notice"}
         />
@@ -504,8 +384,8 @@ export function NoticeDialog({
             </View>
           </View>
 
-          <RNText style={styles.dialogTitle} accessibilityLabel={shortTitle}>
-            {ko ? keepAllKo(shortTitle) : shortTitle}
+          <RNText style={styles.dialogTitle} accessibilityLabel={title}>
+            {ko ? keepAllKo(title) : title}
           </RNText>
 
           <ScrollView style={styles.dialogBodyScroll} contentContainerStyle={styles.dialogBody}>
@@ -576,25 +456,27 @@ export function NoticeDialog({
             <MdButton
               label={ko ? "리스트" : "List"}
               variant="text"
-              onPress={onList}
+              onPress={() => requestClose(onList)}
               style={styles.dialogButton}
             />
             <MdButton
               label={confirmLabel}
               variant={notice.kind === "maintenance" ? "tonal" : "filled"}
-              onPress={needsUpdate ? onUpdatePress : onConfirm}
+              onPress={needsUpdate ? onUpdatePress : () => requestClose(onConfirm)}
               style={styles.dialogButton}
             />
           </View>
         </View>
       </View>
-    </Modal>
+    </ScreenModal>
   );
 }
 
 export default function NoticesScreen() {
+  // Phone-aware: inside the dashboard phone, Back steps the phone, not the app.
+  const router = useAppRouter();
   const { userId, loading } = useAuth();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("ops");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const noticeCenter = useNoticeCenter(userId);
   // Keyed by ID, not by index. `data` is bundled-only until fetchNotices()
@@ -619,7 +501,7 @@ export default function NoticesScreen() {
       active="settings"
       header="none"
       variant="windowed"
-      title={ko ? "공지사항" : "Notices"}
+      title={t("phone.apps.notifications")}
       onBack={() => router.back()}
     >
       <View style={styles.listFrame}>

@@ -1,13 +1,13 @@
 # 환불 및 청약철회 정책 · Refund & Cancellation Policy
 
-_최종 업데이트: 2026-08-11 · 개정 시행일: 2026-08-11_
+_최종 업데이트: 2026-10-05 · 개정 시행일: 2026-10-05_
 
 ---
 
 ## 한국어
 
 ### 1. 판매자 및 결제 처리자
-2nd-Brain(이하 "서비스")의 유료 구독 결제는 **Paddle.com Market Limited(이하 "Paddle")**\가 **판매자(Merchant of Record)**\로서 처리합니다. 결제·세금계산서·환불은 Paddle을 통해 이루어지며, 카드 명세서에는 Paddle 또는 `Paddle.net`\이 표기될 수 있습니다.
+PolaScope(이하 "서비스")의 유료 구독 결제는 **Paddle.com Market Limited(이하 "Paddle")**\가 **판매자(Merchant of Record)**\로서 처리합니다. 결제·세금계산서·환불은 Paddle을 통해 이루어지며, 카드 명세서에는 Paddle 또는 `Paddle.net`\이 표기될 수 있습니다.
 
 - 서비스 운영자: 하양 프로덕션 (개인사업자, 대표: 배소하 · 소재지: 경기도 안양시 · 사업자등록번호 205-10-98603 · 통신판매업 신고 면제 사업자)
 - 고객지원: kim0405@hayangzip.com (이메일 중심, 영업일 기준 2일 이내 회신)
@@ -45,7 +45,8 @@ _최종 업데이트: 2026-08-11 · 개정 시행일: 2026-08-11_
 본 정책은 관련 법령 및 서비스 정책에 따라 변경될 수 있으며, 변경 시 서비스 내 공지합니다.
 
 ### 8. 개정 경위
-- **2026-08-11 (현행)**: 결제일로부터 7일 이내이고, 결제 이후의 이용량이 무료 플랜 범위 안에 있는 경우 전액 환불. 위 2항이 그 내용입니다. 기간은 「전자상거래 등에서의 소비자보호에 관한 법률」 제17조제1항이 정한 법정 청약철회 기간과 같으며, 이용량 조건은 같은 조 제2항제5호에 근거합니다.
+- **2026-10-05 (표시 이름 변경)**: 서비스 이름을 PolaScope로 바꿨습니다. 환불 기준은 2026-08-11 판과 같습니다.
+- **2026-08-11 (환불 기준)**: 결제일로부터 7일 이내이고, 결제 이후의 이용량이 무료 플랜 범위 안에 있는 경우 전액 환불. 위 2항이 그 내용입니다. 기간은 「전자상거래 등에서의 소비자보호에 관한 법률」 제17조제1항이 정한 법정 청약철회 기간과 같으며, 이용량 조건은 같은 조 제2항제5호에 근거합니다.
 - **2026-07-17**: 결제일로부터 30일 동안 조건 없이 전액 환불.
 - 개별 사정이 있으신 경우 위 2항④ 및 6항에 따라 kim0405@hayangzip.com 으로 알려주시면 검토 후 회신합니다.
 
@@ -54,7 +55,7 @@ _최종 업데이트: 2026-08-11 · 개정 시행일: 2026-08-11_
 ## English
 
 ### 1. Seller & payment processor
-Paid subscriptions to 2nd-Brain (the "Service") are sold and processed by **Paddle.com Market Limited ("Paddle") as the Merchant of Record**. Payments, invoices, and refunds are handled through Paddle, and your card statement may show Paddle or `Paddle.net`.
+Paid subscriptions to PolaScope (the "Service") are sold and processed by **Paddle.com Market Limited ("Paddle") as the Merchant of Record**. Payments, invoices, and refunds are handled through Paddle, and your card statement may show Paddle or `Paddle.net`.
 
 - Service operator: Hayang Production (sole proprietorship, Rep.: Bae Soha · Anyang-si, Gyeonggi-do · business registration 205-10-98603 · exempt from the mail-order business report)
 - Support: kim0405@hayangzip.com (email-first; replies within 2 business days)
@@ -92,6 +93,7 @@ Paid subscriptions to 2nd-Brain (the "Service") are sold and processed by **Padd
 This policy may change per applicable law and Service policy; changes will be announced in the Service.
 
 ### 8. Revision history
-- **2026-08-11 (current)**: a full refund where the request is made within 7 days of payment and usage since that payment stayed within the free-plan range. Section 2 above is that rule. The window is the same period as the statutory right of withdrawal under Article 17(1) of Korea's Act on Consumer Protection in Electronic Commerce, and the usage condition rests on Article 17(2)5 of the same Act.
+- **2026-10-05 (display name)**: Renamed the Service to PolaScope. The refund criteria remain those of the 2026-08-11 revision.
+- **2026-08-11 (refund criteria)**: a full refund where the request is made within 7 days of payment and usage since that payment stayed within the free-plan range. Section 2 above is that rule. The window is the same period as the statutory right of withdrawal under Article 17(1) of Korea's Act on Consumer Protection in Electronic Commerce, and the usage condition rests on Article 17(2)5 of the same Act.
 - **2026-07-17**: a full refund for 30 days after payment, unconditionally.
 - For any individual case, sections 2(4) and 6 above apply. Write to kim0405@hayangzip.com and we will review and reply.

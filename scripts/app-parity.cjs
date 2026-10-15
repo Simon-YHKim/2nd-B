@@ -1869,6 +1869,66 @@ function findTool(sdkRelative) {
   return null;
 }
 
+/** --run 은 목록 검색 결과가 아닌 해당 실행의 API 원본으로 출처를 확인한다. */
+function parseQaRunId(value) {
+  const text = String(value);
+  const id = Number(text);
+  if (!/^[1-9][0-9]*$/.test(text) || !Number.isSafeInteger(id)) throw new Error(`실행 ID 가 올바르지 않다: ${text}`);
+  return id;
+}
+
+function validateQaRunMetadata(raw, workflow, requestedId) {
+  const id = parseQaRunId(requestedId);
+  if (!workflow || !Number.isSafeInteger(workflow.id) || workflow.path !== WORKFLOW) {
+    throw new Error("QA 빌드 workflow 원본을 확인하지 못했다");
+  }
+  if (!raw || raw.id !== id || raw.workflow_id !== workflow.id || raw.path !== WORKFLOW) {
+    throw new Error(`QA 빌드 ${id} 가 ${WORKFLOW} 실행인지 확인하지 못했다`);
+  }
+  if (raw.repository?.full_name !== REPO || !Number.isSafeInteger(raw.repository?.id) || raw.head_repository?.full_name !== REPO) {
+    throw new Error(`QA 빌드 ${id} 의 저장소가 ${REPO} 인지 확인하지 못했다`);
+  }
+  if (raw.head_branch !== "main" || (raw.event !== "push" && raw.event !== "workflow_dispatch")) {
+    throw new Error(`QA 빌드 ${id} 는 main 의 push/수동 실행이 아니다`);
+  }
+  if (!/^[0-9a-f]{40}$/.test(String(raw.head_sha || ""))) throw new Error(`QA 빌드 ${id} 의 소스 커밋이 올바르지 않다`);
+  return {
+    databaseId: id,
+    headSha: raw.head_sha,
+    status: raw.status,
+    conclusion: raw.conclusion || "",
+    createdAt: raw.created_at,
+    event: raw.event,
+  };
+}
+
+/** 지정 런에서 다운로드할 이름의 artifact 가 정확히 하나이고, 같은 커밋 · 저장소의 것인지 확인한다. */
+function validateQaArtifactMetadata(body, rawRun) {
+  const artifacts = body && body.artifacts;
+  const expected = `2ndb-android-${rawRun.head_sha}`;
+  if (!Array.isArray(artifacts) || (body.total_count !== undefined && body.total_count !== artifacts.length)) {
+    throw new Error("QA 산출물 목록이 불완전하다");
+  }
+  const matches = artifacts.filter((a) => a.name === expected);
+  if (matches.length !== 1) throw new Error(`QA 산출물 ${expected} 을 정확히 하나 확인하지 못했다`);
+  const artifact = matches[0];
+  const source = artifact.workflow_run;
+  if (artifact.expired !== false || !source || source.id !== rawRun.id || source.head_sha !== rawRun.head_sha ||
+      source.head_branch !== "main" || source.repository_id !== rawRun.repository.id ||
+      source.head_repository_id !== rawRun.repository.id) {
+    throw new Error(`QA 산출물 ${expected} 의 실행 · 커밋 · 저장소 또는 보존 상태가 다르다`);
+  }
+  return artifact;
+}
+
+function validateQaReleaseNotes(notes, expectedDigest, event, explicitRun, runId) {
+  if ((explicitRun || event === "workflow_dispatch") && (!notes.digest || !notes.abi)) {
+    throw new Error(`빌드 ${runId} 의 설정 digest 또는 ABI 주석이 없다 - 수동/지정 빌드는 올리지 않는다`);
+  }
+  if (notes.digest && notes.digest !== expectedDigest) throw new Error(`빌드 ${runId} 의 설정 digest 가 지금 설정과 다르다 - 올리지 않는다`);
+  if (notes.abi && notes.abi !== PHONE_ABI) throw new Error(`빌드 ${runId} 는 ${notes.abi} 빌드다(폰은 ${PHONE_ABI}) - 올리지 않는다`);
+}
+
 async function waitRun(runId) {
   const deadline = Date.now() + 50 * 60 * 1000;
   for (;;) {
@@ -1902,9 +1962,18 @@ async function cmdQaRelease(argv) {
   const phone = latestPhoneApk();
   const runArg = flag(argv, "run");
   let runInfo = null;
-  if (runArg) {
-    runInfo = await waitRun(runArg);
-    if (!sameApp(runInfo.headSha, target)) throw new Error(`빌드 ${runArg} 의 커밋이 origin/main 과 앱 코드가 다르다`);
+  let pinnedRaw = null;
+  if (runArg !== undefined) {
+    const id = parseQaRunId(runArg);
+    const pinnedWorkflow = JSON.parse(gh(["api", `repos/${REPO}/actions/workflows/android-release.yml`]));
+    const readPinned = () => JSON.parse(gh(["api", `repos/${REPO}/actions/runs/${id}`]));
+    pinnedRaw = readPinned();
+    runInfo = validateQaRunMetadata(pinnedRaw, pinnedWorkflow, runArg);
+    if (!sameApp(runInfo.headSha, target)) throw new Error(`빌드 ${id} 의 커밋이 origin/main 과 앱 코드가 다르다`);
+    if (runInfo.status !== "completed" || !runInfo.conclusion) await waitRun(id);
+    // 대기 뒤에도 API 원본을 다시 읽는다. 목록/CLI 캐시의 값만으로 게시 대상을 확정하지 않는다.
+    pinnedRaw = readPinned();
+    runInfo = validateQaRunMetadata(pinnedRaw, pinnedWorkflow, runArg);
   } else {
     // origin/main 과 같은 코드 · 같은 설정의 폰용 빌드를 고른다. 동시성 그룹이 중간 빌드를 건너뛰므로
     // origin/main 의 SHA 자체에는 빌드가 없을 수 있다(그 뒤 커밋이 문서뿐이면 앞 빌드가 같은 앱이다).
@@ -1938,12 +2007,22 @@ async function cmdQaRelease(argv) {
   }
   if (runInfo.status !== "completed") runInfo = await waitRun(runInfo.databaseId);
   if (runInfo.conclusion !== "success") throw new Error(`빌드 ${runInfo.databaseId} 결과 ${runInfo.conclusion} - APK 를 올리지 않는다`);
+  const requirePinnedCurrentApp = () => {
+    if (!pinnedRaw) return;
+    fetchMain(root); // 명시한 런은 최신 main 을 재조회할 수 없으면 게시하지 않는다.
+    const now = git(["rev-parse", MAIN_REF]);
+    if (!sameApp(runInfo.headSha, now)) throw new Error(`빌드 ${runInfo.databaseId} 와 현재 origin/main ${now.slice(0, 8)} 의 앱 코드가 다르다 - 올리지 않는다`);
+  };
+  requirePinnedCurrentApp();
   // 올릴 빌드의 커밋이 target 과 다르면(디스패치 사이 main 이 움직임) 그 커밋의 워크플로로 설정을 다시 계산한다.
   const expectedDigest =
     runInfo.headSha === target ? localDigest : envDigest(appEnv(git(["show", `${runInfo.headSha}:${WORKFLOW}`]), vars));
   const notesOfRun = buildNotes(runInfo.databaseId);
-  if (notesOfRun.digest && notesOfRun.digest !== expectedDigest) throw new Error(`빌드 ${runInfo.databaseId} 의 설정 digest 가 지금 설정과 다르다 - 올리지 않는다`);
-  if (notesOfRun.abi && notesOfRun.abi !== PHONE_ABI) throw new Error(`빌드 ${runInfo.databaseId} 는 ${notesOfRun.abi} 빌드다(폰은 ${PHONE_ABI}) - 올리지 않는다`);
+  validateQaReleaseNotes(notesOfRun, expectedDigest, runInfo.event, runArg !== undefined, runInfo.databaseId);
+  if (pinnedRaw) {
+    const artifacts = JSON.parse(gh(["api", `repos/${REPO}/actions/runs/${runInfo.databaseId}/artifacts?per_page=100`]));
+    validateQaArtifactMetadata(artifacts, pinnedRaw);
+  }
   if (phone && phone.runId && String(phone.runId) === String(runInfo.databaseId)) {
     console.log(`폰 APK ${phone.tag} 가 이미 이 빌드(런 ${runInfo.databaseId})다 - 새로 올리지 않는다.`);
     return;
@@ -2001,6 +2080,7 @@ async function cmdQaRelease(argv) {
   ].join("\n");
   const notesFile = path.join(dir, "notes.md");
   fs.writeFileSync(notesFile, notes);
+  requirePinnedCurrentApp();
   gh([
     "release", "create", tag, apk, sums, "--repo", REPO, "--target", sha, "--prerelease", "--latest=false",
     "--title", `QA 빌드 ${yymmdd} (main ${sha8}) - 정식 릴리스 아님`, "--notes-file", notesFile,
@@ -2037,6 +2117,9 @@ module.exports = {
   classifyBuild,
   sameCodeChecker,
   buildRunsFromApi,
+  validateQaRunMetadata,
+  validateQaArtifactMetadata,
+  validateQaReleaseNotes,
   planFollow,
   parsePreflight,
   zipEntryNames,

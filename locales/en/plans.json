@@ -7,8 +7,6 @@
     "speech": "Core recording features stay free. Paid plans include more AI chats."
   },
   "current": "Current plan",
-  "comingSoon": "Paid plans are coming soon",
-  "comingSoonBody": "Checkout is not open yet. Prices are final, and nothing is charged until you choose a plan here.",
   "tiers": {
     "free": {
       "name": "Stargazer",
@@ -24,7 +22,7 @@
       "priceNote": "$99.90 / yr (2 months free)",
       "tagline": "More chats each day",
       "f1": "80 AI chats per day",
-      "f2": "Everything in Soma",
+      "f2": "Everything in Stargazer",
       "f3": "Longer conversations"
     },
     "brain": {
@@ -33,8 +31,8 @@
       "priceNote": "$199.90 / yr (2 months free)",
       "tagline": "More chats and replies to your records",
       "f1": "250 AI chats per day",
-      "f2": "SecondB replies to your entries",
-      "f3": "Everything in Cortex"
+      "f2": "HustleK replies to your entries",
+      "f3": "Everything in Voyager"
     }
   },
   "back": "Back"

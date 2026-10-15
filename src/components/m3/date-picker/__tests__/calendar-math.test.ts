@@ -9,6 +9,8 @@ import {
   pad2,
   toISO,
   yearsDescending,
+  yearGridOpenOffset,
+  yearGridOpenRow,
 } from "../calendar-math";
 
 describe("calendar-math", () => {
@@ -95,6 +97,107 @@ describe("calendar-math", () => {
       const feb = monthGrid(2005, 1);
       const days = feb.flat().filter((c) => c !== null);
       expect(days).toHaveLength(28);
+    });
+  });
+
+  // A-Z first-use check. Round 1 (Z7): the birth year grid opened on the current year, twenty
+  // years above the year it had already picked as the likely one. Then it opened with the row
+  // above that year flush with the top edge, which read as "the list starts here". Simon picked
+  // the middle, with the rows at both edges cut (Z104, 2026-10-13).
+  describe("yearGridOpenOffset", () => {
+    // The app's own measures: 48px rows, 4px of padding at each end, a list six rows tall.
+    const layout = { rowHeight: 48, pad: 4, viewport: 288 };
+    const rowTop = (row: number) => layout.pad + layout.rowHeight * row;
+
+    it("puts the chosen year's row in the middle of the list", () => {
+      // 2026..1900, four to a row: 2026-2023 is row 0, 2006 sits in row 5.
+      const offset = yearGridOpenOffset(1900, 2026, 2006, 4, layout);
+      expect(offset).toBe(124);
+      expect(rowTop(5) + layout.rowHeight / 2 - offset).toBe(layout.viewport / 2);
+    });
+
+    it("cuts the rows at the two edges in half when the list is an even number of rows tall", () => {
+      const offset = yearGridOpenOffset(1900, 2026, 2006, 4, layout);
+      // Row 2 (2018-2015) is cut by the top edge, row 8 (1994-1991) by the bottom edge.
+      expect(offset - rowTop(2)).toBe(layout.rowHeight / 2);
+      expect(offset + layout.viewport - rowTop(8)).toBe(layout.rowHeight / 2);
+    });
+
+    it("follows the height the list really has", () => {
+      expect(yearGridOpenOffset(1900, 2026, 2006, 4, { ...layout, viewport: 240 })).toBe(148);
+    });
+
+    it("stays at the top when there is no year, or the year is outside the list", () => {
+      expect(yearGridOpenOffset(1900, 2026, null, 4, layout)).toBe(0);
+      expect(yearGridOpenOffset(1900, 2026, 2030, 4, layout)).toBe(0);
+      expect(yearGridOpenOffset(1900, 2026, 1850, 4, layout)).toBe(0);
+    });
+
+    it("stays inside the list's two ends", () => {
+      // Near the newest year there is nothing above to scroll past.
+      expect(yearGridOpenOffset(1900, 2026, 2026, 4, layout)).toBe(0);
+      expect(yearGridOpenOffset(1900, 2026, 2018, 4, layout)).toBe(0);
+      expect(yearGridOpenOffset(1900, 2026, 2014, 4, layout)).toBe(28);
+      // 32 rows and two paddings are 1544 tall, so the last offset is 1544 - 288.
+      expect(yearGridOpenOffset(1900, 2026, 1900, 4, layout)).toBe(1256);
+      // A list shorter than its box does not scroll.
+      expect(yearGridOpenOffset(2000, 2003, 2000, 4, layout)).toBe(0);
+    });
+  });
+
+  describe("yearGridOpenRow", () => {
+    const layout = { rowHeight: 48, pad: 4, viewport: 288 };
+
+    it("names the row at the top edge for an offset", () => {
+      expect(yearGridOpenRow(124, layout)).toBe(2);
+      expect(yearGridOpenRow(1256, layout)).toBe(26);
+      expect(yearGridOpenRow(0, layout)).toBe(0);
+    });
+  });
+
+  // The grid has to act on that offset on every platform: 8081 (web) showed the list still
+  // opening on 2026 with initialScrollIndex alone (2026-10-13).
+  describe("the year grid opens at that offset", () => {
+    const fs = jest.requireActual<typeof import("node:fs")>("node:fs");
+    const path = jest.requireActual<typeof import("node:path")>("node:path");
+    const picker = fs.readFileSync(path.join(__dirname, "..", "DatePicker.tsx"), "utf8");
+
+    it("is an even number of rows tall, so the edge rows are cut in half", () => {
+      const shown = /const YEAR_ROWS_SHOWN = (\d+);/.exec(picker);
+      expect(shown).not.toBeNull();
+      expect(Number(shown?.[1]) % 2).toBe(0);
+      expect(picker).toContain("const YEAR_LIST_HEIGHT = YEAR_ROW_HEIGHT * YEAR_ROWS_SHOWN;");
+      expect(picker).toContain('yearList: { maxHeight: YEAR_LIST_HEIGHT, alignSelf: "stretch" },');
+    });
+
+    it("asks the list for the row at the top edge and moves to the exact offset on first layout", () => {
+      expect(picker).toContain(
+        "const openOffset = (viewport: number) => yearGridOpenOffset(minYear, maxYear, selectedYear, YEAR_COLUMNS, layout(viewport));",
+      );
+      expect(picker).toContain("initialScrollIndex={yearGridOpenRow(openOffset(YEAR_LIST_HEIGHT), layout(YEAR_LIST_HEIGHT))}");
+      expect(picker).toContain("const height = event.nativeEvent.layout.height;");
+      expect(picker).toContain("const offset = openOffset(height > 0 ? height : YEAR_LIST_HEIGHT);");
+      expect(picker).toContain("if (offset > 0) listRef.current?.scrollToOffset({ offset, animated: false });");
+    });
+  });
+
+  // Round 7 (second phone): the list read as starting one row early. The list has top padding the
+  // scroll math did not count, so the opening row sat that much low and a sliver of the row
+  // above it stayed in view.
+  describe("the year grid counts its own top padding", () => {
+    const fs = jest.requireActual<typeof import("node:fs")>("node:fs");
+    const path = jest.requireActual<typeof import("node:path")>("node:path");
+    const picker = fs.readFileSync(path.join(__dirname, "..", "DatePicker.tsx"), "utf8");
+
+    it("uses one value for the padding it draws and the padding it scrolls past", () => {
+      expect(picker).toContain("const YEAR_LIST_PAD = m3.spacing.s2;");
+      expect(picker).toContain("yearListContent: { paddingVertical: YEAR_LIST_PAD },");
+      expect(picker).toContain(
+        "getItemLayout={(_, index) => ({ length: YEAR_ROW_HEIGHT, offset: YEAR_LIST_PAD + YEAR_ROW_HEIGHT * index, index })}",
+      );
+      // The opening offset gets the same padding through the math, and is the only scroll the grid makes.
+      expect(picker).toContain("const layout = (viewport: number) => ({ rowHeight: YEAR_ROW_HEIGHT, pad: YEAR_LIST_PAD, viewport });");
+      expect(picker.match(/scrollToOffset\(/g)).toHaveLength(1);
     });
   });
 

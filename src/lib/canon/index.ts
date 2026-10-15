@@ -220,7 +220,10 @@ export const canonMore = {
   imagineSeeds: morePack.imagineSeeds as CanonImagineSeed[],
   reminders: morePack.reminders as CanonReminder[],
   focusPresets: morePack.focusPresets as number[],
-  focusStars: morePack.focusStars as string[],
+  // focusStars is NOT exported: the prototype's five (성장 · 커리어 · 학습 · 관계 · 건강)
+  // are neither the seven stars nor the six life areas, and /focus now offers the
+  // dashboard's areas (lib/ops/focus-tally, QA R2C-12). The JSON keeps the field
+  // only because the design prototype (sb-more.jsx) still draws it.
 };
 
 export const canonKnow = {

@@ -108,6 +108,11 @@ jobs:
       # model key is needed in the build. (audit B1)
       EXPO_PUBLIC_LLM_MODE: "live"
       EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: "true"
+      # Shared with localhost:8081. Enable only after the W1 server canary.
+      EXPO_PUBLIC_DASHBOARD_GENERATION: ${{ vars.EXPO_PUBLIC_DASHBOARD_GENERATION || 'false' }}
+      # Chat input with altered word gaps asks for meaning once.
+      # Independent of the default-off EXPO_PUBLIC_SERVER_SAFETY.
+      EXPO_PUBLIC_OBFUSCATION_SAFETY: ${{ vars.EXPO_PUBLIC_OBFUSCATION_SAFETY || 'true' }}
       # Legacy pro-tier seam. It was pinned "gemini" from 2026-07-21 (Anthropic
       # credits exhausted 2026-07-06, so "claude" made every pro-tier call pay a
       # dead claude-proxy hop first). T1 stage A (2026-08-31) retired Gemini as a
@@ -132,7 +137,6 @@ jobs:
       # Backbone switch for the nine reasoning seats -- see web-deploy.yml. Unset
       # falls through to the phase rule, which resolves openai since T1 stage A.
       EXPO_PUBLIC_LLM_VENDOR: ${{ vars.EXPO_PUBLIC_LLM_VENDOR || '' }}
-      EXPO_PUBLIC_CROSSCHECK: ${{ vars.EXPO_PUBLIC_CROSSCHECK || '0' }}
       # OCR + voice-memo vendor, and the backbone vendor -- see web-deploy.yml.
       # Both were absent from every build env until 2026-08-21, which made the
       # repo Variables silent no-ops.
@@ -146,10 +150,8 @@ jobs:
       # and the only targets left are the one that just failed.
       EXPO_PUBLIC_FAILOVER_VENDOR: ${{ vars.EXPO_PUBLIC_FAILOVER_VENDOR || '' }}
       # Server-side crisis classifier vendor. Dormant unless
-      # EXPO_PUBLIC_SERVER_SAFETY is also on.
+      # either EXPO_PUBLIC_SERVER_SAFETY or EXPO_PUBLIC_OBFUSCATION_SAFETY is on.
       EXPO_PUBLIC_SAFETY_VENDOR: ${{ vars.EXPO_PUBLIC_SAFETY_VENDOR || '' }}
-      EXPO_PUBLIC_UI: "deep-space"
-      EXPO_PUBLIC_CHARACTER: "fallback"
       EXPO_PUBLIC_FORCE_TIER: "off"
       # Ads GO (Simon 2026-07-21, #1116) -- mirror eas.json production so this
       # diagnostic APK is the SAME app EAS builds (dbl FAIL 1: without it the
@@ -170,6 +172,15 @@ jobs:
       EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
       EXPO_PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.EXPO_PUBLIC_GA4_MEASUREMENT_ID }}
       EXPO_PUBLIC_CLARITY_PROJECT_ID: ${{ vars.EXPO_PUBLIC_CLARITY_PROJECT_ID }}
+      # Q-261004-36: this APK never checks for an OTA. app.config.js reads this and sets
+      # updates.checkAutomatically="NEVER" (manifest EXPO_UPDATES_CHECK_ON_LAUNCH=NEVER).
+      # No eas.json profile runs here, so the build has no update channel, and every
+      # launch used to get HTTP 400 from u.expo.dev (QA 261004 D-13). It must not take an
+      # update anyway: it is origin/main at this commit (scripts/app-parity.cjs).
+      # Job-level so both expo prebuild and gradle's fingerprint/manifest step see it.
+      # Not EXPO_PUBLIC_*: it is never inlined into the bundle and leaves the
+      # app-env-digest unchanged. Never set it in eas.json; EAS builds keep their channel.
+      DIAGNOSTIC_APK: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

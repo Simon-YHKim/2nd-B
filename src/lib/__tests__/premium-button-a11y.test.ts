@@ -65,7 +65,8 @@ describe("PremiumButton disabled accessibility", () => {
     expect(source).not.toMatch(/if\s*\(isDisabled\)\s*{\s*return\s*\(\s*<View/s);
     expect(source).toContain("disabled={isDisabled}");
     expect(source).toContain("accessibilityState={{ ...accessibilityState, disabled: !!isDisabled, busy: !!loading }}");
-    expect(source).toContain("!isDisabled ? animatedPressStyle : null");
+    // Phone controls use color feedback; neither skin animates disabled controls.
+    expect(source).toContain("!isDisabled && !phone ? animatedPressStyle : null");
   });
 
   test("disabled foreground contrast clears the 3:1 floor on premium dark surfaces", () => {

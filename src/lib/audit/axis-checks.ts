@@ -32,7 +32,7 @@ const MOTIVATION: AxisCheck = {
   title: { en: "Motivation check", ko: "동기 체크" },
   intro: {
     en: "Six short reflections on what moves you: choosing for yourself, getting better at things, and feeling connected. Write freely; there are no scores.",
-    ko: "나를 움직이는 힘을 여섯 번의 짧은 돌아보기로 살펴봐요. 스스로 선택하는 것, 점점 나아지는 것, 연결되어 있다는 느낌. 점수는 없어요. 자유롭게 적어 주세요.",
+    ko: "나를 움직이는 힘을 여섯 번의 짧은 돌아보기로 살펴봅니다. 스스로 선택하는 것, 점점 나아지는 것, 연결되어 있다는 느낌. 점수는 없습니다. 자유롭게 적어 주세요.",
   },
   questions: [
     {
@@ -92,7 +92,7 @@ const STRENGTHS: AxisCheck = {
   title: { en: "Strengths check", ko: "강점 체크" },
   intro: {
     en: "Six spotting questions that surface what you're naturally good at: energy, flow, praise, fast learning, proud moments, and where to use it next.",
-    ko: "내가 자연스럽게 잘하는 것을 찾아내는 여섯 가지 질문이에요. 에너지, 몰입, 칭찬, 빠른 배움, 자랑스러운 순간, 그리고 다음에 쓸 곳까지.",
+    ko: "내가 자연스럽게 잘하는 것을 찾아내는 여섯 가지 질문입니다. 에너지, 몰입, 칭찬, 빠른 배움, 자랑스러운 순간, 그리고 다음에 쓸 곳까지.",
   },
   questions: [
     {
@@ -157,7 +157,7 @@ const VALUES: AxisCheck = {
   title: { en: "Values check", ko: "가치관 체크" },
   intro: {
     en: "Six short reflections on what you hold important: deciding for yourself, novelty, being the same inside and out, caring, achieving, and stability. No scores; your answers become the signals behind the values spectrum.",
-    ko: "무엇을 중요하게 여기는지 여섯 번의 짧은 돌아보기로 살펴봐요. 스스로 정하는 것, 새로움, 겉과 속이 같은 것, 돌봄, 성취, 안정. 점수는 없어요. 적어 주신 기록이 가치 스펙트럼의 근거가 돼요.",
+    ko: "무엇을 중요하게 여기는지 여섯 번의 짧은 돌아보기로 살펴봅니다. 스스로 정하는 것, 새로움, 겉과 속이 같은 것, 돌봄, 성취, 안정. 점수는 없습니다. 적어 주신 기록이 가치 스펙트럼의 근거가 됩니다.",
   },
   questions: [
     {

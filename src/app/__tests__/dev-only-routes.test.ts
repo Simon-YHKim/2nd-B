@@ -43,7 +43,11 @@ const DEV_ONLY_ROUTES = [
   "dev-screens",
   "graph",
   "trends",
-  "trinity",
+  // "trinity" 는 2026-10-05 에 뺐다(Simon 결정 Q-261004-33 B). 개발 빌드에서만 보이던
+  // M3 리메이크와 TrinityLegacy 가 둘 다 E:/Legacy/2ndB 로 나가고 라우트는 모든 빌드에서
+  // /core-brain 리다이렉트 전용이 됐다. 이 결정이 이 파일 머리의 08-18 D1
+  // "지우는 것과 감추는 것은 다르다" 를 /trinity 에 한해 대체한다 - 감춘 것이 아니라
+  // 옮긴 것이다. 리다이렉트 모양은 screen-index.test.ts 의 "항상 redirect" 가 본다.
 ] as const;
 
 function routeFiles(): string[] {
@@ -53,14 +57,12 @@ function routeFiles(): string[] {
 }
 
 describe("개발 전용 라우트", () => {
-  // 게이트의 형태는 두 가지다. 대부분은 <DevOnlyRoute> 로 감싸 `/` 로 보내고,
-  // trinity 만 인라인으로 같은 __DEV__ 판정을 해서 `/core-brain` 으로 보낸다
-  // (레거시를 대체한 화면이 홈이 아니라 북극성이기 때문이다). 검사는 컴포넌트
-  // 이름이 아니라 **프로덕션에서 감춰지는가**를 본다 - 이름만 보면 주석에서
-  // 언급만 해도 통과해 버린다.
+  // 게이트의 형태는 이제 하나다: <DevOnlyRoute> 로 감싸 `/` 로 보낸다. 2026-10-04 까지
+  // trinity 만 인라인 __DEV__ 판정으로 `/core-brain` 에 보냈는데, 그 라우트가 리다이렉트
+  // 전용이 되면서(Q-261004-33 B) 두 번째 형태가 없어졌다. 검사는 컴포넌트 이름이 아니라
+  // **프로덕션에서 감춰지는가**를 본다 - 이름만 보면 주석에서 언급만 해도 통과해 버린다.
   function isProductionHidden(src: string): boolean {
-    if (/<DevOnlyRoute>/.test(src)) return true;
-    return /__DEV__\?: boolean/.test(src) && /<Redirect href="\/[a-z-]*"/.test(src);
+    return /<DevOnlyRoute>/.test(src);
   }
 
   it.each(DEV_ONLY_ROUTES)("/%s 은 프로덕션에서 감춰진다", (route) => {
@@ -73,9 +75,7 @@ describe("개발 전용 라우트", () => {
     const gated = routeFiles().filter((r) =>
       /<DevOnlyRoute>/.test(readFileSync(join(APP, `${r}.tsx`), "utf8")),
     );
-    // trinity 는 인라인 게이트라 이 목록에 안 나온다 - 의도된 예외다.
-    const viaComponent = DEV_ONLY_ROUTES.filter((r) => r !== "trinity");
-    expect(gated.sort()).toEqual([...viaComponent].sort());
+    expect(gated.sort()).toEqual([...DEV_ONLY_ROUTES].sort());
   });
 
   it("게이트는 dev 도 QA 도 아니면 홈으로 보낸다", () => {
@@ -85,7 +85,9 @@ describe("개발 전용 라우트", () => {
     // 판정은 gate.ts 로 옮겼다 (2026-08-19). 설정의 진입 버튼이 라우트 게이트와
     // **같은 판단**을 써야 눌리는데 안 열리는 버튼이 안 생긴다.
     expect(route).toContain("isDevSurfaceEnabled()");
-    expect(route).toContain('<Redirect href="/" />');
+    // 2026-10-04 (QA D-01): 새 홈을 쌓지 않고 아래에 있는 홈으로 돌아간다.
+    expect(route).toContain("<RedirectHome />");
+    expect(route).not.toMatch(/<Redirect[\s/]/);
 
     // fail-closed 를 두 문 모두에서 강제한다. 런타임을 모르면 감춘다 —
     // 반대로 짜면(`!== false` 같은 형태) 프로덕션에 새어나간다.

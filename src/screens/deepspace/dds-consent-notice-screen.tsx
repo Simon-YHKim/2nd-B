@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // dds-consent-notice-screen: the consent detail page behind the sign-up rows'
 // "자세히 보기" chevrons (flow request #4). One screen, one section per selection
 // key; ?item=<key> scrolls to and highlights that section. The shared paragraphs
@@ -6,9 +7,9 @@
 // surfaces cannot drift apart. Lives in the (auth) group: IntroGate-exempt,
 // reachable while signed out mid-sign-up. Canon-only (no legacy skin).
 import { useCallback, useRef } from "react";
-import { BackHandler, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { colors, spacing } from "@/theme/tokens";
@@ -16,6 +17,7 @@ import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { REQUIRED_ACK_KEYS } from "@/lib/auth/consent-selections";
 import { registerOwnBack } from "@/lib/nav/own-back";
+import { useAppRouter, useHardwareBack, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { ddsStyles as styles } from "./dds-styles";
 import { AuthShell } from "./dds-auth-screens";
 
@@ -25,8 +27,12 @@ export const CONSENT_DETAIL_ITEMS = [...REQUIRED_ACK_KEYS, "marketing"] as const
 export type ConsentDetailItem = (typeof CONSENT_DETAIL_ITEMS)[number];
 
 export function DeepSpaceConsentNoticeScreen() {
+  // Phone-aware: inside the dashboard phone, the chevron and Android Back step
+  // the phone, and ?item= comes from the phone route (/consent-notice?item=...).
+  const router = useAppRouter();
+  const embed = usePhoneEmbed();
   const { t } = useTranslation(["consent", "common"]);
-  const { item } = useLocalSearchParams<{ item?: string }>();
+  const { item } = useScreenParams<{ item?: string }>();
   const target = (CONSENT_DETAIL_ITEMS as readonly string[]).includes(item ?? "")
     ? (item as ConsentDetailItem)
     : null;
@@ -39,22 +45,22 @@ export function DeepSpaceConsentNoticeScreen() {
     // would keep suppressing the global chip on the home it just opened.
     else router.replace("/");
     return true;
-  }, []);
+  }, [router]);
 
   // Focus-scoped, not mount-scoped: the native stack keeps buried screens
   // MOUNTED, so a mount-scoped registration would keep suppressing the global
   // BackArrow (own-back.ts is one global counter) and keep a hardware-back
-  // handler alive underneath whatever is pushed on top. One effect owns both
-  // registrations so blur releases them together.
+  // handler alive underneath whatever is pushed on top. Both registrations are
+  // focus effects, so blur releases them together. useHardwareBack is the
+  // focused BackHandler listener standalone and the phone's claim stack inside
+  // the dashboard phone. The floating chip belongs to the app's screen, not to
+  // a page inside the phone, so the phone copy leaves it alone.
+  useHardwareBack(requestBack);
   useFocusEffect(
     useCallback(() => {
-      const unregister = registerOwnBack();
-      const sub = BackHandler.addEventListener("hardwareBackPress", requestBack);
-      return () => {
-        sub.remove();
-        unregister();
-      };
-    }, [requestBack]),
+      if (embed) return undefined;
+      return registerOwnBack();
+    }, [embed]),
   );
 
   // Sections lay out top-down; when the target section reports its y, jump once.
@@ -70,24 +76,26 @@ export function DeepSpaceConsentNoticeScreen() {
   );
 
   return (
-    <AuthShell scrollRef={scrollRef}>
-      <View style={styles.titleRow}>
-        <Pressable
-          onPress={requestBack}
-          hitSlop={12}
-          style={local.backTarget}
-          accessibilityRole="button"
-          accessibilityLabel={t("common:navGraph.drilldown.back")}
-        >
-          <RNText style={styles.back}>‹</RNText>
-        </Pressable>
-        <Text variant="heading" style={styles.title} accessibilityRole="header">
-          {t("consent:detail.title")}
-        </Text>
-      </View>
+    <AuthShell
+      scrollRef={scrollRef}
+      head={
+        <View style={[styles.titleRow, local.head]}>
+          <Pressable
+            onPress={requestBack}
+            hitSlop={12}
+            style={local.backTarget}
+            accessibilityRole="button"
+            accessibilityLabel={t("common:actions.back")}
+          >
+            <RNText style={styles.back}>‹</RNText>
+          </Pressable>
+          <Text variant="heading" style={styles.title} accessibilityRole="header">
+            {t("consent:detail.title")}
+          </Text>
+        </View>
+      }
+    >
       <Text variant="body" style={styles.consentIntro}>{t("consent:detail.intro")}</Text>
-      {/* PolaScope 병기 안내: 약관 적용일(2026-10-05) 전까지만. 약관·동의 개정 PR 에서 지운다 (DECISIONS 26.09.28). */}
-      <Text variant="body" style={styles.consentIntro}>{t("common:app.renameNote")}</Text>
 
       <View style={styles.card}>
         <Text variant="heading" style={styles.section} accessibilityRole="header">
@@ -134,4 +142,7 @@ const local = StyleSheet.create({
   // paragraphs need their own style or flexBasis:0 collapses them in a column.
   body: { color: colors.textMid, fontSize: 12, lineHeight: 18 },
   cardTarget: { borderColor: colors.cyan },
+  // The title row left the scroll surface (the page opens scrolled to ?item=),
+  // so it brings that surface's gutter with it.
+  head: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
 });

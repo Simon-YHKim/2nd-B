@@ -1,22 +1,12 @@
 {
   "title": "Entrevista profunda",
   "loading": "Carregando a entrevista…",
-  "reflected": "Alteração aplicada. Abrindo os resultados.",
   "retryHint": "Salve novamente para aplicar a alteração.",
-  "ratifyTitle": "Aplicar esta alteração?",
-  "ratifyBody1": "Esta proposta usa suas respostas. ",
-  "ratifyBodyStrong": "Só as alterações que você aprovar",
-  "ratifyBody2": " serão aplicadas ao resultado.",
-  "again": "De novo",
   "approve": "Aprovar e aplicar",
-  "question": "Pergunta {{n}} de {{total}}",
   "notice": "Aviso da entrevista",
   "reflectError": "Não foi possível aplicar a alteração",
   "dismiss": "Fechar",
   "tryAgain": "Tentar de novo",
-  "ratifyDeltaNote": "Suas respostas são salvas como você escreveu. Nenhuma estimativa é criada agora; o brilho das estrelas aumenta conforme você registra.",
-  "progressLabel": "Pergunta {{n}} / {{total}} · Entrevista de lembranças",
-  "screenerSubtitle": "As perguntas retomam o mesmo assunto de formas diferentes para você pensar em outros detalhes.",
   "reflectErrorBody": "Suas respostas continuam aqui. Tente novamente em um instante.",
   "loopCheck": {
     "stuckLoop": "Aquilo a que você sempre volta: está lhe dizendo algo novo, ou você chega sempre à mesma conclusão?",
@@ -26,10 +16,12 @@
   "drill": {
     "opening": "Por qual fase da sua vida começamos? Uma cena que venha à mente já basta.",
     "placeholder": "Escreva o quanto quiser",
+    "processingNotice": "A IA lê suas respostas para criar a próxima pergunta. Suas respostas só ficam salvas como registro quando você escolhe salvar.",
     "send": "Enviar",
     "thinking": "Preparando a próxima pergunta…",
     "enough": "Por hoje já basta",
     "closing": "Tudo bem parar aqui. Guardo o que você compartilhou hoje?",
+    "dayLimit": "Você atingiu o limite de uso.",
     "turnLabel": "Rodada {{n}}",
     "loopNote": "Vou mudar de direção por um instante.",
     "failed": "Não foi possível obter a próxima pergunta. Tente novamente.",
@@ -37,6 +29,7 @@
     "saveTitle": "Guardar a conversa de hoje?",
     "saveBody": "A conversa será salva como você escreveu. Nenhuma estimativa é criada agora; o brilho das estrelas aumenta conforme você registra.",
     "saved": "Guardado.",
+    "saveMeta": "{{star}} · Respostas: {{n}}",
     "scaffoldNote": "Tudo bem não saber. Você pode contar um fato de que se lembra ou pular.",
     "intro": "Compartilhe só o que quiser. Você pode pular ou parar a qualquer momento.",
     "dontKnow": "Não sei",
@@ -45,12 +38,5 @@
     "anotherScene": "Há outro momento sobre o qual você prefere falar?",
     "concreteQuestion": "O que você se lembra de ter feito naquele momento?",
     "openerHint": "Toque para começar e edite"
-  },
-  "period": {
-    "childhood": "Infância",
-    "teens": "Adolescência",
-    "twenties": "Vinte anos",
-    "thirties": "Trinta anos",
-    "current": "Agora"
   }
 }

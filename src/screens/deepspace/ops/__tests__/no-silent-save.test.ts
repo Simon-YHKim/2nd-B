@@ -61,16 +61,40 @@ describe("no silent save failures in the ops screens", () => {
   test("each screen that can fail a write surfaces it", () => {
     const src = read(join(ROOT, "src/screens/deepspace/ops/screens.tsx"));
     // Four screens own a write: Reading, Milestones, Ledger, Meals.
-    expect(src.match(/const \[saveErr, setSaveErr\] = useState\(false\);/g)?.length).toBe(4);
+    // 2026-10-07 (gate S3-01): Meals no longer uses the screen-wide flag. Its screen-wide
+    // banner read as the failure of whatever cell was open by then, and the sheet closed over
+    // the draft. Re-aimed 2026-10-07 (simplified): a meal failure now keeps its sheet open
+    // and is said in that sheet, in one line (pending.failed); closing the sheet drops it.
+    // Same writes, still surfaced: the three screen flags below plus the meal checks at the
+    // end of this test.
+    expect(src.match(/const \[saveErr, setSaveErr\] = useState\(false\);/g)?.length).toBe(3);
     // Eight write sites can fail: the five original adds, the ledger's DELETE (added
     // when the ledger got a real form + per-row delete), the milestone RENAME (added
     // when goals became nameable — audit 2026-07-16), and the shelf STATUS MOVE
     // (want→reading→done, med#21 — the move that finally lights the NOW-READING
     // hero). Deletes, renames and moves are writes too; all surface through their
     // screen's existing banner.
-    expect(src.match(/setSaveErr\(true\);/g)?.length).toBe(8);
-    // And the banner is actually rendered, not just stored in state.
-    expect(src.match(/<SaveErrorBanner text=\{c\.saveFailed\} \/>/g)?.length).toBe(4);
+    // 2026-10-05 (QA round 2, R2C-07 / R2C-08): four more write sites, each surfacing
+    // through the same banner -- removing a book from the shelf, saving the page count,
+    // deleting a goal, and clearing a meal cell from the sheet. (Saving an emptied cell
+    // goes through the meal save's existing catch.) 8 -> 12.
+    // 2026-10-05 (gate BL-03): the meal save and the meal clear no longer each have a
+    // catch. Both now run through one writer (writeMeal) under a shared lock, and that
+    // writer surfaces a failure for either of them. Same writes, one surfacing site:
+    // 12 -> 11. tool-screens-contract.test.ts pins that writeMeal surfaces it and that
+    // no meal write bypasses writeMeal.
+    // 2026-10-07 (gate S3-01): 11 -> 10, the meal writer's surfacing site moved into its sheet.
+    expect(src.match(/setSaveErr\(true\);/g)?.length).toBe(10);
+    // And the banner is actually rendered, not just stored in state (Meals: below). 4 -> 3.
+    expect(src.match(/<SaveErrorBanner text=\{c\.saveFailed\} \/>/g)?.length).toBe(3);
+    // Re-aimed 2026-10-07 (simplified): the meal writer marks every failure on the sheet it
+    // came from (mealSheetAfterWrite, failed -> pending.failed), and the sheet renders it.
+    const writeMeal = src.slice(src.indexOf("const writeMeal"), src.indexOf("const saveCell"));
+    expect(writeMeal).toContain("setPending((open) => mealSheetAfterWrite(open, sheet.session, outcome));");
+    expect(src).toContain("const sheetFailed = pending !== null && pending.failed && !mealWriting;");
+    expect(src).toMatch(
+      /\{sheetFailed \? \(\n\s*<Text variant="caption" style=\{styles\.saveErrText\} accessibilityRole="alert" accessibilityLiveRegion="polite">\n\s*\{t\("toolScreens\.meals\.saveFailed"\)\}/,
+    );
   });
 });
 

@@ -6,31 +6,6 @@
     "subtitle": "Tempo de resposta - contato - ajuda",
     "speech": "Conte o que aconteceu e em qual tela. Isso ajuda a entender o problema."
   },
-  "response": {
-    "eyebrow": "Tempo de resposta",
-    "body": "Respondemos às mensagens em até 2 dias úteis (KST)."
-  },
-  "contact": {
-    "eyebrow": "Entre em contato",
-    "button": "Enviar um e-mail",
-    "accessibilityLabel": "E-mail de suporte",
-    "accessibilityHint": "Abre o aplicativo de e-mail com o endereço de suporte."
-  },
-  "faqLabel": "Perguntas frequentes",
-  "faq": [
-    {
-      "question": "Como salvo meu primeiro registro?",
-      "answer": "Escreva o que vem à mente na tela de captura. O PolaScope ajuda a organizar depois."
-    },
-    {
-      "question": "Como meus dados são armazenados e posso exportá-los?",
-      "answer": "Suas entradas ficam vinculadas apenas à sua conta. Use Exportar em Configurações para baixar seus dados como arquivo a qualquer momento."
-    },
-    {
-      "question": "A IA é segura?",
-      "answer": "A IA ajuda a organizar e conectar suas notas. Decisões importantes ficam com você."
-    }
-  ],
   "help": {
     "title": "Onde você pode conseguir ajuda",
     "lead": "Seja o que for, você não precisa carregar isso sozinho. Estas linhas estão aqui sempre que precisar.",

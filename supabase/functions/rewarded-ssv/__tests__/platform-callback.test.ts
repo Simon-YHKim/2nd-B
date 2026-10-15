@@ -30,7 +30,7 @@ function load(env: Record<string, string | undefined> = {}, admitted = true) {
   };
   const rpc = jest.fn(async (name: string) => ({ data:
     name === "claim_reward_ssv_issue_rate_limit" ? 0 :
-    name === "settle_reward_ssv_ticket_v2" ? [{ reward_kind: "chat", reward_total: 2 }] :
+    name === "settle_reward_ssv_ticket_v3" ? [{ reward_kind: "chat", reward_total: 2 }] :
     name === "claim_reward_ssv_callback_attempt" ? admitted : true,
   error: null }));
   const createClient = jest.fn(() => ({
@@ -55,7 +55,8 @@ function load(env: Record<string, string | undefined> = {}, admitted = true) {
 function callback(overrides: Record<string, string | undefined> = {}) {
   const fields: Record<string, string | undefined> = {
     ad_network: "5450213213286189855", ad_unit: "2747237135", custom_data: TICKET,
-    reward_amount: "2", reward_item: "reward", timestamp: "1790251200000",
+    // Fresh by default: the Edge refuses a callback more than a day old (0213).
+    reward_amount: "2", reward_item: "reward", timestamp: String(Date.now()),
     transaction_id: "ab".repeat(16), ...overrides,
   };
   const query = Object.keys(fields).sort().filter((key) => fields[key] !== undefined)
@@ -76,7 +77,7 @@ describe("platform-bound SSV callbacks", () => {
     const app = load();
     expect((await app.handler(issue({ kind: "chat", ad_unit_id: ANDROID }))).status).toBe(200);
     expect((await app.handler(new Request(callback()))).status).toBe(200);
-    for (const name of ["issue_reward_ssv_ticket", "claim_reward_ssv_callback_attempt", "settle_reward_ssv_ticket_v2"]) {
+    for (const name of ["issue_reward_ssv_ticket", "claim_reward_ssv_callback_attempt", "settle_reward_ssv_ticket_v3"]) {
       expect(app.rpc).toHaveBeenCalledWith(name, expect.objectContaining({ p_ad_unit_id: "2747237135" }));
     }
   });
@@ -103,7 +104,7 @@ describe("platform-bound SSV callbacks", () => {
     expect((await app.handler(new Request(callback({ ad_unit: "2747237136" })))).status).toBe(403);
     expect(app.rpc).toHaveBeenCalledWith("claim_reward_ssv_callback_attempt", expect.objectContaining({ p_ad_unit_id: "2747237136" }));
     expect(app.fetchMock).not.toHaveBeenCalled();
-    expect(app.rpc).not.toHaveBeenCalledWith("settle_reward_ssv_ticket_v2", expect.anything());
+    expect(app.rpc).not.toHaveBeenCalledWith("settle_reward_ssv_ticket_v3", expect.anything());
   });
 
   test.each(["", ",", `${ANDROID},`, `${ANDROID},2747237135`, "anything", "5224354917", "ca-app-pub-3940256099942544/1234567890"])(
@@ -113,6 +114,66 @@ describe("platform-bound SSV callbacks", () => {
       expect(app.rpc).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("signed callback timestamp (0213, ADMOB-TS (2))", () => {
+  let logSpy: jest.SpyInstance;
+  beforeEach(() => { logSpy = jest.spyOn(console, "log").mockImplementation(() => undefined); });
+  afterEach(() => { logSpy.mockRestore(); });
+  const tsLines = () => logSpy.mock.calls.map((args) => String(args[0])).filter((line) => line.includes("ssv_callback_ts"));
+
+  test.each([
+    ["10 digits (seconds)", () => String(Math.floor(Date.now() / 1000)), 10],
+    ["13 digits (milliseconds)", () => String(Date.now()), 13],
+    ["16 digits (microseconds)", () => `${Date.now()}123`, 16],
+  ])("pays a fresh %s and hands the value to 0213 unchanged", async (_label, make, digits) => {
+    const app = load();
+    const timestamp = make();
+    expect((await app.handler(new Request(callback({ timestamp })))).status).toBe(200);
+    expect(app.rpc).toHaveBeenCalledWith("settle_reward_ssv_ticket_v3",
+      expect.objectContaining({ p_callback_ts: Number(timestamp) }));
+    expect(tsLines()).toEqual([JSON.stringify({ event: "ssv_callback_ts", digits, accepted: true })]);
+  });
+
+  test.each([
+    ["two days old", () => String(Date.now() - 2 * 86_400_000)],
+    ["91 days old, in seconds", () => String(Math.floor((Date.now() - 91 * 86_400_000) / 1000))],
+    ["an hour ahead, in microseconds", () => `${Date.now() + 3_600_000}000`],
+  ])("refuses a signed callback %s before it reaches the database", async (_label, make) => {
+    const app = load();
+    const response = await app.handler(new Request(callback({ timestamp: make() })));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "invalid_or_expired_ticket" });
+    expect(app.rpc).not.toHaveBeenCalledWith("settle_reward_ssv_ticket_v3", expect.anything());
+    expect(tsLines()).toHaveLength(1);
+    expect(JSON.parse(tsLines()[0])).toEqual(expect.objectContaining({ event: "ssv_callback_ts", accepted: false }));
+  });
+
+  test.each([
+    ["12 digits", () => String(Math.floor(Date.now() / 10)), 12],
+    ["a leading zero", () => `000${Math.floor(Date.now() / 1000)}`, 13],
+    ["17 digits", () => `${Date.now()}1234`, 17],
+  ])("refuses %s after the signature and still logs the digit count (r2 DB2-04)", async (_label, make, digits) => {
+    const app = load();
+    const response = await app.handler(new Request(callback({ timestamp: make() })));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "invalid_or_expired_ticket" });
+    // The signature was checked (verifier keys fetched) before the unit was judged.
+    expect(app.fetchMock).toHaveBeenCalled();
+    expect(app.rpc).not.toHaveBeenCalledWith("settle_reward_ssv_ticket_v3", expect.anything());
+    expect(tsLines()).toEqual([JSON.stringify({ event: "ssv_callback_ts", digits, accepted: false })]);
+  });
+
+  test("the log line names the digit count and verdict only", async () => {
+    const app = load();
+    const timestamp = String(Date.now());
+    await app.handler(new Request(callback({ timestamp })));
+    const all = logSpy.mock.calls.map((args) => args.map(String).join(" ")).join(" | ");
+    expect(all).not.toContain(timestamp);
+    expect(all).not.toContain(TICKET);
+    expect(all).not.toContain("ab".repeat(16));
+    expect(all).not.toContain(USER);
+  });
 });
 
 describe("signed AdMob console verification", () => {

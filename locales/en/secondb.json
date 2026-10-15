@@ -1,9 +1,10 @@
 {
-  "title": "SecondB",
+  "title": "HustleK",
   "subtitle": "Ask about your wiki. See which pages each answer refers to.",
-  "empty": "Ask a question. Try: \"What topics did I write about most this month?\"",
-  "placeholder": "Ask SecondB...",
-  "inputA11y": "Ask SecondB",
+  "empty": "Ask a question. Try: \"What topics are covered in my wiki?\"",
+  "placeholder": "Ask HustleK...",
+  "composerPlaceholder": "Message…",
+  "inputA11y": "Ask {{name}}",
   "send": "Send",
   "clearChat": "Clear",
   "clearChatA11y": "Clear chat",
@@ -11,146 +12,56 @@
   "viewPlans": "View plans",
   "viewPlansHint": "Opens the plans screen",
   "serverLimitReached": "This account has reached today's chat limit. Limits reset at midnight KST.",
-  "intro_title": "Ask SecondB",
-  "intro_body": "SecondB answers using your saved wiki pages. Tap a page name in an answer to read the source. Try \"What topics did I write about most this month?\"",
   "reference_piece_meta": "referenced piece",
-  "intro_ok": "Got it",
-  "intro_mute": "Don't show again today",
   "heroSpeech": {
-    "sending": "Reading relevant records…",
+    "sending": "Reading relevant wiki pages…",
     "divergent": "Considering other possibilities…",
-    "default": "What would you like to know about your records?"
+    "default": "What would you like to know about the wiki built from your records?"
   },
   "personaHero": {
     "speech": "Here are things that come up often in your records. Check whether they fit you."
-  },
-  "monologues": {
-    "secondb": [
-      "Look for topics that came up often.",
-      "Find records that might be related.",
-      "Read the records or consider another option.",
-      "Bring the records into one place."
-    ],
-    "archi": [
-      "Start with the current work situation.",
-      "Look through the work records again.",
-      "Split it into smaller tasks if it is too much at once.",
-      "Use these records to decide what to do next."
-    ],
-    "gadi": [
-      "Look back at what happened with other people.",
-      "Check what was said that day.",
-      "Look for similar events in the records.",
-      "See which relationships felt comfortable."
-    ],
-    "lulu": [
-      "Where could this knowledge be useful?",
-      "Look up anything that needs more explanation.",
-      "Is there a relevant source in the saved materials?",
-      "An example could make this easier to understand."
-    ],
-    "momo": [
-      "Add a category to the new record.",
-      "Make it easy to find what happened when.",
-      "Organize records so they are easy to find.",
-      "Keep short notes together by date."
-    ],
-    "lumi": [
-      "Is there a new hobby to try?",
-      "Is there time to enjoy this recommendation?",
-      "Find ways to keep enjoying an interest.",
-      "Look back at what was enjoyable."
-    ]
-  },
-  "personas": {
-    "secondb": {
-      "greeting": "What would you like to find in your records?",
-      "systemHint": "Speak as SecondB, responsible for the North Star summary. Connect related records. In Analytic mode, describe recurring patterns and their sources. In Divergent mode, suggest other possibilities. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
-    },
-    "archi": {
-      "greeting": "What is on your mind about work? Tell me about the situation.",
-      "systemHint": "Speak as Archon, responsible for work and growth. Use the user's work history and current situation to suggest specific things they could try. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
-    },
-    "gadi": {
-      "greeting": "Which experience with people in your records would you like to revisit?",
-      "systemHint": "Speak as Relia, responsible for relationships. Point out relationships and recurring patterns in the user's own records. Be friendly, but do not claim to have a real personal relationship with the user or to depend on them emotionally. Do not claim to know the user better than they know themselves. Address the user directly in plain, everyday words. Use no clinical labels. Avoid exaggerated praise and formulaic empathy. Ask a question only when it is useful."
-    },
-    "lulu": {
-      "greeting": "What would you like to learn about and use in your life?",
-      "systemHint": "Speak as Lumen, responsible for learning and knowledge. Refer to the user's saved materials to explain what they ask about, with examples of how they could use it. Do not adopt the voice of a sage. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
-    },
-    "momo": {
-      "greeting": "Which day's records would you like to find?",
-      "systemHint": "Speak as Momo, responsible for organizing and finding records. Categorize and retrieve records so the user can find what happened when. Focus on organization and search; do not give advice. Use plain, everyday language. Do not claim to have sorted or saved records without checking."
-    },
-    "lumi": {
-      "greeting": "What hobbies or interests have you been enjoying?",
-      "systemHint": "Speak as Lumina, responsible for hobbies and interests. Use the user's recorded interests to suggest specific things they might enjoy, while considering their balance of work and rest. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful."
-    }
-  },
-  "characters": {
-    "secondb": {
-      "line": "Read your records and consider other options."
-    },
-    "momo": {
-      "line": "Organize your records so you can find them again."
-    },
-    "lulu": {
-      "line": "Where could you use what you have learned?"
-    },
-    "archi": {
-      "line": "Find something you can try at work."
-    },
-    "gadi": {
-      "line": "Look back at people and events in your records."
-    },
-    "lumi": {
-      "line": "Find ways to enjoy your interests."
-    }
   },
   "rev2": {
     "selectorA11y": "Choose who to chat with",
     "lockVoyager": "Voyager",
     "lockNorthstar": "North Star",
     "lockedA11y": "Locked · unlocks with the {{plan}} plan",
+    "usageToday": "Today",
     "secondb": {
-      "name": "2nd-B",
+      "name": "HustleK",
       "role": "Empathy",
-      "lensName": "SecondB",
-      "tag": "2nd-B",
-      "desc": "Answers using your own records"
+      "lensName": "HustleK",
+      "tag": "HustleK",
+      "desc": "Answers from your wiki of records"
     },
     "meta": {
-      "name": "Meta-B",
+      "name": "Fact-K",
       "role": "Objective",
-      "systemHint": "Persona: Meta-B. Keep every grounding, citation, and safety rule. Focus on facts and point out patterns supported by concrete numbers and dates in the user's records. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful.",
-      "lensName": "Meta-B",
-      "tag": "Meta-B",
-      "desc": "Looks at the facts in your records"
+      "systemHint": "Persona: Fact-K. Keep every grounding, citation, and safety rule. Focus on facts and point out patterns supported by concrete numbers and dates in the user's records. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful.",
+      "lensName": "Fact-K",
+      "tag": "Fact-K",
+      "desc": "Facts from your wiki of records"
     },
     "twi": {
-      "name": "Twi-B",
+      "name": "Joy-K",
       "role": "Imagine",
-      "systemHint": "Persona: Twi-B. Keep every grounding, citation, and safety rule. Suggest other possibilities based on the user's own records, and clearly separate facts from imagined scenarios. If useful, describe how they could try one suggestion. Avoid a fixed closing formula. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful.",
-      "lensName": "Twi-B",
-      "tag": "Twi-B",
-      "desc": "Finds other possibilities in your records"
+      "systemHint": "Persona: Joy-K. Keep every grounding, citation, and safety rule. Suggest other possibilities based on the user's own records, and clearly separate facts from imagined scenarios. If useful, describe how they could try one suggestion. Avoid a fixed closing formula. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful.",
+      "lensName": "Joy-K",
+      "tag": "Joy-K",
+      "desc": "Other ideas from your wiki of records"
     }
   },
   "replyFailed": "Could not get a reply. Please try again in a moment.",
   "yourMessage": "Your message",
-  "secondbAnswer": "SecondB answer",
+  "secondbAnswer": "{{name}} answer",
   "longPressCopy": "Long press to copy",
   "fillsComposer": "Adds text to the message box",
   "keep": "Keep",
+  "keepSuggestionHint": "Keep the latest question and answer in your wiki, in their original words.",
   "keepToWiki": "Save to wiki",
   "keptToWiki": "Kept",
   "keeping": "Keeping...",
   "usedDeepQuestions": "You've used this week's deep questions",
-  "analysisMode": "Analysis mode",
-  "analysisChip": "Analysis",
-  "newAngleMode": "New angle mode",
-  "newAngleChip": "New angle",
   "voiceInput": "Voice input",
   "voice": {
     "stop": "Stop and transcribe",
@@ -160,16 +71,14 @@
     "transcribeFailed": "Couldn't turn that recording into text. Try again, or type your message.",
     "transcriptEmpty": "We couldn't make out any words. Try again closer to the microphone, or type it."
   },
-  "closeIntro": "Close intro",
-  "closeIntroHint": "Closes the SecondB introduction",
   "closeReferenced": "Close referenced pieces",
   "closeReferencedHint": "Closes the list of referenced pieces",
   "piecesReferenced": "Pieces referenced",
   "piecesReferencedBody": "The pieces used in this answer. Open one to read it.",
   "closeChip": "Close",
-  "eyebrow": "06. SecondB chat",
+  "eyebrow": "06. HustleK chat",
   "newPerspectives": "Try another view",
-  "readyToChat": "SecondB ready to chat",
+  "readyToChat": "HustleK ready to chat",
   "longPressCopyThis": "Long press to copy this message",
   "copied": "Copied",
   "copyFailed": "Copy failed. Select the text to copy it.",
@@ -181,7 +90,88 @@
   "askLens": "Ask {{lens}}…",
   "nPieces": "{{n}} pieces",
   "chatSaveNotice": "This conversation is not being saved",
-  "chatSaveNoticeBody": "Turn on chat saving in privacy settings to keep it. Anything said before you turn it on is not saved.",
   "chatSaveNoticeOpen": "Open settings",
-  "chatSaveNoticeDismiss": "Dismiss"
+  "chatSaveNoticeDismiss": "Dismiss",
+  "planSuggestion": {
+    "routineButton": "Make a routine",
+    "reminderButton": "Make a reminder",
+    "reviewHint": "Review and edit the details before saving.",
+    "routineTitle": "Review routine",
+    "reminderTitle": "Review reminder",
+    "titleLabel": "Task",
+    "dateLabel": "Date",
+    "timeLabel": "Time",
+    "timeOptional": "Time · optional",
+    "cadence": "Repeat",
+    "category": "Category",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "weekday": "Day of week",
+    "saveRoutine": "Save routine",
+    "scheduleReminder": "Schedule",
+    "exportCalendar": "Create calendar file",
+    "webNotice": "Reminders do not ring in this browser. Add the file to your calendar app, then check its alert settings.",
+    "exportConsent": "I agree to export this event's title, date and time to a calendar file.",
+    "saving": "Saving…",
+    "routineSaved": "Routine saved.",
+    "reminderSaved": "Reminder scheduled.",
+    "calendarCreated": "Calendar file created. Add it to your calendar app.",
+    "saveFailed": "Could not save. Check the details and try again.",
+    "unavailable": "This suggestion cannot be saved now. Open it again from the conversation.",
+    "validation": {
+      "title": "Enter a task.",
+      "date": "Choose today or a later date.",
+      "time": "Enter a time in 24-hour format, such as 09:30.",
+      "weekday": "Choose a day to repeat.",
+      "exportConsent": "Agree to the export before creating the calendar file.",
+      "past": "Choose a future date and time.",
+      "category": "Choose a category."
+    },
+    "weekdays": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    },
+    "routineSavedNoReminder": "Routine saved. No reminder was set.",
+    "routineSavedReminderDenied": "Routine saved. The reminder was not scheduled because notification permission is off.",
+    "routineSavedReminderFailed": "Routine saved, but the reminder could not be scheduled.",
+    "stale": "The conversation has changed. Open the latest suggestion again.",
+    "reminderDenied": "Notification permission is off. Allow it in settings and try again.",
+    "reminderSavedNoReminder": "Reminder saved on this device. Notifications cannot be scheduled in this environment.",
+    "reminderSavedReminderDenied": "Reminder saved on this device. No notification was scheduled because permission was denied.",
+    "reminderSavedReminderFailed": "Reminder saved on this device. Scheduling failed. Turn it on again in Reminders.",
+    "oneOff": {
+      "title": "Reminders saved from chat",
+      "deviceNote": "Reminders for this account are stored on this device.",
+      "loading": "Loading reminders…",
+      "empty": "No reminders saved from chat.",
+      "loadFailed": "Could not load reminders.",
+      "retry": "Reload",
+      "unavailable": "Notifications cannot be scheduled in this environment.",
+      "past": "Time has passed",
+      "toggleLabel": "Notification for {{title}}",
+      "on": "Notification on",
+      "off": "Notification off",
+      "alarmFailed": "Could not change the notification. Check this device’s notification permission and try again.",
+      "delete": "Delete",
+      "deleteLabel": "Delete reminder: {{title}}",
+      "deletePrompt": "Delete this reminder and cancel its scheduled notification?",
+      "confirmDelete": "Confirm deletion",
+      "cancel": "Cancel",
+      "deleteFailed": "Could not delete the reminder. Please try again shortly.",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "{{current}} of {{total}}"
+    }
+  },
+  "aiLine": "{{name}} is AI and can make mistakes. Check important info.",
+  "aiNotice": {
+    "body": "{{name}} is AI. Its answers are AI-generated and for reference only. Check important info.",
+    "confirm": "OK"
+  },
+  "aiCopyTail": "AI-generated content (PolaScope)"
 }

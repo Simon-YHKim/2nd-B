@@ -1,0 +1,180 @@
+// REVIVE SOURCE (되살리기 원본) — moved out of the build on 2026-10-05.
+//
+//   was:  src/app/data.tsx   (the whole route file: DataManagementLegacy and its styles; the auth gate stayed in the route)
+//   why:  the EXPO_PUBLIC_UI rollback lever itself was removed (Simon decision
+//         Q-261004-11 C), so this half is in no build at all. It is kept in the
+//         repo as a revive source (Q-261004-12 A, conflict resolution 1): move
+//         what is worth keeping into the shipped DeepSpaceDataScreen first.
+//   read: kept verbatim below — the whole route file, so the imports resolve as they did.
+//         A byte copy of the whole route file also sits at
+//         E:/Legacy/2ndB/src/app/data.tsx (MANIFEST batch qa261004-lever).
+//   run:  not buildable from here — legacy/ is excluded from tsconfig, jest,
+//         eslint and metro, and src/lib/ui-mode.ts no longer exists. To run it,
+//         read the route file from history:
+//           git show e0b274d0:src/app/data.tsx
+//
+// 되살린 뒤: 되살리기가 끝나면 이 파일을 git rm 하고 INDEX.md 표에서 줄을 뺀다.
+// 그 뒤로는 E:/Legacy/2ndB 사본과 git 이력만 남는다(결정 Q-261004-12 A · 상충 해소 ①).
+//
+// Nothing in src/ imports this file. See legacy/screens/INDEX.md.
+
+// Data management (A-to-Z Phase 12) - user-facing "데이터 관리". Structural
+// hub that explains each data action in plain language and routes to the
+// place that performs it. The actual destructive controls live in the
+// settings danger zone; export lives on the wiki screen. This screen makes
+// the data-control surface discoverable and explains what each does.
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { useTranslation } from "react-i18next";
+import { Redirect, router } from "expo-router";
+import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
+import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
+import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
+import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { profileGate } from "@/lib/auth/profile-probe";
+import { VILLAGE_UI } from "@/lib/village-ui";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { DeepSpaceDataScreen } from "@/screens/deepspace/dds-data-screen";
+
+function DataManagementLegacy() {
+  const { t } = useTranslation("data");
+  const { t: tIden } = useTranslation("iden");
+  const { userId, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
+
+  return (
+    <PremiumAppShell>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <SceneHero
+          eyebrow={t("hero.eyebrow")}
+          title={t("hero.title")}
+          subtitle={t("hero.subtitle")}
+          island={VILLAGE_UI.records.island}
+          worker={VILLAGE_UI.records.worker}
+          accent={VILLAGE_UI.records.accent}
+          speech={t("hero.speech")}
+        />
+
+        <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
+          <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("import.eyebrow")}</Text>
+          <Text variant="body" color="textMuted">
+            {t("import.body")}
+          </Text>
+          <Button
+            label={t("import.button")}
+            variant="secondary"
+            onPress={() => router.push("/import")}
+            accessibilityHint={t("import.accessibilityHint")}
+          />
+        </View>
+
+        <View style={[styles.section, { borderStartColor: semantic.brand }]}>
+          <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("export.eyebrow")}</Text>
+          <Text variant="body" color="textMuted">
+            {t("export.body")}
+          </Text>
+          <Button
+            label={t("export.button")}
+            variant="secondary"
+            onPress={() => router.push("/wiki")}
+            accessibilityHint={t("export.accessibilityHint")}
+          />
+        </View>
+
+        <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
+          <Text variant="caption" color="textMuted" style={styles.eyebrow}>{tIden("entry.eyebrow")}</Text>
+          <Text variant="body" color="textMuted">
+            {tIden("entry.body")}
+          </Text>
+          <Button
+            label={tIden("entry.button")}
+            variant="secondary"
+            onPress={() => router.push("/iden")}
+            accessibilityHint={tIden("entry.accessibilityHint")}
+          />
+        </View>
+
+        <View style={[styles.section, { borderStartColor: semantic.danger }]}>
+          <Text variant="caption" color="danger" style={styles.eyebrow}>{t("delete.eyebrow")}</Text>
+          <Text variant="body" color="textMuted">
+            {t("delete.body")}
+          </Text>
+          <Button
+            label={t("delete.button")}
+            variant="secondary"
+            onPress={() => router.push("/settings")}
+            accessibilityHint={t("delete.accessibilityHint")}
+          />
+        </View>
+
+        <View style={[styles.section, { borderStartColor: cosmic.soulViolet }]}>
+          <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("device.eyebrow")}</Text>
+          <Text variant="body" color="textMuted">
+            {t("device.body")}
+          </Text>
+        </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </PremiumAppShell>
+  );
+}
+
+const styles = StyleSheet.create({
+  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
+  scroll: { gap: spacing.lg, paddingBottom: spacing.xxl },
+  section: {
+    backgroundColor: semantic.surface,
+    borderColor: semantic.border,
+    borderWidth: 1,
+    borderStartWidth: 4,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    shadowColor: cosmic.soulViolet,
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    ...androidElevationStyle(androidElevation.card),
+  },
+  eyebrow: { letterSpacing: 0 },
+});
+
+export default function DataManagement() {
+  const { t } = useTranslation(["data", "deepspace"]);
+  const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
+  const gate = profileGate({ loading, userId, hasProfile, profileProbeFailed });
+
+  if (gate === "signed-out") return <Redirect href="/sign-in" />;
+  // A failed probe is unknown: the retryable error (no dock), not the loader it
+  // used to share. The T1a emulator run (vibe r260913, item 2) found
+  // `Loading data tools...` here with no way out after a server error, a DNS
+  // failure and a timeout alike.
+  if (gate === "profile-error") {
+    return <ProfileProbeRetryScreen title={t("deepspace:account.navData")} />;
+  }
+  if (gate === "profile-incomplete") return <Redirect href="/complete-profile" />;
+  if (gate !== "ready") {
+    return (
+      <PremiumAppShell>
+        <View style={styles.center}>
+          <PremiumLoadingState message={t("data:loading")} />
+        </View>
+      </PremiumAppShell>
+    );
+  }
+  if (isDeepSpaceUI()) return <DeepSpaceDataScreen />;
+  return <DataManagementLegacy />;
+}

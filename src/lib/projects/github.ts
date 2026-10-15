@@ -27,12 +27,11 @@ export interface GithubActivitySummary {
   repos: string[];
 }
 
-const USERNAME_MAX = 39; // GitHub's max login length
 const EVENTS_CAP = 100;
 const REPOS_CAP = 12;
 const GITHUB_API = "https://api.github.com";
 
-/** GitHub usernames: alphanumeric + single hyphens. Returns "" when invalid. */
+/** GitHub usernames: alphanumeric + single hyphens, at most 39 characters (GitHub's max login length). Returns "" when invalid. */
 export function sanitizeUsername(value: unknown): string {
   if (typeof value !== "string") return "";
   const v = value.trim();

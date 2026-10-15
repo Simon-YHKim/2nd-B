@@ -7,11 +7,9 @@
     "speech": "Fitur utama tetap gratis. Pilih paket berbayar jika kamu perlu lebih banyak percakapan dengan AI."
   },
   "current": "Paket saat ini",
-  "comingSoon": "Paket berbayar segera hadir",
-  "comingSoonBody": "Pembayaran belum dibuka. Harga sudah final, dan tidak ada yang ditagih sampai kamu memilih paket di sini.",
   "tiers": {
     "free": {
-      "name": "Stargazer",
+      "name": "Pengamat bintang",
       "price": "Gratis",
       "tagline": "Catatan tanpa batas untuk sehari-hari",
       "f1": "Catatan, memo, dan wiki tanpa batas",
@@ -19,22 +17,22 @@
       "f3": "5 obrolan AI per hari"
     },
     "cortex": {
-      "name": "Voyager",
+      "name": "Penjelajah",
       "price": "$9.99 / mo",
       "priceNote": "$99.90 / yr (2 bulan gratis)",
       "tagline": "Lebih banyak percakapan setiap hari",
       "f1": "80 obrolan AI per hari",
-      "f2": "Semua fitur di Soma",
+      "f2": "Semua fitur di Pengamat bintang",
       "f3": "Kapasitas ekstra untuk sesi panjang"
     },
     "brain": {
-      "name": "North Star",
+      "name": "Bintang Utara",
       "price": "$19.99 / mo",
       "priceNote": "$199.90 / yr (2 bulan gratis)",
       "tagline": "Batas percakapan lebih besar",
       "f1": "250 obrolan AI per hari",
       "f2": "Refleksi atas catatan-catatanmu",
-      "f3": "Semua fitur di Cortex"
+      "f3": "Semua fitur di Penjelajah"
     }
   },
   "back": "Kembali"

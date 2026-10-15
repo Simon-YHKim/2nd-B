@@ -56,6 +56,11 @@
       "class": "retained",
       "reason": "결제 셀프서비스 남용 방지 한도. 지우면 한도를 되감을 수 있다(0184)."
     },
+    "chat_turn_reservations": {
+      "owner": "user_id",
+      "class": "account_delete_only",
+      "reason": "Per-turn chat count reservations: ids, the counted day and times, no content. No owner policy; only server functions touch it (0255). Rows older than two days are removed by the next bump; account deletion cascades."
+    },
     "chat_usage": {
       "owner": "user_id",
       "class": "retained",
@@ -131,7 +136,7 @@
     "credit_ledger": {
       "owner": "user_id",
       "class": "retained",
-      "reason": "로트 종류마다 계정 삭제 때 운명이 다르다. 구매(purchase) 로트는 여는 행과 그 로트의 모든 행이 구매 사실과 미사용 잔량의 증거다. 취소권 기간이 계정보다 오래 살아남으므로 user_id 만 NULL 로 비우고 남긴다(0134 ON DELETE SET NULL · 설계서 F5). 광고 보상(ad_reward)·프로모(promo) 로트는 돈을 낸 기록이 아니므로, 계정 삭제 직전 public.users 의 BEFORE DELETE 트리거가 여는 행과 그 로트의 모든 행을 지운다(0202 · 0204). 콘텐츠 삭제(erase_my_data)는 이 표를 건드리지 않는다."
+      "reason": "로트 종류마다 계정 삭제 때 운명이 다르다. 구매(purchase) 로트는 여는 행과 그 로트의 모든 행이 구매 사실과 미사용 잔량의 증거다. 취소권 기간이 계정보다 오래 살아남으므로 user_id 만 NULL 로 비우고 남긴다(0134 ON DELETE SET NULL · 설계서 F5). 광고 보상(ad_reward)·프로모(promo) 로트는 돈을 낸 기록이 아니므로, 계정 삭제 직전 public.users 의 BEFORE DELETE 트리거가 여는 행과 그 로트의 모든 행을 지운다(0202 · 0204). 광고 보상 로트는 계정이 남아 있어도, 여는 행이 88일(방침 최대 90일)보다 오래되고 만료돼 합계가 0 이면 purge_reward_records() 가 매일 로트 전체를 지운다(0211, 분쟁 보류 중인 거래의 로트는 보류가 풀릴 때까지 남는다). 콘텐츠 삭제(erase_my_data)는 이 표를 건드리지 않는다."
     },
     "esm_responses": {
       "owner": "user_id",
@@ -312,12 +317,12 @@
     "reward_ssv_tickets": {
       "owner": "user_id",
       "class": "retained",
-      "reason": "서명된 광고 콜백을 사용자에게 묶는 단기 권한의 소비 기록. 지우면 같은 티켓을 다시 쓸 수 있다(0177)."
+      "reason": "서명된 광고 콜백을 사용자에게 묶는 단기 권한의 소비 기록. 콘텐츠 삭제는 지우지 않는다(지우면 아직 유효한 티켓을 다시 쓸 수 있다, 0177). 미사용 티켓은 20분 만료 뒤, 소비한 티켓은 1일 뒤 purge-reward-ssv-tickets 가 지운다(0196). 계정 삭제 때는 public.users 연쇄로 지워진다(0202)."
     },
     "rewarded_ssv_txns": {
       "owner": "user_id",
       "class": "retained",
-      "reason": "광고 transaction_id 기준 재생 방지 원장. 지우면 한 번의 시청을 월 상한까지 반복 적립할 수 있다(0079)."
+      "reason": "광고 transaction_id 기준 재생 방지 원장. 콘텐츠 삭제(erase_my_data)는 지우지 않는다(지우면 아직 살아 있는 콜백으로 같은 시청을 다시 적립할 수 있다, 0079). 적립 시각부터 88일(방침 최대 90일)이 지나면 purge_reward_records() 가 매일 지운다(0211). 그 뒤 같은 콜백의 재전송은 1일 안에 지워지는 티켓(0196)과 1일 콜백 시각 검사(0213)가 막는다. 분쟁 보류(reward_dispute_holds) 중인 거래만 보류가 풀릴 때까지 남는다. 계정 삭제 때는 public.users 연쇄로 지워진다(0202)."
     },
     "rss_proxy_quota_daily": {
       "owner": "user_id",
@@ -416,7 +421,61 @@
     "reward_ssv_issue_rate_limits": {
       "owner": "user_id",
       "class": "retained",
-      "reason": "Bounded rewarded-ticket issuance counter. Content deletion must not reset the issuance limit; account deletion cascades the counter through public.users."
+      "reason": "광고 보상 티켓 발급 횟수 제한 카운터. 콘텐츠 삭제가 발급 제한을 초기화하면 안 되므로 남긴다. 마지막 갱신부터 88일(방침 최대 90일)이 지나면 purge_reward_records() 가 매일 지운다(0211). 계정 삭제 때는 public.users 연쇄로 지워진다(0198)."
+    },
+    "interview_sessions": {
+      "owner": "owner_id",
+      "class": "client_erasable",
+      "reason": "인터뷰 세션(0225). 본인 SELECT · DELETE 정책이 있다. 내용 삭제는 턴(28), 머리(29), 레코드(30) 뒤 남은 세션(31)을 지운다. 세션 삭제 트리거가 모든 연결 감사 해시를 비우고 tombstone을 남긴다. 담은 세션은 레코드 삭제 트리거가 먼저 집계로 접는다. 미저장 세션은 discard 또는 6시간 뒤 sweep으로 접힌다. 계정 삭제 전 감사 해시를 비우고 auth.users 연쇄로 지운다.",
+      "order": 31
+    },
+    "interview_transcript_turns": {
+      "owner": "user_id",
+      "class": "client_erasable",
+      "order": 28,
+      "reason": "저장한 인터뷰 대화록의 턴 원문(0225). 본인이 SELECT · DELETE 정책으로 읽고 지울 수 있다. 머리(interview_transcripts)보다 먼저 지운다. 턴을 지우면 그 턴의 판정 행도 FK 연쇄로 지워지고, 판정 행 삭제 트리거가 그 감사 해시를 먼저 비운다. 세션이 거절한 호출의 해시는 레코드(30)를 지울 때 세션과 함께 비워진다."
+    },
+    "interview_transcripts": {
+      "owner": "user_id",
+      "class": "client_erasable",
+      "order": 29,
+      "reason": "저장한 인터뷰 대화록 머리(0225). 본인 DELETE 정책이 있다. 레코드(records, 30)보다 먼저 지운다 - 레코드를 지우면 FK 연쇄로도 지워진다."
+    },
+    "ai_audit_context_blocks": {
+      "owner": "user_id",
+      "class": "client_erasable",
+      "reason": "세컨비 응답의 문맥 블록 id(0225). 본인 SELECT · DELETE 정책으로 내용 삭제(32)에 포함한다. 레코드 삭제 트리거는 그 레코드를 담은 행을 먼저 지운다. 남은 행도 내용 삭제로 지워져 영수증에 보관으로 세지 않는다. 계정 삭제는 auth.users 연쇄로 지우고 90일 뒤 prune도 정리한다.",
+      "order": 32
+    },
+    "interview_session_starts": {
+      "owner": "owner_id",
+      "class": "retained",
+      "reason": "인터뷰 세션 생성 횟수(0225, 10분 칸 숫자만). 시간당 새 세션 상한이 버리기로 되감기지 않게 하는 카운터라 콘텐츠 삭제가 초기화하면 안 된다. 두 시간이 지난 칸은 sweep 이 매시 지운다. 계정 삭제 때는 auth.users 연쇄로 지워진다."
+    },
+    "weather_consent_state": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Current optional weather consent and version, no coordinates. Content deletion preserves consent; account deletion cascades."
+    },
+    "weather_access_events": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Location Information Act art. 16(2) request facts and consent events, no coordinates or IP. Six-month retention with daily purge; account deletion sets user_id NULL."
+    },
+    "dashboard_generation_settings": {
+      "owner": "user_id",
+      "class": "account_delete_only",
+      "reason": "Server scheduling preference; removed on account deletion."
+    },
+    "dashboard_generation_runs": {
+      "owner": "user_id",
+      "class": "account_delete_only",
+      "reason": "48h attempt ledger; cached text expires in 24h or less and is invalidated on source deletion."
+    },
+    "profile_context_imports": {
+      "owner": "user_id",
+      "class": "retained",
+      "reason": "Import retry and withdrawal receipts. Source deletion clears document, confirmation IDs, profile undo text and predecessor IDs through 0239; counts and request digest remain so late retries cannot restore withdrawn text. Account deletion cascades the entire receipt."
     }
   },
   "forwardAdditions": {
@@ -428,12 +487,47 @@
     ],
     "0201_rss_proxy_erasure_registry.sql": [
       "rss_proxy_quota_daily"
+    ],
+    "0226_interview_transcript_erasure_registry.sql": [
+      "interview_sessions",
+      "interview_transcript_turns",
+      "interview_transcripts",
+      "ai_audit_context_blocks",
+      "interview_session_starts"
+    ],
+    "0233_weather_erasure_registry.sql": [
+      "weather_consent_state",
+      "weather_access_events"
+    ],
+    "0237_dashboard_erasure_registry.sql": [
+      "dashboard_generation_settings",
+      "dashboard_generation_runs"
+    ],
+    "0240_profile_context_import_erasure_registry.sql": [
+      "profile_context_imports"
+    ],
+    "0258_chat_turn_reservations_erasure_registry.sql": [
+      "chat_turn_reservations"
     ]
   },
   "forwardRevisions": {
     "0205_credit_ledger_erasure_registry_reason.sql": {
       "credit_ledger": {
         "previousReason": "구매 사실과 미사용 잔량의 증거. 취소권 기간이 계정보다 오래 살아남으므로 계정 삭제 때도 SET NULL 로 남긴다(0134 · 설계서 F5)."
+      }
+    },
+    "0212_reward_records_erasure_registry_reason.sql": {
+      "credit_ledger": {
+        "previousReason": "로트 종류마다 계정 삭제 때 운명이 다르다. 구매(purchase) 로트는 여는 행과 그 로트의 모든 행이 구매 사실과 미사용 잔량의 증거다. 취소권 기간이 계정보다 오래 살아남으므로 user_id 만 NULL 로 비우고 남긴다(0134 ON DELETE SET NULL · 설계서 F5). 광고 보상(ad_reward)·프로모(promo) 로트는 돈을 낸 기록이 아니므로, 계정 삭제 직전 public.users 의 BEFORE DELETE 트리거가 여는 행과 그 로트의 모든 행을 지운다(0202 · 0204). 콘텐츠 삭제(erase_my_data)는 이 표를 건드리지 않는다."
+      },
+      "reward_ssv_issue_rate_limits": {
+        "previousReason": "Bounded rewarded-ticket issuance counter. Content deletion must not reset the issuance limit; account deletion cascades the counter through public.users."
+      },
+      "reward_ssv_tickets": {
+        "previousReason": "서명된 광고 콜백을 사용자에게 묶는 단기 권한의 소비 기록. 지우면 같은 티켓을 다시 쓸 수 있다(0177)."
+      },
+      "rewarded_ssv_txns": {
+        "previousReason": "광고 transaction_id 기준 재생 방지 원장. 지우면 한 번의 시청을 월 상한까지 반복 적립할 수 있다(0079)."
       }
     }
   }

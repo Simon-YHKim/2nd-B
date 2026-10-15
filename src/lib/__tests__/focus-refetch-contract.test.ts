@@ -95,12 +95,13 @@ describe("core-loop focus refetch contract", () => {
     { file: "src/screens/deepspace/dds-wiki-records-screens.tsx", fn: "DeepSpaceRecordsScreen" },
     { file: "src/app/core-brain.tsx", fn: "CoreBrainScreen" },
     { file: "src/screens/deepspace/DeepSpaceDesignScreens.tsx", fn: "DeepSpaceInsightsScreen" },
-    { file: "src/app/trinity.tsx", fn: "TrinityDeepSpace" },
+    // (/trinity 의 TrinityDeepSpace 줄은 2026-10-05 에 뺐다 - Simon 결정 Q-261004-33 B 로
+    //  그 M3 리메이크가 E:/Legacy 로 나가고 라우트는 /core-brain 리다이렉트 전용이 됐다.)
     { file: "src/screens/deepspace/dds-record-detail-screen.tsx", fn: "DeepSpaceRecordDetailScreen" },
   ];
 
   /** `function <fn>` 선언부터 다음 최상위 function 직전까지. export 여부는 안 본다
-   *  — CoreBrainScreen·TrinityDeepSpace 는 라우트 파일 안의 비-export 선언이다. */
+   *  — CoreBrainScreen 은 라우트 파일 안의 비-export 선언이다. */
   function functionBody(source: string, fn: string): string {
     const normalized = source.replace(/\r\n?/g, "\n");
     const decl = new RegExp(`^(?:export )?function ${fn}\\b`, "m");

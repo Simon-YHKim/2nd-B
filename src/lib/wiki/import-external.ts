@@ -55,7 +55,7 @@ export function buildExtractionPrompt(locale: "en" | "ko", subjectName?: string)
       "규칙:",
       "- 임상 진단·치료 표현은 쓰지 마. 성향과 패턴을 담담하게 묘사해.",
       "- 최대 20개 항목. 근거가 적으면 있는 만큼만 적고, 근거 없는 추측은 넣지 마. 불확실한 관찰은 confidence: low로 표시하고 이유를 적어줘.",
-      "- 쉬운 한국어와 자연스러운 해요체로 작성해. 상투적인 칭찬, 과장, 추상적인 비유는 쓰지 마.",
+      "- 쉬운 한국어로 작성하고, 문장은 '~습니다'로 끝내. 상투적인 칭찬, 과장, 추상적인 비유는 쓰지 마.",
     ].join("\n");
   }
   const subj = who ? `"${who}"` : "the person I've been talking with";
@@ -98,7 +98,7 @@ export const INGEST_SYSTEM = [
   "- Never invent facts not present in the input; if thin, return fewer items.",
   "- `track` is 'pro' only when the material is clearly career/work-focused, else 'daily'.",
   "- Keep the summary and titles in the same language as the input.",
-  "- Use plain, conversational language, with natural 해요체 for Korean. Avoid stock praise, promotional wording and elaborate metaphors. Preserve quoted evidence as written.",
+  "- Use plain, conversational language, ending Korean statements in '~습니다'. Avoid stock praise, promotional wording and elaborate metaphors. Preserve quoted evidence as written.",
 ].join("\n");
 
 // Schema-first (2026-07-26): pins the shape the regex parser expects. Root

@@ -15,8 +15,11 @@ const styleSource = readFileSync(
 ).replace(/\r\n/g, "\n");
 
 const reviewStart = source.indexOf("function DeepSpaceReviewSession");
+// 끝 표지: 2026-10-05 까지는 `export { DeepSpaceInboxScreen, DeepSpaceImportScreen }` 였다.
+// 라우트가 import 하지 않던 DeepSpaceInboxScreen 그림자 사본이 롤백 레버 제거 PR(Simon 결정
+// Q-261004-11 C)에서 나가며 그 재수출 줄이 DeepSpaceImportScreen 하나만 남았다.
 const reviewEnd = source.indexOf(
-  'export { DeepSpaceInboxScreen, DeepSpaceImportScreen }',
+  'export { DeepSpaceImportScreen } from "./dds-import-inbox-screens";',
   reviewStart,
 );
 const review = source.slice(reviewStart, reviewEnd);

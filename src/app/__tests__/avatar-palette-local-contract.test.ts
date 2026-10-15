@@ -26,7 +26,8 @@ describe("Avatar Palette personal gallery", () => {
     expect(screen).toContain("<PixelLayer pixels={item.pixels} size={64} />");
     expect(screen).toContain('item.title || t("avatarPalette:untitled")');
     expect(screen).toContain('t(`avatarPalette:slots.${item.slot}`)');
-    expect(screen).toContain("new Date(item.updatedAt).toLocaleDateString(i18n.resolvedLanguage ?? i18n.language)");
+    // R2B-02: the painted UI language, not resolvedLanguage (frozen to EN for es/pt/id).
+    expect(screen).toContain("new Date(item.updatedAt).toLocaleDateString(renderedUiLanguage(i18n))");
   });
 
   test("allows profile-complete users of any age and isolates account artwork", () => {

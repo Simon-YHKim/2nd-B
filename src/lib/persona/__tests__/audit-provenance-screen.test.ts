@@ -187,11 +187,59 @@ describe("deep-space /audit screen contract", () => {
       .update(app.slice(legacyStart, legacyEnd))
       .digest("hex");
     expect(legacyHash).toBe(
-      // 통합 머지에서 재고정. 옛 값은 5b6bbe71 분기점 본문이고, 그 뒤 main 이
-      // #1552(명시적 life audit 입구 복원)00b7#1602(딥스페이스 게이트) 를 얹었다.
-      // 병합 결과 슬라이스는 main 과 바이트 동일 2014 위임이 레거시를 안 건드렸다는
-      // 이 검사의 뜻은 그대로고 기준선만 옮겼다.
-      "e131c71f2aa6f53b57c98042b9509894514592433877772d738146313eff11e8");
+      // PR #2044 두 번째 main 병합에서 재고정(2026-10-06). 이 값은 두 편집을 합친 본문의 실측이다:
+      // 브랜치의 useGoHomeStop 한 호출(주석 두 줄 포함, 아래 7df65c0b)과 main 의 es · pt 악센트
+      // 복원(R2B-06, 아래 bdbb9efc). 둘 다 03f9dea2 에서 갈라졌고, 한쪽 편집만 남기면 그쪽 값이
+      // 그대로 다시 나온다(병합 전 두 부모 대조). 설문 · 저장 · 위기 인계 코드는 한 글자도 안 바뀌었다.
+      // 2026-10-08: AuditLegacy ships through /audit?screener=1 (the name is
+      // historical). Its question index now drives SceneTransition. Removing
+      // just the two wrapper tags reproduces 225e520a; answer/save logic and
+      // styles are unchanged. This pin deliberately includes the wrapper.
+      // 2026-10-15 T23: one hotline expression preserves the returned emergency lane.
+      // Reverting only that expression reproduces 4bf5388718fe4ebe7cc05b7a1603152a133f3cd551124197ca687d2f23cbeb31.
+      "4e5a9a244452faa6cd6cfe1b6479ff695c63ef21a16de9d56a613f8a07ee08ba");
+    // 이전 값 7df65c0b6373c30955355b5b9fde3f1b6020a69f2380785fa2fdd4d88745727c (PR #2044 브랜치):
+    //   PR #2044 main 병합에서 재고정(2026-10-05). 옛 값 03f9dea2 는 병합 직전 main 본문이고,
+    //   이번 편집만 되돌리면 그 값이 그대로 다시 나온다(재고정 전 main 대조). 바뀐 것은 미저장
+    //   응답 beforeRemove 가드 바로 아래 useGoHomeStop 한 호출(주석 두 줄 포함)뿐이다: 위
+    //   화면에서 홈으로 갈 때 이 화면 앞에서 멈춘다. 확인창 · 저장 경로와 기간 선택 화면의
+    //   '뒤로'(사람이 누르는 router.push("/"))는 그대로다.
+    // 이전 값 bdbb9efc76b0d862c451e3da2105c8f902a7a791d69e565261cebf96721f4189 (main):
+    //   es/pt 악센트 복원에서 재고정(2026-10-05, R2B-06). 옛 값 03f9dea2 는 바로 앞 본문이고,
+    //   이 편집만 되돌리면 그 값이 그대로 다시 나온다(재고정 전 HEAD 대조). 바뀐 것은 이
+    //   슬라이스 안 `DISPLAY_COPY` 의 es · pt 문구 12줄의 철자뿐이다(mas→más · Nao→Não ·
+    //   voce→você · padroes→padrões 등). 설문 · 저장 · 위기 인계 코드는 한 글자도 안 바뀌었다.
+    // 이전 값 03f9dea20a3e53570dfacf77677477716f1d05e4c6419937ea7964599abd7ec6:
+    //   키보드 영역 이전에서 재고정(2026-10-05). 옛 값 7ad9ed7e 는 바로 앞 본문이고, 이
+    //   편집만 되돌리면 그 값이 그대로 다시 나온다(재고정 전 HEAD 대조). 바뀐 것은 설문
+    //   두 화면의 `<KeyboardAvoidingView … behavior={Platform.OS === "ios" ? …}>` 여는 ·
+    //   닫는 태그를 공용 `<KeyboardAvoidingArea>`(src/lib/ui/keyboard.tsx)로 바꾼 네 줄뿐이다.
+    //   Android 에서 키보드가 입력을 가리던 것을 고친 것이고, 설문 · 저장 · 위기 인계 코드는
+    //   한 줄도 안 바뀌었다.
+    //   옛 캐릭터 정리에서 재고정(2026-10-05, Simon 결정 Q-261004-15 A). 옛 값 7ad9ed7e 는
+    //   바로 앞 본문이다. 바뀐 것은 주석 두 줄뿐이다(:279 · :368) - 저장 순간에 옛
+    //   캐릭터 '모모' 가 나온다고 적혀 있었는데 그 몸 그림이 CompanionSprite 에서 빠져
+    //   신호만 남았다. 코드는 한 글자도 안 바뀌었다.
+    //   두 재고정이 같은 날 다른 PR(#2055 키보드 · #2056 옛 캐릭터)에서 따로 났고, 03f9dea2 는 둘을 합친 본문의 실측이다.
+    // 이전 값 7ad9ed7e8a1fc8feaaa1140cd1ca7aa0f7bb20bab59948da9ea9f34bd0d68bdd:
+    //   롤백 레버 제거에서 재고정(2026-10-05, Simon 결정 Q-261004-11 C). 옛 값 13b50e3b 는
+    //   바로 앞 본문이다. 이 슬라이스는 레거시 렌더러라는 이름과 달리 배송된다
+    //   (`/audit?screener=1`). 바뀐 것은 둘뿐이다: AuditScreenerShell 의 스킨 분기를 접어
+    //   DeepSpaceScreen 을 무조건 그리게 했고(레거시 셸 PremiumAppShell 팔 삭제 - 어느
+    //   빌드도 그 팔을 타지 않았다), Round 61 주석이 옛 분기 줄을 인용하던 문장을 고쳤다.
+    //   설문 · 저장 · 위기 인계 코드는 한 줄도 안 바뀌었다(e0b274d0 과 줄 단위 대조).
+    // 이전 값 13b50e3b094749d614ebf295d6b2162357c8ce2697e229029ef6d06c4b063f76:
+    //   대시보드 폰 이식에서 재고정(2026-10-02). 옛 값 e131c71f 는 이 이식 직전
+    //   본문이고, 이번 편집만 되돌리면 그 값이 그대로 다시 나온다. 바뀐 것은
+    //   레거시 설문이 `/audit?screener=1` 로 폰 안에서도 그려지게 한 것뿐이다:
+    //   router 를 useAppRouter() 로(의존성 배열 한 줄 포함), Android Back 을
+    //   useHardwareBack 으로(src/lib/nav/phone-embed.tsx). 폰 밖 동작과 저장
+    //   경로는 그대로다.
+    // 이전 값 e131c71f2aa6f53b57c98042b9509894514592433877772d738146313eff11e8:
+    // 통합 머지에서 재고정. 옛 값은 5b6bbe71 분기점 본문이고, 그 뒤 main 이
+    // #1552(명시적 life audit 입구 복원)00b7#1602(딥스페이스 게이트) 를 얹었다.
+    // 병합 결과 슬라이스는 main 과 바이트 동일 2014 위임이 레거시를 안 건드렸다는
+    // 이 검사의 뜻은 그대로고 기준선만 옮겼다.
     // 회차 64 재고정. 옛 값 ab0a87ab 는 위임만 얹혔던 상태이고, 그 뒤 레거시
     // 렌더러가 **일부러** 바뀌었다: `/audit?screener=1` 이 스킨과 무관하게 이
     // 설문에 닿는데(:550, 스킨 검사보다 앞선다) 저장의 red 위기 인계를 버리고

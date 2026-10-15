@@ -17,6 +17,16 @@ describe("recordKindToType", () => {
     expect(recordKindToType("audit_response", ["interview"])).toBe("interview");
     expect(recordKindToType("audit_response", ["life_audit"])).toBe("audit");
   });
+  test("0218: the interview marker is read from system_tags, not the user's tags", () => {
+    expect(recordKindToType("audit_response", ["domain:growth"], ["interview", "recall"])).toBe("interview");
+    expect(recordKindToType("audit_response", ["interview"], [])).toBe("audit");
+    expect(
+      toEvidenceShard(
+        { id: "r", kind: "audit_response", topic: null, created_at: "2026-10-06T00:00:00Z", tags: ["domain:growth"], system_tags: ["interview"] },
+        "en",
+      ).type,
+    ).toBe("interview");
+  });
   test("self_knowledge → capture", () => {
     expect(recordKindToType("self_knowledge")).toBe("capture");
   });

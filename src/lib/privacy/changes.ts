@@ -20,7 +20,7 @@ function publish(change: PrivacyChange): void {
 }
 
 /** Withdraw immediately; a failed write never resumes processing in this session. */
-export function beginPrivacyChange(ownerId: string, prefs: PrivacyPrefs): number {
+export function beginPrivacyChange(ownerId: string, prefs: Partial<PrivacyPrefs>): number {
   const prior = changes.get(ownerId);
   const revision = (prior?.revision ?? 0) + 1;
   const denied = Object.fromEntries(Object.entries(prefs).filter(([, value]) => value === false));
@@ -28,10 +28,18 @@ export function beginPrivacyChange(ownerId: string, prefs: PrivacyPrefs): number
   return revision;
 }
 
+/** Reserve a grant revision without republishing an earlier pending withdrawal. */
+export function beginPrivacyGrant(ownerId: string): number {
+  const prior = changes.get(ownerId);
+  const revision = (prior?.revision ?? 0) + 1;
+  changes.set(ownerId, { ownerId, revision, prefs: { ...prior?.prefs } });
+  return revision;
+}
+
 /** A late grant cannot overtake a newer OFF action. */
-export function commitPrivacyChange(ownerId: string, revision: number, prefs: PrivacyPrefs): void {
+export function commitPrivacyChange(ownerId: string, revision: number, prefs: Partial<PrivacyPrefs>): void {
   if (changes.get(ownerId)?.revision !== revision) return;
-  publish({ ownerId, revision, prefs: { ...prefs } });
+  publish({ ownerId, revision, prefs: { ...changes.get(ownerId)?.prefs, ...prefs } });
 }
 
 export function subscribePrivacyChanges(listener: (change: PrivacyChange) => void): () => void {

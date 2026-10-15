@@ -1,27 +1,5 @@
 {
   "loading": "Preparando seu resumo…",
-  "errorTitle": "Não foi possível preparar seu resumo",
   "tryAgain": "Tentar de novo",
-  "backToCapture": "Voltar à Captura",
-  "eyebrow": "07. Meu resumo",
-  "notEnough": "Ainda não há registros suficientes",
-  "startRelCheck": "Iniciar verificação de relações · 3 min",
-  "start": "Começar",
-  "gathered": "Seu resumo está pronto",
-  "openCenter": "Abrir Estrela do Norte",
-  "export": "Exportar",
-  "soulCore": "Estrela do Norte",
-  "above": "acima",
-  "below": "abaixo",
-  "aiSummary": "Resumo de IA",
-  "observedPatterns": "Padrões observados (recentes)",
-  "countTimes": "{{n}}×",
-  "mbtiRef": "Referência MBTI",
-  "attachmentStyle": "Estilo de apego (ECR-S)",
-  "anxiety": "Ansiedade",
-  "avoidance": "Evitação",
-  "relevantFrameworks": "Modelos usados",
-  "exportMd": "Exportar como Markdown",
-  "retakeBigFive": "Refazer Big Five",
-  "attachmentTest": "Teste de estilo de apego"
+  "export": "Exportar"
 }

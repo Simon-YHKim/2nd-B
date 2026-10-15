@@ -6,6 +6,7 @@
 // UNIQUE(user_id, source, metric_type, started_at, external_id) key so a
 // re-import is a no-op (idempotent), matching the routine completion ledger.
 
+import { withTimeout } from "../async/with-timeout";
 import { getSupabaseClient } from "./client";
 import type { HealthSample } from "../health/HealthSource";
 
@@ -69,4 +70,92 @@ export async function listRecentSamples(userId: string, limit = 50): Promise<Hea
     .limit(limit);
   if (error) throw error;
   return (data ?? []) as HealthSampleRow[];
+}
+
+/**
+ * Deletes this user's samples of one metric and returns how many went. Withdrawal deletes
+ * metric by metric so a large account does not run one long statement (heart rate alone can
+ * be many thousands of rows). health_samples is owner-only RLS (0049), so the user_id filter
+ * only narrows what the policy already allows.
+ */
+export async function deleteHealthSamplesOfMetric(userId: string, metric: HealthSample["metricType"]): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { error, count } = await supabase
+    .from("health_samples")
+    .delete({ count: "exact" })
+    .eq("user_id", userId)
+    .eq("metric_type", metric);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+/** Far beyond any real account (2,000 weeks is 38 years); only stops a loop that cannot finish. */
+const BY_WEEK_MAX_STEPS = 2000;
+
+/**
+ * The fallback when one metric's single delete fails, for instance a statement timeout on an
+ * account with months of heart-rate readings: delete a week of samples per statement, oldest
+ * first, until none of that metric is left. Every step removes at least the oldest row, so it
+ * ends. (PostgREST ignores a limit on DELETE, so batching has to go by time.)
+ */
+export async function deleteHealthSamplesOfMetricByWeek(
+  userId: string,
+  metric: HealthSample["metricType"],
+  assertCurrent: () => void,
+  /** A deadline for each request, so one that never answers fails this step instead of hanging it. */
+  requestTimeoutMs?: number,
+): Promise<number> {
+  const supabase = getSupabaseClient();
+  const bounded = <T>(work: PromiseLike<T>): Promise<T> =>
+    requestTimeoutMs === undefined ? Promise.resolve(work) : withTimeout(work, requestTimeoutMs, "health_delete_week");
+  let deleted = 0;
+  for (let step = 0; step < BY_WEEK_MAX_STEPS; step++) {
+    const { data, error } = await bounded(
+      supabase
+        .from("health_samples")
+        .select("started_at")
+        .eq("user_id", userId)
+        .eq("metric_type", metric)
+        .order("started_at", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+    );
+    if (error) throw error;
+    assertCurrent();
+    const oldest = (data as { started_at?: unknown } | null)?.started_at;
+    if (typeof oldest !== "string") return deleted;
+    const until = new Date(Date.parse(oldest) + WEEK_MS).toISOString();
+    const { error: deleteError, count } = await bounded(
+      supabase
+        .from("health_samples")
+        .delete({ count: "exact" })
+        .eq("user_id", userId)
+        .eq("metric_type", metric)
+        .lt("started_at", until),
+    );
+    if (deleteError) throw deleteError;
+    assertCurrent();
+    deleted += count ?? 0;
+  }
+  throw new Error("health_delete_steps_exceeded");
+}
+
+/** Deletes whatever samples remain for this user, any metric. */
+export async function deleteRemainingHealthSamples(userId: string): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { error, count } = await supabase.from("health_samples").delete({ count: "exact" }).eq("user_id", userId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** How many samples this user still has (a head request: no rows come back). */
+export async function countHealthSamples(userId: string): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { count, error } = await supabase
+    .from("health_samples")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if (error) throw error;
+  return count ?? 0;
 }

@@ -11,16 +11,20 @@
 // queries `records`. So it looked for `src-<uuid>` in the records table, found nothing, and
 // showed "찾을 수 없어요". EVERY link, clip and import in the list was a dead tap.
 //
-// The legacy record-detail screen actually got this right -- src/app/record/[id].tsx:65 has
-// a correct `origin === "source"` branch that reads the sources table. It just never runs:
-// line 263 is `if (isDeepSpaceUI()) return <DeepSpaceRecordDetailScreen />`, and deep-space
-// is the default. Correct code, unreachable.
+// The legacy record-detail screen actually got this right -- e0b274d0:src/app/record/[id].tsx:54
+// has a correct `origin === "source"` branch that reads the sources table. It just never ran:
+// line 268 there is `if (isDeepSpaceUI()) return <DeepSpaceRecordDetailScreen />`, and
+// deep-space was the default. Correct code, unreachable. (Line numbers are pinned to that
+// commit: on 2026-10-05 the EXPO_PUBLIC_UI lever was removed and that half became the revive
+// source legacy/screens/record-detail.tsx, out of the build.)
 //
 // The id is self-describing, so the caller does not have to remember to pass an origin --
 // which is exactly the kind of thing callers forget. `src-` means sources.
 
 import { getSupabaseClient } from "../supabase/client";
+import { fetchProfileImportedContext, type ProfileImportedContext } from "../supabase/profile-context-import";
 import { downloadRawClipping } from "../wiki/storage";
+import { isProfileContextImportSource } from "../wiki/profile-context-source";
 import { getRecordById } from "./create";
 
 export const SOURCE_ID_PREFIX = "src-";
@@ -37,6 +41,9 @@ export interface PieceDetail {
   created_at: string;
   /** Which table it came from. The detail view hides record-only affordances for sources. */
   origin: "record" | "source";
+  /** This source is updated or withdrawn through profile import history. */
+  profileImportManaged?: boolean;
+  profileImportContext?: ProfileImportedContext;
 }
 
 export function isSourcePieceId(id: string): boolean {
@@ -192,6 +199,11 @@ function sourceBodyFallback(frontmatter: Record<string, unknown> | null): string
  * Supporting both is not indulgence -- it is what stops a caller that forgets the origin
  * from silently getting a 404, which is exactly how this bug worked.
  *
+ * A row id that is not a uuid returns null before any read (W-07, QA 261004). Both tables key
+ * on uuid, so PostgREST answers such an id with a 400 (invalid input syntax for type uuid)
+ * that no retry can fix; thrown, it reached the screen as "couldn't load, retry". It is not a
+ * read failure, it is "no such piece", and the screen shows the not-found state.
+ *
  * @throws on a read failure. `null` means "read fine, no such piece" -- the two must stay
  *         distinguishable, or an offline user is told their piece was deleted.
  */
@@ -203,11 +215,13 @@ export async function getPieceById(
   const fromSources = origin === "source" || isSourcePieceId(id);
 
   if (!fromSources) {
+    if (!UUID.test(id)) return null;
     const r = (await getRecordById(userId, id)) as PieceDetail | null;
     return r ? { ...r, origin: "record" } : null;
   }
 
   const sourceId = isSourcePieceId(id) ? id.slice(SOURCE_ID_PREFIX.length) : id;
+  if (!UUID.test(sourceId)) return null;
   const { data, error } = await getSupabaseClient()
     .from("sources")
     .select("id, kind, title, captured_at, tags, storage_path, frontmatter")
@@ -226,8 +240,13 @@ export async function getPieceById(
     storage_path: string;
     frontmatter: Record<string, unknown> | null;
   };
-  const fallback = sourceBodyFallback(s.frontmatter);
-  const body = await downloadRawClipping(s.storage_path).catch(() => fallback);
+  const managed = isProfileContextImportSource(s.frontmatter);
+  // A missing ledger is a read failure. Never fall back to the internal provenance body.
+  const profileImportContext = managed ? await fetchProfileImportedContext(userId, sourceId) : undefined;
+  const fallback = managed ? null : sourceBodyFallback(s.frontmatter);
+  const body = managed ? null : s.storage_path?.trim()
+    ? await downloadRawClipping(s.storage_path).catch(() => fallback)
+    : fallback;
   return {
     // Keep the prefixed id: it is what the route carries, and what any re-navigation needs.
     id,
@@ -240,5 +259,10 @@ export async function getPieceById(
     tags: s.tags,
     created_at: s.captured_at,
     origin: "source",
+    profileImportManaged: managed,
+    profileImportContext,
   };
 }
+
+// The detail screen reads this next to the piece it loads here.
+export { editedBodyPatch, titleRepeatsBody } from "./piece-title";

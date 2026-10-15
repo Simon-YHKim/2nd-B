@@ -93,7 +93,7 @@ not completed legal conclusions or automatic launch gates:
 | Definition | Current implementation |
 |---|---|
 | `FORBIDDEN_TERMS` | Runtime EN/KO lexical classification, plus CI product-copy scan. A forbidden input word alone is YELLOW, not RED. |
-| `ANALYSIS_UNIVERSAL_FORBIDDEN` | CI scan and selected raw output filters (`northstar`, `axis-estimate`, knowledge bundle). It is not a universal semantic output validator. |
+| `ANALYSIS_UNIVERSAL_FORBIDDEN` | CI scan and selected raw output filters (`northstar`, knowledge bundle). It is not a universal semantic output validator. |
 | `LEXICON_NON_CLINICAL_CONTEXTS` | CI-only exact technical/ordinary-language spans. No whole-file bypass is added. |
 | `ANALYSIS_JURISDICTION_FORBIDDEN` | Reference lists. They are not automatically activated by country or a CI distribution gate. |
 | `ANALYSIS_BANNED_CLAIM_PATTERNS` | Reference definitions with tests; no general runtime or CI consumer currently enforces all of them. |
@@ -109,6 +109,12 @@ sign-off. This field is not evidence that external counsel approved the product.
 The 2026-09-06 work is an engineering and source-accuracy review; it does not reset
 that field. The word-list version remains `0.1` because this revision corrects
 CI context handling and documentation without removing the existing term lists.
+
+2026-10-05: `axis-estimate` was removed from the section 4 list of raw output
+filters. Its only caller left the shipped app on 2026-07-05 (#745), so that filter
+had not run on any shipped surface since then, and the module has now moved out of
+the repository (decision Q-261004-23). This is a source-accuracy correction, not a
+legal review; it does not change `LEXICON_LAST_LEGAL_REVIEW` or the word lists.
 
 Historical basis: Analysis System Design v0.22 and the 2026-05/06 draft. Use the
 corrections above and the actual current implementation, rather than the former

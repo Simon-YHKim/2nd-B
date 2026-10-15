@@ -32,7 +32,10 @@ describe("북극성 persona deck (P3a)", () => {
     expect(screen).toContain('key: "portrait"');
     expect(screen).toContain('key: "evidence"');
     expect(screen).not.toMatch(/<TraitRadar/);
-    expect(screen).toContain("loadDomainLevels");
+    // 2026-10-05: 여기서 `loadDomainLevels` 를 단언했다. 그 로더는 레거시 꼬리의 도메인
+    // 밝기만 읽었고 꼬리와 함께 빠졌다(Simon 결정 Q-261004-11 C). 덱의 실데이터 밝기는
+    // 일곱 별 로더가 진다.
+    expect(screen).toContain("loadSevenLevels(");
     // The tool list used to be four hardcoded `route: "/…"` literals here, and
     // this test pinned that literal form. Both moved: the list is now built from
     // `src/lib/assess/registry.ts`, which fixed two things the hardcoding hid —
@@ -55,9 +58,12 @@ describe("북극성 persona deck (P3a)", () => {
     expect(screen).toContain('router.push("/ratifications")');
   });
 
+  // 2026-10-05: 덱 블록의 경계가 바뀌었다. 전에는 `if (isDeepSpaceUI())` 분기부터 레거시
+  // 꼬리의 `<SceneHero` 앞까지였다. 롤백 레버가 없어져(Simon 결정 Q-261004-11 C) 화면
+  // 함수 전체가 덱이다 - CoreBrainScreen 부터 다음 최상단 함수 앞까지.
   test("first page is one canonical synthesis message with one seven-to-one graphic", () => {
-    const start = screen.indexOf("if (isDeepSpaceUI())");
-    const end = screen.indexOf("<SceneHero", start);
+    const start = screen.indexOf("function CoreBrainScreen()");
+    const end = screen.indexOf("\nfunction evidenceLabel", start);
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const deepSpaceBlock = screen.slice(start, end);
@@ -105,12 +111,12 @@ describe("북극성 persona deck (P3a)", () => {
     expect(emptyBlock).not.toContain('router.push("/attachment")');
   });
 
-  test("the deep-space branch does not reintroduce the Soul Core name", () => {
-    // The legacy premium-shell branch may keep 소울 코어; the deep-space deck
-    // block (from the isDeepSpaceUI() branch to the legacy return) must
-    // use 북극성 only.
-    const start = screen.indexOf("if (isDeepSpaceUI())");
-    const end = screen.indexOf("<SceneHero", start);
+  test("the screen does not reintroduce the Soul Core name", () => {
+    // Until 2026-10-05 the legacy premium-shell branch could keep 소울 코어 and only
+    // the deck block was checked. That branch left with the rollback lever, so the
+    // whole screen function is the deck and must use 북극성 only.
+    const start = screen.indexOf("function CoreBrainScreen()");
+    const end = screen.indexOf("\nfunction evidenceLabel", start);
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const deepSpaceBlock = screen.slice(start, end);
@@ -121,5 +127,70 @@ describe("북극성 persona deck (P3a)", () => {
     expect(deepSpaceBlock).not.toContain("Soul Core");
     expect(deepSpaceBlock).not.toMatch(/t\("(myCenter|soulCoreEyebrow)"\)/);
     expect(deepSpaceBlock).toMatch(/t\("polaris/);
+  });
+});
+
+// Simon 2026-10-12 (Q-261012-52 · 55): the instruction line leaves the head, a
+// back arrow takes its place outside the phone, and a dithered band at the
+// card's bottom says there is more text. Source contracts: render tests are
+// not available here, and the pure edge rule is tested in card-dismiss.test.ts.
+describe("북극성 head: back arrow instead of an instruction line", () => {
+  const overlay = read("components/deep-space/PolarisCardOverlay.tsx");
+  const edges = read("components/deep-space/polaris-card-edges.ts");
+  const LOCALES = ["en", "ko", "es", "pt", "id"];
+  const locale = (lng: string) =>
+    JSON.parse(fs.readFileSync(path.join(SRC, "..", "locales", lng, "core-brain.json"), "utf8")) as Record<string, unknown>;
+
+  test("the swipe instruction is gone from the deck", () => {
+    expect(deck).not.toContain("swipeCards");
+    expect(deck).not.toContain("deckHint");
+    expect(deck).not.toContain("deckHeadCopy");
+  });
+
+  test.each(LOCALES)("%s drops the instruction string and keeps the close name", (lng) => {
+    const strings = locale(lng);
+    expect(strings).not.toHaveProperty("swipeCards");
+    expect(typeof strings.closeCard).toBe("string");
+  });
+
+  test("the head draws the app's back glyph only when the overlay hands it a close", () => {
+    expect(deck).toContain("const close = usePolarisCardClose();");
+    expect(deck).toMatch(/\{close \? \(\s*<Pressable\s+onPress=\{close\}/);
+    expect(deck).toContain('accessibilityLabel={t("core-brain:closeCard")}');
+    expect(deck).toContain('<PixelGlyph name="arrow_back" color={m3.color.tertiary} size={24} />');
+    // 44dp touch target, like every other back in the app.
+    expect(deck).toMatch(/deckBack: \{[^}]*width: 44,[^}]*height: 44/);
+  });
+
+  test("inside the phone no close is handed down: the phone's own back row stays the only back", () => {
+    expect(edges).toContain("export const PolarisCardCloseContext = createContext<(() => void) | null>(null);");
+    expect(overlay).toContain('const closeFromHead = useMemo(() => (embed ? null : () => dismiss("down")), [dismiss, embed]);');
+    expect(overlay).toContain("<PolarisCardCloseContext.Provider value={closeFromHead}>");
+    // The overlay still lets the shell draw the phone's back: it does not claim ownBack.
+    expect(overlay).not.toContain("ownBack");
+  });
+
+  test("the title keeps the row and wraps instead of clipping", () => {
+    expect(deck).toContain("<Text style={styles.deckTitle} numberOfLines={2}>");
+    expect(deck).toMatch(/deckTitle: \{[^}]*flexGrow: 1,[^}]*flexShrink: 1,[^}]*minWidth: 0/);
+  });
+});
+
+describe("북극성 card: a dithered band while more text waits below", () => {
+  test("the band follows the measured body, off the same edge rule as the swipe", () => {
+    expect(deck).toContain('import { cardEdges, cardHasMoreBelow } from "@/lib/polaris/card-dismiss";');
+    expect(deck).toContain("const below = cardHasMoreBelow(body);");
+    expect(deck).toContain("{more[page.key] ? (");
+  });
+
+  test("it is three stepped dither rows in the card's own ground, and never takes a touch", () => {
+    expect(deck).toContain("const MORE_BAND = [25, 50, 75] as const;");
+    expect(deck).toContain('<View pointerEvents="none" style={styles.more}>');
+    expect(deck).toContain("<PixelDither density={density} style={styles.moreTint} />");
+    // width / height are explicit: absoluteFill alone leaves the image at its 4x4 tile on web.
+    expect(deck).toContain('moreTint: { width: "100%", height: "100%", tintColor: m3.polarisCard.surface }');
+    expect(deck).toMatch(/more: \{[^}]*position: "absolute",[^}]*bottom: 0/);
+    // 4px tiles: each step is two tile rows, so no row is cut mid-tile.
+    expect(deck).toContain("moreStep: { height: 8 }");
   });
 });

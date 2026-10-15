@@ -38,6 +38,16 @@ export function useUiSoundLifecycle(stop: () => void): () => boolean {
       }
     };
   }, [stop]));
-  return useCallback(() => navigation.isFocused() && gate.current.focused && gate.current.foreground &&
-    gate.current.visible && gate.current.interactive, [navigation]);
+  // 2026-10-06 에뮬레이터: 화면 효과음이 조용히 안 났다. 화면이 포커스를 가졌는데도 관문이 닫혀 있으면
+  // 어느 칸이 닫혔는지 한 번만 남긴다(조용한 실패를 보이게). 화면이 포커스 밖이면 정상 무음이라 남기지 않는다.
+  const warned = useRef(false);
+  return useCallback(() => {
+    const navFocused = navigation.isFocused();
+    const open = navFocused && gate.current.focused && gate.current.foreground && gate.current.visible && gate.current.interactive;
+    if (!open && navFocused && !warned.current) {
+      warned.current = true;
+      console.warn("[ui-sound] cue skipped by the screen gate", { ...gate.current });
+    }
+    return open;
+  }, [navigation]);
 }

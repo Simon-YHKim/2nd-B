@@ -40,7 +40,7 @@ describe("deep-space records source detail routing", () => {
   test("source rows keep their source id and origin for detail navigation", () => {
     expect(RECORDS_SRC).toContain('type RecordsOrigin = "record" | "source";');
     expect(RECORDS_SRC).toContain(
-      "type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string };",
+      "type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string; audit_period?: string | null };",
     );
     expect(RECORDS_SRC).toContain("id: s.id");
     expect(RECORDS_SRC).toContain('origin: "source"');
@@ -67,7 +67,7 @@ describe("deep-space records source detail routing", () => {
     expect(GET_PIECE_SRC).toContain('origin: "source"');
     expect(GET_PIECE_SRC).toContain('import { downloadRawClipping } from "../wiki/storage";');
     expect(GET_PIECE_SRC).toContain(
-      "const body = await downloadRawClipping(s.storage_path).catch(() => fallback);",
+      "? await downloadRawClipping(s.storage_path).catch(() => fallback)",
     );
   });
 
@@ -129,7 +129,8 @@ describe("deep-space records source detail routing", () => {
     expect(DETAIL_SRC).toContain("locksRef.current.tags");
     expect(DETAIL_SRC).toContain("locksRef.current.delete");
     expect(DETAIL_SRC).toContain("if (nextBody.length === 0 || nextBody ===");
-    expect(DETAIL_SRC).toContain("updateReadyPiece({ ...previous, body: nextBody })");
+    // Since Z48 the optimistic piece and the saved patch carry the topic that follows the body.
+    expect(DETAIL_SRC).toContain("updateReadyPiece({ ...previous, ...editedBodyPatch(previous, nextBody) })");
     expect(DETAIL_SRC).toContain("updateReadyPiece(previous)");
     expect(DETAIL_SRC).toContain("visible={confirmingDelete}");
     expect(DETAIL_SRC).toContain("onPress={() => void handleDelete()}");
@@ -169,12 +170,12 @@ describe("deep-space records source detail routing", () => {
     expect(DETAIL_SRC).not.toMatch(/style=\{\([^)]*\)\s*=>/);
   });
 
-  test("legacy route and neighboring records/wiki renderers remain byte-stable", () => {
-    const legacy = sliceBetween(
-      ROUTE_SRC,
-      "function RecordDetailLegacy()",
-      "\nexport default function RecordDetail()",
-    );
+  test("neighboring records/wiki renderers remain byte-stable", () => {
+    // 2026-10-05: 여기 있던 RecordDetailLegacy 바이트 핀(bb2b2256…)을 걷었다. 롤백 레버
+    // 제거(Simon 결정 Q-261004-11 C)로 그 반쪽은 라우트에서 빠져 되살리기 원본
+    // legacy/screens/record-detail.tsx 가 됐고, 그 바이트는 legacy-archive-integrity.test.ts
+    // 의 digest 가 지킨다. 아래 이웃 렌더러 두 핀은 그대로다.
+    expect(ROUTE_SRC).not.toContain("RecordDetailLegacy");
     const records = sliceBetween(
       RECORDS_SRC,
       "export function DeepSpaceRecordsScreen()",
@@ -193,7 +194,6 @@ describe("deep-space records source detail routing", () => {
     // The line computing its area and the comment above it are the only changes in this
     // slice (8,001 -> 8,049 chars). Verified before re-pinning: the old digest recomputes
     // from the parent commit, so only the intended lines moved.
-    expect(sha256(legacy)).toBe("bb2b22568ffc222d8da8059bd6f13c68a1f481cb58d1990bb3b1a212112b3ee5");
     expect(sha256(records)).toBe(
       // Re-pinned in the integration merge. This PR computed the digest against a
       // records screen that predates #1521 (bounded graph rendering, its own
@@ -203,7 +203,58 @@ describe("deep-space records source detail routing", () => {
       // Polaris role-card integration intentionally changes the neighboring
       // records renderer; pin its new exact slice so future unrelated edits
       // still require an explicit review.
-      "9be2bc0fba47aaacdb791b0366fb0ea218a3c4236e9f3b278630450aeaf526d7",
+      //
+      // Re-pinned 2026-10-02 (dashboard phone hosting): the screen takes its router
+      // from useAppRouter() and its ?tags= from useScreenParams() (phone-embed.tsx), so
+      // inside the dashboard phone it navigates the phone and reads the phone route's
+      // query. Three added lines (the hook and its two-line comment), the params call
+      // renamed, and `openRecord`'s deps `[]` -> `[router]`: slice 19,674 -> 19,843
+      // chars / 472 -> 475 lines. Verified before re-pinning: the previous digest
+      // 9be2bc0fba47aaacdb791b0366fb0ea218a3c4236e9f3b278630450aeaf526d7 recomputes
+      // byte-for-byte from HEAD's copy, so this change is the only delta in the slice.
+      // 2026-10-08: list/graph uses the scoped SceneTransition. Removing the
+      // two wrapper tags reproduces 2444ee96; data and detail routing stay exact.
+      //
+      // Re-pinned 2026-10-14 (Z80, Simon 2026-10-13): a count that was not read is not
+      // zero. While the records read is pending or has failed, the triage card's title
+      // and the graph's count show "..." instead of 0, and the card's spoken name says
+      // loading / could not load. Eleven lines in, three out, all in the count lines and
+      // the triage card: slice 19,985 -> 20,421 chars / 477 -> 485 lines. The data read,
+      // the filters and the detail routing are untouched. Verified before re-pinning: the
+      // previous digest 261f51af581c332fbfc14f40919f95d230ff4a223a661cb6ad0d222f65d37603
+      // recomputes byte-for-byte from origin/main's copy of this file.
+      //
+      // Re-pinned 2026-10-14 (wiki list reads every record): the list borrowed the
+      // streak's 90-day read, so a record older than that was never listed (16 of 69
+      // production rows). Two places move, each with a two-line comment above it:
+      // the one read call is now listAllRecords(userId), and the per-row time labels
+      // are built with maxGroups: Number.POSITIVE_INFINITY (the timeline labelled only
+      // its first 8 day groups, so a row past the eighth day showed no time, which is
+      // every row the new read brings in). Slice 20,421 -> 20,830 chars / 485 -> 489
+      // lines. Nothing else in the slice moves (the error state, the sources read, the
+      // filters, the counts and the detail routing). Verified before re-pinning: the
+      // previous digest 6f14103c794fa937f15f34e045ff7c170bf9dee817eb3be4dcfdcdf86b52ab59
+      // recomputes byte-for-byte from origin/main's copy of this file.
+      //
+      // Re-pinned 2026-10-14 (Z60, Simon 2026-10-13: the star summary's record count
+      // opens that star's stories). The list reads ?period=, and when it names a
+      // star's period it opens as the list, keeps only the rows told under that star
+      // (audit_period), and shows one line at the top that says so and returns to
+      // everything; choosing the graph returns to everything too; on Android the device
+      // Back returns to the star summary it was opened from, and the narrowed empty list
+      // does not invite a first record. Slice 20,830 -> 23,568 chars / 489 -> 535 lines. The read itself, the error state, the tag and
+      // type filters, the counts and the detail routing are untouched. Verified before
+      // re-pinning: the previous digest
+      // 3c52b8a74b97388b39715e189c1f529a8d3f24b9ecedde299d5909daad952c6d recomputes
+      // byte-for-byte from origin/main's copy of this file.
+      // Re-pinned 2026-10-15 (T43, Q-261013-21~24 / Z40 / Z80): the read now
+      // has one deadline, treats either archive source's failure as unknown,
+      // and binds its result to owner/epoch/retry. Role evidence gains the
+      // same epoch fence. This pin covers the whole function, not just JSX.
+      // c6e3d022 reproduces 56d241df; the slice is 23,568 -> 23,367 chars.
+      // From openRecord through all filters, rendering and styles it is
+      // byte-identical. Executed lifecycle coverage: wiki-list-read-failure.
+      "a41830283c4bffc1cd34911e92078730c6b68c5f65365fefa715e5d21f1b4db8",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,
@@ -223,6 +274,27 @@ describe("deep-space records source detail routing", () => {
     //   git show HEAD:src/screens/deepspace/dds-wiki-records-screens.tsx
     //     | slice from "export function DeepSpaceWikiScreen()" -> sha256
     //     = 0b269d67992b803d9c6093032b2101b7d373c6c6cb811d0522d372e1f14eae19  (matches)
-    expect(sha256(wiki)).toBe("677ed103ab26600b77ae9084ce8fa5c67dd71940b9cec7151298aeac0c0bf870");
+    //
+    // Re-pinned 2026-10-02 (dashboard phone hosting): the router comes from
+    // useAppRouter() and focusPageId from useScreenParams() (phone-embed.tsx); outside
+    // the phone both are expo-router's own. Three added lines (the hook and its comment)
+    // and the params call renamed: slice 11,609 -> 11,770 chars / 237 -> 240 lines.
+    // Verified before re-pinning: the R49 digest
+    // 677ed103ab26600b77ae9084ce8fa5c67dd71940b9cec7151298aeac0c0bf870 recomputes
+    // byte-for-byte from HEAD's copy, so this change is the only delta in the slice.
+    //
+    // Re-pinned again 2026-10-02 (phone wiki graph): inside the dashboard phone the
+    // screen drops the 88px clearance for the floating companion header, which the
+    // phone shell does not draw (`floatClear`, its two-line comment, and the two
+    // `<View style={floatClear}>` call sites). Slice 11,770 -> 11,992 chars / 239 -> 242
+    // lines. Verified before re-pinning: undoing exactly those edits recomputes the
+    // previous digest 3df2eb1f8ceb487c0c0ba75257ed3382587f5ba32c78cc959a221a91f0d5affc.
+    // 2026-10-08: same scoped list/graph transition as records, preserving the
+    // original gap. Removing the two wrapper tags reproduces 5d80807c exactly.
+    // 2026-10-15, Q-261013-21/Z80: the page list now exposes a failed read,
+    // retry and unread counts; citation lookup waits for a successful list.
+    // The ab56c928 baseline reproduces 24f3475e above; this slice changes
+    // 12,132 -> 12,697 chars. The neighboring records renderer is unchanged.
+    expect(sha256(wiki)).toBe("9b7973b102c1cfc223123dfe7b59d65ce622db32e02af526c4e884e9c5a8f417");
   });
 });

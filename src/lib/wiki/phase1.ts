@@ -19,6 +19,8 @@ import { INJECTION_GUARD, wrapUntrusted } from "@/lib/llm/untrusted";
 import { getEnv } from "@/lib/env";
 
 import { getSource } from "./queries";
+import { isAiExcludedSource, SourceAiExcludedError } from "./ai-exclusion";
+import { isProfileContextImportSource, SourceImportManagedError } from "./profile-context-source";
 import { downloadRawClipping } from "./storage";
 import { getSupabaseClient } from "../supabase/client";
 import { containsForbiddenLexicon } from "../safety/classifier";
@@ -144,7 +146,7 @@ function parsePhase1Reply(
 function mockStub(title: string, locale: "en" | "ko"): Omit<Phase1Result, "generated_at" | "model"> {
   return locale === "ko"
     ? {
-        summary: `지금은 오프라인 미리보기예요. 아래 질문은 예시이며, "${title}"을 분석해서 만든 요약은 아니에요.`,
+        summary: `지금은 오프라인 미리보기입니다. 아래 질문은 예시이며, "${title}"을 분석해서 만든 요약은 아닙니다.`,
         entities: [],
         concepts: [],
         questions: [
@@ -186,7 +188,10 @@ export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
   const source = await getSource(input.userId, input.sourceId);
   if (!source) throw new Error(`No source row for id=${input.sourceId}`);
 
+  if (isProfileContextImportSource(source.frontmatter)) throw new SourceImportManagedError(input.sourceId);
+  if (isAiExcludedSource(source.frontmatter)) throw new SourceAiExcludedError(input.sourceId);
   const body = await downloadRawClipping(source.storage_path);
+  if (isAiExcludedSource(null, body)) throw new SourceAiExcludedError(input.sourceId);
   const env = getEnv();
 
   const reply = await callLlm({

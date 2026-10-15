@@ -24,6 +24,9 @@ const {
   classifyBuild,
   sameCodeChecker,
   buildRunsFromApi,
+  validateQaRunMetadata,
+  validateQaArtifactMetadata,
+  validateQaReleaseNotes,
   planFollow,
   parsePreflight,
   zipEntryNames,
@@ -77,6 +80,35 @@ describe("app-parity: 폰 APK 빌드 설정 읽기", () => {
     expect(env.EXPO_PUBLIC_FORCE_TIER).toBe("off");
     expect(env.EXPO_PUBLIC_ALLOW_DEV_TIER).toBe("false");
     expect(env.EXPO_PUBLIC_LLM_MODE).toBe("live");
+  });
+
+  it("W1 활성화 설정이 APK와 8081에 함께 전달되고 미설정 시 꺼진다", () => {
+    expect(appEnv(workflow, {}).EXPO_PUBLIC_DASHBOARD_GENERATION).toBe("false");
+    expect(appEnv(workflow, { EXPO_PUBLIC_DASHBOARD_GENERATION: "true" })
+      .EXPO_PUBLIC_DASHBOARD_GENERATION).toBe("true");
+    const web = parse(read(".github/workflows/web-deploy.yml"));
+    const build = web.jobs.build.steps.find((step: Step) => step.env?.EXPO_PUBLIC_LLM_MODE);
+    expect(build.env.EXPO_PUBLIC_DASHBOARD_GENERATION)
+      .toBe("${{ vars.EXPO_PUBLIC_DASHBOARD_GENERATION || 'false' }}");
+  });
+
+  it("쪼갠 대화 입력 스위치는 APK·웹·8081·EAS에서 기본 켜짐이며 전체 의미 판정과 독립이다", () => {
+    expect(appEnv(workflow, {}).EXPO_PUBLIC_OBFUSCATION_SAFETY).toBe("true");
+    expect(appEnv(workflow, { EXPO_PUBLIC_OBFUSCATION_SAFETY: "false" })
+      .EXPO_PUBLIC_OBFUSCATION_SAFETY).toBe("false");
+    const web = parse(read(".github/workflows/web-deploy.yml"));
+    const build = web.jobs.build.steps.find((step: Step) => step.env?.EXPO_PUBLIC_LLM_MODE);
+    expect(build.env.EXPO_PUBLIC_OBFUSCATION_SAFETY)
+      .toBe("${{ vars.EXPO_PUBLIC_OBFUSCATION_SAFETY || 'true' }}");
+    expect(build.env.EXPO_PUBLIC_SERVER_SAFETY).toBeUndefined();
+    expect(appEnv(workflow, {}).EXPO_PUBLIC_SERVER_SAFETY).toBeUndefined();
+    const eas = JSON.parse(read("eas.json")) as { build: Record<string, { env?: Record<string, string> }> };
+    const live = Object.values(eas.build).filter((profile) => profile.env?.EXPO_PUBLIC_SAFETY_VENDOR);
+    expect(live).toHaveLength(3);
+    for (const profile of live) {
+      expect(profile.env?.EXPO_PUBLIC_OBFUSCATION_SAFETY).toBe("true");
+      expect(profile.env?.EXPO_PUBLIC_SERVER_SAFETY).toBeUndefined();
+    }
   });
 
   it("저장소 Variables 가 있으면 그 값을, 비어 있으면 워크플로 기본값을 쓴다", () => {
@@ -434,6 +466,75 @@ describe("app-parity: 그 코드 · 그 설정의 폰용 APK 빌드 상태", () 
     expect(apkAbis(zipEntryNames(zip(names)))).toEqual([PHONE_ABI]);
     expect(apkAbis(zipEntryNames(zip([...names, "lib/x86_64/libhermes.so"])))).toEqual(["arm64-v8a", "x86_64"]);
     expect(() => zipEntryNames(Buffer.from("not a zip"))).toThrow(/zip/);
+  });
+});
+
+describe("app-parity: 지정한 QA 빌드의 출처", () => {
+  const sha = "a".repeat(40);
+  const workflow = { id: 299995038, path: ".github/workflows/android-release.yml" };
+  const run = {
+    id: 36838147144,
+    workflow_id: workflow.id,
+    path: workflow.path,
+    event: "workflow_dispatch",
+    head_branch: "main",
+    head_sha: sha,
+    status: "completed",
+    conclusion: "success",
+    created_at: "2026-10-01T08:43:52Z",
+    repository: { id: 1248737949, full_name: "Simon-YHKim/2nd-B" },
+    head_repository: { full_name: "Simon-YHKim/2nd-B" },
+  };
+  const artifact = {
+    id: 11144480094,
+    name: `2ndb-android-${sha}`,
+    expired: false,
+    workflow_run: { id: run.id, head_sha: sha, head_branch: "main", repository_id: run.repository.id, head_repository_id: run.repository.id },
+  };
+
+  it("main 의 android-release 수동 실행을 선택하고 해당 APK 산출물을 인정한다", () => {
+    expect(validateQaRunMetadata(run, workflow, String(run.id))).toMatchObject({ databaseId: run.id, headSha: sha, event: "workflow_dispatch" });
+    expect(validateQaArtifactMetadata({ artifacts: [artifact] }, run)).toBe(artifact);
+  });
+
+  it.each([
+    ["다른 실행 ID", { id: 1 }],
+    ["다른 저장소", { repository: { id: 1, full_name: "other/repo" } }],
+    ["다른 head 저장소", { head_repository: { full_name: "other/repo" } }],
+    ["다른 workflow", { workflow_id: 1 }],
+    ["다른 workflow 경로", { path: ".github/workflows/other.yml" }],
+    ["다른 branch", { head_branch: "feature" }],
+    ["다른 event", { event: "pull_request" }],
+    ["유효하지 않은 SHA", { head_sha: "a" }],
+  ])("%s 실행을 거부한다", (_label, change) => {
+    expect(() => validateQaRunMetadata({ ...run, ...change }, workflow, String(run.id))).toThrow(/QA 빌드/);
+  });
+
+  it("불명확한 run ID 를 API 조회 전에 거부한다", () => {
+    expect(() => validateQaRunMetadata(run, workflow, "1/../2")).toThrow(/실행 ID/);
+    expect(() => validateQaRunMetadata(run, workflow, "0")).toThrow(/실행 ID/);
+    expect(() => validateQaRunMetadata(run, workflow, "")).toThrow(/실행 ID/);
+  });
+
+  it("명시 실행과 모든 수동 실행은 설정 digest · 폰용 ABI 주석이 모두 필요하다", () => {
+    const digest = "d".repeat(64);
+    expect(() => validateQaReleaseNotes({ digest, abi: "arm64-v8a" }, digest, "workflow_dispatch", true, run.id)).not.toThrow();
+    expect(() => validateQaReleaseNotes({ digest: null, abi: "arm64-v8a" }, digest, "workflow_dispatch", true, run.id)).toThrow(/설정 digest/);
+    expect(() => validateQaReleaseNotes({ digest, abi: null }, digest, "push", true, run.id)).toThrow(/설정 digest/);
+    expect(() => validateQaReleaseNotes({ digest: "e".repeat(64), abi: "arm64-v8a" }, digest, "workflow_dispatch", true, run.id)).toThrow(/지금 설정과 다르다/);
+    expect(() => validateQaReleaseNotes({ digest, abi: "x86_64" }, digest, "workflow_dispatch", true, run.id)).toThrow(/x86_64/);
+    expect(() => validateQaReleaseNotes({ digest: null, abi: null }, digest, "push", false, run.id)).not.toThrow();
+  });
+
+  it.each([
+    ["누락", []],
+    ["중복", [artifact, { ...artifact, id: 2 }]],
+    ["기한 만료", [{ ...artifact, expired: true }]],
+    ["다른 커밋", [{ ...artifact, workflow_run: { ...artifact.workflow_run, head_sha: "b".repeat(40) } }]],
+    ["다른 실행", [{ ...artifact, workflow_run: { ...artifact.workflow_run, id: 1 } }]],
+    ["다른 저장소", [{ ...artifact, workflow_run: { ...artifact.workflow_run, repository_id: 1 } }]],
+  ])("%s APK 산출물을 거부한다", (_label, artifacts) => {
+    expect(() => validateQaArtifactMetadata({ artifacts }, run)).toThrow(/QA 산출물/);
   });
 });
 

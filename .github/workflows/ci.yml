@@ -58,6 +58,12 @@ jobs:
       # merged on green CI. Running the package.json `verify` script verbatim
       # makes the two pipelines structurally unable to drift again.
       - name: Full verify gauntlet (same command as local `npm run verify`)
+        # check:explanatory-copy (Q-261014-89) compares locales/ko with the
+        # commit this PR targets, not with main's tip at run time. The value
+        # reaches the script only as an environment variable; it checks that it
+        # is a 40-character SHA and fetches that one commit (argv, no shell).
+        env:
+          EXPLANATORY_COPY_BASE: ${{ github.event.pull_request.base.sha }}
         run: npm run verify
       # Resolve the actual Edge SDKs: application tsc excludes these files,
       # while Jest stubs previously hid an unpublished JSR version.
@@ -92,7 +98,6 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - name: Expo web static export (smoke)
         env:
-          EXPO_PUBLIC_UI: "deep-space"
           EXPO_USE_STATIC: "true"
         run: |
           npx expo export --platform web --output-dir dist-smoke

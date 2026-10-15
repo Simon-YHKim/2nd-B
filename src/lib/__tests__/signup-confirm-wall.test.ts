@@ -26,7 +26,10 @@ describe("sign-up confirm wall (judge-rehearsal #1)", () => {
   });
 
   test("the sign-up screen renders the card with the target address", () => {
-    const screen = read("src/screens/deepspace/dds-auth-screens.tsx");
+    // 2026-10-05 재조준: 여기서 dds-auth-screens.tsx 를 읽었다. 그 파일의 가입 화면은
+    // 라우트가 import 하지 않던 그림자 사본이었고 롤백 레버 제거 PR(Simon 결정
+    // Q-261004-11 C)에서 나갔다. /sign-up 이 그리는 배송 화면은 dds-sign-up-screen.tsx 다.
+    const screen = read("src/screens/deepspace/dds-sign-up-screen.tsx");
     expect(screen).toContain('t("auth:signUp.confirmSentTitle")');
     expect(screen).toContain('t("auth:signUp.confirmSentBody", { email: confirmSentTo })');
   });
@@ -72,7 +75,8 @@ describe("sign-up confirm code (deliverability P1, 260718)", () => {
   });
 
   test("the confirm card renders the code input and verify button", () => {
-    const screen = read("src/screens/deepspace/dds-auth-screens.tsx");
+    // 위와 같은 재조준(2026-10-05): 배송 가입 화면을 읽는다.
+    const screen = read("src/screens/deepspace/dds-sign-up-screen.tsx");
     expect(screen).toContain('t("auth:signUp.confirmCodeLabel")');
     expect(screen).toContain('t("auth:signUp.confirmCodeHint")');
     expect(screen).toContain('t("auth:signUp.confirmCodeVerify")');
@@ -97,7 +101,9 @@ describe("sign-up confirm code (deliverability P1, 260718)", () => {
 describe("loading gate i18n (judge-rehearsal #3)", () => {
   test("LoadingScreen carries no hardcoded gate/a11y Korean literals", () => {
     const screen = read("src/components/ui/LoadingScreen.tsx");
-    expect(screen).toContain('t("loadingGate.hint")');
+    for (const key of ["loading", "skip", "skipShort", "skipHint", "retry"]) {
+      expect(screen).toContain('"loadingGate.' + key + '"');
+    }
     expect(screen).not.toMatch(/탭해서 두번째|두 번 탭하면|불러오는 중"/);
   });
 

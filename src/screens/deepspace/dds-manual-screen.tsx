@@ -1,7 +1,8 @@
+import { PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -12,6 +13,7 @@ import { PixelPressable } from "@/components/pixel/PixelPressable";
 import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 
 import {
@@ -22,6 +24,9 @@ import {
 } from "./dds-manual-content";
 
 export function DeepSpaceManualScreen() {
+  // Phone-aware: inside the dashboard phone, links and the top bar's back
+  // button navigate the phone's stack.
+  const router = useAppRouter();
   const { userId } = useAuth();
   // ⚠ 여기 `i18n.language.startsWith("ko") ? "ko" : "en"` 이 있었다. 앱은 다섯
   // 언어를 제공하는데 안내서만 둘로 좁히고 있었다 — es · pt · id 사용자는 번역이
@@ -39,7 +44,7 @@ export function DeepSpaceManualScreen() {
   };
 
   return (
-    <DeepSpaceScreen active="settings" header="none">
+    <DeepSpaceScreen active="settings" header="none" ownBack>
       <View style={styles.screen}>
         <View style={styles.topBar}>
           <PixelPressable
@@ -147,14 +152,14 @@ export function DeepSpaceManualScreen() {
             <PixelPressable
               variant="bevel"
               onPress={() => router.push("/secondb")}
-              accessibilityLabel={t("manual.askDirect")}
+              accessibilityLabel={t("deepspace:manual.askDirect")}
               accessibilityRole="link"
               fullWidth
               contentStyle={styles.footerContent}
             >
               <PixelGlyph name="bubble" color={m3.color.primary} size={24} />
               <RNText style={[m3TextStyle("labelLarge"), styles.footerText]}>
-                {t("manual.askDirect")}
+                {t("deepspace:manual.askDirect")}
               </RNText>
             </PixelPressable>
             <PixelPressable
@@ -163,13 +168,13 @@ export function DeepSpaceManualScreen() {
                 if (userId) resetCoachmarks(userId);
                 router.replace("/");
               }}
-              accessibilityLabel={t("manual.replayCoachmarks")}
+              accessibilityLabel={t("deepspace:manual.replayCoachmarks")}
               fullWidth
               contentStyle={styles.footerContent}
             >
               <PixelGlyph name="replay" color={m3.color.onSurfaceVariant} size={24} />
               <RNText style={[m3TextStyle("labelLarge"), styles.footerText]}>
-                {t("manual.replayCoachmarks")}
+                {t("deepspace:manual.replayCoachmarks")}
               </RNText>
             </PixelPressable>
           </View>

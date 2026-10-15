@@ -15,7 +15,6 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   type GestureResponderEvent,
-  Pressable,
   type PressableProps,
   StyleSheet,
   type StyleProp,
@@ -25,6 +24,9 @@ import {
 import { PlainText as Text } from "@/components/ui/PlainText";
 
 import { m3 } from "@/lib/theme/m3";
+import { PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneButtonColors } from "@/lib/theme/phone-design";
 
 import { m3TextStyle } from "./typeface";
 
@@ -111,12 +113,14 @@ export function MdButton({
   onPressOut,
   ...rest
 }: MdButtonProps) {
+  const phone = usePhoneDesign();
   const isDisabled = disabled || loading;
   // 비활성일 때 전경도 미리 합성한 색을 쓴다. 전에는 컨테이너의 불투명도가
   // 글자까지 함께 덮었으므로, 컨테이너만 바꾸고 글자를 그대로 두면
   // 비활성이 활성보다 또렷해진다. 규칙은 지키고 뜻은 뒤집히는 셈이다.
   const tint = useContext(MdButtonTintContext);
-  const fg = isDisabled ? DISABLED_FG[variant] : (tint?.fg[variant] ?? FG[variant]);
+  const phoneColors = phoneButtonColors({ primary: variant === "filled", disabled: isDisabled });
+  const fg = phone ? phoneColors.foreground : isDisabled ? DISABLED_FG[variant] : (tint?.fg[variant] ?? FG[variant]);
   // M3 pressed state layer without a function child. onPressOut also fires when
   // the gesture is cancelled (drag-off), so the layer cannot stick on.
   const [pressed, setPressed] = useState(false);
@@ -145,9 +149,10 @@ export function MdButton({
         styles.base,
         isDisabled ? DISABLED_CONTAINER[variant] : (tint?.container[variant] ?? CONTAINER[variant]),
         style,
+        phone && { backgroundColor: phoneColors.background, borderWidth: 0 },
       ]}
     >
-      {showStateLayer ? (
+      {showStateLayer && !phone ? (
         <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.stateLayer, { backgroundColor: fg }]} />
       ) : null}
       {loading ? (

@@ -235,6 +235,9 @@ jest.mock("expo-router", () => ({
   },
 }));
 jest.mock("@/components/deep-space/DomainStarLens", () => ({ DomainStarLens: "DomainStarLens" }));
+// The data-refresh harness treats text as a host node; phone palette behavior
+// is verified by the rendered phone scope suite.
+jest.mock("@/components/ui/PlainText", () => ({ PlainText: "Text" }));
 jest.mock("@/components/deep-space/DeepSpaceScreen", () => ({ DeepSpaceScreen: "DeepSpaceScreen" }));
 jest.mock("@/components/m3", () => ({ MdButton: "MdButton", MdCard: "MdCard", m3TextStyle: () => ({}) }));
 jest.mock("@/components/deepspace/SecondbHead", () => ({ SecondbHead: "SecondbHead" }));

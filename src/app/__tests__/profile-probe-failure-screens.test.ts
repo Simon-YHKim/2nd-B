@@ -15,14 +15,13 @@
 // 화면은 영원히 기다린다. 그래서 이 검사는 화면 목록을 외우지 않고 **실패 갈래의
 // 모양**을 본다 — 새 화면이 같은 모양을 들여와도 잡힌다.
 //
-// ⚠ 레거시 반쪽(EXPO_PUBLIC_UI=legacy 에서만 그려지는 스팬)은 뺀다. 배송 안 되는
-// 코드를 두고 통과·실패를 말하면 앱에 대해 아무것도 말하지 않는 것이다
-// (guard-pins-not-in-dead-renderers).
+// ⚠ 2026-10-05 까지는 레거시 반쪽(EXPO_PUBLIC_UI=legacy 에서만 그려지는 스팬)을
+// dead-renderer-spans 판정기로 빼고 읽었다. 롤백 레버가 없어지며(Simon 결정
+// Q-261004-11 C) 라우트 파일에 그런 반쪽이 더는 없고(되살리기 원본은 빌드 밖
+// legacy/screens/), 판정기도 E:/Legacy/2ndB 로 은퇴했다. 이제 훑는 파일은 전부 배송 코드다.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import * as ts from "typescript";
-
-import { deadRendererSpans, type DeadSpan } from "../../lib/legal/dead-renderer-spans";
 
 const ROOT = process.cwd();
 const SCAN_DIRS = ["src/app", "src/screens", "src/components"];
@@ -115,13 +114,12 @@ function readsProbeFailure(condition: ts.Expression): boolean {
   return found;
 }
 
-function failureBranches(file: string, text: string, dead: readonly DeadSpan[]): FailureBranch[] {
+function failureBranches(file: string, text: string): FailureBranch[] {
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const out: FailureBranch[] = [];
   const visit = (node: ts.Node): void => {
     if (ts.isIfStatement(node) && readsProbeFailure(node.expression)) {
       const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
-      const inDeadSpan = dead.some((span) => line >= span.from && line <= span.to);
       const tags = new Set<string>();
       const attrs = new Set<string>();
       const collect = (inner: ts.Node): void => {
@@ -133,7 +131,7 @@ function failureBranches(file: string, text: string, dead: readonly DeadSpan[]):
       };
       collect(node.thenStatement);
       // `if (...) return;` 같은 효과 안의 조기 종료는 그리는 갈래가 아니다.
-      if (!inDeadSpan && tags.size > 0) out.push({ file, line, tags, attrs });
+      if (tags.size > 0) out.push({ file, line, tags, attrs });
     }
     ts.forEachChild(node, visit);
   };
@@ -148,20 +146,13 @@ function loaderOnly(branch: FailureBranch): boolean {
   return waits && !retries && !acts;
 }
 
-const DEAD = deadRendererSpans(ROOT);
 const FILES = SCAN_DIRS.flatMap((dir) => sourceFiles(join(ROOT, dir)));
-const BRANCHES = FILES.flatMap((file) =>
-  failureBranches(
-    file,
-    readFileSync(join(ROOT, file), "utf8"),
-    DEAD.filter((span) => span.file === file),
-  ),
-);
+const BRANCHES = FILES.flatMap((file) => failureBranches(file, readFileSync(join(ROOT, file), "utf8")));
 const byFile = (file: string) => BRANCHES.filter((branch) => branch.file === file);
 
 describe("판정기 자체", () => {
   const judge = (snippet: string) =>
-    failureBranches("fixture.tsx", `function Fixture() {\n${snippet}\n  return null;\n}\n`, []);
+    failureBranches("fixture.tsx", `function Fixture() {\n${snippet}\n  return null;\n}\n`);
 
   test("T1a 에서 멈춘 두 모양을 로더 전용으로 잡는다", () => {
     const merged = judge(

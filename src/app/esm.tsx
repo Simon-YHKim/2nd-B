@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Redirect, router } from "expo-router";
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { StyleSheet } from "react-native";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { PremiumAppShell, PremiumButton, PremiumCard, SceneHero, PremiumToast } from "@/components/premium";
+import { PremiumButton, PremiumCard, SceneHero, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { cosmic, deepSpace, flattenAlpha, radii, semantic, spacing } from "@/lib/theme/tokens";
-import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 
 type PromptKind = "context" | "energy";
 type Toast = { message: string; tone: "danger" | "info" | "success" };
@@ -21,6 +22,8 @@ const PROMPT_OPTIONS: { id: PromptKind }[] = [{ id: "context" }, { id: "energy" 
 const CONTEXT_TAGS = ["alone", "with_people", "work_study", "moving", "resting", "outside"] as const;
 
 function EsmCheckInScreen() {
+  // Phone-aware: inside the dashboard phone the home link goes through the phone.
+  const router = useAppRouter();
   const { t } = useTranslation("esm");
   const { userId, loading: authLoading } = useAuth();
 
@@ -28,18 +31,33 @@ function EsmCheckInScreen() {
   const [scaleValue, setScaleValue] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  // Set before the insert's await and cleared in its finally, so a home jump
+  // reads it at once (the state above only lands on the next render).
+  const savingRef = useRef(false);
 
   const canSubmit = kind === "energy" ? scaleValue !== null : selectedTags.length > 0;
   const activePrompt = useMemo(() => PROMPT_OPTIONS.find((p) => p.id === kind)!, [kind]);
   const activePromptSaveHint = t(`prompts.${activePrompt.id}.saveHint`);
+  // Each pick or prompt change is a new edit, and a save covers the edit it
+  // was pressed on. A save that answers after a later edit did not save what
+  // is on screen now, so the saved note stays off (QA 261004).
+  const [edit, setEdit] = useState(0);
+  const [savedEdit, setSavedEdit] = useState<number | null>(null);
+  const saved = savedEdit === edit;
 
   useEffect(() => {
     if (!toast) return;
     const h = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(h);
   }, [toast]);
+
+  // A redirect or tab-root Back from a route opened above this one (a warm deep
+  // link) pops every route down to home (lib/nav/go-home.ts). Stop here instead
+  // while the insert is out or picks are unsaved, so the failure notice and the
+  // picks stay on screen. Before PR #2044 the replace left this route buried
+  // under a new home rather than removing it (gate NAV-S7-01).
+  useGoHomeStop(() => savingRef.current || scaleValue !== null || selectedTags.length > 0);
 
   if (authLoading) {
     return (
@@ -58,22 +76,32 @@ function EsmCheckInScreen() {
   }
 
   function toggleTag(tag: string) {
-    setSaved(false);
+    setEdit((n) => n + 1);
     setSelectedTags((current) =>
       current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag],
     );
   }
 
   async function handleSubmit() {
-    if (!userId || !canSubmit || saving) return;
+    if (!userId || !canSubmit || saving || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
-    const supabase = getSupabaseClient();
-    const { error } = await supabase.from("esm_responses").insert({
-      user_id: userId,
-      prompt_kind: kind,
-      scale_value: kind === "energy" ? scaleValue : null,
-      context_tags: kind === "context" ? selectedTags : [],
-    });
+    let error: unknown = null;
+    try {
+      const supabase = getSupabaseClient();
+      ({ error } = await supabase.from("esm_responses").insert({
+        user_id: userId,
+        prompt_kind: kind,
+        scale_value: kind === "energy" ? scaleValue : null,
+        context_tags: kind === "context" ? selectedTags : [],
+      }));
+    } catch (thrown) {
+      // A thrown insert is a failed save too: show the same notice instead of
+      // leaving the screen stuck on "saving" with the hold set.
+      error = thrown;
+    } finally {
+      savingRef.current = false;
+    }
     setSaving(false);
 
     if (error) {
@@ -84,9 +112,14 @@ function EsmCheckInScreen() {
       return;
     }
 
-    setSaved(true);
-    setScaleValue(null);
-    setSelectedTags([]);
+    setSavedEdit(edit);
+    // Clear only what this save sent. `scaleValue` and `selectedTags` here are
+    // the values at the press; a pick changed while the insert was out is not
+    // saved yet, so it stays on screen for the next save (QA 261004).
+    setScaleValue((current) => (current === scaleValue ? null : current));
+    setSelectedTags((current) =>
+      current.length === selectedTags.length && current.every((tag) => selectedTags.includes(tag)) ? [] : current,
+    );
   }
 
   return (
@@ -96,9 +129,6 @@ function EsmCheckInScreen() {
           eyebrow={t("hero.eyebrow")}
           title={t("hero.title")}
           subtitle={t("hero.subtitle")}
-          island={CORE_VILLAGE_UI.island}
-          worker={CORE_VILLAGE_UI.worker}
-          accent={CORE_VILLAGE_UI.accent}
           speech={t("hero.speech")}
         />
 
@@ -112,7 +142,7 @@ function EsmCheckInScreen() {
                   key={option.id}
                   onPress={() => {
                     setKind(option.id);
-                    setSaved(false);
+                    setEdit((n) => n + 1);
                   }}
                   style={[styles.promptTab, active && styles.promptTabActive]}
                   accessibilityRole="tab"
@@ -141,7 +171,7 @@ function EsmCheckInScreen() {
                       key={value}
                       onPress={() => {
                         setScaleValue(value);
-                        setSaved(false);
+                        setEdit((n) => n + 1);
                       }}
                       style={[styles.scaleDot, active && styles.scaleDotActive]}
                       accessibilityRole="radio"
@@ -234,9 +264,6 @@ function EsmCheckInScreen() {
 //   `m3.accent.stageFloor` 를 0.92 로 깔고 그 아래가 `deepSpace.bgEdge` 다
 //   (`components/deep-space/DeepSpaceScreen.tsx` 의 `root`·stage 스타일).
 //   바탕이 틀리면 알파를 그냥 두는 것보다 나쁘므로, 옮기는 사람은 여기부터 다시 잴 것.
-//
-// ⚠ 레거시 셸(`isDeepSpaceUI()` 가 false)일 때는 바탕이 다르다. 그러나 모든 배포가
-//   deep-space 고정이라 그쪽은 실제로 그려지지 않는다 — 되살리는 사람이 다시 잰다.
 const ESM_GROUND = flattenAlpha(m3.accent.stageFloor, 0.92, deepSpace.bgEdge);
 const esmAlpha = (c: string, a: number): string => flattenAlpha(c, a, ESM_GROUND);
 
@@ -334,16 +361,12 @@ const styles = StyleSheet.create({
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
 
-// Canon (deep-space) and legacy share ONE functional screen — the ESM check-in.
-// Canon previously showed a placeholder RhythmLensView with a dead CTA; now both
-// render the real check-in (context/energy prompt → save). Only the chrome
-// differs: the deep-space dock (DeepSpaceScreen) vs the premium shell.
+// The ESM check-in (context/energy prompt → save) in the deep-space dock. Canon
+// once showed a placeholder RhythmLensView with a dead CTA; this is the real
+// check-in. The premium-shell chrome of the old `EXPO_PUBLIC_UI=legacy` track
+// left with the lever on 2026-10-05 (Simon decision Q-261004-11).
 function EsmShell({ children }: { children: ReactNode }) {
-  return isDeepSpaceUI() ? (
-    <DeepSpaceScreen active="lens" header="none">{children}</DeepSpaceScreen>
-  ) : (
-    <PremiumAppShell>{children}</PremiumAppShell>
-  );
+  return <DeepSpaceScreen active="lens" header="none">{children}</DeepSpaceScreen>;
 }
 
 export default function EsmCheckIn() {

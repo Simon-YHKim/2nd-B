@@ -181,7 +181,8 @@ describe("누름 - 가라앉기와 베벨 반전이 함께 간다", () => {
     // 하나만 하면 흔들리거나(변환만) 납작해진다(반전만). 같은 `sunken` 하나가
     // 둘을 몰아야 어긋나지 않는다.
     expect(src).toMatch(/const sunken = held && !disabled;/);
-    expect(src).toMatch(/sunken \? styles\.sunk : styles\.rest/);
+    // The hosted phone uses iOS color feedback; standalone clay still sinks.
+    expect(src).toMatch(/sunken && !phone \? styles\.sunk : styles\.rest/);
     expect(src).toMatch(/pressed=\{sunken\}/);
   });
 
@@ -218,7 +219,7 @@ describe("누름 - 가라앉기와 베벨 반전이 함께 간다", () => {
 
   test("면 배경과 root/full-width 스타일을 additive prop 으로 전달한다", () => {
     expect(src).toContain("background?: string;");
-    expect(src).toContain("background={background}");
+    expect(src).toContain("background={phone && disabled ? phoneIos.fill : background}");
     expect(src).toContain("rootStyle?: StyleProp<ViewStyle>;");
     expect(src).toContain("fullWidth?: boolean;");
     expect(src).toContain("style={[styles.root, fullWidth && styles.fullWidth, rootStyle]}");
@@ -230,14 +231,16 @@ describe("gate 셸 - dock 없는 seeded sky + 키보드 안전 스크롤", () =>
   const src = read("PixelGateShell.tsx");
   const index = read("index.ts");
 
-  test("safe area 안에서 seeded sky, iOS KAV, ScrollView 를 한 번씩 소유한다", () => {
-    for (const tag of ["SafeAreaView", "SbStarfield", "KeyboardAvoidingView", "ScrollView"]) {
+  test("safe area 안에서 seeded sky, 키보드 영역, ScrollView 를 한 번씩 소유한다", () => {
+    for (const tag of ["SafeAreaView", "SbStarfield", "KeyboardAvoidingArea", "ScrollView"]) {
       const count = src.match(new RegExp(`^\\s*<${tag}\\b`, "gm"))?.length ?? 0;
       expect({ tag, count }).toEqual({ tag, count: 1 });
     }
     expect(src).toContain("<SbStarfield cosmic />");
     expect(src).toContain('edges={["top", "bottom"]}');
-    expect(src).toContain('behavior={Platform.OS === "ios" ? "padding" : undefined}');
+    // 2026-10-05: 플랫폼별 키보드 규칙은 공용 영역(src/lib/ui/keyboard.tsx)이 갖는다.
+    expect(src).not.toContain("KeyboardAvoidingView");
+    expect(src).toContain("iosKeyboardVerticalOffset={iosKeyboardVerticalOffset}");
     expect(src).toContain('keyboardShouldPersistTaps="handled"');
   });
 

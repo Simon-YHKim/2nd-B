@@ -18,6 +18,8 @@ const GEMINI_TESTS = [
   ["src", "lib", "llm", "__tests__", "advisor-output-swap.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "advisor-edge.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "boundary-output-swap.test.ts"].join("/"),
+  // Q-261011-05: mocked audit/crisis writers assert the semantic input route.
+  ["src", "lib", "llm", "__tests__", "boundary-obfuscated-input.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "proxy-crisis-fallback.test.ts"].join("/"),
   // D-26 Phase 2 vendor-routing wiring suite: mocks the audit/crisis writers
   // to assert C3 rows on the claude-proxy path + outage failover (same pattern

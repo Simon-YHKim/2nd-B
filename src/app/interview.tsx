@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 심층 인터뷰 — 5층 드릴다운 대화. (Simon 결정 2026-08-23: 배치안 ①)
 //
 // ── 무엇이 바뀌었나 ─────────────────────────────────────────────────────
@@ -29,16 +30,18 @@
 // source-aware crisis route로 두 원장을 쓴 뒤 핫라인을 띄운다.
 //
 // ── 저장 ────────────────────────────────────────────────────────────────
-// 태그(`interview`/`recall`/`screener`)와 `kind`, `auditPeriod` 는 그대로 둔다.
-// `assess/registry.ts` 의 `interview` 항목이 그 태그로 완료를 판정하고,
-// 옛 스크리너로 남긴 기록과 같은 서랍에 들어가야 한다.
+// 표식(`interview`/`recall`/`screener`/`entry-ui:<locale>`)과 `kind`, `auditPeriod` 는
+// 그대로 둔다. `assess/registry.ts` 의 `interview` 항목이 그 표식으로 완료를 판정하고,
+// 옛 스크리너로 남긴 기록과 같은 서랍에 들어가야 한다. 0218(Q-261004-39 = A) 부터
+// 표식은 사용자 태그 칸(`tags`)이 아니라 앱 표식 칸(`records.system_tags`)에 쓴다 —
+// /discover · /research 가 `interview` 를 사용자의 주제로 보여 주지 않게.
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { StyleSheet } from "react-native";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
@@ -47,17 +50,21 @@ import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRet
 import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
-import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { classifyInputAnyLocale } from "@/lib/safety/classifier";
+import { publishCrisisNotice } from "@/lib/safety/crisis-notice";
 import { startInterviewCrisisRouting } from "@/lib/llm/boundary";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
+import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
+import { useGoHomeStop } from "@/lib/nav/go-home";
 import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/periods";
 import { DrillProgress } from "@/components/ui/DrillProgress";
 import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
 import { answerDisposition, canCreditAnswer, confirmedAnswer, currentScene } from "@/lib/interview/continuity";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
+import { recallInterviewSystemTags } from "@/lib/records/system-tags";
 import { addCoverage, loadCoverage } from "@/lib/interview/coverage-store";
 import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
 import { starEntryStatus, type StarEntryStatus } from "@/lib/persona/star-entry-tracks";
@@ -78,6 +85,11 @@ import {
   type LifePeriod,
 } from "@/lib/interview/probe";
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
+import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "@/lib/interview/session-end";
+import { storedTurns, storyTitle } from "@/lib/interview/saved-story";
+import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
+import { isRecordingAudioMode } from "@/lib/audio/audio-session";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
 // 원래 이 자리에 문자열 SVG 레지스트리가 있었다(저장소에서 열하나 번째).
@@ -85,13 +97,15 @@ function Glyph({ name, color, size = 20 }: { name: string; color: string; size?:
   return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }
 
-// 한 세션의 턴 상한. 드릴은 원래 "축이 목표 등급에 닿을 때까지"인데
-// (`drill-stop.ts`), 등급 추정은 이 화면이 하지 않는다 -- 지금 추정치를 지어내지
-// 않는다는 것이 이 화면의 기존 약속이고, 그건 유지한다. 그래서 여기서는 **비용과
-// 피로**로만 끊는다. 사용자는 언제든 "여기까지"로 먼저 끝낼 수 있다.
-const MAX_TURNS = 12;
+// 턴 상한은 없다 (Simon 결정 2026-10-05). 여기 있던 `MAX_TURNS = 12` 는 답이 12개가
+// 되면 대화를 끊었다. 깊은 이야기가 언제 끝날지는 화면이 정할 수 없다.
+// 대화는 사용자가 끝내거나, 한 장면을 다 팠거나, 서버가 오늘 몫이 찼다고 거절할 때
+// 끝난다. 마지막 것도 오류가 아니라 끝맺음이다. 이유와 응답 모양은
+// `lib/interview/session-end.ts` 에 있다. 비용은 그 서버 한도가 막는다.
 
 function InterviewFrame({ children }: { children: ReactNode }) {
+  // Phone-aware: inside the dashboard phone, back steps the phone's stack.
+  const router = useAppRouter();
   const { t } = useTranslation("interview");
   return (
     <DeepSpaceScreen
@@ -109,7 +123,9 @@ function InterviewFrame({ children }: { children: ReactNode }) {
 export default function InterviewRoute() {
   const { t } = useTranslation("interview");
   const { t: homeT } = useTranslation("home");
-  const { period: periodParam, origin: originParam } = useLocalSearchParams<{
+  // Inside the dashboard phone these come from the phone route
+  // (/interview?period=now), not from /dashboard's query.
+  const { period: periodParam, origin: originParam } = useScreenParams<{
     period?: string | string[];
     origin?: string | string[];
   }>();
@@ -234,7 +250,11 @@ function TrackGatedInterview({
 }
 
 function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growthOrigin: boolean }) {
+  // Phone-aware: inside the dashboard phone, the post-save return to the star
+  // summary replaces the phone's screen instead of the app's route.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("interview");
+  const { t: homeT } = useTranslation("home");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "ko" | "en";
   // 기록에 남기는 시기도 같은 id 로 쓴다. Growth 렌즈가 이 값을 생애 장의 정본으로
   // 읽고, 값이 없는 일반 성장 기록만 created_at 연대로 되돌아간다. 옛 행의
@@ -245,6 +265,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const kbHeight = useKeyboard();
 
   const [turns, setTurns] = useState<InterviewTurn[]>([]);
+  // A local question change and a send can arrive from the same old render.
+  // Claim the new question synchronously, then reconcile at the commit.
+  const turnsOwnerRef = useRef(turns);
+  useLayoutEffect(() => { turnsOwnerRef.current = turns; }, [turns]);
   const [coverage, setCoverage] = useState<Coverage>(emptyCoverage);
   /** 이 세션을 시작할 때 이미 저장돼 있던 행렬. 저장할 때 **이번에 판 만큼만**
    *  더하기 위해 남겨둔다(0143). ref 인 이유는 렌더를 유발할 값이 아니라서다. */
@@ -260,24 +284,34 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   /** 이 사용자에게 해당되는 시기. 진행 행렬의 열이 된다. */
   const coveredPeriods = useMemo(() => livedPeriods(age), [age]);
   const [draft, setDraft] = useState("");
+  const draftEditRevision = useRef(0);
+  const sending = useRef(false);
   const [busy, setBusy] = useState(false);
   const [pendingLayer, setPendingLayer] = useState<DrillLayer | null>(null);
   /** 이번 질문에 딸린 **말문 후보**. 누르면 보내지 않고 입력창을 채운다. */
   const [openers, setOpeners] = useState<string[]>([]);
   const [done, setDone] = useState(false);
   const ended = useRef(false);
+  const mounted = useRef(true);
   const [concreteOnly, setConcreteOnly] = useState(false);
   const [coverageReady, setCoverageReady] = useState(false);
   const [saving, setSaving] = useState(false);
+  const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
   const [notice, setNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "danger" } | null>(null);
   const [failModal, setFailModal] = useState(false);
-  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
-    visible: false,
-    hotline: "KR_109",
-  });
+  /** 저장 화면의 표("이만큼 팠다")는 접어 둔다 (Simon 결정 Q-261013-52). */
+  const [tableOpen, setTableOpen] = useState(false);
   const crisisRouting = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  // 위 칸의 홈 이동(RedirectHome · 탭 루트 하드웨어 뒤로)은 걷히면 잃는 것이 있는
+  // 동안 여기서 멈춘다(게이트 NAV-S7-01). 대화(turns)와 쓰던 답(draft)은 이 화면의
+  // 상태이고 '담기'를 눌러야 저장된다. 나가 있는 질문 요청 · 저장 요청, 그리고
+  // 안전 안내 창은 AppCrisisHost가 화면 이동 뒤에도 이어서 보여 준다.
+  useGoHomeStop(
+    () => busy || saving || draft.trim() !== "" || turns.some((turn) => turn.role === "user"),
+  );
 
   const finish = useCallback(() => {
     ended.current = true;
@@ -289,7 +323,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
 
   useEffect(() => {
     ended.current = false;
-    return () => { ended.current = true; };
+    mounted.current = true;
+    return () => { ended.current = true; mounted.current = false; };
   }, []);
 
   useEffect(() => {
@@ -308,6 +343,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const isBlockedAnswer = useCallback(
     (text: string): boolean => text === t("drill.dontKnow") || isNonAnswer(text, locale),
     [locale, t],
+  );
+
+  // 모델에 보내지 않고 화면이 발판으로 받는 답인가. `send()` 가 이걸로 막힘을 정하고,
+  // 건너뛰기 가드도 **같은 판정**으로 그런 답을 답으로 세지 않는다(session-end.ts).
+  // 둘이 갈라지면 "모르겠어요 → 건너뛰기" 교대가 다시 끝없이 길어진다(F2049-02).
+  const isLocalNonAnswer = useCallback(
+    (text: string, layer: DrillLayer | null | undefined): boolean =>
+      layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale)),
+    [isBlockedAnswer, locale],
   );
 
   // 이번 대화의 사용자 답변 -> 되묻기 판정의 재료. theme 를 시기로 두면
@@ -343,6 +387,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       credited: DrillLayer | null = null,
     ) => {
       if (!userId || ended.current) return;
+      const owner = captureAccountOwnerLease(userId);
+      if (!owner) return;
       setBusy(true);
       setNotice(null);
       try {
@@ -391,13 +437,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           userId, locale, period, history, cov, isMinor === true,
           0, move.kind === "finish" ? credited : move.layer,
         );
-        // Stop/save can be selected while this request is in flight.
-        if (ended.current) return;
+        if (!owner.isCurrent()) return;
+        // Safety still reaches the app after stop or route removal. Ordinary
+        // answers must not reopen a finished interview or change its coverage.
         if (probe.zone === "red") {
-          // C9: 텍스트가 아니라 핫라인. 대화는 여기서 멈춘다.
-          setCrisis({ visible: true, hotline: hotlineFor() });
+          publishCrisisNotice(owner, probe.hotline ?? hotlineFor());
+          if (mounted.current) finish();
           return;
         }
+        if (ended.current) return;
         const lastAnswer = history[history.length - 1];
         const confirmed = credited && lastAnswer
           ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)
@@ -408,7 +456,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         // Nothing is added on a sparse answer, missing judgement, failure, or stop.
         // The model cannot award another layer or override the local gate.
         if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));
-        if (move.kind === "finish") {
+        // 장면 완료(`finish`)는 `nextMove` 가 판정을 기다리는 이 답을 인정된다고 보고 낸 수다.
+        // 그래서 판정이 인정일 때만 끝낸다(게이트 LAST-01). 인정 못 받았으면 아래 갈래가 같은 층에
+        // 발판을 놓거나, 그 층에서 세 번째면 대화를 끝낸다. 마지막 층도 다른 층과 같다.
+        if (move.kind === "finish" && confirmed) {
           setTurns(assessed);
           finish();
           return;
@@ -438,10 +489,28 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         setTurns([...assessed, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
         setPendingLayer(probe.layer);
         setOpeners(probe.openers);
-      } catch {
-        setNotice(t("drill.failed"));
+      } catch (error) {
+        if (!owner.isCurrent() || !mounted.current || ended.current) return;
+        // Q-261014-17: a quota refusal keeps the current question and draft.
+        // The caller restores only this request's input; no answer is credited.
+        if (await readDayLimitRefusal(error, INTERVIEW_PURPOSE)) {
+          if (owner.isCurrent() && mounted.current && !ended.current) {
+            setNotice(t("drill.dayLimit"));
+            return "limited" as const;
+          }
+          return;
+        }
+        // 판정을 못 받은 답이다(게이트 LAST-02). 진전으로도, 그 층의 실패로도 세지 않게 표시하고
+        // 겨냥하던 층을 되돌린다 -- "다시 시도해 주세요"로 다시 보낸 답이 같은 층에서 판정받게.
+        if (owner.isCurrent() && mounted.current && !ended.current) {
+          setTurns(history.map((turn, index) => index === history.length - 1 && turn.role === "user"
+            ? { ...turn, unsettled: true }
+            : turn));
+          setPendingLayer(credited);
+          setNotice(t("drill.failed"));
+        }
       } finally {
-        setBusy(false);
+        if (owner.isCurrent() && mounted.current) setBusy(false);
       }
     },
     [userId, period, locale, isMinor, entriesOf, hotlineFor, t, concreteOnly, finish],
@@ -481,6 +550,11 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
 
   const userTurns = turns.filter((turn) => turn.role === "user").length;
 
+  function editDraft(value: string) {
+    draftEditRevision.current += 1;
+    setDraft(value);
+  }
+
   // `override` 는 답변 칩이 쓴다. 칩을 누르면 `setDraft` 후 `send()` 를 부르는 대신
   // 곧바로 그 말을 보낸다 — 상태 갱신은 다음 렌더에나 반영돼서, 그 사이에 보내면
   // 직전 draft(대개 빈 문자열)가 나간다.
@@ -497,17 +571,24 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     // coverage·nextMove·nextProbe는 건드리지 않는다.
     const safety = classifyInputAnyLocale(text, locale, { minor: isMinor === true });
     if (safety.zone === "red") {
+      const owner = captureAccountOwnerLease(userId);
+      if (!owner) return;
       const route = startInterviewCrisisRouting(
         crisisRouting,
         { text, locale, userId, minor: isMinor === true },
         () => {
-          setBusy(true);
-          setCrisis({ visible: true, hotline: hotlineFor() });
+          // The answer stays outside the saved transcript until the separate
+          // crisis-save AI hold is wired; this route must not add AI egress.
+          finish();
+          publishCrisisNotice(owner, safety.crisisRouting?.hotline ?? hotlineFor());
         },
-        () => setBusy(false),
+        () => {},
       );
       if (route.started) {
-        void route.done.catch(() => setNotice(t("drill.failed")));
+        // The guidance is already visible even if a safety-ledger write fails.
+        void route.done.catch(() => {
+          if (owner.isCurrent() && mounted.current) setNotice(t("drill.failed"));
+        });
       }
       return;
     }
@@ -522,6 +603,11 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       changeAngle("skip");
       return;
     }
+    // A same-render double tap must not submit two answers before busy paints.
+    if (sending.current || turnsOwnerRef.current !== turns) return;
+    const owner = captureAccountOwnerLease(userId);
+    if (!owner) return;
+    const editRevision = draftEditRevision.current;
     // 답변이 붙는 층은 **직전 질문이 겨냥한 층**이다. 되묻기였다면 층이 없다 --
     // 그건 깊이를 판 것이 아니라 방향을 바꾼 것이므로 coverage 를 올리지 않는다.
     const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period };
@@ -531,22 +617,23 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     //
     // 예전에는 비어 있지 않은 답이면 무조건 `incrementCoverage` 를 불렀다. 그래서
     // "잘 모르겠는데" 가 의미(L3) 칸을 채우고, 채워졌으니 믿음(L4)으로 내려갔다.
-    // **못 판 것을 판 것으로 셀다.** 그 칸 수가 그대로 `narrativeStarLevel` 의
+    // **못 판 것을 판 것으로 셌다.** 그 칸 수가 그대로 `narrativeStarLevel` 의
     // 입력이라 등급까지 오염됐다 -- 7렌즈 감사에서 걸린 바로 그 병이다.
     //
     // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
-    // 말했을 때만 안 셀다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
-    const blocked = pendingLayer !== null && (isBlockedAnswer(text) || !canCreditAnswer(text, pendingLayer, locale));
+    // 말했을 때만 안 셌다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
+    const blocked = isLocalNonAnswer(text, pendingLayer);
     const nextCoverage = coverage;
     const nextStreak = blocked ? stuckStreak + 1 : 0;
     const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;
-    // 발판을 두 번 줘도 막햘다. 이 층은 이번 대화에서 더 묻지 않는다 -- 칸은
+    // 발판을 두 번 줘도 막혔다. 이 층은 이번 대화에서 더 묻지 않는다 -- 칸은
     // 비운 채로. 안 그러면 비어 있다는 이유로 같은 층이 계속 다시 골라진다.
     const nextAbandoned =
       pendingLayer && nextStreak > MAX_SCAFFOLDS_PER_LAYER && !abandoned.includes(pendingLayer)
         ? [...abandoned, pendingLayer]
         : abandoned;
 
+    turnsOwnerRef.current = nextTurns;
     setTurns(nextTurns);
     setCoverage(nextCoverage);
     // 포기했으면 연속 카운터도 초기화한다 -- 다음 층은 새로 시작하는 것이 맞다.
@@ -555,23 +642,39 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     setDraft("");
     setOpeners([]);
     setPendingLayer(null);
-    if (nextTurns.filter((turn) => turn.role === "user").length >= MAX_TURNS) {
-      finish();
-      return;
+    sending.current = true;
+    try {
+      const outcome = await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);
+      if (outcome === "limited" && owner.isCurrent() && mounted.current && !ended.current) {
+        turnsOwnerRef.current = turns;
+        setTurns(turns);
+        setPendingLayer(pendingLayer);
+        setOpeners(openers);
+        setStuckStreak(stuckStreak);
+        setAbandoned(abandoned);
+        // The field is disabled while busy, but a queued native edit or a
+        // newer user action still owns its text. Never overwrite that edit.
+        if (draftEditRevision.current === editRevision) setDraft(override ?? draft);
+      }
+    } finally {
+      sending.current = false;
     }
-    await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);
   }
 
   function changeAngle(choice: "skip" | "concrete") {
-    if (busy || ended.current) return;
-    // Bound local choices too; a series of skipped prompts must not loop forever.
-    if (turns.filter((turn) => turn.role === "interviewer").length >= MAX_TURNS) {
+    if (busy || sending.current || turnsOwnerRef.current !== turns || ended.current) return;
+    // 모델을 부르지 않는 길이라 서버 한도에 안 닿는다. 답 없이 연달아 붙은 질문만
+    // 세서 막는다 -- 건너뛰기를 계속 눌러도 끝없이 길어지지 않게(session-end.ts).
+    // "모르겠어요"처럼 발판으로 받은 답은 답으로 세지 않는다 -- send() 와 같은 판정.
+    if (localPromptsExhausted(turns, (turn) => isLocalNonAnswer(turn.text, turn.layer))) {
       finish();
       return;
     }
     const text = t(choice === "skip" ? "drill.anotherScene" : "drill.concreteQuestion");
     if (choice === "concrete" && currentScene(turns).some((turn) => turn.text === text)) return;
-    setTurns([...turns, { role: "interviewer", text, layer: "fact", period, sceneStart: choice === "skip" }]);
+    const nextTurns: InterviewTurn[] = [...turns, { role: "interviewer", text, layer: "fact", period, sceneStart: choice === "skip" }];
+    turnsOwnerRef.current = nextTurns;
+    setTurns(nextTurns);
     setConcreteOnly(choice === "concrete");
     setPendingLayer("fact");
     setStuckStreak(0);
@@ -583,18 +686,19 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
 
   async function keepIt() {
     if (!userId || saving) return;
+    const owner = captureAccountOwnerLease(userId);
+    if (!owner) return;
     setSaving(true);
     let navigating = false;
     try {
       const qLabel = locale === "ko" ? "질문" : "Q";
       const aLabel = locale === "ko" ? "답변" : "A";
-      const transcript = turns
+      // 마지막 답까지만 담는다 -- "여기까지"로 끝내면 답 없는 질문이 끝에 붙어 있다(Z63).
+      const transcript = storedTurns(turns)
         .map((turn) => `${turn.role === "interviewer" ? qLabel : aLabel}: ${turn.text}`)
         .join("\n\n");
-      // The pre-save check above is the LOCAL lexicon. createRecord's own C9
-      // pass is the semantic one, and it reports red on the followup rather
-      // than throwing - so a semantically-red transcript that the lexicon did
-      // not match was written to the ledger and shown nowhere.
+      // withFollowup:false performs a local C9 check, not a semantic scan.
+      // Its red result still needs guidance even after leaving this route.
       const saved = await createRecord({
         userId,
         locale,
@@ -602,20 +706,27 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         kind: "audit_response",
         body: transcript,
         topic: locale === "ko" ? "회상 인터뷰" : "Recall interview",
-        summary:
-          locale === "ko"
-            ? `${userTurns}턴 회상 인터뷰`
-            : `${userTurns}-turn recall interview`,
-        // 옛 스크리너와 같은 태그. assess/registry.ts 가 이걸로 완료를 판정한다.
-        tags: ["interview", "recall", "screener", `entry-ui:${locale}`],
+        // 목록에 보이는 제목. 모든 이야기가 답한 횟수만 다른 같은 줄이라 열어 봐야
+        // 구분됐다(Z61 · Simon 결정 Q-261013-51: 별 이름 + 첫 답의 앞부분).
+        // 저장본이 "답변"으로 적는 턴 그대로다 -- 무슨 뜻의 말인지는 여기서 가리지 않는다.
+        summary: storyTitle(
+          homeT(`ds.star.${period}`),
+          turns.filter((turn) => turn.role === "user").map((turn) => turn.text),
+        ),
+        // 옛 스크리너와 같은 표식. assess/registry.ts 가 이걸로 완료를 판정한다.
+        // 앱 표식 칸(0218)에 쓴다 — 사용자 태그와 섞이지 않게.
+        systemTags: recallInterviewSystemTags(locale),
         auditPeriod,
         domainIntent: growthOrigin ? "growth" : undefined,
         withFollowup: false,
       });
+      if (!owner.isCurrent()) return;
       if (saved.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: hotlineFor() });
+        publishCrisisNotice(owner, saved.crisisHotline ?? hotlineFor());
+        if (mounted.current) finish();
         return;
       }
+      if (!mounted.current) return;
       // 판 자리를 남긴다. **내용과 같은 동의 경로**다 -- 사용자가 담기로 했을
       // 때만 쓴다. 칸 수에는 답변 원문이 없지만, 그렇다고 담지 않기로 한 대화가
       // 별을 밝히는 것은 이 저장소의 규율과 어긋난다.
@@ -626,21 +737,26 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         }
       }
       await addCoverage(userId, delta);
+      if (!owner.isCurrent() || !mounted.current) return;
       // 판 만큼 별이 밝아졌다면 그 변화를 원장에 남긴다. 남겨야 8주 그래프에
       // 선이 생긴다 -- 지금 등급만 있으면 "밝아지고 있다"를 보여줄 수가 없다.
       // 실패해도 조용하다(recordSevenTiers 가 삼킨다). 저장은 이미 끝났고,
       // 기록 실패로 성공한 인터뷰를 실패로 보이게 할 이유가 없다.
       void loadSevenLevels(userId).then((s) => recordSevenTiers(userId, s.starLevels));
       setToast({ tone: "success", message: t("drill.saved") });
+      // 저장 소리(Q-261006-03). 위기 판정은 위에서 먼저 돌아가므로 여기까지 오면 위기가 아니다.
+      // 대화 도중 층이 채워지는 순간은 여전히 무음이다(채점처럼 들리지 않게).
+      if (saveCueAllowed({ crisis: false, recording: isRecordingAudioMode() })) playSaveCue();
       navigating = true;
       setTimeout(() => {
+        if (!owner.isCurrent() || !mounted.current) return;
         if (growthOrigin) router.replace("/star/growth");
         else router.replace(`/me/${period}`);
       }, 700);
     } catch {
-      setFailModal(true);
+      if (owner.isCurrent() && mounted.current) setFailModal(true);
     } finally {
-      if (!navigating) setSaving(false);
+      if (!navigating && owner.isCurrent() && mounted.current) setSaving(false);
     }
   }
 
@@ -653,7 +769,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         {done ? (
           <>
             <Text style={[m3TextStyle("titleLarge"), styles.saveTitle]}>{t("drill.saveTitle")}</Text>
-            <Text style={[m3TextStyle("bodyMedium"), styles.saveBody]}>{t("drill.closing")}</Text>
+            <Text style={[m3TextStyle("bodyMedium"), styles.saveBody]}>
+              {t("drill.closing")}
+            </Text>
             {/* 이만큼 팠다 -- 담을지 정하는 자리에서 보여준다.
              *
              *  대화 중에는 안 띄운다: 화면 하나에 메시지 하나라는 규율도 있고,
@@ -661,13 +779,31 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
              *  대화가 끝난 뒤에 보여주는 것이 정직한 순서다.
              *
              *  열은 사용자가 **살아온 시기**만(`periodIdsForAge`). LIFE_PERIODS 를
-             *  그대로 그리면 스물다섯 살에게 70대 열이 보인다. */}
-            <DrillProgress
-              coverage={coverage}
-              locale={locale}
-              periods={coveredPeriods}
-              activePeriod={period}
-            />
+             *  그대로 그리면 스물다섯 살에게 70대 열이 보인다.
+             *
+             *  표는 접어 둔다 (Z64 · Simon 결정 Q-261013-52). 처음 쓰는 사람에게 L1 ~ L5
+             *  표는 뜻이 전해지지 않았다. 오늘 한 것 한 줄이 먼저고, 그 줄을 누르면 편다. */}
+            <Pressable
+              onPress={() => setTableOpen((open) => !open)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: tableOpen }}
+              // 웹은 `accessibilityState.expanded` 를 옮겨 주지 않는다(PixelPressable 과 같은 까닭).
+              aria-expanded={tableOpen}
+              style={styles.saveMeta}
+            >
+              <Text style={[m3TextStyle("bodyMedium"), styles.saveMetaText]}>
+                {t("drill.saveMeta", { star: homeT(`ds.star.${period}`), n: userTurns })}
+              </Text>
+              <Glyph name={tableOpen ? "expand_less" : "expand_more"} color={m3.color.onSurfaceVariant} />
+            </Pressable>
+            {tableOpen ? (
+              <DrillProgress
+                coverage={coverage}
+                locale={locale}
+                periods={coveredPeriods}
+                activePeriod={period}
+              />
+            ) : null}
             <MdCard variant="outlined" style={styles.noteCard}>
               <Text style={[m3TextStyle("bodySmall"), styles.note]}>{t("drill.saveBody")}</Text>
             </MdCard>
@@ -734,7 +870,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
                 {openers.map((o) => (
                   <Pressable
                     key={o}
-                    onPress={() => setDraft(o)}
+                    onPress={() => editDraft(o)}
                     style={styles.answerChip}
                     accessibilityRole="button"
                     accessibilityLabel={o}
@@ -766,9 +902,12 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               </View>
             ) : null}
 
+            <Text style={[m3TextStyle("bodySmall"), styles.processingNotice]}>
+              {t("drill.processingNotice")}
+            </Text>
             <TextInput
               value={draft}
-              onChangeText={setDraft}
+              onChangeText={editDraft}
               placeholder={t("drill.placeholder")}
               placeholderTextColor={m3.color.onSurfaceVariant}
               multiline
@@ -834,11 +973,6 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         </View>
       </PremiumModal>
 
-      <CrisisRouter
-        visible={crisis.visible}
-        hotline={crisis.hotline}
-        onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
-      />
     </InterviewFrame>
   );
 }
@@ -862,6 +996,7 @@ const styles = StyleSheet.create({
   introNote: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm, textAlign: "center" },
   notice: { color: m3.color.tertiary },
   turnLabel: { color: m3.color.onSurfaceVariant, marginTop: spacing.xs },
+  processingNotice: { color: m3.color.onSurfaceVariant, marginBottom: spacing.xs },
   input: {
     minHeight: 88,
     borderWidth: 1,
@@ -887,6 +1022,14 @@ const styles = StyleSheet.create({
   // 대화 화면이라 버튼이 키보드 위에 붙고, 거기서 작으면 그대로 오탭이 된다.
   actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs, minHeight: 48 },
   actionButton: { minHeight: 48, justifyContent: "center" },
+  saveMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    minHeight: 48,
+  },
+  saveMetaText: { flex: 1, color: m3.color.onSurface },
   saveTitle: { color: m3.color.onSurface },
   saveBody: { color: m3.color.onSurfaceVariant },
   noteCard: { padding: spacing.sm },

@@ -11,7 +11,7 @@
     "heading": "My formats",
     "headingWithCount": "My formats ({{count}})",
     "emptyTitle": "No formats yet",
-    "emptyBody": "Formats you save from SecondB's suggestions appear here."
+    "emptyBody": "Formats you save from HustleK's suggestions appear here."
   },
   "community": {
     "heading": "Community formats",
@@ -38,7 +38,56 @@
     "block": "Block author"
   },
   "builtIn": {
-    "headingWithCount": "Built-in formats ({{count}})"
+    "headingWithCount": "Built-in formats ({{count}})",
+    "kinds": {
+      "inbox": {
+        "name": "Default Inbox",
+        "what": "Anything that doesn't fit a specific kind. Needs triage later."
+      },
+      "article": {
+        "name": "General Article",
+        "what": "A web article, essay, or blog post. Prose meant to be read."
+      },
+      "video": {
+        "name": "YouTube Video",
+        "what": "A YouTube (or similar) video page."
+      },
+      "paper": {
+        "name": "Academic Paper",
+        "what": "A research paper, preprint, or journal article."
+      },
+      "reddit": {
+        "name": "Reddit Post",
+        "what": "A Reddit thread or post, usually with community discussion.",
+        "props": {
+          "post-type": "One of: question, discussion, showcase, news, guide."
+        }
+      },
+      "code": {
+        "name": "GitHub Repo",
+        "what": "A GitHub repository, gist, or code project.",
+        "props": {
+          "language": "Primary programming language, if evident."
+        }
+      },
+      "ai_tool": {
+        "name": "AI Tool Doc",
+        "what": "Docs, release notes, or a blog post for an AI tool / product.",
+        "props": {
+          "doc-type": "One of: guide, reference, changelog, blog.",
+          "stack-impact": "One line: how this could affect or apply to Simon's build."
+        }
+      },
+      "self_knowledge": {
+        "name": "Self-Knowledge",
+        "what": "Material about understanding oneself: frameworks, reflections, growth.",
+        "props": {
+          "topic-area": "The self-understanding theme (e.g. habits, focus, relationships).",
+          "framework": "A named framework or model it draws on, if any.",
+          "applicable-circuit": "Which areas of one's life it speaks to."
+        }
+      }
+    }
   },
   "labels": {
     "untitled": "(untitled)",
@@ -144,9 +193,9 @@
   },
   "add": {
     "title": "Add a format",
-    "body": "Describe your material and how you want to organize it. SecondB will suggest sorting rules and details to save.",
+    "body": "Describe your material and how you want to organize it. HustleK will suggest sorting rules and details to save.",
     "placeholder": "e.g. Podcast episodes - capture the guest and key claims",
-    "draft": "Ask SecondB for sorting rules",
+    "draft": "Ask HustleK for sorting rules",
     "drafting": "Drafting…",
     "errorNeedDetail": "Couldn't draft a filing guide. Add detail and try again.",
     "errorDraft": "We couldn't draft the filing guide. Please try again in a moment.",

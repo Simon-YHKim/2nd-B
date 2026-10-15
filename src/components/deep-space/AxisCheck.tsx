@@ -1,3 +1,4 @@
+import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 /**
  * Axis-scoped layer-B validation lens (rev2 P3b, clone-audit 16/19/20): the
  * shared read-only body for /values (가치관), /motivation (동기·SDT), and
@@ -20,10 +21,10 @@
  * ds.axisCheck.<axis>.headline key the body uses, so all 5 locales localize).
  * All colors route through m3.* tokens — no cosmic tokens, no hex literals.
  */
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 
@@ -31,7 +32,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { m3 } from "@/lib/theme/m3";
-import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import type { AxisCheckId } from "@/lib/audit/axis-checks";
 import type { LoadedValues, LoadedStrengths, LoadedMotivation } from "@/lib/persona/build";
@@ -97,18 +98,18 @@ const AXIS_RESULT_COPY: Record<
   ko: {
     confidence: (pct) => `확신 ${pct}%`,
     valueInsight: (topName) =>
-      `지금은 ${topName} 쪽이 가장 높게 나왔어요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`,
+      `지금은 ${topName} 쪽이 가장 높게 나왔습니다. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있습니다.`,
     strengthInsight: (topName) =>
-      `지금은 ${topName} 쪽이 가장 높게 나왔어요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`,
+      `지금은 ${topName} 쪽이 가장 높게 나왔습니다. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있습니다.`,
     intrinsicLabel: (pct) => `내적 ${pct}%`,
     extrinsicLabel: (pct) => `외적 ${pct}%`,
     balanceNote: (intrinsicHigher) =>
       intrinsicHigher
-        ? "지금은 '하고 싶어서' 쪽이 조금 더 커요. 방금 답한 자기보고를 바탕으로 한 추정이라 달라질 수 있어요."
-        : "지금은 '보상·평가' 쪽이 조금 더 커요. 방금 답한 자기보고를 바탕으로 한 추정이라 달라질 수 있어요.",
+        ? "지금은 '하고 싶어서' 쪽이 조금 더 큽니다. 방금 답한 자기보고를 바탕으로 한 추정이라 달라질 수 있습니다."
+        : "지금은 '보상·평가' 쪽이 조금 더 큽니다. 방금 답한 자기보고를 바탕으로 한 추정이라 달라질 수 있습니다.",
     motivationSide: (intrinsicHigher) => (intrinsicHigher ? "내적 동기" : "외적 동기"),
     motivationInsight: (side, topNeedName) =>
-      `${side}가 조금 더 크게 나왔고, 세 욕구 중에서는 ${topNeedName} 쪽이 가장 높아요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`,
+      `${side}가 조금 더 크게 나왔고, 세 욕구 중에서는 ${topNeedName} 쪽이 가장 높습니다. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있습니다.`,
   },
   es: {
     confidence: (pct) => `${pct}% de confianza`,
@@ -381,6 +382,8 @@ function AxisLens({
   strengthsResult?: LoadedStrengths | null;
   motivationResult?: LoadedMotivation | null;
 }) {
+  // Phone-aware: inside the dashboard phone the sibling checks open in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("home");
   const act = ACTIONS[axis];
   const k = (leaf: string) => t(`ds.axisCheck.${axis}.${leaf}`);
@@ -474,6 +477,8 @@ export function AxisCheckScreen({
    *  AxisLens renders the populated balance + SDT-need layout. */
   motivationResult?: LoadedMotivation | null;
 }) {
+  // Phone-aware: inside the dashboard phone Back steps the phone's stack.
+  const router = useAppRouter();
   const { t } = useTranslation("home");
   // Bar title reuses the axis body's headline key so es/pt/id localize too.
   const barTitle = t(`ds.axisCheck.${axis}.headline`);

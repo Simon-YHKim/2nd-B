@@ -1,7 +1,9 @@
+import { PhoneFlatList as FlatList, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, StyleSheet, View, type ListRenderItem } from "react-native";
-import { Redirect, router } from "expo-router";
+import { StyleSheet, type ListRenderItem } from "react-native";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { DeepSpaceLoader } from "@/components/deepspace";
@@ -9,6 +11,7 @@ import { MdButton, MdCard } from "@/components/m3";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { isAvailableUiLocale, type AvailableUiLocale } from "@/lib/i18n/locales";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import {
   createProcessingLogWindow,
   listProcessingLogPage,
@@ -52,7 +55,7 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       source: "Source organization",
       connection: "Connecting records",
       "self-understanding": "Self-understanding update",
-      conversation: "SecondB conversation",
+      conversation: "HustleK conversation",
       capture: "Capture organization",
       import: "Import organization",
       planning: "Planning support",
@@ -64,13 +67,13 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
     },
   },
   ko: {
-    intro: "이 계정에서 AI 기능과 관련된 처리를 최근 7일 기준으로 보여줘요. 기록 내용은 표시하지 않아요.",
-    profileError: "프로필을 확인하지 못했어요. 연결 상태를 확인한 뒤 다시 시도해 주세요.",
+    intro: "이 계정에서 AI 기능과 관련된 처리를 최근 7일 기준으로 보여줍니다. 기록 내용은 표시하지 않습니다.",
+    profileError: "프로필을 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.",
     loading: "처리 기록을 불러오는 중입니다…",
-    emptyTitle: "최근 7일 처리 기록이 없어요",
-    emptyBody: "AI 관련 기능이 실행되면 시간과 확인 가능한 서비스 정보가 여기에 표시돼요.",
-    loadError: "처리 기록을 불러오지 못했어요.",
-    loadMoreError: "다음 기록을 불러오지 못했어요.",
+    emptyTitle: "최근 7일 처리 기록이 없습니다",
+    emptyBody: "AI 관련 기능이 실행되면 시간과 확인 가능한 서비스 정보가 여기에 표시됩니다.",
+    loadError: "처리 기록을 불러오지 못했습니다.",
+    loadMoreError: "다음 기록을 불러오지 못했습니다.",
     retry: "다시 시도",
     providerUnavailable: "서비스 정보 없음",
     modelUnavailable: "모델 세부 정보 없음",
@@ -80,8 +83,8 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       source: "자료 정리",
       connection: "기록 연결",
       "self-understanding": "자기 이해 업데이트",
-      conversation: "세컨비 대화",
-      capture: "담은 내용 정리",
+      conversation: "허슬케이 대화",
+      capture: "저장한 내용 정리",
       import: "가져온 내용 정리",
       planning: "계획 지원",
       summary: "요약",
@@ -108,7 +111,7 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       source: "Organización de fuentes",
       connection: "Conexión de registros",
       "self-understanding": "Actualización de autoconocimiento",
-      conversation: "Conversación con SecondB",
+      conversation: "Conversación con HustleK",
       capture: "Organización de capturas",
       import: "Organización de importaciones",
       planning: "Apoyo para planificar",
@@ -136,7 +139,7 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       source: "Organização de fontes",
       connection: "Conexão de registros",
       "self-understanding": "Atualização de autoconhecimento",
-      conversation: "Conversa com SecondB",
+      conversation: "Conversa com HustleK",
       capture: "Organização de capturas",
       import: "Organização de importações",
       planning: "Apoio ao planejamento",
@@ -164,7 +167,7 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       source: "Penataan sumber",
       connection: "Menghubungkan catatan",
       "self-understanding": "Pembaruan pemahaman diri",
-      conversation: "Percakapan SecondB",
+      conversation: "Percakapan HustleK",
       capture: "Penataan bahan",
       import: "Penataan impor",
       planning: "Dukungan perencanaan",
@@ -228,8 +231,10 @@ function ProcessingLogSeparator() {
 }
 
 export default function ProcessingLogScreen() {
+  // Phone-aware: inside the dashboard phone, back steps the phone back.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
-  const locale = uiLocaleFor(i18n.resolvedLanguage ?? i18n.language);
+  const locale = uiLocaleFor(renderedUiLanguage(i18n));
   const copy = COPY[locale];
   const { userId, loading: authLoading, hasProfile, profileProbeFailed, refresh } = useAuth();
   const [state, setState] = useState<ProcessingLogState>(emptyState);

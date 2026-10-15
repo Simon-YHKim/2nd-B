@@ -91,9 +91,9 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
   });
 
   test("keeps the real form, provider visibility, and explicit action gates", () => {
-    expect(source).toContain("useSignInForm()");
+    expect(source).toContain("useSignInForm(deletionNotice)");
     expect(source).toContain(
-      'const SIGN_IN_PROVIDERS = ["google", "apple", "github"] as const',
+      'const SIGN_IN_PROVIDERS = ["google", "apple", "kakao", "facebook", "github"] as const',
     );
     expect(source).toContain("visibleProviders.includes(provider)");
     expect(source).toContain("signInProviders.map((provider)");
@@ -101,7 +101,8 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
     expect(source).toContain('secureTextEntry={!showPassword}');
     expect(source).toContain('returnKeyType="next"');
     expect(source).toContain('returnKeyType="go"');
-    expect(source).toContain("runAuthActionOnce(actionLock, handleSubmit)");
+    // 2026-10-13 Z12: same synchronous mutex, with invalid-field focus relay.
+    expect(source).toContain("runAuthActionOnce(actionLock, () => handleSubmit((field) =>");
     expect(source).toContain("runAuthActionOnce(actionLock, () => handleOAuth(provider))");
     expect(source).not.toContain("PROVIDER_MONOGRAM");
     expect(source).not.toContain("handleNaver");
@@ -109,13 +110,14 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
   });
 
   test("renders the three retained brands as crisp pixel geometry", () => {
+    const source = read("src/components/auth/ProviderBrandIcon.tsx");
     expect(source).toContain('<Svg width={32} height={32} viewBox="0 0 16 16">');
-    expect(source).toContain("PIXEL_BRAND_CELLS[provider].map");
+    expect(source).toContain("cells.map");
     expect(source).toContain("<Rect");
-    expect(source).toContain('"#EA4335"');
-    expect(source).toContain('"#FBBC05"');
-    expect(source).toContain('"#34A853"');
-    expect(source).toContain('"#4285F4"');
+    expect(source).toContain("semantic.googleBrandRed");
+    expect(source).toContain("semantic.googleBrandYellow");
+    expect(source).toContain("semantic.googleBrandGreen");
+    expect(source).toContain("semantic.googleBrandBlue");
   });
 
   test("uses the raised bevel as the standard for sign-in actions and legal links", () => {
@@ -169,38 +171,62 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // 2026-09-30: prefix digest 만 재고정했다. Text 를 react-native 대신
 // @/components/ui/PlainText 에서 가져오는 import 두 줄뿐이다(앱 전체 한국어
 // 줄바꿈, plain-text-guard.test.ts). tail 은 그대로다.
-// 아래 "legacy sign-in renderer/styles" 검사의 digest 는 그대로다.
+// 2026-10-05: prefix 를 재고정하고 tail 의 표지를 바꿨다. 라우트가 그리지 않던 가입
+// 화면 그림자 사본(DeepSpaceSignUpDesignScreen + 그 동의 블록 · 공급자 줄 · 토스트)이
+// 롤백 레버 제거 PR(Simon 결정 Q-261004-11 C)에서 나가면서, prefix 는 머리 주석과
+// 그 사본만 쓰던 import 가 줄었고 tail 의 옛 표지 "// Deep-space consent block:" 은
+// 사본과 함께 사라졌다. 이제 tail 은 재설정 화면(function ResetAction 부터 끝까지)이고,
+// 그 바이트는 e0b274d0 의 같은 구간과 **동일**하다(재고정 전 대조) — 재설정 화면은
+// 이 PR 에서 한 바이트도 안 바뀌었다.
+// 2026-10-05(키보드): prefix 만 다시 재고정했다(옛 값 f37c03e2 = 바로 앞 HEAD). prefix 안의
+// AuthShell 이 RN KeyboardAvoidingView + `Platform.OS === "ios"` behavior 분기 대신 공용
+// KeyboardAvoidingArea(src/lib/ui/keyboard.tsx)를 쓰게 됐다(import 1줄 · 태그 · 주석).
+// tail(재설정 화면)은 b72fc5f6 그대로다(재고정 전 대조).
+// 아래 "legacy sign-in renderer" 핀은 은퇴했다(그 테스트 안 주석).
+// 2026-10-05(PR #2044 main 병합): prefix · tail 을 다시 재고정했다. 위 main 판(ad3d5aff ·
+// b72fc5f6)과 대조하면 prefix 는 go-home import 한 줄(빈 줄 자리)뿐이고, tail 은 재설정
+// 화면의 재설정 잠금 등록 useGoHomeStop 한 줄뿐이다(재고정 전 대조). 홈 출구 셋은 사람이
+// 누르는 동작이라 PR 이전의 router.replace 그대로다.
+// 2026-10-07(#2145 안드로이드 공유, Simon 12:04): prefix · tail 을 다시 재고정했다. main 판
+// (4c878269 · 1a8d317c)과 대조하면 prefix 는 ShareRefusedLine import 한 줄뿐이고, tail 은
+// 재설정 화면 머리 아래의 `<ShareRefusedLine />` 한 줄(+빈 줄)뿐이다(재고정 전 git diff 로 대조).
+// 2026-10-12(동의 안내의 뒤로): prefix 만 다시 재고정했다(옛 값 4008f390 = main 판 1d6eefec).
+// 차이는 AuthShell 의 선택 인자 `head`(서명 한 줄 · 주석 세 줄 · 스크롤 위의 `{head}` 한 줄)뿐이다
+// (재고정 전 git diff 로 대조). `head` 를 넘기는 곳은 /consent-notice 하나라 로그인 · 가입 ·
+// 약관 화면의 그림은 그대로고, tail(재설정 화면)은 손대지 않았다.
+// 2026-10-13(빈 칸의 가짜 값): tail 만 다시 재고정했다(옛 값 ae991844 = main 판 1a782d76).
+// 차이는 재설정 화면의 예시 글 셋 삭제뿐이다: 확인 코드 칸의 placeholder="000000" 한 줄과
+// 새 비밀번호 두 칸의 점 여덟 개 예시 두 줄(재고정 전 git diff 로 대조 · 세 줄 삭제 · 추가 없음).
+// 첫 사용 점검에서 빈 칸이 이미 채워진 것처럼 읽혔다(A-Z 2차 Z18 · 1차 Z4). prefix 는 그대로다.
 describe("sign-in extraction boundaries", () => {
-  test("preserves the shared auth prefix and signup/consent/reset tail byte-for-byte", () => {
+  test("preserves the shared auth prefix and reset tail byte-for-byte", () => {
     const source = read("src/screens/deepspace/dds-auth-screens.tsx");
     const split = source.indexOf(
       'export { DeepSpaceSignInDesignScreen } from "./dds-sign-in-screen";',
     );
-    const tail = source.indexOf("// Deep-space consent block:");
+    const tail = source.indexOf("function ResetAction({");
 
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "5a7d2fa617072b75609ca03eb35e342518711e4527f12e07785525e886396446",
+      "299d83f55b8f2169d0c569cb4771cb9da125fd097558258aae24c8760db63217",
     );
     expect(sha256(source.slice(tail))).toBe(
-      "65dd568ae43e274affb179d80f94183878e49c253fa450f1054a64e31d2ac62d",
+      "f03a045e70a79e87ea2fa3dd757430da15845aaaf4a5adb6400f25e8894dec39",
     );
   });
 
-  test("preserves the legacy sign-in renderer/styles and shared DDS styles", () => {
-    // 2026-09-08: 레거시 렌더러가 legacy/screens/sign-in.tsx 로 나갔다. 핀은
-    // 지우지 않고 대상만 옮긴다 — **digest 가 그대로**라는 것이 "옮기면서 한 바이트도
-    // 안 고쳤다"의 증거다. 아카이브 = 출처 헤더 + 원본 그대로이므로, 원본 첫 줄부터
-    // 잘라내면 은퇴 전 파일과 바이트가 같다.
-    const archive = read("legacy/screens/sign-in.tsx");
-    const bodyAt = archive.indexOf("// Sign-in screen — Cosmic Pixel entry gate");
-    expect(bodyAt).toBeGreaterThan(0);
-    expect(sha256(archive.slice(bodyAt))).toBe(
-      "2cca972a8464dd1e7bca7dc6cbae00c89581786ac80e2eea87817f73a0b2e5da",
-    );
+  test("preserves the shared DDS styles", () => {
+    // 2026-10-05: 여기 있던 레거시 로그인 렌더러 digest(2cca972a…)를 걷었다. 그 보관본
+    // legacy/screens/sign-in.tsx 가 E:/Legacy/2ndB 로 나갔고(같은 바이트, MANIFEST batch
+    // qa261004-lever), 검사는 보관본을 읽지 않는다(legacy-archive-integrity.test.ts).
+    // 이제 바이트를 지키는 것은 E:/Legacy 의 sha256 기록이다.
+    // 2026-10-07 재고정(실기 DEV3-01): action · actionLabel · actionValue 에 gap · flexShrink ·
+    // minWidth 를 더하고 그 이유 주석을 붙였다(긴 언어에서 라벨이 값을 카드 밖으로 밀던 문제,
+    // __tests__/action-row-wrap.test.ts). 로그인 화면이 쓰는 auth* 스타일은 바뀌지 않았다.
+    // 이전 값 f34f82ac9976c8f69eec5827501707a912514b17ed9ff4dc180ce6511edafbbe.
     expect(sha256(read("src/screens/deepspace/dds-styles.ts"))).toBe(
-      "f34f82ac9976c8f69eec5827501707a912514b17ed9ff4dc180ce6511edafbbe",
+      "8a385a571dab87715e12f3d9abd9b8881cc933056580f5d4ef50435a75c79aca",
     );
   });
 });

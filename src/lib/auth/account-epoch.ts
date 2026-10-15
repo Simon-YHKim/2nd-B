@@ -184,6 +184,16 @@ export function isAccountTransitionPending(): boolean {
 }
 
 /**
+ * True once a DIFFERENT owner has been published and the tree retained from the
+ * previous one still awaits its fresh start (the app restart, or the navigation
+ * reset where a restart is unavailable). False during the pre-publication hold:
+ * the next owner is only observed then, not published, so nothing may act for it.
+ */
+export function isAccountNavigationResetPending(): boolean {
+  return navigationResetPending && !publicationHold;
+}
+
+/**
  * Stable primitive snapshot for useSyncExternalStore. The low bit is pending;
  * the remaining bits are the epoch, so owner changes notify React even when a
  * pending hold remains true across multiple rapid account switches.

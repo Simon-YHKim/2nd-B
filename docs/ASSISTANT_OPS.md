@@ -155,15 +155,15 @@ GPT스러운 렌더링은 금지한다. 기존 Growth/Bond/Wisdom/Narrative/Muse
 같은 세트의 6번째 코어로 보여야 한다.
 ```
 
-### 적용 방법 (코드 변경 0)
-누끼 딴 투명 PNG를 아래 파일에 **같은 이름으로 덮어쓰기**만 하면 즉시 출력:
+### 적용 방법 (코드 변경 0) · 2026-10-04 갱신
+deep-space 배포본은 routine 코어를 그리지 않는다. 덮어쓰면 바뀌는 곳은 레거시 스킨 하나뿐이다:
 
 | 파일 | 용도 |
 |---|---|
-| `assets/legacy-art/tesseract-v10/rhythm_core.png` | **프로덕션 기본**(DEFAULT_ASSET_VARIANT=v10) |
-| `public/assets/cosmic-pixel-v4-tesseract-v49/app_256/tier2_rhythm_core_v49_256.png` | v49 변형 |
-| `assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_256.png` + `_128.png` | v45 변형 |
-| `assets/legacy-art/2ndb-production-premium-v1/graph/islands/domain_routine_premium_hq.png` | 레거시 폴백 |
+| `assets/legacy-art/cosmic-pixel-v3-soulcore/final-candidate-v45/tier2_pattern_cores/rhythm_core_256.png` | `EXPO_PUBLIC_UI=legacy` 스킨의 routine 코어(`SoulcoreFinalArt` 의 `PATTERN_CORE_ART.routine`). ⚠ 2026-10-05: 레버와 함께 저장소에서 나갔다 — E:/Legacy/2ndB 의 같은 경로(MANIFEST batch qa261004-lever) |
+| ~~`assets/legacy-art/tesseract-v10/rhythm_core.png`~~ | 2026-10-04 `E:/Legacy/2ndB` 로 이동(어느 배포 화면도 그리지 않는데 번들에 실려 있었다) |
+| ~~`public/assets/cosmic-pixel-v4-tesseract-v49/...`~~ · ~~`rhythm_core_128.png`~~ | 이미 없음(#583 v49 정리) · 128 은 2026-10-04 이동 |
+| ~~`assets/legacy-art/2ndb-production-premium-v1/graph/islands/domain_routine_premium_hq.png`~~ | 2026-10-04 이동(09-05 부터 require 되지 않아 덮어써도 출력되지 않았다) |
 
 이름 변경(예: Rhythm → 다른 이름) 원하면 `VILLAGE_LABEL.rhythm`(relatedness.ts) +
 NavGraph 라벨 + ops.json hero만 수정. 색은 `VILLAGE_UI.rhythm.accent`(village-ui.ts) 1곳.

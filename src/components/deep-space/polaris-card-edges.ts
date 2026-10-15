@@ -11,3 +11,12 @@ export const PolarisCardEdgeContext = createContext<(edges: CardEdges) => void>(
 export function usePolarisCardEdgeReport(): (edges: CardEdges) => void {
   return useContext(PolarisCardEdgeContext);
 }
+
+// The other direction of the same line: the overlay owns closing, the deck draws
+// the back arrow in its head. Null means "draw no arrow": outside the overlay,
+// and inside the dashboard phone, whose shell already draws the one back.
+export const PolarisCardCloseContext = createContext<(() => void) | null>(null);
+
+export function usePolarisCardClose(): (() => void) | null {
+  return useContext(PolarisCardCloseContext);
+}

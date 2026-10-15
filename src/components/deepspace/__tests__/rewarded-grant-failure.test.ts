@@ -189,8 +189,8 @@ describe("보상형 광고 적립이 실패하면 시트가 성공처럼 닫히�
 describe("대화 화면이 적립 실패를 분류해서 시트에 돌려준다", () => {
   const handlers = () => findRewardedSheetHandlers("onEarned");
 
-  async function earn(options: { throws?: unknown; index: number; ssv?: boolean }): Promise<{ outcome: unknown; refreshes: number; warnings: string[]; grants: number }> {
-    const state = { refreshes: 0, warnings: [] as string[], grants: 0 };
+  async function earn(options: { throws?: unknown; index: number; ssv?: boolean }): Promise<{ outcome: unknown; refreshes: number; warnings: string[]; grants: number; cues: string[]; limitRefused: boolean[] }> {
+    const state = { refreshes: 0, warnings: [] as string[], grants: 0, cues: [] as string[], limitRefused: [] as boolean[] };
     class ChatRewardCapReachedError extends Error {
       readonly code = "chat_reward_cap_reached";
       constructor() { super("chat_reward_cap_reached"); this.name = "ChatRewardCapReachedError"; }
@@ -208,6 +208,10 @@ describe("대화 화면이 적립 실패를 분류해서 시트에 돌려준다"
       setChatRewardVisible: () => { throw new Error("시트를 닫는 일은 이제 시트가 한다"); },
       console: { warn: (...args: unknown[]) => state.warnings.push(args.join(" ")) },
       process: { env: { EXPO_PUBLIC_REWARD_SSV: options.ssv ? "true" : undefined } },
+      // 보상 소리(Q-261006-13): 어느 소리를 요청했는지만 센다.
+      requestGlobalCue: (id: string) => { state.cues.push(id); },
+      // 한도로 막힌 뒤의 요금제 보기(Q-261014-24)는 적립되면 풀린다.
+      setLimitRefused: (value: boolean) => { state.limitRefused.push(value); },
     };
     const handler = run<(credits: number) => Promise<unknown>>(
       `const onEarned = ${handlers()[options.index]};\nreturn onEarned;`,
@@ -216,21 +220,31 @@ describe("대화 화면이 적립 실패를 분류해서 시트에 돌려준다"
     return { outcome: await handler(2), ...state };
   }
 
-  test("두 셸(deep-space·legacy) 모두 같은 핸들러 모양을 쓴다", () => {
-    expect(handlers()).toHaveLength(2);
+  // 2026-10-05: 셸이 둘(deep-space · legacy)이던 때는 핸들러도 둘이었다. legacy 셸이
+  // 롤백 레버와 함께 빠져(Simon 결정 Q-261004-11 C) 대화 화면의 핸들러는 하나다.
+  test("대화 화면의 보상 핸들러는 하나다", () => {
+    expect(handlers()).toHaveLength(1);
   });
 
-  for (const index of [0, 1]) {
+  for (const index of [0]) {
     test(`핸들러 ${index}: 적립되면 결과를 보고하지 않고 사용량만 다시 읽는다`, async () => {
       const state = await earn({ index });
       expect(state.grants).toBe(1);
       expect(state.refreshes).toBe(1);
       expect(state.outcome === undefined || state.outcome === "granted").toBe(true);
+      // 앱이 직접 적립에 성공했으니 동전 소리를 한 번 낸다.
+      expect(state.cues).toEqual(["rewardCredited"]);
+      // 한도로 막힌 표시도 풀린다: 오늘 보낼 수 있는 횟수가 늘었다.
+      expect(state.limitRefused).toEqual([false]);
     });
 
     test(`핸들러 ${index}: SSV 정상 경로는 실패가 아니라 processing 으로 돌려준다`, async () => {
       const state = await earn({ index, ssv: true });
       expect(state.outcome).toBe("processing");
+      // 서버가 나중에 적립하는 SSV 경로는 앱이 적립을 확인할 수 없어 무음이다.
+      expect(state.cues).toEqual([]);
+      // 서버가 나중에 적립하므로 아직 풀지 않는다.
+      expect(state.limitRefused).toEqual([]);
       expect(state.grants).toBe(1);
       expect(state.refreshes).toBe(1);
     });

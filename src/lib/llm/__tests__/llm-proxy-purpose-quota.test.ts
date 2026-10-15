@@ -50,23 +50,17 @@ function transpileContract<T>(startMarker: string, endMarker: string): T {
   return exported as T;
 }
 
+// 19 = the 16 PromptPurpose members plus the proxy-only labels embed_index,
+// safety_classify and voice_transcribe. 29 until S0.5 (2026-10-07) removed the
+// ten seats in REMOVED_SEATS.
 const expectedPurposes = [
   "advisor",
   "audit_qa",
-  "axis_estimate",
-  "capture_classify",
   "capture_ocr",
-  "capture_voice",
   "clipper_classify",
   "clipper_template_propose",
-  "cluster_infer",
-  "crosscheck_challenge",
-  "crosscheck_defend",
-  "digest_weekly",
   "embed_index",
   "gap_synthesize",
-  "imagine",
-  "import_ingest",
   "interview_probe",
   "northstar_propose",
   "ops_daily_brief",
@@ -78,37 +72,65 @@ const expectedPurposes = [
   "secondb_chat",
   "self_model_propose",
   "source_ingest",
-  "ttfv_first_insight",
   "voice_transcribe",
+];
+
+// S0.5 removed these from the policy and every proxy. They are no longer
+// labels at all, so every vendor must refuse them.
+const REMOVED_SEATS = [
+  "axis_estimate",
+  "capture_classify",
+  "capture_voice",
+  "cluster_infer",
+  "crosscheck_challenge",
+  "crosscheck_defend",
+  "digest_weekly",
+  "imagine",
+  "import_ingest",
+  "ttfv_first_insight",
 ];
 
 const expectedSeats: Record<Vendor, string[]> = {
   gemini: [
-    "advisor", "audit_qa", "axis_estimate", "capture_classify", "capture_ocr",
-    "clipper_classify", "clipper_template_propose", "cluster_infer", "digest_weekly",
-    "embed_index", "gap_synthesize", "imagine", "import_ingest", "interview_probe",
-    "northstar_propose", "ops_daily_brief", "ops_recommend", "persona_narrative",
-    "persona_synthesis", "reasoning_connect", "safety_classify", "secondb_chat",
-    "self_model_propose", "source_ingest", "ttfv_first_insight", "voice_transcribe",
+    "advisor", "audit_qa", "capture_ocr", "clipper_classify", "clipper_template_propose",
+    "embed_index", "gap_synthesize", "interview_probe", "northstar_propose",
+    "ops_daily_brief", "ops_recommend", "persona_narrative", "persona_synthesis",
+    "reasoning_connect", "safety_classify", "secondb_chat", "self_model_propose",
+    "source_ingest", "voice_transcribe",
   ],
   openai: [
-    "advisor", "audit_qa", "axis_estimate", "capture_classify", "capture_ocr",
-    "clipper_classify", "clipper_template_propose", "cluster_infer", "crosscheck_challenge",
-    "digest_weekly", "embed_index", "gap_synthesize", "imagine", "import_ingest",
-    "interview_probe", "northstar_propose", "ops_daily_brief", "ops_recommend",
-    "persona_narrative", "persona_synthesis", "reasoning_connect", "safety_classify",
-    "secondb_chat", "self_model_propose", "source_ingest", "ttfv_first_insight",
-    "voice_transcribe",
+    "advisor", "audit_qa", "capture_ocr", "clipper_classify", "clipper_template_propose",
+    "embed_index", "gap_synthesize", "interview_probe", "northstar_propose",
+    "ops_daily_brief", "ops_recommend", "persona_narrative", "persona_synthesis",
+    "reasoning_connect", "safety_classify", "secondb_chat", "self_model_propose",
+    "source_ingest", "voice_transcribe",
   ],
   claude: [
-    "axis_estimate", "crosscheck_defend", "digest_weekly", "persona_narrative",
-    "persona_synthesis",
+    "persona_narrative", "persona_synthesis",
   ],
   xai: [
-    "advisor", "axis_estimate", "cluster_infer", "digest_weekly", "gap_synthesize",
-    "northstar_propose", "ops_daily_brief", "ops_recommend", "persona_narrative",
-    "persona_synthesis", "secondb_chat", "self_model_propose", "ttfv_first_insight",
+    "advisor", "gap_synthesize", "northstar_propose", "ops_daily_brief", "ops_recommend",
+    "persona_narrative", "persona_synthesis", "secondb_chat", "self_model_propose",
   ],
+};
+
+// 0185 is deliberately NOT narrowed in S0.5: a wider SQL allowlist cannot
+// spend anything, because every proxy refuses the label before it reaches the
+// quota RPC. These are exactly the seats 0185 still admits that the policy no
+// longer does - the list S1's quota-function replacement migration narrows.
+// Pinned both ways: a removed seat revived in the policy shrinks the gap and
+// fails, and a new 0185 seat the policy lacks widens it and fails.
+const NARROW_IN_S1: Record<Vendor, string[]> = {
+  gemini: [
+    "axis_estimate", "capture_classify", "cluster_infer", "digest_weekly", "imagine",
+    "import_ingest", "ttfv_first_insight",
+  ],
+  openai: [
+    "axis_estimate", "capture_classify", "cluster_infer", "crosscheck_challenge",
+    "digest_weekly", "imagine", "import_ingest", "ttfv_first_insight",
+  ],
+  claude: ["axis_estimate", "crosscheck_defend", "digest_weekly"],
+  xai: ["axis_estimate", "cluster_infer", "digest_weekly", "ttfv_first_insight"],
 };
 
 function parseQuotaRpcSignature(): string {
@@ -117,6 +139,15 @@ function parseQuotaRpcSignature(): string {
   );
   if (!match) throw new Error("purpose quota RPC signature not found");
   return match[1].replace(/\s+/g, " ").trim();
+}
+
+// The table CHECK on llm_proxy_purpose_daily.purpose, as the ALTER re-adds it.
+function parseQuotaCheckPurposes(): string[] {
+  const match = quotaMigrationSource.match(
+    /ADD CONSTRAINT llm_proxy_purpose_daily_purpose_check CHECK \(\s*purpose IN \(([\s\S]*?)\)\s*\)/,
+  );
+  if (!match) throw new Error("purpose quota CHECK not found");
+  return [...match[1].matchAll(/'([^']+)'/g)].map((seat) => seat[1]).sort();
 }
 
 function parseQuotaSeats(provider: Vendor): string[] {
@@ -137,9 +168,9 @@ describe("authoritative LLM purpose/provider seating", () => {
     "// --- crisis gate",
   );
 
-  test("keeps exactly the 29 server-known purposes", () => {
+  test("keeps exactly the 19 server-known purposes", () => {
     expect(Object.keys(api.LLM_PURPOSE_POLICY).sort()).toEqual(expectedPurposes);
-    expect(new Set(Object.keys(api.LLM_PURPOSE_POLICY))).toHaveProperty("size", 29);
+    expect(new Set(Object.keys(api.LLM_PURPOSE_POLICY))).toHaveProperty("size", 19);
   });
 
   test.each(Object.entries(expectedSeats) as [Vendor, string[]][])(
@@ -157,11 +188,16 @@ describe("authoritative LLM purpose/provider seating", () => {
     },
   );
 
-  test("rejects unknown labels and keeps capture_voice deliberately unseated", () => {
+  test("rejects unknown labels, including the ten S0.5 seats", () => {
+    // capture_voice used to be a known-but-unseated routing alias here; S0.5
+    // removed it from the table along with the other nine.
     for (const vendor of Object.keys(expectedSeats) as Vendor[]) {
-      expect(api.resolveLlmPurposePolicy("capture_voice", vendor)).toBeNull();
       expect(api.resolveLlmPurposePolicy("unknown_purpose", vendor)).toBeNull();
+      for (const removed of REMOVED_SEATS) {
+        expect(api.resolveLlmPurposePolicy(removed, vendor)).toBeNull();
+      }
     }
+    for (const removed of REMOVED_SEATS) expect(api.LLM_PURPOSE_POLICY).not.toHaveProperty(removed);
     expect(api.resolveLlmPurposePolicy(null, "gemini")).toBeNull();
   });
 });
@@ -172,13 +208,30 @@ describe("shared per-purpose paid-egress quota client", () => {
     "// --- misc",
   );
 
-  test("matches the landed three-argument SQL ABI and every provider seat", () => {
+  test("matches the landed three-argument SQL ABI and admits every provider seat", () => {
     expect(parseQuotaRpcSignature()).toBe(
       "p_user_id uuid, p_provider text, p_purpose text",
     );
     for (const [provider, seats] of Object.entries(expectedSeats) as [Vendor, string[]][]) {
-      expect(parseQuotaSeats(provider)).toEqual([...seats].sort());
+      const sqlSeats = parseQuotaSeats(provider);
+      // policy is a subset of 0185: a seated route is never refused by the RPC
+      expect(seats.filter((seat) => !sqlSeats.includes(seat))).toEqual([]);
+      // and the surplus is exactly the pinned S1 narrowing list
+      expect(sqlSeats.filter((seat) => !seats.includes(seat))).toEqual([...NARROW_IN_S1[provider]].sort());
     }
+  });
+
+  test("0185 still admits the S0.5 seats, and nothing else beyond the policy", () => {
+    // Every surplus seat is one S0.5 removed, never a label the policy has
+    // never heard of.
+    const surplus = new Set(Object.values(NARROW_IN_S1).flat());
+    for (const seat of surplus) expect(REMOVED_SEATS).toContain(seat);
+    // capture_voice was never seated in 0185 (it was a routing alias), so it is
+    // the one removed label the provider blocks do not carry.
+    expect([...surplus].sort()).toEqual(REMOVED_SEATS.filter((seat) => seat !== "capture_voice"));
+    // The table CHECK is the old 29-label vocabulary: the 19 live labels plus
+    // all ten removed ones. S1 narrows it with the quota function.
+    expect(parseQuotaCheckPurposes()).toEqual([...expectedPurposes, ...REMOVED_SEATS].sort());
   });
 
   test("sends the verified user, provider, and purpose for every seated route", async () => {

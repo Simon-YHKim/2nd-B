@@ -1,18 +1,20 @@
+import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 밝기 변화 (rev2 P3c): the 8-week brightness timeline + honesty meter.
 // ONE message: how the sky changed. The heatmap IS the explanation — 북극성 row
 // on top (tier-1 dominant), the observed stars under it, one cell per week.
 // Honesty meter says what the light is made of: observations and citations,
 // never confidence (별빛 != 확신).
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, ProgressLinear } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppRouter } from "@/lib/nav/phone-embed";
 import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { isSevenTierKey, resolveStarName } from "@/lib/persona/star-name";
@@ -27,6 +29,8 @@ import { tierShiftNudge, detectTierShift } from "@/lib/persona/tier-history";
 const CELL_OPACITY: Record<number, number> = { 1: 0.16, 2: 0.32, 3: 0.5, 4: 0.72, 5: 1 };
 
 export default function BrightnessTimelineScreen() {
+  // Phone-aware: inside the dashboard phone, back and links stay in the phone.
+  const router = useAppRouter();
   const { t, i18n } = useTranslation("brightness");
   const { t: tHome } = useTranslation("home");
   // 이름은 홈 별자리와 **같은 키**에서 온다. 화면마다 다른 이름을 배우면
@@ -56,9 +60,14 @@ export default function BrightnessTimelineScreen() {
     () => (observations ? buildBrightnessTimeline(observations, new Date()) : null),
     [observations],
   );
+  // `t` is in the deps so a switch between two non-Korean languages (es -> pt,
+  // same `locale`) repaints the nudge in the new language.
   const nudge = useMemo(
-    () => (observations ? tierShiftNudge(detectTierShift(observations), locale, starName) : null),
-    [observations, locale],
+    () =>
+      observations
+        ? tierShiftNudge(detectTierShift(observations), locale, starName, (key, vars) => t(key, vars))
+        : null,
+    [observations, locale, t],
   );
 
   // rev2 TITLES verbatim: 밝기 변화 (the windowed top app bar carries it).
@@ -105,7 +114,7 @@ export default function BrightnessTimelineScreen() {
             {/* Heatmap: 북극성 row (violet, tier-1) then observed stars (cyan). */}
             <MdCard variant="outlined" style={styles.cardPad}>
               <View style={styles.gridRow}>
-                <Text variant="caption" color="textMuted" style={styles.rowLabel} numberOfLines={1}>
+                <Text variant="caption" color="textMuted" style={styles.rowLabel} numberOfLines={2}>
                   {t("polaris")}
                 </Text>
                 {timeline.polaris.map((v, i) => (
@@ -123,7 +132,7 @@ export default function BrightnessTimelineScreen() {
               </View>
               {timeline.stars.map((star) => (
                 <View key={star.starId} style={styles.gridRow}>
-                  <Text variant="caption" color="textMuted" style={styles.rowLabel} numberOfLines={1}>
+                  <Text variant="caption" color="textMuted" style={styles.rowLabel} numberOfLines={2}>
                     {starName(star.starId, locale)}
                   </Text>
                   {star.levels.map((level, i) => (
@@ -199,16 +208,23 @@ export default function BrightnessTimelineScreen() {
   );
 }
 
+// One width for the label column and for the axis inset under it (R2B-05).
+// Labels wrap to two lines instead of clipping: the 2026-10-05 web measure
+// clipped 3 labels in pt, 2 in es, 1 in id and 2 in en (e.g. "Dos 30 em
+// diante", "Thirties and after").
+const ROW_LABEL_WIDTH = 92;
+const GRID_GAP = 3;
+
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
   cardPad: { padding: spacing.md, gap: spacing.sm },
-  gridRow: { flexDirection: "row", alignItems: "center", gap: 3, marginBottom: 3 },
-  rowLabel: { width: 92 },
+  gridRow: { flexDirection: "row", alignItems: "center", gap: GRID_GAP, marginBottom: GRID_GAP },
+  rowLabel: { width: ROW_LABEL_WIDTH },
   cell: { flex: 1, height: 18, borderRadius: m3.shape.none },
   cellPolaris: { height: 22, borderRadius: m3.shape.none },
   cellEmpty: { borderWidth: 1, borderColor: withAlpha(deepSpace.accentDim, 0.18), backgroundColor: "transparent" },
-  axisRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4, paddingLeft: 74 + 3 },
+  axisRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4, paddingLeft: ROW_LABEL_WIDTH + GRID_GAP },
   honestyLine: { marginBottom: 4 },
   honestyCaption: { marginTop: 4 },
 });

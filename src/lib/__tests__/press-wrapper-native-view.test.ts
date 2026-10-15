@@ -214,16 +214,19 @@ function pressNames(fn: Fn, inherited: ReadonlySet<string>): Set<string> {
   return names;
 }
 
-/** 이 파일에서 react-native 의 View 를 가리키는 지역 이름(별칭 포함). */
+/** Native View and its phone adapter both forward collapsable and styles to the same host. */
 function reactNativeViews(sf: ts.SourceFile): Set<string> {
   const out = new Set<string>();
   for (const statement of sf.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
-    if (statement.moduleSpecifier.text !== "react-native" || statement.importClause?.isTypeOnly) continue;
+    if (statement.importClause?.isTypeOnly) continue;
+    const exportedView = statement.moduleSpecifier.text === "react-native" ? "View"
+      : statement.moduleSpecifier.text === "@/components/phone/PhoneUIKit" ? "PhoneView" : undefined;
+    if (!exportedView) continue;
     const bindings = statement.importClause?.namedBindings;
     if (!bindings || !ts.isNamedImports(bindings)) continue;
     for (const element of bindings.elements) {
-      if (!element.isTypeOnly && nameText(element.propertyName ?? element.name) === "View") {
+      if (!element.isTypeOnly && nameText(element.propertyName ?? element.name) === exportedView) {
         out.add(element.name.text);
       }
     }
@@ -351,6 +354,14 @@ const styles = StyleSheet.create({ rest: {}, sunk: { transform: [{ translateY: 2
 
   it("고치기 전 PixelPressable 은 빨강이다", () => {
     expect(summary(BEFORE)).toEqual([{ owner: "PixelPressable", reads: ["style"], collapsableFalse: false }]);
+  });
+
+  it("the phone adapter must not hide an unsafe native wrapper from this guard", () => {
+    const adapted = BEFORE.replace('import { Pressable, StyleSheet, View } from "react-native";',
+      'import { Pressable, StyleSheet } from "react-native";\nimport { PhoneView as View } from "@/components/phone/PhoneUIKit";');
+    expect(summary(adapted)).toEqual([{ owner: "PixelPressable", reads: ["style"], collapsableFalse: false }]);
+    expect(summary(adapted.replace("<View style=", "<View collapsable={false} style=")))
+      .toEqual([{ owner: "PixelPressable", reads: ["style"], collapsableFalse: true }]);
   });
 
   it("collapsable 은 값이 리터럴 false 인 JSX 속성일 때만 통과한다", () => {

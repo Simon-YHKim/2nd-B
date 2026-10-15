@@ -171,7 +171,7 @@ describe("PIXEL-CLAY museum renderer wiring", () => {
 
   test("keeps 44dp actions, compact reflow, and explicit accessibility state", () => {
     expect(styles).toContain("minHeight: m3.minTouch");
-    expect(screen).toContain("windowWidth < 360");
+    expect(screen).toContain("(phone?.width ?? windowWidth) < 360");
     expect(styles).toContain('factSurfaceCompact: { flexBasis: "100%" }');
     expect(screen).toContain(
       "accessibilityState={{ selected: active, expanded: active }}",

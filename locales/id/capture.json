@@ -1,4 +1,7 @@
 {
+  "textFormat": {
+    "general": "Umum"
+  },
   "submit": "Simpan catatan",
   "submitting": "Menyimpan...",
   "submitHints": {
@@ -51,7 +54,7 @@
   "modes": {
     "journal": {
       "label": "Jurnal",
-      "help": "Tulis tentang harimu dan simpan ke catatan. Kamu juga bisa meminta tanggapan SecondB."
+      "help": "Tulis tentang harimu dan simpan ke catatan. Kamu juga bisa meminta tanggapan HustleK."
     },
     "memo": {
       "label": "Catatan",
@@ -86,11 +89,8 @@
     "personal": "Tersimpan sebagai format pribadimu.",
     "shared": "Format baru tersimpan dan dibagikan ke formatmu."
   },
-  "firstRun": {
-    "hint": "Mulai dengan satu kalimat. Kamu bisa membacanya lagi di Catatan."
-  },
   "saved": {
-    "title": "Lumen menyimpan catatan baru",
+    "title": "Catatan tersimpan",
     "ocrTitle": "Catatan foto kamu tersimpan",
     "ocrBody": "Kini menjadi catatan pribadimu.",
     "seeArea": "Lihat di {{area}}",
@@ -101,10 +101,10 @@
     "seeRecordsHint": "Membuka catatanmu agar kamu bisa menemukan entri ini lagi.",
     "captureMore": "Simpan bahan lain",
     "recordsOwnership": "Satu kalimat cukup untuk hari ini. Entri ini ada di Catatan, jadi kamu bisa membacanya lagi dan memasukkannya ke ekspor nanti.",
-    "recordsAiOptIn": "SecondB hanya menanggapi entri ini jika kamu menyalakan opsi tersebut.",
+    "recordsAiOptIn": "HustleK hanya menanggapi entri ini jika kamu menyalakan opsi tersebut.",
     "storagePending": "Teks tersimpan, tetapi salinan file cadangan belum terunggah.",
     "advisor": {
-      "heading": "Catatan SecondB",
+      "heading": "Catatan HustleK",
       "sources": "Sumber",
       "whyThis": "Mengapa ini",
       "evidenceFallback": "Sumber tercantum tanpa catatan singkat."
@@ -117,7 +117,7 @@
     "saveShare": "Simpan dan bagikan",
     "dismissLabel": "Abaikan format yang disarankan",
     "notNow": "Nanti saja",
-    "prompt": "Tidak ada format tersimpan yang cocok. Mau SecondB menyarankan satu?",
+    "prompt": "Tidak ada format tersimpan yang cocok. Mau HustleK menyarankan satu?",
     "drafting": "Menyarankan...",
     "action": "Sarankan format"
   },
@@ -153,10 +153,10 @@
       "placeholder": "Kesimpulan: pelajaran hari ini"
     },
     "advisor": {
-      "label": "Tanya SecondB soal entri ini",
-      "helper": "Nonaktif secara default. Nyalakan jika kamu ingin tanggapan SecondB.",
-      "lockedLabel": "Tanya SecondB soal entri ini (Brain)",
-      "lockedHelper": "Refleksi atas entri terbuka dengan paket Brain. Ketuk untuk lihat paket.",
+      "label": "Tanya HustleK soal entri ini",
+      "helper": "Nonaktif secara default. Nyalakan jika kamu ingin tanggapan HustleK.",
+      "lockedLabel": "Tanya HustleK soal entri ini (Bintang Utara)",
+      "lockedHelper": "Refleksi atas entri terbuka dengan paket Bintang Utara. Ketuk untuk lihat paket.",
       "lockedHint": "Membuka layar paket."
     }
   },
@@ -168,6 +168,11 @@
     "pasteOffer": "Tempel yang kamu salin",
     "pasteOfferHint": "Mengisi kotak dengan konten terakhir yang kamu salin. Dibaca hanya saat kamu mengetuk.",
     "pasteOfferEmpty": "Tidak ada yang bisa ditempel."
+  },
+  "sharedOverDraft": {
+    "title": "Ada teks yang belum disimpan di sini.",
+    "append": "Tambahkan di bawahnya",
+    "replace": "Hapus dan mulai baru"
   },
   "inputs": {
     "extractedLabel": "Teks dari gambar atau file (bisa diedit)",
@@ -207,7 +212,7 @@
   "tags": {
     "title": "Tagar",
     "removeLabel": "Hapus tagar {{tag}}",
-    "emptyHelper": "Biarkan kosong dan SecondB akan menandainya saat disimpan, atau tambah sendiri dengan +.",
+    "emptyHelper": "Biarkan kosong dan HustleK akan menandainya saat disimpan, atau tambah sendiri dengan +.",
     "removeHelper": "Ketuk tagar untuk menghapus.",
     "addLabel": "Tambah tagar",
     "placeholder": "tagar"
@@ -303,8 +308,7 @@
   },
   "recent": {
     "title": "Catatan terbaru",
-    "openHint": "Membuka entri ini secara lengkap.",
-    "empty": "Belum ada catatan tersimpan."
+    "openHint": "Membuka entri ini secara lengkap."
   },
   "fourw": {
     "fields": {
@@ -324,30 +328,16 @@
     "note": "Kolom yang terisi disimpan sebagai satu catatan dengan tagar #fourw."
   },
   "callReflection": {
-    "title": "Rekaman panggilan",
     "blockedTitle": "Belum tersedia",
     "blockedBody": "Aturan perekaman panggilan berbeda di tiap wilayah, jadi fitur ini untuk saat ini hanya tersedia bagi pengguna dewasa di Korea.",
     "goBack": "Kembali",
-    "webUnreliable": "Perekaman kurang stabil di web; silakan gunakan aplikasi.",
-    "micPermission": "Perlu izin mikrofon.",
-    "startFailed": "Tidak bisa memulai perekaman.",
-    "noRecording": "Rekaman tidak ditemukan.",
-    "nothingToTranscribe": "Tidak ada yang bisa ditranskripsikan.",
-    "transcribeFailed": "Transkripsi gagal.",
     "recordTopic": "Refleksi panggilan",
-    "transcribing": "Mentranskripsikan panggilan",
     "transcribed": "Selesai ditranskripsikan",
     "transcriptLabel": "Transkrip",
     "discard": "Buang",
     "approve": "Setujui dan simpan",
-    "recordingDesc": "Sedang merekam. Otomatis ditranskripsikan saat kamu berhenti.",
-    "idleDesc": "Transkripsikan panggilanmu sendiri agar SecondB bisa menautkannya ke bintang yang tepat. Audio asli tidak pernah disimpan.",
     "howBadge": "Cara",
-    "howText": "Nyalakan mode speaker lalu mulai merekam; kedua suara akan tertangkap mikrofon.",
     "fairBadge": "Etika",
-    "stopAnalyse": "Berhenti dan analisis",
-    "cancelNoSave": "Batal · jangan simpan",
-    "startRecording": "Mulai merekam",
     "maybeLater": "Nanti saja"
   },
   "captureTab": "Klip",
@@ -355,15 +345,17 @@
   "importTab": "Impor",
   "inboxTab": "Kotak masuk",
   "manualTab": "Panduan penggunaan",
-  "jot": {
-    "title": "Tulis satu baris",
-    "deviceNote": "Catatan ini tersimpan di perangkat ini. Buat akun untuk menyimpannya ke PolaScope.",
-    "placeholder": "Satu baris yang ada di pikiranmu",
-    "inputA11y": "Kolom tulisan",
-    "save": "Simpan",
-    "saving": "Menyimpan…",
-    "nearFull": "Ruang sementara di perangkat ini hampir penuh. Buat akun untuk memindahkannya dengan aman.",
-    "savedOnDevice": "Tersimpan di perangkat ini ({{n}})",
-    "createAccount": "Buat akun"
+  "shareRefused": {
+    "body": "Konten yang Anda bagikan tidak ditambahkan. Masuk dulu, lalu bagikan lagi."
+  },
+  "sharedMedia": {
+    "photoReady": "Foto dibagikan ke PolaScope.",
+    "photoReplace": "Ganti foto dan teks dengan foto yang dibagikan",
+    "discard": "Buang file yang dibagikan",
+    "audioSend": "Transkripsikan audio yang dibagikan",
+    "multiple": "Bagikan satu file setiap kali.",
+    "unreadable": "File yang dibagikan tidak dapat dibuka. Bagikan lagi dari aplikasi asal.",
+    "unavailable": "File yang dibagikan tidak lagi tersedia. Bagikan lagi dari aplikasi asal.",
+    "audioName": "Audio yang dibagikan"
   }
 }

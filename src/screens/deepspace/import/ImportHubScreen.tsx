@@ -1,3 +1,5 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 // Personal data import hub (Claude Design import-hub.dc.html). Extends the
 // /import pipeline (captureFromMarkdown): sensitivity-tiered hub → consent sheet
 // (A file / B connector, with the mandatory 무엇을/어디에/이 기기에서만 blocks)
@@ -9,12 +11,13 @@
 // applied automatically.
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
-import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
-import { router } from "expo-router";
+import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
+import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
 import { deepSpace, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -26,6 +29,8 @@ import { MetaChip, OpsState, OpsStatusChip, ProgressBar, type OpsChipTone } from
 import { enqueueAutoReasoningSource } from "@/app/reasoning";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { reactExpression } from "@/lib/companion/expression";
+import { RECORD_SAVE_CUE } from "@/lib/audio/app-cues";
+import { useUiSound } from "@/lib/audio/use-ui-sound";
 import { useProgression } from "@/lib/progression/useProgression";
 import { upsertKakaoRelationPeople } from "@/lib/relation/import-signals";
 import { recordImportConsent } from "@/lib/supabase/consent";
@@ -34,7 +39,7 @@ import { deleteSourcesByIds, findSurvivingSourceIds } from "@/lib/records/delete
 import { captureEvent, proposalDecided } from "@/lib/analytics";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
 import { fileImportSupported, pickTextFile } from "@/lib/import/file-read";
-import { buildProposals, proposalsToMarkdown, type ImportOutcome, type ImportProposal } from "@/lib/import/proposals";
+import { buildProposals, proposalsToMarkdown, type ImportOutcome } from "@/lib/import/proposals";
 import { ratifyLedgerEntries, type LedgerRatifyResult } from "@/lib/import/ledger-ratify";
 import {
   addImportHistory,
@@ -59,34 +64,31 @@ const impAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.
 type Tier = "critical" | "sensitive" | "normal";
 type Mode = "file" | "connector";
 
+// The tile copy (name · sub line · "what" block) lives in import:hub.sources.<key>.*
+// in all five locales (Q-261005-01 = A, QA 261006 tr3). It used to be nameKo/nameEn ·
+// subKo/subEn · whatKo/whatEn here, so es/pt/id painted the English pair.
 interface ImportSource {
   key: string;
   badge: string;
-  nameKo: string;
-  nameEn: string;
-  subKo: string;
-  subEn: string;
   tier: Tier;
   mode: Mode;
   minorLocked: boolean;
   kind: ImportKind;
-  whatKo: string;
-  whatEn: string;
   /** Set on the Google OAuth connectors; picks the scope + fetch path. */
   googleKind?: "calendar" | "tasks";
 }
 
 const SOURCES: ImportSource[] = [
-  { key: "kakao", badge: "KA", nameKo: "카카오톡 대화", nameEn: "KakaoTalk", subKo: "통신 · 파일 내보내기", subEn: "Comms · file export", tier: "critical", mode: "file", minorLocked: true, kind: "kakao", whatKo: "약속 언급 횟수와 관계 빈도만 뽑아요. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan mention counts and relationship frequency. We don't store message text." },
-  { key: "takeout", badge: "LO", nameKo: "구글 타임라인", nameEn: "Google Timeline", subKo: "위치 · Takeout 파일", subEn: "Location · Takeout file", tier: "critical", mode: "file", minorLocked: true, kind: "takeout-location", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
-  { key: "sms", badge: "SM", nameKo: "문자(SMS)", nameEn: "SMS", subKo: "통신 · 백업 파일", subEn: "Comms · backup file", tier: "critical", mode: "file", minorLocked: true, kind: "sms", whatKo: "약속 언급 횟수만 뽑아요. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan mention counts. We don't store message text." },
-  { key: "live-location", badge: "LV", nameKo: "실시간 위치", nameEn: "Live location", subKo: "위치 · 기기 권한", subEn: "Location · device permission", tier: "critical", mode: "connector", minorLocked: true, kind: "unknown", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
-  { key: "health", badge: "HE", nameKo: "건강", nameEn: "Health", subKo: "건강 · export 파일", subEn: "Health · export file", tier: "sensitive", mode: "file", minorLocked: false, kind: "apple-health", whatKo: "걸음·운동 등 합계만. 상세 기록 원문은 저장 안 함.", whatEn: "Only totals (steps, etc). Detailed records aren't stored." },
-  { key: "email", badge: "EM", nameKo: "이메일", nameEn: "Email", subKo: "이메일 · .eml 파일", subEn: "Email · .eml file", tier: "sensitive", mode: "file", minorLocked: false, kind: "email", whatKo: "약속·일정 신호만. 본문 전체는 저장 안 함.", whatEn: "Only plan/schedule signals, not the full body." },
-  { key: "notion", badge: "NO", nameKo: "Notion · Obsidian", nameEn: "Notion · Obsidian", subKo: "노트 · export 파일", subEn: "Notes · export file", tier: "normal", mode: "file", minorLocked: false, kind: "markdown", whatKo: "노트를 기록으로 들여와요.", whatEn: "Brings your notes in as records." },
-  { key: "google", badge: "GC", nameKo: "구글 캘린더", nameEn: "Google Calendar", subKo: "일정 · 계정 연결", subEn: "Schedule · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "ics", googleKind: "calendar", whatKo: "다가오는 일정의 제목·시간만 가져와요. 본문·참석자는 저장 안 해요.", whatEn: "Brings only upcoming event titles + times. No body/attendees." },
-  { key: "google-tasks", badge: "GT", nameKo: "구글 할 일", nameEn: "Google Tasks", subKo: "할 일 · 계정 연결", subEn: "To-dos · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "markdown", googleKind: "tasks", whatKo: "할 일 목록의 제목만 기록으로 가져와요.", whatEn: "Brings your to-do titles in as records." },
-  { key: "calendar", badge: "IC", nameKo: "캘린더(.ics)", nameEn: "Calendar (.ics)", subKo: "일정 · 파일", subEn: "Schedule · file", tier: "normal", mode: "file", minorLocked: false, kind: "ics", whatKo: "일정 이벤트를 들여와요.", whatEn: "Brings your calendar events in." },
+  { key: "kakao", badge: "KA", tier: "critical", mode: "file", minorLocked: true, kind: "kakao" },
+  { key: "takeout", badge: "LO", tier: "critical", mode: "file", minorLocked: true, kind: "takeout-location" },
+  { key: "sms", badge: "SM", tier: "critical", mode: "file", minorLocked: true, kind: "sms" },
+  { key: "live-location", badge: "LV", tier: "critical", mode: "connector", minorLocked: true, kind: "unknown" },
+  { key: "health", badge: "HE", tier: "sensitive", mode: "file", minorLocked: false, kind: "apple-health" },
+  { key: "email", badge: "EM", tier: "sensitive", mode: "file", minorLocked: false, kind: "email" },
+  { key: "notion", badge: "NO", tier: "normal", mode: "file", minorLocked: false, kind: "markdown" },
+  { key: "google", badge: "GC", tier: "normal", mode: "connector", minorLocked: false, kind: "ics", googleKind: "calendar" },
+  { key: "google-tasks", badge: "GT", tier: "normal", mode: "connector", minorLocked: false, kind: "markdown", googleKind: "tasks" },
+  { key: "calendar", badge: "IC", tier: "normal", mode: "file", minorLocked: false, kind: "ics" },
 ];
 
 // F7 (C10): the parser kinds behind the minor-locked comms/location tiles. Derived
@@ -107,22 +109,42 @@ const TIER_COLOR: Record<Tier, string> = {
 type Step = "hub" | "consent" | "input" | "review" | "history";
 
 export function ImportHubScreen() {
+  // Phone-aware: inside the dashboard phone, back from the hub step steps the
+  // phone back instead of popping the app stack.
+  const router = useAppRouter();
+  // 가져오기 완료 소리(Q-261006-11, 저장 소리 재사용). 새로 기록된 것이 있을 때만.
+  const playImportCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
+  // Inside the dashboard phone (~180px column at 320x568) the history link
+  // ran off the title row; let that row wrap there.
+  const inPhone = usePhoneEmbed() !== null;
   const { i18n, t: importT } = useTranslation("import");
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  // The language actually on screen (#2064): system locale for the consent ledger
+  // and the reasoning queue below. Copy goes through t(), which paints the same one.
+  const ko = renderedUiLanguage(i18n) === "ko";
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
 
-  const [step, setStep] = useState<Step>("hub");
+  // Z93: the "import history · withdraw" row asks for the history, so it lands on the history
+  // step, not on the list of sources to import from.
+  const landedOnHistory = useScreenParams<{ view?: string }>().view === "history";
+  const [step, setStep] = useState<Step>(landedOnHistory ? "history" : "hub");
+  const [sawHub, setSawHub] = useState(!landedOnHistory);
+  useEffect(() => {
+    if (step === "hub") setSawHub(true);
+  }, [step]);
   // A failed import used to end exactly like a successful one: back at the hub, no message,
   // nothing kept -- after the user had walked a consent flow and picked a file for it.
   const [importErr, setImportErr] = useState(false);
   // Ledger booking runs best-effort AFTER the import lands, but rows the user
   // explicitly chose must not vanish silently (logic audit P1, dbl round 3):
-  // ratifyLedgerEntries RESOLVES with {inserted, failed} counts (per-row
+  // ratifyLedgerEntries RESOLVES with {inserted, failed, skipped} counts (per-row
   // fail-soft, never rejects on row failures), so the warning derives from the
-  // resolved counts. null = no warning; inserted===0 = total failure (safe to
-  // advise re-import); inserted>0 = partial (re-import would double-book).
+  // resolved counts. null = no warning; inserted===0 = total failure; inserted>0 =
+  // partial. Since 0224 the ledger dedups a re-imported statement, so re-importing
+  // is the safe advice in both cases (rows already booked come back as skipped).
   const [ledgerWarn, setLedgerWarn] = useState<LedgerRatifyResult | null>(null);
+  // Rows the last ratify found already booked by an earlier import (0224). Not a failure.
+  const [ledgerSkipped, setLedgerSkipped] = useState(0);
   // How many chosen items the last ratify found already imported, with nothing new
   // to log (0 = it logged). Without it that ratify ended like a success that left no
   // history line behind.
@@ -144,8 +166,11 @@ export function ImportHubScreen() {
   const [histKept, setHistKept] = useState<ImportWithdrawalKept | null>(null);
   const googleClientId = getEnv().EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
-  const t = (k: string) => COPY(ko)[k] ?? k;
-  const name = (s: ImportSource) => (ko ? s.nameKo : s.nameEn);
+  // Hub copy: import:hub.* (Q-261005-01 = A). The short keys stay so the steps below
+  // read the same; es/pt/id now paint their own words instead of the English map.
+  const t = (k: string) => importT(`hub.${k}`);
+  const name = (s: ImportSource) => importT(`hub.sources.${s.key}.name`);
+  const sourceCopy = (s: ImportSource, field: "sub" | "what") => importT(`hub.sources.${s.key}.${field}`);
 
   useEffect(() => {
     setHistErr(null);
@@ -251,6 +276,7 @@ export function ImportHubScreen() {
     if (!active || !outcome || !userId || busy) return;
     const chosen = outcome.proposals.filter((p) => selected.has(p.id));
     if (chosen.length === 0) return;
+    let landedNew = false;
     // C10 at the write: re-check the lock against the tile AND the content-detected
     // kind. The age can stop being confirmed between analyze and ratify, and a
     // comms/location import must not land for an age we do not know.
@@ -260,6 +286,7 @@ export function ImportHubScreen() {
     }
     setBusy(true);
     setLedgerWarn(null);
+    setLedgerSkipped(0);
     try {
       const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
       // propose→ratify quality signal AFTER the import actually landed (a
@@ -290,14 +317,14 @@ export function ImportHubScreen() {
         bookedTxns = booked?.inserted ?? 0;
         // #1117 intent, completed for the resolve contract (dbl round 3):
         // ratifyLedgerEntries never rejects on row failures -- it resolves
-        // with {inserted, failed} -- so the warning must read those counts,
-        // not a .catch(). PARTIAL failure warns too: the user chose those
-        // rows, and it needs its OWN copy because ops_ledger has no dedup
-        // (ledger-ratify.ts documented limitation) -- advising "re-import
-        // the file" is only safe when NOTHING booked; after a partial
-        // booking it would double-book the inserted rows.
+        // with {inserted, failed, skipped} -- so the warning must read those
+        // counts, not a .catch(). PARTIAL failure warns too: the user chose
+        // those rows. Since 0224 (RD-261007-01) the ledger dedups a statement
+        // imported again, so "re-import the file" is safe after a partial
+        // booking as well - the booked rows come back as skipped, not doubled.
         const failedTxns = booked ? booked.failed : attempted;
         if (failedTxns > 0) setLedgerWarn({ inserted: bookedTxns, failed: failedTxns });
+        setLedgerSkipped(booked?.skipped ?? 0);
       }
       // An exact duplicate hands back the row an EARLIER import created and writes
       // nothing, so the entry logs only rows this import created - as the file import
@@ -307,6 +334,7 @@ export function ImportHubScreen() {
       // still get a line.
       const createdIds = createdSourceIds(result);
       const logged = createdIds.length > 0 || bookedTxns > 0;
+      landedNew = logged;
       if (logged) {
         await addImportHistory(userId, {
           id: `${Date.now()}`,
@@ -339,14 +367,17 @@ export function ImportHubScreen() {
       // toggle is off or the auto allowance is spent). A later ratify stamps
       // the domain tag that lets this import brighten its star — the only
       // honest path (propose→ratify) from imported data to the constellation.
-      enqueueAutoReasoningSource({
-        userId,
-        locale: ko ? "ko" : "en",
-        minor: isMinor === true,
-        tier: progression.tier,
-        id: result.source.id,
-        title: result.source.title,
-      });
+      // Health measurements are never sent to an AI provider (lib/wiki/ai-exclusion.ts).
+      if (!chosen.some((p) => p.aiExcluded)) {
+        enqueueAutoReasoningSource({
+          userId,
+          locale: ko ? "ko" : "en",
+          minor: isMinor === true,
+          tier: progression.tier,
+          id: result.source.id,
+          title: result.source.title,
+        });
+      }
       // P0③ (kakao only): pseudonymous per-person signals become star-alias
       // people ("새벽에 걷는 베텔게우스") in relation_people — the relation
       // star's real backing. Best-effort after the import itself landed.
@@ -365,6 +396,7 @@ export function ImportHubScreen() {
     }
     // 새 데이터가 기록에 들어왔다 — the delight beat.
     reactExpression("delight");
+    if (landedNew) playImportCue();
     setBusy(false);
     setActive(null);
     setOutcome(null);
@@ -446,7 +478,9 @@ export function ImportHubScreen() {
 
   // --- render -----------------------------------------------------------
 
-  const back = () => (step === "hub" ? router.back() : setStep("hub"));
+  // Landed straight on the history: ‹ returns to where the reader came from, not to a hub
+  // they never opened.
+  const back = () => (step === "hub" || (step === "history" && !sawHub) ? router.back() : setStep("hub"));
 
   // 하단 탭바를 공용 셸에서 받는다(2026-08-30). 이 화면은 자기 SafeAreaView 로
   // 프레임을 직접 세우느라 독이 통째로 없었다 — 레퍼런스 import-hub 프레임의
@@ -455,12 +489,16 @@ export function ImportHubScreen() {
   // ⚠ active="capture" 는 하이라이트용이고 pathname 이 /capture 가 아니라서
   // DeepSpaceScreen 의 '루트 탭 → 홈' 하드웨어 뒤로가기 특례는 걸리지 않는다.
   // 단계 안의 뒤로(‹ → back())와 하드웨어 뒤로 동선은 그대로다.
+  //
+  // ownBack: 뒤로는 본문 제목 줄의 ‹ 하나다. 대시보드 폰 안에서 셸이 두 번째 뒤로를
+  // 붙이지 않는다(뒤로는 한 곳에만 - O-7).
   return (
-    <DeepSpaceScreen active="capture" header="none">
+    <DeepSpaceScreen active="capture" header="none" ownBack>
       <View style={styles.glow} pointerEvents="none" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <SecondbStatusHeader text={t("hubBubble")} tip={t("hubTip")} />
-        <View style={styles.titleRow}>
+        {/* Z92: the bubble asks what to import. On the history that question is not this screen's. */}
+        {step === "history" ? null : <SecondbStatusHeader text={t("hubBubble")} tip={t("hubTip")} />}
+        <View style={[styles.titleRow, inPhone && styles.titleRowWrap]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("back")} onPress={back} hitSlop={10} style={styles.backBtn}>
             <RNText style={styles.backIcon}>‹</RNText>
           </Pressable>
@@ -472,11 +510,13 @@ export function ImportHubScreen() {
           ) : null}
         </View>
 
+        <SceneTransition transitionKey={step} kind={step === "hub" ? "back" : "push"} animateOnMount={false} style={{ gap: deepSpaceSpacing.md }}>
         {step === "hub" ? renderHub() : null}
         {step === "consent" && active ? renderConsent(active) : null}
         {step === "input" && active ? renderInput(active) : null}
         {step === "review" && outcome ? renderReview(outcome) : null}
         {step === "history" ? renderHistory() : null}
+        </SceneTransition>
       </ScrollView>
     </DeepSpaceScreen>
   );
@@ -497,6 +537,14 @@ export function ImportHubScreen() {
                     .replace("{inserted}", String(ledgerWarn.inserted))
             }
           />
+        ) : null}
+        {ledgerSkipped > 0 ? (
+          // 0224: a statement imported again books only what is new; say how many were already there.
+          <View style={styles.noteCard}>
+            <Text variant="body" style={styles.noteText}>
+              {t("ledgerSkippedNote").replace("{skipped}", String(ledgerSkipped))}
+            </Text>
+          </View>
         ) : null}
         {alreadyImported > 0 ? (
           // The file import's result line for the same outcome: nothing added, N
@@ -535,7 +583,7 @@ export function ImportHubScreen() {
                   <RNText style={styles.sourceIcon}>{s.badge}</RNText>
                   <View style={{ flex: 1 }}>
                     <Text variant="heading" style={styles.sourceName}>{name(s)}</Text>
-                    <Text variant="subtle" style={styles.sourceSub}>{ko ? s.subKo : s.subEn}</Text>
+                    <Text variant="subtle" style={styles.sourceSub}>{sourceCopy(s, "sub")}</Text>
                   </View>
                   <OpsStatusChip tone={tone} label={chip} />
                 </Pressable>
@@ -558,7 +606,7 @@ export function ImportHubScreen() {
 
         <View style={styles.block}>
           <Text variant="caption" pixelEn style={styles.blockLabel}>{t("what")}</Text>
-          <Text variant="body" style={styles.blockText}>{ko ? s.whatKo : s.whatEn}</Text>
+          <Text variant="body" style={styles.blockText}>{sourceCopy(s, "what")}</Text>
         </View>
         <View style={styles.block}>
           <Text variant="caption" pixelEn style={styles.blockLabel}>{t("where")}</Text>
@@ -567,7 +615,7 @@ export function ImportHubScreen() {
           </Text>
         </View>
         <View style={styles.chipRow}>
-          <MetaChip label={t("keep90")} />
+          <MetaChip label={importT("retention.chip")} />
           <MetaChip label={t("deleteAnytime")} />
           {/* Truthful STATIC fact, not a switch: buildProposals parses locally,
               so analysis really is on-device — but the old toggle here was read
@@ -759,70 +807,13 @@ function Summary({ n, label, dim }: { n: number; label: string; dim?: boolean })
   );
 }
 
-function COPY(ko: boolean): Record<string, string> {
-  return ko
-    ? {
-        back: "뒤로", import: "가져오기", imported: "가져온 데이터", hubBubble: "무엇을 들여올까요?", hubTip: "네가 승인한 것만 기록에 남아요.",
-        tier_critical: "최민감 · 명시 동의 필요", tier_sensitive: "민감", tier_normal: "보통",
-        needsConsent: "동의 필요", notLinked: "미연결", locked: "잠김", linked: "연결됨",
-        what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석해요. 검토 화면에서 고른 결과만 암호화해 보관해요.",
-        keep90: "보관 90일", deleteAnytime: "언제든 삭제", localAnalysis: "파일 분석은 이 기기에서",
-        connectorNote: "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청해요. (네이티브 빌드 필요)",
-        googleConnectorNote: "브라우저에서 구글 계정으로 안전하게 연결해요. 읽기 전용(일정 보기)이에요.",
-        googleConnect: "구글 연결", connecting: "연결 중…",
-        gErrNoEvents: "다가오는 일정이 없어요.", gErrDenied: "연결이 취소됐어요. 다시 시도해 주세요.",
-        gErrNative: "지금은 웹에서만 연결돼요. 앱(네이티브)은 추후 지원해요.", gErrGeneric: "연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
-        consentPick: "동의하고 파일 선택", orImportFile: "대신 파일로 가져오기",
-        consentFine: "수집 항목·보관 위치·기간·삭제권에 동의해요. 미성년은 통신·위치 임포트가 잠겨 있어요.",
-        chooseFile: "파일 선택", orPaste: "또는 아래에 직접 붙여넣기",
-        pasteHint: "내보낸 파일 내용을 붙여넣어 주세요.", pastePlaceholder: "여기에 붙여넣기", analyze: "분석",
-        errTitle: "파일 형식을 못 읽었어요", errBody: "내보낸 형식이 맞는지 확인해 주세요",
-        importFailed: "가져오지 못했어요. 아무것도 기록되지 않았어요. 다시 시도해 주세요.",
-        ledgerWarnTitle: "거래 반영은 실패했어요",
-        ledgerWarnBody: "가져오기는 저장됐어요. 다만 고른 거래 내역을 적지 못했어요. 같은 파일을 다시 가져오면 반영돼요.",
-        ledgerWarnPartTitle: "거래 일부를 적지 못했어요",
-        ledgerWarnPartBody: "고른 거래 중 {failed}건을 적지 못했어요. {inserted}건은 반영됐어요. 같은 파일을 다시 가져오면 이미 반영된 내역이 중복되니, 빠진 내역은 직접 추가해 주세요.",
-        done: "완료", appts: "약속", places: "장소", notes: "노트", watches: "시청", txns: "거래", raw: "원문", pickToApply: "반영할 항목 고르기",
-        sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
-        emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
-        delete: "삭제", historyFine: "삭제는 이 임포트가 만든 원본을 제거해요. 이 임포트가 만들었다고 확인되지 않은 원본은 남기고, 남긴 까닭을 알려 드려요. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있어요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
-        revokeFailed: "철회하지 못했어요. 잠시 후 다시 시도해 주세요.", revokeNeedsSignIn: "로그인 후 철회할 수 있어요. 서버에 남은 데이터까지 함께 지워야 해서요.",
-      }
-    : {
-        back: "Back", import: "Import", imported: "Imported data", hubBubble: "What should we bring in?", hubTip: "Only what you approve is kept.",
-        tier_critical: "Most sensitive · consent required", tier_sensitive: "Sensitive", tier_normal: "Normal",
-        needsConsent: "Needs consent", notLinked: "Not linked", locked: "Locked", linked: "Linked",
-        what: "WHAT", where: "WHERE", whereBody: "Analyzed on this device. Only the results you choose on the review screen are kept, encrypted.",
-        keep90: "Kept 90 days", deleteAnytime: "Delete anytime", localAnalysis: "File analyzed on device",
-        connectorNote: "The next screen requests location \"while using\" only. (needs the native build)",
-        googleConnectorNote: "Securely link your Google account in the browser. Read-only (view events).",
-        googleConnect: "Connect Google", connecting: "Connecting…",
-        gErrNoEvents: "No upcoming events.", gErrDenied: "Connection cancelled. Try again.",
-        gErrNative: "Connect on web for now. App (native) support comes later.", gErrGeneric: "Couldn't connect. Try again shortly.",
-        consentPick: "Consent and pick file", orImportFile: "Import a file instead",
-        consentFine: "You consent to what's collected, where it's kept, for how long, and your right to delete. Comms/location import is locked for minors.",
-        chooseFile: "Choose file", orPaste: "or paste it below",
-        pasteHint: "Paste the exported file's contents.", pastePlaceholder: "Paste here", analyze: "Analyze",
-        errTitle: "Couldn't read the file", errBody: "Check that the exported format is right",
-        importFailed: "Couldn't import that. Nothing was recorded. Try again.",
-        ledgerWarnTitle: "Couldn't book the transactions",
-        ledgerWarnBody: "The import itself was saved, but the chosen transactions were not booked. Re-import the same file to book them.",
-        ledgerWarnPartTitle: "Some transactions were not booked",
-        ledgerWarnPartBody: "{failed} of the chosen transactions could not be booked; {inserted} were. Re-importing the same file would duplicate the booked rows, so please add the missing ones by hand.",
-        done: "Done", appts: "Plans", places: "Places", notes: "Notes", watches: "Watches", txns: "Entries", raw: "Raw", pickToApply: "Pick what to apply",
-        sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
-        emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
-        delete: "Delete", historyFine: "Delete removes the source this import created. A source it can't confirm this import created stays, and you're told why. People and ledger entries created from an import can be removed in the Relationships and Ledger screens. Comms/location import is server-locked for minor accounts.",
-        revokeFailed: "Couldn't withdraw. Try again shortly.", revokeNeedsSignIn: "Sign in to withdraw - the server-side rows must be deleted together.",
-      };
-}
-
 const styles = StyleSheet.create({
   // ⚠ 상단 불빛은 **미리 합성한 색**이다(PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
   //   이 띠는 화면 배경 위에 바로 앉으므로 바탕은 deepSpace.bg 다.
   glow: { position: "absolute", top: 0, left: 0, right: 0, height: 220, backgroundColor: flattenAlpha(deepSpace.bgGlow, 0.5, deepSpace.bg) },
   scroll: { padding: deepSpaceSpacing.lg, paddingBottom: 40, gap: deepSpaceSpacing.md },
   titleRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
+  titleRowWrap: { flexWrap: "wrap" },
   backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   backIcon: { color: deepSpace.accentBright, fontSize: 24 },
   title: { fontSize: 18, color: deepSpace.accentBright },

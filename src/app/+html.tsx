@@ -3,8 +3,8 @@
 // 2026-05-27 / 2026-05-28 (user directive): the web shell must not reveal
 // whitespace at the edges. Scroll + bounce on web exposed blank gutters around
 // the constellation, so html/body stay locked to the viewport with
-// overflow:hidden. Browser zoom remains available for accessibility; NavGraph
-// keeps its own pinch handler.
+// overflow:hidden. Browser zoom remains available for accessibility (the old
+// NavGraph pinch handler left for E:/Legacy on 2026-10-04).
 
 import type { PropsWithChildren } from "react";
 import { ScrollViewStyleReset } from "expo-router/html";

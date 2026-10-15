@@ -85,8 +85,9 @@ export function buildIdenExport(doc: IdenDoc, opts: BuildIdenExportOpts = {}): I
 
 export interface ExportIdenOpts extends BuildIdenExportOpts, BuildIdenOpts {}
 
-/** Fetch the user's IdenDoc and bundle its export artifacts. Thin fetcher. */
-export async function exportIden(userId: string, opts: ExportIdenOpts = {}): Promise<IdenExport> {
+/** Fetch the user's IdenDoc and bundle its export artifacts. Thin fetcher. `opts.minor`
+ *  is required (BuildIdenOpts): the persona build behind it is crisis-capable (C10). */
+export async function exportIden(userId: string, opts: ExportIdenOpts): Promise<IdenExport> {
   const doc = await buildIdenDoc(userId, opts);
   return buildIdenExport(doc, opts);
 }

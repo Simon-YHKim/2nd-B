@@ -1,13 +1,14 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // 커리어 CV 타임라인 (rev2 P4d): the career domain lens. Every domain:career
-// record grouped by year (an explicit year: tag from the 성과 입력 form wins over
-// the capture date), newest first.
+// record, and every 성과 입력 entry (CAREER_TIMELINE_TAGS), grouped by year (an
+// explicit year: tag from the 성과 입력 form wins over the capture date), newest first.
 //
 // The form itself lives on /career-input, not inline here. This screen carried a
 // three-box version (성과 / 역할 / 임팩트 + 연도) that was a reduction of the spec in
 // sb-careerinput.jsx; the full seven-section form replaced it rather than sitting
 // beside it, because two ways to enter the same thing is how one of them rots.
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -15,12 +16,18 @@ import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard } from "@/components/m3";
+import { createLatestWins } from "@/lib/async/latest-wins";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { domainTagFor } from "@/lib/persona/domain-stars";
+import { withSystemTagsColumn } from "@/lib/records/system-tags";
 import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { careerRecordOrigin, groupCareerTimeline, type CareerRecordRow } from "@/lib/career/career-timeline";
+import {
+  CAREER_TIMELINE_TAGS,
+  careerRecordOrigin,
+  groupCareerTimeline,
+  type CareerRecordRow,
+} from "@/lib/career/career-timeline";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -32,51 +39,34 @@ import { careerRecordOrigin, groupCareerTimeline, type CareerRecordRow } from "@
  */
 const carAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
 
-const CAREER_TAG = domainTagFor("career");
-
 async function listCareerRecords(userId: string): Promise<CareerRecordRow[]> {
-  const { data, error } = await getSupabaseClient()
-    .from("records")
-    .select("id, kind, topic, body, tags, created_at")
-    .eq("user_id", userId)
-    .contains("tags", [CAREER_TAG])
-    .order("created_at", { ascending: false })
-    .limit(500);
+  // system_tags (0218) carries the recall interview's markers, which
+  // careerRecordOrigin reads to label an entry as an interview. Without the
+  // column the rows come back the pre-0218 way (markers in `tags`).
+  const { data, error } = await withSystemTagsColumn((columnPresent) =>
+    getSupabaseClient()
+      .from("records")
+      .select(columnPresent ? "id, kind, topic, body, tags, system_tags, created_at" : "id, kind, topic, body, tags, created_at")
+      .eq("user_id", userId)
+      // ANY of the tags, not all: an achievement an older build filed under
+      // domain:collect still carries career_achievement (QA R2C-01).
+      .overlaps("tags", [...CAREER_TIMELINE_TAGS])
+      .order("created_at", { ascending: false })
+      .limit(500),
+  );
   if (error) throw error;
-  return (data ?? []) as CareerRecordRow[];
+  // The select string is chosen at run time, so supabase-js cannot type the row
+  // from it; name the row type here.
+  return (data ?? []) as unknown as CareerRecordRow[];
 }
 
+// 사이드 트랙의 공식 이력 칩. 문구는 deepspace career.credentials.* 에 다섯 언어로 있다
+// (Q-261005-01 = A, QA 261006 tr3). 예전에는 한국어 · 영어 두 배열이라 es/pt/id 가 영어였다.
+const CREDENTIAL_KEYS = ["education", "military", "awards", "licenses", "experience"] as const;
+
 export default function CareerTimelineScreen() {
-  const { t, i18n } = useTranslation("deepspace");
+  const { t } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
-  const { width } = useWindowDimensions();
-  const narrow = width < 600;
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-
-  const [rows, setRows] = useState<CareerRecordRow[] | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  // 쌓아온 길 track (rev2 11-star): 메인 = real achievements, 사이드 = official records.
-  const [track, setTrack] = useState<"main" | "side">("main");
-
-  const refresh = useCallback(() => {
-    if (!userId) return;
-    listCareerRecords(userId)
-      .then((r) => {
-        setRows(r);
-        setLoadFailed(false);
-      })
-      .catch((e) => {
-        console.warn("[career] list failed", (e as Error).message);
-        setRows([]);
-        setLoadFailed(true);
-      });
-  }, [userId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const groups = useMemo(() => groupCareerTimeline(rows ?? []), [rows]);
 
   if (loading) {
     return (
@@ -88,6 +78,53 @@ export default function CareerTimelineScreen() {
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
+
+  // One body per account (gate CDA-05, Q-261004-39 Q5). The rows on screen used
+  // to outlive an account switch: a late answer for the previous account could
+  // land in the next account's screen. The key remounts every owner-bound state
+  // on a switch, and the latest-wins guard drops any answer that is not the
+  // newest request of this body.
+  return <CareerTimelineBody key={userId} userId={userId} />;
+}
+
+function CareerTimelineBody({ userId }: { userId: string }) {
+  const { t } = useTranslation("deepspace");
+  const { width } = useWindowDimensions();
+  const narrow = width < 600;
+
+  const [rows, setRows] = useState<CareerRecordRow[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  // 쌓아온 길 track (rev2 11-star): 메인 = real achievements, 사이드 = official records.
+  const [track, setTrack] = useState<"main" | "side">("main");
+  const loadGuardRef = useRef(createLatestWins());
+
+  const refresh = useCallback(() => {
+    const token = loadGuardRef.current.begin();
+    listCareerRecords(userId)
+      .then((r) => {
+        if (loadGuardRef.current.isStale(token)) return;
+        setRows(r);
+        setLoadFailed(false);
+      })
+      .catch((e) => {
+        if (loadGuardRef.current.isStale(token)) return;
+        console.warn("[career] list failed", (e as Error).message);
+        setRows([]);
+        setLoadFailed(true);
+      });
+  }, [userId]);
+
+  useEffect(() => {
+    refresh();
+    const guard = loadGuardRef.current;
+    // Unmount (an account switch remounts this body): no answer started here
+    // may write state any more.
+    return () => {
+      guard.begin();
+    };
+  }, [refresh]);
+
+  const groups = useMemo(() => groupCareerTimeline(rows ?? []), [rows]);
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:career.screenTitle")} onBack={() => router.back()}>
@@ -115,12 +152,12 @@ export default function CareerTimelineScreen() {
             (학력/병역/수상/자격/경력). 공식 이력은 연동으로 채워지는 트랙이라, mock
             데이터 없이 중립 안내를 두어 레퍼런스 구성/의도를 정직하게 클론한다. */}
         <View style={styles.pathHead}>
-          <Text variant="heading">{locale === "ko" ? "쌓아온 길" : "The path you've built"}</Text>
+          <Text variant="heading">{t("deepspace:career.pathTitle")}</Text>
         </View>
         <View style={styles.trackRow}>
           {(["main", "side"] as const).map((tk) => {
             const on = track === tk;
-            const lbl = tk === "main" ? (locale === "ko" ? "메인" : "Main") : locale === "ko" ? "사이드" : "Side";
+            const lbl = t(tk === "main" ? "deepspace:career.trackMain" : "deepspace:career.trackSide");
             return (
               <Pressable
                 key={tk}
@@ -140,22 +177,17 @@ export default function CareerTimelineScreen() {
         {track === "side" ? (
           <View style={styles.sideBlock}>
             <View style={styles.chipRow}>
-              {(locale === "ko"
-                ? ["학력", "병역", "수상", "자격", "경력"]
-                : ["Education", "Military", "Awards", "Licenses", "Experience"]
-              ).map((c) => (
+              {CREDENTIAL_KEYS.map((c) => (
                 <View key={c} style={styles.credChip}>
                   <Text variant="caption" color="textMuted">
-                    {c}
+                    {t(`deepspace:career.credentials.${c}`)}
                   </Text>
                 </View>
               ))}
             </View>
             <MdCard variant="outlined" style={styles.cardPad}>
               <Text variant="body" color="textMuted">
-                {locale === "ko"
-                  ? "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리돼요. 지금은 메인에서 직접 담은 성과가 쌓여요."
-                  : "Official records like education, military, awards, licenses, and experience organize here once you connect a source. For now, your own achievements build up under Main."}
+                {t("deepspace:career.sideNote")}
               </Text>
             </MdCard>
           </View>

@@ -47,6 +47,8 @@ describe("public-data request contract", () => {
       "server-key",
     );
     expect(mfds.origin).toBe("https://apis.data.go.kr");
+    // The 01 operation was retired by the provider (HTTP 400 for everyone).
+    expect(mfds.pathname).toBe("/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02");
     expect(mfds.searchParams.get("serviceKey")).toBe("server-key");
     expect(mfds.searchParams.get("numOfRows")).toBe("3");
   });

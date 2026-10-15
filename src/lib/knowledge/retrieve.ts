@@ -364,7 +364,7 @@ const STOPWORDS_EN = new Set([
   "i","you","we","my","your","our","this","that","it","its","be","been","being","have","has","had",
   "do","does","did","not","no","so","if","as","by","from","what","how","why","when","who","which",
 ]);
-const STOPWORDS_KO = new Set(["은","는","이","가","을","를","의","에","에서","으로","로","와","과","도","만","나","우리","당신","그","그리고","그러나","그래서","입니다","합니다","했어요","해요","돼요","아닌","그냥"]);
+const STOPWORDS_KO = new Set(["은","는","이","가","을","를","의","에","에서","으로","로","와","과","도","만","나","우리","당신","그","그리고","그러나","그래서","입니다","합니다","했습니다","합니다","됩니다","아닌","그냥"]);
 
 function tokenize(text: string, locale: Locale): Set<string> {
   const stop = locale === "ko" ? STOPWORDS_KO : STOPWORDS_EN;

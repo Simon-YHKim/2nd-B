@@ -13,7 +13,13 @@ describe("approved avatar studio screen", () => {
     expect(source).toContain("getAnimalFurColors(species)");
     expect(source).toContain("<FlatList");
     expect(source).toContain("numColumns={3}");
-    expect(source).toContain("<AvatarPreview spec={spec} size={128} />");
+    // Simon 2026-10-07: the live avatar is half the preview box, the type buttons sit beside it, and the
+    // sample badge, the choice count and the sample note are gone (the a11y hint keeps the sample note).
+    expect(source).toContain("<AvatarPreview spec={spec} size={avatarSize} />");
+    expect(source).toContain("const avatarSize = previewWidth > 0 ? Math.floor(previewWidth / 2) : 0;");
+    expect(source).not.toContain('t("avatar:sample")');
+    expect(source).not.toContain('"avatar:choiceCount"');
+    expect(source).not.toContain('t("avatar:previewHint")');
     expect(source).toContain("t(\"avatar:sampleHint\")");
   });
 
@@ -27,6 +33,9 @@ describe("approved avatar studio screen", () => {
     expect(source).not.toContain('case "garment": patch({ garmentId: id, wearUniform: false, type: "human" });');
     expect(source).toContain("isAvatarAccessoryOccluded(spec)");
     expect(source).toContain('t("avatar:jobHint")');
+    // Simon 2026-10-07: the animal note is gone; tabs are never narrower than they are tall.
+    expect(source).not.toContain('t("avatar:animalHint")');
+    expect(source).toContain("tabContent: { minHeight: m3.minTouch, minWidth: 64,");
     expect(source).not.toContain("saveProfileDetails");
     expect(source).not.toContain("localStorage");
   });
@@ -37,8 +46,12 @@ describe("approved avatar studio screen", () => {
     expect(source).toContain("if (!userId || !readyForUser || saveInFlightRef.current) return");
     expect(source).toContain("activeUserIdRef.current !== saveUserId");
     expect(source).toContain("await saveAvatarSpec(saveUserId, spec)");
-    expect(source).toContain('BackHandler.addEventListener("hardwareBackPress"');
-    expect(source).toContain("return () => sub.remove()");
+    // 2026-10-02 (dashboard phone): Back goes through useHardwareBack, a focused
+    // BackHandler listener standalone and the phone's claim stack inside the
+    // phone, and navigation through useAppRouter() (lib/nav/phone-embed.tsx).
+    expect(source).toContain("useHardwareBack(");
+    expect(source).toContain("const router = useAppRouter();");
+    expect(source).not.toContain("BackHandler.addEventListener");
     expect(source).toContain('router.replace("/profile")');
   });
 
@@ -55,4 +68,13 @@ describe("approved avatar studio screen", () => {
     expect(source).not.toContain('if (loadState.status === "error" && userId)');
   });
 
+  // D-08 (QA 261004): the category/colour tab strips are horizontal ScrollViews
+  // inside a height-bounded column. Without flexShrink 0 Yoga squeezed the strip
+  // to 28.6dp of its 64dp on Android, cutting the tabs and their touch targets.
+  test("horizontal tab strips keep their own height", () => {
+    const strips = source.match(/<ScrollView horizontal[^>]*>/g) ?? [];
+    expect(strips.length).toBeGreaterThanOrEqual(2);
+    for (const tag of strips) expect(tag).toContain("style={styles.tabStrip}");
+    expect(source).toContain("tabStrip: { flexGrow: 0, flexShrink: 0 },");
+  });
 });

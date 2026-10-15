@@ -1,3 +1,4 @@
+import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Deep-space loaders (Claude Design loading.dc.html, A/B/C).
 // Presentational + token-only. Replaces the bare ActivityIndicator (GraphLoading)
 // across deep-space screens:
@@ -14,7 +15,7 @@
 //   <DeepSpaceLoader variant="analysis" etaSec={30} onSendToBackground={sendToBackground} />
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Platform, StyleSheet } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import Svg, { Rect } from "react-native-svg";
 import { ringCells } from "@/components/pixel/pixel-line";
@@ -40,6 +41,14 @@ export interface DeepSpaceLoaderProps {
   /** Analysis: "백그라운드에서 계속" handler. */
   onSendToBackground?: () => void;
   bgLabel?: string;
+  /**
+   * Dots only: draw the star without the caption. For waits that run before the
+   * pixel font is registered (app/_layout.tsx font gates, R2A-04): Android caches
+   * a text measurement under the family name, so a caption measured in the
+   * fallback face is reused at the fallback width once Galmuri draws it, and the
+   * last word is clipped in every language.
+   */
+  bare?: boolean;
 }
 
 type LoaderLocale = "en" | "ko" | "es" | "pt" | "id";
@@ -62,10 +71,10 @@ const LOADER_COPY: Record<LoaderLocale, {
   },
   ko: {
     analysisHeadline: "너를 살펴보는 중",
-    analysisHint: (etaSec) => `길어질 수 있어요 · 약 ${etaSec}초`,
-    background: "백그라운드에서 계속 · 다른 거 할게요",
+    analysisHint: (etaSec) => `길어질 수 있습니다 · 약 ${etaSec}초`,
+    background: "백그라운드에서 계속 · 다른 거 하겠습니다",
     ringCaption: "정리하는 중",
-    ringTip: "잠깐이면 돼요",
+    ringTip: "잠깐이면 됩니다",
     dotsCaption: "불러오는 중",
   },
   es: {
@@ -142,7 +151,7 @@ function Ring({ size = 104, star = 58, label }: { size?: number; star?: number; 
   const r = size / 2 - 4;
   return (
     <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-      <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate }] }]}>
+      <PhoneAnimatedView style={[StyleSheet.absoluteFill, { transform: [{ rotate }] }]}>
         {/* 진행 링 — `<Circle strokeDasharray>` 였다. 셀에서 진행은 **테두리를
             도는 칸 중 앞에서부터 n칸**이다(PIXEL-CLAY 규칙 1). 원을 셀로 근사하면
             계단이 지저분해서 사각 테두리로 바꿨다 — 픽셀아트의 진행 표시가 원래 그렇다. */}
@@ -155,7 +164,7 @@ function Ring({ size = 104, star = 58, label }: { size?: number; star?: number; 
             ));
           })()}
         </Svg>
-      </Animated.View>
+      </PhoneAnimatedView>
       <LoadingPolaris size={star} accessibilityLabel={label} />
     </View>
   );
@@ -174,7 +183,7 @@ function SweepBar() {
   const translateX = x.interpolate({ inputRange: [0, 1], outputRange: [-66, 148] });
   return (
     <View style={styles.barTrack}>
-      <Animated.View style={[styles.barFill, { transform: [{ translateX }] }]} />
+      <PhoneAnimatedView style={[styles.barFill, { transform: [{ translateX }] }]} />
     </View>
   );
 }
@@ -187,6 +196,7 @@ export function DeepSpaceLoader({
   etaSec = 30,
   onSendToBackground,
   bgLabel,
+  bare = false,
 }: DeepSpaceLoaderProps) {
   const { i18n } = useTranslation();
   // Match the server on the first paint, then swap to the real locale.
@@ -235,7 +245,7 @@ export function DeepSpaceLoader({
   return (
     <View style={styles.wrap}>
       <LoadingPolaris size={72} accessibilityLabel={cap} />
-      <Text variant="caption" style={styles.caption}>{cap}</Text>
+      {bare ? null : <Text variant="caption" style={styles.caption}>{cap}</Text>}
     </View>
   );
 }
@@ -245,7 +255,17 @@ const styles = StyleSheet.create({
   wrapFull: { flex: 1, gap: deepSpaceSpacing.lg },
 
   headline: { fontSize: 15, color: deepSpace.textHi, textAlign: "center", marginTop: 4 },
-  caption: { fontSize: 13, color: deepSpace.textMid, textAlign: "center" },
+  // D-08: variant="caption" draws Galmuri11 (labelLarge 12). Overriding it to 13 put
+  // the pixel face off its grid, and with no lineHeight Android measured a box that
+  // lost the bottom pixel row and the last glyph ("Loadin"). Stay on the 12 grid and
+  // give the line its full height plus a bottom margin for descenders.
+  caption: {
+    fontSize: m3.type.labelLarge.size,
+    lineHeight: m3.type.labelLarge.line,
+    paddingBottom: 2,
+    color: deepSpace.textMid,
+    textAlign: "center",
+  },
   subCaption: { fontSize: 12, color: deepSpace.textLo, textAlign: "center", paddingHorizontal: deepSpaceSpacing.lg },
 
   barTrack: {

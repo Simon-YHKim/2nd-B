@@ -14,13 +14,14 @@ const SRC = readFileSync(
 
 describe("recommendations consent copy names the vendor from the switch", () => {
   test("no hardcoded vendor name in the consent sentence (ko or en)", () => {
-    expect(SRC).not.toMatch(/Gemini로 전송돼요/);
-    expect(SRC).not.toMatch(/OpenAI로 전송돼요/);
+    // Both registers (Simon 2026-10-02 B안 moved this copy to ~습니다).
+    expect(SRC).not.toMatch(/Gemini로 전송(돼요|됩니다)/);
+    expect(SRC).not.toMatch(/OpenAI로 전송(돼요|됩니다)/);
     expect(SRC).not.toMatch(/sent to (Gemini|OpenAI) for analysis/);
   });
 
   test("both locales interpolate recommendationVendorLabel() at the processor slot", () => {
-    expect(SRC).toMatch(/분석을 위해 \$\{recommendationVendorLabel\(\)\} 서버로 전송돼요\(해외에서 처리\)/);
+    expect(SRC).toMatch(/분석을 위해 \$\{recommendationVendorLabel\(\)\} 서버로 전송됩니다\(해외에서 처리\)/);
     expect(SRC).toMatch(/sent to \$\{recommendationVendorLabel\(\)\} for analysis \(processed overseas\)/);
   });
 

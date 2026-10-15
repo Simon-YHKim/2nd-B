@@ -8,24 +8,5 @@
   "actions": {
     "home": "Ke beranda",
     "homeHint": "Membuka layar beranda."
-  },
-  "destinations": {
-    "title": "Tujuan umum",
-    "capture": {
-      "label": "Simpan",
-      "hint": "Membuka halaman Simpan dari halaman yang tidak ditemukan."
-    },
-    "audit": {
-      "label": "Aku masa lalu",
-      "hint": "Membuka linimasa masa lalu."
-    },
-    "persona": {
-      "label": "Ringkasan diri",
-      "hint": "Membuka ringkasan dirimu."
-    },
-    "manual": {
-      "label": "Panduan penggunaan",
-      "hint": "Membuka panduan penggunaan dari layar 404."
-    }
   }
 }

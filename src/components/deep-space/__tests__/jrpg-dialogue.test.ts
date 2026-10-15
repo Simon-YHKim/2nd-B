@@ -35,6 +35,11 @@ describe("JRPG dialogue presentation", () => {
     expect(home).toContain("jrpg-text-blip.mp3");
     expect(home).toContain("useReducedMotionPref()");
     expect(home).toContain("useJrpgTypewriter");
+    expect(home).toContain("useHustleKForeground(homePortraitActive)");
+    expect(home).toContain("active: homePortraitVisible");
+    expect(home).toContain("speaking={!dialogue.isComplete}");
+    expect(home).toContain("speechText={dialogue.displayedText}");
+    expect(home).toContain('idle={bubble.kind === "intro"}');
     expect(dialogue).toContain("clearTimeout(timerRef.current)");
     expect(dialogue).toContain("reducedMotion || glyphs.length === 0");
   });
@@ -78,7 +83,7 @@ describe("JRPG dialogue presentation", () => {
     expect(shell).toContain("style={styles.buttonDock}");
   });
 
-  test("home cycles usage tips in the ticker and summons the dialogue without resizing the sky", () => {
+  test("home previews unread notices and summons the dialogue without resizing the sky", () => {
     const home = readFileSync(
       path.join(root, "src/components/deep-space/ConstellationHome.tsx"),
       "utf8",
@@ -90,9 +95,9 @@ describe("JRPG dialogue presentation", () => {
 
     expect(home).toContain("DIALOGUE_STAGE_HEIGHT");
     expect(home).not.toContain("stage.h - dialogueStageHeight");
-    expect(home).toContain("HOME_TIP_KEYS");
-    expect(home).toContain('HOME_TIP_KEYS.map((key) => ({ kind: "tip"');
-    expect(home).toContain("setTickerIndex((index) => index + 1)");
+    expect(home).toContain("unreadNotice?.title[");
+    expect(home).not.toContain("HOME_TIP_KEYS");
+    expect(home).toContain("{noticeTitle ? <NoticeTicker");
     expect(home).toContain('bubble.kind !== "intro" ? <View testID="home-dialogue-stage"');
     expect(home).toContain('text: bubble.kind === "intro" ? "" : bubbleLine');
     expect(home).toContain('bottom: instrumentHeight');
@@ -126,7 +131,7 @@ describe("JRPG dialogue presentation", () => {
     expect(dialogue).not.toContain("disabled={isComplete}");
     expect(home).toContain('testID="secondb-dialogue-launcher"');
     expect(home).toContain('accessibilityState={{ expanded: bubble.kind !== "intro" }}');
-    expect(home).toContain('current.kind === "intro" ? { kind: "menu" } : { kind: "intro" }');
+    expect(home).toContain('current.kind === "intro" ? { kind: "reasoning" } : { kind: "intro" }');
     expect(home.indexOf('testID="secondb-dialogue-launcher"')).toBeGreaterThan(home.indexOf('<View style={styles.topBarStart}>'));
     expect(home.indexOf('testID="secondb-dialogue-launcher"')).toBeLessThan(home.indexOf('<NoticeTicker'));
     const dock = shell.slice(shell.indexOf("<MdNavBar"), shell.indexOf("/>", shell.indexOf("<MdNavBar")));
