@@ -53,7 +53,10 @@ a fresh start. An abort, a timeout and a day passing are not proof of non-commit
    core cleanup plus attempted, terminal derived cleanup can become eligible.
    Derived definite failures yield an eligible partial result. Derived unknown
    or not-attempted work does not.
-5. Retry is explicit: finish a drained attempt, then claim a new permit. An old
+5. Retry is explicit: finish a drained attempt, then claim a new permit. Every
+   stage consumes its physical ticket in that attempt, including derived refusal
+   and a final caller gate's not-issued outcome. Neither can replace its ticket
+   under the same permit. Another derived stage may still proceed. An old
    epoch permit cannot execute after account return. A current explicit resume
    may replace it only after its issued tickets settle. Late settlement never
    dispatches a next stage. Confirmed stages cannot be repeated.
@@ -63,7 +66,10 @@ cleanup. Its photo plan starts as `unconfirmed` before dispatch. The private
 adapter must validate the complete original returned rows, build a deduplicated
 immutable path manifest, and register only row and batch counts in the ledger.
 Missing rows or count mismatch cannot be converted to a zero-photo receipt.
-Batch sizes are 1 to 100; a confirmed empty plan has no photo requests.
+Batch sizes are 1 to 100; a confirmed empty plan has no photo requests. Batch
+counts are copied densely before validation so missing slots are rejected before
+the plan is fixed. A rejected plan leaves the original ticket available for a
+valid plan, and it cannot report photo completion or throw on the next stage.
 
 Each logical photo batch retains its opaque identity across physical retries.
 Photo commit requires a private adapter's exact original path-set confirmation
@@ -96,26 +102,36 @@ an issued write's signal during content wipe, aborts immediately on account
 hold, settles the fact before body checks, and releases the real lease once.
 It is not evidence that C3 is already integrated into the app.
 
-At the implementation freeze, targeted execution is 174 PASS: D3a 50, existing
+At the R2 implementation freeze, targeted execution is 189 PASS: D3a 65, existing
 A 58, existing B 59, existing lease 7. The existing suites are unchanged.
 Scoped ESLint, TypeScript, lexicon and runtime require-cycle checks pass
 (runtime cycles: zero). The first run's 166 PASS / 1 FAIL is preserved: that
 fixture did not cancel the pre-publication hold through the real epoch API.
 
-Seven negative controls detect omitted registration fencing, premature issued
+The R1 implementation review blocked on two findings: same-permit derived/gate
+refusal retries reused a physical step, and sparse photo arrays were accepted,
+reported complete and then threw during stage lookup. The latter did not bypass
+deletion. R1's 6 PASS / 3 assertion FAIL reviewer result remains preserved. R2
+passes all nine original reviewer cases, with only the observations output path
+changed to protect the original evidence. Implementation BLOCK 1 and the separate
+design BLOCK 1 remain recorded; R2 independent review is still required.
+
+Seven preserved R1 negative controls detect omitted registration fencing, premature issued
 publication, omitted drain protection, false photo completion, non-boolean
 start ACK, implicit required-stage retry, and retained failed session candidates.
 All detections are assertion failures with zero suite runtime errors. Removing
 only the first drain guard survives because a second check still blocks the
 permit; removing both is detected. Controls substitute scratch source copies,
-not product files, and do not weaken the retained tests.
+not product files, and do not weaken the retained tests. Two R2 controls separately
+remove the same-permit check and dense plan copy. Both are detected by the new
+actual-function retry matrix and sparse-plan tests.
 
 | Approved design groups | Evidence in this step | Remaining gate |
 | --- | --- | --- |
 | L01-L09 | Opaque tickets, registration/final publication races, one issue, unknown retention, late facts and conflicts | Production I/O adapters must preserve the protocol |
 | W01-W18 | Actual A/B and lease with the explicit C3 fixture; drain/ACK/reentry, deletion receipts and atomic fresh start | Re-run W02/W03/W09 against actual C3 |
 | P01-P04 | Actual leaf with 100+1 and 100+100+1 batch metadata, unknown/failure and explicit retry | Actual private Storage adapter |
-| P05 | Actual leaf and account epoch preserve photo facts across A/B/A; real lease hold is exercised by the C3 write fixture | Actual photo supervisor plus real lease integration |
+| P05 | Actual photo ticket, account epoch and real lease preserve facts across hold/A/B/A; late receipt sends no next request | Actual production photo supervisor integration |
 | P06 | DB count/plan mismatch and incomplete photo proof remain blocked | Complete original row/path parsing in D3b |
 | I01/I02/P07/P08 | Not implemented or counted as passed here | C1b/C3/D3b/D4 actual transport/capture/delete integration |
 
