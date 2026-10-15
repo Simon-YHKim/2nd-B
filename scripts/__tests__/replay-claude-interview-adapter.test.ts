@@ -27,7 +27,8 @@ test("keeps one of ten candidate adapters separate from live model quality and f
   expect(result.live).toBe(false);
   expect(result.liveCalls).toBe(0);
   expect(result.forbiddenAttempts).toBe(0);
-  expect(result.counts).toMatchObject({ rows: 32, inputRedSkipped: 2, replayed: 30, safetyLossRows: 10 });
+  expect(result.counts).toMatchObject({ rows: 32, inputRedSkipped: 2, replayed: 30, safetyLossRows: 0 });
+  expect(result.historicalGuidanceLoss.ids).toHaveLength(10);
   expect(result.modelQualityVerdict).toBe("NOT_MEASURED");
   expect(result.adapters).toMatchObject({ candidateSeats: 10, ready: ["interview_probe"] });
   const probeSource = readFileSync(join(root, "src/lib/interview/probe.ts"), "utf8");
@@ -50,18 +51,20 @@ test("does not deliver recorded replies past the current input-red gate and keep
   }
 });
 
-test("reproduces T23 none-judgement and long-answer loss without promoting the failed candidate", () => {
+test("restores none-judgement and long-answer guidance in the actual row without promoting the raw candidate", () => {
   const lost = row("t23-K2-candidate");
   expect(lost.rawNumbers).toEqual(expect.arrayContaining(["109", "1388"]));
   expect(lost.probe?.answeredLayer).toBeNull();
-  expect(lost.probe?.question).toBe(lost.parsed?.question);
-  expect(lost.screen).toMatchObject({ fixedFactScaffold: true, numbers: [], guidanceIntent: null });
-  expect(lost.checks).toMatchObject({ safetyGuidanceLoss: true, direct109Lost: true, verdict: "BELOW_CRITERIA" });
+  expect(lost.probe?.question).not.toBe(lost.parsed?.question);
+  expect(lost.screen).toMatchObject({ fixedFactScaffold: true, numbers: ["109", "119", "1388"], guidanceIntent: null,
+    guidanceRow: { present: true } });
+  expect(lost.checks).toMatchObject({ safetyGuidanceLoss: false, direct109Lost: false, verdict: "REQUIRES_SEMANTIC_REVIEW" });
   const long = row("t23-E2-candidate");
   expect(long.checks?.rawQuestionLength).toBeGreaterThan(320);
   expect(long.checks?.questionChangedByProbe).toBe(true);
   expect(long.screen?.fixedFactScaffold).toBe(true);
-  expect(long.checks?.lostNumbers).toContain("988");
+  expect(long.checks?.lostNumbers).not.toContain("988");
+  expect(long.screen?.guidanceRow.text).toContain("In the US, you can call or text 988 for support. For other countries, use the helpline directory.");
   expect(result.historicalPairs.find((pair) => pair.group === "K1")).toMatchObject({ direct109Decreased: true, supportPreservationGateRelevant: true });
   expect(result.historicalPairs.find((pair) => pair.group === "K3")).toMatchObject({ supportPreservationGateRelevant: false });
 });
@@ -87,8 +90,8 @@ test("runs the current request refs and real finish, publishing once before the 
       effects: ["root-notice", "finish", "audit", "crisis-event"] });
   }
   expect(result.extractionSha256.screenFinish).toMatch(/^[a-f0-9]{64}$/);
-  // A only changes already-confirmed RED delivery; every historical loss is GREEN.
-  expect(result.rows.filter(sample => sample.checks?.safetyGuidanceLoss).map(sample => sample.boundary?.safety.zone))
+  // The historical losses remain GREEN; the actual shared row now supplies their copy.
+  expect(result.historicalGuidanceLoss.ids.map(id => row(id).boundary?.safety.zone))
     .toEqual(Array(10).fill("green"));
 });
 
@@ -166,7 +169,7 @@ test("distinguishes schema validity from parser acceptance, repeated questions, 
   expect(row("synthetic-wrong-layer").screen?.visibleQuestion).not.toBe(row("synthetic-wrong-layer").parsed?.question);
   expect(row("synthetic-repeated-question").checks?.questionChangedByProbe).toBe(true);
   expect(row("synthetic-opener-filter").probe?.openers).toEqual(["I felt...", "My thought..."]);
-  expect(row("synthetic-multiline-guidance").checks).toMatchObject({ direct109Lost: true, safetyGuidanceLoss: true });
+  expect(row("synthetic-multiline-guidance").checks).toMatchObject({ direct109Lost: false, safetyGuidanceLoss: false });
 });
 
 test("executes changed real builders, and fails closed on declaration drift or attempted network", async () => {
@@ -195,4 +198,59 @@ test("executes changed real builders, and fails closed on declaration drift or a
   const wrongLayer = corpus.cases.find((entry: { id: string }) => entry.id === "synthetic-wrong-layer");
   await expect(createOfflineInterviewRuntime(missingBinding).replay(wrongLayer)).rejects.toThrow("Adapter screen failed on a fixed reply");
   expect(() => preparationOutputPath(["--live"])).toThrow("cannot make live calls");
+});
+
+
+test("actual metadata is insufficient when acceptance or row text is removed", async () => {
+  const sources = loadInterviewAdapterSources(root), screenPath = "src/app/interview.tsx";
+  const rowPath = "src/components/interview/InterviewGuidanceRow.tsx";
+  const noAcceptance = { ...sources, [screenPath]: sources[screenPath].replace("if (probe.guidance && canAcceptGuidance()", "if (false && probe.guidance && canAcceptGuidance()") };
+  const noText = { ...sources, [rowPath]: sources[rowPath].replace("{block.body}", '{""}') };
+  expect(noAcceptance[screenPath]).not.toBe(sources[screenPath]); expect(noText[rowPath]).not.toBe(sources[rowPath]);
+  for (const changed of [noAcceptance, noText]) {
+    const runtime = createOfflineInterviewRuntime(changed);
+    for (const id of result.historicalGuidanceLoss.ids) {
+      const sample = corpus.cases.find((entry: { id: string }) => entry.id === id);
+      const replayed = await runtime.replay(sample);
+      expect(replayed.probe?.guidance?.kind).toMatch(/contacts|unresolved/);
+      expect(replayed.screen?.numbers).toEqual([]); expect(replayed.checks?.safetyGuidanceLoss).toBe(true);
+    }
+    expect(runtime.capabilities().forbiddenAttempts).toBe(0);
+  }
+});
+
+test("moving the row out of the shared scroll or changing its actual binding fails closed", () => {
+  const sources = loadInterviewAdapterSources(root), path = "src/app/interview.tsx";
+  const current = sources[path];
+  const mutations = [
+    current.replace("{guidanceDisplay ? (", "<View>{guidanceDisplay ? (").replace("{done ? (", "</View>{done ? ("),
+    current.replace('import { InterviewGuidanceRow }', 'import { InterviewGuidanceRow as DifferentRow }'),
+    current.replace('import { resolveProbeGuidanceCopy }', 'import type { resolveProbeGuidanceCopy }'),
+    current.replace('@/components/interview/InterviewGuidanceRow"', '@/components/interview/AnotherRow"'),
+  ];
+  for (const changed of mutations) {
+    expect(changed).not.toBe(current);
+    expect(() => createOfflineInterviewRuntime({ ...sources, [path]: changed })).toThrow(/placement drift|binding drift|screen binding/);
+  }
+});
+
+test("only the exact row imports and two fixed copy JSON files are available offline", () => {
+  const sources = loadInterviewAdapterSources(root), rowPath = "src/components/interview/InterviewGuidanceRow.tsx";
+  const declared = 'import { Linking, StyleSheet } from "react-native";';
+  for (const replacement of [
+    '', 'import { Linking, StyleSheet, Platform } from "react-native";',
+    'import { Linking as Network, StyleSheet } from "react-native";',
+    'import "react-native";', 'import { Linking, StyleSheet } from "node:https";',
+  ]) {
+    expect(() => createOfflineInterviewRuntime({ ...sources, [rowPath]: sources[rowPath].replace(declared, replacement) }))
+      .toThrow("Adapter guidance row import drift");
+  }
+  const copyPath = "src/lib/interview/probe-guidance-copy.ts";
+  for (const dependency of ["locales/en/other.json", "locales/fr/safety.json", "node:https", "https://example.test/data"]) {
+    const changed = `import * as forbidden from ${JSON.stringify(dependency.startsWith("locales/") ? `../../../${dependency}` : dependency)};\nvoid forbidden;\n${sources[copyPath]}`;
+    expect(() => createOfflineInterviewRuntime({ ...sources, [copyPath]: changed, [dependency]: "{}" })).toThrow("forbidden");
+  }
+  for (const path of ["locales/en/safety.json", "locales/ko/safety.json", rowPath, copyPath]) {
+    expect(result.sourceSha256[path]).toBe(createHash("sha256").update(sources[path]).digest("hex"));
+  }
 });

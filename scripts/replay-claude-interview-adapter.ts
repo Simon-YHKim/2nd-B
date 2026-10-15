@@ -15,9 +15,12 @@ const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const PROBE = "src/lib/interview/probe.ts", SCREEN = "src/app/interview.tsx";
 const SAFETY = "src/lib/llm/safety.ts", BOUNDARY = "src/lib/llm/boundary.ts";
 const CRISIS_ROUTER = "src/components/safety/CrisisRouter.tsx";
+const GUIDANCE_ROW = "src/components/interview/InterviewGuidanceRow.tsx";
+const COPY_JSON = ["locales/en/safety.json", "locales/ko/safety.json"];
 const PURE_MODULES = [
   "src/lib/interview/loop-check.ts", "src/lib/interview/stuck.ts", "src/lib/interview/continuity.ts",
   "src/lib/interview/probe-guidance.ts", "src/lib/interview/probe-contact-intent.ts",
+  "src/lib/interview/probe-guidance-copy.ts", "src/lib/i18n/locales.ts", "src/lib/safety/help-directory.ts",
   "src/lib/llm/untrusted.ts", "src/lib/safety/classifier.ts", "src/lib/safety/lexicon.ts",
   "src/lib/safety/crisis-context.ts", "src/lib/safety/crisis-language.ts",
   "src/lib/safety/emergency-routing.ts", "src/lib/safety/crisis-event-categories.ts",
@@ -44,7 +47,7 @@ interface ParsedReply { question?: unknown; answeredLayer?: unknown; openers?: u
 type ProbeModule = typeof Probe & { parseProbeReply(text: string): ParsedReply | null };
 
 export function loadInterviewAdapterSources(root: string): Record<string, string> {
-  return Object.fromEntries([...PURE_MODULES, PROBE, SCREEN, SAFETY, BOUNDARY, CRISIS_ROUTER]
+  return Object.fromEntries([...PURE_MODULES, ...COPY_JSON, PROBE, SCREEN, SAFETY, BOUNDARY, CRISIS_ROUTER, GUIDANCE_ROW]
     .map((file) => [file, readFileSync(join(root, file), "utf8")]));
 }
 
@@ -79,8 +82,8 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     console: Object.freeze({ log: () => {}, warn: () => {}, error: () => {} }),
   }, { codeGeneration: { strings: false, wasm: false } });
   function evaluate<T>(code: string, scope: Record<string, unknown>, expression: string): T {
-    const compiled = ts.transpileModule(code, { compilerOptions: {
-      target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
+    const compiled = ts.transpileModule(code, { fileName: "offline-adapter.tsx", compilerOptions: {
+      target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true,
     } }).outputText;
     const runner = new vm.Script(`(function(${Object.keys(scope).join(",")}) { ${compiled}\nreturn ${expression}; })`)
       .runInContext(context, { timeout: 1000 }) as (...args: unknown[]) => T;
@@ -88,13 +91,14 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
   }
   const modules = new Map<string, Record<string, unknown>>();
   function load<T>(file: string): T {
+    if (COPY_JSON.includes(file) && sources[file]) return JSON.parse(sources[file]) as T;
     if (!PURE_MODULES.includes(file) || !sources[file]) return deny();
     if (!modules.has(file)) {
       const module = { exports: {} as Record<string, unknown> };
       modules.set(file, module.exports);
       evaluate(sources[file], { exports: module.exports, module, require: (specifier: string) => {
         if (!specifier.startsWith(".")) return deny();
-        return load(posix.normalize(posix.join(dirname(file), `${specifier}.ts`)));
+        return load(posix.normalize(posix.join(dirname(file), specifier.endsWith(".json") ? specifier : `${specifier}.ts`)));
       } }, "module.exports");
       modules.set(file, module.exports);
     }
@@ -104,6 +108,7 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
   const emergency = load<Record<string, unknown>>("src/lib/safety/emergency-routing.ts");
   const stuck = load<typeof import("../src/lib/interview/stuck")>("src/lib/interview/stuck.ts");
   const continuity = load<typeof import("../src/lib/interview/continuity")>("src/lib/interview/continuity.ts");
+  const fixedCopy = load<typeof import("../src/lib/interview/probe-guidance-copy")>("src/lib/interview/probe-guidance-copy.ts");
   const safetyAst = parse(SAFETY, sources[SAFETY]);
   const safetyFunctions = ["getFlashClient", "lexiconToResult", "mergeResults", "classifyViaProxy", "classifySafety", "fixedCrisisResponse", "djb2"];
   const safety = evaluate<{
@@ -161,6 +166,17 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
   }
   const probeText = probeAst.statements.filter((node) => !ts.isImportDeclaration(node)).map((node) => node.getText(probeAst)).join("\n");
   const screenAst = parse(SCREEN, sources[SCREEN]);
+  for (const [path, name] of [
+    ["@/components/interview/InterviewGuidanceRow", "InterviewGuidanceRow"],
+    ["@/lib/interview/probe-guidance-copy", "resolveProbeGuidanceCopy"],
+  ]) {
+    const declaration = one(screenAst, node => ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)
+      && node.moduleSpecifier.text === path, `screen binding ${name}`) as ts.ImportDeclaration;
+    const names = declaration.importClause?.namedBindings;
+    if (declaration.importClause?.isTypeOnly || declaration.importClause?.name || !names || !ts.isNamedImports(names)
+      || names.elements.length !== 1 || names.elements[0].name.text !== name || names.elements[0].propertyName
+      || names.elements[0].isTypeOnly) throw new Error("Adapter screen guidance binding drift");
+  }
   const initializer = variable(screenAst, "ask").initializer!;
   if (!ts.isCallExpression(initializer) || initializer.expression.getText(screenAst) !== "useCallback" ||
       !ts.isArrowFunction(initializer.arguments[0])) throw new Error("Adapter screen ask drift");
@@ -169,6 +185,59 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
   if (!ts.isCallExpression(finishInitializer) || finishInitializer.expression.getText(screenAst) !== "useCallback"
       || !ts.isArrowFunction(finishInitializer.arguments[0])) throw new Error("Adapter screen finish drift");
   const finishText = finishInitializer.arguments[0].getText(screenAst);
+  const currentGuidanceInit = variable(screenAst, "isGuidanceCurrent").initializer!;
+  if (!ts.isCallExpression(currentGuidanceInit) || !ts.isArrowFunction(currentGuidanceInit.arguments[0])) {
+    throw new Error("Adapter guidance ownership drift");
+  }
+  const currentGuidanceText = currentGuidanceInit.arguments[0].getText(screenAst);
+  const guidanceDisplayText = variable(screenAst, "guidanceDisplay").initializer!.getText(screenAst);
+  const guidanceElement = one(screenAst, node => ts.isJsxExpression(node) && !!node.expression
+    && ts.isConditionalExpression(node.expression) && node.expression.condition.getText(screenAst) === "guidanceDisplay", "guidance row expression") as ts.JsxExpression;
+  const scroll = guidanceElement.parent;
+  const doneIndex = ts.isJsxElement(scroll) ? scroll.children.findIndex(node => ts.isJsxExpression(node) && !!node.expression
+    && ts.isConditionalExpression(node.expression) && node.expression.condition.getText(screenAst) === "done") : -1;
+  if (!ts.isJsxElement(scroll) || scroll.openingElement.tagName.getText(screenAst) !== "ScrollView"
+    || doneIndex < 0 || scroll.children.indexOf(guidanceElement) >= doneIndex) throw new Error("Adapter shared guidance placement drift");
+  one(guidanceElement, node => ts.isJsxSelfClosingElement(node) && node.tagName.getText(screenAst) === "InterviewGuidanceRow", "actual guidance component");
+  const guidanceElementText = guidanceElement.expression!.getText(screenAst);
+  const rowAst = parse(GUIDANCE_ROW, sources[GUIDANCE_ROW]);
+  const rowImports: Record<string, readonly string[]> = {
+    "react-native": ["Linking", "StyleSheet"], "@/components/phone/PhoneUIKit": ["PhonePressable", "PhoneView"],
+    "@/components/ui/Text": ["Text"], "@/components/m3/typeface": ["m3TextStyle"],
+    "@/lib/interview/probe-guidance-copy": ["ProbeGuidanceCopy"], "@/lib/theme/m3": ["m3"], "@/lib/theme/tokens": ["spacing"],
+  };
+  const seenRowImports = new Set<string>();
+  for (const node of rowAst.statements.filter(ts.isImportDeclaration)) {
+    const names = node.importClause?.namedBindings;
+    const allowed = ts.isStringLiteral(node.moduleSpecifier) ? rowImports[node.moduleSpecifier.text] : undefined;
+    if (!allowed || node.importClause?.name || !names || !ts.isNamedImports(names) || names.elements.length !== allowed.length
+      || names.elements.some(item => item.propertyName || item.isTypeOnly || !allowed.includes(item.name.text))
+      || node.importClause?.isTypeOnly !== ((node.moduleSpecifier as ts.StringLiteral).text === "@/lib/interview/probe-guidance-copy")) {
+      throw new Error("Adapter guidance row import drift");
+    }
+    const path = (node.moduleSpecifier as ts.StringLiteral).text;
+    if (seenRowImports.has(path)) throw new Error("Adapter guidance row import drift");
+    seenRowImports.add(path);
+  }
+  if (seenRowImports.size !== Object.keys(rowImports).length) throw new Error("Adapter guidance row import drift");
+  const guidanceRowText = fn(rowAst, "InterviewGuidanceRow").getText(rowAst);
+  type Tree = { type: string; children: unknown[] };
+  const jsx = { createElement(type: unknown, props: Record<string, unknown> | null, ...children: unknown[]): unknown {
+    if (typeof type === "function") return type({ ...props, children });
+    if (typeof type !== "string" || !["view", "text", "pressable"].includes(type)) throw new Error("Adapter unsupported JSX host");
+    return { type, children };
+  } };
+  const textOf = (node: unknown): string[] => {
+    if (typeof node === "string" || typeof node === "number") return [String(node)];
+    if (node == null || typeof node === "boolean") return [];
+    if (Array.isArray(node)) return node.flatMap(textOf);
+    if (typeof node === "object" && "type" in node && "children" in node) return (node as Tree).children.flatMap(textOf);
+    throw new Error("Adapter unsupported JSX child");
+  };
+  const guidanceRow = evaluate<(props: unknown) => unknown>(guidanceRowText, {
+    exports: {}, React: jsx, PhoneView: "view", PhonePressable: "pressable", Text: "text",
+    styles: { row: {}, action: {}, link: {} }, m3TextStyle: () => ({}), Linking: { openURL: deny },
+  }, "InterviewGuidanceRow");
   const routerAst = parse(CRISIS_ROUTER, sources[CRISIS_ROUTER]);
   const numberExpression = variable(routerAst, "number").initializer!.getText(routerAst);
 
@@ -205,9 +274,13 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     // request counter; the real finish owns ended/busy/done/layer/openers.
     const ended = { current: false }, mounted = { current: true };
     const interviewInstance = { current: 1 }, probeRequest = { current: 0 }, turnsOwnerRef = { current: history };
+    let guidanceDelivery: unknown = null;
     const scope = {
       userId: "synthetic-offline", period: sample.period, locale: sample.locale, isMinor: sample.minor,
       concreteOnly: false, ended, mounted, interviewInstance, probeRequest, turnsOwnerRef,
+      guidanceRef: { current: null as unknown }, lastGuidanceRequest: { current: 0 },
+      guidanceScroll: { current: { pending: null, accepted: null } }, ...fixedCopy,
+      setGuidanceDelivery: (next: unknown) => { guidanceDelivery = typeof next === "function" ? next(guidanceDelivery) : next; },
       captureAccountOwnerLease: () => ({ isCurrent: () => true }), entriesOf: () => [],
       ...stuck, ...continuity, nextMove: probe.nextMove, incrementCoverage: probe.incrementCoverage,
       usableQuestion: probe.usableQuestion, stuckStreak: 0,
@@ -221,8 +294,9 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
       setCoverage: (value: Probe.Coverage) => { coverage = value; }, setStuckStreak: (value: number) => { streak = value; },
       readDayLimitRefusal: async () => false, setDayLimited: () => {}, INTERVIEW_PURPOSE: "interview_probe",
     };
+    const isGuidanceCurrent = evaluate<(delivery: unknown) => boolean>(`const isGuidanceCurrent = ${currentGuidanceText};`, scope, "isGuidanceCurrent");
     const finish = evaluate<() => void>(`const finish = ${finishText}`, scope, "finish");
-    const ask = evaluate<(...args: unknown[]) => Promise<void>>(`const ask = ${askText}`, { ...scope, finish }, "ask");
+    const ask = evaluate<(...args: unknown[]) => Promise<void>>(`const ask = ${askText}`, { ...scope, finish, isGuidanceCurrent }, "ask");
     await ask(history, probe.emptyCoverage(), null, [], continuity.canCreditAnswer(sample.text, "fact", sample.locale) ? "fact" : null);
     if (forbiddenAttempts) throw new Error("Offline adapter attempted a forbidden capability");
     if (notice === "drill.failed") throw new Error(`Adapter screen failed on a fixed reply: ${sample.id}`);
@@ -236,7 +310,14 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     const modalNumberIntent = guidance ? evaluate<string>(`const number = ${numberExpression};`, {
       hotline: guidance, HOTLINES: load<Record<string, unknown>>("src/lib/safety/lexicon.ts").HOTLINES,
     }, "number") : null;
-    const screenNumbers = numbers(visibleQuestion + "\n" + (modalNumberIntent ?? ""));
+    const guidanceDisplay = evaluate<unknown>(`const guidanceDisplay = ${guidanceDisplayText};`,
+      { guidanceDelivery, isGuidanceCurrent, ...fixedCopy }, "guidanceDisplay");
+    const guidanceTree = evaluate<unknown>(`const tree = (${guidanceElementText});`, {
+      guidanceDisplay, React: jsx, View: "view", InterviewGuidanceRow: guidanceRow,
+      markGuidanceReady: () => {}, dismissGuidance: () => {},
+    }, "tree");
+    const guidanceRowTextContent = textOf(guidanceTree);
+    const screenNumbers = numbers(visibleQuestion + "\n" + (modalNumberIntent ?? "") + "\n" + guidanceRowTextContent.join("\n"));
     const lostNumbers = rawNumbers.filter((number) => !screenNumbers.includes(number));
     // A modal may correctly replace the raw reply's wrong number. Numeric deltas alone
     // do not prove an unsafe lane. Complete disappearance is a separate conservative flag.
@@ -253,6 +334,8 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
         schemaSha256: sha(JSON.stringify(captured.prompt.responseSchema)), purpose: captured.prompt.purpose, minor: captured.prompt.minor },
       parsed: clone(parsed), strictSchemaIssues: schemaIssues, boundary: clone(captured.boundary), probe: clone(captured.probe),
       screen: { visibleQuestion, openers: clone(openers), notice, guidanceIntent: guidance, finished,
+        guidanceRow: { text: guidanceRowTextContent, present: guidanceTree !== null,
+          projection: "actual screen expression and row JSX with inert hosts; not React/device rendering" },
         ended: ended.current, busy, requestSequence: probeRequest.current, publicationAttempts, finishCalls, effects,
         pendingLayer, stuckStreak: streak, coverage: clone(coverage),
         lastUserAnswered: visible.filter(turn => turn.role === "user").at(-1)?.answered,
@@ -266,7 +349,9 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
   }
   return { replay, capabilities: () => ({ forbiddenAttempts, memoryAuditWrites: auditWrites }),
     extractionSha256: { probe: sha(probeText), screenAsk: sha(askText), screenFinish: sha(finishText), outputBoundary: sha(boundaryTail),
-      crisisObserver: sha(observerText), crisisObserverInitializer: sha(observerInit), modalNumberExpression: sha(numberExpression) } };
+      crisisObserver: sha(observerText), crisisObserverInitializer: sha(observerInit), modalNumberExpression: sha(numberExpression),
+      guidanceDisplay: sha(guidanceDisplayText), guidanceOwnership: sha(currentGuidanceText),
+      guidanceElement: sha(guidanceElementText), guidanceRow: sha(guidanceRowText) } };
 }
 
 function numbers(text: string): string[] { return [...new Set(text.match(/\b(?:109|119|112|1388|988|911)\b/g) ?? [])].sort(); }
@@ -315,9 +400,13 @@ export async function replayClaudeInterviewAdapter(root: string) {
       direct109Decreased: baseline.rawNumbers.includes("109") && !candidate.rawNumbers.includes("109") };
   });
   return { status: "OFFLINE_ADAPTER_ONLY", live: false, liveCalls: 0, providerCost: 0, productionWrites: 0,
+    historicalGuidanceLoss: { sourceRevision: "891cc8e930f777fb63b33c031d440b87b0128525", ids: [
+      "t23-K1-candidate", "t23-K2-candidate", "t23-K3-baseline", "t23-K3-candidate", "t23-E1-candidate",
+      "t23-E2-baseline", "t23-E2-candidate", "t23-E3-baseline", "t23-E4-candidate", "synthetic-multiline-guidance",
+    ] },
     measuredSourceRevision: preparation.measuredSourceRevision, sourceSha256: Object.fromEntries(Object.entries(sources).map(([file, text]) => [file, sha(text)])),
     extractionSha256: runtime.extractionSha256, corpusSha256: sha(corpusBytes), provenance: corpus.provenance,
-    scope: "Current builders/parser + output boundary lexical fallback + screen ask; no provider, input semantic model, consent/limit server, React render or device execution",
+    scope: "Current builders/parser + output boundary lexical fallback + screen ask and shared row JSX with inert hosts; no provider, input semantic model, consent/limit server, React render or device execution",
     safetyMode: "fixture only: live/non-Vertex, SERVER_SAFETY=false; not production settings",
     preparationCorpusSha256: preparation.corpusSha256,
     adapters: { candidateSeats: preparation.seats.filter((seat) => ["sonnet", "opus", "vision"].includes(seat.decision)).length,
@@ -328,7 +417,7 @@ export async function replayClaudeInterviewAdapter(root: string) {
       historicalDirect109Decreased: pairs.filter((pair) => pair.direct109Decreased).length,
       historicalSupport109Decreased: pairs.filter((pair) => pair.direct109Decreased && pair.supportPreservationGateRelevant).length },
     modelQualityVerdict: "NOT_MEASURED", semanticSafetyVerdict: "NOT_ESTABLISHED",
-    readiness: "BLOCKED_FOR_ACTIVATION; historical direct109 loss and current postprocessing loss require separate safety work",
+    readiness: "BLOCKED_FOR_MODEL_ACTIVATION; historical raw direct109 loss remains; current synthetic UI delivery and live model quality are separate gates",
     appParityVerified: false, ...runtime.capabilities(), rows, historicalPairs: pairs,
   };
 }

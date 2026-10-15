@@ -3,6 +3,7 @@ import { join } from "node:path";
 import * as ts from "typescript";
 import { captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../lib/auth/account-epoch";
 import { INTERVIEW_PURPOSE, readDayLimitRefusal } from "../../lib/interview/session-end";
+import { resolveProbeGuidanceCopy } from "../../lib/interview/probe-guidance-copy";
 
 const screen = readFileSync(join(process.cwd(), "src/app/interview.tsx"), "utf8");
 const source = ts.createSourceFile("interview.tsx", screen, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -38,17 +39,21 @@ function setup() {
     draft: "  My unsent draft, with spacing  ", pendingLayer: "emotion", openers: ["An opening"],
     coverage: { unchanged: true }, stuckStreak: 2, abandoned: ["meaning"], busy: false,
     notice: null as string | null, done: false, concreteOnly: false,
+    guidanceDelivery: null as unknown,
   };
   const state = { ...initial };
   const updates: string[] = [];
   const setters = Object.fromEntries(Object.keys(state).map((name) => [
     `set${name[0].toUpperCase()}${name.slice(1)}`,
-    jest.fn((value: unknown) => { Object.assign(state, { [name]: value }); updates.push(name); }),
+    jest.fn((value: unknown) => { Object.assign(state, { [name]: typeof value === "function" ? value((state as Record<string, unknown>)[name]) : value }); updates.push(name); }),
   ]));
   const scope = {
     ...initial, ...setters, userId: "A", locale: "en", period: "school", isMinor: false,
     mounted: { current: true }, ended: { current: false }, coverageReady: true, concreteOnly: false,
     interviewInstance: { current: 1 }, probeRequest: { current: 0 },
+    guidanceRef: { current: null as unknown }, lastGuidanceRequest: { current: 0 },
+    guidanceScroll: { current: { pending: null, accepted: null } }, resolveProbeGuidanceCopy,
+    isGuidanceCurrent: (..._args: unknown[]): unknown => false,
     draftEditRevision: { current: 0 }, sending: { current: false }, crisisRouting: { current: false },
     turnsOwnerRef: { current: initial.turns }, localPromptsExhausted: () => false, currentScene: () => [],
     captureAccountOwnerLease, readDayLimitRefusal, INTERVIEW_PURPOSE,
@@ -60,6 +65,7 @@ function setup() {
     ask: (..._args: unknown[]): unknown => undefined, changeAngle: (..._args: unknown[]): unknown => undefined,
     confirmedAnswer: jest.fn(), incrementCoverage: jest.fn(), createRecord: jest.fn(), addCoverage: jest.fn(),
   };
+  scope.isGuidanceCurrent = callback("isGuidanceCurrent", scope);
   scope.finish = callback("finish", scope);
   scope.ask = callback("ask", scope);
   scope.changeAngle = callback("changeAngle", scope);
@@ -210,4 +216,18 @@ test("after quota the user can explicitly choose a new scene without another req
   expect(h.state.concreteOnly).toBe(false);
   expect(h.state.notice).toBeNull();
   expect(h.scope.nextProbe).toHaveBeenCalledTimes(1);
+});
+
+
+test("a later confirmed quota preserves an accepted guidance row and its hidden pending reveal", async () => {
+  const h = setup();
+  const delivery = { requestId: 1, guidance: { kind: "contacts", contacts: ["KR_109"], corrections: [], physicalUrgency: false },
+    owner: captureAccountOwnerLease("A")!, instance: 1, locale: "en", token: {}, ready: false };
+  h.state.guidanceDelivery = delivery; h.scope.guidanceRef.current = delivery;
+  Object.assign(h.scope.guidanceScroll.current, { pending: delivery.token, accepted: delivery.token });
+  const pending = h.render().send(); h.reject(quota()); await pending;
+  expect(h.state.guidanceDelivery).toBe(delivery); expect(h.scope.isGuidanceCurrent(delivery)).toBe(true);
+  expect(h.scope.guidanceScroll.current.pending).toBe(delivery.token);
+  expect(h.state.notice).toBe("drill.dayLimit"); expect(h.state.turns).toBe(h.initial.turns);
+  expect(h.state.draft).toBe(h.initial.draft); expect(h.state.done).toBe(false);
 });
