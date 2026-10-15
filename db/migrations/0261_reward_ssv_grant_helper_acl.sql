@@ -1,4 +1,4 @@
--- Draft only. After 0214, remove the two legacy direct-grant entry points.
+-- 0261: after 0214, remove the two legacy direct-grant entry points.
 -- The deployed v104 Edge calls v3 -> v2 -> these helpers; the same-owner
 -- SECURITY DEFINER chain still calls them after caller EXECUTE is revoked.
 -- Apply transactionally. No data rewrite, new table, or automatic rollback.

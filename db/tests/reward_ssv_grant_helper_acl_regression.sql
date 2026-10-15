@@ -1,8 +1,6 @@
 \set ON_ERROR_STOP on
--- CI/local scratch only; every fixture and ACL change rolls back.
+-- CI/local scratch only, after numbered 0261. Every fixture rolls back.
 BEGIN;
-\ir ../UNNUMBERED_reward_ssv_grant_helper_acl.sql
-\ir ../UNNUMBERED_reward_ssv_grant_helper_acl.sql
 
 SET LOCAL session_replication_role = replica;
 INSERT INTO auth.users(id,email) VALUES

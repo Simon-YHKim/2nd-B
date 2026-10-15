@@ -40,6 +40,7 @@ const sameBytes = (draft: string, numbered: string) =>
 // not applied yet may be revised before its GO, and its digest moves in the same
 // commit with the reason.
 const promoted = [
+  ["0261", "reward_ssv_grant_helper_acl", "781b0a218086fed68ec3a89b134998a05fc044f1a9708c4088e49ca25669b039"],
   ["0236", "dashboard_generation", "a86ab9e7c03e335d0eb27b8c90f5e18b345824975e112d5ad51de57a5287d4b3"],
   ["0191", "signup_consent_admob_20260925", "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648"],
   ["0192", "account_deletion_completion_fence", "d42dbfc8a3d53ada60beb589918eaa4ac78e72d49b91af2e16d2f6457187b229"],
@@ -82,10 +83,6 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
-  "UNNUMBERED_reward_ssv_grant_helper_acl.sql": {
-    runner: "db/migration-drafts/tests/reward-ssv-grant-helper-acl-contract.sql",
-    workflowInvocation: "-f db/migration-drafts/tests/reward-ssv-grant-helper-acl-contract.sql",
-  },
 };
 
 /** Violations of the one-copy rule. Pure, so the guard itself can be mutated below. */
@@ -286,6 +283,16 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(regression).toContain("global rejection allocated peer rows");
     expect(regression).toContain("rejected peer spent global quota");
     expect(regression).toContain("OAuth state was not single-use");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("exercises numbered 0261 helper ACL without replaying the migration", () => {
+    const regression = read("db/tests/reward_ssv_grant_helper_acl_regression.sql");
+    expect(workflow).toContain("-f db/tests/reward_ssv_grant_helper_acl_regression.sql");
+    expect(regression).not.toMatch(/^\\i(?:r)?\s/m);
+    expect(regression).toContain("direct reasoning grant was allowed");
+    expect(regression).toContain("direct chat grant was allowed");
+    expect(regression).toContain("SET LOCAL ROLE service_role;");
     expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
   });
 
