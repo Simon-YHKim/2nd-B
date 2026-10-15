@@ -624,24 +624,28 @@ export async function scheduleRoutineReminder(
  * web both report unavailable. Device verification of the granted path is pending.
  */
 export async function ensureNotificationPermission(): Promise<boolean> {
-  if (Platform.OS === "web") return false;
-  if (!remindersSupported() || !Notifications) return false;
+  return await notificationPermissionResult() === "granted";
+}
+
+async function notificationPermissionResult(): Promise<"granted" | "denied" | "unavailable" | "error"> {
+  if (Platform.OS === "web") return "unavailable";
+  if (!remindersSupported() || !Notifications) return "unavailable";
   try {
     const current = await Notifications.getPermissionsAsync();
-    if (current.granted) return true;
+    if (current.granted) return "granted";
     // Only prompt when the user hasn't decided yet; a prior explicit deny is
     // respected (re-requesting a denied permission is a no-op on most OSes and
     // just nags the user — the row's "권한 필요" state covers that case).
     if (current.status === "undetermined" || current.canAskAgain) {
       const next = await Notifications.requestPermissionsAsync();
-      return next.granted;
+      return next.granted ? "granted" : "denied";
     }
-    return false;
+    return "denied";
   } catch {
     if (typeof console !== "undefined") {
       console.warn("[ops] notification permission request failed");
     }
-    return false;
+    return "error";
   }
 }
 
@@ -838,10 +842,22 @@ export async function enableReminder(
   routineId: string,
   event?: OpsEventInput,
 ): Promise<boolean> {
+  return await enableReminderWithResult(ownerId, routineId, event) === "enabled";
+}
+
+export type ReminderEnableResult = "enabled" | "denied" | "unavailable" | "error" | "stale";
+
+/** Keep permission denial distinct from storage/scheduling errors for UI feedback. */
+export async function enableReminderWithResult(
+  ownerId: string,
+  routineId: string,
+  event?: OpsEventInput,
+): Promise<ReminderEnableResult> {
   const lease = captureAccountOwnerLease(ownerId);
-  if (!lease) return false;
-  const granted = await ensureNotificationPermission();
-  if (!granted || !lease.isCurrent()) return false;
+  if (!lease) return "stale";
+  const permission = await notificationPermissionResult();
+  if (!lease.isCurrent()) return "stale";
+  if (permission !== "granted") return permission;
   const persisted = await runLocalNotificationMutation(async () => {
     if (!lease.isCurrent() || pendingScheduledCancellations.has(routineReminderId(ownerId, routineId))) return false;
     if (pendingDisabledWrites.has(ownerId)) return false;
@@ -852,23 +868,26 @@ export async function enableReminder(
     } catch { return false; }
     return lease.isCurrent();
   });
-  if (!persisted) return false;
+  if (!lease.isCurrent()) return "stale";
+  if (!persisted) return "error";
   if (event) {
     const result = await scheduleRoutineReminder(event, {
       ownerId,
       identifier: routineReminderId(ownerId, routineId),
     });
-    if (result !== "scheduled") return false;
+    if (!lease.isCurrent()) return "stale";
+    if (result !== "scheduled") return result;
   }
-  return lease.isCurrent();
+  return lease.isCurrent() ? "enabled" : "stale";
 }
 
 /**
- * Turn this routine's reminder OFF and persist it. Always succeeds. Also
+ * Turn this routine's reminder OFF and persist it. By default cancellation is
+ * best-effort; explicit UI feedback can request strict failure propagation. Also
  * cancels the scheduled OS notification — before, an already-scheduled
  * reminder kept firing after the row was switched off.
  */
-export async function disableReminder(ownerId: string, routineId: string): Promise<void> {
+export async function disableReminder(ownerId: string, routineId: string, options?: { strict?: boolean }): Promise<void> {
   const lease = captureAccountOwnerLease(ownerId);
   if (!lease) return;
   await runLocalNotificationMutation(async () => {
@@ -884,5 +903,8 @@ export async function disableReminder(ownerId: string, routineId: string): Promi
     } catch { /* Best-effort persistence must not prevent the cancellation. */ }
   });
   if (!lease.isCurrent()) return;
-  await cancelRoutineReminder(ownerId, routineId);
+  await cancelRoutineReminder(ownerId, routineId, {
+    strict: options?.strict,
+    isCurrentOwner: lease.isCurrent,
+  });
 }

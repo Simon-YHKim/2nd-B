@@ -92,6 +92,7 @@ import {
   clearAccountScopedLocalNotifications,
   disableReminder,
   enableReminder,
+  enableReminderWithResult,
   foregroundNotificationBehavior,
   migrateLegacyRoutineNotifications,
   notifyNow,
@@ -796,6 +797,66 @@ describe("routine reminders (O-R3 P2, on-device only)", () => {
     releaseLateA?.();
     await Promise.resolve();
     expect(cancelScheduledNotificationAsync).not.toHaveBeenCalledWith(accountBId);
+  });
+});
+
+describe("routine enable feedback preserves the actual failure reason", () => {
+  test("strict disable propagates a native cancellation failure while existing callers stay best-effort", async () => {
+    setNavigatorProduct("ReactNative");
+    cancelScheduledNotificationAsync.mockRejectedValueOnce(new Error("native cancel failed"));
+    await expect(disableReminder("account-a", "r1", { strict: true })).rejects.toThrow("native cancel failed");
+    cancelScheduledNotificationAsync.mockRejectedValueOnce(new Error("native cancel failed"));
+    await expect(disableReminder("account-a", "r1")).resolves.toBeUndefined();
+  });
+
+  test("a final permission denial does not prompt, write, or schedule", async () => {
+    setNavigatorProduct("ReactNative");
+    getPermissionsAsync.mockResolvedValue({ granted: false, status: "denied", canAskAgain: false });
+    expect(await enableReminderWithResult("account-a", "r1")).toBe("denied");
+    expect(requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(setItem).not.toHaveBeenCalled();
+    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  test("first-prompt denial and permission read failures are different outcomes", async () => {
+    setNavigatorProduct("ReactNative");
+    getPermissionsAsync.mockResolvedValueOnce({ granted: false, status: "undetermined", canAskAgain: true });
+    requestPermissionsAsync.mockResolvedValueOnce({ granted: false });
+    expect(await enableReminderWithResult("account-a", "r1")).toBe("denied");
+    getPermissionsAsync.mockRejectedValueOnce(new Error("unavailable permission service"));
+    expect(await enableReminderWithResult("account-a", "r1")).toBe("error");
+    expect(setItem).not.toHaveBeenCalled();
+    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  test("storage failure does not claim permission denial or schedule", async () => {
+    setNavigatorProduct("ReactNative");
+    getItem.mockRejectedValueOnce(new Error("storage unavailable"));
+    expect(await enableReminderWithResult("account-a", "r1")).toBe("error");
+    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  test("permission revoked before scheduling and a native scheduling failure stay distinct", async () => {
+    setNavigatorProduct("ReactNative");
+    const event = { title: "private title", startsAtIso: new Date(Date.now() + 60_000).toISOString() };
+    requestPermissionsAsync.mockResolvedValueOnce({ granted: false });
+    expect(await enableReminderWithResult("account-a", "r1", event)).toBe("denied");
+    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+    requestPermissionsAsync.mockResolvedValueOnce({ granted: true });
+    scheduleNotificationAsync.mockRejectedValueOnce(new Error("native scheduling failed"));
+    expect(await enableReminderWithResult("account-a", "r2", event)).toBe("error");
+  });
+
+  test("a delayed permission result cannot label or enable a different account", async () => {
+    setNavigatorProduct("ReactNative");
+    const permission = deferred<{ granted: boolean; status: string; canAskAgain: boolean }>();
+    getPermissionsAsync.mockReturnValueOnce(permission.promise);
+    const enabling = enableReminderWithResult("account-a", "r1");
+    beginAccountOwnerTransition("account-b");
+    permission.resolve({ granted: false, status: "denied", canAskAgain: false });
+    expect(await enabling).toBe("stale");
+    expect(setItem).not.toHaveBeenCalled();
+    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 });
 
