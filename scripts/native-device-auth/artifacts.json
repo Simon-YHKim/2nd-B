@@ -1,0 +1,76 @@
+{
+  "artifacts": [
+    {
+      "file": "kotlin-compiler-embeddable-2.1.20.jar",
+      "group": "compiler",
+      "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-compiler-embeddable/2.1.20/kotlin-compiler-embeddable-2.1.20.jar",
+      "sha256": "c54a00718c8c0e3ee858bf42771c7f401c5e3c1738861e18e9536371042fa1b3"
+    },
+    {
+      "file": "kotlin-daemon-embeddable-2.1.20.jar",
+      "group": "compiler",
+      "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-daemon-embeddable/2.1.20/kotlin-daemon-embeddable-2.1.20.jar",
+      "sha256": "d9e83df1d847a201ba3c016a786ced091be9503997d09f6a9cf1796ee489f374"
+    },
+    {
+      "file": "kotlin-reflect-1.6.10.jar",
+      "group": "compiler",
+      "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-reflect/1.6.10/kotlin-reflect-1.6.10.jar",
+      "sha256": "3277ac102ae17aad10a55abec75ff5696c8d109790396434b496e75087854203"
+    },
+    {
+      "file": "kotlin-script-runtime-2.1.20.jar",
+      "group": "compiler",
+      "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-script-runtime/2.1.20/kotlin-script-runtime-2.1.20.jar",
+      "sha256": "ae4397fbb3aa2a1ada09290e753bba99a4114548977c3115526b9958f4cb1a04"
+    },
+    {
+      "file": "kotlin-stdlib-2.1.20.jar",
+      "group": "compiler",
+      "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/2.1.20/kotlin-stdlib-2.1.20.jar",
+      "sha256": "1bcc74e8ce84e2c25eaafde10f1248349cce3062b6e36978cbeec610db1e930a"
+    },
+    {
+      "file": "kotlinx-coroutines-core-jvm-1.8.0.jar",
+      "group": "compiler",
+      "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.8.0/kotlinx-coroutines-core-jvm-1.8.0.jar",
+      "sha256": "9860906a1937490bf5f3b06d2f0e10ef451e65b95b269f22daf68a3d1f5065c5"
+    },
+    {
+      "file": "trove4j-1.0.20200330.jar",
+      "group": "compiler",
+      "url": "https://repo.maven.apache.org/maven2/org/jetbrains/intellij/deps/trove4j/1.0.20200330/trove4j-1.0.20200330.jar",
+      "sha256": "c5fd725bffab51846bf3c77db1383c60aaaebfe1b7fe2f00d23fe1b7df0a439d"
+    },
+    {
+      "file": "annotations-13.0.jar",
+      "group": "compiler",
+      "url": "https://repo.maven.apache.org/maven2/org/jetbrains/annotations/13.0/annotations-13.0.jar",
+      "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+    },
+    {
+      "file": "annotation-jvm-1.9.1.jar",
+      "group": "both",
+      "url": "https://dl.google.com/dl/android/maven2/androidx/annotation/annotation-jvm/1.9.1/annotation-jvm-1.9.1.jar",
+      "sha256": "1e343917ebf27ba96fe4dc52b1cad7fd32b738fbc6355bb6cd5b3b305d7212d0"
+    },
+    {
+      "file": "biometric.aar",
+      "group": "api",
+      "url": "https://dl.google.com/dl/android/maven2/androidx/biometric/biometric/1.2.0-alpha04/biometric-1.2.0-alpha04.aar",
+      "sha256": "ebcd741bded2cfc4dbb12aa00b7fd575ef440e6047dd41c002ba2bf604eb700d"
+    },
+    {
+      "file": "platform-36_r02.zip",
+      "group": "api",
+      "url": "https://dl.google.com/android/repository/platform-36_r02.zip",
+      "sha256": "37607369a28c5b640b3a7998868d45898ebcb777565a0e85f9acf36f29631d2e"
+    },
+    {
+      "file": "expo-local-authentication-56.0.5.tgz",
+      "group": "source",
+      "url": "https://registry.npmjs.org/expo-local-authentication/-/expo-local-authentication-56.0.5.tgz",
+      "sha256": "c2f8384ec5395807b1bb12008cbb1e5ec30d9a55f931014e092987b632515413"
+    }
+  ]
+}

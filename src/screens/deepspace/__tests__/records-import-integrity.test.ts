@@ -37,9 +37,9 @@ describe("records screen honest error state + focus refetch + virtualized list",
     // it, and keeps the old name too so neither spelling of the false-empty can come back.
     expect(src).not.toContain("listAllRecords(userId).catch(() => [])");
     expect(src).not.toContain("listRecentRecords(userId).catch(() => [])");
-    expect(src).toContain("recs = (await listAllRecords(userId)) as RecordsTimelineRecord[];");
-    expect(src).toContain("recordsFailed = true");
-    expect(src).toContain("setLoadError(true)");
+    expect(src).toContain("listAllRecords(userId, { signal: controller.signal })");
+    expect(src).toContain("withTimeout(work, WIKI_LIST_READ_TIMEOUT_MS");
+    expect(src).toContain("rows: NO_RECORDS, failed: true");
   });
 
   it("renders a distinct error state with a retry, using both-locale keys", () => {

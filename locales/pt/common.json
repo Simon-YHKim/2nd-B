@@ -84,5 +84,14 @@
   "drillLayerPeriod": "etapa / período",
   "backToGraph": "Voltar ao gráfico",
   "backToGraphHint": "Abre a tela inicial do gráfico.",
-  "clearContext": "Limpar contexto"
+  "clearContext": "Limpar contexto",
+  "deviceLock": {
+    "title": "Confirme com o bloqueio do celular",
+    "fallback": "Usar senha do celular",
+    "unlock": "Desbloquear",
+    "checking": "Verificando…",
+    "setup": "Primeiro, configure um bloqueio de tela nas configurações do celular.",
+    "unavailable": "A autenticação do dispositivo está indisponível. Instale a versão mais recente do app e tente novamente.",
+    "failed": "Não foi possível desbloquear. Tente novamente."
+  }
 }
