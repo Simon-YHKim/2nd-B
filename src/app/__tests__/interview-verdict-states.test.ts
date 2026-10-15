@@ -62,13 +62,17 @@ function setup(locale: "ko" | "en" = "ko", minor: boolean | null = false) {
     captureAccountOwnerLease, answerDisposition, canCreditAnswer, confirmedAnswer, currentScene,
     nextMove, nextProbe, usableQuestion, incrementCoverage, scaffoldQuestion, shouldScaffold,
     MAX_SCAFFOLDS_PER_LAYER, INTERVIEW_PURPOSE, readDayLimitRefusal, localPromptsExhausted,
-    isLocalNonAnswer: (text: string, layer: DrillLayer | null) => layer != null && !canCreditAnswer(text, layer, locale),
+    isLocalNonAnswer: (_text: string, _layer: DrillLayer | null): boolean => false,
     entriesOf: () => [], classifyInputAnyLocale, t: (key: string) => key,
     hotlineFor: () => minor ? "KR_1388" : "KR_109", publishCrisisNotice: jest.fn().mockReturnValue(true),
     startInterviewCrisisRouting: jest.fn((_guard, _input, visible) => { visible(); return { started: true, done: Promise.resolve() }; }),
     finish: (): unknown => undefined, ask: (..._args: unknown[]): unknown => undefined,
     changeAngle: (..._args: unknown[]): unknown => undefined,
   };
+  // Keep the local gate exact: it is shared by send and the local-prompt guard.
+  scope.isLocalNonAnswer = callback("isLocalNonAnswer", { ...scope,
+    isBlockedAnswer: callback("isBlockedAnswer", { ...scope, isNonAnswer }),
+  }) as typeof scope.isLocalNonAnswer;
   scope.isGuidanceCurrent = callback("isGuidanceCurrent", scope);
   scope.finish = callback("finish", scope);
   function render() {
@@ -86,6 +90,150 @@ function setup(locale: "ko" | "en" = "ko", minor: boolean | null = false) {
   }
   return { state, scope, updates, render, submit, text };
 }
+
+// Fixtures only: earlier layers already have confirmed turns. The pending answer
+// still runs the shipped send -> ask -> nextProbe/parser -> continuity callbacks.
+function atLayer(layer: DrillLayer, locale: "ko" | "en") {
+  const h = setup(locale);
+  for (const earlier of DRILL_LAYERS.slice(0, DRILL_LAYERS.indexOf(layer))) {
+    h.state.turns.push({ role: "user", text: `Earlier confirmed ${earlier} answer about this event.`,
+      layer: earlier, period: "work", answered: true });
+    h.state.coverage = incrementCoverage(h.state.coverage, "work", earlier);
+    const next = DRILL_LAYERS[DRILL_LAYERS.indexOf(earlier) + 1]!;
+    h.state.turns.push({ role: "interviewer", text: `The current ${next} question?`, layer: next, period: "work" });
+  }
+  h.state.pendingLayer = layer;
+  return h;
+}
+
+// Q4 removes the generic KO8/EN14 and minimum-two-character proxy for meaning.
+// Q5 applies local fallback only to a successful missing verdict, never none/other.
+const shortAnswerCases = [
+  ["ko", "fact", "집을 나왔어요"], ["en", "fact", "I left"],
+  ["ko", "feeling", "화"], ["en", "feeling", "Sad"],
+  ["ko", "meaning", "7"], ["en", "meaning", "It mattered"],
+  ["ko", "belief", "서로 믿어요"], ["en", "belief", "Trust matters"],
+  ["ko", "echo", "🙂"], ["en", "echo", "I still care"],
+  ["ko", "fact", "민수"], ["en", "fact", "Jane"],
+  ["ko", "fact", "서울특별시립중앙도서관"], ["en", "fact", "0"],
+  ["ko", "fact", "👩‍👩‍👦"],
+] as const;
+
+describe.each(["same", "missing", "none", "other"] as const)("S1 actual %s verdict", kind => {
+  test.each(shortAnswerCases)("%s %s %s reaches one model call and waits before any credit", async (locale, layer, text) => {
+    const h = atLayer(layer, locale); h.state.draft = text;
+    const before = h.state.coverage; let settle!: (value: unknown) => void;
+    llm.mockImplementationOnce(() => new Promise(resolve => { settle = resolve; }) as never);
+    const pending = h.render().send();
+    expect(llm).toHaveBeenCalledTimes(1); expect(h.state.coverage).toEqual(before);
+    expect(h.state.turns.at(-1)).toMatchObject({ role: "user", text, layer });
+    expect(h.state.turns.at(-1)?.answered).toBeUndefined(); expect(h.state.done).toBe(false);
+    expect(llm.mock.calls[0]![0].user).toContain(`A (${layer}): ${text}`);
+    const verdict = kind === "missing" ? undefined : kind === "same" ? layer
+      : kind === "none" ? "none" : layer === "fact" ? "belief" : "fact";
+    settle({ text: JSON.stringify({ answeredLayer: verdict, question: "What happened next in that moment?", openers: ["MODEL OPENER"] }), safety: { zone: "green" } });
+    await pending;
+    const credit = kind === "same" || kind === "missing";
+    expect(h.state.coverage).toEqual(credit ? incrementCoverage(before, "work", layer) : before);
+    expect(h.state.turns.filter(turn => turn.role === "user").at(-1)).toMatchObject({
+      text, layer, answered: credit ? true : kind === "none" ? false : null,
+    });
+    expect(h.state.pendingLayer).toBe(credit ? DRILL_LAYERS[DRILL_LAYERS.indexOf(layer) + 1] ?? null : layer);
+    expect(h.state.stuckStreak).toBe(kind === "none" ? 1 : 0);
+    // S1 preserves the current final-layer completion. Scene choices belong to S2.
+    expect(h.state.done).toBe(credit && layer === "echo"); expect(llm).toHaveBeenCalledTimes(1);
+    if (!credit) expect(h.state.turns.some(turn => turn.text === "What happened next in that moment?")).toBe(false);
+  });
+});
+
+test.each([
+  ["ko", "집"], ["ko", "학교"], ["ko", "회사"], ["ko", "사무실"], ["ko", "도서관"],
+  ["en", " Office "], ["en", " AT  THE\tOFFICE "], ["en", "in the office"],
+] as const)("S1 actual %s bare fact %s remains local, but the same text in feeling reaches the model", async (locale, text) => {
+  const h = setup(locale); h.state.draft = text; await h.render().send();
+  expect(llm).not.toHaveBeenCalled(); expect(h.state.coverage).toEqual(emptyCoverage());
+  expect(h.state.stuckStreak).toBe(1); expect(h.state.pendingLayer).toBe("fact");
+  const feeling = atLayer("feeling", locale); feeling.state.draft = text;
+  llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "feeling", question: "What did that mean to you?" }), safety: { zone: "green" } } as never);
+  await feeling.render().send(); expect(llm).toHaveBeenCalledTimes(1);
+  expect(feeling.state.coverage.work).toEqual({ fact: 1, feeling: 1, meaning: 0, belief: 0, echo: 0 });
+});
+
+test.each(["...", "，。！？", "yes", "음", "모르겠어요", "drill.dontKnow"])(
+  "S1 actual exact non-answer %s remains outside model calls", async text => {
+    const h = setup(); h.state.draft = text; await h.render().send();
+    expect(llm).not.toHaveBeenCalled(); expect(h.state.coverage).toEqual(emptyCoverage());
+    expect(h.state.stuckStreak).toBe(1); expect(h.state.done).toBe(false);
+  });
+
+describe.each(["error", "quota", "red", "early-red"] as const)("S1 actual short answer %s", outcome => {
+  test.each(DRILL_LAYERS)("%s never receives ordinary credit", async layer => {
+    const h = atLayer(layer, "en"); h.state.draft = "I left";
+    const before = { ...h.state }; let settle!: (value: unknown) => void; let reject!: (error: unknown) => void;
+    llm.mockImplementationOnce(() => new Promise((resolve, no) => { settle = resolve; reject = no; }) as never);
+    const pending = h.render().send(); expect(llm).toHaveBeenCalledTimes(1);
+    expect(h.state.coverage).toEqual(before.coverage); expect(h.state.done).toBe(false);
+    if (outcome === "error") reject(new Error("offline"));
+    else if (outcome === "quota") reject({ context: new Response(JSON.stringify({ error: "purpose_limit_exceeded", feature: INTERVIEW_PURPOSE }), { status: 429 }) });
+    else {
+      if (outcome === "early-red") llm.mock.calls[0]![0].onCrisisDetected?.("KR_119");
+      settle({ text: JSON.stringify({ answeredLayer: layer, question: "Call 109 now." }),
+        safety: outcome === "red" ? { zone: "red", crisisRouting: { hotline: "KR_119" } } : { zone: "green" } });
+    }
+    await pending; expect(h.state.coverage).toEqual(before.coverage); expect(llm).toHaveBeenCalledTimes(1);
+    expect(h.state.guidanceDelivery).toBeNull(); expect(h.state.stuckStreak).toBe(0);
+    if (outcome === "quota") expect(h.state).toEqual({ ...before, notice: "drill.dayLimit" });
+    else if (outcome === "error") {
+      expect(h.state.turns.at(-1)).toMatchObject({ text: "I left", layer, unsettled: true });
+      expect(h.state.turns.at(-1)?.answered).toBeUndefined(); expect(h.state.pendingLayer).toBe(layer);
+      expect(h.state.done).toBe(false); expect(h.state.notice).toBe("drill.failed");
+    } else {
+      expect(h.state.turns.filter(turn => turn.role === "user").at(-1)?.answered).toBeUndefined();
+      expect(h.state.done).toBe(true); expect(h.scope.publishCrisisNotice).toHaveBeenCalledTimes(1);
+      expect(h.scope.publishCrisisNotice).toHaveBeenCalledWith(expect.anything(), "KR_119");
+    }
+  });
+});
+
+test("S1 actual short answers preserve the existing miss budget and other-layer neutrality until S2", async () => {
+  const h = setup();
+  for (const verdict of ["none", "none", "belief", "none"]) {
+    h.state.draft = "집을 나왔어요";
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: verdict, question: "Next question?" }), safety: { zone: "green" } } as never);
+    await h.render().send();
+    if (verdict === "belief") { expect(h.state.stuckStreak).toBe(2); expect(h.state.done).toBe(false); }
+  }
+  expect(llm).toHaveBeenCalledTimes(4); expect(h.state.coverage).toEqual(emptyCoverage());
+  expect(h.state.done).toBe(true); expect(h.state.turns.filter(turn => turn.role === "user").map(turn => turn.answered)).toEqual([false, false, null, false]);
+});
+
+test("S1 actual local-prompt guard uses the same candidate gate after twelve local questions", async () => {
+  for (const text of ["I left", "Office"]) {
+    const h = setup("en");
+    h.state.turns = Array.from({ length: 12 }, (_, i) => ({ role: "interviewer", text: `Prior question ${i}?`, layer: "fact", period: "work", sceneStart: i === 0 }));
+    h.state.draft = text;
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "none", question: "Next question?" }), safety: { zone: "green" } } as never);
+    await h.render().send(); h.render().change("skip");
+    expect(llm).toHaveBeenCalledTimes(text === "I left" ? 1 : 0);
+    expect(h.state.done).toBe(text === "Office"); expect(h.state.coverage).toEqual(emptyCoverage());
+  }
+});
+
+test("S1 actual short missing-verdict guidance remains separate from original words and later prompts", async () => {
+  const h = setup(); h.state.draft = "집을 나왔어요";
+  llm.mockResolvedValueOnce({ text: JSON.stringify({ question: "Call 109 now." }), safety: { zone: "green" } } as never);
+  await h.render().send();
+  expect(h.state.coverage.work.fact).toBe(1);
+  expect(h.state.guidanceDelivery).toMatchObject({ guidance: { kind: "contacts", contacts: ["KR_109"] } });
+  expect(storedTurns(h.state.turns)).toContainEqual(expect.objectContaining({ text: "집을 나왔어요", answered: true }));
+  expect(JSON.stringify(storedTurns(h.state.turns))).not.toMatch(/109|guidance|contacts/);
+  const delivered = h.state.guidanceDelivery;
+  h.state.draft = "화";
+  llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "feeling", question: "What did it mean?" }), safety: { zone: "green" } } as never);
+  await h.render().send(); expect(h.state.coverage.work.feeling).toBe(1); expect(h.state.guidanceDelivery).toBe(delivered);
+  expect(llm.mock.calls[1]![0].user).toContain("집을 나왔어요");
+  expect(JSON.stringify(llm.mock.calls[1]![0])).not.toMatch(/Call 109 now|한국에서 대화 지원|"guidance"|"contacts"/);
+});
 
 test.each(["ko", "en"] as const)("%s: a successful missing verdict follows local sufficiency and advances one asked layer", async locale => {
   const h = setup(locale); await h.submit(undefined);

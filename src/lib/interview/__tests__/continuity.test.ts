@@ -168,3 +168,70 @@ describe("question guard and offline fixture", () => {
     expect(result.answeredLayer).toBe("fact");
   });
 });
+
+
+// Q4 removes the generic KO8/EN14 and minimum-two-character gates. These are
+// candidates, not claims that the mocked or live model must credit their meaning.
+
+const shortCandidates = [
+  ["집을 나왔어요", "fact", "ko"], ["학교를 그만뒀어요", "fact", "ko"], ["서로 믿어요", "belief", "ko"],
+  ["화", "feeling", "ko"], ["민수", "fact", "ko"], ["서울특별시립중앙도서관", "fact", "ko"],
+  ["I left", "fact", "en"], ["Trust matters", "belief", "en"], ["Sad", "feeling", "en"], ["Jane", "fact", "en"],
+  ["0", "fact", "en"], ["7", "meaning", "ko"], ["🙂", "feeling", "ko"], ["👩‍👩‍👦", "fact", "en"],
+] as const;
+it.each(shortCandidates)("admits candidate %s for %s but respects every verdict", (text, layer, locale) => {
+  expect(canCreditAnswer(text, layer, locale)).toBe(true);
+  expect(confirmedAnswer(text, layer, locale, layer)).toBe(true);
+  expect(confirmedAnswer(text, layer, locale, undefined)).toBe(true); // Q5 only.
+  expect(confirmedAnswer(text, layer, locale, null)).toBe(false);
+  expect(confirmedAnswer(text, layer, locale, layer === "fact" ? "belief" : "fact")).toBe(false);
+});
+
+it.each(["집", "학교", "회사", "사무실", "도서관", "office", "at the office", "in the office"])(
+  "rejects only the known whole bare place in fact: %s", text => {
+    for (const locale of ["ko", "en"] as const) {
+      const variant = ` \t${text.toUpperCase().replace(/ /g, "  \n")} \n`;
+      expect(canCreditAnswer(variant, "fact", locale)).toBe(false);
+      expect(confirmedAnswer(variant, "fact", locale, "fact")).toBe(false);
+      expect(confirmedAnswer(variant, "fact", locale, undefined)).toBe(false);
+      for (const layer of ["feeling", "meaning", "belief", "echo"] as const) {
+        expect(canCreditAnswer(variant, layer, locale)).toBe(true);
+      }
+    }
+  });
+
+it.each(["I left the office", "office work mattered", "at the office I cried", "집을 나왔어요", "학교에서 만났어요",
+  "Office!", "(office)", "회사🙂", "o f f i c e"])("does not broaden bare-place normalization or match a substring: %s", text => {
+  expect(canCreditAnswer(text, "fact", "en")).toBe(true);
+  expect(canCreditAnswer(text, "fact", "ko")).toBe(true);
+});
+
+it.each(["", " \t\n", "...", "!?。！？", "—…", "\"'()[]{}"])("keeps empty or punctuation-only input outside credit: %p", text => {
+  for (const locale of ["ko", "en"] as const) for (const layer of ["fact", "feeling", "meaning", "belief", "echo"] as const) {
+    expect(canCreditAnswer(text, layer, locale)).toBe(false);
+    expect(confirmedAnswer(text, layer, locale, layer)).toBe(false);
+    expect(confirmedAnswer(text, layer, locale, undefined)).toBe(false);
+  }
+});
+
+it.each([["네", "ko"], ["음", "ko"], ["모르겠어요", "ko"], ["여기까지", "ko"], ["패스", "ko"],
+  ["yes!", "en"], ["hmm", "en"], ["I don't know", "en"], ["stop", "en"], ["skip", "en"]] as const)(
+  "keeps existing explicit choice/non-answer %s outside every layer", (text, locale) => {
+    for (const layer of ["fact", "feeling", "meaning", "belief", "echo"] as const) {
+      expect(canCreditAnswer(text, layer, locale)).toBe(false);
+      expect(confirmedAnswer(text, layer, locale, layer)).toBe(false);
+      expect(confirmedAnswer(text, layer, locale, undefined)).toBe(false);
+    }
+  });
+
+it("nextMove counts only a candidate's current pending answer or confirmed result", () => {
+  const base: InterviewTurn[] = [{ role: "interviewer", text: "What happened?", layer: "fact", sceneStart: true }];
+  const answer = { role: "user", text: "I left", layer: "fact" } as const;
+  const run = (row: InterviewTurn) => nextMove(emptyCoverage(), "work", [], now, null, [], { history: [...base, row], locale: "en" });
+  expect(run(answer)).toEqual({ kind: "drill", layer: "feeling" });
+  expect(run({ ...answer, answered: true })).toEqual({ kind: "drill", layer: "feeling" });
+  for (const result of [{ answered: false }, { answered: null }, { unsettled: true }] as const) {
+    expect(run({ ...answer, ...result })).toEqual({ kind: "drill", layer: "fact" });
+  }
+  expect(run({ ...answer, text: "Office", answered: true })).toEqual({ kind: "drill", layer: "fact" });
+});
