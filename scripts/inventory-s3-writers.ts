@@ -81,6 +81,7 @@ export function inventory(ref: string) {
     const declarations = symbol.declarations;
     if (declarations?.length !== 1) return undefined;
     const declaration = declarations[0];
+    if (declaration.getSourceFile() !== node.getSourceFile()) return undefined;
     return ts.isVariableDeclaration(declaration)
       && ts.isVariableDeclarationList(declaration.parent)
       && (declaration.parent.flags & ts.NodeFlags.Const) !== 0
