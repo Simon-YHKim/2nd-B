@@ -39,7 +39,8 @@ jest.mock("@/components/ui/Button", () => ({ Button: ({ label, onPress }: { labe
 } }));
 jest.mock("@/components/pixel/PixelDither", () => ({ PixelScrim: () => null }));
 
-import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import { CrisisRouter, CRISIS_DIRECTORY_URL } from "@/components/safety/CrisisRouter";
+import { CRISIS_DIRECTORY_URL as sharedDirectoryUrl } from "../help-directory";
 import { classifyInputAnyLocale } from "../classifier";
 
 beforeEach(() => { mockCall.mockClear(); mockPresses.length = 0; mockClose.mockReset(); });
@@ -75,4 +76,22 @@ test("self-harm alone retains the youth support dialog", () => {
   expect(markup).not.toMatch(/119|112/);
   mockPresses[0]();
   expect(mockCall).toHaveBeenCalledWith("tel:1388");
+});
+
+test.each(["ko", "en", "es", "pt", "id"])("%s opens the shared directory only on its explicit press", (locale) => {
+  mockLocale = locale;
+  const markup = renderToStaticMarkup(React.createElement(CrisisRouter, {
+    visible: true, hotline: "GLOBAL_988", onClose: jest.fn(),
+  }));
+  expect(CRISIS_DIRECTORY_URL).toBe(sharedDirectoryUrl);
+  expect(sharedDirectoryUrl).toBe("https://findahelpline.com");
+  expect(markup).toContain("988");
+  expect(mockCall).not.toHaveBeenCalled();
+  expect(mockPresses).toHaveLength(2);
+  mockPresses[1]();
+  expect(mockCall).toHaveBeenCalledTimes(1);
+  expect(mockCall).toHaveBeenLastCalledWith(sharedDirectoryUrl);
+  mockPresses[0]();
+  expect(mockCall).toHaveBeenCalledTimes(2);
+  expect(mockCall).toHaveBeenLastCalledWith("tel:988");
 });
