@@ -1,7 +1,7 @@
 {
   "title": "HustleK",
   "subtitle": "Pregunta sobre tu wiki y consulta las páginas usadas en cada respuesta.",
-  "empty": "Empieza una conversación. Por ejemplo: \"¿Qué temas se repiten en mis notas de este mes?\"",
+  "empty": "Haz una pregunta. Por ejemplo: \"¿Qué temas aparecen en mi wiki?\"",
   "placeholder": "Pregúntale a HustleK...",
   "composerPlaceholder": "Mensaje…",
   "inputA11y": "Pregúntale a {{name}}",
@@ -14,9 +14,9 @@
   "serverLimitReached": "Esta cuenta ha alcanzado el límite de chat de hoy. El límite se restablece a medianoche, hora de Corea (KST).",
   "reference_piece_meta": "pieza referenciada",
   "heroSpeech": {
-    "sending": "Leyendo los registros relacionados…",
+    "sending": "Consultando las páginas de tu wiki…",
     "divergent": "Considerando otras posibilidades…",
-    "default": "¿Qué quieres saber sobre tus registros?"
+    "default": "¿Qué quieres saber sobre la wiki creada a partir de tus registros?"
   },
   "personaHero": {
     "speech": "Aquí está lo que se repite en tus registros. Comprueba si encaja contigo."
@@ -32,7 +32,7 @@
       "role": "Empatía",
       "lensName": "HustleK",
       "tag": "HustleK",
-      "desc": "Responde a partir de tus registros"
+      "desc": "Responde con tu wiki de registros"
     },
     "meta": {
       "name": "Fact-K",
@@ -40,7 +40,7 @@
       "systemHint": "Persona: Fact-K. Mantén todas las reglas de fundamento, citas y seguridad. Céntrate en los hechos y en patrones respaldados por cifras y fechas de los registros del usuario. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles.",
       "lensName": "Fact-K",
       "tag": "Fact-K",
-      "desc": "Examina los hechos de tus registros"
+      "desc": "Hechos de tu wiki de registros"
     },
     "twi": {
       "name": "Joy-K",
@@ -48,7 +48,7 @@
       "systemHint": "Persona: Joy-K. Mantén todas las reglas de fundamento, citas y seguridad. Propón otras posibilidades a partir de los registros y separa claramente los hechos de lo imaginado. Si es útil, explica cómo probar una propuesta. No uses siempre la misma frase de cierre. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles.",
       "lensName": "Joy-K",
       "tag": "Joy-K",
-      "desc": "Busca otras posibilidades en tus registros"
+      "desc": "Otras ideas de tu wiki de registros"
     }
   },
   "replyFailed": "No se pudo obtener respuesta. Inténtalo de nuevo en un momento.",
