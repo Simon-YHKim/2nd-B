@@ -9,8 +9,8 @@
     "accountHint": "Abre as configurações de conta.",
     "theme": "Fonte · Movimento",
     "themeHint": "Abre as configurações de fonte e movimento.",
-    "data": "Gestão de dados",
-    "dataHint": "Abre a gestão de dados.",
+    "data": "Meus dados",
+    "dataHint": "Abre Meus dados.",
     "records": "Registros",
     "recordsHint": "Abre os registros salvos.",
     "support": "Suporte",
@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "Sair da conta?",
+      "cancelHint": "Fecha esta confirmação sem sair da conta."
+    },
     "confirm": {
       "label": "Diálogo de confirmação de configurações",
       "title": "Tem certeza?",
@@ -115,7 +119,8 @@
   "workingPaused": "Aguarde esta ação terminar para fazer outras alterações ou sair da conta.",
   "myAccount": "Minha conta",
   "app": "App",
-  "resetCoachmarks": "Redefinir os guias",
+  "versionLine": "Versão {{version}}",
+  "resetCoachmarks": "Rever o guia inicial",
   "resetCoachmarksDesc": "Reveja o guia inicial desde o começo",
   "account": "Conta",
   "plans": "Planos",
@@ -148,10 +153,10 @@
   "delAllWikiDesc": "As páginas wiki e seus links entre páginas são apagados. As fontes da caixa de entrada permanecem.",
   "delUningested": "Excluir capturas não processadas",
   "delUningestedDesc": "Apenas as fontes que não viraram página wiki.",
-  "resetDaily": "Redefinir o uso diário do SecondB",
+  "resetDaily": "Redefinir o uso diário do HustleK",
   "resetDailyDesc": "Limpa os contadores de uso de hoje e de todos os dias anteriores.",
   "dangerFullWipe": "Perigo: limpeza total",
-  "dangerFullWipeDesc": "Apaga registros, fontes, páginas wiki e o uso do SecondB de uma vez. A conta permanece, mas você começa do zero.",
+  "dangerFullWipeDesc": "Apaga registros, fontes, páginas wiki e o uso do HustleK de uma vez. A conta permanece, mas você começa do zero.",
   "cannotUndoExport": "Isto não pode ser desfeito. Exporte antes o que precisar.",
   "deleteEverything": "Excluir tudo",
   "finalCheck": "Verificação final: tudo será apagado. Você exportou antes?",
@@ -164,6 +169,9 @@
   "resetNDays": "{{n}} dias de uso redefinidos",
   "wipeComplete": "Limpeza total concluída: registros {{r}} · fontes {{s}} · wiki {{w}} · uso {{u}}",
   "subscription": {
+    "autoPay": { "title": "Pagamento automático" },
+    "policy": { "title": "Política de reembolso" },
+    "plans": { "title": "Planos", "change": "Mudar de plano" },
     "title": "Gerenciar assinatura",
     "sectionLabel": "Assinatura",
     "rowLabel": "Gerenciar assinatura",

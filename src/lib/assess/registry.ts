@@ -73,6 +73,11 @@ export interface Assessment {
    * (`records.tags` 는 배열이고 `.contains` 가 부분집합 매칭이다).
    * 값은 각 화면의 `createRecord({ tags })` 에서 그대로 가져왔다 —
    * `registry.test.ts` 가 화면 소스를 읽어 대조한다.
+   *
+   * ⚠ 회상 인터뷰(`interview`)의 표식은 0218(Q-261004-39 = A) 부터 `records.tags` 가
+   * 아니라 앱 표식 칸 `records.system_tags` 에 있다(`records/system-tags.ts` 의
+   * `recallInterviewSystemTags`). 이 항목으로 완료를 셀 때는 그 칸을 읽는다 —
+   * 사용자가 붙인 같은 이름의 태그는 완료가 아니다.
    */
   completionTags: readonly string[];
   /**

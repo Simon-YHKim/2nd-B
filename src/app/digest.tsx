@@ -1,3 +1,4 @@
+import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 // "오늘의 정리" — the pull-style daily review (D-25 Phase 3, morning-brief PULL
 // version; the push/scheduler version is deferred per the D-25 debate, so this
 // runs ON OPEN only, never on a timer, and never claims a notification it cannot
@@ -6,7 +7,7 @@
 // already-stored inferred links and writes the user's verdict.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { View, StyleSheet, ScrollView, Pressable } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Redirect } from "expo-router";

@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // dds-consent-notice-screen: the consent detail page behind the sign-up rows'
 // "자세히 보기" chevrons (flow request #4). One screen, one section per selection
 // key; ?item=<key> scrolls to and highlights that section. The shared paragraphs
@@ -6,7 +7,7 @@
 // surfaces cannot drift apart. Lives in the (auth) group: IntroGate-exempt,
 // reachable while signed out mid-sign-up. Canon-only (no legacy skin).
 import { useCallback, useRef } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -75,21 +76,25 @@ export function DeepSpaceConsentNoticeScreen() {
   );
 
   return (
-    <AuthShell scrollRef={scrollRef}>
-      <View style={styles.titleRow}>
-        <Pressable
-          onPress={requestBack}
-          hitSlop={12}
-          style={local.backTarget}
-          accessibilityRole="button"
-          accessibilityLabel={t("common:navGraph.drilldown.back")}
-        >
-          <RNText style={styles.back}>‹</RNText>
-        </Pressable>
-        <Text variant="heading" style={styles.title} accessibilityRole="header">
-          {t("consent:detail.title")}
-        </Text>
-      </View>
+    <AuthShell
+      scrollRef={scrollRef}
+      head={
+        <View style={[styles.titleRow, local.head]}>
+          <Pressable
+            onPress={requestBack}
+            hitSlop={12}
+            style={local.backTarget}
+            accessibilityRole="button"
+            accessibilityLabel={t("common:actions.back")}
+          >
+            <RNText style={styles.back}>‹</RNText>
+          </Pressable>
+          <Text variant="heading" style={styles.title} accessibilityRole="header">
+            {t("consent:detail.title")}
+          </Text>
+        </View>
+      }
+    >
       <Text variant="body" style={styles.consentIntro}>{t("consent:detail.intro")}</Text>
 
       <View style={styles.card}>
@@ -137,4 +142,7 @@ const local = StyleSheet.create({
   // paragraphs need their own style or flexBasis:0 collapses them in a column.
   body: { color: colors.textMid, fontSize: 12, lineHeight: 18 },
   cardTarget: { borderColor: colors.cyan },
+  // The title row left the scroll surface (the page opens scrolled to ?item=),
+  // so it brings that surface's gutter with it.
+  head: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
 });

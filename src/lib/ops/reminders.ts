@@ -21,6 +21,7 @@ import { loadNotifications } from "./notifications-sdk";
 import { runLocalNotificationMutation } from "./notification-mutation";
 import {
   accountNotificationStorageKey,
+  isCurrentGenerationNotificationId,
   isNotificationOwnedBy,
   isPrivacySafeNotificationRequest,
   notificationPrivacyData,
@@ -28,6 +29,7 @@ import {
   routineIdFromNotification,
   routineNotificationId,
 } from "./notification-identity";
+import { deviceNotificationText } from "./device-notification-text";
 import type { OpsEventInput } from "./push";
 
 // null on web / Expo Go (SDK 53+ throws on require) -- every entry point below
@@ -40,14 +42,15 @@ type NotificationRequestInput = Parameters<
 export type ReminderResult = "scheduled" | "denied" | "unavailable" | "error";
 
 const CHANNEL_ID = "ops-routines";
-const ROUTINE_NOTIFICATION_CONTENT = {
-  title: "PolaScope",
-  body: "Open the app to view your routine.",
-} as const;
-const FOCUS_NOTIFICATION_CONTENT = {
-  title: "PolaScope",
-  body: "Open the app to view your completed timer.",
-} as const;
+const NOTIFICATION_TITLE = "PolaScope";
+// The body is a fixed sentence in the app's language, read when the reminder is
+// scheduled. A repeating reminder keeps the sentence it was scheduled with.
+function routineNotificationContent(): { title: string; body: string } {
+  return { title: NOTIFICATION_TITLE, body: deviceNotificationText("deviceReminderBody") };
+}
+function focusNotificationContent(): { title: string; body: string } {
+  return { title: NOTIFICATION_TITLE, body: deviceNotificationText("deviceTimerBody") };
+}
 const NOTIFICATION_PRIVACY_MIGRATION_KEY = "ops.notifications.privacyMigration.v2";
 const LEGACY_ACCOUNT_LOCAL_NOTIFICATION_KEYS = [
   "ops.reminders.disabled",
@@ -55,6 +58,12 @@ const LEGACY_ACCOUNT_LOCAL_NOTIFICATION_KEYS = [
   "ops.dailyReview.hour.v1",
 ] as const;
 const DEFAULT_CLEANUP_TIMEOUT_MS = 5_000;
+// A timeout cannot withdraw an already dispatched native cancellation. Do not
+// reuse that stable id until every such call settles, even after releasing the queue.
+const pendingScheduledCancellations = new Map<string, Set<Promise<void>>>();
+// A timed-out storage write can still land. Allow only one in-flight disabled
+// list write per account, and keep its marker until the actual promise settles.
+const pendingDisabledWrites = new Set<string>();
 
 export class AccountScopedNotificationCleanupError extends Error {
   readonly failureCount: number;
@@ -164,7 +173,7 @@ async function ensureChannel(): Promise<void> {
   if (!Notifications) return;
   try {
     await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-      name: "Routines",
+      name: deviceNotificationText("deviceChannelName"),
       importance: Notifications.AndroidImportance.DEFAULT,
     });
   } catch {
@@ -184,14 +193,28 @@ async function removeAccountNotificationStorageKey(key: string): Promise<void> {
   }
 }
 
-async function cancelScheduledIdentifier(identifier: string): Promise<void> {
+async function cancelScheduledIdentifier(identifier: string, strict = false, isCurrentOwner?: () => boolean): Promise<void> {
   if (!Notifications) return;
   try {
     await withinOperationTimeout(
-      () => Notifications.cancelScheduledNotificationAsync(identifier),
+      () => {
+        if (!ownerLeaseIsCurrent({ isCurrentOwner })) throw new Error("Local notification cancellation owner changed.");
+        if (pendingScheduledCancellations.has(identifier)) throw new Error("Local notification cancellation pending.");
+        const cancellation = Notifications.cancelScheduledNotificationAsync(identifier);
+        const pending = pendingScheduledCancellations.get(identifier) ?? new Set<Promise<void>>();
+        pending.add(cancellation);
+        pendingScheduledCancellations.set(identifier, pending);
+        const settled = () => {
+          pending.delete(cancellation);
+          if (pending.size === 0) pendingScheduledCancellations.delete(identifier);
+        };
+        void cancellation.then(settled, settled);
+        return cancellation;
+      },
       DEFAULT_CLEANUP_TIMEOUT_MS,
     );
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     if (typeof console !== "undefined") {
       console.warn("[ops] stale local notification cancellation incomplete");
     }
@@ -216,6 +239,7 @@ async function scheduleWithOwnerLease(
   if (!Notifications) return "unavailable";
   return runLocalNotificationMutation(async () => {
     if (!lease.isCurrent()) return "error";
+    if (pendingScheduledCancellations.has(identifier)) return "error";
     let scheduled: Promise<unknown>;
     try {
       scheduled = Notifications.scheduleNotificationAsync(request);
@@ -248,8 +272,8 @@ export function notifyNow(
   title: string,
   body: string | undefined,
 ): Promise<ReminderResult>;
-/** @deprecated Missing owner is retained only for frozen legacy UI and fails closed. */
-export function notifyNow(title: string, body?: string): Promise<ReminderResult>;
+// No form without the account is declared: a call that cannot name it does not
+// compile (Z107). The check on arguments.length below still refuses it at run time.
 export async function notifyNow(
   first: string,
   _second?: string,
@@ -270,7 +294,7 @@ export async function notifyNow(
     return await scheduleWithOwnerLease(lease, identifier, {
       identifier,
       content: {
-        ...FOCUS_NOTIFICATION_CONTENT,
+        ...focusNotificationContent(),
         data: notificationPrivacyData(ownerId),
       },
       // null trigger = deliver immediately (the phase already ended).
@@ -298,31 +322,108 @@ export function routineReminderId(ownerId: string, routineId: string): string {
 }
 
 /** Cancel the OS notification scheduled under this routine's identifier. */
-export async function cancelRoutineReminder(ownerId: string, routineId: string): Promise<void> {
-  if (!remindersSupported() || !Notifications) return;
+export async function cancelRoutineReminder(
+  ownerId: string,
+  routineId: string,
+  options?: { strict?: boolean; isCurrentOwner?: () => boolean },
+): Promise<void> {
+  if (!remindersSupported() || !Notifications) {
+    if (options?.strict) throw new Error("Local notification cancellation unavailable.");
+    return;
+  }
   const lease = captureAccountOwnerLease(ownerId);
   if (!lease) return;
   const identifier = routineReminderId(ownerId, routineId);
   await runLocalNotificationMutation(async () => {
+    if (!ownerLeaseIsCurrent(options)) {
+      if (options?.strict) throw new Error("Local notification cancellation owner changed.");
+      return;
+    }
     if (!lease.isCurrent()) return;
-    await cancelScheduledIdentifier(identifier);
+    await cancelScheduledIdentifier(identifier, options?.strict, options?.isCurrentOwner);
   });
 }
 
-/** Routine ids that have a LIVE scheduled OS notification (by identifier). */
-export async function getScheduledRoutineIds(ownerId: string): Promise<Set<string>> {
-  const out = new Set<string>();
-  if (!remindersSupported() || !Notifications) return out;
+/** Fully read identifiers; strict callers reject incomplete or timed-out reads. */
+async function getScheduledIdentifiers(options?: { strict?: boolean }): Promise<string[]> {
+  if (!remindersSupported() || !Notifications) {
+    if (options?.strict) throw new Error("Local notification schedule unavailable.");
+    return [];
+  }
   try {
-    const all = await Notifications.getAllScheduledNotificationsAsync();
-    for (const n of all) {
-      const routineId = routineIdFromNotification(n.identifier ?? "", ownerId);
-      if (routineId) out.add(routineId);
-    }
-  } catch {
+    const all = options?.strict
+      ? await withinOperationTimeout(() => Notifications.getAllScheduledNotificationsAsync(), DEFAULT_CLEANUP_TIMEOUT_MS)
+      : await Notifications.getAllScheduledNotificationsAsync();
+    // Materialize the whole list before allowing any destructive use of it.
+    return all.map(n => n.identifier ?? "");
+  } catch (error) {
+    if (options?.strict) throw error;
     // best-effort: an unreadable schedule list reads as "nothing scheduled"
   }
+  return [];
+}
+
+/** Routine ids that have a LIVE scheduled OS notification (by identifier). */
+export async function getScheduledRoutineIds(ownerId: string, options?: { strict?: boolean }): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (const identifier of await getScheduledIdentifiers(options)) {
+    const routineId = routineIdFromNotification(identifier, ownerId);
+    if (routineId) out.add(routineId);
+  }
   return out;
+}
+
+export interface ResidualReminderSweepResult {
+  disabled: { found: number; cancelled: number };
+  otherAccounts: { found: number; cancelled: number };
+}
+
+/** Retry residual alarms on list reads, without changing account publication.
+ * Both categories share one strict OS snapshot. Disabled preferences and their
+ * cancellations share the same queue as enableReminder's preference write and
+ * native scheduling, so a newly enabled alarm cannot be cancelled by this pass.
+ * Chat orphans retain the separate record-creation queue in one-off-reminders. */
+export async function sweepResidualReminderNotifications(ownerId: string): Promise<ResidualReminderSweepResult> {
+  const result: ResidualReminderSweepResult = {
+    disabled: { found: 0, cancelled: 0 }, otherAccounts: { found: 0, cancelled: 0 },
+  };
+  if (Platform.OS === "web") return result;
+  const lease = captureAccountOwnerLease(ownerId);
+  if (!lease?.isCurrent()) return result;
+  try {
+    await runLocalNotificationMutation(async () => {
+      if (!lease.isCurrent()) return;
+      const scheduled = [...new Set(await getScheduledIdentifiers({ strict: true }))];
+      if (!lease.isCurrent()) return;
+      const disabled = await withinOperationTimeout(() => readDisabledSetStrict(ownerId), DEFAULT_CLEANUP_TIMEOUT_MS);
+      if (!lease.isCurrent()) return;
+      const candidates = scheduled.flatMap<{ identifier: string; routineId: string | null; counts: { found: number; cancelled: number } }>(identifier => {
+        if (isCurrentGenerationNotificationId(identifier) && !isNotificationOwnedBy(identifier, ownerId)) {
+          return [{ identifier, routineId: null, counts: result.otherAccounts }];
+        }
+        const routineId = routineIdFromNotification(identifier, ownerId);
+        return routineId && !routineId.startsWith("chat-") && disabled.has(routineId)
+          ? [{ identifier, routineId, counts: result.disabled }] : [];
+      });
+      for (const candidate of candidates) candidate.counts.found += 1;
+      for (const { identifier, routineId, counts } of candidates) {
+        if (!lease.isCurrent()) break;
+        try {
+          // Re-read immediately before dispatch; a failed preference read grants
+          // no authority to cancel. Keep this read inside the notification queue.
+          if (routineId !== null) {
+            if (pendingDisabledWrites.has(ownerId)) continue;
+            const latest = await withinOperationTimeout(() => readDisabledSetStrict(ownerId), DEFAULT_CLEANUP_TIMEOUT_MS);
+            if (!latest.has(routineId)) continue;
+          }
+          if (!lease.isCurrent()) break;
+          await cancelScheduledIdentifier(identifier, true, () => lease.isCurrent());
+          counts.cancelled += 1;
+        } catch { /* Leave failed/timed-out alarms for the next list read. */ }
+      }
+    });
+  } catch { /* An uncertain OS snapshot or owner never authorizes cancellation. */ }
+  return result;
 }
 
 let privacyMigrationInFlight: Promise<void> | null = null;
@@ -457,7 +558,7 @@ export async function scheduleRoutineReminder(
     // Lock-screen notifications are an OS-visible boundary. Keep personal
     // routine titles/reasons inside the app even when the device is locked.
     const content = {
-      ...ROUTINE_NOTIFICATION_CONTENT,
+      ...routineNotificationContent(),
       data: notificationPrivacyData(ownerId),
     };
     if (input.recurrence === "daily") {
@@ -682,12 +783,26 @@ async function readDisabledSet(ownerId: string): Promise<Set<string>> {
   }
 }
 
-async function writeDisabledSet(ownerId: string, ids: Set<string>): Promise<void> {
-  try {
-    await AsyncStorage.setItem(disabledKey(ownerId), JSON.stringify([...ids]));
-  } catch {
-    /* best-effort — a failed write just means the toggle doesn't persist */
+/** Destructive cleanup and enabling require a complete, valid preference read. */
+async function readDisabledSetStrict(ownerId: string): Promise<Set<string>> {
+  const raw = await AsyncStorage.getItem(disabledKey(ownerId));
+  if (raw === null) return new Set();
+  const parsed: unknown = JSON.parse(raw);
+  if (!Array.isArray(parsed) || parsed.some(id => typeof id !== "string")) {
+    throw new Error("Invalid local reminder preferences.");
   }
+  return new Set(parsed);
+}
+
+async function writeDisabledSet(ownerId: string, ids: Set<string>): Promise<void> {
+  await withinOperationTimeout(() => {
+    if (pendingDisabledWrites.has(ownerId)) throw new Error("Local reminder preference write pending.");
+    const write = AsyncStorage.setItem(disabledKey(ownerId), JSON.stringify([...ids]));
+    pendingDisabledWrites.add(ownerId);
+    const settled = () => { pendingDisabledWrites.delete(ownerId); };
+    void write.then(settled, settled);
+    return write;
+  }, DEFAULT_CLEANUP_TIMEOUT_MS);
 }
 
 /** True when this routine's reminder is ON (i.e. NOT in the disabled set). */
@@ -727,16 +842,17 @@ export async function enableReminder(
   if (!lease) return false;
   const granted = await ensureNotificationPermission();
   if (!granted || !lease.isCurrent()) return false;
-  const disabled = await readDisabledSet(ownerId);
-  if (!lease.isCurrent()) return false;
-  if (disabled.delete(routineId)) {
-    const persisted = await runLocalNotificationMutation(async () => {
+  const persisted = await runLocalNotificationMutation(async () => {
+    if (!lease.isCurrent() || pendingScheduledCancellations.has(routineReminderId(ownerId, routineId))) return false;
+    if (pendingDisabledWrites.has(ownerId)) return false;
+    try {
+      const disabled = await withinOperationTimeout(() => readDisabledSetStrict(ownerId), DEFAULT_CLEANUP_TIMEOUT_MS);
       if (!lease.isCurrent()) return false;
-      await writeDisabledSet(ownerId, disabled);
-      return lease.isCurrent();
-    });
-    if (!persisted) return false;
-  }
+      if (disabled.delete(routineId)) await writeDisabledSet(ownerId, disabled);
+    } catch { return false; }
+    return lease.isCurrent();
+  });
+  if (!persisted) return false;
   if (event) {
     const result = await scheduleRoutineReminder(event, {
       ownerId,
@@ -755,16 +871,18 @@ export async function enableReminder(
 export async function disableReminder(ownerId: string, routineId: string): Promise<void> {
   const lease = captureAccountOwnerLease(ownerId);
   if (!lease) return;
-  const disabled = await readDisabledSet(ownerId);
+  await runLocalNotificationMutation(async () => {
+    if (!lease.isCurrent() || pendingDisabledWrites.has(ownerId)) return;
+    try {
+      // Read inside the queue so a delayed read cannot overwrite newer toggles.
+      const disabled = await withinOperationTimeout(() => readDisabledSet(ownerId), DEFAULT_CLEANUP_TIMEOUT_MS);
+      if (!lease.isCurrent()) return;
+      if (!disabled.has(routineId)) {
+        disabled.add(routineId);
+        await writeDisabledSet(ownerId, disabled);
+      }
+    } catch { /* Best-effort persistence must not prevent the cancellation. */ }
+  });
   if (!lease.isCurrent()) return;
-  if (!disabled.has(routineId)) {
-    disabled.add(routineId);
-    const persisted = await runLocalNotificationMutation(async () => {
-      if (!lease.isCurrent()) return false;
-      await writeDisabledSet(ownerId, disabled);
-      return lease.isCurrent();
-    });
-    if (!persisted) return;
-  }
   await cancelRoutineReminder(ownerId, routineId);
 }

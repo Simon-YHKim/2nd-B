@@ -17,6 +17,7 @@ import {
   type SystemLocale,
 } from "@/lib/i18n/locales";
 import { createRecord, listRecentRecords } from "@/lib/records/create";
+import { FIRST_LIGHT_TAG, firstLightSystemTags, hasSystemTag } from "@/lib/records/system-tags";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace } from "@/lib/theme/tokens";
 
@@ -50,6 +51,8 @@ interface TTFVRecordRow {
   body?: unknown;
   created_at?: unknown;
   tags?: unknown;
+  // 0218: TTFV's own note carries its marker here, not in `tags`.
+  system_tags?: unknown;
 }
 
 export type TTFVRecordReader = (
@@ -111,7 +114,7 @@ export const TTFV_COPY: Record<AvailableUiLocale, TTFVCopy> = {
     savedBody: "We kept your choice without changing a star or drawing a new conclusion.",
     homeAction: "Go to constellation",
     emptyTitle: "Start with your own words",
-    emptyBody: "There is no record to review yet. Capture one thought and come back.",
+    emptyBody: "Capture one thought to look back on it here.",
     emptyAction: "Capture a thought",
     loadErrorTitle: "We could not load a record",
     loadErrorBody: "This is different from having no records. Check your connection and try again.",
@@ -142,8 +145,8 @@ export const TTFV_COPY: Record<AvailableUiLocale, TTFVCopy> = {
     savedBody: "새로운 결론을 만들거나 별을 바꾸지 않고 선택만 남겼습니다.",
     homeAction: "별자리로 가기",
     emptyTitle: "내 말로 먼저 시작해요",
-    emptyBody: "아직 돌아볼 기록이 없습니다. 생각 하나를 담고 다시 와 주세요.",
-    emptyAction: "생각 담기",
+    emptyBody: "생각 하나를 기록하면 여기서 돌아볼 수 있습니다.",
+    emptyAction: "생각 기록하기",
     loadErrorTitle: "기록을 불러오지 못했습니다",
     loadErrorBody: "기록이 없는 상태와는 다릅니다. 연결을 확인하고 다시 시도해 주세요.",
     loadRetry: "다시 불러오기",
@@ -173,7 +176,7 @@ export const TTFV_COPY: Record<AvailableUiLocale, TTFVCopy> = {
     savedBody: "Guardamos tu elección sin cambiar ninguna estrella ni sacar una conclusión nueva.",
     homeAction: "Ir a la constelación",
     emptyTitle: "Empieza con tus propias palabras",
-    emptyBody: "Todavía no hay un registro para revisar. Guarda una idea y vuelve después.",
+    emptyBody: "Guarda una idea para revisarla aquí.",
     emptyAction: "Guardar una idea",
     loadErrorTitle: "No pudimos cargar un registro",
     loadErrorBody: "Esto no significa que no haya registros. Revisa tu conexión e inténtalo de nuevo.",
@@ -204,7 +207,7 @@ export const TTFV_COPY: Record<AvailableUiLocale, TTFVCopy> = {
     savedBody: "Guardamos sua escolha sem mudar nenhuma estrela nem criar uma nova conclusão.",
     homeAction: "Ir para a constelação",
     emptyTitle: "Comece com suas próprias palavras",
-    emptyBody: "Ainda não há um registro para revisar. Guarde uma ideia e volte depois.",
+    emptyBody: "Guarde uma ideia para revê-la aqui.",
     emptyAction: "Guardar uma ideia",
     loadErrorTitle: "Não foi possível carregar um registro",
     loadErrorBody: "Isso é diferente de não ter registros. Verifique sua conexão e tente novamente.",
@@ -235,7 +238,7 @@ export const TTFV_COPY: Record<AvailableUiLocale, TTFVCopy> = {
     savedBody: "Kami menyimpan pilihanmu tanpa mengubah bintang atau membuat kesimpulan baru.",
     homeAction: "Ke konstelasi",
     emptyTitle: "Mulai dengan kata-katamu sendiri",
-    emptyBody: "Belum ada catatan untuk ditinjau. Simpan satu pikiran lalu kembali lagi.",
+    emptyBody: "Simpan satu pikiran untuk meninjaunya di sini.",
     emptyAction: "Simpan satu pikiran",
     loadErrorTitle: "Catatan tidak dapat dimuat",
     loadErrorBody: "Ini berbeda dari tidak memiliki catatan. Periksa koneksi lalu coba lagi.",
@@ -295,8 +298,17 @@ function normalizedExcerpt(body: unknown): { excerpt: string; truncated: boolean
   };
 }
 
+// TTFV's own first-record-review note is not a record to review. The marker is the
+// app's (records.system_tags, 0218), so a user tag that also says `first_light`
+// no longer hides the user's own record from this screen.
 function isFirstLight(row: TTFVRecordRow): boolean {
-  return Array.isArray(row.tags) && row.tags.some((tag) => tag === "first_light");
+  return hasSystemTag(
+    {
+      tags: Array.isArray(row.tags) ? (row.tags as readonly string[]) : null,
+      system_tags: Array.isArray(row.system_tags) ? (row.system_tags as readonly string[]) : undefined,
+    },
+    FIRST_LIGHT_TAG,
+  );
 }
 
 export async function loadTTFVReview(
@@ -332,6 +344,33 @@ export function shouldMarkTTFVSeen(state: TTFVContentState): boolean {
   return state.kind === "review" || state.kind === "empty";
 }
 
+/** The review could not load anything to show (#1530: such a visit does not use the one chance). */
+export function shouldReleaseTTFVClaim(state: TTFVContentState): boolean {
+  return state.kind === "error";
+}
+
+/**
+ * One visit of this screen for one owner: the receipt of the first-day grant it
+ * took when it started (null when the home did not open it), whether it showed
+ * content, and whether a load failed on it.
+ */
+export interface TTFVVisit {
+  userId: string;
+  receipt: string | null;
+  shown: boolean;
+  failed: boolean;
+}
+
+/**
+ * Hand the grant back when the visit ends? Only a visit that holds a receipt,
+ * hit a load error and never showed content (#1530). Never at the error itself:
+ * the visit can still load again and show, and a grant handed back while it can
+ * would let a newer grant open a second screen beside it (gate FR-01).
+ */
+export function shouldReleaseTTFVVisit(visit: TTFVVisit): visit is TTFVVisit & { receipt: string } {
+  return visit.receipt !== null && visit.failed && !visit.shown;
+}
+
 export const IDLE_TTFV_SAVE: TTFVSaveState = { choice: null, status: "idle" };
 
 export function beginTTFVSave(choice: TTFVChoice): TTFVSaveState {
@@ -361,7 +400,7 @@ export function buildFirstLightRecordInput(args: {
     kind: "note" as const,
     body: `${copy.recordPrefix}: ${args.choice === "soft" ? copy.recordSoft : copy.recordAffirm}`,
     withFollowup: false,
-    tags: ["first_light", `first_light:${args.choice}`],
+    systemTags: firstLightSystemTags(args.choice),
   };
 }
 
@@ -371,7 +410,18 @@ type TTFVScreenProps =
       mode: "authenticated";
       userId: string;
       minor: boolean;
-      onContentReady: () => void;
+      /**
+       * Takes the receipt of the first-day grant this visit was opened with, once,
+       * when the visit starts. Null for a visit the home did not open.
+       */
+      takeReceipt?: (userId: string) => string | null;
+      /** Called once per visit, when content is first on screen, with the visit's receipt. */
+      onContentReady: (receipt: string | null) => void;
+      /**
+       * Called once, when a visit that holds a receipt ends (the screen leaves, or
+       * the owner changes) after a load error, without ever having shown content.
+       */
+      onContentUnavailable?: (receipt: string) => void;
     };
 
 const EMPTY_LOADING_STATE: TTFVContentState = { userId: "", kind: "loading" };
@@ -383,6 +433,8 @@ export function TTFVScreen(props: TTFVScreenProps) {
   const userId = props.mode === "authenticated" ? props.userId : null;
   const minor = props.mode === "authenticated" ? props.minor : true;
   const onContentReady = props.mode === "authenticated" ? props.onContentReady : null;
+  const takeReceipt = props.mode === "authenticated" ? props.takeReceipt ?? null : null;
+  const onContentUnavailable = props.mode === "authenticated" ? props.onContentUnavailable ?? null : null;
 
   const [content, setContent] = useState<TTFVContentState>(EMPTY_LOADING_STATE);
   const [save, setSave] = useState<TTFVSaveState>(IDLE_TTFV_SAVE);
@@ -391,8 +443,11 @@ export function TTFVScreen(props: TTFVScreenProps) {
   const saveRequestRef = useRef(0);
   const saveInFlightRef = useRef(false);
   const currentUserRef = useRef<string | null>(userId);
-  const seenUserRef = useRef<string | null>(null);
+  const visitRef = useRef<TTFVVisit | null>(null);
+  // Read when a visit starts (its effect is keyed by the owner alone).
+  const visitCallbacksRef = useRef({ takeReceipt, onContentUnavailable });
   currentUserRef.current = userId;
+  visitCallbacksRef.current = { takeReceipt, onContentUnavailable };
 
   useEffect(() => {
     const requestId = ++loadRequestRef.current;
@@ -427,11 +482,32 @@ export function TTFVScreen(props: TTFVScreenProps) {
 
   const visibleContent = userId ? visibleTTFVContent(content, userId) : EMPTY_LOADING_STATE;
 
+  // One visit per owner on this screen. It takes the first-day grant's receipt
+  // when it starts, so no other visit can hand that grant back (gate BA-02), and
+  // hands the grant back only when it ends: after a load error, without having
+  // shown anything. Until then the grant stays held, so the load retry can still
+  // show content and no newer grant can open a second screen beside it (FR-01).
   useEffect(() => {
-    if (!userId || !onContentReady || !shouldMarkTTFVSeen(visibleContent)) return;
-    if (seenUserRef.current === userId) return;
-    seenUserRef.current = userId;
-    onContentReady();
+    if (!userId) return;
+    const { takeReceipt: take, onContentUnavailable: handBack } = visitCallbacksRef.current;
+    const visit: TTFVVisit = { userId, receipt: take ? take(userId) : null, shown: false, failed: false };
+    visitRef.current = visit;
+    return () => {
+      if (visitRef.current === visit) visitRef.current = null;
+      if (handBack && shouldReleaseTTFVVisit(visit)) handBack(visit.receipt);
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    const visit = visitRef.current;
+    if (!userId || !visit || visit.userId !== userId || visit.shown) return;
+    if (shouldReleaseTTFVClaim(visibleContent)) {
+      visit.failed = true;
+      return;
+    }
+    if (!onContentReady || !shouldMarkTTFVSeen(visibleContent)) return;
+    visit.shown = true;
+    onContentReady(visit.receipt);
   }, [onContentReady, userId, visibleContent]);
 
   async function saveChoice(choice: TTFVChoice) {

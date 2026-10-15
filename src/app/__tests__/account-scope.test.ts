@@ -105,6 +105,38 @@ describe("root account scene boundary wiring", () => {
     expect(resolver).toContain("ACCOUNT_RESET_MAX_ATTEMPTS");
     expect(resolver).toContain("setResetPass((pass) => pass + 1)");
   });
+
+  // Simon Q-261013-29: a different owner starts the app again.
+  test("a published different owner asks for the app restart before anything that needs the router, and never inside the sign-in screens", () => {
+    const resolver = LAYOUT.slice(
+      LAYOUT.indexOf("function PendingAccountTransitionResolver"),
+      LAYOUT.indexOf("function ThemedStatusBar"),
+    );
+    const authReturn = resolver.indexOf('if (segments[0] === "(auth)") return;');
+    const restart = resolver.indexOf(
+      "if (isAccountNavigationResetPending() && accountRestartPending(() => setResetPass((pass) => pass + 1))) return;",
+    );
+    const proofBranch = resolver.indexOf("shouldReleaseAccountTransition(segments, rootState)");
+    const routerReady = resolver.indexOf("if (!rootState?.key) return;");
+    const dismiss = resolver.indexOf("router.dismissAll();");
+    expect(authReturn).toBeGreaterThan(-1);
+    expect(restart).toBeGreaterThan(authReturn);
+    // Before the release proof: a build that can restart never lifts the hold by proof.
+    expect(proofBranch).toBeGreaterThan(restart);
+    // Before the router-ready return: a router that is not ready cannot keep the restart from being asked for.
+    expect(routerReady).toBeGreaterThan(restart);
+    expect(dismiss).toBeGreaterThan(routerReady);
+    // One request, through the one helper. The resolver holds no platform branch and reloads nothing itself.
+    expect(resolver.split("accountRestartPending(").length - 1).toBe(1);
+    expect(resolver).not.toContain("Platform.OS");
+    expect(resolver).not.toContain("reloadAsync");
+    expect(resolver).not.toContain("location.");
+    // Nothing between the sign-in exemption and the request reads the router.
+    const between = resolver.slice(authReturn + 'if (segments[0] === "(auth)") return;'.length, restart);
+    expect(between).not.toContain("rootState");
+    expect(between).not.toContain("segments");
+    expect(between).not.toContain("router.");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -280,18 +312,22 @@ describe("no product route opts out of the account boundary", () => {
       children: unknown[];
     }
     const exported: { f?: (args: { children: unknown; route: { name: string } }) => Node } = {};
-    new Function("exports", "React", "ProfileProbeScope", "AvatarSetupSceneGuard", "AccountScope", js)(
+    new Function("exports", "React", "ProfileProbeScope", "AvatarSetupSceneGuard", "WorldRouteTransition", "AccountScope", js)(
       exported,
       { createElement: (type: unknown, _p: unknown, ...children: unknown[]) => ({ type, children }) },
       "ProfileProbeScope",
       "AvatarSetupSceneGuard",
+      "WorldRouteTransition",
       "AccountScope",
     );
     const tree = exported.f!({ children: "SCENE", route: { name: "secondb" } });
     expect(tree.type).toBe("ProfileProbeScope");
     const avatarGuard = tree.children[0] as Node;
     expect(avatarGuard.type).toBe("AvatarSetupSceneGuard");
-    const inner = avatarGuard.children[0] as Node;
+    const transition = avatarGuard.children[0] as Node;
+    expect(transition.type).toBe("WorldRouteTransition");
+    expect(transition.children).toHaveLength(1);
+    const inner = transition.children[0] as Node;
     expect(inner.type).toBe("AccountScope");
     expect(inner.children).toEqual(["SCENE"]);
   });

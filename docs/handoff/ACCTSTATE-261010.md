@@ -1,0 +1,179 @@
+# 계정 전환 시 폰 위치와 스크롤 기억
+
+대상: `fix/phone-state-account-switch-261010` · 감사 G5-01(high), G5-02(medium).
+범위의 끝은 draft PR이다. 독립 daybreak 검토와 머지는 코디네이터가 맡는다.
+
+## 2회차: AS-01 수정 (마지막 구현 회차)
+
+독립 검토 1회차 원문은
+`E:/Coding Infra/reports/codex-audit-261010/gates/acctstate-daybreak-r1.txt`다.
+판정은 BLOCK이었다. G5-01(high)과 같은 계정 복원·저장 형식·hook 규칙은 통과했지만,
+G5-02의 AS-01(medium)은 B의 layout 전 drag가 복원을 취소해 A의 900을 B에 쓰는 경로였다.
+아래 1회차의 테스트·변이 수치는 이 경로를 포함하지 않았다. G5-01 코드는 이번에 수정하지 않았다.
+
+### 선택한 방법과 바뀌는 동작
+
+- 검토의 권장안인 **실제 native host의 epoch key**를 선택했다. hook 사본만 바꾸면 화면에
+  남은 A의 offset과 큐 이벤트가 유지된다. host 자체를 교체하면 B가 A의 스크롤 표시 상태를
+  이어받는 경로를 제거할 수 있고, native timestamp 형식에 의존할 필요도 없다.
+- `useScrollMemory`가 `accountEpochFromSnapshot(snapshot)`을 `hostKey`로 돌려준다.
+  `RememberedScrollView`, `RememberedFlatList`, `PhoneScrollView`, `PhoneFlatList` 전부
+  그 key를 실제 `ScrollView`/`FlatList`에 명시한다. 검색한 production 호출부는 이 4곳이다.
+  폰 스타일 적용 여부와 무관하게 같은 경계를 사용한다.
+- layout 크기와 준비 상태도 epoch별 사본이다. 새 host의 `onLayout` 전 drag는 pending을
+  해제하지 않는다. A의 늦은 layout은 A 사본만 바꾸며 B를 준비 완료로 만들지 못한다.
+  새 host가 layout된 뒤에는 정상 drag가 복원을 즉시 취소하고 계속 저장한다.
+- 같은 epoch의 재렌더·숨김/복귀·뒤로 이동은 key를 유지한다. pending 해제만으로 native host를
+  다시 만들지 않는다. 같은 계정에서 컴포넌트가 다시 마운트되면 기존 숫자 offset을 읽는다.
+  로그아웃 후 같은 계정으로 돌아와도 epoch는 달라지므로 새 host로 시작한다.
+- `phone-position`, `scroll:${scope.id}:${testID/slot}` 키와 값 구조는 그대로다.
+  서버·DB·Edge·의존성·UI 문자열·색상·레이아웃 설정을 이 수정으로 변경하지 않았다.
+
+### 2회차 검증 기록
+
+| 검증 | 결과 | 로그 |
+|---|---|---|
+| 수정 전 AS-01 재현 | 신규 9개 중 7개 실패·2개 통과. ScrollView/FlatList 모두 B 쓰기에 900 기록 | `acctstate-r2-red-targeted.log` |
+| 수정 후 관련 회귀 | 5스위트 42/42 통과. 1회차 33개 + 신규 9개 | `acctstate-r2-green2-targeted.log` |
+| 규칙별 변이 | 11/11 실패 확인, 11/11 각 원복 후 통과 | `../acctstate-r2-mutation-results.json` |
+| 전체 verify | 26/26단계 종료코드 0, package.json 순서대로 개별 실행 | `acctstate-r2-summary.json`, `acctstate-r2-<단계>.log` |
+| 전체 Jest | 1,016스위트·14,115개 통과, 기존 1개 건너뜀 | `acctstate-r2-jest.log` |
+| 기존 main parity | 같음. 이번 draft PR의 반영 증거는 아님 | `../acctstate-r2-parity.log` |
+
+로그 기준 폴더: `E:/Coding Infra/reports/codex-audit-261010/verify/`.
+기존 1회차의 verify 2차 시도 로그는 같은 폴더의 `acctstate-first-round-verify2/`에 보존했다.
+첫 수정 후 테스트 4개가 실패한 것은 publication hold도 epoch를 증가시키는데 테스트가
+이를 그대로라고 가정한 탓이었다. 테스트를 실제 계약대로 바꿔, 소유자 publish 후 pending
+해제만 일어난 경우 key가 유지되는지 검사했다. 구현은 이 실패 때문에 변경하지 않았다.
+
+신규 검사는 B render 직후 **layout·flush 전** 새 handler에 `drag(900) → scroll(900)`을 주고
+B의 쓰기 기록이 비어 있음을 단언한다. 복원 뒤 B의 정상 drag·scroll은 80을 저장한다.
+4개 wrapper의 실제 선언과 hook을 실행해 반환된 native element의 key도 확인한다.
+RN renderer·실제 native 스케줄러를 실행한 검증은 아니다. host 교체의 시각적 결과는
+React key 계약에 근거하며, 한 프레임 표시 여부를 기기에서 관측했다고 주장하지 않는다.
+
+### 남긴 것과 인수 조건
+
+- `src/screens/deepspace/dds-ops-screen.tsx:397-402,420,436-450,809-811`: **medium, 조건부**.
+  직접 마운트를 유지하면 이전 추천 사본이 새 owner의 `ops-presentation`에 쓰일 가능성이다.
+  폰 경계·독립 화면 AccountScope가 현재 이를 차단한다. 이번 검토의 BLOCK 근거가 아니고
+  발주 범위 밖이어서 그대로 두었다. 실제 UI 재현은 하지 않았다.
+- **G5-03 high**, **G5-04·05·06·07 medium**: 이번에도 수정하지 않았다.
+  각각 DB 함수의 정식 migration 누락, 서비스 날짜 한도, 루틴 저장의 영속 중복 방지,
+  미지원 알림 host의 개별 삭제, 그룹 변경 뒤 숨은 이전 분류다. 심각도는 원 감사
+  `g5-writes-daybreak-r1.txt`를 확인해 옮겼으며 재판정하지 않았다.
+- `origin/main`(`1f093f70`)을 충돌 없이 병합한 뒤 검증했다. 이로 들어온 다른 갈래의 변경은 AS-01 수정이 아니다.
+- 앱 LLM 호출·QA 로그인·화면 캡처·에뮬레이터·운영 쓰기·배포·APK 디스패치는 0회다.
+  draft PR #2219에만 push하며 머지·ready 전환은 하지 않는다.
+- 다음 독립 검토에서 다시 BLOCK이면 이 PR은 멈춘다. 이번이 마지막 구현 회차다.
+  롤백은 이 클라이언트 수정의 반대 패치를 별도 PR로 검토하면 된다. 저장 마이그레이션은 없다.
+
+## 이하: 1회차 기록 (AS-01 수정 전)
+
+## 근거와 확인 범위
+
+- 감사 원문: `E:/Coding Infra/reports/codex-audit-261010/gates/g5-writes-daybreak-r1.txt`의 G5-01, G5-02.
+- 저장소 인수: [CODEX-AUDIT-261010.md](CODEX-AUDIT-261010.md)의 “G5 대화 저장 · 폰”.
+- [PR #2188](https://github.com/Simon-YHKim/2nd-B/pull/2188): 같은 계정 세션의 마지막 폰 화면과 화면별 스크롤을 복원한다. 제목은 실제 GitHub 본문 기준 `fix(phone): separate assistant results and restore navigation`이다.
+- `DECISIONS.md:161`(26.10.09 10:43): “계정이 바뀌면 이전 위치와 메모리 결과를 비운다”.
+- 이번 사용자의 발주서가 구현·테스트·커밋·push·draft PR을 승인했다. 착수 시 체크아웃에는 없던
+  `DECISIONS.md` 26.10.10 19:00 두 줄도 PR 전 최신 origin/main에서 확인했다. Simon의 “폰 상태(계정 전환)”
+  선택과 코디네이터의 G5-01·02 범위가 이번 발주와 일치한다. 다른 모델의 독립 검토는 코디네이터 후속이다.
+
+현재 앱의 `src/app/_layout.tsx:366` AccountScope는 epoch별로 제품 화면을 다시 마운트하고,
+`src/app/dashboard.tsx:9`에도 사용자 key가 있다. 따라서 감사의 “마운트를 유지한 계정 전환”이
+실제 앱에서 발생했다는 주장은 이 변경의 관측 결과가 아니다. 테스트는 상위 화면이 유지되는
+조건에서 실제 폰의 상태 초기화·저장 코드와 실제 스크롤 hook을 실행해 컴포넌트 자체의 경계를 검증한다.
+QA 로그인·화면 캡처·실기기·에뮬레이터 실행은 하지 않았다. 앱 LLM 호출은 0회다.
+
+## 바꾼 것과 이유
+
+1. `DashboardPhone`은 계정 전환 스냅샷을 구독한다. 소유자가 없거나 prop과 현재 소유자가
+   다르거나 전환 보류 중이면 내부 폰을 만들지 않는다. 내부 `AccountDashboardPhone`의 key는
+   소유자와 epoch다. A→B, A→없음→B뿐 아니라 중간 렌더 없이 A→없음→A인 경우도 새 상태로 시작한다.
+2. 내부 폰 전체를 다시 마운트하는 방법을 선택했다. 위치 다섯 필드만 effect에서 교체하면
+   같은 트리의 메모 초안·검색·알림 데이터·앱 상태·지연 콜백을 빠뜨릴 수 있기 때문이다.
+   같은 계정·같은 epoch의 재렌더와 폰 재개는 기존 저장값을 쓴다. 저장 키와 값의 형식은 그대로다.
+3. 복원한 알림 ID는 현재 계정의 알림 읽기가 끝날 때까지 저장하지 않는다. 목록에 있으면
+   유지하고, 없으면 선택을 비운 후 저장한다. 로딩 중인 유효한 선택을 성급히 지우지 않는다.
+4. `useScrollMemory`는 epoch와 화면 키마다 내부 사본과 예약 작업을 새로 만든다.
+   계정 변경은 외부 저장소 구독으로 전달된다. 새 lease를 얻으며, 조회가 비면 0을 쓴다.
+   0도 실제 scrollTo/scrollToOffset으로 복원하고, 복원 중 발생하는 이전 호스트의 스크롤 사건은
+   저장하지 않는다. 이전 프레임·settle 타이머를 취소하고 늦은 사건은 lease로 거부한다.
+5. 같은 hook의 화면 키만 바뀌거나 캐시 항목이 퇴출됐을 때도 오래된 ref로 되돌아가던 경로를
+   함께 닫았다. 같은 계정의 뒤로 이동, 폰 재개, 로딩 목록 복원, 가로 목록, 사용자 드래그는 유지한다.
+
+서버·DB·Edge·저장 마이그레이션·의존성·i18n·UI 문구·레이아웃·열고 닫기 동작은 변경하지 않았다.
+기존 `view-memory`는 계정 전환 때 모든 항목을 지우는 세션 메모리다. 이번 변경이 계정별 디스크
+보관이나 앱 재시작 복원을 새로 제공하지는 않는다. 새 계정의 현재 세션 저장값이 있으면 그 값을
+읽는 경우도 테스트한다.
+
+## 검증
+
+| 검증 | 결과 | 근거 |
+|---|---|---|
+| 수정 전 재현 | 31개 중 12개 실패, 19개 통과 | `acctstate-rred2-targeted.log` |
+| 관련 회귀 | 5스위트 33개 통과, 신규 20개 포함 | `acctstate-rrestored-targeted.log`, 최종 전체 Jest |
+| 변이 | 16/16 실패 확인, 각 변경 원복 후 통과 | `acctstate-mutation-results.json` |
+| verify 최종 3회차 | 26/26단계 종료코드 0, package.json 순서대로 개별 실행 | `acctstate-r3-summary.json` 및 단계별 로그 |
+| 전체 Jest | 1,014스위트 통과, 14,027개 통과, 기존 1개 건너뜀 | `acctstate-r3-jest.log` |
+| 기존 main parity | 같음. 이번 PR 반영 증거는 아님 | `acctstate-parity.log` |
+
+로그 폴더: `E:/Coding Infra/reports/codex-audit-261010/verify/`.
+변이 목록·결과와 parity 기록은 같은 보고서 루트에 있다. 변이는 계정/epoch key, 소유 경계,
+알림 읽기·유효성, 같은 계정 복원, scroll epoch/화면 사본, lease 갱신·구독, 빈 조회 폴백,
+합성 스크롤 차단, frame/settle 취소, 늦은 쓰기 거부를 각각 되돌려 확인했다.
+
+verify 1회차는 새 테스트의 nullable animation-frame 인자 타입 1곳에서 멈췄다.
+2회차는 기존 홈 복귀 소스 계약이 옛 함수명을 기대하는 검사 1개만 실패했다.
+각각 인자 좁히기와 계약의 함수명만 수정했다. 검사 범위·허용 호출 수는 유지했다.
+최종 실행은 `npm test -- --ci --maxWorkers=2`이며, 매 단계 앞에서 메모리와 다른 Jest를
+확인하고 기준 미달 또는 실행 충돌 동안 기다렸다. 실패 로그도 보존했다.
+
+테스트 방식은 RN 렌더러 대신 기존 저장소의 TypeScript 소스 실행 방식과 hook cell harness다.
+폰은 실제 boundary/초기화/effect 코드를 실행하고, key가 바뀔 때만 하위 hook cell을 교체한다.
+스크롤은 실제 hook 전체와 실제 account-epoch/view-memory 모듈을 실행한다. DOM·네이티브
+스케줄러 자체를 검증하는 테스트는 아니다. 쓰기 호출마다 소유자·값을 복사해, 새 계정 호출 기록에
+이전 계정의 위치가 한 번도 들어가지 않는지 검사한다.
+
+## 코디네이터 재현 절차
+
+운영 계정·데이터 변경 없이 준비된 두 계정의 검토 환경에서 수행한다. 이 세션에서는 실행하지 않았다.
+
+1. 계정 A로 홈에서 폰을 연다. 보드 2쪽을 본 뒤 앱 화면으로 이동한다. 알림이 있으면 상세를 열고,
+   지출 같은 목록이 긴 내부 앱에서 아래로 스크롤한다. 알림이 없다면 목록 경로만 먼저 확인한다.
+2. 폰을 내렸다 다시 연다. 같은 계정이므로 마지막 화면과 스크롤이 유지되어야 한다.
+   내부 앱에서 다른 화면으로 갔다가 뒤로 돌아와도 이전 스크롤이 유지되어야 한다.
+3. 같은 JS 실행을 유지한 채 A에서 B로 바꾼다. 일반 로그인 경로가 화면 전체를 다시 마운트한다면
+   그 결과는 사용자 회귀 확인이고, 감사 조건의 직접 재현은 “상위 마운트 유지” hook 테스트로 대조한다.
+4. B의 폰은 B의 현재 세션 저장값 또는 기본 보드 1쪽에서 시작해야 한다. A의 내부 경로·2쪽·알림
+   선택·스크롤은 보이지 않아야 한다. B에서 새로 스크롤한 위치는 B 안에서만 다시 복원되어야 한다.
+5. A→로그아웃→B 순서도 반복한다. 로그아웃 구간에는 폰 상태 쓰기가 없어야 한다.
+6. B의 복원 알림이 목록에서 사라진 경우 로딩이 끝난 뒤 알림 목록으로 돌아와야 한다.
+   목록에 있는 알림은 로딩 후 동일한 상세로 이어져야 한다.
+
+**수정 전(마운트 유지 조건):** 폰의 A 상태가 B 쓰기 effect로 넘어갔고, 스크롤은 빈 조회 뒤 A의
+ref로 복원되어 B 기억에 기록됐다. **수정 후:** 소유자/epoch 경계에서 내부 상태가 교체되고,
+빈 스크롤 조회는 0이 된다. 실제 UI 전후 관측은 코디네이터 후속이다.
+
+## 같은 형태 탐색과 남긴 것
+
+- 폰의 위치·알림 선택·페이지·스크롤 대상, `draft`/`captureTag`, 위키·검색 상태와 폰 안에
+  호스팅된 앱은 새 하위 컴포넌트 경계 안에 있다. `savePhoneNote`는 기존 owner lease도 유지한다.
+- 홈 `DeepSpaceShell.tsx:79-88`의 별 마지막 읽기는 비동기 작업에 원래 userId를 캡처하고
+  취소 여부를 검사한다. 폰 `refreshSettings`는 읽기 사본이고 이 컴포넌트에서 다시 저장하지 않는다.
+  `use-generated-board.ts:50-53`는 소유자가 맞는 snapshot만 반환한다.
+- **범위 밖, 정적 조건부 후보:** `src/screens/deepspace/dds-ops-screen.tsx:397-402,420,436-450,809-811`.
+  추천 표시 사본은 userId가 바뀐 뒤 effect에서 교체된다. 같은 commit의 저장 effect는 여전히
+  이전 렌더의 group/domain/recommendations를 가지며, ownerRef는 렌더에서 새 userId로 바뀐다.
+  그러므로 이 컴포넌트만 마운트를 유지해 직접 계정을 바꾸면 `ops-presentation`에 옛 결과를 쓸
+  가능성이 있다. 폰 내부에서는 이번 boundary, 독립 화면에서는 기존 AccountScope가 remount한다.
+  추천 결과 저장 정책과 폰 밖 화면은 발주 범위 밖이어서 수정하지 않았다. 실제 앱 재현은 미검증이다.
+- G5-03~07, 기존 감사 G1~G4, APK/웹 배포·실기기 QA·독립 daybreak 검토는 이 PR의 완료 범위가 아니다.
+
+## 위험과 되돌리기
+
+계정 전환 후 0 위치도 한 차례 복원하고 180ms settle을 거치므로, 그동안 합성 스크롤 사건은
+저장하지 않는다. 사용자 드래그는 즉시 복원을 취소한다. 시각·네이티브 이벤트 타이밍은 별도 QA가 필요하다.
+문제가 생기면 이 PR의 클라이언트 커밋을 revert하는 후속 PR로 되돌릴 수 있다. 저장 형식 변경이
+없으므로 데이터 마이그레이션이나 운영 롤백은 필요 없다.

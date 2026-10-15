@@ -1,6 +1,6 @@
 # 이용약관 · Terms of Service
 
-_시행일: 2026-10-05 · 최종 개정: 2026-10-05_
+_시행일: 2026-10-05 · 최종 개정: 2026-10-13 (개정 적용일: 2026-10-14)_
 
 ---
 
@@ -10,7 +10,7 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 본 약관은 하양 프로덕션(개인사업자, 대표: 배소하, 이하 "회사")가 제공하는 **PolaScope**(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.
 
 ### 제2조 (서비스의 성격)
-서비스는 이용자가 자신에 관한 기록을 축적하고 **자기 이해와 성장**을 돕는 AI 기반 개인 도구입니다. 서비스는 **의료·심리상담·진단·치료 서비스가 아니며**, 서비스가 제공하는 정보와 AI 산출물은 **참고용 정보**로서 전문적(의료·법률·재정) 조언을 대체하지 않습니다.
+서비스는 이용자가 자신에 관한 기록을 축적하고 **자기 이해와 성장**을 돕는, 생성형 인공지능(AI)을 활용하는 개인 도구입니다. 서비스는 **의료·심리상담·진단·치료 서비스가 아니며**, 서비스가 제공하는 정보와 AI 산출물은 **참고용 정보**로서 전문적(의료·법률·재정) 조언을 대체하지 않습니다.
 
 ### 제2조의2 (긴급 상황 및 안전 안내)
 ① **서비스는 응급·구조 서비스가 아닙니다.** 생명이나 안전이 걸린 상황에서는 서비스가 아니라 **112(경찰)·119(구조·구급)** 에 직접 연락하십시오.
@@ -69,6 +69,25 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 - 통신판매업 신고: 면제 사업자 (「전자상거래 등에서의 소비자보호에 관한 법률」 시행령 제11조의 신고 면제 기준에 해당)
 - 문의: kim0405@hayangzip.com (이메일 중심으로 운영합니다). 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
 
+### 위치기반서비스 추가 안내 · 개인 테스트
+
+작성 판본: weather-v1-261007(초판 식별자이며 시행일이 아닙니다). 개인 테스트: 2026-10-08 시작. 공개 시행일·전화번호·사전 공지 일정은 확정 예정입니다. 전화번호와 공개 시행일은 이번 주말 입력 예정이며, 공개 전에 확정 내용을 알립니다. 기존 이용약관의 시행일은 바꾸지 않습니다.
+
+① **사업자**: 하양 프로덕션(개인사업자, 대표: 배소하), 소재지 (14081) 경기도 안양시 동안구 귀인로 98번길 12, 연락처 kim0405@hayangzip.com. 개인정보 보호책임자는 김양환(kim0405@hayangzip.com)입니다. 전화번호는 확정 후 공개 전에 추가합니다.
+
+② **권리와 행사방법**: 개인위치정보주체는 동의의 전부 또는 일부를 유보·철회하거나 일시 중지를 요구할 수 있으며, 이용·제공사실 확인자료의 열람·고지와 오류 정정을 요구할 수 있습니다. 설정에서 날씨용 위치를 끄거나 위 연락처로 요청합니다. 회사는 정당한 요구를 지체 없이 처리합니다. 동의를 거부·철회해도 다른 앱 기능은 이용할 수 있습니다.
+
+③ **서비스 내용**: 하루 관리판 시계 줄에 인근 관측소의 날씨 그림과 기온을 표시합니다. 만 18세 이상 이용자의 별도 동의와 기기 위치 허용 후, 기기 안에서 50km 이내·90분 이내의 관측 자료를 고릅니다. 조건에 맞는 자료가 없으면 날씨를 표시하지 않습니다. 예보가 아니며 현재 위치의 실제 날씨와 다를 수 있습니다. NOAA/NWS 공개 관측 자료를 다섯 가지 그림으로 묶고 기온을 반올림한 것으로, NOAA/NWS의 공식 표시나 승인을 뜻하지 않습니다. [자료 출처](https://aviationweather.gov/data/api/)와 [이용 안내](https://www.weather.gov/disclaimer)를 제공합니다.
+
+④ **동의·요청 사실**: 계정 식별자·동의 및 요청 시각·제공자 표시·사건 종류를 6개월간 보유하고 기간이 지난 자료를 매일 정리합니다. 제공자 표시인 “NOAA/NWS (bulk, no device location)”는 기상 자료의 출처를 뜻하며, 이용자의 위치를 제공받는 자라는 뜻이 아닙니다. 이 자료에는 좌표·IP·이동 경로를 넣지 않습니다. 계정 삭제 시 남은 자료의 계정 식별자를 비웁니다.
+
+⑤ **위치 처리·보유**: 좌표는 기기 안에서 가까운 관측 자료를 고르는 데만 사용합니다. 정확한 좌표와 대략 좌표 모두 회사 서버·Supabase·NOAA/NWS에 보내지 않습니다. 서버는 이용자 위치와 무관한 동일한 공개 관측 목록을 받습니다. 기기의 위치·날씨 메모리 캐시는 최대 30분이며 철회·계정 전환 시 비웁니다. 백그라운드 추적과 이동 이력 저장을 하지 않고 위치정보와 날씨를 광고·분석·AI 입력에 사용하지 않습니다.
+
+⑥ **만 14세 미만 및 미성년자(제25조)**: 이 서비스는 만 18세 이상으로 확인된 이용자만 별도 동의하여 켤 수 있습니다. 만 14세 미만은 법정대리인 동의를 포함한 별도 개방 절차가 마련되기 전까지 잠겨 있고, 만 14~17세 및 나이 미확인 계정도 잠겨 있습니다. 이 약관은 미성년 위치 기능을 개방하지 않습니다.
+
+### 개정 이력
+- 2026-10-13 공지 · 2026-10-14 적용: 제2조의 "AI 기반"을 "생성형 인공지능(AI)을 활용하는"으로 고쳤습니다(「인공지능 발전과 신뢰 기반 조성 등에 관한 기본법」(인공지능기본법)의 사전 고지에 맞춘 표현 정리이며, 서비스 내용은 바뀌지 않았습니다).
+
 ---
 
 ## English
@@ -77,7 +96,7 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 These Terms govern the rights, obligations, and responsibilities between Hayang Production (sole proprietorship, Representative: Bae Soha; the "Company") and users regarding the use of **PolaScope** (the "Service").
 
 ### 2. Nature of the Service
-The Service is an AI-assisted personal tool that helps users accumulate records about themselves for **self-understanding and growth**. It is **not a medical, counseling, diagnostic, or treatment service**, and any information or AI output it provides is **for reference only** and does not replace professional (medical, legal, financial) advice.
+The Service is a personal tool that uses generative artificial intelligence (AI) and helps users accumulate records about themselves for **self-understanding and growth**. It is **not a medical, counseling, diagnostic, or treatment service**, and any information or AI output it provides is **for reference only** and does not replace professional (medical, legal, financial) advice.
 
 ### 2A. Emergencies and safety information
 (1) **The Service is not an emergency or rescue service.** If life or safety is at risk, contact the emergency services directly (in Korea, **112 for police and 119 for fire/ambulance**), not this app.
@@ -121,3 +140,22 @@ The Company may change or suspend all or part of the Service for operational/tec
 - Business registration number: 205-10-98603
 - Mail-order business report: exempt (meets the exemption criteria of Article 11 of the Enforcement Decree of Korea's e-commerce act)
 - Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.
+
+### Weather location addendum · personal testing
+
+Revision: weather-v1-261007 (the initial revision identifier, not an effective date). Personal testing began on 2026-10-08. The public effective date, telephone number and advance-notice schedule are not yet finalized. The telephone number and public effective date are scheduled to be entered this weekend and disclosed before public availability. The existing Terms' effective date is unchanged.
+
+(1) **Operator**: Hayang Production (sole proprietorship; Representative: Bae Soha), 12, Gwiin-ro 98beon-gil, Dongan-gu, Anyang-si, Gyeonggi-do, 14081, Republic of Korea; contact kim0405@hayangzip.com. Data Protection Officer: Kim Yang-hwan, at the same email. A telephone number will be added before public availability once finalized.
+
+(2) **Rights**: You may withhold or withdraw all or part of consent, request a temporary suspension, and request access to or correction of use/provision facts. Turn off location for weather in privacy settings or contact the address above. The Company handles valid requests without delay. Other app features remain available if you decline or withdraw.
+
+(3) **Service**: The daily board clock shows weather and temperature from a nearby observation station. After separate consent from an adult aged 18 or older and device permission, the device selects observations within 50 km and no more than 90 minutes old. Weather is hidden if no suitable observation exists. These are observations, not forecasts, and may differ from conditions at your location. NOAA/NWS public observations are grouped into five drawings and temperatures are rounded. This presentation is not an official NOAA/NWS product or endorsement. See the [data source](https://aviationweather.gov/data/api/) and [terms of use](https://www.weather.gov/disclaimer).
+
+(4) **Consent and request facts**: Account identifier, consent/request time, provider label and event type are retained for six months and purged daily after that period. The provider label “NOAA/NWS (bulk, no device location)” identifies the weather data source, not a recipient of your location. These facts contain no coordinates, IP or movement history. Account deletion clears the account identifier from retained facts.
+
+(5) **Location processing and retention**: Coordinates are used only on the device to select a nearby observation. Neither precise nor approximate device coordinates are sent to Company servers, Supabase or NOAA/NWS. The server obtains the same public observation list independently of users' locations. The device's location/weather memory cache lasts at most 30 minutes and clears on withdrawal or account change. There is no background tracking or movement-history storage. Location and weather are not used for advertising, analytics or AI input.
+
+(6) **Children and minors (Article 25)**: Only confirmed adults aged 18 or older may opt in. Children under 14 remain locked out until a separate opening process including legal-representative consent exists. Users aged 14–17 and accounts with unknown age are also locked out. These terms do not open location features to minors.
+
+### Revision history
+- Announced 2026-10-13, effective 2026-10-14: Section 2 now states that the Service uses generative artificial intelligence (AI). This aligns the wording with the prior-notice requirement of Korea's AI Basic Act; the Service itself is unchanged.

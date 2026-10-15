@@ -44,6 +44,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
+import { beginChatTurnAttempt, claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
 import {
   BRAIN_RANK,
   LlmBodyError,
@@ -58,7 +59,7 @@ import {
   corsPreflight,
   dailyCapForRank,
   djb2,
-  hasCrisisTerm,
+  hasCrisisTerm, emergencyLanePayload,
   isLlmJsonObject,
   isUsableHeaderValue,
   jsonResponse,
@@ -87,10 +88,10 @@ const REASONING_RUN_ID_RE =
 // siblings), and refresh-models.ts writes it nightly from the live model list.
 const DEFAULT_XAI_MODEL = 'grok-4';
 
-// Seats. The twelve reasoning purposes plus chat -- exactly the set a vendor
+// Seats. The eight reasoning purposes plus chat -- exactly the set a vendor
 // switch can point here (EXPO_PUBLIC_LLM_VENDOR, EXPO_PUBLIC_CHAT_VENDOR).
 //
-// ⚠ THE NINE BACKBONE PURPOSES ARE ABSENT ON PURPOSE. They are the app's
+// ⚠ THE SIX BACKBONE PURPOSES ARE ABSENT ON PURPOSE. They are the app's
 // highest-volume surfaces (one classify per capture, one per clip), and this
 // file has no cheap tier confirmed against the account. Seating them on the
 // frontier model to make EXPO_PUBLIC_BACKBONE_VENDOR=xai "work" would be the
@@ -103,13 +104,9 @@ const PURPOSE_MODEL: Record<string, string> = {
   gap_synthesize: DEFAULT_XAI_MODEL,
   self_model_propose: DEFAULT_XAI_MODEL,
   northstar_propose: DEFAULT_XAI_MODEL,
-  axis_estimate: DEFAULT_XAI_MODEL,
   persona_synthesis: DEFAULT_XAI_MODEL,
   ops_recommend: DEFAULT_XAI_MODEL,
   ops_daily_brief: DEFAULT_XAI_MODEL,
-  digest_weekly: DEFAULT_XAI_MODEL,
-  ttfv_first_insight: DEFAULT_XAI_MODEL,
-  cluster_infer: DEFAULT_XAI_MODEL,
   secondb_chat: DEFAULT_XAI_MODEL,
 };
 
@@ -120,13 +117,9 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   gap_synthesize: 'high',
   self_model_propose: 'high',
   northstar_propose: 'high',
-  axis_estimate: 'high',
   persona_synthesis: 'high',
   ops_recommend: 'high',
   ops_daily_brief: 'high',
-  digest_weekly: 'high',
-  ttfv_first_insight: 'high',
-  cluster_infer: 'medium',
   // Chat is conversational, not deliberative, and it is the highest-volume
   // surface that can reach this proxy at all. 'low' is the real cost lever
   // here, and a ceiling rather than a request so a stale client cannot raise it.
@@ -254,6 +247,7 @@ Deno.serve(async (req: Request) => {
     audio?: unknown;
     reasoningRunId?: unknown;
     reasoningSlot?: unknown;
+    chatTurnId?: unknown;
   };
   try {
     body = await readLlmProxyJsonObject(req) as typeof body;
@@ -310,7 +304,7 @@ Deno.serve(async (req: Request) => {
   // LLM_SERVER_SAFETY_SEAT flag with it or the classifier cannot read the text
   // it exists to classify.
   if (hasCrisisTerm(userText)) {
-    return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
+    return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected', ...emergencyLanePayload(userText) }, 422);
   }
 
   // Historical rows have no trustworthy writer provenance and there is not
@@ -520,6 +514,17 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // Z46 (0255 round 6): the id this call's audit row will carry is made before the model is asked, with the
+  // turn the app named (chat only · read by shape · never written on the audit row). The server records this
+  // call as that turn's attempt first, numbered in the order the calls reach it (round 8). Only a recorded
+  // attempt can be bound, and a bound answer gives way only to the second attempt's, so an earlier attempt
+  // that ends late cannot take the turn from the re-ask. Bounded: false means this answer is not bound
+  // (no refund for it), never that the answer stops.
+  const consentAuditId = crypto.randomUUID();
+  const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
+  const turnAttempt = chatTurnId !== null
+    && await beginChatTurnAttempt(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'xai-proxy');
+
   const t0 = Date.now();
   let upstream: Response;
   try {
@@ -622,33 +627,27 @@ Deno.serve(async (req: Request) => {
   // ONLY place the vendor of a call is recorded, and it is how the first live
   // Grok call will be confirmed: reasoning_vendor = 'xai'.
   const totalTokens = Number(data?.usage?.total_tokens) || null;
-  const consentAuditId = crypto.randomUUID();
-  let audited = false;
-  try {
-    const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
-      id: consentAuditId,
-      user_id: userId,
-      event_source: 'server_verified',
-      prompt_hash: djb2(`${systemText ?? ''}${userText}`),
-      output_hash: djb2(text),
-      model_used: refused ? `${modelUsed}+refusal` : truncated ? `${modelUsed}+truncated` : modelUsed,
-      vertex_backend: false,
-      safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
-      latency_ms: latencyMs,
-      purpose,
-      reasoning_vendor: 'xai',
-      // The clamped effort is recorded even when it was not SENT (see
-      // sendsReasoningEffort). It is still what bounded max_tokens, so the
-      // ledger stays comparable across vendors.
-      reasoning_effort: clampedEffort,
-      key_combo: keyCombo,
-      total_tokens: totalTokens,
-    });
-    audited = !auditErr;
-    if (auditErr) console.warn('[xai-proxy] audit insert failed:', auditErr.message);
-  } catch (e) {
-    console.warn('[xai-proxy] audit insert threw:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
-  }
+  // consentAuditId and chatTurnId were made before the model call (Z46 · 0255 round 6).
+  // True only when this very row came back from the insert (see insertLlmAuditRow).
+  const audited = await insertLlmAuditRow(supabaseAdmin, {
+    id: consentAuditId,
+    user_id: userId,
+    event_source: 'server_verified',
+    prompt_hash: djb2(`${systemText ?? ''}${userText}`),
+    output_hash: djb2(text),
+    model_used: refused ? `${modelUsed}+refusal` : truncated ? `${modelUsed}+truncated` : modelUsed,
+    vertex_backend: false,
+    safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
+    latency_ms: latencyMs,
+    purpose,
+    reasoning_vendor: 'xai',
+    // The clamped effort is recorded even when it was not SENT (see
+    // sendsReasoningEffort). It is still what bounded max_tokens, so the
+    // ledger stays comparable across vendors.
+    reasoning_effort: clampedEffort,
+    key_combo: keyCombo,
+    total_tokens: totalTokens,
+  }, 'xai-proxy');
 
   if (refused) {
     return jsonResponse(req, { error: 'upstream_refusal', modelUsed, latencyMs }, 502);
@@ -663,5 +662,19 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
   }
 
-  return jsonResponse(req, { text, modelUsed, latencyMs, audited });
+  // Z46 (0255): ask the server whether this answer belongs to the turn the app named. Only here, on the
+  // way out with a reply: a refused, cut-off or consent-withheld call has returned above and answers
+  // nothing. The server reads the owner, the state and the age of its own reservation row; the id the
+  // app sent decides nothing. Bounded: past the limit the reply goes out unbound (no refund for it).
+  // An empty answer answers nothing: the turn stays open for the call that is sent again.
+  const turnBound = audited && chatTurnId && turnAttempt && text.trim() !== ''
+    ? await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'xai-proxy')
+    : false;
+
+  // Z46 (0255): the id of the audit row written above, only when it was written (see openai-proxy).
+  return jsonResponse(req, {
+    text, modelUsed, latencyMs, audited,
+    ...(audited ? { auditId: consentAuditId } : {}),
+    ...(chatTurnId ? { turnBound } : {}),
+  });
 });

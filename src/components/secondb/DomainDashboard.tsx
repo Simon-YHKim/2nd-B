@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 세컨비가 나를 어떻게 보고 있는지 -- 생활 여섯 영역의 현재 상태.
 //
 // ⚠ 2026-08-24: 이 여섯은 **더 이상 별이 아니다.** 커리어·재정·성장·관계·건강·휴식은
@@ -13,7 +14,7 @@
 // 하나만 말한다는 규율(Simon standing rule)을 지키려면 여기서 다 펼치면 안 된다.
 
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";

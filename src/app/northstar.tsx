@@ -1,3 +1,4 @@
+import { PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 북극성 문장 (rev2 Screen-Spec 21): the propose->ratify editor for the one-line
 // 북극성 identity (layer C output). The violet "NORTH STAR" hero card IS the
 // editor — the current sentence loads from the newest NORTHSTAR_TAG record and
@@ -10,7 +11,7 @@ import { subscribeFontStyle } from "@/lib/settings/readable-font";
 
 import { reactExpression } from "@/lib/companion/expression";
 import { requestGlobalCue } from "@/lib/audio/global-cues";
-import { Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
@@ -150,7 +151,7 @@ export default function NorthstarSentence() {
         // gap the map flagged (call-reflection shows the modal; this screen
         // did not). router.back() runs when the user closes the modal.
         setSaving(false);
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       // 북극성 문장이 갱신됐다 — the head lights up with it.

@@ -1,5 +1,6 @@
+import { PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import type { Href } from "expo-router";
 import { useTranslation } from "react-i18next";

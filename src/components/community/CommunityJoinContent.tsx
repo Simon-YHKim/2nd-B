@@ -1,9 +1,10 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Community invite deep-link landing (0117). The raw token arrives only via
 // an invite link or the pasted-link field; we ensure the pseudonymous profile exists, then hand the token to
 // the community_join RPC (which hashes and validates it server-side) and
 // replace into the room. Errors stay on this screen with honest reasons.
 import React, { useCallback, useRef, useState, type RefObject } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, useFocusEffect } from "expo-router";
 

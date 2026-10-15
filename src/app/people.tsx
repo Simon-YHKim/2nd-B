@@ -1,3 +1,4 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // 관계 사람 지도: relation_people의 owner-scoped 실제 읽기/쓰기 화면.
 //
 // 디자인 번들의 PeopleMapScreen은 샘플 상태라 이식하지 않는다. 실제 사람은
@@ -8,7 +9,6 @@ import {
   BackHandler,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from "react-native";

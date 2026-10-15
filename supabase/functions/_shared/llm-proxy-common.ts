@@ -11,7 +11,9 @@
 // D-27 axis key attribution — pure naming/resolver helpers (Deno-free, so they
 // are unit-testable under ts-jest; the Deno env read is the thin wrapper below).
 import { isUsableHeaderValue, pickApiKey } from './axis-key-name.ts';
-
+import { prepareCrisisScanText } from '../../../src/lib/safety/crisis-context.ts';
+import { emergencyLanePayload, matchEmergencyLane } from '../../../src/lib/safety/emergency-routing.ts';
+import { matchAdditionalCrisisLanguage } from '../../../src/lib/safety/crisis-language.ts';
 export { isUsableHeaderValue };
 
 // --- server-owned purpose policy -------------------------------------------
@@ -22,10 +24,10 @@ export { isUsableHeaderValue };
 // family/effort that label may reach, its wire modality, and its entitlement.
 // A missing row or missing vendor is a rejection, never a generic fallback.
 //
-// Keep the 29 keys exhaustive with PromptPurpose plus the three proxy-only
-// audit labels (embed_index, safety_classify, voice_transcribe). capture_voice
-// is the client routing alias; the paid wire label is voice_transcribe, so it
-// is deliberately known but unseated.
+// Keep the 19 keys exhaustive with PromptPurpose (16) plus the three proxy-only
+// audit labels (embed_index, safety_classify, voice_transcribe). Ten seats with
+// no reachable caller left on 2026-10-07 (S0.5); the DB quota function (0185)
+// still lists them until the S1 migration narrows it.
 export type LlmProxyVendor = 'gemini' | 'openai' | 'claude' | 'xai';
 export type LlmPolicyModelTier = 'lite' | 'flash' | 'pro' | 'fixed';
 export type LlmPolicyEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
@@ -41,20 +43,11 @@ export interface LlmPurposePolicy {
 export const LLM_PURPOSE_POLICY = {
   advisor: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'brain', vendors: ['gemini', 'openai', 'xai'] },
   audit_qa: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  axis_estimate: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude', 'xai'] },
-  capture_classify: { modelTier: 'lite', maxEffort: 'none', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   capture_ocr: { modelTier: 'flash', maxEffort: 'none', modality: 'image', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  capture_voice: { modelTier: 'flash', maxEffort: 'none', modality: 'audio', minimumTier: 'free', vendors: [] },
   clipper_classify: { modelTier: 'lite', maxEffort: 'none', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   clipper_template_propose: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  cluster_infer: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
-  crosscheck_challenge: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['openai'] },
-  crosscheck_defend: { modelTier: 'pro', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['claude'] },
-  digest_weekly: { modelTier: 'pro', maxEffort: 'max', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'claude', 'xai'] },
   embed_index: { modelTier: 'fixed', maxEffort: 'none', modality: 'embed', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   gap_synthesize: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
-  imagine: { modelTier: 'pro', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  import_ingest: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   interview_probe: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
   northstar_propose: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   ops_daily_brief: { modelTier: 'flash', maxEffort: 'medium', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
@@ -66,7 +59,6 @@ export const LLM_PURPOSE_POLICY = {
   secondb_chat: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   self_model_propose: { modelTier: 'flash', maxEffort: 'high', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   source_ingest: { modelTier: 'flash', maxEffort: 'low', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai'] },
-  ttfv_first_insight: { modelTier: 'flash', maxEffort: 'xhigh', modality: 'text', minimumTier: 'free', vendors: ['gemini', 'openai', 'xai'] },
   voice_transcribe: { modelTier: 'flash', maxEffort: 'none', modality: 'audio', minimumTier: 'free', vendors: ['gemini', 'openai'] },
 } as const satisfies Record<string, LlmPurposePolicy>;
 
@@ -135,8 +127,14 @@ export const CRISIS_TERMS_KO: readonly string[] = [
   '더 이상 살', '끝내고 싶', '끝낼 거', '끝낼거', '자해',
   '목숨을 끊', '스스로 목숨', '유서', '마지막 인사',
   '짐이 되', '없어지는 게 나아', '사라지는 게 나', '다음 생에는',
-  '영영 잠들고 싶',
+  '영영 잠들고 싶', '끝내 버리고 싶', '끝내 버릴',
 ];
+
+// The spellings the gate reads for a KO term: fully spaced and fully joined (Q-261014-90), and for the
+// listed terms every partly joined one too (Q-261015-80). Mirrors src/lib/safety/classifier.ts
+// (KO_PARTIAL_SPACING_TERMS, koTermSpellings); gemini-proxy/index.ts holds the same two lines.
+const PARTIAL_SPACING_KO: readonly string[] = ['살고 싶지 않', '더 이상 살', '없어지는 게 나아', '사라지는 게 나', '끝내 버리고 싶'];
+const spacingForms = (t: string): string[] => (PARTIAL_SPACING_KO.includes(t) ? t.split(' ').reduce<string[]>((acc, w, i) => (i === 0 ? [w] : acc.flatMap((a) => [`${a} ${w}`, a + w])), []) : [t, t.replace(/ /g, '')]);
 
 // Fold whitespace and Unicode composition before matching, so the crisis gate
 // cannot be walked past with a newline / non-breaking space (U+00A0) / full-width
@@ -161,14 +159,17 @@ function matchesTermEn(lowerHaystack: string, term: string): boolean {
   }
   return false;
 }
-
 export function hasCrisisTerm(text: string): boolean {
-  const lower = normalizeForMatch(text);
+  if (matchEmergencyLane(text)) return true;
+  if (matchAdditionalCrisisLanguage(text)) return true;
+  const lower = normalizeForMatch(prepareCrisisScanText(text));
   for (const term of CRISIS_TERMS_EN) {
     if (matchesTermEn(lower, term)) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
-    if (lower.includes(normalizeForMatch(term))) return true;
+    // Simon 2026-10-14 (Q-261014-90) and 2026-10-15 (Q-261015-80): a spaced term also matches with
+    // any of its spaces left out; the text keeps its own. Mirrors classifier.ts:matchesJoinedKoTerm.
+    if (spacingForms(normalizeForMatch(term)).some((form) => lower.includes(form))) return true;
   }
   return false;
 }
@@ -964,3 +965,5 @@ export async function auditUpstreamFailure(
     // See the note above: this path is already failing.
   }
 }
+
+export { emergencyLanePayload };

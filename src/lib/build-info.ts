@@ -1,5 +1,9 @@
 import * as Updates from "expo-updates";
 
+/** The version a reader knows (app.json `expo.version`, e.g. "0.10.0"). Null where
+ *  expo-constants is absent. Screens show this; `buildInfoLine()` is the diagnostic. */
+export { getAppVersion as appVersion } from "./notices/version";
+
 /**
  * Human-readable build/OTA identifier for on-device diagnostics — so a tester can
  * always tell WHICH bundle is running (the 2026-06-26 head-touch crash incident was

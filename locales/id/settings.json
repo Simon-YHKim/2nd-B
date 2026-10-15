@@ -9,8 +9,8 @@
     "accountHint": "Membuka pengaturan akun.",
     "theme": "Jenis huruf · Gerakan",
     "themeHint": "Membuka pengaturan jenis huruf dan gerakan.",
-    "data": "Manajemen data",
-    "dataHint": "Membuka manajemen data.",
+    "data": "Dataku",
+    "dataHint": "Membuka Dataku.",
     "records": "Catatan",
     "recordsHint": "Membuka catatan tersimpan.",
     "support": "Dukungan",
@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "Keluar dari akun?",
+      "cancelHint": "Menutup konfirmasi ini tanpa keluar."
+    },
     "confirm": {
       "label": "Dialog konfirmasi pengaturan",
       "title": "Kamu yakin?",
@@ -115,7 +119,8 @@
   "workingPaused": "Sedang diproses. Tunggu sampai selesai sebelum memilih tindakan lain atau keluar akun.",
   "myAccount": "Akunku",
   "app": "Aplikasi",
-  "resetCoachmarks": "Setel ulang panduan",
+  "versionLine": "Versi {{version}}",
+  "resetCoachmarks": "Lihat lagi panduan beranda",
   "resetCoachmarksDesc": "Putar ulang panduan beranda dari awal",
   "account": "Akun",
   "plans": "Paket",
@@ -148,10 +153,10 @@
   "delAllWikiDesc": "Halaman wiki dan tautan antar-halamannya dihapus. Sumber kotak masuk tetap ada.",
   "delUningested": "Hapus bahan yang belum diproses",
   "delUningestedDesc": "Hanya sumber yang belum dibuat menjadi halaman wiki.",
-  "resetDaily": "Setel ulang penggunaan harian SecondB",
+  "resetDaily": "Setel ulang penggunaan harian HustleK",
   "resetDailyDesc": "Bersihkan penghitung penggunaan hari ini dan semua hari sebelumnya.",
   "dangerFullWipe": "Bahaya: penghapusan total",
-  "dangerFullWipeDesc": "Menghapus catatan, sumber, halaman wiki, dan penggunaan SecondB sekaligus. Akun tetap ada tetapi kamu mulai dari nol.",
+  "dangerFullWipeDesc": "Menghapus catatan, sumber, halaman wiki, dan penggunaan HustleK sekaligus. Akun tetap ada tetapi kamu mulai dari nol.",
   "cannotUndoExport": "Ini tidak dapat dibatalkan. Ekspor dulu yang kamu perlukan.",
   "deleteEverything": "Hapus semuanya",
   "finalCheck": "Pemeriksaan akhir: semuanya akan hilang. Sudah ekspor dulu?",
@@ -164,6 +169,9 @@
   "resetNDays": "{{n}} hari penggunaan disetel ulang",
   "wipeComplete": "Penghapusan total selesai: catatan {{r}} · sumber {{s}} · wiki {{w}} · penggunaan {{u}}",
   "subscription": {
+    "autoPay": { "title": "Pembayaran otomatis" },
+    "policy": { "title": "Kebijakan pengembalian dana" },
+    "plans": { "title": "Paket", "change": "Ganti paket" },
     "title": "Kelola langganan",
     "sectionLabel": "Langganan",
     "rowLabel": "Kelola langganan",

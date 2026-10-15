@@ -1,3 +1,5 @@
+import { RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 // /capture v2 — multi-mode "자재 반입" screen.
 //
 // 5 input modes per user directive (2026-05-27):
@@ -20,7 +22,6 @@ import {
   View,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
   Platform,
   Pressable,
   AppState,
@@ -50,6 +51,7 @@ import { ShardArt } from "@/components/art/IslandArt";
 import { Input } from "@/components/ui/Input";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, flattenAlpha, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { useScrollToWhenSettled } from "@/lib/nav/phone-embed";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { galmuriFor } from "@/components/m3/typeface";
@@ -65,7 +67,7 @@ import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import {
   pickImageAsset,
   ocrImageAsset,
-  isImageOcrCrisisResultError,
+  isImageOcrCrisisResultError, imageOcrCrisisHotline,
   isImageOcrEmptyResultError,
   isImageCameraPermissionDeniedError,
   isImageOcrTooLargeError,
@@ -96,6 +98,7 @@ import {
   markCaptureSubmissionSaved,
   planCaptureParamConsumption,
   planSharedConsumption,
+  appendSharedChunk,
   saveCaptureDraftState,
   sharedDeliveryKey,
   submittedCaptureDraftMatchesCurrent,
@@ -122,8 +125,9 @@ import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
 import type { SourceKind } from "@/lib/wiki/types";
-import { classifyLinkOrClip, firstUrlIn } from "@/lib/wiki/link-or-clip";
+import { classifyLinkOrClip, firstUrlIn, titledLinkIn } from "@/lib/wiki/link-or-clip";
 import { normalizeSharedCaptureParams } from "@/lib/capture/share-params";
+import { carriesShareMarker, shareRefusedHref } from "@/lib/capture/share-intent";
 import { clipboardHasContent, readClipboardText } from "@/lib/capture/clipboard";
 import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { composeStructured } from "@/lib/capture/structured";
@@ -162,7 +166,7 @@ import {
   withSelectedLifeArea,
   type LifeAreaId,
 } from "@/lib/capture/life-area-intent";
-import { FIRST_RECORD_COACH_PARAM } from "@/lib/onboarding/first-record-coach";
+import { firstRecordCoachMode } from "@/lib/onboarding/first-record-coach";
 
 // 이 넷은 크롬 라벨(칩·모드·버튼)이지 읽는 글이 아니다.
 //
@@ -366,8 +370,10 @@ export default function Capture() {
     mode?: string;
     tag?: string;
     coach?: string;
+    from?: string;
   }>();
-  const firstRecordCoach = captureParams.coach === FIRST_RECORD_COACH_PARAM;
+  const coachMode = firstRecordCoachMode(captureParams.coach);
+  const firstRecordCoach = coachMode !== null;
   const hasFullCaptureParams =
     normalizeSharedCaptureParams({
       url: captureParams.url,
@@ -391,8 +397,13 @@ export default function Capture() {
       </PremiumAppShell>
     );
   }
-  if (!userId) return <Redirect href="/sign-in" />;
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  // An Android share arrives here as /capture?text=&title=&from=share
+  // (src/lib/capture/share-intent.ts). These two redirects drop the route's
+  // params as they do for any link; for a share they also tell the screen they
+  // land on to say, in one line, that it was not added.
+  const shareMarked = carriesShareMarker(captureParams);
+  if (!userId) return <Redirect href={shareRefusedHref("/sign-in", shareMarked)} />;
+  if (hasProfile === false) return <Redirect href={shareRefusedHref("/complete-profile", shareMarked)} />;
   if (hasFullCaptureParams || fullCaptureActive) {
     return (
       <DeepSpaceScreen active="capture" variant="windowed">
@@ -402,7 +413,7 @@ export default function Capture() {
   }
   return (
     <DeepSpaceScreen active="capture" header="none" variant="windowed">
-      <CaptureView firstRecordCoach={firstRecordCoach} />
+      <CaptureView firstRecordCoach={firstRecordCoach} coachReplay={coachMode === "replay"} />
     </DeepSpaceScreen>
   );
 }
@@ -460,14 +471,14 @@ function CaptureLegacySession({
   const modeHelp = (m: Mode) => t(`modes.${m}.help`);
   const trackLabel = (id: WikiTrack) => t(`tracks.${id}.label`);
 
-  // J4: onboarding hands off with entry=firstRun; until now the param was
-  // accepted and never read. First-run framing lowers the blank-page bar
-  // ("one sentence is enough") for the journey's very first save.
+  // J4: onboarding hands off with entry=firstRun; the route wrapper reads it to
+  // open this full intake. The extra first-run line under the hero is gone
+  // (Simon Q-261014-88, 2026-10-14): the header tip already says "a short note
+  // is fine", and one screen should not say it twice.
   // url/text/title arrive from the Web Share Target (manifest.webmanifest):
   // sharing a page from another app opens /capture with the payload here.
-  const { entry, url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam } =
-    useLocalSearchParams<{ entry?: string; url?: string; text?: string; title?: string; mode?: string; tag?: string }>();
-  const firstRun = entry === "firstRun";
+  const { url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam } =
+    useLocalSearchParams<{ url?: string; text?: string; title?: string; mode?: string; tag?: string }>();
   const shared = useMemo(
     () => normalizeSharedCaptureParams({ url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam }),
     [sharedUrlParam, sharedTextParam, sharedTitleParam],
@@ -516,6 +527,13 @@ function CaptureLegacySession({
   // would DELETE the stored draft for the current mode (review finding #1).
   const shareSkippedRestoreRef = useRef(false);
   const [shareRestoreSkipped, setShareRestoreSkipped] = useState(false);
+  // A share that arrived while unsaved text sat in the link box. Nothing was merged: the card
+  // above the box asks whether to add it below that text or clear the text first (Q-261013-78).
+  const [heldShare, setHeldShare] = useState<{ content: string; tag: string | null } | null>(null);
+  // The link box sits below the first screenful. A share that lands in it (and the card that asks
+  // about unsaved text) is brought into view once the screen has settled; nothing else scrolls.
+  const { scrollRef: shareScrollRef, onContentSizeChange: followShareScroll, scrollToWhenSettled } = useScrollToWhenSettled();
+  const linkGroupTopRef = useRef<number | null>(null);
   const routeApplyPendingCommitRef = useRef(false);
   const [routeCommitGeneration, setRouteCommitGeneration] = useState(0);
   useLayoutEffect(() => {
@@ -931,6 +949,17 @@ function CaptureLegacySession({
     setBody(text);
   }
 
+  // The two answers to the card above the link box. Both go through the ordinary edit path, so the
+  // result is kept as a draft like anything typed. Clearing happens only on this explicit tap.
+  function resolveHeldShare(choice: "append" | "replace"): void {
+    if (heldShare === null) return;
+    const { content, tag } = heldShare;
+    setHeldShare(null);
+    changeBody(choice === "append" ? appendSharedChunk(body, content) : content);
+    if (choice === "replace") setTagsEditable(tag === null ? [] : [tag]);
+    else if (tag !== null) setTagsEditable((prev) => (prev.includes(tag) ? prev : [...prev, tag]));
+  }
+
   function changeTopic(text: string): void {
     commitComposerMutation();
     setTopic(text);
@@ -1274,6 +1303,7 @@ function CaptureLegacySession({
       liveFourw: mode === "fourw" ? fourw : null,
       liveTags: tagsEditable,
       liveDomainIntent: domainIntent,
+      existingLinkText: "hold",
     });
     if (isCaptureTransientMode(plan.mode)) markTransientMutation(plan.mode);
     else markStorageMutation(plan.mode);
@@ -1287,6 +1317,9 @@ function CaptureLegacySession({
     setShowAdvancedModes(true);
     activeModeRef.current = plan.mode;
     setMode(plan.mode);
+    if (plan.mode === "linkclip") {
+      scrollToWhenSettled(() => (linkGroupTopRef.current === null ? null : linkGroupTopRef.current - spacing.md));
+    }
     if (isStorageMode(plan.mode)) {
       applyDraftToFields(plan.mode, plan.drafts[plan.mode]);
     } else if (plan.liveFourw !== null) {
@@ -1313,6 +1346,7 @@ function CaptureLegacySession({
     setTagsEditable(plan.liveTags);
     setDomainIntent(plan.liveDomainIntent);
     setTodoDone(plan.liveTodoDone);
+    setHeldShare(plan.held);
     const durableWrite = persistDrafts(plan.persistMode);
     if (plan.consumedModeParam !== null || plan.consumedTagParam !== null) {
       // param effect 가 같은 조합을 다시 소비하지 않게 latch 를 건다.
@@ -1324,7 +1358,7 @@ function CaptureLegacySession({
       showFeedback(
         locale === "ko" ? "쓰던 기록 초안의 별을 지켰습니다" : "Kept your record draft intact",
         locale === "ko"
-          ? "쓰던 기록 초안은 원래 별에 그대로 두고, 공유된 내용은 다른 자리에 담았습니다."
+          ? "쓰던 기록 초안은 원래 별에 그대로 두고, 공유된 내용은 별도 초안으로 열었습니다."
           : "Your existing record draft kept its original star. The shared content was placed separately so nothing was refiled.",
       );
     }
@@ -1366,6 +1400,7 @@ function CaptureLegacySession({
     locale,
     stopVoiceCaptureForModeExit,
     captureFocused,
+    scrollToWhenSettled,
   ]);
 
   // Deep links can open a specific composer with a pre-attached tag:
@@ -1468,7 +1503,7 @@ function CaptureLegacySession({
       showFeedback(
         locale === "ko" ? "쓰던 별 초안을 그대로 지켰습니다" : "Kept your star draft intact",
         locale === "ko"
-          ? "기존 초안을 저장하거나 비운 뒤 다른 별에서 다시 담아 주세요. 내용과 별은 바꾸지 않았습니다."
+          ? "기존 초안을 저장하거나 비운 뒤 다른 별에서 다시 기록을 추가해 주세요. 내용과 별은 바꾸지 않았습니다."
           : "Save or clear the existing draft before capturing from another star. Its text and star were not changed.",
       );
       // 충돌 억제는 "이 파라미터로 바꿀 durable 상태가 없다" 는 **확정 판정**이라
@@ -1700,10 +1735,18 @@ function CaptureLegacySession({
   // violates rules-of-hooks, and a userId/loading flip on a later render would
   // skip them and blank the screen (React #300). rules-of-hooks now guards this.
   const linkClipKind = useMemo(() => classifyLinkOrClip(body), [body]);
+  // A browser's share carries a title and one address. That is a link with a title (Z113).
+  const titledLink = useMemo(() => (linkClipKind === "markdown" ? titledLinkIn(body) : null), [linkClipKind, body]);
   const detectedKind = useMemo(
-    () => (linkClipKind === "url" ? detectClipperKind(body.trim()) : "inbox"),
-    [linkClipKind, body],
+    () => (linkClipKind === "url" ? detectClipperKind(body.trim()) : titledLink !== null ? detectClipperKind(titledLink.url) : "inbox"),
+    [linkClipKind, titledLink, body],
   );
+  // Once the unsaved text is gone (saved, or cleared by hand) there is nothing left to ask about:
+  // the held share takes the empty box.
+  useEffect(() => {
+    if (heldShare === null || mode !== "linkclip" || submitting || body.trim().length > 0) return;
+    resolveHeldShare("replace");
+  }, [heldShare, mode, submitting, body]);
   const advancedModesExpanded = showAdvancedModes || mode !== "journal";
   const secondaryOpen = advancedModesExpanded;
   const visibleModes = advancedModesExpanded ? CAPTURE_MODES : BASIC_CAPTURE_MODES;
@@ -1948,7 +1991,7 @@ function CaptureLegacySession({
     showFeedback(
       locale === "ko" ? "같은 내용의 저장을 확인하고 있습니다" : "Checking the same save",
       locale === "ko"
-        ? "이전 화면에서 시작한 저장 결과를 확인한 뒤 초안을 다시 불러오겠습니다. 다른 내용은 계속 담을 수 있습니다."
+        ? "이전 화면에서 시작한 저장 결과를 확인한 뒤 초안을 다시 불러오겠습니다. 다른 내용은 계속 추가할 수 있습니다."
         : "We'll reload the draft after checking the save started on the previous screen. You can still capture different content.",
     );
     void claim.completion.then((outcome) => {
@@ -2176,7 +2219,7 @@ function CaptureLegacySession({
       // blocking finding). Route to the crisis modal like the journal path.
       if (isImageOcrCrisisResultError(e)) {
         if (!sessionActiveRef.current) return;
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: imageOcrCrisisHotline(e) ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       if (!asyncProducerIsCurrent(ticket, "ocr")) return;
@@ -2285,7 +2328,7 @@ function CaptureLegacySession({
       if (reply.safety?.zone === "red") {
         if (!sessionActiveRef.current) return;
         setFileNotice(null);
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       // Appending is safe across body edits, but not across a mode switch or a
@@ -2503,7 +2546,7 @@ ${transcript}`;
       });
       submissionSettled = true;
       if (res.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
       } else {
         enqueueAutoReasoningRecord({
           userId,
@@ -2664,7 +2707,7 @@ ${transcript}`;
       // save wrote the safety ledger and showed the user NOTHING. Same hotline
       // modal, same followup card.
       if (res.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
       } else {
         enqueueAutoReasoningRecord({
           userId,
@@ -2861,7 +2904,7 @@ ${transcript}`;
       if (reply.safety?.zone === "red") {
         if (!sessionActiveRef.current) return;
         updateVoicePhase("idle");
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       // Appending is safe across newer voice text, but not across a mode switch
@@ -2949,15 +2992,18 @@ ${transcript}`;
       // memo / ocr already have body. linkclip: a bare URL becomes a titled
       // stub; pasted markdown is used as-is. file falls back to filename.
       const isBareLink = submittedMode === "linkclip" && classifyLinkOrClip(sourceDraft.body) === "url";
+      const titledLinkDraft = submittedMode === "linkclip" && !isBareLink ? titledLinkIn(sourceDraft.body) : null;
       // fallbackUrl: the bare URL, or the first URL found inside clipped md.
       const fallbackUrl =
         submittedMode === "linkclip"
-          ? (isBareLink ? sourceDraft.body.trim() : firstUrlIn(sourceDraft.body))
+          ? (isBareLink ? sourceDraft.body.trim() : titledLinkDraft?.url ?? firstUrlIn(sourceDraft.body))
           : null;
 
       let finalBody = sourceDraft.body.trim();
       if (isBareLink) {
         finalBody = `# ${sourceDraft.body.trim()}\n\n${sourceDraft.body.trim()}`;
+      } else if (titledLinkDraft !== null) {
+        finalBody = `# ${titledLinkDraft.title}\n\n${titledLinkDraft.url}`;
       }
       if (submittedMode === "file" && submittedPickedFile && finalBody.length === 0) {
         finalBody = `# ${submittedPickedFile.name}\n\nFile attachment - ${submittedPickedFile.mimeType}, ${submittedPickedFile.size} bytes.`;
@@ -3081,7 +3127,7 @@ ${transcript}`;
           if (!submitIsCurrent(submitController)) return;
           if (crisis) {
             memoCrisisDetected = true;
-            setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+            setCrisis({ visible: true, hotline: crisis.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
           }
         } catch (e) {
           if (!submitIsCurrent(submitController)) return;
@@ -3273,7 +3319,10 @@ ${transcript}`;
         iosKeyboardVerticalOffset={iosKeyboardVerticalOffset}
         style={{ flex: 1 }}
       >
+        <SceneTransition transitionKey={mode} kind="replace" animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
         <ScrollView
+          ref={shareScrollRef}
+          onContentSizeChange={followShareScroll}
           contentContainerStyle={[
             styles.scroll,
             Platform.OS === "android" && {
@@ -3287,13 +3336,10 @@ ${transcript}`;
             style={styles.primaryHeader}
             accessible
             accessibilityLabel={
-              // P2-12: the firstRun hint renders INSIDE this accessible
-              // container, so the fixed label swallowed it — TalkBack users
-              // never heard "one sentence is enough" on their very first
-              // capture. Fold it into the spoken label while it is visible.
-              firstRun && !savedTitle && mode === "journal"
-                ? `${t("hero.title")} ${t("hero.subtitle")} ${t("firstRun.hint")}`
-                : `${t("hero.title")} ${t("hero.subtitle")}`
+              // P2-12 folded the first-run line into this label because it
+              // rendered inside the container. That line is gone
+              // (Q-261014-88), so the label is the hero alone again.
+              `${t("hero.title")} ${t("hero.subtitle")}`
             }
             accessibilityHint={
               // J1: the spoken hint must match where the piece actually went —
@@ -3316,15 +3362,6 @@ ${transcript}`;
               <Text variant="heading" numberOfLines={2}>
                 {savedTitle ? (savedIsOcr ? t("saved.ocrTitle") : t("saved.title")) : t("hero.title")}
               </Text>
-              {firstRun && !savedTitle && mode === "journal" ? (
-                // J4: first-run framing under the hero — one quiet line that
-                // lowers the blank-page bar for the journal default. Hidden in
-                // the other modes ("one sentence" reads wrong over a PDF pick)
-                // and once a save lands.
-                <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
-                  {t("firstRun.hint")}
-                </Text>
-              ) : null}
             </View>
           </View>
 
@@ -3853,10 +3890,23 @@ ${transcript}`;
               inside a bordered group so the URL/body boxes never read as one
               shared field across modes (2026-05-31 directive). */}
           {mode === "linkclip" ? (
-            <View style={styles.fieldGroup}>
+            <View style={styles.fieldGroup} onLayout={(event) => { linkGroupTopRef.current = event.nativeEvent.layout.y; }}>
               <Text variant="caption" color="textMuted">
                 {t("linkClip.label")}
               </Text>
+              {heldShare !== null ? (
+                <View accessibilityRole="alert" style={styles.heldShare} testID="capture-held-share">
+                  <Text variant="body">{t("sharedOverDraft.title")}</Text>
+                  <View style={styles.heldShareActions}>
+                    <Pressable onPress={() => resolveHeldShare("append")} accessibilityRole="button" accessibilityLabel={t("sharedOverDraft.append")} style={styles.heldShareButton} testID="capture-held-share-append">
+                      <Text variant="subtle" color="brand">{t("sharedOverDraft.append")}</Text>
+                    </Pressable>
+                    <Pressable onPress={() => resolveHeldShare("replace")} accessibilityRole="button" accessibilityLabel={t("sharedOverDraft.replace")} style={styles.heldShareButton} testID="capture-held-share-replace">
+                      <Text variant="subtle" color="brand">{t("sharedOverDraft.replace")}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
               <Input
                 value={body}
                 onChangeText={changeBody}
@@ -3869,9 +3919,9 @@ ${transcript}`;
                 textAlignVertical="top"
                 style={styles.textarea}
               />
-              {linkClipKind === "url" ? (
+              {linkClipKind === "url" || titledLink !== null ? (
                 <Text variant="subtle" color="textSubtle">
-                  {t("linkClip.detected", { kind: detectedKind })}
+                  {t("linkClip.detected", { kind: t(`formats:builtIn.kinds.${detectedKind}.name`) })}
                 </Text>
               ) : linkClipKind === "markdown" ? (
                 <Text variant="subtle" color="textSubtle">
@@ -4278,6 +4328,7 @@ ${transcript}`;
             </Pressable>
           ) : null}
         </ScrollView>
+        </SceneTransition>
       </KeyboardAvoidingArea>
       {/* The new shard's cue appears briefly (companion pack §3) */}
 
@@ -4432,6 +4483,22 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     alignSelf: "stretch",
+  },
+  heldShare: {
+    gap: spacing.xs,
+    borderColor: semantic.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
+    padding: spacing.sm,
+  },
+  heldShareActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  heldShareButton: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    borderColor: semantic.border,
+    borderWidth: gameboy.borderWidth,
+    borderRadius: gameboy.radius,
   },
   voiceControlRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   voiceStatusRow: {

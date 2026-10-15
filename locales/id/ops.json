@@ -1,5 +1,12 @@
 {
   "phone": {
+    "summaryDetails": "Ringkasan lengkap",
+    "noteUpdatedAt": "Terakhir ditulis · {{time}}",
+    "dismissHandle": "Turunkan ponsel: geser ke atas atau bawah",
+    "assistantSettings": "Pengaturan asisten",
+    "recommendationSettings": "Pengaturan rekomendasi",
+    "todayRecommendations": "Rekomendasi hari ini",
+    "noRecommendations": "Belum ada rekomendasi.",
     "bannerTitle": "Lanjutkan kisahmu",
     "bannerSubtitle": "Catatan kecil membuka jalan ✦",
     "pageControls": "Halaman ponsel",
@@ -45,7 +52,7 @@
     "brand": "HARI SAYA",
     "returnToStars": "Kembali ke rasi bintang",
     "internal": {
-      "back": "Kembali di dalam ponsel", "wikiGraph": "Grafik dan tag", "closePhone": "Tutup ponsel", "exitTitle": "Tutup ponsel?", "exitHint": "Kembali ke rasi bintang tanpa mengubah data tersimpan.", "cancel": "Lanjut melihat",
+      "back": "Kembali", "wikiGraph": "Grafik dan tag", "closePhone": "Tutup ponsel", "exitTitle": "Tutup ponsel?", "exitHint": "Kembali ke rasi bintang tanpa mengubah data tersimpan.", "cancel": "Lanjut melihat",
       "captureScope": "Simpan catatan singkat di sini. Wawancara dan cara penyimpanan lain tetap ada di layar khusus.",
       "noteInput": "Tulis sesuatu untuk disimpan", "startNote": "Tulis catatan", "saveNote": "Simpan catatan", "saved": "Catatan tersimpan.",
       "focusLocal": "Pengatur waktu ini berjalan hanya saat layarnya terbuka.", "start": "Mulai", "pause": "Jeda", "reset": "Atur ulang",
@@ -164,8 +171,7 @@
       "settings": "Pengaturan",
       "more": "Lainnya"
     },
-    "appsBack": "Kembali ke aplikasi",
-    "noticeListBack": "Daftar notifikasi",
+    "appsBack": "Kembali",
     "noticeLoading": "Memuat notifikasi…",
     "noticeEmpty": "Belum ada notifikasi.",
     "noticeUnread": "Belum dibaca",
@@ -190,12 +196,203 @@
     "lastRead": "Terakhir dibaca · {{date}}",
     "noData": "Belum ada data yang dibaca.",
     "refresh": "Muat ulang",
-    "unknownDate": "Tanggal tidak tersedia"
+    "unknownDate": "Tanggal tidak tersedia",
+    "board": {
+      "generation": {
+        "next": "Item berikutnya",
+        "waiting": "Akan disiapkan lagi pada pembaruan berikutnya.",
+        "loading": "Menyiapkan ringkasan hari ini.",
+        "denied": "Periksa rekomendasi dan persetujuan layanan AI.",
+        "limited": "Pembaruan baru akan tersedia saat penyegaran berikutnya.",
+        "disabled": "Sementara tidak tersedia.",
+        "unavailable": "Tidak dapat memuat. Silakan coba lagi.",
+        "noteEmpty": "Tambahkan pengingat hari ini untuk mendapatkan catatan harian.",
+        "triageEmpty": "Belum ada pengingat untuk diurutkan.",
+        "summaryEmpty": "Tambahkan pengingat untuk merangkum pengingat dan tugas yang selesai hari ini.",
+        "settings": "Persetujuan",
+        "reminders": "Pengingat"
+      },
+      "weather": {
+        "title": "Cuaca",
+        "body": "Gunakan lokasi di perangkat ini untuk memilih pengamatan cuaca terdekat. Lokasi tidak dikirim keluar perangkat dan fitur ini dapat dinonaktifkan kapan saja.",
+        "terms": "Lihat ketentuan",
+        "enable": "Aktifkan",
+        "cancel": "Batal",
+        "failed": "Tidak dapat menyimpan. Silakan coba lagi.",
+        "settingsBody": "Akses lokasi dinonaktifkan di pengaturan perangkat.",
+        "webSettingsBody": "Izinkan lokasi di pengaturan situs peramban ini.",
+        "settings": "Buka pengaturan",
+        "done": "Selesai",
+        "setting": "Lokasi untuk cuaca",
+        "on": "Aktif",
+        "off": "Nonaktif",
+        "source": "Pengamatan terdekat dari NOAA/NWS dalam jarak 50 km dan tidak lebih dari 90 menit. Cuaca disembunyikan jika data tidak tersedia. Kami memakai lima gambar dan suhu yang dibulatkan; ini bukan produk resmi atau dukungan dari NOAA/NWS.",
+        "sourceTerms": "Ketentuan penggunaan data"
+      },
+      "evidence": "Lihat sumber",
+      "addWidget": "Tambah widget",
+      "clock": {
+        "weatherPrompt": "Pilih lingkunganmu untuk melihat cuaca.",
+        "pickArea": "Pilih lingkungan",
+        "sky": {
+          "clear": "Cerah",
+          "partlyCloudy": "Berawan sebagian",
+          "cloudy": "Berawan",
+          "rain": "Hujan",
+          "snow": "Salju"
+        },
+        "temp": "{{temp}} derajat"
+      },
+      "note": {
+        "tapHint": "Buka detail catatan hari ini",
+        "empty": "Catatan hari ini muncul setelah catatan pertamamu.",
+        "slot": {
+          "morning": "Pagi",
+          "day": "Siang",
+          "evening": "Malam"
+        }
+      },
+      "reminders": {
+        "title": "Pengingat",
+        "previous": "Hari sebelumnya",
+        "next": "Hari berikutnya",
+        "anytime": "Tanpa jam",
+        "alarm": "Notifikasi pukul {{time}}",
+        "add": "Tambah",
+        "dismiss": "Abaikan",
+        "days": {
+          "yesterday": "Kemarin",
+          "today": "Hari ini",
+          "tomorrow": "Besok",
+          "dayAfter": "Lusa"
+        },
+        "empty": {
+          "yesterday": "Kemarin tidak ada yang direncanakan.",
+          "today": "Hari ini tidak ada yang direncanakan.",
+          "tomorrow": "Besok tidak ada yang direncanakan.",
+          "dayAfter": "Lusa tidak ada yang direncanakan."
+        },
+        "status": {
+          "upcoming": "Akan datang",
+          "done": "Selesai",
+          "passed": "Terlewat"
+        }
+      },
+      "queue": {
+        "title": "Perlu ditangani {{index}}/{{total}}",
+        "empty": "Hari ini tidak ada yang menunggumu.",
+        "done": "Sudah kulakukan",
+        "later": "Nanti",
+        "notImportant": "Tidak penting",
+        "sources": {
+          "mail": "Surel",
+          "notification": "Notifikasi",
+          "app": "Aplikasi"
+        }
+      },
+      "health": {
+        "title": "Kesehatan",
+        "locked": "Hubungkan kesehatan untuk melihat tidur semalam.",
+        "empty": "Masukkan catatan kesehatan dan semuanya muncul di sini.",
+        "openSetup": "Pengaturan koneksi",
+        "synced": "{{source}} · disinkronkan pukul {{time}}",
+        "minutes": "{{value}} mnt",
+        "metrics": {
+          "sleep": "Tidur",
+          "steps": "Langkah",
+          "workout": "Olahraga",
+          "meal": "Makan"
+        },
+        "sources": {
+          "health_connect": "Health Connect",
+          "healthkit": "Apple Kesehatan",
+          "manual": "Diisi sendiri"
+        }
+      },
+      "spend": {
+        "title": "Pengeluaran",
+        "empty": "Masukkan mutasi rekening dan total bulan ini muncul di sini.",
+        "open": "Buka buku kas",
+        "add": "Masukkan",
+        "reject": "Tidak"
+      },
+      "changes": {
+        "title": "Lainnya"
+      },
+      "custom": {
+        "empty": "Saat catatanmu bertambah, widget milikmu muncul di sini.",
+        "capture": "Simpan",
+        "make": "Buat",
+        "skip": "Tidak usah",
+        "previous": "Widget sebelumnya",
+        "next": "Widget berikutnya"
+      },
+      "locked": {
+        "open": "Pengaturan koneksi",
+        "weather": "Cuaca terbuka setelah lingkungan dipilih.",
+        "aiConsent": "Catatan hari ini terbuka saat pemrosesan AI diaktifkan.",
+        "calendar": "Hubungkan kalender untuk melihat rencanamu di sini.",
+        "inbox": "Hubungkan surel atau notifikasi untuk melihat yang perlu ditangani.",
+        "ledger": "Masukkan mutasi rekening untuk melihat pengeluaran.",
+        "sources": "Hubungkan sumber untuk melihat apa yang berubah.",
+        "records": "Widget milikmu terbuka saat catatan bertambah."
+      },
+      "summary": {
+        "titleDefault": "Ringkasan hari ini",
+        "title": {
+          "morning": "Ringkasan pagi",
+          "day": "Ringkasan siang",
+          "evening": "Ringkasan malam"
+        },
+        "read": "Bacakan",
+        "stop": "Berhenti",
+        "close": "Tutup",
+        "notReady": "Ringkasan hari ini belum siap.",
+        "noValue": "tidak ada catatan",
+        "mutedNote": "Mode senyap aktif, jadi ringkasan hanya tampil sebagai teks."
+      },
+      "shelf": {
+        "title": "Kelola widget",
+        "onScreen": "Di layar",
+        "offScreen": "Tidak di layar",
+        "allOnScreen": "Semua widget ada di layar.",
+        "show": "Aktifkan lagi",
+        "hide": "Sembunyikan {{name}}",
+        "moveUp": "Naikkan {{name}}",
+        "moveDown": "Turunkan {{name}}",
+        "reasons": {
+          "preparing": "Widget ini masih disiapkan.",
+          "adultOnly": "Koneksi kesehatan hanya untuk dewasa.",
+          "hidden": "Kamu menyembunyikan widget ini."
+        },
+        "parts": {
+          "clock": "Jam dan cuaca",
+          "note": "Catatan hari ini",
+          "reminders": "Pengingat",
+          "queue": "Perlu ditangani",
+          "health": "Kesehatan",
+          "spend": "Pengeluaran",
+          "changes": "Lainnya",
+          "custom": "Widget milikmu"
+        }
+      },
+      "transcribe": {
+        "title": "Transkripsi",
+        "adultOnly": "Transkripsi hanya untuk dewasa.",
+        "ownTalkOnly": "Hanya merekam percakapan yang kamu ikuti.",
+        "lockedStart": "Mulai merekam, belum dibuka",
+        "afterTitle": "Setelah perekaman selesai, hasilnya muncul di sini.",
+        "sections": {
+          "head": "Ringkasan satu baris",
+          "todos": "Tugas dan kontak berikutnya",
+          "transcript": "Transkrip lengkap"
+        }
+      }
+    }
   },
   "loading": "Membuka rutinitasmu…",
   "hero": {
-    "title": "Rutinitas",
-    "subtitle": "Pilih bidang untuk mendapat saran langkah berikutnya."
+    "title": "Rutinitas"
   },
   "groups": {
     "body": "Tubuh",
@@ -328,16 +525,16 @@
       "sub": "Rencana minggu ini"
     }
   },
-  "states": {
-    "emptyDomain": "Pilih area di atas untuk memulai."
-  },
   "push": {
     "savedNote": "Dikirim ke kalendermu.",
     "deniedNote": "Izin kalender nonaktif. Izinkan di pengaturan perangkatmu untuk menggunakannya.",
     "reminderSetNote": "Pengingat diatur di perangkat ini.",
     "reminderDeniedNote": "Izin notifikasi nonaktif. Izinkan di pengaturan perangkatmu untuk menggunakan pengingat.",
     "reminderFailedNote": "Pengingat tidak bisa diatur. Periksa waktu item dan coba lagi.",
-    "reminderUnavailableNote": "Tersimpan. Pengingat butuh aplikasi terpasang, jadi yang ini tidak akan berbunyi di sini."
+    "reminderUnavailableNote": "Tersimpan. Pengingat butuh aplikasi terpasang, jadi yang ini tidak akan berbunyi di sini.",
+    "deviceReminderBody": "Saatnya untuk pengingatmu.",
+    "deviceTimerBody": "Timermu sudah selesai.",
+    "deviceChannelName": "Pengingat"
   },
   "focus": {
     "title": "Fokus harian",
@@ -408,7 +605,7 @@
       "currentPage": "Halaman",
       "totalPages": "Total halaman",
       "savePages": "Simpan",
-      "pagesInvalid": "Tulis nomor halaman dengan angka bulat."
+      "pagesInvalid": "Tulis nomor halaman dengan angka bulat dari 0 hingga 100000, maksimal 6 digit."
     },
     "goals": {
       "emptyTitle": "Belum ada tujuan",
@@ -419,7 +616,8 @@
       "emptyTitle": "Belum ada pengeluaran bulan ini",
       "emptyBody": "Tulis jumlah di atas dan akan dikelompokkan per kategori di sini.",
       "currencyNote": "Jumlah dicatat dalam won (KRW).",
-      "amountTooLarge": "Jumlah itu terlalu besar. Satu catatan bisa memuat hingga {{max}} won."
+      "amountTooLarge": "Jumlah itu terlalu besar. Satu catatan bisa memuat hingga {{max}} won.",
+      "amountInvalid": "Tulis won bulat, misalnya 12000, 12,000, ₩12,000, atau 12,000원. Tanda dan desimal tidak diterima."
     },
     "meals": {
       "sheetSubtitle": "{{day}} {{date}} · {{slot}}",
@@ -428,6 +626,7 @@
       "lookUp": "Cari makanan",
       "lookUpNone": "Tidak ada makanan yang cocok.",
       "lookUpFailed": "Tidak bisa mencari. Coba lagi.",
+      "saveFailed": "Perubahan ini belum tersimpan. Isian Anda masih ada di sini. Coba lagi.",
       "days": {
         "mon": "Sen",
         "tue": "Sel",

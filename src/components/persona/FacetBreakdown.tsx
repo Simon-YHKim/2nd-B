@@ -1,9 +1,10 @@
+import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 // The IPIP-NEO-120 facet lens: the 5 Big Five domains each expanded into their 6
 // facets (label + bar). This is the precision payoff over BFI-44's domain-only
 // view. Self-contained presentational component; the grouping/scoring is the pure
 // facetRows helper. Canon result surface for /ipip-neo.
 
-import { View, StyleSheet, ScrollView, Pressable } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";

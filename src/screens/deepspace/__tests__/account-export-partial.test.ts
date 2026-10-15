@@ -114,7 +114,7 @@ describe("문구가 페이로드보다 많이 약속하지 않는다", () => {
 
   test("화면이 실패가 있을 때만 부분 문구를 쓴다", () => {
     const screen = fs.readFileSync(
-      path.join(process.cwd(), "src/screens/deepspace/dds-account-screen.tsx"), "utf8",
+      path.join(process.cwd(), "src/screens/deepspace/dds-account-export.tsx"), "utf8",
     );
     expect(screen).toContain("account.export.donePartial");
     expect(screen).toMatch(/failedItems\s*>\s*0/);

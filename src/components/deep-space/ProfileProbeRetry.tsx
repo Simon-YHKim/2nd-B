@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 프로필 프로브가 실패했을 때 화면이 보이는 자리 (vibe r260914 R3-A).
 //
 // T1a 에뮬레이터 검증(vibe r260913 항목 2)에서 첫 프로브가 실패하면 /account ·
@@ -16,7 +17,7 @@
 // 할 수 있는 일은 다시 묻기, 이 계정에서 나가기(로그아웃), 뒤로 가기뿐이다. 뒤로 간 곳이
 // 기능 라우트여도 라우트 게이트(app/_layout.tsx 의 IntroGate · ProfileProbeScope)가 다시 붙든다.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { MdTopAppBar } from "@/components/m3/MdTopAppBar";

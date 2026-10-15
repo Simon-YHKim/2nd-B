@@ -1,3 +1,4 @@
+import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 공유 카드 (rev2 P5c): the "자기이해 한 컷" share surface. The ShareCard
 // component + 1080x1080 capture lib shipped earlier with NO entry point — this
 // route surfaces them: A/B variant preview, live litStars from the user's real
@@ -6,7 +7,7 @@
 // Privacy: the card carries ONE sentence + star count + piece count. The handle
 // stays off the card (share-sheet text only) — sb-more signature verbatim.
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 

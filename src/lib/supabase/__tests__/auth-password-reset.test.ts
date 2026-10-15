@@ -125,6 +125,28 @@ async function createOwnedRecoveryPending(
   return persistRecoveryPending();
 }
 
+// No test in this file may reach the network. Every password update first asks the
+// breached-password service (api.pwnedpasswords.com, isPasswordBreached). On a slow
+// runner that real call ran into its own 5 s deadline, which is also the test timeout,
+// and tests here failed on unrelated pull requests (CI 2026-10-13). Unreachable is the
+// documented fail-open path, so both ways out are unreachable by default: the global
+// fetch (the web runtime) and expo/fetch (every other runtime, hibpFetch in auth.ts).
+// A test that needs an answer from the service installs its own fetch.
+const expoFetch = jest.fn();
+jest.mock("expo/fetch", () => ({
+  fetch: (...args: unknown[]) => expoFetch(...args),
+}));
+
+beforeEach(() => {
+  expoFetch.mockReset();
+  expoFetch.mockRejectedValue(new Error("offline"));
+  jest.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 describe("password reset helpers", () => {
   afterEach(() => {
     jest.restoreAllMocks();
@@ -898,6 +920,19 @@ describe("passwordUpdateFailure", () => {
 });
 
 describe("updatePassword current_password wiring", () => {
+  it("asks the breached-password service through the stand-in, never the network", async () => {
+    const updateUser = jest.fn().mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    __setSupabaseClientForTests({ auth: { updateUser } } as never);
+    await updatePassword("new-password-123");
+    // No window or document here, so the lookup goes out through expo/fetch.
+    expect(expoFetch).toHaveBeenCalledTimes(1);
+    expect(String(expoFetch.mock.calls[0]![0])).toContain("api.pwnedpasswords.com/range/");
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    // Unreachable fails open: the update still goes ahead.
+    expect(updateUser).toHaveBeenCalledTimes(1);
+    __setSupabaseClientForTests(null);
+  });
+
   test("omits current_password when the caller has none (recovery flow)", async () => {
     const updateUser = jest.fn().mockResolvedValue({ error: null });
     __setSupabaseClientForTests({ auth: { updateUser } } as never);

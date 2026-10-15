@@ -17,7 +17,7 @@
     "loadError": "Foto tidak bisa dimuat."
   },
   "advisor": {
-    "heading": "Catatan SecondB",
+    "heading": "Catatan HustleK",
     "sources": "Sumber",
     "whyThis": "Mengapa ini",
     "evidenceFallback": "Sumber tercantum tanpa catatan singkat."
@@ -26,7 +26,11 @@
     "backToRecords": "Kembali ke catatan",
     "seeArea": "Lihat di {{area}}",
     "seeAreaHint": "Membuka {{area}} dengan catatan ini di paling atas.",
-    "askSecondB": "Tanya SecondB",
+    "askSecondB": "Tanya HustleK",
     "openSource": "Buka sumber"
+  },
+  "structuredForm": {
+    "career_3c4p": "Pengalaman karier",
+    "call_reflection": "Refleksi panggilan"
   }
 }

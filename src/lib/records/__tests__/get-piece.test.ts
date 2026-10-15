@@ -20,6 +20,8 @@
 // The lookup was not.
 
 import { getPieceById, isSourcePieceId, SOURCE_ID_PREFIX } from "../get-piece";
+import { downloadRawClipping } from "../../wiki/storage";
+import { fetchProfileImportedContext } from "../../supabase/profile-context-import";
 
 const from = jest.fn();
 const getRecordById = jest.fn();
@@ -30,6 +32,13 @@ jest.mock("../../supabase/client", () => ({
 jest.mock("../create", () => ({
   getRecordById: (...args: unknown[]) => getRecordById(...args),
 }));
+jest.mock("../../wiki/storage", () => ({ downloadRawClipping: jest.fn() }));
+jest.mock("../../supabase/profile-context-import", () => ({ fetchProfileImportedContext: jest.fn() }));
+
+beforeEach(() => {
+  jest.mocked(downloadRawClipping).mockReset().mockRejectedValue(new Error("storage unavailable"));
+  jest.mocked(fetchProfileImportedContext).mockReset();
+});
 
 function mockSource(result: { data: unknown; error: unknown }): void {
   const chain: Record<string, unknown> = {};
@@ -55,6 +64,52 @@ describe("the id says which table it lives in", () => {
 });
 
 describe("getPieceById", () => {
+  test("a profile import returns the typed ledger context and never exposes internal raw content", async () => {
+    const context: Awaited<ReturnType<typeof fetchProfileImportedContext>> = {
+      document: {
+        format: "polascope.user-context", version: "1.0-draft",
+        origin: { service: "unknown", model: null, exported_at: null },
+        coverage: { accessed: [], unavailable: [], omissions: [], more_items: "unknown", account_completeness: "unknown" },
+        sources: [], items: [{ id: "i1", category: "preference", statement: "I prefer mornings.", reported_basis: "user_statement",
+          evidence_ids: [], valid_time: { from: null, to: null, description: null }, conflicts_with: [] }],
+      }, confirmedIds: ["i1"],
+    };
+    jest.mocked(fetchProfileImportedContext).mockResolvedValue(context);
+    mockSource({ data: {
+      id: ABC, kind: "self_knowledge", title: "My story", captured_at: "2026-10-09T00:00:00Z", tags: [], storage_path: "internal.md",
+      frontmatter: { profile_context_import_id: "batch-1", _body_fallback: "Internal provenance JSON" },
+    }, error: null });
+    await expect(getPieceById("u1", `src-${ABC}`)).resolves.toMatchObject({
+      body: null, origin: "source", profileImportManaged: true, profileImportContext: context,
+    });
+    expect(fetchProfileImportedContext).toHaveBeenCalledWith("u1", ABC);
+    expect(downloadRawClipping).not.toHaveBeenCalled();
+  });
+
+  test("a managed source read failure cannot fall back to raw storage, inline text or a record", async () => {
+    mockSource({ data: {
+      id: ABC, kind: "self_knowledge", title: "My story", captured_at: "2026-10-09T00:00:00Z", tags: [], storage_path: "internal.md",
+      frontmatter: { profile_context_import_id: "batch-1", _body_fallback: "Internal provenance JSON" },
+    }, error: null });
+    const error = new Error("ledger unavailable");
+    jest.mocked(fetchProfileImportedContext).mockRejectedValue(error);
+    await expect(getPieceById("u1", `src-${ABC}`)).rejects.toBe(error);
+    expect(downloadRawClipping).not.toHaveBeenCalled();
+    expect(getRecordById).not.toHaveBeenCalled();
+  });
+
+  test("ordinary sources still read Storage and fall back to their inline body on failure", async () => {
+    mockSource({ data: {
+      id: ABC, kind: "article", title: "Article", captured_at: "2026-10-09T00:00:00Z", tags: [], storage_path: "u1/article.md",
+      frontmatter: { _body_fallback: "Saved fallback." },
+    }, error: null });
+    await expect(getPieceById("u1", `src-${ABC}`)).resolves.toMatchObject({ body: "Saved fallback.", profileImportManaged: false });
+    expect(downloadRawClipping).toHaveBeenCalledWith("u1/article.md");
+    expect(fetchProfileImportedContext).not.toHaveBeenCalled();
+    jest.mocked(downloadRawClipping).mockResolvedValueOnce("Stored article.");
+    await expect(getPieceById("u1", `src-${ABC}`)).resolves.toMatchObject({ body: "Stored article." });
+  });
+
   test("a plain id goes to the records table", async () => {
     getRecordById.mockResolvedValue({ id: R1, kind: "note", topic: "t", body: "b", tags: [], created_at: "x" });
     const piece = await getPieceById("u1", R1);

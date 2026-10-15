@@ -4,7 +4,7 @@
 // 배소하 · 경기도 안양시 · kim0405@hayangzip.com · 보호책임자 김양환 · prices);
 // no [기입]/[fill] markers remain, so isDraft() is false and the 초안 badge is
 // gone. 사업자등록번호 205-10-98603 was issued 2026-07-22 and posted here on
-// 2026-08-03; nothing in these documents is pending any more.
+// 2026-08-03. GPS weather addenda describe personal testing from 2026-10-08; the public date remains pending.
 // Lexicon note: the disclaimers must NAME the services PolaScope is NOT
 // (의료·심리상담·진단·치료) -- this file is allowlisted in
 // src/lib/safety/lexicon.ts LEXICON_SCAN_ALLOWLIST for exactly that reason.
@@ -26,7 +26,7 @@ export const TERMS_DOC: LegalDoc = {
   draftBadge: "초안 · Draft",
   body: `# 이용약관 · Terms of Service
 
-_시행일: 2026-10-05 · 최종 개정: 2026-10-05_
+_시행일: 2026-10-05 · 최종 개정: 2026-10-13 (개정 적용일: 2026-10-14)_
 
 ---
 
@@ -36,7 +36,7 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 본 약관은 하양 프로덕션(개인사업자, 대표: 배소하, 이하 "회사")가 제공하는 **PolaScope**(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.
 
 ### 제2조 (서비스의 성격)
-서비스는 이용자가 자신에 관한 기록을 축적하고 **자기 이해와 성장**을 돕는 AI 기반 개인 도구입니다. 서비스는 **의료·심리상담·진단·치료 서비스가 아니며**, 서비스가 제공하는 정보와 AI 산출물은 **참고용 정보**로서 전문적(의료·법률·재정) 조언을 대체하지 않습니다.
+서비스는 이용자가 자신에 관한 기록을 축적하고 **자기 이해와 성장**을 돕는, 생성형 인공지능(AI)을 활용하는 개인 도구입니다. 서비스는 **의료·심리상담·진단·치료 서비스가 아니며**, 서비스가 제공하는 정보와 AI 산출물은 **참고용 정보**로서 전문적(의료·법률·재정) 조언을 대체하지 않습니다.
 
 ### 제2조의2 (긴급 상황 및 안전 안내)
 ① **서비스는 응급·구조 서비스가 아닙니다.** 생명이나 안전이 걸린 상황에서는 서비스가 아니라 **112(경찰)·119(구조·구급)** 에 직접 연락하십시오.
@@ -95,6 +95,25 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 - 통신판매업 신고: 면제 사업자 (「전자상거래 등에서의 소비자보호에 관한 법률」 시행령 제11조의 신고 면제 기준에 해당)
 - 문의: kim0405@hayangzip.com (이메일 중심으로 운영합니다). 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
 
+### 위치기반서비스 추가 안내 · 개인 테스트
+
+작성 판본: weather-v1-261007(초판 식별자이며 시행일이 아닙니다). 개인 테스트: 2026-10-08 시작. 공개 시행일·전화번호·사전 공지 일정은 확정 예정입니다. 전화번호와 공개 시행일은 이번 주말 입력 예정이며, 공개 전에 확정 내용을 알립니다. 기존 이용약관의 시행일은 바꾸지 않습니다.
+
+① **사업자**: 하양 프로덕션(개인사업자, 대표: 배소하), 소재지 (14081) 경기도 안양시 동안구 귀인로 98번길 12, 연락처 kim0405@hayangzip.com. 개인정보 보호책임자는 김양환(kim0405@hayangzip.com)입니다. 전화번호는 확정 후 공개 전에 추가합니다.
+
+② **권리와 행사방법**: 개인위치정보주체는 동의의 전부 또는 일부를 유보·철회하거나 일시 중지를 요구할 수 있으며, 이용·제공사실 확인자료의 열람·고지와 오류 정정을 요구할 수 있습니다. 설정에서 날씨용 위치를 끄거나 위 연락처로 요청합니다. 회사는 정당한 요구를 지체 없이 처리합니다. 동의를 거부·철회해도 다른 앱 기능은 이용할 수 있습니다.
+
+③ **서비스 내용**: 하루 관리판 시계 줄에 인근 관측소의 날씨 그림과 기온을 표시합니다. 만 18세 이상 이용자의 별도 동의와 기기 위치 허용 후, 기기 안에서 50km 이내·90분 이내의 관측 자료를 고릅니다. 조건에 맞는 자료가 없으면 날씨를 표시하지 않습니다. 예보가 아니며 현재 위치의 실제 날씨와 다를 수 있습니다. NOAA/NWS 공개 관측 자료를 다섯 가지 그림으로 묶고 기온을 반올림한 것으로, NOAA/NWS의 공식 표시나 승인을 뜻하지 않습니다. [자료 출처](https://aviationweather.gov/data/api/)와 [이용 안내](https://www.weather.gov/disclaimer)를 제공합니다.
+
+④ **동의·요청 사실**: 계정 식별자·동의 및 요청 시각·제공자 표시·사건 종류를 6개월간 보유하고 기간이 지난 자료를 매일 정리합니다. 제공자 표시인 “NOAA/NWS (bulk, no device location)”는 기상 자료의 출처를 뜻하며, 이용자의 위치를 제공받는 자라는 뜻이 아닙니다. 이 자료에는 좌표·IP·이동 경로를 넣지 않습니다. 계정 삭제 시 남은 자료의 계정 식별자를 비웁니다.
+
+⑤ **위치 처리·보유**: 좌표는 기기 안에서 가까운 관측 자료를 고르는 데만 사용합니다. 정확한 좌표와 대략 좌표 모두 회사 서버·Supabase·NOAA/NWS에 보내지 않습니다. 서버는 이용자 위치와 무관한 동일한 공개 관측 목록을 받습니다. 기기의 위치·날씨 메모리 캐시는 최대 30분이며 철회·계정 전환 시 비웁니다. 백그라운드 추적과 이동 이력 저장을 하지 않고 위치정보와 날씨를 광고·분석·AI 입력에 사용하지 않습니다.
+
+⑥ **만 14세 미만 및 미성년자(제25조)**: 이 서비스는 만 18세 이상으로 확인된 이용자만 별도 동의하여 켤 수 있습니다. 만 14세 미만은 법정대리인 동의를 포함한 별도 개방 절차가 마련되기 전까지 잠겨 있고, 만 14~17세 및 나이 미확인 계정도 잠겨 있습니다. 이 약관은 미성년 위치 기능을 개방하지 않습니다.
+
+### 개정 이력
+- 2026-10-13 공지 · 2026-10-14 적용: 제2조의 "AI 기반"을 "생성형 인공지능(AI)을 활용하는"으로 고쳤습니다(「인공지능 발전과 신뢰 기반 조성 등에 관한 기본법」(인공지능기본법)의 사전 고지에 맞춘 표현 정리이며, 서비스 내용은 바뀌지 않았습니다).
+
 ---
 
 ## English
@@ -103,7 +122,7 @@ _시행일: 2026-10-05 · 최종 개정: 2026-10-05_
 These Terms govern the rights, obligations, and responsibilities between Hayang Production (sole proprietorship, Representative: Bae Soha; the "Company") and users regarding the use of **PolaScope** (the "Service").
 
 ### 2. Nature of the Service
-The Service is an AI-assisted personal tool that helps users accumulate records about themselves for **self-understanding and growth**. It is **not a medical, counseling, diagnostic, or treatment service**, and any information or AI output it provides is **for reference only** and does not replace professional (medical, legal, financial) advice.
+The Service is a personal tool that uses generative artificial intelligence (AI) and helps users accumulate records about themselves for **self-understanding and growth**. It is **not a medical, counseling, diagnostic, or treatment service**, and any information or AI output it provides is **for reference only** and does not replace professional (medical, legal, financial) advice.
 
 ### 2A. Emergencies and safety information
 (1) **The Service is not an emergency or rescue service.** If life or safety is at risk, contact the emergency services directly (in Korea, **112 for police and 119 for fire/ambulance**), not this app.
@@ -146,7 +165,26 @@ The Company may change or suspend all or part of the Service for operational/tec
 - Location: Anyang-si, Gyeonggi-do, Republic of Korea
 - Business registration number: 205-10-98603
 - Mail-order business report: exempt (meets the exemption criteria of Article 11 of the Enforcement Decree of Korea's e-commerce act)
-- Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.`,
+- Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.
+
+### Weather location addendum · personal testing
+
+Revision: weather-v1-261007 (the initial revision identifier, not an effective date). Personal testing began on 2026-10-08. The public effective date, telephone number and advance-notice schedule are not yet finalized. The telephone number and public effective date are scheduled to be entered this weekend and disclosed before public availability. The existing Terms' effective date is unchanged.
+
+(1) **Operator**: Hayang Production (sole proprietorship; Representative: Bae Soha), 12, Gwiin-ro 98beon-gil, Dongan-gu, Anyang-si, Gyeonggi-do, 14081, Republic of Korea; contact kim0405@hayangzip.com. Data Protection Officer: Kim Yang-hwan, at the same email. A telephone number will be added before public availability once finalized.
+
+(2) **Rights**: You may withhold or withdraw all or part of consent, request a temporary suspension, and request access to or correction of use/provision facts. Turn off location for weather in privacy settings or contact the address above. The Company handles valid requests without delay. Other app features remain available if you decline or withdraw.
+
+(3) **Service**: The daily board clock shows weather and temperature from a nearby observation station. After separate consent from an adult aged 18 or older and device permission, the device selects observations within 50 km and no more than 90 minutes old. Weather is hidden if no suitable observation exists. These are observations, not forecasts, and may differ from conditions at your location. NOAA/NWS public observations are grouped into five drawings and temperatures are rounded. This presentation is not an official NOAA/NWS product or endorsement. See the [data source](https://aviationweather.gov/data/api/) and [terms of use](https://www.weather.gov/disclaimer).
+
+(4) **Consent and request facts**: Account identifier, consent/request time, provider label and event type are retained for six months and purged daily after that period. The provider label “NOAA/NWS (bulk, no device location)” identifies the weather data source, not a recipient of your location. These facts contain no coordinates, IP or movement history. Account deletion clears the account identifier from retained facts.
+
+(5) **Location processing and retention**: Coordinates are used only on the device to select a nearby observation. Neither precise nor approximate device coordinates are sent to Company servers, Supabase or NOAA/NWS. The server obtains the same public observation list independently of users' locations. The device's location/weather memory cache lasts at most 30 minutes and clears on withdrawal or account change. There is no background tracking or movement-history storage. Location and weather are not used for advertising, analytics or AI input.
+
+(6) **Children and minors (Article 25)**: Only confirmed adults aged 18 or older may opt in. Children under 14 remain locked out until a separate opening process including legal-representative consent exists. Users aged 14–17 and accounts with unknown age are also locked out. These terms do not open location features to minors.
+
+### Revision history
+- Announced 2026-10-13, effective 2026-10-14: Section 2 now states that the Service uses generative artificial intelligence (AI). This aligns the wording with the prior-notice requirement of Korea's AI Basic Act; the Service itself is unchanged.`,
 };
 
 export const REFUND_DOC: LegalDoc = {
@@ -260,7 +298,7 @@ export const PRIVACY_DOC: LegalDoc = {
   draftBadge: "초안 · Draft",
   body: `# 개인정보처리방침 · Privacy Policy
 
-_시행일: 2026-10-06 · 최종 개정: 2026-10-06_
+_시행일: 2026-10-07 · 최종 개정: 2026-10-07_
 
 ---
 
@@ -272,7 +310,7 @@ _시행일: 2026-10-06 · 최종 개정: 2026-10-06_
 - **필수(계정)**: 이메일 주소, 소셜 로그인 식별자(Google/Apple/Kakao/Naver 등), 인증 토큰.
 - **연령 확인**: 생년월일 또는 연령대(연령 등급 확인 및 아동 보호 목적).
 - **이용자 콘텐츠**: 이용자가 입력·생성한 성찰·기록 등 서비스 이용 데이터.
-- **프로필(선택)**: 표시할 이름, 목표 문장. 가입 과정에서 선택적으로 입력하며, 비워 두어도 서비스 이용에 제한이 없습니다. 상세 프로필(선택): 직업, 사는 지역(시/도 수준), 가구(함께 사는 사람), 생활 리듬, 주로 일하거나 공부하는 시간대, 주로 일하는 요일, 가장 바쁜 시기. 가입 후 원하는 항목만 적을 수 있으며, 비워 두어도 서비스 이용에 제한이 없습니다. 아바타 설정(선택): 고른 아바타 조합(종류·머리·얼굴 장식·표정·색·옷·직업 의상·소품 등). 다른 이용자에게는 보이지 않으며 계정을 지우면 함께 지워집니다. 아바타 조합은 실제 직업·외모 정보로 쓰지 않습니다. 기기에서 그린 픽셀 그림은 회사 서버로 보내지 않습니다.
+- **프로필(선택)**: 닉네임(표시할 이름), 목표 문장. 가입 과정에서 선택적으로 입력하며, 비워 두어도 서비스 이용에 제한이 없습니다. 상세 프로필(선택): 하는 일(직업), 거주 지역(시/도 수준), 가족관계(함께 사는 사람), 성별, 국적, 혼인 여부(성인만), 좌우명. 가입 후 원하는 항목만 적을 수 있으며, 비워 두어도 서비스 이용에 제한이 없습니다. 상태 메시지(선택): 프로필에 보일 짧은 한 줄(60자 이하)입니다. 좌우명처럼 직접 적는 칸에는 건강·신념·종교·정치적 견해 같은 민감정보를 적지 않기를 권장합니다. 프로필 화면에는 로그인 이메일과 생년월일을 보여 주기만 하며, 생년월일은 연령 확인에 쓰이므로 이 화면에서 고칠 수 없습니다. 아바타 설정(선택): 고른 아바타 조합(종류·머리·얼굴 장식·표정·색·옷·직업 의상·소품 등). 다른 이용자에게는 보이지 않으며 계정을 지우면 함께 지워집니다. 아바타 조합은 실제 직업·외모 정보로 쓰지 않습니다. 기기에서 그린 픽셀 그림은 회사 서버로 보내지 않습니다.
 - **음성·오디오(선택)**: 이용자가 앱에서 녹음하거나 직접 고른 오디오 파일. **텍스트로 옮기는 목적으로만** 처리하며, 앱이 만든 임시 녹음 파일은 전사 직후 기기에서 삭제합니다(이용자가 고른 파일은 회사가 삭제하지 않습니다). 전사된 텍스트는 이용자 콘텐츠로 저장됩니다.
 - **자동 수집**: 서비스 이용 기록, 기기·브라우저 정보, 접속 로그, 쿠키/로컬 저장소(웹), Android 앱의 설치별 식별자(Firebase 설치 ID)와 푸시 알림 등록 정보(제5조 참고).
 - **결제 관련**: 결제는 Paddle이 처리하며, **회사는 카드번호 등 결제수단 전체 정보를 저장하지 않습니다.** 결제 상태·구독 정보 등 처리 결과만 수신합니다.
@@ -321,7 +359,7 @@ Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 �
 
 **AI 처리**: AI 기능을 이용할 때 이용자가 해당 기능에 제공한 콘텐츠가 OpenAI OpCo, LLC(미국, 문의: privacy@openai.com)의 OpenAI API로 TLS 전송되어 분석·생성·음성 전사 등에 처리되며, 임베딩(기록 검색 색인) 기능이 서버에서 활성화된 경우에는 임베딩 생성에도 처리됩니다. 일부 AI 기능(페르소나 서술·종합, 교차 검증의 일부)은 Anthropic PBC(미국, 문의: privacy@anthropic.com)의 Claude API로 전송되어 처리될 수 있습니다. 현재 새 빌드는 목적별 구성에 따라 OpenAI 또는 Anthropic을 사용하고 자동 장애 전환은 비활성화되어 있습니다. 다만 구버전 앱 또는 전용 벤더 설정이 주입되지 않은 빌드·런타임의 AI 요청은 Google의 Gemini API로 라우팅될 수 있습니다(Google 개인정보 문의: policies.google.com/privacy). 건강·활동 측정값은 어떤 AI 제공자에게도 전송하지 않습니다.
 
-각 사의 공개 정책 기준(각 사 정책 변경에 따라 달라질 수 있음): OpenAI API 입력·출력은 이용자가 별도로 데이터 공유를 선택하지 않는 한 모델 학습에 사용되지 않으며, 적용 대상 API의 남용 감시 로그는 기본적으로 최대 30일 보관되고 법률상 의무 또는 서비스·제3자 보호를 위해 더 오래 보관될 수 있습니다. 현재 OpenAI 음성 전사 API는 남용 감시 로그와 애플리케이션 상태를 보관하지 않습니다. Anthropic API의 입력·출력은 기본적으로 수신·생성 후 30일 이내 삭제되며, 별도 보관 기능 사용·별도 합의·정책 집행 또는 법률상 의무가 있는 경우는 예외입니다. 각 AI 제공자는 자체 이용 정책에 따라 남용과 안전 위반을 막기 위해 전송된 내용을 자동으로 점검하며, 위반이 의심되면 제공자의 직원이 내용을 검토할 수 있습니다. 위반으로 표시된 내용은 더 오래 보관될 수 있습니다(예: Anthropic은 입력·출력 최대 2년, 안전 분류 결과 최대 7년). 또한 각 제공자는 적법한 법적 절차에 따르거나, 사람의 생명·신체에 대한 급박한 위험을 막기 위해 필요하다고 판단하는 경우 관련 정보를 수사기관 등에 제공할 수 있습니다. 회사는 AI 제공자에게 이메일 주소나 계정 ID를 보내지 않지만, 호칭에 쓰는 표시 이름과 이용자가 기록·대화에 직접 쓴 내용(이름·연락처 등 포함)은 그대로 전송됩니다. 다른 사람에게 알려지면 안 되는 내용은 AI 기능에 쓰지 않는 것을 권장합니다. Gemini API의 처리·보존은 실제 프로젝트에 적용된 서비스 등급·ZDR·기능 설정과 Google 약관에 따라 달라질 수 있습니다. 과거 프로젝트의 계약 법인·서비스 등급·ZDR 및 정확한 적용 보유 기준은 운영 확인 전이므로 이 방침에서 단정하지 않습니다.
+각 사의 공개 정책 기준(각 사 정책 변경에 따라 달라질 수 있음): OpenAI API 입력·출력은 이용자가 별도로 데이터 공유를 선택하지 않는 한 모델 학습에 사용되지 않으며, 적용 대상 API의 남용 감시 로그는 기본적으로 최대 30일 보관되고 법률상 의무 또는 서비스·제3자 보호를 위해 더 오래 보관될 수 있습니다. 현재 OpenAI 음성 전사 API는 남용 감시 로그와 애플리케이션 상태를 보관하지 않습니다. Anthropic API의 입력·출력은 기본적으로 수신·생성 후 30일 이내 삭제되며, 별도 보관 기능 사용·별도 합의·정책 집행 또는 법률상 의무가 있는 경우는 예외입니다. 각 AI 제공자는 자체 이용 정책에 따라 남용과 안전 위반을 막기 위해 전송된 내용을 자동으로 점검하며, 위반이 의심되면 제공자의 직원이 내용을 검토할 수 있습니다. 위반으로 표시된 내용은 더 오래 보관될 수 있습니다(예: Anthropic은 입력·출력 최대 2년, 안전 분류 결과 최대 7년). 또한 각 제공자는 적법한 법적 절차에 따르거나, 사람의 생명·신체에 대한 급박한 위험을 막기 위해 필요하다고 판단하는 경우 관련 정보를 수사기관 등에 제공할 수 있습니다. 회사는 AI 제공자에게 이메일 주소나 계정 ID를 보내지 않지만, 호칭에 쓰는 닉네임(표시 이름)과 이용자가 기록·대화에 직접 쓴 내용(이름·연락처 등 포함)은 그대로 전송됩니다. 허슬케이와 대화할 때는 이용자가 채운 상세 프로필 항목·상태 메시지와 생년월일로 계산한 나이도 대화 맥락으로 함께 전송됩니다(생년월일 자체는 보내지 않습니다). 다른 사람에게 알려지면 안 되는 내용은 AI 기능에 쓰지 않는 것을 권장합니다. Gemini API의 처리·보존은 실제 프로젝트에 적용된 서비스 등급·ZDR·기능 설정과 Google 약관에 따라 달라질 수 있습니다. 과거 프로젝트의 계약 법인·서비스 등급·ZDR 및 정확한 적용 보유 기준은 운영 확인 전이므로 이 방침에서 단정하지 않습니다.
 
 **오류·크래시 수집(Sentry)**: Sentry 비활성화 변경이 실제 배포된 이후의 새 JS 번들은 Sentry를 초기화하지 않습니다. 다만 그보다 이전 앱 버전, 업데이트 후 아직 재시작하지 않은 앱, 새로고침하지 않은 웹 세션은 오류·크래시 정보(스택 추적, 앱 버전, 기기·운영체제·브라우저 정보, 발생 시각 포함)를 Functional Software, Inc.(dba Sentry, 미국)로 계속 TLS 전송할 수 있습니다. 목적은 오류 진단과 서비스 안정성 확인입니다. 전송 당시 기본 개인정보 전송은 비활성화되어 있었고 웹에서는 주소·요청 정보를 제거했으며 세션 녹화는 사용하지 않았습니다. 수집된 이벤트는 회사 Sentry 프로젝트 설정과 적용 약관에 따른 기간 동안 보관되며, 정확한 계정 설정 기간은 운영 확인 전 단정하지 않습니다. 이후 전송을 원하지 않으면 앱을 업데이트한 뒤 재시작하거나 웹페이지를 새로고침할 수 있으며, 이렇게 해도 핵심 서비스 이용에는 제한이 없습니다. 잔존 이벤트 문의·삭제 요청은 kim0405@hayangzip.com, Sentry 개인정보 문의는 compliance@sentry.io로 할 수 있습니다.
 
@@ -361,6 +399,7 @@ Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 �
 2026-09-26 개정에서는 비활성 광고 기능의 수집 항목·보상 기록·티켓 보관과 별도 선택을 안내했습니다. 기존 이용자의 동의를 새 광고 동의로 전환하지 않습니다.
 | 시행일 | 변경 내용 |
 |---|---|
+| 2026-10-07 | 제1조: 상세 프로필 선택 항목을 바꿨습니다. 생활 리듬, 주로 일하거나 공부하는 시간대, 주로 일하는 요일, 가장 바쁜 시기는 더 이상 받지 않으며 이미 저장된 값은 삭제했습니다. 성별, 국적, 혼인 여부(성인만), 좌우명과 상태 메시지를 선택 항목으로 추가했습니다. 표시할 이름은 닉네임, 사는 지역은 거주 지역, 가구는 가족관계로 부릅니다. 프로필 화면이 로그인 이메일과 생년월일을 보여 주기만 한다는 점을 적었습니다. 새 항목은 모두 이용자가 직접 적거나 고른 경우에만 저장되는 선택 항목입니다. 제5조: 세컨비와 대화할 때 이용자가 채운 상세 프로필 항목·상태 메시지와 생년월일로 계산한 나이가 대화 맥락으로 AI 제공자에게 전송된다는 점을 적었습니다(생년월일 자체는 보내지 않습니다). |
 | 2026-10-06 | 제4조: 회사가 이 방침에 적은 경우 외에는 개인정보를 제3자에게 제공하지 않는다는 원칙과, 법률에 특별한 규정이 있는 경우(영장 등 적법한 절차에 따른 요구)에만 필요한 최소한으로 제공하고 그 내역을 기록하며 법령상 금지되지 않으면 이용자에게 알린다는 점을 적었습니다. 제5조: AI 제공자가 자체 이용 정책에 따라 전송된 내용을 자동으로 점검하고 제공자의 직원이 검토할 수 있다는 점, 위반으로 표시된 내용은 더 오래 보관될 수 있다는 점(예: Anthropic 입력·출력 최대 2년, 안전 분류 결과 최대 7년), 제공자가 적법한 법적 절차에 따르거나 생명·신체의 급박한 위험을 막기 위해 수사기관 등에 정보를 제공할 수 있다는 점, 회사가 AI 제공자에게 이메일 주소·계정 ID는 보내지 않지만 표시 이름과 이용자가 쓴 내용은 그대로 보낸다는 점을 적었습니다. 수집 항목·이용 목적·수탁사·국외 이전 국가는 바뀌지 않았으며, 기존 처리를 더 자세히 적은 개정입니다. |
 | 2026-09-29 | 제1조: 프로필(선택)에 아바타 설정(고른 아바타 조합: 종류·머리·얼굴 장식·표정·색·옷·직업 의상·소품 등)을 추가하고, 다른 이용자에게는 보이지 않으며 계정을 지우면 함께 지워진다는 점, 실제 직업·외모 정보로 쓰지 않는다는 점, 기기에서 그린 픽셀 그림은 회사 서버로 보내지 않는다는 점을 적었습니다. 제1조: 상세 프로필 선택 항목(직업, 사는 지역(시/도 수준), 가구, 생활 리듬, 일하거나 공부하는 시간대, 일하는 요일, 가장 바쁜 시기)을 명시했습니다. 이 항목들은 이전부터 선택 항목으로 받아 왔으며, 이번 명시는 새 수집이 아니라 기존 선택 항목의 공개를 보강한 것입니다. 새로 적은 항목은 모두 선택 항목이고 이용자에게 불리한 변경이 아니므로 공지로 안내하며, 기존 이용자의 동의는 그대로 유효하고 다시 동의를 받지 않습니다. |
 | 2026-09-28 | 제1조·제4조·제5조: Android 앱이 첫 실행 시 푸시 알림 수신을 위해 Google Firebase(설치 서비스·클라우드 메시징)에 자동 등록되는 처리를 필수 처리위탁과 국외 이전으로 적었습니다. 제2조: 광고 기능 활성화 시의 광고 관련 처리 목적에 Google의 광고 성과 측정 및 분석을 추가하고, 이것이 앱 사용 통계와 별개임을 제2조·제5조에 적었습니다. 제1조: 건강·활동 데이터의 출처로 Health Connect와 함께 Apple 건강 앱(HealthKit)을 적고, 두 출처의 데이터 모두 AI 제공자에게 전송하지 않고 광고·판매에 사용하지 않는다는 점을 밝혔습니다. |
@@ -369,6 +408,24 @@ Supabase Edge Functions와 OpenAI·Anthropic 등 서비스 제공에 필요한 �
 | 2026-09-04 | **사실 정정.** 제4조 수탁사에 **OpenAI, L.L.C.**(대화·이미지 문자 인식·음성 텍스트 전사·임베딩) · **Google (Firebase Analytics · 앱)** · **Sentry (Functional Software, Inc.)**(오류·크래시 진단) · **RevenueCat (RevenueCat, Inc.)**(구독 상태 관리) 추가. 제5조에서 음성·오디오의 텍스트 전사 수신자를 **OpenAI 로 정정**하고(종전에는 다른 회사로 적혀 있었습니다) 이전받는 자를 회사명으로 명시, Sentry 국외이전 고지 신설. 종전 문구는 실제 처리 경로와 달랐습니다. RevenueCat 은 앱 내 구매 활성화 전 선고지입니다. |
 | 2026-08-30 | 제4조 수탁사에 Google Analytics 4·Microsoft Clarity 추가(이용자가 사용 통계에 동의한 경우에만 처리). 제5조에 두 수탁사의 국외 이전 고지 신설(별도 동의 근거·이전 항목·보유기간 명시). |
 | 2026-08-16 | 최초 시행. |
+
+### GPS 날씨 추가 안내 · 개인 테스트
+
+작성 판본: weather-v1-261007(초판 식별자이며 시행일이 아닙니다). 개인 테스트: 2026-10-08 시작. 공개 시행일·전화번호·사전 공지 일정은 확정 예정입니다. 전화번호와 공개 시행일은 이번 주말 입력 예정이며 공개 전에 고지합니다. 기존 개인정보처리방침의 시행일은 바꾸지 않습니다.
+
+성인 이용자가 별도로 동의하고 기기 위치를 허용한 경우에만, 기기 안에서 가까운 관측소의 날씨를 고릅니다. 기기 위치에서 50km 이내·90분 이내의 관측 자료가 없으면 날씨를 표시하지 않습니다. **정확한 좌표와 대략 좌표 모두 기기 밖으로 보내지 않습니다.** 위치 동의는 기본 꺼짐이며 만 18세 미만 및 나이를 확인하지 못한 이용자는 켤 수 없습니다. 동의하지 않아도 앱을 이용할 수 있고 날씨만 표시되지 않습니다. 설정의 ‘날씨용 위치’를 끄거나 기기의 위치 권한을 철회할 수 있습니다.
+
+회사는 날씨용 기기 좌표를 수신하거나 DB·로그에 보유하지 않습니다. 기기의 위치·날씨 메모리 캐시는 최대 30분이며 계정 전환·동의 철회 시 비웁니다. 동의값·작성 판본은 계정 삭제까지 보유합니다. 별도로 동의 및 날씨 요청 사실(계정 식별자, 시각, 제공자 표시, 사건 종류)은 좌표·IP 없이 6개월간 보유하고 기간이 지나면 매일 정리합니다. 계정 삭제 시 동의 상태는 삭제하며 남은 요청 사실의 계정 식별자는 비웁니다. 저장 항목의 제공자 표시 “NOAA/NWS (bulk, no device location)”는 공개 기상 자료의 출처이며, 위치정보를 제공받는 자를 뜻하지 않습니다.
+
+**위치정보의 외부 전송 없음**: 회사 서버는 NOAA/NWS Aviation Weather Center의 동일한 전 세계 공개 관측 목록을 받아 기기에 전달합니다. 기기 좌표·관측소 선택 결과를 회사 서버·Supabase·NOAA/NWS에 보내지 않으므로, 이 날씨 처리에서 기기 위치정보의 국외 이전은 없습니다. NOAA/NWS에는 이용자의 계정·이메일·IP도 전달하지 않습니다. 인증·동의·요청 사실에 쓰는 일반 계정 정보의 Supabase 처리는 기존 제4·5조를 따르며, 모든 서버 통신이 없다는 뜻은 아닙니다. 날씨와 위치를 광고·분석·AI 입력에 사용하지 않습니다.
+
+**자료 출처**: [NOAA/NWS Aviation Weather Center](https://aviationweather.gov/data/api/)의 인근 관측 자료를 다섯 가지 그림으로 묶고 기온을 반올림합니다. 예보가 아니며 현재 위치의 날씨와 다를 수 있습니다. [NOAA/NWS 이용 안내](https://www.weather.gov/disclaimer)를 따르며, 이 표시가 NOAA/NWS의 공식 제품이나 승인을 뜻하지 않습니다.
+
+### 추가 개정 이력 · Addendum revision history
+
+| 작성일 / Drafted | 시행일 / Effective | 사전 공지 기간 / Advance notice | 변경 / Change |
+|---|---|---|---|
+| 2026-10-08 | 공개 시행일 확정 예정 / Public date pending | 공개 전 고지 / Before public availability | 개인 테스트 시작. 위치는 기기 안에서만 처리하고 NOAA/NWS 공개 관측 목록에서 인근 날씨를 고릅니다. / Personal testing began. Location stays on the device, which selects nearby weather from NOAA/NWS public observations. |
 
 ---
 
@@ -380,7 +437,7 @@ Hayang Production (sole proprietorship, Representative: Bae Soha; Anyang-si, Gye
 - **Required (account)**: email address, social-login identifiers (Google/Apple/Kakao/Naver, etc.), authentication tokens.
 - **Age check**: date of birth or age band (for age-tier verification and child protection).
 - **User Content**: reflections/records and other usage data you input or generate.
-- **Profile (optional)**: a display name and a goal sentence, entered optionally during sign-up. Leaving them blank does not limit the Service. Detailed profile (optional): occupation, region (province or city level), household (who you live with), daily rhythm, the hours you usually work or study, the days you usually work, and your busiest time of year. After sign-up you can fill in only the items you want; leaving them blank does not limit the Service. Avatar settings (optional): the avatar combination you choose (type, hair, face items, expression, colors, clothing, job outfit, accessories, etc.). Other users cannot see it, and it is deleted together with your account. The avatar combination is not used as information about your actual job or appearance. Pixel drawings you make on your device are not sent to our servers.
+- **Profile (optional)**: a nickname (display name) and a goal sentence, entered optionally during sign-up. Leaving them blank does not limit the Service. Detailed profile (optional): occupation, city or region of residence (province or city level), family (who you live with), gender, nationality, marital status (adults only), and a personal motto. After sign-up you can fill in only the items you want; leaving them blank does not limit the Service. Status message (optional): one short line shown on your profile (up to 60 characters). We recommend not writing sensitive information such as health, beliefs, religion or political views in free-text items such as the motto. The profile screen only displays your sign-in email and date of birth; the date of birth is used for age checks and cannot be changed there. Avatar settings (optional): the avatar combination you choose (type, hair, face items, expression, colors, clothing, job outfit, accessories, etc.). Other users cannot see it, and it is deleted together with your account. The avatar combination is not used as information about your actual job or appearance. Pixel drawings you make on your device are not sent to our servers.
 - **Voice/audio (optional)**: audio you record in the app or pick from your device. Processed **only to turn it into text**. Temporary recordings the app itself created are deleted from the device right after transcription; files you picked are never deleted by the Company. The resulting text is stored as User Content.
 - **Automatically collected**: usage logs, device/browser info, access logs, cookies/local storage (web), and in the Android app a per-installation identifier (Firebase installation ID) and push-notification registration data (see Section 5).
 - **Payment-related**: payments are handled by Paddle; **the Company does not store full payment-instrument data (e.g., card numbers)**; it receives only processing results such as payment status and subscription info.
@@ -429,7 +486,7 @@ Some processors needed to provide the Service, including Supabase Edge Functions
 
 **AI processing**: when you use an AI feature, content you provide to that feature is transferred over TLS to OpenAI OpCo, LLC (United States; privacy inquiries: privacy@openai.com) via the OpenAI API for analysis, generation, or voice transcription, and, where the embeddings (record search indexing) feature is enabled on the server, for generating embeddings. Some AI features (persona narrative/synthesis and part of cross-checking) may be transferred to and processed by Anthropic PBC (United States; privacy inquiries: privacy@anthropic.com) via the Claude API. Current new builds use OpenAI or Anthropic under purpose-specific routing, with automatic failover disabled. However, AI requests from older app versions or builds or runtimes where the dedicated vendor settings were not injected may be routed to Google's Gemini API (Google privacy inquiries: policies.google.com/privacy). Health and activity measurements are not sent to any AI provider.
 
-Per each provider's published policies (subject to change by each provider): OpenAI API inputs and outputs are not used to train models unless the customer separately opts in to data sharing; abuse-monitoring logs for applicable APIs are retained by default for up to 30 days and may be kept longer where required by law or reasonably necessary to protect the service or a third party; the OpenAI audio transcription API currently retains neither abuse-monitoring logs nor application state. Anthropic API inputs and outputs are deleted by default within 30 days of receipt or generation, except where a storage feature is used, a separate agreement applies, or retention is needed for policy enforcement or legal obligations. Under their own usage policies, each AI provider automatically screens submitted content to prevent abuse and safety violations, and the provider's staff may review content that appears to violate those policies. Content flagged as a violation may be kept longer (for example, Anthropic keeps inputs and outputs for up to 2 years and safety classification results for up to 7 years). Each provider may also disclose relevant information to law enforcement or other authorities in response to valid legal process, or where it believes disclosure is necessary to prevent an imminent risk to someone's life or physical safety. The Company does not send your email address or account ID to AI providers, but the display name used to address you and whatever you write in your entries and conversations (including names or contact details) are sent as written. We recommend not using AI features for anything you would not want anyone else to see. Gemini API processing and retention may depend on the service tier, ZDR status, feature settings, and Google terms applicable to the actual project. The historical project's contracting entity, service tier, ZDR status, and exact applicable retention rule have not yet been operationally verified, so this policy does not assert them.
+Per each provider's published policies (subject to change by each provider): OpenAI API inputs and outputs are not used to train models unless the customer separately opts in to data sharing; abuse-monitoring logs for applicable APIs are retained by default for up to 30 days and may be kept longer where required by law or reasonably necessary to protect the service or a third party; the OpenAI audio transcription API currently retains neither abuse-monitoring logs nor application state. Anthropic API inputs and outputs are deleted by default within 30 days of receipt or generation, except where a storage feature is used, a separate agreement applies, or retention is needed for policy enforcement or legal obligations. Under their own usage policies, each AI provider automatically screens submitted content to prevent abuse and safety violations, and the provider's staff may review content that appears to violate those policies. Content flagged as a violation may be kept longer (for example, Anthropic keeps inputs and outputs for up to 2 years and safety classification results for up to 7 years). Each provider may also disclose relevant information to law enforcement or other authorities in response to valid legal process, or where it believes disclosure is necessary to prevent an imminent risk to someone's life or physical safety. The Company does not send your email address or account ID to AI providers, but the nickname (display name) used to address you and whatever you write in your entries and conversations (including names or contact details) are sent as written. When you talk with HustleK, the detailed profile items and the status message you filled in and your age, calculated from your date of birth, are also sent as conversation context (the date of birth itself is not sent). We recommend not using AI features for anything you would not want anyone else to see. Gemini API processing and retention may depend on the service tier, ZDR status, feature settings, and Google terms applicable to the actual project. The historical project's contracting entity, service tier, ZDR status, and exact applicable retention rule have not yet been operationally verified, so this policy does not assert them.
 
 **Error and crash reporting (Sentry)**: new JS bundles deployed after the Sentry-disable change takes effect do not initialize Sentry. However, app versions from before that deployment, apps that have not restarted after an update, and web sessions that have not refreshed may continue to transmit error and crash data over TLS to Functional Software, Inc. (dba Sentry, United States), including stack traces, app version, device, operating-system and browser information, and event timestamps. The purpose is error diagnosis and service-stability monitoring. Default personal-data forwarding was disabled, the web client removed address and request information, and no session replay was used. Collected events are retained for the period set in the Company's Sentry project and under the applicable terms; the exact account setting is not asserted until operationally verified. To stop future transmission, update and restart the app or refresh the web page; doing so does not limit access to the core Service. Contact kim0405@hayangzip.com about remaining events or deletion requests, or compliance@sentry.io for Sentry privacy inquiries.
 
@@ -469,6 +526,7 @@ This policy may be revised per law/service changes; revisions (effective date an
 The 2026-09-26 revision describes data collection, reward records, ticket retention and separate choice for the disabled advertising feature. Existing consent is not converted into advertising consent.
 | Effective | What changed |
 |---|---|
+| 2026-10-07 | Section 1: changed the optional detailed profile items. Daily rhythm, working or study hours, working days and busiest time of year are no longer collected, and stored values were deleted. Added gender, nationality, marital status (adults only), a personal motto and a status message as optional items. The display name is now called a nickname, the region a city or region of residence, and the household family. Stated that the profile screen only displays your sign-in email and date of birth. All new items are optional and stored only when you enter or choose them yourself. Section 5: stated that when you talk with SecondB, the detailed profile items and the status message you filled in and your age, calculated from your date of birth, are sent to the AI provider as conversation context (the date of birth itself is not sent). |
 | 2026-10-06 | Section 4: stated that the Company does not provide personal data to third parties except as described in this policy, and that where a law specifically requires it (a demand under valid legal process such as a warrant) it provides only the minimum necessary, records the disclosure and tells you unless the law prohibits it. Section 5: stated that AI providers automatically screen submitted content under their own usage policies and that their staff may review it; that content flagged as a violation may be kept longer (for example, Anthropic: inputs and outputs up to 2 years, safety classification results up to 7 years); that providers may disclose information to law enforcement or other authorities under valid legal process or to prevent an imminent risk to someone's life or physical safety; and that the Company does not send your email address or account ID to AI providers but does send your display name and what you write. What is collected, the purposes, the processors and the transfer countries have not changed; this revision describes existing processing in more detail. |
 | 2026-09-29 | Section 1: added avatar settings (the avatar combination you choose: type, hair, face items, expression, colors, clothing, job outfit, accessories, etc.) to Profile (optional), and stated that other users cannot see them, that they are deleted together with your account, that they are not used as information about your actual job or appearance, and that pixel drawings you make on your device are not sent to our servers. Section 1: listed the optional detailed profile items (occupation, region at province or city level, household, daily rhythm, working or study hours, working days, busiest time of year). These items were already collected as optional; listing them discloses existing optional items more fully and adds no new collection. All newly listed items are optional and the change does not disadvantage users, so it is announced by notice; existing consent remains valid and is not asked for again. |
 | 2026-09-28 | Sections 1, 4 and 5: described the Android app's automatic registration with Google Firebase (Installations and Cloud Messaging) on first launch for push-notification delivery as necessary processing entrustment and overseas transfer. Section 2: added Google's ad performance measurement and analytics to the ad-related purposes that apply when ads are enabled, and stated in Sections 2 and 5 that it is separate from app usage statistics. Section 1: named Apple Health (HealthKit) alongside Health Connect as a source of health and activity data, and stated that data from either source is not sent to any AI provider or used for advertising or sale. |
@@ -477,7 +535,24 @@ The 2026-09-26 revision describes data collection, reward records, ticket retent
 | 2026-09-04 | **Factual correction.** Added **OpenAI, L.L.C.** (chat, OCR, voice transcription, embeddings), **Google (Firebase Analytics, app)**, **Sentry (Functional Software, Inc.)** (error and crash diagnostics) and **RevenueCat (RevenueCat, Inc.)** (subscription-state management) to the Section 4 processors. Corrected the Section 5 recipient for voice and audio transcription to **OpenAI** (it previously named a different company), named the transferees by company, and added the Sentry overseas-transfer notice. The previous wording did not match the actual processing paths. RevenueCat is disclosed ahead of enabling in-app purchases. |
 | 2026-08-30 | Added Google Analytics 4 and Microsoft Clarity to the processors in Section 4 (processed only if you turn usage statistics on). Added an overseas-transfer notice for both in Section 5 (legal basis, transferred items, retention). |
 | 2026-08-16 | Initial version. |
-`,
+
+### GPS weather addendum · personal testing
+
+Revision: weather-v1-261007 (the initial revision identifier, not an effective date). Personal testing began on 2026-10-08. The public effective date, telephone number and advance-notice schedule are not yet finalized. The telephone number and public effective date are scheduled to be entered this weekend and disclosed before public availability. The existing privacy policy's effective date is unchanged.
+
+Only after an adult separately opts in and grants device permission, the device uses location locally to select a nearby weather observation. Weather is hidden if no observation within 50 km and no more than 90 minutes old is available. **Neither precise nor approximate device coordinates leave the device.** Consent is OFF by default; users under 18 or with unconfirmed age cannot enable it. Declining does not restrict other app features; only weather is unavailable. Turn off “Location for weather” in privacy settings or withdraw device permission at any time.
+
+The Company does not receive device coordinates for weather or retain them in databases or logs. The device's location/weather memory cache lasts at most 30 minutes and clears on account change or withdrawal. Consent state and its document revision remain until account deletion. Separate consent and weather-request facts (account identifier, time, provider label and event type) contain no coordinates or IP and are retained for six months, then purged daily. Account deletion removes consent state and clears the account identifier from remaining request facts. The provider label “NOAA/NWS (bulk, no device location)” identifies the public weather data source, not a recipient of location information.
+
+**No external transfer of device location**: The Company's server obtains the same worldwide public observation list from the NOAA/NWS Aviation Weather Center and sends it to the device. Device coordinates and the selected station are not sent to Company servers, Supabase or NOAA/NWS, so this weather processing does not transfer device location overseas. Users' accounts, email addresses and IP addresses are not forwarded to NOAA/NWS either. Supabase processing of ordinary account information for authentication, consent and request facts remains governed by Sections 4 and 5; this does not mean there is no server communication. Weather and location are not used for advertising, analytics or AI input.
+
+**Data source**: Nearby observations from the [NOAA/NWS Aviation Weather Center](https://aviationweather.gov/data/api/) are grouped into five drawings and temperatures are rounded. These are observations, not forecasts, and may differ from conditions at your location. The [NOAA/NWS terms of use](https://www.weather.gov/disclaimer) apply; this presentation is not an official NOAA/NWS product or endorsement.
+
+### 추가 개정 이력 · Addendum revision history
+
+| 작성일 / Drafted | 시행일 / Effective | 사전 공지 기간 / Advance notice | 변경 / Change |
+|---|---|---|---|
+| 2026-10-08 | 공개 시행일 확정 예정 / Public date pending | 공개 전 고지 / Before public availability | 개인 테스트 시작. 위치는 기기 안에서만 처리하고 NOAA/NWS 공개 관측 목록에서 인근 날씨를 고릅니다. / Personal testing began. Location stays on the device, which selects nearby weather from NOAA/NWS public observations. |`,
 };
 
 export function isDraft(doc: LegalDoc): boolean {

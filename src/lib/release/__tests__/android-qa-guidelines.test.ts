@@ -368,15 +368,16 @@ describe("§4 permissions: the guideline states the narrow contract", () => {
     const base = await androidEffectOf({});
     const camera = await androidEffectOf({ cameraPermission: false });
 
-    // Table 1 says the shipped base has 10 permissions and that each `false`
-    // leaves 9. (2026-10-01: VIBRATE for the telescope ratchet haptic took the
-    // base from 9 to 10.)
-    expect(base.permissions).toHaveLength(10);
-    expect(camera.permissions).toHaveLength(9);
-    expect(doc).toContain("권한 **10개**");
-    expect(doc).toContain("| 10개 그대로 |");
-    expect(doc).toContain("`CAMERA` 가 빠진 9개");
-    expect(doc).toContain("`RECORD_AUDIO` 가 빠진 9개");
+    // Table 1 says the shipped base has 11 permissions and that each `false`
+    // leaves 10. (2026-10-01: VIBRATE for the telescope ratchet haptic took the
+    // base from 9 to 10; 2026-10-07: ACCESS_COARSE_LOCATION for the clock-row
+    // weather took it to 11.)
+    expect(base.permissions).toHaveLength(11);
+    expect(camera.permissions).toHaveLength(10);
+    expect(doc).toContain("권한 **11개**");
+    expect(doc).toContain("| 11개 그대로 |");
+    expect(doc).toContain("`CAMERA` 가 빠진 10개");
+    expect(doc).toContain("`RECORD_AUDIO` 가 빠진 10개");
 
     // Table 2: expo-audio's default four, and this app's two.
     const audioAndroid = (props: PluginProps): string[] =>

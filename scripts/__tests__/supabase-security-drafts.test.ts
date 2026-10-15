@@ -40,6 +40,7 @@ const sameBytes = (draft: string, numbered: string) =>
 // not applied yet may be revised before its GO, and its digest moves in the same
 // commit with the reason.
 const promoted = [
+  ["0236", "dashboard_generation", "a86ab9e7c03e335d0eb27b8c90f5e18b345824975e112d5ad51de57a5287d4b3"],
   ["0191", "signup_consent_admob_20260925", "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648"],
   ["0192", "account_deletion_completion_fence", "d42dbfc8a3d53ada60beb589918eaa4ac78e72d49b91af2e16d2f6457187b229"],
   ["0193", "effective_llm_consent_current_contract", "579b8ca0729c337fb1cfae9a76ccb99144bc7ad12d9b078d95e3d4a286bd0e19"],
@@ -80,7 +81,8 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
-const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {};
+const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
+};
 
 /** Violations of the one-copy rule. Pure, so the guard itself can be mutated below. */
 function draftCopyViolations(
@@ -187,6 +189,10 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
   test("accounts for every unnumbered draft exactly once", () => {
     const retainedDrafts = RETAINED_UNTIL_APPLIED.map((key) => `UNNUMBERED_${key.slice(5)}.sql`);
     expect(listDrafts()).toEqual([...retainedDrafts, ...Object.keys(pendingDrafts)].sort());
+    for (const draft of Object.values(pendingDrafts)) {
+      expect(existsSync(join(ROOT, draft.runner))).toBe(true);
+      expect(read(".github/workflows/supabase-dry-run.yml")).toContain(draft.workflowInvocation);
+    }
   });
 
   test("numbered migrations keep the bytes they were promoted with", () => {
@@ -229,7 +235,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     const retainedDrafts = RETAINED_UNTIL_APPLIED.map((key) => `UNNUMBERED_${key.slice(5)}.sql`);
     const offenders = fixtures.flatMap((path) =>
       [...read(path).matchAll(/^\\i(?:r)?\s+[^\n]*?(UNNUMBERED_[a-z0-9_]+\.sql)/gm)]
-        .filter((hit) => !retainedDrafts.includes(hit[1]))
+        .filter((hit) => !retainedDrafts.includes(hit[1]) && !Object.hasOwn(pendingDrafts, hit[1]))
         .map((hit) => `${path}: ${hit[1]}`),
     );
     expect(fixtures.length).toBeGreaterThan(10);
@@ -247,7 +253,17 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(step).toContain("promoted draft still present beside");
     expect(step).toContain("cmp -s");
     expect(step).toContain("drop the retained_until_applied exception");
-    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 71");
+    // 71 baseline rows + five from 0226 (interview sessions, transcript head and turns,
+    // context-block ids, the session-start counter) + two weather tables from 0233
+    // + two dashboard tables from 0237 + the import receipt from 0240 + the chat turn reservations from 0258.
+    const registry = JSON.parse(read("db/erasure-registry.json"));
+    expect(Object.keys(registry.tables)).toHaveLength(82);
+    expect(registry.tables.profile_context_imports).toMatchObject({ owner: "user_id", class: "retained" });
+    expect(registry.tables.chat_turn_reservations).toMatchObject({ owner: "user_id", class: "account_delete_only" });
+    expect(step).toContain("SELECT count(*) FROM public.erasure_registry) <> 82");
+    expect(step).toContain("82 registry rows, contracts and ACL verified");
+    expect(step).toMatch(/WHERE table_name='chat_turn_reservations' AND owner_column='user_id'\s+AND class='account_delete_only' AND delete_order IS NULL AND cascades_from IS NULL\) <> 1/);
+    expect(step).toMatch(/WHERE table_name='profile_context_imports' AND owner_column='user_id'\s+AND class='retained' AND delete_order IS NULL AND cascades_from IS NULL\) <> 1/);
     expect(step).toContain("('0201', 'rss_proxy_erasure_registry')");
     expect(step).not.toMatch(/\\i db\/migration-drafts\/UNNUMBERED_/);
   });
@@ -320,6 +336,22 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(draftLane).toContain("\\ir ../../tests/consent_email_v9_20261006_regression.sql");
   });
 
+  test("exercises the numbered 0219 first-run claims, their race and their rollback", () => {
+    // 0219 (Q-261004-40 strict) was written as a numbered file with no draft.
+    // Its regression replays it on fixtures; two more steps race two sessions for
+    // one grant and round-trip the single-transaction-only rollback.
+    const regression = read("db/tests/onboarding_first_run_claims_regression.sql");
+    expect(existsSync(join(ROOT, DRAFT_DIR, "UNNUMBERED_users_first_run_claims.sql"))).toBe(false);
+    expect(workflow).toContain("-f db/tests/onboarding_first_run_claims_regression.sql");
+    expect(workflow).toContain("- name: Race two first-run claims for one account");
+    expect(workflow).toContain("- name: Round-trip the 0219 first-run rollback (single transaction only)");
+    expect(regression).toContain("\\ir ../migrations/0219_users_first_run_claims.sql");
+    expect(regression).toContain("a second welcome claim was granted");
+    expect(regression).toContain("a stale receipt released the grant");
+    expect(regression).toContain("a claim passed the deletion fence");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
   test.each(Object.entries(behaviorLanes))(
     "executes %s from its behavioral scratch lane",
     (migration, { runner, workflowInvocation }) => {
@@ -328,6 +360,53 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
       expect(workflow).toContain(workflowInvocation);
     },
   );
+
+  test("exercises the numbered 0225 interview transcript ledger without replaying it", () => {
+    const regression = read("db/tests/interview_transcript_ledger_regression.sql");
+    expect(workflow).toContain("-f db/tests/interview_transcript_ledger_regression.sql");
+    expect(regression).not.toMatch(/^\\i(?:r)?\s/m);
+    expect(regression).toContain("an authenticated caller wrote a verdict row");
+    expect(regression).toContain("ledger rows do not equal user turns");
+    expect(regression).toContain("a second commit added again");
+    expect(regression).toContain("discard did not erase exactly the session audit hashes");
+    expect(regression).toContain("R2 D6-01: commit revived a folded session");
+    expect(regression).toContain("R2 D6-03: unseen turn appended after session close");
+    expect(regression).toContain("R2 D6-04: account cascade kept verdict/refused audit hashes");
+    expect(regression).toContain("R2 D6-51: snapshot returned hold evidence");
+    expect(regression).toContain("R2 D6-53: late context writer restored a deleted record id");
+    expect(regression).toContain("account deletion left owned interview rows behind");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("0225 fails closed without cron and rollback stops outside a transaction (R2 D6-06/08)", () => {
+    const migration = read("db/migrations/0225_interview_transcript_ledger.sql");
+    const rollback = read("db/migrations/rollback/0225_down.sql");
+    expect(migration).toContain("current_setting('app.allow_missing_pg_cron', true) IS DISTINCT FROM 'on'");
+    expect(migration).toContain("RAISE EXCEPTION '0225: pg_cron required;");
+    expect(workflow).toContain("ALTER DATABASE postgres SET app.allow_missing_pg_cron = 'on'");
+    expect(rollback).toMatch(/^\\set ON_ERROR_STOP on\r?\n/);
+    const firstSql = rollback.replace(/^--.*$/gm, "").replace(/^\\set .*$/gm, "").trimStart();
+    expect(firstSql).toMatch(/^LOCK TABLE public\.interview_sessions/);
+  });
+
+  test("0225 adds only the record hold predicate to both 0218 Polaris bodies and keeps it on rollback", () => {
+    const baseline = read("db/migrations/0218_records_system_tags.sql");
+    const migration = read("db/migrations/0225_interview_transcript_ledger.sql");
+    const rollback = read("db/migrations/rollback/0225_down.sql");
+    for (const name of ["reserve_polaris_generation", "polaris_evidence_snapshot"]) {
+      const definition = (sql: string) => {
+        const start = sql.indexOf(`CREATE OR REPLACE FUNCTION public.${name}(`);
+        expect(start).toBeGreaterThanOrEqual(0);
+        return sql.slice(start, sql.indexOf("END $$;", start) + "END $$;".length).replace(/\r\n/g, "\n");
+      };
+      const before = definition(baseline);
+      const after = definition(migration);
+      const hold = name === "reserve_polaris_generation" ? "interview_ai_hold" : "r.interview_ai_hold";
+      expect(after).toContain(`      AND NOT ${hold}\n`);
+      expect(after.replace(`      AND NOT ${hold}\n`, "")).toBe(before);
+      expect(definition(rollback)).toBe(after);
+    }
+  });
 
   test("seeds the Supabase auth and storage contracts used by the deletion fence", () => {
     const accountDeletionMigration = read(`${MIGRATION_DIR}/0192_account_deletion_completion_fence.sql`);

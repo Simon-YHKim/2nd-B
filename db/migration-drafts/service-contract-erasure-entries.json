@@ -22,5 +22,12 @@
       "class": "retained",
       "reason": "Bounded rewarded-ticket issuance counter. Content deletion must not reset the issuance limit; account deletion cascades the counter through public.users."
     }
+  },
+  "columnPolicies": {
+    "0242_profile_context_import_integrity.sql": {
+      "profile_context_imports.field_undo": "Content/source withdrawal restores matching fields; retain withdrawn ancestors only while reachable from an active batch, then clear. Account deletion cascades the row.",
+      "users.profile_import_attempt_day": "Retain through content deletion; remove with account.",
+      "users.profile_import_attempt_count": "Bounded daily attempt counter; content deletion cannot reset it; remove with account."
+    }
   }
 }

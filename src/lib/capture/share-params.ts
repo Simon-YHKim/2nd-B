@@ -1,10 +1,13 @@
 // Shared-content reception (O-R2 ⑤-i / ⑥-b scrap track).
 //
-// The PWA manifest (public/manifest.webmanifest) registers /capture as a Web
-// Share Target, so Android share sheets open the app at
-// /capture?url=&text=&title=. This module normalizes those raw router params
-// into a single link-or-clip box payload. Pure + tested; the capture screen
-// stays a thin consumer.
+// Two senders fill the same params. On the web, the PWA manifest
+// (public/manifest.webmanifest) registers /capture as a Web Share Target, so an
+// installed PWA opens at /capture?url=&text=&title=. The native Android app is
+// a share target for ACTION_SEND text/plain (config-plugins/withAndroidShareTarget.js)
+// and arrives at /capture?text=&title= through src/app/+native-intent.ts
+// (./share-intent.ts; Q-261005-05). iOS has no share extension. This module
+// normalizes those raw router params into a single link-or-clip box payload.
+// Pure + tested; the capture screen stays a thin consumer.
 //
 // Field reality (not the spec): Android apps usually put the link in `text`
 // (Chrome shares title + text=url); the spec's `url` field is rarely filled.

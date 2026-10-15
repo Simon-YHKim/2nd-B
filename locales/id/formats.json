@@ -11,7 +11,7 @@
     "heading": "Formatku",
     "headingWithCount": "Formatku ({{count}})",
     "emptyTitle": "Belum ada format",
-    "emptyBody": "Simpan format yang disarankan SecondB saat menangkap dan format itu akan muncul di sini."
+    "emptyBody": "Simpan format yang disarankan HustleK saat menangkap dan format itu akan muncul di sini."
   },
   "community": {
     "heading": "Format komunitas",
@@ -193,9 +193,9 @@
   },
   "add": {
     "title": "Tambah format",
-    "body": "Jelaskan materi dan cara kamu mengarsipkannya. SecondB menyarankan panduan pengarsipan yang bisa dipakai ulang.",
+    "body": "Jelaskan materi dan cara kamu mengarsipkannya. HustleK menyarankan panduan pengarsipan yang bisa dipakai ulang.",
     "placeholder": "mis. Episode podcast - catat tamu dan pernyataan utamanya",
-    "draft": "Rancang panduan pengarsipan dengan SecondB",
+    "draft": "Rancang panduan pengarsipan dengan HustleK",
     "drafting": "Merancang…",
     "errorNeedDetail": "Tidak bisa merancang panduan pengarsipan. Tambahkan detail dan coba lagi.",
     "errorDraft": "Kami tidak bisa merancang panduan pengarsipan. Coba lagi sebentar lagi.",

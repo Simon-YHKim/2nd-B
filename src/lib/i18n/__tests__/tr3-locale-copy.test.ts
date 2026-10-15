@@ -121,7 +121,8 @@ describe("tr3 /import-hub: hub copy reads import hub.* in the painted language",
   it("every hub key is used by the screen, and every source tile has its copy", () => {
     const en = at(pack("en", "import"), "hub") as Record<string, unknown>;
     const copyKeys = Object.keys(en).filter((k) => k !== "sources");
-    expect(copyKeys).toHaveLength(56);
+    // 57: ledgerSkippedNote (0224, RD-261007-01 발주 2) joined the hub copy.
+    expect(copyKeys).toHaveLength(57);
     for (const k of copyKeys) {
       const used = HUB.includes(`"${k}"`) || (k.startsWith("tier_") && HUB.includes("t(`tier_${"));
       expect({ k, used }).toEqual({ k, used: true });
@@ -146,11 +147,13 @@ describe("tr3 /import-hub: hub copy reads import hub.* in the painted language",
     ]);
     expect([ko.hubBubble, ko.hubTip, ko.tier_critical, ko.what, ko.applyN, ko.connectorNote]).toEqual([
       "무엇을 들여올까요?",
-      "네가 승인한 것만 기록에 남습니다.",
+      // 2026-10-13 (Z91): the one sentence in the Korean bundles that addressed the reader as "네가".
+      "승인한 것만 기록에 남습니다.",
       "최민감 · 명시 동의 필요",
       "무엇을",
       "고른 {n}건 기록에 반영",
-      "다음 화면에서 위치 권한을 \"사용 중에만\"으로 요청합니다. (네이티브 빌드 필요)",
+      // 2026-10-07 재설계 발주 1: 이 타일은 위치 권한을 요청하지 않고 파일 입력으로 간다 - 문구를 동작에 맞췄다.
+      "앱은 지금 위치를 직접 읽지 않습니다. 구글 타임라인처럼 내보낸 위치 기록 파일을 올려 주세요.",
     ]);
     expect(at(en, "sources.kakao")).toEqual({
       name: "KakaoTalk",
@@ -170,6 +173,8 @@ describe("tr3 /import-hub: hub copy reads import hub.* in the painted language",
     expect(hub.applyN).toContain("{n}");
     expect(hub.ledgerWarnPartBody).toContain("{failed}");
     expect(hub.ledgerWarnPartBody).toContain("{inserted}");
+    // 0224 (RD-261007-01): re-importing is safe now; the skipped note carries its own count.
+    expect(hub.ledgerSkippedNote).toContain("{skipped}");
   });
   it("the screen still replaces exactly those slots", () => {
     expect(HUB).toContain('t("applyN").replace("{n}", String(count))');
@@ -178,7 +183,7 @@ describe("tr3 /import-hub: hub copy reads import hub.* in the painted language",
   });
 
   it("es/pt/id translate every hub line (brand names named in the allowlist)", () => {
-    expectTranslated("import", "hub", 86);
+    expectTranslated("import", "hub", 87);
     for (const brand of ["kakao", "takeout", "notion", "google", "google-tasks"]) {
       expect(ALLOW.has(`import:hub.sources.${brand}.name`)).toBe(true);
     }
@@ -249,7 +254,7 @@ describe("tr3 /career: the path block reads deepspace career.*", () => {
     expect(v("en")).toEqual(["The path you've built", "Main", "Side", "Education", "Military", "Awards", "Licenses", "Experience"]);
     expect(v("ko")).toEqual(["쌓아온 길", "메인", "사이드", "학력", "병역", "수상", "자격", "경력"]);
     expect(at(pack("ko", "deepspace"), "career.sideNote")).toBe(
-      "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리됩니다. 지금은 메인에서 직접 담은 성과가 쌓입니다.",
+      "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리됩니다. 지금은 메인에서 직접 추가한 성과가 쌓입니다.",
     );
   });
 
@@ -339,7 +344,7 @@ describe("tr3 /reasoning: the screen copy reads ds.reasoningScreen.*", () => {
     expect(REASONING).not.toContain("formatRewardRemaining");
     expect(REASONING).not.toContain("getDomainStar");
     // Not copy: the connect prompt's language and the crisis hotline keep the ko/en locale.
-    expect(REASONING).toContain('hotline={ko ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988"}');
+    expect(REASONING).toContain('hotline={crisisHotline ?? (ko ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988")}');
     expect(REASONING).toContain('const locale: "ko" | "en" = ko ? "ko" : "en";');
   });
 
@@ -387,7 +392,7 @@ describe("tr3 /reasoning: the screen copy reads ds.reasoningScreen.*", () => {
       "Unlimited connections",
       "Reason over selected items",
       "Select items to enable reasoning.",
-      "You can leave this screen. SecondB will let you know when it's ready.",
+      "You can leave this screen. HustleK will let you know when it's ready.",
       "New record · queued",
     ]);
     expect([rs("ko").title, rs("ko").unlimited, rs("ko").reasonSelected, rs("ko").runHint, rs("ko").viewPlans, rs("ko").queuedSource]).toEqual([

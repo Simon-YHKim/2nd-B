@@ -17,6 +17,8 @@ import ReAnimated, {
 
 import { cosmic, deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { ForceDark } from "@/lib/theme/ThemeContext";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
 import { useConstellation } from "@/lib/constellation/useConstellation";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { backArrowVisible } from "@/components/ui/BackArrow";
@@ -279,6 +281,8 @@ export function CosmicBackground({
   constellation?: boolean;
 }) {
   const { width, height } = useWindowDimensions();
+  const phone = usePhoneDesign();
+  if (phone) return null;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
@@ -331,6 +335,7 @@ export function PremiumAppShell({
   /** Parent chrome already owns the dock + bottom safe area when embedded. */
   bottomClearanceOwner?: "shell" | "parent";
 }) {
+  const phone = usePhoneDesign();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   // When the floating back arrow is shown it sits above the content lane;
@@ -349,6 +354,10 @@ export function PremiumAppShell({
 
   // Dynamic top padding: states insets.top, plus optional breathing room
   const topClearance = insets.top + (padded ? spacing.sm : 0) + (padded && needsArrowHeadroom ? 60 : 0);
+
+  if (phone) return <View style={[styles.root, { backgroundColor: phoneIos.grouped }]}>
+    <View style={[styles.safe, padded && styles.padded]}>{children}</View>
+  </View>;
 
   return (
     <ForceDark>

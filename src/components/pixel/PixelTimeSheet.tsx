@@ -1,3 +1,4 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // PIXEL-CLAY 시간 선택 시트 (Simon 2026-09-30, /data-connections).
 //
 // Simon 원문: "시간 설정 창이 팝업 되며 첨부하는 [이미지] 와 같은 시간 설정 창을 띄우되,
@@ -10,7 +11,7 @@
 // 닫는 길: 닫기 글리프, 스크림 누르기, 안드로이드 뒤로(onRequestClose), 웹 Esc.
 // 값은 호출부가 소유한다. 시트는 초안만 들고 있다가 저장할 때 "HH:MM" 하나를 넘긴다.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { AccessibilityInfo, Modal, Platform, StyleSheet, View } from "react-native";
+import { AccessibilityInfo, Platform, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -141,7 +142,7 @@ export function PixelTimeSheet({ visible, value, title, onCancel, onSave, busy =
   });
 
   return (
-    <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onCancel}>
+    <Modal visible={visible} transparent animationType="none" transitionKind="sheet" statusBarTranslucent onRequestClose={onCancel}>
       <View style={styles.root}>
         {/* 스크림은 Pressable 이 아니라 응답자 View 다. RN-web 은 Pressable 에 늘 tabIndex 0 을 주고
             Modal 의 포커스 트랩이 첫 요소에 포커스를 넣어서, 이름 없는 전체 화면 칸이 포커스를 받고

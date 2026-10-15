@@ -1,3 +1,5 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 // Personal data import hub (Claude Design import-hub.dc.html). Extends the
 // /import pipeline (captureFromMarkdown): sensitivity-tiered hub → consent sheet
 // (A file / B connector, with the mandatory 무엇을/어디에/이 기기에서만 blocks)
@@ -10,10 +12,10 @@
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { checkboxSpaceKeyProps } from "@/lib/ui/checkbox-space-key";
-import { useAppRouter, usePhoneEmbed } from "@/lib/nav/phone-embed";
+import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useTranslation } from "react-i18next";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 
@@ -122,17 +124,27 @@ export function ImportHubScreen() {
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
 
-  const [step, setStep] = useState<Step>("hub");
+  // Z93: the "import history · withdraw" row asks for the history, so it lands on the history
+  // step, not on the list of sources to import from.
+  const landedOnHistory = useScreenParams<{ view?: string }>().view === "history";
+  const [step, setStep] = useState<Step>(landedOnHistory ? "history" : "hub");
+  const [sawHub, setSawHub] = useState(!landedOnHistory);
+  useEffect(() => {
+    if (step === "hub") setSawHub(true);
+  }, [step]);
   // A failed import used to end exactly like a successful one: back at the hub, no message,
   // nothing kept -- after the user had walked a consent flow and picked a file for it.
   const [importErr, setImportErr] = useState(false);
   // Ledger booking runs best-effort AFTER the import lands, but rows the user
   // explicitly chose must not vanish silently (logic audit P1, dbl round 3):
-  // ratifyLedgerEntries RESOLVES with {inserted, failed} counts (per-row
+  // ratifyLedgerEntries RESOLVES with {inserted, failed, skipped} counts (per-row
   // fail-soft, never rejects on row failures), so the warning derives from the
-  // resolved counts. null = no warning; inserted===0 = total failure (safe to
-  // advise re-import); inserted>0 = partial (re-import would double-book).
+  // resolved counts. null = no warning; inserted===0 = total failure; inserted>0 =
+  // partial. Since 0224 the ledger dedups a re-imported statement, so re-importing
+  // is the safe advice in both cases (rows already booked come back as skipped).
   const [ledgerWarn, setLedgerWarn] = useState<LedgerRatifyResult | null>(null);
+  // Rows the last ratify found already booked by an earlier import (0224). Not a failure.
+  const [ledgerSkipped, setLedgerSkipped] = useState(0);
   // How many chosen items the last ratify found already imported, with nothing new
   // to log (0 = it logged). Without it that ratify ended like a success that left no
   // history line behind.
@@ -274,6 +286,7 @@ export function ImportHubScreen() {
     }
     setBusy(true);
     setLedgerWarn(null);
+    setLedgerSkipped(0);
     try {
       const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
       // propose→ratify quality signal AFTER the import actually landed (a
@@ -304,14 +317,14 @@ export function ImportHubScreen() {
         bookedTxns = booked?.inserted ?? 0;
         // #1117 intent, completed for the resolve contract (dbl round 3):
         // ratifyLedgerEntries never rejects on row failures -- it resolves
-        // with {inserted, failed} -- so the warning must read those counts,
-        // not a .catch(). PARTIAL failure warns too: the user chose those
-        // rows, and it needs its OWN copy because ops_ledger has no dedup
-        // (ledger-ratify.ts documented limitation) -- advising "re-import
-        // the file" is only safe when NOTHING booked; after a partial
-        // booking it would double-book the inserted rows.
+        // with {inserted, failed, skipped} -- so the warning must read those
+        // counts, not a .catch(). PARTIAL failure warns too: the user chose
+        // those rows. Since 0224 (RD-261007-01) the ledger dedups a statement
+        // imported again, so "re-import the file" is safe after a partial
+        // booking as well - the booked rows come back as skipped, not doubled.
         const failedTxns = booked ? booked.failed : attempted;
         if (failedTxns > 0) setLedgerWarn({ inserted: bookedTxns, failed: failedTxns });
+        setLedgerSkipped(booked?.skipped ?? 0);
       }
       // An exact duplicate hands back the row an EARLIER import created and writes
       // nothing, so the entry logs only rows this import created - as the file import
@@ -465,7 +478,9 @@ export function ImportHubScreen() {
 
   // --- render -----------------------------------------------------------
 
-  const back = () => (step === "hub" ? router.back() : setStep("hub"));
+  // Landed straight on the history: ‹ returns to where the reader came from, not to a hub
+  // they never opened.
+  const back = () => (step === "hub" || (step === "history" && !sawHub) ? router.back() : setStep("hub"));
 
   // 하단 탭바를 공용 셸에서 받는다(2026-08-30). 이 화면은 자기 SafeAreaView 로
   // 프레임을 직접 세우느라 독이 통째로 없었다 — 레퍼런스 import-hub 프레임의
@@ -481,7 +496,8 @@ export function ImportHubScreen() {
     <DeepSpaceScreen active="capture" header="none" ownBack>
       <View style={styles.glow} pointerEvents="none" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <SecondbStatusHeader text={t("hubBubble")} tip={t("hubTip")} />
+        {/* Z92: the bubble asks what to import. On the history that question is not this screen's. */}
+        {step === "history" ? null : <SecondbStatusHeader text={t("hubBubble")} tip={t("hubTip")} />}
         <View style={[styles.titleRow, inPhone && styles.titleRowWrap]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("back")} onPress={back} hitSlop={10} style={styles.backBtn}>
             <RNText style={styles.backIcon}>‹</RNText>
@@ -494,11 +510,13 @@ export function ImportHubScreen() {
           ) : null}
         </View>
 
+        <SceneTransition transitionKey={step} kind={step === "hub" ? "back" : "push"} animateOnMount={false} style={{ gap: deepSpaceSpacing.md }}>
         {step === "hub" ? renderHub() : null}
         {step === "consent" && active ? renderConsent(active) : null}
         {step === "input" && active ? renderInput(active) : null}
         {step === "review" && outcome ? renderReview(outcome) : null}
         {step === "history" ? renderHistory() : null}
+        </SceneTransition>
       </ScrollView>
     </DeepSpaceScreen>
   );
@@ -519,6 +537,14 @@ export function ImportHubScreen() {
                     .replace("{inserted}", String(ledgerWarn.inserted))
             }
           />
+        ) : null}
+        {ledgerSkipped > 0 ? (
+          // 0224: a statement imported again books only what is new; say how many were already there.
+          <View style={styles.noteCard}>
+            <Text variant="body" style={styles.noteText}>
+              {t("ledgerSkippedNote").replace("{skipped}", String(ledgerSkipped))}
+            </Text>
+          </View>
         ) : null}
         {alreadyImported > 0 ? (
           // The file import's result line for the same outcome: nothing added, N

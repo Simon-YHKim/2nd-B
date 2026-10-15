@@ -47,6 +47,10 @@ export const PRIVACY_PREF_KEYS = [
   // enforcer: src/lib/chat/autosave.ts `chatAutosaveAllowed` (D-12 정직성 규칙에
   // 따라 토글과 enforcer 를 같이 낸다).
   "chat_autosave",
+  // Weather sends a coarse location outside the device. OFF by default and adult-only.
+  // Enforcer: weather/controller.ts + the weather Edge's server consent check.
+  // The board consent sheet and settings withdrawal ship together (D-12).
+  "location_weather",
 ] as const;
 
 export type PrivacyPrefKey = (typeof PRIVACY_PREF_KEYS)[number];
@@ -132,6 +136,7 @@ export const VISIBLE_PRIVACY_KEYS: readonly PrivacyPrefKey[] = [
   //     secondb.tsx consults before writing an exchange to the wiki. Shipped
   //     together with its enforcer per the D-12 rule above.
   "chat_autosave",
+  "location_weather",
 ];
 
 export function isPrivacyPrefEditable(key: PrivacyPrefKey, isMinor: boolean): boolean {

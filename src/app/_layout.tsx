@@ -13,6 +13,7 @@ import {
   Stack,
   Redirect,
   router,
+  useGlobalSearchParams,
   useRootNavigationState,
   usePathname,
   useSegments,
@@ -40,11 +41,14 @@ import {
 } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
 import { HealthAutoReadSync } from "@/components/health/HealthAutoReadSync";
+import { ChatReminderResponseSync } from "@/components/secondb/ChatReminderResponseSync";
 import { GlobalCueHost } from "@/components/audio/GlobalCueHost";
+import { AppCrisisHost } from "@/components/safety/CrisisRouter";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
 import { profileRouteHold } from "@/lib/auth/profile-probe";
+import { isMarkedShareCapture, shareRefusedHref } from "@/lib/capture/share-intent";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { configureEffectsAudioSession } from "@/lib/audio/audio-session";
@@ -58,7 +62,7 @@ import { BackArrow } from "@/components/ui/BackArrow";
 import { IntroExitShield } from "@/components/ui/IntroExitShield";
 import { startIntroExitShield } from "@/lib/nav/intro-exit-shield";
 import { BackgroundTaskDock, CompletionToast, SecondbHeadTrackProvider } from "@/components/deepspace";
-import { pixelStackTransition } from "@/lib/motion/pixel-physical";
+import { WorldRouteTransition } from "@/components/motion/WorldRouteTransition";
 import { useAppFonts } from "@/lib/fonts/use-app-fonts";
 import { clearRetiredThemeMode, useThemePalette } from "@/lib/theme/ThemeContext";
 import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
@@ -93,9 +97,11 @@ import {
   accountTransitionPendingFromSnapshot,
   accountTransitionSnapshot,
   clearAccountTransition,
+  isAccountNavigationResetPending,
   shouldReleaseAccountTransition,
   subscribeAccountTransition,
 } from "@/lib/auth/account-epoch";
+import { accountRestartPending } from "@/lib/auth/account-restart";
 
 // Expo Router uses a route's named `ErrorBoundary` export as that segment's
 // render-error fallback. Exporting it from the root layout makes it the app-wide
@@ -148,7 +154,6 @@ export default function RootLayout() {
   // (es/pt/id) holds the loader until its pack chunk is attached, so the
   // first paint is in that language instead of EN keys flashing.
   const i18nReady = useI18nReady();
-  const fadeTransition = pixelStackTransition("fade");
 
   useEffect(() => {
     if (fontsReady && i18nReady) {
@@ -232,6 +237,7 @@ export default function RootLayout() {
             <AddressTermSync />
             <AuditWriteOutboxSync />
             <HealthAutoReadSync />
+            <ChatReminderResponseSync />
             {/* 화면이 바뀌어도 끝까지 나야 하는 소리(온보딩 끝). lib/audio/global-cues.ts */}
             <GlobalCueHost />
             {/* Big SecondB head follows touch on every screen (auto by size >= 80);
@@ -264,7 +270,7 @@ export default function RootLayout() {
               <Stack.Screen name="jarvis" />
               <Stack.Screen name="plans" />
               <Stack.Screen name="subscription" />
-              <Stack.Screen name="wiki" options={fadeTransition} />
+              <Stack.Screen name="wiki" />
               <Stack.Screen name="manual" />
               <Stack.Screen name="museum" />
               <Stack.Screen name="big-five" />
@@ -283,12 +289,8 @@ export default function RootLayout() {
               <Stack.Screen name="account" />
               <Stack.Screen name="import" />
               <Stack.Screen name="interview" />
-              {/* Village detail + center: crossfade so the graph→village
-                  transition reads as the zoomed island resolving into the
-                  screen, and BACK doesn't hard-cut to a re-popping graph. The
-                  five Pattern Cores route to /records + /wiki; the center to
-                  /core-brain. (/imagine is now a redirect into Divergent mode.) */}
-              <Stack.Screen name="records" options={fadeTransition} />
+              {/* The shared world transition owns graph/list route changes. */}
+              <Stack.Screen name="records" />
               {/* 북극성 is a card over the sky, not a page (Simon 2026-09-30):
                   the home stays underneath, PolarisCardOverlay draws the scrim. */}
               <Stack.Screen name="core-brain" options={{ presentation: "transparentModal", contentStyle: { backgroundColor: "transparent" } }} />
@@ -303,6 +305,7 @@ export default function RootLayout() {
                 at its skip button must not land on the dock tab underneath. */}
             <IntroExitShield />
             </SecondbHeadTrackProvider>
+            <AppCrisisHost />
           </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -313,7 +316,6 @@ export default function RootLayout() {
  *  screen setting its own bg. There is no theme toggle (Q-261005-02). */
 function ThemedStack({ children }: { children: React.ReactNode }) {
   const palette = useThemePalette();
-  const transition = pixelStackTransition();
   // ⚠ **`contentStyle` 만으로는 뒤가 안 칠해진다.**
   //
   // 그건 각 화면의 내용 컨테이너만 칠한다. 그 바깥의 네비게이션 루트 뷰는
@@ -340,13 +342,18 @@ function ThemedStack({ children }: { children: React.ReactNode }) {
         screenLayout={({ children: screen, route }) => (
           <ProfileProbeScope routeName={route.name}>
             <AvatarSetupSceneGuard routeName={route.name}>
-              <AccountScope routeName={route.name}>{screen}</AccountScope>
+              <WorldRouteTransition routeName={route.name} routeKey={route.key}>
+                <AccountScope routeName={route.name}>{screen}</AccountScope>
+              </WorldRouteTransition>
             </AvatarSetupSceneGuard>
           </ProfileProbeScope>
         )}
         screenOptions={{
           headerShown: false,
-          ...transition,
+          // SceneTransition supplies the same stepped motion on native/web.
+          // A platform push here would add a second, smooth animation.
+          animation: "none",
+          animationDuration: 0,
           contentStyle: { backgroundColor: palette.background },
         }}
       >
@@ -409,10 +416,16 @@ const ACCOUNT_RESET_RETRY_RENDER_PASSES = 2;
 const ACCOUNT_RESET_MAX_ATTEMPTS = 3;
 
 /**
- * Reset retained navigation for a new owner, but release the opaque hold only
- * after both the route segments and root stack prove that `/` is the sole
- * scene. Expo Router imperative actions are queued, so clearing in the same
- * effect that dispatches them would expose the old scene for one commit.
+ * A different owner starts the app again (Simon Q-261013-29): a fresh realm has
+ * nothing of the previous owner in it, so there is nothing to prove about the
+ * retained tree. The request does not wait for the router: the phone restarts
+ * at home by itself, and the web goes to its home address (account-restart.ts).
+ *
+ * Where the build cannot restart, the old path stays: reset retained navigation
+ * and release the opaque hold only after both the route segments and root stack
+ * prove that `/` is the sole scene. Expo Router imperative actions are queued,
+ * so clearing in the same effect that dispatches them would expose the old
+ * scene for one commit.
  */
 function PendingAccountTransitionResolver(): null {
   const transitionSnapshot = useSyncExternalStore(
@@ -439,6 +452,9 @@ function PendingAccountTransitionResolver(): null {
     // Keep password recovery/sign-up uninterrupted. The pending proof is
     // resolved as soon as the user exits the auth group.
     if (segments[0] === "(auth)") return;
+    // A different owner is published: ask for the restart before anything below
+    // that depends on navigation state. While it is on its way the hold stays.
+    if (isAccountNavigationResetPending() && accountRestartPending(() => setResetPass((pass) => pass + 1))) return;
     if (shouldReleaseAccountTransition(segments, rootState)) {
       clearAccountTransition(epoch);
       resetDispatchRef.current = null;
@@ -528,6 +544,12 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   } = useAuth();
   const segments = useSegments();
   const pathname = usePathname();
+  // An Android share opens /capture?text=&title=&from=share. When a redirect
+  // below turns that route away, its params are dropped as for any link, and
+  // the screen it lands on (the storage recovery screen too) says in one line
+  // that the share was not added (src/lib/capture/share-intent.ts). Nothing is
+  // held for later.
+  const shareTurnedAway = isMarkedShareCapture(pathname, useGlobalSearchParams());
   // Play the opening only once per running app/tab. A fresh auth event
   // (including the signed-out -> signed-in transition) must not restart it.
   const [introDone, setIntroDone] = useState(introAlreadyPlayed);
@@ -561,6 +583,11 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // matters when the intro was played earlier in this tab and the fonts are not.
   // Bare for the same reason as RootLayout's font wait (R2A-04).
   if (!fontsReady) return <InlineLoader bare />;
+  // A share is not kept through a storage recovery (gate SG-R3-01, Simon
+  // 2026-10-07 13:33). Before that screen shows, the route drops text, title
+  // and marker and keeps only the notice, which the screen draws as its line.
+  // The next render reads /capture?notice=shareRefused and takes the line below.
+  if (storageRecoveryRequired && shareTurnedAway) return <Redirect href={shareRefusedHref("/capture", true)} />;
   if (storageRecoveryRequired) return <EncryptedStorageRecoveryGate />;
   if (!recoveryReady) return <InlineLoader />;
 
@@ -568,7 +595,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
   // pathname matching also catches pushes to another route inside `(auth)`;
   // a group-level exemption would let /sign-in escape the mandatory reset.
   if ((recoveryUserId || recoveryPendingGlobal) && pathname !== "/reset-password") {
-    return <Redirect href="/reset-password" />;
+    return <Redirect href={shareRefusedHref("/reset-password", shareTurnedAway)} />;
   }
 
   // A FAILED profile probe is unknown: not "no profile", not "has profile", and
@@ -628,7 +655,7 @@ function IntroGate({ children, fontsReady = true }: { children: React.ReactNode;
     segments[0] !== "(auth)" &&
     segments[0] !== "onboarding"
   ) {
-    return <Redirect href="/complete-profile" />;
+    return <Redirect href={shareRefusedHref("/complete-profile", shareTurnedAway)} />;
   }
 
   // The opening is complete for this runtime, so auth events and navigation

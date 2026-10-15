@@ -28,6 +28,7 @@ import InterviewScreen from "@/app/interview";
 import ManualScreen from "@/app/manual";
 import StarSummaryScreen from "@/app/me/[star]";
 import NoticesScreen from "@/app/notices";
+import OpsScreen from "@/app/ops";
 import PermissionsScreen from "@/app/permissions";
 import PlansScreen from "@/app/plans";
 import PrivacyScreen from "@/app/privacy";
@@ -51,6 +52,7 @@ import GrowthScreen from "@/app/growth";
 import InsightsScreen from "@/app/insights";
 import BrightnessScreen from "@/app/brightness";
 import ProfileDetailsScreen from "@/app/profile-details";
+import ProfileImportScreen from "@/app/profile-import";
 import AvatarStudioScreen from "@/app/avatar-studio";
 import SecondbScreen from "@/app/secondb";
 import IpipNeoScreen from "@/app/ipip-neo";
@@ -159,6 +161,7 @@ const PHONE_ROUTE_SCREENS: Readonly<Record<string, ComponentType>> = {
   "/interview": InterviewScreen,
   "/manual": ManualScreen,
   "/notices": NoticesScreen,
+  "/ops": OpsScreen,
   "/permissions": PermissionsScreen,
   "/plans": PlansScreen,
   "/privacy": PrivacyScreen,
@@ -185,6 +188,7 @@ const PHONE_ROUTE_SCREENS: Readonly<Record<string, ComponentType>> = {
   "/privacy-policy": PrivacyPolicyScreen,
   "/processing-log": ProcessingLogScreen,
   "/profile-details": ProfileDetailsScreen,
+  "/profile-import": ProfileImportScreen,
   "/refund": RefundScreen,
   "/rlss": RlssScreen,
   "/secondb": SecondbScreen,

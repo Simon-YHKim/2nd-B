@@ -91,9 +91,9 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
   });
 
   test("keeps the real form, provider visibility, and explicit action gates", () => {
-    expect(source).toContain("useSignInForm()");
+    expect(source).toContain("useSignInForm(deletionNotice)");
     expect(source).toContain(
-      'const SIGN_IN_PROVIDERS = ["google", "apple", "github"] as const',
+      'const SIGN_IN_PROVIDERS = ["google", "apple", "kakao", "facebook", "github"] as const',
     );
     expect(source).toContain("visibleProviders.includes(provider)");
     expect(source).toContain("signInProviders.map((provider)");
@@ -101,7 +101,8 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
     expect(source).toContain('secureTextEntry={!showPassword}');
     expect(source).toContain('returnKeyType="next"');
     expect(source).toContain('returnKeyType="go"');
-    expect(source).toContain("runAuthActionOnce(actionLock, handleSubmit)");
+    // 2026-10-13 Z12: same synchronous mutex, with invalid-field focus relay.
+    expect(source).toContain("runAuthActionOnce(actionLock, () => handleSubmit((field) =>");
     expect(source).toContain("runAuthActionOnce(actionLock, () => handleOAuth(provider))");
     expect(source).not.toContain("PROVIDER_MONOGRAM");
     expect(source).not.toContain("handleNaver");
@@ -109,13 +110,14 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
   });
 
   test("renders the three retained brands as crisp pixel geometry", () => {
+    const source = read("src/components/auth/ProviderBrandIcon.tsx");
     expect(source).toContain('<Svg width={32} height={32} viewBox="0 0 16 16">');
-    expect(source).toContain("PIXEL_BRAND_CELLS[provider].map");
+    expect(source).toContain("cells.map");
     expect(source).toContain("<Rect");
-    expect(source).toContain('"#EA4335"');
-    expect(source).toContain('"#FBBC05"');
-    expect(source).toContain('"#34A853"');
-    expect(source).toContain('"#4285F4"');
+    expect(source).toContain("semantic.googleBrandRed");
+    expect(source).toContain("semantic.googleBrandYellow");
+    expect(source).toContain("semantic.googleBrandGreen");
+    expect(source).toContain("semantic.googleBrandBlue");
   });
 
   test("uses the raised bevel as the standard for sign-in actions and legal links", () => {
@@ -185,6 +187,17 @@ describe("PIXEL-CLAY sign-in renderer wiring", () => {
 // b72fc5f6)과 대조하면 prefix 는 go-home import 한 줄(빈 줄 자리)뿐이고, tail 은 재설정
 // 화면의 재설정 잠금 등록 useGoHomeStop 한 줄뿐이다(재고정 전 대조). 홈 출구 셋은 사람이
 // 누르는 동작이라 PR 이전의 router.replace 그대로다.
+// 2026-10-07(#2145 안드로이드 공유, Simon 12:04): prefix · tail 을 다시 재고정했다. main 판
+// (4c878269 · 1a8d317c)과 대조하면 prefix 는 ShareRefusedLine import 한 줄뿐이고, tail 은
+// 재설정 화면 머리 아래의 `<ShareRefusedLine />` 한 줄(+빈 줄)뿐이다(재고정 전 git diff 로 대조).
+// 2026-10-12(동의 안내의 뒤로): prefix 만 다시 재고정했다(옛 값 4008f390 = main 판 1d6eefec).
+// 차이는 AuthShell 의 선택 인자 `head`(서명 한 줄 · 주석 세 줄 · 스크롤 위의 `{head}` 한 줄)뿐이다
+// (재고정 전 git diff 로 대조). `head` 를 넘기는 곳은 /consent-notice 하나라 로그인 · 가입 ·
+// 약관 화면의 그림은 그대로고, tail(재설정 화면)은 손대지 않았다.
+// 2026-10-13(빈 칸의 가짜 값): tail 만 다시 재고정했다(옛 값 ae991844 = main 판 1a782d76).
+// 차이는 재설정 화면의 예시 글 셋 삭제뿐이다: 확인 코드 칸의 placeholder="000000" 한 줄과
+// 새 비밀번호 두 칸의 점 여덟 개 예시 두 줄(재고정 전 git diff 로 대조 · 세 줄 삭제 · 추가 없음).
+// 첫 사용 점검에서 빈 칸이 이미 채워진 것처럼 읽혔다(A-Z 2차 Z18 · 1차 Z4). prefix 는 그대로다.
 describe("sign-in extraction boundaries", () => {
   test("preserves the shared auth prefix and reset tail byte-for-byte", () => {
     const source = read("src/screens/deepspace/dds-auth-screens.tsx");
@@ -196,10 +209,10 @@ describe("sign-in extraction boundaries", () => {
     expect(split).toBeGreaterThan(0);
     expect(tail).toBeGreaterThan(split);
     expect(sha256(source.slice(0, split))).toBe(
-      "4c878269951c09c82f85ddc96907a7d878f28e4b3f464fa43cebfc4594a7a0ea",
+      "299d83f55b8f2169d0c569cb4771cb9da125fd097558258aae24c8760db63217",
     );
     expect(sha256(source.slice(tail))).toBe(
-      "1a8d317cc0c9b17755a9e05dc0fe297ac83e5f601df71228206beb72e571b662",
+      "f03a045e70a79e87ea2fa3dd757430da15845aaaf4a5adb6400f25e8894dec39",
     );
   });
 
@@ -208,8 +221,12 @@ describe("sign-in extraction boundaries", () => {
     // legacy/screens/sign-in.tsx 가 E:/Legacy/2ndB 로 나갔고(같은 바이트, MANIFEST batch
     // qa261004-lever), 검사는 보관본을 읽지 않는다(legacy-archive-integrity.test.ts).
     // 이제 바이트를 지키는 것은 E:/Legacy 의 sha256 기록이다.
+    // 2026-10-07 재고정(실기 DEV3-01): action · actionLabel · actionValue 에 gap · flexShrink ·
+    // minWidth 를 더하고 그 이유 주석을 붙였다(긴 언어에서 라벨이 값을 카드 밖으로 밀던 문제,
+    // __tests__/action-row-wrap.test.ts). 로그인 화면이 쓰는 auth* 스타일은 바뀌지 않았다.
+    // 이전 값 f34f82ac9976c8f69eec5827501707a912514b17ed9ff4dc180ce6511edafbbe.
     expect(sha256(read("src/screens/deepspace/dds-styles.ts"))).toBe(
-      "f34f82ac9976c8f69eec5827501707a912514b17ed9ff4dc180ce6511edafbbe",
+      "8a385a571dab87715e12f3d9abd9b8881cc933056580f5d4ef50435a75c79aca",
     );
   });
 });

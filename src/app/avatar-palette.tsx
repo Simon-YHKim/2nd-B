@@ -1,14 +1,6 @@
+import { PhoneFlatList as FlatList, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  FlatList,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-  useWindowDimensions,
-  type GestureResponderEvent,
-} from "react-native";
+import { Platform, StyleSheet, useWindowDimensions, View as ColorSample, type GestureResponderEvent } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { Redirect, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
@@ -578,7 +570,8 @@ export default function AvatarPaletteScreen() {
             accessibilityState={{ selected: colorIndex === index }}
             contentStyle={styles.swatchContent}
           >
-            <View style={[styles.swatch, { backgroundColor: color }]} />
+            {/* This color is drawing data, so the phone theme must preserve it. */}
+            <ColorSample style={[styles.swatch, { backgroundColor: color }]} />
           </PixelPressable>
         ))}
         <ActionButton label={t("avatarPalette:eraser")} selected={colorIndex === null} disabled={busy} onPress={() => setColorIndex(null)} />

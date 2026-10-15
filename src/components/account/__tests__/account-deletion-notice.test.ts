@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import ts from "typescript";
 
 import { expectShape, expectNoShape } from "@/lib/testing/expect-shape";
+import { selectSignInBranch, selectSignInNoticePlacement } from "@/lib/auth/sign-in-branch";
 
 // Actual TSX/functions with a small synchronous hook host and fake store only.
 // This is not a React scheduler, RN/browser renderer, or accessibility-tree test.
@@ -51,13 +52,21 @@ function routeRenderer(path: string, functionName: string) {
   let form = { loading: false, userId: "still-present-owner" as string | null };
   const hook = jest.fn(() => current);
   const scope: Record<string, unknown> = {
+    selectSignInBranch,
+    selectSignInNoticePlacement,
     useTranslation: () => ({ t: translate, i18n: { language: "ko" } }),
-    useSignInForm: () => form, useRef: () => ({ current: null }), useKeyboard: () => 0,
+    // R6: the hook now returns the selected branch shared with Back ownership.
+    useSignInForm: (deletionNotice: Notice | null) => ({ ...form, branch: selectSignInBranch({ deletionNotice, ...form }) }),
+    useRef: () => ({ current: null }), useKeyboard: () => 0,
     // 이 하네스가 쓰이던 시점 이후 deep-space 로그인 화면이 useAuth 를 부른다
     // (세션 확인 실패를 "로그아웃"으로 오해하지 않기 위한 경계). 스텁이 없으면
     // 대상 결함이 아니라 ReferenceError 가 난다.
     useAuth: () => ({ sessionUnavailable: false, refresh: () => undefined }),
     useState: (initial: unknown) => [initial, () => undefined],
+    // Z122: the screen asks how many provider buttons fit on a line before any branch returns.
+    useProviderColumns: () => 2,
+    // Branch inspection only. Attachment timing has its own pure tests.
+    SignInExitNotice: "SignInExitNotice",
     // deep-space 로그인 화면의 로딩 가지가 쓰는 픽셀 셸 조각들. 이 하네스가
     // 만들어진 뒤에 들어온 것들이라 스텁이 없었다.
     PixelGateShell: "PixelGateShell", PixelSurface: "PixelSurface",
@@ -140,6 +149,7 @@ function mountPanel(initial: Notice) {
   const modules: Record<string, unknown> = {
     react: hooks, "react-i18next": { useTranslation: () => ({ t: translate }) },
     "react-native": { View: "View", Pressable: "Pressable", StyleSheet: { create: (styles: unknown) => styles } },
+    "@/components/phone/PhoneUIKit": { PhoneView: "View", PhonePressable: "Pressable" },
     "@/components/ui/Text": { Text: "Text" },
     "@/components/m3": { MdButton: "MdButton", MdCard: "MdCard", m3TextStyle: () => ({}) },
     "@/lib/theme/m3": { m3: { spacing: { s2: 4, s3: 6, s4: 8 }, minTouch: 44 } },

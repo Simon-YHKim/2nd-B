@@ -40,7 +40,7 @@ describe("deep-space records source detail routing", () => {
   test("source rows keep their source id and origin for detail navigation", () => {
     expect(RECORDS_SRC).toContain('type RecordsOrigin = "record" | "source";');
     expect(RECORDS_SRC).toContain(
-      "type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string };",
+      "type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string; audit_period?: string | null };",
     );
     expect(RECORDS_SRC).toContain("id: s.id");
     expect(RECORDS_SRC).toContain('origin: "source"');
@@ -67,7 +67,7 @@ describe("deep-space records source detail routing", () => {
     expect(GET_PIECE_SRC).toContain('origin: "source"');
     expect(GET_PIECE_SRC).toContain('import { downloadRawClipping } from "../wiki/storage";');
     expect(GET_PIECE_SRC).toContain(
-      "const body = await downloadRawClipping(s.storage_path).catch(() => fallback);",
+      "? await downloadRawClipping(s.storage_path).catch(() => fallback)",
     );
   });
 
@@ -129,7 +129,8 @@ describe("deep-space records source detail routing", () => {
     expect(DETAIL_SRC).toContain("locksRef.current.tags");
     expect(DETAIL_SRC).toContain("locksRef.current.delete");
     expect(DETAIL_SRC).toContain("if (nextBody.length === 0 || nextBody ===");
-    expect(DETAIL_SRC).toContain("updateReadyPiece({ ...previous, body: nextBody })");
+    // Since Z48 the optimistic piece and the saved patch carry the topic that follows the body.
+    expect(DETAIL_SRC).toContain("updateReadyPiece({ ...previous, ...editedBodyPatch(previous, nextBody) })");
     expect(DETAIL_SRC).toContain("updateReadyPiece(previous)");
     expect(DETAIL_SRC).toContain("visible={confirmingDelete}");
     expect(DETAIL_SRC).toContain("onPress={() => void handleDelete()}");
@@ -211,7 +212,42 @@ describe("deep-space records source detail routing", () => {
       // chars / 472 -> 475 lines. Verified before re-pinning: the previous digest
       // 9be2bc0fba47aaacdb791b0366fb0ea218a3c4236e9f3b278630450aeaf526d7 recomputes
       // byte-for-byte from HEAD's copy, so this change is the only delta in the slice.
-      "2444ee96d5da7e7b2ca6064337ee169615efdc976a25f0de5d8af96be2bd5337",
+      // 2026-10-08: list/graph uses the scoped SceneTransition. Removing the
+      // two wrapper tags reproduces 2444ee96; data and detail routing stay exact.
+      //
+      // Re-pinned 2026-10-14 (Z80, Simon 2026-10-13): a count that was not read is not
+      // zero. While the records read is pending or has failed, the triage card's title
+      // and the graph's count show "..." instead of 0, and the card's spoken name says
+      // loading / could not load. Eleven lines in, three out, all in the count lines and
+      // the triage card: slice 19,985 -> 20,421 chars / 477 -> 485 lines. The data read,
+      // the filters and the detail routing are untouched. Verified before re-pinning: the
+      // previous digest 261f51af581c332fbfc14f40919f95d230ff4a223a661cb6ad0d222f65d37603
+      // recomputes byte-for-byte from origin/main's copy of this file.
+      //
+      // Re-pinned 2026-10-14 (wiki list reads every record): the list borrowed the
+      // streak's 90-day read, so a record older than that was never listed (16 of 69
+      // production rows). Two places move, each with a two-line comment above it:
+      // the one read call is now listAllRecords(userId), and the per-row time labels
+      // are built with maxGroups: Number.POSITIVE_INFINITY (the timeline labelled only
+      // its first 8 day groups, so a row past the eighth day showed no time, which is
+      // every row the new read brings in). Slice 20,421 -> 20,830 chars / 485 -> 489
+      // lines. Nothing else in the slice moves (the error state, the sources read, the
+      // filters, the counts and the detail routing). Verified before re-pinning: the
+      // previous digest 6f14103c794fa937f15f34e045ff7c170bf9dee817eb3be4dcfdcdf86b52ab59
+      // recomputes byte-for-byte from origin/main's copy of this file.
+      //
+      // Re-pinned 2026-10-14 (Z60, Simon 2026-10-13: the star summary's record count
+      // opens that star's stories). The list reads ?period=, and when it names a
+      // star's period it opens as the list, keeps only the rows told under that star
+      // (audit_period), and shows one line at the top that says so and returns to
+      // everything; choosing the graph returns to everything too; on Android the device
+      // Back returns to the star summary it was opened from, and the narrowed empty list
+      // does not invite a first record. Slice 20,830 -> 23,568 chars / 489 -> 535 lines. The read itself, the error state, the tag and
+      // type filters, the counts and the detail routing are untouched. Verified before
+      // re-pinning: the previous digest
+      // 3c52b8a74b97388b39715e189c1f529a8d3f24b9ecedde299d5909daad952c6d recomputes
+      // byte-for-byte from origin/main's copy of this file.
+      "56d241df78a284981b8795cfba3a108c586603f0be4ffb979a5734661b4645bb",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,
@@ -246,6 +282,8 @@ describe("deep-space records source detail routing", () => {
     // `<View style={floatClear}>` call sites). Slice 11,770 -> 11,992 chars / 239 -> 242
     // lines. Verified before re-pinning: undoing exactly those edits recomputes the
     // previous digest 3df2eb1f8ceb487c0c0ba75257ed3382587f5ba32c78cc959a221a91f0d5affc.
-    expect(sha256(wiki)).toBe("5d80807c7a6a749cbf626635569dae37114b18959c9c79df806b2b8f9db4351a");
+    // 2026-10-08: same scoped list/graph transition as records, preserving the
+    // original gap. Removing the two wrapper tags reproduces 5d80807c exactly.
+    expect(sha256(wiki)).toBe("24f3475eecdf94a09afc755003c5de6dd6e959975fad4590b01a49ebd384028e");
   });
 });

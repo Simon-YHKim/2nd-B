@@ -24,6 +24,7 @@ import { ddsStyles as styles } from "./dds-styles";
 import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { ShareRefusedLine } from "@/components/capture/ShareRefusedLine";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { m3TextStyle } from "@/components/m3/typeface";
@@ -80,7 +81,7 @@ function AuthBackdrop() {
 // Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
 // generic Shell above is for in-app graph screens and has no keyboard handling;
 // auth forms need KeyboardAvoidingArea + scroll padding (ANDROID_QA_GUIDELINES).
-export function AuthShell({ children, scrollRef }: { children: ReactNode; scrollRef?: Ref<ScrollView> }) {
+export function AuthShell({ children, scrollRef, head }: { children: ReactNode; scrollRef?: Ref<ScrollView>; head?: ReactNode }) {
   // Reserve the Android bottom inset: under edge-to-edge (Expo SDK 56 default)
   // the shared scroll's fixed paddingBottom:40 lets the last CTA on a tall
   // sign-up/reset form draw under the 3-button nav bar. insets.bottom clears it.
@@ -93,6 +94,9 @@ export function AuthShell({ children, scrollRef }: { children: ReactNode; scroll
   // frame padding is the documented RN clipping footgun. Padding the non-scroll
   // frame starts the viewport below the status bar at EVERY scroll position,
   // while AuthBackdrop (outside the area) keeps painting full-bleed behind it.
+  //
+  // `head` sits in that same non-scroll frame, so a screen that opens already
+  // scrolled (/consent-notice) still shows its Back chevron.
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
@@ -100,6 +104,7 @@ export function AuthShell({ children, scrollRef }: { children: ReactNode; scroll
       <KeyboardAvoidingArea
         style={{ flex: 1, paddingTop: insets.top }}
       >
+        {head}
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(40, insets.bottom + 24) }]}
@@ -313,6 +318,8 @@ export function DeepSpaceResetPasswordDesignScreen() {
         </View>
       </View>
 
+      <ShareRefusedLine />
+
       {sessionUnavailable ? (
         <View accessibilityRole="alert" accessibilityLiveRegion="assertive">
           <PixelSurface
@@ -379,7 +386,6 @@ export function DeepSpaceResetPasswordDesignScreen() {
                     autoComplete="one-time-code"
                     textContentType="oneTimeCode"
                     maxLength={6}
-                    placeholder="000000"
                     placeholderTextColor={m3.color.onSurfaceVariant}
                     accessibilityLabel={t("auth:resetPassword.codeLabel")}
                     accessibilityHint={t("auth:resetPassword.codeHint")}
@@ -416,7 +422,6 @@ export function DeepSpaceResetPasswordDesignScreen() {
                 secureTextEntry
                 autoComplete="new-password"
                 textContentType="newPassword"
-                placeholder="••••••••"
                 placeholderTextColor={m3.color.onSurfaceVariant}
                 accessibilityLabel={t("auth:resetPassword.newPassword")}
                 accessibilityHint={t("auth:resetPassword.newPasswordHint")}
@@ -435,7 +440,6 @@ export function DeepSpaceResetPasswordDesignScreen() {
                 secureTextEntry
                 autoComplete="new-password"
                 textContentType="newPassword"
-                placeholder="••••••••"
                 placeholderTextColor={m3.color.onSurfaceVariant}
                 accessibilityLabel={t("auth:resetPassword.confirmPassword")}
                 accessibilityHint={t("auth:resetPassword.confirmPasswordHint")}

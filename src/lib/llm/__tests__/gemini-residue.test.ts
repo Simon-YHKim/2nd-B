@@ -60,7 +60,10 @@ const RESIDUE: Record<string, { gemini: number; proxy: number; why: string }> = 
   },
   "src/lib/llm/safety.ts": { gemini: 1, proxy: 0, why: "safetyVendor branch picks MODELS.flash for gemini" },
   "src/lib/llm/types.ts": { gemini: 1, proxy: 0, why: "reasoningProvider union" },
-  "src/lib/llm/crosscheck.ts": { gemini: 2, proxy: 0, why: "vendor comparison for the challenger/defender pairing" },
+  // src/lib/llm/crosscheck.ts carried 2 ("gemini" x2, proxy 0: the vendor
+  // comparison for the challenger/defender pairing). S0.5 (2026-10-07) deleted
+  // the file with its only, unreachable caller, so the library total fell from
+  // 16 to 14 "gemini" by removal, not by a retirement edit.
 };
 
 // The eleven places in routing.ts where an UNSET environment used to resolve

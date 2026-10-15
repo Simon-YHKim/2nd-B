@@ -106,7 +106,7 @@ describe("sign-up action ownership", () => {
   test("callback success invalidates stale work and clears every busy projection", () => {
     const callback = hook.slice(
       hook.indexOf("consumeAuthCallbackUrl(deepLinkUrl)"),
-      hook.indexOf("// Stage 3 (O-31)"),
+      hook.indexOf("// D2 (Simon 2026-10-10)"),
     );
     expect(callback).toContain("invalidateSignUpActions(actionLockRef.current)");
     expect(callback).toContain("setSubmitting(false)");
@@ -118,7 +118,7 @@ describe("sign-up action ownership", () => {
   test("native sign-up callbacks never accept bearer tokens from the URL", () => {
     const callback = hook.slice(
       hook.indexOf("// Supabase's detectSessionInUrl handles web confirmation links."),
-      hook.indexOf("// Stage 3 (O-31)"),
+      hook.indexOf("// D2 (Simon 2026-10-10)"),
     );
     expect(callback).toContain("(?:code|error_code)");
     expect(callback).not.toContain("access_token");
@@ -185,10 +185,10 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain("{visibleProviders.length > 0 || naverEnabled ? (");
     expect(screen).toContain("visibleProviders.map((provider)");
     expect(screen).toContain("{naverEnabled ? (");
-    expect(screen).toContain("PROVIDER_MARK[provider]");
+    expect(screen).toContain("<ProviderBrandIcon provider={provider} />");
     expect(screen).not.toContain('name="account"');
     expect(screen).toContain('flexWrap: "wrap"');
-    expect(screen).toContain("minWidth: 112");
+    expect(screen).toContain('providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 112 }');
     expect(screen).toContain("disabled={formLocked}");
   });
 
@@ -198,7 +198,11 @@ describe("PIXEL-CLAY sign-up renderer", () => {
     expect(screen).toContain('router.push("/terms")');
     expect(screen).toContain('router.push("/")');
     expect(screen).toContain("if (canLeaveGate())");
-    expect(hook).toContain("if (actionLockRef.current.active !== null) return true;");
+    // Back behavior is exercised directly in auth-hardware-back.test.ts.
+    // This screen contract only pins the live lock and router wiring.
+    expect(hook).toContain("const onBackPress = createSignUpBackHandler({");
+    expect(hook).toMatch(/isBusy: \(\) => actionLockRef.current.active !== null,\s*router,/);
+    expect(hook).not.toContain('router.push("/")');
   });
 
   test("the only screen effect reveals the new confirmation primary state", () => {
@@ -226,6 +230,27 @@ describe("PIXEL-CLAY sign-up renderer", () => {
 });
 
 describe("sign-up authority and preservation boundaries", () => {
+  test.each([
+    ["src/screens/deepspace/dds-sign-up-screen.tsx", [
+      "TextInput", "TextInput", "TextInput", "ResidenceCountryField", "BirthDateField",
+      "ConsentCheckRow", "ConsentCheckRow", "ConsentCheckRow",
+    ]],
+    ["src/app/(auth)/complete-profile.tsx", [
+      "NameField", "GoalField", "ResidenceCountryField", "BirthDateField",
+    ]],
+  ])("%s keeps its existing input controls without a guardian acknowledgement", (path, expected) => {
+    const source = read(path as string);
+    const controls = [...source.matchAll(/<(TextInput|Input|Checkbox|CheckBox|Switch|\w*(?:Field|CheckRow|Toggle))\b(?=\s|\/>)/g)]
+      .map((match) => match[1]);
+    expect(controls).toEqual(expected);
+    expect(source).not.toMatch(/guardian_consents|guardianAck|guardianConsent/);
+    const profile = read("src/app/(auth)/complete-profile.tsx");
+    expect(profile.match(/<ConsentNotice\b/g)).toHaveLength(1);
+    expect(profile).toContain("const consentReady = allRequiredAcksChecked(consent)");
+    expect(profile).toContain("const requiredProgress = Number(ageReady) + Number(consentReady)");
+    expect(profile).toMatch(/return\s*\(\s*userId !== null &&\s*ageReady &&\s*consentReady &&\s*!submitting\s*\)/);
+  });
+
   test("canSubmit and confirmation verification fail closed", () => {
     const canSubmit = hook.slice(
       hook.indexOf("const canSubmit"),
@@ -286,9 +311,20 @@ describe("sign-up authority and preservation boundaries", () => {
   // 2026-10-05(PR #2044 main 병합): dds-auth-screens digest 만 다시 재고정했다(옛 값
   // 23480d40 = 위 main 판). main 판과 대조한 차이는 go-home import 한 줄(빈 줄 자리)과
   // 재설정 화면의 재설정 잠금 등록 useGoHomeStop 한 줄뿐이다. 동의 · 가입 경계는 그대로다.
+  // 2026-10-07(#2145 안드로이드 공유, Simon 12:04): dds-auth-screens digest 만 다시
+  // 재고정했다(옛 값 713bb9c4 = main 판). 차이는 ShareRefusedLine import 한 줄과 재설정
+  // 화면 머리 아래의 `<ShareRefusedLine />` 한 줄(+빈 줄)뿐이다. 문지기가 공유를 재설정
+  // 화면으로 돌려보낼 때 그 화면에 한 줄 안내를 그리는 자리다. 동의 · 가입 경계는 그대로다.
+  // 2026-10-12(동의 안내의 뒤로): dds-auth-screens digest 만 다시 재고정했다(옛 값 1dd54b7c =
+  // main 판 1d6eefec). 차이는 AuthShell 의 선택 인자 `head`(서명 한 줄 · 주석 세 줄 · 스크롤
+  // 위의 `{head}` 한 줄)뿐이다. /consent-notice 가 항목 위치로 내려간 채 열려도 "뒤로"가 화면에
+  // 남게 하는 자리고, `head` 를 넘기지 않는 가입 화면의 동의 · 가입 경계는 그대로다.
+  // 2026-10-13(빈 칸의 가짜 값): dds-auth-screens digest 만 다시 재고정했다(옛 값 9f60a815 =
+  // main 판 1a782d76). 차이는 재설정 화면의 예시 글 셋 삭제뿐이다(확인 코드 칸의 placeholder="000000"
+  // 한 줄 · 새 비밀번호 두 칸의 점 예시 두 줄). 동의 · 가입 경계는 그대로다.
   test("preserves shared form boundaries while pinning the auth renderer", () => {
     expect(sha256(read("src/screens/deepspace/dds-auth-screens.tsx"))).toBe(
-      "713bb9c4843dfe0eaa31c70a5c291069bad9a4a987a53d4abed6fc437c440491",
+      "89caea4f342ee76fb192784b330340979451d2c474fc8106823e1653b90b08ad",
     );
     expect(sha256(read("src/components/consent/ConsentNotice.tsx"))).toBe(
       "60a019c22ceec84ad550f06568763225b82839bc0e743f382aabea233e4ae170",

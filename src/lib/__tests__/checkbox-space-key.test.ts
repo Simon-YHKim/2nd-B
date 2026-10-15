@@ -46,6 +46,7 @@ function pixelPressable(props: Record<string, unknown>) {
   const PixelPressable = load(PIXEL_PRESSABLE, "PixelPressable", {
     Pressable: "Pressable", View: "View", PixelSurface: "PixelSurface", styles: styleStub,
     useState: (initial: unknown) => [initial, () => {}], useCallback: (fn: unknown) => fn,
+    usePhoneDesign: () => false,
     checkboxSpaceKeyProps: realSpaceKey,
   });
   const host = PixelPressable(props);
@@ -58,6 +59,7 @@ function control(kind: "chip" | "consent", onPress: () => void, filter = true) {
     const MdChip = load("src/components/m3/MdChip.tsx", "MdChip", {
       View: "View", Pressable: "Pressable", Text: "Text", RNText: "Text", PixelGlyph: "PixelGlyph",
       styles: {}, m3: { color: {} }, m3TextStyle: () => ({}), colors: {},
+      usePhoneDesign: () => false,
       checkboxSpaceKeyProps: realSpaceKey,
     });
     const tree = MdChip({ kind: filter ? "filter" : "assist", label: "Filter", onPress });

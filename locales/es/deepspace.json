@@ -4,6 +4,7 @@
     "zoom": "Acercando la estrella",
     "focus": "Ajustando el enfoque",
     "ready": "Enfoque fijado · Listo para viajar",
+    "held": "Enfoque fijado",
     "return": "Volviendo a la constelación",
     "shutter": "Tomando una foto"
   },
@@ -96,7 +97,9 @@
     "fallbackTitle": "Sin título",
     "graphEmpty": "Aún no hay conocimiento que conectar.",
     "loadError": "No se pudo cargar la lista. Tus fragmentos guardados no han cambiado. Inténtalo de nuevo.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "periodScope": "Historias: {{star}}",
+    "periodShowAll": "Ver todo"
   },
   "domains": {
     "title": "Mis áreas",
@@ -138,7 +141,7 @@
     "or": "o",
     "ageNotice": "Puedes crear una cuenta si tienes {{minAge}} años o más.",
     "brandLabel": "POLASCOPE",
-    "signInTitle": "Qué bueno verte de nuevo",
+    "signInTitle": "Iniciar sesión",
     "legalConsent": "Al continuar, aceptas las Condiciones del servicio y la Política de privacidad.",
     "business": {
       "company": "Empresa",
@@ -153,12 +156,13 @@
   "account": {
     "title": "Cuenta",
     "status": "Revisa tus datos y las cuentas que has conectado.",
-    "tip": "Puedes exportar tus datos o eliminar tu cuenta cuando quieras.",
+    "tip": "Puedes eliminar tu cuenta cuando quieras.",
     "delete": "Eliminar cuenta",
     "navProfile": "Perfil",
     "navSettings": "Ajustes",
     "navData": "Mis datos",
-    "navBeyond": "Fuera de la app",
+    "navIden": "Exportar mi resumen",
+    "navBeyond": "Widgets y alertas",
     "navPassword": "Cambiar contraseña"
   },
   "privacy": {
@@ -246,17 +250,17 @@
   "support": {
     "title": "Soporte",
     "prompt": "¿Qué necesitas resolver?",
-    "askSecondb": "Preguntar a SecondB",
+    "askSecondb": "Preguntar a HustleK",
     "viewManual": "Ver el manual",
     "emailUs": "Escríbenos",
     "reportBug": "Reportar un error",
-    "footer": "PolaScope v1.0.0 · 2 días hábiles KST",
+    "footer": "PolaScope v{{version}} · 2 días hábiles KST",
     "faqTitle": "Preguntas frecuentes",
     "noticesTitle": "Avisos",
     "faqs": {
       "brightness": {
         "q": "¿En qué se diferencian el brillo (la luz de las estrellas) y la confianza?",
-        "a": "La luz de las estrellas indica cuánto has guardado en esa área; la confianza, cuánto se ha comprobado la estimación de SecondB. Las dos cambian por separado."
+        "a": "La luz de las estrellas indica cuánto has guardado en esa área; la confianza, cuánto se ha comprobado la estimación de HustleK. Las dos cambian por separado."
       },
       "plan": {
         "q": "¿Un plan de pago lo hace más inteligente?",
@@ -269,7 +273,7 @@
     },
     "notices": {
       "modes": {
-        "t": "Llegan los tres modos de SecondB",
+        "t": "Llegan los tres modos de HustleK",
         "tag": "Nuevo"
       },
       "museum": {
@@ -344,7 +348,7 @@
     "soundEffectsNote": "Sonidos del telescopio, la foto de estrella y la apertura. No suenan si el teléfono está en silencio o en vibración."
   },
   "manual": {
-    "askDirect": "Preguntar directamente a SecondB",
+    "askDirect": "Preguntar directamente a HustleK",
     "replayCoachmarks": "Volver a ver la guía de inicio"
   },
   "plans": {
@@ -354,11 +358,11 @@
     "recommended": "Recomendado",
     "perMonth": "/ mes",
     "proFeat1": "Tests ilimitados · repetir y comparar",
-    "proFeat2": "Chat ilimitado con SecondB · imaginar",
+    "proFeat2": "Chat ilimitado con HustleK · imaginar",
     "proFeat3": "Exportación IDEN completa",
     "proFeat4": "Sugerencias de tendencia · revisión",
     "currentPlan": "Activo actualmente",
-    "freeFeat": "Guardado básico · 1 prueba por estrella · 5 chats SecondB/día",
+    "freeFeat": "Guardado básico · 1 prueba por estrella · 5 chats HustleK/día",
     "startPro": "Empezar un plan de pago",
     "loadingOffers": "Cargando planes...",
     "purchasing": "Procesando...",
@@ -384,7 +388,7 @@
     "photoValue": "Guardar por foto",
     "mic": "Micrófono",
     "micValue": "Guardar por voz",
-    "continue": "Continuar"
+    "continue": "Listo"
   },
   "graph": {
     "title": "Mapa de mis registros",
@@ -625,12 +629,12 @@
   },
   "careerDrilldown": {
     "summaryFallback": "una experiencia profesional",
-    "intro": "Describe tu logro con 3C para explicar por qué y 4P para explicar qué hiciste y cómo. Después, SecondB hará preguntas sobre lo que escribiste.",
+    "intro": "Describe tu logro con 3C para explicar por qué y 4P para explicar qué hiciste y cómo. Después, HustleK hará preguntas sobre lo que escribiste.",
     "summaryLabel": "Resumen en una línea",
     "summaryPlaceholder": "Qué hiciste y cuál fue el resultado - en una línea",
     "expTypeA11y": "Tipo de experiencia",
     "expTypePlaceholder": "Elige un tipo de experiencia",
-    "submit": "Seguir con preguntas de SecondB",
+    "submit": "Seguir con preguntas de HustleK",
     "saveFailed": "No se pudo guardar. Lo que escribiste sigue aquí; inténtalo de nuevo."
   },
   "shareCard": {
@@ -647,10 +651,12 @@
     "fallbackInsight": "Entenderme a fondo, vivir más como yo."
   },
   "coachmarks": {
-    "homeStep": "Toca SecondB para empezar a guardar un registro.",
+    "homeStep": "Toca Recortes para empezar un registro.",
     "formatStep": "Primero elige Nota. Una línea es suficiente.",
     "inputStep": "Escribe lo que tienes en mente. No hace falta una frase completa.",
     "saveStep": "Por último, toca Guardar para conservar este registro.",
+    "replayEndStep": "Guardar conserva el registro.",
+    "replayEndHint": "Esta segunda vuelta termina aquí, sin guardar.",
     "doneStep": "Tu registro está guardado. Vuelve a la constelación para verlo.",
     "targetHint": "Toca el control resaltado para continuar.",
     "inputHint": "Escribe al menos un carácter para continuar a Guardar.",
@@ -701,7 +707,7 @@
   "shareCardImg": {
     "eyebrowWeek": "POLASCOPE · ESTA SEMANA",
     "eyebrowConstellation": "MI CONSTELACIÓN",
-    "footerWeek": "Resumen semanal de SecondB",
+    "footerWeek": "Resumen semanal de HustleK",
     "starsLit": "{{count}} estrellas brillando",
     "signature": "PolaScope · {{count}} motas de estrella"
   },
@@ -796,17 +802,17 @@
       "freeName": "Observador de estrellas",
       "freeSub": "Recién empezando",
       "freePrice": "Gratis",
-      "freeFeat1": "5 chats al día con SecondB",
+      "freeFeat1": "5 chats al día con HustleK",
       "freeFeat2": "Buscar conexiones 2 veces por semana",
       "freeFeat3": "Las 7 estrellas · registros ilimitados",
       "plusName": "Viajero",
       "plusSub": "Un viajero constante",
-      "plusFeat1": "Chat con Meta-B",
+      "plusFeat1": "Chat con Fact-K",
       "plusFeat2": "80 chats al día",
       "plusFeat3": "Buscar conexiones 7 veces por semana",
       "proName": "Estrella Polar",
       "proSub": "Para los que profundizan",
-      "proFeat1": "Chat con Meta-B y Twi-B",
+      "proFeat1": "Chat con Fact-K y Joy-K",
       "proFeat2": "250 chats al día",
       "proFeat3": "Buscar conexiones sin límite",
       "comingSoon": "Próximamente",
@@ -910,9 +916,9 @@
     },
     "northstar": {
       "title": "Frase de la Estrella Polar",
-      "sub": "SecondB ha preparado esta frase con tus siete estrellas. Cámbiala con tus propias palabras.",
+      "sub": "HustleK ha preparado esta frase con tus siete estrellas. Cámbiala con tus propias palabras.",
       "placeholder": "Entenderme a fondo y vivir más como yo.",
-      "suggestLabel": "Borradores de SecondB",
+      "suggestLabel": "Borradores de HustleK",
       "thinking": "Preparando borradores",
       "propose": "Ver otros borradores",
       "cancel": "Cancelar",
@@ -960,7 +966,7 @@
     "reasoningScreen": {
       "autoTitle": "Conexiones automáticas",
       "autoPaused": "Límite alcanzado · se reanuda el lunes",
-      "autoBody": "SecondB busca conexiones cuando guardas un fragmento.",
+      "autoBody": "HustleK busca conexiones cuando guardas un fragmento.",
       "autoNote": "Cada búsqueda automática usa una de las búsquedas semanales. Siempre se reserva una para que la inicies tú.",
       "queuedRecord": "Registro nuevo · en cola",
       "queuedSource": "Fuente nueva · en cola",
@@ -998,7 +1004,7 @@
       "doneSummary": "Se propusieron {{n}} conexiones. Selecciona solo las que quieras aplicar.",
       "runningSummary": "Leyendo {{total}} elementos · {{done}} / {{total}}",
       "doneNote": "Solo se aplican las propuestas seleccionadas. Los elementos no seleccionados no cambian.",
-      "runningNote": "Puedes salir de esta pantalla. SecondB te avisará cuando esté listo.",
+      "runningNote": "Puedes salir de esta pantalla. HustleK te avisará cuando esté listo.",
       "weekLabel": "Razonamiento de esta semana",
       "capturedItems": "Elementos guardados",
       "selectProposals": "Seleccionar propuestas",
@@ -1042,7 +1048,7 @@
   },
   "beyond": {
     "preview": "Vista previa",
-    "title": "Fuera de la app",
+    "title": "Widgets y alertas",
     "widgetsSection": "Widgets de la pantalla de inicio",
     "todaysStar": "Estrella de hoy",
     "brightestStar": "Tu estrella más brillante",
@@ -1052,7 +1058,7 @@
     "lockSection": "Pantalla de bloqueo",
     "lockNotif": "¿Quieres dejar una línea sobre hoy?",
     "pushSection": "Notificaciones push",
-    "pushHead": "SecondB · ahora",
+    "pushHead": "HustleK · ahora",
     "pushBody": "Hay una nueva propuesta para revisar. Se aplicará a tu estrella si la apruebas.",
     "notifSettings": "Ajustes de notificaciones"
   },
@@ -1064,7 +1070,7 @@
     "pieceHere": "Guardado aquí",
     "pieceOpenHint": "Abre este registro.",
     "briefingOpening": "Abriendo esta estrella…",
-    "briefingEmpty": "Aún no hay registros en esta estrella. Guarda uno para que SecondB pueda usarlo.",
+    "briefingEmpty": "Aún no hay registros en esta estrella. Guarda uno para que HustleK pueda usarlo.",
     "briefingCountOne": "{{n}} registro en esta estrella, primero el más reciente.",
     "briefingCount": "{{n}} registros en esta estrella, primero los más recientes."
   },
@@ -1072,15 +1078,17 @@
     "nextHint": "Va a la siguiente diapositiva.",
     "skipHint": "Omite la introducción y abre la pantalla de inicio de sesión.",
     "authHint": "Abre la pantalla de inicio de sesión.",
-    "secondbName": "SecondB",
+    "secondbName": "HustleK",
     "authTitle": "¿Empezamos?",
     "authBody": "Tus registros son tuyos. Tú decides qué cambios se aplican a tu resumen.",
     "next": "Siguiente",
     "skip": "Omitir",
+    "saveFailed": "No se pudo guardar.",
+    "goHome": "Ir al inicio",
     "slides": {
       "intro": {
         "title": "Una IA que llega\na conocerte",
-        "body": "SecondB usa tus notas\npara ayudarte a ordenar tus ideas\ny planear tu día."
+        "body": "HustleK usa tus notas\npara ayudarte a ordenar tus ideas\ny planear tu día."
       },
       "stars": {
         "tag": "Conocerte",
@@ -1105,7 +1113,7 @@
   },
   "profileDetails": {
     "screenTitle": "Sobre tu vida",
-    "nameLabel": "Nombre visible",
+    "nameLabel": "Apodo",
     "nameHint": "El nombre que aparece en tu perfil. Es opcional y admite hasta 40 caracteres.",
     "nameLoading": "Cargando tu nombre…",
     "nameLoadError": "No se pudo cargar tu nombre actual. Inténtalo de nuevo.",
@@ -1121,9 +1129,9 @@
     "unset": "Sin definir",
     "occupationLabel": "A qué te dedicas",
     "occupationHint": "Estudiante, enfermera, autónomo...",
-    "regionLabel": "Dónde vives",
+    "regionLabel": "Ciudad de residencia",
     "regionHint": "Basta con la ciudad o provincia.",
-    "householdLabel": "Con quién vives",
+    "householdLabel": "Familia",
     "householdHint": "Solo, con familia, con compañero de piso...",
     "busiestSeasonLabel": "Tu época más ocupada",
     "busiestSeasonHint": "Por ejemplo: exámenes, fin de año o temporada alta de verano",
@@ -1146,7 +1154,29 @@
     "daysWeekdays": "Entre semana",
     "daysWeekends": "Fines de semana",
     "daysShift": "Por turnos",
-    "daysVaries": "Varía"
+    "daysVaries": "Varía",
+    "emailLabel": "Correo electrónico",
+    "birthDateLabel": "Fecha de nacimiento",
+    "genderLabel": "Género",
+    "genderHint": "Puedes dejarlo sin elegir.",
+    "genderFemale": "Mujer",
+    "genderMale": "Hombre",
+    "genderOther": "Otro",
+    "genderUndisclosed": "Prefiero no decirlo",
+    "nationalityLabel": "Nacionalidad",
+    "nationalityHint": "p. ej., Corea del Sur",
+    "maritalLabel": "Estado civil",
+    "maritalHint": "Puedes dejarlo sin elegir.",
+    "maritalSingle": "Soltero/a",
+    "maritalMarried": "Casado/a",
+    "maritalOther": "Otro",
+    "maritalUndisclosed": "Prefiero no decirlo",
+    "mottoLabel": "Lema personal",
+    "mottoHint": "Es mejor no incluir datos sensibles como salud, creencias o religión.",
+    "statusMessageLabel": "Mensaje de estado",
+    "statusMessageHint": "Una línea corta que se muestra en tu perfil, de hasta 60 caracteres.",
+    "statusMessageSaveError": "No se pudo guardar el mensaje de estado. Inténtalo de nuevo.",
+    "statusMessageLoadError": "No se pudo cargar el mensaje de estado."
   },
   "reviewAxisNow": "Revisar mi Big Five",
   "reviewAxisRelational": "Revisar mi estilo de apego",

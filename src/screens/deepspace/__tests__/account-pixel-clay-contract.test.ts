@@ -23,18 +23,20 @@ function read(path: string): string {
 }
 
 describe("PIXEL-CLAY /account contract", () => {
-  test("keeps the six real destinations and never revives the prototype widget route", () => {
+  // Z77 (Simon 2026-10-13): "Settings" and "My data" left this hub. Settings is where the visitor
+  // came from, and My data is a row in settings: one top-level door per place.
+  test("keeps the four real destinations and never revives the prototype widget route", () => {
     expect(ACCOUNT_DESTINATIONS.map(({ route }) => route)).toEqual([
       "/profile",
       "/change-password",
-      "/settings",
-      "/data",
       "/iden",
       "/beyond",
     ]);
 
     const source = read(SCREEN);
-    expect(source).toContain('router.push("/privacy")');
+    // 2026-10-13 (A-Z round 3, Z25): still a link to /privacy, never a delete of its own. The row
+    // now asks that screen to open at its delete card instead of its top.
+    expect(source).toContain('router.push("/privacy?section=delete")');
     expect(source).not.toMatch(/deleteAllUserData|requestAccountDeletion|signOut/);
     expect(source).not.toContain('"/widget"');
     expect(source).not.toContain("StateRow");
@@ -77,9 +79,9 @@ describe("PIXEL-CLAY /account contract", () => {
     const source = read(SCREEN);
     expect(source).toContain('accessibilityRole="link"');
     expect(source).toContain("accessibilityState={{ expanded: dobOpen }}");
-    expect(source).toContain("accessibilityState={{ expanded: exportOpen }}");
     expect(source).toContain("accessibilityState={{ busy: dobBusy }}");
-    expect(source).toContain("accessibilityState={{ busy: exporting }}");
+    // The export moved into My data (Q-261014-61); its busy state is said there.
+    expect(read(join(ROOT, "src/screens/deepspace/dds-account-export.tsx"))).toContain("accessibilityState={{ busy: exporting }}");
   });
 
   // "leaves AccountLegacy and its styles byte-for-byte unchanged" 는 2026-10-05 에
@@ -90,7 +92,8 @@ describe("PIXEL-CLAY /account contract", () => {
   // (legacy-archive-integrity.test.ts). 배송 /account 의 내보내기 계약은 바로 아래가 진다.
 
   test("delivers the same complete export through web download and native share", () => {
-    const source = read(SCREEN);
+    // The export runs in My data now (Q-261014-61); the delivery moved with it, unchanged.
+    const source = read(join(ROOT, "src/screens/deepspace/dds-account-export.tsx"));
     expect(source).toContain('Platform.OS !== "web"');
     expect(source).toContain("Share.share({ message: json, title: filename })");
     expect(source).toContain("new Blob([json]");
@@ -119,10 +122,11 @@ describe("PIXEL-CLAY /account contract", () => {
     // useScreenParams is useLocalSearchParams outside the dashboard phone and the
     // phone route's query inside it (src/lib/nav/phone-embed.tsx).
     expect(source).toContain("useScreenParams");
-    expect(source).toContain('setExportOpen(requestedTool === "export")');
+    // An old link to the export goes to My data with the export card open (Q-261014-61).
+    expect(source).toContain('if (requestedTool === "export") return <Redirect href="/data?open=account-export" />;');
     expect(source).toContain('setDobOpen(requestedTool === "dob")');
-    expect(source).toMatch(/setDobOpen\(\(open\) => !open\);\s*setExportOpen\(false\);/);
-    expect(source).toMatch(/setExportOpen\(\(open\) => !open\);\s*setDobOpen\(false\);/);
+    expect(source).toMatch(/setDobOpen\(\(open\) => !open\);/);
+    expect(source).not.toContain("setExportOpen");
     expect(source).not.toMatch(/requestedTool[\s\S]{0,180}(?:onExportData|onSaveDob)\(/);
   });
 

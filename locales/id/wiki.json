@@ -3,7 +3,7 @@
     "eyebrow": "04. Penyimpanan pengetahuan",
     "title": "Kumpulan catatan dan sumbermu",
     "subtitle": "Temukan lagi yang kamu simpan ke PolaScope",
-    "speech": "Cari catatan yang tersimpan, tambah sumber, atau tanya SecondB."
+    "speech": "Cari catatan yang tersimpan, tambah sumber, atau tanya HustleK."
   },
   "capture": "Tambah bahan",
   "export": "Buat ekspor",
@@ -74,7 +74,7 @@
   "conceptsLabel": "Konsep: ",
   "reflectionQuestions": "Pertanyaan refleksi",
   "seeInGraph": "Lihat di grafik",
-  "askSecondB": "Tanya SecondB",
+  "askSecondB": "Tanya HustleK",
   "deletePage": "Hapus halaman",
   "opened": "Membuka {{name}}",
   "kindBreakdown": "{{s}} sumber · {{e}} nama · {{c}} ide",
@@ -85,6 +85,6 @@
   "addTagFilter": "Tambah filter tag {{tag}}",
   "buildBriefFor": "Buat ringkasan sumber untuk {{title}}",
   "seeInGraphFor": "Lihat {{title}} di grafik",
-  "askAbout": "Tanya SecondB tentang {{title}}",
+  "askAbout": "Tanya HustleK tentang {{title}}",
   "deletePageFor": "Hapus halaman wiki {{title}}"
 }

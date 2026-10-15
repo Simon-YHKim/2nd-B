@@ -1,5 +1,6 @@
 import { useState, forwardRef } from "react";
-import { TextInput, type TextInputProps, StyleSheet, Platform } from "react-native";
+import { type TextInputProps, StyleSheet, Platform } from "react-native";
+import { PhoneTextInput as TextInput } from "@/components/phone/PhoneUIKit";
 
 import { keepAllPlaceholder } from "@/lib/i18n/keep-all";
 import { gameboy } from "@/lib/theme/gameboy-tokens";

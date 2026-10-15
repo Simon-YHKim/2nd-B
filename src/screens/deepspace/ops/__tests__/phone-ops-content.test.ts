@@ -86,7 +86,7 @@ test("passes the authenticated owner to the existing side-project screen", () =>
   expect(mockChildKey).toBe("owner-a");
 });
 
-test.each(["ops", "reminders", "ledger", "milestones", "meals"] as const)(
+test.each(["reminders", "ledger", "milestones", "meals"] as const)(
   "mounts the real %s domain screen in the account-keyed phone host",
   (screen) => {
     mockAuth = { userId: "owner-b", loading: false };

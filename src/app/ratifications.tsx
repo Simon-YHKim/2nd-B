@@ -1,9 +1,10 @@
+import { PhoneFlatList as FlatList, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 적용된 별 변화의 읽기 전용 원장.
 //
 // 실제 star_tier_history observation만 newest-first로 보여 준다. 이 화면에는
 // 비준/되돌리기/write가 없으며, 실패를 빈 이력으로 바꾸지 않는다.
 import { useEffect, useRef, useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 

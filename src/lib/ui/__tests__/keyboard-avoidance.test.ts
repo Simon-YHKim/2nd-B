@@ -14,8 +14,10 @@ import path from "node:path";
 
 import {
   IOS_KEYBOARD_BEHAVIOR,
+  KEYBOARD_REVEAL_MARGIN,
   keyboardAvoidanceMode,
   keyboardOverlap,
+  keyboardRevealScrollY,
   nextKeyboardPadding,
 } from "../keyboard-avoidance";
 
@@ -90,6 +92,63 @@ describe("여백 갱신 규칙", () => {
   test("이상한 측정값은 0 으로 본다", () => {
     expect(nextKeyboardPadding(232, Number.NaN, true)).toBe(0);
     expect(nextKeyboardPadding(232, -5, false)).toBe(0);
+  });
+});
+
+describe("입력칸 아래 버튼까지 키보드 위로 (2026-10-07 실기 R2A-02 후속)", () => {
+  // 실기 캡처 c4w_memo_kb.png(1440x3120, 3.5x)에서 어림한 dp. /capture 메모 모드에서 키보드가
+  // 처음 뜬 직후다. ScrollView 는 약 58dp 에서 시작해 키보드 윗변 555dp 에서 끝나고(영역이 띄운 뒤),
+  // 메모 칸 묶음(capForm)이 178dp, 담기 칸이 550dp 에서 시작한다(높이 약 52dp). 스크롤은 0 이었다 -
+  // 위쪽 메모 · 링크 · 할 일 칸이 다 보였다. 담기는 위 끝 5dp(실기 15px 안팎)만 보였다.
+  const scrollTop = 58;
+  const keyboardTop = 555;
+  const viewportHeight = keyboardTop - scrollTop;
+  const formTop = 178 - scrollTop; // 내용 좌표
+  const save = { y: 550 - scrollTop, height: 52 };
+  const memo = {
+    revealBottom: save.y + save.height + KEYBOARD_REVEAL_MARGIN,
+    keepTop: formTop,
+    viewportHeight,
+    scrollY: 0,
+  };
+
+  test("고치기 전 자리: 담기가 키보드 위로 몇 dp 만 보인다", () => {
+    const visible = keyboardTop - (scrollTop + save.y);
+    expect(visible).toBeGreaterThan(0);
+    expect(visible).toBeLessThan(save.height / 4);
+  });
+
+  test("담기 아래 끝이 키보드 위에 오도록 내리고, 메모 칸 위 끝은 화면 안에 남는다", () => {
+    const y = keyboardRevealScrollY(memo);
+    expect(y).not.toBeNull();
+    const saveBottomOnScreen = scrollTop + save.y + save.height - (y as number);
+    const formTopOnScreen = scrollTop + formTop - (y as number);
+    expect(saveBottomOnScreen).toBeLessThanOrEqual(keyboardTop - KEYBOARD_REVEAL_MARGIN);
+    expect(formTopOnScreen).toBeGreaterThanOrEqual(scrollTop);
+    // 필요한 만큼만: 한 dp 더 내리면 여유가 남는다.
+    expect(saveBottomOnScreen + 1).toBeGreaterThan(keyboardTop - KEYBOARD_REVEAL_MARGIN);
+  });
+
+  test("화면이 작아 둘 다 못 담으면 메모 칸 위 끝에서 멈춘다 - 쓰는 자리가 버튼보다 먼저다", () => {
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: 300 })).toBe(formTop);
+    // 위 끝을 모르면(아직 안 쟀으면) 제한 없이 버튼까지 내린다.
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: 300, keepTop: null })).toBe(memo.revealBottom - 300);
+  });
+
+  test("내리기만 한다 - 이미 보이거나 사용자가 더 내려 둔 자리는 그대로", () => {
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: 800 })).toBeNull();
+    expect(keyboardRevealScrollY({ ...memo, scrollY: 200 })).toBeNull();
+    // 메모 칸 위 끝이 이미 화면 위로 지나간 자리에서 끌어올리지 않는다.
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: 300, scrollY: formTop + 40 })).toBeNull();
+  });
+
+  test("값이 이상하면 움직이지 않는다", () => {
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: 0 })).toBeNull();
+    expect(keyboardRevealScrollY({ ...memo, viewportHeight: Number.NaN })).toBeNull();
+    expect(keyboardRevealScrollY({ ...memo, revealBottom: Number.POSITIVE_INFINITY })).toBeNull();
+    expect(keyboardRevealScrollY({ ...memo, scrollY: Number.NaN })).toBeNull();
+    // 위 끝 값만 이상하면 그 제한만 버린다.
+    expect(keyboardRevealScrollY({ ...memo, keepTop: Number.NaN })).toBe(keyboardRevealScrollY({ ...memo, keepTop: null }));
   });
 });
 
@@ -209,8 +268,8 @@ describe("경계 - 화면은 키보드 영역 하나로만 피한다", () => {
     const users = files.filter(
       (file) => !BOUNDARY.has(file) && /\bautomaticallyAdjustKeyboardInsets\b/.test(fs.readFileSync(path.join(ROOT, file), "utf8")),
     );
-    // 지금 쓰는 곳이 0 이 되면 이 검사는 공허해진다. 그때는 이 검사를 은퇴시킨다.
-    expect(users).toContain("src/components/deep-space/DeepSpaceViews.tsx");
+    // 마지막 사용처 CaptureView는 저장 행까지 함께 띄우도록 바뀌었다.
+    // 위의 양성/음성 fixture로 규칙을 검증하고, 새 사용처도 Android 영역을 갖추게 한다.
     expect(users.filter((file) => iosOnlyWithoutArea(fs.readFileSync(path.join(ROOT, file), "utf8")))).toEqual([]);
   });
 
@@ -234,5 +293,48 @@ describe("경계 - 화면은 키보드 영역 하나로만 피한다", () => {
     const iosBranch = helper.slice(helper.indexOf('if (mode === "ios-padding") {'), helper.indexOf('if (mode === "android-measured")'));
     expect(iosBranch).toContain("if (iosHandledByScrollView) return <View {...props} />;");
     expect(helper.indexOf("iosHandledByScrollView) return")).toBeLessThan(helper.indexOf('if (mode === "android-measured")'));
+  });
+});
+
+// R2A-02의 목적은 키보드 위에 저장 버튼을 드러내는 것이다. 2026-10-10부터 /capture는
+// 모든 방식의 버튼을 스크롤 밖에 두므로 영역 전체가 키보드를 피해야 한다.
+describe("배선 - /capture 모든 방식에서 저장 버튼이 키보드를 피한다", () => {
+  const helper = fs.readFileSync(path.join(ROOT, HELPER), "utf8").replace(/\r\n/g, "\n");
+  const views = fs.readFileSync(path.join(ROOT, "src/components/deep-space/DeepSpaceViews.tsx"), "utf8").replace(/\r\n/g, "\n");
+  const capture = views.slice(views.indexOf("export function CaptureView"), views.indexOf("// ── 세컨비 / Chat"));
+
+  test("훅은 Android 측정 갈래에서만 움직이고, 키보드가 떠 있을 때 계산대로 내린다", () => {
+    const hook = helper.slice(helper.indexOf("export function useKeyboardReveal("));
+    expect(hook.length).toBeGreaterThan(0);
+    expect(hook).toContain('keyboardAvoidanceMode(Platform.OS) === "android-measured"');
+    expect(hook).toContain("if (!enabled) return { scrollProps: {}, keepTopProps: {}, targetProps: {}, inputProps: {} };");
+    expect(hook).toContain("Keyboard.isVisible()");
+    // 멈추면 포커스 기억도 지운다 - 빠진 입력칸은 onBlur 를 못 보낼 수 있다.
+    expect(hook).toContain("if (!active) frameRef.current.focused = false;");
+    expect(hook).toContain("frame.target.y + frame.target.height + KEYBOARD_REVEAL_MARGIN");
+    expect(hook).toContain("keepTop: frame.keepTop");
+    expect(hook).toContain("viewportHeight: frame.viewport");
+    expect(hook).toContain("scrollY: frame.scrollY");
+    expect(hook).toContain("scrollRef.current?.scrollTo({ y, animated: true })");
+    // 영역이 ScrollView 를 줄인 뒤(onLayout)와 포커스 때 둘 다 계산한다.
+    expect(hook).toMatch(/onLayout: \(event\) => \{\s*frameRef\.current\.viewport = event\.nativeEvent\.layout\.height;\s*reveal\(\);/);
+    expect(hook).toMatch(/onFocus: \(\) => \{\s*frameRef\.current\.focused = true;\s*reveal\(\);/);
+  });
+
+  test("iOS와 Android 모두 입력 스크롤과 저장 행을 함께 띄운다", () => {
+    const areaStart = capture.indexOf("<KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset}>");
+    const scrollEnd = capture.indexOf("</ScrollView>");
+    const save = capture.indexOf("<View ref={saveCoachTargetRef}");
+    expect(areaStart).toBeGreaterThan(0);
+    expect(scrollEnd).toBeGreaterThan(areaStart);
+    expect(save).toBeGreaterThan(scrollEnd);
+    expect(save).toBeLessThan(capture.indexOf("</KeyboardAvoidingArea>"));
+    // iOS의 ScrollView inset만 켜면 스크롤 밖 버튼은 키보드 아래에 남는다.
+    // 이중 inset도 피한다. Android는 기존 영역의 실제 겹침 측정을 그대로 쓴다.
+    expect(capture).not.toContain("iosHandledByScrollView");
+    expect(capture).not.toContain("automaticallyAdjustKeyboardInsets");
+    // 스크롤 좌표로 바깥 버튼을 재거나 메모 위 끝까지 자동으로 내리지 않는다.
+    expect(capture).not.toContain("saveReveal");
+    expect(capture).toContain('keyboardShouldPersistTaps="handled"');
   });
 });

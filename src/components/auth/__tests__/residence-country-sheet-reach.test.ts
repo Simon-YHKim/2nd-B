@@ -28,6 +28,7 @@ import { join } from "node:path";
 import * as ts from "typescript";
 
 import { residenceCountryOptions } from "@/lib/auth/residence-country-options";
+import { phoneFlatSurface } from "@/lib/theme/phone-design";
 
 const FIELD = "src/components/auth/ResidenceCountryField.tsx";
 const SURFACE = "src/components/pixel/PixelSurface.tsx";
@@ -109,6 +110,13 @@ interface Scope {
 function resolveStyle(expr: ts.Expression, scope: Scope): Style {
   const { sf, sheet } = scope;
   if (ts.isParenthesizedExpression(expr)) return resolveStyle(expr.expression, scope);
+  // Both functions preserve geometry; phoneStyle only changes visual colors.
+  if (ts.isCallExpression(expr) && ["phoneStyle", "StyleSheet.flatten"].includes(expr.expression.getText(sf))) {
+    return resolveStyle(expr.arguments[0], scope);
+  }
+  if (ts.isBinaryExpression(expr) && expr.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
+    return resolveStyle(expr.left, scope);
+  }
   if (ts.isArrayLiteralExpression(expr)) {
     return Object.assign({}, ...expr.elements.map((e) => resolveStyle(e, scope)));
   }
@@ -148,6 +156,14 @@ const fieldScope: Scope = { sf: fieldSf, sheet: fieldSheet };
 const surfaceSf = parse(SURFACE);
 const surfaceSheet = styleSheet(surfaceSf);
 const surfaceEls = jsxElements(surfaceSf);
+const isPhoneBranch = (el: Jsx): boolean => {
+  for (let node: ts.Node | undefined = el; node; node = node.parent) {
+    if (ts.isIfStatement(node) && node.expression.getText(surfaceSf) === "phone") return true;
+  }
+  return false;
+};
+const standaloneSurfaceEls = surfaceEls.filter(el => !isPhoneBranch(el));
+const phoneSurfaceEls = surfaceEls.filter(isPhoneBranch);
 
 const one = (els: Jsx[], pred: (el: Jsx) => boolean, what: string): Jsx => {
   const hits = els.filter(pred);
@@ -163,7 +179,9 @@ const styleText = (el: Jsx, sf: ts.SourceFile): string => {
 // PixelSurface 안의 세 층. 바깥(wrap)은 호출부 style 을, 안쪽(content)은 contentStyle 을 받는다.
 const wrapEl = one(surfaceEls, (el) => /styles\.wrap/.test(styleText(el, surfaceSf)), "PixelSurface wrap");
 const faceEl = one(surfaceEls, (el) => /styles\.face\b/.test(styleText(el, surfaceSf)), "PixelSurface face");
-const contentEl = one(surfaceEls, (el) => /styles\.content\b/.test(styleText(el, surfaceSf)), "PixelSurface content");
+const contentEl = one(standaloneSurfaceEls, (el) => /styles\.content\b/.test(styleText(el, surfaceSf)), "PixelSurface content");
+const phoneWrapEl = one(phoneSurfaceEls, el => tagOf(el, surfaceSf) === "PixelRoundRect", "phone PixelSurface wrap");
+const phoneContentEl = one(phoneSurfaceEls, el => /styles\.content\b/.test(styleText(el, surfaceSf)), "phone PixelSurface content");
 
 // 시트 쪽 층.
 const dialogEl = one(
@@ -189,6 +207,21 @@ function surfaceLayers(flags: { shrink: boolean }): { wrap: Style; face: Style; 
 }
 
 describe("상한에서 목록까지 모든 층이 줄어든다 - 그래야 목록이 스크롤된다", () => {
+  test("phone stepped surfaces preserve the same complete shrinking chain", () => {
+    const scope: Scope = {
+      sf: surfaceSf, sheet: surfaceSheet, flags: { shrink: true },
+      props: {
+        style: styleOf(surfaceUse, "style", fieldScope),
+        contentStyle: styleOf(surfaceUse, "contentStyle", fieldScope),
+        phoneFlatSurface: Object.fromEntries(Object.entries(phoneFlatSurface).map(([key, value]) => [key, JSON.stringify(value)])),
+      },
+    };
+    expect({
+      wrap: canShrink(styleOf(phoneWrapEl, "style", scope)),
+      content: canShrink(styleOf(phoneContentEl, "style", scope)),
+      list: canShrink(styleOf(listEl, "style", fieldScope)),
+    }).toEqual({ wrap: true, content: true, list: true });
+  });
   test("상한은 dialog 의 maxHeight 하나다", () => {
     expect(styleOf(dialogEl, "style", fieldScope).maxHeight).toBeDefined();
   });

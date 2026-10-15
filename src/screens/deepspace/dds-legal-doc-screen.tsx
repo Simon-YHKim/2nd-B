@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // dds-legal-doc-screen: renders a legal document snapshot (terms / refund) on
 // the auth shell (U4 -- the app previously had NO legal-document render
 // pattern; /privacy is a settings screen). Lives behind (auth)-group routes so
@@ -5,7 +6,7 @@
 // draft badge while the body still carries [기입] placeholders -- the screen
 // must not present an unfinished document as final (legal honesty).
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -15,6 +16,7 @@ import { colors, spacing } from "@/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { SegBtn } from "@/components/m3/SegBtn";
 import { Text } from "@/components/ui/Text";
+import { GuardianSupervisionNotice } from "@/components/consent/GuardianSupervisionNotice";
 import { AuthShell } from "./dds-auth-screens";
 import { ddsStyles as styles } from "./dds-styles";
 import {
@@ -31,8 +33,10 @@ import { useAppRouter, useHardwareBack, usePhoneEmbed } from "@/lib/nav/phone-em
 export function DeepSpaceLegalDocScreen({
   doc,
   crossLinks,
+  showGuardianSupervisionNotice = false,
 }: {
   doc: LegalDoc;
+  showGuardianSupervisionNotice?: boolean;
   /** Optional sibling document links (terms / refund / privacy policy). */
   crossLinks?: Array<{ href: "/terms" | "/refund" | "/privacy-policy"; label: string }>;
 }) {
@@ -78,88 +82,99 @@ export function DeepSpaceLegalDocScreen({
   );
 
   return (
-    <AuthShell>
-      <View style={styles.titleRow}>
+    <AuthShell head={
+      <View style={[styles.titleRow, local.head]}>
         <Pressable
           onPress={requestBack}
           hitSlop={12}
           style={local.backTarget}
           accessibilityRole="button"
-          accessibilityLabel={t("common:navGraph.drilldown.back")}
+          accessibilityLabel={t("common:actions.back")}
         >
           <RNText style={styles.back}>‹</RNText>
         </Pressable>
         <Text variant="heading" style={[styles.title, local.title]} accessibilityRole="header">
           {doc.title}
         </Text>
-      </View>
+      </View>}
+    >
+      <View style={local.column}>
+        {meta ? (
+          <Text variant="caption" style={local.meta}>{meta}</Text>
+        ) : null}
 
-      {meta ? (
-        <Text variant="caption" style={local.meta}>{meta}</Text>
-      ) : null}
+        {showGuardianSupervisionNotice ? <GuardianSupervisionNotice /> : null}
 
-      {languageSections ? (
-        <SegBtn
-          segments={[
-            { key: "ko", label: t("common:locale.ko") },
-            { key: "en", label: t("common:locale.en") },
-          ]}
-          selected={[documentLanguage]}
-          onSelect={(key) => setDocumentLanguage(key === "en" ? "en" : "ko")}
-        />
-      ) : null}
+        {languageSections ? (
+          <SegBtn
+            segments={[
+              { key: "ko", label: t("common:locale.ko") },
+              { key: "en", label: t("common:locale.en") },
+            ]}
+            selected={[documentLanguage]}
+            onSelect={(key) => setDocumentLanguage(key === "en" ? "en" : "ko")}
+          />
+        ) : null}
 
-      {isDraft(doc) ? (
-        <View style={local.draftBadge} accessibilityRole="text">
-          <Text variant="caption" style={local.draftBadgeText}>{doc.draftBadge}</Text>
+        {isDraft(doc) ? (
+          <View style={local.draftBadge} accessibilityRole="text">
+            <Text variant="caption" style={local.draftBadgeText}>{doc.draftBadge}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.card}>
+          {visibleBlocks.map((b, i) => {
+            switch (b.type) {
+              case "h1":
+                return (
+                  <Text key={i} variant="heading" style={local.h1} accessibilityRole="header">{b.text}</Text>
+                );
+              case "h2":
+                return (
+                  <Text key={i} variant="heading" style={local.h2} accessibilityRole="header">{b.text}</Text>
+                );
+              case "h3":
+                return (
+                  <Text key={i} variant="heading" style={local.h3} accessibilityRole="header">{b.text}</Text>
+                );
+              case "li":
+                return (
+                  <Text key={i} variant="body" style={local.body}>{"·  "}{b.text}</Text>
+                );
+              case "rule":
+                return <View key={i} style={styles.consentDivider} />;
+              default:
+                return (
+                  <Text key={i} variant="body" style={local.body}>{b.text}</Text>
+                );
+            }
+          })}
         </View>
-      ) : null}
 
-      <View style={styles.card}>
-        {visibleBlocks.map((b, i) => {
-          switch (b.type) {
-            case "h1":
-              return (
-                <Text key={i} variant="heading" style={local.h1} accessibilityRole="header">{b.text}</Text>
-              );
-            case "h2":
-              return (
-                <Text key={i} variant="heading" style={local.h2} accessibilityRole="header">{b.text}</Text>
-              );
-            case "h3":
-              return (
-                <Text key={i} variant="heading" style={local.h3} accessibilityRole="header">{b.text}</Text>
-              );
-            case "li":
-              return (
-                <Text key={i} variant="body" style={local.body}>{"·  "}{b.text}</Text>
-              );
-            case "rule":
-              return <View key={i} style={styles.consentDivider} />;
-            default:
-              return (
-                <Text key={i} variant="body" style={local.body}>{b.text}</Text>
-              );
-          }
-        })}
+        {(crossLinks ?? []).map((link) => (
+          <Pressable
+            key={link.href}
+            style={styles.authLinkRow}
+            onPress={() => router.push(link.href)}
+            accessibilityRole="link"
+            accessibilityLabel={link.label}
+          >
+            <Text variant="body" style={styles.link}>{link.label}</Text>
+          </Pressable>
+        ))}
       </View>
-
-      {(crossLinks ?? []).map((link) => (
-        <Pressable
-          key={link.href}
-          style={styles.authLinkRow}
-          onPress={() => router.push(link.href)}
-          accessibilityRole="link"
-          accessibilityLabel={link.label}
-        >
-          <Text variant="body" style={styles.link}>{link.label}</Text>
-        </Pressable>
-      ))}
     </AuthShell>
   );
 }
 
+// Z120: on a wide screen a line of the document ran to 1,240 px. The body keeps a reading
+// column (about sixty Korean characters at this size) and sits in the middle; a phone is
+// narrower than the column, so nothing changes there. The head keeps the full width.
+const LEGAL_COLUMN_MAX = 720;
+
 const local = StyleSheet.create({
+  // The column takes over the scroll surface's gap between its children (ddsStyles.scroll).
+  column: { width: "100%", maxWidth: LEGAL_COLUMN_MAX, alignSelf: "center", gap: spacing.md },
   // The floating chip this screen replaces was a 44x44 target; the in-content
   // chevron must not shrink below it (hitSlop stays as extra margin on top).
   backTarget: {
@@ -172,6 +187,8 @@ const local = StyleSheet.create({
   // shrink by default, so a long title ("Refund Policy" at 18) ran past the right
   // edge on Android. Let it shrink and wrap inside the row instead.
   title: { flexShrink: 1 },
+  // The title row sits in the shell's non-scroll head, so it brings the scroll surface's gutter with it.
+  head: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   draftBadge: {
     alignSelf: "flex-start",
     borderWidth: 1,

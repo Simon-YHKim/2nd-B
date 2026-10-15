@@ -1,11 +1,15 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // The 6 Ops/assistant domain screens (Claude Design ops-assistant.dc.html).
 // Each assembles the shared kit (components/deepspace/ops) and renders/operates
 // the already-built backing data libs. deepSpace.* tokens only, no auto-execution
 // (every write is behind a user tap). Strings come from the bilingual ops copy.
 
 import { useEffect, useMemo, useRef, useState, type DependencyList } from "react";
-import { Linking, Modal, Pressable, Share, StyleSheet, TextInput, View } from "react-native";
+import { Linking, Platform, Share, StyleSheet } from "react-native";
+import { PhonePressable as Pressable, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { ChatRemindersList } from "@/components/secondb/ChatRemindersList";
 import { PlainText as RNText } from "@/components/ui/PlainText";
+import { PixelDither } from "@/components/pixel/PixelDither";
 
 import { router } from "expo-router";
 
@@ -15,6 +19,9 @@ import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { phoneStyleSheet } from "@/lib/theme/phone-design";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useTranslation } from "react-i18next";
 import { systemLocaleFor } from "@/lib/i18n/locales";
@@ -25,6 +32,7 @@ import {
   OpsDomainPicker,
   OpsFrame,
   OpsPushSheet,
+  OpsPhoneSwitch,
   OpsRecommendationCard,
   OpsState,
   OpsStatusChip,
@@ -48,6 +56,7 @@ import {
   addToShelf,
   listShelf,
   manualBook,
+  pageCountEdit,
   parsePageDraft,
   readingProgress,
   removeFromShelf,
@@ -65,7 +74,7 @@ import {
   updateMilestone,
   type Milestone,
 } from "@/lib/ops/milestones";
-import { createLedgerEntry, deleteLedgerEntry, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
+import { createLedgerEntry, deleteLedgerEntry, ledgerAmountEdit, listEntriesForMonth, localDayKey, MAX_LEDGER_KRW, monthBucket, parseLedgerAmount, summarizeMonth } from "@/lib/finance/ledger";
 import { fetchPushActivity, summarizeGithubActivity, type PushActivity } from "@/lib/projects/github";
 import { searchFoods, type FoodNutrition } from "@/lib/nutrition/foods";
 import {
@@ -85,6 +94,7 @@ import {
   enableReminder,
   getReminderStates,
   getScheduledRoutineIds,
+  sweepResidualReminderNotifications,
   remindersSupported,
 } from "@/lib/ops/reminders";
 import { getGithubUsername, setGithubUsername } from "@/lib/projects/github-link";
@@ -99,6 +109,8 @@ import {
   editorAfterDelete,
   mealClearArmKey,
   mealSaveAction,
+  mealSheetAfterWrite,
+  mealSheetDismiss,
   mealWriteLock,
   MILESTONE_NEXT,
   milestoneChip,
@@ -217,6 +229,7 @@ function buildCommitHeatmap(
 // the list is still there and still valid, only the thing the user just did did not
 // happen. So this sits inline, above the list, and does not take the data away.
 function SaveErrorBanner({ text }: { text: string }) {
+  const styles = useOpsScreenStyles();
   return (
     <View style={styles.saveErrBanner}>
       <Text variant="caption" style={styles.saveErrText} accessibilityRole="alert" accessibilityLiveRegion="polite">
@@ -403,6 +416,7 @@ export function OpsHomeScreen() {
 // --- (2) Reading · books -----------------------------------------------
 
 export function ReadingScreen() {
+  const styles = useOpsScreenStyles();
   const c = useOpsCopy();
   const { t } = useTranslation("ops");
   const { userId } = useAuth();
@@ -416,11 +430,14 @@ export function ReadingScreen() {
   // different answers. The old catch set the results to [] and the screen fell onto
   // the assistant's "No suggestions yet" card, so a refused search looked like nothing.
   const [search, setSearch] = useState<BookSearchView>({ kind: "idle" });
+  const [manual, setManual] = useState<BookResult | null>(null);
   const searchSeq = useRef(0);
   // R2C-08: the "0 / 200" under NOW READING could not be changed.
   // `session` is new on every opening of the editor (gate BL-09): a save closes only the
   // opening it started from, never one opened after it.
-  const [pageEdit, setPageEdit] = useState<{ session: number; id: string; cur: string; total: string } | null>(null);
+  const [pageEdit, setPageEdit] = useState<{
+    session: number; id: string; cur: string; total: string; curOverflow: boolean; totalOverflow: boolean;
+  } | null>(null);
   const pageEditSeq = useRef(0);
   const [pageErr, setPageErr] = useState(false);
   // One page-count save per book at a time (gate BL-09), under the book's shared lock
@@ -440,13 +457,23 @@ export function ReadingScreen() {
     const trimmed = query.trim();
     if (trimmed.length === 0) return;
     const seq = ++searchSeq.current;
+    setManual(null);
     setSearch({ kind: "searching", q: trimmed });
+    let next: BookSearchView;
     try {
       const items = await searchBooks(trimmed);
-      if (seq === searchSeq.current) setSearch(bookSearchSettled(trimmed, items));
+      next = bookSearchSettled(trimmed, items);
     } catch (e) {
-      if (seq === searchSeq.current) setSearch(bookSearchFailed(trimmed, e));
+      next = bookSearchFailed(trimmed, e);
     }
+    if (seq !== searchSeq.current) return;
+    try {
+      const book = next.kind === "none" || next.kind === "failed" ? await manualBook(trimmed) : null;
+      if (seq === searchSeq.current) setManual(book);
+    } catch (e) {
+      next = bookSearchFailed(trimmed, e);
+    }
+    if (seq === searchSeq.current) setSearch(next);
   };
   const onAdd = async (b: BookResult) => {
     if (!userId || busy) return;
@@ -498,7 +525,7 @@ export function ReadingScreen() {
     if (!userId || !pageEdit || pageSaving) return;
     const edit = pageEdit;
     const pages = parsePageDraft(edit.cur, edit.total);
-    if (!pages) {
+    if (!pages || edit.curOverflow || edit.totalOverflow) {
       setPageErr(true);
       return;
     }
@@ -518,8 +545,6 @@ export function ReadingScreen() {
       shelf.reload();
     } else setSaveErr(true);
   };
-
-  const manual = search.kind === "none" || search.kind === "failed" ? manualBook(search.q) : null;
 
   return (
     <OpsFrame title={c.myShelf} bubble={c.whatReading} tip={c.add}>
@@ -545,12 +570,12 @@ export function ReadingScreen() {
           {search.items.map((b) =>
             onShelf.has(b.id) ? (
               <View key={b.id} style={styles.bookRow}>
-                <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
                 <Text variant="caption" style={styles.bookOnShelf}>{t("toolScreens.reading.onShelf")}</Text>
               </View>
             ) : (
               <Pressable key={b.id} accessibilityRole="button" onPress={() => void onAdd(b)} disabled={busy} hitSlop={6} style={styles.bookRow}>
-                <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
                 <Text variant="caption" style={styles.bookAdd}>＋ {c.add}</Text>
               </Pressable>
             ),
@@ -574,12 +599,12 @@ export function ReadingScreen() {
           {manual ? (
             onShelf.has(manual.id) ? (
               <View style={styles.bookRow}>
-                <Text variant="body" style={styles.bookTitle}>{manual.title}</Text>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{manual.title}</Text>
                 <Text variant="caption" style={styles.bookOnShelf}>{t("toolScreens.reading.onShelf")}</Text>
               </View>
             ) : (
               <Pressable accessibilityRole="button" onPress={() => void onAdd(manual)} disabled={busy} hitSlop={6} style={styles.bookRow}>
-                <Text variant="body" style={styles.bookTitle}>
+                <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">
                   {t("toolScreens.reading.addByTitle", { title: manual.title })}
                 </Text>
                 <Text variant="caption" style={styles.bookAdd}>＋ {c.add}</Text>
@@ -612,13 +637,16 @@ export function ReadingScreen() {
                     editable={!pageSaving}
                     onChangeText={(v) => {
                       if (pageSaving) return;
-                      setPageEdit((p) => (p ? { ...p, cur: v } : p));
+                      setPageEdit((p) => {
+                        if (!p) return p;
+                        const edit = pageCountEdit(p.cur, v);
+                        return { ...p, cur: edit.text, curOverflow: edit.overflow };
+                      });
                     }}
                     placeholder={t("toolScreens.reading.currentPage")}
                     placeholderTextColor={deepSpace.textLo}
                     style={styles.searchInput}
                     keyboardType="number-pad"
-                    maxLength={6}
                     returnKeyType="done"
                     onSubmitEditing={() => {
                       if (!pageSaving) void onSavePages();
@@ -632,13 +660,16 @@ export function ReadingScreen() {
                     editable={!pageSaving}
                     onChangeText={(v) => {
                       if (pageSaving) return;
-                      setPageEdit((p) => (p ? { ...p, total: v } : p));
+                      setPageEdit((p) => {
+                        if (!p) return p;
+                        const edit = pageCountEdit(p.total, v);
+                        return { ...p, total: edit.text, totalOverflow: edit.overflow };
+                      });
                     }}
                     placeholder={t("toolScreens.reading.totalPages")}
                     placeholderTextColor={deepSpace.textLo}
                     style={styles.searchInput}
                     keyboardType="number-pad"
-                    maxLength={6}
                     returnKeyType="done"
                     onSubmitEditing={() => {
                       if (!pageSaving) void onSavePages();
@@ -647,7 +678,7 @@ export function ReadingScreen() {
                     accessibilityState={{ disabled: pageSaving }}
                   />
                 </View>
-                {pageErr ? (
+                {pageErr || pageEdit.curOverflow || pageEdit.totalOverflow ? (
                   <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
                     {t("toolScreens.reading.pagesInvalid")}
                   </Text>
@@ -689,6 +720,8 @@ export function ReadingScreen() {
                     id: reading.id,
                     cur: String(reading.current_page),
                     total: reading.total_pages ? String(reading.total_pages) : "",
+                    curOverflow: false,
+                    totalOverflow: false,
                   });
                 }}
                 hitSlop={6}
@@ -723,7 +756,7 @@ export function ReadingScreen() {
               <Text variant="caption" pixelEn style={styles.pixelLabel}>{t("toolScreens.reading.alsoReading")}</Text>
               {view.alsoReading.map((b) => (
                 <View key={b.id} style={styles.bookRow}>
-                  <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                  <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
                   <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "done")} hitSlop={8}>
                     <OpsStatusChip tone="muted" label={c.finishedReading} />
                   </Pressable>
@@ -737,7 +770,7 @@ export function ReadingScreen() {
               <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.wantToRead}</Text>
               {view.want.map((b) => (
                 <View key={b.id} style={styles.bookRow}>
-                  <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+                  <Text variant="body" style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
                   <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
                     <OpsStatusChip tone="positive" label={c.startReading} />
                   </Pressable>
@@ -752,7 +785,7 @@ export function ReadingScreen() {
               <Text variant="caption" pixelEn style={styles.pixelLabel}>{t("toolScreens.reading.finished")}</Text>
               {view.done.map((b) => (
                 <View key={b.id} style={styles.bookRow}>
-                  <Text variant="body" style={styles.bookDone}>{b.title}</Text>
+                  <Text variant="body" style={styles.bookDone} numberOfLines={2} ellipsizeMode="tail">{b.title}</Text>
                   <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
                     <OpsStatusChip tone="info" label={t("toolScreens.reading.readAgain")} />
                   </Pressable>
@@ -772,6 +805,7 @@ export function ReadingScreen() {
 const MILESTONE_DOMAINS: OpsDomainId[] = ["learning_goals", "career_check"];
 
 export function MilestonesScreen() {
+  const styles = useOpsScreenStyles();
   const c = useOpsCopy();
   const { t } = useTranslation("ops");
   const { userId } = useAuth();
@@ -1014,6 +1048,7 @@ export function MilestonesScreen() {
 // --- (4) Ledger · money ------------------------------------------------
 
 export function LedgerScreen() {
+  const styles = useOpsScreenStyles();
   const c = useOpsCopy();
   const { userId } = useAuth();
   // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
@@ -1049,6 +1084,10 @@ export function LedgerScreen() {
   // deleteLedgerEntry exists); only the UI was missing.
   const [kind, setKind] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
+  // Gate OPSFIX-A1-04: the last edit of the amount was too long and was not taken
+  // (ledgerAmountEdit). The field keeps what it had; this keeps the add button off and the
+  // format hint up until the next edit the field takes.
+  const [amountOverflow, setAmountOverflow] = useState(false);
   const [category, setCategory] = useState("");
   // Booking day. createLedgerEntry always accepted occurred_on and only fell back
   // to today, but the form never sent one -- so yesterday's coffee could not be
@@ -1063,7 +1102,11 @@ export function LedgerScreen() {
   const amountParsed = parseLedgerAmount(amount);
   const amountNum = amountParsed.kind === "ok" ? amountParsed.value : 0;
   const amountTooLarge = amountParsed.kind === "tooLarge";
-  const canAdd = !busy && amountParsed.kind === "ok";
+  // Gate S-02 (2026-10-07): "-500", "1e3" and "12.34" used to be saved as 500, 13 and 1234.
+  // Text that is not whole won is now refused, and the field says what it takes. So is an
+  // edit too long to take (gate OPSFIX-A1-04).
+  const amountInvalid = amountOverflow || amountParsed.kind === "invalid";
+  const canAdd = !busy && amountParsed.kind === "ok" && !amountOverflow;
 
   const onAddEntry = async () => {
     if (!userId || !canAdd) return;
@@ -1076,7 +1119,12 @@ export function LedgerScreen() {
         amount_krw: amountNum,
         category: category.trim() || (ko ? "기타" : "Other"),
       });
+      // Gate OPSFIX-A3-02 (2026-10-07): the field stays editable while the add runs, so an
+      // edit refused as too long (amountOverflow) can come in meanwhile. Emptying the field
+      // here does not go through onChangeText, so the refusal is cleared with it; otherwise
+      // the format hint stayed up under an empty field.
       setAmount("");
+      setAmountOverflow(false);
       setCategory("");
       setOccurredOn(localDayKey());
       entries.reload();
@@ -1159,10 +1207,18 @@ export function LedgerScreen() {
         <View style={styles.searchRow}>
           {/* No maxLength here: it counts separators too, so 13 cut a pasted
               "1,000,000,000,000" to "1,000,000,000" and saved 1,000x less (gate S-01 /
-              BL-01). parseLedgerAmount reads the whole string and is the only ceiling. */}
+              BL-01). parseLedgerAmount reads the whole string and is the only ceiling.
+              Gate S3-02 / OPSFIX-A1-04: a huge paste is not held at all, and never held cut
+              short either. An edit longer than the parser reads is not taken (ledgerAmountEdit):
+              the field keeps what it had and says so, so no prefix of a paste can become an
+              amount after a later edit. */}
           <TextInput
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={(v) => {
+              const edit = ledgerAmountEdit(amount, v);
+              setAmount(edit.text);
+              setAmountOverflow(edit.overflow);
+            }}
             placeholder={c.amountPlaceholder}
             placeholderTextColor={deepSpace.textLo}
             style={[styles.searchInput, styles.amountInput]}
@@ -1192,6 +1248,10 @@ export function LedgerScreen() {
         {amountTooLarge ? (
           <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
             {t("toolScreens.ledger.amountTooLarge", { max: MAX_LEDGER_KRW.toLocaleString() })}
+          </Text>
+        ) : amountInvalid ? (
+          <Text variant="caption" style={styles.fieldErr} accessibilityLiveRegion="polite">
+            {t("toolScreens.ledger.amountInvalid")}
           </Text>
         ) : null}
       </View>
@@ -1272,6 +1332,7 @@ export function LedgerScreen() {
 // --- (5) Side project · github -----------------------------------------
 
 export function SideProjectScreen({ userId }: { userId: string }) {
+  const styles = useOpsScreenStyles();
   type GithubError = "rate" | "storage-read" | "storage-write" | null;
 
   const c = useOpsCopy();
@@ -1392,7 +1453,7 @@ export function SideProjectScreen({ userId }: { userId: string }) {
           {summary.repos.map((repo) => (
             <View key={repo} style={styles.repoRow}>
               <View style={[styles.dotSm, { backgroundColor: deepSpace.soul }]} />
-              <Text variant="heading" style={styles.repoName}>{repo}</Text>
+              <Text variant="heading" style={styles.repoName} numberOfLines={2} ellipsizeMode="tail">{repo}</Text>
             </View>
           ))}
         </>
@@ -1412,17 +1473,24 @@ const MEAL_DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const
 const MEAL_IDEA_KEYS = ["i1", "i2", "i3", "i4", "i5", "i6"] as const;
 
 type FoodLookup = { kind: "idle" } | { kind: "busy" } | { kind: "done"; items: FoodNutrition[] } | { kind: "failed" };
-/** Session cache for food lookups, so reopening a cell never spends quota twice. */
+/** Bounded session cache of successful food lookups, including genuine zero matches. */
 const FOOD_LOOKUP_CACHE = new Map<string, FoodNutrition[]>();
 const FOOD_LOOKUP_CACHE_MAX = 30;
 
+/** One opening of the meal sheet: the cell, the stored meal, the opening's own session, and
+ *  whether its last write failed (gate S3-01). */
+type MealSheet = { session: number; date: string; slot: MealSlot; day: string; current: string | null; failed: boolean };
+
 export function MealsScreen() {
+  const styles = useOpsScreenStyles();
+  const phone = usePhoneDesign();
   const c = useOpsCopy();
   const { userId } = useAuth();
-  // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
-  // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
-  // just silently did nothing.
-  const [saveErr, setSaveErr] = useState(false);
+  // A failed WRITE. The empty catches here used to claim it was "surfaced on reload", but
+  // reload() sat INSIDE the try, so on the failure path it never ran and the tap silently
+  // did nothing. Gate S3-01 (2026-10-07, simplified the same day): there is no screen-wide
+  // flag for it either. The failure belongs to the open sheet (`pending.failed`): the sheet
+  // stays open with the draft and says so, and closing the sheet drops both.
   const { t, i18n } = useTranslation("ops");
   const ko = i18n.language?.toLowerCase().startsWith("ko");
   const dayLabels = MEAL_DAY_KEYS.map((k) => t(`toolScreens.meals.days.${k}`));
@@ -1433,7 +1501,7 @@ export function MealsScreen() {
   // (R2C-15) and so emptying a filled cell clears it instead of keeping it (R2C-07).
   // `session` is new on every open (gate BL-02 / BL-03): an armed clear and a late write
   // belong to the opening they started in, never to a later one.
-  const [pending, setPending] = useState<{ session: number; date: string; slot: MealSlot; day: string; current: string | null } | null>(null);
+  const [pending, setPending] = useState<MealSheet | null>(null);
   const sheetSeq = useRef(0);
   // One meal write per cell at a time (gate BL-03): save and clear take the cell's lock
   // (mealWriteLock), so a clear can no longer race an earlier save whose UPSERT lands after
@@ -1444,6 +1512,13 @@ export function MealsScreen() {
   const mealWriting = mealWrites > 0;
   const [draft, setDraft] = useState("");
   const [lookup, setLookup] = useState<FoodLookup>({ kind: "idle" });
+  // BL-04: every query edit, sheet transition and new lookup retires older responses.
+  const lookupSeq = useRef(0);
+  const resetLookup = () => {
+    lookupSeq.current += 1;
+    setLookup({ kind: "idle" });
+  };
+  useEffect(() => () => { lookupSeq.current += 1; }, []);
 
   const week = useAsync<MealEntry[]>(
     () => (userId ? listWeek(userId, weekStart) : Promise.resolve([])),
@@ -1462,17 +1537,23 @@ export function MealsScreen() {
   // Opening a cell now makes no request; the chips are a fixed idea list, and the food
   // DB is asked only when the user taps "look up" for what they typed.
   const openCell = (date: string, slot: MealSlot, current: MealEntry | null, day: string) => {
+    // Gate S3-01: nothing opens while a meal write runs (its sheet cannot close meanwhile).
+    if (mealWriting) return;
     sheetSeq.current += 1;
-    setPending({ session: sheetSeq.current, date, slot, day, current: current?.title ?? null });
+    // Every opening starts from the stored meal, with no failure: nothing of an earlier
+    // opening's failed write is kept or handed back (gate S3-01, simplified 2026-10-07).
+    setPending({ session: sheetSeq.current, date, slot, day, current: current?.title ?? null, failed: false });
     setDraft(current?.title ?? "");
-    setLookup({ kind: "idle" });
+    resetLookup();
   };
 
   // The food DB (MFDS) is searched by its Korean food name (FOOD_NM_KR), so the lookup
   // is offered on the Korean screen only. Answers are kept for the session.
   const onLookUp = async () => {
+    if (!pending || mealWriting) return;
     const query = draft.trim();
     if (!ko || query.length === 0) return;
+    const seq = ++lookupSeq.current;
     const cached = FOOD_LOOKUP_CACHE.get(query);
     if (cached) {
       setLookup({ kind: "done", items: cached });
@@ -1481,6 +1562,7 @@ export function MealsScreen() {
     setLookup({ kind: "busy" });
     try {
       const items = await searchFoods(query);
+      if (seq !== lookupSeq.current) return;
       if (FOOD_LOOKUP_CACHE.size >= FOOD_LOOKUP_CACHE_MAX) {
         const oldest = FOOD_LOOKUP_CACHE.keys().next().value;
         if (oldest !== undefined) FOOD_LOOKUP_CACHE.delete(oldest);
@@ -1488,18 +1570,21 @@ export function MealsScreen() {
       FOOD_LOOKUP_CACHE.set(query, items);
       setLookup({ kind: "done", items });
     } catch {
-      setLookup({ kind: "failed" });
+      if (seq === lookupSeq.current) setLookup({ kind: "failed" });
     }
   };
 
   // Save and clear both go through here (gate BL-03): one write per cell at a time under
   // the cell's shared lock, and the sheet is off while it runs. A write asked for meanwhile
-  // is refused, not raced. When it settles, only the sheet it started from closes.
-  const writeMeal = async (sheet: NonNullable<typeof pending>, write: () => Promise<unknown>) => {
+  // is refused, not raced. Gate S3-01 (simplified 2026-10-07): the sheet cannot be closed
+  // while this runs (closeSheet). Only a write that landed reloads the week and closes the
+  // sheet; a failed one leaves the sheet open with its draft and marks it failed, so the
+  // sheet says so (mealSheetAfterWrite).
+  const writeMeal = async (sheet: MealSheet, write: () => Promise<unknown>) => {
     if (!userId) return;
     const outcome = await runExclusive(mealWriteLock(userId, sheet.date, sheet.slot), async () => {
+      resetLookup();
       setMealWrites((n) => n + 1);
-      setSaveErr(false);
       try {
         await write();
       } finally {
@@ -1507,20 +1592,21 @@ export function MealsScreen() {
       }
     });
     if (outcome === "busy") return;
-    // A failed write says so (it used to be swallowed, with reload() never reached).
     if (outcome === "done") week.reload();
-    else setSaveErr(true);
-    setPending((open) => sheetAfterWrite(open, sheet.session));
+    // A failed write says so (it used to be swallowed, with reload() never reached).
+    setPending((open) => mealSheetAfterWrite(open, sheet.session, outcome));
   };
 
   const saveCell = async () => {
     if (!userId || !pending) {
+      resetLookup();
       setPending(null);
       return;
     }
     // R2C-07: an emptied draft used to just close the sheet, so the old meal stayed.
     const action = mealSaveAction(draft, pending.current);
     if (action === "close") {
+      resetLookup();
       setPending(null);
       return;
     }
@@ -1536,9 +1622,30 @@ export function MealsScreen() {
   const clearArm = useTwoTapDelete((key) => {
     if (!userId || !pending || mealClearArmKey(pending) !== key) return;
     const sheet = pending;
-    void writeMeal(sheet, () => clearMeal(userId, sheet.date, sheet.slot));
+    // Gate OPSFIX-A3-01 (2026-10-07): a failed clear left the stored meal in the input, so the
+    // save button compared it with the stored meal, wrote nothing and closed the sheet: the
+    // clear was never tried again. The confirmed clear is now the empty draft's write. Once it
+    // holds the cell's lock it empties the input, so a failed clear leaves the sheet open on an
+    // empty draft and the same save button clears again (mealSaveAction). A clear refused as
+    // busy never gets here and changes nothing.
+    void writeMeal(sheet, () => {
+      setDraft("");
+      return clearMeal(userId, sheet.date, sheet.slot);
+    });
   });
   const clearArmed = pending !== null && clearArm.armedId === mealClearArmKey(pending);
+
+  // Gate S3-01 (simplified 2026-10-07): the backdrop and the hardware back (Escape on the web)
+  // close the sheet here, and do nothing while its write runs (mealSheetDismiss). Closing is
+  // the user's own choice to drop the draft: the failure line goes with it, and the next
+  // opening starts from the stored meal. To try again, the same save button saves the draft
+  // as it stands then.
+  const closeSheet = () => {
+    if (!mealWriting) resetLookup();
+    setPending((open) => mealSheetDismiss(open, mealWriting));
+  };
+  // The sheet's failure line, hidden while a write runs.
+  const sheetFailed = pending !== null && pending.failed && !mealWriting;
 
   // Food names can repeat in the DB answer; a chip list keyed by name must not.
   const ideaChips: string[] =
@@ -1548,7 +1655,6 @@ export function MealsScreen() {
 
   return (
     <OpsFrame title={c.weeklyMeals} bubble={c.weeklyMeals} tip={c.whatToEatNow}>
-      {saveErr ? <SaveErrorBanner text={c.saveFailed} /> : null}
       <View style={styles.weekNav}>
         <Pressable onPress={() => shiftWeek(-7)} hitSlop={10} style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={c.prevWeek}>
           <RNText style={styles.weekArrowText}>‹</RNText>
@@ -1595,8 +1701,10 @@ export function MealsScreen() {
       </View>
       <Text variant="subtle" style={styles.footNote}>{c.nutritionNote}</Text>
 
-      <Modal visible={pending !== null} transparent animationType="slide" onRequestClose={() => setPending(null)}>
-        <Pressable style={styles.mealBackdrop} onPress={() => setPending(null)} />
+      <Modal visible={pending !== null} transparent animationType="slide" onRequestClose={closeSheet}>
+        <Pressable style={styles.mealBackdrop} onPress={closeSheet} disabled={mealWriting}>
+          {phone ? <PixelDither density={50} /> : null}
+        </Pressable>
         <View style={styles.mealSheet}>
           <View style={styles.sheetGrip} />
           <Text variant="heading" style={styles.mealSheetTitle}>{c.planMeal}</Text>
@@ -1616,7 +1724,7 @@ export function MealsScreen() {
               onChangeText={(v) => {
                 if (mealWriting) return;
                 setDraft(v);
-                if (lookup.kind !== "idle") setLookup({ kind: "idle" });
+                resetLookup();
               }}
               placeholder={t("toolScreens.meals.placeholder")}
               placeholderTextColor={deepSpace.textLo}
@@ -1629,7 +1737,7 @@ export function MealsScreen() {
               accessibilityState={{ disabled: mealWriting }}
             />
             {ko && draft.trim().length > 0 ? (
-              <Pressable accessibilityRole="button" onPress={() => void onLookUp()} disabled={lookup.kind === "busy"} hitSlop={6} style={styles.ideaChip}>
+              <Pressable accessibilityRole="button" onPress={() => void onLookUp()} disabled={mealWriting || lookup.kind === "busy"} hitSlop={6} style={styles.ideaChip}>
                 <Text variant="body" style={styles.ideaChipText}>{t("toolScreens.meals.lookUp")}</Text>
               </Pressable>
             ) : null}
@@ -1643,7 +1751,9 @@ export function MealsScreen() {
                 accessibilityState={{ disabled: mealWriting }}
                 disabled={mealWriting}
                 onPress={() => {
-                  if (!mealWriting) setDraft(name);
+                  if (mealWriting) return;
+                  setDraft(name);
+                  resetLookup();
                 }}
                 hitSlop={4}
                 style={styles.ideaChip}
@@ -1656,6 +1766,15 @@ export function MealsScreen() {
           {lookup.kind === "failed" || (lookup.kind === "done" && lookup.items.length === 0) ? (
             <Text variant="caption" style={styles.toolNote} accessibilityLiveRegion="polite">
               {lookup.kind === "failed" ? t("toolScreens.meals.lookUpFailed") : t("toolScreens.meals.lookUpNone")}
+            </Text>
+          ) : null}
+          {/* Gate S3-01 (simplified 2026-10-07): a failed write keeps this sheet and its draft
+              open and says so here, in one line. The same save button tries again with the
+              draft as it stands (after a failed clear that draft is empty: OPSFIX-A3-01);
+              closing the sheet drops both. Hidden while a write runs. */}
+          {sheetFailed ? (
+            <Text variant="caption" style={styles.saveErrText} accessibilityRole="alert" accessibilityLiveRegion="polite">
+              {t("toolScreens.meals.saveFailed")}
             </Text>
           ) : null}
           {pending?.current ? (
@@ -1709,6 +1828,8 @@ type ReminderVM = {
 };
 
 function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: string; onToggle?: () => void }) {
+  const phone = usePhoneDesign();
+  const remStyles = phone ? phoneReminderStyles : clayReminderStyles;
   const source = vm.star ? `${vm.src} · ${vm.star} ${starWord}` : vm.src;
   return (
     <MdCard variant="outlined" style={[remStyles.card, !vm.on && remStyles.cardOff]}>
@@ -1734,7 +1855,9 @@ function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: st
             <Text variant="caption" style={remStyles.srcText}>{source}</Text>
           </View>
         </View>
-        {onToggle ? (
+        {onToggle && phone ? (
+          <OpsPhoneSwitch checked={vm.on} label={vm.title} onPress={onToggle} />
+        ) : onToggle ? (
           <Pressable
             accessibilityRole="switch"
             accessibilityState={{ checked: vm.on }}
@@ -1751,6 +1874,7 @@ function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: st
 }
 
 export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => void } = {}) {
+  const remStyles = usePhoneDesign() ? phoneReminderStyles : clayReminderStyles;
   const c = useOpsCopy();
   const { userId } = useAuth();
   const supported = remindersSupported();
@@ -1773,6 +1897,7 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
   // Routines the user tried to enable but the OS permission was denied — they
   // render the row's "권한 필요" state instead of crashing or silently failing.
   const [denied, setDenied] = useState<Record<string, true>>({});
+  const [chatReminderCount, setChatReminderCount] = useState(0);
 
   // Hydrate on/off from the persisted flag AND the real OS schedule. ON now
   // means "an OS notification is actually scheduled" — the old flag-only state
@@ -1784,15 +1909,18 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
       return;
     }
     let alive = true;
-    void Promise.all([
-      getReminderStates(userId, withReminder.map((r) => r.id)),
-      getScheduledRoutineIds(userId),
-    ]).then(([flags, scheduled]) => {
+    void (async () => {
+      if (Platform.OS !== "web") await sweepResidualReminderNotifications(userId);
+      if (!alive) return;
+      const [flags, scheduled] = await Promise.all([
+        getReminderStates(userId, withReminder.map((r) => r.id)),
+        getScheduledRoutineIds(userId),
+      ]);
       if (!alive) return;
       const next: Record<string, boolean> = {};
       for (const r of withReminder) next[r.id] = flags[r.id] !== false && scheduled.has(r.id);
       setStates(next);
-    });
+    })();
     return () => {
       alive = false;
     };
@@ -1867,7 +1995,7 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
         };
       })
     : [];
-  const onCount = rows.filter((r) => r.vm.on).length;
+  const onCount = rows.filter((r) => r.vm.on).length + chatReminderCount;
   const countLabel = c.remindersCountTemplate.replace("{n}", String(onCount));
 
   return (
@@ -1879,6 +2007,7 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
         <MdButton variant="tonal" label={c.addFromAssistant} onPress={onOpenAssistant ?? (() => router.push("/ops"))} />
       }
     >
+      {userId ? <ChatRemindersList key={userId} ownerId={userId} onCountChange={setChatReminderCount} /> : null}
       {routines.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={routines.reload} />
       ) : (
@@ -1905,7 +2034,7 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
   );
 }
 
-const remStyles = StyleSheet.create({
+const clayReminderStyles = StyleSheet.create({
   info: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   infoIcon: {
     width: 24,
@@ -1972,7 +2101,7 @@ const remStyles = StyleSheet.create({
 
 // --- screen-local styles (deepSpace tokens only) -----------------------
 
-const styles = StyleSheet.create({
+const clayStyles = StyleSheet.create({
   saveErrBanner: {
     borderRadius: m3.shape.small,
     backgroundColor: opsAlpha(deepSpace.danger, 0.12),
@@ -2028,6 +2157,7 @@ const styles = StyleSheet.create({
 
   bookRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: 8,
     minHeight: 44,
@@ -2037,8 +2167,8 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.medium,
     backgroundColor: deepSpace.card,
   },
-  bookTitle: { flex: 1, fontSize: 14, color: deepSpace.textHi },
-  bookDone: { flex: 1, fontSize: 14, color: deepSpace.textMid },
+  bookTitle: { flex: 1, minWidth: 0, fontSize: 14, color: deepSpace.textHi },
+  bookDone: { flex: 1, minWidth: 0, fontSize: 14, color: deepSpace.textMid },
   bookAdd: { fontSize: 12, color: deepSpace.mint },
   bookOnShelf: { fontSize: 12, color: deepSpace.textLo },
   toolNote: { fontSize: 13, color: deepSpace.textMid },
@@ -2122,7 +2252,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: deepSpace.cardLine,
   },
   entryDay: { fontSize: 12, color: deepSpace.textLo, fontVariant: ["tabular-nums"] },
-  entryCat: { flex: 1, fontSize: 13, color: deepSpace.textMid },
+  entryCat: { flex: 1, minWidth: 0, fontSize: 13, color: deepSpace.textMid },
   entryAmt: { fontSize: 13, color: deepSpace.textHi, fontVariant: ["tabular-nums"] },
   entryDel: { padding: 4 },
   entryDelTxt: { fontSize: 15, color: deepSpace.textLo },
@@ -2149,7 +2279,7 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.medium,
     backgroundColor: deepSpace.card,
   },
-  repoName: { flex: 1, fontSize: 14, color: deepSpace.textHi },
+  repoName: { flex: 1, minWidth: 0, fontSize: 14, color: deepSpace.textHi },
 
   quickMode: {
     flexDirection: "row",
@@ -2241,3 +2371,72 @@ const styles = StyleSheet.create({
   },
   mealSaveText: { fontSize: 14, color: deepSpace.onMint },
 });
+
+const phoneBaseStyles = phoneStyleSheet(clayStyles);
+const phoneScreenStyles = {
+  ...phoneBaseStyles,
+  saveErrBanner: { ...phoneBaseStyles.saveErrBanner, backgroundColor: phoneIos.cell },
+  saveErrText: { color: phoneIos.red },
+  pixelLabel: { ...clayStyles.pixelLabel, fontSize: 12, lineHeight: 18, letterSpacing: 0, color: phoneIos.label2, paddingHorizontal: 4 },
+  searchInput: { ...phoneBaseStyles.searchInput, backgroundColor: phoneIos.cell, fontFamily: "Galmuri14", fontSize: 15, lineHeight: 22 },
+  bookRow: { ...phoneBaseStyles.bookRow, minHeight: 52, borderWidth: 0, backgroundColor: phoneIos.cell, paddingVertical: 8 },
+  bookAdd: { ...clayStyles.bookAdd, color: phoneIos.blue },
+  bookDone: { ...clayStyles.bookDone, color: phoneIos.label2 },
+  hero: { ...phoneBaseStyles.hero, borderWidth: 0, backgroundColor: phoneIos.cell },
+  heroTitle: { ...clayStyles.heroTitle, color: phoneIos.label, lineHeight: 22 },
+  msRow: { ...phoneBaseStyles.msRow, borderWidth: 0, backgroundColor: phoneIos.cell },
+  msTitleInput: { ...clayStyles.msTitleInput, minHeight: 44 },
+  msTitlePress: { ...clayStyles.msTitlePress, minHeight: 44, justifyContent: "center" as const },
+  addRow: { ...phoneBaseStyles.addRow, borderWidth: 0, backgroundColor: phoneIos.cell },
+  addRowText: { ...clayStyles.addRowText, color: phoneIos.blue },
+  ledgerCard: { ...phoneBaseStyles.ledgerCard, borderWidth: 0, backgroundColor: phoneIos.cell },
+  kindToggle: { ...clayStyles.kindToggle, backgroundColor: phoneIos.fill, padding: 2 },
+  kindBtn: { ...phoneBaseStyles.kindBtn, borderWidth: 0, minHeight: 44 },
+  kindBtnOn: { borderColor: phoneIos.cell, backgroundColor: phoneIos.cell },
+  kindTxtOn: { color: phoneIos.blue },
+  addBtn: { ...phoneBaseStyles.addBtn, backgroundColor: phoneIos.blue },
+  addBtnOff: { backgroundColor: phoneIos.fill },
+  addBtnTxt: { ...clayStyles.addBtnTxt, color: phoneIos.onBlue },
+  addBtnTxtOff: { color: phoneIos.label2 },
+  entryRow: { ...phoneBaseStyles.entryRow, backgroundColor: phoneIos.cell, paddingHorizontal: 10, minHeight: 48 },
+  entryDel: { ...clayStyles.entryDel, minWidth: 44, minHeight: 44, alignItems: "center" as const, justifyContent: "center" as const },
+  ghCard: { ...phoneBaseStyles.ghCard, borderWidth: 0, backgroundColor: phoneIos.cell },
+  repoRow: { ...phoneBaseStyles.repoRow, borderWidth: 0, backgroundColor: phoneIos.cell },
+  heatCell0: { backgroundColor: phoneIos.fill, borderWidth: 0, borderColor: phoneIos.fill },
+  heatCell1: { backgroundColor: phoneIos.lightBlue },
+  heatCell2: { backgroundColor: phoneIos.blue },
+  heatCell3: { backgroundColor: phoneIos.bluePressed },
+  gridCell: { ...phoneBaseStyles.gridCell, borderWidth: 0, backgroundColor: phoneIos.cell },
+  gridCellFilled: { borderColor: phoneIos.cell, backgroundColor: phoneIos.cell },
+  gridCellOpen: { borderWidth: 2, borderColor: phoneIos.blue },
+  gridCellText: { ...clayStyles.gridCellText, color: phoneIos.label, fontSize: 11, lineHeight: 16 },
+  weekArrowText: { ...clayStyles.weekArrowText, color: phoneIos.blue },
+  weekLabelNow: { color: phoneIos.blue },
+  mealBackdrop: { flex: 1, backgroundColor: "transparent", opacity: 1 },
+  mealSheet: { ...phoneBaseStyles.mealSheet, backgroundColor: phoneIos.grouped, borderTopWidth: 0 },
+  sheetGrip: { ...phoneBaseStyles.sheetGrip, backgroundColor: phoneIos.gray3 },
+  mealClear: { ...phoneBaseStyles.mealClear, backgroundColor: phoneIos.cell, borderWidth: 0 },
+  mealClearText: { ...clayStyles.mealClearText, color: phoneIos.red },
+  ideaChip: { ...phoneBaseStyles.ideaChip, minHeight: 44, backgroundColor: phoneIos.cell, borderWidth: 0 },
+  ideaChipText: { ...clayStyles.ideaChipText, color: phoneIos.blue },
+  mealSave: { ...phoneBaseStyles.mealSave, backgroundColor: phoneIos.blue },
+  mealSaveText: { ...clayStyles.mealSaveText, color: phoneIos.onBlue },
+};
+
+const phoneBaseReminderStyles = phoneStyleSheet(clayReminderStyles);
+const phoneReminderStyles = {
+  ...phoneBaseReminderStyles,
+  cardOff: { opacity: 1 },
+  title: { ...clayReminderStyles.title, color: phoneIos.label, lineHeight: 22 },
+  timePill: { ...phoneBaseReminderStyles.timePill, backgroundColor: phoneIos.fill },
+  timePillText: { ...clayReminderStyles.timePillText, color: phoneIos.blue },
+  srcChip: { ...phoneBaseReminderStyles.srcChip, backgroundColor: phoneIos.grouped },
+  toggleOn: { ...clayReminderStyles.toggleOn, backgroundColor: phoneIos.green },
+  toggleOff: { ...clayReminderStyles.toggleOff, backgroundColor: phoneIos.fill },
+  knobOn: { backgroundColor: phoneIos.cell },
+  knobOff: { backgroundColor: phoneIos.cell },
+};
+
+function useOpsScreenStyles() {
+  return usePhoneDesign() ? phoneScreenStyles : clayStyles;
+}

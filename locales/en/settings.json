@@ -9,8 +9,8 @@
     "accountHint": "Opens account settings.",
     "theme": "Font · Motion",
     "themeHint": "Opens font and motion settings.",
-    "data": "Data management",
-    "dataHint": "Opens data management.",
+    "data": "My data",
+    "dataHint": "Opens My data.",
     "records": "Records",
     "recordsHint": "Opens saved records.",
     "support": "Support",
@@ -68,6 +68,10 @@
     }
   },
   "modals": {
+    "signOut": {
+      "title": "Sign out?",
+      "cancelHint": "Closes without signing out."
+    },
     "confirm": {
       "label": "Settings confirmation dialog",
       "title": "Delete the selected data?",
@@ -115,6 +119,7 @@
   "workingPaused": "Working on it. Other actions and sign-out are paused until this finishes.",
   "myAccount": "My account",
   "app": "App",
+  "versionLine": "Version {{version}}",
   "resetCoachmarks": "Show the home guide again",
   "resetCoachmarksDesc": "Replay the home guide from the start",
   "account": "Account",
@@ -148,10 +153,10 @@
   "delAllWikiDesc": "Deletes all wiki pages and links between them. Inbox sources stay.",
   "delUningested": "Delete captures not yet organized",
   "delUningestedDesc": "Only deletes captures that have not been organized into wiki pages.",
-  "resetDaily": "Reset SecondB daily usage",
+  "resetDaily": "Reset HustleK daily usage",
   "resetDailyDesc": "Clears all usage history, including today.",
   "dangerFullWipe": "Danger: full wipe",
-  "dangerFullWipeDesc": "Deletes records, sources, wiki pages, and SecondB usage together. Your account stays, but you start again from zero.",
+  "dangerFullWipeDesc": "Deletes records, sources, wiki pages, and HustleK usage together. Your account stays, but you start again from zero.",
   "cannotUndoExport": "This cannot be undone. Export anything you need first.",
   "deleteEverything": "Delete everything",
   "finalCheck": "Deleted data cannot be restored. Make sure you have exported anything you need.",
@@ -164,6 +169,9 @@
   "resetNDays": "Reset {{n}} days of usage",
   "wipeComplete": "Full wipe complete: records {{r}} · sources {{s}} · wiki {{w}} · usage {{u}}",
   "subscription": {
+    "autoPay": { "title": "Automatic payment" },
+    "policy": { "title": "Refund policy" },
+    "plans": { "title": "Plans", "change": "Change plan" },
     "title": "Manage subscription",
     "sectionLabel": "Subscription",
     "rowLabel": "Manage subscription",

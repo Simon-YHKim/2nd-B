@@ -1,9 +1,10 @@
+import { PhoneFlatList as FlatList, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Community room thread (0117). Text messages, 4s focused polling (no
 // realtime channel in the repo yet — $0/mo). Tap a message for the
 // closed-list report + block + delete-own actions (Play UGC). The invite
 // link is owner-minted and lives only in the share sheet.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Share, StyleSheet, TextInput, View } from "react-native";
+import { Share, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, useFocusEffect } from "expo-router";
 

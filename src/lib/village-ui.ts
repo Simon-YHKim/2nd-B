@@ -44,7 +44,7 @@ export const VILLAGE_UI: Record<VillageId, VillageUiMeta> = {
     worker: "lulu",
     accent: cosmic.signalMint,
     primaryRoute: "/capture",
-    primaryLabel: { en: "Capture a knowledge piece", ko: "지식 별가루 담기" },
+    primaryLabel: { en: "Capture a knowledge piece", ko: "자료 추가" },
     speech: {
       en: "Bring a source here and I'll help it find its shelf.",
       ko: "자료를 가져오면 찾기 쉬운 자리로 묶어두겠습니다.",

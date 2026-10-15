@@ -1,10 +1,11 @@
+import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 밝기 변화 (rev2 P3c): the 8-week brightness timeline + honesty meter.
 // ONE message: how the sky changed. The heatmap IS the explanation — 북극성 row
 // on top (tier-1 dominant), the observed stars under it, one cell per week.
 // Honesty meter says what the light is made of: observations and citations,
 // never confidence (별빛 != 확신).
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 

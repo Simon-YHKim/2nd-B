@@ -16,6 +16,7 @@ import { getSupabaseClient } from "../supabase/client";
 import { stripDomainTags } from "../persona/domain-stars";
 import { CHAT_KEEP_TAG } from "../chat/keep-exchange";
 import { downloadRawClipping } from "./storage";
+import { isProfileContextImportSource, serializeProfileImportQuote } from "./profile-context-source";
 import { classifyInputAnyLocale } from "../safety/classifier";
 import type { SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
 
@@ -95,6 +96,9 @@ const EXPORT_SAFE_FRONTMATTER_KEYS = new Set([
 ]);
 
 export function formatPage(page: WikiPageRow, bodyCharLimit: number | undefined, locale: "en" | "ko"): string {
+  if (isProfileContextImportSource(page.frontmatter)) {
+    return `### [[${page.slug}]]\n\n${serializeProfileImportQuote(page.body_md || "", bodyCharLimit)}`;
+  }
   // Keep ONLY export-safe frontmatter keys (allowlist, fail-closed) so no
   // internal/private clipper frontmatter leaks into the exported LLM context.
   const publicFrontmatter = Object.fromEntries(

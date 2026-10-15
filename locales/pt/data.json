@@ -1,7 +1,7 @@
 {
   "loading": "Carregando ferramentas de dados...",
   "hero": {
-    "eyebrow": "08-1. Gestão de dados",
+    "eyebrow": "08-1. Meus dados",
     "title": "Mova e gerencie seus registros",
     "subtitle": "Importar · exportar · apagar",
     "speech": "Antes de apagar algo importante, exporte um backup primeiro."

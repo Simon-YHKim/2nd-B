@@ -1,3 +1,4 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // M3 calendar date picker (rev2 migration). A tap-to-open field + modal calendar
 // that REPLACES free-text date entry app-wide — the user always picks from a
 // calendar, never types a date. Built on the m3.* token foundation + dayjs (both
@@ -13,16 +14,15 @@
 // (level3) to avoid the Shine-through z-order bug; the RN <Modal onRequestClose>
 // wires the hardware back button to Cancel; the year list is a virtualised
 // FlatList, never a .map() over a long scroll range.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  FlatList,
-  Modal,
-  Pressable,
   StyleSheet,
-  View,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { PixelDither } from "@/components/pixel/PixelDither";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -38,6 +38,8 @@ import {
   monthGrid,
   todayISO,
   yearsDescending,
+  yearGridOpenOffset,
+  yearGridOpenRow,
 } from "./calendar-math";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
 
@@ -203,6 +205,18 @@ function CalendarGlyph({ size = 20, color }: { size?: number; color: string }) {
 // ---------------------------------------------------------------------------
 // Year grid (shared by the calendar's year view and the standalone YearField).
 // ---------------------------------------------------------------------------
+const YEAR_COLUMNS = 4;
+// One grid row: the cell's touch floor plus the wrap's padding above and below it.
+const YEAR_ROW_HEIGHT = m3.minTouch + m3.spacing.s1 * 2;
+// The list's own top padding. The scroll math below counts it: without it the opening row sat
+// that much low, and a sliver of the row above stayed in view and in the accessibility tree
+// (A-Z first-use check, round 7: the birth year list read as starting one row early).
+const YEAR_LIST_PAD = m3.spacing.s2;
+// The list is an even number of rows tall. With the chosen year's row in the middle, the rows at
+// the top and bottom edges are then cut in half, which shows there are years both ways (Z104).
+const YEAR_ROWS_SHOWN = 6;
+const YEAR_LIST_HEIGHT = YEAR_ROW_HEIGHT * YEAR_ROWS_SHOWN;
+
 function YearGrid({
   minYear,
   maxYear,
@@ -215,11 +229,30 @@ function YearGrid({
   onSelect: (year: number) => void;
 }) {
   const data = useMemo(() => yearsDescending(minYear, maxYear), [minYear, maxYear]);
+  const listRef = useRef<FlatList<number>>(null);
+  // Open with the chosen year's row in the middle of the list, not on the newest year (a birth
+  // year sits decades down). The offset depends on how tall the list came out, so it is asked twice.
+  const layout = (viewport: number) => ({ rowHeight: YEAR_ROW_HEIGHT, pad: YEAR_LIST_PAD, viewport });
+  const openOffset = (viewport: number) => yearGridOpenOffset(minYear, maxYear, selectedYear, YEAR_COLUMNS, layout(viewport));
+  const started = useRef(false);
   return (
     <FlatList
+      ref={listRef}
       data={data}
       keyExtractor={(y) => String(y)}
-      numColumns={4}
+      numColumns={YEAR_COLUMNS}
+      // A list can only open on a whole row, so this is the row at the top edge for the list's usual height.
+      initialScrollIndex={yearGridOpenRow(openOffset(YEAR_LIST_HEIGHT), layout(YEAR_LIST_HEIGHT))}
+      getItemLayout={(_, index) => ({ length: YEAR_ROW_HEIGHT, offset: YEAR_LIST_PAD + YEAR_ROW_HEIGHT * index, index })}
+      // The first layout moves to the exact offset for the height the list really has. The web list
+      // does not honour initialScrollIndex at all, so there this is the only move.
+      onLayout={(event) => {
+        if (started.current) return;
+        started.current = true;
+        const height = event.nativeEvent.layout.height;
+        const offset = openOffset(height > 0 ? height : YEAR_LIST_HEIGHT);
+        if (offset > 0) listRef.current?.scrollToOffset({ offset, animated: false });
+      }}
       style={styles.yearList}
       contentContainerStyle={styles.yearListContent}
       keyboardShouldPersistTaps="handled"
@@ -269,6 +302,7 @@ function CalendarModal({
   onCancel,
   onConfirm,
 }: CalendarModalProps) {
+  const phone = usePhoneDesign();
   const { t } = useTranslation("common");
   const labels = useDateLabels();
 
@@ -325,7 +359,8 @@ function CalendarModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <Pressable style={styles.backdrop} onPress={onCancel} accessibilityLabel={t("actions.cancel")}>
+      <Pressable style={[styles.backdrop, phone && styles.phoneBackdrop]} onPress={onCancel} accessibilityLabel={t("actions.cancel")}>
+        {phone ? <PixelDither density={50} /> : null}
         <Pressable
           style={styles.card}
           onPress={(e) => e.stopPropagation()}
@@ -472,11 +507,13 @@ function YearModal({
   onCancel: () => void;
   onConfirm: (year: string) => void;
 }) {
+  const phone = usePhoneDesign();
   const { t } = useTranslation("common");
   const selectedYear = /^\d{4}$/.test(value) ? Number(value) : null;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <Pressable style={styles.backdrop} onPress={onCancel} accessibilityLabel={t("actions.cancel")}>
+      <Pressable style={[styles.backdrop, phone && styles.phoneBackdrop]} onPress={onCancel} accessibilityLabel={t("actions.cancel")}>
+        {phone ? <PixelDither density={50} /> : null}
         <Pressable
           style={styles.card}
           onPress={(e) => e.stopPropagation()}
@@ -562,7 +599,7 @@ function TriggerField({
         </View>
       </Pressable>
       {supportingText ? (
-        <Text style={[m3TextStyle("bodySmall"), styles.support, { color: supportColor }]} numberOfLines={2}>
+        <Text style={[m3TextStyle("bodySmall"), styles.support, { color: supportColor }]}>
           {supportingText}
         </Text>
       ) : null}
@@ -725,6 +762,7 @@ const styles = StyleSheet.create({
   triggerValue: { flex: 1, fontSize: 15, fontFamily: m3.font.brand },
   support: { marginTop: m3.spacing.s1, marginHorizontal: m3.spacing.s4 },
 
+  phoneBackdrop: { backgroundColor: "transparent" },
   // Modal shell.
   backdrop: {
     flex: 1,
@@ -764,8 +802,8 @@ const styles = StyleSheet.create({
   dayToday: { borderWidth: 1, borderColor: m3.color.primary },
 
   // Year grid.
-  yearList: { maxHeight: 300, alignSelf: "stretch" },
-  yearListContent: { paddingVertical: m3.spacing.s2 },
+  yearList: { maxHeight: YEAR_LIST_HEIGHT, alignSelf: "stretch" },
+  yearListContent: { paddingVertical: YEAR_LIST_PAD },
   yearCellWrap: { flex: 1, padding: m3.spacing.s1 },
   // ⚠ 높이가 패딩에서만 나오던 자리다. `--u` 2px 이주(2026-08-20)로 s3 가 12 -> 6 이
   // 되면서 48 -> 36 으로 내려갔다. 게다가 numColumns={4} 그리드라 44 미만 타깃이

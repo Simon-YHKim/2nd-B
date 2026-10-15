@@ -6,6 +6,7 @@ const mockAuditPurge = jest.fn<Promise<boolean>, [string]>();
 const mockNotificationPurge = jest.fn<Promise<void>, [string]>();
 const mockOpsUsagePurge = jest.fn<Promise<boolean>, [string]>();
 const mockFocusPurge = jest.fn<Promise<boolean>, [string]>();
+const mockOneOffPurge = jest.fn<Promise<boolean>, [string]>();
 const mockReasoningPurge = jest.fn<Promise<boolean>, [string]>();
 const mockWikiPurge = jest.fn<Promise<boolean>, [string]>();
 const mockNoticeReadPurge = jest.fn<Promise<boolean>, [string]>();
@@ -37,6 +38,9 @@ jest.mock("../../ops/usage", () => ({
 }));
 jest.mock("../../ops/focus-store", () => ({
   purgeFocusForDeletedAccount: (owner: string) => mockFocusPurge(owner),
+}));
+jest.mock("../../ops/one-off-reminders", () => ({
+  purgeOneOffRemindersForDeletedAccount: (owner: string) => mockOneOffPurge(owner),
 }));
 jest.mock("../../reasoning/auto-pref", () => ({
   purgeAutoReasoningForDeletedAccount: (owner: string) => mockReasoningPurge(owner),
@@ -76,6 +80,7 @@ beforeEach(() => {
     mockAuditPurge,
     mockOpsUsagePurge,
     mockFocusPurge,
+    mockOneOffPurge,
     mockReasoningPurge,
     mockWikiPurge,
     mockNoticeReadPurge,
@@ -99,6 +104,7 @@ describe("purgeDeletedAccountLocalData", () => {
       mockAuditPurge,
       mockOpsUsagePurge,
       mockFocusPurge,
+      mockOneOffPurge,
       mockReasoningPurge,
       mockWikiPurge,
       mockNoticeReadPurge,
@@ -131,6 +137,7 @@ describe("purgeDeletedAccountLocalData", () => {
     expect(mockAuditPurge).not.toHaveBeenCalled();
     expect(mockOpsUsagePurge).not.toHaveBeenCalled();
     expect(mockFocusPurge).not.toHaveBeenCalled();
+    expect(mockOneOffPurge).not.toHaveBeenCalled();
     expect(mockReasoningPurge).not.toHaveBeenCalled();
     expect(mockWikiPurge).not.toHaveBeenCalled();
     expect(mockNoticeReadPurge).not.toHaveBeenCalled();
@@ -174,6 +181,12 @@ describe("purgeDeletedAccountLocalData", () => {
     mockAvatarPalettePurge.mockResolvedValueOnce(false);
     await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
     expect(mockAvatarPalettePurge).toHaveBeenCalledWith("owner-a");
+  });
+
+  test("never claims local completion when one-off task details remain", async () => {
+    mockOneOffPurge.mockResolvedValueOnce(false);
+    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
+    expect(mockOneOffPurge).toHaveBeenCalledWith("owner-a");
   });
 
   test("never claims local completion when notification cleanup is incomplete", async () => {

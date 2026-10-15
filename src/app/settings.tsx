@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Settings screen — rev2 M3 toggle-card top (모양 / 기능 / 데이터 연동, cloned
 // 1:1 from reference-app SettingsScreen + docs/clone-audit capture 09-settings)
 // over the retained functional settings surface (account nav, language,
@@ -9,18 +10,7 @@ import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { isDevSurfaceEnabled } from "@/lib/dev/gate";
 import { reactExpression } from "@/lib/companion/expression";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  type AccessibilityRole,
-  type StyleProp,
-  type TextStyle,
-  type ViewStyle,
-  Platform,
-} from "react-native";
+import { ActivityIndicator, StyleSheet, type AccessibilityRole, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -32,6 +22,7 @@ import { useAppRouter } from "@/lib/nav/phone-embed";
 
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
+import { GuardianSupervisionNotice } from "@/components/consent/GuardianSupervisionNotice";
 import { Input } from "@/components/ui/Input";
 import { MdButton } from "@/components/m3";
 import { m3TextStyle } from "@/components/m3/typeface";
@@ -47,13 +38,12 @@ import { signOut } from "@/lib/supabase/auth";
 import { changeUiLanguage } from "@/lib/i18n";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META, type AvailableUiLocale } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
-import { buildInfoLine } from "@/lib/build-info";
+import { VersionLine } from "@/components/ui/VersionLine";
 import {
   DEFAULT_WIKI_AUTO_PROMOTE,
   getWikiAutoPromote,
   setWikiAutoPromote,
 } from "@/lib/wiki/auto-promote";
-import { useNoticeCenter } from "@/app/notices";
 import {
   deleteAllChatUsage,
   deleteAllUserData,
@@ -65,7 +55,9 @@ import {
 
 const CONFIRM_PHRASE = "DELETE";
 type SettingsToast = { message: string; tone: "info" | "success" | "danger" };
-type PendingConfirm = { message: string; onYes: () => Promise<void> } | null;
+/** `ask` replaces the delete wording of the shared confirm dialog (title, action, hints) for an action that deletes nothing. */
+type ConfirmAsk = { title: string; action: string; actionHint: string; cancelHint: string };
+type PendingConfirm = { message: string; onYes: () => Promise<void>; ask?: ConfirmAsk } | null;
 type ActionError = { title: string; body: string; retry?: () => void } | null;
 type SettingsDisclosureKey = "data" | "language";
 type DataDeleteStep = "records" | "assessments" | "library" | "full";
@@ -75,9 +67,6 @@ const DATA_DELETE_STEPS: DataDeleteStep[] = ["records", "assessments", "library"
 const SETTINGS_SURFACE_COPY: Record<
   AvailableUiLocale,
   {
-    news: string;
-    notices: string;
-    noticesSub: string;
     reasoning: string;
     reasoningSub: string;
     wikiAuto: string;
@@ -87,9 +76,6 @@ const SETTINGS_SURFACE_COPY: Record<
   }
 > = {
   en: {
-    news: "News",
-    notices: "Notices",
-    noticesSub: "Patch notes · developer news",
     reasoning: "Reasoning",
     reasoningSub: "Automatic runs · item selection",
     wikiAuto: "Auto wiki pages",
@@ -98,20 +84,14 @@ const SETTINGS_SURFACE_COPY: Record<
     devScreensSub: "Open every screen directly",
   },
   ko: {
-    news: "소식",
-    notices: "공지사항",
-    noticesSub: "패치노트 · 개발자 소식",
     reasoning: "리즈닝",
     reasoningSub: "자동 실행 · 자료 선택",
     wikiAuto: "위키 자동 만들기",
-    wikiAutoSub: "새로 담은 자료를 알아서 위키 페이지로 만듭니다",
+    wikiAutoSub: "새로 저장한 자료를 알아서 위키 페이지로 만듭니다",
     devScreens: "개발자",
     devScreensSub: "모든 화면에 바로 들어가기",
   },
   es: {
-    news: "Novedades",
-    notices: "Avisos",
-    noticesSub: "Notas de versión · noticias del desarrollador",
     reasoning: "Razonamiento",
     reasoningSub: "Ejecuciones automáticas · selección de material",
     wikiAuto: "Páginas wiki automáticas",
@@ -120,9 +100,6 @@ const SETTINGS_SURFACE_COPY: Record<
     devScreensSub: "Abre cualquier pantalla directamente",
   },
   pt: {
-    news: "Novidades",
-    notices: "Avisos",
-    noticesSub: "Notas de versão · notícias do desenvolvedor",
     reasoning: "Raciocínio",
     reasoningSub: "Execuções automáticas · seleção de material",
     wikiAuto: "Páginas wiki automáticas",
@@ -131,9 +108,6 @@ const SETTINGS_SURFACE_COPY: Record<
     devScreensSub: "Abra qualquer tela diretamente",
   },
   id: {
-    news: "Kabar baru",
-    notices: "Pemberitahuan",
-    noticesSub: "Catatan rilis · kabar pengembang",
     reasoning: "Penalaran",
     reasoningSub: "Jalankan otomatis · pilih materi",
     wikiAuto: "Halaman wiki otomatis",
@@ -241,7 +215,10 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
 // pattern A, fake success). Until a real per-source connector exists, settings
 // hands off honestly to the import/integration surfaces instead of claiming a
 // state that isn't there.
-function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: string; sub?: string; badge?: number; onPress: () => void }) {
+// `sub` is drawn under the label; `hint` is only spoken. A line that just says
+// "opens <label>" tells the eye nothing the label did not, so it is a hint, not a
+// subtitle (Simon 2026-10-12: the lines that repeat the title leave the screen).
+function M3LinkRow({ icon, label, sub, hint, badge, onPress }: { icon: string; label: string; sub?: string; hint?: string; badge?: number; onPress: () => void }) {
   useFontStyle();
   const [held, setHeld] = useState(false);
   return (
@@ -252,7 +229,7 @@ function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: 
       onPressOut={() => setHeld(false)}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityHint={sub}
+      accessibilityHint={hint ?? sub}
     >
       <M3IconBadge icon={icon} active={false} />
       <View style={m3Styles.rowText}>
@@ -409,13 +386,11 @@ export default function Settings() {
   // Phone-aware: inside the dashboard phone, links open in the phone.
   const router = useAppRouter();
   const { t, i18n } = useTranslation("settings");
-  const { t: tOps } = useTranslation("ops");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const displayLocale = AVAILABLE_UI_LOCALES.includes(i18n.language as AvailableUiLocale)
     ? (i18n.language as AvailableUiLocale)
     : "en";
-  const noticeCenter = useNoticeCenter(userId);
 
   // Wiki auto-promotion. Server-persisted (users.reasoning_prefs.wikiAuto) so the
   // policy does not silently differ per device — the exact failure 0093 fixed for
@@ -475,8 +450,8 @@ export default function Settings() {
     return <Redirect href="/sign-in" />;
   }
 
-  function confirm(message: string, onYes: () => Promise<void>): void {
-    setPendingConfirm({ message, onYes });
+  function confirm(message: string, onYes: () => Promise<void>, ask?: ConfirmAsk): void {
+    setPendingConfirm({ message, onYes, ask });
   }
 
   // Surface a calm, product-tone failure with a retry. The raw error stays in
@@ -645,45 +620,18 @@ export default function Settings() {
           contentContainerStyle={[styles.scroll, styles.pixelScroll]}
           keyboardShouldPersistTaps="handled"
         >
-        {/* sb-app §4: no companion header outside capture/chat/records - the
-            caption below carries the guidance line. */}
+        {/* sb-app §4: no companion header outside capture/chat/records. */}
         <RNText style={[m3Styles.headline, m3Styles.pixelHeadline]}>{t("settings")}</RNText>
-        {/* Guidance line (kept from the companion era — OldGuidanceCopyResidue
-            pins this SecondB-voiced wording; rev2 drops the header, not the copy). */}
-        <Text variant="caption" color="textMuted" style={styles.guidance}>
-          {t("subtitleFull")}
-        </Text>
-
-        {/* PIXEL-CLAY reference starts with identity. We keep the production
-            profile route and user-owned data instead of importing its sample
-            avatar/name. */}
-        <M3SectionLabel>{t("myAccount")}</M3SectionLabel>
-        <M3Group>
-          <M3LinkRow
-            icon="person"
-            label={t("nav.profile")}
-            sub={t("nav.profileHint")}
-            onPress={() => router.push("/profile")}
-          />
-        </M3Group>
+        {/* Simon 2026-10-07: the guidance line under the title, the 내 계정 group (its one
+            row was 프로필) and the 소식 group (its one row was 공지사항) are gone. Profile
+            opens from the home's profile star; notices from the phone's alerts app. The
+            subtitleFull copy stays in the locale files (OldGuidanceCopyResidue reads it). */}
 
         {/* ── rev2 M3 toggle-card clone (기능 / 데이터 연동) ── */}
         {/* The 모양 group held one row, the 다크 모드 switch. Simon removed the
             dark/light choice (Q-261005-02, 2026-10-05: "그냥 없애버려") - the app
             is always dark, so the row and its group are gone, not hidden. Font
             and motion stay on /theme (app group below). */}
-
-        {/* 소식 */}
-        <M3SectionLabel>{newSurfaceCopy.news}</M3SectionLabel>
-        <M3Group>
-          <M3LinkRow
-            icon="campaign"
-            label={newSurfaceCopy.notices}
-            sub={newSurfaceCopy.noticesSub}
-            badge={noticeCenter.unreadCount}
-            onPress={() => router.push("/notices")}
-          />
-        </M3Group>
 
         {/* 구독 — the entry point docs/legal/refund-policy.md has named since
             2026-07-17 ("앱 내 [설정 → 구독 관리]"). It is a link row, not a set of
@@ -781,33 +729,30 @@ export default function Settings() {
             above. */}
         <M3SectionLabel>{t("account")}</M3SectionLabel>
         <M3Group>
-          <M3LinkRow icon="person" label={t("nav.account")} sub={t("nav.accountHint")} onPress={() => router.push("/account")} />
+          <M3LinkRow icon="person" label={t("nav.account")} hint={t("nav.accountHint")} onPress={() => router.push("/account")} />
           <M3Divider />
-          <M3LinkRow icon="lock" label={t("nav.privacy")} sub={t("nav.privacyHint")} onPress={() => router.push("/privacy")} />
+          <M3LinkRow icon="lock" label={t("nav.privacy")} hint={t("nav.privacyHint")} onPress={() => router.push("/privacy")} />
         </M3Group>
+        <GuardianSupervisionNotice />
 
         <M3SectionLabel>{t("app")}</M3SectionLabel>
         <M3Group>
-          <M3LinkRow icon="settings" label={t("nav.theme")} sub={t("nav.themeHint")} onPress={() => router.push("/theme")} />
+          <M3LinkRow icon="settings" label={t("nav.theme")} hint={t("nav.themeHint")} onPress={() => router.push("/theme")} />
           <M3Divider />
-          <M3LinkRow icon="article" label={t("nav.data")} sub={t("nav.dataHint")} onPress={() => router.push("/data")} />
+          <M3LinkRow icon="article" label={t("nav.data")} hint={t("nav.dataHint")} onPress={() => router.push("/data")} />
           <M3Divider />
-          <M3LinkRow icon="book" label={t("nav.records")} sub={t("nav.recordsHint")} onPress={() => router.push("/records")} />
+          <M3LinkRow icon="book" label={t("nav.records")} hint={t("nav.recordsHint")} onPress={() => router.push("/records")} />
           <M3Divider />
           <M3LinkRow icon="lock" label={t("permissions")} onPress={() => router.push("/permissions")} />
-          <M3Divider />
-          <M3LinkRow icon="notifications" label={tOps("phone.notifications")} sub={Platform.OS === "web" ? tOps("phone.push.web") : tOps("phone.reminderSettings")} onPress={() => router.push("/reminders")} />
         </M3Group>
 
         <M3SectionLabel>{t("support")}</M3SectionLabel>
         <M3Group>
-          <M3LinkRow icon="info" label={t("nav.support")} sub={t("nav.supportHint")} onPress={() => router.push("/support")} />
+          <M3LinkRow icon="info" label={t("nav.support")} hint={t("nav.supportHint")} onPress={() => router.push("/support")} />
           <M3Divider />
           <M3LinkRow icon="book" label={t("manual")} onPress={() => router.push("/manual")} />
           <M3Divider />
           <M3LinkRow icon="box" label={t("aiMuseum")} onPress={() => router.push("/museum")} />
-          <M3Divider />
-          <M3LinkRow icon="ops" label={tOps("todaysAssistant")} onPress={() => router.push("/ops")} />
           <M3Divider />
           <M3LinkRow
             icon="refresh"
@@ -1096,7 +1041,7 @@ export default function Settings() {
             accessibilityHint={t("actions.signOutHint")}
             variant="secondary"
             disabled={busy !== null}
-            onPress={async () => {
+            onPress={() => confirm(t("actions.signOutHint"), async () => {
               try {
                 await signOut();
                 // Go straight to /sign-in. Routing via "/" could briefly render
@@ -1111,19 +1056,19 @@ export default function Settings() {
                   t("signOutError"),
                 );
               }
-            }}
+            }, { title: t("modals.signOut.title"), action: t("signOut"), actionHint: t("actions.signOutHint"), cancelHint: t("modals.signOut.cancelHint") })}
           />
         </View>
 
-        {/* The real bundle identity, not a frozen string. This line existed to
-            answer "which bundle is this?" during an incident — the 2026-06-26
-            head-touch crash was prolonged by embedded-vs-OTA uncertainty — and a
-            hardcoded locale value ("Build 0.0.6 · OTA ota-2026-06-27a", still
-            claiming 0.0.6 on a 0.1.0 build) defeats exactly that purpose.
-            buildInfoLine() reads expo-updates, same as the account screen. */}
-        <Text variant="caption" color="textMuted" style={styles.buildMarker}>
-          {buildInfoLine()}
-        </Text>
+        {/* The real version, not a frozen string: a hardcoded locale value
+            ("Build 0.0.6 · OTA ota-2026-06-27a", still claiming 0.0.6 on a 0.1.0
+            build) is how this line once lied. The reader sees the app version.
+            The bundle identity (buildInfoLine(), which answered "which bundle is
+            this?" when the 2026-06-26 head-touch crash was prolonged by
+            embedded-vs-OTA uncertainty) opens on a tap: shown raw, its "?" read
+            as an error (Z94). This is its one place on a user screen. */}
+        <VersionLine style={styles.buildMarker} />
+
       </ScrollView>
 </KeyboardAvoidingArea>
       {toast ? (
@@ -1134,9 +1079,9 @@ export default function Settings() {
       <PremiumModal
         visible={pendingConfirm !== null}
         onClose={() => setPendingConfirm(null)}
-        accessibilityLabel={t("modals.confirm.label")}
+        accessibilityLabel={pendingConfirm?.ask?.title ?? t("modals.confirm.label")}
       >
-        <Text variant="heading">{t("modals.confirm.title")}</Text>
+        <Text variant="heading">{pendingConfirm?.ask?.title ?? t("modals.confirm.title")}</Text>
         <Text variant="body" color="textMuted" style={styles.modalBody}>
           {pendingConfirm?.message}
         </Text>
@@ -1146,15 +1091,15 @@ export default function Settings() {
             variant="secondary"
             onPress={() => setPendingConfirm(null)}
             style={styles.modalButton}
-            accessibilityHint={t("modals.confirm.cancelHint")}
+            accessibilityHint={pendingConfirm?.ask?.cancelHint ?? t("modals.confirm.cancelHint")}
           />
           <Button
-            label={t("modals.confirm.delete")}
-            variant="danger"
+            label={pendingConfirm?.ask?.action ?? t("modals.confirm.delete")}
+            variant={pendingConfirm?.ask ? "primary" : "danger"}
             onPress={runPendingConfirm}
             loading={busy !== null}
             style={styles.modalButton}
-            accessibilityHint={t("modals.confirm.deleteHint")}
+            accessibilityHint={pendingConfirm?.ask?.actionHint ?? t("modals.confirm.deleteHint")}
           />
         </View>
       </PremiumModal>
@@ -1253,7 +1198,6 @@ const styles = StyleSheet.create({
   },
   header: { gap: spacing.xs, marginBottom: spacing.md },
   title: { fontSize: 20, color: deepSpace.textHi, marginBottom: spacing.xs },
-  guidance: { marginTop: -6, marginBottom: spacing.xs },
   sectionEyebrow: { letterSpacing: 0, fontWeight: "700" },
   pixelDisclosureHeaderPressed: {
     transform: [{ translateY: m3.spacing.s1 }],

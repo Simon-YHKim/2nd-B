@@ -17,14 +17,15 @@ describe("first avatar setup entry order", () => {
     expect(stackStart).toBeGreaterThan(avatarStart);
     expect(avatarEnd).toBeGreaterThan(stackStart);
     expect(introEnd).toBeGreaterThan(avatarEnd);
-    expect(layout.indexOf('return <Redirect href="/complete-profile" />;')).toBeGreaterThan(introEnd);
+    expect(layout.indexOf('return <Redirect href={shareRefusedHref("/complete-profile", shareTurnedAway)} />;')).toBeGreaterThan(introEnd);
   });
 
   test("a settled profile is required before the avatar read, and the editor is exempt", () => {
     expect(gate).toContain("hasProfile !== true");
     expect(gate).toContain("fetchAvatarSpec(userId)");
     expect(gate).toContain('decision === "setup"');
-    expect(gate).toContain('<Redirect href="/avatar-studio?setup=1" />');
+    expect(gate).toContain(': "/avatar-studio?setup=1"');
+    expect(gate).toContain('{ pathname: "/avatar-studio", params: { setup: "1", ...SHARE_REFUSED_PARAMS } }');
     expect(layout).toContain('<AvatarSetupSceneGuard routeName={route.name}>');
     expect(gate).toContain('routeName.split("/")[0]');
   });

@@ -18,6 +18,38 @@ afterEach(() => {
 });
 
 describe("captured-session Supabase transport", () => {
+  test("pins an opted-in function to Seoul without changing its token, body, signal or CORS headers", async () => {
+    const fetchMock = jest.fn().mockResolvedValue(new Response("null", {
+      status: 200, headers: { "content-type": "application/json" },
+    }));
+    globalThis.fetch = fetchMock as typeof fetch;
+    const controller = new AbortController();
+    const options = { body: { action: "weather", place: { latitude: 0, longitude: 0 } }, signal: controller.signal, region: "ap-northeast-2" as const };
+
+    await expect(invokeFunctionWithCapturedSession("weather", "captured-token-a", options))
+      .resolves.toEqual({ data: null, error: null });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://project.example.test/functions/v1/weather?forceFunctionRegion=ap-northeast-2",
+      {
+        method: "POST", signal: controller.signal, body: JSON.stringify(options.body),
+        headers: {
+          Authorization: "Bearer captured-token-a", apikey: "public-anon-key", "content-type": "application/json",
+        },
+      },
+    );
+  });
+
+  test("a failed Seoul invocation never retries without the region", async () => {
+    const fetchMock = jest.fn().mockResolvedValue(new Response("unavailable", { status: 503 }));
+    globalThis.fetch = fetchMock as typeof fetch;
+    const options = { body: { action: "status" }, region: "ap-northeast-2" as const };
+
+    const result = await invokeFunctionWithCapturedSession("weather", "captured-token-a", options);
+    expect(result.error?.context.status).toBe(503);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://project.example.test/functions/v1/weather?forceFunctionRegion=ap-northeast-2");
+  });
+
   test("sends the immutable A token even when a caller's current session has become B", async () => {
     const fetchMock = jest.fn().mockResolvedValue(new Response(JSON.stringify({ text: "ok" }), {
       status: 200,

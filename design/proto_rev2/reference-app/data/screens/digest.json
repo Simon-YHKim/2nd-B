@@ -19,7 +19,7 @@
           "icon": "link",
           "dom": "성장",
           "tone": "primary",
-          "text": "담아둔 아티클: 몰입과 회복의 균형에 대해"
+          "text": "저장한 아티클: 몰입과 회복의 균형에 대해"
         },
         {
           "time": "오전 8:40",
@@ -42,7 +42,7 @@
           "icon": "auto_awesome",
           "dom": "관계",
           "tone": "primary",
-          "text": "세컨비와 대화: 엄마에게 먼저 전화한 일에 대해"
+          "text": "허슬케이와 대화: 엄마에게 먼저 전화한 일에 대해"
         },
         {
           "time": "오후 1:20",
@@ -73,7 +73,7 @@
           "icon": "link",
           "dom": "재정",
           "tone": "secondary",
-          "text": "담아둔 링크: 30대 자산 배분 기본기"
+          "text": "저장한 링크: 30대 자산 배분 기본기"
         },
         {
           "time": "오전 9:00",
@@ -116,7 +116,7 @@
     {
       "icon": "verified",
       "t": "분석 품질은 그대로예요",
-      "s": "광고를 봐도 세컨비가 더 똑똑해지지 않아요. 횟수만 늘어요."
+      "s": "광고를 봐도 허슬케이가 더 똑똑해지지 않아요. 횟수만 늘어요."
     },
     {
       "icon": "shield",
@@ -203,7 +203,7 @@
         "ev": 6
       },
       "pattern": {
-        "claim": "재정 기록은 주로 주말 아침에 담았어요",
+        "claim": "재정 기록은 주로 주말 아침에 작성했어요",
         "conf": 52,
         "ev": 4
       },
@@ -221,5 +221,5 @@
     "이번 주",
     "지난 주"
   ],
-  "headAsset": "assets/deepspace/secondb-head-front.png"
+  "headAsset": "assets/hustlek/A01-neutral.png"
 }

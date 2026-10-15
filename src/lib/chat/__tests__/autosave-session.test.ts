@@ -147,3 +147,69 @@ test("a late successful ON write cannot overtake a newer OFF action", async () =
   expect(changes.mock.calls.some(([enabled]) => enabled === true)).toBe(false);
   session.stop();
 });
+
+describe("replacing the session when a conversation is cleared", () => {
+  test("a fresh conversation can save reused indices without inheriting attempted saves", async () => {
+    let count = 0; mockPrefs.chat_autosave = true;
+    const oldSession = createChatAutosaveSession("a", () => count, jest.fn());
+    await oldSession.hydrate(); count = 2;
+    const keep = jest.fn().mockResolvedValue(true);
+    expect(await oldSession.save(1, keep, 0)).toBe(true);
+    oldSession.stop(); count = 0;
+    const newSession = createChatAutosaveSession("a", () => count, jest.fn());
+    await newSession.hydrate(); count = 2;
+    expect(await newSession.save(1, keep, 0)).toBe(true);
+    expect(await newSession.save(1, keep, 0)).toBe(false);
+    expect(keep).toHaveBeenCalledTimes(2);
+    newSession.stop();
+  });
+
+  test("clearing during the old save's consent read never starts its capture", async () => {
+    let count = 0; mockPrefs.chat_autosave = true;
+    const oldSession = createChatAutosaveSession("a", () => count, jest.fn());
+    await oldSession.hydrate(); count = 2;
+    const held = deferred<Awaited<ReturnType<typeof mockRead>>>();
+    mockRead.mockImplementationOnce(() => held.promise);
+    const keep = jest.fn(); const saving = oldSession.save(1, keep, 0);
+    oldSession.stop(); count = 0;
+    const newSession = createChatAutosaveSession("a", () => count, jest.fn());
+    await newSession.hydrate();
+    held.resolve({ data: { privacy_prefs: { ...mockPrefs } }, error: null });
+    expect(await saving).toBe(false);
+    expect(keep).not.toHaveBeenCalled();
+    newSession.stop();
+  });
+
+  test("an old hydrate cannot publish consent into the replacement conversation", async () => {
+    mockPrefs.chat_autosave = true;
+    const oldConsent = jest.fn();
+    const oldSession = createChatAutosaveSession("a", () => 0, oldConsent);
+    const held = deferred<Awaited<ReturnType<typeof mockRead>>>();
+    mockRead.mockImplementationOnce(() => held.promise);
+    const hydrate = oldSession.hydrate();
+    oldSession.stop();
+    mockPrefs.chat_autosave = false;
+    const newConsent = jest.fn();
+    const newSession = createChatAutosaveSession("a", () => 0, newConsent);
+    await newSession.hydrate();
+    held.resolve({ data: { privacy_prefs: { ...mockPrefs, chat_autosave: true } }, error: null });
+    await hydrate;
+    expect(oldConsent).not.toHaveBeenCalled();
+    expect(newConsent.mock.calls).toEqual([[false]]);
+    newSession.stop();
+  });
+
+  test("a replacement does not retroactively save prompts sent before its consent read resolves", async () => {
+    let count = 0; mockPrefs.chat_autosave = true;
+    const newSession = createChatAutosaveSession("a", () => count, jest.fn());
+    const held = deferred<Awaited<ReturnType<typeof mockRead>>>();
+    mockRead.mockImplementationOnce(() => held.promise);
+    const hydrate = newSession.hydrate(); count = 1;
+    held.resolve({ data: { privacy_prefs: { ...mockPrefs } }, error: null });
+    await hydrate; count = 2;
+    const keep = jest.fn();
+    expect(await newSession.save(1, keep, 0)).toBe(false);
+    expect(keep).not.toHaveBeenCalled();
+    newSession.stop();
+  });
+});

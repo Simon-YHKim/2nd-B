@@ -4,6 +4,7 @@
     "zoom": "Zooming in",
     "focus": "Adjusting focus",
     "ready": "Focus locked · Ready to travel",
+    "held": "Focus locked",
     "return": "Returning to the constellation",
     "shutter": "Taking a photo"
   },
@@ -96,7 +97,9 @@
     "fallbackTitle": "Untitled",
     "graphEmpty": "No knowledge to connect yet.",
     "loadError": "Couldn't load your archive. Try again.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "periodScope": "Stories: {{star}}",
+    "periodShowAll": "Show all"
   },
   "domains": {
     "title": "My areas",
@@ -138,7 +141,7 @@
     "or": "or",
     "ageNotice": "You can create an account if you are {{minAge}} or older.",
     "brandLabel": "POLASCOPE",
-    "signInTitle": "Good to see you again",
+    "signInTitle": "Sign in",
     "legalConsent": "By continuing, you agree to the Terms of Service and Privacy Policy.",
     "business": {
       "company": "Company",
@@ -153,12 +156,13 @@
   "account": {
     "title": "Account",
     "status": "Manage your account details and connected accounts.",
-    "tip": "You can also export data or delete your account here.",
+    "tip": "You can also delete your account here.",
     "delete": "Delete account",
     "navProfile": "Profile",
     "navSettings": "Settings",
     "navData": "My data",
-    "navBeyond": "Outside the app",
+    "navIden": "Export my summary",
+    "navBeyond": "Widgets and alerts",
     "navPassword": "Change password"
   },
   "privacy": {
@@ -246,17 +250,17 @@
   "support": {
     "title": "Support",
     "prompt": "What would you like to know?",
-    "askSecondb": "Ask SecondB",
+    "askSecondb": "Ask HustleK",
     "viewManual": "Open the user guide",
     "emailUs": "Email us",
     "reportBug": "Report a bug",
-    "footer": "PolaScope v1.0.0 · 2 business days KST",
+    "footer": "PolaScope v{{version}} · 2 business days KST",
     "faqTitle": "FAQ",
     "noticesTitle": "Notices",
     "faqs": {
       "brightness": {
         "q": "What's the difference between brightness (starlight) and confidence?",
-        "a": "Starlight is how much you've captured in that area; confidence is how well SecondB's estimate has been verified. The two move independently."
+        "a": "Starlight is how much you've captured in that area; confidence is how well HustleK's estimate has been verified. The two move independently."
       },
       "plan": {
         "q": "Does a paid plan make it smarter?",
@@ -269,7 +273,7 @@
     },
     "notices": {
       "modes": {
-        "t": "SecondB three modes launched",
+        "t": "HustleK three modes launched",
         "tag": "New"
       },
       "museum": {
@@ -344,7 +348,7 @@
     "soundEffectsNote": "Telescope, star photo and opening sounds. They stay off while your phone is on silent or vibrate."
   },
   "manual": {
-    "askDirect": "Ask SecondB directly",
+    "askDirect": "Ask HustleK directly",
     "replayCoachmarks": "Replay the home guide"
   },
   "plans": {
@@ -354,11 +358,11 @@
     "recommended": "Recommended",
     "perMonth": "/ mo",
     "proFeat1": "Unlimited tests · compare repeat results",
-    "proFeat2": "Unlimited SecondB chat · imagining",
+    "proFeat2": "Unlimited HustleK chat · imagining",
     "proFeat3": "Full IDEN export",
     "proFeat4": "Trend · review suggestions",
     "currentPlan": "Currently active",
-    "freeFeat": "Basic saving · 1 check per star · 5 SecondB chats/day",
+    "freeFeat": "Basic saving · 1 check per star · 5 HustleK chats/day",
     "startPro": "Start a paid plan",
     "loadingOffers": "Loading plans...",
     "purchasing": "Processing...",
@@ -384,7 +388,7 @@
     "photoValue": "Save by photo",
     "mic": "Microphone",
     "micValue": "Save by voice",
-    "continue": "Continue"
+    "continue": "Done"
   },
   "graph": {
     "title": "My brain map",
@@ -625,12 +629,12 @@
   },
   "careerDrilldown": {
     "summaryFallback": "a career experience",
-    "intro": "Use the 3C and 4P fields to describe why you started, what you did and how. SecondB will ask follow-up questions based on your answers.",
+    "intro": "Use the 3C and 4P fields to describe why you started, what you did and how. HustleK will ask follow-up questions based on your answers.",
     "summaryLabel": "One-line summary",
     "summaryPlaceholder": "What you did and the result - one line",
     "expTypeA11y": "Experience type",
     "expTypePlaceholder": "Pick an experience type",
-    "submit": "Explore this experience with SecondB",
+    "submit": "Explore this experience with HustleK",
     "saveFailed": "Couldn't save that. Your entries are still here; try again."
   },
   "shareCard": {
@@ -647,10 +651,12 @@
     "fallbackInsight": "Understand myself deeply, live more like myself."
   },
   "coachmarks": {
-    "homeStep": "Tap SecondB to start saving a record.",
+    "homeStep": "Tap Scrap to start a record.",
     "formatStep": "Choose Memo first. One line is enough.",
     "inputStep": "Write the thought on your mind. It does not need to be a complete sentence.",
     "saveStep": "Now tap Save to keep this record.",
+    "replayEndStep": "Save keeps the record.",
+    "replayEndHint": "This second look ends here, without saving.",
     "doneStep": "Your record is saved. Return to the constellation to see it.",
     "targetHint": "Tap the highlighted control to continue.",
     "inputHint": "Write at least one character to continue to Save.",
@@ -701,7 +707,7 @@
   "shareCardImg": {
     "eyebrowWeek": "POLASCOPE · THIS WEEK",
     "eyebrowConstellation": "MY CONSTELLATION",
-    "footerWeek": "A week seen together with SecondB",
+    "footerWeek": "A week seen together with HustleK",
     "starsLit": "{{count}} stars shining",
     "signature": "PolaScope · {{count}} stardust"
   },
@@ -796,17 +802,17 @@
       "freeName": "Stargazer",
       "freeSub": "Just starting out",
       "freePrice": "Free",
-      "freeFeat1": "5 chats a day with SecondB",
+      "freeFeat1": "5 chats a day with HustleK",
       "freeFeat2": "Find connections 2 times a week",
       "freeFeat3": "All 7 stars · unlimited records",
       "plusName": "Voyager",
       "plusSub": "A steady voyager",
-      "plusFeat1": "Chat with Meta-B",
+      "plusFeat1": "Chat with Fact-K",
       "plusFeat2": "80 chats a day",
       "plusFeat3": "Find connections 7 times a week",
       "proName": "North Star",
       "proSub": "For frequent users",
-      "proFeat1": "Chat with Meta-B and Twi-B",
+      "proFeat1": "Chat with Fact-K and Joy-K",
       "proFeat2": "250 chats a day",
       "proFeat3": "Find connections without limits",
       "comingSoon": "Coming soon",
@@ -910,9 +916,9 @@
     },
     "northstar": {
       "title": "North-star sentence",
-      "sub": "SecondB suggested this sentence using your seven stars. Edit it in your own words.",
+      "sub": "HustleK suggested this sentence using your seven stars. Edit it in your own words.",
       "placeholder": "I want to find work that suits me and keep at it.",
-      "suggestLabel": "SecondB drafts",
+      "suggestLabel": "HustleK drafts",
       "thinking": "Writing a sentence",
       "propose": "Get other drafts",
       "cancel": "Cancel",
@@ -960,7 +966,7 @@
     "reasoningScreen": {
       "autoTitle": "Automatic connections",
       "autoPaused": "Limit reached · automatic runs resume Monday",
-      "autoBody": "SecondB suggests relevant life areas for each item you capture",
+      "autoBody": "HustleK suggests relevant life areas for each item you capture",
       "autoNote": "Each automatic search uses one of your weekly runs. The last run is kept for you to use manually.",
       "queuedRecord": "New record · queued",
       "queuedSource": "New source · queued",
@@ -998,7 +1004,7 @@
       "doneSummary": "{{n}} connections are proposed. Select only what you want to apply.",
       "runningSummary": "Reading {{total}} items · {{done}} / {{total}}",
       "doneNote": "Only selected proposals are applied. Unselected items stay unchanged.",
-      "runningNote": "You can leave this screen. SecondB will let you know when it's ready.",
+      "runningNote": "You can leave this screen. HustleK will let you know when it's ready.",
       "weekLabel": "This week's reasoning",
       "capturedItems": "Captured items",
       "selectProposals": "Select proposals",
@@ -1042,7 +1048,7 @@
   },
   "beyond": {
     "preview": "Preview",
-    "title": "Outside the app",
+    "title": "Widgets and alerts",
     "widgetsSection": "Home-screen widgets",
     "todaysStar": "Today's star",
     "brightestStar": "Your brightest star",
@@ -1052,7 +1058,7 @@
     "lockSection": "Lock screen",
     "lockNotif": "Want to leave one line about today?",
     "pushSection": "Push notifications",
-    "pushHead": "SecondB · now",
+    "pushHead": "HustleK · now",
     "pushBody": "Review a new finding. It updates your star only if you approve.",
     "notifSettings": "Notification settings"
   },
@@ -1064,7 +1070,7 @@
     "pieceHere": "Filed here",
     "pieceOpenHint": "Opens this record.",
     "briefingOpening": "Opening this star…",
-    "briefingEmpty": "No records in this star yet. Add a record for SecondB to summarize.",
+    "briefingEmpty": "No records in this star yet. Add a record for HustleK to summarize.",
     "briefingCountOne": "{{n}} record on this star, newest first.",
     "briefingCount": "{{n}} records on this star, newest first."
   },
@@ -1072,15 +1078,17 @@
     "nextHint": "Goes to the next slide.",
     "skipHint": "Skips the intro.",
     "authHint": "Goes to your home.",
-    "secondbName": "SecondB",
+    "secondbName": "HustleK",
     "authTitle": "Ready to begin?",
     "authBody": "Your records belong to you. Summaries are applied only after you approve them. Start with your first record.",
     "next": "Next",
     "skip": "Skip",
+    "saveFailed": "Could not save.",
+    "goHome": "Go home",
     "slides": {
       "intro": {
         "title": "An AI that gets\nto know you",
-        "body": "SecondB uses your notes\nto help organize your thoughts\nand plan your day."
+        "body": "HustleK uses your notes\nto help organize your thoughts\nand plan your day."
       },
       "stars": {
         "tag": "Getting to know you",
@@ -1105,7 +1113,7 @@
   },
   "profileDetails": {
     "screenTitle": "About your life",
-    "nameLabel": "Display name",
+    "nameLabel": "Nickname",
     "nameHint": "The name shown on your profile. Optional, up to 40 characters.",
     "nameLoading": "Loading your name…",
     "nameLoadError": "Couldn't load your current name. Please try again.",
@@ -1121,9 +1129,9 @@
     "unset": "Not set",
     "occupationLabel": "What you do",
     "occupationHint": "Student, nurse, freelancer...",
-    "regionLabel": "Where you live",
+    "regionLabel": "City of residence",
     "regionHint": "City or province is enough.",
-    "householdLabel": "Who you live with",
+    "householdLabel": "Family",
     "householdHint": "Alone, with family, with a roommate...",
     "busiestSeasonLabel": "Your busiest time of year",
     "busiestSeasonHint": "For example: exams, year-end, or the summer peak season",
@@ -1146,7 +1154,29 @@
     "daysWeekdays": "Weekdays",
     "daysWeekends": "Weekends",
     "daysShift": "Shift work",
-    "daysVaries": "It varies"
+    "daysVaries": "It varies",
+    "emailLabel": "Email",
+    "birthDateLabel": "Date of birth",
+    "genderLabel": "Gender",
+    "genderHint": "You can leave this unselected.",
+    "genderFemale": "Female",
+    "genderMale": "Male",
+    "genderOther": "Other",
+    "genderUndisclosed": "Prefer not to say",
+    "nationalityLabel": "Nationality",
+    "nationalityHint": "e.g. South Korea",
+    "maritalLabel": "Marital status",
+    "maritalHint": "You can leave this unselected.",
+    "maritalSingle": "Single",
+    "maritalMarried": "Married",
+    "maritalOther": "Other",
+    "maritalUndisclosed": "Prefer not to say",
+    "mottoLabel": "Personal motto",
+    "mottoHint": "It's best not to include sensitive things such as health, beliefs or religion.",
+    "statusMessageLabel": "Status message",
+    "statusMessageHint": "A short line shown on your profile, up to 60 characters.",
+    "statusMessageSaveError": "Couldn't save your status message. Please try again.",
+    "statusMessageLoadError": "Couldn't load your status message."
   },
   "reviewAxisNow": "Review my Big Five",
   "reviewAxisRelational": "Review my attachment style",

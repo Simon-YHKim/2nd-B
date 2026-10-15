@@ -1,9 +1,11 @@
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AppState, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import { WeatherPrivacyControl } from "@/components/privacy/WeatherPrivacyControl";
+import { AppState, Linking, Platform, Share, StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router, useNavigation } from "expo-router";
-import { useAppRouter } from "@/lib/nav/phone-embed";
+import { useAppRouter, useStartAtEndWhen } from "@/lib/nav/phone-embed";
 import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
@@ -38,7 +40,7 @@ import { useSoundEffects } from "@/lib/settings/sound-effects";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { FilterChip } from "./dds-wiki-records-screens";
-import { buildInfoLine } from "@/lib/build-info";
+import { appVersion, buildInfoLine } from "@/lib/build-info";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { gatherRisingInterests } from "@/lib/trends/gather";
 import type { RisingInterest } from "@/lib/trends/rising";
@@ -85,6 +87,8 @@ import { loadEvidenceShards } from "@/lib/persona/load-evidence-shards";
 import { type EvidenceShard } from "@/lib/persona/evidence";
 import { RatifySheet, runRatifyDecisionOnce } from "@/components/persona/RatifySheet";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { readPrivacyPrefsStrict } from "@/lib/supabase/privacy-strict";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
 import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
 import {
@@ -105,13 +109,12 @@ import {
 } from "@/lib/ops/routines";
 import { createCard, listDueCards, recordReview, type SrsCardRow } from "@/lib/srs/queries";
 import type { SrsRating } from "@/lib/srs/scheduler";
+import { readFocusClock, startFocusRun } from "@/lib/ops/focus-clock";
 import {
   createPomodoro,
-  focusJustCompleted,
   pause,
   reset,
   start,
-  tick,
   type PomodoroState,
 } from "@/lib/ops/pomodoro";
 import {
@@ -156,6 +159,9 @@ import {
   INTEGRATION_ENTRYPOINTS,
   type IntegrationEntrypoint,
 } from "./integrations/sources";
+
+/** /review 끝의 '이력에 남는다' 문구. 이력 원장이 생기기 전까지 끈다(설계 대화 발주 a, 2026-10-07). */
+const REVIEW_LEDGER_NOTE = false;
 
 // i18n label builders for the pure date helpers (which stay i18n-free).
 type Tx = (key: string, options?: Record<string, unknown>) => string;
@@ -247,12 +253,12 @@ function GraphLoading() {
 // screen floats as a radius-24 window over the shared sky (sb-app §4). Routes
 // moving from Shell to DockShell must also join DEEP_SPACE_DOCK_PATHS so the
 // floating BackArrow chip yields to the top bar.
-function DockShell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
+function DockShell({ children, title, subtitle, scroll }: { children: ReactNode; title?: string; subtitle?: string; scroll?: ReturnType<typeof useStartAtEndWhen> }) {
   // Phone-aware: inside the dashboard phone, back steps the phone's stack.
   const router = useAppRouter();
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title ?? ""} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scroll?.scrollRef} onContentSizeChange={scroll?.onContentSizeChange} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}
         {children}
       </ScrollView>
@@ -277,8 +283,8 @@ function DockShell({ children, title, subtitle }: { children: ReactNode; title?:
 // (a) 어떤 탭도 잘못 하이라이트되지 않고 (b) DeepSpaceScreen 의 BackHandler
 // 특례가 걸리지 않아 **하드웨어 뒤로가기 동선이 바뀌지 않는다**(기본 pop 유지).
 // 제목은 상단 앱바가 갖는다 — 화면 안에 또 큰 제목을 두면 같은 말이 두 번 나온다.
-function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
-  return <DockShell title={title} subtitle={subtitle}>{children}</DockShell>;
+function Shell({ children, title, subtitle, scroll }: { children: ReactNode; title?: string; subtitle?: string; scroll?: ReturnType<typeof useStartAtEndWhen> }) {
+  return <DockShell title={title} subtitle={subtitle} scroll={scroll}>{children}</DockShell>;
 }
 
 // Scroll-only body for screens that already sit inside DeepSpaceScreen (which
@@ -513,7 +519,7 @@ export function DeepSpaceSupportDesignScreen() {
         })}
       </Card>
 
-      <Text variant="subtle" style={styles.footer}>{t("support.footer")}</Text>
+      <Text variant="subtle" style={styles.footer}>{t("support.footer", { version: appVersion() ?? "?" })}</Text>
     </Shell>
   );
 }
@@ -538,7 +544,7 @@ export function DeepSpaceAccountDesignScreen() {
           <Action label={t("account.navPassword")} onPress={() => router.push("/change-password")} />
           <Action label={t("account.navSettings")} onPress={() => router.push("/settings")} />
           <Action label={t("account.navData")} onPress={() => router.push("/data")} />
-          <Action label="IDEN" onPress={() => router.push("/iden")} />
+          <Action label={t("account.navIden")} onPress={() => router.push("/iden")} />
           <Action label={t("account.navBeyond")} onPress={() => router.push("/beyond")} />
         </Card>
         {/* Build/OTA identifier — lets a tester confirm which bundle is live
@@ -549,9 +555,13 @@ export function DeepSpaceAccountDesignScreen() {
   );
 }
 
+// How long the privacy screen waits for the stored choices before it says it could not reach the
+// server. A connection that never answers otherwise left "loading" on screen for good.
+const PRIVACY_READ_TIMEOUT_MS = 10_000;
+
 export function DeepSpacePrivacyDesignScreen() {
-  // Phone-aware: inside the dashboard phone, links open in the phone. The
-  // post-deletion replace("/sign-in") still leaves the phone (auth exit path).
+  // Phone-aware: links open in the phone; the post-deletion replace("/sign-in") still leaves it (auth exit path).
+  const startAtDelete = useStartAtEndWhen("section", "delete"); // the account screen's delete row lands on the delete card, the last one
   const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { t: consentT } = useTranslation("consent");
@@ -571,6 +581,17 @@ export function DeepSpacePrivacyDesignScreen() {
   const privacyMountedRef = useRef(true);
   const prefsRef = useRef<PrivacyPrefs | null>(null);
   const prefsUserRef = useRef<string | null>(null);
+  // The stored choices could not be read (an error, or no answer in time). The cards that show
+  // and save them stay closed until a read succeeds: this screen used to read fail-soft, so a
+  // failed read showed every choice OFF as if stored, and a save could start from that guess.
+  const [prefsReadFailed, setPrefsReadFailed] = useState(false);
+  const [prefsReload, setPrefsReload] = useState(0);
+  const showPrefs = (shown: PrivacyPrefs) => {
+    setAnalyticsOn(shown.external_analytics === true);
+    setAdsOn(shown.ads === true);
+    setRecOn(shown.recommendations === true);
+    setEmbedOn(shown.records_embedding === true);
+  };
   const [analyticsOn, setAnalyticsOn] = useState<boolean | null>(null);
   const [adsOn, setAdsOn] = useState<boolean | null>(null);
   const [externalError, setExternalError] = useState<{
@@ -734,28 +755,36 @@ export function DeepSpacePrivacyDesignScreen() {
       setDelError(false);
       allowDeletionNavigationRef.current = false;
     }
+  }, [userId]);
+
+  useEffect(() => {
     if (!userId) return;
     const targetUserId = userId;
     let cancelled = false;
-    void fetchPrivacyPrefs(targetUserId).then((p) => {
-      if (!cancelled && activeUserRef.current === targetUserId) {
+    setPrefsReadFailed(false);
+    void withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs").then(
+      (p) => {
+        if (cancelled || activeUserRef.current !== targetUserId) return;
         // A save or a strict read on this screen (the health card) may have landed first;
-        // this fail-soft read is older then and must not become the copy saves start from.
+        // this read is older then and must not become the copy saves start from.
         if (prefsUserRef.current !== targetUserId) {
           prefsRef.current = p;
           prefsUserRef.current = targetUserId;
         }
-        const shown = prefsRef.current ?? p;
-        setAnalyticsOn(shown.external_analytics === true);
-        setAdsOn(shown.ads === true);
-        setRecOn(shown.recommendations === true);
-        setEmbedOn(shown.records_embedding === true);
-      }
-    });
+        showPrefs(prefsRef.current ?? p);
+      },
+      () => {
+        if (cancelled || activeUserRef.current !== targetUserId) return;
+        // The health card's own strict read may already know the stored choices.
+        if (prefsUserRef.current === targetUserId && prefsRef.current) showPrefs(prefsRef.current);
+        else setPrefsReadFailed(true);
+      },
+    );
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+    // showPrefs only calls state setters; a new copy each render changes nothing the read needs.
+  }, [userId, prefsReload]);
 
   async function toggleExternalPreference(
     key: Extract<PrivacyPrefKey, "external_analytics" | "ads">,
@@ -775,7 +804,6 @@ export function DeepSpacePrivacyDesignScreen() {
     if (prefsRef.current[key] === next) return;
 
     const targetUserId = userId;
-    const updated: PrivacyPrefs = { ...prefsRef.current, [key]: next };
     setExternalError(null);
     setBusy(true);
 
@@ -789,16 +817,30 @@ export function DeepSpacePrivacyDesignScreen() {
     }
 
     try {
-      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en" });
+      // The stored choices at the moment of the press, read strictly: the save writes the whole
+      // object, so building it from the copy this screen read earlier would put back anything
+      // another device changed since, and the ledger (comparing with that same copy) would not
+      // show it. A failed read throws and nothing is saved.
+      const base = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
+      // Never for another account. A withdrawal is finished even if the screen was left during
+      // the read, like the other withdrawals on this screen; an opt-in is not started for a
+      // screen that is gone, or for an age that became minor or unknown during the read.
+      if (activeUserRef.current !== targetUserId) return;
+      if (next && (!privacyMountedRef.current || minorRef.current)) return;
+      const updated: PrivacyPrefs = { ...base, [key]: next };
+      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en", before: base });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       const effectiveNext = minorRef.current ? false : next;
       const committed: PrivacyPrefs = { ...updated, [key]: effectiveNext };
       // If age became unresolved/minor while an opt-in was saving, persist the
       // fail-closed value too instead of merely hiding a stale server grant.
-      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed, { locale: ko ? "ko" : "en" });
+      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed, { locale: ko ? "ko" : "en", before: updated });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = committed;
       prefsUserRef.current = targetUserId;
+      // The save started from the stored choices, which may differ from what was on screen:
+      // show all of them, so the toggles and the copy the next press checks agree.
+      showPrefs(committed);
       if (key === "external_analytics") {
         setAnalyticsOn(effectiveNext);
         setAnalyticsConsent(effectiveNext, {
@@ -807,6 +849,14 @@ export function DeepSpacePrivacyDesignScreen() {
         });
       } else {
         setAdsOn(effectiveNext);
+        // The saved choices can show analytics off (changed on another device). This device
+        // follows that off at once; it is never turned on from here.
+        if (committed.external_analytics !== true) {
+          setAnalyticsConsent(false, {
+            isMinor: minorRef.current,
+            confirmedAdult: minorRef.current === false,
+          });
+        }
       }
     } catch {
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
@@ -826,20 +876,22 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setRecError(false);
     try {
-      const current = await fetchPrivacyPrefs(targetUserId);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) return;
       const prefs = { ...current, recommendations: true };
-      await savePrivacyPrefs(targetUserId, prefs);
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false }, { before: prefs });
         return;
       }
       // recordConsentBestEffort retries, then REPORTS failure instead of
@@ -860,14 +912,14 @@ export function DeepSpacePrivacyDesignScreen() {
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false }, { before: prefs });
         return;
       }
       if (!consentRecorded) {
         // Same rollback the session guards above perform, for the same reason:
         // this is a state we must not leave behind. Retrying is the user's to
         // choose, and the existing error line already says to try again.
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false }, { before: prefs });
         setRecError(true);
         return;
       }
@@ -888,8 +940,11 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setRecError(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), recommendations: false };
-      await savePrivacyPrefs(targetUserId, prefs);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
+      const prefs = { ...current, recommendations: false };
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = prefs;
       prefsUserRef.current = targetUserId;
@@ -910,20 +965,22 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setEmbedErr(false);
     try {
-      const current = await fetchPrivacyPrefs(targetUserId);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) return;
       const prefs = { ...current, records_embedding: true };
-      await savePrivacyPrefs(targetUserId, prefs);
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, records_embedding: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, records_embedding: false }, { before: prefs });
         return;
       }
       prefsRef.current = prefs;
@@ -970,8 +1027,11 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setEmbedErr(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), records_embedding: false };
-      await savePrivacyPrefs(targetUserId, prefs);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
+      const prefs = { ...current, records_embedding: false };
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       // Consent revoked → forget the index (honest "off deletes vectors").
       await clearRecordEmbeddings(targetUserId);
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
@@ -998,12 +1058,13 @@ export function DeepSpacePrivacyDesignScreen() {
   if (!userId && !deleting) return <Redirect href="/sign-in" />;
 
   return (
-    <Shell title={t("privacy.title")}>
+    <Shell title={t("privacy.title")} scroll={startAtDelete}>
       <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
       <Text variant="body" style={styles.lead}>{t("privacy.lead")}</Text>
 
       <Card>
         <Action label={consentT("serviceControl.title")} value={t("privacy.view")} onPress={() => router.push("/service-consent")} />
+        <WeatherPrivacyControl />
       </Card>
 
       {/* 한눈에 / At a glance (canonGaps.privacyFacts) — icon + label + value. */}
@@ -1025,6 +1086,17 @@ export function DeepSpacePrivacyDesignScreen() {
         })}
       </Card>
 
+      {prefsReadFailed ? (
+        // The stored choices were not read. Say so with the sentence the app already uses, offer
+        // another read, and show no control that could save from a guess.
+        <Card>
+          <Text variant="body" style={styles.lead}>{t("common:errors.network")}</Text>
+          <Pressable style={styles.secondary} onPress={() => setPrefsReload((n) => n + 1)} accessibilityRole="button">
+            <Text variant="body" style={styles.secondaryText}>{t("common:actions.retry")}</Text>
+          </Pressable>
+        </Card>
+      ) : (
+      <>
       <Card>
         <Text variant="caption" style={styles.section}>
           {t("privacy.analytics.title")}
@@ -1173,7 +1245,7 @@ export function DeepSpacePrivacyDesignScreen() {
                 locale "en", so it has no es/pt/id reading to match either. */}
             <Text variant="body" style={styles.lead}>
               {ko
-                ? `켜기 전에 알아두세요. 켜면 지금까지 담아 둔 기록과 앞으로 담는 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드립니다. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않습니다. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제됩니다. 동의는 기록에 남습니다.`
+                ? `켜기 전에 알아두세요. 켜면 지금까지 저장한 기록과 앞으로 저장할 기록의 내용이 의미 벡터로 변환·저장돼, 서로 비슷한 기록을 이어 보여드립니다. 변환을 위해 기록 텍스트가 ${embedVendorLabel()}(해외)로 전송됩니다. 위기 관련 내용은 전송되지 않습니다. 성인만 켤 수 있고, 끄면 이후 색인이 멈추고 저장된 벡터도 삭제됩니다. 동의는 기록에 남습니다.`
                 : `Before you turn it on. Your existing records and every new record will be turned into meaning vectors and stored so similar records can be linked. To do that, record text is sent to ${embedVendorLabel()} (processed overseas). Crisis-related content is not sent. Adults only; turning it off stops indexing and deletes the stored vectors. Your consent is logged.`}
             </Text>
             <View style={styles.ctaRow}>
@@ -1190,6 +1262,8 @@ export function DeepSpacePrivacyDesignScreen() {
           <Text variant="subtle" style={styles.footer}>{t("privacy.saveFailed")}</Text>
         ) : null}
       </Card>
+      </>
+      )}
 
       <HealthWithdrawCard
         busy={busy}
@@ -1199,6 +1273,11 @@ export function DeepSpacePrivacyDesignScreen() {
           if (activeUserRef.current !== ownerId) return;
           prefsRef.current = known;
           prefsUserRef.current = ownerId;
+          // The screen's own read may have failed while this one got through: show what it read.
+          if (prefsReadFailed) {
+            showPrefs(known);
+            setPrefsReadFailed(false);
+          }
         }}
         onPrefsUnknown={(ownerId) => {
           if (prefsUserRef.current === ownerId) prefsUserRef.current = null;
@@ -1236,7 +1315,7 @@ export function DeepSpacePrivacyDesignScreen() {
         <TextInput
           value={delConfirm}
           onChangeText={setDelConfirm}
-          placeholder="DELETE"
+          autoComplete="off"
           placeholderTextColor={colors.textLo}
           autoCapitalize="characters"
           autoCorrect={false}
@@ -1863,6 +1942,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const ratifyPendingRef = useRef(false);
+  const clearProposalAfterExit = useRef(false);
   const [ratifyPending, setRatifyPending] = useState(false);
 
   // 무엇을 되돌릴 수 있는가는 카드가 정한다. 예전에는 이 화면이 `"now"` 를
@@ -1920,6 +2000,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         setCurrentLevel(nextCurrentLevel);
         setEvidenceRefs(nextEvidenceRefs);
         setReceipts(nextReceipts);
+        clearProposalAfterExit.current = false;
         setProposal(p);
         setSheetOpen(true);
       } else {
@@ -1959,6 +2040,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         setCurrentLevel(ctx.currentLevel);
         setEvidenceRefs(ctx.evidenceRefs);
         setReceipts(nextReceipts);
+        clearProposalAfterExit.current = false;
         setProposal(p);
         setSheetOpen(true);
       } else {
@@ -1982,7 +2064,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
           proposalDecided({ flow: "self_model", decision: decision === "ratify" ? "ratify" : "decline", count: 1 }),
         );
         if (decision === "decline") {
-          setProposal(null);
+          clearProposalAfterExit.current = true;
           setSheetOpen(false);
           setResult(t("reviewLeftAsIs"));
           return;
@@ -2014,7 +2096,7 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         // 비준 시트는 네이티브 Modal 이라 안드로이드에서 닫히는 동안 창 포커스가 돌아오지 않아
         // 소리 관문이 막힐 수 있다. 시트가 닫힌 뒤에 울린다.
         if (l5Cue) setTimeout(playRatifyCue, RATIFY_L5_CUE_DELAY_MS);
-        if (persisted) setProposal(null);
+        if (persisted) clearProposalAfterExit.current = true;
         setResult(
           persisted
             ? t("reviewRatifiedMoved", { level: r.resultingLevel })
@@ -2143,8 +2225,10 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         </Card>
       ) : null}
       {/* 거절도 승인도 이력에 남는다는 것을 화면 끝에서 한 번 더 말한다 —
-          되돌릴 수 있다는 확신이 있어야 사람이 솔직하게 아니라고 한다. */}
-      <Text variant="subtle" style={styles.footer}>{t("review.ledgerNote")}</Text>
+          되돌릴 수 있다는 확신이 있어야 사람이 솔직하게 아니라고 한다.
+          설계 대화 발주 a(2026-10-07): 그 이력 원장이 아직 없어 사실과 다른 말이라 내린다.
+          키(review.ledgerNote)는 남겨 두고, 원장이 생기면 REVIEW_LEDGER_NOTE 를 true 로 되돌린다. */}
+      {REVIEW_LEDGER_NOTE ? <Text variant="subtle" style={styles.footer}>{t("review.ledgerNote")}</Text> : null}
       <RatifySheet
         proposal={proposal}
         locale={locale}
@@ -2152,6 +2236,12 @@ function DeepSpaceReviewSession({ userId, isMinor }: DeepSpaceReviewSessionProps
         pending={ratifyPending}
         pendingLabel={t("career.saving")}
         onDecision={handleDecision}
+        onHidden={() => {
+          if (clearProposalAfterExit.current) {
+            clearProposalAfterExit.current = false;
+            setProposal(null);
+          }
+        }}
         onClose={() => {
           if (!ratifyPendingRef.current) setSheetOpen(false);
         }}
@@ -2772,7 +2862,7 @@ export function DeepSpaceFocusScreen() {
   const [tally, setTally] = useState<FocusTally>(() => freshFocusTally(null));
   const [area, setArea] = useState<LifeArea>(FOCUS_AREAS[0]);
 
-  // ANDROID_QA §4: a single 1s interval drives tick(); cleared on unmount AND
+  // ANDROID_QA §4: a single 1s interval drives the timer; cleared on unmount AND
   // whenever `running` flips off, so a paused/idle timer holds no live interval.
   const timerRef = useRef(timer);
   timerRef.current = timer;
@@ -2781,31 +2871,54 @@ export function DeepSpaceFocusScreen() {
   const areaRef = useRef(area);
   areaRef.current = area;
 
+  // Every press that changes the timer ends the run that is ticking, at once: the mark moves
+  // before React renders, so a tick that was already queued finds it is no longer the owner and
+  // cannot write its older state over the pause (Z109).
+  const runMarkRef = useRef(0);
+  const [runMark, setRunMark] = useState(0);
+  const changeTimer = (update: (state: PomodoroState) => PomodoroState) => {
+    runMarkRef.current += 1;
+    setRunMark(runMarkRef.current);
+    setTimer(update);
+  };
+
   useEffect(() => {
     if (!timer.running) return;
-    const id = setInterval(() => {
-      const prev = timerRef.current;
-      const next = tick(prev, 1000);
-      if (next === prev) return;
-      if (focusJustCompleted(prev, next)) {
+    // Time is measured, not counted. A tick that adds one second each time it fires stops when
+    // the app goes to the background: the timer stood at 12:51 for fifteen minutes (Z109). The
+    // run (lib/ops/focus-clock) measures by the clocks and catches up when the app comes back.
+    const run = startFocusRun(timerRef.current, AppState.currentState === "active", {
+      read: readFocusClock,
+      owns: () => runMarkRef.current === runMark,
+      onAdvance: (next) => {
+        timerRef.current = next;
+        setTimer(next);
+      },
+      onComplete: (prev) => {
         // Sensor auto-complete: tick daily_focus + notify, then return to a fresh
         // idle focus block (the reference timer has no break phase).
-        setTimer(createPomodoro(prev.config));
+        const idle = createPomodoro(prev.config);
+        timerRef.current = idle;
+        setTimer(idle);
         // The finished session's OWN length goes into today's minutes, so picking
         // another preset later cannot rewrite what was done (R2C-13).
         const doneArea = areaRef.current;
         setTally((cur) => ({ ...cur, day: completeFocusSession(cur.day, doneArea, prev.config.focusMinutes) }));
-        if (userId) void applyFocusSessionComplete(userId).catch(() => {});
-        void notifyNow(
-          t("focus.alarmFocusTitle"),
-          t("focus.alarmFocusBodyArea", { area: t(`phone.areas.${doneArea}`) }),
-        ).catch(() => {});
-      } else {
-        setTimer(next);
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [timer.running, userId, t]);
+        if (userId) {
+          void applyFocusSessionComplete(userId).catch(() => {});
+          // The account goes first: without it notifyNow shows nothing on a phone (Z107).
+          void notifyNow(userId, t("focus.alarmFocusTitle"), t("focus.alarmFocusBodyArea", { area: t(`phone.areas.${doneArea}`) })).catch(() => {});
+        }
+      },
+    });
+    const id = setInterval(run.step, 1000);
+    const sub = AppState.addEventListener("change", (state) => run.appInFront(state === "active"));
+    return () => {
+      run.close();
+      clearInterval(id);
+      sub.remove();
+    };
+  }, [timer.running, runMark, userId, t]);
 
   // Today's tally and the area pick persist across app restarts, per account, so
   // the summary covers all of today's sessions, not just this mount's. A read that
@@ -2880,7 +2993,7 @@ export function DeepSpaceFocusScreen() {
     // Idle-only: mid-session this used to createPomodoro() with no guard and
     // silently destroy the running session (audit: /focus bug-open).
     if (!idle) return;
-    setTimer(createPomodoro({ ...timer.config, focusMinutes: m }));
+    changeTimer(() => createPomodoro({ ...timer.config, focusMinutes: m }));
   };
 
   return (
@@ -2940,14 +3053,14 @@ export function DeepSpaceFocusScreen() {
           label={timer.running ? t("focus.pause") : t("focus.startFocus")}
           variant={timer.running ? "tonal" : "filled"}
           icon={<CloneIcon name={timer.running ? "pause" : "play_arrow"} color={timer.running ? m3.color.onSecondaryContainer : m3.color.onPrimary} size={18} fill={!timer.running} />}
-          onPress={() => setTimer((s) => (s.running ? pause(s) : start(s)))}
+          onPress={() => changeTimer((s) => (s.running ? pause(s) : start(s)))}
           style={{ flex: 2 }}
         />
         <MdButton
           label={t("focus.resetBtn")}
           variant="outlined"
           icon={<CloneIcon name="replay" color={m3.color.primary} size={18} />}
-          onPress={() => setTimer((s) => reset(s))}
+          onPress={() => changeTimer((s) => reset(s))}
           style={{ flex: 1 }}
         />
       </View>

@@ -82,6 +82,35 @@ describe("app-parity: 폰 APK 빌드 설정 읽기", () => {
     expect(env.EXPO_PUBLIC_LLM_MODE).toBe("live");
   });
 
+  it("W1 활성화 설정이 APK와 8081에 함께 전달되고 미설정 시 꺼진다", () => {
+    expect(appEnv(workflow, {}).EXPO_PUBLIC_DASHBOARD_GENERATION).toBe("false");
+    expect(appEnv(workflow, { EXPO_PUBLIC_DASHBOARD_GENERATION: "true" })
+      .EXPO_PUBLIC_DASHBOARD_GENERATION).toBe("true");
+    const web = parse(read(".github/workflows/web-deploy.yml"));
+    const build = web.jobs.build.steps.find((step: Step) => step.env?.EXPO_PUBLIC_LLM_MODE);
+    expect(build.env.EXPO_PUBLIC_DASHBOARD_GENERATION)
+      .toBe("${{ vars.EXPO_PUBLIC_DASHBOARD_GENERATION || 'false' }}");
+  });
+
+  it("쪼갠 대화 입력 스위치는 APK·웹·8081·EAS에서 기본 켜짐이며 전체 의미 판정과 독립이다", () => {
+    expect(appEnv(workflow, {}).EXPO_PUBLIC_OBFUSCATION_SAFETY).toBe("true");
+    expect(appEnv(workflow, { EXPO_PUBLIC_OBFUSCATION_SAFETY: "false" })
+      .EXPO_PUBLIC_OBFUSCATION_SAFETY).toBe("false");
+    const web = parse(read(".github/workflows/web-deploy.yml"));
+    const build = web.jobs.build.steps.find((step: Step) => step.env?.EXPO_PUBLIC_LLM_MODE);
+    expect(build.env.EXPO_PUBLIC_OBFUSCATION_SAFETY)
+      .toBe("${{ vars.EXPO_PUBLIC_OBFUSCATION_SAFETY || 'true' }}");
+    expect(build.env.EXPO_PUBLIC_SERVER_SAFETY).toBeUndefined();
+    expect(appEnv(workflow, {}).EXPO_PUBLIC_SERVER_SAFETY).toBeUndefined();
+    const eas = JSON.parse(read("eas.json")) as { build: Record<string, { env?: Record<string, string> }> };
+    const live = Object.values(eas.build).filter((profile) => profile.env?.EXPO_PUBLIC_SAFETY_VENDOR);
+    expect(live).toHaveLength(3);
+    for (const profile of live) {
+      expect(profile.env?.EXPO_PUBLIC_OBFUSCATION_SAFETY).toBe("true");
+      expect(profile.env?.EXPO_PUBLIC_SERVER_SAFETY).toBeUndefined();
+    }
+  });
+
   it("저장소 Variables 가 있으면 그 값을, 비어 있으면 워크플로 기본값을 쓴다", () => {
     const withVar = appEnv(workflow, { EXPO_PUBLIC_CHAT_VENDOR: "claude" });
     const empty = appEnv(workflow, { EXPO_PUBLIC_CHAT_VENDOR: "" });

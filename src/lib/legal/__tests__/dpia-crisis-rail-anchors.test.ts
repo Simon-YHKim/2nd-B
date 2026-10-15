@@ -82,39 +82,39 @@ const LR = "scripts/check-legal-review.ts";
 const ANCHORS: Anchor[] = [
   { cite: "src/lib/analytics/auth-conversions.ts:47", symbol: "requiresGuardianConsent(age, resolveJurisdiction())",
     why: "분석 동의의 관할별 연령 게이트를 실제로 적용하는 자리. AuthContext 연동 추출 후 이전 layout 좌표를 재사용하지 않는다." },
-  { cite: `${S}:436-466`, symbol: "fixedCrisisResponse",
+  { cite: `${S}:547-577`, symbol: "fixedCrisisResponse",
     why: "위기 응답이 사람이 쓴 고정 템플릿이라는 주장의 근거. 어긋나면 의미 분류기 프롬프트를 읽게 된다." },
-  { cite: `${S}:305-418`, symbol: "classifySafety",
+  { cite: `${S}:416-529`, symbol: "classifySafety",
     why: "3층 방어 중 둘째 층(의미 분류기)." },
-  { cite: `${S}:182-204`, symbol: "mergeResults",
+  { cite: `${S}:198-220`, symbol: "mergeResults",
     why: "RED-wins 병합. 이게 아니면 '보수적으로 합친다'는 주장에 근거가 없다." },
-  { cite: `${S}:185-197`, symbol: "indexOf",
+  { cite: `${S}:201-213`, symbol: "indexOf",
     why: "모르는 zone 을 RED 로 취급하는 fail-closed 순위. 위기에서 열리지 않는다는 주장." },
-  { cite: `${S}:56-68`, symbol: "Suicide CARE",
+  { cite: `${S}:72-84`, symbol: "Suicide CARE",
     why: "KO/EN 마커 목록. 어느 임상 근거를 쓰는지가 여기서 확인된다." },
-  { cite: `${S}:94`, symbol: "EXPO_PUBLIC_USE_VERTEX",
+  { cite: `${S}:110`, symbol: "EXPO_PUBLIC_USE_VERTEX",
     why: "키 없는 웹 빌드에서 의미 층이 꺼진다는 잔여위험 서술의 근거." },
-  { cite: `${S}:440-452`, symbol: "crisisHotlines",
+  { cite: `${S}:551-563`, symbol: "crisisHotlines",
     why: "미성년 라우팅이 실제로 핫라인 목록을 부르는 자리." },
-  { cite: `${C}:70-79`, symbol: "crisisHotlines",
+  { cite: `${C}:71-80`, symbol: "crisisHotlines",
     why: "(locale, minor) → 핫라인 표시 순서." },
-  { cite: `${C}:73-75`, symbol: "KR_1388",
+  { cite: `${C}:76-78`, symbol: "KR_1388",
     why: "미성년에게 1388 이 먼저 온다는 주장. 순서가 주장의 내용이다." },
-  { cite: `${C}:70-90`, symbol: "1388",
+  { cite: `${C}:71-91`, symbol: "1388",
     why: "⚠ 이 앵커는 **산문 낱말을 일부러 심볼로 쓴다.** 다른 앵커에서는 금기지만 여기서는 그게 목적이다 - 문서가 미성년 라우팅을 여덟 자리에서 주장하며 전부 '1388' 이라고 산문으로 적고, 그중 한 자리가 `:58-67`(주석 블록)을 가리키고 있었다. 심볼이 `KR_1388` 이면 산문 '1388' 과 안 겹쳐서 그 자리는 **한 번도 대조되지 않는다.** 산문 낱말로 잡아야 여덟 자리 전부가 검사에 들어온다. 주석을 걷은 뒤에도 남아야 하므로(evidence 기본값) 주석에 적힌 `1388` 로는 통과할 수 없다." },
   { cite: `${LR}:14`, symbol: "365",
     why: "검토 주기 365일이 **실제로 사는 자리**. 문서는 이 숫자를 `lexicon.ts:455-456` 에 인용하고 있었는데 그 범위는 주석 두 줄이고 `365` 라는 글자가 아예 없다(숫자는 :459 주석, 실제 상수는 여기). 주기가 바뀌면 문서가 조용히 틀려진다." },
-  { cite: `${C}:91-116`, symbol: "classifyInput",
+  { cite: `${C}:92-118`, symbol: "classifyInput",
     why: "3층 방어 중 첫째 층(동기 렉시콘 백스톱)." },
-  { cite: `${C}:142-159`, symbol: "containsAnalysisForbidden",
+  { cite: `${C}:144-161`, symbol: "containsAnalysisForbidden",
     why: "비임상 어휘 가드 C-LEX 의 구현." },
-  { cite: `${P}:55-62`, symbol: "defaultPrivacyPrefs",
+  { cite: `${P}:59-66`, symbol: "defaultPrivacyPrefs",
     why: "'바깥으로 나가는 설정은 전부 기본 꺼짐' - 이 문서 전체 개인정보 자세의 하중을 받는 주장." },
-  { cite: `${P}:95-99`, symbol: "MINOR_PROMOTABLE_KEYS",
+  { cite: `${P}:99-103`, symbol: "MINOR_PROMOTABLE_KEYS",
     why: "미성년이 스스로 켤 수 있는 유일한 둘. 목록 자체가 주장의 내용이다." },
-  { cite: `${P}:125`, symbol: "VISIBLE_PRIVACY_KEYS",
+  { cite: `${P}:129`, symbol: "VISIBLE_PRIVACY_KEYS",
     why: "실제로 토글로 그려지는 셋. D-12 정직성 제약." },
-  { cite: `${P}:137-140`, symbol: "isPrivacyPrefEditable",
+  { cite: `${P}:142-145`, symbol: "isPrivacyPrefEditable",
     why: "미성년 UI 잠금. 서버 클램프와 짝을 이루는 클라이언트 쪽." },
   { cite: `${R}:127-134`, symbol: "recommendationsAllowed",
     why: "추천이 명시적 동의 없이는 안 도는 게이트. D-20 이 열어 둔 구멍을 닫은 자리." },
@@ -130,25 +130,25 @@ const ANCHORS: Anchor[] = [
     why: "지움 결과의 이름 집합이 요청 집합과 정확히 같은지 관측하는 자리. 개수만 같거나 일부만 지워졌는데도 '지워졌다'고 주장하지 못하게 한다." },
   { cite: `${DS}:95-116`, symbol: "listingResponse.error",
     why: "flat listV2 페이지 실패를 닫힌 상태로 처리하는 자리 - Art.17 삭제 주장의 실제 근거." },
-  { cite: `${X}:303-357`, symbol: "consent_records",
+  { cite: `${X}:304-364`, symbol: "consent_records",
     why: "Art.20 이식성이 실제로 무엇을 담아 오는가. 6.1.3 이 '빠져 있다'고 나열하던 여덟 범주가 바로 이 목록이다." },
-  { cite: `${X}:359-389`, symbol: "gemini_spend_daily",
+  { cite: `${X}:366-396`, symbol: "gemini_spend_daily",
     why: "일부러 뺀 저장소 목록. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제이고, 실제 제외 매니페스트가 근거다." },
-  { cite: `${W}:245`, symbol: "includeRecords",
+  { cite: `${W}:249`, symbol: "includeRecords",
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
   { cite: `${AT}:96-131`, symbol: "remain inert",
     why: "Sentry 가 **일부러** 닫혀 있다는 주장의 근거. 문서가 '설정됐으나 안 쓴다'가 아니라 '울타리가 있고 조건이 적혀 있다'고 말하려면 그 울타리를 지키는 검사가 실재해야 한다." },
-  { cite: `${AC}:154`, symbol: "MINOR_AGE_CEILING",
+  { cite: `${AC}:158`, symbol: "MINOR_AGE_CEILING",
     why: "미성년 여부가 실제로 정해지는 비교. 이 문서 전체가 이 한 줄 위에 서 있다." },
   { cite: `${AD}:79`, symbol: "input.isMinor !== false",
     why: "미성년에게 광고가 안 나간다는 주장의 fail-closed 지점 - null 도 막는다는 것이 주장의 내용이다. 2026-10-05 웹 배너 갈래(canShowAds)가 접혀 남은 하나인 보상형(canShowRewardedAds)의 줄로 옮겼다(Q-261004-16)." },
   { cite: `${AD}:11-13`, symbol: "NEVER see ads", evidence: "comment",
     why: "그 규칙을 코드가 스스로 적어 둔 자리 - 주장 자체가 '코드가 이렇게 적어 두었다'라서 주석이 근거다." },
-  { cite: `${CV}:345`, symbol: "SYSTEM_PROMPT_HEADER",
+  { cite: `${CV}:352`, symbol: "SYSTEM_PROMPT_HEADER",
     why: "대화 프롬프트가 실제로 조립되는 자리 - 무엇이 모델에 들어가는지의 근거." },
   { cite: "src/lib/ops/recommend.ts:199-207", symbol: "recommendationsAllowed(input.minor",
     why: "엔진이 호출부와 **독립적으로** 게이트를 다시 본다는 주장의 근거. 493행이 '통제가 어느 한 화면에 기대지 않는다'고 말하는 근거가 이 한 줄이다 - 화면 잠금이 사라져도 스냅샷이 LLM 에 안 간다." },
-  { cite: "src/screens/deepspace/dds-ops-screen.tsx:588-595", symbol: "recommendationsAllowed",
+  { cite: "src/screens/deepspace/dds-ops-screen.tsx:552-558", symbol: "recommendationsAllowed",
     why: "미성년 추천 잠금이 **배송되는 화면에서** 실제로 불리는 자리. ⚠ 원래 `src/app/ops.tsx:111` 을 가리켰는데 그 줄은 `OpsLegacy` 안이었고, 그 렌더러는 2026-09-08 에 `legacy/screens/ops.tsx` 로 나갔다 (그 전에는 `ops.tsx:501` 이 deep-space 일 때 위임해서 **어떤 배포도 그리지 않았다**). 잠금은 실재하는데 좌표가 죽어 있었다 - 회차 60(/data)·61(/audit) 과 같은 부류의 세 번째다." },
   // ── 통제 표(C-*)가 인용하는 코드 ──────────────────────────────────────────
   //
@@ -192,16 +192,12 @@ const ANCHORS: Anchor[] = [
   // 없다. 이것이 Q-13 의 뒤집는 조건이라 문장을 좁히고 [RE-READ 2026-10-05] 로 남겼다.
   // 이번 회차의 실수는 앞 회차의 거울상이다: 그쪽은 다른 구현을 안 찾았고, 이쪽은 구현을
   // 찾은 뒤 **그 구현이 주장의 입력(홈 상호작용)에 연결돼 있는지**를 안 봤다.
-  { cite: "src/lib/companion/faces.ts:213,219-223", symbol: "quietMs >= SLEEPY_AFTER_MS",
-    why: "'조는' 동작의 실제 술어. 90초 넘게 조용하면 유휴 굴림이 sleepy 표정을 낸다. 어긋나면 읽는 사람이 다른 표정 규칙을 보고 졸기가 없다고 판단한다." },
-  { cite: "src/components/deepspace/SecondbHead.tsx:224-228", symbol: "setIdleExpr(null)",
-    why: "유휴 표정을 지우는 첫째 길. 앱 전역 반응 이벤트(저장·삭제 등)가 오면 떠 있는 유휴 표정을 바로 지우고 조용함 타이머를 다시 잰다. 홈 머리 누르기는 이 이벤트를 보내지 않는다(아래 '홈 머리 누르기' 검사)." },
-  { cite: "src/components/deepspace/SecondbHead.tsx:235-239", symbol: "if (expr) setIdleExpr(null)",
-    why: "유휴 표정을 지우는 둘째 길 - AI 응답 대기 홀드. 문서가 '반응 또는 홀드 이벤트' 라고 둘을 함께 적으므로 홀드 쪽도 실제 줄이 있어야 한다." },
-  { cite: "src/components/deepspace/SecondbHead.tsx:251-255", symbol: "if (reduce)",
-    why: "감속 동작을 켜면 유휴 층 전체가 꺼진다는 근거. 이 줄이 없으면 '졸기' 가 모든 사용자에게 온다고 읽힌다." },
-  { cite: "src/components/deepspace/SecondbHead.tsx:262-266", symbol: "pickIdleAction(Math.random, quietMs)",
-    why: "배송되는 머리가 그 술어를 실제로 부르는 자리. faces.ts 만 인용하면 '규칙은 있는데 아무도 안 부른다' 와 구분되지 않는다 - fab-state 가 정확히 그 상태로 인용되고 있었다." },
+  { cite: "src/components/deepspace/SecondbHead.tsx:40-44", symbol: "setReactExpr(expr)",
+    why: "고정 초상화가 앱 이벤트를 받아 표정을 바꾸고 정해진 뒤 복귀하는 근거." },
+  { cite: "src/components/deepspace/SecondbHead.tsx:45", symbol: "subscribeHold(setHoldExpr)",
+    why: "AI 응답 대기 표정은 홀드 이벤트에만 연결된다." },
+  { cite: "src/components/deepspace/SecondbHead.tsx:54-60", symbol: "expression ?? hustlekExpressionFor(mood)",
+    why: "호출자 맥락을 기본으로 유지하고 홈 모션은 앱 이벤트보다 낮은 우선순위로 제한한다." },
   { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:87", symbol: "'external_analytics', false",
     why: "미성년에게 외부 분석이 서버에서 잠긴다는 주장의 실제 줄. ⚠ 문서가 `:88` 을 인용했는데 그 줄은 `'llm_training', false` 다 - **클라이언트 키 집합에서 가지쳐진 키**(회차 57·58)를 두 다른 설정의 근거로 가리키고 있었다." },
   { cite: "db/migrations/0038_minor_tier_guard_and_audit_lockdown.sql:86", symbol: "'recommendations', false",
@@ -226,14 +222,14 @@ const ANCHORS: Anchor[] = [
     why: "동의 기록이 UI 수집 **뒤에** 쓰인다는 불변식의 기록. 문서가 이 주석을 'still read null (stale)' 이라고 인용했었다." },
   { cite: `${A}:57-66`, symbol: "the country signal landed", evidence: "comment",
     why: "관할 신호가 **언제** 붙었는지의 날짜 기록. 문서가 세 자리에서 '신호 없음'을 주장하며 **바로 이 범위를 인용**하고 있었다 - 인용된 줄이 인용한 주장을 반증하는 상태였다. 주장 자체가 '코드가 이 날짜를 적어 두었다' 라서 주석이 근거다." },
-  { cite: `${P}:103-105`, symbol: "were pruned", evidence: "comment",
+  { cite: `${P}:107-109`, symbol: "were pruned", evidence: "comment",
     why: "문서가 credit 하던 `llm_training`/`persona_export`/`persona_share` 가 **왜 없는지**의 기록. 없는 설정을 통제로 적는 것을 막는다(회차 45 의 부류)." },
   // ⚠ 회차 57 이 여기에 `src/app/wiki.tsx:359` / `exportContextPack` 앵커를 두었다.
   // 회차 63 에서 지웠다: 그 줄은 `WikiLegacy` 안이고 어떤 배포도 그리지 않는다.
   // **맞는 함수 이름을 죽은 사본에 고정한 것**이라, 지키는 대상이 없었다.
   // 배송되는 위키 화면(`dds-wiki-records-screens.tsx`)에는 마크다운 내보내기 자체가
   // 없다 - 그 사실은 legal-citations-not-in-dead-renderers.test.ts 가 지킨다.
-  { cite: `${CV}:303`, symbol: "wiki_snapshot",
+  { cite: `${CV}:310`, symbol: "wiki_snapshot",
     why: "스냅샷이 실제로 신뢰하지 않는 데이터로 감싸지는 자리. 문서는 프롬프트 문자열 블록을 가리키고 있었다." },
   { cite: `${R}:54`, symbol: "SNAPSHOT_CHAR_LIMIT",
     why: "600자 캡의 실제 상수. 문서는 임베딩 벤더 라벨 주석을 가리키고 있었다." },
@@ -465,8 +461,9 @@ test("홈 머리 누르기는 유휴 표정을 지우는 이벤트를 보내지 
   // 여기서 빨개지고, 그때는 문서 문장을 다시 넓혀야 한다.
   //
   // 시야(넓혀 말하지 않는다): 머리의 onPress 가 사는 홈 파일과 reveal 이 사는 대사
-  // 타자기 파일뿐이다. 코치 단계의 onCoachHeadPress 는 DeepSpaceShell 이 넘기는
-  // `/capture` 이동이고, 그 화면에서 저장하면 반응이 간다 - 그건 문서가 말하는 '저장' 이다.
+  // 타자기 파일뿐이다. 첫 기록 안내의 `/capture` 이동은 2026-10-14 부터 머리가 아니라
+  // 아래 탭 「스크랩」에서 나간다(DeepSpaceShell 의 onDockSelect · Z70). 그 화면에서 저장하면
+  // 반응이 간다 - 그건 문서가 말하는 '저장' 이다.
   const HOME = "src/components/deep-space/ConstellationHome.tsx";
   const PRESS_PATH = [HOME, "src/components/deep-space/JrpgDialogueBox.tsx"];
   const WAKE = /\b(?:reactExpression|holdExpression)\s*\(/;
@@ -502,14 +499,14 @@ describe("검사기 자신의 대조군", () => {
   });
 
   test("음성 대조 - 범위 안 심볼은 통과한다", () => {
-    expect(slice(`${S}:436-466`).text.includes("fixedCrisisResponse")).toBe(true);
+    expect(slice(`${S}:547-577`).text.includes("fixedCrisisResponse")).toBe(true);
   });
 
   test("쉼표와 하이픈을 둘 다 읽는다", () => {
-    // `:412,424` 는 두 줄이지 412~424 범위가 아니지만, 검사는 최소~최대로
+    // `:452,464` 는 두 줄이지 452~464 범위가 아니지만, 검사는 최소~최대로
     // 넓게 잡는다. 넓게 잡는 쪽이 거짓양성이 아니라 **거짓음성**으로 기울므로
     // 여기서 그 성질을 드러내 둔다 - 다음 사람이 정확도를 오해하지 않게.
-    const wide = slice(`${S}:412,424`);
+    const wide = slice(`${S}:452,464`);
     expect(wide.text.split("\n")).toHaveLength(13);
   });
 

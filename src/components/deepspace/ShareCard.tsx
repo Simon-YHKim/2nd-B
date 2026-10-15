@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // ShareCard — the "자기이해 한 컷" shareable square card, rev2 composition
 // (reference-app sb-more ShareCardScreen 1:1).
 //
@@ -19,7 +20,7 @@
 // prototype); the eyebrow uses Roboto Mono — no pixel fonts on the rev2 track.
 
 import { Fragment } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { Image, StyleSheet } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
@@ -39,7 +40,8 @@ const SHARE_POLARIS_HALO = flattenAlpha(m3.accent.polarisSoft, 0.35, SHARE_GROUN
 const SHARE_STAR_OFF = flattenAlpha(m3.accent.shareEyebrow, 0.4, SHARE_GROUND);
 import { fontFamilies } from "@/theme/typography";
 
-const headFront = require("../../../assets/deepspace/secondb-head-front.png");
+import { HUSTLEK_EXPRESSIONS } from "@/lib/assets/hustlek";
+import { hustlekPortraitLayout } from "@/lib/assets/hustlek-framing";
 
 export interface ShareCardProps {
   variant: "A" | "B";
@@ -85,6 +87,7 @@ const CARD_STARS = [
 export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = BASE }: ShareCardProps) {
   const { t } = useTranslation("deepspace");
   const k = size / BASE;
+  const portrait = hustlekPortraitLayout(34 * k, "A02");
   const lit = Math.max(0, Math.min(CARD_STARS.length, litCount));
 
   return (
@@ -121,7 +124,10 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
             <Text style={[styles.insight, inkColor(), { fontSize: 27 * k, lineHeight: 27 * k * 1.4 }]}>{insight}</Text>
           </View>
           <View style={[styles.footerRow, { gap: 10 * k }]}>
-            <Image source={headFront} style={{ width: 34 * k, height: 34 * k }} resizeMode="contain" />
+            {/* Keep the existing native view-shot image host for card export. */}
+            <View style={portrait.frame}>
+              <Image source={HUSTLEK_EXPRESSIONS.A02.source} accessibilityLabel="" style={portrait.image} resizeMode="contain" />
+            </View>
             <Text style={[styles.footerText, softInk(0.7), { fontSize: 13 * k }]}>
               {t("deepspace:shareCardImg.footerWeek")}
             </Text>

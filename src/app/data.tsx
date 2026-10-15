@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Route: /data. The screen itself is DeepSpaceDataScreen.
 //
 // This file used to carry a second, full implementation of the same screen for
@@ -8,7 +9,7 @@
 //
 // The gate below did NOT move (same as /account): it is shipped code, and
 // styles.center stays for its loading state.
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";

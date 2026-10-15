@@ -89,7 +89,9 @@ describe("anthropic: two keys by design, and the rest attribute to base", () => 
     // now, so a per-rung breakdown buys little; the split that matters is
     // "max versus everything else", and that is exactly the two keys issued.
     const unkeyed = reachable.filter((e) => !(PROVISIONED.anthropic as readonly string[]).includes(e));
-    expect(unkeyed).toEqual(["high", "low", "medium", "xhigh"]);
+    // "xhigh" was in this list until S0.5 (2026-10-07): its only ceiling was
+    // ttfv_first_insight's, and that seat left the proxy with its caller.
+    expect(unkeyed).toEqual(["high", "low", "medium"]);
   });
 });
 
@@ -99,7 +101,9 @@ describe("xai: everything attributes to the base key", () => {
     expect(PROVISIONED.xai).toEqual([]);
     // Nothing routes to xai by default, so this is a statement about what an
     // operator would be signing up for rather than about live traffic.
-    expect(reachable).toEqual(["high", "low", "medium"]);
+    // "medium" was reachable until S0.5 (2026-10-07) removed cluster_infer,
+    // the only xai seat with a medium ceiling.
+    expect(reachable).toEqual(["high", "low"]);
   });
 });
 

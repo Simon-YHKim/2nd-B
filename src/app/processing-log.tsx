@@ -1,5 +1,6 @@
+import { PhoneFlatList as FlatList, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, StyleSheet, View, type ListRenderItem } from "react-native";
+import { StyleSheet, type ListRenderItem } from "react-native";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { renderedUiLanguage } from "@/lib/i18n/ui-language";
@@ -54,7 +55,7 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       source: "Source organization",
       connection: "Connecting records",
       "self-understanding": "Self-understanding update",
-      conversation: "SecondB conversation",
+      conversation: "HustleK conversation",
       capture: "Capture organization",
       import: "Import organization",
       planning: "Planning support",
@@ -82,8 +83,8 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       source: "자료 정리",
       connection: "기록 연결",
       "self-understanding": "자기 이해 업데이트",
-      conversation: "세컨비 대화",
-      capture: "담은 내용 정리",
+      conversation: "허슬케이 대화",
+      capture: "저장한 내용 정리",
       import: "가져온 내용 정리",
       planning: "계획 지원",
       summary: "요약",
@@ -110,7 +111,7 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       source: "Organización de fuentes",
       connection: "Conexión de registros",
       "self-understanding": "Actualización de autoconocimiento",
-      conversation: "Conversación con SecondB",
+      conversation: "Conversación con HustleK",
       capture: "Organización de capturas",
       import: "Organización de importaciones",
       planning: "Apoyo para planificar",
@@ -138,7 +139,7 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       source: "Organização de fontes",
       connection: "Conexão de registros",
       "self-understanding": "Atualização de autoconhecimento",
-      conversation: "Conversa com SecondB",
+      conversation: "Conversa com HustleK",
       capture: "Organização de capturas",
       import: "Organização de importações",
       planning: "Apoio ao planejamento",
@@ -166,7 +167,7 @@ const COPY: Record<AvailableUiLocale, ProcessingLogCopy> = {
       source: "Penataan sumber",
       connection: "Menghubungkan catatan",
       "self-understanding": "Pembaruan pemahaman diri",
-      conversation: "Percakapan SecondB",
+      conversation: "Percakapan HustleK",
       capture: "Penataan bahan",
       import: "Penataan impor",
       planning: "Dukungan perencanaan",

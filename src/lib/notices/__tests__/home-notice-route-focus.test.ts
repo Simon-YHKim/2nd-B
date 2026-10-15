@@ -15,6 +15,8 @@ describe("home notice route focus", () => {
   });
 
   test("never mounts a notice dialog over another route", () => {
-    expect(home).toMatch(/visible=\{homeFocused && \(autoNoticeVisible \|\| manualNoticeVisible\)\}/);
+    expect(home).not.toContain("NoticeDialog");
+    expect(home).not.toContain("autoNoticeVisible");
+    expect(home).not.toContain("manualNoticeVisible");
   });
 });

@@ -1,3 +1,5 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { MotionModal } from "@/components/ui/MotionModal";
 // Renders a non-dismissable (but closeable) modal when the Safety
 // Classifier returns a red zone. Surfaces locale-aware hotlines.
 // Does not invoke any LLM; the caller has already short-circuited.
@@ -9,14 +11,17 @@
 //   dialer; on web most browsers prompt to call via the system handler.
 // - aria/accessibility hints surface the hotline number to screen readers.
 
-import { useCallback } from "react";
-import { Modal, View, StyleSheet, Pressable, Linking } from "react-native";
+import { useCallback, useSyncExternalStore } from "react";
+import { StyleSheet, Linking } from "react-native";
+import { PhoneView as View, PhonePressable as Pressable, PhoneScrollView as ScrollView } from "@/components/phone/PhoneUIKit";
 import { useTranslation } from "react-i18next";
 import { radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { PixelScrim } from "@/components/pixel/PixelDither";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { HOTLINES, type HotlineId } from "@/lib/safety/lexicon";
+import { dismissCrisisNotice, getCrisisNotice, subscribeCrisisNotice } from "@/lib/safety/crisis-notice";
+import { emergencyGuidance } from "@/lib/safety/emergency-routing";
 
 export interface CrisisRouterProps {
   visible: boolean;
@@ -30,9 +35,23 @@ export interface CrisisRouterProps {
 // the rest — surfaced as a secondary row, never replacing the call box.
 export const CRISIS_DIRECTORY_URL = "https://findahelpline.com";
 
-export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
-  const { t } = useTranslation("safety");
+export function CrisisRouter(props: CrisisRouterProps) {
+  return <CrisisDialog {...props} Dialog={Modal} />;
+}
+
+/** Mounted above routes. Navigation may finish before a safety request does. */
+export function AppCrisisHost() {
+  const notice = useSyncExternalStore(subscribeCrisisNotice, getCrisisNotice, () => null);
+  // Unmount immediately on account transition, including any exit animation.
+  if (!notice) return null;
+  return <CrisisDialog visible hotline={notice.hotline} Dialog={MotionModal}
+    onClose={() => dismissCrisisNotice(notice.id)} />;
+}
+
+function CrisisDialog({ visible, hotline, onClose, Dialog }: CrisisRouterProps & { Dialog: typeof Modal }) {
+  const { t, i18n } = useTranslation("safety");
   const number = HOTLINES[hotline].number;
+  const emergency = emergencyGuidance(hotline, i18n.language.toLowerCase().startsWith("ko") ? "ko" : "en");
 
   const handleCall = useCallback(() => {
     // Strip non-digits for the tel: URI (e.g. "1577-0199" → "15770199").
@@ -50,7 +69,7 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
   }, []);
 
   return (
-    <Modal
+    <Dialog
       visible={visible}
       transparent
       animationType="slide"
@@ -71,6 +90,7 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
           <PixelScrim />
         </View>
         <View style={styles.card}>
+          <ScrollView contentContainerStyle={styles.cardContent} style={styles.scroll}>
           <View style={styles.hotlineBadge}>
             <Text variant="subtle" style={styles.hotlineBadgeText}>
               {t("red.badge")}
@@ -78,8 +98,8 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
           </View>
           {/* 제목은 글만 둔다. 옆에 있던 옛 캐릭터 '가디' 그림은 2026-10-05 에 뺐다
               (Simon 결정 Q-261004-15 A). 안내 문구 · 번호 · 라우팅은 그대로다. */}
-          <Text variant="heading">{t("red.title")}</Text>
-          <Text variant="body" color="textMuted">{t("red.body")}</Text>
+          <Text variant="heading">{t(emergency ? "red.emergency.title" : "red.title")}</Text>
+          <Text variant="body" color="textMuted">{emergency?.text ?? t("red.body")}</Text>
           {/* Safety-critical: visuals live on the wrapper View, NOT the
               Pressable — Fabric Android drops function-form Pressable styles
               (#680), which can render the hotline box invisible. */}
@@ -88,7 +108,7 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
               onPress={handleCall}
               accessibilityRole="button"
               accessibilityHint={t("red.callHint")}
-              accessibilityLabel={`${number}: ${HOTLINES[hotline].label}`}
+              accessibilityLabel={emergency ? t(`red.hotline.${hotline}`) : `${number}: ${HOTLINES[hotline].label}`}
               style={styles.hotlinePress}
               android_ripple={{ color: withAlpha(semantic.danger, 0.12) }}
             >
@@ -96,7 +116,7 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
                 {t(`red.hotline.${hotline}`)}
               </Text>
               <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
-                {t("red.callCta")}
+                {t(emergency ? "red.emergency.callCta" : "red.callCta")}
               </Text>
             </Pressable>
           </View>
@@ -115,9 +135,10 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
             </View>
           ) : null}
           <Button label={t("red.dismiss")} variant="secondary" onPress={onClose} />
+          </ScrollView>
         </View>
       </View>
-    </Modal>
+    </Dialog>
   );
 }
 
@@ -133,10 +154,16 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
     borderWidth: 1,
     borderRadius: radii.lg,
-    padding: spacing.xl,
-    gap: spacing.md,
     width: "100%",
     maxWidth: 440,
+    maxHeight: "100%",
+  },
+  scroll: {
+    flexShrink: 1,
+  },
+  cardContent: {
+    padding: spacing.xl,
+    gap: spacing.md,
   },
   hotlineBadge: {
     alignSelf: "flex-start",

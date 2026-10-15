@@ -142,8 +142,8 @@ results.push(
     const jarvis = read("src/app/secondb.tsx");
     const enCapture = JSON.parse(read("locales/en/capture.json")) as Record<string, unknown>;
     const koCapture = JSON.parse(read("locales/ko/capture.json")) as Record<string, unknown>;
-    const enJarvis = JSON.parse(read("locales/en/secondb.json")) as { intro_body?: string; reference_piece_meta?: string };
-    const koJarvis = JSON.parse(read("locales/ko/secondb.json")) as { intro_body?: string; reference_piece_meta?: string };
+    const enJarvis = JSON.parse(read("locales/en/secondb.json")) as { piecesReferencedBody?: string; reference_piece_meta?: string };
+    const koJarvis = JSON.parse(read("locales/ko/secondb.json")) as { piecesReferencedBody?: string; reference_piece_meta?: string };
     const captureKeys = [
       "submit",
       "submitting",
@@ -211,7 +211,6 @@ results.push(
       "feedback.retryHint",
       "formatSaved.personal",
       "formatSaved.shared",
-      "firstRun.hint",
       "saved.title",
       "saved.ocrTitle",
       "saved.ocrBody",
@@ -306,7 +305,7 @@ results.push(
       't("linkClip.label")',
       't("linkClip.placeholder")',
       't("linkClip.savedAsClip")',
-      't("linkClip.detected", { kind: detectedKind })',
+      't("linkClip.detected", { kind: t(`formats:builtIn.kinds.${detectedKind}.name`) })',
       't("inputs.extractedLabel")',
       't("inputs.bodyLabel")',
       't("inputs.imagePlaceholder")',
@@ -451,19 +450,21 @@ results.push(
       captureBundlePlainLanguageOk &&
       captureKeys.every((key) => hasPath(enCapture, key) && hasPath(koCapture, key));
     const jarvisCitationCopyOk =
-      typeof enJarvis.intro_body === "string" &&
-      typeof koJarvis.intro_body === "string" &&
+      // UI2-CHAT-04: first-entry copy retired; citation guidance lives in the drawer.
+      typeof enJarvis.piecesReferencedBody === "string" &&
+      typeof koJarvis.piecesReferencedBody === "string" &&
       typeof enJarvis.reference_piece_meta === "string" &&
       typeof koJarvis.reference_piece_meta === "string" &&
-      !enJarvis.intro_body.includes("[[") &&
-      !koJarvis.intro_body.includes("[[") &&
-      !enJarvis.intro_body.toLowerCase().includes("slug") &&
-      !koJarvis.intro_body.includes("슬러그") &&
-      jarvis.includes("formatSourceCitationLabel(slug)") &&
+      !enJarvis.piecesReferencedBody.includes("[[") &&
+      !koJarvis.piecesReferencedBody.includes("[[") &&
+      !enJarvis.piecesReferencedBody.toLowerCase().includes("slug") &&
+      !koJarvis.piecesReferencedBody.includes("슬러그") &&
+      jarvis.includes('t("piecesReferencedBody")') &&
+      jarvis.includes('accessibilityLabel={formatSourceCitationLabel(slug, t("deepspace:time.recordFallback"))}') &&
       // 2026-10-05 재조준(Q-261004-11): 여기 레거시 ReferenceShardCard 의
       // `title=` · `meta=` prop 을 고정하고 있었다. 그 카드는 롤백 레버와 함께 빠졌고,
       // 배송 대화 화면은 인용 서랍 카드에 같은 친근한 이름과 같은 키를 그린다.
-      jarvis.includes("{formatSourceCitationLabel(slug)}</Text>") &&
+      jarvis.includes('{formatSourceCitationLabel(slug, t("deepspace:time.recordFallback"))}</Text>') &&
       jarvis.includes('{t("reference_piece_meta")}</Text>');
     const manualForbiddenUserTerms = [
       "Obsidian",
@@ -818,7 +819,8 @@ results.push(
       account.includes('accessibilityRole="alert"') &&
       settings.includes("PremiumModal") &&
       settings.includes("PremiumToast") &&
-      settings.includes('accessibilityLabel={t("modals.confirm.label")}') &&
+      // 2026-10-13 (A-Z 3차 Z37): 로그아웃도 이 확인 창을 쓴다. 그때는 삭제 문구 대신 그 질문이 창의 이름이다.
+      settings.includes('accessibilityLabel={pendingConfirm?.ask?.title ?? t("modals.confirm.label")}') &&
       settings.includes('accessibilityLabel={t("modals.feedback.label")}') &&
       capture.includes("PremiumModal") &&
       capture.includes('accessibilityLabel={t("feedback.accessibilityLabel")}') &&
@@ -1055,15 +1057,21 @@ results.push(
       pixelPressable.includes("accessibilityState={{ ...accessibilityState, disabled }}") &&
       signIn.includes('accessibilityLabel={t("auth:signIn.submit")}') &&
       signIn.includes("disabled={submitDisabled}") &&
-      // 로그인 화면의 OAuth 허용 목록은 Google · Apple · GitHub 세 종이다.
+      // 2026-10-13 Z12: validation may be pressed; only in-flight writes disable.
+      signIn.includes("const authBusy = submitting || oauthSubmitting") &&
+      signIn.includes("const submitDisabled = authBusy") &&
+      // 로그인 화면의 OAuth 목록은 가입 화면과 같은 다섯 종이다(Simon 2026-10-13, Q-261013-03:
+      // "가입 화면과 같게" - Kakao 로 가입한 사람이 로그인 화면에서 자기 버튼을 못 찾았다).
+      // 그 전에는 Google · Apple · GitHub 세 종이었고 Kakao 의 부재를 고정했었다. 그 결정을 이 답이 바꾼다.
       // 라벨은 PROVIDER_KEY 맵에 있고 화면은 t(맵[provider]) 로 부른다.
-      // Kakao · Naver가 다시 섞이면 제품 결정이 조용히 되돌아가므로 부재도 고정한다.
-      signIn.includes('const SIGN_IN_PROVIDERS = ["google", "apple", "github"] as const') &&
+      // Naver 는 따로 처리하는 흐름이라 여전히 이 화면에 없다. 다시 섞이지 않게 부재를 고정한다.
+      signIn.includes('const SIGN_IN_PROVIDERS = ["google", "apple", "kakao", "facebook", "github"] as const') &&
       signIn.includes("accessibilityLabel={t(PROVIDER_KEY[provider])}") &&
       signIn.includes('google: "auth:signIn.continueWithGoogle"') &&
       signIn.includes('apple: "auth:signIn.continueWithApple"') &&
       signIn.includes('github: "auth:signIn.continueWithGithub"') &&
-      !signIn.includes('kakao: "auth:signIn.continueWithKakao"') &&
+      signIn.includes('kakao: "auth:signIn.continueWithKakao"') &&
+      signIn.includes('facebook: "auth:signIn.continueWithFacebook"') &&
       !signIn.includes('continueWithNaver') &&
       signIn.includes("disabled={authBusy}") &&
       signIn.includes('accessibilityLabel={t("auth:signIn.resetLabel")}') &&
@@ -1128,9 +1136,9 @@ results.push(
       // 길게 눌러 복사: 레거시 말풍선의 longPressCopyThis 는 레버와 함께 빠졌고,
       // 배송 대화 말풍선이 같은 동작을 longPressCopy 힌트로 알린다.
       jarvis.includes('accessibilityHint={t("longPressCopy")}') &&
-      jarvis.includes('t("closeIntroHint")') &&
-      jarvis.includes('accessibilityLabel={t("intro_mute")}') &&
-      jarvis.includes('accessibilityLabel={t("intro_ok")}') &&
+      // UI2-CHAT-04/05: the retired intro has no controls; both save choices stay named.
+      jarvis.includes('accessibilityLabel={t("chatSaveNoticeOpen")}') &&
+      jarvis.includes('accessibilityLabel={t("chatSaveNoticeDismiss")}') &&
       jarvis.includes('t("closeReferencedHint")') &&
       // 2026-10-04: 옛 홈 그래프 NavGraph 의 핀 9줄(버튼 수 >= 7 · nav* 키 8개)을
       // 걷었다. 그 화면은 어느 빌드도 그리지 않았고(유일한 소비자가 빌드 밖
@@ -1191,7 +1199,8 @@ results.push(
       onboarding.includes("accessibilityHint={skipHint}") &&
       account.includes('accessibilityHint={t("consent:account.dob.saveHint")}') &&
       account.includes('accessibilityHint={t("consent:account.privacy.buttonHint")}') &&
-      account.includes('accessibilityLabel={t("consent:account.export.label")}') &&
+      // The export moved into My data (Q-261014-61): its button is named and hinted there.
+      read("src/screens/deepspace/dds-account-export.tsx").includes('accessibilityLabel={t("consent:account.export.button")}') &&
       // 터미널 삭제: 타이핑 확인 입력과 위험 버튼이 둘 다 스크린리더에 잡혀야 한다.
       // 2026-10-06 (Q-261005-01 = A): 이 라벨은 인라인 ko/en 삼항이었고 es/pt/id 는
       // 영어로 읽혔다. 지금은 deepspace 키라 다섯 언어가 각자 읽는다. 여기서는
@@ -1215,12 +1224,13 @@ results.push(
       dsScreens.includes("accessibilityLabel={value ? `${label}, ${value}` : label}") &&
       settings.includes("accessibilityHint={accessibilityHint}") &&
       // 이동 힌트 넷은 레거시 Button 행에 박혀 있었다(레버와 함께 빠짐). 배송 화면은
-      // M3LinkRow 가 sub 문구를 힌트로 넘긴다 — 그 배선과 네 행의 키를 함께 본다.
-      settings.includes("accessibilityHint={sub}") &&
-      settings.includes('sub={t("nav.profileHint")}') &&
-      settings.includes('sub={t("nav.privacyHint")}') &&
-      settings.includes('sub={t("nav.accountHint")}') &&
-      settings.includes('sub={t("nav.dataHint")}') &&
+      // M3LinkRow 가 hint(없으면 그려지는 sub)를 힌트로 넘긴다 — 그 배선과 세 행의 키를 함께 본다.
+      // 2026-10-12: 제목을 되풀이하는 줄은 화면에 그리지 않고 hint 로만 넘긴다(Q-261012-59).
+      settings.includes("accessibilityHint={hint ?? sub}") &&
+      // 프로필 줄(sub={t("nav.profileHint")})은 2026-10-07 Simon 지시로 설정에서 빠졌다(홈 프로필 별에서 연다).
+      settings.includes('hint={t("nav.privacyHint")}') &&
+      settings.includes('hint={t("nav.accountHint")}') &&
+      settings.includes('hint={t("nav.dataHint")}') &&
       // (theme quick-toggle hints removed with the duplicate disclosure —
       // see O-R1 settings restructure. Theme switching itself is gone since
       // 2026-10-05, Q-261005-02: /theme now holds font + motion only.)
@@ -1307,7 +1317,7 @@ results.push(
       flows.includes('"icon": "bubble_chart"') &&
       flows.includes("나를 알아가는 AI") &&
       flows.includes("일곱 별에") &&
-      flows.includes("내 이야기를 담습니다") &&
+      flows.includes("내 이야기를 기록합니다") &&
       flows.includes('"icon": "check_circle"') &&
       flows.includes("내가 승인해야 반영됩니다") &&
       !flows.includes("AI의 원리") &&
@@ -1422,7 +1432,8 @@ results.push(
       dashboardPhone.includes('t("wiki:searchPieces")') &&
       read("locales/ko/wiki.json").includes("저장 이름") &&
       dashboardPhone.includes('t("wiki:savedAs", { name: page.slug })') &&
-      dashboardPhone.includes("{page.title || page.slug}</Text>") &&
+      // 2026-10-07 픽셀 아이폰: 위키 줄은 iOS 줄 부품(IosRow)이라 제목을 title 속성으로 넘긴다.
+      dashboardPhone.includes("title={page.title || page.slug}") &&
       forbiddenUserLanguage.every((term) => !inbox.includes(term) && !wiki.includes(term));
     return {
       id: "WikiLanguage",
@@ -1467,8 +1478,7 @@ results.push(
     const codeRequired = [
       'useTranslation("settings")',
       't("loading")',
-      't("nav.profile")',
-      't("nav.profileHint")',
+      // 't("nav.profile")' · 't("nav.profileHint")' 는 2026-10-07 프로필 줄과 함께 빠졌다(Simon). 인라인 금지 문구는 아래 목록이 계속 본다.
       't("nav.data")',
       't("nav.dataHint")',
       't("actions.signOutHint")',
@@ -1485,6 +1495,7 @@ results.push(
       "Opens profile settings.",
       "Opens privacy settings.",
       "Opens data management.",
+      "Opens My data.",
       "Signs out and returns to the sign-in screen.",
       "설정을 불러오는 중입니다…",
       "설정 삭제 확인",
@@ -1492,6 +1503,7 @@ results.push(
       "프로필 설정을 엽니다.",
       "개인정보 보호 설정을 엽니다.",
       "데이터 관리를 엽니다.",
+      "내 데이터를 엽니다.",
       "로그아웃하고 로그인 화면으로 돌아갑니다.",
     ];
     const ok =
@@ -1659,7 +1671,6 @@ results.push(
       't("consent:account.dob.saveFailedBody")',
       't("consent:account.dob.saveHint")',
       't("consent:account.privacy.buttonHint")',
-      't("consent:account.export.buttonHint")',
     ];
     const forbiddenInlineCopy = [
       "Loading account…",
@@ -1682,8 +1693,11 @@ results.push(
       "계정과 데이터를 삭제하기 전 최종 확인을 엽니다.",
       "계정과 데이터 삭제를 시작합니다.",
     ];
+    // The export moved into My data (Q-261014-61, 2026-10-14); its hint is required there.
+    const accountExport = read("src/screens/deepspace/dds-account-export.tsx");
     const ok =
       requiredCode.every((snippet) => account.includes(snippet)) &&
+      accountExport.includes('t("consent:account.export.buttonHint")') &&
       en.includes('"loading": "Loading account…"') &&
       ko.includes('"loading": "계정을 불러오고 있습니다…"') &&
       forbiddenInlineCopy.every((term) => !account.includes(term));
@@ -1906,7 +1920,8 @@ results.push(
         // 레거시 화면의 `const ko` 는 카피 두 벌을 소스에 품기 위한 것이었다.
         // 라이브에도 같은 이름의 플래그가 있지만 쓰는 곳이 하나뿐이고 그건
         // 저장되는 데이터의 언어다 — 카피 분기가 아니라 이 쓰임새를 못박는다.
-        screen.includes('{ locale: ko ? "ko" : "en" }') &&
+        // 2026-10-14: 건강 동의가 읽은 값을 원장의 before 로 넘기게 되어 같은 줄에 before 가 붙었다.
+        screen.includes('{ locale: ko ? "ko" : "en", before: current }') &&
         enDeep.includes("Before importing") &&
         koDeep.includes("가져오기 전 확인") &&
         sources.includes('"import:health.connect"') &&
@@ -2311,7 +2326,7 @@ results.push(
         '"common"',
         '"language"',
         '"checking": "Checking',
-        '"entryArtwork": "SecondB entry artwork"',
+        '"entryArtwork": "HustleK entry artwork"',
         '"switchToEnglishLabel": "Use English on the sign-in screen"',
         '"switchToKoreanLabel": "Use Korean on the sign-in screen"',
         '"resetBody": "Enter your account email above',
@@ -2329,7 +2344,7 @@ results.push(
         '"common"',
         '"language"',
         '"checking": "확인하는 중',
-        '"entryArtwork": "세컨비 입장 이미지"',
+        '"entryArtwork": "허슬케이 입장 이미지"',
         '"switchToEnglishLabel": "로그인 화면을 영어로 변경"',
         '"switchToKoreanLabel": "로그인 화면을 한국어로 변경"',
         '"resetBody": "가입할 때 쓴 이메일을 입력하고',
@@ -2342,6 +2357,7 @@ results.push(
       const forbiddenScreenCopy = [
         "Checking…",
         "SecondB entry artwork",
+        "HustleK entry artwork",
         "Switch sign-up language to English",
         "회원가입 언어를 한국어로 변경",
         "Enter your account password.",
@@ -2352,6 +2368,7 @@ results.push(
         "New here? Read the 1-min user guide",
         "확인하는 중…",
         "세컨비 입장 이미지",
+        "허슬케이 입장 이미지",
         "입력한 비밀번호를 보여줍니다.",
         "비밀번호를 잊으셨나요?",
         "가입 이메일 주소로 support@2nd-brain.app",
@@ -2390,10 +2407,11 @@ results.push(
         "This piece has no body text",
         "See in graph",
         "Ask SecondB",
+        "Ask HustleK",
         "Open its screen",
       ];
       const ok =
-        screen.includes('useTranslation(["deepspace", "recordDetail", "common"])') &&
+        /useTranslation\(\["deepspace", "recordDetail", "common"(?:, "profile")?\]\)/.test(screen) &&
         screen.includes('t("recordDetail:loading.auth")') &&
         screen.includes('t("recordDetail:state.missingTitle")') &&
         screen.includes('t("recordDetail:body.noText")') &&
@@ -2588,7 +2606,7 @@ results.push(
     const ok =
       wiki.includes('<DockBody title={t("wiki.title")}>') &&
       en.includes("Your saved records and material in one place") &&
-      ko.includes("PolaScope에 담은 기록과 자료를 모았습니다") &&
+      ko.includes("PolaScope에 저장한 기록과 자료를 모았습니다") &&
       forbidden.every((term) => !wiki.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "WikiHeroI18nCopy",
@@ -2618,14 +2636,14 @@ results.push(
     ];
     const forbiddenSettings = ["Tune the village rules", "마을의 규칙"];
     const ok =
-      readme.includes("**SecondB chat**") &&
+      readme.includes("**HustleK chat**") &&
       readme.includes("grounded in saved records and validated frameworks") &&
       // 계약은 "안내서가 세컨비의 근거를 설명한다" 이고 그건 살아 있다 — 표현만
       // 바뀌었다. 옛 문구("ask SecondB for a reflection" · "sources SecondB cites" ·
       // "세컨비의 되묻기")를 그대로 찾으면 **말이 바뀐 것을 계약이 깨진 것으로** 읽는다.
-      manual.includes("SecondB reads that original material when it answers") &&
-      manual.includes("세컨비는 북극성 요약이 아니라 그 원문을 읽습니다") &&
-      manual.includes("Ask SecondB in your own words") &&
+      manual.includes("HustleK reads that original material when it answers") &&
+      manual.includes("허슬케이는 북극성 요약이 아니라 그 원문을 읽습니다") &&
+      manual.includes("Ask HustleK in your own words") &&
       read("locales/en/settings.json").includes("Adjust your app settings") &&
       read("locales/ko/settings.json").includes("앱 설정을 바꿀 수 있습니다") &&
       forbiddenReadme.every((term) => !readme.includes(term)) &&
@@ -2636,7 +2654,7 @@ results.push(
       status: ok ? "PASS" : "FAIL",
       note: ok
         ? "README/manual/settings visible guidance copy avoids old Advisor and village-rules wording"
-        : "README/manual/settings guidance copy should use SecondB/settings wording instead of old Advisor or village-rule wording",
+        : "README/manual/settings guidance copy should use HustleK/settings wording instead of old Advisor or village-rule wording",
     };
   }),
 );
@@ -2644,8 +2662,8 @@ results.push(
 results.push(
   check("GongsangRetiredFromCopy", () => {
     // Phase 4 (Simon 2026-07-17): the '공상' feature name is retired from every
-    // user-visible surface — 트위비 owns the Divergent mode; KO copy says
-    // 상상/트위비. Locale bundles ONLY: validated survey items (ipip-neo), the
+    // user-visible surface — 조이케이 owns the Divergent mode; KO copy says
+    // 상상/조이케이. Locale bundles ONLY: validated survey items (ipip-neo), the
     // user-tag keyword matcher (relatedness), and retirement-pinning tests may
     // legitimately contain the word as data/history.
     const fs = require("node:fs") as typeof import("node:fs");
@@ -2663,7 +2681,7 @@ results.push(
       id: "GongsangRetiredFromCopy",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "locale bundles carry no retired 공상 feature naming (트위비/상상 vocabulary)"
+        ? "locale bundles carry no retired 공상 feature naming (조이케이/상상 vocabulary)"
         : `retired 공상 naming found in locale copy: ${offenders.join(", ")}`,
     };
   }),
@@ -2690,11 +2708,11 @@ results.push(
     const ok =
       screen.includes('t("deepspace:auth.signInTitle")') &&
       screen.includes('t("deepspace:auth.signInLead")') &&
-      enDeep.includes('"signInTitle": "Good to see you again"') &&
+      enDeep.includes('"signInTitle": "Sign in"') &&
       enDeep.includes(
         '"signInLead": "In the AI era, the asset is you. Your records add up to your North Star."',
       ) &&
-      koDeep.includes('"signInTitle": "다시 만나 반갑습니다"') &&
+      koDeep.includes('"signInTitle": "로그인"') &&
       koDeep.includes(
         '"signInLead": "AI 시대의 자산은 나 자신. 기록이 쌓여 나의 북극성이 됩니다."',
       ) &&
@@ -2743,7 +2761,11 @@ results.push(
       // 홈 코치마크는 첫 기록 안내다. 기존 기록이 다른 기기에 있어도 처음으로
       // 오판하지 않도록 소유자별 단일 게이트가 확인하고 홈에는 결과만 전달한다.
       landing.includes("useCoachmarksGate(") &&
-      liveConstellation.includes("coachmarksDue = null") &&
+      // 2026-10-14 (Z70): 안내가 아래 탭 「스크랩」을 가리키게 되면서 홈은 안내를 아예 모른다.
+      // 게이트의 결과는 셸이 쥐고, 안내 층과 그 탭의 길만 그 결과로 정한다.
+      landing.includes("overlay={coachmarksDue === true ? (") &&
+      landing.includes('if (!(coachmarksDue === true && tab === "capture")) return false;') &&
+      !liveConstellation.includes("coachFirstRecord") &&
       !liveConstellation.includes("useCoachmarksGate(") &&
       captureScreen.includes('savedKind === "records"') &&
       captureScreen.includes('router.push("/records")') &&
@@ -2863,8 +2885,8 @@ results.push(
     const ok =
       codeRequiredSnippets.every((snippet) => formats.includes(snippet)) &&
       requiredLocaleKeys.every((key) => enFormats.includes(key) && koFormats.includes(key)) &&
-      enFormats.includes("Formats you save from SecondB's suggestions") &&
-      koFormats.includes("세컨비가 제안한 형식") &&
+      enFormats.includes("Formats you save from HustleK's suggestions") &&
+      koFormats.includes("허슬케이가 제안한 형식") &&
       forbiddenScreenCopy.every((term) => !formats.includes(term));
     return {
       id: "FormatsOperationalI18nCopy",
@@ -2925,8 +2947,8 @@ results.push(
       flow.includes('t("add.cancel")') &&
       enFormats.includes('"add"') &&
       koFormats.includes('"add"') &&
-      enFormats.includes("SecondB will suggest sorting rules") &&
-      koFormats.includes("세컨비가 다음에도 쓸 수 있는") &&
+      enFormats.includes("HustleK will suggest sorting rules") &&
+      koFormats.includes("허슬케이가 다음에도 쓸 수 있는") &&
       requiredKeys.every((key) => enFormats.includes(key) && koFormats.includes(key)) &&
       forbiddenFlowCopy.every((term) => !flow.includes(term));
     return {

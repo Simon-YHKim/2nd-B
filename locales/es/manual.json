@@ -13,25 +13,25 @@
     "tip": "Abre una respuesta a la vez o filtra la guía más abajo.",
     "searchLabel": "Filtrar la guía de uso",
     "searchPlaceholder": "Buscar preguntas y respuestas",
-    "noResults": "No hay ninguna sección que coincida. Pregúntale a SecondB con tus palabras.",
+    "noResults": "No hay ninguna sección que coincida. Pregúntale a HustleK con tus palabras.",
     "expanded": "Respuesta abierta",
     "collapsed": "Respuesta cerrada",
     "topics": {
       "stars": {
         "question": "¿Qué son las siete estrellas?",
-        "answer": "Son perfil · primera infancia · etapa escolar · veintena · de los treinta en adelante · trabajo · ahora. Carrera, finanzas, crecimiento, relaciones, salud y descanso son las seis áreas de la vida del panel de SecondB, no estrellas."
+        "answer": "Son perfil · primera infancia · etapa escolar · veintena · de los treinta en adelante · trabajo · ahora. Carrera, finanzas, crecimiento, relaciones, salud y descanso son las seis áreas de la vida del panel de HustleK, no estrellas."
       },
       "brightness": {
         "question": "¿Qué significan el brillo y la Estrella Polar?",
         "answer": "El brillo registra cuántas capas de la entrevista abriste realmente. La cobertura llega hasta L4; L5 solo aparece cuando confirmas una propuesta. La Estrella Polar es un resumen derivado de esas entradas, no el registro original."
       },
       "source": {
-        "question": "¿Qué lee SecondB?",
-        "answer": "Tu wiki y tus registros son la fuente detallada. SecondB lee ese material original al responder; la Estrella Polar es un resumen derivado, no la fuente que debe citar."
+        "question": "¿Qué lee HustleK?",
+        "answer": "Tu wiki y tus registros son la fuente detallada. HustleK lee ese material original al responder; la Estrella Polar es un resumen derivado, no la fuente que debe citar."
       },
       "ratify": {
         "question": "¿Cuándo cambia una sugerencia mi perfil?",
-        "answer": "Nunca por sí sola. Lo que propone SecondB sigue siendo una propuesta hasta que la confirmas. Solo una propuesta confirmada puede aplicarse a tu modelo o abrir L5."
+        "answer": "Nunca por sí sola. Lo que propone HustleK sigue siendo una propuesta hasta que la confirmas. Solo una propuesta confirmada puede aplicarse a tu modelo o abrir L5."
       },
       "data": {
         "question": "¿Dónde están la privacidad, la seguridad y las exportaciones?",
@@ -39,7 +39,7 @@
       }
     },
     "actions": {
-      "dashboard": "Abrir el panel de SecondB",
+      "dashboard": "Abrir el panel de HustleK",
       "brightness": "Ver el brillo",
       "records": "Abrir registros",
       "review": "Revisar propuestas",

@@ -1,3 +1,5 @@
+import { ScreenModal } from "@/components/ui/ScreenModal";
+import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable, PhoneTouchableOpacity as TouchableOpacity } from "@/components/phone/PhoneUIKit";
 // Polaris / Core Brain screen (core-brain pack v2). Internal route and data
 // keys stay "Core Brain"; user-facing name is "북극성". Reuses the read-only
 // persona snapshot
@@ -13,7 +15,7 @@
 // (jest.config.js ts-jest jsx: "react") and core-brain-minor-gate.test.ts renders it.
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
-import { View, StyleSheet, ScrollView, Modal, Platform, Pressable, TouchableOpacity } from "react-native";
+import { StyleSheet, Platform } from "react-native";
 import { Rect, Svg } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import { Redirect, type Href } from "expo-router";
@@ -47,6 +49,7 @@ import { loadSevenLevels, type SevenLevels } from "@/lib/persona/load-seven-leve
 import { SEVEN_STARS, type SevenStarId } from "@/lib/persona/seven-stars";
 import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
 import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
+import { withSystemTagsColumn } from "@/lib/records/system-tags";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { claimQaPolarisAuto, loadRoleCards, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
 import { requestGlobalCue } from "@/lib/audio/global-cues";
@@ -88,12 +91,15 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
   // only records gives source-only users a false "center is still small"
   // empty state (data-truth gate). Mirrors /records' merged read.
   const [recRes, srcRes] = await Promise.all([
-    supabase
-      .from("records")
-      .select("id, kind, topic, created_at, tags")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(24),
+    // system_tags (0218) tells an interview piece from a life-audit one.
+    withSystemTagsColumn((columnPresent) =>
+      supabase
+        .from("records")
+        .select(columnPresent ? "id, kind, topic, created_at, tags, system_tags" : "id, kind, topic, created_at, tags")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(24),
+    ),
     supabase
       .from("sources")
       .select("id, kind, title, captured_at, tags")
@@ -107,7 +113,8 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
     if (typeof console !== "undefined") console.warn("[core-brain] records query failed", recRes.error);
     throw recRes.error;
   }
-  const recRows = (recRes.data ?? []) as RawRecordRow[];
+  // The select string is chosen at run time (system_tags or not), so name the row type.
+  const recRows = (recRes.data ?? []) as unknown as RawRecordRow[];
   // Sources are best-effort: a sources failure degrades to records-only, never blanks Core.
   let srcRows: RawSourceRow[] = [];
   if (srcRes.error) {
@@ -509,7 +516,7 @@ function CoreBrainScreen() {
 
   // Evidence drawer (§5) — shared by the deep-space deck and the legacy screen.
   const renderEvidenceDrawer = () => (
-    <Modal visible={drawerOpen} transparent animationType="slide" onRequestClose={() => setDrawerOpen(false)}>
+    <ScreenModal visible={drawerOpen} transparent animationType="slide" onRequestClose={() => setDrawerOpen(false)}>
       <Pressable
         style={styles.backdrop}
         onPress={() => setDrawerOpen(false)}
@@ -570,7 +577,7 @@ function CoreBrainScreen() {
           <Button label={t("close")} variant="secondary" onPress={() => setDrawerOpen(false)} />
         </Pressable>
       </Pressable>
-    </Modal>
+    </ScreenModal>
   );
 
   // rev2 deep-space track: the Claude 10-me composition is a three-card

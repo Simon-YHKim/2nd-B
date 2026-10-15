@@ -1,0 +1,28 @@
+name: Dashboard hourly generation
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dashboard-hourly
+  cancel-in-progress: false
+jobs:
+  generate:
+    if: github.repository == 'Simon-YHKim/2nd-B' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Generate current local slots and expire old caches
+        env:
+          DASHBOARD_GENERATION_ENABLED: ${{ vars.DASHBOARD_GENERATION_ENABLED }}
+          # Recurring jobs cannot wait for Production's per-run human review.
+          # Configuration/deployment remain on that protected environment.
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DASHBOARD_CRON_SECRET: ${{ secrets.DASHBOARD_CRON_SECRET }}
+        run: node scripts/dashboard-runtime-config.mjs hourly

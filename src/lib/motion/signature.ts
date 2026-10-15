@@ -7,10 +7,11 @@
 // 곳들 때문에 그대로 둔다.
 
 import { isLiteModeEnabled } from "../settings/lite-mode";
+import { getSystemReducedMotion } from "./system-reduced-motion";
 
 /**
  * Whether motion should be suppressed: the user's lite-mode preference OR the
- * OS `prefers-reduced-motion` setting (web matchMedia; absent on native).
+ * OS setting (web matchMedia; native AccessibilityInfo).
  *
  * NOT a render-path API anymore: the result is user-mutable mid-session and
  * the React Compiler memoizes zero-input render calls per instance, freezing
@@ -22,13 +23,5 @@ export function prefersReducedMotion(): boolean {
   // Lite mode (O-R2 ③) forces the reduced path through this same chokepoint
   // every animation consumer already honors - one flag, zero new branches.
   if (isLiteModeEnabled()) return true;
-  const g = globalThis as unknown as {
-    matchMedia?: (q: string) => { matches: boolean };
-  };
-  if (typeof g.matchMedia !== "function") return false;
-  try {
-    return g.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  } catch {
-    return false;
-  }
+  return getSystemReducedMotion();
 }

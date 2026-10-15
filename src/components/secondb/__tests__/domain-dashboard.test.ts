@@ -19,9 +19,10 @@ const PANEL = read("src/components/secondb/DomainDashboard.tsx");
 const SHELL = read("src/components/deep-space/DeepSpaceShell.tsx");
 const CHAT = read("src/app/secondb.tsx");
 
-describe("입구는 세컨비 머리다 (Simon 결정 6 = B)", () => {
-  it("머리를 누르면 대시보드를 편 대화창이 열린다", () => {
-    expect(SHELL).toContain('router.push("/secondb?panel=dashboard")');
+describe("대화는 공통 하단 탭, 기존 대시보드 딥링크는 유지한다", () => {
+  it("홈 메뉴의 대화 중복 진입을 없애고 하단 탭을 남긴다", () => {
+    expect(SHELL).not.toContain('router.push("/secondb?panel=dashboard")');
+    expect(read("src/components/deep-space/DeepSpaceScreen.tsx")).toContain('chat: "/secondb"');
   });
 
   it("대화창이 그 표시를 읽는다", () => {
@@ -31,8 +32,8 @@ describe("입구는 세컨비 머리다 (Simon 결정 6 = B)", () => {
 
   // 2026-10-05: "캐릭터 대화에는 안 뜬다" 핀은 대상이 사라져 은퇴했다. 옛 캐릭터
   // 대화(?character=)를 껐으므로(Simon 결정 Q-261004-14 A) 갈라 둘 다른 화자가 없다.
-  // 남은 성질은 "대시보드는 머리 탭 표시 하나로 열린다" 이다.
-  it("대시보드는 머리 탭 표시 하나로 열린다 (옛 캐릭터 대화 예외는 없다)", () => {
+  // 기존 링크의 panel=dashboard 표시는 계속 읽는다.
+  it("대시보드 딥링크의 표시를 읽는다 (옛 캐릭터 대화 예외는 없다)", () => {
     expect(CHAT).toContain('useState(params.panel === "dashboard")');
     expect(CHAT).not.toMatch(/\bcharacterParam\b/);
   });

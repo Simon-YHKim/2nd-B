@@ -10,6 +10,7 @@
 // domainConfidence / domainLevel / northStarBrightness do the deterministic math.
 
 import { getSupabaseClient } from "../supabase/client";
+import { rowHasSystemTagsColumn, withSystemTagsColumn } from "../records/system-tags";
 import { isDomainId, type DomainEntry, type DomainId } from "./domain-stars";
 import { type LadderLevel } from "./brightness";
 import { domainStarLevels } from "./north-star"; // northStarBrightness stays out on purpose: see the 2026-08-24 note at the return below.
@@ -20,16 +21,31 @@ export interface DomainBrightness {
 
 const DOMAIN_TAG_PREFIX = "domain:";
 
-// System tags that mark HOW a record was captured, not whether the user
-// organized it. Stripped before the organized-ratio signal so the auto
-// `domain:` tag (and capture-mode markers) can't make a raw brain-dump look
-// curated — otherwise every record would read as "organized" and the §4.5 ②
-// L3/L4 downgrade for raw-heavy domains would never fire.
-const SYSTEM_TAGS = new Set(["voice", "todo", "interview"]);
+// Tags that mark HOW a record was captured, not whether the user organized it.
+// Stripped before the organized-ratio signal so the auto `domain:` tag (and
+// capture-mode markers) can't make a raw brain-dump look curated — otherwise
+// every record would read as "organized" and the §4.5 ② L3/L4 downgrade for
+// raw-heavy domains would never fire.
+//
+// `interview` (the recall interview's marker) lives in records.system_tags since
+// 0218, outside `tags` altogether. So on a row read with that column an
+// `interview` left in `tags` is a tag the USER typed and counts as theirs (gate
+// CDA-06: stripping it here dropped a user's own tag). Only a row read from a
+// database without the column still carries the app's marker in `tags`, and
+// only there is it stripped, exactly as before 0218.
+const CAPTURE_MODE_TAGS = new Set(["voice", "todo"]);
+const PRE_0218_MARKER_TAGS = new Set(["interview"]);
 
-function isSystemTag(tag: string): boolean {
+function isCaptureTag(tag: string, markersInTags: boolean): boolean {
   const t = tag.toLowerCase();
-  return t.startsWith(DOMAIN_TAG_PREFIX) || SYSTEM_TAGS.has(t);
+  return t.startsWith(DOMAIN_TAG_PREFIX) || CAPTURE_MODE_TAGS.has(t) || (markersInTags && PRE_0218_MARKER_TAGS.has(t));
+}
+
+/** The tags the user put on a record, for the organized-ratio signal. Exported
+ *  for the CDA-06 test; the screen reads it only through fetchDomainLevels. */
+export function userOrganizedTags(row: DomainRow): string[] {
+  const markersInTags = !rowHasSystemTagsColumn(row);
+  return (row.tags ?? []).filter((t) => !isCaptureTag(t, markersInTags));
 }
 
 /** The DomainId encoded in a record's tags, or null if none / unknown slug. */
@@ -43,9 +59,11 @@ function domainOf(tags: readonly string[]): DomainId | null {
   return null;
 }
 
-interface DomainRow {
+export interface DomainRow {
   created_at?: string | null;
   tags?: string[] | null;
+  /** The app's markers (0218). Absent when the database has no such column. */
+  system_tags?: string[] | null;
 }
 
 // One structured manage-layer row (relation_people 0058 / recreation_items 0059).
@@ -70,15 +88,19 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
   const supabase = getSupabaseClient();
   const [recordsRes, sourcesRes, relationRes, recreationRes, ledgerRes, readingRes, healthDeviceRes] =
     await Promise.all([
-      supabase
-        .from("records")
-        .select("id, created_at, tags")
-        .eq("user_id", userId)
-        // Newest first: if PostgREST's max-rows cap truncates a heavy user's
-        // history, keep the MOST RECENT records so the §4.5 ④ recency signal (a
-        // domain fed today vs. abandoned months ago) stays correct. Ascending
-        // would silently keep the OLDEST rows and freeze the home sky in the past.
-        .order("created_at", { ascending: false }),
+      // system_tags (0218) is read only to know whether this database keeps the
+      // app's markers outside `tags` (userOrganizedTags above).
+      withSystemTagsColumn((columnPresent) =>
+        supabase
+          .from("records")
+          .select(columnPresent ? "id, created_at, tags, system_tags" : "id, created_at, tags")
+          .eq("user_id", userId)
+          // Newest first: if PostgREST's max-rows cap truncates a heavy user's
+          // history, keep the MOST RECENT records so the §4.5 ④ recency signal (a
+          // domain fed today vs. abandoned months ago) stays correct. Ascending
+          // would silently keep the OLDEST rows and freeze the home sky in the past.
+          .order("created_at", { ascending: false }),
+      ),
       // Ratified sources (P0 연동 브리지): clips/imports the user connected to a
       // domain through the deep-run propose→ratify loop, which stamps a
       // domain:<slug> tag onto the sources row. Before this scan the engine
@@ -119,7 +141,8 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
         .in("source", ["healthkit", "health_connect", "strava"])
         .limit(1),
     ]);
-  const rows = (recordsRes.data ?? []) as DomainRow[];
+  // The select string is chosen at run time (system_tags or not), so name the row type.
+  const rows = (recordsRes.data ?? []) as unknown as DomainRow[];
 
   const entriesByDomain: Partial<Record<DomainId, DomainEntry[]>> = {};
   for (const row of rows) {
@@ -128,7 +151,7 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
     // Records captured before the migration (no domain: tag) simply don't
     // count yet — an honest dark star, not a fabricated one.
     if (!domain) continue;
-    const userTags = tags.filter((t) => !isSystemTag(t));
+    const userTags = userOrganizedTags(row);
     (entriesByDomain[domain] ??= []).push({
       domain,
       createdAt: row.created_at ?? undefined,

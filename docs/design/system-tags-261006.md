@@ -181,7 +181,7 @@ r2 에서 이미 닫힌 지적은 설계에 그대로 둡니다.
 | ④ 일괄 이행 | **없음.** 손 이행은 별도 운영 SQL(행 번호는 파일에 넣지 않고 실행할 때 임시 표로 받음, 경로는 구현 PR 에서 정함) | 뺌(`0218:299-332`) |
 | ⑤ 북극성 근거 두 함수 | 0195 본문 + 조건 하나(`system_tags @> ARRAY['interview']`). 권한은 0195 그대로 | 같음(`0218:334` 이후) |
 | ⑥ 사후조건 | 칸 · 제약이 있음, `records` 에 표식을 옮기는 트리거가 없음, 두 함수 본문이 0195 와 조건 하나만 다름 | 새로 |
-| 되돌리기 | **단독 실행 전용**(파일 안에 `BEGIN`/`COMMIT` 없음, `psql -X -v ON_ERROR_STOP=1 --single-transaction -f` 로만 실행). 첫 문장 `LOCK TABLE public.records IN SHARE ROW EXCLUSIVE MODE` → 표식을 `tags` 로(맨 앞 `domain:` 다음, 사용자 태그와 같은 문자열이면 겹친 채) → 0195 본문 복원 → 제약 · 칸 삭제 | 왕복 검사(`0218_down.sql:49-83`)를 뺌 |
+| 되돌리기 | **단독 실행 전용**(파일 안에 `BEGIN`/`COMMIT` 없음, `psql -X -v ON_ERROR_STOP=1 --single-transaction -f` 로만 실행). 첫 문장 `LOCK TABLE public.records IN SHARE ROW EXCLUSIVE MODE` → 표식을 `tags` 로(맨 앞 `domain:` 다음, 사용자 태그와 같은 문자열이면 겹친 채) → 0195 본문 복원 → 제약 · 칸 삭제 | 왕복 검사(`0218_down.sql:49-83`)를 뺌. ⚠ **실행 전에 새 앱의 기록 쓰기를 멈춘다**(옛 판 웹 게시 또는 쓰기 경로 차단) — 게이트 r2 ST-01 · BA-02 의 스키마 전환 경합이 되돌리기 방향에서는 실제로 생긴다(2026-10-07, #2122 머지 근거) |
 
 다시 적용하면 0218 은 데이터를 바꾸지 않으므로, 되돌릴 때 `tags` 로 간 표식은 그대로 남습니다. 필요하면 6.2 의 2 · 4단계를 다시 합니다. 그래서 "왕복해서 같은 값으로 돌아오는가"는 이 설계의 목표가 아닙니다.
 
@@ -238,3 +238,48 @@ Q-39 의 뒤집는 조건과의 관계: #2094 게이트 지적은 코드에서 �
 - A 가 게이트에서 수렴한다는 전망(게이트가 이 설계를 본 적은 없습니다).
 
 **하지 않은 것:** 코드 · 마이그레이션 파일 작성, 테스트 · 게이트 실행, 운영 DB 조회 · 쓰기, Edge 배포, 웹 게시, 에뮬레이터 · adb, 앱 LLM 호출.
+
+---
+
+## 11. 다음 차례 후보: 담기 방식 표식 · `reasoning:ratified` (2026-10-13 추가)
+
+- 작성: 2026-10-13 05:20 KST · 발행: Claude Code (세션 2ndb-e7) · 기준: origin/main `5fdfa898`. 이 절의 줄 번호는 이 커밋 기준입니다.
+- 상태: **후보 정리. 코드 · 마이그레이션 없음.** 저장소를 읽기만 했고 운영 DB 는 보지 않았습니다.
+- 계기: Device Lab 병렬 2회차(2026-10-13 04:28 · Z54 · P3)가 "위키 목록 · 상세에 `memo` · `reasoning:ratified` 가 영어로 보인다"고 적었습니다. 화면 담당 세션(2ndb-53)은 화면에서 낱말로 거르는 길이 P1 과 반대라 손대지 않고 이 문서의 다음 차례로 넘겼습니다.
+
+### 11.1 쓰는 곳과 읽는 곳
+
+| 표식 | `records.tags` 에 쓰는 곳 | 그 이름을 찾아 읽는 곳 |
+|---|---|---|
+| `memo` · `fourw` · `todo` · `link` | 홈 담기 시트 `src/components/deep-space/DeepSpaceViews.tsx:653,678` (`tags: [tag]`) | `memo` · `link`: 0곳. `todo` · `fourw`: `src/app/reasoning.tsx:876` (목록 아이콘) |
+| `voice` · `todo` · `fourw` (+ `done`) | `/capture` `src/app/capture.tsx:2640-2645` | `reasoning.tsx:876` · `src/lib/persona/load-domain-levels.ts:36` (`voice` · `todo` 를 정리 신호에서 뺌) |
+| `reasoning:ratified` | `src/app/reasoning.tsx:516-530`. 기록은 `updateRecordTags`, 소스는 `updateSourceTags` 로 만든 **뒤에** 붙입니다 | `reasoning.tsx:901` (이미 비준한 항목을 목록에서 뺌) |
+
+이름을 찾지 않고 `tags` 를 통째로 읽는 곳이 셋 있습니다. 표식은 여기서 사용자 태그와 섞입니다.
+
+| 읽는 곳 | 하는 일 | 지금 생기는 일 |
+|---|---|---|
+| `src/screens/deepspace/dds-record-detail-screen.tsx:736` · `src/screens/deepspace/records-timeline.ts:161` | `domain:` 만 빼고 그립니다 | Z54. 목록은 첫 태그를 `#memo` 로 보여 줍니다 |
+| `load-domain-levels.ts:46-49` → `src/lib/persona/domain-confidence.ts:38,62-63` | `domain:` · `voice` · `todo` 만 빼고, 남은 태그가 하나라도 있으면 "정리된 기록"으로 셉니다 | `memo` · `fourw` · `link` · `reasoning:ratified` 만 달린 기록도 정리된 기록으로 셉니다 |
+| `src/lib/wiki/export.ts:149` | `domain:` 만 빼고 `tags: ...` 로 적습니다(허슬케이가 읽는 위키 글) | `tags: memo` 가 사용자 태그처럼 들어갑니다 |
+
+### 11.2 옮기면 함께 바뀌는 것
+
+1. **별 밝기.** `memo` · `fourw` · `link` 를 `tags` 에서 빼면 그 표식만 달린 기록은 정리 신호에서 빠집니다. `load-domain-levels.ts:24-28` 의 주석(담기 방식 표식이 날것을 정리된 것처럼 보이게 하지 않는다)이 말한 뜻과는 맞습니다. 다만 정리 비율이 기준 아래로 내려간 영역은 등급이 한 단계 내려갑니다(`domain-confidence.ts:62-63`). 옛 행은 그대로라 옛 행과 새 행이 다르게 세어집니다. 전후 등급은 재지 않았습니다.
+2. **`reasoning:ratified` 는 만든 뒤에 붙습니다.** `records.system_tags` 를 쓰는 클라이언트 길은 `createRecord` 하나이고(`src/lib/records/create.ts:321-361`), `updateRecordTags`(`create.ts:594`)는 `tags` 만 씁니다. 고쳐 쓰는 길을 새로 내야 합니다. `sources` 에는 `system_tags` 칸이 없습니다(저장소의 마이그레이션에서 그 칸을 다루는 것은 0218 · 0225 둘이고 둘 다 `records` 입니다). 소스까지 옮기려면 새 마이그레이션(지금 다음 빈 번호 0251)과 운영 적용이 필요합니다.
+3. **비준 표식도 정리 신호입니다.** 비준한 기록은 지금 `reasoning:ratified` 덕분에 정리된 기록으로 셉니다(11.1 둘째 표 둘째 줄). 표식을 옮기면 정리 신호가 그 표식을 `system_tags` 에서 읽게 함께 바꿔야 비준한 기록의 등급이 내려가지 않습니다.
+4. **읽는 곳은 두 칸을 다 봅니다.** P3 대로 옛 행은 자동으로 옮기지 않으므로 `reasoning.tsx:876` · `:901` 은 옛 행의 `tags` 와 새 행의 `system_tags` 를 함께 읽어야 합니다.
+5. **옛 행의 꼬리표는 남습니다.** 새로 만든 시험 계정에는 새 행만 있어 보이지 않게 됩니다. QA 계정의 옛 행은 6.2 의 손 이행(행 번호 · GO)으로만 옮깁니다.
+
+### 11.3 차례 제안과 정할 것
+
+| 차례 | 범위 | 서버 변경 | 정할 것 |
+|---|---|---|---|
+| ① | 담기 방식 표식 `memo` · `fourw` · `todo` · `link` · `voice`. 쓰는 곳 둘(홈 담기 시트 · `/capture`) · 읽는 곳 `reasoning.tsx:876` (두 칸을 함께 읽게) | 없음 | **Q-261013-40** `memo` · `fourw` · `link` 가 정리 신호에서 빠져 일부 영역의 등급이 내려갈 수 있습니다. 받아들일지 정해야 합니다. 추천: 받아들이고, 옛 행도 같게 세도록 `load-domain-levels.ts:36` 의 집합에 셋을 더합니다. 머지 전에 QA 계정의 전후 등급을 재서 보여 드립니다. `done` 은 담기 방식이 아니라 상태라 이 차례에 옮기지 않습니다 |
+| ② | `reasoning:ratified` (기록 + 소스) | 0251 `sources.system_tags` + 운영 적용 GO | **Q-261013-41** 기록만 먼저 할지 소스까지 한 번에 할지. 추천: 한 번에(한 화면이 기록과 소스에 다른 규칙을 쓰지 않게) |
+
+**지금 구현하지 않는 이유.** Z54 는 P3 이고, ①은 별 밝기를 바꾸며 ②는 운영 적용이 필요합니다. 둘 다 Simon 이 고른 뒤에 PR 을 엽니다. 그때까지 화면에는 `memo` · `reasoning:ratified` 가 그대로 보입니다.
+
+**확인한 것 (읽음).** 위 줄 번호 전부(`git show origin/main:<경로>` · `git grep`), `"memo"` 를 태그로 쓰는 자리가 홈 담기 시트 하나라는 것, `system_tags` 를 다루는 마이그레이션이 0218 · 0225 둘이라는 것.
+
+**재지 않은 것.** 운영 행 수, 등급의 전후 값, `records.system_tags` 를 만든 뒤에 고치는 것이 소유자 정책(`records_owner_all`, 0009)으로 되는지, `sources` 의 `tags` 를 화면이 어디서 그리는지.

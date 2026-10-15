@@ -36,7 +36,11 @@ function readScalars(toml: string): Map<string, string> {
       continue;
     }
     const kv = /^([A-Za-z0-9_]+)\s*=\s*(.+)$/.exec(line);
-    if (kv) out.set(`${section}.${kv[1]}`, kv[2].trim());
+    if (kv) {
+      const key = `${section}.${kv[1]}`;
+      if (out.has(key)) throw new Error(`Duplicate TOML key: ${key}`);
+      out.set(key, kv[2].trim());
+    }
   }
   return out;
 }
@@ -57,6 +61,7 @@ if ((s.get("auth.site_url") ?? "").includes("localhost")) {
   errors.push("auth.site_url points at localhost -- the 2026-07-16 reset. Must be the prod URL.");
 }
 expect("auth.email.enable_confirmations", "true"); // #1009 depends on it; the reset turned it off
+expect("auth.email.otp_expiry", "600"); // Simon 2026-10-13 20:44; do not reset to the 3600s default.
 // storage vector buckets are paid; a CLI-default enable dies with 402 on push.
 expect("storage.vector.enabled", "false");
 

@@ -1,3 +1,8 @@
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { PixelScrim } from "@/components/pixel/PixelDither";
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // THE reasoning limit sheet (스펙 docs/reasoning-ux-spec_260718.html 화면 F +
 // 인계 계약 14, PR-B) — the ONE bottom sheet every reasoning surface opens on
 // 한도 도달. Before this component the home bubble and /reasoning pushed
@@ -18,9 +23,8 @@
 // SAME-QUALITY invariant: the reward adds RUNS only; copy restates it.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Modal, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -75,6 +79,7 @@ export interface ReasoningLimitSheetProps {
 }
 
 export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLimitSheetProps) {
+  const phone = usePhoneDesign();
   // Phone-aware: opened from /reasoning inside the dashboard phone, /plans
   // opens in the phone too. Home gets expo-router's router unchanged.
   const router = useAppRouter();
@@ -82,7 +87,6 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
   const pathname = usePathname();
-  const { height } = useWindowDimensions();
   // Modal 은 화면의 SafeAreaView 밖에서 그려진다 — 인셋을 직접 읽는다.
   // 인셋이 0인 기기(대부분의 안드로이드)에서도 s6 만큼은 남는다.
   const insets = useSafeAreaInsets();
@@ -97,7 +101,6 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   // users.privacy_prefs.ads — null until resolved; the rewarded gate fails closed.
   const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
   const mountedRef = useRef(true);
-  const rise = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -125,14 +128,8 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
 
   useEffect(() => {
     if (!visible) return;
-    rise.setValue(0);
-    Animated.timing(rise, {
-      toValue: 1,
-      duration: 320, easing: pixelStepsFor(320),
-      useNativeDriver: true,
-    }).start();
     void refreshUsage();
-  }, [visible, rise, refreshUsage]);
+  }, [visible, refreshUsage]);
 
   useEffect(() => {
     if (!visible || !userId) return;
@@ -218,18 +215,18 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
     router.push("/plans?from=reasoning_limit");
   }, [onClose, router]);
 
-  const translateY = rise.interpolate({ inputRange: [0, 1], outputRange: [height, 0] });
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.root}>
+        {phone ? <PixelScrim style={{ tintColor: phoneIos.label2 }} /> : null}
         <Pressable
-          style={styles.veil}
+          style={[styles.veil, phone && { backgroundColor: "transparent" }]}
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel={t("ds.reasoningLimit.close")}
         />
-        <Animated.View style={[styles.sheet, { paddingBottom: sheetBottom }, { transform: [{ translateY }] }]}>
+        <View style={[styles.sheet, { paddingBottom: sheetBottom }]}>
           <View style={styles.grabber} />
 
           <RNText style={styles.title}>{t("ds.reasoningLimit.title")}</RNText>
@@ -306,7 +303,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
           </View>
 
           <RNText style={[styles.sameQuality, m3TextStyle("bodySmall")]}>{t("ds.reasoningLimit.sameQuality")}</RNText>
-        </Animated.View>
+        </View>
       </View>
     </Modal>
   );

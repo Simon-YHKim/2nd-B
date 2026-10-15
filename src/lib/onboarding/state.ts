@@ -1,8 +1,24 @@
-// First-run onboarding completion state. Web uses localStorage; native uses
-// AsyncStorage so Android/iOS do not bounce back to onboarding after the
-// final CTA.
+// First-run onboarding (the welcome) completion state.
+//
+// A signed-in account follows the SERVER (Q-261004-40, strict variant, migration
+// 0219, account-first-run.ts): the welcome opens by itself once per account, by
+// a server grant, and finishing it is recorded on the account. A signed-in
+// account never reads the device flag below, so another account's flag on the
+// same device cannot skip the welcome (gate CDA-04 = CD-02).
+//
+// The device flag is kept for one case only: a signed-out visitor who opens
+// /onboarding directly (since the login wall, 2026-07-15, the only way a
+// signed-out visitor gets there). Web uses localStorage; native uses
+// AsyncStorage. Every device read and write is best effort: a storage error must
+// never stop the screen from moving on (gate CDA-05).
 
 import { useEffect, useState } from "react";
+
+import {
+  finishFirstRun,
+  useAccountOnboardingComplete,
+  type OnboardingOutcome,
+} from "./account-first-run";
 
 export const ONBOARDING_KEY = "onboarding.cosmicPixel.v2.completedAt";
 export const FIRST_STAR_CHAT_KEY = "onboarding.firstStarChat.v1.nudgedAt";
@@ -39,25 +55,58 @@ function nativeStorage(): AsyncStorageLike | null {
   }
 }
 
+/** The device flag (web localStorage). A blocked or failing store reads as "not yet". */
+function readLocalFlag(local: Storage, key: string): boolean {
+  try {
+    return !!local.getItem(key);
+  } catch {
+    return false;
+  }
+}
+
+/** Signed-out device flag: has this device finished the welcome? */
 export function isOnboardingComplete(): boolean {
   const local = ls();
-  if (local) return !!local.getItem(ONBOARDING_KEY);
+  if (local) return readLocalFlag(local, ONBOARDING_KEY);
   return memoryHydrated ? memoryComplete : false;
 }
 
-export function markOnboardingComplete(): void {
+/** Signed-out only: remember on this device that the welcome was finished. Never throws. */
+function markDeviceOnboardingComplete(): void {
   const completedAt = new Date().toISOString();
   memoryComplete = true;
   memoryHydrated = true;
-  ls()?.setItem(ONBOARDING_KEY, completedAt);
+  try {
+    ls()?.setItem(ONBOARDING_KEY, completedAt);
+  } catch (e) {
+    if (typeof console !== "undefined") console.warn("[onboarding] persist failed", e);
+  }
   const storage = nativeStorage();
   // Persistence is best-effort (memory + localStorage layers still hold the
   // flag for this session), but a swallowed failure means silent re-onboarding
-  // on next launch — leave a trace for debugging.
+  // on next launch, so leave a trace for debugging.
   if (storage)
     void storage.setItem(ONBOARDING_KEY, completedAt).catch((e) => {
       if (typeof console !== "undefined") console.warn("[onboarding] persist failed", e);
     });
+}
+
+/**
+ * The welcome was finished (or skipped).
+ *   signed in   the account mark on the server (finish_first_run). Resolves true
+ *               only when the server stored it for this sign-in; the screen
+ *               shows "could not save" otherwise. Even then the welcome does not
+ *               open by itself again: the grant it opened with is already stored.
+ *   signed out  the device flag. Resolves true.
+ * Never rejects.
+ */
+export async function markOnboardingComplete(
+  ownerId: string | null,
+  outcome: OnboardingOutcome = "completed",
+): Promise<boolean> {
+  if (ownerId) return finishFirstRun(ownerId, "onboarding", outcome, null);
+  markDeviceOnboardingComplete();
+  return true;
 }
 
 // First-star chat nudge: after a user lights their very first star we steer them
@@ -127,10 +176,25 @@ export function markFirstStarChatNudged(): void {
     });
 }
 
-export function useOnboardingComplete(): boolean | null {
+/**
+ * Has the welcome been finished?
+ *   signed in (ownerId)  the account's server mark once `ready` (null while it
+ *                        is read). A read that fails answers false: only a
+ *                        direct visit gets here without a grant, and it may show
+ *                        the welcome.
+ *   signed out           the device flag.
+ * The device flag is never used for a signed-in account.
+ */
+export function useOnboardingComplete(ownerId: string | null = null, ready = true): boolean | null {
+  const device = useDeviceOnboardingComplete();
+  const account = useAccountOnboardingComplete(ownerId, ready);
+  return ownerId ? account : device;
+}
+
+function useDeviceOnboardingComplete(): boolean | null {
   const [complete, setComplete] = useState<boolean | null>(() => {
     const local = ls();
-    if (local) return !!local.getItem(ONBOARDING_KEY);
+    if (local) return readLocalFlag(local, ONBOARDING_KEY);
     if (memoryHydrated) return memoryComplete;
     return nativeStorage() ? null : false;
   });

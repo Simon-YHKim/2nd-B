@@ -1,5 +1,7 @@
+import { PhoneView as View, PhoneScrollView as ScrollView } from "@/components/phone/PhoneUIKit";
+import { SceneTransition } from "@/components/motion/SceneTransition";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
+import { StyleSheet } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 import { Redirect, useNavigation } from "expo-router";
@@ -274,7 +276,7 @@ function AuditLegacy() {
         // the next prompt is the "cheerful next screen, no hotline" shape.
         setCrisis({
           visible: true,
-          hotline: locale === "ko" ? (isMinor === true ? "KR_1388" : "KR_109") : "GLOBAL_988",
+          hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor === true ? "KR_1388" : "KR_109") : "GLOBAL_988"),
         });
         return;
       }
@@ -381,6 +383,7 @@ function AuditLegacy() {
   return (
     <AuditScreenerShell onBack={requestBack}>
       <KeyboardAvoidingArea style={{ flex: 1 }}>
+      <SceneTransition transitionKey={index} kind="page-forward" animateOnMount={false} style={{ flex: 1, minHeight: 0 }}>
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {index === 0 ? (
           <View style={styles.introCard}>
@@ -451,6 +454,7 @@ function AuditLegacy() {
           onPress={() => router.replace("/capture")}
         />
       </ScrollView>
+      </SceneTransition>
 </KeyboardAvoidingArea>
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">

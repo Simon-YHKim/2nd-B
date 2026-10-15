@@ -139,33 +139,20 @@ describe("visible trust copy", () => {
   });
 
   test("first-run capture copy stays honest about records, not guest graph storage", () => {
+    // 2026-10-14 Q-261014-88: 첫 실행 줄(firstRun.hint)은 머리글 TIP 과 같은 말을
+    // 되풀이해서 다섯 로케일에서 지웠다. 그 줄이 하던 「기록 보관소에서 다시 찾는다」
+    // 는 사실은 저장 뒤 문장(saved.recordsOwnership)이 그대로 말하고 있어서, 이
+    // 검사는 그 문장과 AI 동의 문장으로 같은 정직성(그래프 · 기기 저장을 약속하지
+    // 않는다)을 계속 지킨다.
+    type CaptureLocale = { firstRun?: unknown; saved: { recordsOwnership: string; recordsAiOptIn: string } };
     const root = path.resolve(__dirname, "../../..");
-    const en = JSON.parse(readFileSync(path.join(root, "locales/en/capture.json"), "utf8")) as {
-      firstRun: { hint: string };
-      saved: { recordsOwnership: string; recordsAiOptIn: string };
-    };
-    const ko = JSON.parse(readFileSync(path.join(root, "locales/ko/capture.json"), "utf8")) as {
-      firstRun: { hint: string };
-      saved: { recordsOwnership: string; recordsAiOptIn: string };
-    };
-    const es = JSON.parse(readFileSync(path.join(root, "locales/es/capture.json"), "utf8")) as {
-      firstRun: { hint: string };
-      saved: { recordsOwnership: string; recordsAiOptIn: string };
-    };
-    const pt = JSON.parse(readFileSync(path.join(root, "locales/pt/capture.json"), "utf8")) as {
-      firstRun: { hint: string };
-      saved: { recordsOwnership: string; recordsAiOptIn: string };
-    };
-    const id = JSON.parse(readFileSync(path.join(root, "locales/id/capture.json"), "utf8")) as {
-      firstRun: { hint: string };
-      saved: { recordsOwnership: string; recordsAiOptIn: string };
-    };
+    const en = JSON.parse(readFileSync(path.join(root, "locales/en/capture.json"), "utf8")) as CaptureLocale;
+    const ko = JSON.parse(readFileSync(path.join(root, "locales/ko/capture.json"), "utf8")) as CaptureLocale;
+    const es = JSON.parse(readFileSync(path.join(root, "locales/es/capture.json"), "utf8")) as CaptureLocale;
+    const pt = JSON.parse(readFileSync(path.join(root, "locales/pt/capture.json"), "utf8")) as CaptureLocale;
+    const id = JSON.parse(readFileSync(path.join(root, "locales/id/capture.json"), "utf8")) as CaptureLocale;
+    for (const bundle of [en, ko, es, pt, id]) expect(bundle.firstRun).toBeUndefined();
     const combined = [
-      en.firstRun.hint,
-      ko.firstRun.hint,
-      es.firstRun.hint,
-      pt.firstRun.hint,
-      id.firstRun.hint,
       en.saved.recordsOwnership,
       en.saved.recordsAiOptIn,
       ko.saved.recordsOwnership,
@@ -178,25 +165,21 @@ describe("visible trust copy", () => {
       id.saved.recordsAiOptIn,
     ].join("\n");
 
-    expect(en.firstRun.hint).toContain("Start with a short note");
-    expect(en.firstRun.hint).toContain("Records");
     expect(en.saved.recordsOwnership).toContain("Records");
     expect(en.saved.recordsOwnership).toContain("export");
     expect(en.saved.recordsOwnership).toContain("One sentence is enough");
     expect(en.saved.recordsAiOptIn).toContain("only");
     expect(en.saved.recordsAiOptIn).toContain("only if you turn on this switch");
-    expect(ko.firstRun.hint).toContain("저장한 내용");
-    expect(ko.firstRun.hint).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("내보내기");
     expect(ko.saved.recordsOwnership).toContain("작심이틀도 괜찮습니다");
     expect(ko.saved.recordsAiOptIn).toContain("이 스위치를 켜야");
-    expect(es.firstRun.hint).toContain("podrás verla en Registros");
     expect(es.saved.recordsOwnership).toContain("Una oración basta");
-    expect(pt.firstRun.hint).toContain("primeiro registro salvo");
+    expect(es.saved.recordsOwnership).toContain("Registros");
     expect(pt.saved.recordsOwnership).toContain("Uma frase já basta");
-    expect(id.firstRun.hint).toContain("membacanya lagi di Catatan");
+    expect(pt.saved.recordsOwnership).toContain("Registros");
     expect(id.saved.recordsOwnership).toContain("Satu kalimat cukup");
+    expect(id.saved.recordsOwnership).toContain("Catatan");
     expect(combined).not.toMatch(
       /graph|local|local-first|local-only|device|on your device|not the app|anonymous|no account|without account|account-free|no sign-up|no signup/i,
     );

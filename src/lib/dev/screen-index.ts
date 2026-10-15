@@ -173,33 +173,33 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       },
       { file: "core-brain", href: "/core-brain", label: "북극성", auth: true },
       { file: "northstar", href: "/northstar", label: "북극성 문장", auth: true },
-      { file: "star/[domain]", href: "/star/career", label: "도메인 별 (커리어)", auth: true, sample: true, note: "career · finance · growth · relation · health · recreation · collect. 2026-08-24 부터 홈 별자리에서는 안 열린다 — 생활 도메인은 세컨비 대시보드로 갔다" },
+      { file: "star/[domain]", href: "/star/career", label: "도메인 별 (커리어)", auth: true, sample: true, note: "career · finance · growth · relation · health · recreation · collect. 2026-08-24 부터 홈 별자리에서는 안 열린다 — 생활 도메인은 허슬케이 대시보드로 갔다" },
       { file: "me/[star]", href: "/me/school", label: "별 요약", auth: true, sample: true, note: "profile · infancy · school · twenties · later · work · now. 홈에서 별을 누르면 여기로 온다(Simon 결정 4 = B)" },
       { file: "career-drilldown", href: "/career-drilldown", label: "별 파고들기", auth: true },
       { file: "brightness", href: "/brightness", label: "밝기 변화 8주", auth: true },
-      { file: "beyond", href: "/beyond", label: "앱 밖에서", auth: true },
+      { file: "beyond", href: "/beyond", label: "위젯 · 알림", auth: true },
     ],
   },
   {
-    title: "담기 · 기록",
+    title: "기록 추가 · 기록 보기",
     screens: [
       {
         file: "capture",
         href: "/capture",
-        label: "담기",
+        label: "기록 추가",
         auth: true,
         qaVariants: [
           {
-            label: "첫 실행 안내",
+            label: "첫 실행 진입",
             href: "/capture?entry=firstRun",
-            note: "온보딩이 넘겨주는 진입. `firstRun` 플래그가 일기 모드에 '한 문장이면 충분' 힌트를 붙이고, `hasFullCaptureParams` 가 딥스페이스에서 CaptureView 대신 전체 intake 를 연다",
+            note: "온보딩이 넘겨주는 진입. `hasFullCaptureParams` 가 딥스페이스에서 CaptureView 대신 전체 intake 를 연다. 일기 모드 아래 따로 붙던 첫 실행 줄은 머리글 TIP 과 같은 말이라 지웠다(Q-261014-88)",
           },
         ],
       },
       {
         file: "capture-full",
         href: "/capture-full",
-        label: "담기 전체 (메모·링크·클립·OCR·파일)",
+        label: "기록 추가 전체 (메모·링크·클립·OCR·파일)",
         // 이 파일에는 `<Redirect href="/sign-in" />` 리터럴이 **없다** — 인증 경계를
         // `CaptureLegacy`(→ `CaptureLegacySession`)에 위임하기 때문이다. 그래도
         // 로그인은 실제로 필요하다. 라우트 파일 안만 보는 판정은 여기서 거짓 음성을
@@ -304,12 +304,12 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
     ],
   },
   {
-    title: "세컨비 · 대화",
+    title: "허슬케이 · 대화",
     screens: [
       {
         file: "secondb",
         href: "/secondb",
-        label: "세컨비 대화",
+        label: "허슬케이 대화",
         auth: true,
         // 셋 다 **초기 state 만** 심는다 — mount 가 LLM 을 부르지 않는다.
         // 보낼지는 사람이 정한다. `?character=` 는 일부러 뺐다(사람 흉내 화면).
@@ -317,18 +317,18 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
           {
             label: "대시보드 펴고 시작",
             href: "/secondb?panel=dashboard",
-            note: "세컨비 머리를 터치했을 때의 진입(Simon 결정 6). 생활 여섯 영역이 대화창 안에 펴진다. `showDashboard` 의 초기값이 이 값을 읽는다",
+            note: "허슬케이 머리를 터치했을 때의 진입(Simon 결정 6). 생활 여섯 영역이 대화창 안에 펴진다. `showDashboard` 의 초기값이 이 값을 읽는다",
           },
           {
             label: "새 관점 모드",
             href: "/secondb?mode=divergent",
-            // ⚠ 이 변형만 등급을 탄다. 트위비는 pro(=brain) 전용이라
+            // ⚠ 이 변형만 등급을 탄다. 조이케이는 pro(=brain) 전용이라
             // (`personaAllowed`, tier-map `pro ↔ brain`) free·plus 에서는 tier 를
             // 알게 된 직후 effect 가 `rev2Persona` 를 조용히 secondb 로 되돌린다.
             // 에러도 잠금 표시도 없다 — 이 목록이 막으려는 그 조용한 되돌림과
-            // 같은 모양이라, 안내 없이 두면 검수자가 "트위비가 원래 이렇구나" 한다.
+            // 같은 모양이라, 안내 없이 두면 검수자가 "조이케이가 원래 이렇구나" 한다.
             // 담기 모드 할당량과는 **별개 이야기**다(그쪽은 등급 제한이 없다).
-            note: "`chatMode` 를 divergent 로, `rev2Persona` 를 트위비로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 트위비는 Brain(pro) 전용 — free·plus 로 열면 페르소나가 조용히 세컨비로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)",
+            note: "`chatMode` 를 divergent 로, `rev2Persona` 를 조이케이로 심는다. 초기값일 뿐이라 보내기 전에는 호출이 없다. ⚠ 조이케이는 북극성(pro) 전용 — free·plus 로 열면 페르소나가 조용히 허슬케이로 되돌아간다. 확인하려면 EXPO_PUBLIC_FORCE_TIER=brain (QA 계정은 free)",
           },
           {
             label: "노드에서 이어 묻기 (견본)",
@@ -453,7 +453,8 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       {
         file: "ops",
         href: "/ops",
-        label: "오늘의 비서",
+        label: "개인 비서",
+        note: "진입: 폰 앱 바둑판. 추천 설정 · 루틴 · 알림 설정과 앱이 없는 도구",
         auth: {
           gateFile: "src/screens/deepspace/dds-ops-screen.tsx",
           component: "DeepSpaceOpsScreen",
@@ -500,7 +501,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       {
         file: "trinity",
         href: "/trinity",
-        label: "브레인 트리니티 (은퇴)",
+        label: "트리니티 (은퇴)",
         render: { kind: "redirect", to: "/core-brain", lifecycle: "retired" },
         note: "리다이렉트 전용(Simon 결정 Q-261004-33 B). TrinityLegacy 와 개발 빌드의 M3 리메이크가 둘 다 2026-10-05 에 빠졌다",
       },
@@ -574,6 +575,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         },
       },
       { file: "profile-details", href: "/profile-details", label: "내 생활 정보", auth: true },
+      { file: "profile-import", href: "/profile-import", label: "AI 대화에서 가져오기", auth: true },
       { file: "avatar-studio", href: "/avatar-studio", label: "아바타 꾸미기", auth: true },
       {
         file: "change-password",
@@ -588,7 +590,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
         },
       },
       { file: "theme", href: "/theme", label: "테마", auth: true },
-      { file: "data", href: "/data", label: "데이터 관리", auth: true },
+      { file: "data", href: "/data", label: "내 데이터", auth: true },
       { file: "permissions", href: "/permissions", label: "권한 관리" },
       // 2026-10-04 W-02: 라우트의 리다이렉트는 legacy 반쪽(PrivacyLegacy) 안에만
       // 있었고, 배송되는 화면은 로그아웃이면 설정을 그린 채 '생년월일을 확인하는

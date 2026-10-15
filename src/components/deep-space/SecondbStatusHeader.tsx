@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 /**
  * STEP 3 — <SecondbStatusHeader /> : the per-screen status bar from
  * E:/Legacy/2ndB/legacy/design/prototype.dc.html. Left = small SecondbHead; right = a speech bubble
@@ -14,7 +15,7 @@
  * deep-space screen renders one implementation. It reserves BackArrow headroom
  * (below) for the screens that mount it outside DeepSpaceScreen.
  */
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { usePathname } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";

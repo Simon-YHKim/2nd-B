@@ -20,8 +20,8 @@ const hdAlpha = (c: string, a: number): string => flattenAlpha(c, a, colors.bgDe
 
 
 const HEADER_COPY: Record<DeepSpaceHubTab, { text: string; tip: string }> = {
-  capture: { text: "담기 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
-  secondb: { text: "세컨비챗 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
+  capture: { text: "기록 추가 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
+  secondb: { text: "허슬케이챗 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
   trend: { text: "트렌드 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
   review: { text: "점검 화면입니다. 핵심만 추렸습니다.", tip: "천천히 둘러보세요." },
 };
@@ -35,7 +35,7 @@ export function DeepSpaceHubDockScreen() {
   const [trendAction, setTrendAction] = useState<string | null>(null);
   const [reviewDecision, setReviewDecision] = useState<"hold" | "approve" | null>(null);
   const header = HEADER_COPY[active];
-  const title = useMemo(() => ({ capture: "담기", secondb: "세컨비", trend: "트렌드", review: "점검" })[active], [active]);
+  const title = useMemo(() => ({ capture: "기록 추가", secondb: "허슬케이", trend: "트렌드", review: "점검" })[active], [active]);
 
   return (
     <View style={styles.screen}>
@@ -103,7 +103,7 @@ function renderContent(active: DeepSpaceHubTab, state: HubState) {
 function CaptureContent({ captureMode, setCaptureMode, captured, setCaptured }: HubState) {
   return (
     <>
-      <Text variant="body" style={styles.subtitle}>무엇이든 한 곳으로 담는다</Text>
+      <Text variant="body" style={styles.subtitle}>기록과 자료를 한 곳에 저장합니다</Text>
       <View style={styles.modeRow}>
         {["글", "사진", "링크", "음성", "할 일"].map((mode) => (
           <Pressable
@@ -118,16 +118,16 @@ function CaptureContent({ captureMode, setCaptureMode, captured, setCaptured }: 
       </View>
       <View style={styles.captureBox}><Text variant="body" style={styles.captureText}>오늘 회의에서 나온 아이디어, 사용자 온보딩을 별자리 은유로 풀면 어떨까</Text><View style={styles.cursor} /></View>
       <View style={styles.tagRow}><Text variant="caption" pixelEn style={styles.tag}>#아이디어</Text><Text variant="caption" pixelEn style={styles.tag}>AI 자동 태그</Text></View>
-      <Text variant="caption" pixelEn style={styles.sectionLabel}>최근에 담은 것</Text>
+      <Text variant="caption" pixelEn style={styles.sectionLabel}>최근에 저장한 내용</Text>
       <SmallRow icon="✎" title="읽은 책에서 인상 깊었던 문장" time="2시간" />
       <SmallRow icon="🔗" title="디자인 레퍼런스 아티클" time="어제" />
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="현재 별가루 담기"
+        accessibilityLabel="현재 기록 저장"
         onPress={() => setCaptured(true)}
         style={styles.primaryButton}
       >
-        <Text variant="caption" style={styles.primaryButtonText}>{captured ? "담겼습니다" : "담기"}</Text>
+        <Text variant="caption" style={styles.primaryButtonText}>{captured ? "저장했습니다" : "저장"}</Text>
       </Pressable>
     </>
   );
@@ -144,8 +144,8 @@ function SecondbContent({ chatDraft, setChatDraft, chatSent, setChatSent }: HubS
       {chatSent ? <Text variant="subtle" style={styles.sentNote}>보냈습니다. 이 미리보기에서는 대화가 저장되지 않습니다.</Text> : null}
       <View style={styles.inputBar}>
         <TextInput
-          accessibilityLabel="세컨비에게 물어보기"
-          placeholder="세컨비에게 물어보기…"
+          accessibilityLabel="허슬케이에게 물어보기"
+          placeholder="허슬케이에게 물어보기…"
           placeholderTextColor={colors.textLo}
           value={chatDraft}
           onChangeText={setChatDraft}
@@ -153,7 +153,7 @@ function SecondbContent({ chatDraft, setChatDraft, chatSent, setChatSent }: HubS
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="세컨비에게 보내기"
+          accessibilityLabel="허슬케이에게 보내기"
           disabled={chatDraft.trim().length === 0}
           onPress={() => setChatSent(true)}
           style={[styles.sendCircle, chatDraft.trim().length === 0 && styles.disabledButton]}
@@ -169,8 +169,8 @@ function TrendContent({ trendAction, setTrendAction }: HubState) {
   return (
     <>
       <Text variant="body" style={styles.subtitle}>요즘 너의 관심이 향하는 다음 한 걸음</Text>
-      <TrendCard title="자기이해 도구" delta="▲ 관심 +32%" body="최근 3주간 가장 자주 담은 주제. 관련 검사 애착(ECR-S)를 해볼까요?" onPress={() => setTrendAction("자기이해 도구")} />
-      <TrendCard title="아침 루틴" delta="▲ 관심 +18%" body="기분이 좋은 날의 공통점. 리듬에 기록을 더 담아볼까요?" onPress={() => setTrendAction("아침 루틴")} />
+      <TrendCard title="자기이해 도구" delta="▲ 관심 +32%" body="최근 3주간 가장 자주 기록한 주제. 관련 검사 애착(ECR-S)를 해볼까요?" onPress={() => setTrendAction("자기이해 도구")} />
+      <TrendCard title="아침 루틴" delta="▲ 관심 +18%" body="기분이 좋은 날의 공통점. 리듬에 기록을 더 추가해 볼까요?" onPress={() => setTrendAction("아침 루틴")} />
       {trendAction ? <Text variant="subtle" style={styles.sentNote}>{trendAction} 제안을 열 준비가 됐습니다.</Text> : null}
       <View style={styles.emptyCard}><Text variant="body" style={styles.mutedBody}>데이터가 더 쌓이면 새로운 제안이 나타납니다.</Text></View>
     </>
@@ -182,7 +182,7 @@ function ReviewContent({ reviewDecision, setReviewDecision }: HubState) {
     <>
       <Text variant="body" style={styles.subtitle}>내가 달라졌다면 별자리도 함께 점검</Text>
       <View style={styles.reviewCard}>
-        <Text variant="caption" pixelEn style={styles.sectionLabelSoul}>세컨비의 제안</Text>
+        <Text variant="caption" pixelEn style={styles.sectionLabelSoul}>허슬케이의 제안</Text>
         <Text variant="body" style={styles.reviewBody}>최근 기록을 보면 외향성이 올라간 것 같습니다. 별 밝기를 올릴까요?</Text>
         <View style={styles.scoreRow}><Score label="지금" value="61" /><RNText style={styles.arrow}>→</RNText><Score label="제안" value="68" /><Text variant="subtle" style={styles.evidenceRight}>근거{"\n"}기록 5건</Text></View>
       </View>

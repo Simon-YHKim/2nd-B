@@ -92,7 +92,7 @@ export function buildClipperPrompt(
   const system =
     locale === "ko"
       ? [
-          "사용자가 PolaScope에 담은 웹 자료를 Obsidian 클리퍼 형식으로 분류합니다.",
+          "사용자가 PolaScope에 저장한 웹 자료를 Obsidian 클리퍼 형식으로 분류합니다.",
           "JSON만 출력하세요. JSON 외 텍스트 금지.",
           "",
           "kind 후보 (가장 잘 맞는 하나):",

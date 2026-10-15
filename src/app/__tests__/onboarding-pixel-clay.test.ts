@@ -40,7 +40,9 @@ function functionBody(name: string): string {
 
 describe("/onboarding PIXEL-CLAY handoff contract", () => {
   test("keeps the signed-out pre-auth carousel and redirects only after completion", () => {
-    expect(SRC).toContain("useOnboardingComplete()");
+    // Q-261004-40 (0219): signed in, the account's server mark once the session
+    // is restored; signed out, this device's flag.
+    expect(SRC).toContain("useOnboardingComplete(userId, !loading)");
     expect(SRC).not.toMatch(/if\s*\(\s*!userId\s*\)[^\n]*Redirect/);
     // QA 261004 D-01: back to the home underneath, never a second home.
     expect(SRC).toMatch(/onboardingComplete === true[\s\S]{0,60}<RedirectHome \/>/);
@@ -109,14 +111,20 @@ describe("/onboarding PIXEL-CLAY handoff contract", () => {
 
   test("completion is recorded only inside a final handoff action", () => {
     const handoff = functionBody("finishOnboarding");
-    expect(handoff).toContain("markOnboardingComplete();");
-    expect(handoff).toContain('router.replace("/");');
-    expect(handoff).toContain('router.replace("/sign-up");');
-    expect(handoff).toContain('router.replace("/sign-in");');
-    expect(handoff.indexOf("markOnboardingComplete();")).toBeLessThan(
-      handoff.indexOf('router.replace("/");'),
-    );
-    expect(SRC.match(/markOnboardingComplete\(\)/g)).toHaveLength(1);
+    const leave = functionBody("leaveOnboarding");
+    const record = 'await markOnboardingComplete(owner, skipped ? "skipped" : "completed");';
+    expect(handoff).toContain(record);
+    expect(handoff).toContain("leaveOnboarding(destination);");
+    // The screen leaves only after the server stored it (design 5.3); if it was
+    // not stored, it says so and stays, with retry and home.
+    expect(handoff.indexOf(record)).toBeLessThan(handoff.indexOf("leaveOnboarding(destination);"));
+    expect(handoff).toMatch(/if \(!stored\) \{\s*setSaveFailed\(true\);\s*return;\s*\}/);
+    expect(leave).toContain('router.replace("/");');
+    expect(leave).toContain('router.replace("/sign-up");');
+    expect(leave).toContain('router.replace("/sign-in");');
+    expect(SRC).toContain('onPress={() => leaveOnboarding("/")}');
+    expect(SRC).toContain('t("onboarding.saveFailed")');
+    expect(SRC.match(/markOnboardingComplete\(/g)).toHaveLength(1);
     expect(SRC).toMatch(/onPress=\{\(\) => finishOnboarding\("\/sign-up"\)\}/);
     expect(SRC).toMatch(/onPress=\{\(\) => finishOnboarding\("\/sign-in"\)\}/);
   });

@@ -11,7 +11,7 @@ const sheet = read("PixelTimeSheet.tsx");
 const wheel = read("PixelWheel.tsx");
 
 test("the sheet closes by its glyph, the scrim, the hardware back button and Escape on web", () => {
-  expect(sheet).toContain('<Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onCancel}>');
+  expect(sheet).toContain('<Modal visible={visible} transparent animationType="none" transitionKind="sheet" statusBarTranslucent onRequestClose={onCancel}>');
   // The scrim is a responder View, not a Pressable: RN-web gives every Pressable tabIndex 0 and the
   // Modal focus trap put first focus on the unnamed full-screen scrim, where Enter discarded the draft.
   expect(sheet).toContain("onStartShouldSetResponder={() => true}");

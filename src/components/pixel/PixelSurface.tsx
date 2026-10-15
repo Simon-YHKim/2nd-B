@@ -30,6 +30,10 @@ import type { ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { m3 } from "@/lib/theme/m3";
+import { PhoneForegroundProvider, usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneFlatSurface, phoneStyle, phoneSurfaceColor } from "@/lib/theme/phone-design";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { PixelRoundRect } from "./PixelRoundRect";
 
 /**
  * - `frame` 테두리만 (px-frame)
@@ -43,6 +47,8 @@ export interface PixelSurfaceProps {
   variant?: PixelSurfaceVariant;
   /** 눌린 상태. 베벨을 뒤집는다 (`.px-btn:active` 와 같다). */
   pressed?: boolean;
+  /** Explicit control selection; an inset alone is a recessed surface, not a selected control. */
+  selected?: boolean;
   /** 면 배경. 기본은 variant 별 토큰. */
   background?: string;
   children?: ReactNode;
@@ -92,12 +98,27 @@ function bevelOf(variant: PixelSurfaceVariant, pressed: boolean): { hi: string; 
 export function PixelSurface({
   variant = "bevel",
   pressed = false,
+  selected,
   background,
   children,
   style,
   contentStyle,
   shrink = false,
 }: PixelSurfaceProps) {
+  const phone = usePhoneDesign();
+  if (phone) {
+    const base = background ? phoneSurfaceColor(background) : phoneIos.cell;
+    // Clay encodes selection in the bevel as well as the color. Some controls
+    // deliberately use identical color tokens, so retain that semantic here.
+    const active = selected === true;
+    const restingFill = (active || variant === "inset") && (base === phoneIos.cell || base === phoneIos.grouped) ? phoneIos.fill : base;
+    const fill = pressed ? base === phoneIos.blue ? phoneIos.bluePressed : phoneIos.fill : restingFill;
+    return <PixelRoundRect fill={fill} border={active ? phoneIos.bluePressed : undefined} style={[phoneStyle(StyleSheet.flatten(style) ?? {}), phoneFlatSurface, shrink && styles.shrink]}>
+      <PhoneForegroundProvider color={fill === phoneIos.blue || fill === phoneIos.bluePressed ? phoneIos.onBlue : phoneIos.label}>
+        <View style={[styles.content, shrink && styles.shrink, phoneStyle(StyleSheet.flatten(contentStyle) ?? {})]}>{children}</View>
+      </PhoneForegroundProvider>
+    </PixelRoundRect>;
+  }
   const bevel = bevelOf(variant, pressed);
   const edged = variant !== "flat";
   return (

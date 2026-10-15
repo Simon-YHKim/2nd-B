@@ -2,8 +2,15 @@ import {
   buildPersonaSynthesisPrompt,
   parsePersonaSynthesis,
   PERSONA_SYNTHESIS_MAX,
+  synthesizePersonas,
   type PersonaSynthesisInput,
 } from "../persona-synthesis";
+import { callLlm } from "../../llm/boundary";
+
+// Only synthesizePersonas (the describe block at the bottom) reaches callLlm;
+// the prompt/parser tests above are pure and never touch it.
+jest.mock("../../llm/boundary", () => ({ callLlm: jest.fn() }));
+const mockCall = callLlm as unknown as jest.Mock;
 
 const input: PersonaSynthesisInput = {
   domainSummaries: [
@@ -140,5 +147,47 @@ describe("parsePersonaSynthesis", () => {
       input,
     );
     expect(out[0].id).toBe("the-careful-planner");
+  });
+});
+
+// Moved from persona-synthesis-crosscheck.test.ts when S0.5 (2026-10-07)
+// deleted the cross-check with its only, unreachable caller. These are the
+// orchestrator's own outcomes, which hold with or without a cross-check.
+describe("synthesizePersonas", () => {
+  const liveReply = (text: string) => ({ text, audit: { modelUsed: "live-test-model" } });
+  const grounded = (labels: string[]) =>
+    rawJson(
+      labels.map((label) => ({
+        label,
+        summary: `${label} summary, long enough that the parser keeps it.`,
+        evidence: { domains: ["career"], constructs: ["conscientiousness"] },
+      })),
+    );
+
+  beforeEach(() => mockCall.mockReset());
+
+  it("returns the parsed draft from exactly one persona_synthesis call", async () => {
+    mockCall.mockResolvedValue(liveReply(grounded(["A", "B"])));
+    const out = await synthesizePersonas("u1", input, "ko");
+    expect(out.map((p) => p.label)).toEqual(["A", "B"]);
+    // One call: no second round re-writes the draft any more.
+    expect(mockCall).toHaveBeenCalledTimes(1);
+    expect(mockCall.mock.calls[0][0].purpose).toBe("persona_synthesis");
+  });
+
+  it("an empty grounded result is an error, not an empty success", async () => {
+    mockCall.mockResolvedValue(liveReply(rawJson([])));
+    await expect(synthesizePersonas("u1", input, "ko")).rejects.toThrow("polaris_no_grounded_result");
+  });
+
+  it("a metered server result can use a newer snapshot than the preliminary client input", async () => {
+    mockCall.mockResolvedValue(liveReply(rawJson([{
+      label: "Builder",
+      summary: "A role based on the server snapshot.",
+      evidence: { domains: ["work"], constructs: ["self-reported narrative (same-source)"] },
+    }])));
+    // input predates the saved work interview. The caller reloads persisted
+    // server cards after this response; an older local parser cannot undo it.
+    await expect(synthesizePersonas("u1", input, "ko", false, "reserved-id")).resolves.toEqual([]);
   });
 });

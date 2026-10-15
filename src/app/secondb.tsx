@@ -1,3 +1,4 @@
+import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 // 세컨비 chat screen (formerly "Jarvis"). Per handoff v3 §4.B —
 // preview of how RAG transforms the experience. Calls into the single
 // Gemini wrapper (so C1/C3/C9 hold) and pulls a compact wiki snapshot
@@ -6,15 +7,11 @@
 // State lives in component-local memory; no chat-history persistence in v1.
 // The chat_usage daily counter (server-side) is the persistent surface.
 //
-// 2026-05-27 (user directive):
-//   - Renamed Jarvis → "세컨비" / "SecondB" (locale-routed via secondb.json).
-//   - "What I'm good at" card moved out of the chat panel into a
-//     one-time intro modal with [알았어요 / 오늘은 그만 볼래요]
-//     buttons. The modal is dismissed via localStorage so it doesn't
-//     reappear every session.
+// First-entry guidance lives in the empty state (Simon, 2026-10-10).
+// Retired intro storage values can remain on the device; this screen never reads them.
 
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, View, StyleSheet, ScrollView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { AccessibilityInfo, StyleSheet, Platform, ActivityIndicator, Animated, useWindowDimensions } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
@@ -49,9 +46,10 @@ import {
 import { captureAccountOwnerLease, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { chatAutosaveAllowed } from "@/lib/chat/autosave";
+import { getExchangeExpression, getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion, type ChatFollowUp } from "@/lib/chat/presentation-policy";
 import { createChatAutosaveSession } from "@/lib/chat/autosave-session";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
-import { classifyInput } from "@/lib/safety/classifier";
+import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { currentDisplayName } from "@/lib/persona/use-address";
 import {
   CHAT_KEEP_TAG,
@@ -64,10 +62,15 @@ import {
 } from "@/lib/chat/keep-exchange";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
+import { retryableMessage } from "@/lib/chat/retry-failed";
 import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
 import { LlmConsentError, transcribeAudio, type LlmConsentErrorCode } from "@/lib/llm/boundary";
 import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
+import { MdButton } from "@/components/m3";
+import { shouldShowChatAiNotice, useChatAiNoticeSeen } from "@/lib/chat/ai-first-notice";
+import { isModelAnswer, withAiCopyTail } from "@/lib/chat/ai-mark";
+import { topicParticle } from "@/lib/i18n/josa";
 import { isAbortError } from "@/lib/async/abort";
 import {
   createRecorderLifecycle,
@@ -75,14 +78,19 @@ import {
   recordingUriToBase64,
   type RecordingTempLease,
 } from "@/lib/audio/recording-uri";
-import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import { publishCrisisNotice } from "@/lib/safety/crisis-notice";
 import { DomainDashboard } from "@/components/secondb/DomainDashboard";
-import type { HotlineId } from "@/lib/safety/lexicon";
+import { ChatTextInput } from "@/components/secondb/ChatTextInput";
+import { chatComposerAlignment, chatStatusMaxLines } from "@/components/secondb/chat-font-layout";
+import { ChatActionBar, type ChatAction } from "@/components/secondb/ChatActionBar";
+import { ChatPlanSheet } from "@/components/secondb/ChatPlanSheet";
+import { useChatPlans } from "@/components/secondb/useChatPlans";
+import { ChatMessageAvatar, useChatUserAvatar } from "@/components/secondb/ChatMessageAvatar";
+import { HustleKPortrait } from "@/components/character/HustleKPortrait";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
 import {
   REV2_PERSONA_IDS,
   rev2PersonaAccent,
-  rev2PersonaGlow,
   rev2PersonaHint,
   rev2PersonaMode,
   rev2PersonaOnSoft,
@@ -90,12 +98,13 @@ import {
   type Rev2PersonaId,
 } from "@/lib/chat/rev2-personas";
 import { m3 } from "@/lib/theme/m3";
-import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
+import { formatSourceCitationLabel, parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
+import { chatDisplayText } from "@/lib/chat/display-text";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsageDetail } from "@/lib/chat/usage";
-import { CHAT_DAILY_LIMIT, chatAllowance, kstDateToday } from "@/lib/chat/limits";
+import { CHAT_DAILY_LIMIT, chatAllowance } from "@/lib/chat/limits";
 import { RewardedSheet, type RewardedEarnOutcome } from "@/components/deepspace/RewardedSheet";
 import { personaAllowed } from "@/lib/entitlements/tiers";
 import { PUBLIC_TIER_BY_DB } from "@/lib/entitlements/tier-map";
@@ -103,7 +112,6 @@ import { prefersReducedMotion } from "@/lib/motion/signature";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 import { captureEvent, secondBSession, aiLimitHit } from "@/lib/analytics";
-import { keepAllKo } from "@/lib/i18n/keep-all";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -123,12 +131,11 @@ const pillAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.
 
 // Quick-action chips offered under an answer (chat pack §8). Each prefills
 // the composer with a short follow-up in the village voice; the user sends.
-const QUICK_ACTIONS: { ko: string; en: string; mode?: "divergent"; prompt: { ko: string; en: string } }[] = [
-  { ko: "다음 한 걸음", en: "Next step", prompt: { ko: "지금 할 수 있는 다음 한 걸음으로 줄여줘.", en: "Narrow this to one next step I can take today." } },
-  { ko: "새 관점으로", en: "New angle", mode: "divergent", prompt: { ko: "이 생각을 전혀 다른 관점에서 펼쳐줘.", en: "Unfold this from a completely different angle." } },
-  { ko: "위키에 저장", en: "Save to wiki", prompt: { ko: "이 답을 위키에 저장할 수 있게 한 단락으로 정리해줘.", en: "Sum this up in one paragraph I can save to my wiki." } },
-  { ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 별가루를 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
-  { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
+const QUICK_ACTIONS: { kind: ChatFollowUp; ko: string; en: string; mode?: "divergent"; prompt: { ko: string; en: string } }[] = [
+  { kind: "next-step", ko: "다음 한 걸음", en: "Next step", prompt: { ko: "지금 할 수 있는 다음 한 걸음으로 줄여줘.", en: "Narrow this to one next step I can take today." } },
+  { kind: "new-angle", ko: "새 관점으로", en: "New angle", mode: "divergent", prompt: { ko: "이 생각을 전혀 다른 관점에서 펼쳐줘.", en: "Unfold this from a completely different angle." } },
+  { kind: "explain", ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 별가루를 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
+  { kind: "shorter", ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
 ];
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
@@ -146,6 +153,10 @@ function IconCite({ color, size = 13 }: { color: string; size?: number }) {
 interface ChatTurn {
   role: "user" | "secondb";
   text: string;
+  /** In-memory bubble input with citation markers; never used for copy/history/capture. */
+  citationText?: string;
+  /** Speaker at send time; absent only on older in-memory turns. */
+  persona?: Rev2PersonaId;
   /** Slugs the reply cited — rendered as small source chips. */
   chips?: string[];
   /** 트위비 next-step candidates (P5f) — trailing → lines lifted from the reply. */
@@ -155,6 +166,13 @@ interface ChatTurn {
    *  mis-grounded as something SecondB actually said. */
   synthetic?: boolean;
   consentError?: LlmConsentErrorCode;
+  /** On a line that says the reply failed: the message it was for. Sending that message again
+   *  may get an answer (no response, a server error, a deadline), so the line offers it (Z40).
+   *  Absent on a consent refusal: sending again cannot change that. */
+  retryText?: string;
+  safetyZone?: "green" | "yellow" | "red";
+  /** Guidance is shown once by the app host; its fixed text is never a bubble or model history. */
+  crisisNotice?: true;
 }
 
 type ChatMode = "analytic" | "divergent";
@@ -165,62 +183,6 @@ type ChatMode = "analytic" | "divergent";
 const LOCKED_CHIP_GROUND = m3.accent.stageFloor;
 const LOCKED_CHIP_BORDER = flattenAlpha(m3.color.outlineVariant, 0.6, LOCKED_CHIP_GROUND);
 const LOCKED_CHIP_INK = flattenAlpha(m3.color.onSurfaceVariant, 0.6, LOCKED_CHIP_GROUND);
-
-const INTRO_DISMISS_KEY = "secondB_intro_dismissed_v1";
-
-// Web keeps localStorage; native goes through AsyncStorage (same split as
-// capture/draft.ts). localStorage-only meant the native app forgot "오늘은
-// 그만 볼래요" on every entry (flow-map /secondb) — the write was a no-op.
-interface IntroStorageLike {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-}
-
-function isReactNativeRuntime(): boolean {
-  const nav = globalThis.navigator as { product?: string } | undefined;
-  return nav?.product === "ReactNative";
-}
-
-function nativeIntroStorage(): IntroStorageLike | null {
-  if (!isReactNativeRuntime()) return null;
-  try {
-    return require("@react-native-async-storage/async-storage").default as IntroStorageLike;
-  } catch {
-    return null;
-  }
-}
-
-function parseIntroDismissed(v: string | null): "off" | "today" | "permanent" {
-  if (v === "permanent") return "permanent";
-  if (v && v.startsWith("today:") && v.slice("today:".length) === kstDateToday()) return "today";
-  return "off";
-}
-
-async function readIntroDismissed(): Promise<"off" | "today" | "permanent"> {
-  try {
-    const native = nativeIntroStorage();
-    if (native) return parseIntroDismissed(await native.getItem(INTRO_DISMISS_KEY));
-    if (typeof localStorage === "undefined") return "off";
-    return parseIntroDismissed(localStorage.getItem(INTRO_DISMISS_KEY));
-  } catch {
-    return "off";
-  }
-}
-
-function writeIntroDismissed(kind: "today" | "permanent"): void {
-  const v = kind === "permanent" ? "permanent" : `today:${kstDateToday()}`;
-  try {
-    const native = nativeIntroStorage();
-    if (native) {
-      void native.setItem(INTRO_DISMISS_KEY, v).catch(() => {});
-      return;
-    }
-    if (typeof localStorage === "undefined") return;
-    localStorage.setItem(INTRO_DISMISS_KEY, v);
-  } catch {
-    // ignore — private mode
-  }
-}
 
 // One chat ENGINE, one chrome (deep-space frame + deepSpace.* tokens). The
 // legacy PremiumAppShell village skin that once shared this engine left with
@@ -237,16 +199,17 @@ interface ChatComposerHandle {
 interface ChatComposerProps {
   /** A send is in flight — drives the send-button spinner and blocks re-send. */
   sending: boolean;
-  /** The non-draft half of canSend: not sending and under the daily cap. */
+  /** Ordinary sends require this gate; device-red drafts can bypass the cap. */
   sendEnabled: boolean;
   /** Commit a message. Returns true when accepted (composer clears its draft),
    *  false when the send was refused (e.g. reasoning cap) so the draft is kept. */
   onSend: (text: string) => boolean;
   /** Node-entry seed (?fromNode=): pre-fills the draft once on first mount. */
   fromNode?: string | null;
-  /** deep-space lens tint + placeholder subject. */
+  /** Screen-reader name of the input. It names who is being asked (Z85). */
+  askLabel: string;
+  /** deep-space lens tint. */
   lensAccent?: string;
-  lensName?: string;
   inkOnAccent?: string;
 }
 
@@ -263,9 +226,9 @@ const ChatComposer = memo(
       sendEnabled,
       onSend,
       fromNode,
+      askLabel,
       // The chat body always passes these; the defaults only satisfy the type.
       lensAccent = deepSpace.accent,
-      lensName = "",
       inkOnAccent = m3.accent.onAccentInk,
     },
     ref,
@@ -274,10 +237,19 @@ const ChatComposer = memo(
     // Node entry seeds the composer once (mirrors the old seeding effect); the
     // initializer runs only on mount, so a later param change never re-seeds.
     const [draft, setDraft] = useState(() => (fromNode ? t("aboutNode", { node: fromNode }) : ""));
+    const { fontScale } = useWindowDimensions();
+    const [inputHeight, setInputHeight] = useState(0);
+    const composerAlignment = chatComposerAlignment(Platform.OS, fontScale, draft.length === 0 ? 0 : inputHeight);
     useImperativeHandle(ref, () => ({ prefill: (text: string) => setDraft(text) }), []);
-    const canSend = draft.trim().length > 0 && sendEnabled;
+    const { userId, isMinor } = useAuth();
+    const voiceLocale = i18n.language === "ko" ? ("ko" as const) : ("en" as const);
+    // Q-261015-82: a reached AI cap must not disable the path to fixed crisis guidance.
+    // This is only a button gate; the engine still owns routing, audit and quota checks.
+    const canSend = draft.trim().length > 0 && !sending && (sendEnabled ||
+      classifyInputAnyLocale(draft, voiceLocale, { minor: isMinor === true }).zone === "red");
     const submit = () => {
       if (!canSend) return;
+      // The send handler publishes device-red guidance before any await.
       // Clear only when the send was accepted, so a cap-blocked send keeps the
       // typed text (the old handleSend returned before clearing on a cap hit).
       if (onSend(draft.trim())) setDraft("");
@@ -288,8 +260,6 @@ const ChatComposer = memo(
     // transcript is proposed into the draft for review, never auto-sent
     // (propose -> ratify). transcribeAudio holds C1/C3/C9: a red-zone
     // transcript never reaches the draft — it routes to the crisis surface.
-    const { userId, isMinor } = useAuth();
-    const voiceLocale = i18n.language === "ko" ? ("ko" as const) : ("en" as const);
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
     const recorderLifecycle = useMemo(
       () => createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording }),
@@ -300,10 +270,6 @@ const ChatComposer = memo(
     const voiceStartInFlightRef = useRef(false);
     const voiceAccountLeaseRef = useRef<PendingAccountSessionLease | null>(null);
     const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
-    const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
-      visible: false,
-      hotline: "GLOBAL_988",
-    });
     useEffect(() => {
       if (!voiceNotice) return;
       const timeout = setTimeout(() => setVoiceNotice(null), 3200);
@@ -382,6 +348,7 @@ const ChatComposer = memo(
       if (!userId || voicePhaseRef.current !== "recording") return;
       voiceAccountLeaseRef.current?.abort();
       const accountLease = beginAccountSessionLease(userId);
+      const noticeOwner = captureAccountOwnerLease(userId);
       voiceAccountLeaseRef.current = accountLease;
       updateVoicePhase("transcribing");
       let recordingLease: RecordingTempLease | null = null;
@@ -405,14 +372,14 @@ const ChatComposer = memo(
           locale: voiceLocale,
           base64,
           mimeType,
-          minor: isMinor === true,
+          minor: isMinor !== false,
         });
         authenticated.assertCurrent();
         if (reply.safety?.zone === "red") {
           // C9: the transcript was crisis-swapped server-side; surface the
           // hotline, never the text.
           updateVoicePhase("idle");
-          setCrisis({ visible: true, hotline: voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+          publishCrisisNotice(noticeOwner, reply.safety.crisisRouting?.hotline ?? (voiceLocale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
           return;
         }
         const transcript = reply.text.trim();
@@ -448,34 +415,18 @@ const ChatComposer = memo(
             {voiceNotice}
           </Text>
         ) : null}
-        <View style={ds.composer}>
-        <View style={ds.inputPill}>
-          <TextInput
+        <View style={[ds.composer, { alignItems: composerAlignment }]}>
+        <View style={[ds.inputPill, { alignItems: composerAlignment }]}>
+          <ChatTextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder={t("askLens", { lens: lensName })}
+            onLayout={event => setInputHeight(event.nativeEvent.layout.height)}
+            placeholder={t("composerPlaceholder")}
             // AA on the pill (4.54:1), the same token as the other placeholders (QA R2B-08).
             placeholderTextColor={m3.color.onSurfaceVariant}
             style={ds.pillInput}
-            accessibilityLabel={t("inputA11y")}
-            onSubmitEditing={submit}
-            returnKeyType="send"
-            onKeyPress={(e) => {
-              // Web: Enter sends, Shift+Enter inserts a newline.
-              if (Platform.OS !== "web") return;
-              const we = e as unknown as {
-                key?: string;
-                shiftKey?: boolean;
-                nativeEvent: { key: string; shiftKey?: boolean };
-                preventDefault?: () => void;
-              };
-              const key = we.nativeEvent?.key ?? we.key;
-              const shift = we.shiftKey ?? we.nativeEvent?.shiftKey ?? false;
-              if (key === "Enter" && !shift) {
-                we.preventDefault?.();
-                submit();
-              }
-            }}
+            accessibilityLabel={askLabel}
+            onSubmit={submit}
           />
           {/* med#22 follow-through: the mic is BACK, and this time it does
               something — the live /capture-full dictation chain, proposing
@@ -514,11 +465,6 @@ const ChatComposer = memo(
           )}
         </Pressable>
         </View>
-        <CrisisRouter
-          visible={crisis.visible}
-          hotline={crisis.hotline}
-          onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
-        />
       </View>
     );
   }),
@@ -529,6 +475,7 @@ export default function SecondBChat() {
 }
 
 function SecondBChatBody() {
+  const { fontScale } = useWindowDimensions();
   // Phone-aware: inside the dashboard phone, links open in the phone and the
   // query (?fromNode= / ?mode= / ?panel=) comes from the phone route.
   const router = useAppRouter();
@@ -556,6 +503,17 @@ function SecondBChatBody() {
   const [showDashboard, setShowDashboard] = useState(params.panel === "dashboard");
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
+  const conversationId = useRef(0);
+  const chatMounted = useRef(true);
+  useEffect(() => {
+    chatMounted.current = true;
+    return () => { chatMounted.current = false; };
+  }, []);
+  const activeConversationId = conversationId.current;
+  const userAvatar = useChatUserAvatar(userId);
+  // useTranslation also observes addressVariablesChanged after the root's
+  // lookup, so the owner-checked nickname refreshes without a second fetch.
+  const userDisplayName = (userId ? currentDisplayName(userId)?.trim() : null) || t("deepspace:graph.me");
 
   // 대화를 위키로 보내는 길 (1순위 결함). 지금까지 대화는 아무것도 남기지 않았고,
   // 유일한 경로는 LLM 에게 요약을 시킨 뒤 손으로 /capture 에 옮기는 것이었다.
@@ -580,6 +538,7 @@ function SecondBChatBody() {
   // **보관**이지 앱이 사용자를 대신해 내리는 결정이 아니다.
   const [keptIdx, setKeptIdx] = useState<Set<number>>(new Set());
   const [keeping, setKeeping] = useState<number | null>(null);
+  const keepInFlight = useRef(false);
   // 담기 실패는 복사 실패와 같은 자세로 화면에 남긴다. 복사와 달리 타이머로
   // 지우지 않는다 - "확인해 보라"는 안내라서 사용자가 다시 누를 때까지 보여야
   // 한다.
@@ -589,20 +548,18 @@ function SecondBChatBody() {
   // 로컬 렉시콘 분류를 돌리고 레드존을 followup 으로 알려준다. 다른 저장 화면
   // (northstar, capture)은 그때 핫라인을 띄운다. 여기만 조용히 저장하면
   // 저장 경로가 안내 없는 유일한 구멍이 된다.
-  const [keepCrisis, setKeepCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
-    visible: false,
-    hotline: "GLOBAL_988",
-  });
   const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
 
   // 담겼는지를 호출자에게 돌려준다. 자동 담기가 실패를 알아야 표시를 되돌릴 수
   // 있고, 그래야 한 번의 일시적 실패로 그 턴이 영구히 빠지지 않는다.
   async function keepExchange(index: number, signal?: AbortSignal): Promise<boolean> {
-    if (!userId || keeping !== null || keptIdx.has(index)) return false;
+    if (activeConversationId !== conversationId.current) return false;
+    if (!userId || keepInFlight.current || keeping !== null || keptIdx.has(index)) return false;
     const lease = captureAccountOwnerLease(userId);
     if (!lease || signal?.aborted) return false;
     const reply = turns[index];
     if (!reply || !isKeepable(reply)) return false;
+    keepInFlight.current = true;
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener("abort", abort);
@@ -635,15 +592,13 @@ function SecondBChatBody() {
       // C9: 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
       // 분류기를 직접 돌린다(비용 0). 다른 저장 화면과 같은 자세를 유지한다 -
       // 안내 없는 저장 경로를 하나 만들지 않기 위해서다.
-      const crisis = classifyInput(body, locale, { minor: isMinor === true }).zone === "red";
+      const keptSafety = classifyInputAnyLocale(body, locale, { minor: isMinor !== false });
+      const crisis = keptSafety.zone === "red";
       // 저장 소리(Q-261006-03)는 사람이 '담기'를 눌렀을 때만. 자동 담기(signal 이 있는 호출)는
       // 답장 소리 바로 뒤에 겹치므로 무음이다.
       if (saveCueAllowed({ crisis, recording: isRecordingAudioMode(), automatic: signal !== undefined })) playSaveCue();
-      if (crisis) {
-        setKeepCrisis({
-          visible: true,
-          hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988",
-        });
+      if (crisis && !(signal && reply.crisisNotice)) {
+        publishCrisisNotice(lease, keptSafety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
       }
       return true;
     } catch (e) {
@@ -656,6 +611,7 @@ function SecondBChatBody() {
       if (typeof console !== "undefined") console.warn("[secondb] keep failed", (e as Error).message);
       return false;
     } finally {
+      keepInFlight.current = false;
       unsubscribe();
       signal?.removeEventListener("abort", abort);
       if (lease.isCurrent()) setKeeping(null);
@@ -673,14 +629,16 @@ function SecondBChatBody() {
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyTurn = useCallback(
     (i: number, text: string) => {
-      void writeClipboardText(text).then((ok) => {
+      // A model answer that leaves the app says it is AI-made in its last line (Simon 2026-10-13).
+      const copied = isModelAnswer(turns[i]) ? withAiCopyTail(text, t("aiCopyTail")) : text;
+      void writeClipboardText(copied).then((ok) => {
         setCopyNotice({ i, ok });
         AccessibilityInfo.announceForAccessibility(t(ok ? "copied" : "copyFailed"));
         if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
         copyTimerRef.current = setTimeout(() => setCopyNotice(null), 1800);
       });
     },
-    [t],
+    [t, turns],
   );
   useEffect(
     () => () => {
@@ -689,13 +647,13 @@ function SecondBChatBody() {
     [],
   );
   const [sending, setSending] = useState(false);
+  const [sendingPersona, setSendingPersona] = useState<Rev2PersonaId | null>(null);
   const [usedToday, setUsedToday] = useState<number | null>(null);
   // TODAY's rewarded-ad bonus. The screen used to not know this existed, so it
   // gated on the bare tier cap while the engine and the server both accept
   // `used < cap + adBonus` -- a user who watched an ad still found the composer
   // locked. 0 is the honest default: no bonus until the read says otherwise.
   const [adBonusToday, setAdBonusToday] = useState(0);
-  const [introOpen, setIntroOpen] = useState(false);
   // SecondB conversation mode (worldview v-final). Analytic = data-grounded
   // analysis; Divergent = data-grounded but explores radically different angles.
   // Seeded from ?mode=divergent (e.g. a graph node's "새 관점으로 펼치기").
@@ -734,9 +692,14 @@ function SecondBChatBody() {
   // Funnel: fire ai_limit_hit at most once per mount when the daily cap is hit.
   const limitHitFiredRef = useRef(false);
   // The tier the server says to upgrade to (from a blocked turn). Falls back to
-  // "soma" in the limit-hit effect when no blocked turn has set it yet.
+  // "cortex" in the limit-hit effect when no blocked turn has set it yet.
   const [pendingUpgrade, setPendingUpgrade] = useState<SubscriptionTier | null>(null);
+  // A send the daily limit refused. Its bubble always comes with 요금제 보기 (Simon 2026-10-14,
+  // Q-261014-24), also when the server's cap refused it while the local count is still under
+  // the wall (atLimit false). A reply that goes through, or a granted ad bonus, clears it.
+  const [limitRefused, setLimitRefused] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const followingLatest = useRef(true);
 
   // Phase 4 (0090): free adults can top up the chat DAILY cap (+2 sends today).
   const [chatRewardVisible, setChatRewardVisible] = useState(false);
@@ -755,6 +718,12 @@ function SecondBChatBody() {
   const autosaveSessionRef = useRef<ReturnType<typeof createChatAutosaveSession> | null>(null);
   // 대화가 남지 않는다는 사실을 한 번만 알린다 (Simon 결정 B1).
   const { dismissed: saveNoticeDismissed, dismiss: dismissSaveNotice } = useChatSaveNoticeDismissed();
+  // The chat says once that its answers are AI-made; the line under the input keeps saying it.
+  // Sending the first message closes the card for good, the same as pressing its button.
+  const { seen: aiNoticeSeen, markSeen: markAiNoticeSeen } = useChatAiNoticeSeen(userId ?? null);
+  useEffect(() => {
+    if (aiNoticeSeen === false && turns.length > 0) markAiNoticeSeen();
+  }, [aiNoticeSeen, turns.length, markAiNoticeSeen]);
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -776,7 +745,7 @@ function SecondBChatBody() {
       session.stop();
       if (autosaveSessionRef.current === session) autosaveSessionRef.current = null;
     };
-  }, [userId]);
+  }, [userId, activeConversationId]);
 
   // 자동 저장: 동의가 켜져 있으면 새로 도착한 답변을 담는다.
   //
@@ -830,18 +799,9 @@ function SecondBChatBody() {
     () => chatAllowance(progression.tier, adBonusToday),
     [progression.tier, adBonusToday],
   );
-
-  useEffect(() => {
-    // Intro modal opens on first entry only — guarded by device storage
-    // (AsyncStorage on native, localStorage on web).
-    let alive = true;
-    void readIntroDismissed().then((v) => {
-      if (alive && v === "off") setIntroOpen(true);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // Under today's limit (null = the count is still loading, so allow until we know). The
+  // ordinary composer sends and [다시 시도] share this gate; device-red drafts are the exception.
+  const underLimit = usedToday === null || usedToday < allowance;
 
   useEffect(() => {
     // Re-probe while the profile answer is "unknown" (a FAILED probe, not a
@@ -894,7 +854,7 @@ function SecondBChatBody() {
       aiLimitHit({
         tier: progression.tier,
         limit,
-        upgrade_to: pendingUpgrade ?? "soma",
+        upgrade_to: pendingUpgrade ?? "cortex",
       }),
     );
   }, [usedToday, allowance, limit, progression.tier, pendingUpgrade]);
@@ -929,17 +889,35 @@ function SecondBChatBody() {
   // Kept ABOVE the early returns so this hook always runs (rules-of-hooks).
   const playReplyCue = useUiSound(SECONDB_REPLY_CUE.source, SECONDB_REPLY_CUE);
   const handleSend = useCallback(
-    (message: string): boolean => {
+    (message: string, retry?: { failedIndex: number }): boolean => {
       if (!userId) return false;
       const msg = message.trim();
       if (msg.length === 0) return false;
+      const owner = captureAccountOwnerLease(userId);
+      if (!owner) return false;
+      const requestConversation = conversationId.current;
+      const canUpdate = () => owner.isCurrent() && chatMounted.current && requestConversation === conversationId.current;
+      const localSafety = classifyInputAnyLocale(msg, locale, { minor: isMinor !== false });
+      // Fixed guidance must not wait for usage, model, audit or network. The
+      // completed local-red result must not reopen a notice the person closed.
+      const localRed = localSafety.zone === "red";
+      if (localRed) publishCrisisNotice(owner, localSafety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
 
+      const requestPersona = rev2Persona;
+      // A retry replaces the failed pair (the message and the line that said it failed) instead
+      // of adding the message a second time, on the screen and in what the model is told.
+      const keep = retry ? Math.max(0, retry.failedIndex - 1) : null;
+      const earlier = keep === null ? turns : turns.slice(0, keep);
+      setSendingPersona(requestPersona);
       setSending(true);
-      setTurns((prev) => [...prev, { role: "user", text: msg }]);
+      setTurns((prev) => [...(keep === null ? prev : prev.slice(0, keep)), { role: "user", text: msg, ...(localRed ? { safetyZone: "red" as const } : {}) }]);
       void (async () => {
         // AI 응답 대기: every mounted head holds the thinking face (eyes drift
         // up-side) until the reply lands — released in finally either way.
         const releaseThinking = holdExpression("thinking");
+        // Whether the send itself came back. An error thrown after that (a sound, an analytics
+        // call) lands in the same catch, and that line must not offer to send again.
+        let answered = false;
         try {
           const result = await sendChatMessage({
             userId,
@@ -948,19 +926,27 @@ function SecondBChatBody() {
             tier: progression.tier,
             // 이름으로 부르게 한다. 화면은 이미 "허슬케이님" 이라 부른다.
             displayName: currentDisplayName(userId),
-            personaHint: rev2PersonaHint(rev2Persona, locale),
+            personaHint: rev2PersonaHint(requestPersona, locale),
             // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
             // red-zone turns). Synthetic lines (limit/error) are not model
             // replies, so they're excluded here.
-            history: turns
-              .filter((t) => !t.synthetic)
+            history: earlier
+              .filter((t) => !t.synthetic && t.safetyZone !== "red")
               .map((t) => ({ role: t.role === "user" ? ("user" as const) : ("assistant" as const), text: t.text })),
             mode: chatMode,
-            minor: isMinor === true,
+            minor: isMinor !== false,
           });
+          answered = true;
+          if (result.status === "ok" && result.reply.safety?.zone === "red" && !localRed) {
+            // Same-owner safety guidance survives navigation; a stale account
+            // result is rejected by the notice store before publication.
+            publishCrisisNotice(owner, result.reply.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
+          }
+          if (!canUpdate()) return;
           if (result.status === "blocked") {
-            setTurns((prev) => [...prev, { role: "secondb", text: result.hint, synthetic: true }]);
+            setTurns((prev) => [...prev, { role: "secondb", persona: requestPersona, text: result.hint, synthetic: true }]);
             setUsedToday(result.used);
+            setLimitRefused(true);
             if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
             // 0090: free adults can widen TODAY's allowance by +2 via a
             // rewarded watch - only when the FULL rewarded gate passes
@@ -982,6 +968,21 @@ function SecondBChatBody() {
             // 멈춤은 글로만 알린다(위 result.hint). 옛 가디 그림 순간은 2026-10-05 에
             // 걷었다(Simon 결정 Q-261004-15 A).
           } else {
+            if (result.reply.safety?.zone === "red") {
+              // Keep the boundary's fixed guidance in the in-memory transcript
+              // so existing explicitly opted-in autosave retains its behavior.
+              // The modal is its sole visible copy, actions remain suppressed,
+              // and neither this turn nor its paired input reenters model history.
+              setTurns((prev) => [
+                ...prev.map((turn, index) => index === earlier.length ? { ...turn, safetyZone: "red" as const } : turn),
+                { role: "secondb", persona: requestPersona, text: result.reply.text, safetyZone: "red", crisisNotice: true },
+              ]);
+              if (result.used !== null) {
+                setUsedToday(result.used);
+                setLimitRefused(false);
+              }
+              return;
+            }
             const { display, chips } = parseSourceCitations(result.reply.text);
             // 트위비 3-branch (P5f): Divergent replies on the main chat end with up
             // to three '→ ' next-step lines — lift them into tappable chips.
@@ -991,32 +992,44 @@ function SecondBChatBody() {
                 : { display, branches: [] as string[] };
             setTurns((prev) => [
               ...prev,
-              { role: "secondb", text: twi.display, chips, branches: twi.branches },
+              { role: "secondb", persona: requestPersona, text: twi.display, chips, branches: twi.branches, safetyZone: result.reply.safety?.zone,
+                citationText: chatMode === "divergent" ? parseTwiBranches(result.reply.text).display : result.reply.text },
             ]);
             // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
             if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
-            setUsedToday(result.used);
+            if (result.used !== null) {
+              setUsedToday(result.used);
+              setLimitRefused(false);
+            }
             captureEvent(
               secondBSession({
                 action: "message_sent",
                 mode: chatMode,
                 outcome: "ok",
-                turn_count: turns.length + 1,
-                used: result.used,
+                turn_count: earlier.length + 1,
+                used: result.used ?? undefined,
                 limit,
                 tier: progression.tier,
               }),
             );
           }
         } catch (e) {
+          if (!canUpdate()) return;
+          if (localRed) return; // fixed guidance was already delivered synchronously
           const consentError = e instanceof LlmConsentError ? e.code : undefined;
           const failText = consentError ? consentT(`serviceControl.${consentError}`) : t("replyFailed");
-          setTurns((prev) => [...prev, { role: "secondb", text: failText, synthetic: true, consentError }]);
+          setTurns((prev) => [...prev, {
+            role: "secondb", persona: requestPersona, text: failText, synthetic: true, consentError,
+            ...(consentError || answered ? {} : { retryText: msg }),
+          }]);
           reactExpression("negative");
           if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
         } finally {
           releaseThinking();
-          setSending(false);
+          if (canUpdate()) {
+            setSending(false);
+            setSendingPersona(null);
+          }
         }
       })();
       return true;
@@ -1036,6 +1049,29 @@ function SecondBChatBody() {
     ],
   );
 
+  // [다시 시도] under a reply that failed (Z40 · Simon 2026-10-13 20:43: the sentence already used
+  // when no answer came, plus a way to try again). Only the last turn offers it, and only while
+  // nothing is being sent, so the pair it replaces is always the end of the conversation. It goes
+  // through handleSend, the same path and the same checks as typing the message again, and it is
+  // offered under the same gate as the composer's send (not sending, under today's limit).
+  // A second press before the first one has drawn `sending` would send the message twice, so the
+  // press is remembered at once and forgotten when that send is over (the turns change with it, so
+  // a send that began and ended inside one render is still seen).
+  const retrying = useRef(false);
+  useEffect(() => {
+    if (!sending) retrying.current = false;
+  }, [sending, turns]);
+  const retryFailed = useCallback(
+    (i: number) => {
+      const message = retryableMessage(turns, i);
+      if (message === null || retrying.current || sending || !underLimit) return;
+      retrying.current = handleSend(message, { failedIndex: i });
+    },
+    [turns, sending, underLimit, handleSend],
+  );
+
+  const chatPlans = useChatPlans(userId, { turns, conversationId: conversationId.current, sending });
+
   if (authLoading || progression.loading) return <InlineLoader />;
   if (!userId) {
     return <Redirect href="/sign-in" />;
@@ -1052,12 +1088,12 @@ function SecondBChatBody() {
   // which keys off isMinor that is null until the birth date is on file).
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  // The non-draft half of the composer's send gate: not already sending and
+  // The ordinary-message half of the composer's send gate: not already sending and
   // under the daily AI limit (server also rejects via ChatLimitExceededError,
   // but the UI should not look actionable). usedToday===null means the count is
   // still loading, so allow until we know. ChatComposer ANDs this with a
-  // non-empty draft.
-  const sendEnabled = !sending && (usedToday === null || usedToday < allowance);
+  // non-empty draft, with a device-red exception for fixed crisis guidance.
+  const sendEnabled = !sending && underLimit;
   const hasTurns = turns.length > 0;
 
   // -- One citation tap, one implementation ---------------------------------
@@ -1111,9 +1147,47 @@ function SecondBChatBody() {
   const lensAccent = rev2PersonaAccent(rev2Persona);
   const lensSoftBg = rev2PersonaSoftBg(rev2Persona);
   const lensOnSoft = rev2PersonaOnSoft(rev2Persona);
-  const lensGlow = rev2PersonaGlow(rev2Persona);
-  const lensName = t(`rev2.${rev2Persona}.lensName`);
+  const pendingLensName = t(`rev2.${sendingPersona ?? rev2Persona}.lensName`);
+  // The AI line and the first-time card name whoever is answering now. Korean attaches its
+  // particle here, not in the string, so a name with or without a final consonant reads right.
+  const aiNoticeName = t(`rev2.${rev2Persona}.lensName`);
+  const aiNoticeWords = { name: aiNoticeName, particle: topicParticle(aiNoticeName) };
   const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
+  const suggestionState = {
+    turns, conversationId: conversationId.current, sending, keptIndices: keptIdx, keepingIndex: keeping,
+  };
+  const wikiSuggestion = getWikiSuggestion(suggestionState);
+  const retryIndex = keepNotice && !keepNotice.ok && !keptIdx.has(keepNotice.i) ? keepNotice.i : null;
+  const saveIndex = keeping ?? retryIndex ?? wikiSuggestion?.replyIndex ?? null;
+  const replyActions = getReplyActions({ turns, sending });
+  const chatActions: ChatAction[] = [];
+  if (saveIndex !== null) {
+    chatActions.push({
+      id: "keep-wiki", label: t(keeping !== null ? "keeping" : "keepToWiki"),
+      hint: t("keepSuggestionHint"), recommended: keeping === null,
+      disabled: keeping !== null || sending, busy: keeping !== null,
+      onPress: () => {
+        if (keepInFlight.current || sending) return;
+        if (retryIndex !== null || wikiSuggestion && isCurrentWikiSuggestion(wikiSuggestion, {
+          ...suggestionState, turns: turnsRef.current, conversationId: conversationId.current,
+        })) void keepExchange(saveIndex);
+      },
+    });
+  }
+  chatActions.push(...chatPlans.actions);
+  for (const [index, branch] of replyActions.branches.entries()) {
+    chatActions.push({ id: `branch-${index}`, label: branch, hint: t("fillsComposer"),
+      onPress: () => composerRef.current?.prefill(branch) });
+    chatActions.push({ id: `branch-save-${index}`, label: t("keep"), hint: t("captureBranch", { branch }),
+      onPress: () => router.push({ pathname: "/capture", params: { text: branch } }) });
+  }
+  chatActions.push(...QUICK_ACTIONS.flatMap((qa, index) => replyActions.followUps.includes(qa.kind) ? [{
+    id: `follow-up-${index}`, label: locale === "ko" ? qa.ko : qa.en, hint: t("fillsComposer"),
+    onPress: () => {
+      if (qa.mode === "divergent") selectRev2Persona("twi");
+      composerRef.current?.prefill(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
+    },
+  }] : []));
   return (
     <DeepSpaceScreen active="chat" variant="windowed" header="none">
       <KeyboardAvoidingArea
@@ -1143,38 +1217,43 @@ function SecondBChatBody() {
                 aria-pressed={on}
                 accessibilityLabel={
                   locked
-                    ? `${t(`rev2.${id}.lensName`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
+                    ? `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
                     : `${t(`rev2.${id}.lensName`)} · ${t(`rev2.${id}.role`)}`
                 }
               >
                 <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
                   {t(`rev2.${id}.lensName`)}
                 </Text>
-                <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
-                  {locked ? lockPlan : t(`rev2.${id}.tag`)}
+                <Text style={[ds.lensRole, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
+                  {t(`rev2.${id}.role`)}
                 </Text>
               </Pressable>
             );
           })}
         </View>
 
-        {/* persona banner (reference ChatScreen header): status dot + mono tag +
-            wrapping lens description, tinted by the selected lens. Usage counter
-            and clear affordance ride the right edge. */}
-        <View style={[ds.banner, { backgroundColor: lensSoftBg }]}>
-          <View style={[ds.bannerDot, { backgroundColor: lensAccent, shadowColor: lensGlow }]} />
-          <Text style={[ds.bannerTag, { color: lensOnSoft }]} numberOfLines={1}>
-            {t(`rev2.${rev2Persona}.tag`)}
-          </Text>
-          <Text style={ds.bannerDesc}>
+        {/* Large text can use a second line; usage and clear keep their width. */}
+        <View testID="chat-status" style={[ds.banner, { backgroundColor: lensSoftBg }]}>
+          <Text style={ds.bannerDesc} numberOfLines={chatStatusMaxLines(fontScale)} ellipsizeMode="tail">
             {t(`rev2.${rev2Persona}.desc`)}
           </Text>
           <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
-            {dsUsage}/{limit}
+            <Text style={[ds.bannerUsageWord, atLimit ? ds.headerMetaDanger : null]}>{t("rev2.usageToday")} </Text>{dsUsage}/{limit}
           </Text>
           {hasTurns ? (
             <Pressable
-              onPress={() => setTurns([])}
+              onPress={() => {
+                if (sending || keeping !== null || keepInFlight.current || chatPlans.busy) return;
+                autosaveSessionRef.current?.stop();
+                autosaveSessionRef.current = null;
+                conversationId.current += 1;
+                setTurns([]);
+                setKeptIdx(new Set());
+                setKeepNotice(null);
+                setCopyNotice(null);
+              }}
+              disabled={sending || keeping !== null || chatPlans.busy}
+              accessibilityState={{ disabled: sending || keeping !== null || chatPlans.busy }}
               hitSlop={14}
               style={ds.clearLink}
               accessibilityRole="button"
@@ -1197,9 +1276,18 @@ function SecondBChatBody() {
 
         <ScrollView
           ref={scrollRef}
+          testID="chat-transcript"
           style={{ flex: 1 }}
-          contentContainerStyle={[ds.scroll, { paddingBottom: messageListBottomPadding }]}
-          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          contentContainerStyle={[ds.scroll, turns.length === 0 && ds.scrollEmpty, { paddingBottom: messageListBottomPadding }]}
+          onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => {
+            followingLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 32;
+          }}
+          scrollEventThrottle={16}
+          onLayout={() => { if (followingLatest.current) scrollRef.current?.scrollToEnd({ animated: false }); }}
+          onContentSizeChange={() => { if (followingLatest.current) scrollRef.current?.scrollToEnd({ animated: false }); }}
+          // RNW's on-drag also blurs on the automatic scroll after the draft
+          // grows. Keep web typing focused; native drag dismissal stays intact.
+          keyboardDismissMode={Platform.OS === "web" ? "none" : Platform.OS === "ios" ? "interactive" : "on-drag"}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -1210,19 +1298,70 @@ function SecondBChatBody() {
             <DomainDashboard userId={userId} onDismiss={() => setShowDashboard(false)} />
           ) : null}
 
+        {/* 대화가 남지 않는다는 안내. 자동 저장이 꺼져 있고, 아직 닫지 않았고,
+            오간 말이 있을 때만 한 번 뜬다. 기본값을 뒤집지 않고 선택지가
+            있다는 사실만 알린다 — 매번 띄우면 안내가 아니라 압박이다. */}
+        {shouldShowChatSaveNotice({
+          autosaveConsent,
+          dismissed: saveNoticeDismissed,
+          turnCount: turns.length,
+        }) ? (
+          <View testID="chat-save-notice" style={ds.saveNotice} accessibilityRole="alert">
+            <Text style={ds.saveNoticeTitle} numberOfLines={1} ellipsizeMode="tail">{t("chatSaveNotice")}</Text>
+              <Pressable
+                onPress={() => {
+                  dismissSaveNotice();
+                  router.push("/privacy");
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t("chatSaveNoticeOpen")}
+                style={ds.saveNoticeBtn}
+              >
+                <Text style={ds.saveNoticeBtnText} numberOfLines={1}>{t("chatSaveNoticeOpen")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={dismissSaveNotice}
+                accessibilityRole="button"
+                accessibilityLabel={t("chatSaveNoticeDismiss")}
+                style={ds.saveNoticeClose}
+              >
+                <PixelGlyph name="close" size={16} color={semantic.textMuted} />
+              </Pressable>
+          </View>
+        ) : null}
+
+
           {turns.length === 0 ? (
-            <View style={ds.empty}>
-              <Text style={ds.emptyTitle}>
-                {t("title")}
-              </Text>
+            <View testID="chat-empty" style={ds.empty}>
+              {shouldShowChatAiNotice({ seen: aiNoticeSeen, turnCount: turns.length }) ? (
+                <View testID="chat-ai-notice" style={ds.aiNotice} accessibilityRole="alert">
+                  <Text style={ds.aiNoticeBody}>{t("aiNotice.body", aiNoticeWords)}</Text>
+                  <Pressable onPress={markAiNoticeSeen} accessibilityRole="button" accessibilityLabel={t("aiNotice.confirm")} style={ds.aiNoticeBtn}>
+                    <Text style={ds.aiNoticeBtnText}>{t("aiNotice.confirm")}</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              {/* All three personas share the untinted portrait. Static also in reduced motion. */}
+              <View key={rev2Persona} testID={`chat-empty-portrait-${rev2Persona}`} accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                <HustleKPortrait expression="A01" size={96} />
+              </View>
               <Text style={ds.emptyBody}>{t("empty")}</Text>
             </View>
           ) : (
-            turns.map((turn, i) => (
+            turns.map((turn, i) => turn.crisisNotice ? null : (
               <View
                 key={i}
+                testID={`chat-message-${turn.role}-${i}`}
                 style={[ds.bubbleRow, turn.role === "user" ? ds.userRow : ds.aiRow]}
               >
+                <View style={[ds.messageHeader, turn.role === "user" && ds.userMessageHeader]} testID={`chat-message-header-${turn.role}-${i}`}>
+                  <ChatMessageAvatar role={turn.role} userAvatar={userAvatar}
+                    expression={turn.role === "secondb" ? getExchangeExpression(turns, i) : undefined}
+                    label={turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)} />
+                  <Text style={[ds.messageName, turn.role === "user" && ds.userMessageName]} testID={`chat-message-name-${turn.role}-${i}`}>
+                    {turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)}
+                  </Text>
+                </View>
                 <View style={ds.bubbleCol}>
                   <Pressable
                     onLongPress={() => copyTurn(i, turn.text)}
@@ -1231,15 +1370,18 @@ function SecondBChatBody() {
                     accessibilityLabel={
                       turn.role === "user"
                         ? t("yourMessage")
-                        : t("secondbAnswer")
+                        : t("secondbAnswer", { name: t(`rev2.${turn.persona ?? "secondb"}.lensName`) })
                     }
                     accessibilityHint={t("longPressCopy")}
                   >
                     <Text style={turn.role === "user" ? ds.userText : ds.aiText} selectable>
-                      {turn.text}
+                      {turn.role === "secondb" ? sourceCitationDisplay(chatDisplayText(turn.citationText ?? turn.text), t("deepspace:time.recordFallback")) : turn.text}
                     </Text>
                   </Pressable>
                   {turn.consentError ? <ServiceConsentLink /> : null}
+                  {turn.retryText && sendEnabled && retryableMessage(turns, i) !== null ? (
+                    <MdButton variant="outlined" label={t("common:actions.retry")} onPress={() => retryFailed(i)} />
+                  ) : null}
                   {copyNotice?.i === i ? (
                     <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
                       {t(copyNotice.ok ? "copied" : "copyFailed")}
@@ -1264,134 +1406,23 @@ function SecondBChatBody() {
                       </View>
                     </Pressable>
                   ) : null}
-                  {/* 대화를 위키로. 답변 하나를 직전 질문과 짝지어 기록으로
-                      남긴다. 화면을 떠나지 않고, LLM 도 다시 부르지 않는다.
-                      인사말·오류 문구(synthetic)에는 붙지 않는다. */}
-                  {isKeepable(turn) ? (
-                    <Pressable
-                      style={ds.keepChip}
-                      onPress={() => void keepExchange(i)}
-                      disabled={keeping !== null || keptIdx.has(i)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel={keptIdx.has(i) ? t("keptToWiki") : t("keepToWiki")}
-                    >
-                      <Text style={ds.keepChipText}>
-                        {keptIdx.has(i) ? t("keptToWiki") : keeping === i ? t("keeping") : t("keepToWiki")}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                  {keepNotice?.i === i && !keepNotice.ok ? (
-                    <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
-                      {t("keepFailed")}
-                    </Text>
-                  ) : null}
-                  {/* 트위비 3-branch (P5f): next-step candidates. Tap = prefill
-                      the composer; 담기 = hand the branch to /capture (?text=,
-                      the share-consume path). */}
-                  {turn.role === "secondb" && turn.branches && turn.branches.length > 0 ? (
-                    <View style={ds.branchCol}>
-                      {turn.branches.map((branch) => (
-                        <View key={branch} style={ds.branchRow}>
-                          <Pressable
-                            style={ds.branchChip}
-                            onPress={() => composerRef.current?.prefill(branch)}
-                            accessibilityRole="button"
-                            accessibilityLabel={branch}
-                            accessibilityHint={t("fillsComposer")}
-                          >
-                            <Text style={ds.branchChipText} numberOfLines={2}>
-                              {branch}
-                            </Text>
-                          </Pressable>
-                          <Pressable
-                            style={ds.branchSave}
-                            onPress={() => router.push({ pathname: "/capture", params: { text: branch } })}
-                            hitSlop={10}
-                            accessibilityRole="button"
-                            accessibilityLabel={t("captureBranch", { branch })}
-                          >
-                            <Text style={ds.branchSaveText}>{t("keep")}</Text>
-                          </Pressable>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
                 </View>
               </View>
             ))
           )}
           {sending ? (
-            <View style={ds.thinking}>
+            <View style={[ds.bubbleRow, ds.aiRow, ds.thinking]}>
+              <View style={ds.messageHeader}>
+                <ChatMessageAvatar role="secondb" userAvatar={userAvatar}
+                  expression={getExchangeExpression(turns, turns.length - 1, { loading: true })} label={pendingLensName} />
+                <Text style={ds.messageName}>{pendingLensName}</Text>
+              </View>
               <ActivityIndicator color={lensAccent} />
             </View>
           ) : null}
         </ScrollView>
 
-        {/* 대화가 남지 않는다는 안내. 자동 저장이 꺼져 있고, 아직 닫지 않았고,
-            오간 말이 있을 때만 한 번 뜬다. 기본값을 뒤집지 않고 선택지가
-            있다는 사실만 알린다 — 매번 띄우면 안내가 아니라 압박이다. */}
-        {shouldShowChatSaveNotice({
-          autosaveConsent,
-          dismissed: saveNoticeDismissed,
-          turnCount: turns.length,
-        }) ? (
-          <View style={ds.saveNotice} accessibilityRole="alert">
-            <Text style={ds.saveNoticeTitle}>{t("chatSaveNotice")}</Text>
-            <Text style={ds.saveNoticeBody}>{t("chatSaveNoticeBody")}</Text>
-            <View style={ds.saveNoticeRow}>
-              <Pressable
-                onPress={() => {
-                  dismissSaveNotice();
-                  router.push("/privacy");
-                }}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t("chatSaveNoticeOpen")}
-                style={ds.saveNoticeBtn}
-              >
-                <Text style={ds.saveNoticeBtnText}>{t("chatSaveNoticeOpen")}</Text>
-              </Pressable>
-              <Pressable
-                onPress={dismissSaveNotice}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t("chatSaveNoticeDismiss")}
-                style={ds.saveNoticeBtn}
-              >
-                <Text style={ds.saveNoticeDismissText}>{t("chatSaveNoticeDismiss")}</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
-
-        {/* quick-action chips after an answer */}
-        {turns.length > 0 && turns[turns.length - 1].role === "secondb" && !sending ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={ds.quickRow}
-            keyboardShouldPersistTaps="handled"
-          >
-            {QUICK_ACTIONS.map((qa) => (
-              <Pressable
-                key={qa.en}
-                style={ds.quickChip}
-                onPress={() => {
-                  if (qa.mode === "divergent") selectRev2Persona("twi");
-                  else if (qa.mode) setChatMode(qa.mode);
-                  composerRef.current?.prefill(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? qa.ko : qa.en}
-              >
-                <Text style={ds.quickChipText}>{locale === "ko" ? qa.ko : qa.en}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : null}
-
-        {atLimit ? (
+        {atLimit || limitRefused ? (
           <Pressable
             onPress={() => router.push("/plans?from=ai_limit")}
             hitSlop={14}
@@ -1409,67 +1440,31 @@ function SecondBChatBody() {
             fills with the lens accent when there is something to send. Draft
             state lives inside ChatComposer so a keystroke re-renders only the
             composer, not this whole DeepSpaceScreen (starfield/header/dock). */}
+        <View testID="chat-composer-dock" style={ds.composerDock}>
+          {keepNotice && !keepNotice.ok ? (
+            <Text variant="caption" style={ds.keepFeedback} accessibilityLiveRegion="polite">{t("keepFailed")}</Text>
+          ) : keptIdx.has(turns.length - 1) ? (
+            <Text variant="caption" style={ds.keepFeedback} accessibilityLiveRegion="polite">{t("keptToWiki")}</Text>
+          ) : null}
+          {chatPlans.notice ? <Text variant="caption" style={ds.keepFeedback} accessibilityLiveRegion="polite">{chatPlans.notice}</Text> : null}
+          <ChatActionBar actions={chatActions} />
         <ChatComposer
           ref={composerRef}
           sending={sending}
           sendEnabled={sendEnabled}
           onSend={handleSend}
           fromNode={fromNode}
+          askLabel={t("inputA11y", { name: t(`rev2.${rev2Persona}.lensName`) })}
           lensAccent={lensAccent}
-          lensName={lensName}
           inkOnAccent={inkOnAccent}
         />
+          {/* Always in view, under the input: the answers here are AI-made (Simon 2026-10-13).
+              It names whoever is answering now, the same way the input's spoken name does. */}
+          <Text testID="chat-ai-line" style={ds.aiLine} accessibilityRole="text">{t("aiLine", aiNoticeWords)}</Text>
+        </View>
       </KeyboardAvoidingArea>
 
-      {/* 첫 진입 인사 모달. ScreenModal: 다른 화면이 이 화면을 덮으면 안내도 내려간다(R2A-03).
-          덮인 채 남은 대화상자는 Android 액티비티 재생성 때 지금 화면 위로 다시 뜨고,
-          두 번째 재생성에서 네이티브 크래시가 난다. introOpen 은 그대로라 돌아오면 다시 뜬다. */}
-      <ScreenModal visible={introOpen} transparent animationType="fade" onRequestClose={() => setIntroOpen(false)}>
-        {/* Scrim: NOT a button — on web an accessibilityRole="button" backdrop
-            renders as <button> and nests the modal's real <button>s inside it
-            (hydration error, parity finding S1). Tap-to-dismiss stays; the
-            labeled close affordances are the modal's own buttons. */}
-        <Pressable
-          style={ds.modalBackdrop}
-          onPress={() => setIntroOpen(false)}
-          accessibilityLabel={t("closeIntro")}
-          accessibilityHint={t("closeIntroHint")}
-        >
-          {/* 스크림은 디더다(PIXEL-CLAY 규칙 4). 바탕을 모르는 층이라 sbAlpha 로
-              미리 합성하면 불투명 단색이 돼 대화 화면이 사라진다(W-09). 이미지는
-              width/height 100% 로 준다. absoluteFill 만 주면 웹에서 4×4 한 칸만 그린다. */}
-          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <PixelScrim style={ds.modalScrimImage} />
-          </View>
-          <Pressable style={ds.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
-            <Text style={ds.modalEyebrow}>{t("intro_title")}</Text>
-            {/* keepAllKo joins Hangul words with U+2060 so they wrap at spaces; the
-                screen reader gets the untouched string (joiners disorient braille and
-                character-by-character review). */}
-            <Text style={ds.modalBody} accessibilityLabel={t("intro_body")}>{keepAllKo(t("intro_body"))}</Text>
-            <View style={ds.modalActions}>
-              <Pressable
-                onPress={() => { writeIntroDismissed("today"); setIntroOpen(false); }}
-                style={ds.modalBtnGhost}
-                hitSlop={14}
-                accessibilityRole="button"
-                accessibilityLabel={t("intro_mute")}
-              >
-                <Text style={ds.modalBtnGhostText}>{t("intro_mute")}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => { setIntroOpen(false); }}
-                style={ds.modalBtnPrimary}
-                hitSlop={14}
-                accessibilityRole="button"
-                accessibilityLabel={t("intro_ok")}
-              >
-                <Text style={ds.modalBtnPrimaryText}>{t("intro_ok")}</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </ScreenModal>
+      {chatPlans.sheetProps.suggestion ? <ChatPlanSheet key={chatPlans.sheetKey} {...chatPlans.sheetProps} /> : null}
 
       {/* reference drawer — pieces the answer drew on (ScreenModal: same R2A-03 rule) */}
       <ScreenModal
@@ -1478,7 +1473,7 @@ function SecondBChatBody() {
         animationType="slide"
         onRequestClose={() => setRefDrawer(null)}
       >
-        {/* Scrim: not a button (same web nesting rationale as the intro modal). */}
+        {/* Scrim: not a button (avoid nesting the drawer buttons in a web button). */}
         <Pressable
           style={ds.modalBackdrop}
           onPress={() => setRefDrawer(null)}
@@ -1510,9 +1505,9 @@ function SecondBChatBody() {
                   style={ds.drawerCard}
                   onPress={() => openCitedPage(slug)}
                   accessibilityRole="button"
-                  accessibilityLabel={formatSourceCitationLabel(slug)}
+                  accessibilityLabel={formatSourceCitationLabel(slug, t("deepspace:time.recordFallback"))}
                 >
-                  <Text style={ds.drawerCardTitle}>{formatSourceCitationLabel(slug)}</Text>
+                  <Text style={ds.drawerCardTitle}>{formatSourceCitationLabel(slug, t("deepspace:time.recordFallback"))}</Text>
                   <Text style={ds.drawerCardMeta}>{t("reference_piece_meta")}</Text>
                 </Pressable>
               ))}
@@ -1552,7 +1547,10 @@ function SecondBChatBody() {
               await grantChatAdBonus(userId);
               // 보상 소리(Q-261006-13)는 앱이 직접 적립에 성공했을 때만. SSV 모드면 서버가 나중에
               // 적립하므로("processing") 무음이다.
-              if (outcome === "granted") requestGlobalCue("rewardCredited");
+              if (outcome === "granted") {
+                requestGlobalCue("rewardCredited");
+                setLimitRefused(false);
+              }
             } catch (e) {
               outcome = e instanceof ChatRewardCapReachedError ? "capped" : "unconfirmed";
               if (typeof console !== "undefined") {
@@ -1568,14 +1566,6 @@ function SecondBChatBody() {
           return outcome;
         }}
         locale={locale}
-      />
-      {/* 저장 경로의 위기 안내. 전송 경로(callLlm)는 서버가 응답을 바꿔
-          치지만, 저장은 createRecord 가 로컬 분류를 돌리고 followup 으로
-          알려준다. 다른 저장 화면과 같은 자세를 여기서도 취한다. */}
-      <CrisisRouter
-        visible={keepCrisis.visible}
-        hotline={keepCrisis.hotline}
-        onClose={() => setKeepCrisis((c) => ({ ...c, visible: false }))}
       />
     </DeepSpaceScreen>
   );
@@ -1616,30 +1606,13 @@ const styles = StyleSheet.create({
 // glassmorphism, no pill chips, no em-dash in strings). Matches the prototype's
 // bubble/composer language from DeepSpaceViews while hosting the REAL engine.
 const ds = StyleSheet.create({
-  // persona banner (reference ChatScreen header row): dot + mono tag + desc,
-  // over the lens soft fill (set inline). Usage + clear ride the right edge.
+  // A row at every scale; only the description can grow to two lines.
   banner: {
     flexDirection: "row",
     alignItems: "center",
     gap: deepSpaceSpacing.sm,
     paddingHorizontal: 14,
     paddingVertical: 10,
-  },
-  bannerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: m3.shape.none,
-    flexShrink: 0,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 0,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  bannerTag: {
-    flexShrink: 0,
-    fontSize: 10,
-    fontWeight: "700",
-    fontFamily: fontFamilies.mono,
   },
   bannerDesc: {
     flex: 1,
@@ -1656,11 +1629,13 @@ const ds = StyleSheet.create({
     fontFamily: fontFamilies.mono,
   },
   headerMetaDanger: { color: deepSpace.dangerText },
+  // "Today" in front of the count (Z32): body font (the count's pixel font is Latin only). A nested text does not inherit here, so size and colour are set.
+  bannerUsageWord: { color: deepSpace.textLo, fontSize: 12, fontFamily: fontFamilies.readable },
   clearLink: { flexShrink: 0, minHeight: 44, justifyContent: "center", paddingHorizontal: deepSpaceSpacing.xs },
   clearLinkText: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
 
   // lens toggle (reference ChatScreen persona toggle): 3 equal buttons, name +
-  // mono tag; border/fill accent set inline per selected lens.
+  // role; border/fill accent set inline per selected lens.
   toggleRow: {
     flexDirection: "row",
     gap: deepSpaceSpacing.sm,
@@ -1677,7 +1652,7 @@ const ds = StyleSheet.create({
     borderWidth: 1.5,
   },
   lensName: { fontSize: 13, fontWeight: "700", fontFamily: fontFamilies.readable },
-  lensTag: { fontSize: 9, fontFamily: fontFamilies.mono, marginTop: 1 },
+  lensRole: { fontSize: 12, lineHeight: 18, fontFamily: fontFamilies.readable, marginTop: 1 },
 
   modeRow: {
     flexDirection: "row",
@@ -1720,71 +1695,29 @@ const ds = StyleSheet.create({
     fontFamily: fontFamilies.readable,
     textAlign: "right",
   },
-  // 트위비 3-branch chips (P5f): next-step candidates under a Divergent reply.
-  branchCol: { gap: 6, marginTop: 6 },
-  branchRow: { flexDirection: "row", alignItems: "stretch", gap: 6 },
-  branchChip: {
-    flex: 1,
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: deepSpaceSpacing.md,
-    paddingVertical: 8,
-    borderRadius: m3.shape.small,
-    borderWidth: 1,
-    borderColor: deepSpace.soulLine,
-    backgroundColor: deepSpace.card,
-  },
-  branchChipText: { color: deepSpace.textHi, fontSize: 12, fontFamily: fontFamilies.readable },
   // 대화 저장 안내 (Simon 결정 B1). 경고색을 쓰지 않는다 — 잘못한 것이 아니라
   // 선택지를 알리는 자리다.
   saveNotice: {
-    marginHorizontal: deepSpaceSpacing.md,
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: deepSpaceSpacing.xs,
-    padding: deepSpaceSpacing.md,
-    gap: 6,
+    paddingLeft: deepSpaceSpacing.sm,
+    gap: deepSpaceSpacing.xs,
     borderRadius: m3.shape.medium,
     borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.card,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surface,
   },
-  saveNoticeTitle: { color: semantic.text, fontSize: 14, fontWeight: "600" },
-  saveNoticeBody: { color: semantic.textMuted, fontSize: 13, lineHeight: 19 },
-  saveNoticeRow: { flexDirection: "row", gap: deepSpaceSpacing.sm, marginTop: 2 },
+  saveNoticeTitle: { flex: 1, minWidth: 0, color: semantic.text, fontSize: 12, lineHeight: 18, fontWeight: "600" },
   saveNoticeBtn: {
     // 44px 터치 타깃 (PRD 불변식)
     minHeight: 44,
+    flexShrink: 0,
     justifyContent: "center",
     paddingHorizontal: deepSpaceSpacing.sm,
   },
-  saveNoticeBtnText: { color: deepSpace.accent, fontSize: 13, fontWeight: "600" },
-  saveNoticeDismissText: { color: semantic.textMuted, fontSize: 13 },
-  keepChip: {
-    alignSelf: "flex-start",
-    marginTop: 8,
-    minHeight: 32,
-    paddingHorizontal: 10,
-    justifyContent: "center",
-    borderRadius: m3.shape.small,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.card,
-  },
-  keepChipText: {
-    fontSize: 12,
-    color: deepSpace.textMuted,
-  },
-  branchSave: {
-    minWidth: 52,
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: m3.shape.small,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.card,
-  },
-  branchSaveText: { color: deepSpace.mint, fontSize: 12, fontFamily: fontFamilies.readable },
-
+  saveNoticeBtnText: { color: semantic.deepSpaceAccent, fontSize: 12, lineHeight: 18, fontWeight: "600" },
+  saveNoticeClose: { width: 44, height: 44, flexShrink: 0, alignItems: "center", justifyContent: "center" },
   contextPillWrap: { paddingHorizontal: 18, paddingBottom: deepSpaceSpacing.sm },
   contextPill: {
     alignSelf: "flex-start",
@@ -1798,8 +1731,8 @@ const ds = StyleSheet.create({
   contextPillText: { color: deepSpace.textHi, fontSize: 11, fontFamily: fontFamilies.readable },
 
   scroll: { paddingHorizontal: 18, paddingTop: deepSpaceSpacing.sm, gap: 10 },
-  empty: { paddingVertical: 56, alignItems: "center", gap: 10 },
-  emptyTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.pixelKo },
+  scrollEmpty: { flexGrow: 1 },
+  empty: { flex: 1, justifyContent: "center", paddingVertical: 32, alignItems: "center", gap: 20 },
   emptyBody: {
     color: sbAlpha(deepSpace.text, 0.6),
     fontSize: 12,
@@ -1808,10 +1741,29 @@ const ds = StyleSheet.create({
     fontFamily: fontFamilies.readable,
   },
 
-  bubbleRow: { flexDirection: "row" },
-  userRow: { justifyContent: "flex-end" },
-  aiRow: { justifyContent: "flex-start" },
-  bubbleCol: { maxWidth: "86%", gap: 6, alignItems: "flex-start" },
+  bubbleRow: { flexDirection: "column", maxWidth: "84%", alignItems: "flex-start", gap: 6 },
+  userRow: { alignSelf: "flex-end" },
+  aiRow: { alignSelf: "flex-start" },
+  messageHeader: { flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "100%" },
+  userMessageHeader: { flexDirection: "row-reverse", alignSelf: "flex-end", width: "100%" },
+  messageName: { minWidth: 0, flexShrink: 1, color: deepSpace.textMid, fontSize: 12, lineHeight: 18, paddingBottom: 2, fontFamily: fontFamilies.readable },
+  userMessageName: { textAlign: "right" },
+  // The answer's name row may wrap: the spelled-out AI sentence drops under the name on a narrow screen.
+  aiLine: { paddingHorizontal: 12, paddingTop: 4, color: deepSpace.textMid, fontSize: 11, lineHeight: 16, textAlign: "center", fontFamily: fontFamilies.readable },
+  aiNotice: {
+    alignSelf: "stretch",
+    padding: deepSpaceSpacing.sm,
+    gap: deepSpaceSpacing.xs,
+    borderRadius: m3.shape.medium,
+    borderWidth: 1,
+    borderColor: semantic.border,
+    backgroundColor: semantic.surface,
+  },
+  aiNoticeBody: { color: semantic.text, fontSize: 12, lineHeight: 19, fontFamily: fontFamilies.readable },
+  // 44px 터치 타깃 (PRD 불변식)
+  aiNoticeBtn: { minHeight: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: semantic.border },
+  aiNoticeBtnText: { color: semantic.deepSpaceAccent, fontSize: 12, lineHeight: 18, fontWeight: "600" },
+  bubbleCol: { maxWidth: "100%", alignSelf: "stretch", flexShrink: 1, gap: 6, alignItems: "flex-start" },
   // user bubble: M3 primary fill, radius 16/16/4/16 (reference).
   userBubble: {
     alignSelf: "flex-end",
@@ -1853,26 +1805,16 @@ const ds = StyleSheet.create({
   },
   citeChipText: { fontSize: 12, fontWeight: "600", fontFamily: fontFamilies.readable },
 
-  thinking: { paddingVertical: deepSpaceSpacing.md, alignItems: "center" },
-
-  quickRow: { alignItems: "center", gap: deepSpaceSpacing.sm, paddingHorizontal: 18, paddingVertical: deepSpaceSpacing.sm },
-  quickChip: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: m3.shape.small,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.card,
-  },
-  quickChipText: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
+  thinking: { paddingVertical: deepSpaceSpacing.md },
 
   limitLink: { alignSelf: "flex-end", minHeight: 44, justifyContent: "center", paddingHorizontal: 18 },
   limitLinkText: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: fontFamilies.readable },
 
+  composerDock: { flexGrow: 0, flexShrink: 0 },
+  keepFeedback: { paddingHorizontal: 12, paddingVertical: 4, color: deepSpace.textMuted },
   composer: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: deepSpaceSpacing.sm,
     paddingHorizontal: 12,
     paddingTop: deepSpaceSpacing.sm,
@@ -1882,9 +1824,10 @@ const ds = StyleSheet.create({
   inputPill: {
     flex: 1,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: deepSpaceSpacing.sm,
-    height: 48,
+    minHeight: 48,
+    paddingVertical: 6,
     paddingLeft: 16,
     paddingRight: 6,
     borderRadius: m3.shape.none,
@@ -1895,6 +1838,7 @@ const ds = StyleSheet.create({
     minWidth: 0,
     color: m3.color.onSurface,
     fontSize: 15,
+    lineHeight: 22,
     fontFamily: fontFamilies.readable,
     padding: 0,
   },
@@ -1933,29 +1877,6 @@ const ds = StyleSheet.create({
   },
   // RN Web 은 디더 타일을 고유 크기(4×4)로만 반복한다. 전면을 덮으려면 크기를 명시한다.
   modalScrimImage: { width: "100%", height: "100%" },
-  modalCard: {
-    width: "100%",
-    maxWidth: 420,
-    padding: deepSpaceSpacing.lg,
-    borderRadius: m3.shape.large,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    backgroundColor: deepSpace.bg,
-  },
-  modalEyebrow: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
-  modalBody: { color: deepSpace.textHi, fontSize: 13, lineHeight: 20, marginTop: deepSpaceSpacing.sm, fontFamily: fontFamilies.readable },
-  modalActions: { flexDirection: "row", gap: deepSpaceSpacing.sm, marginTop: deepSpaceSpacing.md, justifyContent: "flex-end" },
-  modalBtnGhost: { minHeight: 44, justifyContent: "center", paddingHorizontal: deepSpaceSpacing.md, borderRadius: m3.shape.small },
-  modalBtnGhostText: { color: deepSpace.textMid, fontSize: 13, fontFamily: fontFamilies.readable },
-  modalBtnPrimary: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: m3.shape.small,
-    backgroundColor: deepSpace.accent,
-  },
-  modalBtnPrimaryText: { color: deepSpace.onAccent, fontSize: 13, fontWeight: "700", fontFamily: fontFamilies.readable },
-
   drawer: {
     position: "absolute",
     left: 0,

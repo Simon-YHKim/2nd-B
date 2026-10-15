@@ -1,11 +1,11 @@
 // Jarvis chat orchestrator.
 //
 //   1. Read today's chat_usage row for the user.
-//   2. Check the tier limit (free 2, Soma 30, Cortex 80, Brain 250).
+//   2. Check the daily limit (CHAT_DAILY_LIMIT in limits.ts; free 5 by default).
 //   3. If allowed, build a system prompt with a compact wiki snapshot,
 //      call callLlm (which enforces C1/C3/C9 automatically), and
 //      atomically bump today's chat_usage.
-//   4. If blocked, return a localized upgrade hint without calling Gemini.
+//   4. If blocked, return a localized limit notice without calling the model.
 //
 // The wiki snapshot is the export prompt with body_md truncated so the
 // chat fits in Gemini Flash's context window. Phase 1/2 wiki pages will
@@ -13,16 +13,17 @@
 // raw `sources` list, which already steers the model toward the user's
 // inbox.
 
-import { callLlm } from "@/lib/llm/boundary";
+import { callLlm, classifyChatTextForCrisis } from "@/lib/llm/boundary";
 import { tLocale } from "@/lib/i18n/text";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
-import { classifyInput } from "@/lib/safety/classifier";
+import { classifyInput, crisisHotlines } from "@/lib/safety/classifier";
 import { promptSafeName } from "@/lib/persona/address";
 import type { LlmResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
 import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
 import { loadStructuredContext } from "../records/load-structured";
+import { loadProfileContext } from "../persona/profile-context";
 import { exportUserWiki } from "../wiki/export";
 import { formatRagPages, retrieveChatContext } from "./rag";
 import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail } from "./usage";
@@ -96,9 +97,9 @@ export interface SendMessageBlocked {
 export interface SendMessageOk {
   status: "ok";
   reply: LlmResult<string>;
-  used: number;
-  limit: number;
-  remaining: number;
+  used: number | null; // Device-red guidance reads no quota; null is unknown.
+  limit: number | null;
+  remaining: number | null;
 }
 
 export type SendMessageResult = SendMessageBlocked | SendMessageOk;
@@ -128,23 +129,23 @@ export type SendMessageResult = SendMessageBlocked | SendMessageOk;
 // 출력을 붙잡는 것은 저 넷뿐이므로, 이 문장을 고칠 때 넷을 같이 지우지 말 것.
 const SYSTEM_PROMPT_HEADER = {
   en: [
-    "You are SecondB, this person's own manager and a pacemaker who walks alongside them: you read what they have recorded and help them from beside them.",
+    "You are HustleK, this person's own manager and a pacemaker who walks alongside them: you read what they have recorded and help them from beside them.",
     "You may be warm and speak like a friend who knows them well. Warmth never licenses invention.",
     "Ground every statement in their records. Never assert a fact, trait, or number (including any psychometric score) that is not in them.",
     "Describe the pattern in the records, not a verdict about the person. Use calibrated language ('seems', 'in these records'), never certainty about who they are.",
     "You are not a medical or clinical service. Keep the language everyday; never diagnose, and never use clinical vocabulary.",
     "Never claim to know them better than they know themselves.",
     "Let the user choose what to share. Do not ask for secrets or press them to explain something they have declined to discuss.",
-    "Answer the question directly in plain, conversational language. Avoid canned praise or empathy, promotional language, elaborate metaphors, and unnecessary summaries. Do not force a three-item list or end every reply with a question. Listen to what they have shared first; when empathy is needed, name the situation they actually described and offer honest, warm comfort and support.",
+    "Answer the question directly in plain, conversational language. Avoid canned praise or empathy, promotional language, elaborate metaphors, and unnecessary summaries. Do not force a three-item list or end every reply with a question. Listen to what they have shared first; when empathy is needed, name the situation they actually described and offer honest, warm comfort and support. Do not put each sentence on its own line. Use a line break only between paragraphs, or to write list items or steps one per line.",
     "Distinguish saved records from what the person said in this conversation and from your own inference. Asking for help is not evidence of a positive trait, motivation, or willingness to change.",
     "When drafting a reply or suggesting a plan, do not invent a deadline, promise, or commitment for the person. Leave those choices to them.",
     "Reference the wiki pages and sources below; cite slugs via [[double-brackets]]. Keep replies under 4 sentences unless they ask for depth.",
   ].join(" "),
   ko: [
-    "당신은 세컨비, 이 사람의 개인 매니저이자 곁에서 함께 걷는 페이스메이커입니다. 이 사람이 남긴 기록을 읽고 곁에서 돕습니다.",
+    "당신은 허슬케이, 이 사람의 개인 매니저이자 곁에서 함께 걷는 페이스메이커입니다. 이 사람이 남긴 기록을 읽고 곁에서 돕습니다.",
     "잘 아는 친구처럼 편하고 따뜻하게 말해도 됩니다. 다만 따뜻함이 지어내도 된다는 뜻은 아닙니다.",
     "모든 이야기는 이 사람의 기록에 근거합니다. 기록에 없는 사실이나 특성, 수치(심리 점수 포함)를 지어내지 마세요.",
-    "사람에 대한 단정이 아니라 기록 속 패턴을 말하세요. '~인 것 같아요', '이 기록들에서는' 처럼 신중한 표현을 쓰고, 그 사람이 누구인지 확신하듯 말하지 마세요.",
+    "사람에 대한 단정이 아니라 기록 속 패턴을 말하세요. '~로 보입니다', '이 기록들에서는' 처럼 신중한 표현을 쓰고, 그 사람이 누구인지 확신하듯 말하지 마세요.",
     "의료·임상·상담 서비스가 아닙니다. 일상적인 말을 쓰고, 진단하거나 임상 용어를 쓰지 마세요.",
     "그 사람이 스스로를 아는 것보다 더 잘 안다고 주장하지 마세요.",
     "무엇을 이야기할지는 사용자가 정합니다. 비밀을 말해 달라고 하거나, 말하지 않겠다는 내용을 거듭 캐묻지 마세요.",
@@ -155,7 +156,7 @@ const SYSTEM_PROMPT_HEADER = {
     "말투는 평서문 '~습니다', 질문은 '~나요?' 를 씁니다.",
     "짧고 쉬운 일상어로 편안하게, 질문에 바로 답하세요. '당신'이라는 호칭은 번역투로 들리니 쓰지 마세요.",
     "'좋은 질문이에요', '소중한 이야기를 나눠주셔서 감사해요' 같은 상투적인 칭찬·공감, 과장, 추상적인 비유를 쓰지 마세요. 사용자가 털어놓은 이야기에 먼저 귀 기울이고, 공감이 필요하면 사용자가 실제로 말한 상황을 짚어 솔직하고 따뜻하게 위로와 지지를 전하세요.",
-    "항상 세 가지 목록으로 정리하거나, 끝에 요약·다음 질문을 붙이지 마세요. 답에 필요한 경우에만 쓰세요.",
+    "항상 세 가지 목록으로 정리하거나, 끝에 요약·다음 질문을 붙이지 마세요. 답에 필요한 경우에만 쓰세요. 문장마다 줄을 바꾸지 마세요. 줄바꿈은 문단을 나누거나, 목록·단계를 한 줄에 하나씩 적을 때만 씁니다.",
     "저장된 기록, 이번 대화에서 사용자가 말한 내용, 추측을 구분하세요. 도움을 요청했다는 사실만으로 성격·태도·변화 의지를 좋게 해석하지 마세요.",
     "답장 예시나 계획에 사용자가 정하지 않은 마감·약속·의무를 넣지 마세요. 언제 무엇을 할지는 사용자가 정합니다.",
     "아래 위키 페이지와 소스를 참고하고, 인용할 때는 [[슬러그]] 형식을 씁니다. 깊이 있는 답을 원하지 않으면 4문장 안으로 답하세요.",
@@ -185,31 +186,33 @@ const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: strin
     // parseTwiBranches lifts the "→ " lines into tappable next-step chips that
     // hand off to the composer / 담기. Prompt-shaping only — C9/C3 unchanged.
     en: "New angle mode: stay grounded in the user's data, but deliberately explore radically different angles, assumptions, and unexpected possibilities. Clearly frame them as new perspectives or 'what if' hypotheses, not established facts. End the reply with up to three short next-step candidates the user could capture, each on its own line, each line starting with '→ '.",
-    ko: "새 관점 모드: 사용자의 데이터에 근거하되, 전혀 다른 관점과 가정, 뜻밖의 가능성을 의도적으로 탐색하세요. 단정이 아니라 '새로운 관점 / 가정'으로 분명히 표시하세요. 답변의 맨 끝에는 사용자가 담아둘 수 있는 짧은 다음 걸음 후보를 최대 3개, 한 줄에 하나씩 '→ '로 시작해 적으세요.",
+    ko: "새 관점 모드: 사용자의 데이터에 근거하되, 전혀 다른 관점과 가정, 뜻밖의 가능성을 의도적으로 탐색하세요. 단정하지 말고, 확인된 사실이 아니라 하나의 관점이나 가정이라는 점이 문장 안에서 드러나게 쓰세요. 답변의 맨 끝에는 사용자가 기록할 수 있는 짧은 다음 걸음 후보를 최대 3개, 한 줄에 하나씩 '→ '로 시작해 적으세요.",
   },
 };
 
-// Monetization v2 tier display names (2026-06-10): every tier sells under its
-// enum name — Soma is the entry tier again, so no more Plus/Pro aliasing.
-const TIER_DISPLAY: Record<SubscriptionTier, string> = {
-  free: "Free",
-  soma: "Soma",
-  cortex: "Cortex",
-  brain: "Brain",
-};
+// The limit bubble used to end with an upgrade pitch that named the next tier through a
+// TIER_DISPLAY map ("Soma" / "Cortex" / "Brain"). Simon 2026-10-14 (Q-261014-24): keep only
+// the limit sentence and the 요금제 보기 link under it. Those names were legacy anyway
+// (people see 별바라기 · 항해자 · 북극성), so the map went with the pitch.
+//
+// These comment lines stand where the map stood so that every line below keeps its number:
+// docs/legal cites this file by line (DPIA-2ndB-minors-draft.md: 254 · 259 · 260 · 310 · 352).
+// The next tier still travels in SendMessageResult.upgradeTo for the ai_limit_hit event
+// (Q-261014-26); no sentence names it.
 
 const BLOCKED_HINT = {
-  en: (limit: number, upgrade: SubscriptionTier | null) =>
-    upgrade
-      ? `You've hit today's chat limit (${limit}). Upgrade to ${TIER_DISPLAY[upgrade]} for more. Limits reset at midnight KST.`
-      : `You've hit today's chat limit (${limit}). Limits reset at midnight KST.`,
-  ko: (limit: number, upgrade: SubscriptionTier | null) =>
-    upgrade
-      ? `오늘 채팅 한도(${limit}회)를 모두 사용했어요. ${TIER_DISPLAY[upgrade]} 플랜으로 업그레이드하면 더 많이 쓸 수 있어요. 한도는 KST 자정에 초기화돼요.`
-      : `오늘 채팅 한도(${limit}회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.`,
+  en: (limit: number) =>
+    `You've hit today's chat limit (${limit}). Limits reset at midnight KST.`,
+  ko: (limit: number) =>
+    `오늘 채팅 한도(${limit}회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.`,
+  // Called as BLOCKED_HINT[locale](limit) at both blocked returns of sendChatMessage below:
+  // the pre-check on today's row, and a concurrent send that reached the known cap.
+  // Neither passes the tier any more.
 };
 
 export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
+  const cut = await answerDeviceRed(input);
+  if (cut) return cut;
   const day = kstDateToday();
   const limit = CHAT_DAILY_LIMIT[input.tier];
 
@@ -223,20 +226,20 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
       limit: precheck.limit,
       used: precheck.used,
       upgradeTo: precheck.upgradeTo,
-      hint: BLOCKED_HINT[input.locale](precheck.limit, precheck.upgradeTo),
+      hint: BLOCKED_HINT[input.locale](precheck.limit),
     };
   }
-
   // Context assembly (D-26 A1): try query-relevant retrieval first — embed the
   // message and pull the top-8 semantically relevant pages (RAG). On a hit the
-  // prompt carries ONLY those pages plus a slim recent-sources list (~10x
-  // smaller than the old whole-wiki dump, and better grounded). On any miss
-  // (no index yet, embed failure, red-zone query) fall back to the legacy
-  // whole-wiki snapshot so chat never breaks on RAG.
+  // prompt carries ONLY those pages plus a slim recent-sources list (~10x smaller
+  // than the old whole-wiki dump, and better grounded). On any miss (no index
+  // yet, embed failure) fall back to the legacy whole-wiki snapshot.
   // 0066: newest structured form captures (4W1H, career 3C4P) ride along so
   // the model reads the form data as structure, not prose. Small, fail-soft,
   // sanitized + fenced with the snapshot below.
   const structuredBlock = await loadStructuredContext(input.userId, 5);
+  // Q-261007-05 (Simon 2026-10-07): 사용자가 채운 프로필 칸(대화명 제외) + 만 나이. Fail-soft.
+  const profileLines = await loadProfileContext(input.userId);
   let ragBlock: string | null = null;
   try {
     const ragPages = await retrieveChatContext(input.userId, input.message, input.locale, {
@@ -263,9 +266,9 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // quota. The earlier read is only a no-cost preflight: if wiki export fails,
   // the user gets no reply but also does not lose a daily chat turn.
   //
-  // Trade-off vs. the previous design: red-zone (crisis-routed) turns still
-  // count against the daily quota because the bump must land before the LLM
-  // call to close the race. A future PR can add a refund RPC if it matters.
+  // A device-red turn never gets here: it was answered above, uncounted
+  // (Q-261014-30; this replaces the old "red turns still count" trade-off).
+  // A turn cut later (server gate, meaning check, output swap) is still counted.
   let newCount: number;
   try {
     newCount = await bumpChatUsageIfUnderCap(input.userId, limit, day);
@@ -284,7 +287,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
         upgradeTo: check.upgradeTo,
         hint: check.allowed
           ? tLocale(input.locale, "secondb", "serverLimitReached")
-          : BLOCKED_HINT[input.locale](check.limit, check.upgradeTo),
+          : BLOCKED_HINT[input.locale](check.limit),
       };
     }
     throw e;
@@ -297,6 +300,10 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // <UNTRUSTED>, and prepend the injection-guard preamble so a clipped
   // "ignore previous instructions" cannot hijack the system prompt (mirrors
   // the Advisor path).
+  // 프로필에는 자유 입력(좌우명 등)이 섞여 있어 위키와 같은 방식으로 씻어서 감싼다.
+  const fencedProfile = profileLines.length > 0
+    ? `<UNTRUSTED type="profile">\n${sanitizeUntrusted(profileLines.join("\n"))}\n</UNTRUSTED>\n`
+    : "";
   const fencedRag = ragBlock
     ? `<UNTRUSTED type="wiki_rag">\n${sanitizeUntrusted(ragBlock)}\n</UNTRUSTED>\n`
     : "";
@@ -325,7 +332,7 @@ ${sanitizeUntrusted(structuredBlock)}
       ? `\n<UNTRUSTED type="chat_history">\n${historyTurns
           .map(
             (t) =>
-              `${t.role === "user" ? "User" : "SecondB"}: ${sanitizeUntrusted(t.text).slice(0, HISTORY_TURN_CHAR_LIMIT)}`,
+              `${t.role === "user" ? "User" : "HustleK"}: ${sanitizeUntrusted(t.text).slice(0, HISTORY_TURN_CHAR_LIMIT)}`,
           )
           .join("\n")}\n</UNTRUSTED>`
       : "";
@@ -342,11 +349,11 @@ ${sanitizeUntrusted(structuredBlock)}
       : `This person's name is ${safeName}. Address them as ${safeName}.\n\n`
     : "";
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
-  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
+  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
-  // C1/C3/C9 are enforced by callLlm. Red-zone short-circuit still
-  // happens inside callLlm; we just no longer adjust the counter
-  // afterwards because the bump already landed atomically above.
+  // C1/C3/C9 are enforced by callLlm, whose own red-zone short-circuit still
+  // runs for every turn that gets here. Device-red input was already routed
+  // above by the same boundary module, before any context read or bump.
   const reply = await callLlm({
     userId: input.userId,
     locale: input.locale,
@@ -368,4 +375,31 @@ ${sanitizeUntrusted(structuredBlock)}
     // earned by watching an ad. Ask the one function that knows the allowance.
     remaining: checkChatLimit(input.tier, newCount, adBonus).remaining,
   };
+}
+
+// 모델이 직접 쓰는 답에도 번호 원칙을 지키게 한다 (Simon 결정 2026-10-11, Q-261011-11).
+// 원칙은 2026-08-16 의 3레인이다: 스스로를 해치려는 이야기는 상담 전화, 그 이야기만으로는 112 를 붙이지 않고
+// (타인의 위협이 함께 있으면 그 레인의 112 는 막지 않는다 - 독립 검토 NR-01),
+// 119 는 몸이 지금 위급할 때만, 애매하면 상담 전화. 번호는 화면의 고정 안내와 같은 표
+// (crisisHotlines)에서 가져온다 - 여기에 숫자를 따로 적으면 두 곳이 갈라진다.
+// 입력 검사가 잡은 말은 여기까지 오지 않는다(고정 안내가 나간다). 이 줄은 검사를 지나
+// 모델까지 온 말에 모델이 119 · 112 를 권하던 것을 바로잡는다.
+// 파일 아래쪽에 둔다: 위쪽 줄 번호를 법무 문서(DPIA)가 인용하고 있어, 위에 끼우면 인용이 밀린다.
+function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): string {
+  const numbers = crisisHotlines(locale, minor === true).map((line) => line.number);
+  if (locale === "ko") {
+    const lines = numbers.join(" 또는 ");
+    return `스스로 삶을 끝내거나 자신을 해치려는 이야기가 나오면 ${lines}로 전화하도록 안내하세요. 그 이야기만을 이유로 112를 붙이지 마세요. 119는 이미 다쳤거나 약을 삼킨 것처럼 몸이 지금 위급할 때만 안내합니다. 어느 쪽인지 분명하지 않으면 ${lines}로 안내하세요. 확실하지 않은 전화번호는 지어내지 마세요.`;
+  }
+  const lines = numbers.join(" or ");
+  return `If the person talks about ending their life or hurting themselves, point them to ${lines}. Do not add a police number for that reason alone. Point to the local emergency number only when their body is in danger right now, such as an injury or something already swallowed. If you cannot tell which it is, stay with ${lines}. Never make up a phone number.`;
+}
+
+// Q-261014-30 / Q-261015-82: one device-red verdict, one routing call, before
+// any quota read, limit refusal or context read, without a bump.
+// Quota is unknown here; callers retain their last verified usage display.
+async function answerDeviceRed(input: SendMessageInput): Promise<SendMessageOk | null> {
+  const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);
+  if (!reply) return null;
+  return { status: "ok", reply, used: null, limit: null, remaining: null };
 }

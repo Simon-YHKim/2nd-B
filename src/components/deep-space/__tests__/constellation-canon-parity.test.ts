@@ -93,7 +93,7 @@ describe("constellation home <-> canon parity", () => {
   it("moves the museum entry from the home bar into the phone apps", () => {
     expect(SRC).not.toContain("onMuseumPress");
     expect(PHONE).toContain('id: "museum", route: "/museum"');
-    expect(PHONE).toContain('source={PHONE_APP_ICONS[id]}');
+    expect(PHONE).toContain('<PhoneAppIcon id={id}');
   });
 
   it("removes the community chip without losing its adult-only phone entry", () => {

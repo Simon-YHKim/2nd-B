@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Riverside Life Satisfaction Scale (RLSS) — Margolis, Schwitzgebel, Ozer &
 // Lyubomirsky (2019). 6 items, 1-7 Likert. Free to use. Measures overall life
 // satisfaction DIRECTLY (a separate construct from the constellation's epistemic
@@ -7,7 +8,7 @@
 // legacy wrappers) and reuses the same quant components.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";

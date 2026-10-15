@@ -1,9 +1,10 @@
+import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Community v1 — room list + create (2026-08-10 direction: 7th home slot).
 // 1:1 DM and group rooms, text only, invite-link entry only (no directory).
 // Adults only, fail-closed: isMinor null (unknown) gates exactly like true;
 // the server re-asserts via users.minor_tier in every RPC (0117).
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { FlatList, Pressable, Share, StyleSheet, View } from "react-native";
+import { Share, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, useFocusEffect } from "expo-router";
 

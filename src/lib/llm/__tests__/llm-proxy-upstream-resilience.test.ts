@@ -327,10 +327,15 @@ describe.each(Object.entries(sources))("%s upstream resilience", (name, source) 
   });
 
   test("successful audit rows contain hashes, not raw prompt fields", () => {
+    // Two ways a proxy writes an audit row: the embedding route inserts directly, and the reply row
+    // goes through the shared insertLlmAuditRow (0255). Both are read here.
     const auditRows = [...source.matchAll(
-      /\.from\('ai_audit_log'\)\.insert\(\{([\s\S]*?)\n\s*\}\);/g,
+      /(?:\.from\('ai_audit_log'\)\.insert\(|insertLlmAuditRow\(supabaseAdmin, )\{([\s\S]*?)\n\s*\}(?:\);|, '[a-z]+-proxy'\);)/g,
     )].map((match) => match[1]);
     expect(auditRows.length).toBeGreaterThan(0);
+    // Every proxy has exactly one reply row, and it is among the rows checked below.
+    expect((source.match(/insertLlmAuditRow\(supabaseAdmin, \{/g) ?? []).length).toBe(1);
+    expect(auditRows.filter((row) => row.includes("id: consentAuditId,") && row.includes("output_hash: djb2(text)")).length).toBe(1);
     for (const row of auditRows) {
       expect(row).toContain("prompt_hash: djb2(");
       expect(row).toContain("output_hash: djb2(");

@@ -7,17 +7,17 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
-  Pressable,
   type PressableProps,
   StyleSheet,
-  TextInput,
   type TextInputProps,
-  View,
   type ViewStyle,
   type StyleProp,
 } from "react-native";
 
 import { Text } from "@/components/ui/Text";
+import { PhonePressable as Pressable, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneButtonColors } from "@/lib/theme/phone-design";
 import { BUTTON_PRESS_MS, pixelMotionDuration } from "@/lib/motion/pixel-physical";
 import { gameboy, pixelShadowStyle, gameboyBorderOn } from "@/lib/theme/gameboy-tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -109,9 +109,10 @@ export function PremiumCard({
   style?: StyleProp<ViewStyle>;
   pixelCorners?: boolean;
 }) {
+  const phone = usePhoneDesign();
   return (
     <PremiumPanel accent={accent} style={style}>
-      {pixelCorners ? (
+      {pixelCorners && !phone ? (
         <>
           <PixelCorner corner="top-left" />
           <PixelCorner corner="top-right" />
@@ -209,6 +210,7 @@ export function PremiumButton({
   accessibilityHint,
   ...rest
 }: PremiumButtonProps) {
+  const phone = usePhoneDesign();
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const [pressed, setPressed] = useState(false);
@@ -234,7 +236,8 @@ export function PremiumButton({
         borderColor: focused ? gameboy.accent : gameboyBorderOn(btnBg),
         shadowColor: focused ? gameboy.accent : gameboyBorderOn(btnBg),
       };
-  const foregroundColor = isDisabled ? BTN_DISABLED_FG : BTN_FG[variant];
+  const phoneColors = phoneButtonColors({ primary: variant === "primary", destructive: variant === "danger", disabled: isDisabled, pressed });
+  const foregroundColor = phone ? phoneColors.foreground : isDisabled ? BTN_DISABLED_FG : BTN_FG[variant];
   const pressTranslate = pressProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [0, PRESSED_OFFSET],
@@ -258,7 +261,7 @@ export function PremiumButton({
       ) : icon ? (
         <View style={styles.btnIcon}>{icon}</View>
       ) : null}
-      <Text style={[styles.btnLabel, { color: foregroundColor }]}>
+      <Text style={[styles.btnLabel, { color: foregroundColor }, phone && styles.phoneBtnLabel]}>
         {label}
       </Text>
     </>
@@ -272,12 +275,12 @@ export function PremiumButton({
       onLongPress={onLongPress}
       onPressIn={(event) => {
         setPressed(true);
-        animatePress(1);
+        if (!phone) animatePress(1);
         onPressIn?.(event);
       }}
       onPressOut={(event) => {
         setPressed(false);
-        animatePress(0);
+        if (!phone) animatePress(0);
         onPressOut?.(event);
       }}
       onHoverIn={(event) => {
@@ -306,8 +309,9 @@ export function PremiumButton({
         colorStyle,
         // O-11 P1 fix: caller style overrides base; press transforms stay last.
         style,
-        !isDisabled ? animatedPressStyle : null,
+        !isDisabled && !phone ? animatedPressStyle : null,
         !isDisabled && pressed ? styles.btnPressed : null,
+        phone && { backgroundColor: phoneColors.background, borderWidth: 0, elevation: 0, shadowOpacity: 0 },
       ]}
     >
       {buttonContent}
@@ -409,6 +413,7 @@ export function PremiumTextarea(props: TextInputProps) {
 }
 
 const styles = StyleSheet.create({
+  phoneBtnLabel: { fontFamily: "Galmuri11Bold", fontWeight: "normal", fontSize: 12, lineHeight: 18, paddingBottom: 2 },
   brandChip: {
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,

@@ -1,3 +1,4 @@
+import { RememberedFlatList as FlatList, RememberedScrollView as ScrollView } from "@/components/navigation/RememberedScroll";
 // AI Museum (Claude Design "AI 뮤지엄.dc.html"). GT7-brand-museum style:
 // 8 category tabs + a horizontal card rail of milestone moments, deep-space cyan.
 // One screen, browse sideways. Language follows i18n (ko/en) with a header toggle.
@@ -11,7 +12,7 @@
 // labeled placeholder. Wire real bundled/remote art per moment where // TODO.
 
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { router } from "expo-router";

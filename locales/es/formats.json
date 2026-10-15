@@ -11,7 +11,7 @@
     "heading": "Mis formatos",
     "headingWithCount": "Mis formatos ({{count}})",
     "emptyTitle": "Aún no hay formatos",
-    "emptyBody": "Guarda un formato sugerido por SecondB al capturar y aparecerá aquí."
+    "emptyBody": "Guarda un formato sugerido por HustleK al capturar y aparecerá aquí."
   },
   "community": {
     "heading": "Formatos de la comunidad",
@@ -193,9 +193,9 @@
   },
   "add": {
     "title": "Agregar un formato",
-    "body": "Describe el material y cómo quieres organizarlo. SecondB propondrá un formato que podrás volver a usar.",
+    "body": "Describe el material y cómo quieres organizarlo. HustleK propondrá un formato que podrás volver a usar.",
     "placeholder": "p.ej. Episodios de podcast - captura al invitado y las ideas clave",
-    "draft": "Pedir un formato a SecondB",
+    "draft": "Pedir un formato a HustleK",
     "drafting": "Creando borrador…",
     "errorNeedDetail": "No se pudo crear el borrador. Agrega más detalle e inténtalo de nuevo.",
     "errorDraft": "No pudimos crear el borrador de la guía. Inténtalo de nuevo en un momento.",

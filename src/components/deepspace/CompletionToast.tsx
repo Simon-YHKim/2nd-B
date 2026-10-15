@@ -1,3 +1,4 @@
+import { PhoneAnimatedView, PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Global completion toast (Claude Design loading.dc.html, E).
 // Mounted once in app/_layout. Appears when a task finishes. It NEVER
 // auto-navigates: the user chooses 결과 보기 (push resultHref) or 나중에 (dismiss).
@@ -5,7 +6,7 @@
 // "결과 보기" CTA is mint-filled, "나중에" is an outline. Token-only, no confetti.
 
 import { useEffect, useRef } from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Animated, StyleSheet } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, type Href, usePathname } from "expo-router";
@@ -71,7 +72,7 @@ export function CompletionToast() {
 
   return (
     <SafeAreaView pointerEvents="box-none" style={styles.safe} edges={["top"]}>
-      <Animated.View style={[styles.toast, { opacity: drop, transform: [{ translateY }] }]}>
+      <PhoneAnimatedView style={[styles.toast, { opacity: drop, transform: [{ translateY }] }]}>
         <View style={styles.row}>
           <View style={styles.avatar}>
             <SecondbHead size={32} />
@@ -91,7 +92,7 @@ export function CompletionToast() {
             <Text variant="caption" style={styles.laterText}>{C.later}</Text>
           </Pressable>
         </View>
-      </Animated.View>
+      </PhoneAnimatedView>
     </SafeAreaView>
   );
 }

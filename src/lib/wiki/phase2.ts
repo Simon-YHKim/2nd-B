@@ -16,6 +16,7 @@ import { materializeGraphFromPhase1 } from "./materialize";
 import { getSource, getWikiPage, markSourceIngested, syncWikiLinks, upsertWikiPage } from "./queries";
 import { slugForTitle, toSlug } from "./slug";
 import { isAiExcludedSource, SourceAiExcludedError } from "./ai-exclusion";
+import { isProfileContextImportSource, SourceImportManagedError } from "./profile-context-source";
 import { downloadRawClipping } from "./storage";
 import { embedAndStorePage } from "./embeddings";
 import { getEnv } from "../env";
@@ -70,6 +71,7 @@ function bodyFallback(frontmatter: Record<string, unknown> | null): string | nul
 export async function generateSourcePage(userId: string, sourceId: string): Promise<GenerateSourcePageResult> {
   const source = await getSource(userId, sourceId);
   if (!source) throw new SourceNotFoundError(sourceId);
+  if (isProfileContextImportSource(source.frontmatter)) throw new SourceImportManagedError(sourceId);
 
   // storage_path being set is NOT evidence the object exists: capture.ts writes
   // the canonical path onto the row even when the upload failed, stashing the

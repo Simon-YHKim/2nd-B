@@ -1,3 +1,4 @@
+import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 /**
  * Axis-scoped layer-B validation lens (rev2 P3b, clone-audit 16/19/20): the
  * shared read-only body for /values (가치관), /motivation (동기·SDT), and
@@ -20,7 +21,7 @@
  * ds.axisCheck.<axis>.headline key the body uses, so all 5 locales localize).
  * All colors route through m3.* tokens — no cosmic tokens, no hex literals.
  */
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
 import { useAppRouter } from "@/lib/nav/phone-embed";

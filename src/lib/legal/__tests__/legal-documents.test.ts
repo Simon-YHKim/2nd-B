@@ -150,22 +150,22 @@ describe("legal document snapshots", () => {
     // Bound to the code, not to a copy of the list: adding a key to
     // PROFILE_DETAIL_KEYS without naming it in the policy fails here.
     const KO: Record<ProfileDetailKey, string> = {
-      occupation: "직업",
-      region: "사는 지역(시/도 수준)",
-      household: "가구(함께 사는 사람)",
-      dailyRhythm: "생활 리듬",
-      workHours: "주로 일하거나 공부하는 시간대",
-      workDays: "주로 일하는 요일",
-      busiestSeason: "가장 바쁜 시기",
+      occupation: "하는 일(직업)",
+      region: "거주 지역(시/도 수준)",
+      household: "가족관계(함께 사는 사람)",
+      gender: "성별",
+      nationality: "국적",
+      marital: "혼인 여부(성인만)",
+      motto: "좌우명",
     };
     const EN: Record<ProfileDetailKey, string> = {
       occupation: "occupation",
-      region: "region (province or city level)",
-      household: "household (who you live with)",
-      dailyRhythm: "daily rhythm",
-      workHours: "the hours you usually work or study",
-      workDays: "the days you usually work",
-      busiestSeason: "your busiest time of year",
+      region: "city or region of residence (province or city level)",
+      household: "family (who you live with)",
+      gender: "gender",
+      nationality: "nationality",
+      marital: "marital status (adults only)",
+      motto: "a personal motto",
     };
     expect(Object.keys(KO).sort()).toEqual([...PROFILE_DETAIL_KEYS].sort());
     expect(Object.keys(EN).sort()).toEqual([...PROFILE_DETAIL_KEYS].sort());
@@ -182,8 +182,8 @@ describe("legal document snapshots", () => {
   test("2026-09-29 policy keeps the required notice and prior technical disclosures", () => {
     const md = readFileSync(resolve(ROOT, "docs/legal/privacy-policy.md"), "utf8");
     // The published policy remains v5 while the 10-05 notice and terms change.
-    expect(md).toContain("_시행일: 2026-10-06 · 최종 개정: 2026-10-06_");
-    expect(PRIVACY_DOC.body).toContain("시행일: 2026-10-06");
+    expect(md).toContain("_시행일: 2026-10-07 · 최종 개정: 2026-10-07_");
+    expect(PRIVACY_DOC.body).toContain("시행일: 2026-10-07");
     expect(PRIVACY_POLICY_VERSION).toBe("2026-10-06");
     expect(CONSENT_VERSION).toBe("2026-10-06");
     expect(TERMS_VERSION).toBe("2026-10-05");
@@ -231,7 +231,7 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).toContain("standard aggregated reports are not governed by that retention setting");
     // Drafts and generated copies must not ship editorial fill markers.
     expect(PRIVACY_DOC.body).not.toMatch(
-      /\[(?:배포일|N|서버 차단일|확인된|deployment date|server-block date|verified)/,
+      /\[(?:배포일|N\b|서버 차단일|확인된|deployment date|server-block date|verified)/,
     );
     // xAI is not selected by any deployed env value and must not be listed.
     expect(PRIVACY_DOC.body).not.toMatch(/xAI|X\.AI/);
@@ -273,10 +273,18 @@ describe("legal document snapshots", () => {
     // condition pinned in the dedicated test above.
     expect(REFUND_DOC.body).toContain("7일 이내 전액 환불");
     expect(PRIVACY_DOC.body).toContain("김양환");
-    // 전화 미표기 (email-first): no phone placeholders or numbers.
+    // Existing business notices stay email-first. Simon's 2026-10-08 weather
+    // addenda explicitly defer the public phone/date until the weekend.
     for (const doc of [TERMS_DOC, REFUND_DOC, PRIVACY_DOC]) {
-      expect(doc.body).not.toMatch(/전화번호|support phone/);
+      let weatherAddendum = false;
+      const existingNotice = doc.body.split("\n").filter((line) => {
+        if (/^#{2,3} /.test(line)) weatherAddendum = /^### (?:위치기반서비스 추가 안내|Weather location addendum|GPS 날씨 추가 안내|GPS weather addendum)/.test(line);
+        return !weatherAddendum;
+      }).join("\n");
+      expect(existingNotice).not.toMatch(/전화번호|support phone/);
     }
+    expect(TERMS_DOC.body).toContain("전화번호와 공개 시행일은 이번 주말 입력 예정");
+    expect(TERMS_DOC.body).toContain("The telephone number and public effective date are scheduled to be entered this weekend");
   });
 
   test("retired lifetime plan; canonical tier names (PR-2 · #1140, Simon 2026-07-29)", () => {

@@ -76,3 +76,50 @@ export function nextKeyboardPadding(current: number, measured: number, mayGrow: 
   const safe = Number.isFinite(measured) ? Math.max(0, measured) : 0;
   return mayGrow ? safe : Math.min(current, safe);
 }
+
+// ── 입력칸 아래 버튼까지 보이게 (2026-10-07 실기 R2A-02 후속) ───────────────────────
+//
+// 영역이 키보드만큼 띄우면 ScrollView 가 줄고, Android 는 포커스된 입력칸만 화면 안으로
+// 맞춘다. /capture 메모 모드는 입력칸(300dp) 바로 아래에 사진 첨부 · OCR 줄과 "담기" 가
+// 있어서, 키보드가 처음 뜰 때 담기가 위 끝 15px(약 4dp)만 보이고 한 번 밀어야 다
+// 보였다. 이 계산은 그 버튼 아래 끝까지 키보드 위에 오도록 얼마나 내릴지 정한다.
+
+/** 보여야 하는 칸 아래로 더 남길 여유(dp). 버튼 테두리가 키보드에 딱 붙지 않게. */
+export const KEYBOARD_REVEAL_MARGIN = 8;
+
+export interface KeyboardRevealFrame {
+  /** 키보드 위에 보여야 하는 아래 끝(ScrollView 내용 좌표, dp). 버튼 아래 끝 + 여유. */
+  revealBottom: number;
+  /**
+   * 화면 위로 넘기지 않을 위 끝(내용 좌표). 포커스된 입력칸을 감싼 묶음의 위 끝이다.
+   * 모르면 null(제한 없음).
+   */
+  keepTop: number | null;
+  /** 지금 ScrollView 높이(영역이 키보드만큼 줄인 뒤). */
+  viewportHeight: number;
+  /** 지금 스크롤 위치. */
+  scrollY: number;
+}
+
+/**
+ * 내릴 스크롤 위치. 움직일 필요가 없으면 null.
+ *
+ * - 버튼 아래 끝이 ScrollView 아래 끝에 오도록 내린다.
+ * - 입력칸 묶음의 위 끝은 화면 위로 넘기지 않는다. 화면이 작아 둘 다 못 담으면 입력칸이
+ *   이긴다 - 지금 글을 쓰는 자리가 버튼보다 먼저다.
+ * - 내리기만 한다. 이미 보이거나 사용자가 더 내려 둔 자리면 그대로 둔다(위로 끌어올리지 않는다).
+ * - 값이 숫자가 아니거나 ScrollView 높이가 0 이하면 null.
+ */
+export function keyboardRevealScrollY({
+  revealBottom,
+  keepTop,
+  viewportHeight,
+  scrollY,
+}: KeyboardRevealFrame): number | null {
+  if (!Number.isFinite(revealBottom) || !Number.isFinite(viewportHeight) || !Number.isFinite(scrollY)) return null;
+  if (viewportHeight <= 0) return null;
+  let target = Math.ceil(revealBottom - viewportHeight);
+  if (keepTop != null && Number.isFinite(keepTop)) target = Math.min(target, Math.floor(keepTop));
+  target = Math.max(0, target);
+  return target - scrollY >= 1 ? target : null;
+}

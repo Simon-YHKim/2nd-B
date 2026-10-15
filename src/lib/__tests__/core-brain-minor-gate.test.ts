@@ -281,6 +281,11 @@ jest.mock("@/lib/nav/phone-embed", () => ({
   useAppRouter: () => jest.requireMock<{ router: unknown }>("expo-router").router,
 }));
 jest.mock("@/components/ui/Text", () => ({ Text: "Text" }));
+jest.mock("@/components/ui/ScreenModal", () => ({ ScreenModal: "Modal" }));
+jest.mock("@/components/phone/PhoneUIKit", () => ({
+  PhoneView: "View", PhonePressable: "Pressable", PhoneScrollView: "ScrollView",
+  PhoneTouchableOpacity: "TouchableOpacity",
+}));
 jest.mock("@/components/ui/Button", () => ({ Button: "Button" }));
 jest.mock("@/components/premium", () => ({
   PremiumAppShell: "PremiumAppShell",
@@ -390,7 +395,9 @@ jest.mock("@/lib/nav/use-focus-refetch", () => ({
 let renderCoreBrainScreen: (harness: HookHarness) => ReactElement;
 let restoreReactHooks: () => void;
 
-async function flushAsync(rounds = 12) {
+// 24, not 12: the records read now goes through withSystemTagsColumn (0218), an
+// async wrapper that awaits the query thenable, so it settles a few microtasks later.
+async function flushAsync(rounds = 24) {
   for (let index = 0; index < rounds; index += 1) await Promise.resolve();
 }
 

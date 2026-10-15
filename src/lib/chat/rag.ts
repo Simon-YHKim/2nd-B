@@ -17,6 +17,7 @@
 
 import { EMBED_DIM, embedTexts } from "../llm/boundary";
 import { getSupabaseClient } from "../supabase/client";
+import { isProfileContextImportSource, serializeProfileImportQuote } from "../wiki/profile-context-source";
 
 export interface RagPage {
   slug: string;
@@ -79,12 +80,12 @@ export async function retrieveChatContext(
   // The kNN RPC returns metadata only; fetch the bodies for the survivors.
   const { data: pages, error: e2 } = await supabase
     .from("wiki_pages")
-    .select("id, slug, title, body_md")
+    .select("id, slug, title, body_md, frontmatter")
     .eq("user_id", userId)
     .in("id", neighbors.map((n) => n.id));
   if (e2 || !Array.isArray(pages)) return [];
   const byId = new Map(
-    (pages as { id: string; slug: string; title: string; body_md: string | null }[]).map((p) => [p.id, p]),
+    (pages as { id: string; slug: string; title: string; body_md: string | null; frontmatter?: unknown }[]).map((p) => [p.id, p]),
   );
 
   const out: RagPage[] = [];
@@ -94,7 +95,9 @@ export async function retrieveChatContext(
     out.push({
       slug: p.slug,
       title: p.title,
-      body: (p.body_md ?? "").slice(0, bodyCharLimit),
+      body: isProfileContextImportSource(p.frontmatter)
+        ? serializeProfileImportQuote(p.body_md ?? "", bodyCharLimit)
+        : (p.body_md ?? "").slice(0, bodyCharLimit),
       similarity: n.similarity,
     });
   }

@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Attachment style (ECR-S, Wei et al. 2007). Two surfaces share this route:
 //   • the RESULT lens (AttachmentLensM3) — a 회피×불안 2-axis map + propose→ratify
 //     estimate, the pixel target cloned from the reference AttachmentScreen; and
@@ -7,7 +8,7 @@
 // retake CTA (mirrors BigFive).
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";

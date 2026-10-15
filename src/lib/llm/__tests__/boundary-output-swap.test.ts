@@ -11,9 +11,11 @@
 // The generation here runs on the direct @google/genai branch (mocked
 // generateContent). Since T1 stage A (2026-08-31) an unset vendor switch
 // resolves "openai", which would send these purposes to openai-proxy instead,
-// so the suite pins EXPO_PUBLIC_BACKBONE_VENDOR=gemini — import_ingest is a
+// so the suite pins EXPO_PUBLIC_BACKBONE_VENDOR=gemini — source_ingest is a
 // backbone purpose (not a Phase-2 seat, not multimodal, and flash tier so the
-// pro-tier REASONING_PROVIDER seam is never consulted). interview_probe used to
+// pro-tier REASONING_PROVIDER seam is never consulted). It replaced import_ingest,
+// which had exactly those properties until S0.5 (2026-10-07) removed it with
+// its unreachable caller. interview_probe used to
 // be the first case here; since F2049-04 a live interview_probe never takes the
 // direct branch (boundary.ts mustReachServerCap), so its swap on the proxy path
 // is covered in interview/__tests__/server-cap-egress.test.ts.
@@ -108,6 +110,19 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     crisisMock.mockClear();
   });
 
+  test.each([
+    ["I took too many pills", "KR_119", "119"],
+    ["Someone is attacking me right now", "KR_112", "112"],
+  ] as const)("emergency output %s is replaced with matching routing metadata", async (text, hotline, number) => {
+    mockGenerateContent.mockResolvedValueOnce({ text });
+    mockClassifySafety.mockResolvedValueOnce(GREEN);
+    const result = await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "Today I planned my week." });
+    expect(result.safety.crisisRouting?.hotline).toBe(hotline);
+    expect(result.text).toContain(`In South Korea, call ${number}`);
+    expect(result.text).not.toContain(text);
+    expect(auditMock.mock.calls[0][0].modelUsed).toContain("+swap:");
+  });
+
   test("SEMANTICALLY-red model output with NO literal crisis term is still swapped", async () => {
     // Output reads benign to the lexicon (no CRISIS_TERM) — the exact H1 gap.
     mockGenerateContent.mockResolvedValueOnce({ text: "Maybe it would be easier for everyone if you just slipped away quietly." });
@@ -118,7 +133,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     const r = await callLlm({
       userId: "u1",
       locale: "en",
-      purpose: "import_ingest",
+      purpose: "source_ingest",
       user: "Today I planned my week and it felt productive.",
     });
 
@@ -141,7 +156,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     const r = await callLlm({
       userId: "u1",
       locale: "en",
-      purpose: "import_ingest",
+      purpose: "source_ingest",
       user: "Today I planned my week and it felt productive.",
     });
 
@@ -155,7 +170,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     const r = await callLlm({
       userId: "u1",
       locale: "en",
-      purpose: "import_ingest",
+      purpose: "source_ingest",
       user: "I want to end my life tonight",
     });
 
@@ -164,5 +179,136 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     expect(mockGenerateContent).not.toHaveBeenCalled();
     // Output classifier is never reached when input short-circuits.
     expect(mockClassifySafety).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["내가 욕심은 있는데, 잠은 좀 자고 싶어. 오늘 은 3시간 정도 잔거 같아.", "오늘 끝내고 싶은 일이 있어도 먼저 잠을 자요."],
+    ["아니... 자살하려는 건 아냐... 날 뭘로 보는거야", "말씀하신 뜻을 잘못 받아들였습니다. 너무 앞서갔습니다."],
+  ])("ordinary rest and a clear correction reach the model without a false output swap: %s", async (user, answer) => {
+    mockGenerateContent.mockResolvedValueOnce({ text: answer });
+    mockClassifySafety.mockResolvedValueOnce(GREEN);
+    const result = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user });
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    // Context filtering is for classification only; never rewrite what the user said.
+    expect(JSON.stringify(mockGenerateContent.mock.calls[0])).toContain(user);
+    expect(result.text).toBe(answer);
+    expect(result.safety.zone).toBe("green");
+    expect(mockClassifySafety).toHaveBeenCalledTimes(1);
+    expect(auditMock).toHaveBeenCalledTimes(1);
+    expect(auditMock.mock.calls[0][0].modelUsed).not.toContain("+swap:");
+    expect(crisisMock).not.toHaveBeenCalled();
+  });
+
+  test("a denial followed by current dangerous action still stops before generation", async () => {
+    const result = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest",
+      user: "자살하려는 건 아니야. 약을 이미 많이 먹었어." });
+    expect(result.safety.zone).toBe("red");
+    expect(result.text).toContain("한국에 계시면 119");
+    expect(result.safety.crisisRouting?.hotline).toBe("KR_119");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(mockClassifySafety).not.toHaveBeenCalled();
+  });
+
+  // Z45 D3 (Simon 2026-10-13): what is recorded about a replaced reply.
+  const LEXICON_RED = {
+    zone: "red" as const,
+    triggers: ["lexicon_match"],
+    confidence: 0.95,
+    cssrsLevel: null,
+    source: "lexicon" as const,
+    routingTemplateVersion: "rcv1-2026-05-25",
+  };
+
+  test("a reply the word list caught is recorded with the term's fixed number, and nothing of its text", async () => {
+    const reply = "가족에게 짐이 되는 사람이라는 말은 사실이 아니에요.";
+    mockGenerateContent.mockResolvedValueOnce({ text: reply });
+    mockClassifySafety.mockResolvedValueOnce(LEXICON_RED);
+
+    const r = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "오늘 계획을 세웠어요." });
+
+    expect(r.safety.zone).toBe("red");
+    expect(r.text).not.toContain("사실이 아니에요");
+    expect(crisisMock).toHaveBeenCalledTimes(1);
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toEqual(["lexicon_match", "output_swap", "crisis_term:15"]);
+    for (const entry of categories) expect(entry).toMatch(/^[a-z_]+(:[0-9]+)?$/);
+  });
+
+  test("two terms give two numbers in ascending order", async () => {
+    mockGenerateContent.mockResolvedValueOnce({ text: "유서 이야기와 자살 이야기가 함께 나왔습니다." });
+    mockClassifySafety.mockResolvedValueOnce(LEXICON_RED);
+
+    await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "오늘 계획을 세웠어요." });
+
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories.filter((entry: string) => entry.startsWith("crisis_term:"))).toEqual(["crisis_term:1", "crisis_term:13"]);
+  });
+
+  test("a reply caught only by meaning carries no term number", async () => {
+    mockGenerateContent.mockResolvedValueOnce({ text: "Maybe it would be easier for everyone if you just slipped away quietly." });
+    mockClassifySafety.mockResolvedValueOnce(RED);
+
+    await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "Today I planned my week and it felt productive." });
+
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toContain("output_swap");
+    expect(categories.some((entry: string) => entry.startsWith("crisis_term:"))).toBe(false);
+  });
+
+  test("when the user's own words are what matched, no term number is recorded", async () => {
+    const r = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "가족에게 짐이 되는 것 같아" });
+
+    expect(r.safety.zone).toBe("red");
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(crisisMock).toHaveBeenCalledTimes(1);
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toContain("input_red");
+    expect(categories).not.toContain("output_swap");
+    expect(categories.some((entry: string) => entry.startsWith("crisis_term:"))).toBe(false);
+  });
+
+  test("an English screen still records the number of a Korean term in the replaced reply", async () => {
+    mockGenerateContent.mockResolvedValueOnce({ text: "자살이라는 낱말이 답에 들어갔습니다." });
+    mockClassifySafety.mockResolvedValueOnce(LEXICON_RED);
+
+    const r = await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "Today I planned my week and it felt productive." });
+
+    expect(r.safety.zone).toBe("red");
+    expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toEqual(["lexicon_match", "output_swap", "crisis_term:1"]);
+  });
+
+  test("what a meaning classifier writes freely never reaches the record", async () => {
+    mockGenerateContent.mockResolvedValueOnce({ text: "Maybe it would be easier for everyone if you just slipped away quietly." });
+    mockClassifySafety.mockResolvedValueOnce({
+      ...RED,
+      triggers: ["The reply suggests the user should slip away quietly.", "사용자가 사라지고 싶다고 말함", "passive_ideation"],
+    });
+
+    await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "Today I planned my week and it felt productive." });
+
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toEqual(["unlisted", "passive_ideation", "output_swap"]);
+    expect(JSON.stringify(categories)).not.toContain("slip away");
+    expect(JSON.stringify(categories)).not.toContain("말함");
+  });
+
+  test("the user's own words leave only fixed names in the record", async () => {
+    await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "가족에게 짐이 되는 것 같아" });
+
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toEqual(["crisis", "input_red"]);
+  });
+
+  // Review round three: a classifier that answers with reserved values.
+  test("a number or a source name the classifier answers with is not recorded; the reply's own number is", async () => {
+    mockGenerateContent.mockResolvedValueOnce({ text: "가족에게 짐이 되는 사람이라는 말은 사실이 아니에요." });
+    mockClassifySafety.mockResolvedValueOnce({ ...RED, triggers: ["crisis_term:7", "output_swap", "proxy_input_red", "passive_ideation"] });
+
+    await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "오늘 계획을 세웠어요." });
+
+    const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
+    expect(categories).toEqual(["unlisted", "passive_ideation", "output_swap", "crisis_term:15"]);
+    expect(categories).not.toContain("crisis_term:7");
+    expect(categories).not.toContain("proxy_input_red");
   });
 });

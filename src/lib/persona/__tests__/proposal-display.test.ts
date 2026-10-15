@@ -38,4 +38,12 @@ describe("formatProposalForDisplay", () => {
     expect(formatProposalForDisplay(proposal({ target: { kind: "soulCore" } }), "ko").targetLabel).toBe("북극성");
     expect(formatProposalForDisplay(proposal({ target: { kind: "northStar" } }), "en").targetLabel).toContain("north star");
   });
+
+  // 설계 대화 발주 a(2026-10-07): 시트는 원시 id 대신 별 이름을 보인다. 이름을 못 찾을 때만 id.
+  test("the sheet names the star instead of showing its raw id", () => {
+    const names = (kind: "star" | "sevenStar", id: string) => (kind === "sevenStar" && id === "twenties" ? "20대" : kind === "star" && id === "relational" ? "관계의 나" : null);
+    expect(formatProposalForDisplay(proposal({ target: { kind: "sevenStar", star: "twenties" } }), "ko", names).targetLabel).toBe("별: 20대");
+    expect(formatProposalForDisplay(proposal({ target: { kind: "star", star: "relational" } }), "ko", names).targetLabel).toBe("별: 관계의 나");
+    expect(formatProposalForDisplay(proposal({ target: { kind: "sevenStar", star: "school" } }), "ko", names).targetLabel).toBe("별: school");
+  });
 });

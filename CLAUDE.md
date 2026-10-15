@@ -43,7 +43,13 @@ Simon 원문(09-29): *"앱과 localhost는 같은 s/w여야 한다고. 그리고
    때만** 한다 - 같은 코드 · 같은 설정의 빌드를 골라(없으면 기본 입력으로 새로 돌려) QA pre-release 로
    올린다(`--latest=false`). 번들에 들어가는 파일은 전부 워크플로의 `on.push.paths` 안에 있어야 한다
    (`app-parity.test.ts` 가 src 의 import 를 풀어 검사한다) - 밖에 있으면 CI 가 APK 를 다시 안 만든다.
-4. **세션을 끝내기 전에 `npm run app:parity` 가 "같음" 이어야 한다.** 같음 = 8081 이 origin/main
+4. **수정 작업 완료 = localhost:8081에서 실제 수정사항을 확인할 수 있는 상태다**(Simon, 2026-10-08).
+   로컬 구현·테스트·커밋만으로 완료라고 보고하지 않는다. 요청받은 수정은 PR → CI → 머지 →
+   8081 반영까지 이어가고, 브라우저에서 바뀐 동작과 QA 경로를 직접 확인한다. 서버 적용·기능 활성화가
+   필요한 변경은 그 실행까지 확인해야 한다. 기존 main의 parity 통과는 이번 변경의 반영 증거가 아니다.
+   보안 BLOCK·다른 세션의 적용 중 표시 등으로 반영하지 못하면 **미완료**와 구체적인 원인을 알린다.
+   이 완료 기준은 보안·동의·서버 선행 조건을 건너뛰라는 뜻이 아니다.
+   **세션을 끝내기 전에 `npm run app:parity` 가 "같음" 이어야 한다.** 같음 = 8081 이 origin/main
    과 앱 경로 차이 0 · 설정(워크플로 env + 저장소 Variables) · 의존성(lockfile · patches)이 같음 ·
    같은 코드 · 같은 설정의 폰용 APK 빌드가 성공했거나 진행 중(끊길 것이 확실한 대기 빌드 · 설정 주석을
    아직 안 남긴 수동 빌드는 세지 않는다). 저장소 Variables 만 바꿨거나 빌드가 게이트에서 끊겼으면 그
@@ -429,8 +435,10 @@ PRD 는 **Draft v4**(#1385, 2026-08-25)가 정본이다 — 일곱 한 벌·화�
 새 KPI. `docs/CONSTELLATION-DESIGN.md` 는 역사 기록 배너가 붙었다. Claude Design
 재발주 프롬프트는 `design/CLAUDE-DESIGN-BRIEF-260825.md`.
 
-세컨비 → 허슬케이 개명은 구조가 자리 잡은 뒤로 미뤘다(Simon 명시). 앱 이름(Polar
-Scope 검토 → 충돌 2건 검증됨, Merak 등 대안 후보)과 **한 체계로 함께** 결정한다.
+**2026-10-08 Simon 결정: 캐릭터는 허슬케이(HustleK)로 교체한다.** 제공한 초상화
+표정 48종(`assets/hustlek`)을 쓰며, 세컨비의 그림·사용자 표시 이름·대화 소개를
+교체한다. 기존 개명 보류는 해제됐다. 앱 표시 이름은 PolaScope다.
+`/secondb`, `secondb_chat`, 저장 키와 기존 컴포넌트 진입점은 호환을 위해 유지한다.
 
 ---
 
@@ -822,6 +830,7 @@ Too much at once is as bad as overlap. Every screen earns attention with ONE thi
 - **One graphic supports it** — the visual IS the explanation. If you need explanatory text, the graphic failed → change the graphic, not add copy.
 - **Progressive disclosure** — detail appears only AFTER a tap/drilldown. First screen = the lure, detail = the catch.
 - Pairs with the touch rule (O-7): one touch should SIMPLIFY the screen, never add an overlapping layer (use a screen transition or bottom sheet, never a modal over the node). Back lives in exactly one place.
+- **UI copy** — 화면 문구를 쓰거나 고칠 때 `STYLE.md` 의 「설명 문구 줄이기」 체크리스트와 말투 규칙(B안 · 두 예외)을 따른다(Simon 2026-10-07 설명형 UI 문구 금지 · 2026-10-14 Q-261014-87).
 
 ## Worktrees & branches (Simon standing rule)
 
@@ -877,6 +886,23 @@ every agent: Claude, Codex, Antigravity, Grok.
   eslint). Keep those excludes: they stop the nested copies from polluting
   `npm run verify` and the Metro bundler.
 
+## 결정 먼저 확인 (Simon 2026-10-07)
+
+PR을 열기 전과 마이그레이션 번호를 잡기 전에 origin/main의 DECISIONS.md 최신 30줄을 읽는다. 결정과 어긋나는 작업은 멈추고 _sync로 묻는다.
+
+> 이유: #2131(0220 판정 원장)은 그 결정(`DECISIONS.md:82`)이 한 우편함(재설계 세션)으로만 가서 다른 세션이 모른 채
+> 반대로 만들었다. 저장소 규칙에 두면 모든 세션이 같은 것을 읽는다. 읽기: `git fetch origin` 뒤
+> `git show origin/main:DECISIONS.md | tail -30`(Git Bash 는 `MSYS_NO_PATHCONV=1` 을 앞에 붙인다).
+
+## 운영 게시 · 적용 중 표시 (Simon 2026-10-07)
+
+운영 게시(웹 publish · QA APK)나 운영 마이그레이션 적용을 시작하면 `_sync/TO-CLI.md` 에 시작 시각과 함께
+"게시 중"(또는 "적용 중")을 올리고, 끝나면 "완료" 로 내린다. 다른 세션은 그 사이 main 머지를 멈춘다.
+
+> 이유: 2026-10-07 웹 게시가 세 번 "main moved during the build" 로 멈췄다 — 게시 워크플로는 빌드하는 동안
+> main 이 움직이면 승인 전에 스스로 멈춘다. 우편함으로 머지를 미뤄 달라고 한 네 번째에 성공했다.
+> 그 방식을 규칙으로 굳힌 것이다(DECISIONS 26.10.07 11:07 보충).
+
 ## What never to do in this repo
 
 - Commit `.env`. (gitignored — verify before staging.)
@@ -884,6 +910,10 @@ every agent: Claude, Codex, Antigravity, Grok.
   `C:\Coding Infra\_worktrees\`). See **Worktrees & branches** above.
 - Push to `main` directly. Always PR.
 - Use `git rebase -i` or `git push --force` without explicit user confirmation.
+  (2026-10-07: `.claude/settings.json` 의 `permissions.deny` 가 Claude 의 Bash 도구에서 `--force` ·
+  `--force-with-lease` · `--force-if-includes` · `-f` · `+refspec` 푸시를 막는다. 규칙은 명령 문자열
+  일치라 `bash -c "..."` 안이나 별칭 · 스크립트로 감싼 푸시는 못 잡을 수 있다 — 이 줄이 여전히 규칙이다.
+  확인된 사용자 지시로 꼭 필요하면 사람이 직접 친다.)
 - Add a dependency without checking the free-tier impact (blueprint §5 promises $0/mo).
 - Skip the safety classifier in any LLM call path.
 - Stage `.claude/settings.local.json` (per-user, gitignored).

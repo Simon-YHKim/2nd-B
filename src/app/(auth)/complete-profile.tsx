@@ -11,6 +11,8 @@ import { PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
+import { GuardianSupervisionNotice } from "@/components/consent/GuardianSupervisionNotice";
+import { shouldEmphasizeGuardianSupervision } from "@/components/consent/guardian-supervision-emphasis";
 import { ResidenceCountryField } from "@/components/auth/ResidenceCountryField";
 import { GoalField, NameField } from "@/components/auth/ProfileIntakeFields";
 import { saveNorthstar } from "@/lib/persona/northstar";
@@ -31,6 +33,7 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
 import { PixelSurface } from "@/components/pixel";
+import { ShareRefusedLine } from "@/components/capture/ShareRefusedLine";
 import {
   emptyConsentSelections,
   allRequiredAcksChecked,
@@ -216,10 +219,12 @@ function CompleteProfileBody() {
         // replaced straight to "/" - the sentence is typed during sign-up, so a
         // 14-17 user in a red zone was pushed into the app with nothing shown.
         let northstarRedZone = false;
+        let northstarHotline: HotlineId | undefined;
         if (goal.trim() && userId) {
           try {
             const seeded = await saveNorthstar({ userId, locale, sentence: goal, minor: isMinorAge });
             northstarRedZone = seeded.followup?.zone === "red";
+            northstarHotline = seeded.crisisHotline;
           } catch (e) {
             console.error("[complete-profile] northstar seed failed", e);
           }
@@ -229,7 +234,7 @@ function CompleteProfileBody() {
           // modal lets the normal redirect through. Entry is never blocked.
           setCrisis({
             visible: true,
-            hotline: locale === "ko" ? (isMinorAge ? "KR_1388" : "KR_109") : "GLOBAL_988",
+            hotline: northstarHotline ?? (locale === "ko" ? (isMinorAge ? "KR_1388" : "KR_109") : "GLOBAL_988"),
           });
           return;
         }
@@ -331,6 +336,8 @@ function CompleteProfileBody() {
           </PixelSurface>
         </View>
 
+        <ShareRefusedLine />
+
         <View style={styles.form}>
           {/* 0127 / L4. Optional, and it stays optional: onboarding is where
               people quit, and a required name buys nothing the app cannot do
@@ -357,6 +364,7 @@ function CompleteProfileBody() {
               onChange={setBirthDate}
               minAge={minConsentAge}
             />
+            <GuardianSupervisionNotice emphasized={shouldEmphasizeGuardianSupervision(birthDate)} />
 
             {birthDate.length > 0 ? (
               <View style={styles.checklist}>

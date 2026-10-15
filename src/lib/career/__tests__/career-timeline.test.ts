@@ -27,6 +27,21 @@ describe("career CV timeline (P4d)", () => {
     expect(careerRecordOrigin(row({ topic: "Recall interview" }))).toEqual({ source: "record", entryUi: null });
   });
 
+  // 0218: rows read with records.system_tags. The markers are the app's; a user
+  // tag that says `interview` on the same kind of row is not an interview.
+  test("reads the interview and entry-ui markers from system_tags when the row has it", () => {
+    expect(
+      careerRecordOrigin(row({ kind: "audit_response", tags: ["domain:career"], system_tags: ["interview", "recall", "screener", "entry-ui:ko"] })),
+    ).toEqual({ source: "interview", entryUi: "ko" });
+    expect(
+      careerRecordOrigin(row({ kind: "audit_response", tags: ["domain:career", "interview", "entry-ui:ko"], system_tags: [] })),
+    ).toEqual({ source: "record", entryUi: null });
+    // The English fixed title still decides when the entry-ui marker is missing.
+    expect(
+      careerRecordOrigin(row({ kind: "audit_response", tags: [], system_tags: ["interview", "recall", "screener"], topic: "Recall interview" })),
+    ).toEqual({ source: "interview", entryUi: "en" });
+  });
+
   test("explicit year tag wins over created_at", () => {
     expect(careerYearOf(row({ tags: ["domain:career", "year:2019"] }))).toBe("2019");
     expect(careerYearOf(row({ tags: ["domain:career"] }))).toBe("2026");

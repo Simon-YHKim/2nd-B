@@ -29,7 +29,8 @@ test("data controls live in Settings, not inside the phone's app tabs", () => {
   expect(phone).toContain('useFocusEffect(useCallback(() => {');
   expect(phone).toContain('void loadDashboard(ownerId, isMinor)');
   expect(settings).toContain('router.push("/data-connections")');
-  expect(settings).toContain('router.push("/reminders")');
+  expect(settings).not.toContain('router.push("/reminders")');
+  expect(phone).toContain('{ id: "reminders", route: "/reminders" }');
   expect(dataSettings).toContain("SOURCE_GROUPS.map((group)");
   expect(dataSettings).toContain("sourceGroup(source) === group");
   expect(dataSettings).toContain("setRefreshSettings(ownerId, next)");

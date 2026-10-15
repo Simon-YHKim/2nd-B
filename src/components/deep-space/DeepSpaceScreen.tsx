@@ -11,10 +11,10 @@
  * Rendered only in the deep-space build. The deep-space-shell-a11y guard pins the
  * character accessibilityLabel pattern to THIS file.
  */
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type ReactNode, type RefObject } from "react";
 import { BackHandler, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, usePathname, type Href } from "expo-router";
 
 import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
@@ -28,6 +28,8 @@ import { Text } from "@/components/ui/Text";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { goHome } from "@/lib/nav/go-home";
 import { usePhoneEmbed } from "@/lib/nav/phone-embed";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
 
 /**
  * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
@@ -70,6 +72,10 @@ export function DeepSpaceScreen({
   onBack,
   action,
   ownBack = false,
+  overlay,
+  dockItemRefs,
+  dockItemHints,
+  onDockSelect,
   children,
 }: {
   active: DeepSpaceTab;
@@ -98,6 +104,15 @@ export function DeepSpaceScreen({
   /** The screen draws its own back button in its body. Inside the dashboard
    *  phone the shell then adds no second one (Back lives in one place). */
   ownBack?: boolean;
+  /** Drawn above the body and the dock. The body's own children stop at the dock's top edge,
+   *  so a guide that points at a dock tab has to be drawn here. */
+  overlay?: ReactNode;
+  /** Refs to single dock tabs, for that guide to measure. */
+  dockItemRefs?: Partial<Record<DeepSpaceTab, RefObject<View | null>>>;
+  /** A hint read on single dock tabs (the guide's sentence, on the tab it points at). */
+  dockItemHints?: Partial<Record<DeepSpaceTab, string>>;
+  /** A screen may take a dock press itself. Returning true means it did. */
+  onDockSelect?: (tab: DeepSpaceTab) => boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation("home");
@@ -126,6 +141,8 @@ export function DeepSpaceScreen({
   // leave the app and the extra homes stayed mounted (QA 261004 D-12, D-01).
   const pathname = usePathname();
   const embed = usePhoneEmbed();
+  const phone = usePhoneDesign();
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     if (active === "home" || !TABS.includes(active)) return;
     if (pathname !== TAB_ROUTE[active]) return;
@@ -141,6 +158,7 @@ export function DeepSpaceScreen({
     key,
     label: t("ds.dock." + key),
     accessibilityLabel: t("ds.dock." + key),
+    accessibilityHint: dockItemHints?.[key],
     icon: (color: string) => <TabIcon tab={key} color={color} size={24} />,
   }));
 
@@ -151,17 +169,17 @@ export function DeepSpaceScreen({
   // a bounded view outside its list.
   if (embed) {
     return (
-      <View style={styles.embedded}>
-        {ownBack && !title && !action ? null : <View style={styles.embeddedHeader}>
+      <View style={[styles.embedded, phone && styles.phoneEmbedded]}>
+        {ownBack && !title && !action ? null : <View style={[styles.embeddedHeader, phone && styles.phoneHeader]}>
           {ownBack ? null : <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("ops:phone.internal.back")}
             onPress={onBack ?? embed.back}
             style={styles.embeddedBack}
           >
-            <PixelGlyph name="arrow_back" color={deepSpace.accentBright} size={24} />
+            <PixelGlyph name={phone ? "chevron_left" : "arrow_back"} color={phone ? phoneIos.blue : deepSpace.accentBright} size={24} />
           </Pressable>}
-          {title ? <Text variant="heading" numberOfLines={2} style={styles.embeddedTitle}>{title}</Text> : <View style={styles.embeddedTitle} />}
+          {title ? <Text variant="heading" numberOfLines={2} style={[styles.embeddedTitle, phone && styles.phoneTitle]}>{title}</Text> : <View style={styles.embeddedTitle} />}
           {action}
         </View>}
         <View style={styles.embeddedBody}>{children}</View>
@@ -239,18 +257,30 @@ export function DeepSpaceScreen({
         items={dockItems}
         buttonLike
         style={styles.buttonDock}
+        itemRefs={dockItemRefs}
         onSelect={(tab) => {
+          if (onDockSelect?.(tab as DeepSpaceTab)) return;
           const target = TAB_ROUTE[tab as DeepSpaceTab];
           // Sub-screens highlight their owning root tab. Tapping that highlighted
           // item must still return to the root instead of becoming a no-op.
           if (tab !== active || pathname !== target) router.replace(target);
         }}
       />
+      {/* The overlay covers the body and the dock, and stays inside the safe area like they do:
+          an absolute child ignores this view's inset padding, so the insets are given here. */}
+      {overlay ? (
+        <View pointerEvents="box-none" style={[styles.overlayHost, { top: insets.top, bottom: insets.bottom }]}>
+          {overlay}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  phoneEmbedded: { backgroundColor: phoneIos.grouped },
+  phoneHeader: { minHeight: 48, backgroundColor: phoneIos.grouped, borderBottomWidth: 2, borderBottomColor: phoneIos.fill },
+  phoneTitle: { color: phoneIos.label, fontFamily: "Galmuri11Bold", fontSize: 18, lineHeight: 24, paddingBottom: 2 },
   embedded: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0, backgroundColor: deepSpace.bgMid },
   embeddedHeader: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 4 },
   embeddedBack: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
@@ -269,6 +299,7 @@ const styles = StyleSheet.create({
     borderTopColor: m3.color.surfaceBright,
   },
   floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 6 },
+  overlayHost: { position: "absolute", left: 0, right: 0, zIndex: 40 },
   // Content clears the ~56dp bar zone (no blur, so "under the scrim" would
   // just be hidden; clearance matches the visual outcome).
   museumBody: { flex: 1, paddingTop: 60 },

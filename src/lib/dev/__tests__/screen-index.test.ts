@@ -39,6 +39,14 @@ import {
 const APP = join(process.cwd(), "src", "app");
 const SRC = join(process.cwd(), "src");
 
+test("개인 비서의 이름과 진입 안내가 앱과 일치한다", () => {
+  const assistant = devScreens().find((screen) => screen.href === "/ops");
+  expect(assistant?.label).toBe("개인 비서");
+  expect(assistant?.note).toContain("폰 앱 바둑판");
+  const canon = JSON.parse(readFileSync(join(process.cwd(), "public/proto/data/app/screens.json"), "utf8"));
+  expect(canon.screens.find((screen: { id: string }) => screen.id === "ops").title).toBe(assistant?.label);
+});
+
 interface DelegatedAuthFixture {
   gateFile: string;
   component: string;
@@ -1293,10 +1301,10 @@ describe("개발자 화면 목록", () => {
   });
 
   it("등급을 타는 변형만 등급 안내를 달고, 그 근거가 실행으로 확인된다", () => {
-    // ?mode=divergent 는 트위비를 심는데 트위비는 pro(=brain) 전용이라 free·plus 에서는
+    // ?mode=divergent 는 조이케이를 심는데 조이케이는 pro(=brain) 전용이라 free·plus 에서는
     // effect 가 페르소나를 **조용히** 되돌린다. 그래서 이 변형에만 등급 안내가 붙는다.
     const note = devScreenVariants().find(({ variant }) => variant.href === "/secondb?mode=divergent")?.variant.note ?? "";
-    expect(note).toContain("Brain");
+    expect(note).toContain("북극성(pro)");
     expect(note).toContain("EXPO_PUBLIC_FORCE_TIER=brain");
 
     const secondb = readFileSync(join(APP, "secondb.tsx"), "utf8");

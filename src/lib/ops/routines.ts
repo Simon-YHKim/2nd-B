@@ -12,6 +12,7 @@
 // without a client.
 
 import { getSupabaseClient } from "../supabase/client";
+import { captureAccountOwnerLease } from "../auth/account-epoch";
 import type { HealthSample } from "../health/HealthSource";
 import type { OpsDomainId } from "./domains";
 import { localDayKeyFromIso, routinesSatisfiedBy } from "./health-link";
@@ -150,23 +151,39 @@ export async function createRoutineFromRecommendation(
   userId: string,
   domainId: OpsDomainId,
   rec: OpsRecommendation,
+  options?: { weekday?: number; signal?: AbortSignal; routineId?: string },
 ): Promise<OpsRoutine> {
   const recurrence = mapRecurrence(rec);
-  const { reminder_time, weekday } = deriveReminder(rec);
+  const reminder = deriveReminder(rec);
+  if (recurrence === "weekly" && options?.weekday !== undefined
+    && (!Number.isInteger(options.weekday) || options.weekday < 0 || options.weekday > 6)) throw new Error("Invalid routine weekday");
+  const weekday = recurrence === "weekly" ? options?.weekday ?? reminder.weekday : null;
+  if (options?.signal?.aborted) { const error = new Error("Routine save aborted"); error.name = "AbortError"; throw error; }
+  const routineId = options?.routineId;
+  if (routineId !== undefined) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(routineId)) throw new Error("Invalid routine confirmation ID");
+    if (!captureAccountOwnerLease(userId)?.isCurrent()) throw new Error("Routine owner changed");
+  }
   const insert = {
     user_id: userId,
     domain_id: domainId,
     title: rec.title,
     reason: rec.reason ?? null,
     recurrence,
-    reminder_time,
+    reminder_time: reminder.reminder_time,
     weekday,
     duration_minutes: typeof rec.durationMinutes === "number" ? rec.durationMinutes : null,
     checklist: rec.checklist ?? [],
     active: true,
   };
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from("ops_routines").insert(insert).select().single();
+  // 0048 already allows client UUIDs and owner-only INSERT/UPDATE. A retry
+  // replaces the reviewed fields on the same row, including edits after error.
+  const table = supabase.from("ops_routines");
+  const query = (routineId
+    ? table.upsert({ ...insert, id: routineId }, { onConflict: "id" })
+    : table.insert(insert)).select();
+  const { data, error } = await (options?.signal ? query.abortSignal(options.signal) : query).single();
   if (error) throw error;
   return rowToRoutine(data as Record<string, unknown>);
 }

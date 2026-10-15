@@ -47,7 +47,14 @@ const NOT_PRODUCT_SURFACE = [
 const KOREAN_BY_DESIGN: Record<string, string> = {
   // ── 매칭 규칙: 번역하면 기능이 죽는다 ──
   "src/lib/records/detect-domain.ts": "도메인 분류용 한국어 키워드 목록",
+  "src/lib/chat/plan-suggestions.ts": "대화의 반복 의도·취소·오전/오후를 해석하는 한국어 매칭 규칙. UI 문구는 secondb.json에서 번역",
+  "src/lib/chat/sources.ts": "치환된 인용 이름 뒤의 한국어 조사 쌍을 josaFor에 연결하는 문법 규칙. 중립 낱말은 화면에서 번역해 전달",
+  "src/lib/safety/emergency-routing.ts": "앱과 Edge 공용 한국어 문법 규칙 및 ko/en 고정 긴급 안내. 런타임 i18n 없이 같은 안내를 반환하며 각 UI 언어의 번호·본문은 emergency-dialog 검사로 대조",
   "src/lib/safety/lexicon.ts": "금지어 패턴 (안전 분류기 입력)",
+  "src/lib/safety/crisis-context.ts": "의도 부인과 업무·휴식 문맥을 판별하는 한국어 문법 규칙. 사용자에게 표시하는 문구가 아님",
+  "src/lib/safety/classifier.ts": "위기 입력 검사가 띄어쓰기를 일부만 뺀 꼴까지 읽는 위기 낱말의 이름 목록(Q-261015-80). 사용자에게 표시하는 문구가 아님",
+  "src/lib/safety/model-reply-scan.ts": "모델 답 검사에서만 넘기는 닫힌 겹침 낱말 목록과 위기 낱말의 고정 번호표. 사용자에게 표시하는 문구가 아님",
+  "src/lib/safety/crisis-obfuscation.ts": "쪼갠 입력을 의미 판정에 보낼지 정하는 낱말·글자 규칙. 번역할 UI 문구가 아님",
   "src/lib/safety/anthro.ts": "의인화 금지 패턴",
   "src/lib/safety/crisis-eval-corpus.ts": "위기 분류 평가 픽스처 — 번역하면 평가가 무의미",
   "src/lib/import/finance-csv.ts": "한국 은행 CSV 컬럼명",
@@ -65,6 +72,7 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/ops/recommend.ts": "LLM 시스템 프롬프트",
   "src/lib/ops/daily-brief.ts": "LLM 시스템 프롬프트",
   "src/lib/persona/profile-details.ts": "LLM 프롬프트용 필드 설명",
+  "src/lib/import/profile-context-prompt.ts": "외부 LLM에 복사할 추출 프롬프트의 한국어·영어 분기와 JSON 계약. 앱 UI는 profile.json에서 번역하며 프롬프트의 로케일별 출력은 별도 테스트로 검증",
   "src/lib/persona/persona-synthesis.ts": "LLM 페르소나 합성 시스템 프롬프트 — UI 카피가 아니고 모델 동작 계약",
 
   // ── 개념 이름: 데이터에 가깝다 ──
@@ -75,6 +83,9 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   // 사람이 읽는 자리는 CLAUDE.md 지 UI 가 아니다. i18n 으로 빼면 명세와 검사가
   // 갈라진다.
   "src/lib/lenses/registry.ts": "렌즈 명세 (관문 ③ 채점 정의) — UI 카피 아님",
+  // 문턱 표의 사람용 설명(output · dataKind · text)은 화면 카피가 아니라 **명세**다. 출처 검사
+  // (registry.test.ts) 가 같은 파일을 읽고, 대시보드 화면은 문장이 아니라 숫자 칸만 읽는다.
+  "src/lib/sufficiency/registry.ts": "문턱 명세 (출처 앵커 · 사람용 설명) — UI 카피 아님",
 
   // ── 한국어 폴백: 화면은 이미 i18n 을 쓰고, 이건 인자 없을 때의 기본값 ──
   "src/screens/deepspace/records-timeline.ts": "라벨 폴백 — 화면은 dsTimeLabels(t) 로 i18n 을 넘긴다",
@@ -182,7 +193,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   // core-brain 은 2026-10-06 에 6 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A,
   // 저장 결과 카드 · 덱 제목 · 그래픽 라벨 · 내보내기를 core-brain/persona 키로).
   "src/app/iden.tsx": 7,
-  "src/app/interview.tsx": 4,
+  "src/app/interview.tsx": 3,
   "src/app/ipip-neo.tsx": 16,
   "src/app/motivation.tsx": 6,
   "src/app/notices.tsx": 10, // 38 -> 10: D-06 (QA 261004) 디자인 목업 공지 5건 제거
@@ -193,14 +204,14 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   // 연결 프롬프트(reasoning_connect) 의 한국어 시스템 지시문 두 벌 - UI 가 아니라 모델 지시문이다
   "src/app/reasoning.tsx": 2,
   "src/app/rlss.tsx": 10,
-  "src/app/secondb.tsx": 10,
-  "src/app/settings.tsx": 11,
+  "src/app/secondb.tsx": 8,
+  "src/app/settings.tsx": 8, // 11 -> 8: 2026-10-07 소식 · 공지사항 행이 설정에서 빠졌다(Simon)
   "src/app/star/[domain].tsx": 20,
   "src/app/strengths.tsx": 20,
   "src/app/values.tsx": 20,
   "src/components/deep-space/AutoReasoningIntroSheet.tsx": 6,
   "src/components/deep-space/AxisCheck.tsx": 13,
-  "src/components/deep-space/ConstellationHome.tsx": 16,
+  "src/components/deep-space/ConstellationHome.tsx": 14,
   "src/components/deep-space/DeepSpaceViews.tsx": 3,
   "src/components/deep-space/DomainStarLens.tsx": 54,
   "src/components/deepspace/BackgroundTaskDock.tsx": 4,
@@ -224,7 +235,10 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/career/achievement-form.ts": 12,
   // characters.ts(12) · chat/personas.ts(12) 는 2026-10-05 에 파일째 E:/Legacy 로 갔다
   // (Simon 결정 Q-261004-14 A). **고친 것이 아니라 빠진 것**이다.
-  "src/lib/chat/conversation.ts": 24,
+  // 24 -> 28: 2026-10-11 Q-261011-11 위기 전화번호 원칙(crisisNumberRule). KO/EN 한 쌍의 모델 지시문이고
+  // UI 문구가 아니다 - 같은 파일의 SYSTEM_PROMPT_HEADER 와 같은 성질이라 번들로 빼지 않는다.
+  // 28 -> 25: 2026-10-14 Q-261014-24 한도 말풍선의 업그레이드 권유 문장(템플릿 세 조각)을 뺐다.
+  "src/lib/chat/conversation.ts": 25,
   "src/lib/chat/keep-exchange.ts": 3,
   "src/lib/chat/rag.ts": 1,
   "src/lib/entitlements/reasoning-cap.ts": 4,
@@ -241,7 +255,9 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/interview/stuck.ts": 10,
   "src/lib/journal/daily-prompts.ts": 15,
   "src/lib/knowledge/retrieve.ts": 30,
-  "src/lib/llm/boundary.ts": 49,
+  // 2026-10-07 S0.5: 49 -> 29. MOCK_RESPONSES 에서 호출부 없는 좌석 imagine(ko 11줄) 과
+  // import_ingest(ko 9줄) 의 미리보기 견본이 빠졌다. **고친 것이 아니라 빠진 것**이다.
+  "src/lib/llm/boundary.ts": 29,
   "src/lib/llm/safety.ts": 4,
   "src/lib/llm/untrusted.ts": 1,
   "src/lib/notices/adapt.ts": 2,

@@ -1,12 +1,12 @@
 {
   "character": {
-    "a11y": "Personaje SecondB"
+    "a11y": "Personaje HustleK"
   },
   "ds": {
     "dock": {
       "home": "Inicio",
       "capture": "Recortes",
-      "chat": "SecondB",
+      "chat": "HustleK",
       "ops": "Asistente",
       "account": "Yo",
       "lens": "Yo",
@@ -29,7 +29,7 @@
       },
       "capture": {
         "text": "Anota lo que se te acaba de ocurrir.",
-        "tip": "Una nota corta está bien. Podrás volver a leerla después de guardarla."
+        "tip": "Una nota corta está bien."
       },
       "chat": {
         "text": "Pregunta lo que quieras saber de tus registros.",
@@ -69,16 +69,16 @@
         "values": "Valores y aspiraciones"
       },
       "inbox": "Notificaciones",
-      "headA11y": "Preguntar a SecondB",
-      "dialogueOpen": "Abrir diálogo con SecondB",
-      "dialogueClose": "Cerrar diálogo con SecondB",
+      "headA11y": "Preguntar a HustleK",
+      "dialogueOpen": "Abrir diálogo con HustleK",
+      "dialogueClose": "Cerrar diálogo con HustleK",
       "kind": {
         "domain": "Área",
         "profile": "Cómo te ven"
       },
       "bubble": {
         "introTag": "Presentación",
-        "intro": "Soy SecondB. Toca mi cabeza para abrir el chat y el asistente.",
+        "intro": "Soy HustleK. Toca mi cabeza para abrir el chat y el asistente.",
         "tipTag": "Consejo",
         "tip1": "Pulsa una estrella para revisar los registros de esa etapa de tu vida.",
         "tip2": "Usa Añadir en la barra inferior para guardar un registro nuevo.",
@@ -86,6 +86,7 @@
         "menuTag": "Menú",
         "menu": "¿Qué quieres hacer?",
         "travel": "Viajar",
+        "goToStar": "Ir a {{star}}",
         "later": "Luego",
         "returnToSky": "Volver a la constelación",
         "chatbot": "Chatbot",
@@ -164,7 +165,7 @@
           "hint": "Qué tenías en mente"
         }
       },
-      "linkHint": "Pega un enlace y SecondB obtiene el título y el resumen.",
+      "linkHint": "Pega un enlace y HustleK obtiene el título y el resumen.",
       "linkPlaceholder": "https://",
       "photoAdd": "Adjuntar foto",
       "photoAddHint": "Elige una foto de tu álbum. Se guarda con esta nota.",
@@ -172,7 +173,7 @@
       "photoRemove": "Quitar la foto {{n}}",
       "photoAttached": "Foto adjunta {{n}}",
       "photoPickError": "No se pudo añadir esa foto. Prueba con otra.",
-      "ocr": "OCR",
+      "ocr": "Leer texto",
       "ocrA11y": "Leer texto de una foto (OCR)",
       "ocrHint": "Elige una foto y la IA lee su texto. La foto no se guarda.",
       "ocrTitle": "Leer texto de una foto",
@@ -188,7 +189,7 @@
       "ocrInserted": "Texto añadido.",
       "todoHint": "Tarea",
       "todoAdd": "Añadir una tarea",
-      "banner": "Al guardar, SecondB añade estrellas y etiquetas relacionadas.",
+      "banner": "Al guardar, HustleK añade estrellas y etiquetas relacionadas.",
       "save": "Capturar",
       "saving": "Guardando",
       "saved": "Guardado",
@@ -303,7 +304,7 @@
       "rewrite": "Reescribir",
       "add": "+ Añadir",
       "emptyTitle": "Aún no has escrito metas para el futuro",
-      "emptyBody": "Habla con Twi-B sobre cómo te gustaría ser y guarda tus ideas aquí."
+      "emptyBody": "Habla con Joy-K sobre cómo te gustaría ser y guarda tus ideas aquí."
     },
     "relational": {
       "title": "Relaciones",
@@ -336,7 +337,7 @@
       "sectionAngles": "Ideas para explorar",
       "sectionSteps": "Qué probar primero",
       "toCapture": "Llevar a Capturar",
-      "more": "Seguir hablando con SecondB",
+      "more": "Seguir hablando con HustleK",
       "seeds": {
         "expand": {
           "angle": "Ampliar",
@@ -351,7 +352,7 @@
           "title": "Si vivieras justo al revés",
           "body": "Improvisar en lugar de planear, en compañía en lugar de a solas. ¿Qué te atrae del otro lado?",
           "step1": "Prueba esta semana algo que nunca haces",
-          "step2": "Anota con SecondB lo que te resultó incómodo",
+          "step2": "Anota con HustleK lo que te resultó incómodo",
           "step3": "Captúralo en la estrella de Descanso y observa el patrón"
         },
         "connect": {
@@ -530,7 +531,7 @@
       "continue": "Seguir",
       "pageLabel": "Resumen de la estrella",
       "meter": "Más brillo al contar más · {{n}}/{{total}} capas",
-      "recordsLabel": "Lo que has guardado hasta ahora",
+      "count": "{{n}}/{{total}} capas",
       "layer": {
         "fact": "Hecho",
         "feeling": "Sentimiento",

@@ -1,3 +1,4 @@
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // "나의 변화" weekly growth review (Claude Design weekly-growth.dc.html).
 // Synthesizes star_tier_history + ops_routine_logs + milestones + records into a
 // this-week vs last-week summary (lib/growth). The 7 stars keep their existing
@@ -6,7 +7,7 @@
 // deepSpace.* tokens only, assembled from the shared Ops kit.
 
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import Svg, { Rect, Text as SvgText } from "react-native-svg";
 import { ringCells, stepPolyline } from "@/components/pixel/pixel-line";
@@ -19,11 +20,13 @@ import { Text } from "@/components/ui/Text";
 import { MetaChip, OpsFrame, OpsState } from "@/components/deepspace/ops";
 import { SecondbHead } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { gatherWeeklyGrowth } from "@/lib/growth/gather";
 import { startTask } from "@/lib/tasks/store";
 import type { StarChange, WeeklyGrowth } from "@/lib/growth/weekly";
 import { createRoutineFromRecommendation } from "@/lib/ops/routines";
+import { runWeeklyGrowthSave, weeklyGrowthSessionRoutineId } from "@/lib/growth/routine-save";
 import { getSevenStar, type SevenStarId } from "@/lib/persona/seven-stars";
 import type { OpsDomainId } from "@/lib/ops/domains";
 
@@ -86,6 +89,7 @@ export function WeeklyGrowthScreen() {
   const [data, setData] = useState<WeeklyGrowth | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [saved, setSaved] = useState(false);
+  const savingRef = useRef(false);
   // The background reanalyze task outlives this screen, so guard its setState.
   const mounted = useRef(true);
   useEffect(() => () => { mounted.current = false; }, []);
@@ -131,20 +135,29 @@ export function WeeklyGrowthScreen() {
 
   const saveStep = async () => {
     if (!userId || !top || saved) return;
+    const owner = captureAccountOwnerLease(userId);
+    if (!owner) return;
     try {
-      // med#20: without a schedule this saved recurrence=none + reminder=null,
-      // so the routine was never "due today" — invisible in the ops list the
-      // button promises. Anchor it as a daily 9AM routine (same default the
-      // ops hub uses), which also makes the reminder derivable.
-      const at = new Date();
-      at.setHours(9, 0, 0, 0);
-      await createRoutineFromRecommendation(userId, STEP_DOMAIN[top.id], {
-        title: stepText(top.id),
-        reason: stepObs(top.id),
-        startsAtIso: at.toISOString(),
-        recurrence: "daily",
+      const didSave = await runWeeklyGrowthSave(savingRef, async () => {
+        const routineId = weeklyGrowthSessionRoutineId(userId, top.id);
+        const domainId = STEP_DOMAIN[top.id];
+        const recommendation = {
+          title: stepText(top.id),
+          reason: stepObs(top.id),
+        };
+        // med#20: without a schedule this saved recurrence=none + reminder=null,
+        // so the routine was never "due today" — invisible in the ops list the
+        // button promises. Anchor it as a daily 9AM routine (same default the
+        // ops hub uses), which also makes the reminder derivable.
+        const at = new Date();
+        at.setHours(9, 0, 0, 0);
+        await createRoutineFromRecommendation(userId, domainId, {
+          ...recommendation,
+          startsAtIso: at.toISOString(),
+          recurrence: "daily",
+        }, { routineId });
       });
-      setSaved(true);
+      if (didSave && owner.isCurrent() && mounted.current) setSaved(true);
     } catch {
       /* best-effort */
     }

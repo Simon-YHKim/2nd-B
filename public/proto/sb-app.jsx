@@ -103,7 +103,7 @@ function Companion({ screen, expression, dataState }) {
   const mood = expression || obs.mood;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px 12px' }}>
-      <div style={{ flex: '0 0 auto', animation: 'sb-bob 4s ease-in-out infinite' }}>
+      <div style={{ flex: '0 0 auto' }}>
         <window.SbHead size={48} expression={mood} track tilt />
       </div>
       <div style={{ flex: 1, position: 'relative', background: C('surface-container-high'), borderRadius: '4px 14px 14px 14px', padding: '10px 14px' }}>
@@ -408,7 +408,7 @@ function App() {
 
       {/* TWEAKS */}
       <TweaksPanel title="Tweaks">
-        <TweakSection label="세컨비" />
+        <TweakSection label="허슬케이" />
         <TweakSlider label="머리 크기" value={tw.headScale} min={0.7} max={1.4} step={0.05} unit="×" onChange={(v) => setTweak('headScale', v)} />
         <TweakRadio label="표정" value={tw.expression} options={['긍정', '중립', '부정']} onChange={(v) => setTweak('expression', v)} />
         <TweakText label="말풍선 (홈)" value={tw.bubbleText} placeholder="비우면 기본 인사" onChange={(v) => setTweak('bubbleText', v)} />

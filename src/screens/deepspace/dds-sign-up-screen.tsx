@@ -1,3 +1,4 @@
+import { ProviderBrandIcon, useProviderColumns } from "@/components/auth/ProviderBrandIcon";
 import { useEffect, useRef, useState } from "react";
 import { Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { PlainText as Text } from "@/components/ui/PlainText";
@@ -5,6 +6,8 @@ import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { RedirectHome } from "@/lib/nav/go-home";
 import { BirthDateField } from "@/components/auth/BirthDateField";
+import { GuardianSupervisionNotice } from "@/components/consent/GuardianSupervisionNotice";
+import { shouldEmphasizeGuardianSupervision } from "@/components/consent/guardian-supervision-emphasis";
 import { ResidenceCountryField } from "@/components/auth/ResidenceCountryField";
 import { SecondbHead } from "@/components/deepspace";
 import { PixelGateShell, PixelPressable, PixelSurface } from "@/components/pixel";
@@ -34,15 +37,6 @@ const CONSENT_KEY: Record<keyof ConsentSelections, string> = {
   sensitiveData: "consent:notice.ackSensitive",
   safetyNotice: "consent:notice.ackSafety",
   marketing: "consent:notice.optMarketing",
-};
-
-const PROVIDER_MARK: Record<OAuthProvider | "naver", string> = {
-  google: "G",
-  apple: "A",
-  kakao: "K",
-  facebook: "f",
-  github: "GH",
-  naver: "N",
 };
 
 type FocusedField = "email" | "password" | "code" | null;
@@ -79,6 +73,11 @@ export function DeepSpaceSignUpDesignScreen() {
     canVerifyConfirmCode,
     confirmVerifying,
     handleVerifyConfirmCode,
+    confirmResendSeconds,
+    confirmResending,
+    canResendConfirmCode,
+    handleResendConfirmCode,
+    leaveConfirmStep,
     visibleProviders,
     naverEnabled,
     handleSubmit,
@@ -121,78 +120,108 @@ export function DeepSpaceSignUpDesignScreen() {
     return avatarSetupAfterConfirmation ? <Redirect href="/avatar-studio?setup=1" /> : <RedirectHome />;
   }
 
-  const actionBusy = submitting || oauthSubmitting || confirmVerifying;
+  const actionBusy = submitting || oauthSubmitting || confirmVerifying || confirmResending;
   const formLocked = actionBusy || confirmSentTo !== null;
   const submitDisabled = !canSubmit || actionBusy;
   const birthOk = residenceReady && ageInYears(birthDate) >= minConsentAge;
   const showChecklist =
     email.length > 0 || password.length > 0 || birthDate.length > 0 || residenceCountry !== null;
 
-  return (
-    <PixelGateShell scrollRef={scrollRef} contentContainerStyle={styles.shell}>
-      <View style={styles.topBar}>
-        <PixelPressable
-          variant="frame"
-          onPress={() => {
-            if (canLeaveGate()) router.push("/");
-          }}
-          disabled={actionBusy}
-          accessibilityLabel={t("common:navGraph.drilldown.back")}
-          accessibilityHint={t("common:navGraph.drilldown.backHint")}
-          rootStyle={styles.squareAction}
-          contentStyle={styles.squareActionContent}
-        >
-          <PixelGlyph name="arrowBack" color={m3.color.primary} size={24} />
-        </PixelPressable>
-        <Text style={styles.brand}>{t("deepspace:auth.brandLabel")}</Text>
-        <PixelPressable
-          variant="frame"
-          onPress={() => {
-            if (canLeaveGate()) void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
-          }}
-          disabled={actionBusy}
-          accessibilityLabel={
-            locale === "ko"
-              ? t("auth:language.switchToEnglishLabel")
-              : t("auth:language.switchToKoreanLabel")
-          }
-          accessibilityHint={
-            locale === "ko"
-              ? t("auth:language.switchToEnglishHint")
-              : t("auth:language.switchToKoreanHint")
-          }
-          rootStyle={styles.localeRoot}
-          contentStyle={styles.localeContent}
-        >
-          <Text style={styles.localeText}>{locale === "ko" ? "EN" : "KO"}</Text>
-        </PixelPressable>
-      </View>
+  // The label of "send again": busy, counting down, or ready.
+  const resendLabel = confirmResending
+    ? t("auth:resetPassword.sending")
+    : confirmResendSeconds > 0
+      ? t("auth:resetPassword.resendWait", { seconds: confirmResendSeconds })
+      : t("auth:signUp.confirmCodeResend");
 
-      <PixelSurface variant="frame" style={styles.heroSurface} contentStyle={styles.hero}>
-        <PixelSurface variant="inset" style={styles.headFrame} contentStyle={styles.headContent}>
-          <View accessibilityRole="image" accessibilityLabel={t("auth:common.entryArtwork")}>
-            <SecondbHead size={72} mood="neutral" />
-          </View>
-        </PixelSurface>
-        <Text style={styles.title}>{t("deepspace:auth.signUpTitle")}</Text>
-        <Text style={styles.lead}>{t("deepspace:auth.signUpLead")}</Text>
-        <Text style={styles.ageNotice}>
-          {t("deepspace:auth.ageNotice", { minAge: minConsentAge })}
-        </Text>
+  // The top bar, the hero and the notice are the same on both steps.
+  const topBar = (
+    <View style={styles.topBar}>
+      <PixelPressable
+        variant="frame"
+        onPress={() => {
+          // On the code step the arrow is one step back: the form, with what was typed.
+          if (confirmSentTo !== null) {
+            if (canLeaveGate()) leaveConfirmStep();
+            return;
+          }
+          if (canLeaveGate()) router.push("/");
+        }}
+        disabled={actionBusy}
+        accessibilityLabel={confirmSentTo !== null ? t("auth:signUp.confirmBackToForm") : t("auth:signUp.existingAccountSignIn")}
+        accessibilityHint={confirmSentTo !== null ? undefined : t("auth:signUp.signInHint")}
+        rootStyle={styles.squareAction}
+        contentStyle={styles.squareActionContent}
+      >
+        <PixelGlyph name="arrowBack" color={m3.color.primary} size={24} />
+      </PixelPressable>
+      <Text style={styles.brand}>{t("deepspace:auth.brandLabel")}</Text>
+      <PixelPressable
+        variant="frame"
+        onPress={() => {
+          if (canLeaveGate()) void i18n.changeLanguage(locale === "ko" ? "en" : "ko");
+        }}
+        disabled={actionBusy}
+        accessibilityLabel={
+          locale === "ko"
+            ? t("auth:language.switchToEnglishLabel")
+            : t("auth:language.switchToKoreanLabel")
+        }
+        accessibilityHint={
+          locale === "ko"
+            ? t("auth:language.switchToEnglishHint")
+            : t("auth:language.switchToKoreanHint")
+        }
+        rootStyle={styles.localeRoot}
+        contentStyle={styles.localeContent}
+      >
+        <Text style={styles.localeText}>{locale === "ko" ? "EN" : "KO"}</Text>
+      </PixelPressable>
+    </View>
+  );
+  const hero = (
+    <PixelSurface variant="frame" style={styles.heroSurface} contentStyle={styles.hero}>
+      <PixelSurface variant="inset" style={styles.headFrame} contentStyle={styles.headContent}>
+        <View accessibilityRole="image" accessibilityLabel={t("auth:common.entryArtwork")}>
+          <SecondbHead size={72} mood="neutral" />
+        </View>
       </PixelSurface>
+      <Text style={styles.title}>{t("deepspace:auth.signUpTitle")}</Text>
+      <Text style={styles.lead}>{t("deepspace:auth.signUpLead")}</Text>
+    </PixelSurface>
+  );
+  const notice = toast ? (
+    <SignUpToast
+      message={toast.message}
+      tone={toast.tone}
+      // A failure notice appears here and pushes the submit button down. The button is the last
+      // thing in the scroll, so going to the end keeps both on screen. Not on the code step.
+      onLayout={toast.tone === "danger" && confirmSentTo === null ? () => scrollRef.current?.scrollToEnd({ animated: false }) : undefined}
+    />
+  ) : null;
 
-      {confirmSentTo ? (
+  // The confirmation-code step shows the code entry and "send again", nothing else (Z18,
+  // Simon 2026-10-13). What was typed in the form stays in the hook; the arrow goes back to it.
+  if (confirmSentTo !== null) {
+    return (
+      <PixelGateShell scrollRef={scrollRef} contentContainerStyle={styles.shell}>
+        {topBar}
+        {hero}
         <PixelSurface
           variant="frame"
           background={m3.color.primaryContainer}
           style={styles.sectionSurface}
           contentStyle={styles.sectionContent}
         >
-          <View accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.sectionContent}>
-            <Text style={styles.sectionTitle}>{t("auth:signUp.confirmSentTitle")}</Text>
-            <Text style={styles.bodyText}>
-              {t("auth:signUp.confirmSentBody", { email: confirmSentTo })}
-            </Text>
+          <View style={styles.sectionContent}>
+            {/* Only the message is announced. The controls sit outside the live region: the
+                "send again" button counts down every second and must not be read out each time. */}
+            <View accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.confirmMessage}>
+              <Text style={styles.sectionTitle}>{t("auth:signUp.confirmSentTitle")}</Text>
+              <Text style={styles.bodyText}>
+                {t("auth:signUp.confirmSentBody", { email: confirmSentTo })}
+              </Text>
+            </View>
             <Text style={styles.label}>{t("auth:signUp.confirmCodeLabel")}</Text>
             <PixelSurface
               variant="inset"
@@ -214,7 +243,6 @@ export function DeepSpaceSignUpDesignScreen() {
                 autoComplete="one-time-code"
                 textContentType="oneTimeCode"
                 maxLength={6}
-                placeholder="000000"
                 placeholderTextColor={m3.color.onSurfaceVariant}
                 accessibilityLabel={t("auth:signUp.confirmCodeLabel")}
                 accessibilityHint={t("auth:signUp.confirmCodeHint")}
@@ -250,9 +278,30 @@ export function DeepSpaceSignUpDesignScreen() {
                   : t("auth:signUp.confirmCodeVerify")}
               </Text>
             </PixelPressable>
+            <PixelPressable
+              variant="frame"
+              onPress={() => void handleResendConfirmCode()}
+              disabled={!canResendConfirmCode}
+              // The spoken name stays put; the wait is the hint, read when the button is focused.
+              accessibilityLabel={t("auth:signUp.confirmCodeResend")}
+              accessibilityHint={confirmResendSeconds > 0 ? resendLabel : undefined}
+              accessibilityState={{ busy: confirmResending }}
+              fullWidth
+              contentStyle={styles.resendContent}
+            >
+              <Text style={[styles.linkText, !canResendConfirmCode && styles.disabledText]}>{resendLabel}</Text>
+            </PixelPressable>
           </View>
         </PixelSurface>
-      ) : null}
+        {notice}
+      </PixelGateShell>
+    );
+  }
+
+  return (
+    <PixelGateShell scrollRef={scrollRef} contentContainerStyle={styles.shell}>
+      {topBar}
+      {hero}
 
       <PixelSurface variant="frame" style={styles.sectionSurface} contentStyle={styles.formContent}>
         <Text style={styles.label}>{t("auth:signUp.email")}</Text>
@@ -311,7 +360,6 @@ export function DeepSpaceSignUpDesignScreen() {
             secureTextEntry
             autoComplete="new-password"
             textContentType="newPassword"
-            placeholder="••••••••"
             placeholderTextColor={m3.color.onSurfaceVariant}
             accessibilityLabel={t("auth:signUp.password")}
             accessibilityHint={t("auth:signUp.passwordHint")}
@@ -341,6 +389,7 @@ export function DeepSpaceSignUpDesignScreen() {
             onChange={setBirthDate}
             minAge={minConsentAge}
           />
+          <GuardianSupervisionNotice emphasized={shouldEmphasizeGuardianSupervision(birthDate)} style={{ marginTop: m3.spacing.s2 }} />
         </View>
 
         {showChecklist ? (
@@ -488,6 +537,7 @@ export function DeepSpaceSignUpDesignScreen() {
           after every legal link. This keeps 320dp layouts reachable without an
           absolute footer covering consent; native keyboard behavior remains a
           HUMAN QA item rather than a claimed sticky-footer pass. */}
+      {notice}
       <PixelPressable
         variant={submitDisabled ? "inset" : "bevel"}
         onPress={() => void handleSubmit()}
@@ -507,8 +557,6 @@ export function DeepSpaceSignUpDesignScreen() {
           {t("auth:signUp.submit")}
         </Text>
       </PixelPressable>
-
-      {toast ? <SignUpToast message={toast.message} tone={toast.tone} /> : null}
     </PixelGateShell>
   );
 }
@@ -547,6 +595,11 @@ function ConsentBlock({
           <Text style={styles.minorText}>{t("notice.minorBanner")}</Text>
         </PixelSurface>
       ) : null}
+      <Text style={styles.groupLabel}>{t("notice.purposesTitle")}</Text>
+      <Text style={styles.bodyText}>{t("notice.items")}</Text>
+      <Text style={styles.bodyText}>{t("notice.purposeService")}</Text>
+      <Text style={styles.bodyText}>{t("notice.retention")}</Text>
+      <Text style={styles.bodyText}>{t("notice.rights")}</Text>
       <Text style={styles.groupLabel}>{t("notice.requiredLabel")}</Text>
       <ConsentCheckRow
         checked={allChecked}
@@ -671,6 +724,7 @@ function ProviderButton({
   busy: boolean;
   onPress: () => void;
 }) {
+  const columns = useProviderColumns();
   return (
     <PixelPressable
       variant="bevel"
@@ -678,12 +732,10 @@ function ProviderButton({
       disabled={disabled}
       accessibilityLabel={label}
       accessibilityState={{ busy }}
-      rootStyle={styles.providerRoot}
+      rootStyle={columns === 1 ? styles.providerRootOne : styles.providerRoot}
       contentStyle={styles.providerContent}
     >
-      <PixelSurface variant="inset" style={styles.providerMark} contentStyle={styles.providerMarkContent}>
-        <Text style={styles.providerMarkText}>{PROVIDER_MARK[provider]}</Text>
-      </PixelSurface>
+      <ProviderBrandIcon provider={provider} />
       <Text style={styles.providerText}>{label}</Text>
     </PixelPressable>
   );
@@ -720,9 +772,11 @@ function FooterLink({
 function SignUpToast({
   message,
   tone,
+  onLayout,
 }: {
   message: string;
   tone: "info" | "success" | "danger";
+  onLayout?: () => void;
 }) {
   const background =
     tone === "danger"
@@ -734,6 +788,7 @@ function SignUpToast({
     <View
       accessibilityRole="alert"
       accessibilityLiveRegion={tone === "danger" ? "assertive" : "polite"}
+      onLayout={onLayout}
     >
       <PixelSurface variant="frame" background={background} contentStyle={styles.toast}>
         <Text
@@ -830,15 +885,9 @@ const styles = StyleSheet.create({
     lineHeight: m3.type.bodyMedium.line,
     textAlign: "center",
   },
-  ageNotice: {
-    color: m3.color.tertiary,
-    fontFamily: m3.font.brand,
-    fontSize: m3.type.bodySmall.size,
-    lineHeight: m3.type.bodySmall.line,
-    textAlign: "center",
-  },
   sectionSurface: { alignSelf: "stretch" },
   sectionContent: { gap: m3.spacing.s3, padding: m3.spacing.s4 },
+  confirmMessage: { gap: m3.spacing.s3 },
   sectionTitle: {
     color: m3.color.onSurface,
     fontFamily: m3.font.brand,
@@ -931,6 +980,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: m3.spacing.s3,
   },
+  // "Send again" has one label and no arrow, so it sits in the middle like the button above it.
+  resendContent: { minHeight: m3.minTouch, alignItems: "center", justifyContent: "center" },
   linkText: {
     flexShrink: 1,
     color: m3.color.primary,
@@ -999,26 +1050,12 @@ const styles = StyleSheet.create({
     gap: m3.spacing.s2,
   },
   providerRoot: { flexBasis: "47%", flexGrow: 1, flexShrink: 1, minWidth: 112 },
+  providerRootOne: { flexBasis: "100%", flexGrow: 1, flexShrink: 1, minWidth: 112 },
   providerContent: {
     minHeight: 56,
     flexDirection: "row",
     alignItems: "center",
     gap: m3.spacing.s2,
-  },
-  providerMark: { width: 32, height: 32 },
-  providerMarkContent: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 0,
-  },
-  providerMarkText: {
-    color: m3.color.primary,
-    fontFamily: m3.font.mono,
-    fontSize: m3.type.labelMedium.size,
-    lineHeight: m3.type.labelMedium.line,
-    fontWeight: "700",
-    textAlign: "center",
   },
   providerText: {
     flex: 1,

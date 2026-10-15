@@ -1,5 +1,6 @@
+import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useRef, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { Redirect, useFocusEffect, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -211,7 +212,7 @@ function DataConnectionsBody({ ownerId, isMinor }: { ownerId: string; isMinor: b
           })}
         </View>;
       })}
-      <PixelPressable onPress={() => router.push("/import-hub")} accessibilityLabel={t("ops:phone.importHistory")} contentStyle={styles.action}>
+      <PixelPressable onPress={() => router.push("/import-hub?view=history")} accessibilityLabel={t("ops:phone.importHistory")} contentStyle={styles.action}>
         <Text variant="caption">{t("ops:phone.importHistory")}</Text>
       </PixelPressable>
       <PixelPressable onPress={() => router.push("/privacy")} accessibilityLabel={t("ops:phone.dataConsent")} contentStyle={styles.action}>

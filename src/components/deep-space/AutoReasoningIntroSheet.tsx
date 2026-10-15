@@ -1,3 +1,8 @@
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneIos } from "@/lib/theme/phone-ios";
+import { PixelScrim } from "@/components/pixel/PixelDither";
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // First-ON explainer for automatic reasoning (spec docs/reasoning-ux-spec_260718.html
 // 화면 A 인터랙션: "처음 ON: 소비 규칙을 설명하는 bottom sheet 확인 후 활성화").
 // The switch must NOT flip on the first tap — the consumption rules (automatic
@@ -7,10 +12,8 @@
 // Same overlay discipline as ReasoningLimitSheet (O-7): a bottom sheet, never
 // a modal over content; the caller's screen state stays mounted behind it.
 
-import { useEffect, useRef } from "react";
-import { Animated, Modal, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
-import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
@@ -56,7 +59,7 @@ const COPY: Record<
   en: {
     close: "Close",
     title: "Turn on automatic reasoning",
-    groupLine: "SecondB sends the title and opening of each new item to an AI provider (outside Korea) and proposes connections. Health measurements are not sent.",
+    groupLine: "HustleK sends the title and opening of each new item to an AI provider (outside Korea) and proposes connections. Health measurements are not sent.",
     limitLine: "Automatic runs use one weekly run and always reserve one for manual use.",
     confirm: "Turn on",
     later: "Not now",
@@ -64,7 +67,7 @@ const COPY: Record<
   ko: {
     close: "닫기",
     title: "자동 리즈닝을 켭니다",
-    groupLine: "새 자료의 제목과 앞부분을 AI 제공자(해외)에 보내 세컨비가 연결을 제안합니다. 건강 측정값은 보내지 않습니다.",
+    groupLine: "새 자료의 제목과 앞부분을 AI 제공자(해외)에 보내 허슬케이가 연결을 제안합니다. 건강 측정값은 보내지 않습니다.",
     limitLine: "자동 실행도 주간 한도를 1회씩 사용합니다. 직접 실행할 1회는 항상 남겨 둡니다.",
     confirm: "켜기",
     later: "나중에",
@@ -72,7 +75,7 @@ const COPY: Record<
   es: {
     close: "Cerrar",
     title: "Activar razonamiento automático",
-    groupLine: "SecondB envía el título y el comienzo de cada elemento nuevo a un proveedor de IA (fuera de Corea) y propone conexiones. Las mediciones de salud no se envían.",
+    groupLine: "HustleK envía el título y el comienzo de cada elemento nuevo a un proveedor de IA (fuera de Corea) y propone conexiones. Las mediciones de salud no se envían.",
     limitLine: "Cada ejecución automática usa una vez semanal y siempre reserva una para uso manual.",
     confirm: "Activar",
     later: "Ahora no",
@@ -80,7 +83,7 @@ const COPY: Record<
   pt: {
     close: "Fechar",
     title: "Ativar raciocínio automático",
-    groupLine: "O SecondB envia o título e o início de cada item novo a um provedor de IA (fora da Coreia) e propõe conexões. As medições de saúde não são enviadas.",
+    groupLine: "O HustleK envia o título e o início de cada item novo a um provedor de IA (fora da Coreia) e propõe conexões. As medições de saúde não são enviadas.",
     limitLine: "Cada execução automática usa um limite semanal e sempre reserva uma para uso manual.",
     confirm: "Ativar",
     later: "Agora não",
@@ -88,7 +91,7 @@ const COPY: Record<
   id: {
     close: "Tutup",
     title: "Aktifkan penalaran otomatis",
-    groupLine: "SecondB mengirim judul dan bagian awal setiap item baru ke penyedia AI (di luar Korea) lalu mengusulkan koneksi. Data pengukuran kesehatan tidak dikirim.",
+    groupLine: "HustleK mengirim judul dan bagian awal setiap item baru ke penyedia AI (di luar Korea) lalu mengusulkan koneksi. Data pengukuran kesehatan tidak dikirim.",
     limitLine: "Setiap proses otomatis memakai satu jatah mingguan dan selalu menyisakan satu untuk manual.",
     confirm: "Aktifkan",
     later: "Nanti saja",
@@ -102,37 +105,25 @@ function displayLocale(language: string, ko: boolean): DisplayLocale {
 }
 
 export function AutoReasoningIntroSheet({ visible, ko, onConfirm, onClose }: AutoReasoningIntroSheetProps) {
+  const phone = usePhoneDesign();
   const { i18n } = useTranslation();
-  const { height } = useWindowDimensions();
   // Modal 은 화면의 SafeAreaView 밖에서 그려진다 — 인셋을 직접 읽는다.
   // 인셋이 0인 기기(대부분의 안드로이드)에서도 s6 만큼은 남는다.
   const insets = useSafeAreaInsets();
   const sheetBottom = Math.max(insets.bottom, m3.spacing.s6);
-  const rise = useRef(new Animated.Value(0)).current;
   const copy = COPY[displayLocale(i18n.language, ko)];
 
-  useEffect(() => {
-    if (!visible) return;
-    rise.setValue(0);
-    Animated.timing(rise, {
-      toValue: 1,
-      duration: 320, easing: pixelStepsFor(320),
-      useNativeDriver: true,
-    }).start();
-  }, [visible, rise]);
-
-  const translateY = rise.interpolate({ inputRange: [0, 1], outputRange: [height, 0] });
-
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.root}>
+        {phone ? <PixelScrim style={{ tintColor: phoneIos.label2 }} /> : null}
         <Pressable
-          style={styles.veil}
+          style={[styles.veil, phone && { backgroundColor: "transparent" }]}
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel={copy.close}
         />
-        <Animated.View style={[styles.sheet, { paddingBottom: sheetBottom }, { transform: [{ translateY }] }]}>
+        <View style={[styles.sheet, { paddingBottom: sheetBottom }]}>
           <View style={styles.grabber} />
           <RNText style={styles.title}>{copy.title}</RNText>
           <RNText style={[styles.line, m3TextStyle("bodyMedium")]}>{copy.groupLine}</RNText>
@@ -151,7 +142,7 @@ export function AutoReasoningIntroSheet({ visible, ko, onConfirm, onClose }: Aut
               style={styles.actionButton}
             />
           </View>
-        </Animated.View>
+        </View>
       </View>
     </Modal>
   );

@@ -1,7 +1,10 @@
 import { createElement, type ComponentPropsWithRef } from "react";
-import { Platform, Text as RNText } from "react-native";
+import { Platform, StyleSheet, Text as RNText } from "react-native";
 
 import { keepAllKo, keepWebPunctuationTogether, mapStringChildren } from "@/lib/i18n/keep-all";
+import { usePhoneDesign, usePhoneForeground } from "@/lib/theme/phone-design-context";
+import { phoneStyle } from "@/lib/theme/phone-design";
+import { phoneIos } from "@/lib/theme/phone-ios";
 
 // React Native <Text> with Korean line breaking. Every Text in src/ goes through
 // here: <Text variant> wraps it, and the screens that style raw text import it
@@ -32,6 +35,14 @@ import { keepAllKo, keepWebPunctuationTogether, mapStringChildren } from "@/lib/
 export type PlainTextProps = ComponentPropsWithRef<typeof RNText>;
 
 export function PlainText(props: PlainTextProps) {
+  const phone = usePhoneDesign();
+  const foreground = usePhoneForeground();
+  const adapted = phone ? phoneStyle(StyleSheet.flatten(props.style) ?? {}) : undefined;
+  if (phone) props = { ...props, style: [
+    { color: phoneIos.label, fontFamily: "Galmuri14" },
+    adapted,
+    foreground && (!adapted?.color || adapted.color === phoneIos.label) ? { color: foreground } : null,
+  ] };
   const { children, selectable } = props;
   if (selectable || children == null) return createElement(RNText, props);
   const web = Platform.OS === "web";

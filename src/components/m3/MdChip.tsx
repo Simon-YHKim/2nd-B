@@ -8,7 +8,10 @@
 // the inner Pressable only handles the hit + a11y. Do not move the container
 // styles back onto the Pressable.
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, type StyleProp, View, type ViewStyle } from "react-native";
+import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { phoneButtonColors } from "@/lib/theme/phone-design";
 import { PlainText as Text } from "@/components/ui/PlainText";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
@@ -46,6 +49,7 @@ export function MdChip({
   removeAccessibilityLabel,
   style,
 }: MdChipProps) {
+  const phone = usePhoneDesign();
   const isFilter = kind === "filter";
   // checked only belongs on filter chips (role checkbox): leaking it onto
   // assist/suggestion buttons made TalkBack announce plain chips as untoggled
@@ -55,6 +59,8 @@ export function MdChip({
   if (disabled) {
     fg = on ? m3.disabled.onSecondaryContainer : m3.disabled.onSurface;
   }
+  const phoneColors = phone ? phoneButtonColors({ primary: on, disabled }) : undefined;
+  if (phoneColors) fg = phoneColors.foreground;
   return (
     <View
       style={[
@@ -62,6 +68,7 @@ export function MdChip({
         on ? styles.chipOn : styles.chipOff,
         disabled && (on ? styles.chipOnDisabled : styles.chipOffDisabled),
         style,
+        phoneColors && { backgroundColor: phoneColors.background, borderWidth: 0 },
       ]}
     >
       <Pressable

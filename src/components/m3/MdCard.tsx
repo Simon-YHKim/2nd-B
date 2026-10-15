@@ -7,7 +7,8 @@
 // carries only a STATIC padding style (with android_ripple for touch feedback)
 // - the same proven pattern as SbNavBar and ConstellationHome.
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, type StyleProp, View, type ViewStyle } from "react-native";
+import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 
 import { m3 } from "@/lib/theme/m3";
 

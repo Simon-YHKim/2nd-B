@@ -48,7 +48,11 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { prepareCrisisScanText } from '../../../src/lib/safety/crisis-context.ts';
+import { emergencyLanePayload, matchEmergencyLane } from '../../../src/lib/safety/emergency-routing.ts';
+import { matchAdditionalCrisisLanguage } from '../../../src/lib/safety/crisis-language.ts';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
+import { beginChatTurnAttempt, claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
 // D-27 attribution plus the shared server-owned purpose policy. The remaining
 // crisis/auth/cap plumbing stays inlined until its own deploy-verified migration.
 import {
@@ -302,15 +306,15 @@ const CRISIS_TERMS_KO: readonly string[] = [
   '더 이상 살', '끝내고 싶', '끝낼 거', '끝낼거', '자해',
   '목숨을 끊', '스스로 목숨', '유서', '마지막 인사',
   '짐이 되', '없어지는 게 나아', '사라지는 게 나', '다음 생에는',
-  '영영 잠들고 싶',
+  '영영 잠들고 싶', '끝내 버리고 싶', '끝내 버릴',
 ];
 
-// EN terms match only at word boundaries — ported from
-// src/lib/safety/classifier.ts:matchesTerm so a benign substring (e.g.
-// "spending it" containing "ending it") doesn't 422 a legitimate prompt.
-// KO terms remain substring matches (Hangul has no whitespace word
-// boundaries). KEEP THE MATCHING SEMANTICS IN SYNC with the client
-// classifier; the parity test extracts and exercises this code.
+// EN terms match at word boundaries (classifier.ts:matchesTerm), so "spending it" does not 422 on "ending it".
+// KO terms stay substring matches, spaced ones also fully joined (Q-261014-90) and, for the listed ones, partly
+// joined (Q-261015-80): classifier.ts:koTermSpellings. KEEP THE MATCHING SEMANTICS IN SYNC with the client
+// classifier; the parity test runs this code. Same line count: docs/legal cites lines of this file.
+const PARTIAL_SPACING_KO: readonly string[] = ['살고 싶지 않', '더 이상 살', '없어지는 게 나아', '사라지는 게 나', '끝내 버리고 싶'];
+const spacingForms = (t: string): string[] => (PARTIAL_SPACING_KO.includes(t) ? t.split(' ').reduce<string[]>((acc, w, i) => (i === 0 ? [w] : acc.flatMap((a) => [`${a} ${w}`, a + w])), []) : [t, t.replace(/ /g, '')]);
 // Fold whitespace and Unicode composition before matching, so the crisis gate
 // cannot be walked past with a newline / non-breaking space (U+00A0) / full-width
 // space (U+3000) between the words of a multi-word term, or with NFD-decomposed
@@ -336,14 +340,15 @@ function matchesTermEn(lowerHaystack: string, term: string): boolean {
   }
   return false;
 }
-
 function hasCrisisTerm(text: string): boolean {
-  const lower = normalizeForMatch(text);
+  if (matchEmergencyLane(text)) return true;
+  if (matchAdditionalCrisisLanguage(text)) return true;
+  const lower = normalizeForMatch(prepareCrisisScanText(text));
   for (const term of CRISIS_TERMS_EN) {
     if (matchesTermEn(lower, term)) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
-    if (lower.includes(normalizeForMatch(term))) return true;
+    if (spacingForms(normalizeForMatch(term)).some((form) => lower.includes(form))) return true;
   }
   return false;
 }
@@ -414,7 +419,7 @@ Deno.serve(async (req: Request) => {
   const capacityRpc = (functionName: string, args: Record<string, unknown>) =>
     supabaseAdmin.rpc(functionName, args);
 
-  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; audio?: unknown; responseSchema?: unknown; purpose?: unknown; effort?: unknown; op?: unknown; texts?: unknown; reasoningRunId?: unknown; reasoningSlot?: unknown };
+  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; audio?: unknown; responseSchema?: unknown; purpose?: unknown; effort?: unknown; op?: unknown; texts?: unknown; reasoningRunId?: unknown; reasoningSlot?: unknown; chatTurnId?: unknown };
   try {
     body = await readLlmProxyJsonObject(req) as typeof body;
   } catch (error) {
@@ -489,7 +494,7 @@ Deno.serve(async (req: Request) => {
       // client already zero-vectors these before sending (C9); this is the
       // bypassed-client backstop, same no-oracle 422 as the chat path.
       if (hasCrisisTerm(t)) {
-        return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
+        return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected', ...emergencyLanePayload(t) }, 422);
       }
       texts.push(t);
     }
@@ -779,7 +784,7 @@ Deno.serve(async (req: Request) => {
   if (!safetyClassifySeat && hasCrisisTerm(userText)) {
     return jsonResponse(req, {
       error: 'safety_red_zone',
-      reason: 'crisis_term_detected',
+      reason: 'crisis_term_detected', ...emergencyLanePayload(userText),
     }, 422);
   }
 
@@ -1005,6 +1010,17 @@ Deno.serve(async (req: Request) => {
   }
 
 
+  // Z46 (0255 round 6): the id this call's audit row will carry is made before the model is asked, with the
+  // turn the app named (chat only · read by shape · never written on the audit row). The server records this
+  // call as that turn's attempt first, numbered in the order the calls reach it (round 8). Only a recorded
+  // attempt can be bound, and a bound answer gives way only to the second attempt's, so an earlier attempt
+  // that ends late cannot take the turn from the re-ask. Bounded: false means this answer is not bound
+  // (no refund for it), never that the answer stops.
+  const consentAuditId = crypto.randomUUID();
+  const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
+  const turnAttempt = chatTurnId !== null
+    && await beginChatTurnAttempt(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'gemini-proxy');
+
   const t0 = Date.now();
   let upstream: Response;
   try {
@@ -1149,31 +1165,25 @@ Deno.serve(async (req: Request) => {
           : '';
   const geminiTotalTokens =
     Number((data?.usageMetadata as { totalTokenCount?: number } | undefined)?.totalTokenCount) || null;
-  const consentAuditId = crypto.randomUUID();
-  let audited = false;
-  try {
-    const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
-      id: consentAuditId,
-      user_id: userId,
-      event_source: 'server_verified',
-      prompt_hash: djb2(`${systemText ?? ''}${userText}`),
-      output_hash: djb2(text),
-      model_used: `${modelUsed}${outcomeMarker}`,
-      vertex_backend: false,
-      safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
-      latency_ms: latencyMs,
-      // D-27 re-decomposition axes (nullable; NULL on legacy/native-path rows).
-      purpose,
-      reasoning_vendor: 'gemini',
-      reasoning_effort: effortSlug,
-      key_combo: keyCombo,
-      total_tokens: geminiTotalTokens,
-    });
-    audited = !auditErr;
-    if (auditErr) console.warn('[gemini-proxy] audit insert failed:', auditErr.message);
-  } catch (e) {
-    console.warn('[gemini-proxy] audit insert threw:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
-  }
+  // consentAuditId and chatTurnId were made before the model call (Z46 · 0255 round 6).
+  // True only when this very row came back from the insert (see insertLlmAuditRow).
+  const audited = await insertLlmAuditRow(supabaseAdmin, {
+    id: consentAuditId,
+    user_id: userId,
+    event_source: 'server_verified',
+    prompt_hash: djb2(`${systemText ?? ''}${userText}`),
+    output_hash: djb2(text),
+    model_used: `${modelUsed}${outcomeMarker}`,
+    vertex_backend: false,
+    safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
+    latency_ms: latencyMs,
+    // D-27 re-decomposition axes (nullable; NULL on legacy/native-path rows).
+    purpose,
+    reasoning_vendor: 'gemini',
+    reasoning_effort: effortSlug,
+    key_combo: keyCombo,
+    total_tokens: geminiTotalTokens,
+  }, 'gemini-proxy');
 
   if (blockReason) {
     return jsonResponse(req, { error: 'upstream_blocked', reason: String(blockReason).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
@@ -1194,5 +1204,19 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
   }
 
-  return jsonResponse(req, { text, modelUsed, latencyMs, audited });
+  // Z46 (0255): ask the server whether this answer belongs to the turn the app named. Only here, on the
+  // way out with a reply: a refused, cut-off or consent-withheld call has returned above and answers
+  // nothing. The server reads the owner, the state and the age of its own reservation row; the id the
+  // app sent decides nothing. Bounded: past the limit the reply goes out unbound (no refund for it).
+  // An empty answer answers nothing: the turn stays open for the call that is sent again.
+  const turnBound = audited && chatTurnId && turnAttempt && text.trim() !== ''
+    ? await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'gemini-proxy')
+    : false;
+
+  // Z46 (0255): the id of the audit row written above, only when it was written (see openai-proxy).
+  return jsonResponse(req, {
+    text, modelUsed, latencyMs, audited,
+    ...(audited ? { auditId: consentAuditId } : {}),
+    ...(chatTurnId ? { turnBound } : {}),
+  });
 });

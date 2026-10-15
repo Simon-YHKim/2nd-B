@@ -1,11 +1,15 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Ratify bottom-sheet (memo §3f): renders a SelfModelProposal via the tested
 // display model (formatProposalForDisplay) and returns the user's decision. Pure
 // presentation - it neither calls the LLM nor writes; the host screen (/review)
 // wires proposeSelfModelChange + applyRatify + persist. RN component, covered by
 // check-constraints a11y + emulator QA like every screen here (no jest in node env).
 
-import React from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import React, { useEffect } from "react";
+import { useIsFocused } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { StyleSheet } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -35,6 +39,7 @@ export function RatifySheet({
   pendingLabel,
   onDecision,
   onClose,
+  onHidden,
 }: {
   proposal: SelfModelProposal | null;
   locale: "en" | "ko";
@@ -43,14 +48,26 @@ export function RatifySheet({
   pendingLabel?: string;
   onDecision: (decision: RatifyDecision) => void | Promise<void>;
   onClose: () => void;
+  /** Local proposal cleanup after ordinary exit or immediate route blur. */
+  onHidden?: () => void;
 }) {
+  // 별 이름은 지금 언어로 찾는다(일곱 별 ds.star.* · 옛 축 ds.home.starName.*). 못 찾으면 id.
+  const { t: tHome } = useTranslation("home");
+  const focused = useIsFocused();
+  useEffect(() => {
+    if (!focused) onHidden?.();
+  }, [focused, onHidden]);
   if (!proposal) return null;
-  const d = formatProposalForDisplay(proposal, locale);
+  const d = formatProposalForDisplay(proposal, locale, (kind, id) => {
+    const key = kind === "sevenStar" ? `ds.star.${id}` : `ds.home.starName.${id}`;
+    const name = tHome(key);
+    return name && name !== key ? name : null;
+  });
   const closeIfIdle = () => {
     if (!pending) onClose();
   };
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={closeIfIdle}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={closeIfIdle} onExitComplete={onHidden}>
       <Pressable
         style={styles.backdrop}
         onPress={closeIfIdle}

@@ -26,6 +26,15 @@ jest.mock("react-native", () => {
     View: Block,
   };
 });
+// Access rules do not depend on the host's visual surface. Keep the existing
+// native host doubles at that boundary; phone colors have their own render tests.
+jest.mock("@/components/phone/PhoneUIKit", () => {
+  const native = require("react-native") as Record<string, unknown>;
+  return {
+    PhoneView: native.View, PhonePressable: native.Pressable,
+    PhoneFlatList: native.FlatList, PhoneTextInput: native.TextInput,
+  };
+});
 // Focus callbacks run only when a test asks (W-07 poll check); otherwise they are inert.
 let mockRunFocus = false;
 jest.mock("expo-router", () => ({

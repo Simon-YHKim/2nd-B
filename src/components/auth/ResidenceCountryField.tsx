@@ -1,7 +1,7 @@
+import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 import { useMemo, useState } from "react";
 import {
   FlatList,
-  Modal,
   StyleSheet,
   View,
   type ListRenderItemInfo,
@@ -107,6 +107,7 @@ export function ResidenceCountryField({
         visible={open}
         transparent
         animationType="none"
+        transitionKind="sheet"
         statusBarTranslucent
         onRequestClose={close}
       >

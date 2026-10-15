@@ -1110,6 +1110,10 @@ DECLARE
   v_entity2 uuid := pg_catalog.gen_random_uuid();
   v_card    uuid := pg_catalog.gen_random_uuid();
   v_routine uuid := pg_catalog.gen_random_uuid();
+  v_interview_record  uuid := pg_catalog.gen_random_uuid();
+  v_interview_session uuid := pg_catalog.gen_random_uuid();
+  v_transcript        uuid := pg_catalog.gen_random_uuid();
+  v_context_audit     uuid := pg_catalog.gen_random_uuid();
 BEGIN
   -- Parents first. The delete ORDER is the reverse concern and is asserted by
   -- G8; here the only requirement is that every FK is satisfiable.
@@ -1163,6 +1167,23 @@ BEGIN
     VALUES (p_uid, p_tag || '-template', 'article');
   INSERT INTO public.testimonials (user_id, body, locale, consent_given_at)
     VALUES (p_uid, p_tag || ' says hello', 'ko', pg_catalog.now());
+  -- 0225: a saved interview (record -> session -> transcript head -> turns).
+  INSERT INTO public.records (id, user_id, kind, body, audit_period, system_tags, client_request_id)
+    VALUES (v_interview_record, p_uid, 'audit_response', E'질문: q\n\n답변: a', 'school',
+            ARRAY['interview'], 'interview:' || v_interview_session::text);
+  INSERT INTO public.interview_sessions (id, owner_id, period, locale, committed_at, record_id)
+    VALUES (v_interview_session, p_uid, 'school', 'ko', pg_catalog.now(), v_interview_record);
+  INSERT INTO public.interview_transcripts (id, user_id, session_id, record_id, period, locale, turn_count)
+    VALUES (v_transcript, p_uid, v_interview_session, v_interview_record, 'school', 'ko', 2);
+  INSERT INTO public.interview_transcript_turns (transcript_id, user_id, turn_no, role, scene_seq, origin, text) VALUES
+    (v_transcript, p_uid, 1, 'interviewer', 1, 'fixed', 'q'),
+    (v_transcript, p_uid, 2, 'user', 1, 'user', 'a');
+  INSERT INTO public.ai_audit_log (id, user_id, prompt_hash, output_hash, model_used, vertex_backend,
+    safety_zone, latency_ms, purpose, event_source)
+  VALUES (v_context_audit, p_uid, 'p', 'o', 'test', false, 'green', 1, 'secondb_chat', 'server_verified');
+  INSERT INTO public.ai_audit_context_blocks(audit_id, user_id, purpose, reader_version, block_ids)
+  VALUES (v_context_audit, p_uid, 'secondb_chat', 'r1', ARRAY['wiki:' || p_tag]);
+
 END;
 $owner_rows$;
 

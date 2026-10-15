@@ -1,3 +1,4 @@
+import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // 가치관 (rev2 P3b): values self-report + populated read.
 //
 // Flow: on mount, load the latest values self-report. If there is NONE, the
@@ -9,7 +10,7 @@
 // not a medical assessment. Confidence is shown and capped well under 100%; the
 // populated layout only ever shows the user's real answers (values-survey.ts).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";

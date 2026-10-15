@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { StyleSheet } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";

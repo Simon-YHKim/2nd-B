@@ -9,13 +9,12 @@ import {
   LedgerScreen,
   MealsScreen,
   MilestonesScreen,
-  OpsHomeScreen,
   ReadingScreen,
   RemindersScreen,
   SideProjectScreen,
 } from "./screens";
 
-export type OpsPhoneScreen = "ops" | "reading" | "reminders" | "ledger" | "milestones" | "meals" | "side-project";
+export type OpsPhoneScreen = "reading" | "reminders" | "ledger" | "milestones" | "meals" | "side-project";
 
 /** Mounts the existing Ops screen in a phone list without a second route shell. */
 export function OpsPhoneContent({ screen, onBack, onNavigate }: {
@@ -31,7 +30,6 @@ export function OpsPhoneContent({ screen, onBack, onNavigate }: {
 
   const content = (() => {
     switch (screen) {
-      case "ops": return <OpsHomeScreen key={userId} />;
       case "reading": return <ReadingScreen key={userId} />;
       case "reminders": return <RemindersScreen key={userId} onOpenAssistant={() => onNavigate("/ops")} />;
       case "ledger": return <LedgerScreen key={userId} />;

@@ -40,7 +40,7 @@ export const DOMAIN_STARS: readonly DomainStar[] = [
   { id: "health", index: 5, slug: "health", nameKo: "건강", nameEn: "Health" },
   // rev2 (PRD v2.0): domain 6 reframed 오락 -> 휴식 (rest). Code id/slug stays `recreation`.
   { id: "recreation", index: 6, slug: "recreation", nameKo: "휴식", nameEn: "Rest" },
-  { id: "collect", index: 7, slug: "collect", nameKo: "담아내기", nameEn: "Collect" },
+  { id: "collect", index: 7, slug: "collect", nameKo: "자료 수집", nameEn: "Collect" },
 ] as const;
 
 export const DOMAIN_COUNT = 7 as const;
