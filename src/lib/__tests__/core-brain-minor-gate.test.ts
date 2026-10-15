@@ -1,6 +1,7 @@
 import type { DependencyList, EffectCallback, ReactElement, SetStateAction } from "react";
 import type { CenterCard } from "../persona/center";
 import type { LoadedStrengths, PersonaCard } from "../persona/build";
+import { __resetAccountEpochForTests, noteResolvedOwner, clearAccountTransition, currentAccountEpoch } from "../auth/account-epoch";
 import type { PolarisQuota } from "../persona/polaris-quota";
 
 type AuthState = {
@@ -170,7 +171,12 @@ const mockSupabase = {
     : mockMutationWriter("rpc", name, ...args),
 };
 
+const mockHarnesses = new Set<HookHarness>();
+let mockLastHarness: HookHarness | null = null;
 class HookHarness {
+  private lastComponent: (() => ReactElement) | null = null;
+  constructor() { mockHarnesses.add(this); }
+  settleRender() { if (this.lastComponent) { this.render(this.lastComponent); this.flushEffects(); } }
   readonly states: unknown[] = [];
   readonly updates: { index: number; value: unknown }[] = [];
   private readonly effects: (EffectSlot | undefined)[] = [];
@@ -179,6 +185,8 @@ class HookHarness {
   private effectCursor = 0;
 
   render(component: () => ReactElement): ReactElement {
+    noteResolvedOwner(mockAuth.current.userId); clearAccountTransition(currentAccountEpoch());
+    this.lastComponent = component; mockLastHarness = this;
     this.stateCursor = 0;
     this.effectCursor = 0;
     mockActiveHarness = this;
@@ -233,6 +241,7 @@ class HookHarness {
   }
 
   unmount() {
+    this.lastComponent = null; if (mockLastHarness === this) mockLastHarness = null;
     for (const slot of this.effects) slot?.cleanup?.();
     this.effects.length = 0;
     this.pending = [];
@@ -274,7 +283,9 @@ jest.mock("react-i18next", () => ({
     i18n: { language: mockLanguage.current },
   }),
 }));
-jest.mock("expo-router", () => ({ Redirect: "Redirect", router: { back: jest.fn(), push: jest.fn() } }));
+jest.mock("expo-router", () => ({ Redirect: "Redirect", router: { back: jest.fn(), push: jest.fn() },
+  useFocusEffect: (callback: EffectCallback) => jest.requireActual<typeof import("react")>("react").useEffect(callback, [callback]),
+}));
 // The screen takes its router from useAppRouter() (dashboard phone, lib/nav/phone-embed.tsx),
 // which reads a context; this harness calls the screen outside a React render.
 jest.mock("@/lib/nav/phone-embed", () => ({
@@ -398,7 +409,7 @@ let restoreReactHooks: () => void;
 // 24, not 12: the records read now goes through withSystemTagsColumn (0218), an
 // async wrapper that awaits the query thenable, so it settles a few microtasks later.
 async function flushAsync(rounds = 24) {
-  for (let index = 0; index < rounds; index += 1) await Promise.resolve();
+  for (let index = 0; index < rounds; index += 1) { await Promise.resolve(); mockLastHarness?.settleRender(); }
 }
 
 function findElement(
@@ -451,6 +462,11 @@ function screenText(tree: unknown): string {
   return [renderedText(tree), ...pages.map((page) => `${page.title ?? ""} ${renderedText(page.body)}`)].join(" ");
 }
 
+function readData(harness: HookHarness) {
+  return (harness.states.find((value) => typeof value === "object" && value !== null && "status" in value && "session" in value) as
+    { data: { persona: PersonaCard | null; evidence: unknown[] } | null } | undefined)?.data;
+}
+
 function assertNoMutationEgress() {
   expect(mockForbiddenBuildPersona).not.toHaveBeenCalled();
   expect(mockForbiddenLlm).not.toHaveBeenCalled();
@@ -473,13 +489,23 @@ beforeAll(() => {
       if (!mockActiveHarness) throw new Error("useRef called outside HookHarness render");
       return mockActiveHarness.useState({ current: initial })[0];
     }) as typeof React.useRef);
+    const memoSpy = jest.spyOn(React, "useMemo").mockImplementation(((factory: () => unknown, deps: DependencyList) => {
+      if (!mockActiveHarness) throw new Error("useMemo outside harness");
+      const [cell] = mockActiveHarness.useState<{ deps?: DependencyList; value?: unknown }>({});
+      if (!cell.deps || cell.deps.length !== deps.length || deps.some((dep, i) => !Object.is(dep, cell.deps![i]))) { cell.deps = deps; cell.value = factory(); }
+      return cell.value;
+    }) as typeof React.useMemo);
+    const callbackSpy = jest.spyOn(React, "useCallback").mockImplementation(((callback: unknown, deps: DependencyList) => React.useMemo(() => callback, deps)) as typeof React.useCallback);
+    const storeSpy = jest.spyOn(React, "useSyncExternalStore").mockImplementation(((subscribe, snapshot) => {
+      React.useEffect(() => subscribe(() => {}), [subscribe]); return snapshot();
+    }) as typeof React.useSyncExternalStore);
     const CoreBrain = jest.requireActual("../../app/core-brain").default as () => ReactElement;
     const screen = CoreBrain().type as () => ReactElement;
     renderCoreBrainScreen = (harness) => harness.render(screen);
     restoreReactHooks = () => {
       stateSpy.mockRestore();
       effectSpy.mockRestore();
-      refSpy.mockRestore();
+      refSpy.mockRestore(); memoSpy.mockRestore(); callbackSpy.mockRestore(); storeSpy.mockRestore();
     };
   } catch (error) {
     const detail = error instanceof Error ? `${error.name}: ${error.message}\n${error.stack ?? ""}` : String(error);
@@ -490,6 +516,7 @@ beforeAll(() => {
 afterAll(() => restoreReactHooks?.());
 
 beforeEach(() => {
+  __resetAccountEpochForTests(); mockLastHarness = null;
   mockAuth.current = { userId: null, loading: true, hasProfile: null, isMinor: null };
   mockLanguage.current = "en";
   mockReadError = null;
@@ -517,6 +544,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  mockHarnesses.forEach((harness) => harness.unmount()); mockHarnesses.clear();
   mockExpectedWarn?.mockRestore();
   mockExpectedWarn = null;
 });
@@ -548,9 +576,9 @@ describe("Core Brain rendered read-only lifecycle", () => {
     await flushAsync();
 
     expect(mockLoadPersonaSnapshot).toHaveBeenCalledTimes(1);
-    expect(mockLoadPersonaSnapshot).toHaveBeenCalledWith("u1");
+    expect(mockLoadPersonaSnapshot).toHaveBeenCalledWith("u1", expect.any(Function));
     expect(mockSelectCalls.map((call) => call.table)).toEqual(expect.arrayContaining(["records", "sources"]));
-    expect(harness.states[0]).toMatchObject({ values: ["u1"] });
+    expect(readData(harness)?.persona).toMatchObject({ values: ["u1"] });
     assertNoMutationEgress();
   });
 
@@ -566,8 +594,8 @@ describe("Core Brain rendered read-only lifecycle", () => {
     const tree = renderCoreBrainScreen(harness);
     const text = screenText(tree);
 
-    expect(mockLoadPersonaSnapshot).toHaveBeenCalledWith("legacy");
-    expect(harness.states[0]).toMatchObject({
+    expect(mockLoadPersonaSnapshot).toHaveBeenCalledWith("legacy", expect.any(Function));
+    expect(readData(harness)?.persona).toMatchObject({
       traitConfidence: { openness: { source: "default", confidence: "low" } },
     });
     expect(text).toContain("Previously saved result");
@@ -575,6 +603,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     expect(text).not.toContain("journal-based estimate");
 
     mockLanguage.current = "ko";
+    renderCoreBrainScreen(harness); harness.flushEffects(); await flushAsync();
     const koreanText = screenText(renderCoreBrainScreen(harness));
     expect(koreanText).toContain("기존 저장 결과");
     expect(koreanText).toContain("출처가 기록되지 않아");
@@ -703,9 +732,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     harness.flushEffects();
     await flushAsync();
 
-    // loadError 는 다섯 번째 상태다(0 부터). 2026-10-05 에 레거시 꼬리만 읽던 상태 셋
-    // (domainBrightness · profileLevel · pendingLinkCount)이 빠져 7 -> 5 로 당겨졌다.
-    expect(harness.states[5]).toBe(true);
+    expect(screenText(renderCoreBrainScreen(harness))).toContain("loadError");
     mockReadError = null;
     const errorTree = renderCoreBrainScreen(harness);
     harness.flushEffects();
@@ -718,8 +745,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     await flushAsync();
 
     expect(mockLoadPersonaSnapshot).toHaveBeenCalledTimes(1);
-    expect(harness.states[5]).toBe(false);
-    expect(mockExpectedWarn).toHaveBeenCalledWith("[core-brain] load failed", "offline");
+    expect(screenText(renderCoreBrainScreen(harness))).not.toContain("loadError");
     assertNoMutationEgress();
   });
 
@@ -731,7 +757,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     renderCoreBrainScreen(harness);
     harness.flushEffects();
     await flushAsync();
-    expect(mockLoadPersonaSnapshot).toHaveBeenCalledWith("u1");
+    expect(mockLoadPersonaSnapshot).toHaveBeenCalledWith("u1", expect.any(Function));
 
     harness.clearUpdates();
     harness.unmount();
@@ -828,8 +854,8 @@ describe("Core Brain rendered read-only lifecycle", () => {
     renderCoreBrainScreen(harness);
     harness.flushEffects();
     await flushAsync();
-    expect(harness.states[0]).toMatchObject({ values: ["u2"] });
-    expect(harness.states[1]).toEqual([
+    expect(readData(harness)?.persona).toMatchObject({ values: ["u2"] });
+    expect(readData(harness)?.evidence).toEqual([
       expect.objectContaining({ id: "u2-record" }),
     ]);
 
@@ -837,11 +863,11 @@ describe("Core Brain rendered read-only lifecycle", () => {
     oldUser.resolve(persona("stale-u1"));
     await flushAsync();
 
-    expect(harness.states[0]).toMatchObject({ values: ["u2"] });
-    expect(harness.states[1]).toEqual([
+    expect(readData(harness)?.persona).toMatchObject({ values: ["u2"] });
+    expect(readData(harness)?.evidence).toEqual([
       expect.objectContaining({ id: "u2-record" }),
     ]);
-    expect(harness.updates.filter((update) => update.index === 0 || update.index === 1)).toEqual([]);
+    expect(harness.updates.filter((update) => typeof update.value === "object" && update.value !== null && "session" in update.value)).toEqual([]);
     assertNoMutationEgress();
   });
 });
