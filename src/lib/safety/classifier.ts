@@ -8,6 +8,7 @@ import {
 } from "./lexicon";
 import { prepareCrisisScanText } from "./crisis-context";
 import { emergencyHotline, matchEmergencyLane } from "./emergency-routing";
+import { matchAdditionalCrisisLanguage } from "./crisis-language";
 export type SafetyZone = "green" | "yellow" | "red";
 
 export interface SafetyResult {
@@ -93,7 +94,9 @@ export function classifyInput(text: string, locale: Locale, opts: ClassifyOption
   if (!text || text.trim().length === 0) {
     return { zone: "green", matched: [], categories: [] };
   }
-  const emergency = matchEmergencyLane(text), crisisMatches: string[] = emergency ? [emergency] : [];
+  const emergency = matchEmergencyLane(text);
+  const crisisMatches: string[] = additionalCrisisMatches(text);
+  if (emergency) crisisMatches.push(emergency);
   const crisisScanText = prepareCrisisScanText(text);
   for (const term of CRISIS_TERMS[locale]) {
     if (matchesTerm(crisisScanText, term, locale) || (locale === "ko" && matchesJoinedKoTerm(crisisScanText, term))) crisisMatches.push(term);
@@ -199,4 +202,11 @@ export function koSpacingForms(term: string): string[] {
   return term
     .split(" ")
     .reduce<string[]>((forms, word, i) => (i === 0 ? [word] : forms.flatMap((form) => [`${form} ${word}`, `${form}${word}`])), []);
+}
+
+// Additional phrases are recognized regardless of UI locale, including callers
+// that intentionally scan just one EN/KO lexicon. Help routing still uses UI locale.
+function additionalCrisisMatches(text: string): string[] {
+  const match = matchAdditionalCrisisLanguage(text);
+  return match ? [match.phrase] : [];
 }

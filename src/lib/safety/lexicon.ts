@@ -485,3 +485,24 @@ export const EMERGENCY_PHRASES = {
     ],
   },
 } as const;
+// Q-261015-82: recognition phrases for es/pt/id. UI locale and country are separate.
+// Existing legal-review date above is unchanged; this addition needs its own review.
+export type AdditionalCrisisLanguage = "es" | "pt" | "id";
+
+export const ADDITIONAL_CRISIS_PHRASES: Record<AdditionalCrisisLanguage, readonly string[]> = {
+  es: [
+    "quiero suicidarme", "me quiero suicidar", "voy a suicidarme",
+    "voy a quitarme la vida", "pienso quitarme la vida",
+    "no quiero seguir viviendo", "me estoy autolesionando",
+  ],
+  pt: [
+    "quero me matar", "quero me suicidar", "vou me matar",
+    "vou tirar minha vida", "vou tirar a minha vida",
+    "não quero mais viver", "estou me machucando de propósito",
+  ],
+  id: [
+    "ingin bunuh diri", "mau bunuh diri", "akan bunuh diri",
+    "ingin mengakhiri hidupku", "ingin mengakhiri hidup saya",
+    "saya menyakiti diri sendiri", "aku melukai diri sendiri",
+  ],
+};

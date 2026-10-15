@@ -14,9 +14,9 @@
 --      않으므로 6시간을 기다릴 이유가 없다. 접으면서 그 세션 이름으로 온 감사 id 전부의 해시를 비우고
 --      tombstone 을 남긴다(D2 흔적 0, 게이트 1회차 D6-06 · D6-61).
 --   2. 진입점을 지운다: 프록시 writer 둘(판정 · 응답 블록 id), 화면 함수 셋(닫기 · 버리기 ·
---      담기), 본인 판정 내보내기, 뷰 둘, 그리고 진입점만 쓰던 도우미 둘(본문 렌더러 · 계정
---      울타리)과 세션 생성 셈 트리거. interview_coverage 감소 금지 트리거도 내린다 - 옛 화면의 절대값
---      칸 쓰기(클라이언트 경로)가 돌아오기 때문이다. 화면 · 프록시는 함수가 없으면 쓰기를 건너뛰고 옛
+--      담기), 본인 판정 내보내기, 뷰 둘, 그리고 진입점만 쓰던 도우미(본문 렌더러 · red hold · 계정
+--      울타리)과 세션 생성 셈 트리거. interview_coverage 감소·칸 이동 금지는 남긴다. 옛 화면의
+--      절대값 쓰기는 같은 값·증가만 허용한다(D6R4-03). 화면 · 프록시는 함수가 없으면 쓰기를 건너뛰고 옛
 --      경로(클라이언트 칸 쓰기 · recordSevenTiers)로 돌아간다.
 --   3. 남긴 표의 수명주기 장치는 **남긴다**(D6-06): 저장한 세션 · 대화록 · 블록 id 가 표에 남아
 --      있는 동안, 콘텐츠 삭제 · 보관 만료 · 계정 삭제가 그 행과 감사 해시를 계속 정리해야 한다.
@@ -25,6 +25,8 @@
 --        interview_record_erasure · ai_context_block_record_erasure (레코드 삭제),
 --        interview_verdict_erasure (판정 행 삭제 = 감사 해시 비우기),
 --        interview_session_erasure · interview_account_erasure (세션 · 계정 삭제 전 감사 해시 비우기).
+--        interview_owned_erasure_lock (머리 · 턴 삭제와 계정 삭제 사이의 교착 방지).
+--        interview_coverage_no_decrease (감소 · 칸 이동 금지).
 --        records.interview_ai_hold · guard_interview_record_hold (원문 수명 동안 hold 유지).
 --   4. 표 아홉 개와 그 행은 **남긴다.** 대화록은 사용자 데이터다.
 --      표를 지우는 것은 별도 파괴 단계이고, 그 전에 내보내야 한다. 0226 의 등록부 행도 그대로 둔다
@@ -74,7 +76,6 @@ BEGIN
 END
 $fold_unsaved$;
 
-DROP TRIGGER IF EXISTS trg_interview_coverage_no_decrease ON public.interview_coverage;
 DROP TRIGGER IF EXISTS interview_session_count_start ON public.interview_sessions;
 
 DROP VIEW IF EXISTS public.record_layer_inferences;
@@ -86,7 +87,7 @@ DROP FUNCTION IF EXISTS public.discard_interview_session(uuid);
 DROP FUNCTION IF EXISTS public.commit_interview_session(uuid, uuid, jsonb, boolean);
 DROP FUNCTION IF EXISTS public.record_context_blocks(uuid, text, text, text[], text[]);
 DROP FUNCTION IF EXISTS public.export_my_interview_judgements(timestamptz);
-DROP FUNCTION IF EXISTS public.interview_coverage_no_decrease();
+DROP FUNCTION IF EXISTS public.hold_interview_record_for_red(uuid, uuid, uuid);
 DROP FUNCTION IF EXISTS public.interview_session_count_start();
 DROP FUNCTION IF EXISTS public.interview_account_writable(uuid);
 DROP FUNCTION IF EXISTS public.interview_transcript_body(text, jsonb);
@@ -100,10 +101,10 @@ BEGIN
               WHERE n.nspname = 'public' AND p.proname IN (
                 'record_interview_probe_verdict', 'close_interview_session', 'discard_interview_session',
                 'commit_interview_session',
-                'record_context_blocks', 'export_my_interview_judgements', 'interview_coverage_no_decrease',
+                'record_context_blocks', 'export_my_interview_judgements', 'hold_interview_record_for_red',
                 'interview_session_count_start', 'interview_account_writable', 'interview_transcript_body'))
      OR EXISTS (SELECT 1 FROM pg_catalog.pg_trigger
-                 WHERE tgname IN ('trg_interview_coverage_no_decrease', 'interview_session_count_start')
+                 WHERE tgname IN ('interview_session_count_start')
                    AND NOT tgisinternal)
      OR to_regclass('public.interview_scene_metrics') IS NOT NULL
      OR to_regclass('public.record_layer_inferences') IS NOT NULL THEN
@@ -115,6 +116,8 @@ BEGIN
      OR to_regprocedure('public.interview_int_array_add(integer[],integer[])') IS NULL
      OR to_regprocedure('public.sweep_interview_sessions(integer)') IS NULL
      OR to_regprocedure('public.prune_interview_ledgers()') IS NULL
+     OR to_regprocedure('public.interview_coverage_no_decrease()') IS NULL
+     OR to_regprocedure('public.interview_owned_erasure_lock()') IS NULL
      OR (SELECT pg_catalog.count(*) FROM pg_catalog.pg_trigger AS g
           WHERE NOT g.tgisinternal
             AND (g.tgrelid, g.tgname) IN (
@@ -123,8 +126,11 @@ BEGIN
               ('public.records'::regclass, 'ai_context_block_record_erasure'),
               ('public.interview_probe_verdicts'::regclass, 'interview_verdict_erasure'),
               ('public.interview_sessions'::regclass, 'interview_session_erasure'),
+              ('public.interview_transcripts'::regclass, 'interview_owned_erasure_lock'),
+              ('public.interview_transcript_turns'::regclass, 'interview_owned_erasure_lock'),
+              ('public.interview_coverage'::regclass, 'trg_interview_coverage_no_decrease'),
               ('auth.users'::regclass, 'interview_account_erasure'),
-              ('public.users'::regclass, 'interview_account_erasure'))) <> 7 THEN
+              ('public.users'::regclass, 'interview_account_erasure'))) <> 10 THEN
     RAISE EXCEPTION 'rollback 0225: a lifecycle function or trigger for the kept tables is missing';
   END IF;
 

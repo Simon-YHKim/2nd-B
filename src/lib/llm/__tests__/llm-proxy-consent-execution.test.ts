@@ -7,6 +7,16 @@ const userId = "11111111-1111-4111-8111-111111111111";
 const token = "a".repeat(64);
 const reply = "Private fixture output";
 const compiled = new Map<string, string>();
+const edgeRoot = resolve(process.cwd(), "supabase/functions");
+const importMap = JSON.parse(readFileSync(resolve(edgeRoot, "import_map.json"), "utf8")).imports as Record<string, string>;
+function resolveEdgeImport(file: string, name: string): string {
+  const target = resolve(dirname(file), name);
+  if (target.endsWith(".ts")) return target;
+  const entry = Object.entries(importMap).find(([key]) => resolve(edgeRoot, key) === target);
+  if (!entry) throw new Error(`Missing Deno import mapping: ${name}`);
+  return resolve(edgeRoot, entry[1]);
+}
+
 type Snapshot = { data?: unknown; error?: unknown };
 type Vendor = "openai" | "gemini" | "claude" | "xai";
 type Mode = "text" | "embed" | "audio" | "polaris";
@@ -105,7 +115,7 @@ function host(vendor: Vendor, mode: Mode = "text") {
       if (name === "jsr:@supabase/functions-js/edge-runtime.d.ts") return {};
       if (name === "jsr:@supabase/supabase-js@2") return { createClient: () => admin };
       if (!name.startsWith(".")) throw new Error(`Unexpected external module: ${name}`);
-      return load(resolve(dirname(file), name));
+      return load(resolveEdgeImport(file, name));
     };
     new Function("exports", "require", "Deno", "fetch", compiled.get(file)!)(
       exports, localRequire, { env: { get: env }, serve: (fn: typeof handler) => { handler = fn; } }, fetch,

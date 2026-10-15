@@ -113,6 +113,7 @@ BEGIN
          'public.interview_transcript_body(text,jsonb)', 'public.interview_verdict_erasure()',
          'public.interview_session_count_start()', 'public.interview_record_erasure()',
          'public.interview_session_erasure()', 'public.interview_account_erasure()',
+         'public.interview_owned_erasure_lock()', 'public.hold_interview_record_for_red(uuid,uuid,uuid)',
          'public.ai_context_block_record_erasure()']) AS f(sig)
               CROSS JOIN pg_catalog.unnest(ARRAY['anon', 'authenticated', 'service_role']) AS r(role)
              WHERE has_function_privilege(r.role, f.sig, 'EXECUTE')) THEN

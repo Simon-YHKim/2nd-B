@@ -50,6 +50,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { prepareCrisisScanText } from '../../../src/lib/safety/crisis-context.ts';
 import { emergencyLanePayload, matchEmergencyLane } from '../../../src/lib/safety/emergency-routing.ts';
+import { matchAdditionalCrisisLanguage } from '../../../src/lib/safety/crisis-language.ts';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
 import { beginChatTurnAttempt, claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
 // D-27 attribution plus the shared server-owned purpose policy. The remaining
@@ -339,9 +340,9 @@ function matchesTermEn(lowerHaystack: string, term: string): boolean {
   }
   return false;
 }
-
 function hasCrisisTerm(text: string): boolean {
   if (matchEmergencyLane(text)) return true;
+  if (matchAdditionalCrisisLanguage(text)) return true;
   const lower = normalizeForMatch(prepareCrisisScanText(text));
   for (const term of CRISIS_TERMS_EN) {
     if (matchesTermEn(lower, term)) return true;
