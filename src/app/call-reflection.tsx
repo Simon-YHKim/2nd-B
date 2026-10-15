@@ -236,6 +236,14 @@ function CallReflection({ country }: { country: string | null }) {
     transcribeAbortRef.current?.abort();
     transcribeAbortRef.current = controller;
     const accountLease = beginAccountSessionLease(userId, controller.signal);
+    // One request owns one notice, even if the user dismisses it while the
+    // audit is pending or receives another share before the final reply.
+    let crisisNotified = false;
+    const notifyCrisis = (hotline: HotlineId | undefined): void => {
+      if (crisisNotified || !safetyOwner.isCurrent()) return;
+      crisisNotified = true;
+      publishCrisisNotice(safetyOwner, hotline ?? hotlineFor(ko, false));
+    };
     let file: Awaited<ReturnType<typeof pickAudioFile>> = null;
     let sharedFile: SharedMediaFile | null = null;
     try {
@@ -282,6 +290,7 @@ function CallReflection({ country }: { country: string | null }) {
       if (resolveJurisdiction().country !== "KR") throw new Error("call_scope_changed");
       const reply = await transcribeAudio({
         userId,
+        onCrisisDetected: notifyCrisis,
         session: authenticated,
         locale,
         base64,
@@ -290,11 +299,12 @@ function CallReflection({ country }: { country: string | null }) {
         mimeType: file.mimeType,
         minor: false,
       });
-      // Ordinary late results belong to the old delivery. A late red still
-      // reaches the same account even if its transport ignored cancellation.
+      // Ordinary results belong to this delivery. RED confirmed before a
+      // cancellation already reached the owner-leased app notice; the shared
+      // latch also covers a completed reply and prevents reopening on finish.
       if (reply.safety?.zone === "red" &&
         (!mountedRef.current || generation !== deliveryVersionRef.current || controller.signal.aborted)) {
-        publishCrisisNotice(safetyOwner, reply.safety.crisisRouting?.hotline ?? hotlineFor(ko, false));
+        notifyCrisis(reply.safety.crisisRouting?.hotline);
         return;
       }
       authenticated.assertCurrent();
@@ -305,7 +315,7 @@ function CallReflection({ country }: { country: string | null }) {
       if (reply.safety?.zone === "red") {
         setPhase("idle");
         setSelectedName(null);
-        setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? hotlineFor(ko, false) });
+        notifyCrisis(reply.safety.crisisRouting?.hotline);
         return;
       }
       const text = reply.text.trim();

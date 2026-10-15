@@ -56,6 +56,8 @@ import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { galmuriFor } from "@/components/m3/typeface";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
+import { publishCrisisNotice } from "@/lib/safety/crisis-notice";
 import {
   beginAccountSessionLease,
   type PendingAccountSessionLease,
@@ -2238,9 +2240,18 @@ function CaptureLegacySession({
 
   async function runExtract() {
     if (!userId || !pickedImage || extracting) return;
+    const safetyOwner = captureAccountOwnerLease(userId);
+    if (!safetyOwner) return;
     const ticket = beginAsyncProducer();
     const accountLease = beginAccountSessionLease(userId);
     ocrAccountLeaseRef.current = accountLease;
+    let crisisNotified = false;
+    const notifyCrisis = (hotline: HotlineId | undefined): void => {
+      if (crisisNotified || !sessionActiveRef.current) return;
+      try { accountLease.assertCurrent(); } catch { return; }
+      crisisNotified = true;
+      publishCrisisNotice(safetyOwner, hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988"));
+    };
     setExtracting(true);
     try {
       const authenticated = await accountLease.authenticate();
@@ -2250,6 +2261,7 @@ function CaptureLegacySession({
         locale,
         pickedImage,
         isMinor === true,
+        notifyCrisis,
       );
       authenticated.assertCurrent();
       if (!asyncProducerIsCurrent(ticket, "ocr")) return;
@@ -2271,7 +2283,7 @@ function CaptureLegacySession({
       // blocking finding). Route to the crisis modal like the journal path.
       if (isImageOcrCrisisResultError(e)) {
         if (!sessionActiveRef.current) return;
-        setCrisis({ visible: true, hotline: imageOcrCrisisHotline(e) ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
+        notifyCrisis(imageOcrCrisisHotline(e));
         return;
       }
       if (!asyncProducerIsCurrent(ticket, "ocr")) return;

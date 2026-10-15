@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as vm from "node:vm";
 import * as ts from "typescript";
-import { captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../lib/auth/account-epoch";
+import { captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, currentAccountOwner, noteResolvedOwner } from "../../lib/auth/account-epoch";
 import { dismissCrisisNotice, getCrisisNotice, publishCrisisNotice } from "../../lib/safety/crisis-notice";
+
+import { beginAccountSessionLease } from "../../lib/auth/account-session-lease";
 
 const source = ts.createSourceFile("call-reflection.tsx", readFileSync(join(process.cwd(), "src/app/call-reflection.tsx"), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const screen = source.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === "CallReflection")!;
@@ -74,17 +76,7 @@ function harness() {
     sharedMediaError: (value: unknown) => typeof value === "string" ? value : null,
     carriesShareMarker: () => true, discardSharedMedia: jest.fn(), resolveJurisdiction: () => ({ country: "KR" }),
     captureAccountOwnerLease, publishCrisisNotice, AbortController,
-    beginAccountSessionLease: (userId: string, parent?: AbortSignal) => {
-      const owner = captureAccountOwnerLease(userId);
-      const controller = new AbortController();
-      parent?.addEventListener("abort", () => controller.abort(), { once: true });
-      return {
-        signal: controller.signal,
-        assertCurrent() { if (!owner?.isCurrent() || controller.signal.aborted) throw Object.assign(new Error("stale"), { name: "AbortError" }); },
-        release() { controller.abort(); },
-        async authenticate() { this.assertCurrent(); return this; },
-      };
-    },
+    beginAccountSessionLease,
     takeSharedMedia: jest.fn(async () => ({ uri: "file:///owned", mimeType: "audio/mp4", size: 200, release: async () => undefined })),
     pickAudioFile: jest.fn(async () => null), recordingUriToBase64: jest.fn(async () => ({ base64: "audio" })),
     transcribeAudio: jest.fn(() => { const item = deferred<Reply>(); requests.push(item); return item.promise; }),
@@ -111,6 +103,7 @@ function harness() {
   function button(label: string): Tree { const found = nodes(render()).find((node) => node.type === "MdButton" && node.props.label === label); if (!found) throw new Error(`Missing button ${label}`); return found; }
   return {
     scope, requests, writes, render, button,
+    unmount: () => { for (const slot of slots) if (slot?.cleanup) slot.cleanup(); },
     receive: (token: string | null, error?: string) => { params = { sharedMedia: token ?? undefined, sharedMediaError: error, from: "share" }; return render(); },
     labels: () => nodes(render()).filter((node) => node.type === "MdButton").map((node) => node.props.label),
     text: () => JSON.stringify(render()),
@@ -221,7 +214,8 @@ test("late A red after B reaches app guidance and never becomes B's transcript",
 
 test("an already visible crisis notice survives receiving B", async () => {
   const h = harness(); await h.send(); h.requests[0].resolve(red()); await flush(); h.receive(B);
-  expect(nodes(h.render()).find((node) => node.type === "CrisisRouter")?.props).toMatchObject({ visible: true, hotline: "KR_109" });
+  expect(getCrisisNotice()?.hotline).toBe("KR_109");
+  expect(nodes(h.render()).find((node) => node.type === "CrisisRouter")?.props.visible).toBe(false);
 });
 
 test.each(["B", "ABA"])("late A red after account %s does not reach another epoch", async (transition) => {
@@ -232,4 +226,129 @@ test.each(["B", "ABA"])("late A red after account %s does not reach another epoc
   h.requests[0].resolve(red()); await flush();
   expect(getCrisisNotice()).toBeNull();
   expect(h.scope.createRecord).not.toHaveBeenCalled();
+});
+
+// Real boundary + real safety classifier + real owner/session leases. Only the
+// external proxy/model/audit I/O is controlled; these tests never call a model.
+const mockBoundaryInvoke = jest.fn();
+const mockBoundaryAudit = jest.fn();
+const mockClassifierAudit = jest.fn();
+const mockDirectGenerate = jest.fn();
+const mockBoundaryEnv = { EXPO_PUBLIC_SUPABASE_URL: "https://example.invalid", EXPO_PUBLIC_SUPABASE_ANON_KEY: "synthetic", EXPO_PUBLIC_LLM_MODE: "live", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: true, EXPO_PUBLIC_USE_VERTEX: false };
+jest.mock("../../lib/supabase/client", () => ({ getSupabaseClient: () => ({ auth: { getSession: async () => ({ data: { session: { user: { id: require("../../lib/auth/account-epoch").currentAccountOwner() }, access_token: "synthetic-captured-token" } }, error: null }) } }) }));
+jest.mock("../../lib/supabase/captured-session-client", () => ({ invokeFunctionWithCapturedSession: (...args: unknown[]) => mockBoundaryInvoke(...args) }));
+jest.mock("../../lib/llm/audit-write-outbox", () => ({ enqueueAuditWrite: (...args: unknown[]) => mockBoundaryAudit(...args) }));
+jest.mock("../../lib/supabase/audit", () => ({ insertAiAuditLog: (...args: unknown[]) => mockClassifierAudit(...args) }));
+jest.mock("../../lib/env", () => ({ getEnv: () => mockBoundaryEnv }));
+jest.mock("@google/genai", () => ({ GoogleGenAI: class { models = { generateContent: (...args: unknown[]) => mockDirectGenerate(...args) }; } }));
+
+function actualBoundary(h: ReturnType<typeof harness>, transcript = "약을 이미 많이 먹었어") {
+  const actual = jest.requireActual<typeof import("../../lib/llm/boundary")>("../../lib/llm/boundary");
+  mockBoundaryEnv.EXPO_PUBLIC_USE_VERTEX = false;
+  mockBoundaryAudit.mockReset().mockResolvedValue(undefined);
+  mockClassifierAudit.mockReset().mockResolvedValue(undefined);
+  mockBoundaryInvoke.mockReset().mockImplementation(async (_fn, _token, input) => ({ data: { text: input.body.purpose === "safety_classify" ? JSON.stringify({ zone: "green", triggers: [], confidence: 0.9 }) : transcript, audited: true }, error: null }));
+  h.scope.transcribeAudio.mockImplementation(((input: Parameters<typeof actual.transcribeAudio>[0]) => actual.transcribeAudio(input)) as never);
+  return actual;
+}
+
+describe("actual transcription boundary cancellation", () => {
+  const serverSafety = process.env.EXPO_PUBLIC_SERVER_SAFETY;
+  beforeEach(() => { process.env.EXPO_PUBLIC_SERVER_SAFETY = "true"; });
+  afterEach(() => {
+    if (serverSafety === undefined) delete process.env.EXPO_PUBLIC_SERVER_SAFETY;
+    else process.env.EXPO_PUBLIC_SERVER_SAFETY = serverSafety;
+    mockBoundaryEnv.EXPO_PUBLIC_USE_VERTEX = false;
+  });
+
+  test.each([false, true])("confirmed RED is visible before audit, with B redelivery=%s", async (receiveB) => {
+    const h = harness(); actualBoundary(h); const audit = deferred<void>();
+    mockBoundaryAudit.mockReturnValueOnce(audit.promise);
+    await h.send();
+    expect(mockBoundaryAudit).toHaveBeenCalledWith(expect.objectContaining({ kind: "ai_audit_log", payload: expect.objectContaining({ safetyZone: "red" }) }), expect.anything());
+    const early = getCrisisNotice(); expect(early?.hotline).toBe("KR_119");
+    if (receiveB) h.receive(B);
+    audit.resolve(); await flush();
+    expect(getCrisisNotice()).toBe(early); // one sink, one delivery, no duplicate final reply
+    expect(nodes(h.render()).find((node) => node.type === "CrisisRouter")?.props.visible).toBe(false);
+    if (receiveB) expect(h.labels()).toContain("sharedMedia.audioSend");
+    expect(h.scope.createRecord).not.toHaveBeenCalled();
+  });
+
+  test.each([false, true])("dismissed early RED is not reopened by final reply or B=%s", async (receiveB) => {
+    const h = harness(); actualBoundary(h); const audit = deferred<void>(); mockBoundaryAudit.mockReturnValueOnce(audit.promise);
+    await h.send(); dismissCrisisNotice(getCrisisNotice()!.id);
+    if (receiveB) {
+      h.receive(B);
+      mockBoundaryInvoke.mockResolvedValueOnce({ data: { text: "NEW_B ordinary transcript", audited: true }, error: null });
+      await h.send();
+    }
+    audit.resolve(); await flush();
+    expect(getCrisisNotice()).toBeNull();
+    if (receiveB) expect(h.text()).toContain("NEW_B ordinary transcript");
+    expect(h.text()).not.toContain("약을 이미 많이 먹었어");
+  });
+
+  test("lexical 109 RED is announced before a delayed semantic classification", async () => {
+    const h = harness(); actualBoundary(h, "죽고 싶어요"); const semantic = deferred<unknown>();
+    const previous = mockBoundaryInvoke.getMockImplementation()!;
+    mockBoundaryInvoke.mockImplementation((fn, token, input) => input.body.purpose === "safety_classify" ? semantic.promise : previous(fn, token, input));
+    await h.send();
+    expect(getCrisisNotice()?.hotline).toBe("KR_109");
+    expect(mockBoundaryAudit).not.toHaveBeenCalled();
+    h.receive(B); semantic.resolve({ data: { text: JSON.stringify({ zone: "green", confidence: 0.9 }) }, error: null }); await flush();
+    expect(getCrisisNotice()?.hotline).toBe("KR_109");
+    expect(h.labels()).toContain("sharedMedia.audioSend");
+  });
+
+  test.each(["B", "ABA", "unmount", "share"])("unclassified output after %s is still fenced", async (change) => {
+    const h = harness(); actualBoundary(h); const proxy = deferred<unknown>(); mockBoundaryInvoke.mockReturnValueOnce(proxy.promise);
+    await h.send();
+    if (change === "share") h.receive(B);
+    else if (change === "unmount") h.unmount();
+    else { noteResolvedOwner(change === "B" ? "owner-B" : null); if (change === "ABA") noteResolvedOwner("owner-A"); clearAccountTransition(currentAccountEpoch()); }
+    proxy.resolve({ data: { text: "약을 이미 많이 먹었어", audited: true }, error: null }); await flush();
+    expect(getCrisisNotice()).toBeNull();
+    expect(mockBoundaryAudit).not.toHaveBeenCalled();
+  });
+
+  test.each(["B", "ABA", "unmount"])("an already confirmed notice follows account ownership across %s", async (change) => {
+    const h = harness(); actualBoundary(h); const audit = deferred<void>(); mockBoundaryAudit.mockReturnValueOnce(audit.promise);
+    await h.send(); expect(getCrisisNotice()?.hotline).toBe("KR_119");
+    if (change === "unmount") h.unmount();
+    else { noteResolvedOwner(change === "B" ? "owner-B" : null); if (change === "ABA") noteResolvedOwner("owner-A"); clearAccountTransition(currentAccountEpoch()); }
+    audit.resolve(); await flush();
+    if (change === "unmount") expect(getCrisisNotice()?.hotline).toBe("KR_119");
+    else expect(getCrisisNotice()).toBeNull();
+  });
+
+  test("consent rejection cannot publish a notice or reach another model", async () => {
+    const h = harness(); actualBoundary(h);
+    mockBoundaryInvoke.mockResolvedValueOnce({ data: null, error: { context: new Response(JSON.stringify({ error: "consent_required" }), { status: 403 }) } });
+    const warning = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    try { await h.send(); expect(getCrisisNotice()).toBeNull(); expect(mockBoundaryInvoke).toHaveBeenCalledTimes(1); expect(mockBoundaryAudit).not.toHaveBeenCalled(); } finally { warning.mockRestore(); }
+  });
+
+  test("semantic-only direct classifier RED notifies before its own audit await", async () => {
+    const h = harness(); actualBoundary(h, "A neutral fixture with no lexical crisis marker");
+    mockBoundaryEnv.EXPO_PUBLIC_USE_VERTEX = true;
+    const audit = deferred<void>(); mockClassifierAudit.mockReturnValueOnce(audit.promise);
+    mockDirectGenerate.mockResolvedValueOnce({ text: JSON.stringify({ zone: "red", triggers: ["active_ideation"], confidence: 0.99 }) });
+    await h.send();
+    expect(mockClassifierAudit).toHaveBeenCalledWith(expect.objectContaining({ safetyZone: "red", purpose: "safety_classify" }), expect.any(String), expect.anything());
+    expect(getCrisisNotice()?.hotline).toBe("KR_109");
+    h.receive(B); audit.resolve(); await flush(); expect(getCrisisNotice()?.hotline).toBe("KR_109");
+  });
+
+  test("observer failure cannot skip audits or alter the standard red return", async () => {
+    const h = harness(); const actual = actualBoundary(h);
+    const pending = beginAccountSessionLease(currentAccountOwner()!); const session = await pending.authenticate();
+    const observer = jest.fn(() => { throw new Error("synthetic UI observer failure"); });
+    try {
+      const result = await actual.transcribeAudio({ userId: session.userId, session, base64: "audio", mimeType: "audio/mp4", locale: "ko", onCrisisDetected: observer });
+      expect(observer).toHaveBeenCalledTimes(1); expect(observer).toHaveBeenCalledWith("KR_119");
+      expect(result.safety.zone).toBe("red");
+      expect(mockBoundaryAudit.mock.calls.map(([entry]) => entry.kind)).toEqual(["ai_audit_log", "crisis_event"]);
+    } finally { pending.release(); }
+  });
 });

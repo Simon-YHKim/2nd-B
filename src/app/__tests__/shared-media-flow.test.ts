@@ -99,7 +99,8 @@ describe("shared audio uses the existing explicit transcription/review boundary"
   test("red results still open the crisis route instead of showing or saving the transcript", async () => {
     const h = audioScope({ transcribeAudio: jest.fn(async () => ({ text: "hidden", safety: { zone: "red", crisisRouting: { hotline: "KR_109" } } })) });
     await h.run(true);
-    expect(h.scope.setCrisis).toHaveBeenCalledWith({ visible: true, hotline: "KR_109" });
+    expect(h.scope.publishCrisisNotice).toHaveBeenCalledWith(expect.anything(), "KR_109");
+    expect(h.scope.setCrisis).not.toHaveBeenCalled();
     expect(h.scope.setTranscript).not.toHaveBeenCalled();
     expect(h.scope.createRecord).not.toHaveBeenCalled();
   });
