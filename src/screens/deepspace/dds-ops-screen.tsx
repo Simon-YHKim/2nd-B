@@ -707,7 +707,7 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
   function eventFor(recommendation: OpsRecommendation): OpsEventInput {
     return {
       title: recommendation.title,
-      // This surface only exports unedited recommendForDomain model results.
+      // Live recommendations are unedited model results; mock previews use fixtures.
       // Keep the disclosure in the outgoing calendar notes, not the saved routine.
       description: withAiCopyTail(recommendation.reason, t("secondb:aiCopyTail")),
       startsAtIso: recommendation.startsAtIso ?? nextMorningIso(),
