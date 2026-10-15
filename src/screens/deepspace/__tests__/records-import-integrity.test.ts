@@ -92,7 +92,11 @@ describe("PIXEL-CLAY records root composition", () => {
   it("bounds only the visual graph, never the archive data source", () => {
     expect(src).toContain("buildRoleRecordsGraph(");
     expect(src).toContain('if (view !== "graph") return [];');
-    expect(src).toContain('listRecordsByIds(userId, roleEvidenceIds(cards))');
+    expect(src).toContain("const roleRead = useRoleEvidenceRead(userId, authLoading, reloadKey,");
+    const reader = read("src/lib/persona/use-role-evidence-read.ts");
+    expect(reader).toContain("const cards = await loadRoleCards(owner)");
+    expect(reader).toContain("const ids = roleEvidenceIds(cards)");
+    expect(reader).toContain("await listRecordsByIds(owner, ids)");
     expect(src).toMatch(/buildRoleRecordsGraph\(\s+graphSourceRecords,/);
     expect(src).toContain('recordsGraph.nodes.filter((node) => node.kind === "record").length');
     expect(src).toContain("graphCount < graphSourceRecords.length");

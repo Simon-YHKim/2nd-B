@@ -73,6 +73,7 @@ beforeAll(() => {
   spies.push(jest.spyOn(React, "useMemo").mockImplementation(((fn: () => unknown, deps: readonly unknown[]) => mockHarness.hooks.useMemo(fn, deps)) as typeof React.useMemo));
   spies.push(jest.spyOn(React, "useCallback").mockImplementation(((fn: unknown, deps: readonly unknown[]) => mockHarness.hooks.useCallback(fn, deps)) as typeof React.useCallback));
   spies.push(jest.spyOn(React, "useEffect").mockImplementation(((fn: () => void | (() => void), deps: readonly unknown[]) => mockHarness.hooks.useEffect(fn, deps)) as typeof React.useEffect));
+  spies.push(jest.spyOn(React, "useSyncExternalStore").mockImplementation(((subscribe, snapshot) => mockHarness.hooks.useSyncExternalStore(subscribe, snapshot)) as typeof React.useSyncExternalStore));
   (globalThis as { React?: unknown }).React = React;
   const module = jest.requireActual<typeof import("../dds-wiki-records-screens")>("../dds-wiki-records-screens");
   Screen = module.DeepSpaceRecordsScreen; timeoutMs = module.WIKI_LIST_READ_TIMEOUT_MS;
