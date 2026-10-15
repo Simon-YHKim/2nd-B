@@ -110,6 +110,20 @@ test("zero and unknown coverage keys keep the successful empty semantics", async
     { period: "future-key", layer: "fact", answers: "unknown" }];
   expect(await loadSevenLevelsStrict("owner-a", current)).toEqual(empty);
 });
+test.each([
+  { table: "interview_coverage", row: {} },
+  { table: "interview_coverage", row: { period: null, layer: "fact", answers: 1 } },
+  { table: "interview_coverage", row: { period: "infancy", layer: 7, answers: 1 } },
+  { table: "interview_coverage", row: { period: "", layer: "fact", answers: 1 } },
+  { table: "interview_coverage", row: { period: "infancy", layer: "", answers: 1 } },
+  { table: "star_tier_history", row: { level: 5 } },
+  { table: "star_tier_history", row: { star_id: null, level: 5 } },
+  { table: "star_tier_history", row: { star_id: 7, level: 5 } },
+  { table: "star_tier_history", row: { star_id: "", level: 5 } },
+])("missing or malformed $table identifiers cannot confirm L1", async ({ table, row }) => {
+  mockData[table] = [row];
+  await expect(loadSevenLevelsStrict("owner-a", current)).rejects.toThrow("identifiers");
+});
 test.each([null, "5", NaN, Infinity])("known ratified level %s cannot imply revoked ratification", async (level) => {
   mockData.star_tier_history = [{ star_id: "seven:infancy", level }];
   await expect(loadSevenLevelsStrict("owner-a", current)).rejects.toThrow("ratified level");

@@ -25,6 +25,9 @@ function counts(data: unknown): number {
 function coverageFrom(data: unknown) {
   const coverage = emptyCoverage();
   for (const row of rows(data)) {
+    if (typeof row.period !== "string" || !row.period || typeof row.layer !== "string" || !row.layer) {
+      throw new Error("Brightness coverage identifiers were invalid");
+    }
     if (!(LIFE_PERIODS as readonly unknown[]).includes(row.period) || !(DRILL_LAYERS as readonly unknown[]).includes(row.layer)) continue;
     const n = row.answers;
     if (typeof n !== "number" || !Number.isSafeInteger(n) || n < 0) throw new Error("Brightness coverage was invalid");
@@ -35,7 +38,8 @@ function coverageFrom(data: unknown) {
 function ratifiedFrom(data: unknown): Partial<Record<SevenStarId, LadderLevel>> {
   const out: Partial<Record<SevenStarId, LadderLevel>> = {};
   for (const row of rows(data)) {
-    const id = typeof row.star_id === "string" ? parseTierKey(row.star_id) : null;
+    if (typeof row.star_id !== "string" || !row.star_id) throw new Error("Brightness ratified identifiers were invalid");
+    const id = parseTierKey(row.star_id);
     if (!id || out[id] !== undefined) continue;
     if (typeof row.level !== "number" || !Number.isFinite(row.level)) throw new Error("Brightness ratified level was invalid");
     out[id] = Math.min(5, Math.max(1, Math.round(row.level))) as LadderLevel;
