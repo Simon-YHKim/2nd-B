@@ -16,6 +16,7 @@
   "drill": {
     "opening": "Por qual fase da sua vida começamos? Uma cena que venha à mente já basta.",
     "placeholder": "Escreva o quanto quiser",
+    "processingNotice": "A IA lê suas respostas para criar a próxima pergunta. Suas respostas só ficam salvas como registro quando você escolhe salvar.",
     "send": "Enviar",
     "thinking": "Preparando a próxima pergunta…",
     "enough": "Por hoje já basta",
