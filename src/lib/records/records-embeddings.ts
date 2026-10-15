@@ -15,6 +15,7 @@
 import { embedTexts, EMBED_DIM } from "../llm/boundary";
 import { embedVendor, type LlmVendor } from "../llm/routing";
 import { getSupabaseClient } from "../supabase/client";
+import { classifyInputAnyLocale } from "../safety/classifier";
 
 // D5 consent gate for records (journal) embedding — the MOST sensitive corpus.
 // Adults must explicitly opt in (the `records_embedding` privacy pref, OFF by
@@ -57,6 +58,8 @@ export interface EmbeddableRecord {
   topic?: string | null;
   summary?: string | null;
   body: string;
+  /** Stored crisis result remains authoritative even if the local terms do not match. */
+  ai_followup?: unknown;
 }
 
 /** The text we embed for a record: topic + summary + body, blank-line joined,
@@ -71,6 +74,20 @@ export function recordEmbeddingText(
     .join("\n\n")
     .trim();
   return text.length > max ? text.slice(0, max) : text;
+}
+
+// Check the full stored fields BEFORE truncation. Otherwise a signal after the
+// 2,000-character embedding cap disappears from the boundary's input. A prior
+// RED follow-up also holds the record when the current lexicon cannot reproduce
+// a semantic verdict. This does not replace the durable D4 ai_hold contract.
+function recordEmbeddingHeld(record: EmbeddableRecord): boolean {
+  const followup = record.ai_followup;
+  if (typeof followup === "object" && followup !== null && "zone" in followup && followup.zone === "red") {
+    return true;
+  }
+  return [record.topic, record.summary, record.body].some(
+    (field) => typeof field === "string" && classifyInputAnyLocale(field, "en").zone === "red",
+  );
 }
 
 /** Postgres vector input format is the same bracketed list as JSON. */
@@ -127,7 +144,7 @@ export async function embedAndStoreRecord(
   consented = false,
 ): Promise<boolean> {
   // D5: fail closed — never embed journal content without explicit consent.
-  if (!recordsEmbeddingAllowed(minor, consented)) return false;
+  if (!recordsEmbeddingAllowed(minor, consented) || recordEmbeddingHeld(record)) return false;
   const text = recordEmbeddingText(record);
   if (text.length === 0) return false;
   const { vectors, audit } = await embedTexts({ userId, texts: [text], locale, minor });
@@ -219,7 +236,7 @@ export async function backfillRecordEmbeddings(
   const supabase = getSupabaseClient();
   let query = supabase
     .from("records")
-    .select("id, topic, summary, body, created_at")
+    .select("id, topic, summary, body, ai_followup, created_at")
     .eq("user_id", userId)
     .is("embedding", null)
     .order("created_at", { ascending: false })
@@ -235,6 +252,7 @@ export async function backfillRecordEmbeddings(
   const rows = (data ?? []) as (EmbeddableRecord & { created_at: string })[];
   const oldest = rows.length > 0 ? rows[rows.length - 1].created_at : null;
   const targets = rows
+    .filter((r) => !recordEmbeddingHeld(r))
     .map((r) => ({ record: r, text: recordEmbeddingText(r) }))
     .filter((t) => t.text.length > 0);
   if (targets.length === 0) return { scanned: 0, embedded: 0, fetched: rows.length, oldest };
