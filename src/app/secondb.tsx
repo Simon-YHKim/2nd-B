@@ -65,7 +65,7 @@ import { sendChatMessage } from "@/lib/chat/conversation";
 import { retryableMessage } from "@/lib/chat/retry-failed";
 import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
-import { LlmConsentError, transcribeAudio, type LlmConsentErrorCode } from "@/lib/llm/boundary";
+import { LlmConsentError, transcribeAudio } from "@/lib/llm/boundary";
 import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
 import { MdButton } from "@/components/m3";
 import { shouldShowChatAiNotice, useChatAiNoticeSeen } from "@/lib/chat/ai-first-notice";
@@ -85,6 +85,7 @@ import { chatComposerAlignment, chatStatusMaxLines } from "@/components/secondb/
 import { ChatActionBar, type ChatAction } from "@/components/secondb/ChatActionBar";
 import { ChatPlanSheet } from "@/components/secondb/ChatPlanSheet";
 import { useChatPlans } from "@/components/secondb/useChatPlans";
+import type { ChatTurn, ChatMode } from "@/lib/chat/session-types";
 import { ChatMessageAvatar, useChatUserAvatar } from "@/components/secondb/ChatMessageAvatar";
 import { HustleKPortrait } from "@/components/character/HustleKPortrait";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
@@ -149,33 +150,6 @@ function IconMic({ color, size = 22 }: { color: string; size?: number }) {
 function IconCite({ color, size = 13 }: { color: string; size?: number }) {
   return <PixelGlyph name="link" color={color} size={size} />;
 }
-
-interface ChatTurn {
-  role: "user" | "secondb";
-  text: string;
-  /** In-memory bubble input with citation markers; never used for copy/history/capture. */
-  citationText?: string;
-  /** Speaker at send time; absent only on older in-memory turns. */
-  persona?: Rev2PersonaId;
-  /** Slugs the reply cited — rendered as small source chips. */
-  chips?: string[];
-  /** 트위비 next-step candidates (P5f) — trailing → lines lifted from the reply. */
-  branches?: string[];
-  /** Client-generated line (greeting, limit hint, error) — NOT a model reply.
-   *  Excluded from the conversation history sent back to the model so it isn't
-   *  mis-grounded as something SecondB actually said. */
-  synthetic?: boolean;
-  consentError?: LlmConsentErrorCode;
-  /** On a line that says the reply failed: the message it was for. Sending that message again
-   *  may get an answer (no response, a server error, a deadline), so the line offers it (Z40).
-   *  Absent on a consent refusal: sending again cannot change that. */
-  retryText?: string;
-  safetyZone?: "green" | "yellow" | "red";
-  /** Guidance is shown once by the app host; its fixed text is never a bubble or model history. */
-  crisisNotice?: true;
-}
-
-type ChatMode = "analytic" | "divergent";
 
 // 잠긴 페르소나 칩 — 옛 `opacity: 0.6` 이 테두리와 글자 둘을 함께 덮었다.
 // 컨테이너만 흐리면 글자가 그대로 남아 **잠긴 것이 안 잠긴 것보다 또렷해진다.**
