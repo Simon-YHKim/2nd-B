@@ -82,6 +82,10 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
+  "UNNUMBERED_reward_ssv_grant_helper_acl.sql": {
+    runner: "db/migration-drafts/tests/reward-ssv-grant-helper-acl-contract.sql",
+    workflowInvocation: "-f db/migration-drafts/tests/reward-ssv-grant-helper-acl-contract.sql",
+  },
 };
 
 /** Violations of the one-copy rule. Pure, so the guard itself can be mutated below. */
