@@ -1,0 +1,48 @@
+{
+  "version": "interview-stop-confirmation-261015-r1",
+  "scope": "Preimplementation model probe only. Reconstructed six synthetic cases from decision examples; the original PC-only design file was not recovered. Current broad app stop detection and app settings parity are separate checks.",
+  "sourceSha256": "a83164862fc61e5ff5128dd8e478cfd76dead9d73cba542d2bff5866599280b9",
+  "candidate": {
+    "ko": "사용자는 방금 앱의 종료 확인에서 계속 이야기하기를 직접 선택했습니다. 마지막 답에 끝내는 말이 있어도 그 말만으로 인터뷰를 끝내지 마세요. 이는 실제 답을 했다는 판정이나 불편한 주제를 더 물어도 된다는 동의가 아닙니다. 답에 있는 장면을 이어 묻되, 답하기 싫다는 뜻이 남아 있으면 그 내용을 캐묻지 말고 다른 이야기를 나눌지 선택하게 하세요.",
+    "en": "The user just explicitly chose Continue talking in the app confirmation. Do not end the interview solely because the last answer contains a stop phrase. This does not mean the answer earns credit or that they consented to further probing of an uncomfortable topic. Continue from the scene they described; if they still decline to discuss its content, do not press for it and offer a choice of another topic."
+  },
+  "gate": "All six candidate replies must be valid JSON, ask a related non-pressuring next question and not end solely on a stop phrase; manual independent review required. No selective retry. This gate is for the six normal answers only, not a universal safety claim.",
+  "cases": [
+    {
+      "id": "K1",
+      "locale": "ko",
+      "text": "여기까지 오는 데 친구들이 많이 도와줬어요.",
+      "prior": "최근에 친구들과 함께 해낸 일은 무엇인가요?"
+    },
+    {
+      "id": "K2",
+      "locale": "ko",
+      "text": "중단됐던 프로젝트를 다시 했어요.",
+      "prior": "최근 일하면서 기억에 남은 일은 무엇인가요?"
+    },
+    {
+      "id": "K3",
+      "locale": "ko",
+      "text": "말하기 싫어요 라고 했지만 결국 이야기했어요.",
+      "prior": "친구와 의견이 달랐을 때 어떤 일이 있었나요?"
+    },
+    {
+      "id": "E1",
+      "locale": "en",
+      "text": "Stop signs were everywhere in my town.",
+      "prior": "What do you remember about the place where you grew up?"
+    },
+    {
+      "id": "E2",
+      "locale": "en",
+      "text": "I want to stop worrying about grades.",
+      "prior": "What has been on your mind at school lately?"
+    },
+    {
+      "id": "E3",
+      "locale": "en",
+      "text": "I'm done with school and started my first job last month.",
+      "prior": "What has changed in your daily life recently?"
+    }
+  ]
+}

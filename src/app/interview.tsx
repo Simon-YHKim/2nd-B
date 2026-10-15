@@ -41,7 +41,8 @@ import { StyleSheet } from "react-native";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { useTranslation } from "react-i18next";
-import { Redirect } from "expo-router";
+import { Redirect, useNavigation } from "expo-router";
+import { usePreventRemove } from "expo-router/react-navigation";
 
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
@@ -56,7 +57,7 @@ import { publishCrisisNotice } from "@/lib/safety/crisis-notice";
 import { startInterviewCrisisRouting } from "@/lib/llm/boundary";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
-import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
+import { useAppRouter, useHardwareBack, useScreenParams } from "@/lib/nav/phone-embed";
 import { useGoHomeStop } from "@/lib/nav/go-home";
 import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/periods";
 import { DrillProgress } from "@/components/ui/DrillProgress";
@@ -103,7 +104,7 @@ function Glyph({ name, color, size = 20 }: { name: string; color: string; size?:
 // 끝난다. 마지막 것도 오류가 아니라 끝맺음이다. 이유와 응답 모양은
 // `lib/interview/session-end.ts` 에 있다. 비용은 그 서버 한도가 막는다.
 
-function InterviewFrame({ children }: { children: ReactNode }) {
+function InterviewFrame({ children, onBack }: { children: ReactNode; onBack?: () => void }) {
   // Phone-aware: inside the dashboard phone, back steps the phone's stack.
   const router = useAppRouter();
   const { t } = useTranslation("interview");
@@ -113,7 +114,7 @@ function InterviewFrame({ children }: { children: ReactNode }) {
       header="none"
       variant="windowed"
       title={t("title")}
-      onBack={() => router.back()}
+      onBack={onBack ?? (() => router.back())}
     >
       {children}
     </DeepSpaceScreen>
@@ -194,7 +195,7 @@ export default function InterviewRoute() {
   // 시기의 대화와 섞이지 않고, 저장 시기 역시 이 prop 하나로 고정된다.
   return (
     <TrackGatedInterview
-      key={`${resolution.period}:${growthOrigin ? "domain-growth" : "default"}`}
+      key={`${userId}:${resolution.period}:${growthOrigin ? "domain-growth" : "default"}`}
       period={resolution.period}
       growthOrigin={growthOrigin}
       userId={userId}
@@ -249,6 +250,14 @@ function TrackGatedInterview({
   return <InterviewSession period={period} growthOrigin={growthOrigin} />;
 }
 
+type PendingStopChoice = {
+  text: string;
+  owner: NonNullable<ReturnType<typeof captureAccountOwnerLease>>;
+  locale: "en" | "ko";
+  period: LifePeriod;
+  minor: boolean;
+};
+
 function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growthOrigin: boolean }) {
   // Phone-aware: inside the dashboard phone, the post-save return to the star
   // summary replaces the phone's screen instead of the app's route.
@@ -263,6 +272,11 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
 
   const { userId, isMinor, age } = useAuth();
   const kbHeight = useKeyboard();
+  const navigation = useNavigation();
+  const [stopChoice, setStopChoice] = useState<PendingStopChoice | null>(null);
+  const stopChoiceRef = useRef<PendingStopChoice | null>(null);
+  const contextRef = useRef({ userId, locale, period, minor: isMinor === true });
+  contextRef.current = { userId, locale, period, minor: isMinor === true };
 
   const [turns, setTurns] = useState<InterviewTurn[]>([]);
   const [coverage, setCoverage] = useState<Coverage>(emptyCoverage);
@@ -310,6 +324,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   );
 
   const finish = useCallback(() => {
+    stopChoiceRef.current = null;
+    setStopChoice(null);
     ended.current = true;
     setBusy(false);
     setDone(true);
@@ -320,7 +336,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   useEffect(() => {
     ended.current = false;
     mounted.current = true;
-    return () => { ended.current = true; mounted.current = false; };
+    return () => { ended.current = true; mounted.current = false; stopChoiceRef.current = null; };
   }, []);
 
   useEffect(() => {
@@ -345,8 +361,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   // 건너뛰기 가드도 **같은 판정**으로 그런 답을 답으로 세지 않는다(session-end.ts).
   // 둘이 갈라지면 "모르겠어요 → 건너뛰기" 교대가 다시 끝없이 길어진다(F2049-02).
   const isLocalNonAnswer = useCallback(
-    (text: string, layer: DrillLayer | null | undefined): boolean =>
-      layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale)),
+    (text: string, layer: DrillLayer | null | undefined, continuedAfterStop = false): boolean =>
+      layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale, continuedAfterStop)),
     [isBlockedAnswer, locale],
   );
 
@@ -444,7 +460,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         if (ended.current) return;
         const lastAnswer = history[history.length - 1];
         const confirmed = credited && lastAnswer
-          ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)
+          ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer, lastAnswer.continuedAfterStop)
           : false;
         const assessed = history.map((turn, index) => index === history.length - 1 && turn.role === "user"
           ? { ...turn, answered: Boolean(confirmed) }
@@ -543,15 +559,16 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
 
   useEffect(() => {
     if (turns.length > 0) scrollRef.current?.scrollToEnd({ animated: true });
-  }, [turns.length]);
+  }, [turns.length, stopChoice]);
 
   const userTurns = turns.filter((turn) => turn.role === "user").length;
 
   // `override` 는 답변 칩이 쓴다. 칩을 누르면 `setDraft` 후 `send()` 를 부르는 대신
   // 곧바로 그 말을 보낸다 — 상태 갱신은 다음 렌더에나 반영돼서, 그 사이에 보내면
   // 직전 draft(대개 빈 문자열)가 나간다.
-  async function send(override?: string) {
-    if (!userId || busy || ended.current || !coverageReady) return;
+  async function send(override?: string, continued?: PendingStopChoice) {
+    if (!userId || busy || ended.current || !mounted.current || !coverageReady || stopChoiceRef.current) return;
+    if (continued && !stopChoiceIsCurrent(continued)) return;
     const text = (override ?? draft).trim();
     if (text.length === 0) {
       setNotice(t("drill.emptyAnswer"));
@@ -585,10 +602,13 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       return;
     }
     const disposition = answerDisposition(text, locale);
-    if (disposition === "stop") {
-      setTurns([...turns, { role: "user", text, period, answered: false }]);
-      setDraft("");
-      finish();
+    if (disposition === "stop" && !continued) {
+      const owner = captureAccountOwnerLease(userId);
+      if (!owner) return;
+      const pending = { text, owner, locale, period, minor: isMinor === true };
+      // Ref first: two queued Send presses cannot open/submit this twice.
+      stopChoiceRef.current = pending;
+      setStopChoice(pending);
       return;
     }
     if (disposition === "skip") {
@@ -597,7 +617,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     }
     // 답변이 붙는 층은 **직전 질문이 겨냥한 층**이다. 되묻기였다면 층이 없다 --
     // 그건 깊이를 판 것이 아니라 방향을 바꾼 것이므로 coverage 를 올리지 않는다.
-    const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period };
+    const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period,
+      ...(continued ? { continuedAfterStop: true } : {}) };
     const nextTurns = [...turns, answered];
 
     // ⚠ **"모르겠다"는 칸을 채우지 않는다** (Simon 실측, 2026-08-24).
@@ -609,7 +630,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     //
     // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
     // 말했을 때만 안 셌다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
-    const blocked = isLocalNonAnswer(text, pendingLayer);
+    const blocked = isLocalNonAnswer(text, pendingLayer, Boolean(continued));
     const nextCoverage = coverage;
     const nextStreak = blocked ? stuckStreak + 1 : 0;
     const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;
@@ -631,12 +652,48 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);
   }
 
+  function stopChoiceIsCurrent(pending: PendingStopChoice): boolean {
+    const current = contextRef.current;
+    return mounted.current && !ended.current && pending.owner.isCurrent()
+      && current.userId === userId && pending.locale === current.locale
+      && pending.period === current.period && pending.minor === current.minor;
+  }
+
+  function resolveStopChoice(choice: "finish" | "continue", expected = stopChoiceRef.current): boolean {
+    const pending = stopChoiceRef.current;
+    if (!pending || pending !== expected) return false;
+    // Consume before state updates, calls or navigation; stale button callbacks are inert.
+    stopChoiceRef.current = null;
+    if (mounted.current) setStopChoice(null);
+    if (!stopChoiceIsCurrent(pending)) return false;
+    if (choice === "finish") {
+      setTurns([...turns, { role: "user", text: pending.text, period, answered: false }]);
+      setDraft("");
+      finish();
+    } else {
+      // Re-enters the safety gate before recording credit or asking the model.
+      void send(pending.text, pending);
+    }
+    return true;
+  }
+
+  useHardwareBack(() => resolveStopChoice("continue"));
+  usePreventRemove(stopChoice !== null, ({ data }) => {
+    // Native swipe/browser Back is the same choice. Account reset and other
+    // navigation actions must never submit a pending answer as a side effect.
+    if ((data.action.type === "GO_BACK" || data.action.type === "POP")
+        && resolveStopChoice("continue")) return;
+    stopChoiceRef.current = null;
+    if (mounted.current) setStopChoice(null);
+    navigation.dispatch(data.action);
+  });
+
   function changeAngle(choice: "skip" | "concrete") {
-    if (busy || ended.current) return;
+    if (busy || ended.current || stopChoiceRef.current) return;
     // 모델을 부르지 않는 길이라 서버 한도에 안 닿는다. 답 없이 연달아 붙은 질문만
     // 세서 막는다 -- 건너뛰기를 계속 눌러도 끝없이 길어지지 않게(session-end.ts).
     // "모르겠어요"처럼 발판으로 받은 답은 답으로 세지 않는다 -- send() 와 같은 판정.
-    if (localPromptsExhausted(turns, (turn) => isLocalNonAnswer(turn.text, turn.layer))) {
+    if (localPromptsExhausted(turns, (turn) => isLocalNonAnswer(turn.text, turn.layer, turn.continuedAfterStop))) {
       finish();
       return;
     }
@@ -729,7 +786,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   }
 
   return (
-    <InterviewFrame>
+    <InterviewFrame onBack={() => { if (!resolveStopChoice("continue")) router.back(); }}>
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={[styles.body, { paddingBottom: kbHeight + spacing.sm }]}
@@ -815,6 +872,29 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               <Text style={[m3TextStyle("bodySmall"), styles.notice]}>{notice}</Text>
             ) : null}
 
+            {stopChoice ? (
+              <View style={styles.stopChoice}>
+                <MdCard variant="outlined" style={styles.mine}>
+                  <Text style={[m3TextStyle("bodyMedium"), styles.mineText]}>{stopChoice.text}</Text>
+                </MdCard>
+                <Text accessibilityRole="header" style={[m3TextStyle("titleMedium"), styles.askText]}>
+                  {t("drill.stopQuestion")}
+                </Text>
+                <View style={styles.stopActions}>
+                  <Pressable onPress={() => resolveStopChoice("finish", stopChoice)}
+                    style={[styles.answerChip, styles.stopButton]} accessibilityRole="button"
+                    accessibilityLabel={t("drill.stopFinish")}>
+                    <Text style={[m3TextStyle("labelLarge"), styles.answerChipText]}>{t("drill.stopFinish")}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => resolveStopChoice("continue", stopChoice)}
+                    style={[styles.answerChip, styles.stopButton, styles.stopContinue]} accessibilityRole="button"
+                    accessibilityLabel={t("drill.stopContinue")}>
+                    <Text style={[m3TextStyle("labelLarge"), styles.stopContinueText]}>{t("drill.stopContinue")}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <>
             {pendingLayer ? (
               <Text style={[m3TextStyle("labelMedium"), styles.turnLabel]}>
                 {t("drill.turnLabel", {
@@ -895,7 +975,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               />
               {started.current ? (
                 <Pressable
-                  onPress={finish}
+                  onPress={() => { if (stopChoiceRef.current) resolveStopChoice("finish"); else finish(); }}
                   style={[styles.answerChip, styles.actionButton]}
                   accessibilityRole="button"
                   accessibilityLabel={t("drill.enough")}
@@ -908,6 +988,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
                 </Pressable>
               ) : null}
             </View>
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -964,6 +1046,11 @@ const styles = StyleSheet.create({
   introNote: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm, textAlign: "center" },
   notice: { color: m3.color.tertiary },
   turnLabel: { color: m3.color.onSurfaceVariant, marginTop: spacing.xs },
+  stopChoice: { gap: spacing.sm },
+  stopActions: { gap: spacing.sm },
+  stopButton: { minHeight: 48, alignItems: "center", justifyContent: "center" },
+  stopContinue: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
+  stopContinueText: { color: m3.color.onPrimary },
   processingNotice: { color: m3.color.onSurfaceVariant, marginBottom: spacing.xs },
   input: {
     minHeight: 88,

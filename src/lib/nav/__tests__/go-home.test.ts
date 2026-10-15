@@ -1324,6 +1324,7 @@ describe("칸을 막는 가드는 goHome 에 이름을 올린다 (게이트 NS-0
     expect([...new Set(guards.map((g) => g.file))].sort()).toEqual([
       "src/app/audit.tsx",
       "src/app/avatar-palette.tsx",
+      "src/app/interview.tsx",
       "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
       "src/screens/deepspace/dds-auth-screens.tsx",
     ]);
@@ -1422,7 +1423,7 @@ const GO_HOME_STOP_USES: readonly { file: string; owner: string; why: string }[]
   { file: "src/app/avatar-palette.tsx", owner: "AvatarPaletteScreen", why: "고친 아바타 - 나가기 확인창." },
   { file: "src/app/esm.tsx", owner: "EsmCheckInScreen", why: "가드 없음 - 저장 요청 중 · 저장 안 한 고른 값(NAV-S7-01)." },
   { file: "src/app/formats.tsx", owner: "FormatsLegacy", why: "가드 없음 - 편집 · 추가 중 · 쓰기 요청 · 결과 토스트(NAV-S7-01 재확인)." },
-  { file: "src/app/interview.tsx", owner: "InterviewSession", why: "가드 없음 - 담기 전 대화 · 쓰던 답 · 요청 중 · 안전 안내 창(NAV-S7-01 재확인)." },
+  { file: "src/app/interview.tsx", owner: "InterviewSession", why: "끝내기 확인의 뒤로 가드 + 담기 전 대화·쓰던 답·요청 중(NAV-S7-01)." },
   { file: "src/app/peer/[token].tsx", owner: "PeerInformant", why: "가드 없음 - 적은 답 · 제출 · 철회 중 · 실패 안내(NAV-S7-01 재확인)." },
   { file: "src/app/service-consent.tsx", owner: "ConsentForm", why: "가드 없음 - 검토 중 · 저장 중(언마운트가 abort) · 결과 안내(NAV-S7-01 재확인)." },
   { file: "src/app/subscription.tsx", owner: "SubscriptionScreen", why: "가드 없음 - 해지 · 환불 시트 · 요청 중 · 결과 안내(NAV-S7-01 재확인)." },

@@ -38,6 +38,7 @@ function setup() {
   const scope = {
     userId: "A", period: "20s", locale: "ko", isMinor: false, concreteOnly: false,
     ended, mounted, captureAccountOwnerLease, publishCrisisNotice,
+    stopChoiceRef: { current: null }, setStopChoice: jest.fn(),
     nextMove: jest.fn(() => ({ kind: "drill", layer: "fact" })),
     entriesOf: jest.fn(() => []), nextProbe: jest.fn(() => request),
     hotlineFor: () => "KR_109", t: (key: string) => key,
