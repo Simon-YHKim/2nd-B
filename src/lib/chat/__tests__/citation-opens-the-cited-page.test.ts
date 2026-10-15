@@ -18,9 +18,9 @@
 //      so the assertion is about where the tap GOES, not about which characters are
 //      present. An R48 gate proved the shape layer alone stays green when the
 //      success-branch push is deleted outright; that mutant dies here.
-//   3. OWNER (executable) - the wiki screen's focus state is lifted out and run
-//      across an account change, because the row a citation pulls in is a row of
-//      someone's own writing and it must not survive into the next account.
+//   3. OWNER (executable) - loaded rows are run across an account change here;
+//      the full citation/focus hook and visible row are exercised by
+//      screens/deepspace/__tests__/wiki-pages-read-failure.test.ts.
 //
 // Layers 2 and 3 are source-extracted rather than rendered: react-test-renderer is
 // blocked on RN 0.85 here, and neither the handler nor the focus state needs a real
@@ -29,7 +29,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import ts from "typescript";
 
-import { buildDeepWikiView, snippetOf, type WikiEdge } from "@/screens/deepspace/wiki-graph-view";
+import { buildDeepWikiView, type WikiEdge } from "@/screens/deepspace/wiki-graph-view";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "@/lib/auth/account-epoch";
 import { isTimeoutError, withTimeout } from "@/lib/async/with-timeout";
@@ -44,6 +44,7 @@ const read = (rel: string): string =>
 const CHAT = "src/app/secondb.tsx";
 const WIKI = "src/screens/deepspace/dds-wiki-records-screens.tsx";
 const QUERIES = "src/lib/wiki/queries.ts";
+const FOCUSED_READ = "src/lib/wiki/use-focused-wiki-page.ts";
 
 describe("a cited piece opens the piece", () => {
   test("the scanner is reading the real chat screen", () => {
@@ -114,7 +115,8 @@ describe("a cited piece opens the piece", () => {
     // not a hypothetical this test invented.
     expect(src).toMatch(/listWikiPages\(userId, \{ limit: \d+ \}\)/);
     // ...and the absent row is pulled by id rather than abandoned.
-    expect(src).toContain("getWikiPageById(userId, focusPageId)");
+    expect(src).toContain("useFocusedWikiPage(userId, focusPageId, pages,");
+    expect(read(FOCUSED_READ)).toContain("getWikiPageById(userId, focusPageId)");
     // The fetched row has to reach what is actually drawn. Feeding the raw
     // loaded slice back into the view would pin an id that is not in it.
     expect(src).toMatch(/buildDeepWikiView\(listedPages,/);
@@ -320,16 +322,9 @@ describe("a tap does not outlive the account that made it", () => {
 
 const WIKI_AST = parse(WIKI);
 
-const FOCUS_PIECES = [
-  lift(WIKI_AST, "[activeTag, setActiveTag]"),
-  lift(WIKI_AST, "[expandedId, setExpandedId]"),
-  lift(WIKI_AST, "[linkedPage, setLinkedPage]"),
-  lift(WIKI_AST, "honouredFocusRef = useRef"),
-  lift(WIKI_AST, "getWikiPageById(userId, focusPageId)", "effect"),
-  lift(WIKI_AST, "const listedPages"),
-  lift(WIKI_AST, "const view = useMemo"),
-  lift(WIKI_AST, "const openId ="),
-];
+// The extracted partial focus-state tests moved to the existing actual-component
+// suite wiki-pages-read-failure.test.ts. It now executes the full focused read
+// hook and query, tests A→B / same-ID ownership, and checks the visible result.
 
 interface FocusProps {
   userId: string | null;
@@ -451,139 +446,6 @@ const row = (id: string, owner: string, tag: string): WikiPageRow =>
 const A_CITED = row("a-cited", "owner-a", "tag-of-a");
 /** B's own page, the only thing B may see. */
 const B_OWN = row("b-own", "owner-b", "tag-of-b");
-
-describe("a fetched citation row belongs to the account that fetched it", () => {
-  test("the lifted pieces are the real ones", () => {
-    expect(FOCUS_PIECES[2]).toContain("useState<{ ownerId: string; page: WikiPageRow } | null>(null)");
-    // The whole effect, not the fetch line inside it: the inner statement is the
-    // shorter match and would run during render with `alive` unbound.
-    expect(FOCUS_PIECES[4].startsWith("useEffect(")).toBe(true);
-    expect(FOCUS_PIECES[4]).toContain("getWikiPageById(userId, focusPageId)");
-    expect(FOCUS_PIECES[4]).toContain("honouredFocusRef.current = honour");
-    expect(FOCUS_PIECES[4]).toContain("alive = false");
-    expect(FOCUS_PIECES[5]).toContain("const listedPages");
-    expect(FOCUS_PIECES[5]).toContain("...pages]");
-    expect(FOCUS_PIECES[6]).toContain("buildDeepWikiView(listedPages");
-    expect(FOCUS_PIECES[7]).toContain("const openId =");
-  });
-
-  test("owner A's out-of-window citation renders for A, and nothing of it survives into B", async () => {
-    const fetched: { userId: string; id: string }[] = [];
-    const library: Record<string, Record<string, WikiPageRow>> = {
-      "owner-a": { [A_CITED.id]: A_CITED },
-      "owner-b": { [B_OWN.id]: B_OWN },
-    };
-    const focus = compile<(props: FocusProps, h: unknown) => FocusOut>(
-      [
-        "function WikiFocus(props, H) {",
-        "  const { useState, useRef, useEffect, useMemo } = H;",
-        "  const { userId, focusPageId, pages, edges, loading } = props;",
-        FOCUS_PIECES.join("\n"),
-        "  return { listedPages, view, openId, expandedId };",
-        "}",
-      ].join("\n"),
-      "return WikiFocus;",
-      {
-        buildDeepWikiView,
-        loadError: null,
-        getWikiPageById: async (userId: string, id: string) => {
-          fetched.push({ userId, id });
-          return library[userId]?.[id] ?? null;
-        },
-      },
-    );
-
-    const runtime = focusRuntime();
-
-    // A taps a citation naming a page outside the 200-row window. Self-check:
-    // if this half did not work the second half would pass vacuously.
-    const asA = await runtime.render(focus, {
-      userId: "owner-a",
-      focusPageId: A_CITED.id,
-      pages: [],
-      edges: [],
-      loading: false,
-    });
-    expect(fetched).toEqual([{ userId: "owner-a", id: A_CITED.id }]);
-    expect(asA.listedPages.map((p) => p.id)).toEqual([A_CITED.id]);
-    expect(asA.view.pages.map((p) => p.id)).toEqual([A_CITED.id]);
-    expect(asA.openId).toBe(A_CITED.id);
-
-    // Supabase publishes A -> B with no signed-out frame. The same mounted
-    // screen now renders for B.
-    const asB = await runtime.render(focus, {
-      userId: "owner-b",
-      focusPageId: A_CITED.id,
-      pages: [B_OWN],
-      edges: [],
-      loading: false,
-    });
-
-    // Not "B refetched" and not a call count: after an owner change the defect
-    // is that NOTHING happens, so count-based assertions go green on the bug.
-    // What matters is what is drawable.
-    const drawn = JSON.stringify(asB.view.pages);
-    expect(drawn).not.toContain(A_CITED.title);
-    expect(drawn).not.toContain(snippetOf(A_CITED.body_md));
-    expect(drawn).not.toContain(A_CITED.tags[0]);
-
-    expect(asB.listedPages.map((p) => p.id)).toEqual([B_OWN.id]);
-    expect(asB.view.pages.map((p) => p.id)).toEqual([B_OWN.id]);
-    // And the row B lands on is B's own, not a leftover id that opens nothing.
-    expect(asB.openId).toBe(B_OWN.id);
-  });
-
-  test("B asking for the same id again is answered by B's own library, not A's", async () => {
-    const fetched: { userId: string; id: string }[] = [];
-    const library: Record<string, Record<string, WikiPageRow>> = {
-      "owner-a": { [A_CITED.id]: A_CITED },
-      "owner-b": {},
-    };
-    const focus = compile<(props: FocusProps, h: unknown) => FocusOut>(
-      [
-        "function WikiFocus(props, H) {",
-        "  const { useState, useRef, useEffect, useMemo } = H;",
-        "  const { userId, focusPageId, pages, edges, loading } = props;",
-        FOCUS_PIECES.join("\n"),
-        "  return { listedPages, view, openId, expandedId };",
-        "}",
-      ].join("\n"),
-      "return WikiFocus;",
-      {
-        buildDeepWikiView,
-        loadError: null,
-        getWikiPageById: async (userId: string, id: string) => {
-          fetched.push({ userId, id });
-          return library[userId]?.[id] ?? null;
-        },
-      },
-    );
-
-    const runtime = focusRuntime();
-    await runtime.render(focus, {
-      userId: "owner-a",
-      focusPageId: A_CITED.id,
-      pages: [],
-      edges: [],
-      loading: false,
-    });
-    await runtime.render(focus, {
-      userId: "owner-b",
-      focusPageId: A_CITED.id,
-      pages: [B_OWN],
-      edges: [],
-      loading: false,
-    });
-
-    // The "honoured once" guard is keyed on the pair, so B is allowed to ask.
-    // The query is owner-filtered, so B's ask comes back empty - which is the
-    // point: B's answer comes from B's library, never from what A left behind.
-    expect(fetched).toEqual([
-      { userId: "owner-a", id: A_CITED.id },
-      { userId: "owner-b", id: A_CITED.id },
-    ]);
-  });
-});
 
 // The loaded window itself is fenced the same way, and by the same reasoning: the
 // effect below overwrites its rows only once the network answers, so a screen that
