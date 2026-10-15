@@ -239,7 +239,7 @@
     "saveFailed": "Não foi possível salvar. Tente novamente daqui a pouco.",
     "deleteAccount": {
       "body": "Seus registros, capturas, wiki, uso e conta são apagados para sempre. Não dá para desfazer. Exporte antes o que precisar.",
-      "typePrompt": "Digite \"DELETE\" para continuar.",
+      "typePrompt": "Digite \"{{phrase}}\" para continuar.",
       "inputA11y": "Confirmação de exclusão",
       "buttonA11y": "Excluir a conta permanentemente",
       "button": "Excluir conta",

@@ -565,6 +565,7 @@ export function DeepSpacePrivacyDesignScreen() {
   const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { t: consentT } = useTranslation("consent");
+  const { t: commonT } = useTranslation("common");
   const navigation = useNavigation();
   // Picks the canon fact copy and the consent-ledger locale below. Every other
   // string on this screen reads a deepspace key, so es/pt/id see their own
@@ -606,7 +607,12 @@ export function DeepSpacePrivacyDesignScreen() {
   const [embedUnderstanding, setEmbedUnderstanding] = useState(false);
   const [embedErr, setEmbedErr] = useState(false);
   // Right-to-erasure in deep-space (was legacy-only). Terminal + irreversible, so
-  // it is gated behind a typed "DELETE" confirm and reuses the proven cascade.
+  // it is gated behind the displayed language's deletion word and the proven cascade.
+  const deleteConfirmLanguage = renderedUiLanguage(i18n);
+  const deleteConfirmWord = commonT("actions.delete").toLocaleUpperCase(deleteConfirmLanguage);
+  // A queued callback from a previous render cannot accept an old language's word.
+  const deleteConfirmWordRef = useRef(deleteConfirmWord);
+  deleteConfirmWordRef.current = deleteConfirmWord;
   const [delConfirm, setDelConfirm] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -619,6 +625,12 @@ export function DeepSpacePrivacyDesignScreen() {
   const deleteConfirmUserRef = useRef<string | null>(null);
 
   useEffect(() => {
+    setDelConfirm("");
+    setDeleteConfirmOpen(false);
+    deleteConfirmUserRef.current = null;
+  }, [deleteConfirmLanguage, deleteConfirmWord]);
+
+  useEffect(() => {
     privacyMountedRef.current = true;
     return () => {
       privacyMountedRef.current = false;
@@ -629,7 +641,8 @@ export function DeepSpacePrivacyDesignScreen() {
     if (
       !userId
       || deleteInFlightRef.current
-      || delConfirm !== "DELETE"
+      || delConfirm !== deleteConfirmWord
+      || deleteConfirmWordRef.current !== deleteConfirmWord
       || deleteConfirmUserRef.current !== userId
     ) return;
     const targetUserId = userId;
@@ -713,7 +726,8 @@ export function DeepSpacePrivacyDesignScreen() {
   }
 
   function requestDeleteAccountConfirm() {
-    if (!userId || deleteInFlightRef.current || delConfirm !== "DELETE") return;
+    if (!userId || deleteInFlightRef.current || delConfirm !== deleteConfirmWord
+      || deleteConfirmWordRef.current !== deleteConfirmWord) return;
     deleteConfirmUserRef.current = userId;
     setDeleteConfirmOpen(true);
   }
@@ -1307,10 +1321,9 @@ export function DeepSpacePrivacyDesignScreen() {
         <Text variant="subtle" style={styles.footer}>
           {t("privacy.deleteAccount.body")}
         </Text>
-        {/* "DELETE" is the token the input below compares against, so it
-            stays literal inside every language's prompt. */}
+        {/* The displayed word is the same value checked by both destructive-action gates. */}
         <Text variant="subtle" style={styles.footer}>
-          {t("privacy.deleteAccount.typePrompt")}
+          {t("privacy.deleteAccount.typePrompt", { phrase: deleteConfirmWord })}
         </Text>
         <TextInput
           value={delConfirm}
@@ -1331,13 +1344,13 @@ export function DeepSpacePrivacyDesignScreen() {
             styles.danger,
             // ⚠ 비활성은 **미리 합성한 색 한 쌍**이다(PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
             //   바탕만 바꾸고 글자를 그대로 두면 비활성이 활성보다 또렷해진다.
-            (delConfirm !== "DELETE" || deleting) && {
+            (delConfirm !== deleteConfirmWord || deleting) && {
               backgroundColor: m3.disabled.primary,
               borderColor: m3.disabled.outline,
             },
           ]}
           onPress={requestDeleteAccountConfirm}
-          disabled={delConfirm !== "DELETE" || deleting}
+          disabled={delConfirm !== deleteConfirmWord || deleting}
           accessibilityRole="button"
           accessibilityLabel={t("privacy.deleteAccount.buttonA11y")}
         >

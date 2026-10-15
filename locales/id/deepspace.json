@@ -239,7 +239,7 @@
     "saveFailed": "Gagal menyimpan. Coba lagi sebentar lagi.",
     "deleteAccount": {
       "body": "Catatan, tangkapan, wiki, data penggunaan, dan akunmu dihapus permanen. Ini tidak bisa dibatalkan. Ekspor dulu apa pun yang kamu perlukan.",
-      "typePrompt": "Ketik \"DELETE\" untuk melanjutkan.",
+      "typePrompt": "Ketik \"{{phrase}}\" untuk melanjutkan.",
       "inputA11y": "Konfirmasi penghapusan",
       "buttonA11y": "Hapus akun secara permanen",
       "button": "Hapus akun",

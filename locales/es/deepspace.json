@@ -239,7 +239,7 @@
     "saveFailed": "No se pudo guardar. Inténtalo de nuevo en un momento.",
     "deleteAccount": {
       "body": "Tus registros, capturas, wiki, uso y cuenta se borran de forma permanente. No se puede deshacer. Exporta antes lo que necesites.",
-      "typePrompt": "Escribe \"DELETE\" para continuar.",
+      "typePrompt": "Escribe \"{{phrase}}\" para continuar.",
       "inputA11y": "Confirmación de eliminación",
       "buttonA11y": "Eliminar la cuenta de forma permanente",
       "button": "Eliminar cuenta",
