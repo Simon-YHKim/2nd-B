@@ -102,7 +102,16 @@ export function createInterviewSnapshotStore(dependencies: Dependencies) {
       }).then((result): InterviewSnapshotResult => {
         // No await after this check: queue/fence Promise adoption is also an owner boundary.
         const settled = guard();
-        return settled === "current" || result.status === "unconfirmed" ? result : { status: settled };
+        if (settled !== "current" && result.status !== "unconfirmed") return { status: settled };
+        if ("draft" in result) {
+          // Read/write checks precede Promise adoption. Time can cross the fixed
+          // deadline there too. No removal ACK exists at this final boundary:
+          // hide the body/success, leave cleanup to the next serialized access.
+          try { if (expired(result.draft, dependencies.now())) return { status: "unconfirmed" }; }
+          catch { return { status: "unconfirmed" }; }
+          if (!ownerCurrent()) return { status: "stale" };
+        }
+        return result;
       });
     }
 

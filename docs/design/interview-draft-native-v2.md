@@ -10,7 +10,8 @@ generation을 운영 서버에서 확인했다고 주장하지 않는다.
 `cbd8a11610e95f6d52308dc9b93c2ca551c6ef1164d479887764b2326e371ac2`, 이번 준비 계획은
 `d109fa4807a86833158d894ed67cf1346f08bedad0e13849cd328e70cbf350fe`다. 연결 설계의
 R1 BLOCK1 → R2 PASS와 v1 모듈의 별도 R1 BLOCK1 → R2 PASS 이력은 유지한다.
-이 단위는 별도의 독립 검토가 필요하다.
+이 새 adapter도 첫 검토 `c3428a56`에서 H0/M1/L0 BLOCK1을 받았다. 아래 반환 시각
+경계를 보완한 후 R2 독립 검토를 받아야 한다. 세 검토 이력은 별도로 보존한다.
 
 ## 저장과 소유 경계
 
@@ -48,6 +49,13 @@ commit 경계의 owner/view/input ticket도 별도로 확인해야 한다.
 생성 시각 + 7일과 256 KiB 상한을 그대로 적용한다. 편집·재시작·저장 unknown·내용 삭제
 때 TTL을 늘리거나 본문 일부를 자르지 않는다. 만료 삭제 ACK가 실패하면 `unconfirmed`다.
 접근 시 만료를 확인하며 만료 순간 앱이 꺼져 있어도 디스크를 지운다는 약속은 하지 않는다.
+
+R1에서 내부 read/write의 마지막 검사 뒤 Promise 반환 전까지 만료 시각을 넘길 수 있음을
+확인했다. 이제 **본문을 포함하는 모든 공개 결과의 마지막 동기 경계**에서 시각을 다시
+검사한다. 만료·생성 전으로 역행·유효하지 않은 시각이면 본문/보관 성공을 숨기고
+`unconfirmed`를 반환한다. 이 시점에는 삭제 ACK가 없으므로 `expired`나 정리 완료로
+추정하지 않는다. 비동기 삭제를 뒤에 몰래 예약하지 않으며 다음 owner queue 접근이
+실제 만료 제거를 확인하면 `expired`다. 이후 새 초안의 revision/ID를 옛 정리로 지우지 않는다.
 
 ## 미확인 저장은 완료가 아니다
 
@@ -97,10 +105,16 @@ v2 codec/순수 restore 및 실제 화면 send/ask/finish AST 회귀도 다시 �
 테스트의 fake backing은 장애·순서 제어용이다. encrypted storage suite의 deterministic
 seal과 실제 AES-GCM suite는 구분하며, 어느 쪽도 실제 폰 강제 종료 내구성 증거는 아니다.
 
-작성자 확인: 대상 7개 suite / 221개 검사 PASS. 대상은 draft-store, draft-restore,
+R1 작성자 확인은 대상 7개 suite / 221개 검사 PASS였으나 독립 만료 반례 5개가 이를
+보완했다. 같은 원인에 대해 만료/시계 역행/잘못된 시각 × 본문 반환 6종 및 실제 실패·
+대기 중 정리/새 초안 보호를 검사하는 19개 회귀를 추가했다. 원 R1 제품 코드에서
+19개가 모두 실패하는 음성 대조를 먼저 실행했다. 대상은 draft-store, draft-restore,
 실제 화면 interview-verdict-states, encrypted-native-storage, local-purge,
-local-deletion-fence, account-epoch다. type-check, 변경 TypeScript lint, runtime cycles
-0, diff whitespace 검사를 통과했다. 전체 verify와 독립 검토는 별도 통합 관문이다.
+local-deletion-fence, account-epoch다. 최종 실행 수·type-check/lint/cycles 결과는
+frozen 커밋 인수에 기록하며 전체 verify와 독립 검토는 별도 통합 관문이다.
+R2 작성자 실행은 대상 7개 suite / 240개 PASS와 원 독립 반례 5개 PASS다(반례 파일의
+기존 86개 skipped는 재실행 수에 포함하지 않는다). type-check, 변경 TypeScript lint,
+runtime cycles 0, 어휘 및 diff whitespace 검사도 통과했다.
 
 local CAS와 rollback queue는 **한 production instance/프로세스 안의 보장**이다.
 factory를 여러 writer로 만들거나 다중 프로세스 원자성을 주장하지 않는다. crash 때

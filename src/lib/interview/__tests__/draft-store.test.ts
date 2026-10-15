@@ -790,3 +790,65 @@ test.each(["load", "create", "beginSave"] as const)("v2 %s rejects reentrant own
   }
   expect(checkedWindows).toBeGreaterThan(3);
 });
+
+const finalTimeCases = (["load", "create", "replace", "beginSave", "markSaveUnknown", "quarantined"] as const)
+  .flatMap(operation => (["expiry", "rollback", "invalid"] as const).map(clock => [operation, clock] as const));
+test.each(finalTimeCases)("v2 final time guard: %s hides bodies and success across %s at every pending cut", async (operation, clock) => {
+  let settled = false; let lateUnconfirmed = 0;
+  for (let ticks = 0; ticks < 256; ticks += 1) {
+    __resetAccountEpochForTests(); __resetAccountLocalDeletionFencesForTests(); mockFenceValues.clear(); owner("owner-a");
+    const h = harness();
+    let action = await snapshotAction(h, operation === "quarantined" ? "load" : operation);
+    if (operation === "quarantined") { h.setContent("generation-2"); action = () => h.snapshots.forOwner("owner-a").load(); }
+    if (clock === "expiry" && operation !== "create") h.advance(INTERVIEW_DRAFT_TTL_MS - 1);
+    const pending = action();
+    for (let tick = 0; tick < ticks; tick += 1) await Promise.resolve();
+    if (!inspect(pending, { depth: 0 }).includes("<pending>")) { await pending; settled = true; break; }
+    h.advance(clock === "invalid" ? Number.NaN : clock === "rollback" ? -1 : operation === "create" ? INTERVIEW_DRAFT_TTL_MS : 1);
+    const result = await pending;
+    expect(result).not.toHaveProperty("draft");
+    expect(["expired", "unconfirmed"]).toContain(result.status);
+    if (result.status === "unconfirmed" && h.values.has(interviewSnapshotKey("owner-a"))) lateUnconfirmed += 1;
+  }
+  expect(settled).toBe(true);
+  // Must reach the final return gap, not only the earlier read/write expiration checks.
+  expect(lateUnconfirmed).toBeGreaterThan(0);
+});
+
+test("v2 final expiry leaves cleanup unconfirmed; failed and queued cleanup cannot delete a new draft", async () => {
+  let retained: { h: ReturnType<typeof harness>; first: InterviewDraftSnapshot } | undefined;
+  for (let ticks = 0; ticks < 256; ticks += 1) {
+    __resetAccountEpochForTests(); __resetAccountLocalDeletionFencesForTests(); mockFenceValues.clear(); owner("owner-a");
+    const h = harness(); const access = h.snapshots.forOwner("owner-a");
+    const first = snapshotOf(await access.create(snapshotContent())); h.advance(INTERVIEW_DRAFT_TTL_MS - 1);
+    const pending = access.load();
+    for (let tick = 0; tick < ticks; tick += 1) await Promise.resolve();
+    if (!inspect(pending, { depth: 0 }).includes("<pending>")) { await pending; break; }
+    h.advance(1);
+    const result = await pending;
+    if (result.status === "unconfirmed" && h.values.has(interviewSnapshotKey("owner-a"))) { retained = { h, first }; break; }
+  }
+  expect(retained).toBeDefined();
+  if (!retained) throw new Error("missing final expiry gap");
+  const { h, first } = retained;
+  expect(h.dependencies.backing.removeItem).not.toHaveBeenCalled(); // No unacknowledged background cleanup.
+  const raw = h.values.get(interviewSnapshotKey("owner-a"));
+  expect(JSON.parse((await h.storage.getItem(interviewSnapshotKey("owner-a")))!)).toEqual(first);
+  jest.mocked(h.dependencies.backing.removeItem).mockRejectedValueOnce(new Error("synthetic expiry removal failure"));
+  await expect(h.snapshots.forOwner("owner-a").load()).resolves.toEqual({ status: "unconfirmed" });
+  expect(h.values.get(interviewSnapshotKey("owner-a"))).toBe(raw);
+  const entered = deferred(); const release = deferred();
+  jest.mocked(h.dependencies.backing.removeItem).mockImplementation(async key => {
+    if (key === interviewSnapshotKey("owner-a")) { entered.resolve(); await release.promise; }
+    h.values.delete(key);
+  });
+  const cleanup = h.snapshots.forOwner("owner-a").load(); await entered.promise;
+  const newer = h.snapshots.forOwner("owner-a").create(snapshotContent());
+  release.resolve(); await expect(cleanup).resolves.toEqual({ status: "expired" });
+  const saved = snapshotOf(await newer);
+  expect(saved.draftId).not.toBe(first.draftId); expect(saved.createdAt).toBe(first.expiresAt);
+  expect(saved.expiresAt).toBe(saved.createdAt + INTERVIEW_DRAFT_TTL_MS);
+  const fresh = h.snapshots.forOwner("owner-a");
+  await expect(fresh.discard(first)).resolves.toEqual({ status: "conflict" });
+  expect(snapshotOf(await fresh.load())).toEqual(saved);
+});
