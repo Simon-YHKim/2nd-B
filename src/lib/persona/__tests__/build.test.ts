@@ -410,7 +410,7 @@ describe("Core Brain read-only mount", () => {
     const source = readFileSync(join(root, "src/app/core-brain.tsx"), "utf8");
     const reader = readFileSync(join(root, "src/lib/persona/use-core-evidence-read.ts"), "utf8");
     expect(source).toContain("const primaryRead = useCoreEvidenceRead(");
-    expect(reader).toContain("await loadPersonaSnapshot(owner, requireCurrent)");
+    expect(reader).toContain("await loadCorePersonaSnapshot(owner, requireCurrent)");
     expect(reader).toContain("const fullRead = previous === null");
     expect(reader).not.toContain("buildPersona(");
     expect(reader).not.toMatch(/\.(?:insert|update|upsert|delete)\(/);

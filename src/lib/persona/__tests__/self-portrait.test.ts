@@ -36,8 +36,10 @@ describe("buildSelfPortrait — data contract", () => {
     const screen = readFileSync(resolve(process.cwd(), "src/app/core-brain.tsx"), "utf8");
     expect(screen).toContain("buildSelfPortrait({ persona: portraitSignals }, locale, t)");
     expect(screen).not.toContain("buildSelfPortrait({ persona: hasUnrecordedProvenance ? null : persona }, locale)");
-    expect(screen.match(/loadSelfPortraitSignals\(userId\)/g)).toHaveLength(1);
-    expect(screen).toContain("[loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]");
+    const reader = readFileSync(resolve(process.cwd(), "src/lib/persona/use-core-role-reads.ts"), "utf8");
+    expect(screen).toContain("useCoreCompanionReads(userId, primaryScope, primaryIsCurrent, primaryRead.invalidateAuto)");
+    expect(reader).toContain("useOwnedSlot(owner, scope, isCurrent, invalidateAuto, loadSelfPortraitSignals)");
+    expect(screen).toContain('companionReads.portrait.status === "ready"');
     // 2 -> 1 (2026-10-05): 같은 자화상 칸을 그리던 곳이 둘(덱 · 레거시 꼬리)이었다. 꼬리는
     // 롤백 레버와 함께 빠졌다(Simon 결정 Q-261004-11 C). 남은 덱의 칸이 같은 이름을 진다.
     expect(screen.match(/accessibilityLabel=\{field\.value \? `\$\{field\.label\}: \$\{field\.value\}` : field\.label\}/g)).toHaveLength(1);

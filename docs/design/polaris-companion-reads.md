@@ -37,3 +37,37 @@ B2a에는 새 Core projection의 화면 호출자가 없다. B2b에서 주 화�
 옮기고 portrait와 strengths를 독립 슬롯으로 연결한 뒤, QA 최초 자동 실행·재시도 전
 무효화·명시적 변경·focus/ABA 경계를 actual-screen 검사로 확인해야 한다. B2a 구현만으로
 북극성 화면의 현재 대기/오류 결합 문제가 모두 해소됐다고 보고하지 않는다.
+
+## B2b · 북극성 화면 연결
+
+B2b 준비 기반 `027531ee`는 main `d675f265`와 B1 통합 `4baa5add`, B2a `5514ff33`를
+로컬 통합한 것이다. 착수 시 B1/B2a는 미머지 선행 작업이다. 각 독립 검토·최종 main
+통합·전체 검증을 이 준비 기반으로 대신하지 않는다.
+
+주 읽기는 evidence와 저장 projection을 사용한다. strengths는 주 Promise와 캐시에서
+분리했고, snapshot은 최신 MBTI/attachment를 추가 조회하지 않는다. 저장 결과는 기존
+`savedResult.body`를 그대로 표시한다. 측정 필드를 만들어 공용 center builder를 호출하지
+않으며, 공용 builder와 명시 생성의 PersonaCard 계약은 유지한다. 밝기는 C 단계 전까지
+기존 주 읽기와 fallback에 남는다.
+
+portrait와 strengths는 북극성 전용 owned slot을 각각 사용한다. 두 슬롯은 현재 owner/
+epoch/focus scope를 공유하지만 attempt·성공값·오류·고정 10초 기한은 독립적이다.
+helper의 continuation guard는 scope/attempt/완료와 고정 deadline을 모두 검사한다.
+정상 mutation 결과의 게시 권한은 read deadline과 분리해 B1 동작을 유지한다.
+
+portrait가 ready일 때만 기존 5개 필드·측정값·collecting 안내와 해당 경로를 표시한다.
+pending은 loading이고 error/timeout은 오류와 재시도다. unread 상태를 측정 없음으로
+바꾸지 않는다. strengths 성공값은 portrait 오류 중에도 남고 성공 null은 summary만
+생략한다. strengths 오류도 별도 재시도로 표시한다. evidence-empty deck의 페이지 구성,
+역할·카테고리·밝기·승인 기록·근거 서랍과 정상 필드 route/a11y는 유지한다.
+
+각 재시도는 새 SELECT를 예약하기 전에 초기 QA 권한을 동기적으로 무효화하고 자기
+슬롯만 읽는다. snapshot/evidence·역할·quota·다른 보조 신호를 다시 읽지 않는다. 당시
+진행 중인 실제 QA claim은 attempt 저장/제안으로 이어지지 못한다. 이미 허용된 최초
+제안을 취소한다고 주장하지 않으며, 정상 최초 QA·명시적 생성/승인 본문은 보존한다.
+
+검사는 기존 actual-screen harness에서 실 화면/훅/build/epoch/QA claim을 실행한다.
+원 A의 strengths hang 한 항목은 독립 timeout 계약으로 이동하고, strengths 오류
+fallback 기대는 실제 패널 오류로 변경한다. 그 밖의 primary deadline·system_tags·
+late snapshot·retry·focus 회귀는 유지한다. source pin은 실제 projection/companion
+reader 위치로 옮기며 검사를 제거하지 않는다. 브라우저/폰과 실제 운영 호출은 별도다.

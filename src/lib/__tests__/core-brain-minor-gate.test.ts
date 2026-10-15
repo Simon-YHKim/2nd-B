@@ -1,6 +1,6 @@
 import type { DependencyList, EffectCallback, ReactElement, SetStateAction } from "react";
 import type { CenterCard } from "../persona/center";
-import type { LoadedStrengths, PersonaCard } from "../persona/build";
+import type { CorePersonaSnapshot, LoadedStrengths, PersonaCard } from "../persona/build";
 import { __resetAccountEpochForTests, noteResolvedOwner, clearAccountTransition, currentAccountEpoch } from "../auth/account-epoch";
 import type { PolarisQuota } from "../persona/polaris-quota";
 
@@ -25,8 +25,8 @@ const mockAuth: { current: AuthState } = {
   current: { userId: null, loading: true, hasProfile: null, isMinor: null },
 };
 const mockLanguage: { current: "en" | "ko" } = { current: "en" };
-const mockLoadPersonaSnapshot = jest.fn();
-let mockRealLoadPersonaSnapshot: (userId: string) => Promise<PersonaCard | null>;
+const mockLoadCorePersonaSnapshot = jest.fn();
+let mockRealLoadCorePersonaSnapshot: (userId: string, assertCurrent: () => void) => Promise<CorePersonaSnapshot | null>;
 let mockRealBuildCenterCards: (persona: PersonaCard, locale: "en" | "ko") => CenterCard[];
 const mockBuildCenterCards = jest.fn();
 const mockLoadLatestStrengths = jest.fn<Promise<LoadedStrengths | null>, unknown[]>(
@@ -64,8 +64,8 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve };
 }
 
-function persona(id: string) {
-  const confidence = { source: "journal_text" as const, confidence: "low" as const, observationCount: 1 };
+function persona(id: string): CorePersonaSnapshot {
+  const confidence = { source: "default" as const, confidence: "low" as const, observationCount: 0 };
   return {
     version: 1,
     traits: {
@@ -83,8 +83,6 @@ function persona(id: string) {
       agreeableness: confidence,
       neuroticism: confidence,
     },
-    mbti: null,
-    attachment: null,
     values: [id],
     patterns: {},
     markdownExport: "",
@@ -358,12 +356,12 @@ jest.mock("@/lib/persona/role-cards", () => ({
 }));
 jest.mock("@/lib/persona/build", () => {
   const actual = jest.requireActual<typeof import("../persona/build")>("@/lib/persona/build");
-  mockRealLoadPersonaSnapshot = actual.loadPersonaSnapshot;
+  mockRealLoadCorePersonaSnapshot = actual.loadCorePersonaSnapshot;
   return {
     ...actual,
     buildPersona: (...args: unknown[]) => mockForbiddenBuildPersona(...args),
     loadLatestStrengths: (...args: unknown[]) => mockLoadLatestStrengths(...args),
-    loadPersonaSnapshot: (...args: [string]) => mockLoadPersonaSnapshot(...args),
+    loadCorePersonaSnapshot: (...args: [string, () => void]) => mockLoadCorePersonaSnapshot(...args),
   };
 });
 jest.mock("@/lib/llm/boundary", () => ({ callLlm: (...args: unknown[]) => mockForbiddenLlm(...args) }));
@@ -465,11 +463,12 @@ function screenText(tree: unknown): string {
 
 function readData(harness: HookHarness) {
   return (harness.states.find((value) => typeof value === "object" && value !== null && "status" in value && "session" in value) as
-    { data: { persona: PersonaCard | null; evidence: unknown[] } | null } | undefined)?.data;
+    { data: { persona: CorePersonaSnapshot | null; evidence: unknown[] } | null } | undefined)?.data;
 }
 
 function assertNoMutationEgress() {
   expect(mockForbiddenBuildPersona).not.toHaveBeenCalled();
+  expect(mockBuildCenterCards).not.toHaveBeenCalled();
   expect(mockForbiddenLlm).not.toHaveBeenCalled();
   expect(mockForbiddenUsage).not.toHaveBeenCalled();
   expect(mockMutationWriter).not.toHaveBeenCalled();
@@ -524,7 +523,7 @@ beforeEach(() => {
   mockFocus.current = null;
   mockSelectCalls.length = 0;
   mockPersonaRowForUser = (userId) => persistedPersonaRow(userId ?? "unknown");
-  mockLoadPersonaSnapshot.mockReset().mockImplementation((userId: string) => mockRealLoadPersonaSnapshot(userId));
+  mockLoadCorePersonaSnapshot.mockReset().mockImplementation((userId: string, assertCurrent: () => void) => mockRealLoadCorePersonaSnapshot(userId, assertCurrent));
   mockBuildCenterCards.mockReset().mockImplementation((card: PersonaCard, locale: "en" | "ko") =>
     mockRealBuildCenterCards(card, locale).map((centerCard) =>
       centerCard.id === "direction"
@@ -557,7 +556,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     harness.flushEffects();
 
     expect(mockSelectCalls).toEqual([]);
-    expect(mockLoadPersonaSnapshot).not.toHaveBeenCalled();
+    expect(mockLoadCorePersonaSnapshot).not.toHaveBeenCalled();
     expect(mockFocus.current?.enabled).toBe(false);
 
     mockAuth.current = { userId: "u1", loading: false, hasProfile: null, isMinor: null };
@@ -576,8 +575,8 @@ describe("Core Brain rendered read-only lifecycle", () => {
     harness.flushEffects();
     await flushAsync();
 
-    expect(mockLoadPersonaSnapshot).toHaveBeenCalledTimes(1);
-    expect(mockLoadPersonaSnapshot).toHaveBeenCalledWith("u1", expect.any(Function));
+    expect(mockLoadCorePersonaSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockLoadCorePersonaSnapshot).toHaveBeenCalledWith("u1", expect.any(Function));
     expect(mockSelectCalls.map((call) => call.table)).toEqual(expect.arrayContaining(["records", "sources"]));
     expect(readData(harness)?.persona).toMatchObject({ values: ["u1"] });
     assertNoMutationEgress();
@@ -595,7 +594,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     const tree = renderCoreBrainScreen(harness);
     const text = screenText(tree);
 
-    expect(mockLoadPersonaSnapshot).toHaveBeenCalledWith("legacy", expect.any(Function));
+    expect(mockLoadCorePersonaSnapshot).toHaveBeenCalledWith("legacy", expect.any(Function));
     expect(readData(harness)?.persona).toMatchObject({
       traitConfidence: { openness: { source: "default", confidence: "low" } },
     });
@@ -716,7 +715,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     const refreshedPages = refreshedDeck?.props.pages as { key: string; body: ReactElement }[];
 
     expect(mockSelectCalls.length).toBeGreaterThan(selectsAfterMount);
-    expect(mockLoadPersonaSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockLoadCorePersonaSnapshot).toHaveBeenCalledTimes(1);
     expect(mockLoadLatestStrengths).toHaveBeenCalledTimes(2);
     expect(mockLoadLatestStrengths).toHaveBeenLastCalledWith(mockSupabase, "u1");
     expect(renderedText(refreshedPages.find((page) => page.key === "portrait")?.body)).toContain("strengthsCheck: Grit");
@@ -745,7 +744,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     harness.flushEffects();
     await flushAsync();
 
-    expect(mockLoadPersonaSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockLoadCorePersonaSnapshot).toHaveBeenCalledTimes(1);
     expect(screenText(renderCoreBrainScreen(harness))).not.toContain("loadError");
     assertNoMutationEgress();
   });
@@ -754,11 +753,11 @@ describe("Core Brain rendered read-only lifecycle", () => {
     const harness = new HookHarness();
     const pending = deferred<ReturnType<typeof persona>>();
     mockAuth.current = { userId: "u1", loading: false, hasProfile: true, isMinor: false };
-    mockLoadPersonaSnapshot.mockImplementationOnce(() => pending.promise);
+    mockLoadCorePersonaSnapshot.mockImplementationOnce(() => pending.promise);
     renderCoreBrainScreen(harness);
     harness.flushEffects();
     await flushAsync();
-    expect(mockLoadPersonaSnapshot).toHaveBeenCalledWith("u1", expect.any(Function));
+    expect(mockLoadCorePersonaSnapshot).toHaveBeenCalledWith("u1", expect.any(Function));
 
     harness.clearUpdates();
     harness.unmount();
@@ -771,7 +770,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
 
   test("never paints the completed user's markers during the next user's pre-effect render", async () => {
     const harness = new HookHarness();
-    mockLoadPersonaSnapshot.mockImplementation((userId: string) =>
+    mockLoadCorePersonaSnapshot.mockImplementation((userId: string) =>
       Promise.resolve(persona(`${userId}-marker`)),
     );
     mockAuth.current = { userId: "u1", loading: false, hasProfile: true, isMinor: false };
@@ -801,7 +800,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     const harness = new HookHarness();
     let rejectU2Snapshot = true;
     mockExpectedWarn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
-    mockLoadPersonaSnapshot.mockImplementation((userId: string) => {
+    mockLoadCorePersonaSnapshot.mockImplementation((userId: string) => {
       if (userId === "u1") return Promise.resolve(persona("u1-marker"));
       if (rejectU2Snapshot) return Promise.reject(new Error("u2 snapshot offline"));
       return Promise.resolve(persona("u2-marker"));
@@ -823,7 +822,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     expect(screenText(errorTree)).not.toContain("u1-record");
 
     rejectU2Snapshot = false;
-    const u2SnapshotCallsBeforeFocus = mockLoadPersonaSnapshot.mock.calls.filter(
+    const u2SnapshotCallsBeforeFocus = mockLoadCorePersonaSnapshot.mock.calls.filter(
       ([userId]) => userId === "u2",
     ).length;
     mockFocus.current?.callback();
@@ -832,7 +831,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     await flushAsync();
 
     const afterFocusTree = renderCoreBrainScreen(harness);
-    expect(mockLoadPersonaSnapshot.mock.calls.filter(([userId]) => userId === "u2")).toHaveLength(
+    expect(mockLoadCorePersonaSnapshot.mock.calls.filter(([userId]) => userId === "u2")).toHaveLength(
       u2SnapshotCallsBeforeFocus,
     );
     expect(screenText(afterFocusTree)).not.toContain("u1-record");
@@ -844,7 +843,7 @@ describe("Core Brain rendered read-only lifecycle", () => {
     const harness = new HookHarness();
     const oldUser = deferred<ReturnType<typeof persona>>();
     mockAuth.current = { userId: "u1", loading: false, hasProfile: true, isMinor: false };
-    mockLoadPersonaSnapshot.mockImplementation((userId: string) =>
+    mockLoadCorePersonaSnapshot.mockImplementation((userId: string) =>
       userId === "u1" ? oldUser.promise : Promise.resolve(persona(userId)),
     );
     renderCoreBrainScreen(harness);
