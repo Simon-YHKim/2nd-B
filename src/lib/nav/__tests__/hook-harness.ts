@@ -5,6 +5,7 @@ export function hookHarness(context: unknown = null) {
   let cursor = 0;
   let dirty = false;
   let effects: Array<() => void> = [];
+  let layoutEffects: Array<() => void> = [];
   const same = (a: readonly unknown[] | undefined, b: readonly unknown[]) =>
     a?.length === b.length && b.every((value, i) => Object.is(value, a[i]));
   const cell = () => cells[cursor++] ?? (cells[cursor - 1] = {});
@@ -30,6 +31,13 @@ export function hookHarness(context: unknown = null) {
       return slot.value as T;
     },
     useCallback<T>(fn: T, deps: readonly unknown[]) { return hooks.useMemo(() => fn, deps); },
+    useLayoutEffect(fn: () => void | (() => void), deps: readonly unknown[]) {
+      const slot = cell();
+      if (!same(slot.deps, deps)) {
+        layoutEffects.push(() => { slot.cleanup?.(); slot.cleanup = fn() || undefined; });
+        slot.deps = deps;
+      }
+    },
     useEffect(fn: () => void | (() => void), deps: readonly unknown[]) {
       const slot = cell();
       if (!same(slot.deps, deps)) {
@@ -48,8 +56,10 @@ export function hookHarness(context: unknown = null) {
     render<T>(fn: () => T): T {
       let result!: T;
       for (let pass = 0; pass < 20; pass++) {
-        dirty = false; cursor = 0; effects = [];
+        dirty = false; cursor = 0; effects = []; layoutEffects = [];
         result = fn();
+        const layout = layoutEffects; layoutEffects = [];
+        layout.forEach(effect => effect());
         const pending = effects; effects = [];
         pending.forEach(effect => effect());
         if (!dirty) return result;

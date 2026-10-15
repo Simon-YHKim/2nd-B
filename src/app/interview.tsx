@@ -36,7 +36,7 @@ import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextIn
 // 표식은 사용자 태그 칸(`tags`)이 아니라 앱 표식 칸(`records.system_tags`)에 쓴다 —
 // /discover · /research 가 `interview` 를 사용자의 주제로 보여 주지 않게.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { StyleSheet } from "react-native";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
@@ -50,12 +50,15 @@ import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRet
 import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
+import { InterviewGuidanceRow } from "@/components/interview/InterviewGuidanceRow";
+import { resolveProbeGuidanceCopy } from "@/lib/interview/probe-guidance-copy";
+import type { ScrollRevealRequest } from "@/lib/nav/scroll-memory";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { publishCrisisNotice } from "@/lib/safety/crisis-notice";
 import { startInterviewCrisisRouting } from "@/lib/llm/boundary";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
+import { accountTransitionSnapshot, captureAccountOwnerLease, subscribeAccountTransition, type AccountOwnerLease } from "@/lib/auth/account-epoch";
 import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { useGoHomeStop } from "@/lib/nav/go-home";
 import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/periods";
@@ -84,6 +87,7 @@ import {
   type DrillLayer,
   type InterviewTurn,
   type LifePeriod,
+  type ProbeResult,
 } from "@/lib/interview/probe";
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "@/lib/interview/session-end";
@@ -250,6 +254,16 @@ function TrackGatedInterview({
   return <InterviewSession period={period} growthOrigin={growthOrigin} />;
 }
 
+interface InterviewGuidanceDelivery {
+  readonly requestId: number;
+  readonly guidance: NonNullable<ProbeResult["guidance"]>;
+  readonly owner: AccountOwnerLease;
+  readonly instance: number;
+  readonly locale: string;
+  readonly token: object;
+  readonly ready: boolean;
+}
+
 function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growthOrigin: boolean }) {
   // Phone-aware: inside the dashboard phone, the post-save return to the star
   // summary replaces the phone's screen instead of the app's route.
@@ -296,6 +310,49 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const mounted = useRef(true);
   const interviewInstance = useRef(0);
   const probeRequest = useRef(0);
+  const [guidanceDelivery, setGuidanceDelivery] = useState<InterviewGuidanceDelivery | null>(null);
+  const guidanceRef = useRef<InterviewGuidanceDelivery | null>(null);
+  const lastGuidanceRequest = useRef(0);
+  const guidanceScroll = useRef<{ pending: object | null; accepted: object | null }>({ pending: null, accepted: null });
+  const ownerSnapshot = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
+  const isGuidanceCurrent = useCallback((delivery: InterviewGuidanceDelivery) => delivery.owner.isCurrent()
+    && mounted.current && interviewInstance.current === delivery.instance && guidanceRef.current?.token === delivery.token, []);
+  const guidanceDisplay = (() => {
+    if (!guidanceDelivery || !isGuidanceCurrent(guidanceDelivery)) return null;
+    try {
+      const copy = resolveProbeGuidanceCopy(guidanceDelivery.guidance, guidanceDelivery.locale);
+      return copy.kind === "ready" ? { delivery: guidanceDelivery, copy } : null;
+    } catch { return null; }
+  })();
+  const markGuidanceReady = useCallback(() => {
+    if (!guidanceDisplay || !isGuidanceCurrent(guidanceDisplay.delivery) || guidanceDisplay.delivery.ready) return;
+    const ready = { ...guidanceDisplay.delivery, ready: true };
+    guidanceRef.current = ready;
+    setGuidanceDelivery(previous => isGuidanceCurrent(ready) && previous?.token === ready.token ? ready : previous);
+  }, [guidanceDisplay, isGuidanceCurrent]);
+  const dismissGuidance = useCallback(() => {
+    if (!guidanceDisplay || !isGuidanceCurrent(guidanceDisplay.delivery)) return;
+    const token = guidanceDisplay.delivery.token;
+    guidanceRef.current = null;
+    guidanceScroll.current.pending = null;
+    setGuidanceDelivery(previous => previous?.token === token ? null : previous);
+  }, [guidanceDisplay, isGuidanceCurrent]);
+  const cancelGuidanceReveal = useCallback(() => {
+    if (guidanceDisplay && isGuidanceCurrent(guidanceDisplay.delivery)) guidanceScroll.current.pending = null;
+  }, [guidanceDisplay, isGuidanceCurrent]);
+  const priorityReveal: ScrollRevealRequest | null = guidanceDisplay ? {
+    token: guidanceDisplay.delivery.token, target: { x: 0, y: 0 }, ready: guidanceDisplay.delivery.ready,
+    isCurrent: () => isGuidanceCurrent(guidanceDisplay.delivery),
+    onRevealed: cancelGuidanceReveal,
+  } : null;
+  useLayoutEffect(() => {
+    const delivery = guidanceRef.current;
+    if (delivery && !isGuidanceCurrent(delivery)) {
+      guidanceRef.current = null; guidanceScroll.current = { pending: null, accepted: null };
+      lastGuidanceRequest.current = 0;
+      setGuidanceDelivery(previous => previous?.token === delivery.token ? null : previous);
+    }
+  }, [ownerSnapshot, isGuidanceCurrent]);
   const [concreteOnly, setConcreteOnly] = useState(false);
   const [coverageReady, setCoverageReady] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -328,7 +385,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     interviewInstance.current += 1;
     ended.current = false;
     mounted.current = true;
-    return () => { ended.current = true; mounted.current = false; };
+    return () => {
+      ended.current = true; mounted.current = false;
+      guidanceRef.current = null; guidanceScroll.current = { pending: null, accepted: null };
+    };
   }, []);
 
   useEffect(() => {
@@ -393,6 +453,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       if (!userId || ended.current) return;
       const owner = captureAccountOwnerLease(userId);
       if (!owner) return;
+      // A new ordinary ask releases the preceding acceptance commit, but a
+      // hidden row still waiting for its first reveal keeps scroll priority.
+      guidanceScroll.current.accepted = null;
       const instance = interviewInstance.current;
       const questionGeneration = turnsOwnerRef.current;
       let requestId: number | undefined;
@@ -402,6 +465,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       const isCurrentRequest = () => interviewInstance.current === instance
         && (requestId === undefined || probeRequest.current === requestId)
         && turnsOwnerRef.current === questionGeneration;
+      const canAcceptGuidance = () => owner.isCurrent() && mounted.current && isCurrentRequest()
+        && !ended.current && !redSeen && !settled;
       const deliverRed = (hotline: HotlineId | undefined) => {
         if (settled || !owner.isCurrent()) return;
         // Claim before synchronous subscribers can re-enter or switch owners.
@@ -463,6 +528,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         const probe = await nextProbe(
           userId, locale, period, history, cov, isMinor === true,
           0, move.kind === "finish" ? credited : move.layer, deliverRed,
+          { isMinor, isCurrent: canAcceptGuidance },
         );
         if (!owner.isCurrent()) return;
         // Safety still reaches the app after stop or route removal. Ordinary
@@ -472,6 +538,19 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           return;
         }
         if (redSeen || !mounted.current || !isCurrentRequest() || ended.current) return;
+        if (probe.guidance && canAcceptGuidance() && lastGuidanceRequest.current !== requestId) {
+          let ready = false;
+          try { ready = resolveProbeGuidanceCopy(probe.guidance, locale).kind === "ready"; } catch { /* No raw fallback. */ }
+          if (ready && canAcceptGuidance()) {
+            const delivery: InterviewGuidanceDelivery = { requestId, guidance: probe.guidance, owner,
+              instance, locale, token: {}, ready: false };
+            lastGuidanceRequest.current = requestId;
+            guidanceRef.current = delivery;
+            guidanceScroll.current = { pending: delivery.token, accepted: delivery.token };
+            setGuidanceDelivery(previous => isGuidanceCurrent(delivery) ? delivery : previous);
+          }
+        }
+        if (!canAcceptGuidance()) return;
         const lastAnswer = history[history.length - 1];
         const confirmed = credited && lastAnswer
           ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)
@@ -556,7 +635,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         if (!redSeen && owner.isCurrent() && mounted.current && isCurrentRequest()) setBusy(false);
       }
     },
-    [userId, period, locale, isMinor, entriesOf, hotlineFor, t, concreteOnly, finish, stuckStreak],
+    [userId, period, locale, isMinor, entriesOf, hotlineFor, t, concreteOnly, finish, stuckStreak, isGuidanceCurrent],
   );
 
   // 첫 질문은 **LLM 을 부르지 않는다.**
@@ -587,9 +666,12 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     });
   }, [userId, period, locale]);
 
-  useEffect(() => {
-    if (turns.length > 0) scrollRef.current?.scrollToEnd({ animated: true });
+  const scrollToLatest = useCallback(() => {
+    if (turns.length > 0 && !guidanceScroll.current.pending && !guidanceScroll.current.accepted) {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }
   }, [turns.length]);
+  useEffect(scrollToLatest, [scrollToLatest]);
 
   const userTurns = turns.filter((turn) => turn.role === "user").length;
 
@@ -807,8 +889,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     <InterviewFrame>
       <ScrollView
         ref={scrollRef}
+        priorityReveal={priorityReveal}
+        onScrollBeginDrag={cancelGuidanceReveal}
         contentContainerStyle={[styles.body, { paddingBottom: kbHeight + spacing.sm }]}
       >
+        {guidanceDisplay ? (
+          <View onLayout={markGuidanceReady}>
+            <InterviewGuidanceRow copy={guidanceDisplay.copy} onDismiss={dismissGuidance} />
+          </View>
+        ) : null}
         {done ? (
           <>
             <Text style={[m3TextStyle("titleLarge"), styles.saveTitle]}>{t("drill.saveTitle")}</Text>
