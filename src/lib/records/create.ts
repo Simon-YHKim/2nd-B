@@ -677,10 +677,14 @@ export async function deleteRecord(userId: string, recordId: string): Promise<vo
   if (photoPaths.length > 0) await removeRecordPhotoObjects(photoPaths);
 }
 
-// Exact count of a user's records of one kind. Used by the free-tier usage
-// gate (entitlements.checkUsage) so the 2-use limit is accurate regardless of
-// how many other-kind records exist.
-export async function countRecordsByKind(userId: string, kind: RecordKind): Promise<number> {
+// Exact count of a user's records of one kind, independent of the recent-list
+// window. Entitlement policy comes from checkUsage; this count does not impose
+// a local journal limit.
+export async function countRecordsByKind(
+  userId: string,
+  kind: RecordKind,
+  options: { requireCount?: boolean } = {},
+): Promise<number> {
   const supabase = getSupabaseClient();
   const { count, error } = await supabase
     .from("records")
@@ -688,5 +692,10 @@ export async function countRecordsByKind(userId: string, kind: RecordKind): Prom
     .eq("user_id", userId)
     .eq("kind", kind);
   if (error) throw error;
+  // Strict screen reads must distinguish an unread count from zero records.
+  // Other callers retain their existing compatibility behavior.
+  if (options.requireCount && (count === null || !Number.isSafeInteger(count) || count < 0)) {
+    throw new Error("Record count was not returned");
+  }
   return count ?? 0;
 }
