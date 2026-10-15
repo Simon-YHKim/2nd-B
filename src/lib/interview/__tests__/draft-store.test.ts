@@ -25,6 +25,13 @@ import {
   INTERVIEW_DRAFT_TTL_MS, type InterviewDraftContent,
 } from "../draft-codec";
 import { createInterviewDraftStore, interviewDraftsForOwner, type InterviewDraftResult } from "../draft-store";
+import { createInterviewSnapshotStore, interviewSnapshotKey, interviewSnapshotsForOwner,
+  type InterviewSnapshotContent, type InterviewSnapshotResult } from "../draft-snapshot-store";
+import { encodeInterviewDraftSnapshot, type InterviewDraftSnapshot } from "../draft-snapshot";
+import { prepareInterviewDraftRestore } from "../draft-restore";
+import { emptyCoverage } from "../probe";
+
+jest.mock("../../llm/boundary", () => ({ callLlm: jest.fn(() => { throw new Error("model I/O forbidden"); }) }));
 
 function deferred() {
   let resolve!: () => void;
@@ -71,11 +78,27 @@ function harness() {
   let time = 1_800_000_000_000;
   let storage = createEncryptedNativeStorage(dependencies);
   const makeStore = () => createInterviewDraftStore({ storage: () => storage, now: () => time, newId: randomUUID });
+  let generation = "generation-1";
+  let contentEpoch = 0;
+  let contentStatus: "confirmed" | "unconfirmed" | "wipe-pending" = "confirmed";
+  let checkHook: (() => void) | null = null;
+  const makeSnapshots = () => createInterviewSnapshotStore({ storage: () => storage, now: () => time, newId: randomUUID,
+    contentLease: () => {
+      const captured = contentEpoch;
+      return { generation, check: () => {
+        const result = contentStatus !== "confirmed" ? "unconfirmed" : captured === contentEpoch ? "current" : "stale";
+        checkHook?.(); // Exercises a reentrant provider, not just a passive boolean mock.
+        return result;
+      } };
+    } });
   return {
-    values, secrets, dependencies, store: makeStore(), storage,
+    values, secrets, dependencies, store: makeStore(), snapshots: makeSnapshots(), storage,
     now: () => time,
     advance: (amount: number) => { time += amount; },
     restart: () => { storage = createEncryptedNativeStorage(dependencies); return makeStore(); },
+    restartSnapshots: () => { storage = createEncryptedNativeStorage(dependencies); return makeSnapshots(); },
+    setContent: (next: string, status: typeof contentStatus = "confirmed") => { generation = next; contentStatus = status; contentEpoch += 1; },
+    onContentCheck: (hook: typeof checkHook) => { checkHook = hook; },
   };
 }
 
@@ -442,4 +465,328 @@ test.each(deliveryCases)("public Promise %s rejects %s before final settlement",
   }
   expect(reachedSettlement).toBe(true);
   expect(pendingWindows).toBeGreaterThan(0);
+});
+
+function snapshotContent(): InterviewSnapshotContent {
+  const base = emptyCoverage(); base.school.fact = 2;
+  const current = emptyCoverage(); current.school.fact = 3;
+  return { period: "work", uiLanguage: "es", conversationLocale: "en", growthOrigin: true, pending: null,
+    state: { turns: content().turns, draft: "private v2 words", inputRevision: 4, pendingLayer: "fact",
+      openers: ["original opener"], stuckStreak: 2, abandoned: ["belief"], concreteOnly: true,
+      phase: "active", endReason: null, crisisHotline: null, notice: "drill.dayLimit",
+      coverage: { base, current, baseline: "unconfirmed" } } };
+}
+function snapshotOf(result: InterviewSnapshotResult): InterviewDraftSnapshot {
+  if (!("draft" in result)) throw new Error(`expected local snapshot, got ${result.status}`);
+  return result.draft;
+}
+
+test("v2 uses real AES-GCM and its own namespace/key AAD; v1 bytes and shared device key survive", async () => {
+  const h = harness();
+  const v1 = draftOf(await h.store.forOwner("owner-a").create(content()));
+  const v1raw = h.values.get(interviewDraftKey("owner-a"));
+  const secret = [...h.secrets.entries()];
+  const input = snapshotContent();
+  const pending = h.snapshots.forOwner("owner-a").create(input);
+  input.state.draft = "changed after first clone";
+  const first = snapshotOf(await pending);
+  expect(first.state.draft).toBe("private v2 words");
+  expect(h.values.get(interviewSnapshotKey("owner-a"))).toMatch(/^SBENC1:/);
+  expect(h.values.get(interviewSnapshotKey("owner-a"))).not.toContain("private v2 words");
+  expect(h.values.get(interviewDraftKey("owner-a"))).toBe(v1raw);
+  expect([...h.secrets.entries()]).toEqual(secret);
+  const loaded = snapshotOf(await h.restartSnapshots().forOwner("owner-a").load());
+  expect(loaded).toEqual(first);
+  expect(loaded.state.turns.map(turn => turn.answered)).toEqual([undefined, null, false, undefined]);
+  expect(Object.hasOwn(loaded.state.turns[3], "answered")).toBe(false);
+  const ctx = { ownerId: "owner-a", accountEpoch: currentAccountEpoch(), viewGeneration: 1, inputRevision: 4,
+    content: { status: "confirmed" as const, generation: "generation-1" } };
+  expect(prepareInterviewDraftRestore(encodeInterviewDraftSnapshot(loaded), ctx, ctx, h.now()))
+    .toEqual({ status: "restored", draft: first, next: "resume-choice" });
+  expect(draftOf(await h.store.forOwner("owner-a").load())).toEqual(v1);
+  h.values.set(interviewSnapshotKey("owner-a"), v1raw!);
+  await expect(h.restartSnapshots().forOwner("owner-a").load()).resolves.toEqual({ status: "unconfirmed" });
+  expect(h.values.get(interviewDraftKey("owner-a"))).toBe(v1raw);
+});
+
+test.each(["ended", "crisis-ended", "request"] as const)("v2 roundtrips %s without model execution or reactivation", async phase => {
+  const h = harness(); const input = snapshotContent();
+  if (phase === "request") input.pending = { kind: "request", requestId: "request-1", submittedAnswer: "submitted original",
+    inputRevision: 4, before: structuredClone(input.state) };
+  else Object.assign(input.state, { phase, endReason: phase === "ended" ? "user-stop" : "crisis",
+    crisisHotline: phase === "ended" ? null : "KR_1388", pendingLayer: null, openers: [] });
+  const first = snapshotOf(await h.snapshots.forOwner("owner-a").create(input));
+  const restarted = h.restartSnapshots().forOwner("owner-a");
+  expect(snapshotOf(await restarted.load())).toEqual(first);
+  if (phase !== "request") await expect(restarted.replace(first, snapshotContent())).resolves.toEqual({ status: "conflict" });
+  else {
+    const changed = structuredClone(input); changed.pending!.requestId = "replacement-request";
+    await expect(restarted.replace(first, changed)).resolves.toEqual({ status: "conflict" });
+    expect(snapshotOf(await restarted.load()).pending).toEqual(first.pending);
+  }
+});
+
+test("v2 serializes revision CAS and clones queued input even when it aliases a returned object", async () => {
+  const h = harness(); const access = h.snapshots.forOwner("owner-a");
+  const first = snapshotOf(await access.create(snapshotContent()));
+  const expected = { draftId: first.draftId, revision: first.revision };
+  const gate = deferred(); const entered = deferred(); let held = false;
+  jest.mocked(h.dependencies.backing.getItem).mockImplementation(async key => {
+    if (key === interviewSnapshotKey("owner-a") && !held) { held = true; entered.resolve(); await gate.promise; }
+    return h.values.get(key) ?? null;
+  });
+  // The input state is the SAME reference returned by create, not a fresh fixture.
+  const input = { ...snapshotContent(), state: first.state };
+  input.state.draft = "queued original";
+  const one = access.replace(first, input);
+  const two = access.replace(expected, { ...snapshotContent(), state: { ...snapshotContent().state, draft: "must lose CAS" } });
+  await entered.promise;
+  first.draftId = "mutated-return"; first.revision = 800;
+  first.state.draft = "late mutation"; first.state.coverage.current.school.fact = 900;
+  first.state.turns[0].text = "late turn";
+  gate.resolve();
+  const saved = snapshotOf(await one);
+  expect(saved.draftId).toBe(expected.draftId); expect(saved.revision).toBe(2);
+  expect(saved.state.draft).toBe("queued original"); expect(saved.state.coverage.current.school.fact).toBe(3);
+  expect(saved.state.turns[0].text).toBe("synthetic question");
+  await expect(two).resolves.toEqual({ status: "conflict" });
+  await expect(access.discard(expected)).resolves.toEqual({ status: "conflict" });
+  expect(snapshotOf(await access.load())).toEqual(saved);
+  await expect(access.discard(saved)).resolves.toEqual({ status: "discarded" });
+  await expect(access.create(snapshotContent())).resolves.toEqual({ status: "conflict" });
+  const newer = snapshotOf(await h.snapshots.forOwner("owner-a").create(snapshotContent()));
+  expect(newer.draftId).not.toBe(saved.draftId);
+  await expect(access.discard(saved)).resolves.toEqual({ status: "conflict" });
+  expect(snapshotOf(await h.snapshots.forOwner("owner-a").load())).toEqual(newer);
+});
+
+test("v2 immutable pending/unknown intent freezes metadata and has no generic cleanup or resend", async () => {
+  const h = harness(); const access = h.snapshots.forOwner("owner-a");
+  const first = snapshotOf(await access.create(snapshotContent()));
+  const keys = { requestId: "save-original", sessionId: "session-original" };
+  const beginning = access.beginSave(first, keys); keys.requestId = "late-replaced-key";
+  const pending = snapshotOf(await beginning);
+  expect(pending.revision).toBe(2);
+  expect(pending.pending).toEqual({ kind: "save", status: "pending", intent: { requestId: "save-original", sessionId: "session-original",
+    draftId: first.draftId, revision: 1, contentGeneration: "generation-1", snapshot: first.state } });
+  const modifications = [{ period: "school" }, { growthOrigin: false }, { uiLanguage: "pt" }, { conversationLocale: "ko" },
+    { state: { ...first.state, draft: "edited after submit" } }, { pending: null }];
+  for (const patch of modifications) await expect(access.replace(pending, { ...snapshotContent(), ...patch } as InterviewSnapshotContent))
+    .resolves.toEqual({ status: "conflict" });
+  await expect(access.discard(pending)).resolves.toEqual({ status: "conflict" });
+  await expect(access.beginSave(pending, { requestId: "new-key", sessionId: "new-session" })).resolves.toEqual({ status: "conflict" });
+  await expect(access.markSaveUnknown(pending, "different-request")).resolves.toEqual({ status: "conflict" });
+  const unknown = snapshotOf(await access.markSaveUnknown(pending, "save-original"));
+  expect(unknown.pending).toEqual({ ...pending.pending, status: "unknown" });
+  expect(unknown.expiresAt).toBe(first.expiresAt);
+  expect(snapshotOf(await h.restartSnapshots().forOwner("owner-a").load())).toEqual(unknown);
+  await expect(access.replace(unknown, snapshotContent())).resolves.toEqual({ status: "conflict" });
+  await expect(access.discard(unknown)).resolves.toEqual({ status: "conflict" });
+  await expect(access.beginSave(unknown, { requestId: "retry", sessionId: "new" })).resolves.toEqual({ status: "conflict" });
+  const input = { ...snapshotContent(), pending: unknown.pending } as unknown as InterviewSnapshotContent;
+  await expect(access.replace(unknown, input)).resolves.toEqual({ status: "unconfirmed" });
+  expect(snapshotOf(await access.load())).toEqual(unknown);
+  h.advance(INTERVIEW_DRAFT_TTL_MS);
+  await expect(access.load()).resolves.toEqual({ status: "expired" });
+  expect(h.values.has(interviewSnapshotKey("owner-a"))).toBe(false);
+});
+
+test("v2 production has no authority: valid operations return no body, empty, or success", async () => {
+  const access = interviewSnapshotsForOwner("owner-a"); const version = { draftId: "old", revision: 1 };
+  for (const action of [() => access.load(), () => access.create(snapshotContent()), () => access.replace(version, snapshotContent()),
+    () => access.beginSave(version, { requestId: "r", sessionId: "s" }), () => access.markSaveUnknown(version, "r"), () => access.discard(version)]) {
+    await expect(action()).resolves.toEqual({ status: "unconfirmed" });
+  }
+  expect(mockFenceValues.size).toBe(0);
+});
+
+test.each(["unconfirmed", "wipe-pending"] as const)("v2 %s cannot read, seed, or replace even before a body exists", async status => {
+  const h = harness(); h.setContent("generation-1", status);
+  const access = h.snapshots.forOwner("owner-a");
+  await expect(access.load()).resolves.toEqual({ status: "unconfirmed" });
+  await expect(access.create(snapshotContent())).resolves.toEqual({ status: "unconfirmed" });
+  expect(h.dependencies.backing.getItem).not.toHaveBeenCalled();
+  expect(h.values.size).toBe(0);
+});
+
+test("v2 same-owner wipe during a write preserves quarantined original words and immutable unknown intent", async () => {
+  const h = harness(); const access = h.snapshots.forOwner("owner-a");
+  const first = snapshotOf(await access.create(snapshotContent()));
+  const pending = snapshotOf(await access.beginSave(first, { requestId: "r", sessionId: "s" }));
+  const entered = deferred(); const gate = deferred(); let held = false;
+  jest.mocked(h.dependencies.backing.setItem).mockImplementation(async (key, value) => {
+    if (key === interviewSnapshotKey("owner-a") && !held) { held = true; entered.resolve(); await gate.promise; }
+    h.values.set(key, value);
+  });
+  const late = access.markSaveUnknown(pending, "r");
+  await entered.promise; h.setContent("generation-2", "wipe-pending"); gate.resolve();
+  await expect(late).resolves.toEqual({ status: "unconfirmed" });
+  await expect(h.restartSnapshots().forOwner("owner-a").load()).resolves.toEqual({ status: "unconfirmed" });
+  h.setContent("generation-2");
+  const fresh = h.snapshots.forOwner("owner-a");
+  await expect(fresh.load()).resolves.toEqual({ status: "quarantined", draft: pending });
+  await expect(fresh.replace(pending, snapshotContent())).resolves.toEqual({ status: "conflict" });
+  await expect(fresh.discard(pending)).resolves.toEqual({ status: "conflict" });
+  await expect(fresh.create(snapshotContent())).resolves.toEqual({ status: "conflict" });
+  await expect(access.load()).resolves.toEqual({ status: "stale" });
+  expect(snapshotOf(await fresh.load()).expiresAt).toBe(first.expiresAt);
+});
+
+test("v2 retries preserve first-attempt TTL, failed expiry removal hides body, and clock rollback cannot extend it", async () => {
+  const h = harness(); const access = h.snapshots.forOwner("owner-a"); const start = h.now();
+  jest.mocked(h.dependencies.backing.setItem).mockImplementation(async (key, value) => {
+    if (key === interviewSnapshotKey("owner-a")) throw new Error("synthetic write failure");
+    h.values.set(key, value);
+  });
+  await expect(access.create(snapshotContent())).resolves.toEqual({ status: "unconfirmed" });
+  h.advance(60_000);
+  jest.mocked(h.dependencies.backing.setItem).mockImplementation(async (key, value) => { h.values.set(key, value); });
+  const first = snapshotOf(await access.create(snapshotContent()));
+  expect(first.createdAt).toBe(start); expect(first.expiresAt).toBe(start + INTERVIEW_DRAFT_TTL_MS);
+  const edited = snapshotOf(await access.replace(first, snapshotContent())); expect(edited.expiresAt).toBe(first.expiresAt);
+  h.advance(INTERVIEW_DRAFT_TTL_MS - 60_001);
+  expect(snapshotOf(await h.restartSnapshots().forOwner("owner-a").load())).toEqual(edited);
+  h.advance(1);
+  jest.mocked(h.dependencies.backing.removeItem).mockRejectedValueOnce(new Error("synthetic remove failure"));
+  await expect(access.load()).resolves.toEqual({ status: "unconfirmed" });
+  expect(h.values.has(interviewSnapshotKey("owner-a"))).toBe(true);
+  await expect(access.load()).resolves.toEqual({ status: "expired" });
+  expect(h.values.has(interviewSnapshotKey("owner-a"))).toBe(false);
+  const newer = h.snapshots.forOwner("owner-a"); const created = snapshotOf(await newer.create(snapshotContent()));
+  h.advance(-1);
+  await expect(newer.load()).resolves.toEqual({ status: "expired" });
+  expect(h.now()).toBe(created.createdAt - 1);
+});
+
+test("v2 failed rollback remains unconfirmed until repaired and never restores expired text", async () => {
+  const h = harness(); const access = h.snapshots.forOwner("owner-a");
+  const first = snapshotOf(await access.create(snapshotContent()));
+  const entered = deferred(); const gate = deferred(); let writes = 0;
+  jest.mocked(h.dependencies.backing.setItem).mockImplementation(async (key, value) => {
+    if (key === interviewSnapshotKey("owner-a")) {
+      writes += 1;
+      if (writes === 1) { entered.resolve(); await gate.promise; }
+      else throw new Error("synthetic rollback failure");
+    }
+    h.values.set(key, value);
+  });
+  const late = access.replace(first, { ...snapshotContent(), state: { ...first.state, draft: "unconfirmed late words" } });
+  await entered.promise; owner(null); owner("owner-a"); gate.resolve();
+  await expect(late).resolves.toEqual({ status: "unconfirmed" });
+  const fresh = h.snapshots.forOwner("owner-a");
+  await expect(fresh.load()).resolves.toEqual({ status: "unconfirmed" });
+  h.advance(INTERVIEW_DRAFT_TTL_MS);
+  await expect(fresh.load()).resolves.toEqual({ status: "empty" });
+  expect(h.values.has(interviewSnapshotKey("owner-a"))).toBe(false);
+});
+
+test("v2 cannot restart a failed create after its original deadline or fall back from unsupported storage", async () => {
+  const h = harness(); const access = h.snapshots.forOwner("owner-a");
+  jest.mocked(h.dependencies.backing.setItem).mockImplementation(async (key, value) => {
+    if (key === interviewSnapshotKey("owner-a")) throw new Error("synthetic write failure");
+    h.values.set(key, value);
+  });
+  await expect(access.create(snapshotContent())).resolves.toEqual({ status: "unconfirmed" });
+  h.advance(INTERVIEW_DRAFT_TTL_MS);
+  jest.mocked(h.dependencies.backing.setItem).mockImplementation(async (key, value) => { h.values.set(key, value); });
+  await expect(access.create(snapshotContent())).resolves.toEqual({ status: "expired" });
+  expect(h.values.has(interviewSnapshotKey("owner-a"))).toBe(false);
+  const absent = createInterviewSnapshotStore({ storage: () => null, now: h.now, newId: randomUUID,
+    contentLease: () => ({ generation: "test-only", check: () => "current" }) }).forOwner("owner-a");
+  await expect(absent.load()).resolves.toEqual({ status: "unsupported" });
+  await expect(absent.create(snapshotContent())).resolves.toEqual({ status: "unsupported" });
+});
+
+test("v2 owner/AAD substitution, lost key and oversized input never become readable drafts", async () => {
+  const h = harness(); const access = h.snapshots.forOwner("owner-a");
+  const oversized = snapshotContent(); oversized.state.draft = "x".repeat(INTERVIEW_DRAFT_MAX_BYTES);
+  await expect(access.create(oversized)).resolves.toEqual({ status: "unconfirmed" });
+  const first = snapshotOf(await access.create(snapshotContent()));
+  const raw = h.values.get(interviewSnapshotKey("owner-a"))!;
+  h.values.set(interviewSnapshotKey("owner-b"), raw); owner("owner-b");
+  await expect(h.snapshots.forOwner("owner-b").load()).resolves.toEqual({ status: "unconfirmed" });
+  owner("owner-a");
+  await h.storage.setItem(interviewSnapshotKey("owner-a"), encodeInterviewDraftSnapshot({ ...first, ownerId: "owner-b" }));
+  await expect(h.snapshots.forOwner("owner-a").load()).resolves.toEqual({ status: "unconfirmed" });
+  h.values.set(interviewSnapshotKey("owner-a"), raw); h.secrets.clear();
+  await expect(h.restartSnapshots().forOwner("owner-a").load()).resolves.toEqual({ status: "unconfirmed" });
+  expect(h.secrets.size).toBe(0); expect(h.values.get(interviewSnapshotKey("owner-a"))).toBe(raw);
+});
+
+test("v2 native null auth retains ciphertext; terminal purge joins late writes and preserves both B namespaces", async () => {
+  const h = harness();
+  owner("owner-b"); await h.store.forOwner("owner-b").create(content()); await h.snapshots.forOwner("owner-b").create(snapshotContent());
+  const other = [h.values.get(interviewDraftKey("owner-b")), h.values.get(interviewSnapshotKey("owner-b"))];
+  owner("owner-a"); await h.store.forOwner("owner-a").create(content());
+  const access = h.snapshots.forOwner("owner-a"); const first = snapshotOf(await access.create(snapshotContent()));
+  const raw = h.values.get(interviewSnapshotKey("owner-a")); owner(null);
+  await expect(access.load()).resolves.toEqual({ status: "stale" }); expect(h.values.get(interviewSnapshotKey("owner-a"))).toBe(raw);
+  owner("owner-a"); const fresh = h.snapshots.forOwner("owner-a"); expect(snapshotOf(await fresh.load())).toEqual(first);
+  const entered = deferred(); const gate = deferred(); let held = false;
+  jest.mocked(h.dependencies.backing.setItem).mockImplementation(async (key, value) => {
+    if (key === interviewSnapshotKey("owner-a") && !held) { held = true; entered.resolve(); await gate.promise; }
+    h.values.set(key, value);
+  });
+  const late = fresh.replace(first, snapshotContent()); await entered.promise;
+  const deleting = installAccountLocalDeletionFence("owner-a").then(() => Promise.all([
+    h.store.purgeDeletedOwner("owner-a"), h.snapshots.purgeDeletedOwner("owner-a"),
+  ]));
+  gate.resolve(); await expect(late).resolves.toEqual({ status: "stale" }); await expect(deleting).resolves.toEqual([true, true]);
+  expect(h.values.has(interviewDraftKey("owner-a"))).toBe(false); expect(h.values.has(interviewSnapshotKey("owner-a"))).toBe(false);
+  expect([h.values.get(interviewDraftKey("owner-b")), h.values.get(interviewSnapshotKey("owner-b"))]).toEqual(other);
+});
+
+test("v2 terminal purge requires its fence, handles remove failure and needs neither a key nor generation authority", async () => {
+  const h = harness(); await h.snapshots.forOwner("owner-a").create(snapshotContent());
+  const noAuthority = createInterviewSnapshotStore({ storage: () => h.storage, now: h.now, newId: randomUUID, contentLease: () => null });
+  await expect(noAuthority.purgeDeletedOwner("owner-a")).resolves.toBe(false);
+  await installAccountLocalDeletionFence("owner-a"); h.secrets.clear();
+  jest.mocked(h.dependencies.backing.removeItem).mockRejectedValueOnce(new Error("synthetic removal failure"));
+  await expect(noAuthority.purgeDeletedOwner("owner-a")).resolves.toBe(false);
+  await expect(noAuthority.purgeDeletedOwner("owner-a")).resolves.toBe(true);
+  expect(h.values.has(interviewSnapshotKey("owner-a"))).toBe(false); expect(h.secrets.size).toBe(0);
+});
+
+const snapshotOperations = ["load", "empty", "create", "replace", "discard", "beginSave", "markSaveUnknown"] as const;
+type SnapshotOperation = typeof snapshotOperations[number];
+async function snapshotAction(h: ReturnType<typeof harness>, operation: SnapshotOperation) {
+  const access = h.snapshots.forOwner("owner-a");
+  let first = ["create", "empty"].includes(operation) ? null : snapshotOf(await access.create(snapshotContent()));
+  if (operation === "markSaveUnknown") first = snapshotOf(await access.beginSave(first!, { requestId: "r", sessionId: "s" }));
+  return () => operation === "load" || operation === "empty" ? access.load()
+    : operation === "create" ? access.create(snapshotContent()) : operation === "replace" ? access.replace(first!, snapshotContent())
+      : operation === "discard" ? access.discard(first!) : operation === "beginSave" ? access.beginSave(first!, { requestId: "r", sessionId: "s" })
+        : access.markSaveUnknown(first!, "r");
+}
+const snapshotDeliveryCases = snapshotOperations.flatMap(operation =>
+  (["switch", "aba", "wipe", "wipe-pending", "deletion"] as const).map(transition => [operation, transition] as const));
+test.each(snapshotDeliveryCases)("v2 public Promise %s rejects %s at every unsettled microtask cut", async (operation, transition) => {
+  let pendingWindows = 0; let settled = false;
+  for (let ticks = 0; ticks < 256; ticks += 1) {
+    __resetAccountEpochForTests(); __resetAccountLocalDeletionFencesForTests(); mockFenceValues.clear(); owner("owner-a");
+    const h = harness(); const action = await snapshotAction(h, operation); const pending = action();
+    for (let tick = 0; tick < ticks; tick += 1) await Promise.resolve();
+    if (!inspect(pending, { depth: 0 }).includes("<pending>")) { await pending; settled = true; break; }
+    pendingWindows += 1;
+    const fence = transition === "deletion" ? installAccountLocalDeletionFence("owner-a") : null;
+    if (transition === "wipe" || transition === "wipe-pending") h.setContent("generation-2", transition === "wipe" ? "confirmed" : "wipe-pending");
+    if (transition === "switch" || transition === "aba") { owner("owner-b"); if (transition === "aba") owner("owner-a"); }
+    const result = await pending; if (fence) await fence;
+    expect({ ticks, status: result.status }).toEqual({ ticks, status: transition === "wipe-pending" ? "unconfirmed" : "stale" });
+    expect(result).not.toHaveProperty("draft");
+  }
+  expect(settled).toBe(true); expect(pendingWindows).toBeGreaterThan(0);
+});
+
+test.each(["load", "create", "beginSave"] as const)("v2 %s rejects reentrant owner publication inside every content check including final settlement", async operation => {
+  let checkedWindows = 0;
+  for (let cut = 1; cut < 64; cut += 1) {
+    __resetAccountEpochForTests(); __resetAccountLocalDeletionFencesForTests(); mockFenceValues.clear(); owner("owner-a");
+    const h = harness(); const action = await snapshotAction(h, operation); let checks = 0;
+    h.onContentCheck(() => { checks += 1; if (checks === cut) { owner("owner-b"); owner("owner-a"); } });
+    const result = await action();
+    if (checks < cut) { expect(["loaded", "stored"]).toContain(result.status); break; }
+    checkedWindows += 1; expect(result).toEqual({ status: "stale" });
+  }
+  expect(checkedWindows).toBeGreaterThan(3);
 });

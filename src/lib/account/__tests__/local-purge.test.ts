@@ -1,5 +1,6 @@
 const mockCapturePurge = jest.fn<Promise<boolean>, [string]>();
 const mockInterviewPurge = jest.fn<Promise<boolean>, [string]>();
+const mockInterviewSnapshotPurge = jest.fn<Promise<boolean>, [string]>();
 const mockAvatarPalettePurge = jest.fn<Promise<boolean>, [string]>();
 const mockImportPurge = jest.fn<Promise<boolean>, [string]>();
 const mockGithubPurge = jest.fn<Promise<boolean>, [string]>();
@@ -21,6 +22,9 @@ jest.mock("../../capture/draft", () => ({
 }));
 jest.mock("../../interview/draft-store", () => ({
   purgeInterviewDraftsForDeletedAccount: (owner: string) => mockInterviewPurge(owner),
+}));
+jest.mock("../../interview/draft-snapshot-store", () => ({
+  purgeInterviewSnapshotsForDeletedAccount: (owner: string) => mockInterviewSnapshotPurge(owner),
 }));
 jest.mock("../../avatar-palette/gallery", () => ({
   purgeAvatarPaletteItemsForDeletedAccount: (owner: string) => mockAvatarPalettePurge(owner),
@@ -80,6 +84,7 @@ beforeEach(() => {
     mockAvatarPalettePurge,
     mockCapturePurge,
     mockInterviewPurge,
+    mockInterviewSnapshotPurge,
     mockImportPurge,
     mockGithubPurge,
     mockAuditPurge,
@@ -105,6 +110,7 @@ describe("purgeDeletedAccountLocalData", () => {
       mockAvatarPalettePurge,
       mockCapturePurge,
       mockInterviewPurge,
+      mockInterviewSnapshotPurge,
       mockImportPurge,
       mockGithubPurge,
       mockAuditPurge,
@@ -134,11 +140,11 @@ describe("purgeDeletedAccountLocalData", () => {
     expect(mockAuditPurge).toHaveBeenCalledTimes(1);
   });
 
-  test("never claims completion when an encrypted interview draft remains", async () => {
-    mockInterviewPurge.mockResolvedValueOnce(false);
+  test.each([["v1", mockInterviewPurge], ["v2", mockInterviewSnapshotPurge]] as const)("never claims completion when an encrypted interview %s draft remains", async (_version, purge) => {
+    purge.mockResolvedValueOnce(false);
     await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
-    expect(mockInterviewPurge).toHaveBeenCalledWith("owner-a");
-    expect(mockInstallFence.mock.invocationCallOrder[0]).toBeLessThan(mockInterviewPurge.mock.invocationCallOrder[0]);
+    expect(purge).toHaveBeenCalledWith("owner-a");
+    expect(mockInstallFence.mock.invocationCallOrder[0]).toBeLessThan(purge.mock.invocationCallOrder[0]);
   });
 
   test("rejects an empty owner instead of widening the purge", async () => {
@@ -210,15 +216,16 @@ describe("purgeDeletedAccountLocalData", () => {
     expect(mockNotificationPurge).toHaveBeenCalledTimes(1);
   });
 
-  test("starts every purge and returns unconfirmed at the aggregate 5 second deadline", async () => {
+  test.each([["capture", mockCapturePurge], ["interview v2", mockInterviewSnapshotPurge]] as const)("starts every purge and keeps a delayed %s purge unconfirmed at 5 seconds", async (_name, delayed) => {
     jest.useFakeTimers();
     try {
-      mockCapturePurge.mockImplementationOnce(() => new Promise<boolean>(() => {}));
+      delayed.mockImplementationOnce(() => new Promise<boolean>(() => {}));
       const result = purgeDeletedAccountLocalData("owner-a");
       await Promise.resolve();
       await Promise.resolve();
 
       expect(mockCapturePurge).toHaveBeenCalledTimes(1);
+      expect(mockInterviewSnapshotPurge).toHaveBeenCalledTimes(1);
       expect(mockImportPurge).toHaveBeenCalledTimes(1);
       expect(mockGithubPurge).toHaveBeenCalledTimes(1);
       expect(mockAuditPurge).toHaveBeenCalledTimes(1);
