@@ -595,7 +595,7 @@ describe("5. 소스 계약 -- 위 시뮬레이터가 옮긴 줄이 화면 · 엔
     const handler = between(ask, "catch (error)", "finally");
     inOrder(handler, [
       "readDayLimitRefusal(error, INTERVIEW_PURPOSE)",
-      "if (!ended.current) { setTurns(history.map((turn, index) => index === history.length - 1 && turn.role === \"user\" ? { ...turn, unsettled: true } : turn)); setPendingLayer(credited); }",
+      "if (owner.isCurrent() && mounted.current && !ended.current) { setTurns(history.map((turn, index) => index === history.length - 1 && turn.role === \"user\" ? { ...turn, unsettled: true } : turn)); setPendingLayer(credited);",
       'setNotice(t("drill.failed"));',
     ]);
   });
