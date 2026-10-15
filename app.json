@@ -103,6 +103,12 @@
       "./config-plugins/withAndroidShareTarget",
       "expo-secure-store",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#070A18",
