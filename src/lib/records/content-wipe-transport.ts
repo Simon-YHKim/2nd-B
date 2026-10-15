@@ -1,0 +1,111 @@
+import { abortError } from "../async/abort";
+import { getEnv } from "../env";
+
+/** Private transport input, captured before the ledger's final issue gate. */
+export type CapturedContentWipeRequest = Readonly<{
+  userId: string;
+  accessToken: string;
+  signal: AbortSignal;
+}>;
+
+const OWNER_COLUMN = {
+  wiki_pages: "user_id", sources: "user_id", records: "user_id",
+  chat_usage: "user_id", self_contexts: "user_id", clipper_templates: "owner_id",
+} as const;
+export type ContentWipeTable = keyof typeof OWNER_COLUMN;
+export type DeletedRecordRows =
+  | Readonly<{ state: "complete"; rows: readonly Readonly<{ structured: unknown }>[] }>
+  | Readonly<{ state: "unconfirmed" }>;
+export type ContentWipeDeleteResult =
+  | Readonly<{ outcome: "committed"; count: number; recordRows?: DeletedRecordRows }>
+  | Readonly<{ outcome: "definitely-not-committed" | "unknown"; count: null }>;
+
+const unknownResult = (): ContentWipeDeleteResult => ({ outcome: "unknown", count: null });
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+const isJson = (response: Response) =>
+  response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() === "application/json";
+
+/** No auth lookup or I/O. Shared only by these dormant, single-request transports. */
+export function prepareContentWipeRequest(request: CapturedContentWipeRequest) {
+  const { userId, accessToken, signal } = request;
+  if (typeof userId !== "string" || !/^[A-Za-z0-9_-]{1,160}$/.test(userId)
+    || typeof accessToken !== "string" || !accessToken.trim() || /[\r\n]/.test(accessToken)
+    || !signal || typeof signal.aborted !== "boolean" || typeof signal.addEventListener !== "function") {
+    throw new Error("content_wipe_request_invalid");
+  }
+  if (signal.aborted) throw abortError();
+  const env = getEnv();
+  return {
+    userId, signal, baseUrl: env.EXPO_PUBLIC_SUPABASE_URL.replace(/\/+$/, ""),
+    headers: { Authorization: `Bearer ${accessToken}`, apikey: env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      "content-type": "application/json", Accept: "application/json" },
+  };
+}
+
+function exactDeleteCount(response: Response): number | null {
+  // PostgREST DELETE returns */N, including */0. Read/PATCH ranges are not this proof.
+  const match = /^\*\/(0|[1-9]\d*)$/.exec(response.headers.get("content-range") ?? "");
+  const preferences = (response.headers.get("preference-applied") ?? "").split(",").map(value => value.trim().toLowerCase());
+  if (!match || !preferences.includes("count=exact") || preferences.includes("tx=rollback")
+    || preferences.some(value => value.startsWith("count=") && value !== "count=exact")) return null;
+  const count = Number(match[1]);
+  return Number.isSafeInteger(count) ? count : null;
+}
+
+function confirmedDatabaseRejection(status: number, value: unknown): boolean {
+  // PostgREST errors + transaction docs: these SQL failures roll back the statement.
+  // An arbitrary HTTP failure, similar message, or Storage error is not this proof.
+  if (!isObject(value) || typeof value.message !== "string" || !value.message
+    || !(value.details === null || typeof value.details === "string")
+    || !(value.hint === null || typeof value.hint === "string")) return false;
+  return (value.code === "42501" && (status === 401 || status === 403))
+    || (value.code === "23503" && status === 409)
+    || (value.code === "23514" && status === 400)
+    || (value.code === "P0001" && status === 400);
+}
+
+function recordRows(value: unknown, count: number): DeletedRecordRows {
+  if (!Array.isArray(value) || value.length !== count) return { state: "unconfirmed" };
+  const rows: { structured: unknown }[] = [];
+  for (const row of value) {
+    if (!isObject(row) || !Object.prototype.hasOwnProperty.call(row, "structured")) return { state: "unconfirmed" };
+    rows.push(Object.freeze({ structured: row.structured }));
+  }
+  return { state: "complete", rows: Object.freeze(rows) };
+}
+
+/**
+ * One physical DELETE, for the future content-wipe executor only. The caller must
+ * acquire/issue its ledger ticket before entering. This is not deletion authority.
+ * Results describe this DB request; a records commit does not confirm its photos.
+ */
+export async function deleteContentRowsCaptured(
+  table: ContentWipeTable, request: CapturedContentWipeRequest,
+): Promise<ContentWipeDeleteResult> {
+  if (!Object.prototype.hasOwnProperty.call(OWNER_COLUMN, table)) throw new Error("content_wipe_table_invalid");
+  const captured = prepareContentWipeRequest(request);
+  const query = new URLSearchParams({ [OWNER_COLUMN[table]]: `eq.${captured.userId}` });
+  if (table === "records") query.set("select", "structured");
+  try {
+    // No await/thenable/auth callback before fetch, and no retry or redirect replay.
+    const response = await globalThis.fetch(`${captured.baseUrl}/rest/v1/${table}?${query}`, {
+      method: "DELETE", headers: { ...captured.headers,
+        Prefer: `count=exact,return=${table === "records" ? "representation" : "minimal"}` },
+      signal: captured.signal, redirect: "error",
+    });
+    if (!response.ok) {
+      const value: unknown = isJson(response) ? await response.json() : null;
+      return confirmedDatabaseRejection(response.status, value)
+        ? { outcome: "definitely-not-committed", count: null } : unknownResult();
+    }
+    if (response.status !== (table === "records" ? 200 : 204)) return unknownResult();
+    const count = exactDeleteCount(response);
+    if (count === null) return unknownResult();
+    if (table !== "records") return { outcome: "committed", count };
+    if (!isJson(response)) return unknownResult();
+    const value: unknown = await response.json();
+    // Preserve a confirmed DB count even if the returned row set cannot make a plan.
+    return { outcome: "committed", count, recordRows: recordRows(value, count) };
+  } catch { return unknownResult(); }
+}

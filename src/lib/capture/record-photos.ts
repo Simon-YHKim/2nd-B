@@ -36,6 +36,7 @@
 import { randomUUID } from "expo-crypto";
 
 import { getSupabaseClient } from "../supabase/client";
+import { prepareContentWipeRequest, type CapturedContentWipeRequest } from "../records/content-wipe-transport";
 
 export const RECORD_PHOTO_BUCKET = "record-photos";
 /**
@@ -241,4 +242,77 @@ export async function signRecordPhotoUrls(paths: readonly string[]): Promise<Rec
     }
   }
   return out;
+}
+
+/** Private cleanup data, never a shared ledger snapshot or UI receipt. */
+export type RecordPhotoWipeManifest =
+  | Readonly<{ state: "complete"; batches: readonly (readonly string[])[] }>
+  | Readonly<{ state: "unconfirmed" }>;
+
+/** Strict opt-in: the display parser's discarded/truncated values cannot prove an empty plan. */
+export function prepareRecordPhotoWipe(
+  rows: unknown, returnedRowCount: number, userId: string,
+): RecordPhotoWipeManifest {
+  if (typeof userId !== "string" || !/^[A-Za-z0-9_-]{1,160}$/.test(userId) || !Number.isSafeInteger(returnedRowCount)
+    || returnedRowCount < 0 || !Array.isArray(rows) || rows.length !== returnedRowCount) return { state: "unconfirmed" };
+  const checked: { structured: unknown }[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object" || Array.isArray(row)
+      || !Object.prototype.hasOwnProperty.call(row, "structured")) return { state: "unconfirmed" };
+    const raw: unknown = row.structured;
+    if (raw !== null) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { state: "unconfirmed" };
+      if (Object.prototype.hasOwnProperty.call(raw, "photos")) {
+        const photos: unknown = (raw as Record<string, unknown>).photos;
+        if (!Array.isArray(photos) || photos.length > MAX_RECORD_PHOTOS) return { state: "unconfirmed" };
+        for (const photo of photos) {
+          if (!photo || typeof photo !== "object" || Array.isArray(photo)
+            || !isRecordPhotoPath(photo.path) || photo.mime !== RECORD_PHOTO_MIME) return { state: "unconfirmed" };
+        }
+      }
+    }
+    checked.push({ structured: raw });
+  }
+  const paths = recordPhotoPathsOf(checked, userId);
+  const batches: (readonly string[])[] = [];
+  for (let i = 0; i < paths.length; i += REMOVE_BATCH) batches.push(Object.freeze(paths.slice(i, i + REMOVE_BATCH)));
+  return Object.freeze({ state: "complete", batches: Object.freeze(batches) });
+}
+
+export type RecordPhotoBatchDeleteResult =
+  | Readonly<{ outcome: "committed"; scopeConfirmed: true; observedRemovedCount: number }>
+  | Readonly<{ outcome: "unknown"; observedRemovedCount: number | null }>;
+
+/** One batch only. O supplies the original deletion ticket; this helper never retries or advances. */
+export async function removeRecordPhotoBatchCaptured(
+  paths: readonly string[], request: CapturedContentWipeRequest,
+): Promise<RecordPhotoBatchDeleteResult> {
+  const captured = prepareContentWipeRequest(request);
+  if (!Array.isArray(paths) || paths.length === 0 || paths.length > REMOVE_BATCH) throw new Error("record_photo_batch_invalid");
+  const batch = Array.from(paths), expected = new Set(batch);
+  if (expected.size !== batch.length || !batch.every(path => isRecordPhotoPath(path, captured.userId))) throw new Error("record_photo_batch_invalid");
+  const unknown = (observedRemovedCount: number | null = null): RecordPhotoBatchDeleteResult => ({ outcome: "unknown", observedRemovedCount });
+  try {
+    const response = await globalThis.fetch(`${captured.baseUrl}/storage/v1/object/${RECORD_PHOTO_BUCKET}`, {
+      method: "DELETE", headers: captured.headers, body: JSON.stringify({ prefixes: batch }),
+      signal: captured.signal, redirect: "error",
+    });
+    // Storage can partially apply a request. No HTTP error is assumed to roll it back.
+    if (response.status !== 200 || response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() !== "application/json") return unknown();
+    const value: unknown = await response.json();
+    if (!Array.isArray(value)) return unknown();
+    const observed = new Set<string>(); let exact = value.length === batch.length;
+    for (const item of value) {
+      if (!item || typeof item !== "object" || Array.isArray(item) || typeof item.name !== "string"
+        || !expected.has(item.name) || observed.has(item.name)
+        || (item.bucket_id !== undefined && item.bucket_id !== RECORD_PHOTO_BUCKET)
+        || Object.prototype.hasOwnProperty.call(item, "error")
+        || (item.is_delete_marker !== undefined && item.is_delete_marker !== false)
+        || (item.is_versioned !== undefined && item.is_versioned !== false)) { exact = false; continue; }
+      observed.add(item.name);
+    }
+    return exact && observed.size === batch.length
+      ? { outcome: "committed", scopeConfirmed: true, observedRemovedCount: observed.size }
+      : unknown(observed.size);
+  } catch { return unknown(); }
 }
