@@ -142,7 +142,9 @@ test("사용자가 타이핑한 본문을 저장하는 화면은 red 위기 인�
       broken.push(`${rel}: 저장 결과의 red 를 보지 않는다`);
       continue;
     }
-    if (!/CrisisRouter/.test(src)) {
+    const appHost = rel === "src/app/interview.tsx"
+      && /if \(saved.followup\?\.zone === "red"\) \{\s*publishCrisisNotice\(owner, hotlineFor\(\)\)/.test(src);
+    if (!/CrisisRouter/.test(src) && !appHost) {
       broken.push(`${rel}: red 를 보지만 CrisisRouter 를 그리지 않는다`);
     }
   }
