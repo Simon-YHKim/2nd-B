@@ -712,6 +712,9 @@
     "signature": "PolaScope · {{count}} motas de estrella"
   },
   "ds": {
+    "network": {
+      "offline": "Sin conexión a internet."
+    },
     "growth": {
       "title": "Mi cambio",
       "bubble": "Mira cómo cambió el brillo esta semana.",
