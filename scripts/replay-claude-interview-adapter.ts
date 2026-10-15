@@ -17,6 +17,7 @@ const SAFETY = "src/lib/llm/safety.ts", BOUNDARY = "src/lib/llm/boundary.ts";
 const CRISIS_ROUTER = "src/components/safety/CrisisRouter.tsx";
 const PURE_MODULES = [
   "src/lib/interview/loop-check.ts", "src/lib/interview/stuck.ts", "src/lib/interview/continuity.ts",
+  "src/lib/interview/probe-guidance.ts", "src/lib/interview/probe-contact-intent.ts",
   "src/lib/llm/untrusted.ts", "src/lib/safety/classifier.ts", "src/lib/safety/lexicon.ts",
   "src/lib/safety/crisis-context.ts", "src/lib/safety/crisis-language.ts",
   "src/lib/safety/emergency-routing.ts", "src/lib/safety/crisis-event-categories.ts",
@@ -152,7 +153,11 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     const crisisObserverType = node.moduleSpecifier.text === "../llm/types" && node.importClause?.isTypeOnly === true
       && !node.importClause.name && bindings && ts.isNamedImports(bindings) && bindings.elements.length === 1
       && bindings.elements[0].name.text === "CrisisObserver" && !bindings.elements[0].propertyName;
-    if (!importAllowlist.has(node.moduleSpecifier.text) && !crisisObserverType) throw new Error("Adapter probe import drift");
+    const guidanceImport = node.moduleSpecifier.text === "./probe-guidance" && node.importClause?.isTypeOnly === false
+      && !node.importClause.name && bindings && ts.isNamedImports(bindings) && bindings.elements.length === 2
+      && bindings.elements[0].name.text === "inspectProbeContactGuidance" && !bindings.elements[0].propertyName && !bindings.elements[0].isTypeOnly
+      && bindings.elements[1].name.text === "ProbeGuidance" && !bindings.elements[1].propertyName && bindings.elements[1].isTypeOnly;
+    if (!importAllowlist.has(node.moduleSpecifier.text) && !crisisObserverType && !guidanceImport) throw new Error("Adapter probe import drift");
   }
   const probeText = probeAst.statements.filter((node) => !ts.isImportDeclaration(node)).map((node) => node.getText(probeAst)).join("\n");
   const screenAst = parse(SCREEN, sources[SCREEN]);
@@ -188,6 +193,7 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     const probe = evaluate<ProbeModule>(probeText, {
       exports: {}, ...load<Record<string, unknown>>("src/lib/interview/loop-check.ts"),
       ...load<Record<string, unknown>>("src/lib/llm/untrusted.ts"), ...stuck, ...continuity,
+      ...load<Record<string, unknown>>("src/lib/interview/probe-guidance.ts"),
       callLlm: async (input: Prompt) => {
         adapterCalls += 1; prompt = clone(input);
         boundary = await outputBoundary(sample.raw, input, (event) => { effects.push(event); });
