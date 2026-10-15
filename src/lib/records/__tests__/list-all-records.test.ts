@@ -162,7 +162,7 @@ describe("the wiki list uses it", () => {
 
   it("reads every record, and no longer borrows the streak's 90-day read", () => {
     expect(screen).toContain('import { listAllRecords } from "@/lib/records/list-all-records";');
-    expect(screen).toContain("recs = (await listAllRecords(userId)) as RecordsTimelineRecord[];");
+    expect(screen).toContain("listAllRecords(userId, { signal: controller.signal })");
     expect(screen).not.toMatch(/listRecentRecords\(/);
   });
 
