@@ -1,6 +1,6 @@
-# Codex 전체 실행 인수 · 2026-10-16 08:27 KST
+# Codex 전체 실행 인수 · 2026-10-16 08:33 KST
 
-고정 기준 main `2997f4b38e92ebfd8c6ad5f9ad9e2c7a542bb160`. 원감사414건·남은 작업76개. 세션 누적 PR 81개 병합은 작업 완료 수가 아니다. 코드·검사·준비 일부 반영 **34/76 (44.7%)**, 같은 설정 앱·폰 최종 확인 **0개**. 현재 사용자 지시는 새 작업 시작을 멈추고 진행 중이던 후보만 마무리한 뒤 세션 전체를 인계하는 것이다. 이 문서의 스냅샷 뒤 인수 문서 PR 자체는 별도다.
+고정 기준 main `58af6c0c2956e968f2d950a9acbc01f944012521`. 원감사414건·남은 작업76개. 세션 누적 PR 83개 병합은 작업 완료 수가 아니다. 코드·검사·준비 일부 반영 **34/76 (44.7%)**, 같은 설정 앱·폰 최종 확인 **0개**. 현재 사용자 지시는 새 작업 시작을 멈추고 진행 중이던 후보만 마무리한 뒤 세션 전체를 인계하는 것이다. 이 문서의 스냅샷 뒤 인수 문서 PR 자체는 별도다.
 
 ## 확정 방향과 먼저 볼 상충
 
@@ -123,6 +123,8 @@
 | [#2604](https://github.com/Simon-YHKim/2nd-B/pull/2604) | independent PASS H0M0L0/newM0; 1164suites20742PASS1skip; all PASS 38820790467/38820790540 | `edfb78f7bf00ee9843f004c693624991e5a71b16` |
 | [#2605](https://github.com/Simon-YHKim/2nd-B/pull/2605) | independent PASS H0M0L0/newM0; 1165suites20795PASS1skip; all PASS 38821348328/38821348329 | `fc15cf869521afa5898485ac40d6ee34e6d8b2a0` |
 | [#2606](https://github.com/Simon-YHKim/2nd-B/pull/2606) | S1 independentR1PASS0/BLOCK0; i18n delta independentPASS86; full1167suites21072PASS1skip; all PASS38822951254/38822951171 | `2997f4b38e92ebfd8c6ad5f9ad9e2c7a542bb160` |
+| [#2607](https://github.com/Simon-YHKim/2nd-B/pull/2607) | C1R2PASS BLOCK1 andC2R1PASS BLOCK0; independent428/source54hash;full1168suites21013PASS1skip; all PASS 38823402806/38823402924 | `530cd51700e71d0dfc55c16c6097e6510353fb85` |
+| [#2608](https://github.com/Simon-YHKim/2nd-B/pull/2608) | D3aR2PASS BLOCK1/C1bR1PASS0/C1cR2PASS BLOCK1/anchorPASS18;newM0;full1170suites21152PASS1skip; all PASS 38823738804/38823738726 | `58af6c0c2956e968f2d950a9acbc01f944012521` |
 
 ## 76개 실행 원장
 
@@ -302,8 +304,8 @@
 ### T20 · 인터뷰에서 질문을 기다리는 중 「여기까지」를 누르면 늦게 온 위기 판정이 버려짐 + 저장 화면 「저장 안 함」
 
 - 결정: Q-261014-04 · 09; 우선순위 P0. 원감사 상태: 미착수.
-- 구현: PR #2525: 늦은 위기 안내와 인터뷰 종료 구현. T20 저장 안 함은 후속; S0-A f19e21b7 감사await전확정RED observer 전달·request/owner/instance/generation1회종료; B1연락처판별#2589 full19941PASS·R3PASS0 BLOCK2·CI후병합(비활성). B2L은기존가드수정후#2592병합/B2R독립PASS후main통합중; 실제GREEN안내10건미해결; B3 S/R/P/U 실제 인터뷰 안내 전달 #2605 병합.
-- 검증: 최신 main 통합 verify 1,115묶음·18,416건 통과 / CI 전체 성공; S0-A full1151suites19523PASS1skip/독립129PASS+실제CLI; #2605 full1165suites20795PASS1skip·CI38821348328/38821348329 PASS. U 독립24suites917PASS; 실제 adapter replay current 안내소실0.; 독립 검토: 초기 PASS 및 main 통합 a640c6a5 PASS · high/medium/low 0 · 독립 13묶음/344건; S0-A R2PASSH0M0L0 구현BLOCK1(기존adapter drift보완); B3설계R2PASS/BLOCK1, S/R/P/U 개별R1PASS0 및 통합PASS.
+- 구현: 늦은 위기 안내/인터뷰 종료#2525, 감사await전 확정RED 전달#2583, 연락판별B1#2589, 안내문구B2L#2592·resolverB2R#2596, 실제스크롤/고정행/probe/UI B3 S/R/P/U#2605 병합. T20 저장 안 함·멱등저장과 T16 실제서버 연결은 후속.
+- 검증: 초기#2525 full18416PASS; #2583 full19523PASS, #2589 full19941PASS, #2592 full19742PASS, #2596 full20295PASS. 최종#2605 full1165suites20795PASS1skip·CI38821348328/38821348329 PASS. U독립24suites917PASS; 현재actual adapter 안내소실0, 원raw모델실패유지. 각실행수를고유검사수로합산하지않음.; 독립 검토: 각 병합 최종PASS·새M0. S0설계R3PASS/BLOCK2, A구현R2PASS/BLOCK1, B1R3PASS/BLOCK2, B3설계R2PASS/BLOCK1, S/R/P/U 각R1PASS0 및통합PASS. #2440BLOCK3별도보존.
 - 병합: PR #2525 병합 · main 18a566b9; #2583 main931314f8·CI38800584875통과; #2605 mainfc15cf869521afa5898485ac40d6ee34e6d8b2a0; 실제 앱: 미확인 · Variables 403으로 앱 동일 설정 실행 대기
 - 다음: 같은 설정앱/폰 확인과 안전 후보 품질 조건을 별도로 검증. T20 저장 안 함/멱등저장/T16 서버 연결은 후속이며 #2440 BLOCK3 우회 금지.
 - 조건: 종료와 응답 도착 순서별 검증. 안전 설계 원문은 이전 PC에 있어 복구 필요 / 이전 GREEN 안내소실10건은 원 로그로 보존하고 현재 실제코드 replay 소실0. 원모델 raw 직접109 감소 FAIL2·지원문구1·911 손실 원측정은 그대로 실패. 실제 새모델 품질측정0, 같은설정앱/폰0. #2440 BLOCK3의 stop/Back/RESET 범위는 동결 유지.
@@ -311,8 +313,8 @@
 ### T21 · 인터뷰 중 위기 안내가 뜨면 그 인터뷰를 끝냄
 
 - 결정: 10-07 02:42 · 인터뷰 측정 Q8; 우선순위 P0. 원감사 상태: 일부만.
-- 구현: PR #2525: 늦은 위기 안내와 인터뷰 종료 구현. T20 저장 안 함은 후속; B1연락처판별#2589 full19941PASS·R3PASS0 BLOCK2·CI후병합(비활성). B2L#2592·B2R#2596병합/화면후속; 실제GREEN안내10건미해결; B3 S/R/P/U 실제 인터뷰 안내 전달 #2605 병합.
-- 검증: 최신 main 통합 verify 1,115묶음·18,416건 통과 / CI 전체 성공; #2605 full1165suites20795PASS1skip·CI38821348328/38821348329 PASS. U 독립24suites917PASS; 실제 adapter replay current 안내소실0.; 독립 검토: 초기 PASS 및 main 통합 a640c6a5 PASS · high/medium/low 0 · 독립 13묶음/344건; B3설계R2PASS/BLOCK1, S/R/P/U 개별R1PASS0 및 통합PASS.
+- 구현: 늦은 위기 안내/인터뷰 종료#2525, 감사await전 확정RED 전달#2583, 연락판별B1#2589, 안내문구B2L#2592·resolverB2R#2596, 실제스크롤/고정행/probe/UI B3 S/R/P/U#2605 병합. T20 저장 안 함·멱등저장과 T16 실제서버 연결은 후속.
+- 검증: 초기#2525 full18416PASS; #2583 full19523PASS, #2589 full19941PASS, #2592 full19742PASS, #2596 full20295PASS. 최종#2605 full1165suites20795PASS1skip·CI38821348328/38821348329 PASS. U독립24suites917PASS; 현재actual adapter 안내소실0, 원raw모델실패유지. 각실행수를고유검사수로합산하지않음.; 독립 검토: 각 병합 최종PASS·새M0. S0설계R3PASS/BLOCK2, A구현R2PASS/BLOCK1, B1R3PASS/BLOCK2, B3설계R2PASS/BLOCK1, S/R/P/U 각R1PASS0 및통합PASS. #2440BLOCK3별도보존.
 - 병합: PR #2525 병합 · main 18a566b9; #2605 mainfc15cf869521afa5898485ac40d6ee34e6d8b2a0; 실제 앱: 미확인 · Variables 403으로 앱 동일 설정 실행 대기
 - 다음: 같은 설정앱/폰 확인과 안전 후보 품질 조건을 별도로 검증. T20 저장 안 함/멱등저장/T16 서버 연결은 후속이며 #2440 BLOCK3 우회 금지.
 - 조건: 20과 함께 질문 재개·늦은 응답·저장 경로 검증 / 이전 GREEN 안내소실10건은 원 로그로 보존하고 현재 실제코드 replay 소실0. 원모델 raw 직접109 감소 FAIL2·지원문구1·911 손실 원측정은 그대로 실패. 실제 새모델 품질측정0, 같은설정앱/폰0. #2440 BLOCK3의 stop/Back/RESET 범위는 동결 유지.
@@ -464,10 +466,10 @@
 ### T38 · 다른 탭(스크랩 등)에 다녀오면 허슬케이 대화가 사라짐(Z117)
 
 - 결정: Q-261014-05; 우선순위 P2. 원감사 상태: 미착수.
-- 구현: A#2575·B#2584·C0#2588·C1a#2593·C2b#2594·C2a#2595·C2c#2598 병합(비활성). D3ad5d+C1bdce+C1c7a9 독립PASS. root통합45536ce8 법무2delta18PASS/full대기. C3c86 3파일 동결·독립대기. Pdc1 R2 5파일 동결·독립대기. O406은P R1준비뿐/제품0, H미착수.
-- 검증: 서로 겹치는 부분 실행: C1b516+독립6, C1c859/원12/독립추가6 PASS. root원full21017PASS2FAIL1skip(법무핀)→2파일delta독립18PASS, full재실행대기. C3관련911(신규52)+원12PASS/10negative검출. P관련725/원browser12/추가browser96PASS. C3/P type·cycles·full미실행, 앱완료0.; 독립 검토: 상위설계/A/B 각R2PASS BLOCK1. D3a설계BLOCK1·구현R2PASS BLOCK1 별개. C1bR1PASS BLOCK0. C1cR2PASS H0M0L0 새M0/BLOCK1. C3독립대기 BLOCK0, P R1BLOCK H0M1L0/BLOCK1→R2독립대기. root법무deltaPASS0/full대기.
-- 병합: 병합된 T38 준비는 #2575/#2584/#2588/#2593/#2594/#2595/#2598까지. root45536ce8·C3c86·Pdc1은미병합. 실제T38UIcaller0/H미착수.; 실제 앱: 미확인·T38완료0. Actions Variables403/같은설정8081·APK·폰 미충족.
-- 다음: 현재 작업 인계 후 새 단계 중단. root45536ce8 법무delta18PASS 포함 최신main full/CI, C3c86·Pdc1 독립검토. 재개 허용 뒤 O 준비(P R1) 갱신→D1/D2/D4/E/F/G→H 일괄연결→I 앱/폰. T39 분리.
+- 구현: A#2575·B#2584·C0#2588·C1a#2593·C2b#2594·C2a#2595·C2c#2598 + D3a/C1b/C1c#2608 비활성 준비 병합. C3c86 3파일·Pdc1 R2 5파일 동결, 독립검토대기. O406은P R1준비만/제품0, H미착수.
+- 검증: 각부분 중복합산금지: C1b516+독립6/C1c859·원12·독립6PASS. 원full21017PASS2FAIL1skip 법무핀 보존→delta독립18PASS→최종ed860 full1170suites21152PASS1skip·CI38823738804/38823738726 PASS. C3관련911(신규52)+원12PASS/10negative검출. P관련725/원browser12/추가browser96PASS. C3/P type·cycles·full미실행·앱0.; 독립 검토: 상위설계/A/B 각R2PASS BLOCK1. D3a설계BLOCK1·구현R2PASS BLOCK1 별개. C1bR1PASS BLOCK0. C1cR2PASS H0M0L0 새M0/BLOCK1. C3독립대기 BLOCK0, P R1BLOCK H0M1L0/BLOCK1→R2독립대기. root법무deltaPASS0/최종full·CI PASS.
+- 병합: #2575/#2584/#2588/#2593/#2594/#2595/#2598 + #2608 main58af6c0c2956e968f2d950a9acbc01f944012521 준비병합. C3/P미병합·실제T38UIcaller0/H미착수.; 실제 앱: 미확인·T38완료0. Actions Variables403/같은설정8081·APK·폰 미충족.
+- 다음: 재개시 C3c86·Pdc1 독립검토. 이후 O준비(P R1)갱신→D1/D2/D4/E/F/G→H일괄연결→I앱/폰, T39분리. 이번세션 새단계0.
 - 조건: 완료/진행 대화·담기/계획 상태의 화면 외 보존, 중복 작업 방지, 계정/동의/위기 보호. T39/0255서버복구는분리·일반대화디스크저장승인아님 / memory-only. 원legacy사진3PASS2FAIL(next usage/next batch)미해결. C1c원10FAIL2PASS/P CORS원6PASS6FAIL/법무full2FAIL 보존. P운영commit endpoint/gateway미확인으로O/H활성화금지. D3b-O/D4/F/H미연결, 동의생산자·담기/계획/entry·T39잔여. #2318R3/#2396R3/#2365R5 동결과 #2425BLOCK2·#1814/#1839 서버선행 보존.
 
 ### T39 · 다른 앱에 다녀와도 처리가 이어지고, 잃은 답은 횟수 없이 한 번 다시 묻기
@@ -509,10 +511,10 @@
 ### T43 · 서버를 못 읽을 때 0 · 빈 화면 대신 「...」 + 실패 문장 + [다시 시도] (남은 화면: 별 요약 · 위키 목록 기한 · 날씨 위치 · 리즈닝 · 위키 페이지 · 리서치 · 스크랩 · …
 
 - 결정: Q-261013-21 ~ 24 · Z40 · Z80; 우선순위 P2. 원감사 상태: 일부만.
-- 구현: 기존오류화면 수정 + 북극성A#2597·B1#2600·B2a+b#2601 병합. C1엄격밝기조회R2독립PASS, C2파일범위 조사중. C1엄격밝기+C2실제화면 연결 구현 완료, 독립PASS 후 통합 전체검사 대기. reasoning usage는 baseline8·설계만, 제품0.
-- 검증: B2통합 exact4dbcf081 전체1162suites20662PASS1skip·CI38817948207/38817948303. C1R2 원반례12+관련200PASS/type0.; 독립 검토: A R2PASS BLOCK1; B1R2/통합/anchor PASS BLOCK1; B2a/B2b R1PASS BLOCK0 및통합PASS; C1R2PASS BLOCK1. C2 R1PASS H0M0L0/BLOCK0·독립428PASS/source54hash.
-- 병합: #2547/#2553/#2561/#2562/#2571 병합·리서치 mainb676fe84; #2576 main261bc14d; phonewiki#2578 main62c7a2df; #2580 mainfcd5a64c·CI38797336509통과; #2582 main5246d593·CI38799957752통과; #2586 mainfb216f31; #2587 mainf42df04f; #2600 main64bf7659; #2601 main2d760975; 실제 앱: 미확인
-- 다음: 현재C1+C2 최종full/CI 뒤 인계. reasoning usage strict helper/owned hook/화면6파일 계획은 다음세션 구현; 기존auto/SSV전역변경 금지.
+- 구현: 기존오류화면 수정 + 북극성A#2597/B1#2600/B2#2601/C1+C2#2607 병합. 현재5입력 엄격조회와 미확인밝기/독립재시도 화면 연결. reasoning usage는 baseline8·설계만 제품0.
+- 검증: C1R2 원반례12+관련200PASS/type0; C2독립18suites428PASS/source54hash; exact7d6a9d2 full1168suites21013PASS1skip·CI38823402806/38823402924 PASS.; 독립 검토: A R2PASS BLOCK1; B1R2/통합/anchor PASS BLOCK1; B2a/B2b R1PASS BLOCK0 및통합PASS; C1R2PASS BLOCK1. C2 R1PASS H0M0L0/BLOCK0·독립428PASS/source54hash.
+- 병합: #2547/#2553/#2561/#2562/#2571 병합·리서치 mainb676fe84; #2576 main261bc14d; phonewiki#2578 main62c7a2df; #2580 mainfcd5a64c·CI38797336509통과; #2582 main5246d593·CI38799957752통과; #2586 mainfb216f31; #2587 mainf42df04f; #2600 main64bf7659; #2601 main2d760975; C1/C2#2607 main530cd51700e71d0dfc55c16c6097e6510353fb85; 실제 앱: 미확인
+- 다음: reasoning usage strict helper/owned hook/화면6파일 계획을 다음세션 범위확인 후 구현. auto/SSV전역변경 금지. 실제같은설정앱·폰 확인 남음.
 - 조건: 별 요약→위키 목록 기한→날씨 위치→리즈닝→위키 페이지·리서치→스크랩. 오류를 0·빈 결과로 표시하지 않음 / 현재 북극성route 사용자 재개승인. C2는 미확인밝기를 L1/0.2로 바꾸지 않고 독립5입력재시도. empty장식기존유지. 실제앱동일설정/폰미확인·Variables403. reasoning usage baseline8은 결함7+정상empty1 재현이며 수정증거 아님.
 
 ### T44 · 대화 모드를 바꾼 자리로 가는 줄 하나(Z87)

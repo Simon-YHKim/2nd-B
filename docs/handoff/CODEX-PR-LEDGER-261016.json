@@ -1,7 +1,7 @@
 {
-  "snapshot_main": "2997f4b38e92ebfd8c6ad5f9ad9e2c7a542bb160",
-  "snapshot_kst": "2026-10-16 08:27 KST",
-  "merged_pr_count": 81,
+  "snapshot_main": "58af6c0c2956e968f2d950a9acbc01f944012521",
+  "snapshot_kst": "2026-10-16 08:33 KST",
+  "merged_pr_count": 83,
   "prs": [
     {
       "number": 2524,
@@ -719,6 +719,22 @@
       "ci": "all PASS38822951254/38822951171",
       "review": "S1 independentR1PASS0/BLOCK0; i18n delta independentPASS86; full1167suites21072PASS1skip",
       "app": "awaiting identical-settings validation"
+    },
+    {
+      "number": 2607,
+      "sha": "7d6a9d2b1f8c38bdefcb5c476dbbadb9d08a9f5a",
+      "merge": "530cd51700e71d0dfc55c16c6097e6510353fb85",
+      "ci": "all PASS 38823402806/38823402924",
+      "review": "C1R2PASS BLOCK1 andC2R1PASS BLOCK0; independent428/source54hash;full1168suites21013PASS1skip",
+      "app": "same-settings app/phone pending"
+    },
+    {
+      "number": 2608,
+      "sha": "ed86078395572794eecd33dfe40d6aed716fa326",
+      "merge": "58af6c0c2956e968f2d950a9acbc01f944012521",
+      "ci": "all PASS 38823738804/38823738726",
+      "review": "D3aR2PASS BLOCK1/C1bR1PASS0/C1cR2PASS BLOCK1/anchorPASS18;newM0;full1170suites21152PASS1skip",
+      "app": "same-settings app/phone pending"
     }
   ]
 }

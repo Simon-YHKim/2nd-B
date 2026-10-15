@@ -116,7 +116,7 @@
   },
   "app_confirmed": 0,
   "notes": [
-    "33 includes incomplete/dormant implementations and tooling",
+    "Code coverage includes incomplete/dormant implementations and tooling; this is not a completion percentage",
     "2 docs/policy + 8 deferred roadmaps excluded from code coverage",
     "each task counted once; PR totals not a completion metric",
     "full CI checks still mandatory; root serial full due shared resources"
