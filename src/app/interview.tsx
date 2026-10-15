@@ -50,11 +50,12 @@ import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRet
 import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
-import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { classifyInputAnyLocale } from "@/lib/safety/classifier";
+import { publishCrisisNotice } from "@/lib/safety/crisis-notice";
 import { startInterviewCrisisRouting } from "@/lib/llm/boundary";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { useGoHomeStop } from "@/lib/nav/go-home";
 import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/periods";
@@ -287,6 +288,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   /** 서버가 오늘 몫이 찼다고 거절해서 끝났다. 끝 화면의 안내 한 줄만 바뀐다. */
   const [dayLimited, setDayLimited] = useState(false);
   const ended = useRef(false);
+  const mounted = useRef(true);
   const [concreteOnly, setConcreteOnly] = useState(false);
   const [coverageReady, setCoverageReady] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -296,19 +298,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const [failModal, setFailModal] = useState(false);
   /** 저장 화면의 표("이만큼 팠다")는 접어 둔다 (Simon 결정 Q-261013-52). */
   const [tableOpen, setTableOpen] = useState(false);
-  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
-    visible: false,
-    hotline: "KR_109",
-  });
   const crisisRouting = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
 
   // 위 칸의 홈 이동(RedirectHome · 탭 루트 하드웨어 뒤로)은 걷히면 잃는 것이 있는
   // 동안 여기서 멈춘다(게이트 NAV-S7-01). 대화(turns)와 쓰던 답(draft)은 이 화면의
   // 상태이고 '담기'를 눌러야 저장된다. 나가 있는 질문 요청 · 저장 요청, 그리고
-  // 안전 안내 창도 이 화면에만 있다.
+  // 안전 안내 창은 AppCrisisHost가 화면 이동 뒤에도 이어서 보여 준다.
   useGoHomeStop(
-    () => busy || saving || crisis.visible || draft.trim() !== "" || turns.some((turn) => turn.role === "user"),
+    () => busy || saving || draft.trim() !== "" || turns.some((turn) => turn.role === "user"),
   );
 
   const finish = useCallback(() => {
@@ -321,7 +319,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
 
   useEffect(() => {
     ended.current = false;
-    return () => { ended.current = true; };
+    mounted.current = true;
+    return () => { ended.current = true; mounted.current = false; };
   }, []);
 
   useEffect(() => {
@@ -384,6 +383,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       credited: DrillLayer | null = null,
     ) => {
       if (!userId || ended.current) return;
+      const owner = captureAccountOwnerLease(userId);
+      if (!owner) return;
       setBusy(true);
       setNotice(null);
       try {
@@ -432,13 +433,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           userId, locale, period, history, cov, isMinor === true,
           0, move.kind === "finish" ? credited : move.layer,
         );
-        // Stop/save can be selected while this request is in flight.
-        if (ended.current) return;
+        if (!owner.isCurrent()) return;
+        // Safety still reaches the app after stop or route removal. Ordinary
+        // answers must not reopen a finished interview or change its coverage.
         if (probe.zone === "red") {
-          // C9: 텍스트가 아니라 핫라인. 대화는 여기서 멈춘다.
-          setCrisis({ visible: true, hotline: hotlineFor() });
+          publishCrisisNotice(owner, hotlineFor());
+          if (mounted.current) finish();
           return;
         }
+        if (ended.current) return;
         const lastAnswer = history[history.length - 1];
         const confirmed = credited && lastAnswer
           ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)
@@ -483,11 +486,12 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         setPendingLayer(probe.layer);
         setOpeners(probe.openers);
       } catch (error) {
+        if (!owner.isCurrent() || !mounted.current || ended.current) return;
         // 오늘 몫이 찼다는 서버 거절은 오류가 아니라 끝맺음이다(session-end.ts).
         // 지금까지의 대화와 판 칸은 그대로 남고, 담기는 끝 화면의 같은 버튼이 한다.
         // 마지막 답의 칸은 모델 확인을 못 받았으므로 더하지 않는다 -- 실패 때와 같은 규칙.
         if (await readDayLimitRefusal(error, INTERVIEW_PURPOSE)) {
-          if (!ended.current) {
+          if (owner.isCurrent() && mounted.current && !ended.current) {
             setDayLimited(true);
             finish();
           }
@@ -495,15 +499,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         }
         // 판정을 못 받은 답이다(게이트 LAST-02). 진전으로도, 그 층의 실패로도 세지 않게 표시하고
         // 겨냥하던 층을 되돌린다 -- "다시 시도해 주세요"로 다시 보낸 답이 같은 층에서 판정받게.
-        if (!ended.current) {
+        if (owner.isCurrent() && mounted.current && !ended.current) {
           setTurns(history.map((turn, index) => index === history.length - 1 && turn.role === "user"
             ? { ...turn, unsettled: true }
             : turn));
           setPendingLayer(credited);
+          setNotice(t("drill.failed"));
         }
-        setNotice(t("drill.failed"));
       } finally {
-        setBusy(false);
+        if (owner.isCurrent() && mounted.current) setBusy(false);
       }
     },
     [userId, period, locale, isMinor, entriesOf, hotlineFor, t, concreteOnly, finish],
@@ -559,17 +563,24 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     // coverage·nextMove·nextProbe는 건드리지 않는다.
     const safety = classifyInputAnyLocale(text, locale, { minor: isMinor === true });
     if (safety.zone === "red") {
+      const owner = captureAccountOwnerLease(userId);
+      if (!owner) return;
       const route = startInterviewCrisisRouting(
         crisisRouting,
         { text, locale, userId, minor: isMinor === true },
         () => {
-          setBusy(true);
-          setCrisis({ visible: true, hotline: hotlineFor() });
+          // The answer stays outside the saved transcript until the separate
+          // crisis-save AI hold is wired; this route must not add AI egress.
+          finish();
+          publishCrisisNotice(owner, hotlineFor());
         },
-        () => setBusy(false),
+        () => {},
       );
       if (route.started) {
-        void route.done.catch(() => setNotice(t("drill.failed")));
+        // The guidance is already visible even if a safety-ledger write fails.
+        void route.done.catch(() => {
+          if (owner.isCurrent() && mounted.current) setNotice(t("drill.failed"));
+        });
       }
       return;
     }
@@ -643,6 +654,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
 
   async function keepIt() {
     if (!userId || saving) return;
+    const owner = captureAccountOwnerLease(userId);
+    if (!owner) return;
     setSaving(true);
     let navigating = false;
     try {
@@ -652,10 +665,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       const transcript = storedTurns(turns)
         .map((turn) => `${turn.role === "interviewer" ? qLabel : aLabel}: ${turn.text}`)
         .join("\n\n");
-      // The pre-save check above is the LOCAL lexicon. createRecord's own C9
-      // pass is the semantic one, and it reports red on the followup rather
-      // than throwing - so a semantically-red transcript that the lexicon did
-      // not match was written to the ledger and shown nowhere.
+      // withFollowup:false performs a local C9 check, not a semantic scan.
+      // Its red result still needs guidance even after leaving this route.
       const saved = await createRecord({
         userId,
         locale,
@@ -677,10 +688,13 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         domainIntent: growthOrigin ? "growth" : undefined,
         withFollowup: false,
       });
+      if (!owner.isCurrent()) return;
       if (saved.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: hotlineFor() });
+        publishCrisisNotice(owner, hotlineFor());
+        if (mounted.current) finish();
         return;
       }
+      if (!mounted.current) return;
       // 판 자리를 남긴다. **내용과 같은 동의 경로**다 -- 사용자가 담기로 했을
       // 때만 쓴다. 칸 수에는 답변 원문이 없지만, 그렇다고 담지 않기로 한 대화가
       // 별을 밝히는 것은 이 저장소의 규율과 어긋난다.
@@ -691,6 +705,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         }
       }
       await addCoverage(userId, delta);
+      if (!owner.isCurrent() || !mounted.current) return;
       // 판 만큼 별이 밝아졌다면 그 변화를 원장에 남긴다. 남겨야 8주 그래프에
       // 선이 생긴다 -- 지금 등급만 있으면 "밝아지고 있다"를 보여줄 수가 없다.
       // 실패해도 조용하다(recordSevenTiers 가 삼킨다). 저장은 이미 끝났고,
@@ -702,13 +717,14 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       if (saveCueAllowed({ crisis: false, recording: isRecordingAudioMode() })) playSaveCue();
       navigating = true;
       setTimeout(() => {
+        if (!owner.isCurrent() || !mounted.current) return;
         if (growthOrigin) router.replace("/star/growth");
         else router.replace(`/me/${period}`);
       }, 700);
     } catch {
-      setFailModal(true);
+      if (owner.isCurrent() && mounted.current) setFailModal(true);
     } finally {
-      if (!navigating) setSaving(false);
+      if (!navigating && owner.isCurrent() && mounted.current) setSaving(false);
     }
   }
 
@@ -922,11 +938,6 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         </View>
       </PremiumModal>
 
-      <CrisisRouter
-        visible={crisis.visible}
-        hotline={crisis.hotline}
-        onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
-      />
     </InterviewFrame>
   );
 }

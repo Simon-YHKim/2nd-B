@@ -43,6 +43,7 @@ import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
 import { HealthAutoReadSync } from "@/components/health/HealthAutoReadSync";
 import { ChatReminderResponseSync } from "@/components/secondb/ChatReminderResponseSync";
 import { GlobalCueHost } from "@/components/audio/GlobalCueHost";
+import { AppCrisisHost } from "@/components/safety/CrisisRouter";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
@@ -304,6 +305,7 @@ export default function RootLayout() {
                 at its skip button must not land on the dock tab underneath. */}
             <IntroExitShield />
             </SecondbHeadTrackProvider>
+            <AppCrisisHost />
           </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
