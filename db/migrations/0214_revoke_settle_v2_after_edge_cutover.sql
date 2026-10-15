@@ -1,6 +1,8 @@
 -- 0214_revoke_settle_v2_after_edge_cutover.sql
 -- PR-7c. rewarded-ssv Edge 가 v3 를 부르도록 배포된 뒤(운영 v99, 2026-10-06 01:41 KST, 배포본 소스에
 -- settle_reward_ssv_ticket_v2 호출 0건 확인) v2 의 service_role 직접 실행 권한을 걷는다.
+-- 2026-10-15 재확인: 운영 Edge v104도 v3 호출 1곳 / v2 호출 0곳. 0214는 미적용, v2 직접 권한은
+-- 남아 있다. 읽기 근거와 남은 운영 조건: docs/handoff/SSV-RECHECK-261015.md.
 --
 -- 왜: 0213 의 v3 는 콜백 timestamp 신선도(1일 · 발급 뒤 5분 안)를 본 다음에만 v2 로 지급한다. v2 를
 -- service_role 이 직접 부를 수 있으면 그 검사를 건너뛰는 지급 경로가 서버 쪽에 남는다. 88일 정리(0211)
