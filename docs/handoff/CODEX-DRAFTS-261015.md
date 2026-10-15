@@ -36,6 +36,6 @@
 - G2-06: [#2284](https://github.com/Simon-YHKim/2nd-B/pull/2284), merge `6c98f9397c1bce9e575d96923075541dc8d7bd41`. [G2REST 이식표](G2REST-261011.md)는 원본 lease/dispatch/run/감사/eligibility/테스트를 0249로 옮긴 근거와 NULL token을 0으로 꾸미지 않는 계약을 보존한다. 운영 적용·배포 성공은 [당시 인수 기록](../HANDOFF.md)에 있다.
 - 계정 재시작 대체: [#2382](https://github.com/Simon-YHKim/2nd-B/pull/2382), merge `bc6fec77e2f9a2b3e197fa2441a2493f2bee9104`.
 - 동의 초안의 부모: [#1902](https://github.com/Simon-YHKim/2nd-B/pull/1902), merge `c3daa0a5b3e427b05fde4a722859d232a08cd6b4`.
-- [10-13 결정](../../DECISIONS-2026-10-13.md)의 Q61·Q69·계정 재시작과 [최근 결정](../../DECISIONS.md)의 Q32/Q44·Q05/Q06이 옛 PR 본문의 답 대기 표시보다 우선한다.
+- [10-13 결정](../../DECISIONS-2026-10-13.md)의 Q61·Q69·계정 재시작·Q32/Q44와 [최근 결정](../../DECISIONS.md)의 Q05/Q06이 옛 PR 본문의 답 대기 표시보다 우선한다.
 
 보안 설계를 위한 #2001 인벤토리 최신화, 승인된 #2132 삭제 서버 설계, #2425 턴 환불 계약을 우선 연결한다. #2034는 작은 문서 정정으로 분리할 수 있다. 나머지는 선행 조건을 닫고 처리하며 이 문서 자체는 코드·운영·앱 완료 증거가 아니다.
