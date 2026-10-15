@@ -53,7 +53,7 @@ export interface ChatContextIntent {
   readonly seed: string;
 }
 
-export type ChatWorkKind = "send" | "keep" | "plan";
+export type ChatWorkKind = "send" | "safety" | "keep" | "plan";
 export interface ChatWorkToken extends ChatSessionToken {
   readonly operationId: string;
   readonly kind: ChatWorkKind;
