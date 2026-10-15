@@ -48,7 +48,7 @@ pg_cron은 CI와 같은 명시적 missing-cron opt-out이다. Auth/Storage fixtu
 node scripts/test-deletion-receipt-sql.mjs polascope_local t04_receipt_test_schema
 ```
 
-runner는 현재 staged migration version 집합이 정확히 같은지 확인한 뒤 다음 10개 그룹을
+runner는 현재 staged migration version 집합이 정확히 같은지 확인한 뒤 다음 12개 그룹을
 실행했다. SQL 단언은 실제 Postgres에서 수행하며 SQL 호출을 mock으로 대체하지 않았다.
 `supabase-dry-run` CI도 전체 schema를 재생한 뒤 별도 DB로 복제하여 같은 runner를 실행한다.
 기존 draft 등록 가드는 그대로 유지하고, 새 draft/runner를 등록했다. 이 필수 CI 연결 때문에
@@ -62,8 +62,17 @@ runner는 현재 staged migration version 집합이 정확히 같은지 확인�
 6. begin이 먼저 접수된 뒤 legacy가 실행되어도 accepted 유지. **이 경우를 막는 arbitration은 미구현**.
 7. owner 잠금 대기 중 세션을 지우면 접수 거부.
 8. 잠금을 기다리는 동안 5분을 넘긴 iat를 거부.
-9. begin transaction rollback 뒤 원장/fence 없음, 다음 접수는 새 영수증.
-10. 활성화 전 rollback이 helper를 닫고 행을 보존하며 reapply가 같은 영수증 복원.
+9. 실제 session-row transactionid 잠금 대기 중 iat 만료 또는 Auth soft-delete면 접수 거부,
+   원장 0행·fence 변화 0. pg_stat_activity로 해당 대기 자체도 확인.
+10. session-row 잠금을 기다린 유효 요청은 정상 접수되고 동일 key 재시도도 같은 영수증.
+11. begin transaction rollback 뒤 원장/fence 없음, 다음 접수는 새 영수증.
+12. 활성화 전 rollback이 helper를 닫고 행을 보존하며 reapply가 같은 영수증 복원.
+
+구현 독립 R1은 **BLOCK H0/M1/L0**였다. account/user 잠금 뒤의 freshness 확인이
+최종 session-row 대기 중 낡아지는 반례가 실제 DB에서 재현됐다. iat가 302초가 되거나
+Auth 사용자가 soft-delete돼도 accepted가 생겼다. 같은 잠금 순서를 유지하면서 최종
+session lock 뒤 두 사실을 다시 읽도록 보완했고, 새 회귀가 원 SQL에서 실패하는 것도
+확인했다. 이 BLOCK 이력은 설계 PASS나 후속 검증으로 지우지 않는다.
 
 Supabase security advisors도 로컬 DB에서 실행했다. 경고는 main의 public-schema 확장
 pgcrypto/citext/pg_trgm/vector 네 건이며, 이번 객체에 대한 경고는 없다. 이것은 독립 보안

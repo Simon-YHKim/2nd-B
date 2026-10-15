@@ -61,8 +61,8 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'receipt_owner_unavailable';
   END IF;
-  -- clock_timestamp is checked AFTER lock waits; a stale statement timestamp
-  -- must not make a formerly fresh session acceptable indefinitely.
+  -- Reject stale requests after account/profile waits. The final session row
+  -- lock below can also wait, so these facts must be checked again afterward.
   IF p_issued_at < pg_catalog.clock_timestamp() - interval '5 minutes'
      OR p_issued_at > pg_catalog.clock_timestamp() + interval '1 minute'
      OR NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p_owner_id AND u.deleted_at IS NULL) THEN
@@ -70,6 +70,14 @@ BEGIN
   END IF;
   PERFORM 1 FROM auth.sessions s WHERE s.id = p_session_id AND s.user_id = p_owner_id FOR KEY SHARE;
   IF NOT FOUND THEN
+    RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'receipt_fresh_session_required';
+  END IF;
+  -- R1 M1: session-row contention can age a valid iat or permit an Auth soft
+  -- delete after the earlier check. Re-observe both AFTER the final lock wait.
+  -- Keep account -> user -> session order; no new Auth row lock is acquired.
+  IF p_issued_at < pg_catalog.clock_timestamp() - interval '5 minutes'
+     OR p_issued_at > pg_catalog.clock_timestamp() + interval '1 minute'
+     OR NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p_owner_id AND u.deleted_at IS NULL) THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'receipt_fresh_session_required';
   END IF;
   -- An existing legacy fence is not evidence of this new operation's claim.

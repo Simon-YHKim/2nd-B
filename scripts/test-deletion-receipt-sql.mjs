@@ -64,6 +64,28 @@ async function behindLock(n, callback, prefix = '') {
   assert.equal(held.code, 0, held.err);
   return result;
 }
+async function behindSessionLock(n, issued, whileBlocked = async () => {}) {
+  let releaseReady;
+  const ready = new Promise((resolveReady) => { releaseReady = resolveReady; });
+  const holder = start(`BEGIN; SELECT 1 FROM auth.sessions WHERE id='${session(n)}' FOR UPDATE;
+    SELECT 'RECEIPT_LOCK_READY'; SELECT pg_sleep(3); COMMIT;`, releaseReady);
+  await Promise.race([ready, holder.then((result) => { throw new Error(`session holder ended early: ${result.err}`); })]);
+  const label = `t04_receipt_session_${n}`;
+  const pending = start(`SET application_name='${label}'; ${service} ${begin(n,n,issued)}`);
+  let observed = false;
+  const deadline = Date.now() + 2_000;
+  while (Date.now() < deadline) {
+    observed = (await run(`SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database()
+      AND application_name='${label}' AND wait_event_type='Lock' AND wait_event='transactionid');`)).endsWith('t');
+    if (observed) break;
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 25));
+  }
+  assert(observed, 'begin must actually wait on the session transaction, not fail before the contested boundary');
+  await whileBlocked();
+  const [result, held] = await Promise.all([pending, holder]);
+  assert.equal(held.code, 0, held.err);
+  return result;
+}
 
 // Require the exact staged version set, not a hand-written partial schema.
 const versions = readdirSync(resolve(root, 'db/migrations')).filter((f) => /^\d+_.*\.sql$/.test(f))
@@ -79,7 +101,7 @@ await run(regression);
 pass('repeat apply, real SET ROLE ACL, input/session/purpose/idempotency, no deletion and no false completion');
 
 // Each run needs a fresh disposable DB; fixtures are deliberately left for review.
-for (let n = 101; n <= 107; n++) await fixture(n);
+for (let n = 101; n <= 110; n++) await fixture(n);
 const same = await behindLock(101, () => Promise.all([start(`${service} ${begin(101)}`), start(`${service} ${begin(101)}`)]));
 assert(same.every((result) => result.code === 0));
 assert.deepEqual(reply(same[0].out), reply(same[1].out));
@@ -116,6 +138,25 @@ const stale = await behindLock(106, () => start(`${service} ${begin(106,106,stal
 assert.notEqual(stale.code, 0);
 assert(stale.err.includes('receipt_fresh_session_required'));
 pass('freshness uses clock after waiting, not statement/transaction start');
+
+// R1 M1: the session row is the FINAL possible lock wait. The prior account
+// boundary alone did not protect iat or Auth status while waiting here.
+const sessionExpired = await behindSessionLock(108, "clock_timestamp()-interval '4 minutes 59 seconds'");
+assert.notEqual(sessionExpired.code, 0, 'expired session-row wait must not accept a receipt');
+assert(sessionExpired.err.includes('receipt_fresh_session_required'));
+const softDeleted = await behindSessionLock(109, 'clock_timestamp()', async () => {
+  await run(`UPDATE auth.users SET deleted_at=clock_timestamp() WHERE id='${subject(109)}';`);
+});
+assert.notEqual(softDeleted.code, 0, 'soft-deleted Auth owner must not be accepted after session-row wait');
+assert(softDeleted.err.includes('receipt_fresh_session_required'));
+assert((await run(`SELECT NOT EXISTS(SELECT 1 FROM deletion_receipt_private.accepted_requests WHERE owner_id IN ('${subject(108)}','${subject(109)}'))
+  AND NOT EXISTS(SELECT 1 FROM public.account_deletion_tombstones WHERE user_id IN ('${subject(108)}','${subject(109)}'));`)).endsWith('t'));
+pass('observed session-row wait rejects expired iat and soft-deleted Auth with no receipt or fence');
+
+const sessionValid = await behindSessionLock(110, 'clock_timestamp()');
+assert.equal(sessionValid.code, 0, sessionValid.err);
+assert.deepEqual(reply(await run(`${service} ${begin(110)}`)), reply(sessionValid.out));
+pass('valid session after observed row wait still accepts and replays the identical receipt');
 
 const rolledBack = await run(`BEGIN; ${service} ${begin(107)} ROLLBACK;`);
 const afterRollback = await run(`${service} ${begin(107)}`);
