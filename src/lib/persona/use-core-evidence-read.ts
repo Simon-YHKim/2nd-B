@@ -4,7 +4,7 @@ import { accountTransitionSnapshot, captureAccountOwnerLease, subscribeAccountTr
 import { isTimeoutError, TimeoutError, withTimeout } from "../async/with-timeout";
 import { getSupabaseClient } from "../supabase/client";
 import { withSystemTagsColumn } from "../records/system-tags";
-import { loadLatestStrengths, loadPersonaSnapshot, type LoadedStrengths, type PersonaCard } from "./build";
+import { loadCorePersonaSnapshot, type CorePersonaSnapshot } from "./build";
 import { mergeEvidence, type OriginShard, type RawRecordRow, type RawSourceRow } from "./evidence";
 import { loadSevenLevels, type SevenLevels } from "./load-seven-levels";
 
@@ -30,14 +30,14 @@ export async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko",
   return mergeEvidence(rows, clips, locale);
 }
 
-type Data = { evidence: OriginShard[]; persona: PersonaCard | null; sevenLevels: SevenLevels | null; strengths: LoadedStrengths | null };
+type Data = { evidence: OriginShard[]; persona: CorePersonaSnapshot | null; sevenLevels: SevenLevels | null };
 type Scope = { ownerId: string | null; locale: "en" | "ko"; lease: ReturnType<typeof captureAccountOwnerLease> };
 type Key = { scope: Scope; reloadKey: number; evidenceReloadKey: number };
 type Session = { key: Key; cancel: () => void; active: boolean; ready: boolean; autoAllowed: boolean };
 type State = { session: Session; status: "loading" | "error" | "timeout"; data: null }
   | { session: Session; status: "ready"; data: Data };
 
-/** Primary reads only. Optional error fallbacks remain separate follow-up work. */
+/** Primary evidence and saved fields. Brightness remains a separate follow-up. */
 export function useCoreEvidenceRead(
   ownerId: string | null, enabled: boolean, locale: "en" | "ko", reloadKey: number, evidenceReloadKey: number,
   onRetry: () => void, onConnection: () => void,
@@ -87,17 +87,16 @@ export function useCoreEvidenceRead(
     const owner = scope.ownerId;
     const work = Promise.resolve().then(async (): Promise<Data> => {
       requireCurrent();
-      const [evidence, nextStars, strengths] = await Promise.all([
+      const [evidence, nextStars] = await Promise.all([
         loadCoreBrainEvidence(owner, scope.locale, requireCurrent),
         loadSevenLevels(owner).catch(() => null),
-        loadLatestStrengths(getSupabaseClient(), owner).catch(() => null),
       ]);
       requireCurrent();
       // Refocus refreshes evidence; only mount/full retry reads the saved snapshot.
-      const snapshot = fullRead ? evidence.length > 0 ? await loadPersonaSnapshot(owner, requireCurrent) : null : previous.persona;
+      const snapshot = fullRead ? evidence.length > 0 ? await loadCorePersonaSnapshot(owner, requireCurrent) : null : previous.persona;
       requireCurrent();
       return {
-        evidence, strengths, sevenLevels: fullRead ? nextStars : nextStars ?? previous.sevenLevels,
+        evidence, sevenLevels: fullRead ? nextStars : nextStars ?? previous.sevenLevels,
         persona: fullRead && snapshot && nextStars ? { ...snapshot, soulCoreBrightness: nextStars.northStarBrightness } : snapshot,
       };
     });
