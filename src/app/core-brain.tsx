@@ -46,9 +46,9 @@ import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
 import { evidenceTypeLabel, type EvidenceShard } from "@/lib/persona/evidence";
 import { useCoreEvidenceRead } from "@/lib/persona/use-core-evidence-read";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
-import { claimQaPolarisAuto, loadRoleCards, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
+import { claimQaPolarisAuto, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
 import { requestGlobalCue } from "@/lib/audio/global-cues";
-import { loadPolarisQuota, type PolarisQuota } from "@/lib/persona/polaris-quota";
+import { useCoreRoleReads } from "@/lib/persona/use-core-role-reads";
 import { useCompanionMoment } from "@/components/art/CompanionSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
@@ -145,13 +145,9 @@ function CoreBrainScreen() {
   const [evidenceReloadKey, setEvidenceReloadKey] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [portraitSignals, setPortraitSignals] = useState<SelfPortraitSignals | null>(null);
-  const [roleCards, setRoleCards] = useState<RoleCard[]>([]);
-  const [roleCardsUserId, setRoleCardsUserId] = useState<string | null>(null);
-  const [roleReadScope, setRoleReadScope] = useState<object | null>(null);
   const [rolePending, setRolePending] = useState(false);
   const [roleError, setRoleError] = useState(false);
   const [roleErrorCode, setRoleErrorCode] = useState("");
-  const [quota, setQuota] = useState<PolarisQuota | null>(null);
   const roleBusy = useRef(false);
   const currentUser = useRef(userId);
   currentUser.current = userId;
@@ -163,6 +159,14 @@ function CoreBrainScreen() {
   const primaryScope = primaryRead.scope;
   const primaryIsCurrent = primaryRead.isCurrent;
   const canAutoPropose = primaryRead.canAutoPropose;
+  const roleReads = useCoreRoleReads(userId, primaryScope, primaryIsCurrent, primaryRead.invalidateAuto);
+  const { beginMutation } = roleReads;
+  const visibleRoleCards = roleReads.roles.data ?? [];
+  const rolesReady = roleReads.roles.status === "ready";
+  const roleReadScope = rolesReady ? primaryScope : null;
+  const quota = roleReads.quota.status === "ready" ? roleReads.quota.data : null;
+  useEffect(() => { setRolePending(false); }, [primaryScope]);
+  useEffect(() => { setRoleError(false); setRoleErrorCode(""); }, [userId]);
   useEffect(() => { setDrawerOpen(false); setPortraitSignals(null); }, [primaryScope]);
 
   // Refocus and retry are reads. Neither may reactivate the initial QA proposal.
@@ -191,85 +195,93 @@ function CoreBrainScreen() {
     };
   }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]);
 
-  useEffect(() => {
-    if (loading || !userId || hasProfile !== true || isMinor === null || !primaryScope || !primaryIsCurrent()) return;
-    let cancelled = false;
-    setQuota(null);
-    void loadPolarisQuota(userId).then((next) => { if (!cancelled && primaryIsCurrent()) setQuota(next); });
-    loadRoleCards(userId).then((cards) => {
-      if (!cancelled && primaryIsCurrent()) {
-        setRoleCards(cards);
-        setRoleCardsUserId(userId);
-        setRoleReadScope(primaryScope);
-      }
-    }).catch(() => {
-      if (!cancelled && primaryIsCurrent()) setRoleError(true);
-    });
-    return () => { cancelled = true; };
-  }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey, primaryScope, primaryIsCurrent]);
-
   // Simon explicitly authorized one dev-only draft for the existing QA
   // account. Everyone else's mount path remains read-only. No auto approval.
   useEffect(() => {
     if (loading || !userId || isMinor === null || hasProfile !== true ||
-        !canAutoPropose() || roleReadScope !== primaryScope || roleCardsUserId !== userId || roleBusy.current) return;
+        !canAutoPropose() || roleReadScope !== primaryScope || !rolesReady || roleBusy.current) return;
     let alive = true;
     const current = () => alive && canAutoPropose() && currentUser.current === userId;
     void (async () => {
-      const claimed = await claimQaPolarisAuto(userId, roleCards.length > 0, evidence.length > 0, current);
+      const claimed = await claimQaPolarisAuto(userId, visibleRoleCards.length > 0, evidence.length > 0, current);
       if (!claimed || !current() || roleBusy.current) return;
+      const operation = beginMutation(true);
+      if (!operation) return;
+      primaryRead.invalidateAuto();
       roleBusy.current = true;
       setRolePending(true);
       setRoleError(false);
+      setRoleErrorCode("");
+      let succeeded = false;
       try {
         const next = await proposeRoleCards(userId, locale, isMinor);
-        if (current()) { setRoleCards(next); setRoleCardsUserId(userId); }
+        if (operation.isCurrent()) { operation.publish(next); succeeded = true; }
       } catch (error) {
-        if (current()) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
+        if (operation.isCurrent()) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
       } finally {
         roleBusy.current = false;
-        if (currentUser.current === userId) setRolePending(false);
+        if (operation.isCurrent()) setRolePending(false);
+        operation.finish(succeeded);
       }
     })();
     return () => { alive = false; };
-  }, [loading, userId, isMinor, hasProfile, primaryScope, roleReadScope, canAutoPropose, roleCardsUserId, roleCards.length, evidence.length, locale]);
+  }, [loading, userId, isMinor, hasProfile, primaryScope, roleReadScope, canAutoPropose, rolesReady, visibleRoleCards.length, evidence.length, locale, beginMutation, primaryRead.invalidateAuto]);
 
   const generateRoles = async () => {
     if (!userId || isMinor === null || roleBusy.current || !quota?.available) return;
+    primaryRead.invalidateAuto();
+    const operation = beginMutation(true);
+    if (!operation) return;
     roleBusy.current = true;
     setRolePending(true);
     setRoleError(false);
+    setRoleErrorCode("");
+    let succeeded = false;
     try {
       const next = await proposeRoleCards(userId, locale, isMinor);
-      if (currentUser.current === userId) { setRoleCards(next); setRoleCardsUserId(userId); setQuota(await loadPolarisQuota(userId)); }
+      if (operation.isCurrent()) { operation.publish(next); succeeded = true; }
     } catch (error) {
-      if (currentUser.current === userId) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
+      if (operation.isCurrent()) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
     } finally {
       roleBusy.current = false;
-      setRolePending(false);
+      if (operation.isCurrent()) setRolePending(false);
+      operation.finish(succeeded);
     }
   };
 
   const approveRole = async (card: RoleCard) => {
     if (!userId || roleBusy.current) return;
+    primaryRead.invalidateAuto();
+    const operation = beginMutation(false);
+    if (!operation) return;
     roleBusy.current = true;
     setRolePending(true);
     setRoleError(false);
+    setRoleErrorCode("");
+    let succeeded = false;
     try {
       const next = await ratifyRoleCard(userId, card);
-      if (currentUser.current === userId) {
-        setRoleCards(next); setRoleCardsUserId(userId);
-        // L5 소리 재사용(Q-261006-09). 승인 버튼이 서랍(Modal) 안에 있을 수 있어 화면 소리 관문
-        // 대신 루트의 GlobalCueHost 가 낸다.
+      if (operation.isCurrent()) {
+        operation.publish(next); succeeded = true;
+        // Approval keeps the existing global sound gate, including drawer actions.
         requestGlobalCue("polarisRatified");
       }
     } catch {
-      if (currentUser.current === userId) setRoleError(true);
+      if (operation.isCurrent()) setRoleError(true);
     } finally {
       roleBusy.current = false;
-      setRolePending(false);
+      if (operation.isCurrent()) setRolePending(false);
+      operation.finish(succeeded);
     }
   };
+
+  const roleReadStatus = roleReads.roles.status === "loading"
+    ? <PremiumLoadingState message={t("loading")} />
+    : !rolesReady ? <View style={dsDeck.pageBody}>
+      <Text variant="caption" color="textMuted">{t("roleLoadError")}</Text>
+      <Button label={t("tryAgain")} variant="secondary" testID="core-roles-retry" onPress={roleReads.roles.retry} />
+    </View> : null;
+  const categoryBody = rolesReady ? <PolarisCategorySlots cards={visibleRoleCards} /> : roleReadStatus;
 
   if (loading) {
     return (
@@ -372,13 +384,12 @@ function CoreBrainScreen() {
           </View>
         </View>
           ) },
-          { key: "categories", title: t("categoryTitle"), body: <PolarisCategorySlots cards={[]} /> },
+          { key: "categories", title: t("categoryTitle"), body: categoryBody },
         ]} />
       </CoreShell>
     );
   }
 
-  const visibleRoleCards = roleCardsUserId === userId ? roleCards : [];
   const cards = persona ? buildCoreCenterCards(persona, locale, t) : [];
   const pieces = cards.find((c) => c.id === "pieces");
 
@@ -529,11 +540,12 @@ function CoreBrainScreen() {
               ) : null}
             </View>
           ))}
-          {visibleRoleCards.length === 0 ? (
+          {rolesReady && visibleRoleCards.length === 0 ? (
             <Text variant="caption" color="textMuted">
               {t("roleEmpty")}
             </Text>
           ) : null}
+          {roleReadStatus}
           {roleError ? (
             <View style={dsDeck.pageBody}>
             <Text variant="caption" color="textMuted">
@@ -550,9 +562,13 @@ function CoreBrainScreen() {
             disabled={rolePending || !quota?.available}
             onPress={() => void generateRoles()}
           />
-          <Text variant="caption" color="textMuted">
-            {t(quota?.available ? "generationAllowance" : "generationUnavailable", { n: quota?.introRemaining })}
-          </Text>
+          {roleReads.quota.status === "loading" ? <PremiumLoadingState message={t("loading")} />
+            : quota ? <Text variant="caption" color="textMuted">
+              {t(quota.available ? "generationAllowance" : "generationUnavailable", { n: quota.introRemaining })}
+            </Text> : <View style={dsDeck.pageBody}>
+              <Text variant="caption" color="textMuted">{t("loadError")}</Text>
+              <Button label={t("tryAgain")} variant="secondary" testID="core-quota-retry" onPress={roleReads.quota.retry} />
+            </View>}
           <MdButton
             variant="filled"
             label={t("editNorthStar")}
@@ -566,7 +582,7 @@ function CoreBrainScreen() {
       key: "categories",
       title: t("categoryTitle"),
       accent: cosmic.soulViolet,
-      body: <View style={dsDeck.pageBody}><PolarisCategorySlots cards={visibleRoleCards} /></View>,
+      body: <View style={dsDeck.pageBody}>{categoryBody}</View>,
     },
     {
       key: "portrait",

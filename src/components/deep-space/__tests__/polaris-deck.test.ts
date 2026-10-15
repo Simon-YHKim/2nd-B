@@ -101,7 +101,7 @@ describe("북극성 persona deck (P3a)", () => {
 
   test("empty state opens a canonical self-knowledge star instead of a retired domain check", () => {
     const start = screen.indexOf("if (evidence.length === 0)");
-    const end = screen.indexOf("const visibleRoleCards", start);
+    const end = screen.indexOf("const cards = persona", start);
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const emptyBlock = screen.slice(start, end);
@@ -109,7 +109,8 @@ describe("북극성 persona deck (P3a)", () => {
     expect(emptyBlock).toContain("SEVEN_STARS.map");
     expect(emptyBlock).toContain('tHome("ds.home.star.now.line")');
     expect(emptyBlock).toContain('router.push("/me/now")');
-    expect(emptyBlock).toContain("PolarisCategorySlots");
+    expect(emptyBlock).toContain("body: categoryBody");
+    expect(screen).toContain("const categoryBody = rolesReady ? <PolarisCategorySlots cards={visibleRoleCards} /> : roleReadStatus");
     expect(emptyBlock).not.toContain('router.push("/attachment")');
   });
 
