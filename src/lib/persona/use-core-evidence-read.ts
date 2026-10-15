@@ -10,12 +10,19 @@ import { loadSevenLevels, type SevenLevels } from "./load-seven-levels";
 
 export const CORE_EVIDENCE_READ_TIMEOUT_MS = 10_000;
 /** Both archives are required; an error response must not wait for its peer. */
-export async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promise<OriginShard[]> {
+export async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko", assertCurrent: () => void): Promise<OriginShard[]> {
+  assertCurrent();
   const client = getSupabaseClient();
-  const records = withSystemTagsColumn((present) => client.from("records")
-    .select(present ? "id, kind, topic, created_at, tags, system_tags" : "id, kind, topic, created_at, tags")
-    .eq("user_id", userId).order("created_at", { ascending: false }).limit(24))
+  const records = withSystemTagsColumn((present) => {
+    // This callback may run again after a missing-column response. Its legacy
+    // SELECT belongs to the same live owner/attempt/deadline as the first read.
+    assertCurrent();
+    return client.from("records")
+      .select(present ? "id, kind, topic, created_at, tags, system_tags" : "id, kind, topic, created_at, tags")
+      .eq("user_id", userId).order("created_at", { ascending: false }).limit(24);
+  })
     .then((result) => { if (result.error) throw result.error; return (result.data ?? []) as unknown as RawRecordRow[]; });
+  assertCurrent();
   const sources = Promise.resolve(client.from("sources").select("id, kind, title, captured_at, tags")
     .eq("user_id", userId).order("captured_at", { ascending: false }).limit(24))
     .then((result) => { if (result.error) throw result.error; return (result.data ?? []) as RawSourceRow[]; });
@@ -81,7 +88,7 @@ export function useCoreEvidenceRead(
     const work = Promise.resolve().then(async (): Promise<Data> => {
       requireCurrent();
       const [evidence, nextStars, strengths] = await Promise.all([
-        loadCoreBrainEvidence(owner, scope.locale),
+        loadCoreBrainEvidence(owner, scope.locale, requireCurrent),
         loadSevenLevels(owner).catch(() => null),
         loadLatestStrengths(getSupabaseClient(), owner).catch(() => null),
       ]);

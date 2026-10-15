@@ -312,3 +312,36 @@ it("unmount cancels waiting and ignores a late first-stage result", async () => 
   await settle(); mockHarness.unmount(); await flush(); expect(jest.getTimerCount()).toBe(0);
   old.resolve({ data: [] }); await flush(); expect(mockQueries.filter(isSnapshot)).toHaveLength(0);
 });
+
+// R1 found that the shared compatibility helper has its own awaited continuation.
+it.each(["timeout", "hold", "blur", "unmount", "peer failure", "epoch ABA"])("a missing-column continuation starts no query after %s", async (change) => {
+  const first = deferred();
+  mockOverride = (q) => isRecords(q) && q.columns.includes("system_tags") ? first.promise
+    : change === "peer failure" && q.table === "sources" ? { data: null, error: { message: "sources unavailable" } } : undefined;
+  await settle(); expect(mockQueries.filter(isRecords)).toHaveLength(1);
+  if (change === "timeout") await jest.advanceTimersByTimeAsync(CORE_EVIDENCE_READ_TIMEOUT_MS);
+  else if (change === "hold") beginAccountOwnerTransition("other");
+  else if (change === "blur") { mockFocused = false; render(); }
+  else if (change === "unmount") mockHarness.unmount();
+  else if (change === "epoch ABA") { const firstOwner = mockAuth.userId!; beginAccountOwnerTransition("other"); beginAccountOwnerTransition(firstOwner); }
+  first.resolve({ data: null, error: { code: "42703", message: "column records.system_tags does not exist" } });
+  await flush(); expect(mockQueries.filter(isRecords)).toHaveLength(1); noAuto();
+});
+
+it("a late missing-column response cannot append a query to a successful retry", async () => {
+  const first = deferred();
+  mockOverride = (q) => isRecords(q) && q.columns.includes("system_tags") ? first.promise : undefined;
+  await settle(); await jest.advanceTimersByTimeAsync(CORE_EVIDENCE_READ_TIMEOUT_MS); const error = await settle();
+  mockOverride = () => undefined; retry(error)!.props.onPress!(); expect(retry(await settle())).toBeUndefined();
+  const reads = mockQueries.filter(isRecords).length;
+  first.resolve({ data: null, error: { code: "42703", message: "column records.system_tags does not exist" } });
+  await settle(); expect(mockQueries.filter(isRecords)).toHaveLength(reads); noAuto();
+});
+
+it("a current missing-column response still performs the approved legacy SELECT", async () => {
+  mockOverride = (q) => isRecords(q) && q.columns.includes("system_tags")
+    ? { data: null, error: { code: "42703", message: "column records.system_tags does not exist" } } : undefined;
+  expect(drawn(await settle())).toContain(mockAuth.userId + "-record");
+  expect(mockQueries.filter(isRecords).map((q) => [q.columns.includes("system_tags"), q.owner, q.limit]))
+    .toEqual([[true, mockAuth.userId, 24], [false, mockAuth.userId, 24]]);
+});
