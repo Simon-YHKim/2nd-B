@@ -1833,8 +1833,28 @@ export async function classifyChatTextForCrisis(
   locale: "en" | "ko",
   userId: string,
   minor?: boolean,
+  options?: {
+    session: AuthenticatedAccountSessionLease;
+    signal?: AbortSignal;
+    onCrisisDetected?: CrisisObserver;
+  },
 ): Promise<LlmResult<string> | null> {
+  if (options && options.session.userId !== userId) throw new Error("llm_session_owner_mismatch");
+  if (options?.signal && options.signal !== options.session.signal) throw new Error("llm_session_signal_mismatch");
+  const fence = (): void => {
+    throwIfAborted(options?.session.signal);
+    options?.session.assertCurrent();
+  };
+  fence();
   const safety = classifyInputAnyLocale(text, locale, { minor });
   if (safety.zone !== "red") return null;
-  return routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", { purpose: "secondb_chat" });
+  const notifyCrisis = crisisObserver(options?.onCrisisDetected, fence);
+  notifyCrisis?.(safety.crisisRouting?.hotline);
+  // An observer can synchronously change owner or cancel without throwing.
+  fence();
+  const reply = await routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", {
+    purpose: "secondb_chat", session: options?.session,
+  });
+  fence();
+  return reply;
 }
