@@ -1,4 +1,4 @@
-# T16 S1: dormant server content authority
+# T16: dormant server content authority and finalization input
 
 S1 adds an **unapplied SQL draft** for an interview work identity, content generation
 barrier, and immutable save reservation. It has no client, Edge endpoint, finalizer,
@@ -12,8 +12,10 @@ This follows the independently reviewed S0 R2 contracts:
 - finalization/rollout SHA-256 `7a794d259d9f005e97dfc1bfe7f80a90d30a59ded0920ace4df57803a2fbf314`;
 - S0 R2 PASS H0/M0/L0, new medium findings 0; historical S0 BLOCK 1 remains.
 
-The S1 implementation needs its own independent review. A design PASS is not an
-implementation or activation PASS. Existing numbered migrations are unchanged.
+The S1 implementation at `d9838953` passed independent R1 review H0/M0/L0,
+new medium 0 (S1 BLOCK0; historical S0 BLOCK1 retained). S2a needs its own
+implementation review. Neither verdict is an activation PASS. Existing numbered
+migrations are unchanged.
 
 ## Contract and retained state
 
@@ -184,6 +186,121 @@ progress, Auth/work/session row waits and expiry, actual sweep/NOWAIT, inverse
 deletion lock retries, barrier/reserve race, atomic forced failure, erasure candidate,
 account cascade and both rollback modes. Existing r0 close's starts +0 test is
 only a counter check; it does not claim S2 proxy/finalize/work-state integration.
+
+## S2a packet and verified Auth leaf
+
+S2a adds only pure packet helpers and an injected Auth adapter, with regression
+tests. No endpoint, RPC caller, DB finalizer, snapshot writer, UI, deployment or
+protocol activation imports these helpers. S1 remains unapplied and inactive.
+The existing v1 draft codec, key/namespace and seven-day retention are unchanged.
+
+The packet is **not** a new interpretation of an old snapshot. Current snapshots
+do not retain `origin`, `askKind` and `openerUnedited` provenance. A future capture
+route must retain them at turn creation. Missing provenance is rejected; no
+model/fixed/user inference, new work issuance or intent reallocation is allowed.
+The service must compare the packet with the exact S1 work contract. Passing this
+parser does not certify a client claim, a server safety verdict or permission to
+save. A client `state: judged` cannot create server judgment or coverage credit.
+
+The exact v1 wire object has these own data fields, with no extra fields:
+
+| Object | Fields |
+|---|---|
+| Root | `v: 1`, `intent`, `ruleSet`, `period`, `conversationLocale`, `uiLanguage`, `growthOrigin`, `turns` |
+| Intent | `requestId`, `sessionId`, `draftId`, `revision`, `contentGeneration` |
+| Turn | `n`, `scene`, `role`, `text`, `layer`, `origin`, `askKind`, `openerUnedited`, `state` |
+
+The five UUID identities (including the separately verified owner) are normalized
+to lowercase. `intent.revision` is the original positive safe integer, never a
+later outer draft CAS revision. `ruleSet` is r0 or r1-q5; S1 currently issues only
+r0, so accepting r1-q5 syntax does not make that work executable. Period is one of
+infancy/school/twenties/later/work/now. UI ko requires conversation ko; all other
+supported UI languages en/es/pt/id require conversation en. `growthOrigin` is a
+required boolean. There is no owner, title, summary, marker, answered, coverage,
+hold, safe flag or generic record key in the client packet.
+
+Turns use the existing 1..4000 ordinal and 1..10000 scene bounds. Ordinals must be
+contiguous; scene identity cannot go backward. No alternation requirement is
+invented. Role is interviewer/user; origin is model/fixed/user with user iff user
+role. Layer is fact/feeling/meaning/belief/echo or explicit null. Ask kind is
+seed/drill/scaffold/confirm/loop_check/switch_offer/fallback or explicit null, and
+must be null on user turns. Interviewer state and openerUnedited must be null;
+user state is judged/unsettled/local_block/control, with boolean/null openerUnedited.
+Missing fields are rejected separately from valid false/null values.
+
+Each nonempty text is at most 8000 Unicode code points. NUL and unpaired surrogates
+are rejected before a PostgreSQL parser could replace or refuse them. Raw body
+whitespace, CRLF and Unicode composition are preserved. The raw JSON, full
+projected input (including trailing questions) and canonical UTF-8 encoding each
+have a 256 KiB cap; the first applicable bound wins. Duplicate JSON keys, excess
+depth, extra properties, sparse arrays, exotic prototypes and own getters are
+rejected. The HTTP adapter must still bound the incoming stream before reading
+the whole string. Programmatic inputs are validated and copied to deeply frozen
+objects, without retaining caller objects or invoking their data getters.
+
+The real `storedTurns` helper selects everything through the last user turn after
+validating the entire input. The selected projection is what the canonical bytes,
+saved body and title describe. Only trailing interviewer turns are omitted; user
+control/closing utterances stay. All-question packets are rejected. The real
+`storyTitle` helper supplies the approved first-answer title behavior, including
+its NFC/grapheme boundary rules; that title normalization never changes body bytes.
+The service must derive the star label from the approved period/UI catalog, not
+from a client string. S2a has no catalog/caller binding yet.
+
+### Versioned canonical bytes
+
+The prefix is the literal ASCII `T16-FINALIZE-PACKET/1` followed by LF. After it,
+values are framed in the order below, without separators beyond each frame:
+
+1. Verified owner UUID; intent requestId, sessionId, draftId, revision and
+   contentGeneration; ruleSet, period, conversationLocale, uiLanguage,
+   growthOrigin; selected turn count.
+2. For each selected turn: n, scene, role, layer, origin, askKind, openerUnedited,
+   state, text.
+
+A string is `S<UTF-8 byte length>:<raw bytes>;`, an integer is `I<base-10 digits>;`,
+null is `N;`, and booleans are `T;`/`F;`. Length counts bytes, not UTF-16 units or
+code points. JSON order/formatting has no effect; composed and decomposed raw text
+remain different. SHA-256 is lower-case hex over these UTF-8 bytes. The digest
+captures bytes synchronously before awaiting Web Crypto. It binds an immutable
+intent and selected projection; it is never a commit receipt or a safe verdict.
+Changes to selection, framing or renderer semantics need a versioned contract
+change and renewed golden approval, not a silent change to packet version 1.
+
+The explicit two-turn test vector hashes to
+`06ae245e7f9a56a8b8f5494adfcef49cd5be600cbd2ad81ce1749aa7e36c2ce1`.
+Author validation compares 15 actual PostgreSQL READ ONLY results with TypeScript:
+KO/EN body rendering including ES/PT/ID UI, raw NFD/CRLF/emoji/delimiter strings,
+and PostgreSQL SHA-256 over the exact canonical bytes. This proves the existing
+SQL transcript renderer/byte hash agree; **a PostgreSQL packet canonicalizer is
+not implemented in S2a**. S2b must recompute these frames from validated DB input
+and pass the same golden vectors before it can finalize anything.
+
+### Auth observation and execution authority
+
+`verifyInterviewFinalizeAuth` accepts only a bounded (16 KiB) strict bearer token
+and calls the injected real `auth.getUser(token)` before decoding claims. Only
+success with a valid returned UUID permits inspection of `sub`, `role`,
+`session_id` and `exp`. Subject must exactly match the returned user; role must
+be authenticated, session a UUID, and expiry a positive safe integer with a safe
+millisecond conversion. Duplicate/malformed claims and invalid UTF-8 fail closed.
+The fresh clock is read **after** the await; expiration at the current time is
+expired. No `iat` grace or reauthentication age policy is invented.
+
+The helper returns only frozen owner/session/expiry observation or a stable error
+code. It neither logs nor stores the bearer or SDK exception contents. A five
+second deadline limits its wait; underlying SDK fetch cancellation remains the
+caller's responsibility. Late completion cannot change a returned failure.
+The caller must supply the real verified Auth implementation and bound its fetch.
+Injected unit tests do not prove a production Auth request. DB live-session,
+expiry, account fence and generation checks after DB waits remain mandatory even
+after this helper succeeds; no execution lease or DB retry is issued here.
+
+S2a author tests cover the actual leaf exports, immutable mutation races, source
+metadata, Unicode/size/order boundaries, getters, title corpus, claim mismatch,
+Auth error/timeout and expiry across a deferred Auth response. Actual Auth/Edge
+requests, the SQL finalizer/erasure hooks, both model proxy ledger adapters and
+snapshot/caller provenance are still separate implementation and review gates.
 
 Full repository verification, independent implementation PASS, numbered rollout,
 S2 atomic finalization/erasure/cutover, legal retention and native/phone validation
