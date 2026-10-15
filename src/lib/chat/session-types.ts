@@ -115,10 +115,11 @@ export interface ChatContentBoundary {
   /** Before the first delete I/O, the producer must observe every ACK. */
   subscribe(owner: AccountOwnerLease, listener: () => boolean): () => void;
   /** Synchronous CAS: invoke commit exactly once only after drain/core proof.
-   * Commit precedes subscriber notification; no reentrant notification from this call.
+   * Only a synchronous true confirms the new binding. False/throw keeps the producer closed.
+   * Opening does not synchronously notify boundary subscribers.
    * Unknown writes never allow this call to open the boundary. */
   startAfterWipe(
     owner: AccountOwnerLease, expected: ChatContentState,
-    commit: (opened: ChatContentState) => void,
+    commit: (opened: ChatContentState) => boolean,
   ): boolean;
 }

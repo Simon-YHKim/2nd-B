@@ -18,7 +18,7 @@ import { tLocale } from "@/lib/i18n/text";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
 import { classifyInput, crisisHotlines } from "@/lib/safety/classifier";
 import { promptSafeName } from "@/lib/persona/address";
-import type { LlmResult } from "@/lib/llm/types";
+import type { CrisisObserver, LlmResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
 import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
@@ -26,7 +26,9 @@ import { loadStructuredContext } from "../records/load-structured";
 import { loadProfileContext } from "../persona/profile-context";
 import { exportUserWiki } from "../wiki/export";
 import { formatRagPages, retrieveChatContext } from "./rag";
-import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail } from "./usage";
+import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail, type CapturedChatUsageExecution } from "./usage";
+import { abortError, isAbortError, throwIfAborted } from "../async/abort";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 
 /** One prior exchange line. `assistant` is the model's own earlier reply. */
 export interface ChatHistoryTurn {
@@ -81,6 +83,11 @@ export interface SendMessageInput {
    * screen to pre-strip.
    */
   history?: ChatHistoryTurn[];
+  /** Inactive captured path: all four fields are required together at runtime. */
+  session?: AuthenticatedAccountSessionLease;
+  signal?: AbortSignal;
+  onCrisisDetected?: CrisisObserver;
+  mutationObserver?: CapturedChatUsageExecution["observer"];
 }
 
 export interface SendMessageBlocked {
@@ -195,8 +202,8 @@ const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: strin
 // the limit sentence and the 요금제 보기 link under it. Those names were legacy anyway
 // (people see 별바라기 · 항해자 · 북극성), so the map went with the pitch.
 //
-// These comment lines stand where the map stood so that every line below keeps its number:
-// docs/legal cites this file by line (DPIA-2ndB-minors-draft.md: 254 · 259 · 260 · 310 · 352).
+// docs/legal cites the actual export options, untrusted snapshot and system assembly below.
+// Update those source anchors together when the call sites move.
 // The next tier still travels in SendMessageResult.upgradeTo for the ai_limit_hit event
 // (Q-261014-26); no sentence names it.
 
@@ -211,13 +218,16 @@ const BLOCKED_HINT = {
 };
 
 export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
-  const cut = await answerDeviceRed(input);
+  const execution = capturedConversation(input);
+  const stage = executionStage(execution);
+  const cut = await stage(() => answerDeviceRed(input, execution));
   if (cut) return cut;
   const day = kstDateToday();
   const limit = CHAT_DAILY_LIMIT[input.tier];
 
   // 0090: today's allowance includes any rewarded ad bonus.
-  const { used: usedBefore, adBonus } = await readChatUsageDetail(input.userId, day);
+  const readUsage = () => execution ? readChatUsageDetail(input.userId, day, execution.session) : readChatUsageDetail(input.userId, day);
+  const { used: usedBefore, adBonus } = await stage(readUsage);
   const precheck = checkChatLimit(input.tier, usedBefore, adBonus);
   if (!precheck.allowed) {
     return {
@@ -237,28 +247,32 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // 0066: newest structured form captures (4W1H, career 3C4P) ride along so
   // the model reads the form data as structure, not prose. Small, fail-soft,
   // sanitized + fenced with the snapshot below.
-  const structuredBlock = await loadStructuredContext(input.userId, 5);
+  const structuredBlock = await stage(() => execution ? loadStructuredContext(input.userId, 5, execution.session) : loadStructuredContext(input.userId, 5));
   // Q-261007-05 (Simon 2026-10-07): 사용자가 채운 프로필 칸(대화명 제외) + 만 나이. Fail-soft.
-  const profileLines = await loadProfileContext(input.userId);
+  const profileLines = await stage(() => execution ? loadProfileContext(input.userId, undefined, execution.session) : loadProfileContext(input.userId));
   let ragBlock: string | null = null;
   try {
-    const ragPages = await retrieveChatContext(input.userId, input.message, input.locale, {
+    const ragPages = await stage(() => retrieveChatContext(input.userId, input.message, input.locale, {
       k: 8,
       bodyCharLimit: 600,
       minor: input.minor,
-    });
+      ...(execution ? { session: execution.session, signal: execution.session.signal } : {}),
+    }));
     if (ragPages.length > 0) ragBlock = formatRagPages(ragPages, input.locale);
-  } catch {
+  } catch (error) {
+    execution?.session.assertCurrent();
+    if (execution && isAbortError(error)) throw error;
     // fail-soft: RAG must never take chat down — fall back to the snapshot.
   }
-  const snapshot = await exportUserWiki(
+  const snapshot = await stage(() => exportUserWiki(
     input.userId,
     ragBlock
       ? // RAG hit: pages come from retrieval; keep only a slim sources list so
         // "what did I clip" questions still see the inbox.
         { locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40, includeSavedConversations: true }
       : { locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100, includeSavedConversations: true },
-  );
+    ...(execution ? [execution.session] as const : []),
+  ));
 
   // Atomic check-and-bump (codex R2): the RPC inserts/increments the row
   // ONLY if the existing count is below `limit`. It remains the final gate
@@ -271,10 +285,11 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // A turn cut later (server gate, meaning check, output swap) is still counted.
   let newCount: number;
   try {
-    newCount = await bumpChatUsageIfUnderCap(input.userId, limit, day);
+    newCount = await stage(() => bumpChatUsageIfUnderCap(input.userId, limit, day, ...(execution ? [execution] as const : [])));
   } catch (e) {
+    execution?.session.assertCurrent();
     if (e instanceof ChatLimitExceededError) {
-      const detail = await readChatUsageDetail(input.userId, day);
+      const detail = await stage(readUsage);
       const check = checkChatLimit(input.tier, detail.used, detail.adBonus);
       // FORCE_TIER and a stale client tier do not change the server's cap.
       // Its rejection carries no cap value: when our local check still allows
@@ -354,14 +369,15 @@ ${sanitizeUntrusted(structuredBlock)}
   // C1/C3/C9 are enforced by callLlm, whose own red-zone short-circuit still
   // runs for every turn that gets here. Device-red input was already routed
   // above by the same boundary module, before any context read or bump.
-  const reply = await callLlm({
+  const reply = await stage(() => callLlm({
     userId: input.userId,
     locale: input.locale,
     purpose: "secondb_chat",
     system,
     user: input.message,
     minor: input.minor,
-  });
+    ...(execution ? { session: execution.session, signal: execution.session.signal, onCrisisDetected: execution.onCrisisDetected } : {}),
+  }));
 
   return {
     status: "ok",
@@ -398,8 +414,72 @@ function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): stri
 // Q-261014-30 / Q-261015-82: one device-red verdict, one routing call, before
 // any quota read, limit refusal or context read, without a bump.
 // Quota is unknown here; callers retain their last verified usage display.
-async function answerDeviceRed(input: SendMessageInput): Promise<SendMessageOk | null> {
-  const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);
+type CapturedConversationExecution = CapturedChatUsageExecution & { readonly onCrisisDetected: CrisisObserver };
+
+async function answerDeviceRed(input: SendMessageInput, execution: CapturedConversationExecution | null): Promise<SendMessageOk | null> {
+  const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor,
+    ...(execution ? [{ session: execution.session, signal: execution.session.signal, onCrisisDetected: execution.onCrisisDetected }] as const : []));
   if (!reply) return null;
+  if (execution && (reply.safety.zone !== "red" || reply.audit.modelUsed !== "none-crisis-routed")) throw new Error("chat_local_red_result_invalid");
   return { status: "ok", reply, used: null, limit: null, remaining: null };
+}
+
+/** Strict C3 local-RED port. A missing/inconsistent local result cannot become an ordinary send. */
+export async function auditChatLocalRed(input: SendMessageInput): Promise<SendMessageOk> {
+  const execution = capturedConversation(input);
+  if (!execution) throw new Error("chat_captured_execution_required");
+  const result = await executionStage(execution)(() => answerDeviceRed(input, execution));
+  if (!result) throw new Error("chat_local_red_result_missing");
+  return result;
+}
+
+function capturedConversation(input: SendMessageInput): CapturedConversationExecution | null {
+  const raw = input.session, source = input.mutationObserver, signal = input.signal, onCrisisDetected = input.onCrisisDetected;
+  if (raw === undefined && source === undefined && signal === undefined && onCrisisDetected === undefined) return null;
+  if (!raw || !source || !signal || typeof onCrisisDetected !== "function") throw new Error("chat_captured_execution_required");
+  const { userId, epoch, assertCurrent, abort, release } = raw;
+  const { owner: sourceOwner, ledger: sourceLedger, generation, operationId, stepId } = source;
+  // Match the ledger's identifier contract before even read-only context can egress.
+  const validId = (value: unknown) => typeof value === "string" && /^[A-Za-z0-9:_-]{1,160}$/.test(value);
+  if (!sourceOwner || !sourceLedger || !validId(operationId) || !validId(stepId) ||
+      typeof sourceOwner.isCurrent !== "function" || typeof sourceLedger.read !== "function" ||
+      typeof sourceLedger.acquireMutation !== "function" || typeof sourceLedger.issueMutation !== "function" ||
+      typeof sourceLedger.settleMutation !== "function" || typeof assertCurrent !== "function" ||
+      typeof abort !== "function" || typeof release !== "function") throw new Error("chat_captured_observer_invalid");
+  const owner = Object.freeze({ ownerId: sourceOwner.ownerId, epoch: sourceOwner.epoch, isCurrent: sourceOwner.isCurrent.bind(sourceOwner) });
+  const ledger = Object.freeze({ read: sourceLedger.read.bind(sourceLedger), acquireMutation: sourceLedger.acquireMutation.bind(sourceLedger),
+    issueMutation: sourceLedger.issueMutation.bind(sourceLedger), settleMutation: sourceLedger.settleMutation.bind(sourceLedger) });
+  const observer = Object.freeze({ owner, ledger, generation, operationId, stepId });
+  if (!input.userId || input.userId !== userId || owner.ownerId !== userId || owner.epoch !== epoch) throw new Error("chat_session_owner_mismatch");
+  if (signal !== raw.signal) throw new Error("chat_session_signal_mismatch");
+  const assertSession = assertCurrent.bind(raw), abortSession = abort.bind(raw), releaseSession = release.bind(raw);
+  const fence = () => {
+    throwIfAborted(signal); assertSession();
+    if (!owner.isCurrent()) throw abortError();
+    const content = ledger.read(owner);
+    if (!Number.isSafeInteger(generation) || generation < 0 || content.generation !== generation || content.phase !== "open") throw abortError();
+  };
+  fence();
+  const accessToken = raw.accessToken;
+  fence();
+  // Snapshot authority before the first await. Callers may later mutate their input,
+  // observer or methods; that cannot replace the original ledger or crisis observer.
+  // One original lease/token/signal; no authentication, release or subscription here.
+  const session: AuthenticatedAccountSessionLease = Object.freeze({
+    userId, epoch, signal,
+    get accessToken() { fence(); return accessToken; },
+    assertCurrent: fence, abort: abortSession, release: releaseSession,
+  });
+  return Object.freeze({ session, observer, onCrisisDetected });
+}
+
+function executionStage(execution: CapturedChatUsageExecution | null) {
+  return async <T,>(operation: () => Promise<T>): Promise<T> => {
+    execution?.session.assertCurrent();
+    let result: T;
+    try { result = await operation(); }
+    catch (error) { execution?.session.assertCurrent(); throw error; }
+    execution?.session.assertCurrent();
+    return result;
+  };
 }

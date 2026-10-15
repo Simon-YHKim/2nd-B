@@ -108,7 +108,7 @@ import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
-import { sendChatMessage } from "../conversation";
+import { auditChatLocalRed, sendChatMessage, type SendMessageInput } from "../conversation";
 import { callLlm, classifyChatTextForCrisis } from "@/lib/llm/boundary";
 import { classifyInput, classifyInputAnyLocale, crisisHotlines } from "@/lib/safety/classifier";
 import { loadProfileContext } from "../../persona/profile-context";
@@ -543,8 +543,8 @@ describe("sendChatMessage", () => {
       const cut = at("answerDeviceRed(");
       expect(send.split("answerDeviceRed(")).toHaveLength(2);
       // The verdict's answer is returned by the next statement, with no code in between.
-      expect(send.slice(cut - "const cut = await ".length)).toMatch(
-        /^const cut = await answerDeviceRed\(input\);\n\s*if \(cut\) return cut;\n/,
+      expect(send).toMatch(
+        /const cut = await stage\(\(\) => answerDeviceRed\(input, execution\)\);\n\s*if \(cut\) return cut;\n/,
       );
       for (const later of [
         "readChatUsageDetail(", "checkChatLimit(",
@@ -563,7 +563,7 @@ describe("sendChatMessage", () => {
     test("the engine makes no verdict of its own: one boundary call, and the helper cannot reach the model", () => {
       expect(CODE).not.toContain("classifyInputAnyLocale");
       const helper = fnBody("async function answerDeviceRed(");
-      expect(helper).toContain("await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor)");
+      expect(helper).toContain("await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor,");
       expect(helper).not.toContain("callLlm");
       expect(helper).not.toContain("classifyInput");
       expect(helper).not.toContain("bumpChatUsageIfUnderCap");
@@ -573,10 +573,10 @@ describe("sendChatMessage", () => {
 
     test("the lines the legal documents cite still hold what they are cited for", () => {
       const line = (n: number): string => SRC.split("\n")[n - 1] ?? "";
-      expect(line(254)).toContain("exportUserWiki(");
-      expect(line(259)).toContain("includeSavedConversations: true");
-      expect(line(260)).toContain("includeSavedConversations: true");
-      // :310 and :352 are held by dpia-crisis-rail-anchors.test.ts (wiki_snapshot, SYSTEM_PROMPT_HEADER).
+      expect(line(267)).toContain("exportUserWiki(");
+      expect(line(272)).toContain("includeSavedConversations: true");
+      expect(line(273)).toContain("includeSavedConversations: true");
+      // :325 and :367 are held by dpia-crisis-rail-anchors.test.ts (wiki_snapshot, SYSTEM_PROMPT_HEADER).
     });
 
     // The tests above read strings, and the unit tests further up mock the boundary call. So a
@@ -611,11 +611,12 @@ describe("sendChatMessage", () => {
       expect(texts(helper.modifiers)).toEqual(["async"]);
       expect(helper.asteriskToken).toBeUndefined();
       expect(helper.typeParameters).toBeUndefined();
-      expect(texts(helper.parameters)).toEqual(["input: SendMessageInput"]);
+      expect(texts(helper.parameters)).toEqual(["input: SendMessageInput", "execution: CapturedConversationExecution | null"]);
       expect(helper.type ? norm(helper.type) : "").toBe("Promise<SendMessageOk | null>");
       expect(texts(helper.body?.statements)).toEqual([
-        "const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);",
+        "const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor, ...(execution ? [{ session: execution.session, signal: execution.session.signal, onCrisisDetected: execution.onCrisisDetected }] as const : []));",
         "if (!reply) return null;",
+        'if (execution && (reply.safety.zone !== "red" || reply.audit.modelUsed !== "none-crisis-routed")) throw new Error("chat_local_red_result_invalid");',
         'return { status: "ok", reply, used: null, limit: null, remaining: null };',
       ]);
 
@@ -644,17 +645,27 @@ describe("sendChatMessage", () => {
     test("sendChatMessage routes the verdict before returning a limit refusal (Q-261015-82)", () => {
       const body = topLevelFn("sendChatMessage").body;
       if (!body) throw new Error("sendChatMessage has no body");
-      expect(texts(body.statements.slice(0, 7))).toEqual([
-        "const cut = await answerDeviceRed(input);",
+      expect(texts(body.statements.slice(0, 10))).toEqual([
+        "const execution = capturedConversation(input);",
+        "const stage = executionStage(execution);",
+        "const cut = await stage(() => answerDeviceRed(input, execution));",
         "if (cut) return cut;",
         "const day = kstDateToday();",
         "const limit = CHAT_DAILY_LIMIT[input.tier];",
-        "const { used: usedBefore, adBonus } = await readChatUsageDetail(input.userId, day);",
+        "const readUsage = () => execution ? readChatUsageDetail(input.userId, day, execution.session) : readChatUsageDetail(input.userId, day);",
+        "const { used: usedBefore, adBonus } = await stage(readUsage);",
         "const precheck = checkChatLimit(input.tier, usedBefore, adBonus);",
         'if (!precheck.allowed) { return { status: "blocked", reason: "limit_reached", limit: precheck.limit, used: precheck.used, upgradeTo: precheck.upgradeTo, hint: BLOCKED_HINT[input.locale](precheck.limit), }; }',
       ]);
-      // The helper's declaration and this one call.
-      expect(mentions("answerDeviceRed")).toBe(2);
+      // Declaration, ordinary send, and the strict local-RED-only entry.
+      expect(mentions("answerDeviceRed")).toBe(3);
+      expect(texts(topLevelFn("auditChatLocalRed").body?.statements)).toEqual([
+        "const execution = capturedConversation(input);",
+        'if (!execution) throw new Error("chat_captured_execution_required");',
+        "const result = await executionStage(execution)(() => answerDeviceRed(input, execution));",
+        'if (!result) throw new Error("chat_local_red_result_missing");',
+        "return result;",
+      ]);
     });
 
     test("the bump is named twice in the file, its import and one call, and that call comes after the cut", () => {
@@ -679,7 +690,7 @@ describe("sendChatMessage", () => {
       };
       visit(AST);
       expect(uses).toEqual(['import from "./usage"', "call"]);
-      const cutReturn = body.statements[1];
+      const cutReturn = body.statements[3];
       expect(norm(cutReturn)).toBe("if (cut) return cut;");
       expect(callAt).toBeGreaterThan(cutReturn.getEnd());
       expect(callAt).toBeLessThan(body.getEnd());
@@ -868,5 +879,28 @@ describe("sendChatMessage", () => {
         expect(classifyInput(rule, "en").zone).not.toBe("red");
       }
     });
+  });
+});
+
+
+// Deliberately malformed boundary returns supplement the actual-helper integration suite.
+describe("captured local-RED result contract", () => {
+  beforeEach(reset);
+  test.each([
+    { safety: { zone: "green" }, audit: { modelUsed: "none-crisis-routed" } },
+    { safety: { zone: "red" }, audit: { modelUsed: "provider-result" } },
+  ])("rejects inconsistent result %# without ordinary fallback", async reply => {
+    const signal = new AbortController().signal;
+    const input: SendMessageInput = { userId: "a", message: "hello", locale: "en", tier: "free",
+      signal, onCrisisDetected: jest.fn(), session: { userId: "a", epoch: 1, signal, accessToken: "captured-a",
+        assertCurrent() {}, abort() {}, release() {} },
+      mutationObserver: { owner: { ownerId: "a", epoch: 1, isCurrent: () => true }, generation: 0,
+        operationId: "turn", stepId: "quota", ledger: {
+          read: () => ({ generation: 0, phase: "open" }), acquireMutation: jest.fn(), issueMutation: jest.fn(), settleMutation: jest.fn(),
+        } as unknown as NonNullable<SendMessageInput["mutationObserver"]>["ledger"] },
+    };
+    fixtures.deviceRed = reply;
+    await expect(auditChatLocalRed(input)).rejects.toThrow("chat_local_red_result_invalid");
+    expect(captured.map(call => call.fn)).toEqual(["classifyChatTextForCrisis"]);
   });
 });

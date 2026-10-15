@@ -183,9 +183,9 @@ test("the composed conversation still runs the real safety classifier and record
   expect(JSON.stringify(mockTables.crisis_events)).not.toContain("I want to kill myself");
 });
 
-// Every optional input the engine takes, filled in. Required<> turns an optional field added to
-// SendMessageInput later into a type error here until it is filled too, so "every" stays true.
-const EVERY_OPTIONAL_INPUT: Required<Omit<SendMessageInput, "userId" | "message" | "locale" | "tier">> = {
+// Every optional legacy content/presentation input is filled in. Required<> guards new ones;
+// captured execution fields are exercised together by conversation-captured.integration.test.ts.
+const EVERY_OPTIONAL_INPUT: Required<Omit<SendMessageInput, "userId" | "message" | "locale" | "tier" | "session" | "signal" | "onCrisisDetected" | "mutationObserver">> = {
   displayName: "Alex",
   personaHint: "Speak plainly.",
   mode: "divergent",
