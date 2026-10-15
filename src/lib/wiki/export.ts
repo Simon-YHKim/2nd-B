@@ -19,6 +19,8 @@ import { downloadRawClipping } from "./storage";
 import { isProfileContextImportSource, serializeProfileImportQuote } from "./profile-context-source";
 import { classifyInputAnyLocale } from "../safety/classifier";
 import type { SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { isAbortError, throwIfAborted } from "../async/abort";
 
 // P2-2 (persona sim): journal/note records are the user's MOST personal data,
 // and the danger-zone copy points at this export as the pre-delete backup —
@@ -242,29 +244,59 @@ async function listRecordsForExport(userId: string, limit: number): Promise<Expo
   return (data ?? []) as ExportRecordRow[];
 }
 
-export async function exportUserWiki(userId: string, opts: ExportUserWikiOpts = {}): Promise<WikiExport> {
-  const [pages, sources, records] = await Promise.all([
-    listWikiPages(userId, { kinds: opts.pageKinds, limit: opts.pageLimit ?? 500 }),
-    listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500 }),
-    opts.includeRecords ? listRecordsForExport(userId, opts.recordLimit ?? 500) : Promise.resolve(undefined),
-  ]);
+export async function exportUserWiki(
+  userId: string,
+  opts: ExportUserWikiOpts = {},
+  execution?: Pick<AuthenticatedAccountSessionLease, "userId" | "signal" | "assertCurrent">,
+): Promise<WikiExport> {
+  const fence = (): void => {
+    if (!execution) return;
+    if (!userId || execution.userId !== userId) throw new Error("context_session_owner_mismatch");
+    throwIfAborted(execution.signal);
+    execution.assertCurrent();
+  };
+  // Each child and the joined result have their own ownership boundary. A
+  // sibling may invalidate ownership synchronously while Promise.all starts.
+  const read = async <T>(operation: () => Promise<T>): Promise<T> => {
+    fence();
+    let value: T;
+    try { value = await operation(); }
+    catch (error) { fence(); throw error; }
+    fence();
+    return value;
+  };
+  fence();
+  const [pages, sources, records] = await read(() => Promise.all([
+    read(() => listWikiPages(userId, { kinds: opts.pageKinds, limit: opts.pageLimit ?? 500 })),
+    read(() => listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500 })),
+    opts.includeRecords ? read(() => listRecordsForExport(userId, opts.recordLimit ?? 500)) : Promise.resolve(undefined),
+  ]));
+  fence();
   const exported = composeWikiExport(pages, sources, opts, records);
+  fence();
   if (!opts.includeSavedConversations) return exported;
   const promotedIds = new Set(pages.map((page) => page.source_id));
   const kept = sources.filter((source) => source.kind === "self_knowledge" &&
     source.tags.includes(CHAT_KEEP_TAG) && !promotedIds.has(source.id)).slice(0, 8);
-  const blocks = await Promise.all(kept.map(async (source) => {
+  const blocks = await read(() => Promise.all(kept.map((source) => read(async () => {
     // The source row is owner-scoped; also refuse a foreign Storage pointer.
     const stored = source.storage_path.startsWith(`${userId}/`)
-      ? await downloadRawClipping(source.storage_path).catch(() => null) : null;
+      ? await read(() => downloadRawClipping(source.storage_path).catch((error) => {
+        fence();
+        if (execution && isAbortError(error)) throw error;
+        return null;
+      })) : null;
+    fence();
     const fallback = source.frontmatter?._body_fallback;
     const body = stored ?? (typeof fallback === "string" ? fallback : null);
     if (!body || classifyInputAnyLocale(body, opts.locale ?? "en").zone === "red") return null;
     // These are saved transcripts, not wiki pages. No invented slug/citation.
     const clipped = body.slice(0, Math.min(opts.bodyCharLimit ?? 600, 2000));
     return `### ${source.title}\n\n${clipped}`;
-  }));
+  }))));
+  fence();
   const present = blocks.filter((block): block is string => block !== null);
   if (present.length) exported.prompt += `\n## Saved conversations (user words and generated replies; not wiki pages)\n\n${present.join("\n\n")}`;
+  fence();
   return exported;
 }
