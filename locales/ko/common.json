@@ -84,5 +84,14 @@
   "drillLayerPeriod": "주제 / 시기",
   "backToGraph": "그래프로 돌아가기",
   "backToGraphHint": "그래프 홈 화면으로 이동합니다.",
-  "clearContext": "참고 내용 지우기"
+  "clearContext": "참고 내용 지우기",
+  "deviceLock": {
+    "title": "휴대전화 잠금으로 확인",
+    "fallback": "휴대전화 암호 사용",
+    "unlock": "잠금 해제",
+    "checking": "확인 중…",
+    "setup": "휴대전화 설정에서 화면 잠금을 먼저 설정해 주세요.",
+    "unavailable": "기기 인증을 사용할 수 없습니다. 최신 앱을 설치한 뒤 다시 시도해 주세요.",
+    "failed": "잠금을 해제하지 못했습니다. 다시 시도해 주세요."
+  }
 }
