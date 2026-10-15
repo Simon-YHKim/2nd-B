@@ -376,7 +376,7 @@ ${sanitizeUntrusted(structuredBlock)}
     system,
     user: input.message,
     minor: input.minor,
-    ...(execution ? { session: execution.session, signal: execution.session.signal, onCrisisDetected: input.onCrisisDetected } : {}),
+    ...(execution ? { session: execution.session, signal: execution.session.signal, onCrisisDetected: execution.onCrisisDetected } : {}),
   }));
 
   return {
@@ -414,9 +414,11 @@ function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): stri
 // Q-261014-30 / Q-261015-82: one device-red verdict, one routing call, before
 // any quota read, limit refusal or context read, without a bump.
 // Quota is unknown here; callers retain their last verified usage display.
-async function answerDeviceRed(input: SendMessageInput, execution: CapturedChatUsageExecution | null): Promise<SendMessageOk | null> {
+type CapturedConversationExecution = CapturedChatUsageExecution & { readonly onCrisisDetected: CrisisObserver };
+
+async function answerDeviceRed(input: SendMessageInput, execution: CapturedConversationExecution | null): Promise<SendMessageOk | null> {
   const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor,
-    ...(execution ? [{ session: execution.session, signal: execution.session.signal, onCrisisDetected: input.onCrisisDetected }] as const : []));
+    ...(execution ? [{ session: execution.session, signal: execution.session.signal, onCrisisDetected: execution.onCrisisDetected }] as const : []));
   if (!reply) return null;
   if (execution && (reply.safety.zone !== "red" || reply.audit.modelUsed !== "none-crisis-routed")) throw new Error("chat_local_red_result_invalid");
   return { status: "ok", reply, used: null, limit: null, remaining: null };
@@ -431,28 +433,44 @@ export async function auditChatLocalRed(input: SendMessageInput): Promise<SendMe
   return result;
 }
 
-function capturedConversation(input: SendMessageInput): CapturedChatUsageExecution | null {
-  if (input.session === undefined && input.signal === undefined && input.onCrisisDetected === undefined && input.mutationObserver === undefined) return null;
-  const raw = input.session, observer = input.mutationObserver;
-  if (!raw || !observer || !input.signal || typeof input.onCrisisDetected !== "function") throw new Error("chat_captured_execution_required");
-  if (!input.userId || input.userId !== raw.userId || observer.owner.ownerId !== raw.userId || observer.owner.epoch !== raw.epoch) throw new Error("chat_session_owner_mismatch");
-  if (input.signal !== raw.signal) throw new Error("chat_session_signal_mismatch");
-  const { owner, generation, ledger } = observer;
+function capturedConversation(input: SendMessageInput): CapturedConversationExecution | null {
+  const raw = input.session, source = input.mutationObserver, signal = input.signal, onCrisisDetected = input.onCrisisDetected;
+  if (raw === undefined && source === undefined && signal === undefined && onCrisisDetected === undefined) return null;
+  if (!raw || !source || !signal || typeof onCrisisDetected !== "function") throw new Error("chat_captured_execution_required");
+  const { userId, epoch, assertCurrent, abort, release } = raw;
+  const { owner: sourceOwner, ledger: sourceLedger, generation, operationId, stepId } = source;
+  // Match the ledger's identifier contract before even read-only context can egress.
+  const validId = (value: unknown) => typeof value === "string" && /^[A-Za-z0-9:_-]{1,160}$/.test(value);
+  if (!sourceOwner || !sourceLedger || !validId(operationId) || !validId(stepId) ||
+      typeof sourceOwner.isCurrent !== "function" || typeof sourceLedger.read !== "function" ||
+      typeof sourceLedger.acquireMutation !== "function" || typeof sourceLedger.issueMutation !== "function" ||
+      typeof sourceLedger.settleMutation !== "function" || typeof assertCurrent !== "function" ||
+      typeof abort !== "function" || typeof release !== "function") throw new Error("chat_captured_observer_invalid");
+  const owner = Object.freeze({ ownerId: sourceOwner.ownerId, epoch: sourceOwner.epoch, isCurrent: sourceOwner.isCurrent.bind(sourceOwner) });
+  const ledger = Object.freeze({ read: sourceLedger.read.bind(sourceLedger), acquireMutation: sourceLedger.acquireMutation.bind(sourceLedger),
+    issueMutation: sourceLedger.issueMutation.bind(sourceLedger), settleMutation: sourceLedger.settleMutation.bind(sourceLedger) });
+  const observer = Object.freeze({ owner, ledger, generation, operationId, stepId });
+  if (!input.userId || input.userId !== userId || owner.ownerId !== userId || owner.epoch !== epoch) throw new Error("chat_session_owner_mismatch");
+  if (signal !== raw.signal) throw new Error("chat_session_signal_mismatch");
+  const assertSession = assertCurrent.bind(raw), abortSession = abort.bind(raw), releaseSession = release.bind(raw);
   const fence = () => {
-    throwIfAborted(raw.signal); raw.assertCurrent();
+    throwIfAborted(signal); assertSession();
     if (!owner.isCurrent()) throw abortError();
     const content = ledger.read(owner);
     if (!Number.isSafeInteger(generation) || generation < 0 || content.generation !== generation || content.phase !== "open") throw abortError();
   };
   fence();
-  // One original lease/token/signal; compose content access into inner helper fences.
-  // No authentication, new AbortController, release or subscription is created here.
-  const session: AuthenticatedAccountSessionLease = {
-    userId: raw.userId, epoch: raw.epoch, signal: raw.signal,
-    get accessToken() { fence(); return raw.accessToken; },
-    assertCurrent: fence, abort: () => raw.abort(), release: () => raw.release(),
-  };
-  return { session, observer };
+  const accessToken = raw.accessToken;
+  fence();
+  // Snapshot authority before the first await. Callers may later mutate their input,
+  // observer or methods; that cannot replace the original ledger or crisis observer.
+  // One original lease/token/signal; no authentication, release or subscription here.
+  const session: AuthenticatedAccountSessionLease = Object.freeze({
+    userId, epoch, signal,
+    get accessToken() { fence(); return accessToken; },
+    assertCurrent: fence, abort: abortSession, release: releaseSession,
+  });
+  return Object.freeze({ session, observer, onCrisisDetected });
 }
 
 function executionStage(execution: CapturedChatUsageExecution | null) {

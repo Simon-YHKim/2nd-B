@@ -611,10 +611,10 @@ describe("sendChatMessage", () => {
       expect(texts(helper.modifiers)).toEqual(["async"]);
       expect(helper.asteriskToken).toBeUndefined();
       expect(helper.typeParameters).toBeUndefined();
-      expect(texts(helper.parameters)).toEqual(["input: SendMessageInput", "execution: CapturedChatUsageExecution | null"]);
+      expect(texts(helper.parameters)).toEqual(["input: SendMessageInput", "execution: CapturedConversationExecution | null"]);
       expect(helper.type ? norm(helper.type) : "").toBe("Promise<SendMessageOk | null>");
       expect(texts(helper.body?.statements)).toEqual([
-        "const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor, ...(execution ? [{ session: execution.session, signal: execution.session.signal, onCrisisDetected: input.onCrisisDetected }] as const : []));",
+        "const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor, ...(execution ? [{ session: execution.session, signal: execution.session.signal, onCrisisDetected: execution.onCrisisDetected }] as const : []));",
         "if (!reply) return null;",
         'if (execution && (reply.safety.zone !== "red" || reply.audit.modelUsed !== "none-crisis-routed")) throw new Error("chat_local_red_result_invalid");',
         'return { status: "ok", reply, used: null, limit: null, remaining: null };',

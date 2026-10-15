@@ -11,8 +11,11 @@ D3a R2는 `d5d803f735cd2e5f6d7443489a137349fb123ed0`다. 착수 시 선행 변�
 `sendChatMessage`의 기존 입력은 그대로 유지한다. 선택 경로는 session, 같은 signal,
 onCrisisDetected, mutationObserver를 함께 요구한다. 부분 입력을 기존 경로로 되돌리지 않는다.
 userId/session userId/observer ownerId와 epoch, 현재 owner/content generation/open 상태를
-첫 I/O 전에 검증한다. 한 원본 인증 lease의 token/signal을 유지하고, 내부 helper에 넘기는
-session view의 assertCurrent와 token getter에 content fence를 합성한다. 새 인증·lease·signal,
+첫 I/O 전에 검증한다. operationId/stepId는 ledger와 같은 1..160자 ASCII 식별자 계약으로 검사하고
+owner.isCurrent와 ledger read/acquire/issue/settle 메서드가 있어야 한다. 이 검증은 ticket을 만들지 않는다. 한 원본 인증 lease의 token/signal을 유지하고, 내부 helper에 넘기는
+session view의 assertCurrent와 token getter에 content fence를 합성한다. 원 callback, owner 값/메서드,
+generation/operation/step, ledger 메서드와 lease 값/메서드를 첫 await 전에 별도 불변 descriptor로
+캡처한다. 입력이나 원 observer 객체의 나중 변경이 위기 관찰자 또는 mutation ledger를 바꾸지 못한다. 새 인증·lease·signal,
 구독, release는 만들지 않는다. 원 lease 수명·발행된 요청 drain은 후속 C3의 책임이다.
 
 순서는 원 local RED → quota read → structured/profile/RAG/export → quota bump → callLlm이다.
@@ -52,3 +55,8 @@ system assembly 367을 가리키도록 기존 문서와 대응 검사의 숫자�
 
 C1c 독립 검토·최종 main 통합·root 전체/CI가 남는다. C3/D3b/D4/H, 실제 UI/서버/앱 확인을 끝낸
 것으로 세지 않는다. 기존 A/B/D3a의 BLOCK 이력을 초기화하지 않는다.
+
+
+C1c 독립 R1은 H0/M2/L0, 새 M2, BLOCK1이다. 불완전한 observer의 선행 I/O와 대기 중 callback/
+ledger metadata 변경이라는 실제 반례를 R2에서 보완한다. 원 R1 보고/10 FAIL·2 PASS는 보존하며
+독립 R2 판정 전에는 해당 검토를 완료로 세지 않는다. C1b/공유 ledger 자체는 수정하지 않는다.

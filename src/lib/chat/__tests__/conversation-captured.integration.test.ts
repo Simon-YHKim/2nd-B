@@ -264,3 +264,66 @@ test("an actual cancelled transport is propagated without retry or model fallbac
   expect(calls("embed")).toHaveLength(1); expect(calls("quota")).toHaveLength(0); expect(calls("secondb_chat")).toHaveLength(0);
   expect(mockQueries.map(q => q.table)).toEqual(["chat_usage", "records", "users"]);
 });
+
+
+// R1 M1/M2: mandatory observer authority is validated and captured before any I/O.
+test.each(["operationId-missing", "operationId-empty", "operationId-space", "operationId-long", "operationId-number",
+  "stepId-missing", "stepId-empty", "stepId-space", "stepId-long", "stepId-number", "owner", "isCurrent", "ledger", "read", "acquireMutation", "issueMutation", "settleMutation"])("incomplete captured authority %s rejects before reads/audits/usage", async mode => {
+  const f = await fixture(), source = f.input.mutationObserver!;
+  if (mode.includes("-")) {
+    const [field, shape] = mode.split("-");
+    const value = shape === "missing" ? undefined : shape === "empty" ? "" : shape === "space" ? " " : shape === "long" ? "x".repeat(161) : 3;
+    f.input.mutationObserver = { ...source, [field]: value };
+  } else if (mode === "owner" || mode === "ledger") Object.assign(source, { [mode]: undefined });
+  else if (mode === "isCurrent") f.input.mutationObserver = { ...source, owner: { ...source.owner, isCurrent: undefined } } as unknown as typeof source;
+  else f.input.mutationObserver = { ...source, ledger: { ...source.ledger, [mode]: undefined } } as typeof source;
+  await expect(send(f)).rejects.toThrow();
+  expect(mockQueries).toEqual([]); expect(mockRpc).not.toHaveBeenCalled(); expect(fetchMock).not.toHaveBeenCalled(); expect(facts(f)).toEqual([]);
+});
+
+test.each(["replace", "remove"])("original crisis observer survives caller %s during a real read", async mode => {
+  const f = await fixture(), pending = deferred<unknown>(), entered = deferred<void>();
+  const original = f.input.onCrisisDetected as jest.Mock, substitute = jest.fn(); original.mockImplementation(() => { wipe(f); });
+  mockRead.mockImplementation((query: Query) => { if (query.table === "chat_usage") { entered.resolve(); return pending.promise; } return defaultRead(query); });
+  fetchMock.mockImplementation((url: string, init: RequestInit) => JSON.parse(init.body as string).purpose === "secondb_chat"
+    ? Promise.resolve(response({ text: "I want to kill myself", audited: true })) : defaultFetch(url, init));
+  const work = send(f), assertion = expect(work).rejects.toMatchObject({ name: "AbortError" }); await entered.promise;
+  if (mode === "replace") f.input.onCrisisDetected = substitute; else delete f.input.onCrisisDetected;
+  pending.resolve(defaultRead({ table: "chat_usage", columns: "", filters: {} })); await assertion;
+  expect(original).toHaveBeenCalledTimes(1); expect(substitute).not.toHaveBeenCalled();
+  expect(facts(f)).toMatchObject([{ operationId: "turn", stepId: "quota", outcome: "committed" }]);
+  expect(fetchMock.mock.calls.some(call => String(call[0]).includes("/rpc/log_"))).toBe(false);
+});
+
+test.each(["observer", "methods", "owner", "session"])("original execution survives caller %s mutation during a real read", async mode => {
+  const f = await fixture(), pending = deferred<unknown>(), entered = deferred<void>(), alternate = createContentWipeLedger();
+  const originalSignal = f.session.signal;
+  const substitutes = { read: jest.fn(), acquireMutation: jest.fn(), issueMutation: jest.fn(), settleMutation: jest.fn(), isCurrent: jest.fn(), assertCurrent: jest.fn(), abort: jest.fn(), release: jest.fn() };
+  mockRead.mockImplementation((query: Query) => { if (query.table === "chat_usage") { entered.resolve(); return pending.promise; } return defaultRead(query); });
+  const work = send(f); await entered.promise;
+  if (mode === "observer") Object.assign(f.input.mutationObserver!, { ledger: alternate, operationId: "other-turn", stepId: "other-step", generation: 1 });
+  if (mode === "methods") Object.assign(f.ledger, { read: substitutes.read, acquireMutation: substitutes.acquireMutation, issueMutation: substitutes.issueMutation, settleMutation: substitutes.settleMutation });
+  if (mode === "owner") Object.assign(f.current, { ownerId: "b", epoch: 42, isCurrent: substitutes.isCurrent });
+  if (mode === "session") {
+    Object.assign(f.session, { userId: "b", epoch: 42, signal: new AbortController().signal, assertCurrent: substitutes.assertCurrent, abort: substitutes.abort, release: substitutes.release });
+    Object.defineProperty(f.session, "accessToken", { value: "replacement-b", configurable: true });
+  }
+  pending.resolve(defaultRead({ table: "chat_usage", columns: "", filters: {} }));
+  await expect(work).resolves.toMatchObject({ status: "ok", used: 1 });
+  expect(facts(f)).toMatchObject([{ ownerId: "a", operationId: "turn", stepId: "quota", outcome: "committed" }]);
+  expect(alternate.inspect(captureAccountOwnerLease("a")!).tickets).toEqual([]);
+  for (const fn of Object.values(substitutes)) expect(fn).not.toHaveBeenCalled();
+  for (const [, init] of fetchMock.mock.calls) { expect(init.signal).toBe(originalSignal); expect(init.headers.Authorization).toBe("Bearer captured-a"); }
+});
+
+test.each(["send", "strict"])("local RED %s preserves its original observer through synchronous capture reentry", async mode => {
+  const f = await fixture(), original = f.input.onCrisisDetected as jest.Mock, substitute = jest.fn();
+  f.input.message = "I want to kill myself"; original.mockImplementation(() => { wipe(f); });
+  const read = f.ledger.read;
+  jest.spyOn(f.ledger, "read").mockImplementation(ownerLease => {
+    f.input.onCrisisDetected = substitute; return read(ownerLease);
+  });
+  await expect(mode === "send" ? send(f) : auditChatLocalRed(f.input)).rejects.toMatchObject({ name: "AbortError" });
+  expect(original).toHaveBeenCalledTimes(1); expect(substitute).not.toHaveBeenCalled();
+  expect(mockQueries).toEqual([]); expect(fetchMock).not.toHaveBeenCalled(); expect(facts(f)).toEqual([]);
+});
