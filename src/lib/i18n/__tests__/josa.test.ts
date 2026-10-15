@@ -7,6 +7,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { canDecideJosa, hasJongseong, josaFor, withJosa } from "../josa";
+import { HOTLINES } from "../../safety/lexicon";
 
 describe("조사 판정", () => {
   it("한글 받침을 본다", () => {
@@ -71,8 +72,8 @@ describe("조사 판정", () => {
 
 // ── 가드 ──────────────────────────────────────────────────────
 //
-// 한국어 로케일에서 `{{변수}}조사` 형태를 찾아, **받침이 보장된다고 증명된
-// 변수**가 아니면 실패시킨다.
+// 한국어 로케일에서 `{{변수}}조사` 형태를 찾아, **받침이 보장된 변수** 또는
+// **정확한 키·변수·조사에 대해 닫힌 값의 발음을 증명한 경우** 외에는 실패시킨다.
 describe("로케일에 하드코딩된 조사", () => {
   /**
    * 받침이 보장되어 하드코딩해도 되는 보간 변수.
@@ -88,15 +89,27 @@ describe("로케일에 하드코딩된 조사", () => {
     phrase: 'CONFIRM_PHRASE = "DELETE" 고정 상수',
   };
 
+  // D3/B2의 고정 연락 안내만: HOTLINES 109는 끝소리 '구'(받침 없음),
+  // 1388/988은 '팔'(ㄹ 예외)이므로 '로'. supportNumber 전체를 받침 보장
+  // 목록에 넣으면 다른 키와 을/를 등의 조사까지 잘못 면제하므로 세 경로만 허용한다.
+  const FIXED_SUPPORT_RO_PATHS = new Set([
+    "safety.json:interviewGuidance.krSupport",
+    "safety.json:interviewGuidance.krYouthSupport",
+    "safety.json:interviewGuidance.usSupport",
+  ]);
+
   const KO = join(process.cwd(), "locales", "ko");
   const PATTERN = /\{\{\s*([a-zA-Z_][\w]*)\s*\}\}(을|를|이|가|은|는|와|과|으로|로|이나|나)(?![가-힣])/g;
 
-  function offenders(): string[] {
+  function offenders(files = readdirSync(KO).filter((f) => f.endsWith(".json"))
+    .map((file) => ({ file, value: JSON.parse(readFileSync(join(KO, file), "utf8")) as unknown }))): string[] {
     const out: string[] = [];
     const walk = (node: unknown, file: string, keyPath: string): void => {
       if (typeof node === "string") {
         for (const m of node.matchAll(PATTERN)) {
           if (m[1] in JONGSEONG_GUARANTEED) continue;
+          if (m[1] === "supportNumber" && m[2] === "로"
+            && FIXED_SUPPORT_RO_PATHS.has(`${file}:${keyPath}`)) continue;
           out.push(`${file}:${keyPath} → {{${m[1]}}}${m[2]}`);
         }
         return;
@@ -106,10 +119,7 @@ describe("로케일에 하드코딩된 조사", () => {
         walk(v, file, keyPath ? `${keyPath}.${k}` : k);
       }
     };
-    for (const f of readdirSync(KO)) {
-      if (!f.endsWith(".json")) continue;
-      walk(JSON.parse(readFileSync(join(KO, f), "utf8")), f, "");
-    }
+    for (const { file, value } of files) walk(value, file, "");
     return out.sort();
   }
 
@@ -118,6 +128,44 @@ describe("로케일에 하드코딩된 조사", () => {
     //   1. 그 변수도 항상 받침으로 끝난다  -> JONGSEONG_GUARANTEED 에 근거와 함께 추가
     //   2. 아니다                          -> 문자열에서 조사를 빼고 withJosa() 로 붙인다
     expect(offenders()).toEqual([]);
+  });
+
+  it("고정 지원 번호의 한국어 읽기와 로를 실제 정본 값으로 확인한다", () => {
+    for (const [number, expected, reading, jong] of [
+      [HOTLINES.KR_109.number, "109", "일공구", false],
+      [HOTLINES.KR_1388.number, "1388", "일삼팔팔", true],
+      [HOTLINES.GLOBAL_988.number, "988", "구팔팔", true],
+    ] as const) {
+      expect(number).toBe(expected);
+      expect(hasJongseong(number)).toBe(jong);
+      expect(hasJongseong(reading)).toBe(jong);
+      expect(josaFor(number, "으로로")).toBe("로");
+      expect(josaFor(reading, "으로로")).toBe("로");
+    }
+  });
+
+  it("고정 번호 예외가 다른 키·변수·조사를 면제하지 않는다", () => {
+    for (const keyPath of FIXED_SUPPORT_RO_PATHS) {
+      const [file, path] = keyPath.split(":");
+      const key = path.split(".")[1];
+      const value = (variable: string, particle: string) => ({ interviewGuidance: { [key]: `{{${variable}}}${particle} 연락` } });
+      expect(offenders([{ file, value: value("supportNumber", "로") }])).toEqual([]);
+      for (const particle of ["을", "를", "이", "가", "은", "는", "와", "과", "으로", "이나", "나"]) {
+        expect(offenders([{ file, value: value("supportNumber", particle) }])).toHaveLength(1);
+      }
+      expect(offenders([{ file: "other.json", value: value("supportNumber", "로") }])).toHaveLength(1);
+      expect(offenders([{ file, value: value("arbitraryNumber", "로") }])).toHaveLength(1);
+    }
+    expect(offenders([{ file: "safety.json", value: { interviewGuidance: { other: "{{supportNumber}}로 연락" } } }]))
+      .toHaveLength(1);
+  });
+
+  it("고정 번호 예외의 정확한 세 키가 실제로 쓰이고 있다", () => {
+    const safety = JSON.parse(readFileSync(join(KO, "safety.json"), "utf8"));
+    for (const path of FIXED_SUPPORT_RO_PATHS) {
+      const key = path.split(".").at(-1)!;
+      expect(safety.interviewGuidance[key]).toContain("{{supportNumber}}로 ");
+    }
   });
 
   it("안전 목록의 모든 항목이 근거를 달고 있다", () => {
