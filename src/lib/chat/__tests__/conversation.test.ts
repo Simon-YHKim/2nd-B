@@ -160,19 +160,18 @@ describe("composer at the daily limit (Q-261015-82)", () => {
   });
 
   test.each([
-    ["I want to die", "en", false, "GLOBAL_988"],
-    ["죽고 싶어요", "ko", true, "KR_1388"],
-    ["죽고 싶어요", "ko", false, "KR_109"],
-  ] as const)("guidance for %s appears before any request starts", (draft, voiceLocale, isMinor, hotline) => {
+    ["I want to die", "en", false],
+    ["죽고 싶어요", "ko", true],
+    ["죽고 싶어요", "ko", false],
+  ] as const)("composer delegates %s to the app-guidance send handler before clearing", (draft, voiceLocale, isMinor) => {
     const order: string[] = [];
-    const setCrisis = jest.fn(() => order.push("visible"));
     const onSend = jest.fn(() => { order.push("request"); return true; });
     expect(submitExpression).not.toBe("");
     runInNewContext(`(${submitExpression})()`, {
-      draft, voiceLocale, isMinor, canSend: true, classifyInputAnyLocale, setCrisis, onSend, setDraft: jest.fn(),
+      draft, voiceLocale, isMinor, canSend: true, classifyInputAnyLocale, onSend, setDraft: () => order.push("clear"),
     });
-    expect(order).toEqual(["visible", "request"]);
-    expect(setCrisis).toHaveBeenCalledWith({ visible: true, hotline });
+    expect(order).toEqual(["request", "clear"]);
+    expect(onSend).toHaveBeenCalledWith(draft);
   });
 
   test("ordinary text and disabled submits do not open a crisis dialog", () => {

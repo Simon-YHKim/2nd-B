@@ -12,6 +12,7 @@ import { createChatAutosaveSession } from "../../lib/chat/autosave-session";
 import { findPromptIndex } from "../../lib/chat/keep-exchange";
 import { saveCueAllowed } from "../../lib/audio/app-cue-gates";
 import { resetPrivacyChangesForTests } from "../../lib/privacy/changes";
+import { classifyInputAnyLocale } from "../../lib/safety/classifier";
 
 jest.mock("../../lib/supabase/privacy", () => ({
   fetchPrivacyPrefs: async () => ({ chat_autosave: true }),
@@ -97,7 +98,7 @@ interface Host {
 }
 
 /** 실제 keepExchange 본문을 inert 호스트에 걸고 관측 가능한 상태를 돌려준다. */
-function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number>; keeping?: number | null; notice?: unknown } = {}): Host {
+function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number>; keeping?: number | null; notice?: unknown; crisisBody?: string; noticeDelivered?: boolean } = {}): Host {
   const state: Host["state"] = { kept: new Set(options.kept ?? []), keeping: [], notice: [], announced: [], crisis: [], captures: [], warnings: [], current: options.notice ?? null, cues: 0 };
   const bindings = {
     userId: "local-owner",
@@ -108,7 +109,7 @@ function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number
     keeping: options.keeping ?? null,
     keepInFlight: { current: false },
     keptIdx: state.kept,
-    turns: [PROMPT, REPLY, PROMPT, REPLY],
+    turns: [PROMPT, { ...REPLY, crisisNotice: options.noticeDelivered }, PROMPT, REPLY],
     isKeepable: (turn: { role: string }) => turn.role === "secondb",
     setKeeping: (value: number | null) => state.keeping.push(value),
     setKeptIdx: (fn: (prev: Set<number>) => Set<number>) => { state.kept = fn(state.kept); },
@@ -118,15 +119,15 @@ function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number
       state.current = next;
       state.notice.push(next);
     },
-    setKeepCrisis: (value: unknown) => state.crisis.push(value),
+    publishCrisisNotice: (_owner: unknown, hotline: string) => state.crisis.push({ visible: true, hotline }),
     findPrompt: () => PROMPT,
     locale: "ko",
     t: (key: string) => key,
     exchangeTopic: () => "산책",
-    composeExchangeBody: () => "정상 로컬 fixture 본문",
+    composeExchangeBody: () => options.crisisBody ?? "정상 로컬 fixture 본문",
     exchangeMarkdown: (topic: string, body: string) => `## ${topic}\n\n${body}`,
     CHAT_KEEP_TAG: "chat:keep",
-    classifyInput: () => ({ zone: "green" }),
+    classifyInputAnyLocale,
     isMinor: false,
     captureFromMarkdown: async (payload: unknown) => {
       state.captures.push(payload);
@@ -145,6 +146,20 @@ function keepHost(options: { capture?: () => Promise<unknown>; kept?: Set<number
 }
 
 describe("담기 실패를 화면이 말한다", () => {
+  test("opted-in autosave retains a crisis exchange without reopening already-delivered guidance", async () => {
+    const host = keepHost({ crisisBody: "약을 이미 많이 먹었어", noticeDelivered: true });
+    await expect(host.keep(1, new AbortController().signal)).resolves.toBe(true);
+    expect(host.state.captures).toHaveLength(1);
+    expect(host.state.crisis).toEqual([]);
+    expect(host.state.cues).toBe(0);
+  });
+
+  test("a separately saved crisis exchange still opens the matching app notice", async () => {
+    const host = keepHost({ crisisBody: "Someone is attacking me right now" });
+    await expect(host.keep(1)).resolves.toBe(true);
+    expect(host.state.crisis).toEqual([{ visible: true, hotline: "KR_112" }]);
+    expect(host.state.cues).toBe(0);
+  });
   test("렌더 전에 연속으로 눌러도 저장은 한 번만 시작한다", async () => {
     let finish!: () => void;
     const pending = new Promise<void>(resolve => { finish = resolve; });

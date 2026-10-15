@@ -86,10 +86,10 @@ describe("대화 -> 위키 배선", () => {
     // 분류기를 직접 돌려야 다른 저장 화면과 같은 자세가 된다. 이게 없으면
     // 안내 없는 저장 경로가 하나 생긴다.
     const handler = keepHandlerBody();
-    expect(handler).toContain("classifyInput(");
+    expect(handler).toContain("classifyInputAnyLocale(");
     expect(handler).toContain('=== "red"');
     expect(handler).toContain("KR_1388");
-    expect(SRC).toContain("keepCrisis");
+    expect(handler).toContain("publishCrisisNotice(lease,");
   });
 
   it("같은 답변을 두 번 담지 못한다", () => {
