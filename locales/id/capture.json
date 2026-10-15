@@ -347,5 +347,15 @@
   "manualTab": "Panduan penggunaan",
   "shareRefused": {
     "body": "Konten yang Anda bagikan tidak ditambahkan. Masuk dulu, lalu bagikan lagi."
+  },
+  "sharedMedia": {
+    "photoReady": "Foto dibagikan ke PolaScope.",
+    "photoReplace": "Ganti foto dan teks dengan foto yang dibagikan",
+    "discard": "Buang file yang dibagikan",
+    "audioSend": "Transkripsikan audio yang dibagikan",
+    "multiple": "Bagikan satu file setiap kali.",
+    "unreadable": "File yang dibagikan tidak dapat dibuka. Bagikan lagi dari aplikasi asal.",
+    "unavailable": "File yang dibagikan tidak lagi tersedia. Bagikan lagi dari aplikasi asal.",
+    "audioName": "Audio yang dibagikan"
   }
 }

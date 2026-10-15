@@ -347,5 +347,15 @@
   "manualTab": "Guía de uso",
   "shareRefused": {
     "body": "No se agregó lo que compartiste. Inicia sesión y vuelve a compartirlo."
+  },
+  "sharedMedia": {
+    "photoReady": "Se compartió una foto con PolaScope.",
+    "photoReplace": "Reemplazar la foto y el texto con la foto compartida",
+    "discard": "Descartar archivo compartido",
+    "audioSend": "Transcribir el audio compartido",
+    "multiple": "Comparte un solo archivo a la vez.",
+    "unreadable": "No se pudo abrir el archivo compartido. Vuelve a compartirlo desde la aplicación original.",
+    "unavailable": "El archivo compartido ya no está disponible. Vuelve a compartirlo desde la aplicación original.",
+    "audioName": "Audio compartido"
   }
 }
