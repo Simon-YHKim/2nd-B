@@ -9,7 +9,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-type Row = { id: string; user_id: string; kind: string; body: string; tags: string[]; client_request_id?: string };
+type Row = { id: string; user_id: string; kind: string; body: string; tags: string[]; client_request_id?: string; ai_followup?: unknown };
 
 const mockRows: Row[] = [];
 const mockInserted: Record<string, unknown>[] = [];
@@ -19,6 +19,8 @@ let mockForceOtherConflict = false;
 const mockAwardXp = jest.fn();
 const mockInvalidate = jest.fn();
 const mockClassify = jest.fn();
+const mockAdvisor = jest.fn();
+const mockLlm = jest.fn();
 const mockEmbed = jest.fn();
 const mockEmbedAllowed = jest.fn();
 const mockFetchPrefs = jest.fn();
@@ -52,6 +54,7 @@ jest.mock("../../supabase/client", () => ({
                 kind: row.kind as string,
                 body: row.body as string,
                 tags: row.tags as string[],
+                ai_followup: row.ai_followup,
                 ...(key !== undefined ? { client_request_id: key } : {}),
               };
               mockRows.push(stored);
@@ -86,8 +89,8 @@ jest.mock("../../supabase/client", () => ({
   }),
 }));
 jest.mock("../../llm/boundary", () => ({
-  callAdvisor: jest.fn(),
-  callLlm: jest.fn(),
+  callAdvisor: (...args: unknown[]) => mockAdvisor(...args),
+  callLlm: (...args: unknown[]) => mockLlm(...args),
   classifyRecordTextForCrisis: (...args: unknown[]) => mockClassify(...args),
 }));
 jest.mock("../../progression/xp", () => ({
@@ -128,6 +131,8 @@ beforeEach(() => {
   mockAwardXp.mockReset().mockResolvedValue(null);
   mockInvalidate.mockReset();
   mockClassify.mockReset().mockResolvedValue(null);
+  mockAdvisor.mockReset();
+  mockLlm.mockReset();
   mockEmbed.mockReset().mockResolvedValue(true);
   mockEmbedAllowed.mockReset().mockReturnValue(true);
   mockFetchPrefs.mockReset().mockResolvedValue({ records_embedding: true });
@@ -296,6 +301,65 @@ describe("createRecord - 0178 client_request_id", () => {
 
     expect(mockClassify).toHaveBeenCalledTimes(2);
     expect(replay.followup).toEqual({ text: "fixed crisis template", zone: "red", fixedTemplate: true });
+  });
+
+  test.each([
+    "죽고 싶어", "I want to die", "Quiero suicidarme", "Eu quero me matar", "Saya ingin bunuh diri",
+    "지금 숨을 못 쉬고 있어요", "Someone is threatening me with a knife right now",
+    "ordinary beginning ".repeat(150) + "죽고 싶어",
+  ])("saves a crisis body without embedding even if audit routing fails: %s", async (body) => {
+    mockLlmMode = "live";
+    mockClassify.mockRejectedValue(new Error("audit unavailable"));
+    const warning = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const first = await createRecord({ ...args, body });
+      const replay = await createRecord({ ...args, body });
+      await flushDetached();
+      expect(first.id).toBe(replay.id);
+      expect(mockRows).toHaveLength(1);
+      expect(mockRows[0].body).toBe(body);
+      expect(mockFetchPrefs).not.toHaveBeenCalled();
+      expect(mockEmbed).not.toHaveBeenCalled();
+      expect(mockAwardXp).toHaveBeenCalledTimes(1);
+    } finally { warning.mockRestore(); }
+  });
+
+  test("a returned red result blocks embedding even without a local term", async () => {
+    mockLlmMode = "live";
+    mockClassify.mockResolvedValue({ text: "fixed crisis template" });
+    const saved = await createRecord(args);
+    await flushDetached();
+    expect(saved.followup?.zone).toBe("red");
+    expect(mockRows).toHaveLength(1);
+    expect(mockEmbed).not.toHaveBeenCalled();
+    expect(mockFetchPrefs).not.toHaveBeenCalled();
+  });
+
+  test.each(["journal", "audit_response"] as const)("a %s boundary red result saves without further embedding", async (kind) => {
+    mockLlmMode = "live";
+    mockAdvisor.mockResolvedValue({ text: "fixed guidance", zone: "red", fixedTemplate: true, matchedBatches: [], evidence: [] });
+    mockLlm.mockResolvedValue({ text: "fixed guidance", safety: { zone: "red" } });
+    const saved = await createRecord({ ...args, kind, clientRequestId: undefined, withFollowup: true, tier: "brain" });
+    await flushDetached();
+    expect(saved.followup?.zone).toBe("red");
+    expect(mockRows).toHaveLength(1);
+    expect(mockRows[0].body).toBe(args.body);
+    expect(mockEmbed).not.toHaveBeenCalled();
+    expect(mockFetchPrefs).not.toHaveBeenCalled();
+  });
+
+  test("a lost response retains the stored red result when retry classification returns nothing", async () => {
+    mockLlmMode = "live";
+    mockClassify.mockResolvedValueOnce({ text: "fixed crisis template" }).mockResolvedValue(null);
+    mockLoseNextResponse = true;
+    await expect(createRecord(args)).rejects.toThrow("network lost after commit");
+    const replay = await createRecord(args);
+    await flushDetached();
+    expect(replay.id).toBe("rec-1");
+    expect(mockRows).toHaveLength(1);
+    expect(mockRows[0].ai_followup).toMatchObject({ zone: "red" });
+    expect(mockEmbed).not.toHaveBeenCalled();
+    expect(mockFetchPrefs).not.toHaveBeenCalled();
   });
 
   test.each([
