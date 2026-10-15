@@ -1,4 +1,5 @@
 const mockCapturePurge = jest.fn<Promise<boolean>, [string]>();
+const mockInterviewPurge = jest.fn<Promise<boolean>, [string]>();
 const mockAvatarPalettePurge = jest.fn<Promise<boolean>, [string]>();
 const mockImportPurge = jest.fn<Promise<boolean>, [string]>();
 const mockGithubPurge = jest.fn<Promise<boolean>, [string]>();
@@ -17,6 +18,9 @@ const mockInstallFence = jest.fn<Promise<boolean>, [string]>();
 
 jest.mock("../../capture/draft", () => ({
   purgeCaptureDraftsForDeletedAccount: (owner: string) => mockCapturePurge(owner),
+}));
+jest.mock("../../interview/draft-store", () => ({
+  purgeInterviewDraftsForDeletedAccount: (owner: string) => mockInterviewPurge(owner),
 }));
 jest.mock("../../avatar-palette/gallery", () => ({
   purgeAvatarPaletteItemsForDeletedAccount: (owner: string) => mockAvatarPalettePurge(owner),
@@ -75,6 +79,7 @@ beforeEach(() => {
   for (const purge of [
     mockAvatarPalettePurge,
     mockCapturePurge,
+    mockInterviewPurge,
     mockImportPurge,
     mockGithubPurge,
     mockAuditPurge,
@@ -99,6 +104,7 @@ describe("purgeDeletedAccountLocalData", () => {
     for (const purge of [
       mockAvatarPalettePurge,
       mockCapturePurge,
+      mockInterviewPurge,
       mockImportPurge,
       mockGithubPurge,
       mockAuditPurge,
@@ -126,6 +132,13 @@ describe("purgeDeletedAccountLocalData", () => {
     expect(mockAvatarPalettePurge).toHaveBeenCalledTimes(1);
     expect(mockGithubPurge).toHaveBeenCalledTimes(1);
     expect(mockAuditPurge).toHaveBeenCalledTimes(1);
+  });
+
+  test("never claims completion when an encrypted interview draft remains", async () => {
+    mockInterviewPurge.mockResolvedValueOnce(false);
+    await expect(purgeDeletedAccountLocalData("owner-a")).resolves.toBe("unconfirmed");
+    expect(mockInterviewPurge).toHaveBeenCalledWith("owner-a");
+    expect(mockInstallFence.mock.invocationCallOrder[0]).toBeLessThan(mockInterviewPurge.mock.invocationCallOrder[0]);
   });
 
   test("rejects an empty owner instead of widening the purge", async () => {
