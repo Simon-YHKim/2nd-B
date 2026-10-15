@@ -247,7 +247,14 @@ describe("deep-space records source detail routing", () => {
       // re-pinning: the previous digest
       // 3c52b8a74b97388b39715e189c1f529a8d3f24b9ecedde299d5909daad952c6d recomputes
       // byte-for-byte from origin/main's copy of this file.
-      "56d241df78a284981b8795cfba3a108c586603f0be4ffb979a5734661b4645bb",
+      // Re-pinned 2026-10-15 (T43, Q-261013-21~24 / Z40 / Z80): the read now
+      // has one deadline, treats either archive source's failure as unknown,
+      // and binds its result to owner/epoch/retry. Role evidence gains the
+      // same epoch fence. This pin covers the whole function, not just JSX.
+      // c6e3d022 reproduces 56d241df; the slice is 23,568 -> 23,367 chars.
+      // From openRecord through all filters, rendering and styles it is
+      // byte-identical. Executed lifecycle coverage: wiki-list-read-failure.
+      "a41830283c4bffc1cd34911e92078730c6b68c5f65365fefa715e5d21f1b4db8",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,

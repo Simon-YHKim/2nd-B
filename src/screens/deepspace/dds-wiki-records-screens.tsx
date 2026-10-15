@@ -26,6 +26,8 @@ import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { currentAccountEpoch, isCurrentAccountEpoch, subscribeAccountTransition } from "@/lib/auth/account-epoch";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { useAppRouter, useHardwareBack, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { listRecordsByIds } from "@/lib/records/create";
@@ -160,6 +162,15 @@ export function FilterChip({ label, active, violet, onPress }: { label: string; 
 type RType = "text" | "link" | "voice" | "photo" | "todo";
 type RecordsOrigin = "record" | "source";
 type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string; audit_period?: string | null };
+export const WIKI_LIST_READ_TIMEOUT_MS = 10_000;
+const NO_RECORDS: RecordsTimelineRecord[] = [];
+interface RecordsRead {
+  ownerId: string;
+  epoch: number;
+  reloadKey: number;
+  rows: RecordsTimelineRecord[];
+  failed: boolean;
+}
 
 const TYPE_CHIPS: { id: RType | "all" | "unfiled"; labelKey: string }[] = [
   { id: "all", labelKey: "records.filterAll" },
@@ -294,16 +305,21 @@ export function DeepSpaceRecordsScreen() {
     }
     return null;
   }, [tagFilter]);
-  const [records, setRecords] = useState<RecordsTimelineRecord[]>([]);
+  const accountEpoch = currentAccountEpoch();
+  const [recordsRead, setRecordsRead] = useState<RecordsRead | null>(null);
   const [roleCards, setRoleCards] = useState<RoleCard[]>([]);
   const [roleEvidenceRecords, setRoleEvidenceRecords] = useState<RecordsTimelineRecord[]>([]);
   const [roleCardsUserId, setRoleCardsUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [roleCardsEpoch, setRoleCardsEpoch] = useState<number | null>(null);
   // Bumped to re-run the load: on focus re-entry (useFocusRefetch) and on the
-  // error-state retry. The effect's alive-flag cleanup cancels any in-flight
-  // read before the next one commits, so overlapping loads never race.
+  // error-state retry. Rows belong to that request's owner, epoch and retry,
+  // so stale rows disappear in render before the next effect even starts.
   const [reloadKey, setReloadKey] = useState(0);
+  const currentRead = recordsRead?.ownerId === userId && recordsRead.epoch === accountEpoch && recordsRead.reloadKey === reloadKey
+    ? recordsRead : null;
+  const records = currentRead?.rows ?? NO_RECORDS;
+  const loading = currentRead === null;
+  const loadError = currentRead?.failed ?? false;
   const [typeFilter, setTypeFilter] = useState<RType | "all" | "unfiled">("all");
   // PIXEL-CLAY `records` is the connection map. Keep the real, virtualized list
   // one tap away instead of replacing it with the reference's sample corpus.
@@ -333,68 +349,42 @@ export function DeepSpaceRecordsScreen() {
   useHardwareBack(backToStar);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || authLoading) return;
     let alive = true;
-    setLoading(true);
-    setLoadError(false);
+    const controller = new AbortController();
+    const current = () => alive && !controller.signal.aborted && isCurrentAccountEpoch(accountEpoch);
+    const unsubscribe = subscribeAccountTransition(() => {
+      if (!isCurrentAccountEpoch(accountEpoch)) controller.abort();
+    });
     // /records shows EVERY saved piece — including non-journal Capture/Import
-    // (글/링크/사진/file) that land in `sources`, not just `records` — so a
-    // source-only user no longer sees a false-empty list. Sources are
-    // best-effort: a sources failure degrades to records-only and never blanks
-    // the screen (mirrors core-brain's merged evidence read). Source rows keep
-    // their DB id for detail navigation while the list id stays collision-free.
-    (async () => {
-      // The canonical records read is NOT coerced to [] on failure. Doing so
-      // rendered the genuine-empty state ("아직 기록이 없어요" + 담기 CTA) to a
-      // user whose network/Supabase call merely failed — telling someone with
-      // records that they have none. A records-read failure is a distinct error
-      // state (retry) instead. Sources stay best-effort (source-only users still
-      // merge in below), so only the primary records read gates the error.
-      let recs: RecordsTimelineRecord[] = [];
-      let recordsFailed = false;
-      try {
-        // Every record, not the 90-day window listRecentRecords keeps for the streak: a record
-        // older than that was never asked for and so never listed (2026-10-14).
-        recs = (await listAllRecords(userId)) as RecordsTimelineRecord[];
-      } catch {
-        recordsFailed = true;
-      }
-      // Same source of truth as /insights. This read used to live here inline, and
-      // /insights had no equivalent at all -- which is exactly how the two screens came to
-      // disagree about how much the user had captured.
-      let srcRecs: RecordsTimelineRecord[] = [];
-      try {
-        srcRecs = (await listSourcePieces(userId)).map(
-          (s) =>
-            ({
-              id: s.id,
-              origin: "source",
-              sourceId: s.sourceId,
-              kind: "note",
-              summary: s.title,
-              topic: s.title,
-              body: null,
-              tags: s.tags,
-              created_at: s.created_at,
-            }) as RecordsTimelineRecord,
-        );
-      } catch {
-        // records-only fallback (sources stay best-effort)
-      }
-      if (!alive) return;
-      if (recordsFailed) {
-        setLoadError(true);
-        setLoading(false);
-        return;
-      }
+    // (글/링크/사진/file) in sources. Either failed read makes the list unknown,
+    // including a source-only account; a partial result must not look empty.
+    // One deadline bounds the whole paged read and sources, not each page.
+    const work = Promise.all([
+      listAllRecords(userId, { signal: controller.signal }),
+      listSourcePieces(userId),
+    ]).then(([recs, sources]) => {
+      const srcRecs: RecordsTimelineRecord[] = sources.map((s) => ({
+        id: s.id, origin: "source", sourceId: s.sourceId, kind: "note",
+        summary: s.title, topic: s.title, body: null, tags: s.tags, created_at: s.created_at,
+      }));
       const merged = [...recs, ...srcRecs].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-      setRecords(merged);
-      setLoading(false);
-    })();
+      return merged;
+    });
+    void withTimeout(work, WIKI_LIST_READ_TIMEOUT_MS, "Wiki records")
+      .then((rows) => {
+        if (current()) setRecordsRead({ ownerId: userId, epoch: accountEpoch, reloadKey, rows, failed: false });
+      })
+      .catch(() => {
+        if (current()) setRecordsRead({ ownerId: userId, epoch: accountEpoch, reloadKey, rows: NO_RECORDS, failed: true });
+      })
+      .finally(() => { unsubscribe(); controller.abort(); });
     return () => {
       alive = false;
+      unsubscribe();
+      controller.abort();
     };
-  }, [userId, reloadKey]);
+  }, [userId, authLoading, accountEpoch, reloadKey]);
 
   // Reload on focus re-entry so a delete on the record detail (then router.back)
   // is reflected here; the shared helper skips the initial mount, so this never
@@ -405,23 +395,27 @@ export function DeepSpaceRecordsScreen() {
     if (!userId) return;
     let alive = true;
     loadRoleCards(userId).then(async (cards) => {
+      if (!alive || !isCurrentAccountEpoch(accountEpoch)) return;
       const evidence = await listRecordsByIds(userId, roleEvidenceIds(cards)).catch(() => []);
-      if (alive) {
+      if (alive && isCurrentAccountEpoch(accountEpoch)) {
         setRoleCards(cards);
         setRoleEvidenceRecords(evidence as RecordsTimelineRecord[]);
         setRoleCardsUserId(userId);
+        setRoleCardsEpoch(accountEpoch);
       }
     }).catch(() => {
-      if (alive) {
+      if (alive && isCurrentAccountEpoch(accountEpoch)) {
         setRoleCards([]);
         setRoleEvidenceRecords([]);
         setRoleCardsUserId(userId);
+        setRoleCardsEpoch(accountEpoch);
       }
     });
     return () => { alive = false; };
-  }, [userId, reloadKey]);
-  const visibleRoleCards = roleCardsUserId === userId ? roleCards : [];
-  const visibleRoleEvidence = roleCardsUserId === userId ? roleEvidenceRecords : [];
+  }, [userId, accountEpoch, reloadKey]);
+  const ownsRoleCards = roleCardsUserId === userId && roleCardsEpoch === accountEpoch;
+  const visibleRoleCards = ownsRoleCards ? roleCards : [];
+  const visibleRoleEvidence = ownsRoleCards ? roleEvidenceRecords : [];
 
   // Stable across renders so the memoized RecordCard's onPress prop does not
   // change (React.memo keeps unchanged rows from re-rendering on filter taps).
