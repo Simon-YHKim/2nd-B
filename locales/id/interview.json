@@ -16,6 +16,7 @@
   "drill": {
     "opening": "Mulai dari periode hidup yang mana? Satu adegan yang terlintas sudah cukup.",
     "placeholder": "Tulis sebanyak atau sesedikit yang kamu mau",
+    "processingNotice": "AI membaca jawaban Anda untuk membuat pertanyaan berikutnya. Jawaban Anda menjadi catatan tersimpan hanya saat Anda memilih untuk menyimpan.",
     "send": "Kirim",
     "thinking": "Menyiapkan pertanyaan…",
     "enough": "Cukup untuk sekarang",

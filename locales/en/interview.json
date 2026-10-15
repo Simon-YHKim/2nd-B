@@ -16,6 +16,7 @@
   "drill": {
     "opening": "Which time in your life would you like to talk about? Start with a scene you remember.",
     "placeholder": "Write as much or as little as you like",
+    "processingNotice": "AI reads your answers to create the next question. Your answers become a saved record only when you choose to save.",
     "send": "Send",
     "thinking": "Preparing the next question…",
     "enough": "Stop here",
