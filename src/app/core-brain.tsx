@@ -2,8 +2,7 @@ import { ScreenModal } from "@/components/ui/ScreenModal";
 import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable, PhoneTouchableOpacity as TouchableOpacity } from "@/components/phone/PhoneUIKit";
 // Polaris / Core Brain screen (core-brain pack v2). Internal route and data
 // keys stay "Core Brain"; user-facing name is "북극성". Reuses the read-only
-// persona snapshot
-// + buildCenterCards (the §7-2 cards) and a real records fetch for the
+// saved persona projection and a real records fetch for the
 // evidence drawer. Per the pack's data_contract we never fabricate
 // unsupported summaries — sections fall back to a collecting/empty state.
 //
@@ -34,21 +33,15 @@ import { PolarisCategorySlots } from "@/components/deep-space/PolarisCategorySlo
 import { MdButton, m3TextStyle } from "@/components/m3";
 import { m3, m3BrightnessBand } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
-import {
-  loadSelfPortraitSignals,
-  type PersonaCard,
-  type SelfPortraitSignals,
-} from "@/lib/persona/build";
 import { STRENGTH_LABEL_EN, STRENGTH_LABEL_KO } from "@/lib/persona/strengths-survey";
 import { OFFERABLE } from "@/lib/assess/registry";
 import { SEVEN_STARS, type SevenStarId } from "@/lib/persona/seven-stars";
-import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
 import { evidenceTypeLabel, type EvidenceShard } from "@/lib/persona/evidence";
 import { useCoreEvidenceRead } from "@/lib/persona/use-core-evidence-read";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { claimQaPolarisAuto, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
 import { requestGlobalCue } from "@/lib/audio/global-cues";
-import { useCoreRoleReads } from "@/lib/persona/use-core-role-reads";
+import { useCoreCompanionReads, useCoreRoleReads } from "@/lib/persona/use-core-role-reads";
 import { useCompanionMoment } from "@/components/art/CompanionSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
@@ -101,31 +94,6 @@ function CoreShell({ children, deck = false }: { children: ReactNode; deck?: boo
 const VALIDATED_TOOLS = OFFERABLE.filter((a) => a.provenance === "validated");
 const SELF_TOOLS = OFFERABLE.filter((a) => a.provenance !== "validated");
 
-function hasUnrecordedPersonaProvenance(persona: PersonaCard): boolean {
-  return Object.values(persona.traitConfidence ?? {}).some(
-    (confidence) => confidence.source === "default",
-  );
-}
-
-function buildCoreCenterCards(
-  persona: PersonaCard,
-  locale: "en" | "ko",
-  t: (key: string) => string,
-): CenterCard[] {
-  if (!hasUnrecordedPersonaProvenance(persona)) return buildCenterCards(persona, locale);
-
-  // Screen copy, so it reads core-brain keys in the language on screen
-  // (Q-261005-01 = A); `locale` above still picks the en/ko persona data.
-  return [
-    {
-      id: "pieces",
-      title: t("savedResult.title"),
-      body: t("savedResult.body"),
-      accent: cosmic.pixelLamp,
-    },
-  ];
-}
-
 export default function CoreBrain() {
   return <CoreBrainScreen />;
 }
@@ -144,7 +112,6 @@ function CoreBrainScreen() {
   const [reloadKey, setReloadKey] = useState(0);
   const [evidenceReloadKey, setEvidenceReloadKey] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [portraitSignals, setPortraitSignals] = useState<SelfPortraitSignals | null>(null);
   const [rolePending, setRolePending] = useState(false);
   const [roleError, setRoleError] = useState(false);
   const [roleErrorCode, setRoleErrorCode] = useState("");
@@ -155,11 +122,14 @@ function CoreBrainScreen() {
 
   const primaryRead = useCoreEvidenceRead(userId, !loading && hasProfile === true && isMinor !== null,
     locale, reloadKey, evidenceReloadKey, () => setReloadKey((key) => key + 1), () => fireCompanion("connectionFound"));
-  const { persona = null, evidence = [], sevenLevels = null, strengths = null } = primaryRead.data ?? {};
+  const { persona = null, evidence = [], sevenLevels = null } = primaryRead.data ?? {};
   const primaryScope = primaryRead.scope;
   const primaryIsCurrent = primaryRead.isCurrent;
   const canAutoPropose = primaryRead.canAutoPropose;
   const roleReads = useCoreRoleReads(userId, primaryScope, primaryIsCurrent, primaryRead.invalidateAuto);
+  const companionReads = useCoreCompanionReads(userId, primaryScope, primaryIsCurrent, primaryRead.invalidateAuto);
+  const portraitSignals = companionReads.portrait.data;
+  const strengths = companionReads.strengths.data;
   const { beginMutation } = roleReads;
   const visibleRoleCards = roleReads.roles.data ?? [];
   const rolesReady = roleReads.roles.status === "ready";
@@ -167,33 +137,13 @@ function CoreBrainScreen() {
   const quota = roleReads.quota.status === "ready" ? roleReads.quota.data : null;
   useEffect(() => { setRolePending(false); }, [primaryScope]);
   useEffect(() => { setRoleError(false); setRoleErrorCode(""); }, [userId]);
-  useEffect(() => { setDrawerOpen(false); setPortraitSignals(null); }, [primaryScope]);
+  useEffect(() => { setDrawerOpen(false); }, [primaryScope]);
 
   // Refocus and retry are reads. Neither may reactivate the initial QA proposal.
   useFocusRefetch(() => {
     primaryRead.invalidateAuto();
     setEvidenceReloadKey((key) => key + 1);
   }, Boolean(userId && hasProfile === true));
-
-  // Direct portrait measurements are optional, SELECT-only companions to the
-  // synthesized persona. Load them independently so an assessment read failure
-  // cannot turn the whole Core Brain into an error screen; focus/retry refreshes
-  // them without calling the LLM or writing a persona row.
-  useEffect(() => {
-    if (loading || !userId || hasProfile !== true || isMinor === null) return;
-    let cancelled = false;
-    loadSelfPortraitSignals(userId)
-      .then((signals) => {
-        if (!cancelled) setPortraitSignals(signals);
-      })
-      .catch(() => {
-        // Optional field data stays at its prior/collecting state; the main
-        // evidence loader owns the screen-level error surface.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]);
 
   // Simon explicitly authorized one dev-only draft for the existing QA
   // account. Everyone else's mount path remains read-only. No auto approval.
@@ -390,8 +340,8 @@ function CoreBrainScreen() {
     );
   }
 
-  const cards = persona ? buildCoreCenterCards(persona, locale, t) : [];
-  const pieces = cards.find((c) => c.id === "pieces");
+  // Saved rows do not carry measured provenance; their existing copy stays local.
+  const pieces = persona ? { title: t("savedResult.title"), body: t("savedResult.body") } : null;
 
   // 나의 모습 — the 5-field self-portrait (who / forWhom / goal / do / fuel).
   // Data contract: only measured fields are filled. Collecting rows point to an
@@ -399,7 +349,16 @@ function CoreBrainScreen() {
   // The remaining three fields disclose that automatic summary is not wired yet.
   // Trait provenance gates generated role/direction copy, not these independent
   // measurement reads. They refresh on focus and can predate persona synthesis.
-  const portrait = buildSelfPortrait({ persona: portraitSignals }, locale, t);
+  const portrait = companionReads.portrait.status === "ready"
+    ? buildSelfPortrait({ persona: portraitSignals }, locale, t) : null;
+  const companionStatus = (slot: "portrait" | "strengths") => {
+    const read = companionReads[slot];
+    return read.status === "loading" ? <PremiumLoadingState message={t("loading")} />
+      : read.status !== "ready" ? <View style={dsDeck.pageBody}>
+        <Text variant="caption" color="textMuted">{t("loadError")}</Text>
+        <Button label={t("tryAgain")} variant="secondary" testID={`core-${slot}-retry`} onPress={read.retry} />
+      </View> : null;
+  };
 
   const starBrightness = sevenLevels?.northStarBrightness ?? null;
 
@@ -591,7 +550,7 @@ function CoreBrainScreen() {
       body: (
         <View style={dsDeck.pageBody}>
           <Text style={dsDeck.pageHeadline}>{t("sideOfMe")}</Text>
-          <View style={styles.fieldList}>
+          {portrait ? <View style={styles.fieldList}>
             {portrait.map((field) => (
               <TouchableOpacity
                 key={field.id}
@@ -623,10 +582,10 @@ function CoreBrainScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
-          <Text variant="caption" color="textSubtle" style={{ marginTop: 8 }}>
+          </View> : companionStatus("portrait")}
+          {portrait ? <Text variant="caption" color="textSubtle" style={{ marginTop: 8 }}>
             {t("aiApprox")}
-          </Text>
+          </Text> : null}
           {strengthSummary.length > 0 ? (
             <View style={dsDeck.progressiveSummary}>
               <Text style={dsDeck.pageDescription}>
@@ -634,6 +593,7 @@ function CoreBrainScreen() {
               </Text>
             </View>
           ) : null}
+          {companionStatus("strengths")}
           <View style={dsDeck.secondaryActions}>
             <MdButton variant="outlined" label={t("brightness")} onPress={() => router.push("/brightness")} />
             <MdButton variant="outlined" label={t("ratLog")} onPress={() => router.push("/ratifications")} />

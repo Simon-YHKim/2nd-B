@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isTimeoutError, withTimeout } from "../async/with-timeout";
+import { isTimeoutError, TimeoutError, withTimeout } from "../async/with-timeout";
+import { getSupabaseClient } from "../supabase/client";
+import { loadLatestStrengths, loadSelfPortraitSignals } from "./build";
 import { loadRoleCardsStrict, type RoleCard } from "./role-cards";
 import { loadPolarisQuotaStrict } from "./polaris-quota";
 
@@ -8,9 +10,9 @@ type Attempt = { active: boolean; cancel: () => void };
 type State<T> = { scope: object; attempt: Attempt; status: "loading" | "error" | "timeout"; data: null }
   | { scope: object; attempt: Attempt; status: "ready"; data: T };
 
-/** Private to the two Core slots; retries never reload evidence or each other. */
+/** Private to the Core slots; retries never reload evidence or each other. */
 function useOwnedSlot<T>(owner: string | null, scope: object | null, isCurrent: () => boolean,
-  invalidateAuto: () => void, load: (userId: string) => Promise<T>) {
+  invalidateAuto: () => void, load: (userId: string, assertCurrent: () => void) => Promise<T>) {
   const key = useRef(scope); key.current = scope;
   const attemptRef = useRef<Attempt | null>(null);
   const [state, setState] = useState<State<T> | null>(null);
@@ -24,16 +26,22 @@ function useOwnedSlot<T>(owner: string | null, scope: object | null, isCurrent: 
     const attempt: Attempt = { active: true, cancel: () => { attempt.active = false; rejectCancellation(); } };
     attemptRef.current = attempt;
     const owns = () => current() && attemptRef.current === attempt && attempt.active;
+    const deadline = Date.now() + CORE_ROLE_READ_TIMEOUT_MS;
+    let finished = false;
+    const requireCurrent = () => {
+      if (!owns() || finished) throw new Error("Core read no longer owned");
+      if (Date.now() >= deadline) throw new TimeoutError(CORE_ROLE_READ_TIMEOUT_MS, "Core companion read");
+    };
     setState({ scope, attempt, status: "loading", data: null });
     const work = Promise.resolve().then(() => {
-      if (!owns()) throw new Error("Core role read no longer owned");
-      return load(owner);
+      requireCurrent();
+      return load(owner, requireCurrent);
     });
     void withTimeout(Promise.race([work, cancelled]), CORE_ROLE_READ_TIMEOUT_MS, "Core role status")
-      .then((data) => { if (owns()) setState({ scope, attempt, status: "ready", data }); })
+      .then((data) => { requireCurrent(); setState({ scope, attempt, status: "ready", data }); })
       .catch((error: unknown) => {
         if (owns()) setState({ scope, attempt, status: isTimeoutError(error) ? "timeout" : "error", data: null });
-      });
+      }).finally(() => { finished = true; });
   }, [scope, owner, current, cancel, load]);
   useEffect(() => { start(); return cancel; }, [start, cancel]);
   const publish = useCallback((data: T) => {
@@ -50,6 +58,16 @@ function useOwnedSlot<T>(owner: string | null, scope: object | null, isCurrent: 
     start();
   };
   return { status: visible?.status ?? "loading", data: visible?.data ?? null, retry, start, cancel, publish };
+}
+
+const loadCoreStrengths = (owner: string) => loadLatestStrengths(getSupabaseClient(), owner);
+
+/** Optional measured panels share ownership, but never another slot's result. */
+export function useCoreCompanionReads(owner: string | null, scope: object | null,
+  isCurrent: () => boolean, invalidateAuto: () => void) {
+  const portrait = useOwnedSlot(owner, scope, isCurrent, invalidateAuto, loadSelfPortraitSignals);
+  const strengths = useOwnedSlot(owner, scope, isCurrent, invalidateAuto, loadCoreStrengths);
+  return { portrait, strengths };
 }
 
 export function useCoreRoleReads(owner: string | null, scope: object | null,
