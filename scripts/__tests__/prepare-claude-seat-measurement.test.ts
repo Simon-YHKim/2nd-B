@@ -18,6 +18,9 @@ describe("T68 offline preparation boundary", () => {
       expect(result.liveCalls).toBe(0);
       expect(result.modelQualityVerdict).toBe("NOT_MEASURED");
       expect(result.seats.filter((seat) => seat.claudeProxySeated).map((seat) => seat.purpose).sort()).toEqual(["persona_narrative", "persona_synthesis"]);
+      // A source seat remaining callable is not authority to resume a frozen decision.
+      expect(result.seats.find((seat) => seat.purpose === "persona_narrative")?.decision).toBe("frozen");
+      expect(corpus().qualityCases.every((sample: { seats: string[] }) => !sample.seats.includes("persona_narrative"))).toBe(true);
       expect(result.routingProbe.observed).toEqual({ ocr: "openai", voice: "openai", embedding: "openai" });
       expect(result.seats.find((seat) => seat.purpose === "interview_probe")?.literalCallSites).toHaveLength(1);
       expect(result.safetyRows.find((row) => row.id === "ko-direct" && row.uiLocale === "ko" && row.age === "adult")?.observedHotline).toBe("KR_109");

@@ -76,9 +76,9 @@
     },
     {
       "purpose": "persona_narrative",
-      "decision": "opus_conditional",
+      "decision": "frozen",
       "source": "src/lib/persona/build.ts",
-      "reuse": "narrative builder in build; B1 may freeze"
+      "reuse": "Source caller remains; RD-261007-04 B1 freezes this seat, no new candidate measurement or activation"
     },
     {
       "purpose": "persona_synthesis",
@@ -289,7 +289,6 @@
       "id": "wiki-grounding",
       "seats": [
         "secondb_chat",
-        "persona_narrative",
         "self_model_propose",
         "persona_synthesis",
         "northstar_propose"

@@ -1,6 +1,7 @@
 # T68: Claude 좌석별 측정 준비
 
-기준: main `63cacead6b43815b82666b793dd619bf1a08301a` (2026-10-15).
+인벤토리 기준: main `63cacead6b43815b82666b793dd619bf1a08301a` (2026-10-15).
+최신 결정 보정: 10-07 02:24 RD-261007-04의 B1 동결을 반영했다.
 상태: **오프라인 인벤토리·고정 합성 입력 준비. 모델 품질은 아직 측정하지 않았다.**
 앱 코드, 운영 설정, 프록시, 키, DB, 의존성 변경과 모델 실호출은 모두 0이다.
 재설계 전체 완료나 Claude 전환 완료로 세지 않는다.
@@ -14,6 +15,9 @@
 - [10-15 확정 답](../../DECISIONS.md) 14:55: Q-261015-86 유효.
   Q85의 큰 재설계는 별도 로드맵으로 두고 현재 큐를 먼저 마친다.
   임베딩과 음성 받아쓰기는 OpenAI에 유지한다. 구독 등급에 따른 모델 품질 차이는 만들지 않는다.
+- **B1은 이미 확정됐다.** 10-07 02:24 RD-261007-04는 `persona_narrative`를 동결한다.
+  앞선 01:20 표의 “B1에 따라 동결 가능”은 현재 결정 상태가 아니다. 이 좌석은 실제 코드가 남아
+  인벤토리에는 포함하지만 신규 후보 측정·활성화 대상에서는 제외한다. D1 전환 결정은 유지한다.
 - **설정만 바꿔서는 이 결정이 구현되지 않는다.** `claude-proxy`의 공유 허용목록과
   모델 표에는 `persona_narrative`, `persona_synthesis` 둘만 있다. 대화·인터뷰 등은
   `ANTHROPIC_PURPOSE_MODELS`에 이름을 써도 먼저 `purpose_not_seated`로 거부된다.
@@ -43,7 +47,7 @@
 | `self_model_propose` | Opus | `src/lib/persona/propose-self-model.ts` | 아니오 |
 | `persona_synthesis` | Opus | `src/lib/persona/persona-synthesis.ts` | 예 |
 | `northstar_propose` | Opus | `src/lib/persona/northstar.ts` | 아니오 |
-| `persona_narrative` | Opus, B1에 따라 동결 가능 | `src/lib/persona/build.ts` | 예 |
+| `persona_narrative` | **동결** (02:24 RD-261007-04가 B1 확정) | `src/lib/persona/build.ts` | 예 |
 | `capture_ocr` | Claude 비전, 등급은 측정 | `src/lib/wiki/capture-image.ts` | 아니오, 이미지 경로도 없음 |
 | `advisor` | 동결 | `src/lib/llm/boundary.ts:callAdvisor` | 아니오 |
 | `gap_synthesize` | 동결 | `src/components/deep-space/DeepSpaceViews.tsx` | 아니오 |
@@ -194,7 +198,7 @@ T23의 후처리 손실과 함께 실측 코퍼스에 보존하며, 이 결과�
 ## 남은 순서
 
 1. 서버 소유자가 제공할 검증된 모델 ID·접근 상태·측정 전용 경로·가격/상한을 확인한다.
-2. 현행 11개 전환 대상과 기존 대시보드 3개에 실제 builder/parser/후처리 어댑터를 붙인다.
+2. 현행 10개 전환 대상과 기존 대시보드 3개에 실제 builder/parser/후처리 어댑터를 붙인다.
    동결/은퇴 좌석과 `link_reanalyze`의 미구현 상태는 별도로 유지한다.
 3. OCR 전용 라우팅과 Claude 이미지 입력의 서버 계약을 리뷰 가능한 별도 PR로 만든다.
 4. 승인한 Sonnet/Opus 배치를 측정하고 미달이면 승급·지시문 수정을 재측정한다.

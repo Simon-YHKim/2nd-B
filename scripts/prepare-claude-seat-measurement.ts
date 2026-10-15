@@ -9,7 +9,7 @@ import { embedVendor, multimodalVendor, resolveVendorForPurpose } from "../src/l
 import type { PromptPurpose } from "../src/lib/llm/types";
 
 const sha = (value: string | Buffer): string => createHash("sha256").update(value).digest("hex");
-type Decision = "sonnet" | "opus" | "opus_conditional" | "vision" | "frozen" | "retire" | "retain_openai" | "separate_safety" | "existing_sonnet";
+type Decision = "sonnet" | "opus" | "vision" | "frozen" | "retire" | "retain_openai" | "separate_safety" | "existing_sonnet";
 interface Seat { purpose: string; decision: Decision; source: string; reuse: string }
 interface Corpus {
   version: string; baselineRevision: string; syntheticOnly: boolean;
@@ -129,7 +129,7 @@ export function prepareClaudeSeatMeasurement(root: string, corpusOverride?: Corp
   const seats = corpus.seats.map((seat) => {
     const sourceBytes = readFileSync(join(root, seat.source), "utf8");
     const covered = [...corpus.qualityCases, ...corpus.ocrFixtures].some((sample) => sample.seats.includes(seat.purpose));
-    if (["sonnet", "opus", "opus_conditional", "vision", "existing_sonnet"].includes(seat.decision) && !covered) throw new Error(`Missing synthetic fixture: ${seat.purpose}`);
+    if (["sonnet", "opus", "vision", "existing_sonnet"].includes(seat.decision) && !covered) throw new Error(`Missing synthetic fixture: ${seat.purpose}`);
     return { ...seat, sourceSha256: sha(sourceBytes), literalCallSites: calls[seat.purpose] ?? [],
       routingEvidence: board.includes(seat.purpose) ? "server-only dashboard adapter" : purposes.includes(seat.purpose) ? routes[seat.purpose] : "separate boundary method",
       routingScope: "checked-in eas.preview fixture only; not current APK or repository Variables",
