@@ -33,7 +33,7 @@
   "close": "닫기",
   "polaris": "북극성",
   "polarisAggregate": "북극성 · 종합",
-  "currentBrightness": "지금 밝기 · 기록이 쌓인 만큼 밝아집니다",
+  "currentBrightness": "지금 밝기 · 인터뷰 별 여섯의 평균 밝기를 바탕으로 합니다. 인터뷰 별의 L5는 제안을 직접 확인한 뒤에만 열립니다.",
   "roleEmpty": "일곱 별에서 남긴 인터뷰가 페르소나 제안의 재료가 됩니다. 아직 승인된 카드는 없습니다.",
   "roleStatusRatified": "승인됨",
   "roleStatusProposed": "제안 · 승인 전",
