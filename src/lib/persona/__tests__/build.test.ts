@@ -261,6 +261,12 @@ describe("loadSelfPortraitSignals", () => {
 });
 
 describe("Core Brain read-only mount", () => {
+  test("an opted-in snapshot guard can reject before any query or synthesis", async () => {
+    reset();
+    await expect(loadPersonaSnapshot("u1", () => { throw new Error("read no longer owned"); })).rejects.toThrow("read no longer owned");
+    expect(selectCalls).toHaveLength(0); expect(upsertCalls).toHaveLength(0); expect(callLlm).not.toHaveBeenCalled();
+  });
+
   beforeEach(reset);
 
   test("keeps legacy persisted provenance conservative even when latest IPIP values match", async () => {
@@ -392,15 +398,12 @@ describe("Core Brain read-only mount", () => {
   test("loads a SELECT-only persona snapshot instead of rebuilding on mount", () => {
     const root = join(__dirname, "..", "..", "..", "..");
     const source = readFileSync(join(root, "src/app/core-brain.tsx"), "utf8");
-    const mountStart = source.indexOf("useEffect(() => {");
-    const focusRefreshStart = source.indexOf("useFocusRefetch(", mountStart);
-    const mount = source.slice(mountStart, focusRefreshStart);
-
-    expect(mountStart).toBeGreaterThan(-1);
-    expect(focusRefreshStart).toBeGreaterThan(mountStart);
-    expect(mount).toContain("loadPersonaSnapshot(userId)");
-    expect(mount).not.toContain("buildPersona(");
-    expect(mount).not.toMatch(/\.(?:insert|update|upsert|delete)\(/);
+    const reader = readFileSync(join(root, "src/lib/persona/use-core-evidence-read.ts"), "utf8");
+    expect(source).toContain("const primaryRead = useCoreEvidenceRead(");
+    expect(reader).toContain("await loadPersonaSnapshot(owner, requireCurrent)");
+    expect(reader).toContain("const fullRead = previous === null");
+    expect(reader).not.toContain("buildPersona(");
+    expect(reader).not.toMatch(/\.(?:insert|update|upsert|delete)\(/);
   });
 });
 

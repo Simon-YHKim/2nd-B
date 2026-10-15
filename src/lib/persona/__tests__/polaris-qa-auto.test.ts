@@ -100,4 +100,29 @@ describe("QA one-shot automatic generation claim", () => {
     mockReadUser.mockResolvedValue({ data: { id: "qa-future", subscription_tier: "brain", subscription_expires_at: "2999-01-01T00:00:00Z" }, error: null });
     expect(await claimQaPolarisAuto("qa-future", false, true)).toBe(true);
   });
+  it("does not begin an invalidated screen's eligibility reads", async () => {
+    expect(await claimQaPolarisAuto("guard-entry", false, true, () => false)).toBe(false);
+    expect(mockGetUser).not.toHaveBeenCalled(); expect(mockRpc).not.toHaveBeenCalled(); expect(storage.size).toBe(0);
+  });
+
+  it.each(["auth", "quota"])("a scope lost during %s cannot consume the persistent QA attempt", async (stage) => {
+    const owner = `guard-${stage}`;
+    let valid = true;
+    let resolve!: (result: unknown) => void;
+    const pending = new Promise((done) => { resolve = done; });
+    mockGetUser.mockResolvedValue({ data: { user: { id: owner, email: "qa.ai.b18807@example.com" } } });
+    if (stage === "auth") mockGetUser.mockReturnValue(pending);
+    else mockRpc.mockReturnValue(pending);
+    const claim = claimQaPolarisAuto(owner, false, true, () => valid);
+    for (let i = 0; i < 12; i++) await Promise.resolve();
+    valid = false;
+    resolve(stage === "auth" ? { data: { user: { id: owner, email: "qa.ai.b18807@example.com" } } }
+      : { data: { available: true, intro_remaining: 2, tier: "brain" }, error: null });
+    expect(await claim).toBe(false); expect(storage.size).toBe(0);
+    // A cancelled view did not consume the authorized once-only opportunity.
+    mockGetUser.mockResolvedValue({ data: { user: { id: owner, email: "qa.ai.b18807@example.com" } } });
+    mockRpc.mockResolvedValue({ data: { available: true, intro_remaining: 2, tier: "brain" }, error: null });
+    expect(await claimQaPolarisAuto(owner, false, true)).toBe(true);
+  });
+
 });

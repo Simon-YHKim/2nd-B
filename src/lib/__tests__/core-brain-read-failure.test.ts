@@ -1,0 +1,347 @@
+// Actual shipped screen + primary hook + evidence/snapshot/role/quota/QA-claim
+// functions. Only native views, transport and explicit generation are replaced.
+import type { ReactElement } from "react";
+import { hookHarness } from "../nav/__tests__/hook-harness";
+import { __resetAccountEpochForTests, beginAccountOwnerTransition, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../auth/account-epoch";
+import { CORE_EVIDENCE_READ_TIMEOUT_MS } from "../persona/use-core-evidence-read";
+import { claimQaPolarisAuto, proposeRoleCards } from "../persona/role-cards";
+
+type Reply = { data: unknown; error?: unknown };
+type Query = { table: string; columns: string; owner: string | null; limit?: number; tags?: string[] };
+let mockHarness: ReturnType<typeof hookHarness>;
+let mockAuth = { userId: "" as string | null, loading: false, hasProfile: true as boolean | null, isMinor: false as boolean | null };
+let mockFocused = true;
+let mockEligible = false;
+let mockOverride: (query: Query) => Reply | Promise<Reply> | undefined;
+let mockStatus: () => Reply | Promise<Reply>;
+const mockQueries: Query[] = [];
+const mockPush = jest.fn();
+const mockWrites = jest.fn((..._args: unknown[]) => { throw new Error("Read attempted a server mutation"); });
+const mockLevels = jest.fn<Promise<{ northStarBrightness: number }>, [string]>(async () => ({ northStarBrightness: 0.6 }));
+const mockStorage = new Map<string, string>();
+const mockStoreWrite = jest.fn((key: string, value: string) => { mockStorage.set(key, value); });
+const record = (owner: string) => ({ id: `${owner}-record`, kind: "journal", topic: `${owner}-record`, created_at: "2026-10-15T00:00:00Z", tags: [] });
+function defaultReply(query: Query): Reply {
+  if (query.table === "users") return { data: { id: query.owner, subscription_tier: "brain", subscription_expires_at: null } };
+  if (query.table === "personas") return { data: { version: 1, traits: { openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, neuroticism: 0.5 }, patterns: {}, values: [], markdown_export: "" } };
+  return { data: query.table === "records" && query.columns.includes("id, kind, topic") ? [record(query.owner!)] : [] };
+}
+jest.mock("../supabase/client", () => ({ getSupabaseClient: () => ({
+  auth: { getUser: async () => ({ data: { user: { id: mockAuth.userId, email: mockEligible ? "qa.ai.b18807@example.com" : "ordinary@example.com" } } }) },
+  rpc: (name: string, ...args: unknown[]) => name === "polaris_generation_status" ? Promise.resolve(mockStatus()) : mockWrites(name, ...args),
+  from: (table: string) => {
+    const query: Query = { table, columns: "", owner: null };
+    const chain = {
+      select(columns: string) { query.columns = columns; return chain; },
+      eq(key: string, value: unknown) { if (key === "user_id" || key === "id") query.owner = String(value); return chain; },
+      contains(key: string, value: string[]) { if (key === "tags") query.tags = value; return chain; }, order() { return chain; }, limit(count: number) { query.limit = count; return chain; }, maybeSingle() { return chain; },
+      insert: mockWrites, update: mockWrites, upsert: mockWrites, delete: mockWrites,
+      then(resolve: (reply: Reply) => unknown, reject: (error: unknown) => unknown) {
+        mockQueries.push({ ...query }); return Promise.resolve(mockOverride(query) ?? defaultReply(query)).then(resolve, reject);
+      },
+    }; return chain;
+  },
+}) }));
+jest.mock("../env", () => ({ getEnv: () => ({ EXPO_PUBLIC_LLM_MODE: "live" }) }));
+jest.mock("../persona/load-seven-levels", () => ({ loadSevenLevels: (owner: string) => mockLevels(owner) }));
+jest.mock("../persona/role-cards", () => {
+  const actual = jest.requireActual<typeof import("../persona/role-cards")>("../persona/role-cards");
+  return { ...actual, claimQaPolarisAuto: jest.fn(actual.claimQaPolarisAuto), proposeRoleCards: jest.fn(async () => []), ratifyRoleCard: (...args: unknown[]) => mockWrites(...args) };
+});
+jest.mock("react-native", () => ({ Platform: { OS: "web" }, StyleSheet: { create: (value: unknown) => value, absoluteFill: {} } }));
+jest.mock("react-native-svg", () => ({ Svg: "Svg", Rect: "Rect" }));
+jest.mock("react-i18next", () => ({ useTranslation: () => ({ i18n: { language: "ko" }, t: (key: string, values?: Record<string, unknown>) => key + (values ? JSON.stringify(values) : "") }) }));
+jest.mock("expo-router", () => ({ Redirect: "Redirect", useFocusEffect: (callback: () => void | (() => void)) => {
+  jest.requireActual<typeof import("react")>("react").useEffect(() => mockFocused ? callback() : undefined, [callback, mockFocused]);
+} }));
+jest.mock("@/lib/nav/phone-embed", () => ({ useAppRouter: () => ({ push: mockPush }) }));
+jest.mock("@/lib/auth/AuthContext", () => ({ useAuth: () => mockAuth }));
+jest.mock("@/lib/settings/readable-font", () => ({ subscribeFontStyle: () => () => {} }));
+jest.mock("@/components/phone/PhoneUIKit", () => ({ PhoneView: "View", PhoneScrollView: "ScrollView", PhonePressable: "Pressable", PhoneTouchableOpacity: "TouchableOpacity" }));
+jest.mock("@/components/ui/Text", () => ({ Text: "Text" }));
+jest.mock("@/components/ui/ScreenModal", () => ({ ScreenModal: "ScreenModal" }));
+jest.mock("@/components/ui/Button", () => ({ Button: "Button" }));
+jest.mock("@/components/premium", () => ({ PremiumLoadingState: "PremiumLoadingState" }));
+jest.mock("@/components/pixel/PixelDither", () => ({ PixelScrim: "PixelScrim" }));
+jest.mock("@/components/pixel/PixelStarSvg", () => ({ PixelStarSvg: "PixelStarSvg" }));
+jest.mock("@/components/deep-space/PolarisCardOverlay", () => ({ PolarisCardOverlay: "PolarisCardOverlay", PolarisCardSurface: "PolarisCardSurface" }));
+jest.mock("@/components/deep-space/PolarisDeck", () => ({ PolarisDeck: "PolarisDeck" }));
+jest.mock("@/components/deep-space/PolarisCategorySlots", () => ({ PolarisCategorySlots: "PolarisCategorySlots" }));
+jest.mock("@/components/m3", () => ({ MdButton: "MdButton", m3TextStyle: () => ({}) }));
+jest.mock("@/components/art/CompanionSprite", () => ({ useCompanionMoment: () => ({ fire: jest.fn() }) }));
+jest.mock("@/components/art/IslandArt", () => ({ IslandArt: "IslandArt" }));
+
+let Screen: () => ReactElement;
+let ownerNumber = 0;
+const spies: jest.SpyInstance[] = [];
+const oldWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+const oldDev = Object.getOwnPropertyDescriptor(globalThis, "__DEV__");
+beforeAll(() => {
+  const React = jest.requireActual<typeof import("react")>("react");
+  spies.push(jest.spyOn(React, "useState").mockImplementation(((initial: unknown) => mockHarness.hooks.useState(initial)) as typeof React.useState));
+  spies.push(jest.spyOn(React, "useRef").mockImplementation(((initial: unknown) => mockHarness.hooks.useRef(initial)) as typeof React.useRef));
+  spies.push(jest.spyOn(React, "useMemo").mockImplementation(((fn: () => unknown, deps: readonly unknown[]) => mockHarness.hooks.useMemo(fn, deps)) as typeof React.useMemo));
+  spies.push(jest.spyOn(React, "useCallback").mockImplementation(((fn: unknown, deps: readonly unknown[]) => mockHarness.hooks.useCallback(fn, deps)) as typeof React.useCallback));
+  spies.push(jest.spyOn(React, "useEffect").mockImplementation(((fn: () => void | (() => void), deps: readonly unknown[]) => mockHarness.hooks.useEffect(fn, deps)) as typeof React.useEffect));
+  spies.push(jest.spyOn(React, "useSyncExternalStore").mockImplementation(((subscribe, snapshot) => mockHarness.hooks.useSyncExternalStore(subscribe, snapshot)) as typeof React.useSyncExternalStore));
+  const Route = jest.requireActual<typeof import("../../app/core-brain")>("../../app/core-brain").default;
+  Screen = Route().type as () => ReactElement;
+  Object.defineProperty(globalThis, "__DEV__", { configurable: true, value: true });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage: { getItem: (key: string) => mockStorage.get(key) ?? null, setItem: mockStoreWrite } } });
+});
+afterAll(() => {
+  spies.forEach((spy) => spy.mockRestore());
+  if (oldWindow) Object.defineProperty(globalThis, "window", oldWindow); else Reflect.deleteProperty(globalThis, "window");
+  if (oldDev) Object.defineProperty(globalThis, "__DEV__", oldDev); else Reflect.deleteProperty(globalThis, "__DEV__");
+});
+beforeEach(() => {
+  jest.useFakeTimers(); __resetAccountEpochForTests(); mockHarness = hookHarness();
+  mockAuth = { userId: `read-owner-${++ownerNumber}`, loading: false, hasProfile: true, isMinor: false };
+  noteResolvedOwner(mockAuth.userId); mockFocused = true; mockEligible = false;
+  mockQueries.length = 0; mockOverride = () => undefined; mockStatus = () => ({ data: { available: true, intro_remaining: 2, tier: "brain" } });
+  mockLevels.mockReset().mockResolvedValue({ northStarBrightness: 0.6 }); mockWrites.mockClear(); mockPush.mockClear();
+  mockStorage.clear(); mockStoreWrite.mockClear(); jest.mocked(claimQaPolarisAuto).mockClear(); jest.mocked(proposeRoleCards).mockClear();
+});
+afterEach(() => { mockHarness.unmount(); jest.clearAllTimers(); jest.useRealTimers(); expect(mockWrites).not.toHaveBeenCalled(); });
+
+type Element = ReactElement<{ children?: unknown; pages?: { body: unknown }[]; label?: string; accessibilityLabel?: string; visible?: boolean; disabled?: boolean; onPress?: () => void }>;
+const children = (node: Element) => [node.props.children, node.props.pages?.map((page) => page.body)];
+function nodes(value: unknown): Element[] {
+  if (Array.isArray(value)) return value.flatMap(nodes);
+  if (!value || typeof value !== "object" || !("props" in value)) return [];
+  return [value as Element, ...children(value as Element).flatMap(nodes)];
+}
+function drawn(value: unknown): string {
+  if (Array.isArray(value)) return value.map(drawn).join(" ");
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (!value || typeof value !== "object" || !("props" in value)) return "";
+  return children(value as Element).map(drawn).join(" ");
+}
+const render = () => mockHarness.render(Screen);
+async function settle() { let tree = render(); for (let i = 0; i < 45; i++) { await Promise.resolve(); tree = render(); } return tree; }
+async function flush() { for (let i = 0; i < 45; i++) await Promise.resolve(); }
+const retry = (tree: unknown) => nodes(tree).find((node) => node.props.label === "tryAgain");
+const isRecords = (query: Query) => query.table === "records" && query.columns.includes("id, kind, topic");
+const isSnapshot = (query: Query) => query.table === "personas" && query.columns.includes("version, traits");
+function failed(tree: unknown) { expect(drawn(tree)).toContain("loadError"); expect(retry(tree)).toBeDefined(); expect(drawn(tree)).not.toContain("sevenStars"); }
+function pending(tree: unknown) { expect(nodes(tree).some((node) => node.type === "PremiumLoadingState")).toBe(true); expect(retry(tree)).toBeUndefined(); }
+function deferred() { let resolve!: (reply: Reply) => void; let reject!: (reason: unknown) => void; const promise = new Promise<Reply>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
+function owner(next: string | null) { noteResolvedOwner(next); clearAccountTransition(currentAccountEpoch()); mockAuth.userId = next; }
+const noAuto = () => { expect(claimQaPolarisAuto).not.toHaveBeenCalled(); expect(mockStoreWrite).not.toHaveBeenCalled(); expect(proposeRoleCards).not.toHaveBeenCalled(); };
+
+it("preserves the 24+24 read sample and source-origin detail navigation", async () => {
+  mockOverride = (query) => query.table === "sources" ? { data: [{ id: "source-id", kind: "clip", title: "source title", captured_at: "2026-10-15T01:00:00Z", tags: [] }] } : undefined;
+  const ready = await settle();
+  expect(mockQueries.filter((q) => isRecords(q) || q.table === "sources").map((q) => [q.table, q.owner, q.limit])).toEqual([["records", mockAuth.userId, 24], ["sources", mockAuth.userId, 24]]);
+  const link = nodes(ready).find((node) => node.props.accessibilityLabel?.includes('"title":"source title"'))!;
+  link.props.onPress!(); expect(mockPush).toHaveBeenCalledWith({ pathname: "/record/[id]", params: { id: "source-id", origin: "source" } });
+});
+
+it.each(["records", "sources"])("%s failure is not an empty center, even while the other read hangs", async (stage) => {
+  mockOverride = (q) => (stage === "records" ? isRecords(q) : q.table === "sources") ? { data: null, error: { message: "offline" } }
+    : (stage === "records" ? q.table === "sources" : isRecords(q)) ? new Promise(() => {}) : undefined;
+  failed(await settle()); expect(mockQueries.filter(isSnapshot)).toHaveLength(0);
+});
+
+it("successful empty sources and records keep the existing empty center without snapshot I/O", async () => {
+  mockOverride = (q) => isRecords(q) || q.table === "sources" ? { data: [] } : undefined;
+  const empty = await settle(); expect(drawn(empty)).toContain("sevenStars"); expect(retry(empty)).toBeUndefined(); expect(mockQueries.filter(isSnapshot)).toHaveLength(0);
+});
+
+it.each(["sources", "snapshot", "strengths", "levels"])("a hanging %s stage ends after the one total ten-second deadline", async (stage) => {
+  mockOverride = (q) => stage === "sources" && q.table === "sources" || stage === "snapshot" && isSnapshot(q)
+    || stage === "strengths" && q.table === "records" && q.tags?.includes("strengths") ? new Promise(() => {}) : undefined;
+  if (stage === "levels") mockLevels.mockReturnValue(new Promise(() => {}));
+  pending(await settle()); await jest.advanceTimersByTimeAsync(CORE_EVIDENCE_READ_TIMEOUT_MS - 1); pending(await settle());
+  await jest.advanceTimersByTimeAsync(1); failed(await settle());
+});
+
+it("snapshot shares the evidence deadline and a late first stage cannot start it", async () => {
+  const evidence = deferred(); mockOverride = (q) => q.table === "sources" ? evidence.promise : undefined;
+  await settle(); await jest.advanceTimersByTimeAsync(CORE_EVIDENCE_READ_TIMEOUT_MS); failed(await settle());
+  evidence.resolve({ data: [] }); await settle(); expect(mockQueries.filter(isSnapshot)).toHaveLength(0);
+});
+
+it("starting snapshot at nine seconds does not give it a new ten seconds", async () => {
+  const evidence = deferred(); mockOverride = (q) => q.table === "sources" ? evidence.promise : isSnapshot(q) ? new Promise(() => {}) : undefined;
+  await settle(); await jest.advanceTimersByTimeAsync(9000); evidence.resolve({ data: [] }); pending(await settle()); expect(mockQueries.filter(isSnapshot)).toHaveLength(1);
+  await jest.advanceTimersByTimeAsync(1000); failed(await settle());
+});
+
+it.each(["timeout", "hold", "blur", "unmount"])("a delayed real personas row starts no dependent SELECT after %s", async (change) => {
+  const old = deferred(); mockOverride = (q) => isSnapshot(q) ? old.promise : undefined;
+  await settle(); expect(mockQueries.filter(isSnapshot)).toHaveLength(1);
+  const reads = mockQueries.length;
+  if (change === "timeout") await jest.advanceTimersByTimeAsync(CORE_EVIDENCE_READ_TIMEOUT_MS);
+  else if (change === "hold") beginAccountOwnerTransition("other");
+  else if (change === "blur") { mockFocused = false; render(); }
+  else mockHarness.unmount();
+  old.resolve(defaultReply({ table: "personas", columns: "version, traits", owner: mockAuth.userId }));
+  await flush(); expect(mockQueries).toHaveLength(reads); noAuto();
+});
+
+it.each(["resolve", "reject"])("a late snapshot %s cannot replace a successful retry", async (completion) => {
+  const old = deferred(); mockOverride = (q) => isSnapshot(q) ? old.promise : undefined;
+  await settle(); await jest.advanceTimersByTimeAsync(CORE_EVIDENCE_READ_TIMEOUT_MS); const error = await settle();
+  mockOverride = () => undefined; retry(error)!.props.onPress!(); expect(drawn(await settle())).toContain(`${mockAuth.userId}-record`);
+  if (completion === "resolve") old.resolve(defaultReply({ table: "personas", columns: "version, traits", owner: mockAuth.userId })); else old.reject(new Error("late"));
+  expect(drawn(await settle())).toContain(`${mockAuth.userId}-record`); expect(retry(await settle())).toBeUndefined();
+});
+
+it.each(["failure", "timeout"])("real eligible QA retry after %s performs zero claim, attempt-storage or proposal calls", async (mode) => {
+  mockEligible = true; mockOverride = (q) => q.table === "sources" ? mode === "timeout" ? new Promise(() => {}) : { data: null, error: { message: "offline" } } : undefined;
+  await settle(); if (mode === "timeout") await jest.advanceTimersByTimeAsync(CORE_EVIDENCE_READ_TIMEOUT_MS);
+  const error = await settle(); failed(error); noAuto();
+  mockOverride = () => undefined; const held = retry(error)!.props.onPress!; held(); await settle(); noAuto();
+  const count = mockQueries.length; held(); await settle(); expect(mockQueries).toHaveLength(count); noAuto();
+});
+
+it("an explicit proposal remains available after a read-only retry", async () => {
+  mockEligible = true; mockOverride = (q) => q.table === "sources" ? { data: null, error: { message: "offline" } } : undefined;
+  const error = await settle(); mockOverride = () => undefined; retry(error)!.props.onPress!(); const ready = await settle(); noAuto();
+  const suggest = nodes(ready).find((node) => node.props.label === "roleSuggest")!;
+  expect(suggest.props.disabled).toBe(false); suggest.props.onPress!(); await settle();
+  expect(proposeRoleCards).toHaveBeenCalledTimes(1); expect(proposeRoleCards).toHaveBeenCalledWith(mockAuth.userId, "ko", false);
+  expect(claimQaPolarisAuto).not.toHaveBeenCalled(); expect(mockStoreWrite).not.toHaveBeenCalled();
+});
+
+it("an eligible initial mount still claims once and dispatches the authorized proposal", async () => {
+  mockEligible = true; await settle();
+  expect(mockStoreWrite).toHaveBeenCalledTimes(1); expect(proposeRoleCards).toHaveBeenCalledTimes(1);
+  expect(mockStoreWrite).toHaveBeenCalledWith(`polaris.qa-auto.v2:${mockAuth.userId}`, "attempted");
+});
+
+it("ordinary users never dispatch a proposal on mount or refocus", async () => {
+  await settle(); expect(proposeRoleCards).not.toHaveBeenCalled(); const claimCount = jest.mocked(claimQaPolarisAuto).mock.calls.length;
+  mockFocused = false; render(); mockFocused = true; await settle();
+  expect(claimQaPolarisAuto).toHaveBeenCalledTimes(claimCount); expect(mockStoreWrite).not.toHaveBeenCalled(); expect(proposeRoleCards).not.toHaveBeenCalled();
+});
+
+it("refocus while an initial snapshot is pending can recover reads without activating QA auto", async () => {
+  mockEligible = true; const old = deferred(); mockOverride = (q) => isSnapshot(q) ? old.promise : undefined;
+  await settle(); mockFocused = false; render(); mockOverride = () => undefined; mockFocused = true; await settle(); noAuto();
+  old.resolve({ data: null }); await settle(); noAuto();
+});
+
+it.each(["blur", "owner", "epoch ABA", "unmount"])("an in-flight real QA quota claim cannot stamp storage after %s", async (change) => {
+  mockEligible = true; const quota = deferred(); mockStatus = () => quota.promise;
+  await settle(); expect(claimQaPolarisAuto).toHaveBeenCalled();
+  if (change === "blur") { mockFocused = false; render(); }
+  else if (change === "owner") owner("another-owner");
+  else if (change === "epoch ABA") { const first = mockAuth.userId!; beginAccountOwnerTransition("other"); noteResolvedOwner("other"); beginAccountOwnerTransition(first); noteResolvedOwner(first); clearAccountTransition(currentAccountEpoch()); }
+  else mockHarness.unmount();
+  quota.resolve({ data: { available: true, intro_remaining: 2, tier: "brain" } }); await flush();
+  expect(mockStoreWrite).not.toHaveBeenCalled(); expect(proposeRoleCards).not.toHaveBeenCalled();
+});
+
+it("a publication hold before queued primary work blocks the query", async () => {
+  render(); beginAccountOwnerTransition("other"); await flush(); expect(mockQueries.filter((q) => isRecords(q) || q.table === "sources" || isSnapshot(q))).toHaveLength(0);
+});
+
+it("a hold between evidence and snapshot prevents the dependent read without rerender", async () => {
+  const evidence = deferred(); mockOverride = (q) => q.table === "sources" ? evidence.promise : undefined;
+  await settle(); beginAccountOwnerTransition("other"); evidence.resolve({ data: [] }); await flush(); expect(mockQueries.filter(isSnapshot)).toHaveLength(0);
+});
+
+it("owner changes and same-owner epoch ABA do not expose prior primary rows", async () => {
+  const first = mockAuth.userId!; expect(drawn(await settle())).toContain(first + "-record");
+  owner("owner-other"); mockOverride = (q) => q.table === "sources" ? new Promise(() => {}) : undefined;
+  expect(drawn(render())).not.toContain(first + "-record"); pending(await settle());
+  owner(first); mockOverride = () => undefined; expect(drawn(render())).not.toContain(first + "-record"); await settle();
+  beginAccountOwnerTransition("next"); beginAccountOwnerTransition(first); pending(render());
+});
+
+it("a held retry cannot survive owner, focus or attempt replacement", async () => {
+  mockOverride = (q) => q.table === "sources" ? { data: null, error: { message: "offline" } } : undefined;
+  const held = retry(await settle())!.props.onPress!;
+  mockFocused = false; render(); const count = mockQueries.length; held(); await flush(); expect(mockQueries).toHaveLength(count);
+  mockFocused = true; owner("different-owner"); mockOverride = () => undefined; await settle(); const after = mockQueries.length;
+  held(); await settle(); expect(mockQueries).toHaveLength(after);
+});
+
+it("refocus preserves the saved snapshot and refreshes the evidence sample once", async () => {
+  await settle(); const snapshots = mockQueries.filter(isSnapshot).length; const sources = mockQueries.filter((q) => q.table === "sources").length;
+  mockFocused = false; render(); mockFocused = true; await settle();
+  expect(mockQueries.filter(isSnapshot)).toHaveLength(snapshots); expect(mockQueries.filter((q) => q.table === "sources")).toHaveLength(sources + 1);
+});
+
+it("a failed cheap refresh can recover on the next focus without rereading the saved snapshot", async () => {
+  await settle(); const snapshots = mockQueries.filter(isSnapshot).length;
+  mockFocused = false; render(); mockOverride = (q) => q.table === "sources" ? { data: null, error: { message: "offline" } } : undefined;
+  mockFocused = true; failed(await settle());
+  mockFocused = false; render(); mockOverride = () => undefined; mockFocused = true;
+  const recovered = await settle(); expect(retry(recovered)).toBeUndefined(); expect(drawn(recovered)).toContain(`${mockAuth.userId}-record`);
+  expect(mockQueries.filter(isSnapshot)).toHaveLength(snapshots); expect(proposeRoleCards).not.toHaveBeenCalled();
+});
+
+it("a role read from a replaced initial attempt cannot activate the eligible QA claim", async () => {
+  mockEligible = true; const roles = deferred();
+  mockOverride = (q) => q.table === "personas" && q.columns === "patterns" ? roles.promise : undefined;
+  await settle(); noAuto(); mockFocused = false; render(); mockFocused = true; await settle();
+  roles.resolve({ data: [] }); await settle(); noAuto();
+});
+
+it("optional read errors retain their existing fallback while their hangs are bounded", async () => {
+  mockOverride = (q) => q.table === "records" && q.tags?.includes("strengths") ? { data: null, error: { message: "offline" } } : undefined;
+  mockLevels.mockRejectedValue(new Error("levels failed"));
+  const ready = await settle(); expect(retry(ready)).toBeUndefined(); expect(drawn(ready)).toContain(`${mockAuth.userId}-record`);
+});
+
+it("a failed initial snapshot stays failed on refocus until explicit full retry", async () => {
+  mockOverride = (q) => isSnapshot(q) ? { data: null, error: { message: "snapshot failed" } } : undefined;
+  failed(await settle()); const count = mockQueries.filter(isSnapshot).length;
+  mockOverride = () => undefined; mockFocused = false; render(); mockFocused = true; failed(await settle()); expect(mockQueries.filter(isSnapshot)).toHaveLength(count);
+  retry(await settle())!.props.onPress!(); expect(retry(await settle())).toBeUndefined();
+});
+
+it("primary scope replacement closes the evidence drawer", async () => {
+  const ready = await settle(); nodes(ready).find((node) => node.props.label?.startsWith("seePieces"))!.props.onPress!();
+  expect(nodes(await settle()).find((node) => node.type === "ScreenModal")?.props.visible).toBe(true);
+  mockFocused = false; render(); mockFocused = true; await settle();
+  expect(nodes(await settle()).find((node) => node.type === "ScreenModal")?.props.visible).toBe(false);
+});
+
+it("auth/profile/minor gates block primary and auto reads until resolved", async () => {
+  mockAuth.hasProfile = null; await settle(); expect(mockQueries).toHaveLength(0); noAuto();
+  mockAuth.hasProfile = true; mockAuth.isMinor = null; await settle(); expect(mockQueries).toHaveLength(0); noAuto();
+  mockAuth.isMinor = true; await settle(); expect(mockQueries.filter(isRecords)).toHaveLength(1); expect(proposeRoleCards).not.toHaveBeenCalled();
+});
+
+it("unmount cancels waiting and ignores a late first-stage result", async () => {
+  const old = deferred(); mockOverride = (q) => q.table === "sources" ? old.promise : undefined;
+  await settle(); mockHarness.unmount(); await flush(); expect(jest.getTimerCount()).toBe(0);
+  old.resolve({ data: [] }); await flush(); expect(mockQueries.filter(isSnapshot)).toHaveLength(0);
+});
+
+// R1 found that the shared compatibility helper has its own awaited continuation.
+it.each(["timeout", "hold", "blur", "unmount", "peer failure", "epoch ABA"])("a missing-column continuation starts no query after %s", async (change) => {
+  const first = deferred();
+  mockOverride = (q) => isRecords(q) && q.columns.includes("system_tags") ? first.promise
+    : change === "peer failure" && q.table === "sources" ? { data: null, error: { message: "sources unavailable" } } : undefined;
+  await settle(); expect(mockQueries.filter(isRecords)).toHaveLength(1);
+  if (change === "timeout") await jest.advanceTimersByTimeAsync(CORE_EVIDENCE_READ_TIMEOUT_MS);
+  else if (change === "hold") beginAccountOwnerTransition("other");
+  else if (change === "blur") { mockFocused = false; render(); }
+  else if (change === "unmount") mockHarness.unmount();
+  else if (change === "epoch ABA") { const firstOwner = mockAuth.userId!; beginAccountOwnerTransition("other"); beginAccountOwnerTransition(firstOwner); }
+  first.resolve({ data: null, error: { code: "42703", message: "column records.system_tags does not exist" } });
+  await flush(); expect(mockQueries.filter(isRecords)).toHaveLength(1); noAuto();
+});
+
+it("a late missing-column response cannot append a query to a successful retry", async () => {
+  const first = deferred();
+  mockOverride = (q) => isRecords(q) && q.columns.includes("system_tags") ? first.promise : undefined;
+  await settle(); await jest.advanceTimersByTimeAsync(CORE_EVIDENCE_READ_TIMEOUT_MS); const error = await settle();
+  mockOverride = () => undefined; retry(error)!.props.onPress!(); expect(retry(await settle())).toBeUndefined();
+  const reads = mockQueries.filter(isRecords).length;
+  first.resolve({ data: null, error: { code: "42703", message: "column records.system_tags does not exist" } });
+  await settle(); expect(mockQueries.filter(isRecords)).toHaveLength(reads); noAuto();
+});
+
+it("a current missing-column response still performs the approved legacy SELECT", async () => {
+  mockOverride = (q) => isRecords(q) && q.columns.includes("system_tags")
+    ? { data: null, error: { code: "42703", message: "column records.system_tags does not exist" } } : undefined;
+  expect(drawn(await settle())).toContain(mockAuth.userId + "-record");
+  expect(mockQueries.filter(isRecords).map((q) => [q.columns.includes("system_tags"), q.owner, q.limit]))
+    .toEqual([[true, mockAuth.userId, 24], [false, mockAuth.userId, 24]]);
+});
