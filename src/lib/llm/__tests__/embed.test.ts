@@ -27,6 +27,7 @@ jest.mock("../../safety/classifier", () => ({
 }));
 
 import { embedTexts, EMBED_DIM } from "../boundary";
+import { enqueueAuditWrite } from "../audit-write-outbox";
 
 beforeEach(() => {
   auditWrites.length = 0;
@@ -64,5 +65,51 @@ describe("embedTexts (mock)", () => {
     const r = await embedTexts({ userId: "u1", texts: [], locale: "en" });
     expect(r.vectors).toEqual([]);
     expect(auditWrites).toHaveLength(0);
+  });
+});
+
+describe("mock embeddings with an optional captured execution", () => {
+  function capability() {
+    const controller = new AbortController();
+    let current = true;
+    const session = {
+      userId: "u1", epoch: 1, accessToken: "fixture-mock-token", signal: controller.signal,
+      assertCurrent: () => { if (!current) throw Object.assign(new Error("stale fixture"), { name: "AbortError" }); },
+      abort: () => controller.abort(), release: () => controller.abort(),
+    };
+    return { session, hold: () => { current = false; } };
+  }
+  afterEach(() => { jest.mocked(enqueueAuditWrite).mockImplementation(async w => { auditWrites.push(w); }); });
+
+  test("captured mock vectors and audit metadata retain the legacy values", async () => {
+    const { session } = capability(); const input = { userId: "u1", texts: ["hello", "__RED__ withheld"], locale: "en" as const };
+    const oldPath = await embedTexts(input); const captured = await embedTexts({ ...input, session });
+    expect(captured.vectors).toEqual(oldPath.vectors);
+    expect(captured.audit).toMatchObject({ modelUsed: oldPath.audit.modelUsed, safetyZone: "red", purpose: "embed_index" });
+    expect(enqueueAuditWrite).toHaveBeenLastCalledWith(expect.objectContaining({ ownerUserId: "u1" }), expect.objectContaining({ userId: "u1", accessToken: "fixture-mock-token", signal: session.signal }));
+    expect(auditWrites).toHaveLength(2);
+  });
+
+  test.each(["owner", "signal"])("%s mismatch prevents even mock audit", async reason => {
+    const { session } = capability();
+    await expect(embedTexts({ userId: reason === "owner" ? "other" : "u1", texts: ["hello"], locale: "en", session, signal: reason === "signal" ? new AbortController().signal : session.signal })).rejects.toThrow();
+    expect(auditWrites).toHaveLength(0);
+  });
+
+  test.each(["abort", "hold", "hold-and-reject"])("%s during mock audit cannot return vectors", async reason => {
+    const { session, hold } = capability();
+    jest.mocked(enqueueAuditWrite).mockImplementationOnce(async w => {
+      auditWrites.push(w); if (reason === "abort") session.abort(); else hold();
+      if (reason === "hold-and-reject") throw new Error("late audit fixture failure");
+    });
+    await expect(embedTexts({ userId: "u1", texts: ["hello"], locale: "en", session })).rejects.toMatchObject({ name: "AbortError" });
+    expect(auditWrites).toHaveLength(1);
+  });
+
+  test("a signal-only legacy caller also drops a late mock response", async () => {
+    const controller = new AbortController();
+    jest.mocked(enqueueAuditWrite).mockImplementationOnce(async w => { auditWrites.push(w); controller.abort(); });
+    await expect(embedTexts({ userId: "u1", texts: ["hello"], locale: "en", signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(auditWrites).toHaveLength(1);
   });
 });

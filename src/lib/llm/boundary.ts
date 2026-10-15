@@ -1157,6 +1157,8 @@ function mockEmbedding(text: string): number[] {
 
 export interface EmbedTextsInput {
   userId: string;
+  /** Optional immutable account capability; actual chat wiring is a later unit. */
+  session?: AuthenticatedAccountSessionLease;
   texts: string[];
   locale: "en" | "ko";
   minor?: boolean;
@@ -1185,108 +1187,132 @@ const zeroVector = (): number[] => new Array<number>(EMBED_DIM).fill(0);
  *        (assertDirectEgressAllowed), so the $0/mo promise holds.
  */
 export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResult> {
-  throwIfAborted(input.signal);
-  const env = getEnv();
+  const { userId, session } = input;
+  if (session && session.userId !== userId) throw new Error("llm_session_owner_mismatch");
+  if (session && input.signal && input.signal !== session.signal) throw new Error("llm_session_signal_mismatch");
+  const signal = session?.signal ?? input.signal;
+  const fence = (): void => {
+    throwIfAborted(signal);
+    session?.assertCurrent();
+  };
+  fence();
+  // Keep the selected batch and capability stable across proxy/audit awaits.
+  const texts = [...input.texts];
+  try {
+    const env = getEnv();
 
-  if (input.texts.length === 0) {
-    return {
-      vectors: [],
-      audit: {
-        promptHash: "",
-        outputHash: "",
-        modelUsed: `none:${EMBED_MODEL}`,
+    if (texts.length === 0) {
+      fence();
+      return {
+        vectors: [],
+        audit: {
+          promptHash: "",
+          outputHash: "",
+          modelUsed: `none:${EMBED_MODEL}`,
+          vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
+          safetyZone: "green",
+          latencyMs: 0,
+        },
+      };
+    }
+
+    const t0 = Date.now();
+    // C9: classify each text; red ones are skipped (never embedded). Scans BOTH
+    // locales: wiki pages carry mixed-language content and the proxy's server
+    // gate checks the EN+KO lists on every text — a single-locale client scan
+    // would let a cross-locale term through only to have the proxy 422 the
+    // whole batch (one poisoned page would wedge every backfill run).
+    const skip = texts.map(
+      (text) =>
+        classifyInput(text, "en", { minor: input.minor }).zone === "red" ||
+        classifyInput(text, "ko", { minor: input.minor }).zone === "red",
+    );
+    const anyRed = skip.some(Boolean);
+
+    if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
+      const vectors = texts.map((text, i) => (skip[i] ? zeroVector() : mockEmbedding(text)));
+      const audit: AuditMeta = {
+        promptHash: djb2(texts.join(" ")),
+        outputHash: djb2(String(vectors.length)),
+        modelUsed: `mock:${EMBED_MODEL}`,
         vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
-        safetyZone: "green",
-        latencyMs: 0,
-      },
-    };
-  }
+        safetyZone: anyRed ? "red" : "green",
+        latencyMs: Date.now() - t0,
+        purpose: "embed_index",
+      };
+      fence();
+      await writeAiAuditLog(userId, audit, "[ai_audit_log] embed insert failed (mock)", session);
+      fence();
+      return { vectors, audit };
+    }
 
-  const t0 = Date.now();
-  // C9: classify each text; red ones are skipped (never embedded). Scans BOTH
-  // locales: wiki pages carry mixed-language content and the proxy's server
-  // gate checks the EN+KO lists on every text — a single-locale client scan
-  // would let a cross-locale term through only to have the proxy 422 the
-  // whole batch (one poisoned page would wedge every backfill run).
-  const skip = input.texts.map(
-    (text) =>
-      classifyInput(text, "en", { minor: input.minor }).zone === "red" ||
-      classifyInput(text, "ko", { minor: input.minor }).zone === "red",
-  );
-  const anyRed = skip.some(Boolean);
+    const toEmbed = texts.filter((_, i) => !skip[i]);
+    let embedded: number[][] = [];
+    let vertexBackend = false;
+    let modelUsedForAudit: string = EMBED_MODEL;
+    let proxyAudited = false;
 
-  if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
-    const vectors = input.texts.map((text, i) => (skip[i] ? zeroVector() : mockEmbedding(text)));
+    if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
+      // Edge path (P0-2): the proxy owns the key + spend cap; this is the ONLY
+      // live embedding route on the keyless web build. One batch = one call.
+      if (toEmbed.length > 0) {
+        fence();
+        const options = { body: { op: "embed", texts: toEmbed, purpose: "embed_index" }, signal };
+        const { data, error } = session
+          ? await invokeFunctionWithCapturedSession(proxyFnForVendor(embedVendor()), session.accessToken, options)
+          : await getSupabaseClient().functions.invoke(proxyFnForVendor(embedVendor()), options);
+        fence();
+        if (error) throw error;
+        const payload = data as { vectors?: number[][]; modelUsed?: string; audited?: boolean } | null;
+        embedded = Array.isArray(payload?.vectors) ? payload.vectors : [];
+        modelUsedForAudit = payload?.modelUsed ?? EMBED_MODEL;
+        proxyAudited = payload?.audited === true;
+      }
+    } else {
+      // Direct path: Vertex-only live egress passes the cost guard.
+      assertDirectEgressAllowed(env);
+      const { client, vertex } = getClient();
+      vertexBackend = vertex;
+      if (toEmbed.length > 0) {
+        fence();
+        const res = await client.models.embedContent({
+          model: EMBED_MODEL,
+          contents: toEmbed,
+          // 768-dim MRL slice - keeps the pgvector column shape (0047) unchanged.
+          config: { outputDimensionality: EMBED_DIM, abortSignal: signal },
+        });
+        fence();
+        embedded = (res.embeddings ?? []).map((e) => e.values ?? []);
+      }
+    }
+
+    // Re-interleave: red-zone texts get zeros, the rest take the next live vector.
+    let k = 0;
+    const vectors = texts.map((_, i) => (skip[i] ? zeroVector() : embedded[k++] ?? zeroVector()));
     const audit: AuditMeta = {
-      promptHash: djb2(input.texts.join(" ")),
+      promptHash: djb2(texts.join(" ")),
       outputHash: djb2(String(vectors.length)),
-      modelUsed: `mock:${EMBED_MODEL}`,
-      vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
+      modelUsed: modelUsedForAudit,
+      vertexBackend,
       safetyZone: anyRed ? "red" : "green",
       latencyMs: Date.now() - t0,
       purpose: "embed_index",
     };
-    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] embed insert failed (mock)");
+    // C3: skip the client insert when the proxy already audited the batch —
+    // UNLESS the batch carried withheld red-zone texts: the proxy only saw the
+    // green remainder and audits 'green', so the client row is the only honest
+    // record that crisis content was withheld from embedding.
+    if (!proxyAudited || anyRed) {
+      fence();
+      await writeAiAuditLog(userId, audit, "[ai_audit_log] embed insert failed", session);
+      fence();
+    }
+    fence();
     return { vectors, audit };
+  } catch (error) {
+    fence(); // A stale operation cannot become an ordinary upstream failure.
+    throw error;
   }
-
-  const toEmbed = input.texts.filter((_, i) => !skip[i]);
-  let embedded: number[][] = [];
-  let vertexBackend = false;
-  let modelUsedForAudit: string = EMBED_MODEL;
-  let proxyAudited = false;
-
-  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
-    // Edge path (P0-2): the proxy owns the key + spend cap; this is the ONLY
-    // live embedding route on the keyless web build. One batch = one call.
-    if (toEmbed.length > 0) {
-      const supabase = getSupabaseClient();
-      const { data, error } = await supabase.functions.invoke(proxyFnForVendor(embedVendor()), {
-        body: { op: "embed", texts: toEmbed, purpose: "embed_index" },
-        signal: input.signal,
-      });
-      if (error) throw error;
-      const payload = data as { vectors?: number[][]; modelUsed?: string; audited?: boolean } | null;
-      embedded = Array.isArray(payload?.vectors) ? payload.vectors : [];
-      modelUsedForAudit = payload?.modelUsed ?? EMBED_MODEL;
-      proxyAudited = payload?.audited === true;
-    }
-  } else {
-    // Direct path: Vertex-only live egress passes the cost guard.
-    assertDirectEgressAllowed(env);
-    const { client, vertex } = getClient();
-    vertexBackend = vertex;
-    if (toEmbed.length > 0) {
-      const res = await client.models.embedContent({
-        model: EMBED_MODEL,
-        contents: toEmbed,
-        // 768-dim MRL slice - keeps the pgvector column shape (0047) unchanged.
-        config: { outputDimensionality: EMBED_DIM },
-      });
-      embedded = (res.embeddings ?? []).map((e) => e.values ?? []);
-    }
-  }
-
-  // Re-interleave: red-zone texts get zeros, the rest take the next live vector.
-  let k = 0;
-  const vectors = input.texts.map((_, i) => (skip[i] ? zeroVector() : embedded[k++] ?? zeroVector()));
-  const audit: AuditMeta = {
-    promptHash: djb2(input.texts.join(" ")),
-    outputHash: djb2(String(vectors.length)),
-    modelUsed: modelUsedForAudit,
-    vertexBackend,
-    safetyZone: anyRed ? "red" : "green",
-    latencyMs: Date.now() - t0,
-    purpose: "embed_index",
-  };
-  // C3: skip the client insert when the proxy already audited the batch —
-  // UNLESS the batch carried withheld red-zone texts: the proxy only saw the
-  // green remainder and audits 'green', so the client row is the only honest
-  // record that crisis content was withheld from embedding.
-  if (!proxyAudited || anyRed) {
-    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] embed insert failed");
-  }
-  return { vectors, audit };
 }
 
 // --- Audio transcription (voice capture) ----------------------------------
