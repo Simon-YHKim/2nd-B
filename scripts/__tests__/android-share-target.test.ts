@@ -168,7 +168,9 @@ describe("1. manifest: one SEND text/plain filter on the main activity", () => {
     plugin.setShareTargetIntentFilter(manifest);
     const filters = manifest.manifest.application[0].activity?.[0]["intent-filter"] ?? [];
     const send = filters.filter(isSendFilter);
-    expect(send).toHaveLength(1);
+    expect(send).toHaveLength(2);
+    expect(names(send[1].action, "android:name")).toEqual(["android.intent.action.SEND", "android.intent.action.SEND_MULTIPLE"]);
+    expect(names(send[1].data, "android:mimeType")).toEqual(["image/*", "audio/*"]);
     expect(names(send[0].category, "android:name")).toEqual(["android.intent.category.DEFAULT"]);
     expect(names(send[0].data, "android:mimeType")).toEqual(["text/plain"]);
     expect(JSON.stringify(filters.filter((f) => !isSendFilter(f)))).toBe(before);
@@ -213,7 +215,7 @@ describe("2. MainActivity: the helper runs before React Native reads the intent"
   test("a running-app share becomes getIntent() before React Native sees it", () => {
     const out = plugin.applyShareTargetToMainActivity(SPLASH_MAIN_ACTIVITY, "kt");
     const onNewIntent = functionBody(out, "override fun onNewIntent(intent: Intent)");
-    const guard = onNewIntent.indexOf("if (ShareTargetIntent.routeToCapture(intent, false)) {");
+    const guard = onNewIntent.indexOf("if (ShareTargetIntent.routeToCapture(intent, false) || mediaShare) {");
     const set = onNewIntent.indexOf("setIntent(intent)");
     expect(guard).toBeGreaterThanOrEqual(0);
     expect(set).toBeGreaterThan(guard);
@@ -232,10 +234,13 @@ describe("2. MainActivity: the helper runs before React Native reads the intent"
     const out = plugin.applyShareTargetToMainActivity(SPLASH_MAIN_ACTIVITY, "kt");
     const onNewIntent = functionBody(out, "override fun onNewIntent(intent: Intent)");
     expect(onNewIntent).toMatch(
-      /if \(ShareTargetIntent\.routeToCapture\(intent, false\)\) \{\s+setIntent\(intent\)\s+\}\s+super\.onNewIntent\(intent\)/,
+      /if \(ShareTargetIntent\.routeToCapture\(intent, false\) \|\| mediaShare\) \{\s+setIntent\(intent\)\s+\}\s+super\.onNewIntent\(intent\)/,
     );
     const code = onNewIntent.replace(/\/\/.*$/gm, "");
-    expect(code).not.toMatch(/getIntent\(\)|supersedesHeldShare|\|\|/);
+    // The only additional branch is the media helper's successful rewrite;
+    // arbitrary VIEW/auth links must still never replace a held intent.
+    expect(code).toContain("val mediaShare = ShareMediaIntent.route(this, intent, false)");
+    expect(code.replace(" || mediaShare", "")).not.toMatch(/getIntent\(\)|supersedesHeldShare|\|\|/);
     expect(count(code, "setIntent(")).toBe(1);
     const kt = plugin.renderShareTargetKotlin({ packageName: appJson.expo.android.package, scheme: appJson.expo.scheme });
     expect(kt).not.toMatch(/supersedesHeldShare|isShareLink/);
@@ -347,7 +352,7 @@ describe("4. app.json", () => {
   test("the plugin registers all three edits for this config", () => {
     const config = { name: "x", slug: "x", scheme: appJson.expo.scheme, android: { package: appJson.expo.android.package } };
     const mods = plugin({ ...config }).mods?.android ?? {};
-    expect(Object.keys(mods).sort()).toEqual(["dangerous", "mainActivity", "manifest"]);
+    expect(Object.keys(mods).sort()).toEqual(["dangerous", "mainActivity", "mainApplication", "manifest"]);
   });
 
   test("a config the hand-off cannot use stops the prebuild before any edit", () => {

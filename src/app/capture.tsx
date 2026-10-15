@@ -63,6 +63,8 @@ import {
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { isAbortError } from "@/lib/async/abort";
+import { discardSharedMedia, takeSharedImage } from "@/lib/capture/shared-media";
+import { sharedMediaError, sharedMediaToken } from "@/lib/capture/share-media-intent";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import {
   pickImageAsset,
@@ -371,10 +373,13 @@ export default function Capture() {
     tag?: string;
     coach?: string;
     from?: string;
+    sharedMedia?: string;
+    sharedMediaError?: string;
   }>();
   const coachMode = firstRecordCoachMode(captureParams.coach);
   const firstRecordCoach = coachMode !== null;
   const hasFullCaptureParams =
+    sharedMediaToken(captureParams.sharedMedia) !== null || sharedMediaError(captureParams.sharedMediaError) !== null ||
     normalizeSharedCaptureParams({
       url: captureParams.url,
       text: captureParams.text,
@@ -477,8 +482,19 @@ function CaptureLegacySession({
   // is fine", and one screen should not say it twice.
   // url/text/title arrive from the Web Share Target (manifest.webmanifest):
   // sharing a page from another app opens /capture with the payload here.
-  const { url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam } =
-    useLocalSearchParams<{ url?: string; text?: string; title?: string; mode?: string; tag?: string }>();
+  const { url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam,
+    sharedMedia: sharedMediaParam, sharedMediaError: sharedMediaErrorParam } =
+    useLocalSearchParams<{ url?: string; text?: string; title?: string; mode?: string; tag?: string;
+      sharedMedia?: string; sharedMediaError?: string }>();
+  const incomingMedia = sharedMediaToken(sharedMediaParam);
+  const incomingMediaError = sharedMediaError(sharedMediaErrorParam);
+  const [receivingMedia, setReceivingMedia] = useState(false);
+  const sharedMediaAbort = useRef<AbortController | null>(null);
+  const transferredMedia = useRef(new Set<string>());
+  useEffect(() => () => {
+    sharedMediaAbort.current?.abort();
+    if (!incomingMedia || !transferredMedia.current.delete(incomingMedia)) discardSharedMedia(incomingMedia);
+  }, [incomingMedia]);
   const shared = useMemo(
     () => normalizeSharedCaptureParams({ url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam }),
     [sharedUrlParam, sharedTextParam, sharedTitleParam],
@@ -827,6 +843,7 @@ function CaptureLegacySession({
         focusDraftHydratedRef.current = false;
         captureFocusedRef.current = false;
         setCaptureFocused(false);
+        sharedMediaAbort.current?.abort();
         asyncProducerGenerationRef.current += 1;
         setExtracting(false);
         stopVoiceCaptureForModeExitRef.current(DEFAULT_CAPTURE_DRAFT_MODE);
@@ -915,6 +932,8 @@ function CaptureLegacySession({
   }
 
   function beginAsyncProducer(): { generation: number; revision: number } {
+    sharedMediaAbort.current?.abort();
+    setReceivingMedia(false);
     // A newer producer owns the loading surface. This also releases a stale
     // OCR/audio spinner when the replacement action is a picker or paste that
     // does not set extracting=true itself.
@@ -2087,6 +2106,7 @@ function CaptureLegacySession({
       setSelectedLifeArea(null);
     }
     if (nextMode === mode) return;
+    sharedMediaAbort.current?.abort();
     // 저장 A는 사용자가 이미 확정한 snapshot이라 끝까지 보낸다. 모드 전환은
     // revision만 올려 A의 UI 정리 권한을 회수한다(Storage upload orphan 방지).
     advanceCaptureRevision();
@@ -2181,6 +2201,39 @@ function CaptureLegacySession({
         t("alerts.imageOpen.message"),
         () => void pickImage(source),
       );
+    }
+  }
+
+  async function receiveSharedPhoto(): Promise<void> {
+    if (!userId || !incomingMedia || receivingMedia || sharedMediaAbort.current || mode !== "ocr" || isMinor === null) return;
+    const ticket = beginAsyncProducer();
+    const controller = new AbortController();
+    sharedMediaAbort.current?.abort();
+    sharedMediaAbort.current = controller;
+    setReceivingMedia(true);
+    let image: PickedImage | null = null;
+    try {
+      image = await takeSharedImage(userId, incomingMedia, controller.signal);
+      if (!asyncProducerIsCurrent(ticket, "ocr") || controller.signal.aborted) return;
+      // The button explicitly says the old photo/text will be replaced. OCR
+      // still requires its own Extract tap and the existing save approval.
+      commitComposerMutation();
+      replacePickedImage(image);
+      image = null;
+      setBody("");
+      setOcrReviewApproved(false);
+      // The image now owns its release. Do not abort it when params are cleared.
+      sharedMediaAbort.current = null;
+      transferredMedia.current.add(incomingMedia);
+      router.setParams({ sharedMedia: undefined, sharedMediaError: undefined });
+    } catch (error) {
+      if (!isAbortError(error) && asyncProducerIsCurrent(ticket, "ocr")) {
+        showFeedback(t("alerts.imageOpen.title"), t("sharedMedia.unreadable"));
+      }
+    } finally {
+      await image?.release();
+      if (sharedMediaAbort.current === controller) sharedMediaAbort.current = null;
+      if (sessionActiveRef.current && sharedMediaAbort.current === null) setReceivingMedia(false);
     }
   }
 
@@ -4094,6 +4147,24 @@ ${transcript}`;
               <Text variant="subtle" color="textSubtle">
                 {t("fourw.note")}
               </Text>
+            </View>
+          ) : null}
+
+          {mode === "ocr" && (incomingMedia || incomingMediaError) ? (
+            <View style={styles.ocrDisclosureCard}>
+              <Text variant="subtle" accessibilityLiveRegion="polite">
+                {incomingMediaError ? t(`sharedMedia.${incomingMediaError}`) : t("sharedMedia.photoReady")}
+              </Text>
+              {incomingMedia && !incomingMediaError ? (
+                <Button label={t("sharedMedia.photoReplace")} variant="primary"
+                  onPress={() => void receiveSharedPhoto()} loading={receivingMedia}
+                  disabled={receivingMedia || isMinor === null} />
+              ) : null}
+              <Button label={t("sharedMedia.discard")} variant="secondary" onPress={() => {
+                sharedMediaAbort.current?.abort();
+                discardSharedMedia(incomingMedia);
+                router.setParams({ sharedMedia: undefined, sharedMediaError: undefined });
+              }} />
             </View>
           ) : null}
 

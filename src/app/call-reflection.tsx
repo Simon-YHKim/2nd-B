@@ -3,11 +3,11 @@ import { RememberedScrollView as ScrollView } from "@/components/navigation/Reme
 // a call. The user selects an audio file that already exists on their device,
 // the server turns it into text, and only text the user explicitly approves is
 // saved as a call_reflection record. The original file remains the user's file.
-import { useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { AppState, StyleSheet, View } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
@@ -18,6 +18,10 @@ import { recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { isAbortError } from "@/lib/async/abort";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
+import { resolveJurisdiction } from "@/lib/auth/consent-age";
+import { discardSharedMedia, takeSharedMedia, type SharedMediaFile } from "@/lib/capture/shared-media";
+import { sharedMediaError, sharedMediaToken } from "@/lib/capture/share-media-intent";
+import { carriesShareMarker, shareRefusedHref } from "@/lib/capture/share-intent";
 import { composeStructured } from "@/lib/capture/structured";
 import { transcribeAudio } from "@/lib/llm/boundary";
 import { useProgression } from "@/lib/progression/useProgression";
@@ -114,17 +118,37 @@ function hotlineFor(ko: boolean, minor: boolean): HotlineId {
   return ko ? (minor ? "KR_1388" : "KR_109") : "GLOBAL_988";
 }
 
-export default function CallReflection() {
+export default function CallReflectionRoute() {
+  const { userId, isMinor } = useAuth();
+  const [country, setCountry] = useState(() => resolveJurisdiction().country);
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") setCountry(resolveJurisdiction().country);
+    });
+    return () => subscription.remove();
+  }, []);
+  return <CallReflection key={`${userId ?? "signed-out"}:${isMinor}:${country}`} country={country} />;
+}
+
+function CallReflection({ country }: { country: string | null }) {
   const { t, i18n } = useTranslation("capture");
   const uiLocale = uiLocaleFor(i18n.language);
   const ko = uiLocale === "ko";
   const locale = ko ? "ko" : "en";
   const copy = CALL_REFLECTION_COPY[uiLocale];
-  const { userId, isMinor, loading } = useAuth();
+  const { userId, isMinor, loading, hasProfile } = useAuth();
   const progression = useProgression();
+  const params = useLocalSearchParams<{ sharedMedia?: string; sharedMediaError?: string; from?: string }>();
+  const incomingMedia = sharedMediaToken(params.sharedMedia);
+  const incomingMediaError = sharedMediaError(params.sharedMediaError);
+  const shareMarked = carriesShareMarker(params);
+  const incomingMediaRef = useRef(incomingMedia);
+  useLayoutEffect(() => { incomingMediaRef.current = incomingMedia; }, [incomingMedia]);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [busy, setBusy] = useState(false);
+  const [choosing, setChoosing] = useState(false);
+  const choosingRef = useRef(false);
   const [transcript, setTranscript] = useState("");
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -134,6 +158,7 @@ export default function CallReflection() {
   });
   const mountedRef = useRef(true);
   const transcribeAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => { discardSharedMedia(incomingMedia); }, [incomingMedia]);
 
   useEffect(() => {
     return () => {
@@ -143,12 +168,16 @@ export default function CallReflection() {
   }, []);
 
   if (loading) return null;
-  if (!userId) return <Redirect href="/sign-in" />;
+  if (!userId) {
+    if (shareMarked) return <Redirect href={shareRefusedHref("/sign-in", true)} />;
+    return <Redirect href="/sign-in" />;
+  }
+  if (hasProfile === false) return <Redirect href={shareRefusedHref("/complete-profile", shareMarked)} />;
 
-  // Keep the existing adult + KR availability gate. F3 changes the capture
-  // mechanism, not the consent and jurisdiction scope of recorded call files.
+  // UI language is not jurisdiction. Use the same country resolver as the
+  // registration boundary; unreadable country and age both remain blocked.
   // Adult means confirmed: an age we do not know yet (isMinor null) stays blocked.
-  if (!ko || isMinor !== false) {
+  if (!ko || country !== "KR" || isMinor !== false) {
     return (
       <DeepSpaceScreen active="home" variant="windowed" header="none" title={copy.title} onBack={() => router.back()}>
         <View style={s.blockedWrap}>
@@ -160,8 +189,10 @@ export default function CallReflection() {
     );
   }
 
-  async function chooseAndTranscribe() {
-    if (!userId || phase === "stt") return;
+  async function chooseAndTranscribe(useShared = false) {
+    if (!userId || choosingRef.current || phase === "stt" || !ko || isMinor !== false || resolveJurisdiction().country !== "KR") return;
+    choosingRef.current = true;
+    setChoosing(true);
     setNotice(null);
     setSelectedName(null);
 
@@ -170,10 +201,16 @@ export default function CallReflection() {
     transcribeAbortRef.current = controller;
     const accountLease = beginAccountSessionLease(userId, controller.signal);
     let file: Awaited<ReturnType<typeof pickAudioFile>> = null;
+    let sharedFile: SharedMediaFile | null = null;
     try {
       accountLease.assertCurrent();
       try {
-        file = await pickAudioFile();
+        if (useShared) {
+          sharedFile = await takeSharedMedia(userId, incomingMedia, "audio", accountLease.signal);
+          accountLease.assertCurrent();
+          file = { uri: sharedFile.uri, name: t("sharedMedia.audioName"), mimeType: sharedFile.mimeType,
+            size: sharedFile.size, textContent: null };
+        } else file = await pickAudioFile();
       } catch {
         accountLease.assertCurrent();
         if (typeof console !== "undefined") console.warn("[call-reflection] file pick failed");
@@ -198,6 +235,7 @@ export default function CallReflection() {
       setPhase("stt");
       const authenticated = await accountLease.authenticate();
       authenticated.assertCurrent();
+      if (resolveJurisdiction().country !== "KR") throw new Error("call_scope_changed");
       const { base64 } = await recordingUriToBase64(
         file.uri,
         file.mimeType,
@@ -205,6 +243,7 @@ export default function CallReflection() {
         authenticated.signal,
       );
       authenticated.assertCurrent();
+      if (resolveJurisdiction().country !== "KR") throw new Error("call_scope_changed");
       const reply = await transcribeAudio({
         userId,
         session: authenticated,
@@ -213,7 +252,7 @@ export default function CallReflection() {
         // DocumentPicker's normalized MIME is more reliable for file:// URIs
         // than the blob type returned by fetch on Android.
         mimeType: file.mimeType,
-        minor: isMinor === true,
+        minor: false,
       });
       authenticated.assertCurrent();
       if (!mountedRef.current || transcribeAbortRef.current !== controller) return;
@@ -223,7 +262,7 @@ export default function CallReflection() {
       if (reply.safety?.zone === "red") {
         setPhase("idle");
         setSelectedName(null);
-        setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? hotlineFor(ko, isMinor === true) });
+        setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? hotlineFor(ko, false) });
         return;
       }
       const text = reply.text.trim();
@@ -253,13 +292,21 @@ export default function CallReflection() {
       accountLease.release();
       if (transcribeAbortRef.current === controller) transcribeAbortRef.current = null;
       await releasePickedFile(file);
+      await sharedFile?.release();
+      choosingRef.current = false;
+      if (mountedRef.current) setChoosing(false);
+      if (useShared && incomingMediaRef.current === incomingMedia && mountedRef.current && !controller.signal.aborted) {
+        router.setParams({ sharedMedia: undefined, sharedMediaError: undefined });
+      }
     }
   }
 
   async function approve() {
-    if (!userId || busy || transcript.length === 0) return;
+    if (!userId || busy || transcript.length === 0 || !ko || isMinor !== false || resolveJurisdiction().country !== "KR") return;
     setBusy(true);
+    const accountLease = beginAccountSessionLease(userId);
     try {
+      accountLease.assertCurrent();
       const fields = { who_label: "", gist: transcript.slice(0, 80), feeling: "", followup: "" };
       // The transcript was classified when it arrived; createRecord classifies
       // it again at save time and reports red on the followup. Keep both - the
@@ -272,18 +319,23 @@ export default function CallReflection() {
         topic: t("callReflection.recordTopic"),
         tags: ["call_reflection", "voice"],
         tier: progression.tier,
-        minor: isMinor === true,
+        minor: false,
         structured: composeStructured("call_reflection", fields) ?? undefined,
       });
+      accountLease.assertCurrent();
+      if (!mountedRef.current) return;
       if (saved.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: saved.crisisHotline ?? hotlineFor(ko, isMinor === true) });
+        setCrisis({ visible: true, hotline: saved.crisisHotline ?? hotlineFor(ko, false) });
         setBusy(false);
         return;
       }
       router.push("/records");
     } catch {
+      if (accountLease.signal.aborted || !mountedRef.current) return;
       if (typeof console !== "undefined") console.warn("[call-reflection] save failed");
       setBusy(false);
+    } finally {
+      accountLease.release();
     }
   }
 
@@ -386,10 +438,14 @@ export default function CallReflection() {
             </RNText>
           ) : null}
           {notice ? <RNText style={s.notice}>{notice}</RNText> : null}
+          {incomingMediaError ? <RNText style={s.notice}>{t(`sharedMedia.${incomingMediaError}`)}</RNText> : null}
         </View>
 
         <View style={s.footer}>
-          <MdButton variant="filled" label={t("file.pick")} onPress={() => void chooseAndTranscribe()} />
+          {incomingMedia && !incomingMediaError ? (
+            <MdButton variant="filled" label={t("sharedMedia.audioSend")} disabled={choosing} onPress={() => void chooseAndTranscribe(true)} />
+          ) : null}
+          <MdButton variant="filled" label={t("file.pick")} disabled={choosing} loading={choosing} onPress={() => void chooseAndTranscribe()} />
           <MdButton variant="text" label={t("callReflection.maybeLater")} onPress={() => router.back()} />
         </View>
       </View>
