@@ -3,6 +3,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import { hookHarness } from "../../nav/__tests__/hook-harness";
+
+let mockCitationHarness: ReturnType<typeof hookHarness>;
+jest.mock("expo-router", () => ({ useFocusEffect: (effect: () => void | (() => void)) => mockCitationHarness.hooks.useEffect(effect, [effect]) }));
 
 type Row = Record<string, any>;
 const mockTables: Record<string, Row[]> = {};
@@ -89,7 +93,7 @@ import { parseSourceCitations } from "../sources";
 import { CHAT_KEEP_TAG, composeExchangeBody, exchangeMarkdown } from "../keep-exchange";
 import * as boundary from "../../llm/boundary";
 import { flushAuditWriteOutbox, resetAuditWriteOutboxForTests } from "../../llm/audit-write-outbox";
-import { __resetAccountEpochForTests, captureAccountOwnerLease, noteResolvedOwner } from "../../auth/account-epoch";
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
 import { createChatAutosaveSession } from "../autosave-session";
 import { defaultPrivacyPrefs } from "../../privacy/prefs";
 import { resetPrivacyChangesForTests } from "../../privacy/changes";
@@ -271,14 +275,33 @@ test("an ordinary source stays title-only until explicit promotion; citation ope
   const parsed = parseSourceCitations(`The record says this. [[${promoted.slug}]]`);
   const source = readFileSync(join(__dirname, "../../../app/secondb.tsx"), "utf8");
   const ast = ts.createSourceFile("secondb.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  let handler = "";
-  const walk = (node: ts.Node): void => { if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "openCitedPage") handler = node.initializer!.getText(ast); ts.forEachChild(node, walk); };
-  walk(ast); expect(handler).not.toBe("");
-  const code = ts.transpileModule(`const open = ${handler};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-  const router = { push: jest.fn() };
-  const open = new Function("userId", "setRefDrawer", "router", "getWikiPage", "captureAccountOwnerLease", `${code}; return open;`)(OWNER, jest.fn(), router, getWikiPage, captureAccountOwnerLease);
-  open(parsed.chips[0]);
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  expect(router.push).toHaveBeenCalledWith({ pathname: "/wiki", params: { focusPageId: promoted.page.id } });
+  const declarations = new Map<string, string>();
+  const walk = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && ["citedWiki", "openCitedPage"].includes(node.name.getText(ast))) declarations.set(node.name.getText(ast), node.initializer!.getText(ast));
+    ts.forEachChild(node, walk);
+  };
+  walk(ast); expect(declarations.size).toBe(2);
+  const evaluate = <T,>(code: string, bindings: Record<string, unknown>): T => {
+    const js = ts.transpileModule(`const result = ${code};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+    return new Function(...Object.keys(bindings), `${js}; return result;`)(...Object.values(bindings)) as T;
+  };
+  const react = jest.requireActual<typeof import("react")>("react");
+  mockCitationHarness = hookHarness();
+  const spies = (["useState", "useRef", "useMemo", "useCallback", "useEffect", "useSyncExternalStore"] as const).map((name) =>
+    jest.spyOn(react, name).mockImplementation(((...args: unknown[]) => (mockCitationHarness.hooks[name] as (...args: unknown[]) => unknown)(...args)) as never));
+  try {
+    const { useCitedWikiPage } = jest.requireActual<typeof import("../use-cited-wiki-page")>("../use-cited-wiki-page");
+    const router = { push: jest.fn() };
+    const conversationId = { current: 0 };
+    const render = () => mockCitationHarness.render(() => evaluate<ReturnType<typeof useCitedWikiPage>>(declarations.get("citedWiki")!, {
+      useCitedWikiPage, userId: OWNER, conversationId, rev2Persona: "secondb", chatMode: "convergent", pathname: "/secondb", params: {}, router,
+    }));
+    render().openDrawer(parsed.chips);
+    const citedWiki = render();
+    evaluate<(slug: string) => void>(declarations.get("openCitedPage")!, { citedWiki })(parsed.chips[0]);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(router.push).toHaveBeenCalledWith({ pathname: "/wiki", params: { focusPageId: promoted.page.id } });
+    expect(render().slugs).toBeNull();
+  } finally { mockCitationHarness.unmount(); spies.forEach((spy) => spy.mockRestore()); }
   expect(await getWikiPage("another-owner", promoted.slug)).toBeNull();
 });

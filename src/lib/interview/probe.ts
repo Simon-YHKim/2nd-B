@@ -17,6 +17,7 @@
 // signals are deterministic functions here (LLM-agnostic per C1/C9).
 
 import { callLlm } from "../llm/boundary";
+import type { CrisisObserver } from "../llm/types";
 import {
   detectLoops,
   loopCheckKeyFor,
@@ -487,6 +488,8 @@ export async function nextProbe(
   scaffoldStreak = 0,
   /** 발판일 때 머물 층. 주어지면 `nextLayerSuggestion` 을 건너뛴다. */
   forceLayer: DrillLayer | null = null,
+  /** Forward confirmed RED before the boundary's audit awaits. */
+  onCrisisDetected?: CrisisObserver,
 ): Promise<ProbeResult> {
   // 어느 층을 물을지를 **부르는 쪽이 정할 수도 있다.** 발판이 그렇다 --
   // 막힌 층에 그대로 머무른다. 안 주면 예전처럼 빈 칸을 찾아 내려간다.
@@ -500,6 +503,7 @@ export async function nextProbe(
     user: buildUserPrompt(currentScene(history)),
     minor,
     responseSchema: PROBE_SCHEMA,
+    onCrisisDetected,
   });
   // 구조화 출력이 깨져도 화면이 멈추지 않게 원문 첫 줄로 떨어진다.
   // 그 아래 대체 문장까지 있으니 두 겹이다.

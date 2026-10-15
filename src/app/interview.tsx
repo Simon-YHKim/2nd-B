@@ -294,6 +294,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const [done, setDone] = useState(false);
   const ended = useRef(false);
   const mounted = useRef(true);
+  const interviewInstance = useRef(0);
+  const probeRequest = useRef(0);
   const [concreteOnly, setConcreteOnly] = useState(false);
   const [coverageReady, setCoverageReady] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -323,6 +325,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   }, []);
 
   useEffect(() => {
+    interviewInstance.current += 1;
     ended.current = false;
     mounted.current = true;
     return () => { ended.current = true; mounted.current = false; };
@@ -390,6 +393,28 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       if (!userId || ended.current) return;
       const owner = captureAccountOwnerLease(userId);
       if (!owner) return;
+      const instance = interviewInstance.current;
+      const questionGeneration = turnsOwnerRef.current;
+      let requestId: number | undefined;
+      let redSeen = false;
+      let redPublicationAttempted = false;
+      let settled = false;
+      const isCurrentRequest = () => interviewInstance.current === instance
+        && (requestId === undefined || probeRequest.current === requestId)
+        && turnsOwnerRef.current === questionGeneration;
+      const deliverRed = (hotline: HotlineId | undefined) => {
+        if (settled || !owner.isCurrent()) return;
+        // Claim before synchronous subscribers can re-enter or switch owners.
+        redSeen = true;
+        if (redPublicationAttempted) return;
+        redPublicationAttempted = true;
+        try {
+          if (!publishCrisisNotice(owner, hotline ?? hotlineFor())) return;
+        } catch {
+          // A broken notice subscriber must not undo RED or interrupt the audit.
+        }
+        if (owner.isCurrent() && mounted.current && interviewInstance.current === instance && !ended.current) finish();
+      };
       setBusy(true);
       setNotice(null);
       try {
@@ -434,19 +459,19 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         }
         // ⚠ 층은 **언제나** `move.layer` 를 넘긴다. `nextMove` 가 포기 목록까지 보고
         // 고른 층을 후속 질문 경계가 다시 고르면 방금 포기한 칸으로 되돌아갈 수 있다.
+        requestId = ++probeRequest.current;
         const probe = await nextProbe(
           userId, locale, period, history, cov, isMinor === true,
-          0, move.kind === "finish" ? credited : move.layer,
+          0, move.kind === "finish" ? credited : move.layer, deliverRed,
         );
         if (!owner.isCurrent()) return;
         // Safety still reaches the app after stop or route removal. Ordinary
         // answers must not reopen a finished interview or change its coverage.
         if (probe.zone === "red") {
-          publishCrisisNotice(owner, probe.hotline ?? hotlineFor());
-          if (mounted.current) finish();
+          deliverRed(probe.hotline);
           return;
         }
-        if (ended.current) return;
+        if (redSeen || !mounted.current || !isCurrentRequest() || ended.current) return;
         const lastAnswer = history[history.length - 1];
         const confirmed = credited && lastAnswer
           ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)
@@ -507,11 +532,11 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         setPendingLayer(probe.layer);
         setOpeners(probe.openers);
       } catch (error) {
-        if (!owner.isCurrent() || !mounted.current || ended.current) return;
+        if (redSeen || !owner.isCurrent() || !mounted.current || !isCurrentRequest() || ended.current) return;
         // Q-261014-17: a quota refusal keeps the current question and draft.
         // The caller restores only this request's input; no answer is credited.
         if (await readDayLimitRefusal(error, INTERVIEW_PURPOSE)) {
-          if (owner.isCurrent() && mounted.current && !ended.current) {
+          if (!redSeen && owner.isCurrent() && mounted.current && isCurrentRequest() && !ended.current) {
             setNotice(t("drill.dayLimit"));
             return "limited" as const;
           }
@@ -519,7 +544,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         }
         // 판정을 못 받은 답이다(게이트 LAST-02). 진전으로도, 그 층의 실패로도 세지 않게 표시하고
         // 겨냥하던 층을 되돌린다 -- "다시 시도해 주세요"로 다시 보낸 답이 같은 층에서 판정받게.
-        if (owner.isCurrent() && mounted.current && !ended.current) {
+        if (!redSeen && owner.isCurrent() && mounted.current && isCurrentRequest() && !ended.current) {
           setTurns(history.map((turn, index) => index === history.length - 1 && turn.role === "user"
             ? { ...turn, unsettled: true }
             : turn));
@@ -527,7 +552,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           setNotice(t("drill.failed"));
         }
       } finally {
-        if (owner.isCurrent() && mounted.current) setBusy(false);
+        settled = true;
+        if (!redSeen && owner.isCurrent() && mounted.current && isCurrentRequest()) setBusy(false);
       }
     },
     [userId, period, locale, isMinor, entriesOf, hotlineFor, t, concreteOnly, finish, stuckStreak],

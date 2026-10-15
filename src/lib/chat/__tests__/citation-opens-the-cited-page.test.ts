@@ -10,21 +10,14 @@
 // promises "the send handler, RAG/citation parsing ... are byte-identical for both
 // variants - there is NO logic fork".
 //
-// This file guards that one tap end to end, in three layers:
-//
-//   1. SHAPE (source assertions) - the lookup exists, lives in one place, and both
-//      drawers reach it. A behaviour test cannot see "exactly one implementation".
-//   2. ROUTE (executable) - the handler is lifted out of the screen by AST and RUN,
-//      so the assertion is about where the tap GOES, not about which characters are
-//      present. An R48 gate proved the shape layer alone stays green when the
-//      success-branch push is deleted outright; that mutant dies here.
-//   3. OWNER (executable) - loaded rows are run across an account change here;
-//      the full citation/focus hook and visible row are exercised by
-//      screens/deepspace/__tests__/wiki-pages-read-failure.test.ts.
-//
-// Layers 2 and 3 are source-extracted rather than rendered: react-test-renderer is
-// blocked on RN 0.85 here, and neither the handler nor the focus state needs a real
-// renderer - they need their own inputs and a way to watch what they do with them.
+// Shape assertions keep one slug resolver and one drawer route. The thin screen
+// handler is executed below; cited-wiki-page-read.test.ts executes the shipping
+// hook, query, hook inputs, drawer JSX, and navigation callback for success,
+// missing, rejection, timeout/retry, and account/chat/route/drawer lifetimes.
+// The source-wiki-conversation integration also executes capture -> promotion ->
+// RAG citation -> that same hook and tap. Loaded-row ownership is exercised below;
+// the full destination focus hook and visible row run in
+// screens/deepspace/__tests__/wiki-pages-read-failure.test.ts.
 import { readFileSync } from "fs";
 import { join } from "path";
 import ts from "typescript";
@@ -44,6 +37,7 @@ const read = (rel: string): string =>
 const CHAT = "src/app/secondb.tsx";
 const WIKI = "src/screens/deepspace/dds-wiki-records-screens.tsx";
 const QUERIES = "src/lib/wiki/queries.ts";
+const RESOLVER = "src/lib/chat/use-cited-wiki-page.ts";
 const FOCUSED_READ = "src/lib/wiki/use-focused-wiki-page.ts";
 
 describe("a cited piece opens the piece", () => {
@@ -53,7 +47,7 @@ describe("a cited piece opens the piece", () => {
     // (Simon decision Q-261004-11 C), so it holds one drawer. It used
     // to assert `variant === "deep-space"` here to prove both chromes lived in it.
     expect(src.length).toBeGreaterThan(50_000);
-    expect(src).toContain("setRefDrawer(");
+    expect(src).toContain("citedWiki.openDrawer(");
   });
 
   test("no citation tap closes the drawer and jumps straight to the wiki list", () => {
@@ -66,20 +60,14 @@ describe("a cited piece opens the piece", () => {
 
   test("the slug is resolved in exactly one place, and the drawer reaches it", () => {
     const src = read(CHAT);
-    // One lookup...
-    expect([...src.matchAll(/getWikiPage\(/g)]).toHaveLength(1);
-    // ...reached from the drawer, and from nothing else. This counted 2 until
-    // 2026-10-05: the legacy chrome had a second drawer, which left with the lever.
+    expect([...read(RESOLVER).matchAll(/getWikiPage\(/g)]).toHaveLength(1);
     expect([...src.matchAll(/onPress=\{\(\) => openCitedPage\(slug\)\}/g)]).toHaveLength(1);
-    // The miss still lands on the list: the old behaviour kept as a fallback,
-    // not deleted.
-    expect(src).toMatch(/else router\.push\("\/wiki"\);/);
-    // The failed-query fallback survives too, but it is now fenced by the same
-    // owner lease as the success arm. Re-pinned in R49: the old assertion wanted
-    // the bare `.catch(() => router.push("/wiki"))`, which cannot coexist with
-    // the fence. What the assertion is FOR is unchanged - a thrown query still
-    // lands somewhere rather than nowhere.
-    expect(src).toMatch(/\.catch\(\(\) => \{\s*\n\s*if \(lease\.isCurrent\(\)\) router\.push\("\/wiki"\);\s*\n\s*\}\)/);
+    expect(src).toContain("citedWiki.openCitedPage(slug)");
+    expect(src).toContain("recordDetail:state.missingTitle");
+    expect(src).toContain("onPress={citedWiki.retry}");
+    // Failed or absent lookups stay in the drawer. Only a resolved page ID
+    // reaches navigation; behavior is executed in cited-wiki-page-read.test.
+    expect(src).not.toContain('else router.push("/wiki")');
   });
 
   test("the lookup is by slug, which is what a citation carries", () => {
@@ -204,117 +192,20 @@ const settle = (): Promise<void> => new Promise((resolve) => setImmediate(resolv
 // Layer 2 - where the tap actually goes.
 // ---------------------------------------------------------------------------
 
-type Push = string | { pathname: string; params?: Record<string, unknown> };
+const OPEN_CITED_PAGE = lift(parse(CHAT), "const openCitedPage = (slug: string)");
 
-const CHAT_AST = parse(CHAT);
-const OPEN_CITED_PAGE = lift(CHAT_AST, "const openCitedPage = (slug: string)");
-
-interface Lease {
-  isCurrent(): boolean;
-}
-
-function tapHost(opts: {
-  userId?: string | null;
-  page?: { id: string } | null;
-  reject?: boolean;
-  lease?: Lease | null;
-} = {}) {
-  const pushes: Push[] = [];
-  const drawer: unknown[] = [];
-  const lookups: { userId: string; slug: string }[] = [];
-  let ownerIsCurrent = true;
+test("the shipping tap delegates the unchanged citation slug to the owned resolver", () => {
+  const resolve = jest.fn();
   const open = compile<(slug: string) => void>(OPEN_CITED_PAGE, "return openCitedPage;", {
-    setRefDrawer: (value: unknown) => drawer.push(value),
-    userId: opts.userId === undefined ? "owner-a" : opts.userId,
-    router: { push: (target: Push) => pushes.push(target) },
-    captureAccountOwnerLease: () =>
-      opts.lease === undefined ? { isCurrent: () => ownerIsCurrent } : opts.lease,
-    getWikiPage: (userId: string, slug: string) => {
-      lookups.push({ userId, slug });
-      return opts.reject
-        ? Promise.reject(new Error("query failed"))
-        : Promise.resolve(opts.page === undefined ? { id: "page-77" } : opts.page);
-    },
+    citedWiki: { openCitedPage: resolve },
   });
-  return { open, pushes, drawer, lookups, flipOwner: () => { ownerIsCurrent = false; } };
-}
-
-describe("the tap is executed, not just read", () => {
-  test("the lifted handler is the real one", () => {
-    // Binding by name is position-blind; pin what came back before running it.
-    expect(OPEN_CITED_PAGE).toContain("getWikiPage(userId, slug)");
-    expect(OPEN_CITED_PAGE).toContain("setRefDrawer(null)");
-  });
-
-  test("a resolved slug pushes /wiki carrying that page's id", async () => {
-    // THE mutation the R48 gate got past the source layer: replacing this branch
-    // with a bare `return` left every string assertion above satisfied while the
-    // tap went nowhere.
-    const host = tapHost();
-    host.open("walks-in-may");
-    await settle();
-
-    expect(host.lookups).toEqual([{ userId: "owner-a", slug: "walks-in-may" }]);
-    expect(host.pushes).toEqual([{ pathname: "/wiki", params: { focusPageId: "page-77" } }]);
-    // The drawer closes first, so the destination is never drawn behind it.
-    expect(host.drawer).toEqual([null]);
-  });
-
-  test("an unknown slug falls back to the list", async () => {
-    const host = tapHost({ page: null });
-    host.open("no-such-page");
-    await settle();
-    expect(host.pushes).toEqual(["/wiki"]);
-  });
-
-  test("a failed query falls back to the list", async () => {
-    const host = tapHost({ reject: true });
-    host.open("walks-in-may");
-    await settle();
-    expect(host.pushes).toEqual(["/wiki"]);
-  });
-
-  test("signed out, nothing is looked up and the list is all there is", async () => {
-    const host = tapHost({ userId: null });
-    host.open("walks-in-may");
-    await settle();
-    expect(host.lookups).toEqual([]);
-    expect(host.pushes).toEqual(["/wiki"]);
-  });
+  open("walks-in-may");
+  expect(resolve).toHaveBeenCalledWith("walks-in-may");
 });
 
-describe("a tap does not outlive the account that made it", () => {
-  test("an account change between tap and answer cancels the move", async () => {
-    // Supabase can publish A -> B with no signed-out frame. Without the lease
-    // both continuations still ran, so A's tap moved B's app - measured by an
-    // R48 gate as ownerAtCompletion "owner-B".
-    const host = tapHost();
-    host.open("walks-in-may");
-    host.flipOwner();
-    await settle();
-
-    expect(host.lookups).toHaveLength(1);
-    expect(host.pushes).toEqual([]);
-  });
-
-  test("the same is true when the query throws", async () => {
-    const host = tapHost({ reject: true });
-    host.open("walks-in-may");
-    host.flipOwner();
-    await settle();
-    expect(host.pushes).toEqual([]);
-  });
-
-  test("a tap made after the owner already moved is dropped, not redirected", async () => {
-    // A null lease means the published owner is no longer the one this screen
-    // rendered for. Falling back to /wiki here would be the same wrong move.
-    const host = tapHost({ lease: null });
-    host.open("walks-in-may");
-    await settle();
-    expect(host.lookups).toEqual([]);
-    expect(host.pushes).toEqual([]);
-  });
-});
+// The old inline-handler success/missing/failure/owner cases now execute the
+// real hook + query + screen wiring in cited-wiki-page-read.test.ts, including
+// timeout, retry, drawer, route, conversation, account-epoch and ABA lifetimes.
 
 // ---------------------------------------------------------------------------
 // Layer 3 - the row a citation pulls in belongs to one account.
