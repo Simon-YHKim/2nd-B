@@ -123,6 +123,36 @@ test("the erased CrisisObserver allowance grants no value import, extra type or 
   }
 });
 
+test("the optional guidance dependency permits only the approved value and erased type", () => {
+  const sources = loadInterviewAdapterSources(root), path = "src/lib/interview/probe.ts";
+  const approved = 'import { inspectProbeContactGuidance, type ProbeGuidance } from "./probe-guidance";';
+  expect(sources[path]).toContain(approved);
+  for (const file of ["src/lib/interview/probe-guidance.ts", "src/lib/interview/probe-contact-intent.ts"]) {
+    expect(result.sourceSha256[file]).toBe(createHash("sha256").update(sources[file]).digest("hex"));
+  }
+  for (const replacement of [
+    'import { inspectProbeContactGuidance, ProbeGuidance } from "./probe-guidance";',
+    'import { inspectProbeContactGuidance, type ProbeGuidance, extra } from "./probe-guidance";',
+    'import { inspectProbeContactGuidance as scan, type ProbeGuidance } from "./probe-guidance";',
+    'import * as guidance from "./probe-guidance";',
+    'import "./probe-guidance";',
+    'import { inspectProbeContactGuidance, type ProbeGuidance } from "node:https";',
+  ]) {
+    expect(() => createOfflineInterviewRuntime({ ...sources, [path]: sources[path].replace(approved, replacement) }))
+      .toThrow("Adapter probe import drift");
+  }
+});
+
+test("new pure modules still reject unapproved relative dependencies and network effects", async () => {
+  const sources = loadInterviewAdapterSources(root), path = "src/lib/interview/probe-guidance.ts";
+  const sample = corpus.cases.find((entry: { id: string }) => entry.id === "t23-N1-baseline");
+  const addedModule = { ...sources, [path]: sources[path] + '\nimport "./probe-guidance-extra";\n',
+    "src/lib/interview/probe-guidance-extra.ts": "export const extra = true;" };
+  await expect(createOfflineInterviewRuntime(addedModule).replay(sample)).rejects.toThrow("Network/unsupported capability forbidden in offline adapter");
+  const withNetwork = { ...sources, [path]: sources[path] + '\nfetch("https://offline.invalid");\n' };
+  await expect(createOfflineInterviewRuntime(withNetwork).replay(sample)).rejects.toThrow("Network/unsupported capability forbidden in offline adapter");
+});
+
 test("distinguishes schema validity from parser acceptance, repeated questions, chips and line trimming", () => {
   expect(row("synthetic-invalid-json").strictSchemaIssues).toContain("$: expected object");
   expect(row("synthetic-missing-judgement").strictSchemaIssues).toContain("$.answeredLayer: required");
