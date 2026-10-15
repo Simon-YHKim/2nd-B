@@ -103,7 +103,10 @@ export function interviewEvidenceExcerpt(body: string, max = 290): string {
 
 const qaClaims = new Set<string>();
 /** One automatic QA attempt across route mounts/reloads; never a quota ledger. */
-export async function claimQaPolarisAuto(userId: string, hasCards: boolean, hasEvidence: boolean): Promise<boolean> {
+export async function claimQaPolarisAuto(
+  userId: string, hasCards: boolean, hasEvidence: boolean, isCurrent: () => boolean = () => true,
+): Promise<boolean> {
+  if (!isCurrent()) return false;
   if (!__DEV__ || typeof window === "undefined" || getEnv().EXPO_PUBLIC_LLM_MODE !== "live" || qaClaims.has(userId)) return false;
   // v1 could be consumed before the reservation RPC existed. v2 starts only
   // after the server reports an available generation.
@@ -117,6 +120,7 @@ export async function claimQaPolarisAuto(userId: string, hasCards: boolean, hasE
       // the RLS-owned, server-written grant; never use local FORCE_TIER here.
       client.from("users").select("id, subscription_tier, subscription_expires_at").eq("id", userId).maybeSingle(),
     ]);
+    if (!isCurrent()) return false;
     const expiresAt = grant?.subscription_expires_at;
     const activeGrant = expiresAt === null ||
       (typeof expiresAt === "string" && Number.isFinite(Date.parse(expiresAt)) && Date.parse(expiresAt) >= Date.now());
@@ -126,7 +130,7 @@ export async function claimQaPolarisAuto(userId: string, hasCards: boolean, hasE
       attempted: qaClaims.has(userId) || Boolean(window.localStorage.getItem(storageKey)) })) return false;
     // The new Edge path requires a server reservation. Wait for that contract
     // instead of consuming the QA attempt against an undeployed status RPC.
-    if (!(await loadPolarisQuota(userId)).available || qaClaims.has(userId) || window.localStorage.getItem(storageKey)) return false;
+    if (!(await loadPolarisQuota(userId)).available || !isCurrent() || qaClaims.has(userId) || window.localStorage.getItem(storageKey)) return false;
     window.localStorage.setItem(storageKey, "attempted");
     qaClaims.add(userId);
     return true;

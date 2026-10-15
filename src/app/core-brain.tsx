@@ -34,22 +34,17 @@ import { PolarisCategorySlots } from "@/components/deep-space/PolarisCategorySlo
 import { MdButton, m3TextStyle } from "@/components/m3";
 import { m3, m3BrightnessBand } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import {
-  loadLatestStrengths,
-  loadPersonaSnapshot,
   loadSelfPortraitSignals,
-  type LoadedStrengths,
   type PersonaCard,
   type SelfPortraitSignals,
 } from "@/lib/persona/build";
 import { STRENGTH_LABEL_EN, STRENGTH_LABEL_KO } from "@/lib/persona/strengths-survey";
 import { OFFERABLE } from "@/lib/assess/registry";
-import { loadSevenLevels, type SevenLevels } from "@/lib/persona/load-seven-levels";
 import { SEVEN_STARS, type SevenStarId } from "@/lib/persona/seven-stars";
 import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
-import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
-import { withSystemTagsColumn } from "@/lib/records/system-tags";
+import { evidenceTypeLabel, type EvidenceShard } from "@/lib/persona/evidence";
+import { useCoreEvidenceRead } from "@/lib/persona/use-core-evidence-read";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { claimQaPolarisAuto, loadRoleCards, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
 import { requestGlobalCue } from "@/lib/audio/global-cues";
@@ -83,47 +78,6 @@ const POLARIS_GUIDE_CELLS = stepPolyline(
   [...POLARIS_GUIDE_IDS.map((id) => POLARIS_INPUT_POINTS[id]), POLARIS_OUTPUT_POINT],
   3,
 ).filter((_, index) => index % 3 === 0);
-
-async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promise<OriginShard[]> {
-  const supabase = getSupabaseClient();
-  // Core must count ALL saved pieces the user sees in /records, not just
-  // `records`: non-journal Capture/Import/Wiki land in `sources`. Reading
-  // only records gives source-only users a false "center is still small"
-  // empty state (data-truth gate). Mirrors /records' merged read.
-  const [recRes, srcRes] = await Promise.all([
-    // system_tags (0218) tells an interview piece from a life-audit one.
-    withSystemTagsColumn((columnPresent) =>
-      supabase
-        .from("records")
-        .select(columnPresent ? "id, kind, topic, created_at, tags, system_tags" : "id, kind, topic, created_at, tags")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(24),
-    ),
-    supabase
-      .from("sources")
-      .select("id, kind, title, captured_at, tags")
-      .eq("user_id", userId)
-      .order("captured_at", { ascending: false })
-      .limit(24),
-  ]);
-  // A transient RLS/timeout/token-refresh error returns data null without
-  // throwing — surface it as an error state instead of a false empty one.
-  if (recRes.error) {
-    if (typeof console !== "undefined") console.warn("[core-brain] records query failed", recRes.error);
-    throw recRes.error;
-  }
-  // The select string is chosen at run time (system_tags or not), so name the row type.
-  const recRows = (recRes.data ?? []) as unknown as RawRecordRow[];
-  // Sources are best-effort: a sources failure degrades to records-only, never blanks Core.
-  let srcRows: RawSourceRow[] = [];
-  if (srcRes.error) {
-    if (typeof console !== "undefined") console.warn("[core-brain] sources query failed; records only", srcRes.error);
-  } else {
-    srcRows = (srcRes.data ?? []) as RawSourceRow[];
-  }
-  return mergeEvidence(recRows, srcRows, locale);
-}
 
 // One functional screen: all data (evidence, persona, the deck pages, the
 // evidence drawer) and every CTA live here. (LensView is the 7-axis per-trait
@@ -187,20 +141,13 @@ function CoreBrainScreen() {
   const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
-  const [persona, setPersona] = useState<PersonaCard | null>(null);
-  const [evidence, setEvidence] = useState<OriginShard[]>([]);
-  const [sevenLevels, setSevenLevels] = useState<SevenLevels | null>(null);
-  const [strengths, setStrengths] = useState<LoadedStrengths | null>(null);
-  const [building, setBuilding] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loadErrorUserId, setLoadErrorUserId] = useState<string | null>(null);
-  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [evidenceReloadKey, setEvidenceReloadKey] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [portraitSignals, setPortraitSignals] = useState<SelfPortraitSignals | null>(null);
   const [roleCards, setRoleCards] = useState<RoleCard[]>([]);
   const [roleCardsUserId, setRoleCardsUserId] = useState<string | null>(null);
+  const [roleReadScope, setRoleReadScope] = useState<object | null>(null);
   const [rolePending, setRolePending] = useState(false);
   const [roleError, setRoleError] = useState(false);
   const [roleErrorCode, setRoleErrorCode] = useState("");
@@ -210,89 +157,19 @@ function CoreBrainScreen() {
   currentUser.current = userId;
   const { fire: fireCompanion } = useCompanionMoment();
 
-  useEffect(() => {
-    // The snapshot path is SELECT-only. Still wait for auth/profile hydration so
-    // the effect cannot query under an unresolved or stale user identity.
-    if (loading || !userId || hasProfile !== true || isMinor === null) return;
-    let cancelled = false;
-    setBuilding(true);
-    setLoadError(false);
-    setLoadErrorUserId(null);
-    setPortraitSignals(null);
-    (async () => {
-      try {
-        const [ev, nextStars, nextStrengths] = await Promise.all([
-          loadCoreBrainEvidence(userId, locale),
-          loadSevenLevels(userId).catch(() => null),
-          loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
-        ]);
-        const snapshot = ev.length > 0 ? await loadPersonaSnapshot(userId) : null;
-        const p = snapshot && nextStars
-          ? { ...snapshot, soulCoreBrightness: nextStars.northStarBrightness }
-          : snapshot;
-        if (!cancelled) {
-          setEvidence(ev);
-          setPersona(p);
-          setSevenLevels(nextStars);
-          setStrengths(nextStrengths);
-          setResolvedUserId(userId);
-          // The SecondB head reacts when the center surfaces a fresh connection (companion pack §3).
-          if (p) fireCompanion("connectionFound");
-        }
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[core-brain] load failed", (e as Error).message);
-        if (!cancelled) {
-          setPersona(null);
-          setEvidence([]);
-          setSevenLevels(null);
-          setStrengths(null);
-          setPortraitSignals(null);
-          setResolvedUserId(null);
-          setLoadError(true);
-          setLoadErrorUserId(userId);
-        }
-      } finally {
-        if (!cancelled) setBuilding(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loading, userId, hasProfile, isMinor, locale, fireCompanion, reloadKey]);
+  const primaryRead = useCoreEvidenceRead(userId, !loading && hasProfile === true && isMinor !== null,
+    locale, reloadKey, evidenceReloadKey, () => setReloadKey((key) => key + 1), () => fireCompanion("connectionFound"));
+  const { persona = null, evidence = [], sevenLevels = null, strengths = null } = primaryRead.data ?? {};
+  const primaryScope = primaryRead.scope;
+  const primaryIsCurrent = primaryRead.isCurrent;
+  const canAutoPropose = primaryRead.canAutoPropose;
+  useEffect(() => { setDrawerOpen(false); setPortraitSignals(null); }, [primaryScope]);
 
-  // Re-focus refreshes only cheap DB evidence. The initial/retry path above is
-  // also read-only; persona synthesis and persistence require an explicit action.
-  useFocusRefetch(() => setEvidenceReloadKey((k) => k + 1), Boolean(userId && hasProfile === true));
-
-  useEffect(() => {
-    if (evidenceReloadKey === 0 || !userId || hasProfile !== true || resolvedUserId !== userId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [ev, nextStars, nextStrengths] = await Promise.all([
-          loadCoreBrainEvidence(userId, locale),
-          loadSevenLevels(userId).catch(() => null),
-          loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
-        ]);
-        if (!cancelled) {
-          setEvidence(ev);
-          if (nextStars) setSevenLevels(nextStars);
-          setStrengths(nextStrengths);
-          setLoadError(false);
-          setLoadErrorUserId(null);
-        }
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[core-brain] evidence refresh failed", (e as Error).message);
-        if (!cancelled) {
-          setLoadError(true);
-          setLoadErrorUserId(userId);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, hasProfile, locale, evidenceReloadKey, resolvedUserId]);
+  // Refocus and retry are reads. Neither may reactivate the initial QA proposal.
+  useFocusRefetch(() => {
+    primaryRead.invalidateAuto();
+    setEvidenceReloadKey((key) => key + 1);
+  }, Boolean(userId && hasProfile === true));
 
   // Direct portrait measurements are optional, SELECT-only companions to the
   // synthesized persona. Load them independently so an assessment read failure
@@ -315,45 +192,47 @@ function CoreBrainScreen() {
   }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]);
 
   useEffect(() => {
-    if (loading || !userId || hasProfile !== true || isMinor === null) return;
+    if (loading || !userId || hasProfile !== true || isMinor === null || !primaryScope || !primaryIsCurrent()) return;
     let cancelled = false;
     setQuota(null);
-    void loadPolarisQuota(userId).then((next) => { if (!cancelled) setQuota(next); });
+    void loadPolarisQuota(userId).then((next) => { if (!cancelled && primaryIsCurrent()) setQuota(next); });
     loadRoleCards(userId).then((cards) => {
-      if (!cancelled) {
+      if (!cancelled && primaryIsCurrent()) {
         setRoleCards(cards);
         setRoleCardsUserId(userId);
+        setRoleReadScope(primaryScope);
       }
     }).catch(() => {
-      if (!cancelled) setRoleError(true);
+      if (!cancelled && primaryIsCurrent()) setRoleError(true);
     });
     return () => { cancelled = true; };
-  }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]);
+  }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey, primaryScope, primaryIsCurrent]);
 
   // Simon explicitly authorized one dev-only draft for the existing QA
   // account. Everyone else's mount path remains read-only. No auto approval.
   useEffect(() => {
     if (loading || !userId || isMinor === null || hasProfile !== true ||
-        resolvedUserId !== userId || roleCardsUserId !== userId || roleBusy.current) return;
+        !canAutoPropose() || roleReadScope !== primaryScope || roleCardsUserId !== userId || roleBusy.current) return;
     let alive = true;
+    const current = () => alive && canAutoPropose() && currentUser.current === userId;
     void (async () => {
-      const claimed = await claimQaPolarisAuto(userId, roleCards.length > 0, evidence.length > 0);
-      if (!claimed || !alive || currentUser.current !== userId || roleBusy.current) return;
+      const claimed = await claimQaPolarisAuto(userId, roleCards.length > 0, evidence.length > 0, current);
+      if (!claimed || !current() || roleBusy.current) return;
       roleBusy.current = true;
       setRolePending(true);
       setRoleError(false);
       try {
         const next = await proposeRoleCards(userId, locale, isMinor);
-        if (alive && currentUser.current === userId) { setRoleCards(next); setRoleCardsUserId(userId); }
+        if (current()) { setRoleCards(next); setRoleCardsUserId(userId); }
       } catch (error) {
-        if (alive && currentUser.current === userId) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
+        if (current()) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
       } finally {
         roleBusy.current = false;
         if (currentUser.current === userId) setRolePending(false);
       }
     })();
     return () => { alive = false; };
-  }, [loading, userId, isMinor, hasProfile, resolvedUserId, roleCardsUserId, roleCards.length, evidence.length, locale]);
+  }, [loading, userId, isMinor, hasProfile, primaryScope, roleReadScope, canAutoPropose, roleCardsUserId, roleCards.length, evidence.length, locale]);
 
   const generateRoles = async () => {
     if (!userId || isMinor === null || roleBusy.current || !quota?.available) return;
@@ -404,12 +283,11 @@ function CoreBrainScreen() {
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  const hasCurrentLoadError = loadError && loadErrorUserId === userId;
+  const hasCurrentLoadError = primaryRead.status === "error" || primaryRead.status === "timeout";
   if (
     hasProfile !== true ||
     isMinor === null ||
-    building ||
-    (resolvedUserId !== userId && !hasCurrentLoadError)
+    primaryRead.status === "loading"
   ) {
     return (
       <CoreShell>
@@ -438,7 +316,7 @@ function CoreBrainScreen() {
             <Button
               label={t("tryAgain")}
               variant="primary"
-              onPress={() => setReloadKey((k) => k + 1)}
+              onPress={primaryRead.retry}
             />
             <Button
               label={t("startSecondB")}
