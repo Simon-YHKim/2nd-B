@@ -1,0 +1,124 @@
+{
+  "basis": "76 original remaining tasks; counts task coverage, not effort or feature completion",
+  "stages": {
+    "code_merged_including_partial_preparations": {
+      "count": 34,
+      "percentage": 44.7,
+      "tasks": [
+        "T01",
+        "T02",
+        "T04",
+        "T05",
+        "T08",
+        "T11",
+        "T15",
+        "T16",
+        "T17",
+        "T18",
+        "T19",
+        "T20",
+        "T21",
+        "T23",
+        "T27",
+        "T28",
+        "T30",
+        "T34",
+        "T36",
+        "T38",
+        "T41",
+        "T42",
+        "T43",
+        "T45",
+        "T46",
+        "T47",
+        "T48",
+        "T49",
+        "T50",
+        "T55",
+        "T56",
+        "T62",
+        "T66",
+        "T68"
+      ]
+    },
+    "draft_measurement_or_blocked": {
+      "count": 3,
+      "percentage": 3.9,
+      "tasks": [
+        "T24",
+        "T25",
+        "T29"
+      ]
+    },
+    "docs_policy_only": {
+      "count": 2,
+      "percentage": 2.6,
+      "tasks": [
+        "T13",
+        "T26"
+      ]
+    },
+    "decision_keep_existing_rule": {
+      "count": 1,
+      "percentage": 1.3,
+      "tasks": [
+        "T67"
+      ]
+    },
+    "deferred_roadmap": {
+      "count": 8,
+      "percentage": 10.5,
+      "tasks": [
+        "T69",
+        "T70",
+        "T71",
+        "T72",
+        "T73",
+        "T74",
+        "T75",
+        "T76"
+      ]
+    },
+    "no_merged_implementation_yet": {
+      "count": 28,
+      "percentage": 36.8,
+      "tasks": [
+        "T03",
+        "T06",
+        "T07",
+        "T09",
+        "T10",
+        "T12",
+        "T14",
+        "T22",
+        "T31",
+        "T32",
+        "T33",
+        "T35",
+        "T37",
+        "T39",
+        "T40",
+        "T44",
+        "T51",
+        "T52",
+        "T53",
+        "T54",
+        "T57",
+        "T58",
+        "T59",
+        "T60",
+        "T61",
+        "T63",
+        "T64",
+        "T65"
+      ]
+    }
+  },
+  "app_confirmed": 0,
+  "notes": [
+    "Code coverage includes incomplete/dormant implementations and tooling; this is not a completion percentage",
+    "2 docs/policy + 8 deferred roadmaps excluded from code coverage",
+    "each task counted once; PR totals not a completion metric",
+    "full CI checks still mandatory; root serial full due shared resources"
+  ]
+}

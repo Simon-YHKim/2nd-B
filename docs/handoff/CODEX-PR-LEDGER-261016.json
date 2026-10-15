@@ -1,0 +1,740 @@
+{
+  "snapshot_main": "58af6c0c2956e968f2d950a9acbc01f944012521",
+  "snapshot_kst": "2026-10-16 08:33 KST",
+  "merged_pr_count": 83,
+  "prs": [
+    {
+      "number": 2524,
+      "sha": "459ed3b1",
+      "ci": "all success",
+      "review": "round 1 PASS; 0 findings",
+      "app": "awaiting identical-settings validation",
+      "merge": "404a906efde51750b1e99284c9cfa0b5dc7528f6"
+    },
+    {
+      "number": 2525,
+      "sha": "a640c6a5",
+      "ci": "all success after main integration",
+      "review": "round 1 and latest main integration PASS; 0 findings",
+      "app": "awaiting identical-settings validation",
+      "merge": "18a566b9d3be2473c96806e3fe5d280faa1020e4"
+    },
+    {
+      "number": 2526,
+      "sha": "ed094d8f77fe2cea27f62c8c56874c7142fbbe70",
+      "ci": "all success including fresh SQL replay",
+      "review": "round 1 BLOCK medium1; fixed; round 2 PASS 0 findings",
+      "app": "not reflected",
+      "merge": "168cec93b7887442848faab00ade76af9849f78f"
+    },
+    {
+      "number": 2527,
+      "sha": "d4ec17928348d1d4378b2f54efa87310488be58e",
+      "ci": "all success",
+      "review": "round 1 PASS low1; fixed; final PASS 0 findings",
+      "app": "not reflected",
+      "merge": "72bea5ce6765739333f616f5e56738f3df600971"
+    },
+    {
+      "number": 2528,
+      "sha": "62aefecf0da07bdc609501faca677579282af71e",
+      "ci": "all success run38722950056",
+      "review": "R1 BLOCK medium1; fixed; R2 PASS high/medium/low0",
+      "app": "not reflected",
+      "url": "https://github.com/Simon-YHKim/2nd-B/pull/2528",
+      "merge": "45a085e2affc182ae15274682f2e6b2972681d74"
+    },
+    {
+      "number": 2529,
+      "sha": "b01ba64acfb9a84e67d1421d4ae38e443aafa7d9",
+      "merge": "7aec028cb0fe35c5db82756b45ba2da4795fac56",
+      "review": "R1 PASS0",
+      "ci": "all success run38726789069",
+      "app": "not verified"
+    },
+    {
+      "number": 2530,
+      "sha": "eadf72b28c75212fdc751b9a09b1940de507d52f",
+      "merge": "9d2362c0091eddaec6bdc8c6dd23a8a4f32ecf61",
+      "review": "R1 and integrated head PASS0",
+      "ci": "all success run38729023612",
+      "app": "docs only; not app-confirmed"
+    },
+    {
+      "number": 2532,
+      "sha": "97f4187ec17e9e062ee922f2afc20a743a7aabac",
+      "merge": "589efd653d2d72661881b60d824f17eeadc439fe",
+      "review": "R1 PASS0",
+      "ci": "all success run38730264040",
+      "app": "not verified"
+    },
+    {
+      "number": 2533,
+      "sha": "fe12005f6739e686ddd51fac45543937f59e70b6",
+      "merge": "03f22c4bb51eebb80d7b2f782d162d2d48fca0ea",
+      "review": "R1 BLOCK medium1 → R2 PASS0",
+      "ci": "all success run38731826317",
+      "app": "not verified"
+    },
+    {
+      "number": 2536,
+      "sha": "f007adb99cd133672ae6cffc0eae905ead00c892",
+      "merge": "1010f3ad2f12cf429bf68e44b4b6151fdb093957",
+      "review": "R1 PASS0",
+      "ci": "all success",
+      "app": "not verified"
+    },
+    {
+      "number": 2537,
+      "sha": "31f79c3fcaeac4231743adefeb0e140e1ac127d4",
+      "merge": "9ad455a0a8475f386f41e5a1b9fe7caad274d334",
+      "review": "R1 PASS0",
+      "ci": "all success",
+      "app": "hosted Auth expiry unverified"
+    },
+    {
+      "number": 2538,
+      "sha": "f86a20790a181d9d3ca04742a29c2afe88fbfe7f",
+      "merge": "a1e09fae61550f5d2bb177b20541fefe5f2bd3a2",
+      "review": "R1PASS LOW1 fixed; final PASS0",
+      "ci": "all success",
+      "app": "not verified"
+    },
+    {
+      "number": 2539,
+      "sha": "bb5a27b5986d2195a20183b895765d34b3da952b",
+      "merge": "83f931c02c24c7c8ac7e448c63c003fb01a92835",
+      "review": "R1 PASS0",
+      "ci": "all success run38738210520",
+      "app": "docs-only recovery TODO completed; T02 incomplete"
+    },
+    {
+      "number": 2110,
+      "sha": "19438fa331ee5469c19dc2ad1a8b4a88ccf6fb1a",
+      "merge": "1e377e572fc53755ea92e07b9ff9752e32abf41f",
+      "review": "final PASS H0/M0/L0",
+      "ci": "all success",
+      "app": "not verified"
+    },
+    {
+      "number": 2540,
+      "sha": "b26b0c7610ec7bcc56d2ea0b31d828e92af629b3",
+      "merge": "928f4444932a3751dfa034d09825ddd3a4c58edc",
+      "review": "final PASS H0/M0/L0",
+      "ci": "all success",
+      "app": "not verified"
+    },
+    {
+      "number": 2541,
+      "sha": "8c91cef9bf3c8701233071db615eecf65e287c8e",
+      "merge": "81f45b0d9ff7114842d0ab6450b36fb17c2b07b6",
+      "review": "R1 and numbered final PASS H0/M0/L0",
+      "ci": "all success including sql38742557109",
+      "app": "prod0214/0261 and real canary pending"
+    },
+    {
+      "number": 2542,
+      "sha": "5f500ffeba39a2dd79c824371d8ef1d7971c0015",
+      "merge": "ba3b013e99ac2b85aebdcbee26283118a746f139",
+      "review": "R1 PASS H0/M0/L0",
+      "ci": "all success run38751432272",
+      "app": "not verified"
+    },
+    {
+      "number": 2544,
+      "sha": "18526235f7f00afe58216a9d6333ff158f3a9adb",
+      "merge": "63cacead6b43815b82666b793dd619bf1a08301a",
+      "review": "R1 PASS H0/M0/L0",
+      "ci": "all success run38754735789",
+      "app": "docs only; no new collection; no app completion"
+    },
+    {
+      "number": 2545,
+      "sha": "4418c8d7061f73ad4535058d9c6c583dd767c451",
+      "merge": "c4ab94ee6e4cfb28e04601560be6c9131c01eefc",
+      "review": "R1 PASS H0/M0/L0",
+      "ci": "all success run38760467489",
+      "app": "not verified"
+    },
+    {
+      "number": 2546,
+      "sha": "c32c7c2f535f211ea8aa5799fc4729a5f9468924",
+      "merge": "b6caf7cbbfb7d9867fc84e122e0c08fd61e9c5ba",
+      "review": "R1 PASS H0/M0/L0",
+      "ci": "all success run38760885631",
+      "app": "CI tooling only; not app completion"
+    },
+    {
+      "number": 2547,
+      "sha": "f2d25e6ba0ddc8513a25b67befad9dcc8006acf1",
+      "merge": "cdcd76335e142e706d2ba6f65aff23aadde255fa",
+      "review": "R1 PASS H0/M0/L0",
+      "ci": "all success run38761404800",
+      "app": "not verified"
+    },
+    {
+      "number": 2548,
+      "sha": "687e58110b4eba1692aa6d82e9d4fe93787842e4",
+      "merge": "84eae1a87f46ccb24bbcb8df5ab65e61a1862f4d",
+      "review": "R1 overlooked B1 M1 corrected; R2 PASS H0/M0/L0",
+      "ci": "all success run38763090712",
+      "app": "offline measurement preparation only; actual model calls0"
+    },
+    {
+      "number": 2549,
+      "sha": "a1d8f394f86c0aa7c5273654c02c12d266cc10b0",
+      "merge": "1861f2f89db8cd719b0aa28de42f982e424cbdd1",
+      "review": "R1 PASS H0/M0/L0",
+      "ci": "all success run38766037007",
+      "app": "five approved locale title values; app/phone pending"
+    },
+    {
+      "number": 2550,
+      "sha": "f6615841d69f316604e0c0c8eec1a2d792a897b9",
+      "merge": "184b0017da4be191e2cc2f5fa691f375fb7cb300",
+      "review": "R2PASSH0M0L0",
+      "ci": "all success run38766671406",
+      "app": "limited closed phrases only; production proxy/app/phone pending"
+    },
+    {
+      "number": 2551,
+      "sha": "007865b93264bfebe079edf1a1b6ebbbb4d587e1",
+      "merge": "c6e3d02262ed06e98f561e3d4117d8b10f16823c",
+      "review": "R1finalPASSH0M0L0",
+      "ci": "all success run38766998404",
+      "app": "roadmap only; T69–76 implementations deferred per Q85"
+    },
+    {
+      "number": 2552,
+      "sha": "0061c9ee154c17e3f4b6ce85ef42e165afa897c9",
+      "merge": "decdda9b6d332d626aee76e0b41674ca31a8a5a8",
+      "review": "R2 final PASS H0 M0 L0; prior BLOCK1 retained",
+      "ci": "all success run38769257194",
+      "app": "offline banner code merged; native APK/phone/8081 pending"
+    },
+    {
+      "number": 2553,
+      "sha": "4ad328dd97d24d56bf81f0dfc18d58564f6b6df9",
+      "merge": "ab56c9287f70607e9cb37de6cca0e01c2e9e61b4",
+      "review": "R1 final PASS H0M0L0",
+      "ci": "all success run38770984346",
+      "app": "wiki-list code only; remaining T43 screens and same-settings app verification pending"
+    },
+    {
+      "number": 2554,
+      "sha": "398cac10862ff48b5957f4a1115e9517bad480c8",
+      "merge": "f96916982e7bdf30072467b4dba4501dd7d054f0",
+      "review": "R1finalPASSH0M0L0",
+      "ci": "all success run38772156859",
+      "app": "T13 readiness document only; SDK/consent/collection still off"
+    },
+    {
+      "number": 2555,
+      "sha": "2e716746153661343980e7baa3fe5fa4f727d4f7",
+      "merge": "f1ab81260496cb0f887f3ca965a0538d5dcf92cb",
+      "review": "R1finalPASSH0M0L0;BLOCK0",
+      "ci": "all success run38772797711",
+      "app": "T01 code only; actual APK/phone/Swift/8081 pending"
+    },
+    {
+      "number": 2556,
+      "sha": "f44dfd5207232982883b3e1350a55e4d600eda3b",
+      "merge": "99b9ef1b89e426701609a07461f3548c5cf5c42b",
+      "review": "R1finalPASSH0M0L0",
+      "ci": "all success run38773298068",
+      "app": "five subtitle values only; actual app pending"
+    },
+    {
+      "number": 2557,
+      "sha": "f442e997ab970168cad5468ab55b45670d4f497a",
+      "merge": "4f5e43cc269b1a2368d85d26799458a5239695c2",
+      "review": "R1finalPASSH0M0L0",
+      "ci": "all success run38775741525",
+      "app": "notice labels code; actual app pending"
+    },
+    {
+      "number": 2558,
+      "sha": "aaad94ca09d14175806ffe933d66c3199bc07be5",
+      "merge": "ed6598f92b7a94f6e2e036b4a24c68948322a8c9",
+      "review": "R2finalPASSH0M0L0;BLOCK1 retained",
+      "ci": "all success run38777036587",
+      "app": "quota stay code; same-settings app pending"
+    },
+    {
+      "number": 2559,
+      "sha": "5fd3023e87f25070aacc976a2fce2d4f4f71b937",
+      "merge": "ed19edfa5b0348a1ff50bfd2ba9bb1b030142b1a",
+      "review": "R3PASSH0M0L0; BLOCK2 retained",
+      "ci": "all success run38777376212",
+      "app": "shared-media code only; APK/provider/phone pending"
+    },
+    {
+      "number": 2560,
+      "sha": "82643e563486c63f77f071a00302570501e0fcfe",
+      "merge": "4cb509a308ed716da24bfbf27e2c7511f5622c2f",
+      "review": "R1finalPASSH0M0L0",
+      "ci": "all success run38777789606",
+      "app": "AI recommendation share code only; app unconfirmed"
+    },
+    {
+      "number": 2561,
+      "sha": "102a954f1c47699a8862f7c0d90982735ae13854",
+      "merge": "94cccd917fada9feada9710b1261d3ed3ffec3fb",
+      "review": "R1finalPASSH0M0L0",
+      "ci": "all success (verify/lint/web-export-smoke)",
+      "app": "read failure code; same-settings app unconfirmed"
+    },
+    {
+      "number": 2562,
+      "sha": "3247850452f620419e8f58ebcc845093d246f0ab",
+      "merge": "87f0b46c4144cbb4388618120e8dc4e2e144d41b",
+      "review": "R1finalPASSH0M0L0",
+      "ci": "all success (verify/lint/web-export-smoke)",
+      "app": "read failure code; same-settings app unconfirmed"
+    },
+    {
+      "number": 2563,
+      "sha": "685c1f379c4f1a60c2ae1710fb29a48030479be8",
+      "merge": "7615607a15f296dd4291b1ba730f037bbc0a6ff0",
+      "review": "R1PASSH0M0L0",
+      "ci": "all success verify/lint/web-export-smoke",
+      "app": "reminder feedback code; phone unconfirmed"
+    },
+    {
+      "number": 2564,
+      "sha": "f02d04fab54f66e58c8b0973557313653821358b",
+      "merge": "e32def61ecf53a3ae1ad1341af558efdca9b343c",
+      "review": "R1PASSH0M0L0",
+      "ci": "all success verify/lint/web-export-smoke",
+      "app": "life domain copy code; app unconfirmed"
+    },
+    {
+      "number": 2565,
+      "sha": "56cff0799cc0afcb1e245ce5cda2bd5761425ee4",
+      "merge": "c21c03738b1070ba932419bee49f708191a7f745",
+      "review": "originalR1/integrationPASSH0M0L0",
+      "ci": "all success verify/lint/web-export-smoke",
+      "app": "offline adapter only; model0/app unconfirmed"
+    },
+    {
+      "number": 2566,
+      "sha": "3ac67725a9bf2b67d67b40a2e1d2c779c59491f0",
+      "merge": "7f62c0d7767cf8482fe1ee1b6c796b7b8e0d2109",
+      "verification": "1133 suites / 19101 PASS / 1 skip",
+      "review": "R1 PASS H0 M0 L0",
+      "scope": "T48 FAQ",
+      "ci": "all success",
+      "app": "not app-confirmed",
+      "url": "https://github.com/Simon-YHKim/2nd-B/pull/2566"
+    },
+    {
+      "number": 2567,
+      "sha": "39ad420b1be3d812e5dc8e76d4754b55b9fbefac",
+      "merge": "c77ee1d1e30b45d3fe5463d703bb0d1d5848b7d3",
+      "verification": "1133 suites / 19101 PASS / 1 skip",
+      "review": "final independent PASS H0 M0 L0",
+      "scope": "public handoff snapshot 36PR/main87f0b46c",
+      "ci": "all success",
+      "app": "not app-confirmed",
+      "url": "https://github.com/Simon-YHKim/2nd-B/pull/2567"
+    },
+    {
+      "number": 2568,
+      "sha": "370d8d2831c61e805402ef53e2fefc38d784697f",
+      "merge": "ff507a5fdce6239e0035a8942f491b0f77e72f68",
+      "verification": "1146 suites / 19331 PASS / 1 skip",
+      "review": "R2 final PASS H0 M0 L0; BLOCK1 retained",
+      "scope": "T16 encrypted native draft store; UI not connected",
+      "ci": "all success",
+      "app": "not app-confirmed",
+      "url": "https://github.com/Simon-YHKim/2nd-B/pull/2568"
+    },
+    {
+      "number": 2569,
+      "sha": "fa65b846f640143b030f8725a71dd858dd3d2e27",
+      "merge": "7b6dcc9abcd55de8c8034be472072ee9fe9a86ca",
+      "review": "originalR1 + integrated PASS H0M0L0 BLOCK0",
+      "verification": "1146 suites/19313 PASS/1 skip",
+      "ci": "all success run38784311173",
+      "app": "not app-confirmed",
+      "scope": "T36 missing and neutral verdicts",
+      "url": "https://github.com/Simon-YHKim/2nd-B/pull/2569"
+    },
+    {
+      "number": 2570,
+      "sha": "07e58a30da4d9636384652c7ba3a7d2eb3f1fca8",
+      "merge": "5104273dc8b8fc64da0abbc9ad7e82e277f7b523",
+      "verification": "1145suites19297PASS1skip",
+      "review": "R1PASS H0M0L0 BLOCK0",
+      "ci": "all success run38784756991",
+      "app": "not app-confirmed",
+      "scope": "T47 home and detail life-area labels"
+    },
+    {
+      "number": 2001,
+      "sha": "ff068f8a75d932d99a5bbc4fca247cf51e9bc482",
+      "merge": "509654f3d45c2af6c3018bc2e5dd39823aef9d84",
+      "verification": "1145suites19297PASS1skip",
+      "review": "R1 PASS LOW1 fixed; finalPASS H0M0L0 BLOCK0",
+      "ci": "verify/web+latesttitle SUCCESS run38785368980; superseded title cancelled",
+      "app": "docs/tool only, no app completion",
+      "scope": "S3 writer inventory refreshed in existing PR"
+    },
+    {
+      "number": 2571,
+      "sha": "c9d290a4419fa3310ace872f42a7e02395037371",
+      "merge": "b676fe848a26aa7547e82d71389480271f3d3398",
+      "verification": "1146 suites/19307 PASS/1 skip",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38785956116",
+      "app": "not app-confirmed",
+      "scope": "T43 research independent read failure/retry"
+    },
+    {
+      "number": 2572,
+      "sha": "928bb786972909ac185b52d650f3084fba3b3457",
+      "merge": "4d8898b0026ea098eb57ff6878e4cfc47fe83f30",
+      "verification": "1145 suites/19297 PASS/1 skip",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38792116560",
+      "app": "not app-confirmed",
+      "scope": "T48 Polaris brightness five locale copy"
+    },
+    {
+      "number": 2573,
+      "sha": "edd4c9b1369476ee472b0cfb7381a963e5c89cbc",
+      "merge": "eaca1221d28b6bc889cb28e83451377a21b2f022",
+      "verification": "1148 suites /19353 PASS/1 skip",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38793258379",
+      "app": "offline tool only; not app completion",
+      "scope": "T68 ops builder/parser adapter"
+    },
+    {
+      "number": 2574,
+      "sha": "4c2e9ecfd5f2f64f8320e1663d04325333e3ae30",
+      "merge": "8eed16bc2f560a5922bc9448a2279f32703a2c4f",
+      "verification": "1146suites19330PASS1skip",
+      "review": "R2 PASS H0M0L0 BLOCK1 retained",
+      "ci": "all success run38793757817",
+      "app": "not app-confirmed",
+      "scope": "T45 active wiki/record labels"
+    },
+    {
+      "number": 2575,
+      "sha": "8d1a8cdc9a3ffb47c717e7cfbaf7d903ca95270b",
+      "merge": "682ba737069725b898a9e4c16e5aab9fed3b7dc7",
+      "verification": "1146 suites /19355 PASS/1 skip",
+      "review": "R2 PASS H0M0L0 BLOCK1 retained",
+      "ci": "all success run38794466510",
+      "app": "dormant registry; not app completion",
+      "scope": "T38 A chat session registry"
+    },
+    {
+      "number": 2576,
+      "sha": "767a6e1d9c9fc20a8cfccc44d574ed9beaed59ad",
+      "merge": "261bc14dc5f76daa8027c6b607643e0c7892d562",
+      "verification": "1148 suites /19368 PASS/1 skip",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38794978443",
+      "app": "not app-confirmed",
+      "scope": "T43 capture list/count read failures"
+    },
+    {
+      "number": 2577,
+      "sha": "b594621116b420d06d560259e4f915bd5dc90d65",
+      "merge": "072f53d5591494f0efe5d97b58664087e3a1e765",
+      "verification": "1148 suites /19411 PASS/1 skip",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38795716144",
+      "app": "dormant v2 preparation; not app completion",
+      "scope": "T16 v2 snapshots and restore gates"
+    },
+    {
+      "number": 2578,
+      "sha": "5ad5c723d48802736d358eb6e1664cff673deafe",
+      "merge": "62c7a2df34edf48a2fb32ed22997d07f27b41abc",
+      "verification": "1148suites19379PASS1skip",
+      "review": "R1PASS H0M0L0 BLOCK0",
+      "ci": "all success run38796114065",
+      "app": "not app-confirmed",
+      "scope": "T43 phone wiki independent reads"
+    },
+    {
+      "number": 2579,
+      "sha": "6f221bc41368d822f26c27e6b81baeefaa284c2f",
+      "merge": "415f91faa1de98200bde911e89bcf77e807f0830",
+      "verification": "1147 suites /19347 PASS/1 skip",
+      "review": "R2 PASS H0M0L0 BLOCK1 retained",
+      "ci": "all success including SQL run38796712754/38796712761",
+      "scope": "T04 dormant deletion receipt",
+      "app": "not app-confirmed"
+    },
+    {
+      "number": 2580,
+      "sha": "bf8b6f20efaf7699329879beac9f338bad2cc173",
+      "merge": "fcd5a64c7e57cf854b418cb3e930bcee063a0a61",
+      "verification": "1148 suites /19376 PASS/1 skip",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38797336509",
+      "scope": "T43 standalone wiki focus",
+      "app": "not app-confirmed"
+    },
+    {
+      "number": 2581,
+      "sha": "b1b14210e1e4551b40502837e05ac177d1921c18",
+      "merge": "f3136a1524dd73be56051b591c6abbaaf7eb9c40",
+      "verification": "1152 suites /19511 PASS/1 skip",
+      "review": "R2PASS H0M0L0 BLOCK1 retained",
+      "ci": "all success run38799388422",
+      "scope": "public execution handoff fixed53 snapshot",
+      "app": "docs only; not app completion"
+    },
+    {
+      "number": 2582,
+      "sha": "c840eddd318b31f61bfa28197334683eb85e2018",
+      "merge": "5246d593af0a31fad4832efd7548d5a9055f6a85",
+      "verification": "1153 suites /19538 PASS/1 skip",
+      "review": "R1+integration PASS H0M0L0 BLOCK0",
+      "ci": "all success run38799957752",
+      "scope": "T43 chat citation read failure",
+      "app": "not app-confirmed"
+    },
+    {
+      "number": 2583,
+      "sha": "f19e21b73b8bc7ce1d25ed75d08383dd7175a6ff",
+      "merge": "931314f820512b7ebde5359ad931ef1ce41925cb",
+      "verification": "1151 suites /19523 PASS/1 skip",
+      "review": "R2PASS H0M0L0 BLOCK1 retained",
+      "ci": "all success run38800584875",
+      "scope": "S0-A interview RED delivery before audit",
+      "app": "not app-confirmed; GREEN loss10 remains"
+    },
+    {
+      "number": 2584,
+      "sha": "938b3e2dac133fabb23c09b6224895d5efe3a93b",
+      "merge": "4fcb508da631f9ea81da32eca6609024442d3c2e",
+      "verification": "1150 suites /19485 PASS/1 skip",
+      "review": "R2 PASS H0M0L0 BLOCK1 retained",
+      "ci": "all success run38801201374",
+      "scope": "T38 B dormant chat session controller",
+      "app": "not activated; not app-confirmed"
+    },
+    {
+      "number": 2585,
+      "sha": "f834d82460c8a544089b90a5c09ef4f72d1f243d",
+      "merge": "46924d07ecc6c66559dae76b6e1315a8c20b78b4",
+      "verification": "1152 suites /19590 PASS/1 skip",
+      "review": "R2 PASS H0M0L0 BLOCK1 retained",
+      "ci": "all success run38802303425",
+      "scope": "T16 dormant encrypted native v2 draft storage",
+      "app": "not activated; not app-confirmed"
+    },
+    {
+      "number": 2586,
+      "sha": "9b47646bd6d2a2af09eec3792a7bb28a1a2df05c",
+      "merge": "fb216f31292b9ccadf675dfb3607d4850b1f51c5",
+      "verification": "1153 suites /19553 PASS/1 skip",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38802939391",
+      "scope": "T43 sources list and preview read failures",
+      "app": "not app-confirmed; mutation race separate"
+    },
+    {
+      "number": 2587,
+      "sha": "7ff17c75a369db84997beface182e0baa509d90c",
+      "merge": "f42df04f8f02bceb84f60e6c29f8dba6e1c36f2e",
+      "verification": "1154 suites /19573 PASS/1 skip",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38803731545",
+      "scope": "T43 roles and evidence read failures",
+      "app": "not app-confirmed; standalone records graph only"
+    },
+    {
+      "number": 2588,
+      "sha": "de1e559f300863a614840e84674efc2b5da64556",
+      "merge": "6393a603dc3f9ff7a964a13aa7b62c2bd9db8c8d",
+      "verification": "1152 suites /19540 PASS/1 skip",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38804219605",
+      "scope": "T38 C0 captured local RED helper",
+      "app": "no active captured caller; not app-confirmed"
+    },
+    {
+      "number": 2589,
+      "sha": "87f987ff919b24c8995885b6a164c75e156ca67b",
+      "merge": "b604e993945c7fe77c96d135115e593276d02130",
+      "review": "R3 PASS H0M0L0 BLOCK2 retained",
+      "ci": "all success run38805004277 and38805004238",
+      "fullverify": "1155suites19941PASS1skip",
+      "app": "not verified",
+      "url": "https://github.com/Simon-YHKim/2nd-B/pull/2589"
+    },
+    {
+      "number": 2590,
+      "sha": "3dc2ea3d2c4c6e45a8f071763b8284a539e26dc1",
+      "merge": "304d350de7a683722a0afbb0f94ab3c804f27807",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38806736722/38806736587",
+      "fullverify": "1155suites19668PASS1skip",
+      "app": "dormant preparation; not verified"
+    },
+    {
+      "number": 2591,
+      "sha": "6f95f8fdc1f9284df35e18d82179ec50d9f04285",
+      "merge": "9460615ac47ea18bb0046eec95789fb073df1e42",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38807327898/38807327710",
+      "fullverify": "1152suites19532PASS1skip",
+      "app": "dormant web purge; no active auth caller"
+    },
+    {
+      "number": 2592,
+      "sha": "66034fa74571345463c085a08ed9fd04c56ab621",
+      "merge": "a21c17532794e987280d6f2f1d89f9f06b934a3f",
+      "review": "R2 PASS H0M0L0 BLOCK0; initial verify guards corrected",
+      "ci": "all success run38808853030/38808853174",
+      "fullverify": "1155suites19742PASS1skip",
+      "app": "locale preparation; actual guidance UI not active"
+    },
+    {
+      "number": 2593,
+      "sha": "0ef056c882459f3bffb18780f47cf67431bdd96d",
+      "merge": "0bce8aee43dbaa9d05e2ab58a103a95e938e0dd3",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38809441539/38809441380",
+      "fullverify": "1154suites19727PASS1skip",
+      "app": "dormant captured RPC preparation; not app-confirmed"
+    },
+    {
+      "number": 2594,
+      "sha": "55c8281d029f8b7953286bcebc969d19429f3dfe",
+      "merge": "fb2ab967bc028dc356b520da4701312078d1312d",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38810383552/38810383512",
+      "fullverify": "1155suites19794PASS1skip",
+      "app": "dormant context readers; no new caller"
+    },
+    {
+      "number": 2595,
+      "sha": "44550f2eceb881790183bee7e1ab497d3791a071",
+      "merge": "a68c5e5a7073f2aad2bb5c86f0147bb41181f27f",
+      "review": "R1 PASS H0M0L0 BLOCK0",
+      "ci": "all success run38810764475/38810764533",
+      "fullverify": "1156suites19866PASS1skip",
+      "app": "dormant embedding/RAG execution option; not app-confirmed"
+    },
+    {
+      "number": 2596,
+      "sha": "2c50be85ba56b149fac47490444325e1662efb41",
+      "merge": "5f9bcc085b01e9a72a1a5b4683e96bd1407f1207",
+      "review": "R1 and integration PASS H0M0L0 BLOCK0",
+      "ci": "all success run38811386153/38811386103",
+      "fullverify": "1160suites20295PASS1skip",
+      "app": "dormant resolver; actual UI/10GREEN guidance loss unresolved"
+    },
+    {
+      "number": 2597,
+      "sha": "1c39a83fffa861e9d51847867bba9b1f798ce5e2",
+      "merge": "d675f265f02ff2e55910e6d02babf9a69416b97a",
+      "ci": "all success38812265668/38812265770",
+      "review": "R2PASS H0M0L0 BLOCK1",
+      "full": "1156suites19789PASS1skip",
+      "app": "not verified"
+    },
+    {
+      "number": 2598,
+      "sha": "faa16a79bdc599f868a3b0cc98574b164dbc46a7",
+      "merge": "bd4cc19ec577f3599689f6205d5f0e137f357edc",
+      "ci": "all success38812959103/38812958998",
+      "review": "R1PASS + anchor deltaPASS H0M0L0 BLOCK0",
+      "full": "1158suites20202PASS1skip",
+      "app": "dormant; not verified"
+    },
+    {
+      "number": 2599,
+      "sha": "89c888e6f70df4e95fb5bd84fb1f566f63b822f1",
+      "merge": "218dbabb4bc6b618ab6aa8ce7356f5d6a8d73f7f",
+      "review": "R2PASS H0M0L0 BLOCK1",
+      "full": "1158suites20171PASS1skip",
+      "ci": "all success38813811549/38813811472",
+      "app": "docs only"
+    },
+    {
+      "number": 2600,
+      "sha": "1a9f30ee057eac744006e13abc76a81f3a2fa5c3",
+      "merge": "64bf7659a3361f740c00dd3fb1efb9ed22a0e774",
+      "review": "R2 + integration + anchor independentPASS H0M0L0 BLOCK1 retained",
+      "ci": "all success38815222171/38815222202",
+      "app": "code merged; same-settings/phone pending"
+    },
+    {
+      "number": 2601,
+      "sha": "4dbcf08198461444b7ac94decca99f30cc65af52",
+      "merge": "2d760975d75465f0e54e3279dc7434fd469d2680",
+      "review": "B2a/B2b+integrationPASS H0M0L0 BLOCK0",
+      "ci": "all success38817948207/38817948303",
+      "app": "Polaris companion code merged; brightness/same-settings/phone pending"
+    },
+    {
+      "number": 2602,
+      "sha": "4cf30beac594cf9321785a237cce9815aa05b672",
+      "merge": "01fb82c4ebaa6a820e4a5b88d0a63654e40f9ca2",
+      "review": "S1 original/integration/CI delta PASS H0M0L0 BLOCK0; designBLOCK1",
+      "verification": "1162suites20607PASS1skip; actualPG21groups+ind4",
+      "ci": "all success38818714792/38818714645/38818714680",
+      "app": "dormant authority preparation; endpoint/finalization/UI/ops pending",
+      "url": "https://github.com/Simon-YHKim/2nd-B/pull/2602"
+    },
+    {
+      "number": 2603,
+      "sha": "93b2398b314d98c3c2db5ed07c9f4553fb137972",
+      "merge": "6eb5db40bea9f7009a3160577206c354c04bb164",
+      "review": "B0aR2/B0bR1/integration PASS H0M0L0; B0aBLOCK1/designBLOCK1",
+      "verification": "1162suites20714PASS1skip",
+      "ci": "all success38820309954/38820309952",
+      "app": "durable intent preparation; actual5authcallers/UI/server pending",
+      "url": "https://github.com/Simon-YHKim/2nd-B/pull/2603"
+    },
+    {
+      "number": 2604,
+      "sha": "fb7f08e9ca230570b6d55e1ebdfb49a34e5d1da9",
+      "merge": "edfb78f7bf00ee9843f004c693624991e5a71b16",
+      "ci": "all PASS 38820790467/38820790540",
+      "review": "independent PASS H0M0L0/newM0; 1164suites20742PASS1skip",
+      "app": "awaiting identical-settings validation"
+    },
+    {
+      "number": 2605,
+      "sha": "ce7b960df33f71f1538d3948399325110832c3a7",
+      "merge": "fc15cf869521afa5898485ac40d6ee34e6d8b2a0",
+      "ci": "all PASS 38821348328/38821348329",
+      "review": "independent PASS H0M0L0/newM0; 1165suites20795PASS1skip",
+      "app": "awaiting identical-settings validation"
+    },
+    {
+      "number": 2606,
+      "sha": "a4648816b3ae04f42d4329b0e04c55e2ea4aec73",
+      "merge": "2997f4b38e92ebfd8c6ad5f9ad9e2c7a542bb160",
+      "ci": "all PASS38822951254/38822951171",
+      "review": "S1 independentR1PASS0/BLOCK0; i18n delta independentPASS86; full1167suites21072PASS1skip",
+      "app": "awaiting identical-settings validation"
+    },
+    {
+      "number": 2607,
+      "sha": "7d6a9d2b1f8c38bdefcb5c476dbbadb9d08a9f5a",
+      "merge": "530cd51700e71d0dfc55c16c6097e6510353fb85",
+      "ci": "all PASS 38823402806/38823402924",
+      "review": "C1R2PASS BLOCK1 andC2R1PASS BLOCK0; independent428/source54hash;full1168suites21013PASS1skip",
+      "app": "same-settings app/phone pending"
+    },
+    {
+      "number": 2608,
+      "sha": "ed86078395572794eecd33dfe40d6aed716fa326",
+      "merge": "58af6c0c2956e968f2d950a9acbc01f944012521",
+      "ci": "all PASS 38823738804/38823738726",
+      "review": "D3aR2PASS BLOCK1/C1bR1PASS0/C1cR2PASS BLOCK1/anchorPASS18;newM0;full1170suites21152PASS1skip",
+      "app": "same-settings app/phone pending"
+    }
+  ]
+}
