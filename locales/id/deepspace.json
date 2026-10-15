@@ -96,7 +96,7 @@
     "unfiledBadge": "Tak terkategori",
     "fallbackTitle": "Tanpa judul",
     "graphEmpty": "Belum ada pengetahuan untuk dihubungkan.",
-    "loadError": "Arsipmu belum bisa dimuat. Coba lagi.",
+    "loadError": "Wiki belum bisa dimuat. Coba lagi.",
     "retry": "Coba lagi",
     "periodScope": "Cerita: {{star}}",
     "periodShowAll": "Lihat semua"
@@ -109,7 +109,7 @@
     "lead": "Area-areamu sekilas",
     "empty": "Catatan dikelompokkan menurut tag bidangnya. Tambahkan catatan untuk memulai.",
     "addData": "+ Tambah data",
-    "unit": "keping",
+    "unit": "catatan",
     "noActivity": "Tidak ada catatan",
     "topicsLabel": "{{tag}} · topik utama"
   },
@@ -323,7 +323,7 @@
     "tip": "Ketuk topik yang paling sering kamu simpan untuk melihat alurnya.",
     "sectionNow": "Kamu belakangan ini",
     "lead": "Dibanding minggu lalu, minggu ini kamu",
-    "weeklyCap": "Keping tersimpan · mingguan",
+    "weeklyCap": "Catatan tersimpan · mingguan",
     "lastWeek": "Minggu lalu",
     "thisWeek": "Minggu ini",
     "delta": "▲ {{percent}}% lebih banyak tersimpan",
@@ -709,7 +709,7 @@
     "eyebrowConstellation": "KONSTELASI SAYA",
     "footerWeek": "Seminggu yang dilihat bersama HustleK",
     "starsLit": "{{count}} bintang bersinar",
-    "signature": "PolaScope · {{count}} serpihan bintang"
+    "signature": "PolaScope · {{count}} catatan"
   },
   "ds": {
     "network": {
@@ -907,8 +907,8 @@
       "healthRoutinesCompleted": "Rutinitas yang diselesaikan dari ini: {{count}}.",
       "healthAutoDaily": "Selama penyegaran otomatis aktif, ponsel ini juga membaca langkah, olahraga, dan tidur sekali sehari secara otomatis.",
       "healthErrFailed": "Tidak dapat mencerminkan data kesehatanmu. Coba lagi sebentar lagi.",
-      "summaryPieces": "{{count}} potongan",
-      "summaryPieces_plural": "{{count}} potongan",
+      "summaryPieces": "{{count}} catatan",
+      "summaryPieces_plural": "{{count}} catatan",
       "resultAdded": "{{count}} ditambahkan ke kotak masukmu",
       "resultAdded_plural": "{{count}} ditambahkan ke kotak masukmu",
       "resultDuplicate": "{{count}} duplikat",

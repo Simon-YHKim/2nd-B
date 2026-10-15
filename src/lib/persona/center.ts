@@ -118,7 +118,7 @@ export function buildCenterCards(persona: PersonaCard, locale: "en" | "ko"): Cen
     id: "pieces",
     title: ko ? "이걸 만든 별가루" : "The pieces behind this",
     body: ko
-      ? `지금 이 모습은 ${joinSources(sources, locale)}에서 모은 별가루입니다.`
+      ? `지금 이 모습은 ${joinSources(sources, locale)}에서 모은 기록입니다.`
       : `This shape is pieced together from ${joinSources(sources, locale)}.`,
     accent: cosmic.pixelLamp,
   };

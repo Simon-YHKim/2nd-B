@@ -66,7 +66,7 @@
     "headline": "'{{title}}' tem mais conexões com outros registros.",
     "chipPages": "Páginas {{count}}",
     "chipLinks": "Conexões {{count}}",
-    "chipOrphans": "Sem conexões {{count}}",
+    "chipOrphans": "Registros sem conexões {{count}}",
     "noLinks": "Ainda não há conexões entre os registros salvos. Você pode adicionar outros registros e buscar novamente.",
     "surprise": "Há uma conexão sugerida entre '{{from}}' e '{{to}}', que tratam de temas diferentes.",
     "islandChip": "Grupos de conhecimento {{count}}",
@@ -96,7 +96,7 @@
     "unfiledBadge": "Não classificado",
     "fallbackTitle": "Sem título",
     "graphEmpty": "Ainda não há conhecimento para conectar.",
-    "loadError": "Não foi possível carregar seus registros. Tente novamente.",
+    "loadError": "Não foi possível carregar a Wiki. Tente novamente.",
     "retry": "Tentar de novo",
     "periodScope": "Histórias: {{star}}",
     "periodShowAll": "Ver tudo"
@@ -709,7 +709,7 @@
     "eyebrowConstellation": "MINHA CONSTELACAO",
     "footerWeek": "Uma semana vista ao lado do HustleK",
     "starsLit": "{{count}} estrelas brilhando",
-    "signature": "PolaScope · {{count}} fagulhas de estrela"
+    "signature": "PolaScope · {{count}} registros"
   },
   "ds": {
     "network": {
@@ -907,8 +907,8 @@
       "healthRoutinesCompleted": "Rotinas concluídas a partir disto: {{count}}.",
       "healthAutoDaily": "Com a atualização automática ligada, este celular também lê passos, treinos e sono uma vez por dia sozinho.",
       "healthErrFailed": "Não foi possível registrar seus dados de saúde. Tente novamente.",
-      "summaryPieces": "{{count}} item",
-      "summaryPieces_plural": "{{count}} itens",
+      "summaryPieces": "{{count}} registro",
+      "summaryPieces_plural": "{{count}} registros",
       "resultAdded": "{{count}} adicionado à sua caixa de entrada",
       "resultAdded_plural": "{{count}} adicionados à sua caixa de entrada",
       "resultDuplicate": "{{count}} duplicado",
