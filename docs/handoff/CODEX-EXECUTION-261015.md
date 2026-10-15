@@ -1,6 +1,6 @@
-# Codex 실행 인수 · 2026-10-16 02:48 KST
+# Codex 실행 인수 · 2026-10-16 04:59 KST
 
-기준 main `87f0b46c4144cbb4388618120e8dc4e2e144d41b`. 원감사 414건과 겹침을 합친 76개는 인수 기준이다. 이 세션에서 PR 36개를 병합했지만, **앱 반영 완료를 확인한 항목은 0개**다. PR 수를 작업 완료 수로 환산하지 않는다. 아래는 해당 시각의 실행 상태이며 이후 PR의 결과가 우선한다.
+기준 main `62c7a2df34edf48a2fb32ed22997d07f27b41abc`. 원감사 414건과 겹침을 합친 76개는 인수 기준이다. 이 세션에서 PR 53개를 병합했지만, **앱 반영 완료를 확인한 항목은 0개**다. PR 수를 작업 완료 수로 환산하지 않는다. 아래는 해당 시각의 실행 상태이며 이후 PR의 결과가 우선한다.
 
 ## 확정 방향과 먼저 볼 상충
 
@@ -16,18 +16,25 @@
 
 기존 `npm run verify`(정적·정책·타입·전체 Jest)를 매 최종 후보에서 실행한다. 새 오류는 실제 함수를 실행하는 회귀로 보완하며, 독립 검토자는 별도 경합·실패를 재현한다. 네이티브 Kotlin 원문 컴파일과 대역 런타임은 실제 센서/PIN·APK·폰 검증과 구분한다. 동작을 대신 만든 대역만으로 제품 동작을 입증하지 않는다.
 
-최근 T01·T49 최종 전체는 1,133 suites/19,101 tests PASS(1 skipped), T15는 1,139/19,203 PASS(1 skipped)다. T15의 첫 통합 전체 실패 3건은 확정 연령값 전달과 공유 URL 처리별 검사로 보완했고 연령 예외 목록을 넓히지 않았다. T49의 직접 한국어 감소 pin 누락도 실제 10→9 집계로 보정 후 전체 재실행했다.
+최근 v2 인터뷰 복원 준비 #2577은 1,148 suites/19,411 tests PASS(1 skipped), 폰 위키 #2578은 1,148/19,379 PASS(1 skipped)다. 삭제 접수 후보6f221bc4는 별도 실제 PostgreSQL에서236개migration과12개그룹을 실행했다. 독립 검토의 session잠금대기 중 인증만료/soft-delete 반례 두 개를 수정 전 실패·수정 후 원장/fence0으로 확인해 R2PASS0·BLOCK1을 보존했다. 전체1147suites/19347PASS1skip 후 #2579 CI대기다. 각 결과는 정확후보의 실행이며 반복횟수를 더하지 않는다.
 
 현재 Linux의 `app:parity`는 다름이다. main 코드와 설치 패키지/패치 차이는 0이며, expo-local-authentication의 누락된 숨김 설치 기록만 원본 패키지 73파일 대조 후 복구했다. Actions Variables 읽기 403·8081 응답/기록 없음이 남는다. 사용자가 연결 권한을 확인하겠다고 답했으며 반복 승인을 요청하지 않는다. 원 Windows PC의 8081 상태는 이 결과로 판단하지 않는다.
 
 ## 중단·운영 조건
 
 - #2440 T29: 정확한 `31c2c5bfc8d1997766d060ceb2b745b5cc602539`, R3 BLOCK·누적3. 실제 Expo Router 브라우저 Back이 RESET으로 전달돼 보류 답을 잃었다. 전체18,825 PASS로 이 결함을 덮지 않는다. 추가 수정/재검토/우회 PR 없이 동결한다.
-- 기존 #2396·#2318·#2365의 중단 상태도 유지한다. #2365는 최종 R5 BLOCK, #2241은 역사적 R4 BLOCK 후 범위 전체가 #2253/#2284로 이관됐다. 기존 초안 12개의 [분류·근거](CODEX-DRAFTS-261015.md)를 보존하며 명시적으로 닫지 않기로 한 PR은 닫지 않는다. 새 위기 지시문/완화 후보 #2531·#2534·#2543은 측정 기준 미달로 적용하지 않는다. 측정 도구 PASS와 모델 성능 PASS는 다르다.
+- 기존 #2396·#2318·#2365의 중단 상태도 유지한다. #2365는 최종 R5 BLOCK, #2241은 역사적 R4 BLOCK 후 범위 전체가 #2253/#2284로 이관됐다. 기존 초안 11개의 [분류·근거](CODEX-DRAFTS-261015.md)를 보존하며 명시적으로 닫지 않기로 한 PR은 닫지 않는다. 새 위기 지시문/완화 후보 #2531·#2534·#2543은 측정 기준 미달로 적용하지 않는다. 측정 도구 PASS와 모델 성능 PASS는 다르다.
 - T15는 정식R3 PASS0·CI 통과 후 #2559로 병합했고 이전 BLOCK2 이력은 보존한다. 실제 APK·공유 제공자·폰 확인이 남는다.
 - 0255→0258 적용 전 대화 프록시 재배포 금지, 0260 적용 전 기록 상한19→21 활성화 금지. 0225/0226 보안6건·추가교착 수정은 #2526에 병합됐지만 운영 원장/AI 보류 연결은 미완료다.
 - 0221 감시 함수는 기존 운영 이력·함수·정상 감시를 확인했다. 미적용으로 중복 처리하지 않는다. 0214/0261 직접 지급 권한 회수, 실제 광고 canary는 별도 남는다.
 - 10-17 23:20 뒤 Relay 가용 시각은 모든 운영 변경의 승인이나 자동 예약이 아니다. 운영 작업 시 저장소의 적용 중 표시와 실제 선행 조건을 따른다.
+
+## 이번 인수의 새 상충과 이어갈 순서
+
+- S0 안내 설계는 R1/R2 BLOCK2 뒤 D3 R3 PASS0다. 해석 실패만으로 긴급 연락 안내를 만들지 않으며, 긍정적인 현재 연락 권유가 확인된 bounded source만 고정 안내로 전달한다. 실제 GREEN 안내소실10개는 아직 코드 연결 전이다. 확정 RED 조기전달 A는 실제 boundary 감사지연 반례를 확인하고 구현 중이며 #2440의 stop/Back 동결을 우회하지 않는다.
+- T38 A는 #2575로 병합했지만 비활성 registry다. B 주입형 controller → captured session/engine·발행쓰기 확인 → keep/plan/autosave/entry → 화면 연결 순서다. 동기 본문 접근 차단 ACK와 이미 발행한 서버쓰기 완료 확인을 합치지 않는다.
+- T16은 v1native#2568·v2codec/restore#2577 준비만 병합했다. v2전용nativeadapter/CAS·서버generation/멱등최종화·웹exact-session purge·실제화면이 남는다. 0225r0과현재화면 판정구분을 기존이력/새규칙으로 분리하며 unknown저장을 재전송하지 않는다.
+- T54의 Q40/41은 이미 승인됐다. memo/fourw/link를정리신호에서빼는밝기변화수용+머지전QA전후측정, sources까지한번에+운영GO다. 기존0218 records.system_tags가있다는것만으로후속완료가아니다. 사용자tags의모양으로자동이행하지않는다.
 
 ## 병합 근거
 
@@ -69,6 +76,23 @@
 | [#2560](https://github.com/Simon-YHKim/2nd-B/pull/2560) | R1finalPASSH0M0L0; all success run38777789606 | `4cb509a3` |
 | [#2561](https://github.com/Simon-YHKim/2nd-B/pull/2561) | R1finalPASSH0M0L0; all success (verify/lint/web-export-smoke) | `94cccd91` |
 | [#2562](https://github.com/Simon-YHKim/2nd-B/pull/2562) | R1finalPASSH0M0L0; all success (verify/lint/web-export-smoke) | `87f0b46c` |
+| [#2563](https://github.com/Simon-YHKim/2nd-B/pull/2563) | R1PASSH0M0L0; all success verify/lint/web-export-smoke | `7615607a` |
+| [#2564](https://github.com/Simon-YHKim/2nd-B/pull/2564) | R1PASSH0M0L0; all success verify/lint/web-export-smoke | `e32def61` |
+| [#2565](https://github.com/Simon-YHKim/2nd-B/pull/2565) | originalR1/integrationPASSH0M0L0; all success verify/lint/web-export-smoke | `c21c0373` |
+| [#2566](https://github.com/Simon-YHKim/2nd-B/pull/2566) | R1 PASS H0 M0 L0; all success | `7f62c0d7` |
+| [#2567](https://github.com/Simon-YHKim/2nd-B/pull/2567) | final independent PASS H0 M0 L0; all success | `c77ee1d1` |
+| [#2568](https://github.com/Simon-YHKim/2nd-B/pull/2568) | R2 final PASS H0 M0 L0; BLOCK1 retained; all success | `ff507a5f` |
+| [#2569](https://github.com/Simon-YHKim/2nd-B/pull/2569) | originalR1 + integrated PASS H0M0L0 BLOCK0; all success run38784311173 | `7b6dcc9a` |
+| [#2570](https://github.com/Simon-YHKim/2nd-B/pull/2570) | R1PASS H0M0L0 BLOCK0; all success run38784756991 | `5104273d` |
+| [#2001](https://github.com/Simon-YHKim/2nd-B/pull/2001) | R1 PASS LOW1 fixed; finalPASS H0M0L0 BLOCK0; verify/web+latesttitle SUCCESS run38785368980; superseded title cancelled | `509654f3` |
+| [#2571](https://github.com/Simon-YHKim/2nd-B/pull/2571) | R1 PASS H0M0L0 BLOCK0; all success run38785956116 | `b676fe84` |
+| [#2572](https://github.com/Simon-YHKim/2nd-B/pull/2572) | R1 PASS H0M0L0 BLOCK0; all success run38792116560 | `4d8898b0` |
+| [#2573](https://github.com/Simon-YHKim/2nd-B/pull/2573) | R1 PASS H0M0L0 BLOCK0; all success run38793258379 | `eaca1221` |
+| [#2574](https://github.com/Simon-YHKim/2nd-B/pull/2574) | R2 PASS H0M0L0 BLOCK1 retained; all success run38793757817 | `8eed16bc` |
+| [#2575](https://github.com/Simon-YHKim/2nd-B/pull/2575) | R2 PASS H0M0L0 BLOCK1 retained; all success run38794466510 | `682ba737` |
+| [#2576](https://github.com/Simon-YHKim/2nd-B/pull/2576) | R1 PASS H0M0L0 BLOCK0; all success run38794978443 | `261bc14d` |
+| [#2577](https://github.com/Simon-YHKim/2nd-B/pull/2577) | R1 PASS H0M0L0 BLOCK0; all success run38795716144 | `072f53d5` |
+| [#2578](https://github.com/Simon-YHKim/2nd-B/pull/2578) | R1PASS H0M0L0 BLOCK0; all success run38796114065 | `62c7a2df` |
 
 ## 76개 실행 원장
 
@@ -104,18 +128,18 @@
 ### T04 · 계정 삭제 뒤 '삭제 완료' 안내 + 서버가 삭제 끝을 기록(영수증)
 
 - 결정: 10-06 · Q-42 · Q-261013-32 · 44; 우선순위 P1. 원감사 상태: 미착수.
-- 구현: 미확인
-- 검증: 미확인; 독립 검토: 미실시
-- 병합: 미확인; 실제 앱: 미확인
-- 다음: 계정 삭제 완료 안내와 서버 영수증 범위를 다시 확정
-- 조건: #2132는 재설계 이관 상태. 서버 영수증·실패 복구·보관 조건 검토가 선행
+- 구현: 비활성 accepted-only UNNUMBERED 원장/begin/lookup6f221bc4; 공개endpoint/executor 미연결
+- 검증: 실제236migration DB12그룹PASS; R1잠금대기반례2건R2에서원장/fence0으로해소; full1147suites19347PASS1skip; 독립 검토: R2PASS H0M0L0 새M0, 같은구현BLOCK1·역사#2132BLOCK2각각유지
+- 병합: PR#2579 CI대기; 운영미적용; 실제 앱: 미확인
+- 다음: #2579 CI확인·병합 후 공개Edge/실행기/기기연결 후속; accepted를 삭제완료로 표시하지 않음
+- 조건: #2132는 재설계 이관 상태. 서버 영수증·실패 복구·보관 조건 검토가 선행 / Q32/Q44 재설계 승인은 유지. #2132 전체61파일 복원/메일 활성화 아님. 법무 완료 원문 미복구; Auth/profile-only 구분·원격 삭제 unknown·두버킷·복구/보관/구형클라이언트 계약 선행. R1의 iat302초 및 잠금대기 중 Auth soft-delete 접수 반례는 R2에서 원장/fence0으로 해소한 역사다. accepted는 삭제완료아님. 공개endpoint/executor/기기연결 미구현
 
 ### T05 · 계정 삭제 확인 낱말을 앱 언어로(「DELETE」 → 「삭제」) + 지운 뒤 한 줄 알림
 
 - 결정: Q-261013-20 · Z38; 우선순위 P1. 원감사 상태: 미착수.
-- 구현: 삭제 확인낱말 5언어 실제표시언어에맞춤·이전언어콜백거부 #2538
-- 검증: 전체1121 suites /18780PASS/1skip,CI통과; 독립 검토: R1 PASS low1 수정; exactf86a2079 최종PASS H0M0L0
-- 병합: maina1e09fae,PR2538; 실제 앱: 미확인
+- 구현: 확인 낱말은 실제 표시 언어에 맞춘 5언어 및 이전 언어 callback 거부를 #2538로 반영. 삭제 뒤 안내의 서버 선행 준비는 별도 T04 비활성 accepted-only 원장6f221bc4이며 공개endpoint/executor 미연결
+- 검증: 확인 낱말 f86a2079 전체1121suites18780PASS1skip·CI통과. T04 서버 준비는 별도 전체1147suites19347PASS1skip·실제DB12그룹PASS; 독립 검토: 확인 낱말 LOW1 수정 뒤 최종 H0M0L0; T04 서버 준비 R2PASS0·구현BLOCK1 유지
+- 병합: #2538 maina1e09fae 병합; T04 서버 준비 #2579 CI대기; 실제 앱: 미확인
 - 다음: 삭제 완료 안내·T04 영수증 경계를 연결하고 같은 설정 앱 확인
 - 조건: 각 언어에서 입력 검증과 표시 일치. 서버 확인 전 삭제 완료로 표시하지 않음 / T05 확인낱말 코드반영. 삭제후한줄/T04서버영수증/실제앱확인남음
 
@@ -212,11 +236,11 @@
 ### T16 · 저장 전 인터뷰를 기기에 7일 암호화 임시 보관(앱이 꺼져도 「이어서 / 버리기」)
 
 - 결정: Q-261014-21; 우선순위 P1. 원감사 상태: 미착수.
-- 구현: 네이티브 암호화 초안 저장 모듈32392a7c 구현; UI 미연결
-- 검증: 실제AESGCM 포함5suites86PASS·type/lint/cycles0; 독립 검토: 독립R1진행
-- 병합: 미확인; 실제 앱: 미확인
-- 다음: 독립검토·전체verify·병합 후 UI/웹logout/만료정리/coverage·서버멱등성 연결 설계
-- 조건: 네이티브 암호화·웹 로그아웃 삭제. 20·21·35의 종료/미저장 규칙과 맞춤 / 일반native logout암호문유지·owner/epoch노출차단·고정7일·revision삭제·terminalpurge. 웹logout삭제는후속. 앱꺼진중정시물리삭제/복원UI미구현
+- 구현: 암호화 native draft store PR#2568 병합; UI 미연결; dormant v2DTO/순수복원b5946211 독립R1PASS0
+- 검증: 최종370d8d28 전체1146suites19331PASS1skip·CI allgreen; v2기존/새회귀95PASS/type/lint/cycles; v2b5946211 full1148suites19411PASS1skip·독립95+55필드거절/9hotline 확인; 독립 검토: 저장 모듈 R2 final PASS H0M0L0·BLOCK1 보존. 후속 연결 설계도 R2 PASS0·별도BLOCK1 보존; dormant v2 R1PASS0 BLOCK0; v2 R1PASS H0M0L0 BLOCK0
+- 병합: PR#2568 mainff507a5f; v2 #2577 main072f53d5; 실제 앱: 미확인
+- 다음: v2전용 native adapter/CAS → server generation/멱등finalization 및 web exact-session purge → 실제 UI 연결·같은설정 앱 검증
+- 조건: 네이티브 암호화·웹 로그아웃 삭제. 20·21·35의 종료/미저장 규칙과 맞춤 / native 일반 logout 암호문 유지·고정7일·revision삭제·terminalpurge. 읽을 때 만료 삭제이며 앱이 꺼진 순간 물리삭제 보장 아님. UI/web purge ACK·content generation·0225 r0↔T36 규칙전환/서버멱등성 후속; v2codec/restore는main병합, nativev2adapter계획중·UI/storage/server연결전
 
 ### T17 · 인터뷰 답하는 자리에 사실 한 줄 「답은 AI가 읽고 다음 질문을 만듭니다. 저장을 눌러야 기록으로 남습니다.」
 
@@ -323,8 +347,8 @@
 - 구현: 저장 직후 #2532 및 일괄 임베딩 #2533 차단 병합. 영구 AI hold SQL초안 로컬 검증·독립 검토 중
 - 검증: 저장 직후18751/일괄18756 PASS, 각 CI 통과. SQL초안 전체18739 PASS·로컬SQL PASS; 독립 검토: 직후R1PASS0·일괄R1BLOCK중간1→R2PASS0·영구SQL준비R1PASS0
 - 병합: #2532·#2533 병합 · main03f22c4b; 실제 앱: 미확인
-- 다음: 영구ai_hold·표시·전체AI읽기/쓰기 경계 및 운영 선행조건 마무리
-- 조건: 재설계 D4와 저장 동의 정책 대조. 추출·임베딩으로 재전송하지 않음 / 영구ai_hold 준비draft#2535는CI SQL포함통과·운영미적용. 쓰기/읽기/파생물/경합/표시/앱확인전
+- 다음: AI용/사용자용 원문 reader 분리·서버 검증 근거참조·파생물 계보·늦은 RED/삭제 fence 설계
+- 조건: 재설계 D4와 저장 동의 정책 대조. 추출·임베딩으로 재전송하지 않음 / 준비 조사에서 held wiki가 현재embedding/snapshot에포함되는실제함수재현. exportUserWiki의AI/사용자내보내기공유·fallback·0239 update제한·서버text-only경계미해결. 사용자원문접근/보관은유지
 
 ### T29 · 끝내는 말로 시작하는 정상 답이 인터뷰를 끝내 버림 → 「여기서 마칠까요?」 [마치기] [계속 이야기하기]
 
@@ -342,7 +366,7 @@
 - 검증: 미확인; 독립 검토: 미실시
 - 병합: 미확인; 실제 앱: 미확인
 - 다음: 짧게 끝나는 규칙을 고친 뒤 기준선 측정
-- 조건: 다섯 층 인정·세 번 불인정·8자 미만 규칙을 결정 원문과 대조
+- 조건: 다섯 층 인정·세 번 불인정·8자 미만 규칙을 결정 원문과 대조 / ; S0설계R2 BLOCK2(해석실패만으로연락안내생성금지) D3수정, S0-A확정RED 조기전달 별도착수가능; D3R3PASS0·BLOCK2유지, A구현/Bhelper계획으로진행. 실제후처리10건해소는아직
 
 ### T31 · 장면 끝에 [이 이야기 더 · 다른 장면 · 저장하고 마치기] · 한 층에서 두 번 막히면 '다른 장면으로 갈까요?'
 
@@ -392,11 +416,11 @@
 ### T36 · 인터뷰 판정 규칙: 판정 없음은 로컬 판정대로 · 다른 층 판정은 인정도 실패도 아님
 
 - 결정: 10-07 · 인터뷰 측정 Q5; 우선순위 P2. 원감사 상태: 미착수.
-- 구현: 누락 판정과 명시적 none/다른층중립 구분 eb8e0a1c 구현
-- 검증: 기존31suites607PASS·최종실제callback15PASS·type/lint; 독립 검토: 독립R1진행
-- 병합: 미확인; 실제 앱: 미확인
-- 다음: 독립검토·T68어댑터최신main통합·전체verify·PR/CI/병합
-- 조건: 판정 없음은 로컬대로, 다른 층은 인정도 실패도 아닌 상태 / 중립answered=null은streak/현재층보존; 통신실패와성공응답누락구분; 명시적none실패상한유지. 실제앱미확인
+- 구현: 판정 누락/명시 none/다른층 중립 분리 및 T68 실제 화면 재생 통합 fa65b846
+- 검증: 전체1146suites19313PASS1skip·추가 adapter3suites25PASS; 독립 검토: 원제품R1+최종통합독립PASS H0M0L0·BLOCK0
+- 병합: PR#2569 main7b6dcc9a; 실제 앱: 미확인
+- 다음: 동일 설정 앱 확인; 0225 새 규칙 버전 설계·서버 연결
+- 조건: 판정 없음은 로컬대로, 다른 층은 인정도 실패도 아닌 상태 / 중립의 실패횟수/현재층 보존. 0225 r0 서버 규칙전환 별도. 고정32행 재생 기존 안내소실10 유지·실제모델품질개선 아님
 
 ### T37 · 말문 후보를 그대로 보낸 답에 '제안 그대로' 표시를 남겨 비준 근거까지
 
@@ -410,11 +434,11 @@
 ### T38 · 다른 탭(스크랩 등)에 다녀오면 허슬케이 대화가 사라짐(Z117)
 
 - 결정: Q-261014-05; 우선순위 P2. 원감사 상태: 미착수.
-- 구현: 화면 밖 세션·작업 소유권 설계 작성; 제품미구현
-- 검증: 34개실제소스대조·React탭왕복유실재현; 독립 검토: 설계R1 BLOCK H0/M2/L0·누적1회
-- 병합: 미확인; 실제 앱: 미확인
-- 다음: 전체내용삭제fence/부분실패·retired entry복귀계약 보완 후 설계R2
-- 조건: 완료/진행 대화·담기/계획 상태의 화면 외 보존, 중복 작업 방지, 계정/동의/위기 보호. T39/0255서버복구는분리·일반대화디스크저장승인아님 / 작성/검토분리. 현재계정전체삭제와화면교체의수명경계가빠져제품구현전보완. T39서버metadata-only별도
+- 구현: A 메모리 registry #2575 병합; B 주입형 controller 구현중. 화면/engine/keep/plan/autosave 활성화 전
+- 검증: A full1146suites19355PASS1skip·CI38794466510전체PASS; 실제84+독립재진입33 실행; 독립 검토: A R2PASS H0M0L0; 구현BLOCK1·설계BLOCK1 각각보존
+- 병합: PR#2575 main682ba737; 실제 앱: 미확인
+- 다음: B controller→captured engine/RPC·쓰기확인→keep/plan/autosave/entry→화면일괄연결
+- 조건: 완료/진행 대화·담기/계획 상태의 화면 외 보존, 중복 작업 방지, 계정/동의/위기 보호. T39/0255서버복구는분리·일반대화디스크저장승인아님 / memory-only. content wipe drain/세대·retired entry CAS 설계 보완. 전체 계약 뒤에만 UI연결. 기존 #2318/#2396/#2365 BLOCK 이력 유지
 
 ### T39 · 다른 앱에 다녀와도 처리가 이어지고, 잃은 답은 횟수 없이 한 번 다시 묻기
 
@@ -438,9 +462,9 @@
 
 - 결정: 10-12 22:02; 우선순위 P2. 원감사 상태: 미착수.
 - 구현: 실제 권한거부 안내·명시적 Settings·계정/ABA보호, 실제 취소오류 전파 보완 685c1f37
-- 검증: 685c1f37 전체1134suites19116PASS1skip·독립117검사; 독립 검토: R1PASSH0M0L0
-- 병합: PR#2563 CI진행; 실제 앱: 미확인
-- 다음: CI·병합 후 실제폰권한거부/설정왕복/취소실패확인
+- 검증: 685c1f37 전체1134suites19116PASS1skip·CI통과·독립117검사; 독립 검토: R1PASSH0M0L0
+- 병합: PR#2563 main7615607a; 실제 앱: 미확인
+- 다음: 실제폰 권한거부/설정왕복/취소실패 확인
 - 조건: 거절 상태와 설정 복귀 흐름 확인 / 기존허용스위치/OS설정은명시동작만. 실제폰확인전
 
 ### T42 · 인터넷이 끊기면 화면 위에 띠
@@ -455,11 +479,11 @@
 ### T43 · 서버를 못 읽을 때 0 · 빈 화면 대신 「...」 + 실패 문장 + [다시 시도] (남은 화면: 별 요약 · 위키 목록 기한 · 날씨 위치 · 리즈닝 · 위키 페이지 · 리서치 · 스크랩 · …
 
 - 결정: Q-261013-21 ~ 24 · Z40 · Z80; 우선순위 P2. 원감사 상태: 일부만.
-- 구현: 별 요약#2547·위키 목록#2553·리즈닝#2561·위키 페이지#2562 병합
-- 검증: 별요약·위키목록기존병합; 리즈닝102a954f전체19115PASS1skip·위키페이지32478504전체19114PASS1skip·각CI통과; 독립 검토: 각최종R1PASSH0M0L0
-- 병합: #2547/#2553/#2561/#2562 병합·최신main87f0b46c; 실제 앱: 미확인
-- 다음: 남은usage/proposal helper 오류숨김·목록밖개별페이지초점읽기대조; 동결리즈닝재설계는제외
-- 조건: 별 요약→위키 목록 기한→날씨 위치→리즈닝→위키 페이지·리서치→스크랩. 오류를 0·빈 결과로 표시하지 않음 / 리즈닝102a954f·위키페이지32478504는 최종R1PASS0·전체/CI통과 후 병합. 실제앱미확인, 날씨토요일·리서치·스크랩·개별인용조회·helper오류숨김 후속 남음
+- 구현: 별요약#2547·위키목록#2553·리즈닝#2561·위키페이지#2562·리서치#2571·스크랩#2576·폰내부위키#2578 읽기실패 분리 병합. 별도focus조회bf8b6f20검증, chat slug조회 후속구현중
+- 검증: 각PR 전체검사·CI 통과. 최신capture1148suites19368PASS, phonewiki1148suites19379PASS; standalone1148suites19376PASS(각1skip), actualscreen23/독립93PASS; 독립 검토: 각병합최종PASS 새M0. standalonefocus R1PASS H0M0L0 BLOCK0
+- 병합: #2547/#2553/#2561/#2562/#2571 병합·리서치 mainb676fe84; #2576 main261bc14d; phonewiki#2578 main62c7a2df; 실제 앱: 미확인
+- 다음: standalonefocus CI→chat slug조회→sources/role evidence·읽기helper; 실제앱확인
+- 조건: 별 요약→위키 목록 기한→날씨 위치→리즈닝→위키 페이지·리서치→스크랩. 오류를 0·빈 결과로 표시하지 않음 / standalonefocus PR작성/CI대기; chat slug·sources·role/evidence·usage/proposal 후속과토요일날씨남음. 모든실기기/같은설정8081미확인. standalone조회창200개, phone별도경로
 
 ### T44 · 대화 모드를 바꾼 자리로 가는 줄 하나(Z87)
 
@@ -473,10 +497,10 @@
 ### T45 · 저장한 글이 모이는 곳은 「위키」 하나로 · 설정 「기록」 줄 빼기 · 「별가루」 → 「기록」
 
 - 결정: Q-261013-11 ~ 15 · Z50 · Z53; 우선순위 P2. 원감사 상태: 미착수.
-- 구현: 미확인
-- 검증: 미확인; 독립 검토: 미실시
-- 병합: 미확인; 실제 앱: 미확인
-- 다음: 위키·기록 명칭과 설정 줄 정리
+- 구현: 위키/기록 UI표시·설정 중복행 제거4c2e9ecf; 기존검사승인Q11정렬
+- 검증: 최종4c2e9ecf 전체1146suites19330PASS1skip; 기존137·독립설정40PASS; CI38793757817 allgreen; 독립 검토: R1LOW→해결·최종BLOCK1(기존검사불일치)→R2PASS H0M0L0·BLOCK1보존
+- 병합: PR#2574 main8eed16bc; 실제 앱: 미확인
+- 다음: 실제앱/폰·남은고지/모델범위검토
 - 조건: 저장한 글의 모이는 곳을 위키 하나로 맞춤
 
 ### T46 · 「리즈닝」 이름은 두고 설정 줄 작은 글만 하는 일로
@@ -491,20 +515,20 @@
 ### T47 · 「별」은 일곱 별에만 · 생활 여섯은 「영역」(기록 상세 · 결과 검토 Z110 포함)
 
 - 결정: Z62 · Z68 · Z110; 우선순위 P2. 원감사 상태: 미착수.
-- 구현: 생활영역5언어20값·기존기대문장1개 수정 f02d04fa
-- 검증: 관련288PASS·독립66PASS·실제i18next40조회·모든키/변수/비대상값보존; 독립 검토: R1PASSH0M0L0·독립66검사와실제번역40조회
-- 병합: 미확인; 실제 앱: 미확인
-- 다음: 전체verify·PR/CI/병합 후 ConstellationHome/기록상세 영역표시 후속대조
-- 조건: 기록 상세·결과 검토·홈 말풍선 함께 대조 / 전체대기. 홈 running/choose·비KOdomain영어fallback·실제앱 후속 남음
+- 구현: 5언어20값#2564병합; 홈10문장/상세영역명3소비후속2TSX구현07e58a30
+- 검증: 후속07e58a30 전체1145suites19297PASS1skip·CI38784756991 allgreen; 독립 검토: 첫범위R1PASS0; 후속root독립R1PASS0/기존66검사·번역175조회·소비식210실행
+- 병합: 번역#2564 + 홈/상세#2570 main5104273d; 실제 앱: 미확인
+- 다음: 같은 설정 앱·폰에서 홈/기록상세 영역표시 확인
+- 조건: 기록 상세·결과 검토·홈 말풍선 함께 대조 / 코드와 번역 후속 병합. 실제앱/폰 미확인
 
 ### T48 · 밝기 뜻을 안내서대로 · 「별빛」 · 「확신」 빼기
 
 - 결정: Z68; 우선순위 P2. 원감사 상태: 미착수.
-- 구현: FAQ5언어와 KOcanon/mirror 7JSON14값 구현3ac67725
-- 검증: 기존101검사·typecheck·i18n/어미/canon PASS; 실제번역20조회·Support함수10실행; 독립 검토: R1PASSH0M0L0·독립53검사
-- 병합: 미확인; 실제 앱: 미확인
-- 다음: 전체verify·PR/CI/병합 후 나머지밝기설명후속
-- 조건: 별빛·확신 표현 제거, 실제 계산과 설명 일치
+- 구현: FAQ7JSON14값#2566병합; core-brain5언어5값 후속928bb786 구현
+- 검증: FAQ19101PASS1skip·북극성1145suites19297PASS1skip·각CIallgreen; 독립 검토: FAQ R1 PASS0; 밝기 후속 R1 PASS H0M0L0·독립109검사·실제번역5조회
+- 병합: FAQ#2566 main7f62c0d7·북극성#2572 main4d8898b0; 실제 앱: 미확인
+- 다음: 실제앱/폰·큰글자검증
+- 조건: 별빛·확신 표현 제거, 실제 계산과 설명 일치 / 실제 평균+all-lit0.05를 바탕으로 설명·L5는 인터뷰별 한정. 실제 앱/폰 미확인
 
 ### T49 · 「알림」 이름을 「공지」로
 
@@ -554,11 +578,11 @@
 ### T54 · 위키에 보이는 내부 꼬리표(memo · reasoning:ratified 등)를 system_tags 로
 
 - 결정: Q-261013-40 · 41 · Z54; 우선순위 P2. 원감사 상태: 미착수.
-- 구현: 미확인
+- 구현: 0218records.system_tags 기존존재, 추가memo/fourw/todo/link/voice·reasoning:ratified writer/readers 미전환. 읽기조사만
 - 검증: 미확인; 독립 검토: 미실시
 - 병합: 미확인; 실제 앱: 미확인
-- 다음: 내부 꼬리표를 system_tags로 옮김
-- 조건: 화면에서 내부 태그가 안 보이고 검색·정리 기능은 유지
+- 다음: 앞선안전큐뒤: QA계정전후밝기읽기측정→capture/reasoning writer provenance→sources.system_tags와전체reader동시전환·실제DB검증
+- 조건: 화면에서 내부 태그가 안 보이고 검색·정리 기능은 유지 / Q40·41은10/13 20:52에확정: 밝기변화수용+머지전QA전후측정, sources도한번에+서버운영GO. 옛문자열모양자동이행금지. 0218기존구현을완료로오인하지않음
 
 ### T55 · 끝말 검사: 화면 문구의 해요체 평서 끝말을 잡는 CI 검사(예외 둘: 외부 AI 가져오기 · 리마인더 안내)
 
@@ -680,10 +704,10 @@
 ### T68 · 텍스트 생성 좌석 전부와 사진 글자 읽기(OCR)를 OpenAI → Claude 로(재설계 D1 · 임베딩 · 음성은 OpenAI 유지)
 
 - 결정: 10-06 23:33 · 10-07 01:20; 우선순위 P1. 원감사 상태: 미착수.
-- 구현: 측정준비#2548병합; 실제인터뷰후처리어댑터56cff079 구현
-- 검증: 어댑터최신안전observer통합실패6건수정후6PASS·독립10PASS/CLI32행2차단30재생10안내소실; 신규모델0; 독립 검토: 어댑터원R1·최종통합PASSH0M0L0
-- 병합: 준비PR#2548 병합84eae1a87f46ccb24bbcb8df5ab65e61a1862f4d; 실제 앱: 미확인
-- 다음: 어댑터전체verify·PR/CI/병합; T36변화대조와나머지9좌석·실모델준비
+- 구현: 측정준비#2548·인터뷰실행adapter#2565병합; T36통합#2569; ops부분adapter edd4c9b1 R1PASS0 후 #2573 병합
+- 검증: 56cff079 전체1141suites19229PASS1skip·독립통합PASS0·CI통과; CLI32행2차단30재생10소실; 신규모델0; ops부분edd4c9b1 전체1148suites19353PASS1skip·기존39+독립5PASS; 독립 검토: 어댑터원R1·최종통합PASSH0M0L0; ops부분R1PASSH0M0L0
+- 병합: 측정준비#2548·실제인터뷰도구#2565 mainc21c0373; ops부분PR#2573 maineaca1221 병합; 실제 앱: 미확인
+- 다음: S0 안전전달 D3 R3 PASS0(누적BLOCK2) 계약에 따른 A/B 구현·실제 화면 연결; 나머지좌석/provider/OCR실측준비. 새모델 품질측정0 유지
 - 조건: Sonnet/Opus 배치·품질 회귀 측정. 임베딩·음성은 OpenAI 유지. 큰 재설계 후순위의 예외이며, 운영 전환은 측정·동의·배포 선행 조건을 충족한 뒤 / 도구PASS는실제모델품질PASS아님. 동결B1제외·서버소유Claude/OCR측정경로·예산/가용성·안전/한도조건남음
 
 ### T69 · 좌석 정리 나머지(ops_daily_brief · audit_qa 은퇴 · 라우팅 잔재) · 비서 홈 자동 호출을 버튼으로
