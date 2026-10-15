@@ -41,8 +41,23 @@ import {
   type LlmResult,
   type PromptInput,
   type PromptPurpose,
+  type CrisisObserver,
   type ReasoningEffort,
 } from "./types";
+
+// Optional UI guidance runs once, after the same ownership/cancellation fence
+// as the result. Only routing metadata crosses this callback; UI exceptions
+// cannot skip the audit path or change the standard result.
+function crisisObserver(observer: CrisisObserver | undefined, fence: () => void): CrisisObserver | undefined {
+  if (!observer) return undefined;
+  let notified = false;
+  return (hotline) => {
+    fence();
+    if (notified) return;
+    notified = true;
+    try { observer(hotline); } catch { /* The audited result still follows. */ }
+  };
+}
 
 // Web Crypto SubtleCrypto fallback to a simple non-cryptographic hash when
 // running outside a browser/RN runtime (e.g. node tests). Audit hashes are
@@ -602,6 +617,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     input.session?.assertCurrent();
   };
   fence();
+  const notifyCrisis = crisisObserver(input.onCrisisDetected, fence);
   assertRootObjectSchema(input.responseSchema);
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
   // Dual-locale: catch a crisis term written in the other language than the UI
@@ -610,6 +626,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   const inputSafety = classifyInputAnyLocale(input.user, input.locale, { minor: input.minor });
   const promptHash = djb2(`${input.system ?? ""}${input.user}`);
   if (inputSafety.zone === "red") {
+    notifyCrisis?.(inputSafety.crisisRouting?.hotline);
     return (await routeCrisis(
       inputSafety,
       input.locale,
@@ -634,6 +651,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     });
     fence();
     if (semanticInput?.zone === "red") {
+      notifyCrisis?.(undefined);
       return (await routeCrisis(
         { zone: "red", matched: [], categories: ["crisis"] },
         input.locale,
@@ -823,6 +841,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       const vendorCrisis = await inspectProxyCrisisRejection(error);
       fence();
       if (vendorCrisis.route) {
+        notifyCrisis?.(proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane).crisisRouting?.hotline);
         return (await routeCrisis(
           proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane),
           input.locale,
@@ -858,6 +877,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       const proxyCrisis = await inspectProxyCrisisRejection(error);
       fence();
       if (proxyCrisis.route) {
+        notifyCrisis?.(proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane).crisisRouting?.hotline);
         return (await routeCrisis(
           proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane),
           input.locale,
@@ -931,9 +951,11 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // LlmResult.safety shape, but the swap DECISION + recorded zone use the
   // semantic (worst-case-merged) result.
   const lexical = classifyInput(text, input.locale, { minor: input.minor });
+  if (lexical.zone === "red") notifyCrisis?.(lexical.crisisRouting?.hotline);
   const semantic = await classifySafety(text, input.locale, {
     userId: input.userId,
     capturedSession: input.session,
+    ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
   });
   fence();
   const outputZone: "green" | "yellow" | "red" =
@@ -958,6 +980,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // proxyAudited meant the edge path recorded only the proxy's green row, so an
   // ai_audit_log query for interceptions missed this call entirely.
   if (outputZone === "red") {
+    notifyCrisis?.(lexical.crisisRouting?.hotline);
     const fixed = fixedCrisisResponse(input.locale, input.minor, lexical.crisisRouting?.hotline);
     const swapAudit = {
       promptHash,
@@ -1270,6 +1293,8 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
 
 export interface TranscribeAudioInput {
   userId: string;
+  /** Optional early RED guidance, before audit awaits; never bypasses session fences. */
+  onCrisisDetected?: CrisisObserver;
   /** Immutable JWT + owner epoch captured before local audio is read. */
   session: AuthenticatedAccountSessionLease;
   locale: "en" | "ko";
@@ -1318,6 +1343,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     input.session.assertCurrent();
   };
   fence();
+  const notifyCrisis = crisisObserver(input.onCrisisDetected, fence);
   const env = getEnv();
   const model = MODELS.flash;
   const promptHash = djb2(`transcribe:${input.mimeType}:${input.base64.length}`);
@@ -1422,9 +1448,11 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   // write an HONEST audit row (real model + latency + a +swap marker) and a
   // categorical crisis_event, exactly like callLlm's output swap.
   const lexical = classifyInput(text, input.locale, { minor: input.minor });
+  if (lexical.zone === "red") notifyCrisis?.(lexical.crisisRouting?.hotline);
   const semantic = await classifySafety(text, input.locale, {
     userId: input.userId,
     capturedSession: input.session,
+    ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
   });
   fence();
   const outputZone: "green" | "yellow" | "red" =
@@ -1436,6 +1464,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   const outputSafety: SafetyResult = { ...lexical, zone: outputZone };
 
   if (outputZone === "red") {
+    notifyCrisis?.(lexical.crisisRouting?.hotline);
     const fixed = fixedCrisisResponse(input.locale, input.minor, lexical.crisisRouting?.hotline);
     const swapAudit: AuditMeta = {
       promptHash,

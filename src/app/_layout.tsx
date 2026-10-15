@@ -7,6 +7,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useTranslation } from "react-i18next";
+import "@/lib/capture/shared-media-native";
 
 import { useAddressTerm } from "@/lib/persona/use-address";
 import {

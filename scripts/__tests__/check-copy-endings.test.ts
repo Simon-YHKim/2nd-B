@@ -87,10 +87,10 @@ describe("approved exceptions stay narrow", () => {
     expect(scan("peer.json", bundle("peer.json")).hits).toEqual([]);
   });
 
-  test("the day-limit invitation does not exempt its preceding fact sentences", () => {
+  test("day-limit fact sentences retain the normal ending policy", () => {
     const current = bundle("interview.json");
     expect(scan("interview.json", current).hits).toEqual([]);
-    current.drill.dayLimit = current.drill.dayLimit.replace("하루 사용 한도에 닿았습니다.", "하루 한도에 닿았어요.");
+    current.drill.dayLimit = current.drill.dayLimit.replace("사용 한도에 닿았습니다.", "사용 한도에 닿았어요.");
     expect(scan("interview.json", current).hits).toMatchObject([{ key: "drill.dayLimit", ending: "닿았어요" }]);
     expect(scan("other.json", { body: "지금까지 나눈 이야기를 저장하고 나중에 이어서 해요." }).hits).toHaveLength(1);
   });

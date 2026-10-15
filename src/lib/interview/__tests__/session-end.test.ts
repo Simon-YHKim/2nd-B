@@ -254,7 +254,7 @@ describe("2-1. 모르겠어요 -> 건너뛰기 교대 (게이트 F2049-02)", () 
   });
 });
 
-describe("3. 하루 몫 거절은 끝맺음이다", () => {
+describe("3. 확인된 한도 거절은 현재 화면을 유지한다", () => {
   describe("순수 판정 isDayLimitRefusal", () => {
     it.each([
       ["공용 하루 지출 한도", 429, { error: "daily_limit_exceeded" }, true],
@@ -376,7 +376,7 @@ describe("3. 하루 몫 거절은 끝맺음이다", () => {
     }
   });
 
-  it("화면은 그 거절을 오류 안내보다 먼저 끝맺음으로 받는다", () => {
+  it("화면은 확인된 한도 거절을 일반 오류와 구분하고 끝내지 않는다", () => {
     const code = codeOnly("src/app/interview.tsx");
     const ask = between(code, "const ask = useCallback(", "const started = useRef(");
     const handler = between(ask, "catch (error)", "finally");
@@ -386,16 +386,18 @@ describe("3. 하루 몫 거절은 끝맺음이다", () => {
     expect(limit).toBeGreaterThan(-1);
     expect(failed).toBeGreaterThan(limit);
     const branch = handler.slice(limit, failed);
-    expect(branch).toContain("setDayLimited(true)");
-    expect(branch).toContain("finish()");
+    expect(branch).toContain('setNotice(t("drill.dayLimit"))');
+    expect(branch).not.toContain("finish()");
+    expect(branch).toContain('return "limited"');
     expect(branch).toMatch(/return;/);
   });
 
-  it("끝 화면은 안내 한 줄만 바꾸고, 지금까지의 대화를 담는 버튼은 그대로다", () => {
+  it("한도 안내는 현재 대화의 notice에 표시하고 저장 화면은 사용자가 끝낼 때만 연다", () => {
     const code = codeOnly("src/app/interview.tsx");
-    expect(code).toContain('dayLimited ? t("drill.dayLimit") : t("drill.closing")');
+    expect(code).not.toContain("dayLimited ?");
     const doneBranch = /\{done \?[\s\S]*?\) : \(/.exec(read("src/app/interview.tsx"))?.[0] ?? "";
-    expect(doneBranch).toContain('t("drill.dayLimit")');
+    expect(doneBranch).toContain('t("drill.closing")');
+    expect(doneBranch).not.toContain('t("drill.dayLimit")');
     expect(doneBranch).toContain("onPress={() => void keepIt()}");
     expect(doneBranch).toContain("disabled={busy || userTurns === 0}");
     expect(doneBranch).not.toContain("dayLimited &&");
@@ -414,7 +416,7 @@ describe("3. 하루 몫 거절은 끝맺음이다", () => {
     // B안: 사실 · 안내는 ~습니다, 제안은 해요체.
     const ko = JSON.parse(read("locales/ko/interview.json")).drill.dayLimit as string;
     expect(ko).toContain("습니다.");
-    expect(ko).toMatch(/해요\.$/);
+    expect(ko).toMatch(/습니다\.$/);
   });
 
   // F2049-03: 두 카운터가 하루를 다르게 끊고(목적별 몫 KST 자정 · 지출 한도 UTC 자정),
