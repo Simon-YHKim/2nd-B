@@ -33,7 +33,7 @@
   "close": "Close",
   "polaris": "North Star",
   "polarisAggregate": "North Star · summary",
-  "currentBrightness": "Current brightness · grows with your records",
+  "currentBrightness": "Current brightness · Based on the average brightness of the six interview stars. An interview star reaches L5 only after you confirm a proposal.",
   "roleEmpty": "Interviews saved in the seven stars become persona proposals. No card has been approved yet.",
   "roleStatusRatified": "Approved",
   "roleStatusProposed": "Proposal · not approved",

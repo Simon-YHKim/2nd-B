@@ -33,7 +33,7 @@
   "close": "Cerrar",
   "polaris": "mi Estrella Polar",
   "polarisAggregate": "Estrella Polar · resumen",
-  "currentBrightness": "Brillo actual · aumenta con tus registros",
+  "currentBrightness": "Brillo actual · Se basa en el brillo medio de las seis estrellas de entrevista. Una estrella de entrevista solo llega a L5 después de que confirmes una propuesta.",
   "roleEmpty": "Las entrevistas guardadas en las siete estrellas sirven para proponer identidades. Aún no hay tarjetas aprobadas.",
   "roleStatusRatified": "Aprobada",
   "roleStatusProposed": "Propuesta · sin aprobar",
