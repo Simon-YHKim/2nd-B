@@ -240,7 +240,10 @@ export function createContentWipeLedger() {
     const p = permits.get(key), s = state(owner);
     if (!p || !permitCurrent(owner, p) || p.wipe.phase !== "deleting" || pending(s) || !stageAllowed(p.wipe, stage)) return null;
     const w = p.wipe, previous = stageTicket(w, stage);
-    if (previous && previous.outcome !== "definitely-not-issued" && previous.outcome !== "definitely-not-committed") return null;
+    // One physical request per stage and attempt, including a gate refusal.
+    // A retry must close this drained attempt and explicitly claim a new one.
+    if (previous && (previous.permit === p
+      || (previous.outcome !== "definitely-not-issued" && previous.outcome !== "definitely-not-committed"))) return null;
     const ticket = Object.freeze({}) as ContentMutationTicket;
     const t: Ticket = { ownerId: owner.ownerId, ownerEpoch: owner.epoch, generation: s.generation,
       operationId: w.id, stepId: p.id + ":" + stage, kind: "delete", outcome: "registered",
@@ -256,9 +259,11 @@ export function createContentWipeLedger() {
     const t = tickets.get(key), w = t?.wipe;
     if (!t || !w || t.stage !== "records" || t.outcome !== "committed" || w.recordsTicket !== key || w.planRegistered
       || !countValid(plan.returnedRowCount) || t.count !== plan.returnedRowCount || !Array.isArray(plan.batchCounts)
-      || (plan.returnedRowCount === 0 && plan.batchCounts.length !== 0)
-      || !plan.batchCounts.every(n => Number.isInteger(n) && n > 0 && n <= 100)) return false;
-    w.batches = Object.freeze(plan.batchCounts.map((requestedCount, ordinal) => Object.freeze({ id: nextId(), ordinal, requestedCount })));
+      || (plan.returnedRowCount === 0 && plan.batchCounts.length !== 0)) return false;
+    // Copy densely before validation: Array.every/map skip holes in sparse input.
+    const counts = Array.from(plan.batchCounts);
+    if (!counts.every(n => Number.isInteger(n) && n > 0 && n <= 100)) return false;
+    w.batches = Object.freeze(counts.map((requestedCount, ordinal) => Object.freeze({ id: nextId(), ordinal, requestedCount })));
     w.photoPlan = w.batches.length ? "known-batches" : "known-empty"; w.planRegistered = true; w.manifestAvailable = true;
     const s = owners.get(t.ownerId)!;
     s.settling++; try { publish(s); } finally { s.settling--; }

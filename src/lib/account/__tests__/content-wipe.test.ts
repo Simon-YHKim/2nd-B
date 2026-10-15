@@ -372,11 +372,55 @@ test("P06 manifest loss never reconstructs paths from a repeated records DELETE;
   const serialized = JSON.stringify(f.ledger.inspect(f.owner));
   for (const secret of [privateManifest[0], "synthetic-token", "private draft", "structured", "Authorization"]) expect(serialized).not.toContain(secret);
 });
+test.each(["wiki-pages", "photo", "self-contexts", "clipper-templates"].flatMap(stage =>
+  ["not-issued", "definite-failure"].map(outcome => ({ stage, outcome }))))(
+  "R2 $stage / $outcome consumes its physical step until a new explicit attempt", async ({ stage, outcome }) => {
+    const f = fixture(); let p: ContentDeletionPermit, physicalStage = stage;
+    if (stage === "wiki-pages") { begin(f); p = claim(f)!; }
+    else {
+      const prepared = await throughRecords(f, stage === "photo" ? 1 : 0); p = prepared.p;
+      f.ledger.registerRecordPhotoPlan(prepared.records, { returnedRowCount: stage === "photo" ? 1 : 0,
+        batchCounts: stage === "photo" ? [1] : [] });
+      if (stage === "photo") physicalStage = f.ledger.inspect(f.owner).recordPhotos!.batches[0].id;
+      else { await committedStep(f, p, "usage"); if (stage === "clipper-templates") await committedStep(f, p, "self-contexts"); }
+    }
+    const first = f.ledger.acquireDeletion(f.owner, p, physicalStage)!;
+    const dispatch = jest.fn(async () => true);
+    if (outcome === "not-issued") expect(f.ledger.issueMutation(f.owner, first, dispatch, () => false)).toBeNull();
+    else { await f.ledger.issueMutation(f.owner, first, dispatch); f.ledger.settleMutation(first, { outcome: "definitely-not-committed" }); }
+    const originalDispatches = outcome === "not-issued" ? 0 : 1;
+    expect(f.ledger.acquireDeletion(f.owner, p, physicalStage)).toBeNull();
+    expect(f.ledger.issueMutation(f.owner, first, dispatch)).toBeNull();
+    expect(dispatch).toHaveBeenCalledTimes(originalDispatches);
+    const oldFacts = f.ledger.inspect(f.owner).tickets;
+    expect(f.ledger.finishWipe(f.owner, p)).not.toBeNull();
+    const next = claim(f)!; expect(next).not.toBeNull(); expect(next).not.toBe(p);
+    const retry = f.ledger.acquireDeletion(f.owner, next, physicalStage)!; expect(retry).not.toBeNull();
+    await f.ledger.issueMutation(f.owner, retry, dispatch);
+    f.ledger.settleMutation(retry, stage === "photo"
+      ? { outcome: "committed", scopeConfirmed: true, observedRemovedCount: 1 } : { outcome: "committed", count: 0 });
+    expect(dispatch).toHaveBeenCalledTimes(originalDispatches + 1);
+    const facts = f.ledger.inspect(f.owner).tickets;
+    expect(facts.slice(0, oldFacts.length)).toEqual(oldFacts);
+    expect(new Set(facts.map(t => t.operationId + ":" + t.stepId)).size).toBe(facts.length);
+  });
+test.each(["single-hole", "leading-hole", "trailing-hole"])("R2 %s photo metadata is rejected without consuming the repairable plan", async kind => {
+  const f = fixture(), { p, records } = await throughRecords(f, 1);
+  const batchCounts = new Array<number>(kind === "single-hole" ? 1 : 2);
+  if (kind === "leading-hole") batchCounts[1] = 1;
+  if (kind === "trailing-hole") batchCounts[0] = 1;
+  expect(f.ledger.registerRecordPhotoPlan(records, { returnedRowCount: 1, batchCounts })).toBe(false);
+  expect(f.ledger.inspect(f.owner).recordPhotos).toMatchObject({ planState: "unconfirmed", complete: false });
+  expect(() => f.ledger.acquireDeletion(f.owner, p, "usage")).not.toThrow();
+  expect(f.ledger.acquireDeletion(f.owner, p, "usage")).toBeNull();
+  expect(f.ledger.registerRecordPhotoPlan(records, { returnedRowCount: 1, batchCounts: [1] })).toBe(true);
+  expect(f.ledger.inspect(f.owner).recordPhotos).toMatchObject({ planState: "known-batches", complete: false, expectedBatchCount: 1 });
+});
 
 // This is an explicit C3 supervisor fixture, not the unimplemented production adapter.
 // Actual A/B, account epoch, pending/authenticated lease and leaf execute; only auth,
 // terminal transport and the future supervisor's phase wiring are supplied here.
-function operationFixture(write: boolean, onBegin?: (f: Fixture) => void) {
+function operationFixture(write: boolean, onBegin?: (f: Fixture) => void, onRetire?: () => void) {
   const f = fixture(), transport = deferred<number>(), model = jest.fn(), effects = jest.fn();
   let ticket: ContentMutationTicket | null = null, raw: ReturnType<typeof beginAccountSessionLease> | null = null;
   let releaseRequested = false, inFlight = false, released = false, bodyOpen = true;
@@ -410,7 +454,7 @@ function operationFixture(write: boolean, onBegin?: (f: Fixture) => void) {
         } finally { inFlight = false; maybeRelease(); }
       };
       const supervisor = { lease: raw, send, auditLocalRed: send,
-        retire(reason: string) { bodyOpen = false; if (reason !== "content-wipe" || !ticket) raw!.abort(); return true; },
+        retire(reason: string) { bodyOpen = false; onRetire?.(); if (reason !== "content-wipe" || !ticket) raw!.abort(); return true; },
         release() { releaseRequested = true; maybeRelease(); } };
       onBegin?.(f);
       return supervisor;
@@ -446,4 +490,44 @@ test("W05 actual B constructor reentry leaves false ACK sticky even after the re
   const f = operationFixture(false, x => { begin(x); }); f.send(); await flush();
   expect(mockGetSession).not.toHaveBeenCalled(); expect(f.ledger.inspect(f.owner).ackConfirmed).toBe(false);
   expect(claim(f)).toBeNull(); expect(f.release).toHaveBeenCalledTimes(1);
+});
+test("W05 actual B retire reentry keeps its false ACK after the mutation settles", async () => {
+  let reenter = () => {}; const nested: boolean[] = [];
+  const f = operationFixture(true, undefined, () => reenter()); f.send(); await flush();
+  reenter = () => { reenter = () => {}; nested.push(f.controller.dispose()); };
+  begin(f); expect(nested).toEqual([false]); expect(f.ledger.inspect(f.owner).ackConfirmed).toBe(false);
+  f.transport.resolve(1); await flush();
+  expect(f.release).toHaveBeenCalledTimes(1); expect(claim(f)).toBeNull();
+});
+test("P05 actual photo ticket and real lease abort on hold; late receipt waits for an explicit new epoch permit", async () => {
+  const f = fixture(), { p, records } = await throughRecords(f, 101);
+  f.ledger.registerRecordPhotoPlan(records, { returnedRowCount: 101, batchCounts: [100, 1] });
+  const batches = f.ledger.inspect(f.owner).recordPhotos!.batches;
+  const ticket = f.ledger.acquireDeletion(f.owner, p, batches[0].id)!;
+  const raw = beginAccountSessionLease("a"); await raw.authenticate(); cleanups.push(() => raw.release());
+  cleanups.push(subscribeAccountTransition(() => {
+    if (!f.owner.isCurrent()) { raw.abort(); f.ledger.settleMutation(ticket, { outcome: "unknown" }); }
+  }));
+  const transport = deferred<number>(), dispatch = jest.fn(() => transport.promise);
+  const work = f.ledger.issueMutation(f.owner, ticket, dispatch)!;
+  beginAccountOwnerTransition("b"); expect(raw.signal.aborted).toBe(true);
+  publishOwner("b"); const b = captureAccountOwnerLease("b")!; expect(f.ledger.inspect(b).tickets).toEqual([]);
+  transport.resolve(100); await work;
+  f.ledger.settleMutation(ticket, { outcome: "committed", scopeConfirmed: true, observedRemovedCount: 100 });
+  publishOwner("a"); const a = captureAccountOwnerLease("a")!, state = f.ledger.read(a);
+  expect(dispatch).toHaveBeenCalledTimes(1); expect(f.ledger.acquireDeletion(a, p, batches[1].id)).toBeNull();
+  const next = f.ledger.claimDeletionAttempt(a, state.wipeId!, state.generation)!;
+  expect(f.ledger.acquireDeletion(a, next, batches[1].id)).not.toBeNull();
+  expect(dispatch).toHaveBeenCalledTimes(1);
+});
+test.each(["not-attempted", "unknown"])("W14 derived %s never allows an explicit fresh start", async status => {
+  const f = fixture(), { p, records } = await throughRecords(f);
+  f.ledger.registerRecordPhotoPlan(records, { returnedRowCount: 0, batchCounts: [] });
+  await committedStep(f, p, "usage");
+  if (status === "unknown") {
+    const ticket = f.ledger.acquireDeletion(f.owner, p, "self-contexts")!;
+    await f.ledger.issueMutation(f.owner, ticket, async () => true); f.ledger.settleMutation(ticket, { outcome: "unknown" });
+  }
+  f.ledger.finishWipe(f.owner, p); expect(f.ledger.read(f.owner).phase).toBe("blocked");
+  expect(f.registry.startAfterWipe(f.registry.getSnapshot("entry")!.choice)).toBe(false);
 });
