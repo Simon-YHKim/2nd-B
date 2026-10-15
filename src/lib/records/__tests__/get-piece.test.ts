@@ -208,7 +208,9 @@ describe("/core-brain carries the origin it already knew", () => {
     // mergeEvidence returns OriginShard[] (origin + at + domain). Declaring the loader as
     // EvidenceShard[] threw `origin` away AT THE TYPE LEVEL, even though the runtime object
     // had it all along. That is how the link lost it.
-    expect(src).toMatch(/Promise<OriginShard\[\]>/);
-    expect(src).toMatch(/useState<OriginShard\[\]>\(\[\]\)/);
+    const reader = read("lib/persona/use-core-evidence-read.ts");
+    expect(src).toContain("useCoreEvidenceRead(");
+    expect(reader).toMatch(/Promise<OriginShard\[\]>/);
+    expect(reader).toMatch(/type Data = \{ evidence: OriginShard\[\]/);
   });
 });

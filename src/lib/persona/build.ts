@@ -624,7 +624,10 @@ export async function loadPersonaRatifiableSignals(
  * or retrying a screen must not change the user's model. `buildPersona` remains
  * the explicit rebuild path.
  */
-export async function loadPersonaSnapshot(userId: string): Promise<PersonaCard | null> {
+export async function loadPersonaSnapshot(userId: string, assertCurrent?: () => void): Promise<PersonaCard | null> {
+  // A screen may opt into an owner/deadline guard. Existing callers retain the
+  // same snapshot contract; no stale screen starts the dependent assessment reads.
+  assertCurrent?.();
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("personas")
@@ -632,6 +635,7 @@ export async function loadPersonaSnapshot(userId: string): Promise<PersonaCard |
     .eq("user_id", userId)
     .eq("version", 1)
     .maybeSingle();
+  assertCurrent?.();
   if (error) throw error;
   if (!data) return null;
 
@@ -657,6 +661,7 @@ export async function loadPersonaSnapshot(userId: string): Promise<PersonaCard |
     loadLatestMbti(supabase, userId),
     loadLatestAttachment(supabase, userId),
   ]);
+  assertCurrent?.();
 
   // Legacy persona rows do not persist provenance. Never infer a validated
   // source merely because the saved numbers happen to equal a newer IPIP/BFI

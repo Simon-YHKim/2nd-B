@@ -411,7 +411,7 @@ export const THRESHOLDS: readonly ThresholdRow[] = [
       text: "꺼지면 생성 버튼 비활성 + '생성 기능 설정을 기다리고 있습니다'",
       at: at(
         "src/app/core-brain.tsx",
-        't(quota?.available ? "generationAllowance" : "generationUnavailable", { n: quota?.introRemaining })',
+        't(quota.available ? "generationAllowance" : "generationUnavailable", { n: quota.introRemaining })',
       ),
     },
     source: at("db/migrations/0195_polaris_generation_allowance.sql", "enabled boolean NOT NULL DEFAULT false"),

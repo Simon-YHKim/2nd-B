@@ -74,6 +74,38 @@ export async function loadRoleCards(userId: string): Promise<RoleCard[]> {
   return parseRoleCards(patterns?.[ROLE_CARDS_KEY]);
 }
 
+/** Display-only read: malformed storage is unread, never confirmed absence.
+ * Keep the permissive generation/approval reader and card acceptance unchanged. */
+export async function loadRoleCardsStrict(userId: string): Promise<RoleCard[]> {
+  if (!userId) throw new Error("Role-card owner is required");
+  const { data, error } = await getSupabaseClient().from("personas")
+    .select("patterns").eq("user_id", userId).eq("version", 1).maybeSingle();
+  if (error) throw error;
+  if (data === null) return [];
+  if (!data || typeof data !== "object" || Array.isArray(data) || !("patterns" in data)) {
+    throw new Error("Invalid role-card row");
+  }
+  const patterns: unknown = data.patterns;
+  // The existing schema permits a null patterns column before roles are saved.
+  if (patterns === null) return [];
+  if (!patterns || typeof patterns !== "object" || Array.isArray(patterns)) {
+    throw new Error("Invalid role-card patterns");
+  }
+  if (!Object.prototype.hasOwnProperty.call(patterns, ROLE_CARDS_KEY)) return [];
+  const value = (patterns as Record<string, unknown>)[ROLE_CARDS_KEY];
+  if (typeof value !== "string") throw new Error("Invalid role-card value");
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed)) throw new Error("Invalid role-card array");
+  // Validate each saved item with the existing parser before its display cap.
+  // A filtered item, including one after the first three, is a read failure.
+  const cards = parsed.map((item) => {
+    const [card] = parseRoleCards(JSON.stringify([item]));
+    if (!card) throw new Error("Invalid saved role card");
+    return card;
+  });
+  return cards.slice(0, 3);
+}
+
 export function roleEvidenceIds(cards: readonly RoleCard[]): string[] {
   return [...new Set(cards.filter((card) => card.status === "ratified")
     .flatMap((card) => card.evidenceRefs)
@@ -103,7 +135,10 @@ export function interviewEvidenceExcerpt(body: string, max = 290): string {
 
 const qaClaims = new Set<string>();
 /** One automatic QA attempt across route mounts/reloads; never a quota ledger. */
-export async function claimQaPolarisAuto(userId: string, hasCards: boolean, hasEvidence: boolean): Promise<boolean> {
+export async function claimQaPolarisAuto(
+  userId: string, hasCards: boolean, hasEvidence: boolean, isCurrent: () => boolean = () => true,
+): Promise<boolean> {
+  if (!isCurrent()) return false;
   if (!__DEV__ || typeof window === "undefined" || getEnv().EXPO_PUBLIC_LLM_MODE !== "live" || qaClaims.has(userId)) return false;
   // v1 could be consumed before the reservation RPC existed. v2 starts only
   // after the server reports an available generation.
@@ -117,6 +152,7 @@ export async function claimQaPolarisAuto(userId: string, hasCards: boolean, hasE
       // the RLS-owned, server-written grant; never use local FORCE_TIER here.
       client.from("users").select("id, subscription_tier, subscription_expires_at").eq("id", userId).maybeSingle(),
     ]);
+    if (!isCurrent()) return false;
     const expiresAt = grant?.subscription_expires_at;
     const activeGrant = expiresAt === null ||
       (typeof expiresAt === "string" && Number.isFinite(Date.parse(expiresAt)) && Date.parse(expiresAt) >= Date.now());
@@ -126,7 +162,7 @@ export async function claimQaPolarisAuto(userId: string, hasCards: boolean, hasE
       attempted: qaClaims.has(userId) || Boolean(window.localStorage.getItem(storageKey)) })) return false;
     // The new Edge path requires a server reservation. Wait for that contract
     // instead of consuming the QA attempt against an undeployed status RPC.
-    if (!(await loadPolarisQuota(userId)).available || qaClaims.has(userId) || window.localStorage.getItem(storageKey)) return false;
+    if (!(await loadPolarisQuota(userId)).available || !isCurrent() || qaClaims.has(userId) || window.localStorage.getItem(storageKey)) return false;
     window.localStorage.setItem(storageKey, "attempted");
     qaClaims.add(userId);
     return true;
