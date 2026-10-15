@@ -476,7 +476,7 @@ export default function NoticesScreen() {
   // Phone-aware: inside the dashboard phone, Back steps the phone, not the app.
   const router = useAppRouter();
   const { userId, loading } = useAuth();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("ops");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const noticeCenter = useNoticeCenter(userId);
   // Keyed by ID, not by index. `data` is bundled-only until fetchNotices()
@@ -501,7 +501,7 @@ export default function NoticesScreen() {
       active="settings"
       header="none"
       variant="windowed"
-      title={ko ? "공지사항" : "Notices"}
+      title={t("phone.apps.notifications")}
       onBack={() => router.back()}
     >
       <View style={styles.listFrame}>

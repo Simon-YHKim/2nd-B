@@ -196,7 +196,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/app/interview.tsx": 3,
   "src/app/ipip-neo.tsx": 16,
   "src/app/motivation.tsx": 6,
-  "src/app/notices.tsx": 10, // 38 -> 10: D-06 (QA 261004) 디자인 목업 공지 5건 제거
+  "src/app/notices.tsx": 9, // 38 -> 10: D-06 목업 제거; 10 -> 9: T49 제목을 번역 키로 연결
   "src/app/onboarding.tsx": 1,
   "src/app/peer-invites.tsx": 1,
   "src/app/processing-log.tsx": 24,

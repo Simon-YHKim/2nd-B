@@ -163,7 +163,7 @@
       "growth": "Goals",
       "meals": "Meals",
       "museum": "AI Museum",
-      "notifications": "Notifications",
+      "notifications": "Notices",
       "community": "Community",
       "avatarPalette": "Avatar Palette",
       "avatarPaletteShort": "Palette",
@@ -172,8 +172,8 @@
       "more": "More"
     },
     "appsBack": "Back",
-    "noticeLoading": "Loading notifications…",
-    "noticeEmpty": "No notifications yet.",
+    "noticeLoading": "Loading notices…",
+    "noticeEmpty": "No notices yet.",
     "noticeUnread": "Unread",
     "notifications": "Phone reminders",
     "push": {
