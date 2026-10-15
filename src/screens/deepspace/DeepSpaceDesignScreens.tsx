@@ -87,6 +87,8 @@ import { loadEvidenceShards } from "@/lib/persona/load-evidence-shards";
 import { type EvidenceShard } from "@/lib/persona/evidence";
 import { RatifySheet, runRatifyDecisionOnce } from "@/components/persona/RatifySheet";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { readPrivacyPrefsStrict } from "@/lib/supabase/privacy-strict";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
 import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
 import {
@@ -553,12 +555,17 @@ export function DeepSpaceAccountDesignScreen() {
   );
 }
 
+// How long the privacy screen waits for the stored choices before it says it could not reach the
+// server. A connection that never answers otherwise left "loading" on screen for good.
+const PRIVACY_READ_TIMEOUT_MS = 10_000;
+
 export function DeepSpacePrivacyDesignScreen() {
   // Phone-aware: links open in the phone; the post-deletion replace("/sign-in") still leaves it (auth exit path).
   const startAtDelete = useStartAtEndWhen("section", "delete"); // the account screen's delete row lands on the delete card, the last one
   const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { t: consentT } = useTranslation("consent");
+  const { t: commonT } = useTranslation("common");
   const navigation = useNavigation();
   // Picks the canon fact copy and the consent-ledger locale below. Every other
   // string on this screen reads a deepspace key, so es/pt/id see their own
@@ -575,6 +582,17 @@ export function DeepSpacePrivacyDesignScreen() {
   const privacyMountedRef = useRef(true);
   const prefsRef = useRef<PrivacyPrefs | null>(null);
   const prefsUserRef = useRef<string | null>(null);
+  // The stored choices could not be read (an error, or no answer in time). The cards that show
+  // and save them stay closed until a read succeeds: this screen used to read fail-soft, so a
+  // failed read showed every choice OFF as if stored, and a save could start from that guess.
+  const [prefsReadFailed, setPrefsReadFailed] = useState(false);
+  const [prefsReload, setPrefsReload] = useState(0);
+  const showPrefs = (shown: PrivacyPrefs) => {
+    setAnalyticsOn(shown.external_analytics === true);
+    setAdsOn(shown.ads === true);
+    setRecOn(shown.recommendations === true);
+    setEmbedOn(shown.records_embedding === true);
+  };
   const [analyticsOn, setAnalyticsOn] = useState<boolean | null>(null);
   const [adsOn, setAdsOn] = useState<boolean | null>(null);
   const [externalError, setExternalError] = useState<{
@@ -589,7 +607,12 @@ export function DeepSpacePrivacyDesignScreen() {
   const [embedUnderstanding, setEmbedUnderstanding] = useState(false);
   const [embedErr, setEmbedErr] = useState(false);
   // Right-to-erasure in deep-space (was legacy-only). Terminal + irreversible, so
-  // it is gated behind a typed "DELETE" confirm and reuses the proven cascade.
+  // it is gated behind the displayed language's deletion word and the proven cascade.
+  const deleteConfirmLanguage = renderedUiLanguage(i18n);
+  const deleteConfirmWord = commonT("actions.delete").toLocaleUpperCase(deleteConfirmLanguage);
+  // A queued callback from a previous render cannot accept an old language's word.
+  const deleteConfirmWordRef = useRef(deleteConfirmWord);
+  deleteConfirmWordRef.current = deleteConfirmWord;
   const [delConfirm, setDelConfirm] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -602,6 +625,12 @@ export function DeepSpacePrivacyDesignScreen() {
   const deleteConfirmUserRef = useRef<string | null>(null);
 
   useEffect(() => {
+    setDelConfirm("");
+    setDeleteConfirmOpen(false);
+    deleteConfirmUserRef.current = null;
+  }, [deleteConfirmLanguage, deleteConfirmWord]);
+
+  useEffect(() => {
     privacyMountedRef.current = true;
     return () => {
       privacyMountedRef.current = false;
@@ -612,7 +641,8 @@ export function DeepSpacePrivacyDesignScreen() {
     if (
       !userId
       || deleteInFlightRef.current
-      || delConfirm !== "DELETE"
+      || delConfirm !== deleteConfirmWord
+      || deleteConfirmWordRef.current !== deleteConfirmWord
       || deleteConfirmUserRef.current !== userId
     ) return;
     const targetUserId = userId;
@@ -696,7 +726,8 @@ export function DeepSpacePrivacyDesignScreen() {
   }
 
   function requestDeleteAccountConfirm() {
-    if (!userId || deleteInFlightRef.current || delConfirm !== "DELETE") return;
+    if (!userId || deleteInFlightRef.current || delConfirm !== deleteConfirmWord
+      || deleteConfirmWordRef.current !== deleteConfirmWord) return;
     deleteConfirmUserRef.current = userId;
     setDeleteConfirmOpen(true);
   }
@@ -738,28 +769,36 @@ export function DeepSpacePrivacyDesignScreen() {
       setDelError(false);
       allowDeletionNavigationRef.current = false;
     }
+  }, [userId]);
+
+  useEffect(() => {
     if (!userId) return;
     const targetUserId = userId;
     let cancelled = false;
-    void fetchPrivacyPrefs(targetUserId).then((p) => {
-      if (!cancelled && activeUserRef.current === targetUserId) {
+    setPrefsReadFailed(false);
+    void withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs").then(
+      (p) => {
+        if (cancelled || activeUserRef.current !== targetUserId) return;
         // A save or a strict read on this screen (the health card) may have landed first;
-        // this fail-soft read is older then and must not become the copy saves start from.
+        // this read is older then and must not become the copy saves start from.
         if (prefsUserRef.current !== targetUserId) {
           prefsRef.current = p;
           prefsUserRef.current = targetUserId;
         }
-        const shown = prefsRef.current ?? p;
-        setAnalyticsOn(shown.external_analytics === true);
-        setAdsOn(shown.ads === true);
-        setRecOn(shown.recommendations === true);
-        setEmbedOn(shown.records_embedding === true);
-      }
-    });
+        showPrefs(prefsRef.current ?? p);
+      },
+      () => {
+        if (cancelled || activeUserRef.current !== targetUserId) return;
+        // The health card's own strict read may already know the stored choices.
+        if (prefsUserRef.current === targetUserId && prefsRef.current) showPrefs(prefsRef.current);
+        else setPrefsReadFailed(true);
+      },
+    );
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+    // showPrefs only calls state setters; a new copy each render changes nothing the read needs.
+  }, [userId, prefsReload]);
 
   async function toggleExternalPreference(
     key: Extract<PrivacyPrefKey, "external_analytics" | "ads">,
@@ -779,7 +818,6 @@ export function DeepSpacePrivacyDesignScreen() {
     if (prefsRef.current[key] === next) return;
 
     const targetUserId = userId;
-    const updated: PrivacyPrefs = { ...prefsRef.current, [key]: next };
     setExternalError(null);
     setBusy(true);
 
@@ -793,16 +831,30 @@ export function DeepSpacePrivacyDesignScreen() {
     }
 
     try {
-      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en" });
+      // The stored choices at the moment of the press, read strictly: the save writes the whole
+      // object, so building it from the copy this screen read earlier would put back anything
+      // another device changed since, and the ledger (comparing with that same copy) would not
+      // show it. A failed read throws and nothing is saved.
+      const base = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
+      // Never for another account. A withdrawal is finished even if the screen was left during
+      // the read, like the other withdrawals on this screen; an opt-in is not started for a
+      // screen that is gone, or for an age that became minor or unknown during the read.
+      if (activeUserRef.current !== targetUserId) return;
+      if (next && (!privacyMountedRef.current || minorRef.current)) return;
+      const updated: PrivacyPrefs = { ...base, [key]: next };
+      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en", before: base });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       const effectiveNext = minorRef.current ? false : next;
       const committed: PrivacyPrefs = { ...updated, [key]: effectiveNext };
       // If age became unresolved/minor while an opt-in was saving, persist the
       // fail-closed value too instead of merely hiding a stale server grant.
-      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed, { locale: ko ? "ko" : "en" });
+      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed, { locale: ko ? "ko" : "en", before: updated });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = committed;
       prefsUserRef.current = targetUserId;
+      // The save started from the stored choices, which may differ from what was on screen:
+      // show all of them, so the toggles and the copy the next press checks agree.
+      showPrefs(committed);
       if (key === "external_analytics") {
         setAnalyticsOn(effectiveNext);
         setAnalyticsConsent(effectiveNext, {
@@ -811,6 +863,14 @@ export function DeepSpacePrivacyDesignScreen() {
         });
       } else {
         setAdsOn(effectiveNext);
+        // The saved choices can show analytics off (changed on another device). This device
+        // follows that off at once; it is never turned on from here.
+        if (committed.external_analytics !== true) {
+          setAnalyticsConsent(false, {
+            isMinor: minorRef.current,
+            confirmedAdult: minorRef.current === false,
+          });
+        }
       }
     } catch {
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
@@ -830,20 +890,22 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setRecError(false);
     try {
-      const current = await fetchPrivacyPrefs(targetUserId);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) return;
       const prefs = { ...current, recommendations: true };
-      await savePrivacyPrefs(targetUserId, prefs);
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false }, { before: prefs });
         return;
       }
       // recordConsentBestEffort retries, then REPORTS failure instead of
@@ -864,14 +926,14 @@ export function DeepSpacePrivacyDesignScreen() {
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false }, { before: prefs });
         return;
       }
       if (!consentRecorded) {
         // Same rollback the session guards above perform, for the same reason:
         // this is a state we must not leave behind. Retrying is the user's to
         // choose, and the existing error line already says to try again.
-        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false }, { before: prefs });
         setRecError(true);
         return;
       }
@@ -892,8 +954,11 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setRecError(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), recommendations: false };
-      await savePrivacyPrefs(targetUserId, prefs);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
+      const prefs = { ...current, recommendations: false };
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = prefs;
       prefsUserRef.current = targetUserId;
@@ -914,20 +979,22 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setEmbedErr(false);
     try {
-      const current = await fetchPrivacyPrefs(targetUserId);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) return;
       const prefs = { ...current, records_embedding: true };
-      await savePrivacyPrefs(targetUserId, prefs);
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
         minorRef.current
       ) {
-        await savePrivacyPrefs(targetUserId, { ...prefs, records_embedding: false });
+        await savePrivacyPrefs(targetUserId, { ...prefs, records_embedding: false }, { before: prefs });
         return;
       }
       prefsRef.current = prefs;
@@ -974,8 +1041,11 @@ export function DeepSpacePrivacyDesignScreen() {
     setBusy(true);
     setEmbedErr(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), records_embedding: false };
-      await savePrivacyPrefs(targetUserId, prefs);
+      // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
+      // "everything off" on failure, and the save below would have written that over the other choices.
+      const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
+      const prefs = { ...current, records_embedding: false };
+      await savePrivacyPrefs(targetUserId, prefs, { before: current });
       // Consent revoked → forget the index (honest "off deletes vectors").
       await clearRecordEmbeddings(targetUserId);
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
@@ -1030,6 +1100,17 @@ export function DeepSpacePrivacyDesignScreen() {
         })}
       </Card>
 
+      {prefsReadFailed ? (
+        // The stored choices were not read. Say so with the sentence the app already uses, offer
+        // another read, and show no control that could save from a guess.
+        <Card>
+          <Text variant="body" style={styles.lead}>{t("common:errors.network")}</Text>
+          <Pressable style={styles.secondary} onPress={() => setPrefsReload((n) => n + 1)} accessibilityRole="button">
+            <Text variant="body" style={styles.secondaryText}>{t("common:actions.retry")}</Text>
+          </Pressable>
+        </Card>
+      ) : (
+      <>
       <Card>
         <Text variant="caption" style={styles.section}>
           {t("privacy.analytics.title")}
@@ -1195,6 +1276,8 @@ export function DeepSpacePrivacyDesignScreen() {
           <Text variant="subtle" style={styles.footer}>{t("privacy.saveFailed")}</Text>
         ) : null}
       </Card>
+      </>
+      )}
 
       <HealthWithdrawCard
         busy={busy}
@@ -1204,6 +1287,11 @@ export function DeepSpacePrivacyDesignScreen() {
           if (activeUserRef.current !== ownerId) return;
           prefsRef.current = known;
           prefsUserRef.current = ownerId;
+          // The screen's own read may have failed while this one got through: show what it read.
+          if (prefsReadFailed) {
+            showPrefs(known);
+            setPrefsReadFailed(false);
+          }
         }}
         onPrefsUnknown={(ownerId) => {
           if (prefsUserRef.current === ownerId) prefsUserRef.current = null;
@@ -1233,10 +1321,9 @@ export function DeepSpacePrivacyDesignScreen() {
         <Text variant="subtle" style={styles.footer}>
           {t("privacy.deleteAccount.body")}
         </Text>
-        {/* "DELETE" is the token the input below compares against, so it
-            stays literal inside every language's prompt. */}
+        {/* The displayed word is the same value checked by both destructive-action gates. */}
         <Text variant="subtle" style={styles.footer}>
-          {t("privacy.deleteAccount.typePrompt")}
+          {t("privacy.deleteAccount.typePrompt", { phrase: deleteConfirmWord })}
         </Text>
         <TextInput
           value={delConfirm}
@@ -1257,13 +1344,13 @@ export function DeepSpacePrivacyDesignScreen() {
             styles.danger,
             // ⚠ 비활성은 **미리 합성한 색 한 쌍**이다(PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
             //   바탕만 바꾸고 글자를 그대로 두면 비활성이 활성보다 또렷해진다.
-            (delConfirm !== "DELETE" || deleting) && {
+            (delConfirm !== deleteConfirmWord || deleting) && {
               backgroundColor: m3.disabled.primary,
               borderColor: m3.disabled.outline,
             },
           ]}
           onPress={requestDeleteAccountConfirm}
-          disabled={delConfirm !== "DELETE" || deleting}
+          disabled={delConfirm !== deleteConfirmWord || deleting}
           accessibilityRole="button"
           accessibilityLabel={t("privacy.deleteAccount.buttonA11y")}
         >

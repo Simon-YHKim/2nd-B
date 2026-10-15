@@ -148,7 +148,7 @@ export function useImportPendingCaptures(): {
           if (res.followup?.zone === "red" && !crisisShown.current && isCurrent()) {
             crisisShown.current = true;
             setOffer(null);
-            setCrisis({ visible: true, hotline: crisisHotlines(locale, minor)[0].id });
+            setCrisis({ visible: true, hotline: res.crisisHotline ?? crisisHotlines(locale, minor)[0].id });
           }
         },
         (s) => digestStringAsync(CryptoDigestAlgorithm.SHA256, s),

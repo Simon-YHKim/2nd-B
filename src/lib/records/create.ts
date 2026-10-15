@@ -26,6 +26,7 @@ import { withDomainTag } from "./detect-domain";
 import { embedAndStoreRecord, recordsEmbeddingAllowed } from "./records-embeddings";
 import type { RecordFollowup } from "./followup";
 import { legacyTagLayout, normalizeSystemTags, withSystemTagsColumn, writeWithSystemTagsColumn } from "./system-tags";
+import { classifyInputAnyLocale } from "../safety/classifier";
 
 export type RecordKind = "journal" | "note" | "audit_response";
 
@@ -141,6 +142,8 @@ export interface CreatedRecord {
    */
   tags: string[];
   followup?: RecordFollowup;
+  /** Ephemeral routing only; never written into ai_followup or record metadata. */
+  crisisHotline?: import("../safety/lexicon").HotlineId;
 }
 
 // Quest XP action for each record kind. Capturing data is the core
@@ -167,6 +170,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   const supabase = getSupabaseClient();
 
   let aiFollowup: RecordFollowup | null = null;
+  let crisisHotline: CreatedRecord["crisisHotline"];
   // Premium gate (Brain floor): the Advisor follow-up is the marginal-cost
   // surface; when the caller names its tier, enforce the entitlement here
   // too so a stale/bypassed toggle can't reach callAdvisor.
@@ -191,6 +195,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         : await classifyRecordTextForCrisis(args.body, args.locale, args.userId, args.minor === true);
       if (crisis) {
         aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+        crisisHotline = crisis.safety?.crisisRouting?.hotline;
       }
     } catch (e) {
       if (typeof console !== "undefined")
@@ -218,6 +223,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
           minor: args.minor,
         });
         const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
+        crisisHotline = res.hotline;
         aiFollowup = {
           text: cappedText,
           zone: res.zone,
@@ -263,7 +269,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
             args.userId,
             args.minor === true,
           );
-          if (crisis) aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+          if (crisis) {
+            aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+            crisisHotline = crisis.safety?.crisisRouting?.hotline;
+          }
         } catch {
           /* best-effort — never block the save */
         }
@@ -285,6 +294,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         });
         const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
         aiFollowup = { text: cappedText, zone: res.safety.zone };
+        crisisHotline = res.safety.crisisRouting?.hotline;
       } catch (e) {
         if (typeof console !== "undefined")
           console.warn("[records] audit follow-up failed; saving without it", (e as Error).message);
@@ -298,7 +308,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
             args.userId,
             args.minor === true,
           );
-          if (crisis) aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+          if (crisis) {
+            aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+            crisisHotline = crisis.safety?.crisisRouting?.hotline;
+          }
         } catch {
           /* best-effort — never block the save */
         }
@@ -386,7 +399,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       : await insertRecord(true);
   if (error) {
     if (args.clientRequestId !== undefined && error.code === "23505") {
-      return replayKeyedRecord(args, args.clientRequestId, error, aiFollowup);
+      return replayKeyedRecord(args, args.clientRequestId, error, aiFollowup, crisisHotline);
     }
     throw error;
   }
@@ -418,10 +431,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       topic: args.topic ?? null,
       summary: args.summary ?? null,
       body: args.body,
-    });
+    }, aiFollowup?.zone === "red");
   }
 
-  return { id: data.id, tags: storedTags, followup: aiFollowup ?? undefined };
+  return { id: data.id, tags: storedTags, followup: aiFollowup ?? undefined, crisisHotline };
 }
 
 // D5 (J2 auto-embed): when the ADULT user has opted in (records_embedding pref,
@@ -442,7 +455,12 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
 function embedRecordDetached(
   args: Pick<CreateRecordArgs, "userId" | "locale" | "minor">,
   row: { id: string; topic: string | null; summary: string | null; body: string },
+  crisisDetected = false,
 ): void {
+  // A known verdict must not be lost when optional enrichment runs after save.
+  // Scan the full body before embedding truncates it, even when audited routing
+  // failed. Durable ai_hold and all other readers remain a separate server task.
+  if (crisisDetected || classifyInputAnyLocale(row.body, args.locale).zone === "red") return;
   if (args.minor === true || getEnv().EXPO_PUBLIC_LLM_MODE === "mock") return;
   void (async () => {
     try {
@@ -479,12 +497,13 @@ async function replayKeyedRecord(
   clientRequestId: string,
   insertError: unknown,
   followup: RecordFollowup | null,
+  crisisHotline?: CreatedRecord["crisisHotline"],
 ): Promise<CreatedRecord> {
   args.session?.assertCurrent();
   const { data: existing, error } = await withTimeout(
     getSupabaseClient()
       .from("records")
-      .select("id, kind, body, tags, topic, summary")
+      .select("id, kind, body, tags, topic, summary, ai_followup")
       .eq("user_id", args.userId)
       .eq("client_request_id", clientRequestId)
       .maybeSingle(),
@@ -507,13 +526,18 @@ async function replayKeyedRecord(
       topic: typeof existing.topic === "string" ? existing.topic : null,
       summary: typeof existing.summary === "string" ? existing.summary : null,
       body: existing.body,
-    });
+    }, followup?.zone === "red" || isRedRecordFollowup(existing.ai_followup));
   }
   return {
     id: existing.id,
     tags: Array.isArray(existing.tags) ? existing.tags : [],
     followup: followup ?? undefined,
+    crisisHotline,
   };
+}
+
+function isRedRecordFollowup(value: unknown): boolean {
+  return value !== null && typeof value === "object" && "zone" in value && value.zone === "red";
 }
 
 // How far back the streak query looks, in days. A streak longer than this is

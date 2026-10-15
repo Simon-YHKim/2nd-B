@@ -255,7 +255,9 @@ describe("openai-proxy can serve what the client will send it", () => {
     const embedRoute = proxy.slice(embedStart, embedEnd);
     const rest = proxy.slice(0, embedStart) + proxy.slice(embedEnd);
 
-    expect((rest.match(/from\('ai_audit_log'\)\.insert/g) ?? []).length).toBe(1);
+    // The reply row goes through the shared insertLlmAuditRow (0255): one call, and no direct insert beside it.
+    expect((rest.match(/insertLlmAuditRow\(supabaseAdmin, \{/g) ?? []).length).toBe(1);
+    expect((rest.match(/from\('ai_audit_log'\)\.insert/g) ?? []).length).toBe(0);
     expect((rest.match(/rpc\('bump_gemini_spend'/g) ?? []).length).toBe(1);
     // And the embed route pays exactly once too - it must not skip the counter.
     expect((embedRoute.match(/from\('ai_audit_log'\)\.insert/g) ?? []).length).toBe(1);

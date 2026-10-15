@@ -382,7 +382,9 @@ describe("legacy preservation and pixel registration", () => {
     // 2026-10-08: file/account input panels get SceneTransition. Removing its
     // import and two tags exactly reproduces the prior source hash; actions,
     // ownership and inbox remain unchanged.
-    expect(sha(source)).toBe("fffbc29b88c43a392a63269041e187bf26caaa742e539c64f77e6173654619f5");
+    // 2026-10-14 재고정 - 건강 동의(handleHealthConsent)가 저장된 선택을 엄격하게 읽고(기한 10초) 실패하면 저장하지 않으며,
+    // 읽은 값을 원장의 before 로 넘긴다. 실패 때 "모두 꺼짐"을 돌려주는 읽기 위에 통째로 저장하던 것(#2496 과 같은 결함) · inbox 와 무관.
+    expect(sha(source)).toBe("08ce2dc13e066754db6679e4eedc0b38aa8ae40d1197c4fe94df4b69470924de");
   });
 
   test("routes /inbox directly to the shipped hub", () => {

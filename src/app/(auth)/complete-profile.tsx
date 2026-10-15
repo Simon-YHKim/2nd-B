@@ -219,10 +219,12 @@ function CompleteProfileBody() {
         // replaced straight to "/" - the sentence is typed during sign-up, so a
         // 14-17 user in a red zone was pushed into the app with nothing shown.
         let northstarRedZone = false;
+        let northstarHotline: HotlineId | undefined;
         if (goal.trim() && userId) {
           try {
             const seeded = await saveNorthstar({ userId, locale, sentence: goal, minor: isMinorAge });
             northstarRedZone = seeded.followup?.zone === "red";
+            northstarHotline = seeded.crisisHotline;
           } catch (e) {
             console.error("[complete-profile] northstar seed failed", e);
           }
@@ -232,7 +234,7 @@ function CompleteProfileBody() {
           // modal lets the normal redirect through. Entry is never blocked.
           setCrisis({
             visible: true,
-            hotline: locale === "ko" ? (isMinorAge ? "KR_1388" : "KR_109") : "GLOBAL_988",
+            hotline: northstarHotline ?? (locale === "ko" ? (isMinorAge ? "KR_1388" : "KR_109") : "GLOBAL_988"),
           });
           return;
         }

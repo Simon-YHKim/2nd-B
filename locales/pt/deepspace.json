@@ -97,7 +97,9 @@
     "fallbackTitle": "Sem título",
     "graphEmpty": "Ainda não há conhecimento para conectar.",
     "loadError": "Não foi possível carregar seus registros. Tente novamente.",
-    "retry": "Tentar de novo"
+    "retry": "Tentar de novo",
+    "periodScope": "Histórias: {{star}}",
+    "periodShowAll": "Ver tudo"
   },
   "domains": {
     "title": "Minhas áreas",
@@ -154,7 +156,7 @@
   "account": {
     "title": "Conta",
     "status": "Gerencie suas informações e escolha quais contas conectar.",
-    "tip": "Você pode exportar seus dados ou iniciar a exclusão quando quiser.",
+    "tip": "Você pode iniciar a exclusão da conta quando quiser.",
     "delete": "Excluir conta",
     "navProfile": "Perfil",
     "navSettings": "Configurações",
@@ -237,7 +239,7 @@
     "saveFailed": "Não foi possível salvar. Tente novamente daqui a pouco.",
     "deleteAccount": {
       "body": "Seus registros, capturas, wiki, uso e conta são apagados para sempre. Não dá para desfazer. Exporte antes o que precisar.",
-      "typePrompt": "Digite \"DELETE\" para continuar.",
+      "typePrompt": "Digite \"{{phrase}}\" para continuar.",
       "inputA11y": "Confirmação de exclusão",
       "buttonA11y": "Excluir a conta permanentemente",
       "button": "Excluir conta",
@@ -649,10 +651,12 @@
     "fallbackInsight": "Me entender a fundo, viver mais do meu jeito."
   },
   "coachmarks": {
-    "homeStep": "Toque no HustleK para começar a salvar um registro.",
+    "homeStep": "Toque em Recortes para começar um registro.",
     "formatStep": "Primeiro escolha Memorando. Uma linha é suficiente.",
     "inputStep": "Escreva o que está pensando. Não precisa ser uma frase completa.",
     "saveStep": "Por fim, toque em Salvar para guardar este registro.",
+    "replayEndStep": "Salvar guarda o registro.",
+    "replayEndHint": "Esta segunda vez termina aqui, sem salvar.",
     "doneStep": "Seu registro foi salvo. Volte à constelação para vê-lo.",
     "targetHint": "Toque no controle destacado para continuar.",
     "inputHint": "Escreva pelo menos um caractere para continuar até Salvar.",
@@ -803,12 +807,12 @@
       "freeFeat3": "As 7 estrelas · registros ilimitados",
       "plusName": "Viajante",
       "plusSub": "Mais conversas por dia",
-      "plusFeat1": "Estilo de conversa Meta-B",
+      "plusFeat1": "Estilo de conversa Fact-K",
       "plusFeat2": "80 conversas por dia",
       "plusFeat3": "Buscar conexões 7x por semana",
       "proName": "Estrela Polar",
       "proSub": "Maior limite de uso",
-      "proFeat1": "Estilos de conversa Meta-B + Twi-B",
+      "proFeat1": "Estilos de conversa Fact-K + Joy-K",
       "proFeat2": "250 conversas por dia",
       "proFeat3": "Buscar conexões sem limite",
       "comingSoon": "Em breve",

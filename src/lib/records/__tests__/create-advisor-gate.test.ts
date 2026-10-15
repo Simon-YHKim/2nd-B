@@ -62,6 +62,18 @@ describe("createRecord — Advisor premium gate", () => {
     mockInsert.mockClear();
   });
 
+  test.each(["KR_119", "KR_112"] as const)("returns %s for the screen without storing routing metadata", async (hotline) => {
+    mockClassifyRecordCrisis.mockResolvedValue({ text: "fixed emergency guidance", safety: { zone: "red", crisisRouting: { hotline } } });
+    const result = await createRecord({ userId: "u1", locale: "ko", kind: "note", body: "explicit emergency", withFollowup: false });
+    expect(result.crisisHotline).toBe(hotline);
+    expect(result.followup?.zone).toBe("red");
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+    expect(mockInsert.mock.calls[0][0]).not.toHaveProperty("crisisHotline");
+    expect(mockInsert.mock.calls[0][0].ai_followup).not.toHaveProperty("hotline");
+    expect(mockCallAdvisor).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
+  });
+
   test("C9 is not premium: a free-tier journal save still runs the local crisis classifier", async () => {
     await createRecord({
       userId: "u1",
@@ -659,7 +671,7 @@ describe("capture 화면 — domainIntent 배선 (source contract)", () => {
     // 이 반환 하나다.
     expect(wrapper).toContain("<CaptureLegacy embeddedInDock />");
     expect(wrapper).not.toMatch(/<CaptureLegacy \/>/);
-    expect(wrapper).toContain("<CaptureView firstRecordCoach={firstRecordCoach} />");
+    expect(wrapper).toContain('<CaptureView firstRecordCoach={firstRecordCoach} coachReplay={coachMode === "replay"} />');
     expect(wrapper).not.toContain("sharedEverRef.current =");
   });
 

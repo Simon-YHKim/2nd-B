@@ -14,9 +14,10 @@ function read(path: string): string {
 
 describe("PIXEL-CLAY /data content contract", () => {
   test("routes the four data rights to their single real owners", () => {
+    // The account export runs inside its card (Q-261014-61): no route of its own.
     expect(DATA_RIGHTS.map(({ route }) => route)).toEqual([
       "/import-hub",
-      "/account?tool=export",
+      undefined,
       "/iden",
       "/privacy",
     ]);
@@ -81,7 +82,9 @@ describe("PIXEL-CLAY /data renderer contract", () => {
     expect(source).toContain("setExpandedId(expanded ? null : item.id)");
     expect(source).toContain("accessibilityState={{ expanded }}");
     expect(source).toContain('accessibilityRole="link"');
-    expect(source).toContain("router.push(item.route as Href)");
+    expect(source).toContain("onPress={() => router.push(route as Href)}");
+    expect(source).toContain('{item.id === "account-export" ? (');
+    expect(source).toContain("<AccountExportPanel />");
   });
 
   test("does not duplicate export or deletion side effects", () => {

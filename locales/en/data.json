@@ -1,7 +1,7 @@
 {
   "loading": "Loading data tools...",
   "hero": {
-    "eyebrow": "08-1. Data management",
+    "eyebrow": "08-1. My data",
     "title": "Move and manage your records",
     "subtitle": "Import · export · delete",
     "speech": "Before deleting anything important, export a backup first."

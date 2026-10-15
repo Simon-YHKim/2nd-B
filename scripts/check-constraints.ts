@@ -211,7 +211,6 @@ results.push(
       "feedback.retryHint",
       "formatSaved.personal",
       "formatSaved.shared",
-      "firstRun.hint",
       "saved.title",
       "saved.ocrTitle",
       "saved.ocrBody",
@@ -1200,7 +1199,8 @@ results.push(
       onboarding.includes("accessibilityHint={skipHint}") &&
       account.includes('accessibilityHint={t("consent:account.dob.saveHint")}') &&
       account.includes('accessibilityHint={t("consent:account.privacy.buttonHint")}') &&
-      account.includes('accessibilityLabel={t("consent:account.export.label")}') &&
+      // The export moved into My data (Q-261014-61): its button is named and hinted there.
+      read("src/screens/deepspace/dds-account-export.tsx").includes('accessibilityLabel={t("consent:account.export.button")}') &&
       // 터미널 삭제: 타이핑 확인 입력과 위험 버튼이 둘 다 스크린리더에 잡혀야 한다.
       // 2026-10-06 (Q-261005-01 = A): 이 라벨은 인라인 ko/en 삼항이었고 es/pt/id 는
       // 영어로 읽혔다. 지금은 deepspace 키라 다섯 언어가 각자 읽는다. 여기서는
@@ -1495,6 +1495,7 @@ results.push(
       "Opens profile settings.",
       "Opens privacy settings.",
       "Opens data management.",
+      "Opens My data.",
       "Signs out and returns to the sign-in screen.",
       "설정을 불러오는 중입니다…",
       "설정 삭제 확인",
@@ -1502,6 +1503,7 @@ results.push(
       "프로필 설정을 엽니다.",
       "개인정보 보호 설정을 엽니다.",
       "데이터 관리를 엽니다.",
+      "내 데이터를 엽니다.",
       "로그아웃하고 로그인 화면으로 돌아갑니다.",
     ];
     const ok =
@@ -1669,7 +1671,6 @@ results.push(
       't("consent:account.dob.saveFailedBody")',
       't("consent:account.dob.saveHint")',
       't("consent:account.privacy.buttonHint")',
-      't("consent:account.export.buttonHint")',
     ];
     const forbiddenInlineCopy = [
       "Loading account…",
@@ -1692,8 +1693,11 @@ results.push(
       "계정과 데이터를 삭제하기 전 최종 확인을 엽니다.",
       "계정과 데이터 삭제를 시작합니다.",
     ];
+    // The export moved into My data (Q-261014-61, 2026-10-14); its hint is required there.
+    const accountExport = read("src/screens/deepspace/dds-account-export.tsx");
     const ok =
       requiredCode.every((snippet) => account.includes(snippet)) &&
+      accountExport.includes('t("consent:account.export.buttonHint")') &&
       en.includes('"loading": "Loading account…"') &&
       ko.includes('"loading": "계정을 불러오고 있습니다…"') &&
       forbiddenInlineCopy.every((term) => !account.includes(term));
@@ -1916,7 +1920,8 @@ results.push(
         // 레거시 화면의 `const ko` 는 카피 두 벌을 소스에 품기 위한 것이었다.
         // 라이브에도 같은 이름의 플래그가 있지만 쓰는 곳이 하나뿐이고 그건
         // 저장되는 데이터의 언어다 — 카피 분기가 아니라 이 쓰임새를 못박는다.
-        screen.includes('{ locale: ko ? "ko" : "en" }') &&
+        // 2026-10-14: 건강 동의가 읽은 값을 원장의 before 로 넘기게 되어 같은 줄에 before 가 붙었다.
+        screen.includes('{ locale: ko ? "ko" : "en", before: current }') &&
         enDeep.includes("Before importing") &&
         koDeep.includes("가져오기 전 확인") &&
         sources.includes('"import:health.connect"') &&
@@ -2657,8 +2662,8 @@ results.push(
 results.push(
   check("GongsangRetiredFromCopy", () => {
     // Phase 4 (Simon 2026-07-17): the '공상' feature name is retired from every
-    // user-visible surface — 트위비 owns the Divergent mode; KO copy says
-    // 상상/트위비. Locale bundles ONLY: validated survey items (ipip-neo), the
+    // user-visible surface — 조이케이 owns the Divergent mode; KO copy says
+    // 상상/조이케이. Locale bundles ONLY: validated survey items (ipip-neo), the
     // user-tag keyword matcher (relatedness), and retirement-pinning tests may
     // legitimately contain the word as data/history.
     const fs = require("node:fs") as typeof import("node:fs");
@@ -2676,7 +2681,7 @@ results.push(
       id: "GongsangRetiredFromCopy",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "locale bundles carry no retired 공상 feature naming (트위비/상상 vocabulary)"
+        ? "locale bundles carry no retired 공상 feature naming (조이케이/상상 vocabulary)"
         : `retired 공상 naming found in locale copy: ${offenders.join(", ")}`,
     };
   }),
@@ -2756,9 +2761,11 @@ results.push(
       // 홈 코치마크는 첫 기록 안내다. 기존 기록이 다른 기기에 있어도 처음으로
       // 오판하지 않도록 소유자별 단일 게이트가 확인하고 홈에는 결과만 전달한다.
       landing.includes("useCoachmarksGate(") &&
-      landing.includes("coachFirstRecord={coachmarksDue === true}") &&
-      liveConstellation.includes("coachFirstRecord = false") &&
-      liveConstellation.includes("if (coachFirstRecord)") &&
+      // 2026-10-14 (Z70): 안내가 아래 탭 「스크랩」을 가리키게 되면서 홈은 안내를 아예 모른다.
+      // 게이트의 결과는 셸이 쥐고, 안내 층과 그 탭의 길만 그 결과로 정한다.
+      landing.includes("overlay={coachmarksDue === true ? (") &&
+      landing.includes('if (!(coachmarksDue === true && tab === "capture")) return false;') &&
+      !liveConstellation.includes("coachFirstRecord") &&
       !liveConstellation.includes("useCoachmarksGate(") &&
       captureScreen.includes('savedKind === "records"') &&
       captureScreen.includes('router.push("/records")') &&

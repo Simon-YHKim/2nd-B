@@ -33,10 +33,9 @@ export const FORBIDDEN_TERMS: Record<Locale, readonly string[]> = {
   ],
 } as const;
 
-// Crisis signals → RED zone. Routes to professional resources;
-// never reaches an LLM advisor call. Keep this list conservative;
-// false negatives are safer than false positives for crisis routing
-// when paired with the hotline UX (user can always close the modal).
+// Crisis signals → RED zone. Routes to professional resources; never reaches an LLM advisor call. Keep this list
+// conservative; false negatives are safer than false positives for crisis routing when paired with the hotline UX
+// (user can always close the modal).
 export const CRISIS_TERMS: Record<Locale, readonly string[]> = {
   en: [
     "suicide",
@@ -79,6 +78,7 @@ export const CRISIS_TERMS: Record<Locale, readonly string[]> = {
     "사라지는 게 나",
     "다음 생에는",
     "영영 잠들고 싶",
+    "끝내 버리고 싶", "끝내 버릴", // Q-261015-80: emphatic 끝내고 싶 · 끝낼 거 (20 · 21), appended; one line, docs/legal cite lines below
   ],
 } as const;
 
@@ -458,3 +458,51 @@ export const LEXICON_VERSION = "0.1" as const;
 // 2026-06-10: review sign-off recorded on Simon's direct instruction (owner
 // holds the legal gate). Next review due within 365d of this date.
 export const LEXICON_LAST_LEGAL_REVIEW: string | null = "2026-06-10";
+
+// Q-261010-09 / Q-261015-82: separately recognize explicit physical emergencies
+// and active threats to the writer. These are bounded statements, not bare nouns.
+// This addition does not record a new legal review or activate a new UI language.
+export const EMERGENCY_PHRASES = {
+  medical_emergency: {
+    ko: [
+      "약을 이미 많이 먹었어", "약을 한꺼번에 많이 먹었어", "약을 너무 많이 먹었어",
+      "숨을 못 쉬겠어", "지금 숨을 못 쉬고 있어", "지금 피가 멈추지 않아", "피가 계속 나고 멈추지 않아",
+    ],
+    en: [
+      "I have taken an overdose", "I just took an overdose", "I took too many pills",
+      "I cannot breathe right now", "I can't breathe right now", "I am bleeding and it won't stop",
+    ],
+  },
+  immediate_threat: {
+    ko: [
+      "지금 누가 나를 때리고 있어", "지금 누군가 나를 때리고 있어",
+      "지금 누가 나를 칼로 위협하고 있어", "지금 누군가 나를 칼로 위협하고 있어",
+      "지금 누가 나를 죽이겠다고 위협하고 있어",
+    ],
+    en: [
+      "Someone is attacking me right now", "Someone is threatening me with a knife right now",
+      "Someone is trying to kill me right now",
+    ],
+  },
+} as const;
+// Q-261015-82: recognition phrases for es/pt/id. UI locale and country are separate.
+// Existing legal-review date above is unchanged; this addition needs its own review.
+export type AdditionalCrisisLanguage = "es" | "pt" | "id";
+
+export const ADDITIONAL_CRISIS_PHRASES: Record<AdditionalCrisisLanguage, readonly string[]> = {
+  es: [
+    "quiero suicidarme", "me quiero suicidar", "voy a suicidarme",
+    "voy a quitarme la vida", "pienso quitarme la vida",
+    "no quiero seguir viviendo", "me estoy autolesionando",
+  ],
+  pt: [
+    "quero me matar", "quero me suicidar", "vou me matar",
+    "vou tirar minha vida", "vou tirar a minha vida",
+    "não quero mais viver", "estou me machucando de propósito",
+  ],
+  id: [
+    "ingin bunuh diri", "mau bunuh diri", "akan bunuh diri",
+    "ingin mengakhiri hidupku", "ingin mengakhiri hidup saya",
+    "saya menyakiti diri sendiri", "aku melukai diri sendiri",
+  ],
+};

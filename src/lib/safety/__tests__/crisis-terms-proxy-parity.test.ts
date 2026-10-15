@@ -9,14 +9,22 @@
 // here is a silent crisis false-negative on the server boundary, so the build fails
 // on it rather than letting the second line of defence rot.
 
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { dirname, resolve } from "path";
 
 import * as ts from "typescript";
 
-import { classifyInput } from "../classifier";
-import { CRISIS_TERMS } from "../lexicon";
+import { classifyInput, KO_PARTIAL_SPACING_TERMS, koSpacingForms, koTermSpellings } from "../classifier";
+import { CRISIS_TERMS, EMERGENCY_PHRASES } from "../lexicon";
 import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS } from "./crisis-context.fixtures";
+import {
+  DAILY_SAMPLE,
+  EMPHATIC_WORK_PAIRS,
+  LEFT_OUT_ENDINGS,
+  MIXED_WORK_SENTENCES,
+  NEWLY_CAUGHT_CRISIS,
+  OUT_OF_SCOPE_PARTIAL,
+} from "./crisis-half-joined.fixtures";
 
 const PROXY_SOURCES = {
   "gemini-proxy": "../../../../supabase/functions/gemini-proxy/index.ts",
@@ -51,23 +59,32 @@ function loadHasCrisisTerm(src: string, relPath: string): (text: string) => bool
   if (end < 0) throw new Error("hasCrisisTerm end not found");
   const contextImport = src.match(/^import \{ prepareCrisisScanText \} from ['"][^'"]+['"];$/m)?.[0];
   if (!contextImport) throw new Error("shared crisis context import missing from proxy source");
-  const snippet = `${contextImport}\n${src.slice(start, end + 2)}\nexports.hasCrisisTerm = hasCrisisTerm;\n`;
+  const languageImport = src.match(/^import \{ matchAdditionalCrisisLanguage \} from ['"][^'"]+['"];$/m)?.[0];
+  if (!languageImport) throw new Error("shared additional language import missing from proxy source");
+  const emergencyImport = src.split("\n").find((line) => line.startsWith("import ") && line.includes("/emergency-routing.ts"));
+  if (!emergencyImport) throw new Error("shared emergency routing import missing from proxy source");
+  const snippet = `${contextImport}\n${languageImport}\n${emergencyImport}\n${src.slice(start, end + 2)}\nexports.hasCrisisTerm = hasCrisisTerm;\n`;
   const js = ts.transpileModule(snippet, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   const exportsObj: { hasCrisisTerm?: (text: string) => boolean } = {};
   // Resolve and transpile the REAL dependency using the Edge import path. A
   // stubbed allow decision here would conceal a broken production import.
-  const loadContext = (specifier: string) => {
-    const contextPath = resolve(dirname(resolve(__dirname, relPath)), specifier);
-    const contextJs = ts.transpileModule(readFileSync(contextPath, "utf8"), {
+  const modules = new Map<string, object>();
+  const loadDependency = (specifier: string, importer: string): object => {
+    const path = resolve(dirname(importer), specifier);
+    const modulePath = existsSync(path) ? path : `${path}.ts`;
+    const cached = modules.get(modulePath);
+    if (cached) return cached;
+    const moduleJs = ts.transpileModule(readFileSync(modulePath, "utf8"), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
     }).outputText;
-    const contextExports = {};
-    new Function("exports", contextJs)(contextExports);
-    return contextExports;
+    const moduleExports = {};
+    modules.set(modulePath, moduleExports);
+    new Function("exports", "require", moduleJs)(moduleExports, (dep: string) => loadDependency(dep, modulePath));
+    return moduleExports;
   };
-  new Function("exports", "require", js)(exportsObj, loadContext);
+  new Function("exports", "require", js)(exportsObj, (dep: string) => loadDependency(dep, resolve(__dirname, relPath)));
   if (typeof exportsObj.hasCrisisTerm !== "function") {
     throw new Error("hasCrisisTerm did not evaluate to a function");
   }
@@ -84,6 +101,10 @@ describe.each(Object.entries(PROXY_SOURCES))("%s crisis-term parity", (_name, re
   test("CRISIS_TERMS_KO matches lexicon CRISIS_TERMS.ko exactly (content + order)", () => {
     expect(extractArray(src, "CRISIS_TERMS_KO")).toEqual([...CRISIS_TERMS.ko]);
   });
+
+  test("PARTIAL_SPACING_KO matches classifier KO_PARTIAL_SPACING_TERMS exactly (Q-261015-80)", () => {
+    expect(extractArray(src, "PARTIAL_SPACING_KO")).toEqual([...KO_PARTIAL_SPACING_TERMS]);
+  });
 });
 
 // Behaviour parity: each proxy's hasCrisisTerm must match the client classifier
@@ -93,6 +114,14 @@ describe.each(Object.entries(PROXY_SOURCES))("%s crisis-term parity", (_name, re
 // NFD-decomposed Hangul, doesn't slip RED -> GREEN).
 describe.each(Object.entries(PROXY_SOURCES))("%s hasCrisisTerm behaviour parity", (_name, relPath) => {
   const hasCrisisTerm = loadHasCrisisTerm(readProxy(relPath), relPath);
+
+  test.each(Object.values(EMERGENCY_PHRASES).flatMap((phrases) => [...phrases.ko, ...phrases.en]))(
+    "explicit emergency is red on both boundaries: %s", (text) => {
+      for (const locale of ["ko", "en"] as const) expect(classifyInput(text, locale).zone).toBe("red");
+      expect(hasCrisisTerm(text)).toBe(true);
+      expect(hasCrisisTerm(text.normalize("NFD").replace(/ /g, "\n\u00a0"))).toBe(true);
+    },
+  );
 
   test.each(BENIGN_CRISIS_CONTEXTS)("narrow benign context passes both boundaries: %s", (text) => {
     expect(classifyInput(text, "ko").zone).not.toBe("red");
@@ -178,5 +207,114 @@ describe.each(Object.entries(PROXY_SOURCES))("%s hasCrisisTerm behaviour parity"
     const text = "이제 그만\n죽고 싶다";
     expect(classifyInput(text, "ko").zone).toBe("red");
     expect(hasCrisisTerm(text)).toBe(true);
+  });
+
+  // Simon 2026-10-14 (Q-261014-90 가): a spaced Korean term typed without its spaces counts on
+  // both boundaries, and only that one form: the text keeps its own spaces.
+  test.each(CRISIS_TERMS.ko.filter((term) => term.includes(" ")).map((term) => `그냥 ${term.replace(/ /g, "")}`))(
+    "KO: joined spelling matches on both sides: %s",
+    (text) => {
+      expect(classifyInput(text, "ko").zone).toBe("red");
+      expect(hasCrisisTerm(text)).toBe(true);
+    },
+  );
+
+  test.each(["다 끝내고싶어", "사는 게 의미가 없어. 다 끝내고싶어", "학원 끝나고 그냥 다 끝내고싶다 진짜"])(
+    "KO: the reported joined sentence is red on both sides: %s",
+    (text) => {
+      expect(classifyInput(text, "ko").zone).toBe("red");
+      expect(hasCrisisTerm(text)).toBe(true);
+    },
+  );
+
+  test.each([
+    ["과제를 다 끝내고싶어", false],
+    ["일을 다 끝내고싶어", false],
+    ["일 다 끝내고싶어. 나 자신도", true],
+    ["그게 마지막인 사진이야", false],
+  ] as const)("KO: joined work sentence and word boundary agree on both sides: %s", (text, red) => {
+    expect(classifyInput(text, "ko").zone === "red").toBe(red);
+    expect(hasCrisisTerm(text)).toBe(red);
+  });
+
+  // Simon 2026-10-15 (Q-261015-80 가): partly joined spellings and the two emphatic terms, on the
+  // table the decision was made on. The server gives the app's answer on every sample.
+  test.each(CRISIS_TERMS.ko.flatMap((term) => koTermSpellings(term)).map((form) => `그냥 ${form}`))(
+    "KO: every spelling the gate reads is red on both sides: %s",
+    (text) => {
+      expect(classifyInput(text, "ko").zone).toBe("red");
+      expect(hasCrisisTerm(text)).toBe(true);
+    },
+  );
+
+  // Every spacing of every term, read or not: the server answers what the app answers, so a
+  // partly joined spelling of a term off the list (영영 잠들고싶) is green on both sides.
+  test.each(CRISIS_TERMS.ko.flatMap((term) => koSpacingForms(term)).map((form) => `그냥 ${form}`))(
+    "KO: any spacing of a term gets the app's answer on the server: %s",
+    (text) => {
+      expect(hasCrisisTerm(text)).toBe(classifyInput(text, "ko").zone === "red");
+    },
+  );
+
+  test.each([
+    ...OUT_OF_SCOPE_PARTIAL.map((text) => [text, false] as const),
+    ...MIXED_WORK_SENTENCES.map((text) => [text, true] as const),
+  ])("KO: a term off the partial list stays green, a plain work form main stopped stays red, on both sides: %s", (text, red) => {
+    expect(classifyInput(text, "ko").zone === "red").toBe(red);
+    expect(hasCrisisTerm(text)).toBe(red);
+  });
+
+  test.each(NEWLY_CAUGHT_CRISIS)("KO: the decision's crisis sample is red on both sides: %s", (text) => {
+    expect(classifyInput(text, "ko").zone).toBe("red");
+    expect(hasCrisisTerm(text)).toBe(true);
+  });
+
+  test.each(LEFT_OUT_ENDINGS)("KO: an ending the decision left out is green on both sides: %s", (text) => {
+    expect(classifyInput(text, "ko").zone).toBe("green");
+    expect(hasCrisisTerm(text)).toBe(false);
+  });
+
+  test.each([...DAILY_SAMPLE, ...EMPHATIC_WORK_PAIRS])("KO: daily sample and work pairs agree on both sides: %s", (text, red) => {
+    expect(classifyInput(text, "ko").zone === "red").toBe(red);
+    expect(hasCrisisTerm(text)).toBe(red);
+  });
+});
+
+// Independently authored inputs run through actual Edge imports and the app's
+// single-locale paths (outputs/embedding scans) as well as dashboard's gate.
+describe.each(Object.entries(PROXY_SOURCES))("%s es/pt/id executable parity", (_name, relPath) => {
+  const hasCrisisTerm = loadHasCrisisTerm(readProxy(relPath), relPath);
+  test.each([
+    ["Ahora quiero suicidarme.", true],
+    ["Me quiero suicidar; necesito ayuda.", true],
+    ["Esta noche voy a quitarme la vida.", true],
+    ["No quiero seguir viviendo.", true],
+    ["Eu quero me matar.", true],
+    ["Agora vou tirar a minha vida.", true],
+    ["Não quero mais viver.", true],
+    ["Nao quero mais viver.", true],
+    ["Saya ingin bunuh diri.", true],
+    ["Aku mau bunuh diri malam ini.", true],
+    ["Saya ingin mengakhiri hidup saya.", true],
+    ["Aku melukai diri sendiri.", true],
+    ["Quiero terminar mi trabajo y descansar.", false],
+    ["Quero terminar o projeto amanhã.", false],
+    ["Saya ingin menyelesaikan pekerjaan ini.", false],
+    ["No quiero suicidarme.", true],
+    ["Eu não quero me matar.", true],
+    ["Saya tidak ingin bunuh diri.", true],
+    ['Ella dijo: "quiero suicidarme".', true],
+    ["équiero suicidarme", false],
+    ["𐐀quiero suicidarme", false],
+    ["xquero me matar. Eu quero me matar.", true],
+  ])("same conservative decision for %s", (text, red) => {
+    for (const variant of [text, text.toUpperCase(), text.normalize("NFD"), text.replace(/ /g, "\n\u00a0")]) {
+      expect(hasCrisisTerm(variant)).toBe(red);
+      for (const locale of ["en", "ko"] as const) {
+        const result = classifyInput(variant, locale);
+        expect(result.zone === "red").toBe(red);
+        if (red) expect(result.crisisRouting?.hotline).toBe(locale === "ko" ? "KR_109" : "GLOBAL_988");
+      }
+    }
   });
 });

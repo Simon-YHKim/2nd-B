@@ -91,14 +91,17 @@ describe("1. 하드 종료 없음", () => {
     expect(codeOnly("src/app/interview.tsx")).not.toMatch(/\bMAX_TURNS\b/);
   });
 
-  it("답을 보낼 때 대화를 끝내는 길은 사용자의 거절 하나뿐이다", () => {
+  it("답을 보낼 때 대화는 위기 또는 사용자의 거절에서만 끝난다", () => {
     const code = codeOnly("src/app/interview.tsx");
     const send = between(code, "async function send(", "function changeAngle(");
     expect(send.length).toBeGreaterThan(0);
     const finishes = send.match(/\bfinish\(\)/g) ?? [];
-    expect(finishes).toHaveLength(1);
+    expect(finishes).toHaveLength(2);
+    const crisis = between(send, 'if (safety.zone === "red")', "const disposition =");
+    expect(crisis).toContain("finish()");
     expect(send.indexOf('disposition === "stop"')).toBeGreaterThan(-1);
-    expect(send.indexOf('disposition === "stop"')).toBeLessThan(send.indexOf("finish()"));
+    const stop = between(send, 'if (disposition === "stop")', 'if (disposition === "skip")');
+    expect(stop).toContain("finish()");
     // 사용자 답의 개수를 세는 코드 자체가 없어야 한다.
     expect(send).not.toMatch(/role\s*===\s*"user"\)\.length/);
   });

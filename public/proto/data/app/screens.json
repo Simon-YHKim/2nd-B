@@ -572,7 +572,7 @@
       "id": "data",
       "component": null,
       "appOnly": true,
-      "title": "데이터 관리",
+      "title": "내 데이터",
       "route": "data"
     },
     {
@@ -831,7 +831,7 @@
       "id": "trinity",
       "component": null,
       "appOnly": true,
-      "title": "브레인 트리니티 (은퇴)",
+      "title": "트리니티 (은퇴)",
       "route": "trinity"
     },
     {

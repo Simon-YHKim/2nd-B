@@ -29,7 +29,7 @@
       },
       "capture": {
         "text": "Anota lo que se te acaba de ocurrir.",
-        "tip": "Una nota corta está bien. Podrás volver a leerla después de guardarla."
+        "tip": "Una nota corta está bien."
       },
       "chat": {
         "text": "Pregunta lo que quieras saber de tus registros.",
@@ -86,6 +86,7 @@
         "menuTag": "Menú",
         "menu": "¿Qué quieres hacer?",
         "travel": "Viajar",
+        "goToStar": "Ir a {{star}}",
         "later": "Luego",
         "returnToSky": "Volver a la constelación",
         "chatbot": "Chatbot",
@@ -303,7 +304,7 @@
       "rewrite": "Reescribir",
       "add": "+ Añadir",
       "emptyTitle": "Aún no has escrito metas para el futuro",
-      "emptyBody": "Habla con Twi-B sobre cómo te gustaría ser y guarda tus ideas aquí."
+      "emptyBody": "Habla con Joy-K sobre cómo te gustaría ser y guarda tus ideas aquí."
     },
     "relational": {
       "title": "Relaciones",

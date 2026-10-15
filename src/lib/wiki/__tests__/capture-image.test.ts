@@ -1188,6 +1188,16 @@ describe("capture image OCR payload guards", () => {
     ).rejects.toThrow(IMAGE_OCR_CRISIS_RESULT_ERROR);
   });
 
+  test.each(["KR_119", "KR_112"] as const)("preserves emergency OCR route %s without exposing output", async (hotline) => {
+    mockCallLlm.mockResolvedValueOnce({
+      text: "fixed guidance, never extracted text",
+      audit: { promptHash: "in", outputHash: "out", modelUsed: "none-crisis-routed", vertexBackend: false, safetyZone: "red", latencyMs: 0 },
+      safety: { zone: "red", matched: [], categories: ["crisis"], crisisRouting: { hotline, label: "emergency", number: hotline.slice(3) } },
+    } as Awaited<ReturnType<typeof callLlm>>);
+    await expect(ocrImageAsset("u1", "en", { mimeType: "image/png", base64: PNG_IMAGE_BASE64 }))
+      .rejects.toMatchObject({ message: IMAGE_OCR_CRISIS_RESULT_ERROR, hotline });
+  });
+
   test("normalizes common image MIME aliases before calling Gemini", async () => {
     await ocrImageAsset("u1", "en", {
       mimeType: "IMAGE/JPG; charset=binary",

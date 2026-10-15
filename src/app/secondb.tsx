@@ -49,7 +49,7 @@ import { chatAutosaveAllowed } from "@/lib/chat/autosave";
 import { getExchangeExpression, getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion, type ChatFollowUp } from "@/lib/chat/presentation-policy";
 import { createChatAutosaveSession } from "@/lib/chat/autosave-session";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
-import { classifyInput } from "@/lib/safety/classifier";
+import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { currentDisplayName } from "@/lib/persona/use-address";
 import {
   CHAT_KEEP_TAG,
@@ -62,10 +62,12 @@ import {
 } from "@/lib/chat/keep-exchange";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
+import { retryableMessage } from "@/lib/chat/retry-failed";
 import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
 import { LlmConsentError, transcribeAudio, type LlmConsentErrorCode } from "@/lib/llm/boundary";
 import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
+import { MdButton } from "@/components/m3";
 import { shouldShowChatAiNotice, useChatAiNoticeSeen } from "@/lib/chat/ai-first-notice";
 import { isModelAnswer, withAiCopyTail } from "@/lib/chat/ai-mark";
 import { topicParticle } from "@/lib/i18n/josa";
@@ -76,7 +78,7 @@ import {
   recordingUriToBase64,
   type RecordingTempLease,
 } from "@/lib/audio/recording-uri";
-import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import { publishCrisisNotice } from "@/lib/safety/crisis-notice";
 import { DomainDashboard } from "@/components/secondb/DomainDashboard";
 import { ChatTextInput } from "@/components/secondb/ChatTextInput";
 import { chatComposerAlignment, chatStatusMaxLines } from "@/components/secondb/chat-font-layout";
@@ -85,7 +87,6 @@ import { ChatPlanSheet } from "@/components/secondb/ChatPlanSheet";
 import { useChatPlans } from "@/components/secondb/useChatPlans";
 import { ChatMessageAvatar, useChatUserAvatar } from "@/components/secondb/ChatMessageAvatar";
 import { HustleKPortrait } from "@/components/character/HustleKPortrait";
-import type { HotlineId } from "@/lib/safety/lexicon";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
 import {
   REV2_PERSONA_IDS,
@@ -165,7 +166,13 @@ interface ChatTurn {
    *  mis-grounded as something SecondB actually said. */
   synthetic?: boolean;
   consentError?: LlmConsentErrorCode;
+  /** On a line that says the reply failed: the message it was for. Sending that message again
+   *  may get an answer (no response, a server error, a deadline), so the line offers it (Z40).
+   *  Absent on a consent refusal: sending again cannot change that. */
+  retryText?: string;
   safetyZone?: "green" | "yellow" | "red";
+  /** Guidance is shown once by the app host; its fixed text is never a bubble or model history. */
+  crisisNotice?: true;
 }
 
 type ChatMode = "analytic" | "divergent";
@@ -192,7 +199,7 @@ interface ChatComposerHandle {
 interface ChatComposerProps {
   /** A send is in flight — drives the send-button spinner and blocks re-send. */
   sending: boolean;
-  /** The non-draft half of canSend: not sending and under the daily cap. */
+  /** Ordinary sends require this gate; device-red drafts can bypass the cap. */
   sendEnabled: boolean;
   /** Commit a message. Returns true when accepted (composer clears its draft),
    *  false when the send was refused (e.g. reasoning cap) so the draft is kept. */
@@ -234,9 +241,15 @@ const ChatComposer = memo(
     const [inputHeight, setInputHeight] = useState(0);
     const composerAlignment = chatComposerAlignment(Platform.OS, fontScale, draft.length === 0 ? 0 : inputHeight);
     useImperativeHandle(ref, () => ({ prefill: (text: string) => setDraft(text) }), []);
-    const canSend = draft.trim().length > 0 && sendEnabled;
+    const { userId, isMinor } = useAuth();
+    const voiceLocale = i18n.language === "ko" ? ("ko" as const) : ("en" as const);
+    // Q-261015-82: a reached AI cap must not disable the path to fixed crisis guidance.
+    // This is only a button gate; the engine still owns routing, audit and quota checks.
+    const canSend = draft.trim().length > 0 && !sending && (sendEnabled ||
+      classifyInputAnyLocale(draft, voiceLocale, { minor: isMinor === true }).zone === "red");
     const submit = () => {
       if (!canSend) return;
+      // The send handler publishes device-red guidance before any await.
       // Clear only when the send was accepted, so a cap-blocked send keeps the
       // typed text (the old handleSend returned before clearing on a cap hit).
       if (onSend(draft.trim())) setDraft("");
@@ -247,8 +260,6 @@ const ChatComposer = memo(
     // transcript is proposed into the draft for review, never auto-sent
     // (propose -> ratify). transcribeAudio holds C1/C3/C9: a red-zone
     // transcript never reaches the draft — it routes to the crisis surface.
-    const { userId, isMinor } = useAuth();
-    const voiceLocale = i18n.language === "ko" ? ("ko" as const) : ("en" as const);
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
     const recorderLifecycle = useMemo(
       () => createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording }),
@@ -259,10 +270,6 @@ const ChatComposer = memo(
     const voiceStartInFlightRef = useRef(false);
     const voiceAccountLeaseRef = useRef<PendingAccountSessionLease | null>(null);
     const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
-    const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
-      visible: false,
-      hotline: "GLOBAL_988",
-    });
     useEffect(() => {
       if (!voiceNotice) return;
       const timeout = setTimeout(() => setVoiceNotice(null), 3200);
@@ -341,6 +348,7 @@ const ChatComposer = memo(
       if (!userId || voicePhaseRef.current !== "recording") return;
       voiceAccountLeaseRef.current?.abort();
       const accountLease = beginAccountSessionLease(userId);
+      const noticeOwner = captureAccountOwnerLease(userId);
       voiceAccountLeaseRef.current = accountLease;
       updateVoicePhase("transcribing");
       let recordingLease: RecordingTempLease | null = null;
@@ -364,14 +372,14 @@ const ChatComposer = memo(
           locale: voiceLocale,
           base64,
           mimeType,
-          minor: isMinor === true,
+          minor: isMinor !== false,
         });
         authenticated.assertCurrent();
         if (reply.safety?.zone === "red") {
           // C9: the transcript was crisis-swapped server-side; surface the
           // hotline, never the text.
           updateVoicePhase("idle");
-          setCrisis({ visible: true, hotline: voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+          publishCrisisNotice(noticeOwner, reply.safety.crisisRouting?.hotline ?? (voiceLocale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
           return;
         }
         const transcript = reply.text.trim();
@@ -457,11 +465,6 @@ const ChatComposer = memo(
           )}
         </Pressable>
         </View>
-        <CrisisRouter
-          visible={crisis.visible}
-          hotline={crisis.hotline}
-          onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
-        />
       </View>
     );
   }),
@@ -501,6 +504,11 @@ function SecondBChatBody() {
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const conversationId = useRef(0);
+  const chatMounted = useRef(true);
+  useEffect(() => {
+    chatMounted.current = true;
+    return () => { chatMounted.current = false; };
+  }, []);
   const activeConversationId = conversationId.current;
   const userAvatar = useChatUserAvatar(userId);
   // useTranslation also observes addressVariablesChanged after the root's
@@ -540,10 +548,6 @@ function SecondBChatBody() {
   // 로컬 렉시콘 분류를 돌리고 레드존을 followup 으로 알려준다. 다른 저장 화면
   // (northstar, capture)은 그때 핫라인을 띄운다. 여기만 조용히 저장하면
   // 저장 경로가 안내 없는 유일한 구멍이 된다.
-  const [keepCrisis, setKeepCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
-    visible: false,
-    hotline: "GLOBAL_988",
-  });
   const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
 
   // 담겼는지를 호출자에게 돌려준다. 자동 담기가 실패를 알아야 표시를 되돌릴 수
@@ -588,15 +592,13 @@ function SecondBChatBody() {
       // C9: 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
       // 분류기를 직접 돌린다(비용 0). 다른 저장 화면과 같은 자세를 유지한다 -
       // 안내 없는 저장 경로를 하나 만들지 않기 위해서다.
-      const crisis = classifyInput(body, locale, { minor: isMinor === true }).zone === "red";
+      const keptSafety = classifyInputAnyLocale(body, locale, { minor: isMinor !== false });
+      const crisis = keptSafety.zone === "red";
       // 저장 소리(Q-261006-03)는 사람이 '담기'를 눌렀을 때만. 자동 담기(signal 이 있는 호출)는
       // 답장 소리 바로 뒤에 겹치므로 무음이다.
       if (saveCueAllowed({ crisis, recording: isRecordingAudioMode(), automatic: signal !== undefined })) playSaveCue();
-      if (crisis) {
-        setKeepCrisis({
-          visible: true,
-          hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988",
-        });
+      if (crisis && !(signal && reply.crisisNotice)) {
+        publishCrisisNotice(lease, keptSafety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
       }
       return true;
     } catch (e) {
@@ -690,8 +692,12 @@ function SecondBChatBody() {
   // Funnel: fire ai_limit_hit at most once per mount when the daily cap is hit.
   const limitHitFiredRef = useRef(false);
   // The tier the server says to upgrade to (from a blocked turn). Falls back to
-  // "soma" in the limit-hit effect when no blocked turn has set it yet.
+  // "cortex" in the limit-hit effect when no blocked turn has set it yet.
   const [pendingUpgrade, setPendingUpgrade] = useState<SubscriptionTier | null>(null);
+  // A send the daily limit refused. Its bubble always comes with 요금제 보기 (Simon 2026-10-14,
+  // Q-261014-24), also when the server's cap refused it while the local count is still under
+  // the wall (atLimit false). A reply that goes through, or a granted ad bonus, clears it.
+  const [limitRefused, setLimitRefused] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const followingLatest = useRef(true);
 
@@ -793,6 +799,9 @@ function SecondBChatBody() {
     () => chatAllowance(progression.tier, adBonusToday),
     [progression.tier, adBonusToday],
   );
+  // Under today's limit (null = the count is still loading, so allow until we know). The
+  // ordinary composer sends and [다시 시도] share this gate; device-red drafts are the exception.
+  const underLimit = usedToday === null || usedToday < allowance;
 
   useEffect(() => {
     // Re-probe while the profile answer is "unknown" (a FAILED probe, not a
@@ -845,7 +854,7 @@ function SecondBChatBody() {
       aiLimitHit({
         tier: progression.tier,
         limit,
-        upgrade_to: pendingUpgrade ?? "soma",
+        upgrade_to: pendingUpgrade ?? "cortex",
       }),
     );
   }, [usedToday, allowance, limit, progression.tier, pendingUpgrade]);
@@ -880,19 +889,35 @@ function SecondBChatBody() {
   // Kept ABOVE the early returns so this hook always runs (rules-of-hooks).
   const playReplyCue = useUiSound(SECONDB_REPLY_CUE.source, SECONDB_REPLY_CUE);
   const handleSend = useCallback(
-    (message: string): boolean => {
+    (message: string, retry?: { failedIndex: number }): boolean => {
       if (!userId) return false;
       const msg = message.trim();
       if (msg.length === 0) return false;
+      const owner = captureAccountOwnerLease(userId);
+      if (!owner) return false;
+      const requestConversation = conversationId.current;
+      const canUpdate = () => owner.isCurrent() && chatMounted.current && requestConversation === conversationId.current;
+      const localSafety = classifyInputAnyLocale(msg, locale, { minor: isMinor !== false });
+      // Fixed guidance must not wait for usage, model, audit or network. The
+      // completed local-red result must not reopen a notice the person closed.
+      const localRed = localSafety.zone === "red";
+      if (localRed) publishCrisisNotice(owner, localSafety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
 
       const requestPersona = rev2Persona;
+      // A retry replaces the failed pair (the message and the line that said it failed) instead
+      // of adding the message a second time, on the screen and in what the model is told.
+      const keep = retry ? Math.max(0, retry.failedIndex - 1) : null;
+      const earlier = keep === null ? turns : turns.slice(0, keep);
       setSendingPersona(requestPersona);
       setSending(true);
-      setTurns((prev) => [...prev, { role: "user", text: msg }]);
+      setTurns((prev) => [...(keep === null ? prev : prev.slice(0, keep)), { role: "user", text: msg, ...(localRed ? { safetyZone: "red" as const } : {}) }]);
       void (async () => {
         // AI 응답 대기: every mounted head holds the thinking face (eyes drift
         // up-side) until the reply lands — released in finally either way.
         const releaseThinking = holdExpression("thinking");
+        // Whether the send itself came back. An error thrown after that (a sound, an analytics
+        // call) lands in the same catch, and that line must not offer to send again.
+        let answered = false;
         try {
           const result = await sendChatMessage({
             userId,
@@ -905,15 +930,23 @@ function SecondBChatBody() {
             // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
             // red-zone turns). Synthetic lines (limit/error) are not model
             // replies, so they're excluded here.
-            history: turns
-              .filter((t) => !t.synthetic)
+            history: earlier
+              .filter((t) => !t.synthetic && t.safetyZone !== "red")
               .map((t) => ({ role: t.role === "user" ? ("user" as const) : ("assistant" as const), text: t.text })),
             mode: chatMode,
-            minor: isMinor === true,
+            minor: isMinor !== false,
           });
+          answered = true;
+          if (result.status === "ok" && result.reply.safety?.zone === "red" && !localRed) {
+            // Same-owner safety guidance survives navigation; a stale account
+            // result is rejected by the notice store before publication.
+            publishCrisisNotice(owner, result.reply.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
+          }
+          if (!canUpdate()) return;
           if (result.status === "blocked") {
             setTurns((prev) => [...prev, { role: "secondb", persona: requestPersona, text: result.hint, synthetic: true }]);
             setUsedToday(result.used);
+            setLimitRefused(true);
             if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
             // 0090: free adults can widen TODAY's allowance by +2 via a
             // rewarded watch - only when the FULL rewarded gate passes
@@ -935,6 +968,21 @@ function SecondBChatBody() {
             // 멈춤은 글로만 알린다(위 result.hint). 옛 가디 그림 순간은 2026-10-05 에
             // 걷었다(Simon 결정 Q-261004-15 A).
           } else {
+            if (result.reply.safety?.zone === "red") {
+              // Keep the boundary's fixed guidance in the in-memory transcript
+              // so existing explicitly opted-in autosave retains its behavior.
+              // The modal is its sole visible copy, actions remain suppressed,
+              // and neither this turn nor its paired input reenters model history.
+              setTurns((prev) => [
+                ...prev.map((turn, index) => index === earlier.length ? { ...turn, safetyZone: "red" as const } : turn),
+                { role: "secondb", persona: requestPersona, text: result.reply.text, safetyZone: "red", crisisNotice: true },
+              ]);
+              if (result.used !== null) {
+                setUsedToday(result.used);
+                setLimitRefused(false);
+              }
+              return;
+            }
             const { display, chips } = parseSourceCitations(result.reply.text);
             // 트위비 3-branch (P5f): Divergent replies on the main chat end with up
             // to three '→ ' next-step lines — lift them into tappable chips.
@@ -949,29 +997,39 @@ function SecondBChatBody() {
             ]);
             // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
             if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
-            setUsedToday(result.used);
+            if (result.used !== null) {
+              setUsedToday(result.used);
+              setLimitRefused(false);
+            }
             captureEvent(
               secondBSession({
                 action: "message_sent",
                 mode: chatMode,
                 outcome: "ok",
-                turn_count: turns.length + 1,
-                used: result.used,
+                turn_count: earlier.length + 1,
+                used: result.used ?? undefined,
                 limit,
                 tier: progression.tier,
               }),
             );
           }
         } catch (e) {
+          if (!canUpdate()) return;
+          if (localRed) return; // fixed guidance was already delivered synchronously
           const consentError = e instanceof LlmConsentError ? e.code : undefined;
           const failText = consentError ? consentT(`serviceControl.${consentError}`) : t("replyFailed");
-          setTurns((prev) => [...prev, { role: "secondb", persona: requestPersona, text: failText, synthetic: true, consentError }]);
+          setTurns((prev) => [...prev, {
+            role: "secondb", persona: requestPersona, text: failText, synthetic: true, consentError,
+            ...(consentError || answered ? {} : { retryText: msg }),
+          }]);
           reactExpression("negative");
           if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
         } finally {
           releaseThinking();
-          setSending(false);
-          setSendingPersona(null);
+          if (canUpdate()) {
+            setSending(false);
+            setSendingPersona(null);
+          }
         }
       })();
       return true;
@@ -989,6 +1047,27 @@ function SecondBChatBody() {
       consentT,
       playReplyCue,
     ],
+  );
+
+  // [다시 시도] under a reply that failed (Z40 · Simon 2026-10-13 20:43: the sentence already used
+  // when no answer came, plus a way to try again). Only the last turn offers it, and only while
+  // nothing is being sent, so the pair it replaces is always the end of the conversation. It goes
+  // through handleSend, the same path and the same checks as typing the message again, and it is
+  // offered under the same gate as the composer's send (not sending, under today's limit).
+  // A second press before the first one has drawn `sending` would send the message twice, so the
+  // press is remembered at once and forgotten when that send is over (the turns change with it, so
+  // a send that began and ended inside one render is still seen).
+  const retrying = useRef(false);
+  useEffect(() => {
+    if (!sending) retrying.current = false;
+  }, [sending, turns]);
+  const retryFailed = useCallback(
+    (i: number) => {
+      const message = retryableMessage(turns, i);
+      if (message === null || retrying.current || sending || !underLimit) return;
+      retrying.current = handleSend(message, { failedIndex: i });
+    },
+    [turns, sending, underLimit, handleSend],
   );
 
   const chatPlans = useChatPlans(userId, { turns, conversationId: conversationId.current, sending });
@@ -1009,12 +1088,12 @@ function SecondBChatBody() {
   // which keys off isMinor that is null until the birth date is on file).
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  // The non-draft half of the composer's send gate: not already sending and
+  // The ordinary-message half of the composer's send gate: not already sending and
   // under the daily AI limit (server also rejects via ChatLimitExceededError,
   // but the UI should not look actionable). usedToday===null means the count is
   // still loading, so allow until we know. ChatComposer ANDs this with a
-  // non-empty draft.
-  const sendEnabled = !sending && (usedToday === null || usedToday < allowance);
+  // non-empty draft, with a device-red exception for fixed crisis guidance.
+  const sendEnabled = !sending && underLimit;
   const hasTurns = turns.length > 0;
 
   // -- One citation tap, one implementation ---------------------------------
@@ -1159,7 +1238,7 @@ function SecondBChatBody() {
             {t(`rev2.${rev2Persona}.desc`)}
           </Text>
           <Text style={[ds.bannerUsage, atLimit ? ds.headerMetaDanger : null]} numberOfLines={1}>
-            {dsUsage}/{limit}
+            <Text style={[ds.bannerUsageWord, atLimit ? ds.headerMetaDanger : null]}>{t("rev2.usageToday")} </Text>{dsUsage}/{limit}
           </Text>
           {hasTurns ? (
             <Pressable
@@ -1269,7 +1348,7 @@ function SecondBChatBody() {
               <Text style={ds.emptyBody}>{t("empty")}</Text>
             </View>
           ) : (
-            turns.map((turn, i) => (
+            turns.map((turn, i) => turn.crisisNotice ? null : (
               <View
                 key={i}
                 testID={`chat-message-${turn.role}-${i}`}
@@ -1300,6 +1379,9 @@ function SecondBChatBody() {
                     </Text>
                   </Pressable>
                   {turn.consentError ? <ServiceConsentLink /> : null}
+                  {turn.retryText && sendEnabled && retryableMessage(turns, i) !== null ? (
+                    <MdButton variant="outlined" label={t("common:actions.retry")} onPress={() => retryFailed(i)} />
+                  ) : null}
                   {copyNotice?.i === i ? (
                     <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
                       {t(copyNotice.ok ? "copied" : "copyFailed")}
@@ -1340,7 +1422,7 @@ function SecondBChatBody() {
           ) : null}
         </ScrollView>
 
-        {atLimit ? (
+        {atLimit || limitRefused ? (
           <Pressable
             onPress={() => router.push("/plans?from=ai_limit")}
             hitSlop={14}
@@ -1465,7 +1547,10 @@ function SecondBChatBody() {
               await grantChatAdBonus(userId);
               // 보상 소리(Q-261006-13)는 앱이 직접 적립에 성공했을 때만. SSV 모드면 서버가 나중에
               // 적립하므로("processing") 무음이다.
-              if (outcome === "granted") requestGlobalCue("rewardCredited");
+              if (outcome === "granted") {
+                requestGlobalCue("rewardCredited");
+                setLimitRefused(false);
+              }
             } catch (e) {
               outcome = e instanceof ChatRewardCapReachedError ? "capped" : "unconfirmed";
               if (typeof console !== "undefined") {
@@ -1481,14 +1566,6 @@ function SecondBChatBody() {
           return outcome;
         }}
         locale={locale}
-      />
-      {/* 저장 경로의 위기 안내. 전송 경로(callLlm)는 서버가 응답을 바꿔
-          치지만, 저장은 createRecord 가 로컬 분류를 돌리고 followup 으로
-          알려준다. 다른 저장 화면과 같은 자세를 여기서도 취한다. */}
-      <CrisisRouter
-        visible={keepCrisis.visible}
-        hotline={keepCrisis.hotline}
-        onClose={() => setKeepCrisis((c) => ({ ...c, visible: false }))}
       />
     </DeepSpaceScreen>
   );
@@ -1552,6 +1629,8 @@ const ds = StyleSheet.create({
     fontFamily: fontFamilies.mono,
   },
   headerMetaDanger: { color: deepSpace.dangerText },
+  // "Today" in front of the count (Z32): body font (the count's pixel font is Latin only). A nested text does not inherit here, so size and colour are set.
+  bannerUsageWord: { color: deepSpace.textLo, fontSize: 12, fontFamily: fontFamilies.readable },
   clearLink: { flexShrink: 0, minHeight: 44, justifyContent: "center", paddingHorizontal: deepSpaceSpacing.xs },
   clearLinkText: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
 

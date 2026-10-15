@@ -7,6 +7,7 @@ import { isKeepable } from "@/lib/chat/keep-exchange";
 import { chatDisplayText } from "@/lib/chat/display-text";
 import { formatSourceCitationLabel, parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
+import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 
 const source = readFileSync(resolve(__dirname, "../secondb.tsx"), "utf8");
 const transcript = source.slice(source.indexOf("turns.map((turn, i)"), source.indexOf("{sending ? (", source.indexOf("turns.map((turn, i)")));
@@ -41,7 +42,7 @@ function renderedMessages(messageTurns?: Props[], selectedLens = "HustleK") {
   const copyTurn = jest.fn();
   const getExchangeExpression = jest.fn(() => "A04");
   const turns = messageTurns ?? [{ role: "user", text: "My draft" }, { role: "secondb", text: "A useful response" }];
-  const labels: Record<string, string> = { "rev2.secondb.lensName": "HustleK", "rev2.meta.lensName": "Meta-B", "rev2.twi.lensName": "Twi-B" };
+  const labels: Record<string, string> = { "rev2.secondb.lensName": "HustleK", "rev2.meta.lensName": "Fact-K", "rev2.twi.lensName": "Joy-K" };
   const tree = execute(`(${map.getText(ast)})`, {
     React: { createElement: (type: string, props: Props | null, ...children: unknown[]) => ({ type, props: { ...props, children } }) },
     View: "View", Pressable: "Pressable", Text: "Text", ChatMessageAvatar: "ChatMessageAvatar", ServiceConsentLink: "ServiceConsentLink",
@@ -179,14 +180,23 @@ describe("HustleK messenger layout", () => {
       { role: "secondb", text: "Analysis", persona: "meta" },
       { role: "secondb", text: "An older turn without identity" },
     ];
-    for (const selected of ["HustleK", "Meta-B", "Twi-B"]) {
+    for (const selected of ["HustleK", "Fact-K", "Joy-K"]) {
       const host = renderedMessages(turns, selected);
       expect(host.tree.map(message => {
         const [header] = message.props.children as Tree[];
         const [avatar, nickname] = header.props.children as Tree[];
         return [avatar.props.label, nickname.props.children];
-      })).toEqual([["HustleK", ["HustleK"]], ["Meta-B", ["Meta-B"]], ["HustleK", ["HustleK"]]]);
+      })).toEqual([["HustleK", ["HustleK"]], ["Fact-K", ["Fact-K"]], ["HustleK", ["HustleK"]]]);
     }
+  });
+
+  test("the fixed guidance stays out of the transcript rendering because the app modal owns it", () => {
+    const rendered = renderedMessages([
+      { role: "user", text: "my message" },
+      { role: "secondb", text: "fixed guidance", safetyZone: "red", crisisNotice: true },
+    ]);
+    expect(rendered.tree[0]).not.toBeNull();
+    expect(rendered.tree[1]).toBeNull();
   });
 
   test.each(["ok", "divergent", "blocked", "error", "consent"])("%s replies retain the persona selected at send time across an in-flight switch", async outcome => {
@@ -200,13 +210,16 @@ describe("HustleK messenger layout", () => {
     const completion = new Promise<void>(done => { finished = done; });
     const sendChatMessage = jest.fn(() => pending);
     const setSendingPersona = jest.fn();
+    const setLimitRefused = jest.fn();
     class LlmConsentError extends Error { code = "paused"; }
     const scope: Props = {
+      captureAccountOwnerLease: () => ({ isCurrent: () => true }), classifyInputAnyLocale, publishCrisisNotice: jest.fn(),
+      conversationId: { current: 0 }, chatMounted: { current: true },
       userId: "A", rev2Persona: "meta", locale: "en", progression: { tier: "free" }, turns, chatMode: outcome === "divergent" ? "divergent" : "analytic", isMinor: false, limit: 10,
       setSending: (sending: boolean) => { if (!sending) finished(); }, setSendingPersona,
       setTurns: (updater: (previous: Props[]) => Props[]) => { const next = updater(turns); turns.splice(0, turns.length, ...next); },
       holdExpression: () => jest.fn(), sendChatMessage, currentDisplayName: () => "Alex", rev2PersonaHint: (id: string) => id,
-      setUsedToday: jest.fn(), setPendingUpgrade: jest.fn(), rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
+      setUsedToday: jest.fn(), setLimitRefused, setPendingUpgrade: jest.fn(), rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
       captureEvent: jest.fn(), secondBSession: (event: unknown) => event,
       parseSourceCitations, parseTwiBranches,
       replyCueAllowed: () => false, isRecordingAudioMode: () => false, playReplyCue: jest.fn(),
@@ -230,6 +243,9 @@ describe("HustleK messenger layout", () => {
     expect(turns[1]).toMatchObject({ role: "secondb", persona: "meta" });
     expect(sendChatMessage).toHaveBeenCalledWith(expect.objectContaining({ personaHint: "meta" }));
     expect(setSendingPersona).toHaveBeenLastCalledWith(null);
+    // A limit refusal shows 요금제 보기 (Q-261014-24); a reply that goes through clears it; a failed
+    // send or a consent pause leaves it as it was.
+    expect(setLimitRefused.mock.calls).toEqual(outcome === "blocked" ? [[true]] : outcome === "ok" || outcome === "divergent" ? [[false]] : []);
     if (outcome === "ok" || outcome === "divergent") {
       expect(turns[1].text).toBe("**Start here** Untitled.");
       expect(turns[1].citationText).toBe("**Start here** [[untitled]].");

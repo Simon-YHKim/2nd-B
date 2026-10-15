@@ -6,6 +6,8 @@ import ts from "typescript";
 
 type Row = Record<string, any>;
 const mockTables: Record<string, Row[]> = {};
+// Every table a test reaches through from(), in order (reads and writes alike).
+const mockTouched: string[] = [];
 const mockObjects = new Map<string, string>();
 const mockUpload = jest.fn(async (path: string, content: string) => { mockObjects.set(path, content); return { error: null }; });
 const mockRpc = jest.fn(async (name: string, args: Row) => {
@@ -26,6 +28,7 @@ const mockRpc = jest.fn(async (name: string, args: Row) => {
 });
 
 function mockQuery(table: string) {
+  mockTouched.push(table);
   const filters: ((row: Row) => boolean)[] = [];
   let action = "select";
   let payload: Row | Row[] = {};
@@ -72,7 +75,8 @@ jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({
     download: async (path: string) => ({ data: mockObjects.has(path) ? { text: async () => mockObjects.get(path) } : null, error: null }),
   }) },
 }) }));
-jest.mock("../../env", () => ({ getEnv: () => ({ EXPO_PUBLIC_LLM_MODE: "mock" }) }));
+let mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: "mock", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: false };
+jest.mock("../../env", () => ({ getEnv: () => mockRuntimeEnv }));
 jest.mock("../../persona/profile-context", () => ({ loadProfileContext: jest.fn(async () => []) }));
 jest.mock("@google/genai", () => ({ GoogleGenAI: jest.fn(() => { throw new Error("Network forbidden in this fixture"); }) }));
 
@@ -80,7 +84,7 @@ import { captureFromMarkdown } from "../../wiki/capture";
 import { generateSourcePage } from "../../wiki/phase2";
 import { exportUserWiki } from "../../wiki/export";
 import { getWikiPage } from "../../wiki/queries";
-import { sendChatMessage } from "../conversation";
+import { sendChatMessage, type SendMessageInput } from "../conversation";
 import { parseSourceCitations } from "../sources";
 import { CHAT_KEEP_TAG, composeExchangeBody, exchangeMarkdown } from "../keep-exchange";
 import * as boundary from "../../llm/boundary";
@@ -97,6 +101,7 @@ const ORIGINAL = "Line 4 changed the tool at 14:20; scrap fell from 8 to 3 piece
 const ask = () => sendChatMessage({ userId: OWNER, message: "What did I record about the tool change?", locale: "en", tier: "brain" });
 
 beforeEach(async () => {
+  mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: "mock", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: false };
   for (const key of Object.keys(mockTables)) delete mockTables[key];
   mockObjects.clear(); mockRpc.mockClear(); mockUpload.mockClear(); resetPrivacyChangesForTests();
   mockTables.records = [{ user_id: OWNER, body: PRIVATE_DIARY, structured: null }];
@@ -162,6 +167,72 @@ test("the composed conversation still runs the real safety classifier and record
   expect(mockRpc.mock.calls.map(([name]) => name)).toEqual(expect.arrayContaining(["log_ai_audit_once", "log_crisis_event_once"]));
   expect(mockTables.crisis_events).toHaveLength(1);
   expect(JSON.stringify(mockTables.crisis_events)).not.toContain("I want to kill myself");
+});
+
+// Every optional input the engine takes, filled in. Required<> turns an optional field added to
+// SendMessageInput later into a type error here until it is filled too, so "every" stays true.
+const EVERY_OPTIONAL_INPUT: Required<Omit<SendMessageInput, "userId" | "message" | "locale" | "tier">> = {
+  displayName: "Alex",
+  personaHint: "Speak plainly.",
+  mode: "divergent",
+  minor: true,
+  history: [
+    { role: "user", text: "What did I record about the tool change?" },
+    { role: "assistant", text: ORIGINAL },
+  ],
+};
+// The second row is there because the cut must not depend on what else rides with the message:
+// a guard such as "with history, skip the verdict" would send a red turn on to the context reads
+// and the bump, and only the first row would still pass (review N-02, 2026-10-14).
+const RED_TURNS: [string, Partial<typeof EVERY_OPTIONAL_INPUT>][] = [
+  ["with the required inputs only", {}],
+  ["with every optional input filled, history included", EVERY_OPTIONAL_INPUT],
+  // Both values of the one enum input, for the same reason (review G-02, 2026-10-14).
+  ["with every optional input filled and the analytic mode", { ...EVERY_OPTIONAL_INPUT, mode: "analytic" }],
+];
+
+// Q-261014-30 (Simon 2026-10-14): the same turn seen from the seam. The engine, the boundary and
+// the outbox are real; what leaves them is counted at the Supabase client.
+test.each(RED_TURNS.flatMap(([label, optional]) => ["I want to kill myself", "Ahora quiero suicidarme.", "Eu quero me matar.", "Saya ingin bunuh diri.", "약을 이미 많이 먹었어", "Someone is attacking me right now"].flatMap((message) => [
+  [label, optional, "mock", false, message],
+  [label, optional, "live", false, message],
+  [label, optional, "live", true, message],
+] as const)))("device-red %s, %j, %s edge=%s: %s, no reads or quota, exactly two safety writes", async (_label, optional, mode, edge, message) => {
+  mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: mode, EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: edge };
+  const calls = jest.spyOn(boundary, "callLlm");
+  const realFetch = globalThis.fetch;
+  const fetchSpy = jest.fn(async () => { throw new Error("Network forbidden in this fixture"); });
+  globalThis.fetch = fetchSpy as unknown as typeof fetch;
+  mockTouched.length = 0;
+  try {
+    const result = await sendChatMessage({ userId: OWNER, message, locale: "en", tier: "brain", ...optional });
+    if (result.status !== "ok") throw new Error("Expected fixed safety response");
+    expect(result.reply.safety.zone).toBe("red");
+    if (message === "약을 이미 많이 먹었어") expect(result.reply.safety.crisisRouting?.hotline).toBe("KR_119");
+    if (message === "Someone is attacking me right now") expect(result.reply.safety.crisisRouting?.hotline).toBe("KR_112");
+    expect(result.reply.audit.modelUsed).toBe("none-crisis-routed");
+    // Guidance does not ask the usage service; unknown must not be shown as zero.
+    expect(result.used).toBeNull();
+    expect(result.remaining).toBeNull();
+
+    const rpcNames = mockRpc.mock.calls.map(([name]) => name);
+    expect(rpcNames.filter((name) => /bump/.test(name))).toEqual([]);
+    expect(rpcNames).toEqual(["log_ai_audit_once", "log_crisis_event_once"]);
+    expect(mockTouched).toEqual([]);
+    // One row, where the context read used to add an embed_index red row of its own.
+    expect(mockTables.ai_audit_log).toEqual([
+      expect.objectContaining({ p_purpose: "secondb_chat", p_safety_zone: "red", p_model_used: "none-crisis-routed" }),
+    ]);
+    expect(mockTables.crisis_events).toEqual([
+      expect.objectContaining({ p_trigger_categories: expect.arrayContaining(["input_red"]) }),
+    ]);
+    expect(calls).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(JSON.stringify(mockTables)).not.toContain(message);
+    expect(mockUpload).not.toHaveBeenCalled();
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 afterEach(() => jest.restoreAllMocks());
 

@@ -63,6 +63,8 @@ function routeRenderer(path: string, functionName: string) {
     // 대상 결함이 아니라 ReferenceError 가 난다.
     useAuth: () => ({ sessionUnavailable: false, refresh: () => undefined }),
     useState: (initial: unknown) => [initial, () => undefined],
+    // Z122: the screen asks how many provider buttons fit on a line before any branch returns.
+    useProviderColumns: () => 2,
     // Branch inspection only. Attachment timing has its own pure tests.
     SignInExitNotice: "SignInExitNotice",
     // deep-space 로그인 화면의 로딩 가지가 쓰는 픽셀 셸 조각들. 이 하네스가

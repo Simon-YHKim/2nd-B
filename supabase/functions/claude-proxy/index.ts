@@ -33,11 +33,13 @@
 //     purpose?: string, effort?: 'low'|'medium'|'high'|'xhigh'|'max',
 //     responseSchema?: object (Gemini-style; normalized to JSON Schema here) }
 // Response shape (identical to gemini-proxy):
-//   { text: string, modelUsed: string, latencyMs: number, audited?: boolean }
+//   { text: string, modelUsed: string, latencyMs: number, audited?: boolean,
+//     auditId?: string }   // the audit row of this call, present when audited
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
+import { beginChatTurnAttempt, claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
 import {
   BRAIN_RANK,
   LlmBodyError,
@@ -52,7 +54,7 @@ import {
   corsPreflight,
   dailyCapForRank,
   djb2,
-  hasCrisisTerm,
+  hasCrisisTerm, emergencyLanePayload,
   isLlmJsonObject,
   isUsableHeaderValue,
   jsonResponse,
@@ -211,6 +213,7 @@ Deno.serve(async (req: Request) => {
     responseSchema?: unknown;
     reasoningRunId?: unknown;
     reasoningSlot?: unknown;
+    chatTurnId?: unknown;
   };
   try {
     body = await readLlmProxyJsonObject(req) as typeof body;
@@ -259,7 +262,7 @@ Deno.serve(async (req: Request) => {
   // Scans ONLY the `user` turn (the genuine utterance), never the curated
   // `system` channel (which legitimately carries crisis-reference vocabulary).
   if (hasCrisisTerm(userText)) {
-    return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
+    return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected', ...emergencyLanePayload(userText) }, 422);
   }
 
   // Historical rows have no trustworthy writer provenance and there is not
@@ -463,6 +466,17 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // Z46 (0255 round 6): the id this call's audit row will carry is made before the model is asked, with the
+  // turn the app named (chat only · read by shape · never written on the audit row). The server records this
+  // call as that turn's attempt first, numbered in the order the calls reach it (round 8). Only a recorded
+  // attempt can be bound, and a bound answer gives way only to the second attempt's, so an earlier attempt
+  // that ends late cannot take the turn from the re-ask. Bounded: false means this answer is not bound
+  // (no refund for it), never that the answer stops.
+  const consentAuditId = crypto.randomUUID();
+  const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
+  const turnAttempt = chatTurnId !== null
+    && await beginChatTurnAttempt(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'claude-proxy');
+
   const t0 = Date.now();
   let upstream: Response;
   try {
@@ -578,31 +592,25 @@ Deno.serve(async (req: Request) => {
   const claudeUsage = (data?.usage ?? {}) as { input_tokens?: number; output_tokens?: number };
   const claudeTotalTokens =
     (Number(claudeUsage.input_tokens) || 0) + (Number(claudeUsage.output_tokens) || 0) || null;
-  const consentAuditId = crypto.randomUUID();
-  let audited = false;
-  try {
-    const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
-      id: consentAuditId,
-      user_id: userId,
-      event_source: 'server_verified',
-      prompt_hash: djb2(`${systemText ?? ''}${userText}`),
-      output_hash: djb2(text),
-      model_used: refused ? `${modelUsed}+refusal` : truncated ? `${modelUsed}+truncated` : modelUsed,
-      vertex_backend: false,
-      safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
-      latency_ms: latencyMs,
-      // D-27 re-decomposition axes (nullable; NULL on legacy/native-path rows).
-      purpose,
-      reasoning_vendor: 'claude',
-      reasoning_effort: clampedEffort,
-      key_combo: keyCombo,
-      total_tokens: claudeTotalTokens,
-    });
-    audited = !auditErr;
-    if (auditErr) console.warn('[claude-proxy] audit insert failed:', auditErr.message);
-  } catch (e) {
-    console.warn('[claude-proxy] audit insert threw:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
-  }
+  // consentAuditId and chatTurnId were made before the model call (Z46 · 0255 round 6).
+  // True only when this very row came back from the insert (see insertLlmAuditRow).
+  const audited = await insertLlmAuditRow(supabaseAdmin, {
+    id: consentAuditId,
+    user_id: userId,
+    event_source: 'server_verified',
+    prompt_hash: djb2(`${systemText ?? ''}${userText}`),
+    output_hash: djb2(text),
+    model_used: refused ? `${modelUsed}+refusal` : truncated ? `${modelUsed}+truncated` : modelUsed,
+    vertex_backend: false,
+    safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
+    latency_ms: latencyMs,
+    // D-27 re-decomposition axes (nullable; NULL on legacy/native-path rows).
+    purpose,
+    reasoning_vendor: 'claude',
+    reasoning_effort: clampedEffort,
+    key_combo: keyCombo,
+    total_tokens: claudeTotalTokens,
+  }, 'claude-proxy');
 
   if (refused) {
     return jsonResponse(req, { error: 'upstream_refusal', modelUsed, latencyMs }, 502);
@@ -617,5 +625,19 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: consentDenial.error }, consentDenial.status);
   }
 
-  return jsonResponse(req, { text, modelUsed, latencyMs, audited });
+  // Z46 (0255): ask the server whether this answer belongs to the turn the app named. Only here, on the
+  // way out with a reply: a refused, cut-off or consent-withheld call has returned above and answers
+  // nothing. The server reads the owner, the state and the age of its own reservation row; the id the
+  // app sent decides nothing. Bounded: past the limit the reply goes out unbound (no refund for it).
+  // An empty answer answers nothing: the turn stays open for the call that is sent again.
+  const turnBound = audited && chatTurnId && turnAttempt && text.trim() !== ''
+    ? await claimChatTurn(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'claude-proxy')
+    : false;
+
+  // Z46 (0255): the id of the audit row written above, only when it was written (see openai-proxy).
+  return jsonResponse(req, {
+    text, modelUsed, latencyMs, audited,
+    ...(audited ? { auditId: consentAuditId } : {}),
+    ...(chatTurnId ? { turnBound } : {}),
+  });
 });

@@ -27,6 +27,8 @@ jest.mock("../usage", () => ({
   // 0090: the cap path reads used + today's rewarded ad bonus together.
   readChatUsageDetail: jest.fn((userId: string, day: string) => {
     captured.push({ fn: "readChatUsageDetail", args: [userId, day], ret: fixtures.used ?? 0 });
+    if (fixtures.usageError) return Promise.reject(fixtures.usageError);
+    if (fixtures.usagePending) return new Promise(() => {});
     return Promise.resolve({ used: fixtures.used ?? 0, adBonus: (fixtures.adBonus as number) ?? 0 });
   }),
   bumpChatUsage: jest.fn((userId: string, day: string) => {
@@ -91,16 +93,117 @@ jest.mock("@/lib/llm/boundary", () => ({
       },
     );
   }),
+  // Q-261014-30: the device verdict. Null (not red) unless a test sets fixtures.deviceRed;
+  // boundary.mock.test.ts runs the real function.
+  classifyChatTextForCrisis: jest.fn((text: string, locale: string, userId: string, minor?: boolean) => {
+    const ret = fixtures.deviceRed ?? null;
+    captured.push({ fn: "classifyChatTextForCrisis", args: [text, locale, userId, minor], ret });
+    if (fixtures.deviceRedError) return Promise.reject(fixtures.deviceRedError);
+    return Promise.resolve(ret);
+  }),
 }));
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
+
 import { sendChatMessage } from "../conversation";
-import { classifyInput, crisisHotlines } from "@/lib/safety/classifier";
+import { callLlm, classifyChatTextForCrisis } from "@/lib/llm/boundary";
+import { classifyInput, classifyInputAnyLocale, crisisHotlines } from "@/lib/safety/classifier";
 import { loadProfileContext } from "../../persona/profile-context";
+import { loadStructuredContext } from "../../records/load-structured";
+import { exportUserWiki } from "../../wiki/export";
+import { retrieveChatContext } from "../rag";
+import { bumpChatUsageIfUnderCap, readChatUsageDetail } from "../usage";
 
 function reset() {
   captured.length = 0;
   for (const k of Object.keys(fixtures)) delete fixtures[k];
 }
+
+describe("composer at the daily limit (Q-261015-82)", () => {
+  const source = readFileSync(join(__dirname, "../../../app/secondb.tsx"), "utf8");
+  const ast = ts.createSourceFile("secondb.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let expression = "";
+  let submitExpression = "";
+  const visit = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "canSend" && node.initializer) {
+      expression = node.initializer.getText(ast);
+    }
+    if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "submit" && node.initializer) {
+      submitExpression = node.initializer.getText(ast);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  const canSend = (draft: string, sendEnabled = false, sending = false, voiceLocale = "en", isMinor = false): unknown =>
+    runInNewContext(expression, { draft, sendEnabled, sending, voiceLocale, isMinor, classifyInputAnyLocale });
+
+  test.each([
+    ["I want to die", "en", false],
+    ["죽고 싶어요", "ko", true],
+    ["죽고 싶어요", "en", true],
+    ["I want to die", "ko", false],
+  ] as const)("%s can reach crisis routing at the cap (%s, minor %s)", (text, locale, minor) => {
+    expect(expression).not.toBe("");
+    expect(canSend(text, false, false, locale, minor)).toBe(true);
+  });
+  test.each(["", "   ", "hello", "오늘은 평범한 하루입니다"])("ordinary or empty draft %j stays disabled at the cap", (text) => {
+    expect(canSend(text)).toBe(false);
+  });
+  test("in-flight sends stay disabled, including crisis text; ordinary text is allowed below the cap", () => {
+    expect(canSend("I want to die", false, true)).toBe(false);
+    expect(canSend("I want to die", true, true)).toBe(false);
+    expect(canSend("hello", true)).toBe(true);
+    expect(canSend("  ", true)).toBe(false);
+  });
+
+  test.each([
+    ["I want to die", "en", false],
+    ["죽고 싶어요", "ko", true],
+    ["죽고 싶어요", "ko", false],
+  ] as const)("composer delegates %s to the app-guidance send handler before clearing", (draft, voiceLocale, isMinor) => {
+    const order: string[] = [];
+    const onSend = jest.fn(() => { order.push("request"); return true; });
+    expect(submitExpression).not.toBe("");
+    runInNewContext(`(${submitExpression})()`, {
+      draft, voiceLocale, isMinor, canSend: true, classifyInputAnyLocale, onSend, setDraft: () => order.push("clear"),
+    });
+    expect(order).toEqual(["request", "clear"]);
+    expect(onSend).toHaveBeenCalledWith(draft);
+  });
+
+  test("ordinary text and disabled submits do not open a crisis dialog", () => {
+    const setCrisis = jest.fn();
+    for (const [draft, enabled] of [["hello", true], ["I want to die", false]] as const) {
+      runInNewContext(`(${submitExpression})()`, {
+        draft, voiceLocale: "en", isMinor: false, canSend: enabled,
+        classifyInputAnyLocale, setCrisis, onSend: () => true, setDraft: jest.fn(),
+      });
+    }
+    expect(setCrisis).not.toHaveBeenCalled();
+  });
+
+  test.each([null, 0, 5])("result with usage %s preserves or updates the actual usage display", used => {
+    let guard = "";
+    const visitGuard = (node: ts.Node): void => {
+      if (ts.isIfStatement(node) && node.expression.getText(ast) === "result.used !== null") guard = node.getText(ast);
+      ts.forEachChild(node, visitGuard);
+    };
+    visitGuard(ast);
+    expect(guard).not.toBe("");
+    const setUsedToday = jest.fn(); const setLimitRefused = jest.fn();
+    runInNewContext(guard, { result: { used }, setUsedToday, setLimitRefused });
+    if (used === null) {
+      expect(setUsedToday).not.toHaveBeenCalled();
+      expect(setLimitRefused).not.toHaveBeenCalled();
+    } else {
+      expect(setUsedToday).toHaveBeenCalledWith(used);
+      expect(setLimitRefused).toHaveBeenCalledWith(false);
+    }
+  });
+});
 
 describe("sendChatMessage", () => {
   beforeEach(reset);
@@ -112,9 +215,9 @@ describe("sendChatMessage", () => {
     if (r.status !== "blocked") throw new Error("type narrowing");
     expect(r.limit).toBe(5);
     expect(r.used).toBe(5);
-    expect(r.upgradeTo).toBe("soma");
-    expect(r.hint).toContain("chat limit (5)");
-    expect(r.hint).toContain("Soma");
+    expect(r.upgradeTo).toBe("cortex");
+    // Simon 2026-10-14 (Q-261014-24): the limit sentence only; no tier is named or pitched.
+    expect(r.hint).toBe("You've hit today's chat limit (5). Limits reset at midnight KST.");
 
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toContain("readChatUsageDetail");
@@ -123,13 +226,33 @@ describe("sendChatMessage", () => {
     expect(callNames).not.toContain("exportUserWiki");
   });
 
-  test("Korean locale uses Korean hint string", async () => {
-    fixtures.used = 30;
-    const r = await sendChatMessage({ userId: "u1", message: "안녕", locale: "ko", tier: "soma" });
+  // Simon 2026-10-14 (Q-261014-24): every limit bubble is the limit sentence alone. Free (별바라기),
+  // both ways a send meets the limit, both languages, compared as whole sentences.
+  const LIMIT_SENTENCE = {
+    en: "You've hit today's chat limit (5). Limits reset at midnight KST.",
+    ko: "오늘 채팅 한도(5회)를 모두 사용했어요. 한도는 KST 자정에 초기화돼요.",
+  } as const;
+  // The server's cap refused the send while the local count still allows one: its own sentence.
+  const SERVER_LIMIT_SENTENCE = {
+    en: "This account has reached today's chat limit. Limits reset at midnight KST.",
+    ko: "오늘 이 계정의 채팅 이용 한도에 도달했습니다. 한도는 KST 자정에 초기화됩니다.",
+  } as const;
+  const PITCH = /upgrade|업그레이드|요금제로|플랜으로|for more|더 많이|Soma|Cortex|Brain/i;
+
+  test.each([
+    ["en", "pre-check", { used: 5 }, LIMIT_SENTENCE.en],
+    ["ko", "pre-check", { used: 5 }, LIMIT_SENTENCE.ko],
+    ["en", "server refusal, local count also at the limit", { used: 4, usedAtBump: 5 }, LIMIT_SENTENCE.en],
+    ["ko", "server refusal, local count also at the limit", { used: 4, usedAtBump: 5 }, LIMIT_SENTENCE.ko],
+    ["en", "server refusal, local count still under the limit", { used: 2, serverCap: 2 }, SERVER_LIMIT_SENTENCE.en],
+    ["ko", "server refusal, local count still under the limit", { used: 2, serverCap: 2 }, SERVER_LIMIT_SENTENCE.ko],
+  ] as const)("free, %s, %s: the bubble is exactly the limit sentence", async (locale, _way, setup, sentence) => {
+    Object.assign(fixtures, setup);
+    const r = await sendChatMessage({ userId: "u1", message: "hello", locale, tier: "free" });
     if (r.status !== "blocked") throw new Error("type narrowing");
-    expect(r.hint).toContain("오늘 채팅 한도");
-    expect(r.hint).toContain("KST 자정");
-    expect(r.upgradeTo).toBe("cortex");
+    expect(r.hint).toBe(sentence);
+    expect(r.hint).not.toMatch(PITCH);
+    expect(captured.some((c) => c.fn === "callLlm")).toBe(false);
   });
 
   test.each(["en", "ko"] as const)("%s: server rejection does not claim the client override cap was consumed", async (locale) => {
@@ -143,9 +266,9 @@ describe("sendChatMessage", () => {
     expect(r.limit).toBeNull();
     expect(r.used).toBe(5);
     expect(r.upgradeTo).toBeNull();
-    expect(r.hint).toContain(locale === "ko" ? "이 계정" : "This account");
-    expect(r.hint).toContain("KST");
-    expect(r.hint).not.toMatch(/250|\(5\)|Brain|Soma|Cortex/);
+    expect(r.hint).toBe(SERVER_LIMIT_SENTENCE[locale]);
+    expect(r.hint).not.toMatch(/250|\(5\)/);
+    expect(r.hint).not.toMatch(PITCH);
 
     const calls = captured.map((c) => c.fn);
     expect(calls.filter((name) => name === "readChatUsageDetail")).toHaveLength(2);
@@ -153,7 +276,7 @@ describe("sendChatMessage", () => {
     expect(calls).not.toContain("callLlm");
   });
 
-  test("a concurrent send reaching the known cap preserves the upgrade hint", async () => {
+  test("a concurrent send reaching the known cap gets the same limit sentence", async () => {
     fixtures.used = 29;
     fixtures.usedAtBump = 30;
     const r = await sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "soma" });
@@ -162,8 +285,7 @@ describe("sendChatMessage", () => {
     expect(r.limit).toBe(30);
     expect(r.used).toBe(30);
     expect(r.upgradeTo).toBe("cortex");
-    expect(r.hint).toContain("chat limit (30)");
-    expect(r.hint).toContain("Cortex");
+    expect(r.hint).toBe("You've hit today's chat limit (30). Limits reset at midnight KST.");
     expect(captured.some((c) => c.fn === "callLlm")).toBe(false);
   });
 
@@ -176,7 +298,7 @@ describe("sendChatMessage", () => {
     expect(r.remaining).toBe(3); // 5 - 2
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsageDetail", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callLlm"]);
+    expect(callNames).toEqual(["classifyChatTextForCrisis", "readChatUsageDetail", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callLlm"]);
 
     // System prompt was assembled from header + exportUserWiki output.
     const geminiCall = captured.find((c) => c.fn === "callLlm");
@@ -213,11 +335,13 @@ describe("sendChatMessage", () => {
     expect(r.remaining).toBe(3);
   });
 
-  test("red-zone routed reply still counts toward the quota (R2 policy change)", async () => {
-    // codex R2: to close the TOCTOU race, the bump now happens BEFORE the
-    // LLM call. Crisis-routed turns are no longer free. This is the
-    // deliberate trade-off documented in
-    // docs/security/2026-05-26-codex-challenge.md.
+  test("a turn cut after the device verdict is still counted", async () => {
+    // codex R2: to close the TOCTOU race, the bump happens BEFORE the LLM call
+    // (docs/security/2026-05-26-codex-challenge.md). Since Q-261014-30 a turn
+    // the device classifier marks red is answered before the bump (the
+    // device-red block below). This is the other case: the device verdict was
+    // null and callLlm itself came back red (server gate, meaning check,
+    // output swap), so the turn was already counted.
     fixtures.used = 1;
     fixtures.geminiResult = {
       text: "Please call hotline...",
@@ -225,11 +349,341 @@ describe("sendChatMessage", () => {
       audit: { modelUsed: "none-crisis-routed", safetyZone: "red" },
     };
     const r = await sendChatMessage({ userId: "u1", message: "trigger", locale: "en", tier: "free" });
-    expect(r.status).toBe("ok");
+    if (r.status !== "ok") throw new Error("type narrowing");
+    expect(r.used).toBe(2);
 
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toContain("bumpChatUsageIfUnderCap");
     expect(callNames).toContain("callLlm");
+  });
+
+  // Q-261014-30 (Simon 2026-10-14): a turn the device classifier marks red is answered before any
+  // context read and is not counted. The verdict and its routing are one call into the boundary
+  // module (mocked in this file).
+  describe("device-red turn (Q-261014-30)", () => {
+    const FIXED = {
+      text: "Please reach out to 988.",
+      safety: { zone: "red" },
+      audit: { modelUsed: "none-crisis-routed", safetyZone: "red" },
+    };
+    const RED = "I want to die";
+    const readers = [loadStructuredContext, loadProfileContext, retrieveChatContext, exportUserWiki] as unknown as jest.Mock[];
+    const spies = [
+      classifyChatTextForCrisis,
+      readChatUsageDetail,
+      ...readers,
+      bumpChatUsageIfUnderCap,
+      callLlm,
+    ] as unknown as jest.Mock[];
+
+    // These mocks keep their calls across tests (no clearMocks in jest.config.js), and two of the
+    // readers do not write to `captured`: clear them so "not called" means this turn.
+    beforeEach(() => {
+      for (const spy of spies) spy.mockClear();
+    });
+
+    test.each(["failure", "pending"])("red guidance does not depend on a quota read %s", async mode => {
+      fixtures.deviceRed = FIXED;
+      fixtures.usageError = mode === "failure" ? new Error("usage unavailable") : undefined;
+      fixtures.usagePending = mode === "pending";
+      await expect(sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" }))
+        .resolves.toMatchObject({ status: "ok", reply: FIXED, used: null, remaining: null });
+      expect(readChatUsageDetail).not.toHaveBeenCalled();
+      expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
+      expect(callLlm).not.toHaveBeenCalled();
+    });
+
+    test("unknown ordinary usage still fails closed rather than making a paid request", async () => {
+      fixtures.usageError = new Error("usage unavailable");
+      await expect(sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "free" }))
+        .rejects.toThrow("usage unavailable");
+      expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
+      expect(callLlm).not.toHaveBeenCalled();
+    });
+
+    test("a red verdict is the whole turn: no quota or context read, no bump, no model call", async () => {
+      fixtures.used = 1;
+      fixtures.deviceRed = FIXED;
+      const r = await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" });
+      if (r.status !== "ok") throw new Error("type narrowing");
+      expect(r.reply).toBe(FIXED);
+
+      expect(captured.map((c) => c.fn)).toEqual(["classifyChatTextForCrisis"]);
+      for (const reader of readers) expect(reader).not.toHaveBeenCalled();
+      expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
+      expect(callLlm).not.toHaveBeenCalled();
+
+      // No quota read means no claim about the allowance.
+      expect(r.used).toBeNull();
+      expect(r.limit).toBeNull();
+      expect(r.remaining).toBeNull();
+    });
+
+    test("the verdict gets the message as typed, the locale, the user and the minor flag", async () => {
+      fixtures.deviceRed = FIXED;
+      const typed = `  ${RED}\n `;
+      await sendChatMessage({ userId: "u7", message: typed, locale: "ko", tier: "soma", minor: true });
+      expect(classifyChatTextForCrisis).toHaveBeenCalledTimes(1);
+      expect(classifyChatTextForCrisis).toHaveBeenLastCalledWith(typed, "ko", "u7", true);
+
+      // An unknown age stays unknown on the way in: no adult default is written here.
+      await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "soma" });
+      expect(classifyChatTextForCrisis).toHaveBeenCalledTimes(2);
+      expect(classifyChatTextForCrisis).toHaveBeenLastCalledWith(RED, "en", "u1", undefined);
+    });
+
+    test("a red response does not invent a rewarded bonus or remaining allowance", async () => {
+      fixtures.used = 1;
+      fixtures.adBonus = 2;
+      fixtures.deviceRed = FIXED;
+      const r = await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" });
+      if (r.status !== "ok") throw new Error("type narrowing");
+      expect(r.used).toBeNull();
+      expect(r.limit).toBeNull();
+      expect(r.remaining).toBeNull();
+    });
+
+    test("a null verdict leaves the ordinary path as it was: four context reads, one bump, one model call", async () => {
+      fixtures.used = 1;
+      const r = await sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "free" });
+      if (r.status !== "ok") throw new Error("type narrowing");
+      expect(r.used).toBe(2);
+      expect(r.remaining).toBe(3);
+
+      // `spies` is written in the order the engine has to call them.
+      const order = spies.map((spy) => spy.mock.invocationCallOrder);
+      expect(order.map((calls) => calls.length)).toEqual(spies.map(() => 1));
+      const sequence = order.map((calls) => calls[0]);
+      expect(sequence).toEqual([...sequence].sort((a, b) => a - b));
+
+      const llmArgs = (callLlm as unknown as jest.Mock).mock.calls[0][0] as { system: string; user: string; purpose: string };
+      expect(llmArgs.purpose).toBe("secondb_chat");
+      expect(llmArgs.user).toBe("hello");
+      expect(llmArgs.system).toContain("HustleK"); // header
+    });
+
+    test.each([
+      ["en", "free", 5, 0],
+      ["ko", "free", 5, 0],
+      ["en", "free", 7, 2],
+      ["ko", "free", 8, 2],
+      ["en", "soma", 30, 0],
+      ["ko", "cortex", 100, 0],
+      ["en", "brain", 250, 0],
+    ] as const)("at or above the limit, %s %s (%i used, %i bonus) gets crisis guidance without spending a turn", async (locale, tier, used, adBonus) => {
+      fixtures.used = used;
+      fixtures.adBonus = adBonus;
+      fixtures.deviceRed = FIXED;
+      const r = await sendChatMessage({ userId: "u1", message: RED, locale, tier, minor: true, history: [{ role: "user", text: "hello" }] });
+      if (r.status !== "ok") throw new Error("crisis guidance must precede a limit notice");
+      expect(r.reply).toBe(FIXED);
+      expect(r.used).toBeNull();
+      expect(r.remaining).toBeNull();
+      expect(classifyChatTextForCrisis).toHaveBeenCalledTimes(1);
+      expect(classifyChatTextForCrisis).toHaveBeenLastCalledWith(RED, locale, "u1", true);
+      expect(captured.map((c) => c.fn)).toEqual(["classifyChatTextForCrisis"]);
+      for (const reader of readers) expect(reader).not.toHaveBeenCalled();
+      expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
+      expect(callLlm).not.toHaveBeenCalled();
+    });
+
+    test("device red goes through without reaching the limit only the server knows", async () => {
+      // Same account as the server-rejection test above: the local check allows the turn and the
+      // bump would reject it. A device-red turn never asks for the bump, so it gets the guidance.
+      fixtures.used = 5;
+      fixtures.serverCap = 5;
+      fixtures.deviceRed = FIXED;
+      const r = await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "brain" });
+      if (r.status !== "ok") throw new Error("device red must be answered, not blocked");
+      expect(r.reply).toBe(FIXED);
+      expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
+      expect(readChatUsageDetail).not.toHaveBeenCalled();
+      expect(r.used).toBeNull();
+      expect(r.limit).toBeNull();
+      expect(r.remaining).toBeNull();
+    });
+
+    test("a verdict that rejects rejects the turn, uncounted", async () => {
+      fixtures.used = 1;
+      fixtures.deviceRedError = new Error("verdict failed");
+      await expect(sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" })).rejects.toThrow(
+        "verdict failed",
+      );
+      expect(captured.map((c) => c.fn)).toEqual(["classifyChatTextForCrisis"]);
+      for (const reader of readers) expect(reader).not.toHaveBeenCalled();
+      expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
+      expect(callLlm).not.toHaveBeenCalled();
+    });
+  });
+
+  // The same decision read from the source: where the cut sits, that the engine makes no verdict
+  // of its own, and that the lines the legal documents cite still say what they cite them for.
+  describe("device-red cut in the source (Q-261014-30)", () => {
+    const SRC = readFileSync(join(__dirname, "..", "conversation.ts"), "utf8").replace(/\r\n/g, "\n");
+    // Comments are not evidence of what runs (same cut as dpia-crisis-rail-anchors.test.ts).
+    const CODE = SRC.split("\n")
+      .map((line) => line.replace(/(^|[^:\w])\/\/.*$/, "$1"))
+      .join("\n");
+    /** One top-level function, from its opening line to its closing brace. */
+    const fnBody = (opening: string): string => {
+      const start = CODE.indexOf(opening);
+      const end = CODE.indexOf("\n}\n", start);
+      expect(start).toBeGreaterThan(-1);
+      expect(end).toBeGreaterThan(start);
+      return CODE.slice(start, end);
+    };
+
+    test("the cut precedes every quota read, limit refusal, context read, bump and model call", () => {
+      const send = fnBody("export async function sendChatMessage(");
+      const at = (needle: string): number => {
+        const index = send.indexOf(needle);
+        expect([needle, index > -1]).toEqual([needle, true]);
+        return index;
+      };
+      const cut = at("answerDeviceRed(");
+      expect(send.split("answerDeviceRed(")).toHaveLength(2);
+      // The verdict's answer is returned by the next statement, with no code in between.
+      expect(send.slice(cut - "const cut = await ".length)).toMatch(
+        /^const cut = await answerDeviceRed\(input\);\n\s*if \(cut\) return cut;\n/,
+      );
+      for (const later of [
+        "readChatUsageDetail(", "checkChatLimit(",
+        "if (!precheck.allowed)",
+        "loadStructuredContext(",
+        "loadProfileContext(",
+        "retrieveChatContext(",
+        "exportUserWiki(",
+        "bumpChatUsageIfUnderCap(",
+        "callLlm(",
+      ]) {
+        expect([later, at(later) > cut]).toEqual([later, true]);
+      }
+    });
+
+    test("the engine makes no verdict of its own: one boundary call, and the helper cannot reach the model", () => {
+      expect(CODE).not.toContain("classifyInputAnyLocale");
+      const helper = fnBody("async function answerDeviceRed(");
+      expect(helper).toContain("await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor)");
+      expect(helper).not.toContain("callLlm");
+      expect(helper).not.toContain("classifyInput");
+      expect(helper).not.toContain("bumpChatUsageIfUnderCap");
+      // Outside the import, the boundary's verdict is called from the helper and nowhere else.
+      expect(CODE.split("classifyChatTextForCrisis(")).toHaveLength(2);
+    });
+
+    test("the lines the legal documents cite still hold what they are cited for", () => {
+      const line = (n: number): string => SRC.split("\n")[n - 1] ?? "";
+      expect(line(254)).toContain("exportUserWiki(");
+      expect(line(259)).toContain("includeSavedConversations: true");
+      expect(line(260)).toContain("includeSavedConversations: true");
+      // :310 and :352 are held by dpia-crisis-rail-anchors.test.ts (wiki_snapshot, SYSTEM_PROMPT_HEADER).
+    });
+
+    // The tests above read strings, and the unit tests further up mock the boundary call. So a
+    // guard at the top of the helper such as `if (input.history?.length) return null;` passed all
+    // of them: a red message sent with history would then read the context and be counted before
+    // callLlm cut it (review N-02, 2026-10-14). The two tests below hold the syntax itself.
+    const AST = ts.createSourceFile("conversation.ts", SRC, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    /** A node as written, with every run of whitespace folded to one space. */
+    const norm = (node: ts.Node): string => node.getText(AST).replace(/\s+/g, " ");
+    const texts = (nodes: readonly ts.Node[] | undefined): string[] => (nodes ?? []).map((node) => norm(node));
+    /** The one top-level function declaration of that name. */
+    const topLevelFn = (name: string): ts.FunctionDeclaration => {
+      const found = AST.statements.filter(
+        (node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === name,
+      );
+      expect([name, found.length]).toEqual([name, 1]);
+      return found[0];
+    };
+    /** How many identifiers of that name the file has, declarations and imports included. */
+    const mentions = (name: string): number => {
+      let count = 0;
+      const visit = (node: ts.Node): void => {
+        if (ts.isIdentifier(node) && node.text === name) count += 1;
+        ts.forEachChild(node, visit);
+      };
+      visit(AST);
+      return count;
+    };
+
+    test("the helper asks the boundary, passes a null on, and reports unknown usage for guidance", () => {
+      const helper = topLevelFn("answerDeviceRed");
+      expect(texts(helper.modifiers)).toEqual(["async"]);
+      expect(helper.asteriskToken).toBeUndefined();
+      expect(helper.typeParameters).toBeUndefined();
+      expect(texts(helper.parameters)).toEqual(["input: SendMessageInput"]);
+      expect(helper.type ? norm(helper.type) : "").toBe("Promise<SendMessageOk | null>");
+      expect(texts(helper.body?.statements)).toEqual([
+        "const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);",
+        "if (!reply) return null;",
+        'return { status: "ok", reply, used: null, limit: null, remaining: null };',
+      ]);
+
+      // The name those statements call is the boundary's own export: imported under its own name,
+      // and mentioned nowhere but that import and the one call, so nothing local can stand in for it.
+      const imported: string[] = [];
+      for (const node of AST.statements) {
+        if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) continue;
+        const from = node.moduleSpecifier.text;
+        const named = node.importClause?.namedBindings;
+        if (!named || !ts.isNamedImports(named)) continue;
+        for (const element of named.elements) {
+          if (element.name.text !== "classifyChatTextForCrisis") continue;
+          imported.push(`${(element.propertyName ?? element.name).text} from ${from}`);
+        }
+      }
+      expect(imported).toEqual(["classifyChatTextForCrisis from @/lib/llm/boundary"]);
+      expect(mentions("classifyChatTextForCrisis")).toBe(2);
+    });
+
+    // Every top-level statement through the refusal: the usage read, allowance calculation,
+    // verdict and its return, then the limit refusal. Holding only two statements after the limit
+    // check let an aliased bump in front of it through for one value of an optional input
+    // (`const consume = bumpChatUsageIfUnderCap; await consume(...)` when mode is "analytic"), and
+    // the string checks above look for the literal call only (review G-02, 2026-10-14).
+    test("sendChatMessage routes the verdict before returning a limit refusal (Q-261015-82)", () => {
+      const body = topLevelFn("sendChatMessage").body;
+      if (!body) throw new Error("sendChatMessage has no body");
+      expect(texts(body.statements.slice(0, 7))).toEqual([
+        "const cut = await answerDeviceRed(input);",
+        "if (cut) return cut;",
+        "const day = kstDateToday();",
+        "const limit = CHAT_DAILY_LIMIT[input.tier];",
+        "const { used: usedBefore, adBonus } = await readChatUsageDetail(input.userId, day);",
+        "const precheck = checkChatLimit(input.tier, usedBefore, adBonus);",
+        'if (!precheck.allowed) { return { status: "blocked", reason: "limit_reached", limit: precheck.limit, used: precheck.used, upgradeTo: precheck.upgradeTo, hint: BLOCKED_HINT[input.locale](precheck.limit), }; }',
+      ]);
+      // The helper's declaration and this one call.
+      expect(mentions("answerDeviceRed")).toBe(2);
+    });
+
+    test("the bump is named twice in the file, its import and one call, and that call comes after the cut", () => {
+      const body = topLevelFn("sendChatMessage").body;
+      if (!body) throw new Error("sendChatMessage has no body");
+      const uses: string[] = [];
+      let callAt = -1;
+      const visit = (node: ts.Node): void => {
+        if (ts.isIdentifier(node) && node.text === "bumpChatUsageIfUnderCap") {
+          const parent = node.parent;
+          if (ts.isImportSpecifier(parent) && parent.name === node && !parent.propertyName) {
+            uses.push(`import from ${norm(parent.parent.parent.parent.moduleSpecifier)}`);
+          } else if (ts.isCallExpression(parent) && parent.expression === node) {
+            uses.push("call");
+            callAt = node.getStart(AST);
+          } else {
+            // An alias, a reference passed on, an import under another name: anything but a call.
+            uses.push(`other: ${norm(parent)}`);
+          }
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(AST);
+      expect(uses).toEqual(['import from "./usage"', "call"]);
+      const cutReturn = body.statements[1];
+      expect(norm(cutReturn)).toBe("if (cut) return cut;");
+      expect(callAt).toBeGreaterThan(cutReturn.getEnd());
+      expect(callAt).toBeLessThan(body.getEnd());
+    });
   });
 
   test("does not consume quota when wiki snapshot export fails before the LLM call", async () => {
@@ -240,7 +694,7 @@ describe("sendChatMessage", () => {
     );
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsageDetail", "retrieveChatContext", "exportUserWiki"]);
+    expect(callNames).toEqual(["classifyChatTextForCrisis", "readChatUsageDetail", "retrieveChatContext", "exportUserWiki"]);
     expect(callNames).not.toContain("bumpChatUsageIfUnderCap");
     expect(callNames).not.toContain("callLlm");
   });

@@ -30,7 +30,7 @@ import { getSupabaseClient } from "../supabase/client";
 import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-client";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
 import { enqueueAuditWrite } from "./audit-write-outbox";
-import { classifierReportedCategories, classifyObfuscatedInput, classifySafety, fixedCrisisResponse, noteObfuscationUnavailable, recordableCrisisCategories, replySwapCategories } from "./safety";
+import { classifierReportedCategories, classifyObfuscatedInput, classifySafety, emergencyGuidance, emergencyRoute, fixedCrisisResponse, noteObfuscationUnavailable, parseEmergencyLane, recordableCrisisCategories, replySwapCategories } from "./safety";
 import {
   MODELS,
   PURPOSE_TIER,
@@ -344,7 +344,7 @@ const MOCK_RESPONSES: Record<
 
 type ProxyCrisisDecision = {
   route: boolean;
-  confirmedMarker: boolean;
+  confirmedMarker: boolean; lane?: import("../safety/emergency-routing").EmergencyLane | null;
 };
 
 export type LlmConsentErrorCode = "consent_required" | "consent_check_unavailable";
@@ -395,8 +395,8 @@ async function inspectProxyCrisisRejection(error: unknown): Promise<ProxyCrisisD
         ? ((ctx.clone as () => { json?: () => Promise<unknown> })())
         : (ctx as { json?: () => Promise<unknown> });
     if (typeof target.json !== "function") return { route: true, confirmedMarker: false };
-    const body = (await target.json()) as { error?: unknown } | null;
-    if (body?.error === "safety_red_zone") return { route: true, confirmedMarker: true };
+    const body = (await target.json()) as { error?: unknown; crisis_lane?: unknown } | null;
+    if (body?.error === "safety_red_zone") return { route: true, confirmedMarker: true, lane: parseEmergencyLane(body.crisis_lane) };
     return noRoute;
   } catch {
     return { route: true, confirmedMarker: false };
@@ -406,13 +406,13 @@ async function inspectProxyCrisisRejection(error: unknown): Promise<ProxyCrisisD
 // RED SafetyResult for a proxy-detected crisis. The client classifier
 // returned green/yellow, so there is no matched-term list — the proxy body
 // intentionally never echoes the matched term (no oracle).
-function proxyCrisisSafetyResult(locale: "en" | "ko", minor = false): SafetyResult {
+function proxyCrisisSafetyResult(locale: "en" | "ko", minor = false, lane?: unknown): SafetyResult {
   const h = crisisHotlines(locale, minor)[0];
   return {
     zone: "red",
     matched: [],
     categories: ["crisis"],
-    crisisRouting: { hotline: h.id, label: h.label, number: h.number },
+    crisisRouting: emergencyRoute(lane) ?? { hotline: h.id, label: h.label, number: h.number },
   };
 }
 
@@ -515,10 +515,10 @@ async function routeCrisis(
   // KO adult -> 109, KO minor -> 1388 + 109, EN -> 988.
   const numbers = crisisHotlines(locale, minor).map((hl) => hl.number);
   const joined = locale === "ko" ? numbers.join(" 또는 ") : numbers.join(" or ");
-  const text =
+  const text = emergencyGuidance(result.crisisRouting?.hotline, locale)?.text ?? (
     locale === "ko"
       ? `지금 많이 힘드신 것 같아요. 혼자 견디지 마시고 ${joined}로 연락해 주세요. 전문가가 24시간 함께합니다.`
-      : `It sounds like you're going through a lot right now. Please reach out to ${joined} - trained responders are available 24/7.`;
+      : `It sounds like you're going through a lot right now. Please reach out to ${joined} - trained responders are available 24/7.`);
   const audit = {
     promptHash,
     outputHash: djb2(text),
@@ -561,7 +561,7 @@ async function routeCrisis(
       {
         classifierConfidence: opts.classifierConfidence ?? 0.95,
         triggerCategories: [...lexCategories, sourceTag],
-        routingTemplateVersion: "routecrisis-inline-v1",
+        routingTemplateVersion: emergencyGuidance(result.crisisRouting?.hotline, locale)?.version ?? "routecrisis-inline-v1",
         locale,
       },
       "[crisis_events] crisis insert failed",
@@ -824,7 +824,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       fence();
       if (vendorCrisis.route) {
         return (await routeCrisis(
-          proxyCrisisSafetyResult(input.locale, input.minor),
+          proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane),
           input.locale,
           input.userId,
           promptHash,
@@ -859,7 +859,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       fence();
       if (proxyCrisis.route) {
         return (await routeCrisis(
-          proxyCrisisSafetyResult(input.locale, input.minor),
+          proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane),
           input.locale,
           input.userId,
           promptHash,
@@ -958,7 +958,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // proxyAudited meant the edge path recorded only the proxy's green row, so an
   // ai_audit_log query for interceptions missed this call entirely.
   if (outputZone === "red") {
-    const fixed = fixedCrisisResponse(input.locale, input.minor);
+    const fixed = fixedCrisisResponse(input.locale, input.minor, lexical.crisisRouting?.hotline);
     const swapAudit = {
       promptHash,
       outputHash: djb2(fixed.text),
@@ -1060,9 +1060,9 @@ async function advisorProxyCrisisResult(
   // The vendor whose server gate fired — threaded from callAdvisor's resolved
   // routing (Phase 2 seat or legacy seam), NOT re-derived from the env, so the
   // restricted trail attributes the catch to the proxy that actually rejected.
-  reasoningProvider: LlmVendor,
+  reasoningProvider: LlmVendor, lane?: unknown,
 ): Promise<AdvisorResult> {
-  const fixed = fixedCrisisResponse(input.locale, input.minor);
+  const fixed = fixedCrisisResponse(input.locale, input.minor, emergencyRoute(lane)?.hotline);
   const proxyTrigger = confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed";
   const audit = {
     promptHash,
@@ -1090,7 +1090,7 @@ async function advisorProxyCrisisResult(
   }
   return {
     text: fixed.text,
-    zone: "red",
+    zone: "red", hotline: emergencyRoute(lane)?.hotline,
     triggers: [proxyTrigger],
     fixedTemplate: true,
     matchedBatches: ["crisis-detection"],
@@ -1436,7 +1436,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   const outputSafety: SafetyResult = { ...lexical, zone: outputZone };
 
   if (outputZone === "red") {
-    const fixed = fixedCrisisResponse(input.locale, input.minor);
+    const fixed = fixedCrisisResponse(input.locale, input.minor, lexical.crisisRouting?.hotline);
     const swapAudit: AuditMeta = {
       promptHash,
       outputHash: djb2(fixed.text),
@@ -1504,7 +1504,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   const safety = await classifySafety(input.userMessage, input.locale, { userId: input.userId });
 
   if (safety.zone === "red") {
-    const fixed = fixedCrisisResponse(input.locale, input.minor);
+    const fixed = fixedCrisisResponse(input.locale, input.minor, safety.hotline);
     const audit = {
       promptHash,
       outputHash: djb2(fixed.text),
@@ -1532,7 +1532,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     );
     return {
       text: fixed.text,
-      zone: "red",
+      zone: "red", hotline: safety.hotline,
       triggers: safety.triggers,
       fixedTemplate: true,
       matchedBatches: ["crisis-detection"],
@@ -1664,7 +1664,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
           promptHash,
           env.EXPO_PUBLIC_USE_VERTEX,
           vendorCrisis.confirmedMarker,
-          reasoningProvider,
+          reasoningProvider, vendorCrisis.lane,
         );
       }
       if (typeof console !== "undefined") {
@@ -1687,7 +1687,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
           promptHash,
           env.EXPO_PUBLIC_USE_VERTEX,
           proxyCrisis.confirmedMarker,
-          servedByProvider,
+          servedByProvider, proxyCrisis.lane,
         );
       }
       throw error;
@@ -1725,7 +1725,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     // Don't ship the Pro text. Substitute the verbatim crisis template, audit
     // both the swapped text and the original (to keep a full audit trail), and
     // log a crisis_event with categorical metadata.
-    const fixed = fixedCrisisResponse(input.locale, input.minor);
+    const fixed = fixedCrisisResponse(input.locale, input.minor, outputSafety.hotline);
     const audit = {
       promptHash: djb2(systemPrompt + input.userMessage),
       outputHash: djb2(fixed.text),
@@ -1753,7 +1753,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     );
     return {
       text: fixed.text,
-      zone: "red",
+      zone: "red", hotline: outputSafety.hotline,
       triggers: [...outputSafety.triggers, "output_swap"],
       fixedTemplate: true,
       matchedBatches: ["crisis-detection"],
@@ -1793,4 +1793,19 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     })),
     audit,
   };
+}
+
+// Chat turns are classified by the conversation engine before it reads any
+// context or counts the turn (Simon 2026-10-14, Q-261014-30). RED gets the same
+// ledgers and fixed guidance as callLlm's own short-circuit (same source tag,
+// same purpose). GREEN returns null: no write, no model call.
+export async function classifyChatTextForCrisis(
+  text: string,
+  locale: "en" | "ko",
+  userId: string,
+  minor?: boolean,
+): Promise<LlmResult<string> | null> {
+  const safety = classifyInputAnyLocale(text, locale, { minor });
+  if (safety.zone !== "red") return null;
+  return routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", { purpose: "secondb_chat" });
 }

@@ -1,11 +1,12 @@
 // What the gate may overlook in a MODEL REPLY, and what it records when it replaces one.
 // Kept out of classifier.ts and lexicon.ts: nothing here applies to what the USER wrote, and
 // the gate terms and the input scan stay exactly as they are.
-import { classifyInput, type ClassifyOptions, type SafetyResult } from "./classifier";
+import { classifyInput, classifyInputAnyLocale, koSpacingForms, matchesJoinedKoTerm, type ClassifyOptions, type SafetyResult } from "./classifier";
 import { hasCrisisRiskContext } from "./crisis-context";
 import { CRISIS_EVENT_CATEGORY_LIMIT, classifierReportedCategories, recordableCrisisCategories } from "./crisis-event-categories";
 import { CRISIS_TERMS, type Locale } from "./lexicon";
-
+import { matchAdditionalCrisisLanguage } from "./crisis-language";
+import { matchEmergencyLane } from "./emergency-routing";
 // ── The closed list (Simon 2026-10-13, Q-261013-34 with D1-D3) ───────────────
 // The gate matches Korean terms as bare substrings, so a reply the model wrote
 // can hold a crisis term's letters inside an unrelated word: "다짐이 되어" holds
@@ -23,11 +24,17 @@ export const MODEL_REPLY_BENIGN_OVERLAPS: readonly string[] = ["다짐이 되", 
 
 // The reply as the gate normalizes it, with each listed word blanked out in
 // place. Only the listed occurrence is masked: the same term standing anywhere
-// else in the reply is still there for the unchanged matcher.
+// else in the reply is still there for the unchanged matcher. Since the gate also
+// matches a spaced term with some or all of its spaces left out (Q-261014-90,
+// Q-261015-80), each listed word is blanked in every such spelling too ("다짐이되",
+// "더이상 살펴"): the same word, not a new entry, so a reply gets the same answer
+// however that word is spaced.
 export function maskModelReplyOverlaps(text: string): string {
   let scan = text.normalize("NFKC").toLowerCase().replace(/\s+/g, " ");
   for (const overlap of MODEL_REPLY_BENIGN_OVERLAPS) {
-    scan = scan.split(overlap).join(" ".repeat(overlap.length));
+    for (const form of koSpacingForms(overlap)) {
+      scan = scan.split(form).join(" ".repeat(form.length));
+    }
   }
   return scan;
 }
@@ -39,8 +46,9 @@ export interface ModelReplyOptions extends ClassifyOptions {
 }
 
 export interface ModelReplyOverlapCheck {
-  // The strict answer, exactly as classifyInput gives it. This is the reply's
-  // zone. Nothing in this file turns a red reply into anything else.
+  // The strict answer, exactly as classifyInputAnyLocale gives it: both languages
+  // whatever the screen's, so a Korean reply on an English screen is still read.
+  // This is the reply's zone. Nothing in this file turns a red reply into anything else.
   strict: SafetyResult;
   // True when the reply is red ONLY through the listed words: a candidate for a
   // meaning-level check of the whole reply, never a verdict. A word list cannot
@@ -54,27 +62,28 @@ function escapeForPattern(term: string): string {
   return term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Gate terms of either language still standing in the masked reply. This is the
+// Gate terms of every supported language still in the masked reply. This is the
 // bare term test: none of the whole-message exceptions (a denial, a plain work
 // statement) is applied, because blanking a listed word must never be what
-// makes one of them fit.
+// makes one of them fit. A spaced Korean term with some or all of its spaces left
+// out counts, as it does in the gate (classifier.ts:matchesJoinedKoTerm).
 export function gateTermsLeft(maskedReply: string): string[] {
-  const ko = CRISIS_TERMS.ko.filter((term) => maskedReply.includes(term.normalize("NFKC").toLowerCase()));
+  const ko = CRISIS_TERMS.ko.filter((term) => maskedReply.includes(term.normalize("NFKC").toLowerCase()) || matchesJoinedKoTerm(maskedReply, term));
   const en = CRISIS_TERMS.en.filter((term) =>
     new RegExp(`(^|[^a-z0-9])${escapeForPattern(term.normalize("NFKC").toLowerCase())}($|[^a-z0-9])`).test(maskedReply),
   );
-  return [...ko, ...en];
+  return [...ko, ...en].concat(matchAdditionalCrisisLanguage(maskedReply)?.phrase ?? [], matchEmergencyLane(maskedReply) ?? []);
 }
 
 // Checks a MODEL REPLY. The strict answer is returned untouched in every case.
 // `candidate` is true only when all of these hold: the caller allowed the
 // overlaps; the user is a known adult (minor === false; unknown is treated as a
 // minor); the strict scan was red; with the listed words blanked, no gate term
-// of either language is left; and what is left carries no risk context (the
+// of any supported language is left; and what is left carries no risk context (the
 // test the existing exceptions sit behind). Never use this for what the user
 // wrote.
 export function checkModelReplyOverlaps(text: string, locale: Locale, opts: ModelReplyOptions = {}): ModelReplyOverlapCheck {
-  const strict = classifyInput(text, locale, opts);
+  const strict = classifyInputAnyLocale(text, locale, opts);
   if (strict.zone !== "red" || opts.benignOverlaps !== true || opts.minor !== false) {
     return { strict, candidate: false };
   }
@@ -88,7 +97,7 @@ export function checkModelReplyOverlaps(text: string, locale: Locale, opts: Mode
 // matched term is the only thing recorded about what matched: no reply text, no
 // user text, no hash. A number is never reused or reassigned; a term added to
 // the gate takes the next number. The keys must equal CRISIS_TERMS.ko, in order
-// (model-reply-scan.test.ts checks it).
+// (model-reply-scan.test.ts checks it). 20 and 21 came with Q-261015-80.
 export const KO_CRISIS_TERM_CODES: Readonly<Record<string, number>> = {
   "자살": 1,
   "죽고 싶": 2,
@@ -109,18 +118,28 @@ export const KO_CRISIS_TERM_CODES: Readonly<Record<string, number>> = {
   "사라지는 게 나": 17,
   "다음 생에는": 18,
   "영영 잠들고 싶": 19,
+  "끝내 버리고 싶": 20,
+  "끝내 버릴": 21,
 };
 
 export const MODEL_REPLY_TERM_CATEGORY_PREFIX = "crisis_term:";
 
+// The numbers a crisis record may hold today: crisis_term:1 to crisis_term:19,
+// the server's closed list (db/migrations/0254_crisis_category_closed_list.sql)
+// and the app's (crisis-event-categories.ts). 20 and 21 are assigned above but
+// are not written until a migration adds them to both lists; writing them now
+// would come back as "unlisted".
+const RECORDED_TERM_CODE_MAX = 19;
+
 // Category entries for a replaced MODEL REPLY: the fixed number of each matched
 // Korean term, in ascending order, and nothing else. A term without a number
-// (another language's list, an unknown string) yields no entry.
+// (another language's list, an unknown string), or with a number the record
+// cannot hold yet, yields no entry.
 export function modelReplyTermCategories(matched: readonly string[]): string[] {
   const codes = new Set<number>();
   for (const term of matched) {
     const code = Object.prototype.hasOwnProperty.call(KO_CRISIS_TERM_CODES, term) ? KO_CRISIS_TERM_CODES[term] : undefined;
-    if (typeof code === "number" && Number.isInteger(code) && code >= 1 && code <= 19) codes.add(code);
+    if (typeof code === "number" && Number.isInteger(code) && code >= 1 && code <= RECORDED_TERM_CODE_MAX) codes.add(code);
   }
   return [...codes].sort((a, b) => a - b).map((code) => `${MODEL_REPLY_TERM_CATEGORY_PREFIX}${code}`);
 }

@@ -82,6 +82,7 @@ jest.mock("../import-pending", () => ({ importPendingCaptures: (...args: unknown
 jest.mock("../../records/create", () => ({ createRecord: (...args: unknown[]) => mockCreateRecord(...args) }));
 
 import { useImportPendingCaptures } from "../use-import-pending";
+import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 
 const pending = { localId: "p_1782000000000_abc", text: "private note", capturedAt: "2026-06-21T00:00:00Z" };
 function TestHarness() {
@@ -252,7 +253,7 @@ describe("pre-account pending import owner confirmation", () => {
     expect(fresh.crisis.visible).toBe(false);
   });
 
-  test("s1 record followup completing in s2 cannot restore its old crisis UI", async () => {
+  test.each([undefined, "KR_119", "KR_112"])("s1 record followup with %s completing in s2 cannot restore its old crisis UI", async (crisisHotline) => {
     let finishRecord!: (value: unknown) => void;
     mockCreateRecord.mockReturnValueOnce(new Promise((resolve) => { finishRecord = resolve; }));
     mockImport.mockImplementationOnce(async (ctx, createOne) => {
@@ -266,11 +267,39 @@ describe("pre-account pending import owner confirmation", () => {
     mockGetSession.mockResolvedValue({ data: { session: mockSession("s2", "new@example.com") }, error: null });
     TestHarness(); await settle();
     expect(TestHarness().prompt).toBeNull();
-    finishRecord({ id: "r1", followup: { zone: "red" } });
+    finishRecord({ id: "r1", followup: { zone: "red" }, crisisHotline });
     await settle();
     const view = TestHarness();
     expect(view.crisis.visible).toBe(false);
     expect(view.prompt).toMatchObject({ email: "new@example.com", importing: false, error: false });
+  });
+
+  test.each((["ko", "en"] as const).flatMap((locale) =>
+    [true, false, null].flatMap((isMinor) => [
+      { locale, isMinor, body: "약을 이미 많이 먹었어", hotline: "KR_119" },
+      { locale, isMinor, body: "Someone is attacking me right now", hotline: "KR_112" },
+    ]),
+  ))("preserves $hotline for $locale with minor=$isMinor", async ({ locale, isMinor, body, hotline }) => {
+    mockLanguage.current = locale;
+    mockAuth.mockReturnValue({ ...mockAuth(), isMinor });
+    const item = { ...pending, text: body };
+    mockLoad.mockResolvedValue([item]);
+    // Exercise the actual matcher and hook; replace only storage/network.
+    mockCreateRecord.mockImplementation(async ({ body: text, locale: uiLocale, minor }) => {
+      const result = classifyInputAnyLocale(text, uiLocale, { minor });
+      expect(result.zone).toBe("red");
+      return { id: "r1", tags: [], followup: { zone: result.zone }, crisisHotline: result.crisisRouting?.hotline };
+    });
+    mockImport.mockImplementation(async (ctx, createOne) => {
+      await createOne(item, ctx, "preauth:emergency");
+      return { total: 1, imported: 1, failed: 0 };
+    });
+    TestHarness(); await settle();
+    TestHarness().confirmImport(); await settle();
+    expect(TestHarness().crisis).toEqual({ visible: true, hotline });
+    expect(TestHarness().prompt).toBeNull();
+    expect(mockCreateRecord).toHaveBeenCalledTimes(1);
+    expect(mockRelease).toHaveBeenCalledTimes(1);
   });
 
   test("confirmation passes the approved snapshot and one account lease, then surfaces red once", async () => {

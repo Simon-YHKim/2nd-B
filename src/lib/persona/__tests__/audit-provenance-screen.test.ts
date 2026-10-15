@@ -195,7 +195,9 @@ describe("deep-space /audit screen contract", () => {
       // historical). Its question index now drives SceneTransition. Removing
       // just the two wrapper tags reproduces 225e520a; answer/save logic and
       // styles are unchanged. This pin deliberately includes the wrapper.
-      "4bf5388718fe4ebe7cc05b7a1603152a133f3cd551124197ca687d2f23cbeb31");
+      // 2026-10-15 T23: one hotline expression preserves the returned emergency lane.
+      // Reverting only that expression reproduces 4bf5388718fe4ebe7cc05b7a1603152a133f3cd551124197ca687d2f23cbeb31.
+      "4e5a9a244452faa6cd6cfe1b6479ff695c63ef21a16de9d56a613f8a07ee08ba");
     // 이전 값 7df65c0b6373c30955355b5b9fde3f1b6020a69f2380785fa2fdd4d88745727c (PR #2044 브랜치):
     //   PR #2044 main 병합에서 재고정(2026-10-05). 옛 값 03f9dea2 는 병합 직전 main 본문이고,
     //   이번 편집만 되돌리면 그 값이 그대로 다시 나온다(재고정 전 main 대조). 바뀐 것은 미저장

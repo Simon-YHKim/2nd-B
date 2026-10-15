@@ -1,4 +1,4 @@
-import { PhoneView as View } from "@/components/phone/PhoneUIKit";
+import { PhonePressable as Pressable, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from "react";
 import { StyleSheet, useWindowDimensions, type LayoutRectangle, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Defs, Pattern, Rect } from "react-native-svg";
@@ -20,13 +20,19 @@ interface FirstRecordCoachmarkProps {
   actionLabel?: string;
   onSkip?: () => void;
   onAction?: () => void;
+  /** The target is shown, not pressed: the hole is covered (a replayed guide's Save, Z72). */
+  blockTarget?: boolean;
+  /**
+   * A tap on the dimmed area outside the target. Left out, the dimmed area only stops taps
+   * (the capture screen's steps). The home guide closes on it (Q-261014-62).
+   */
+  onOutsidePress?: () => void;
   refreshKey: string;
 }
 
-function DitherPanel({ style }: { style: StyleProp<ViewStyle> }) {
+function DitherPanel({ style, onPress }: { style: StyleProp<ViewStyle>; onPress?: () => void }) {
   const patternId = `first-record-dim-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
-  return (
-    <View pointerEvents="auto" style={[styles.dimPanel, style]}>
+  const pattern = (
       <Svg pointerEvents="none" style={StyleSheet.absoluteFill}>
         <Defs>
           <Pattern id={patternId} patternUnits="userSpaceOnUse" width={4} height={4}>
@@ -36,6 +42,16 @@ function DitherPanel({ style }: { style: StyleProp<ViewStyle> }) {
         </Defs>
         <Rect x={0} y={0} width="100%" height="100%" fill={`url(#${patternId})`} />
       </Svg>
+  );
+  // Not a control a screen reader should land on four times: the bubble's own button closes
+  // the guide for them, so the dimmed area stays out of the accessibility tree.
+  return onPress ? (
+    <Pressable accessible={false} onPress={onPress} style={[styles.dimPanel, style]}>
+      {pattern}
+    </Pressable>
+  ) : (
+    <View pointerEvents="auto" style={[styles.dimPanel, style]}>
+      {pattern}
     </View>
   );
 }
@@ -49,6 +65,8 @@ export function FirstRecordCoachmark({
   actionLabel,
   onSkip,
   onAction,
+  blockTarget = false,
+  onOutsidePress,
   refreshKey,
 }: FirstRecordCoachmarkProps) {
   const overlayRef = useRef<View>(null);
@@ -114,10 +132,14 @@ export function FirstRecordCoachmark({
       onLayout={measureTarget}
       style={styles.overlay}
     >
-      <DitherPanel style={{ left: 0, right: 0, top: 0, height: top }} />
-      <DitherPanel style={{ left: 0, right: 0, top: bottom, bottom: 0 }} />
-      <DitherPanel style={{ left: 0, top, width: left, height: bottom - top }} />
-      <DitherPanel style={{ left: right, right: 0, top, height: bottom - top }} />
+      <DitherPanel onPress={onOutsidePress} style={{ left: 0, right: 0, top: 0, height: top }} />
+      <DitherPanel onPress={onOutsidePress} style={{ left: 0, right: 0, top: bottom, bottom: 0 }} />
+      <DitherPanel onPress={onOutsidePress} style={{ left: 0, top, width: left, height: bottom - top }} />
+      <DitherPanel onPress={onOutsidePress} style={{ left: right, right: 0, top, height: bottom - top }} />
+
+      {blockTarget ? (
+        <View style={[styles.targetBlock, { left, top, width: right - left, height: bottom - top }]} />
+      ) : null}
 
       <View
         pointerEvents="none"
@@ -200,6 +222,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     overflow: "hidden",
   },
+  // No fill: it only takes the press that would have gone through the hole.
+  targetBlock: { position: "absolute" },
   targetFrame: {
     position: "absolute",
     borderWidth: m3.spacing.s1,

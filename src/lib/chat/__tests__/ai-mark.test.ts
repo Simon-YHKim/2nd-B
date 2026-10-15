@@ -92,7 +92,7 @@ describe("chat screen and locales", () => {
     expect(ko.aiNotice?.body?.startsWith("{{name}}{{particle}} AI입니다.")).toBe(true);
     expect(screen).toContain("const aiNoticeWords = { name: aiNoticeName, particle: topicParticle(aiNoticeName) };");
     const said = (name: string) => (ko.aiLine ?? "").replace("{{name}}", name).replace("{{particle}}", topicParticle(name));
-    expect(["secondb", "meta", "twi"].map((id) => said(ko.rev2[id].lensName).split(" AI입니다.")[0])).toEqual(["허슬케이는", "메타비는", "트위비는"]);
+    expect(["secondb", "meta", "twi"].map((id) => said(ko.rev2[id].lensName).split(" AI입니다.")[0])).toEqual(["허슬케이는", "팩트케이는", "조이케이는"]);
     expect(said("별").startsWith("별은 AI입니다.")).toBe(true);
     // Only Korean uses the particle slot.
     for (const lng of ["en", "es", "pt", "id"]) expect(JSON.stringify([copy(lng).aiLine, copy(lng).aiNotice])).not.toContain("{{particle}}");

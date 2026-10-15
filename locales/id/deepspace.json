@@ -97,7 +97,9 @@
     "fallbackTitle": "Tanpa judul",
     "graphEmpty": "Belum ada pengetahuan untuk dihubungkan.",
     "loadError": "Arsipmu belum bisa dimuat. Coba lagi.",
-    "retry": "Coba lagi"
+    "retry": "Coba lagi",
+    "periodScope": "Cerita: {{star}}",
+    "periodShowAll": "Lihat semua"
   },
   "domains": {
     "title": "Area saya",
@@ -154,7 +156,7 @@
   "account": {
     "title": "Akun",
     "status": "Kelola informasi akun dan akun lain yang kamu hubungkan.",
-    "tip": "Kamu bisa memulai penghapusan atau ekspor sendiri kapan saja.",
+    "tip": "Kamu bisa memulai penghapusan akun sendiri kapan saja.",
     "delete": "Hapus akun",
     "navProfile": "Profil",
     "navSettings": "Pengaturan",
@@ -237,7 +239,7 @@
     "saveFailed": "Gagal menyimpan. Coba lagi sebentar lagi.",
     "deleteAccount": {
       "body": "Catatan, tangkapan, wiki, data penggunaan, dan akunmu dihapus permanen. Ini tidak bisa dibatalkan. Ekspor dulu apa pun yang kamu perlukan.",
-      "typePrompt": "Ketik \"DELETE\" untuk melanjutkan.",
+      "typePrompt": "Ketik \"{{phrase}}\" untuk melanjutkan.",
       "inputA11y": "Konfirmasi penghapusan",
       "buttonA11y": "Hapus akun secara permanen",
       "button": "Hapus akun",
@@ -649,10 +651,12 @@
     "fallbackInsight": "Memahami diriku secara mendalam, hidup lebih seperti diriku."
   },
   "coachmarks": {
-    "homeStep": "Ketuk HustleK untuk mulai menyimpan catatan.",
+    "homeStep": "Ketuk Klip untuk memulai catatan.",
     "formatStep": "Pilih Memo terlebih dahulu. Satu baris sudah cukup.",
     "inputStep": "Tulis pikiranmu saat ini. Tidak harus berupa kalimat lengkap.",
     "saveStep": "Terakhir, ketuk Simpan untuk menyimpan catatan ini.",
+    "replayEndStep": "Simpan akan menyimpan catatan.",
+    "replayEndHint": "Tayangan ulang ini berakhir di sini, tanpa menyimpan.",
     "doneStep": "Catatanmu sudah tersimpan. Kembali ke rasi untuk melihatnya.",
     "targetHint": "Ketuk kontrol yang disorot untuk melanjutkan.",
     "inputHint": "Tulis setidaknya satu karakter untuk lanjut ke Simpan.",
@@ -803,12 +807,12 @@
       "freeFeat3": "Semua 7 bintang · catatan tanpa batas",
       "plusName": "Penjelajah",
       "plusSub": "Penjelajah yang tekun",
-      "plusFeat1": "Asisten Meta-B",
+      "plusFeat1": "Asisten Fact-K",
       "plusFeat2": "80 obrolan sehari",
       "plusFeat3": "Cari keterkaitan 7x seminggu",
       "proName": "Bintang Utara",
       "proSub": "Untuk yang mendalami",
-      "proFeat1": "Asisten Meta-B + Twi-B",
+      "proFeat1": "Asisten Fact-K + Joy-K",
       "proFeat2": "250 obrolan sehari",
       "proFeat3": "Cari keterkaitan tanpa batas",
       "comingSoon": "Segera hadir",

@@ -110,6 +110,19 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     crisisMock.mockClear();
   });
 
+  test.each([
+    ["I took too many pills", "KR_119", "119"],
+    ["Someone is attacking me right now", "KR_112", "112"],
+  ] as const)("emergency output %s is replaced with matching routing metadata", async (text, hotline, number) => {
+    mockGenerateContent.mockResolvedValueOnce({ text });
+    mockClassifySafety.mockResolvedValueOnce(GREEN);
+    const result = await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "Today I planned my week." });
+    expect(result.safety.crisisRouting?.hotline).toBe(hotline);
+    expect(result.text).toContain(`In South Korea, call ${number}`);
+    expect(result.text).not.toContain(text);
+    expect(auditMock.mock.calls[0][0].modelUsed).toContain("+swap:");
+  });
+
   test("SEMANTICALLY-red model output with NO literal crisis term is still swapped", async () => {
     // Output reads benign to the lexicon (no CRISIS_TERM) — the exact H1 gap.
     mockGenerateContent.mockResolvedValueOnce({ text: "Maybe it would be easier for everyone if you just slipped away quietly." });
@@ -190,7 +203,8 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     const result = await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest",
       user: "자살하려는 건 아니야. 약을 이미 많이 먹었어." });
     expect(result.safety.zone).toBe("red");
-    expect(result.text).toContain("109");
+    expect(result.text).toContain("한국에 계시면 119");
+    expect(result.safety.crisisRouting?.hotline).toBe("KR_119");
     expect(mockGenerateContent).not.toHaveBeenCalled();
     expect(mockClassifySafety).not.toHaveBeenCalled();
   });

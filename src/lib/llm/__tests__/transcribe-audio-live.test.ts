@@ -266,6 +266,18 @@ describe("transcribeAudio · edge path", () => {
 });
 
 describe("transcribeAudio · crisis output is intercepted, not returned", () => {
+  test.each([
+    ["약을 이미 많이 먹었어", "KR_119", "119"],
+    ["지금 누가 나를 때리고 있어", "KR_112", "112"],
+  ] as const)("intercepts %s and preserves its emergency number", async (text, hotline, number) => {
+    mockInvoke.mockResolvedValue({ data: { text, audited: true }, error: null });
+    const result = await transcribeAudio(BASE);
+    expect(result.safety.crisisRouting?.hotline).toBe(hotline);
+    expect(result.text).toContain(`한국에 계시면 ${number}`);
+    expect(result.text).not.toBe(text);
+    expect(auditPayloads().some((row) => row.safetyZone === "red" && String(row.modelUsed).includes("+swap:"))).toBe(true);
+  });
+
   it("swaps a red-zone transcript for the fixed template and audits the swap", async () => {
     // The transcript is what the model heard. If it carries crisis content, the
     // user must get the crisis response, not their own words read back.

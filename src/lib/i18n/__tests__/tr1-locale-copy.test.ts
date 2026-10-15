@@ -79,7 +79,7 @@ describe("tr1: screens read the moved keys", () => {
       /^(atGlance|analytics\.|recommend\.|semantic\.|understand|saveFailed|deleteAccount\.)/.test(k),
     );
     expect(moved.length).toBeGreaterThanOrEqual(36);
-    for (const k of moved) expect({ key: k, used: privacyScreen.includes(`t("privacy.${k}")`) }).toEqual({ key: k, used: true });
+    for (const k of moved) expect({ key: k, used: privacyScreen.includes(`t("privacy.${k}"`) }).toEqual({ key: k, used: true });
     expect(privacyScreen).toContain("t(`privacy.facts.${key}.label`)");
     expect(privacyScreen).toContain("t(`privacy.facts.${key}.v`)");
     // Reused keys whose text was already the same in every language.
@@ -216,8 +216,8 @@ describe("tr1: es/pt/id carry their own text", () => {
     expect(compared).toBeGreaterThanOrEqual(80);
   });
 
-  it.each(["en", "ko", "es", "pt", "id"])("%s keeps the DELETE token and the nudge variables", (lng) => {
-    expect(at(pack(lng, "deepspace"), "privacy.deleteAccount.typePrompt")).toContain('"DELETE"');
+  it.each(["en", "ko", "es", "pt", "id"])("%s keeps the deletion word placeholder and the nudge variables", (lng) => {
+    expect(at(pack(lng, "deepspace"), "privacy.deleteAccount.typePrompt")).toContain('"{{phrase}}"');
     const b = pack(lng, "brightness");
     expect(b.shiftNudge).toContain("{{stars}}");
     expect(b.shiftNudgeCited).toContain("{{stars}}");

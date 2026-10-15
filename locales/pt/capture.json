@@ -89,9 +89,6 @@
     "personal": "Salvo como seu formato pessoal.",
     "shared": "Seu novo formato foi salvo e compartilhado com seus formatos."
   },
-  "firstRun": {
-    "hint": "Uma frase vira seu primeiro registro salvo. Você pode encontrá-la de novo em Registros."
-  },
   "saved": {
     "title": "Registro salvo",
     "ocrTitle": "Sua nota de foto foi salva",
@@ -158,8 +155,8 @@
     "advisor": {
       "label": "Pedir uma análise ao HustleK",
       "helper": "Desativado por padrão. Ative se quiser uma análise do HustleK.",
-      "lockedLabel": "Pedir uma análise ao HustleK (Brain)",
-      "lockedHelper": "Reflexões sobre entradas desbloqueiam com o plano Brain. Toque para ver os planos.",
+      "lockedLabel": "Pedir uma análise ao HustleK (Estrela Polar)",
+      "lockedHelper": "Reflexões sobre entradas desbloqueiam com o plano Estrela Polar. Toque para ver os planos.",
       "lockedHint": "Abre a tela de planos."
     }
   },

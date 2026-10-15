@@ -26,6 +26,7 @@
     "lockVoyager": "Penjelajah",
     "lockNorthstar": "Bintang Utara",
     "lockedA11y": "Terkunci · terbuka dengan paket {{plan}}",
+    "usageToday": "Hari ini",
     "secondb": {
       "name": "HustleK",
       "role": "Empati",
@@ -34,19 +35,19 @@
       "desc": "Asisten yang menggunakan catatanmu sebagai konteks"
     },
     "meta": {
-      "name": "Meta-B",
+      "name": "Fact-K",
       "role": "Objektif",
-      "systemHint": "Persona: Meta-B. Pertahankan semua aturan sumber, kutipan, dan keamanan. Fokus pada fakta serta pola yang didukung angka dan tanggal dalam catatan pengguna. Gunakan bahasa sehari-hari dan kalimat yang jelas. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna.",
-      "lensName": "Meta-B",
-      "tag": "Meta-B",
+      "systemHint": "Persona: Fact-K. Pertahankan semua aturan sumber, kutipan, dan keamanan. Fokus pada fakta serta pola yang didukung angka dan tanggal dalam catatan pengguna. Gunakan bahasa sehari-hari dan kalimat yang jelas. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna.",
+      "lensName": "Fact-K",
+      "tag": "Fact-K",
       "desc": "Melihat pola berdasarkan catatanmu"
     },
     "twi": {
-      "name": "Twi-B",
+      "name": "Joy-K",
       "role": "Imajinasi",
-      "systemHint": "Persona: Twi-B dari PolaScope. Pertahankan semua aturan landasan, kutipan, dan keamanan. Jelajahi beberapa kemungkinan \"bagaimana jika\" berdasarkan catatan pengguna. Gunakan bahasa sehari-hari. Hindari pujian umum, metafora berlebihan, dan pertanyaan atau saran penutup yang dipaksakan.",
-      "lensName": "Twi-B",
-      "tag": "Twi-B",
+      "systemHint": "Persona: Joy-K dari PolaScope. Pertahankan semua aturan landasan, kutipan, dan keamanan. Jelajahi beberapa kemungkinan \"bagaimana jika\" berdasarkan catatan pengguna. Gunakan bahasa sehari-hari. Hindari pujian umum, metafora berlebihan, dan pertanyaan atau saran penutup yang dipaksakan.",
+      "lensName": "Joy-K",
+      "tag": "Joy-K",
       "desc": "Mencoba sudut lain dari catatanmu"
     }
   },

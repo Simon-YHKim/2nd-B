@@ -42,6 +42,10 @@ enable_signup = true
 # Confirm Email stays ON (the #1009 email-confirmation track depends on it; the
 # 0018 autoconfirm trigger masks it user-side until 0086 lands).
 enable_confirmations = true
+# Simon set Email OTP expiry to 600 seconds on 2026-10-13 (20:44).
+# Pin that decision here too: an omitted value uses the CLI's 3600s default.
+# This declaration is not proof of the current hosted Auth configuration.
+otp_expiry = 600
 
 # Recovery email is code-only. The in-screen OTP flow (#1013) verifies the
 # 6-digit code; no bearer-token or custom-scheme fallback is delivered by mail.

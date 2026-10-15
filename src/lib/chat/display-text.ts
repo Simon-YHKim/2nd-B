@@ -16,6 +16,12 @@ export function chatDisplayText(text: string): string {
     literals.push(part.startsWith("`") ? part.replace(/^`{1,3}|`{1,3}$/g, "") : part);
     return `${sentinel}${literals.length - 1}${sentinel}`;
   }).replace(/^([ \t]{0,3})#{1,6}[ \t]+/gm, "$1");
+  // Spaces left at the end of a line are markup too (two of them ask for a line break): the
+  // break itself is kept, the spaces are not drawn (Z33). Code was lifted out above and keeps its
+  // own; a fence the model never closed is still here, so nothing after its opening is touched.
+  const openFence = display.search(/(?<!\\)```/);
+  const prose = openFence === -1 ? display : display.slice(0, openFence);
+  display = prose.replace(/[ \t]+(?=\r?\n)/g, "") + (openFence === -1 ? "" : display.slice(openFence));
   for (const marker of ["***", "___", "**", "__", "*", "_"]) {
     const escaped = marker.replace(/\*/g, "\\*");
     // Word-internal underscores and arithmetic such as 2*3*4 are literal.

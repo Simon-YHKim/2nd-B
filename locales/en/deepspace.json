@@ -97,7 +97,9 @@
     "fallbackTitle": "Untitled",
     "graphEmpty": "No knowledge to connect yet.",
     "loadError": "Couldn't load your archive. Try again.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "periodScope": "Stories: {{star}}",
+    "periodShowAll": "Show all"
   },
   "domains": {
     "title": "My areas",
@@ -154,7 +156,7 @@
   "account": {
     "title": "Account",
     "status": "Manage your account details and connected accounts.",
-    "tip": "You can also export data or delete your account here.",
+    "tip": "You can also delete your account here.",
     "delete": "Delete account",
     "navProfile": "Profile",
     "navSettings": "Settings",
@@ -237,7 +239,7 @@
     "saveFailed": "Couldn't save. Please try again.",
     "deleteAccount": {
       "body": "Your records, captures, wiki, usage and account are permanently erased. This cannot be undone. Export anything you need first.",
-      "typePrompt": "Type \"DELETE\" to proceed.",
+      "typePrompt": "Type \"{{phrase}}\" to proceed.",
       "inputA11y": "Deletion confirmation",
       "buttonA11y": "Delete account permanently",
       "button": "Delete account",
@@ -649,10 +651,12 @@
     "fallbackInsight": "Understand myself deeply, live more like myself."
   },
   "coachmarks": {
-    "homeStep": "Tap HustleK to start saving a record.",
+    "homeStep": "Tap Scrap to start a record.",
     "formatStep": "Choose Memo first. One line is enough.",
     "inputStep": "Write the thought on your mind. It does not need to be a complete sentence.",
     "saveStep": "Now tap Save to keep this record.",
+    "replayEndStep": "Save keeps the record.",
+    "replayEndHint": "This second look ends here, without saving.",
     "doneStep": "Your record is saved. Return to the constellation to see it.",
     "targetHint": "Tap the highlighted control to continue.",
     "inputHint": "Write at least one character to continue to Save.",
@@ -803,12 +807,12 @@
       "freeFeat3": "All 7 stars · unlimited records",
       "plusName": "Voyager",
       "plusSub": "A steady voyager",
-      "plusFeat1": "Chat with Meta-B",
+      "plusFeat1": "Chat with Fact-K",
       "plusFeat2": "80 chats a day",
       "plusFeat3": "Find connections 7 times a week",
       "proName": "North Star",
       "proSub": "For frequent users",
-      "proFeat1": "Chat with Meta-B and Twi-B",
+      "proFeat1": "Chat with Fact-K and Joy-K",
       "proFeat2": "250 chats a day",
       "proFeat3": "Find connections without limits",
       "comingSoon": "Coming soon",

@@ -198,27 +198,31 @@ describe("R3-1 auth branch matrix", () => {
     expect(styles).toMatch(/exitNoticeOverlay: \{\s*position: "absolute",\s*left: m3.spacing.s4,\s*right: m3.spacing.s4,\s*bottom: m3.spacing.s4,\s*zIndex: EXIT_NOTICE_LAYER,\s*elevation: EXIT_NOTICE_LAYER,\s*\}/);
   });
 
-  test("all signup branches, including redirect variants and confirmation, request sign-in or hold the live write", () => {
+  test("all signup branches request sign-in or hold the live write; the code step is left for the form first", () => {
     const branches = screenReturns("src/screens/deepspace/dds-sign-up-screen.tsx", "DeepSpaceSignUpDesignScreen");
-    expect(branches.map(row => row.guard)).toEqual(["loading", "userId && !submitting && !judgeWelcome && !toast", "form"]);
+    // Z18 (2026-10-14): the confirmation-code step is its own branch, drawn before the form.
+    expect(branches.map(row => row.guard)).toEqual(["loading", "userId && !submitting && !judgeWelcome && !toast", "confirmSentTo !== null", "form"]);
     expect(branches[1].jsx).toBe('avatarSetupAfterConfirmation ? <Redirect href="/avatar-studio?setup=1" /> : <RedirectHome />');
     const seen = new Set<string>();
     for (const loading of bools) for (const signedIn of bools) for (const submitting of bools)
-      for (const judgeWelcome of bools) for (const toast of bools) for (const avatar of bools) {
-        const state = { loading, userId: signedIn ? "owner" : null, submitting, judgeWelcome, toast };
+      for (const judgeWelcome of bools) for (const toast of bools) for (const avatar of bools) for (const code of bools) {
+        const state = { loading, userId: signedIn ? "owner" : null, submitting, judgeWelcome, toast, confirmSentTo: code ? "mailbox@example.invalid" : null };
         // Evaluate only the two real source predicates, with no hooks or RN imports.
         const row = branches.find(row => row.guard === "form" || runInNewContext(row.guard, state))!;
-        const kind = row === branches[1] ? (avatar ? "avatar" : "home") : row === branches[0] ? "loading" : "form";
-        expect(kind).toBe(loading ? "loading" : signedIn && !submitting && !judgeWelcome && !toast ? (avatar ? "avatar" : "home") : "form");
+        const kind = row === branches[1] ? (avatar ? "avatar" : "home") : row === branches[0] ? "loading" : row === branches[2] ? "code" : "form";
+        expect(kind).toBe(loading ? "loading" : signedIn && !submitting && !judgeWelcome && !toast ? (avatar ? "avatar" : "home") : code ? "code" : "form");
         seen.add(kind);
         for (const busy of bools) {
           const dismissTo = jest.fn();
-          const back = createSignUpBackHandler({ isBusy: () => busy, router: { dismissTo } });
+          // The hook answers "was the code step left" from its own state, whatever is drawn.
+          const leaveStep = jest.fn(() => code);
+          const back = createSignUpBackHandler({ isBusy: () => busy, router: { dismissTo }, leaveStep });
           expect(back()).toBe(true);
-          expect(dismissTo.mock.calls).toEqual(busy ? [] : [["/sign-in"]]);
+          expect(leaveStep).toHaveBeenCalledTimes(busy ? 0 : 1);
+          expect(dismissTo.mock.calls).toEqual(busy || code ? [] : [["/sign-in"]]);
         }
       }
-    expect([...seen].sort()).toEqual(["avatar", "form", "home", "loading"]);
+    expect([...seen].sort()).toEqual(["avatar", "code", "form", "home", "loading"]);
   });
 
   test("registration covers every focused Android notice branch and every signup branch", () => {

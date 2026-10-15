@@ -26,6 +26,7 @@
     "lockVoyager": "Viajero",
     "lockNorthstar": "Estrella Polar",
     "lockedA11y": "Bloqueado · se abre con el plan {{plan}}",
+    "usageToday": "Hoy",
     "secondb": {
       "name": "HustleK",
       "role": "Empatía",
@@ -34,19 +35,19 @@
       "desc": "Responde a partir de tus registros"
     },
     "meta": {
-      "name": "Meta-B",
+      "name": "Fact-K",
       "role": "Objetivo",
-      "systemHint": "Persona: Meta-B. Mantén todas las reglas de fundamento, citas y seguridad. Céntrate en los hechos y en patrones respaldados por cifras y fechas de los registros del usuario. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles.",
-      "lensName": "Meta-B",
-      "tag": "Meta-B",
+      "systemHint": "Persona: Fact-K. Mantén todas las reglas de fundamento, citas y seguridad. Céntrate en los hechos y en patrones respaldados por cifras y fechas de los registros del usuario. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles.",
+      "lensName": "Fact-K",
+      "tag": "Fact-K",
       "desc": "Examina los hechos de tus registros"
     },
     "twi": {
-      "name": "Twi-B",
+      "name": "Joy-K",
       "role": "Imaginar",
-      "systemHint": "Persona: Twi-B. Mantén todas las reglas de fundamento, citas y seguridad. Propón otras posibilidades a partir de los registros y separa claramente los hechos de lo imaginado. Si es útil, explica cómo probar una propuesta. No uses siempre la misma frase de cierre. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles.",
-      "lensName": "Twi-B",
-      "tag": "Twi-B",
+      "systemHint": "Persona: Joy-K. Mantén todas las reglas de fundamento, citas y seguridad. Propón otras posibilidades a partir de los registros y separa claramente los hechos de lo imaginado. Si es útil, explica cómo probar una propuesta. No uses siempre la misma frase de cierre. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles.",
+      "lensName": "Joy-K",
+      "tag": "Joy-K",
       "desc": "Busca otras posibilidades en tus registros"
     }
   },

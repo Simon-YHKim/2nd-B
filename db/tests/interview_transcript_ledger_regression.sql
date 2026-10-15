@@ -113,6 +113,7 @@ BEGIN
          'public.interview_transcript_body(text,jsonb)', 'public.interview_verdict_erasure()',
          'public.interview_session_count_start()', 'public.interview_record_erasure()',
          'public.interview_session_erasure()', 'public.interview_account_erasure()',
+         'public.interview_owned_erasure_lock()', 'public.hold_interview_record_for_red(uuid,uuid,uuid)',
          'public.ai_context_block_record_erasure()']) AS f(sig)
               CROSS JOIN pg_catalog.unnest(ARRAY['anon', 'authenticated', 'service_role']) AS r(role)
              WHERE has_function_privilege(r.role, f.sig, 'EXECUTE')) THEN
@@ -1093,7 +1094,7 @@ BEGIN
       (''prune-interview-ledgers'',''41 18 * * *'',''SELECT public.prune_interview_ledgers();''))' INTO v_n;
     IF v_n <> 2 THEN RAISE EXCEPTION 'R2 D6-06: cleanup job contract mismatch'; END IF;
   END IF;
-  IF (SELECT count(*) FROM public.erasure_registry) <> 81 THEN RAISE EXCEPTION 'R2 D6-10: registry count differs from CI'; END IF;
+  IF (SELECT count(*) FROM public.erasure_registry) <> 82 THEN RAISE EXCEPTION 'R2 D6-10: registry count differs from CI'; END IF;
   IF (SELECT count(*) FROM public.erasure_registry WHERE table_name IN('interview_sessions','ai_audit_context_blocks')
         AND class='client_erasable' AND cascades_from IS NULL) <> 2 THEN
     RAISE EXCEPTION 'R2 D6-07: content-erased rows would be reported as kept';

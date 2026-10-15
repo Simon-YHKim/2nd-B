@@ -1,6 +1,6 @@
 import { PhoneScrollView as ScrollView, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, Share, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect } from "expo-router";
@@ -20,42 +20,12 @@ import { m3 } from "@/lib/theme/m3";
 import {
   ACCOUNT_DESTINATIONS,
   accountToolFromParam,
-  accountExportDeps,
-  exportAccountData,
   loadAccountDob,
   saveAccountDob,
 } from "./dds-account-actions";
 
 type DobFeedback = "saved" | "failed" | null;
-type ExportFeedback =
-  | { kind: "done" | "partial"; failedItems: number }
-  | { kind: "failed" }
-  | { kind: "cooldown"; minutes: number }
-  | null;
-
-async function deliverAccountExport(json: string, filename: string): Promise<void> {
-  if (Platform.OS !== "web") {
-    await Share.share({ message: json, title: filename });
-    return;
-  }
-
-  if (typeof document === "undefined" || typeof URL.createObjectURL !== "function") {
-    throw new Error("account export download is unavailable");
-  }
-
-  const blob = new Blob([json], { type: "application/json;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  try {
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.click();
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-function warnAccountAction(action: "dob-load" | "dob-save" | "export"): void {
+function warnAccountAction(action: "dob-load" | "dob-save"): void {
   if (typeof console === "undefined") return;
   // Account errors may include backend details. Keep logs categorical so a
   // platform logger can never receive PII or a response payload.
@@ -64,7 +34,8 @@ function warnAccountAction(action: "dob-load" | "dob-save" | "export"): void {
 
 export function DeepSpaceAccountScreen() {
   // Phone-aware: inside the dashboard phone, links and back stay in the phone,
-  // and `tool` comes from the phone route (/account?tool=export).
+  // and `tool` comes from the phone route (/account?tool=dob; an old ?tool=export link is sent on
+  // to My data, where the export now lives).
   const router = useAppRouter();
   const { t } = useTranslation(["deepspace", "consent", "common"]);
   const { userId, loading, refresh } = useAuth();
@@ -80,9 +51,6 @@ export function DeepSpaceAccountScreen() {
   const [dobLoadAttempt, setDobLoadAttempt] = useState(0);
   const [dobBusy, setDobBusy] = useState(false);
   const [dobFeedback, setDobFeedback] = useState<DobFeedback>(null);
-  const [exportOpen, setExportOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [exportFeedback, setExportFeedback] = useState<ExportFeedback>(null);
 
   const mountedRef = useRef(true);
   const activeUserRef = useRef(userId);
@@ -115,9 +83,6 @@ export function DeepSpaceAccountScreen() {
     setDobLoadAttempt(0);
     setDobBusy(false);
     setDobFeedback(null);
-    setExportOpen(false);
-    setExporting(false);
-    setExportFeedback(null);
   }, [userId]);
 
   // Deep links may reveal one tool but never run it. Unknown/multi-valued query
@@ -125,7 +90,6 @@ export function DeepSpaceAccountScreen() {
   useEffect(() => {
     if (!userId || !requestedTool) return;
     setDobOpen(requestedTool === "dob");
-    setExportOpen(requestedTool === "export");
   }, [requestedTool, userId]);
 
   // Progressive disclosure also avoids loading PII until the user opens the
@@ -200,46 +164,6 @@ export function DeepSpaceAccountScreen() {
     setDobBusy(false);
   }, [birthDate, dobBusy, origDob, refresh, userId]);
 
-  const onExportData = useCallback(async () => {
-    if (!userId || exporting) return;
-    const requestedUser = userId;
-    const requestedEpoch = authEpochRef.current;
-    setExporting(true);
-    setExportFeedback(null);
-    const result = await exportAccountData({
-      ...accountExportDeps,
-      deliver: deliverAccountExport,
-      expectedUserId: requestedUser,
-      isActive: () =>
-        mountedRef.current &&
-        activeUserRef.current === requestedUser &&
-        authEpochRef.current === requestedEpoch,
-    });
-    if (
-      !mountedRef.current ||
-      activeUserRef.current !== requestedUser ||
-      authEpochRef.current !== requestedEpoch
-    ) return;
-    if (result.status === "cancelled") {
-      setExporting(false);
-      return;
-    }
-    if (result.status === "cooldown") {
-      // Not a failure: the server allows one export per window and says how long
-      // is left. Saying "failed" here makes people press again and hit it again.
-      setExportFeedback({ kind: "cooldown", minutes: Math.max(1, Math.ceil(result.retryAfterSeconds / 60)) });
-    } else if (result.status === "failed") {
-      warnAccountAction("export");
-      setExportFeedback({ kind: "failed" });
-    } else {
-      // A delivered bundle can still be missing tables or clipping files. Say so
-      // here or the user reads "Export ready." and may then delete the account.
-      const { failedItems } = result.summary;
-      setExportFeedback({ kind: failedItems > 0 ? "partial" : "done", failedItems });
-    }
-    setExporting(false);
-  }, [exporting, userId]);
-
   if (loading) {
     return (
       <DeepSpaceScreen active="settings" header="none">
@@ -250,6 +174,8 @@ export function DeepSpaceAccountScreen() {
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
+  // The export lives in My data now (Q-261014-61). An old link to it opens that card there.
+  if (requestedTool === "export") return <Redirect href="/data?open=account-export" />;
 
   const dobReady = dobOwner === userId && !dobLoading;
   const dobSubmittable = dobReady && canSubmitDobCorrection(origDob, birthDate);
@@ -318,7 +244,6 @@ export function DeepSpaceAccountScreen() {
               variant={dobOpen ? "inset" : "bevel"}
               onPress={() => {
                 setDobOpen((open) => !open);
-                setExportOpen(false);
               }}
               accessibilityLabel={t("consent:account.dob.label")}
               accessibilityHint={t("consent:account.dob.hint")}
@@ -408,81 +333,6 @@ export function DeepSpaceAccountScreen() {
                     </PixelPressable>
                   </>
                 )}
-              </PixelSurface>
-            ) : null}
-
-            <PixelPressable
-              variant={exportOpen ? "inset" : "bevel"}
-              onPress={() => {
-                setExportOpen((open) => !open);
-                setDobOpen(false);
-              }}
-              accessibilityLabel={t("consent:account.export.label")}
-              accessibilityHint={t("consent:account.export.body")}
-              accessibilityState={{ expanded: exportOpen }}
-              fullWidth
-              contentStyle={styles.toolHeader}
-            >
-              <PixelGlyph name="download" color={m3.color.primary} size={24} />
-              <RNText style={[m3TextStyle("labelLarge"), styles.toolLabel]}>
-                {t("consent:account.export.label")}
-              </RNText>
-              <PixelGlyph
-                name={exportOpen ? "expandLess" : "expandMore"}
-                color={m3.color.onSurfaceVariant}
-                size={24}
-              />
-            </PixelPressable>
-
-            {exportOpen ? (
-              <PixelSurface variant="inset" contentStyle={styles.toolBody}>
-                <RNText style={[m3TextStyle("bodySmall"), styles.bodyCopy]}>
-                  {t("consent:account.export.body")}
-                </RNText>
-                {exportFeedback?.kind === "done" ? (
-                  <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.success]}>
-                    {t("consent:account.export.done")}
-                  </RNText>
-                ) : null}
-                {exportFeedback?.kind === "partial" ? (
-                  <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
-                    {t("consent:account.export.donePartial", { count: exportFeedback.failedItems })}
-                  </RNText>
-                ) : null}
-                {exportFeedback?.kind === "failed" ? (
-                  <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
-                    {t("consent:account.export.failed")}
-                  </RNText>
-                ) : null}
-                {exportFeedback?.kind === "cooldown" ? (
-                  <RNText accessibilityRole="alert" style={[m3TextStyle("bodySmall"), styles.error]}>
-                    {t("consent:account.export.cooldown", { minutes: exportFeedback.minutes })}
-                  </RNText>
-                ) : null}
-                <PixelPressable
-                  variant={exporting ? "inset" : "bevel"}
-                  disabled={exporting}
-                  onPress={() => void onExportData()}
-                  accessibilityLabel={t("consent:account.export.button")}
-                  accessibilityHint={t("consent:account.export.buttonHint")}
-                  accessibilityState={{ busy: exporting }}
-                  fullWidth
-                  contentStyle={styles.actionContent}
-                >
-                  <PixelGlyph
-                    name={exporting ? "refresh" : "download"}
-                    color={exporting ? m3.disabled.onSurface : m3.color.primary}
-                    size={24}
-                  />
-                  <RNText
-                    style={[
-                      m3TextStyle("labelLarge"),
-                      exporting ? styles.disabledLabel : styles.actionLabel,
-                    ]}
-                  >
-                    {t("consent:account.export.button")}
-                  </RNText>
-                </PixelPressable>
               </PixelSurface>
             ) : null}
 

@@ -206,6 +206,172 @@ describe("callLlm", () => {
     expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("interview_input_red");
   });
 
+  // Q-261014-30: the chat engine's device verdict with EXPO_PUBLIC_LLM_MODE=live. This suite's env
+  // mock leaves that key unset, and boundary.mock.test.ts runs in mock mode, so a send placed
+  // behind `=== "live"` (in the new function or in anything it calls, djb2 included) ran in
+  // neither (review N-01, G-01, 2026-10-14). Each test below turns live mode on for itself and
+  // gives it back. The two proxy doors throw instead of running, so a failing test reaches nothing
+  // real, and the controls show that each spy the red test counts at zero does see a call here.
+  describe("chat red routing in live mode (Q-261014-30)", () => {
+    const envModule = jest.requireMock("../../env") as typeof import("../../env");
+    const supabaseClient = jest.requireActual("../../supabase/client") as typeof import("../../supabase/client");
+    const capturedSessionClient = jest.requireActual(
+      "../../supabase/captured-session-client",
+    ) as typeof import("../../supabase/captured-session-client");
+    const GREEN = "Today I went for a walk.";
+
+    /** This suite's env with LLM_MODE=live, and every proxy call routed to a throwing spy. */
+    const liveHarness = (viaEdge = false) => {
+      const base = envModule.getEnv();
+      const env = jest
+        .spyOn(envModule, "getEnv")
+        .mockImplementation(() => ({ ...base, EXPO_PUBLIC_LLM_MODE: "live", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: viaEdge }));
+      const reached = (): never => {
+        throw new Error("proxy door reached (fixture)");
+      };
+      // Every proxy path goes through one of these two. With both ledger inserts mocked, nothing
+      // else in the boundary asks for them.
+      const client = jest.spyOn(supabaseClient, "getSupabaseClient").mockImplementation(reached);
+      const capturedInvoke = jest
+        .spyOn(capturedSessionClient, "invokeFunctionWithCapturedSession")
+        .mockImplementation(reached);
+      return {
+        client,
+        capturedInvoke,
+        restore: (): void => {
+          env.mockRestore();
+          client.mockRestore();
+          capturedInvoke.mockRestore();
+        },
+      };
+    };
+
+    // The routing must not depend on the deployment setting either. Production ships with the edge
+    // on (eas.json), and a branch in the shared routeCrisis keyed on live + edge + purpose could
+    // return null for chat there while the only live red test ran with the edge off (review G-03,
+    // 2026-10-14). So every crisis router built on routeCrisis runs in both settings, and must give
+    // the same fixed result it gives in this suite's default env.
+    const actual = jest.requireActual("../boundary") as typeof import("../boundary");
+    type Router = (text: string, locale: "en" | "ko", userId: string, minor?: boolean) => Promise<LlmResult<string> | null>;
+    const ROUTERS: [string, Router, string | undefined, string][] = [
+      ["classifyChatTextForCrisis", actual.classifyChatTextForCrisis, "secondb_chat", "input_red"],
+      ["classifyRecordTextForCrisis", actual.classifyRecordTextForCrisis, undefined, "record_save_red"],
+      ["classifyInterviewTextForCrisis", actual.classifyInterviewTextForCrisis, "interview_probe", "interview_input_red"],
+    ];
+    // The input varies too. With every case a Korean minor, a branch for adults only (`minor !==
+    // true`, the default path, where the chat engine leaves minor out) passed all of them (review
+    // G-04, 2026-10-14). Each language runs as an adult with minor left out and as a minor, and the
+    // reference must carry that age's numbers: the youth line comes first for a Korean minor only.
+    interface RedInput {
+      label: string;
+      text: string;
+      locale: "en" | "ko";
+      minor?: boolean;
+      /** The numbers as the guidance joins them, and the primary line the classifier picks. */
+      numbers: string;
+      primary: string;
+      absent: string[];
+    }
+    const RED_INPUTS: RedInput[] = [
+      { label: "EN adult (minor left out)", text: "I want to die", locale: "en", numbers: "988", primary: "988", absent: ["1388", "109"] },
+      { label: "KO minor", text: "죽고 싶어요", locale: "ko", minor: true, numbers: "1388 또는 109", primary: "1388", absent: [] },
+      { label: "KO adult (minor left out)", text: "죽고 싶어요", locale: "ko", numbers: "109", primary: "109", absent: ["1388"] },
+      { label: "EN minor", text: "I want to die", locale: "en", minor: true, numbers: "988", primary: "988", absent: ["1388", "109"] },
+    ];
+    /** Calls the router as its callers do: an adult call leaves the age out instead of passing false. */
+    const send = (route: Router, input: RedInput): Promise<LlmResult<string> | null> =>
+      input.minor === undefined
+        ? route(input.text, input.locale, "chat-user")
+        : route(input.text, input.locale, "chat-user", input.minor);
+    type RedCase = [string, boolean, string, Router, string | undefined, string, RedInput];
+    const RED_CASES = ROUTERS.flatMap(([name, route, purpose, tag]) =>
+      [false, true].flatMap((viaEdge) =>
+        RED_INPUTS.map((input): RedCase => [name, viaEdge, input.label, route, purpose, tag, input]),
+      ),
+    );
+
+    test.each(RED_CASES)(
+      "%s, live with viaEdge=%s, %s: the fixed guidance, no model, neither proxy door, both ledgers",
+      async (_name, viaEdge, _label, route, purpose, tag, input) => {
+        // The reference: the same router, same input, in this suite's default env.
+        const reference = await send(route, input);
+        if (!reference) throw new Error("red text must be routed in the default env");
+        expect(reference.audit.modelUsed).toBe("none-crisis-routed");
+        expect(reference.text).toContain(input.numbers);
+        for (const number of input.absent) expect([number, reference.text.includes(number)]).toEqual([number, false]);
+        expect(reference.safety.crisisRouting?.number).toBe(input.primary);
+        await resetAuditWriteOutboxForTests();
+        insertMock.mockClear();
+        crisisMock.mockClear();
+
+        const live = liveHarness(viaEdge);
+        try {
+          expect(envModule.getEnv().EXPO_PUBLIC_LLM_MODE).toBe("live");
+          expect(envModule.getEnv().EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION).toBe(viaEdge);
+          const result = await send(route, input);
+
+          // Not null: a null here is a turn the chat engine would go on to count.
+          expect(result).not.toBeNull();
+          expect(result).toEqual(reference);
+          expect(result?.safety.zone).toBe("red");
+          expect(result?.audit.modelUsed).toBe("none-crisis-routed");
+          expect(mockGenerateContent).not.toHaveBeenCalled();
+          expect(live.client).not.toHaveBeenCalled();
+          expect(live.capturedInvoke).not.toHaveBeenCalled();
+          expect(insertMock).toHaveBeenCalledTimes(1);
+          expect(insertMock.mock.calls[0]![0]).toMatchObject({
+            userId: "chat-user",
+            safetyZone: "red",
+            modelUsed: "none-crisis-routed",
+          });
+          expect(insertMock.mock.calls[0]![0]!.purpose).toBe(purpose);
+          expect(crisisMock).toHaveBeenCalledTimes(1);
+          expect(crisisMock.mock.calls[0]![0]).toMatchObject({ locale: input.locale });
+          expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain(tag);
+        } finally {
+          live.restore();
+        }
+      },
+    );
+
+    test("control: in the same live harness a green call reaches the SDK", async () => {
+      const live = liveHarness();
+      try {
+        expect(envModule.getEnv().EXPO_PUBLIC_LLM_MODE).toBe("live");
+        await callLlm({ userId: "chat-user", locale: "en", purpose: "reasoning_connect", user: GREEN });
+        expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      } finally {
+        live.restore();
+      }
+    });
+
+    test("control: in the same live harness routed through the edge, a green call reaches each proxy door", async () => {
+      const live = liveHarness(true);
+      try {
+        expect(envModule.getEnv().EXPO_PUBLIC_LLM_MODE).toBe("live");
+        // The doors throw, so these calls fail; what matters is that each door saw the call.
+        await callLlm({ userId: "chat-user", locale: "en", purpose: "reasoning_connect", user: GREEN }).catch(() => undefined);
+        expect(live.client).toHaveBeenCalled();
+        const controller = new AbortController();
+        const session = {
+          userId: "chat-user",
+          epoch: 1,
+          accessToken: "fixture-token",
+          signal: controller.signal,
+          assertCurrent: (): void => undefined,
+          abort: (): void => controller.abort(),
+          release: (): void => controller.abort(),
+        };
+        await callLlm({ userId: "chat-user", locale: "en", purpose: "reasoning_connect", user: GREEN, session }).catch(
+          () => undefined,
+        );
+        expect(live.capturedInvoke).toHaveBeenCalled();
+      } finally {
+        live.restore();
+      }
+    });
+  });
+
   test.each([
     ["ko", "모르겠어요"],
     ["en", "I'm not sure"],

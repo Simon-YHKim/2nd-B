@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
 import * as classifier from "../../safety/classifier";
+import * as lexicon from "../../safety/lexicon";
 function edge(file: string, deps: Record<string, unknown>) {
   const exports: Record<string, unknown> = {};
   const code = ts.transpileModule(readFileSync(resolve(__dirname, "../../../..", file), "utf8"), {
@@ -14,9 +15,13 @@ function edge(file: string, deps: Record<string, unknown>) {
 }
 const axis = edge("supabase/functions/_shared/axis-key-name.ts", {});
 const crisisContext = edge("src/lib/safety/crisis-context.ts", {});
+const crisisLanguage = edge("src/lib/safety/crisis-language.ts", { "./lexicon": lexicon });
+const emergency = edge("src/lib/safety/emergency-routing.ts", { "./lexicon": lexicon });
 const common = edge("supabase/functions/_shared/llm-proxy-common.ts", {
   "./axis-key-name.ts": axis,
   "../../../src/lib/safety/crisis-context.ts": crisisContext,
+  "../../../src/lib/safety/crisis-language.ts": crisisLanguage,
+  "../../../src/lib/safety/emergency-routing.ts": emergency,
 });
 const consent = edge("supabase/functions/_shared/llm-consent.ts", {});
 const inputSafety = edge("supabase/functions/_shared/llm-input-safety.ts", {

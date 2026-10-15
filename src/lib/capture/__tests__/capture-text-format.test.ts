@@ -116,9 +116,11 @@ test.each([false, true])("selecting an active format is inert and switching reta
 test("the shared selector retains pixel surfaces outside the phone and iOS surfaces inside", () => {
   const backgrounds = () => mockHosts.map(host => (host.props.style as Record<string, unknown> | undefined)?.backgroundColor).filter(Boolean);
   harness(false).render();
-  expect(backgrounds()).toContain(m3.color.secondaryContainer);
+  // Z84 (2026-10-14): outside the phone the chosen cell is filled with the primary blue.
+  expect(backgrounds()).toContain(m3.color.primary);
+  expect(backgrounds()).not.toContain(m3.color.secondaryContainer);
   harness(true).render();
   expect(backgrounds()).toContain(phoneIos.fill);
   expect(backgrounds()).toContain(phoneIos.cell);
-  expect(backgrounds()).not.toContain(m3.color.secondaryContainer);
+  expect(backgrounds()).not.toContain(m3.color.primary);
 });

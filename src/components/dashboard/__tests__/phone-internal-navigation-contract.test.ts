@@ -83,7 +83,9 @@ test("source states, empty records, retry and a safe phone note remain explicit"
   expect(phone).toContain('t("phone.operational.sourceStates.empty")');
   expect(phone).toContain('accessibilityRole="alert"');
   expect(phone).toContain('withFollowup: false');
-  expect(phone).toContain('if (saved.followup?.zone === "red") setCrisisVisible(true)');
+  expect(phone).toContain('if (saved.followup?.zone === "red") {');
+  expect(phone).toContain("setCrisisHotline(saved.crisisHotline)");
+  expect(phone).toContain("setCrisisVisible(true)");
   expect(phone).toContain("<CrisisRouter visible={crisisVisible}");
 });
 

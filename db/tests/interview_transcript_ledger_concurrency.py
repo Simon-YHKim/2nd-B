@@ -200,7 +200,8 @@ def run(db):
     assert result.stdout.strip() == '1', 'D6R3-55: pre-close credit lost: ' + result.stdout
     print('PASS D6R3-55: a later-started verdict before close adds exactly one cell')
 
-    # D6R3-54: deletion and sweep take account -> session -> row locks in either order.
+    # D6R3-54: sweep takes account first. Direct Auth DELETE already holds its
+    # parent row, so PR2526-R1-01 returns a whole-transaction retry on contention.
     for deletion_first in (True, False):
         owner = str(uuid.uuid4())
         sql(db, f"""SET session_replication_role=replica;
@@ -237,7 +238,17 @@ def run(db):
             finally:
                 holder.close()
         else:
-            ordered(db, 'SELECT public.sweep_interview_sessions();', delete, '', first_service=True)
+            holder = Connection(db)
+            try:
+                holder.query('BEGIN;' + auth(True) + 'SELECT public.sweep_interview_sessions();')
+                result = sql(db, delete, check=False)
+                assert result.returncode != 0 and '40001' in result.stderr and 'interview_account_busy_retry' in result.stderr, result.stderr
+                assert '40P01' not in result.stderr
+                assert sql(db, f"SELECT count(*) FROM auth.users WHERE id='{owner}';").stdout.strip() == '1'
+                holder.query('COMMIT;')
+            finally:
+                holder.close()
+            sql(db, delete)
         assert sql(db, f"SELECT count(*) FROM public.interview_sessions WHERE id='{f['session']}';").stdout.strip() == '0'
         assert sql(db, f"SELECT count(*) FROM public.ai_audit_log WHERE id='{f['audit']}' AND user_id IS NULL AND prompt_hash='' AND output_hash='';").stdout.strip() == '1'
     print('PASS D6R3-54: sweep/account deletion in both orders without deadlock or leftover hashes')

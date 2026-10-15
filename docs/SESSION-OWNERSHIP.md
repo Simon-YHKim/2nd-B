@@ -120,7 +120,11 @@ migration과 현재 Edge 함수가 모두 정상인 상태를 만든 뒤에만 �
    - `claim_reward_ssv_issue_rate_limit(uuid)`
    - `issue_reward_ssv_ticket(uuid,text,text,text,integer,text)`
    - `claim_reward_ssv_callback_attempt(text,text,text,integer,text)`
-   - `settle_reward_ssv_ticket_v2(text,text,text,integer,text)`
+   - `settle_reward_ssv_ticket_v3(text,text,text,integer,text,bigint)` (0213 · 2026-10-15 운영 Edge v104도 호출 확인).
+     0214 뒤로 `settle_reward_ssv_ticket_v2(text,text,text,integer,text)` 는 v3 안에서만 쓰이고
+     `service_role` 도 직접 실행할 수 없어야 한다(0214는 v2를 통한 신선도 검사 우회를 닫는다).
+     기존 `grant_reward_credits_ssv`·`grant_chat_ad_bonus_ssv`의 service_role 직접 권한은 별도 잔여
+     경로다. [재대조와 후속](handoff/SSV-RECHECK-261015.md)을 함께 확인한다.
    기존 `consume_reward_ssv_ticket(text,uuid,text,text,integer,text)`와
    `grant_chat_ad_bonus(uuid)`·`bump_reward_credits_if_under_cap(uuid,text,integer)`는
    공개 역할과 `service_role` 모두 실행할 수 없어야 한다. 함수 이름 존재만으로 0172 적용을

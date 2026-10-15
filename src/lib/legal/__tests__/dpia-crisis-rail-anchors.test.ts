@@ -98,7 +98,7 @@ const ANCHORS: Anchor[] = [
     why: "미성년 라우팅이 실제로 핫라인 목록을 부르는 자리." },
   { cite: `${C}:71-80`, symbol: "crisisHotlines",
     why: "(locale, minor) → 핫라인 표시 순서." },
-  { cite: `${C}:74-76`, symbol: "KR_1388",
+  { cite: `${C}:76-78`, symbol: "KR_1388",
     why: "미성년에게 1388 이 먼저 온다는 주장. 순서가 주장의 내용이다." },
   { cite: `${C}:71-91`, symbol: "1388",
     why: "⚠ 이 앵커는 **산문 낱말을 일부러 심볼로 쓴다.** 다른 앵커에서는 금기지만 여기서는 그게 목적이다 - 문서가 미성년 라우팅을 여덟 자리에서 주장하며 전부 '1388' 이라고 산문으로 적고, 그중 한 자리가 `:58-67`(주석 블록)을 가리키고 있었다. 심볼이 `KR_1388` 이면 산문 '1388' 과 안 겹쳐서 그 자리는 **한 번도 대조되지 않는다.** 산문 낱말로 잡아야 여덟 자리 전부가 검사에 들어온다. 주석을 걷은 뒤에도 남아야 하므로(evidence 기본값) 주석에 적힌 `1388` 로는 통과할 수 없다." },
@@ -461,8 +461,9 @@ test("홈 머리 누르기는 유휴 표정을 지우는 이벤트를 보내지 
   // 여기서 빨개지고, 그때는 문서 문장을 다시 넓혀야 한다.
   //
   // 시야(넓혀 말하지 않는다): 머리의 onPress 가 사는 홈 파일과 reveal 이 사는 대사
-  // 타자기 파일뿐이다. 코치 단계의 onCoachHeadPress 는 DeepSpaceShell 이 넘기는
-  // `/capture` 이동이고, 그 화면에서 저장하면 반응이 간다 - 그건 문서가 말하는 '저장' 이다.
+  // 타자기 파일뿐이다. 첫 기록 안내의 `/capture` 이동은 2026-10-14 부터 머리가 아니라
+  // 아래 탭 「스크랩」에서 나간다(DeepSpaceShell 의 onDockSelect · Z70). 그 화면에서 저장하면
+  // 반응이 간다 - 그건 문서가 말하는 '저장' 이다.
   const HOME = "src/components/deep-space/ConstellationHome.tsx";
   const PRESS_PATH = [HOME, "src/components/deep-space/JrpgDialogueBox.tsx"];
   const WAKE = /\b(?:reactExpression|holdExpression)\s*\(/;

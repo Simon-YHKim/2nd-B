@@ -131,6 +131,38 @@ describe("where a long answer is cut", () => {
     expect(title).toBe(`지금 · ${fill(STORY_TITLE_ANSWER_LENGTH - 1)}…`);
   });
 
+  test("not between the two halves of a flag", () => {
+    const korea = "\u{1f1f0}\u{1f1f7}";
+    const japan = "\u{1f1ef}\u{1f1f5}";
+    // The limit falls inside the first flag: the whole flag goes.
+    expect(storyTitle("지금", [`${fill(STORY_TITLE_ANSWER_LENGTH - 1)}${korea}${fill(4)}`])).toBe(
+      `지금 · ${fill(STORY_TITLE_ANSWER_LENGTH - 1)}…`,
+    );
+    // The limit falls between two flags: the first one stays whole.
+    expect(storyTitle("지금", [`${fill(STORY_TITLE_ANSWER_LENGTH - 2)}${korea}${japan}${fill(4)}`])).toBe(
+      `지금 · ${fill(STORY_TITLE_ANSWER_LENGTH - 2)}${korea}…`,
+    );
+    // Three flags in a row, the limit inside the second.
+    expect(storyTitle("지금", [`${fill(STORY_TITLE_ANSWER_LENGTH - 3)}${korea}${japan}${korea}`])).toBe(
+      `지금 · ${fill(STORY_TITLE_ANSWER_LENGTH - 3)}${korea}…`,
+    );
+  });
+
+  test("not inside a flag written with tag letters", () => {
+    const england = "\u{1f3f4}\u{e0067}\u{e0062}\u{e0065}\u{e006e}\u{e0067}\u{e007f}";
+    for (const lead of [STORY_TITLE_ANSWER_LENGTH - 1, STORY_TITLE_ANSWER_LENGTH - 3, STORY_TITLE_ANSWER_LENGTH - 6]) {
+      expect(storyTitle("지금", [`${fill(lead)}${england}${fill(8)}`])).toBe(`지금 · ${fill(lead)}…`);
+    }
+  });
+
+  test("not between two consonants joined into one", () => {
+    // Devanagari "ksha": ka + virama + ssa is one visible character.
+    const ksha = "\u0915\u094d\u0937";
+    for (const lead of [STORY_TITLE_ANSWER_LENGTH - 1, STORY_TITLE_ANSWER_LENGTH - 2]) {
+      expect(storyTitle("지금", [`${fill(lead)}${ksha}${fill(6)}`])).toBe(`지금 · ${fill(lead)}…`);
+    }
+  });
+
   test("a Hangul syllable typed as separate jamo counts as one character", () => {
     const decomposed = "한".normalize("NFD");
     expect(Array.from(decomposed).length).toBe(3);
@@ -183,6 +215,8 @@ describe("the save screen (Z61 · Z63 · the folded table of Z64)", () => {
 
   test("the table is folded behind the line that says what was done today", () => {
     expect(done).toContain("accessibilityState={{ expanded: tableOpen }}");
+    // The web does not carry `accessibilityState.expanded` over, so the row says it itself.
+    expect(done).toContain("aria-expanded={tableOpen}");
     expect(done).toMatch(/\{tableOpen \? \(\s*<DrillProgress/);
     expect(SCREEN).toContain("const [tableOpen, setTableOpen] = useState(false);");
   });

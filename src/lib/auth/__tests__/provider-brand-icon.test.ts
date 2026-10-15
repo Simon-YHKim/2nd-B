@@ -13,7 +13,7 @@ describe("D6 provider icons", () => {
 
   test.each(["sign-in", "sign-up"])("%s uses the same brand renderer", (screen) => {
     const source = read(`src/screens/deepspace/dds-${screen}-screen.tsx`);
-    expect(source).toContain('import { ProviderBrandIcon } from "@/components/auth/ProviderBrandIcon"');
+    expect(source).toMatch(/import \{ ProviderBrandIcon(, useProviderColumns)? \} from "@\/components\/auth\/ProviderBrandIcon"/);
     expect(source).toContain("<ProviderBrandIcon provider={provider} />");
     expect(source).not.toMatch(/function ProviderBrandIcon|PROVIDER_MARK|styles\.providerMark/);
   });

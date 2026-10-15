@@ -848,6 +848,14 @@ const USER_HOME_NAVIGATIONS: readonly (HomeNavOccurrence & { why: string })[] = 
     file: "src/components/deep-space/DeepSpaceViews.tsx",
     kind: "replace",
     owner: "CaptureView",
+    guard: "",
+    before: "setCoachStep(null);",
+    why: "다시 보는 안내의 마지막 '별자리로 가기'(사람이 누른다 · Z72 · 2026-10-14). 저장하지 않고 끝낸다.",
+  },
+  {
+    file: "src/components/deep-space/DeepSpaceViews.tsx",
+    kind: "replace",
+    owner: "CaptureView",
     guard: "then:coachStep === \"done\"",
     before: "",
     why: "첫 기록 안내의 마지막 '홈으로'(사람이 누른다).",
@@ -1606,17 +1614,16 @@ const NO_GUARD_SCREENS: readonly NoGuardScreen[] = [
     clean: {
       busy: false,
       saving: false,
-      crisis: { visible: false, hotline: "KR_109" },
       draft: "",
       turns: [{ role: "interviewer", text: "q" }],
     },
     holds: [
       ["질문 요청 중", { busy: true }],
       ["저장 요청 중", { saving: true }],
-      ["안전 안내 창", { crisis: { visible: true, hotline: "KR_109" } }],
       ["쓰던 답", { draft: "그때" }],
       ["담기 전 대화", { turns: [{ role: "interviewer", text: "q" }, { role: "user", text: "a" }] }],
     ],
+    // AppCrisisHost owns guidance outside this route; leaving cannot lose it.
     // 질문만 받고 아무 답도 안 한 대화, 공백뿐인 입력은 잃을 것이 없다.
     free: [["공백 입력", { draft: "   " }]],
   },
