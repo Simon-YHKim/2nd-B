@@ -179,21 +179,25 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
         return boundary;
       },
     }, "({...exports, parseProbeReply})");
+    let coverage = probe.emptyCoverage(), pendingLayer: Probe.DrillLayer | null = "fact", streak = 0;
     const ask = evaluate<(...args: unknown[]) => Promise<void>>(`const ask = ${askText}`, {
       userId: "synthetic-offline", period: sample.period, locale: sample.locale, isMinor: sample.minor,
       concreteOnly: false, ended: { current: false }, mounted: { current: true },
       captureAccountOwnerLease: () => ({ isCurrent: () => true }), entriesOf: () => [],
       ...stuck, ...continuity, nextMove: probe.nextMove, incrementCoverage: probe.incrementCoverage,
+      usableQuestion: probe.usableQuestion, stuckStreak: 0,
       nextProbe: async (...args: Parameters<typeof probe.nextProbe>) => { lastProbe = await probe.nextProbe(...args); return lastProbe; },
       hotlineFor: () => classifier.crisisHotlines(sample.locale, sample.minor)[0].id,
       publishCrisisNotice: (_owner: unknown, id: HotlineId) => { guidance = id; }, finish: () => { finished = true; },
       t: (key: string) => key, setTurns: (rows: Probe.InterviewTurn[]) => { visible = rows; },
       setOpeners: (rows: string[]) => { openers = rows; }, setNotice: (value: string | null) => { notice = value; },
-      setBusy: () => {}, setPendingLayer: () => {}, setCoverage: () => {}, setStuckStreak: () => {},
+      setBusy: () => {}, setPendingLayer: (layer: Probe.DrillLayer | null) => { pendingLayer = layer; },
+      setCoverage: (value: Probe.Coverage) => { coverage = value; }, setStuckStreak: (value: number) => { streak = value; },
       readDayLimitRefusal: async () => false, setDayLimited: () => {}, INTERVIEW_PURPOSE: "interview_probe",
     }, "ask");
     await ask(history, probe.emptyCoverage(), null, [], continuity.canCreditAnswer(sample.text, "fact", sample.locale) ? "fact" : null);
     if (forbiddenAttempts) throw new Error("Offline adapter attempted a forbidden capability");
+    if (notice === "drill.failed") throw new Error(`Adapter screen failed on a fixed reply: ${sample.id}`);
     if (adapterCalls !== 1 || !prompt || !boundary || !lastProbe) throw new Error(`Adapter did not complete actual nextProbe: ${sample.id}`);
     // TS cannot infer assignments made inside the callbacks above; copy through typed slots.
     const captured = { prompt, boundary, probe: lastProbe } as { prompt: Prompt; boundary: BoundaryReply; probe: Probe.ProbeResult };
@@ -221,6 +225,8 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
         schemaSha256: sha(JSON.stringify(captured.prompt.responseSchema)), purpose: captured.prompt.purpose, minor: captured.prompt.minor },
       parsed: clone(parsed), strictSchemaIssues: schemaIssues, boundary: clone(captured.boundary), probe: clone(captured.probe),
       screen: { visibleQuestion, openers: clone(openers), notice, guidanceIntent: guidance, finished,
+        pendingLayer, stuckStreak: streak, coverage: clone(coverage),
+        lastUserAnswered: visible.filter(turn => turn.role === "user").at(-1)?.answered,
         modalNumberIntent, actualModalRendered: false, numbers: screenNumbers,
         fixedFactScaffold: visibleQuestion === stuck.scaffoldQuestion("fact", sample.locale, 1) },
       checks: { rawQuestionLength: question.length, questionChangedByProbe: captured.probe.question !== question,

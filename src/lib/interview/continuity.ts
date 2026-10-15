@@ -41,5 +41,8 @@ export function currentScene(history: readonly InterviewTurn[]): InterviewTurn[]
 export function confirmedAnswer(
   text: string, askedLayer: DrillLayer, locale: "en" | "ko", judgedLayer: DrillLayer | null | undefined,
 ): boolean {
-  return canCreditAnswer(text, askedLayer, locale) && judgedLayer === askedLayer;
+  // Q5 (2026-10-07): a successful response without a verdict follows the local
+  // judgement. Explicit none and another named layer cannot award this layer.
+  return canCreditAnswer(text, askedLayer, locale)
+    && (judgedLayer === undefined || judgedLayer === askedLayer);
 }

@@ -81,8 +81,10 @@ describe("scene continuity and choice", () => {
     expect(canCreditAnswer("Sad", "feeling", "en")).toBe(true);
     expect(canCreditAnswer("서운했어요", "feeling", "ko")).toBe(true);
     expect(confirmedAnswer("Sad", "feeling", "en", "feeling")).toBe(true);
-    expect(confirmedAnswer("Sad", "feeling", "en", undefined)).toBe(false);
+    expect(confirmedAnswer("Sad", "feeling", "en", undefined)).toBe(true);
+    expect(confirmedAnswer("Sad", "feeling", "en", null)).toBe(false);
     expect(confirmedAnswer("yes", "fact", "en", "fact")).toBe(false);
+    expect(confirmedAnswer("yes", "fact", "en", undefined)).toBe(false);
     expect(confirmedAnswer(scene[1]!.text, "fact", "en", "meaning")).toBe(false);
   });
 

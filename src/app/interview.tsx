@@ -79,6 +79,7 @@ import {
   incrementCoverage,
   nextMove,
   nextProbe,
+  usableQuestion,
   type Coverage,
   type DrillLayer,
   type InterviewTurn,
@@ -383,7 +384,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       /** 직전 턴에서 못 답한 층과 그 층에서의 연속 횟수. */
       stuck: { layer: DrillLayer; streak: number } | null = null,
       giveUp: DrillLayer[] = [],
-      /** Local sufficiency passed; credit still waits for the model's confirmation. */
+      /** Local sufficiency passed; credit waits for a successful, safe response. */
       credited: DrillLayer | null = null,
     ) => {
       if (!userId || ended.current) return;
@@ -450,12 +451,28 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         const confirmed = credited && lastAnswer
           ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)
           : false;
+        const otherLayer = credited && probe.answeredLayer != null && probe.answeredLayer !== credited;
         const assessed = history.map((turn, index) => index === history.length - 1 && turn.role === "user"
-          ? { ...turn, answered: Boolean(confirmed) }
+          ? { ...turn, answered: otherLayer ? null : Boolean(confirmed) }
           : turn);
-        // Nothing is added on a sparse answer, missing judgement, failure, or stop.
+        // Missing verdicts in successful responses follow the local gate (Q5).
+        // Sparse answers, explicit none, other layers, errors and stops add nothing.
         // The model cannot award another layer or override the local gate.
         if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));
+        if (credited && otherLayer) {
+          // The model drafted for an optimistic next layer in the same request.
+          // Discard that question/openers. Stay on the asked layer without a miss
+          // or another model call. Exhausted local alternatives retain the current
+          // question instead of turning this neutral verdict into an automatic end.
+          const question = usableQuestion("", assessed, credited, locale);
+          setTurns(question
+            ? [...assessed, { role: "interviewer", text: question, layer: credited, period }]
+            : assessed);
+          setPendingLayer(credited);
+          setStuckStreak(stuckStreak);
+          setOpeners([]);
+          return;
+        }
         // 장면 완료(`finish`)는 `nextMove` 가 판정을 기다리는 이 답을 인정된다고 보고 낸 수다.
         // 그래서 판정이 인정일 때만 끝낸다(게이트 LAST-01). 인정 못 받았으면 아래 갈래가 같은 층에
         // 발판을 놓거나, 그 층에서 세 번째면 대화를 끝낸다. 마지막 층도 다른 층과 같다.
@@ -513,7 +530,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         if (owner.isCurrent() && mounted.current) setBusy(false);
       }
     },
-    [userId, period, locale, isMinor, entriesOf, hotlineFor, t, concreteOnly, finish],
+    [userId, period, locale, isMinor, entriesOf, hotlineFor, t, concreteOnly, finish, stuckStreak],
   );
 
   // 첫 질문은 **LLM 을 부르지 않는다.**

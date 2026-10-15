@@ -78,9 +78,9 @@ export interface InterviewTurn {
   period?: LifePeriod;
   /** Session-only metadata, no change to stored transcript/schema. */
   sceneStart?: boolean;
-  /** Session-only: true = this answer earned its layer's cell, false = it did not.
-   *  Unset = no verdict yet: the answer the screen is sending now, or one that never got one. */
-  answered?: boolean;
+  /** Session-only: true = credited, false = a miss, null = another named layer
+   *  (neither credit nor miss). Unset = awaiting a response, or failed/unsettled. */
+  answered?: boolean | null;
   /** Session-only: the request that carried this answer failed (network or server error), so it
    *  has no verdict. It is neither progress nor a miss; the screen asks again at the same layer. */
   unsettled?: boolean;
@@ -246,8 +246,8 @@ export function nextMove(
     // 은 인정 여부와 상관없이 답을 세서, 두 층에서 막혔다 회복한 사람의 장면을 울림(L5)을
     // 묻기도 전에 끊었다. 장면을 끝내는 것은 인정된 진전(아래 `isPeriodComplete`: 다섯 층이 모두
     // 인정됨)과 원래 있던 규칙들이다 -- 거절(위), 막힘(아래 `stuck`), 화면의 판정 경로에서 한
-    // 층을 세 번 인정받지 못함(interview.tsx). 그래서 장면 안의 판정 호출은 층마다 세 번이 넘지 않는다.
-    // 마지막 층도 같다 -- 다섯 층 x 3 = 장면당 판정 호출 15회가 상한이다(게이트 LAST-01).
+    // 층을 세 번 명시적으로 인정받지 못함(interview.tsx). 다른 층 판정은 그 셈 밖이다(Q5).
+    // 인정/명시적 불인정만 세면 층마다 세 번, 다섯 층 x 3 = 15회다(게이트 LAST-01).
     if (abandoned.length === DRILL_LAYERS.length) return { kind: "finish" };
     if (stuck) return shouldScaffold(stuck.streak)
       ? { kind: "scaffold", layer: stuck.layer }
@@ -463,8 +463,8 @@ export interface ProbeResult {
    * 직전 답이 **실제로** 어느 층에 닿았는지에 대한 모델의 판정. 닿은 데가 없으면
    * `null`. 직전 답이 아예 없으면 `undefined`.
    *
-   * 화면은 결정론적 적합성과 이 판정이 모두 확인된 뒤에만 물었던 층을 더한다.
-   * 모델이 다른 층을 지목하거나 판정이 없으면 더하지 않는다. 저장 원문은 그대로다.
+   * 성공 응답에서 판정이 없으면 로컬 적합성을 따른다. 다른 층을 지목하면 물었던
+   * 층을 더하지도 실패로 세지도 않는다. 통신 실패와 위기는 별도 경로다. 저장 원문은 그대로다.
    */
   answeredLayer?: DrillLayer | null;
 }
@@ -590,7 +590,7 @@ function lastAskedLayer(history: readonly InterviewTurn[]): DrillLayer | null {
   return null;
 }
 
-/** Missing and negative judgements stay distinct; neither can confirm coverage. */
+/** Missing follows the local judgement; explicit none remains a veto. */
 function readAnsweredLayer(parsed: ProbeReply | null): DrillLayer | null | undefined {
   const v = parsed?.answeredLayer;
   if (typeof v !== "string") return undefined;
