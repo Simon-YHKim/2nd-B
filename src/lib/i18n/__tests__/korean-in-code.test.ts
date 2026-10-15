@@ -52,6 +52,7 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/safety/emergency-routing.ts": "앱과 Edge 공용 한국어 문법 규칙 및 ko/en 고정 긴급 안내. 런타임 i18n 없이 같은 안내를 반환하며 각 UI 언어의 번호·본문은 emergency-dialog 검사로 대조",
   "src/lib/safety/lexicon.ts": "금지어 패턴 (안전 분류기 입력)",
   "src/lib/safety/crisis-context.ts": "의도 부인과 업무·휴식 문맥을 판별하는 한국어 문법 규칙. 사용자에게 표시하는 문구가 아님",
+  "src/lib/interview/continuity.ts": "승인된 한국어 장소 단답을 판별하는 닫힌 입력 문법. 사용자에게 표시하거나 번역하는 문구가 아님",
   "src/lib/interview/probe-contact-intent.ts": "안전 처리 뒤 모델 질문의 KO/EN 현재 연락 권유를 읽는 닫힌 입력 문법. 한국어 패턴은 번역하거나 화면에 표시하는 문구가 아님",
   "src/lib/safety/classifier.ts": "위기 입력 검사가 띄어쓰기를 일부만 뺀 꼴까지 읽는 위기 낱말의 이름 목록(Q-261015-80). 사용자에게 표시하는 문구가 아님",
   "src/lib/safety/model-reply-scan.ts": "모델 답 검사에서만 넘기는 닫힌 겹침 낱말 목록과 위기 낱말의 고정 번호표. 사용자에게 표시하는 문구가 아님",
