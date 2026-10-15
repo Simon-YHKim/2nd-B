@@ -3,10 +3,33 @@ import { resolve } from "node:path";
 import ts from "typescript";
 import { captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../lib/auth/account-epoch";
 import { dismissCrisisNotice, getCrisisNotice, publishCrisisNotice, subscribeCrisisNotice } from "../../lib/safety/crisis-notice";
-import { emptyCoverage, nextProbe } from "../../lib/interview/probe";
+import { emptyCoverage, nextProbe, type InterviewTurn, type ProbeResult } from "../../lib/interview/probe";
+import { resolveProbeGuidanceCopy } from "../../lib/interview/probe-guidance-copy";
+import type { AccountOwnerLease } from "../../lib/auth/account-epoch";
 import { callLlm } from "../../lib/llm/boundary";
 import type { CrisisObserver } from "../../lib/llm/types";
-import type { HotlineId } from "../../lib/safety/lexicon";
+import React from "react";
+import type { ScrollView, ScrollViewProps } from "react-native";
+import type { ScrollRevealRequest, useScrollMemory } from "../../lib/nav/scroll-memory";
+import { hookHarness } from "../../lib/nav/__tests__/hook-harness";
+import { INTERVIEW_PURPOSE } from "../../lib/interview/session-end";
+
+Object.assign(globalThis, { React });
+const { renderToStaticMarkup } = require("react-dom/server") as { renderToStaticMarkup(node: React.ReactNode): string };
+const mockGuidanceHosts: Array<{ type: string; props: Record<string, unknown> }> = [];
+const mockOpenDirectory = jest.fn();
+const mockFlatten = (style: unknown): Record<string, unknown> => Array.isArray(style)
+  ? Object.assign({}, ...style.map(mockFlatten)) : style && typeof style === "object" ? style as Record<string, unknown> : {};
+jest.mock("react-native", () => ({
+  Platform: { OS: "web", select: (values: Record<string, unknown>) => values.web ?? values.default },
+  StyleSheet: { create: (styles: unknown) => styles, flatten: (style: unknown) => mockFlatten(style), absoluteFill: {} },
+  Animated: { createAnimatedComponent: (component: unknown) => component }, Linking: { openURL: (url: string) => mockOpenDirectory(url) },
+  View: ({ children, ...props }: { children: React.ReactNode }) => { mockGuidanceHosts.push({ type: "view", props }); return React.createElement("div", null, children); },
+  Text: ({ children, ...props }: { children: React.ReactNode }) => { mockGuidanceHosts.push({ type: "text", props }); return React.createElement("span", null, children); },
+  Pressable: ({ children, ...props }: { children: React.ReactNode }) => { mockGuidanceHosts.push({ type: "pressable", props }); return React.createElement("button", null, children); },
+}));
+import { InterviewGuidanceRow } from "../../components/interview/InterviewGuidanceRow";
+import { PhoneView } from "../../components/phone/PhoneUIKit";
 
 // Same I/O seams as server-cap-egress: the probe, boundary, lexical classifier,
 // owner lease and root store stay real. No SDK/Edge/ledger call leaves this suite.
@@ -54,7 +77,10 @@ function callback(name: string, scope: Record<string, unknown>) {
   return new Function(...Object.keys(scope), `${js}\nreturn run;`)(...Object.values(scope));
 }
 
-function setup(resetOwner = true) {
+type Delivery = { requestId: number; guidance: NonNullable<ProbeResult["guidance"]>; owner: AccountOwnerLease;
+  instance: number; locale: string; token: object; ready: boolean };
+type DeliveryUpdate = Delivery | null | ((previous: Delivery | null) => Delivery | null);
+function setup(resetOwner = true, locale = "ko") {
   if (resetOwner) {
     noteResolvedOwner(null);
     noteResolvedOwner("A");
@@ -62,25 +88,300 @@ function setup(resetOwner = true) {
   }
   const old = getCrisisNotice();
   if (old) dismissCrisisNotice(old.id);
-  let settle!: (value: { zone: string; hotline?: HotlineId }) => void;
+  let settle!: (value: Partial<ProbeResult> & { zone: ProbeResult["zone"] }) => void;
   let reject!: (error: Error) => void;
-  const request = new Promise<{ zone: string; hotline?: HotlineId }>((yes, no) => { settle = yes; reject = no; });
+  const request = new Promise<Partial<ProbeResult> & { zone: ProbeResult["zone"] }>((yes, no) => { settle = yes; reject = no; });
+  let delivery: Delivery | null = null;
   const ended = { current: false };
   const mounted = { current: true };
   const scope = {
-    userId: "A", period: "work", locale: "ko", isMinor: false, concreteOnly: false,
+    userId: "A", period: "work", locale, isMinor: false, concreteOnly: false,
     ended, mounted, captureAccountOwnerLease, publishCrisisNotice,
     interviewInstance: { current: 1 }, probeRequest: { current: 0 }, turnsOwnerRef: { current: [] as unknown[] },
+    guidanceRef: { current: null as Delivery | null }, lastGuidanceRequest: { current: 0 },
+    guidanceScroll: { current: { pending: null as object | null, accepted: null as object | null } },
+    resolveProbeGuidanceCopy, isGuidanceCurrent: (_value: Delivery): boolean => false,
+    setGuidanceDelivery: jest.fn((next: DeliveryUpdate) => { delivery = typeof next === "function" ? next(delivery) : next; }),
     nextMove: jest.fn(() => ({ kind: "drill", layer: "fact" })),
     entriesOf: jest.fn(() => []), nextProbe: jest.fn((..._args: unknown[]) => request),
     hotlineFor: () => "KR_109", t: (key: string) => key,
     setBusy: jest.fn(), setNotice: jest.fn(), setDone: jest.fn(), setPendingLayer: jest.fn(), setOpeners: jest.fn(),
-    setTurns: jest.fn(), setCoverage: jest.fn(), setStuckStreak: jest.fn(), confirmedAnswer: jest.fn(), incrementCoverage: jest.fn(),
-    readDayLimitRefusal: jest.fn(async () => false), setDayLimited: jest.fn(), finish: jest.fn(),
+    setTurns: jest.fn((_value: InterviewTurn[]) => {}), setCoverage: jest.fn(), setStuckStreak: jest.fn(), confirmedAnswer: jest.fn(), incrementCoverage: jest.fn(),
+    INTERVIEW_PURPOSE, readDayLimitRefusal: jest.fn(async () => false), setDayLimited: jest.fn(), finish: jest.fn(),
   };
+  scope.isGuidanceCurrent = callback("isGuidanceCurrent", scope);
   scope.finish = jest.fn(callback("finish", scope));
-  return { scope, settle, reject, ask: callback("ask", scope) };
+  return { scope, settle, reject, ask: callback("ask", scope), get delivery() { return delivery; } };
 }
+
+function evaluateExpression(text: string, scope: Record<string, unknown>) {
+  const js = ts.transpileModule(`const result = (${text});`, { fileName: "screen-fixture.tsx", compilerOptions: {
+    target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React,
+  } }).outputText;
+  return new Function(...Object.keys(scope), `${js}\nreturn result;`)(...Object.values(scope));
+}
+function initializer(name: string, scope: Record<string, unknown>) {
+  let found: ts.VariableDeclaration | undefined;
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && node.name.getText(source) === name) found = node;
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  if (!found?.initializer) throw new Error(`Missing actual initializer ${name}`);
+  return evaluateExpression(found.initializer.getText(source), scope);
+}
+function actualEffect(needle: string, scope: Record<string, unknown>) {
+  let found: ts.Node | undefined;
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && ["useEffect", "useLayoutEffect"].includes(node.expression.getText(source))
+      && node.arguments[0]?.getText(source).includes(needle)) found = node.arguments[0];
+    ts.forEachChild(node, visit);
+  };
+  visit(source); if (!found) throw new Error(`Missing actual effect ${needle}`);
+  return evaluateExpression(found.getText(source), scope) as () => void | (() => void);
+}
+function guidanceRuntime(h: ReturnType<typeof setup>) {
+  const display = initializer("guidanceDisplay", { ...h.scope, guidanceDelivery: h.delivery });
+  const scope = { ...h.scope, guidanceDisplay: display };
+  const ready = callback("markGuidanceReady", scope), dismiss = callback("dismissGuidance", scope);
+  const cancel = callback("cancelGuidanceReveal", scope);
+  const priority = initializer("priorityReveal", { ...scope, cancelGuidanceReveal: cancel }) as ScrollRevealRequest | null;
+  const render = () => {
+    let element: ts.JsxExpression | undefined;
+    const visit = (node: ts.Node) => {
+      if (ts.isJsxExpression(node) && node.expression && ts.isConditionalExpression(node.expression)
+        && node.expression.condition.getText(source) === "guidanceDisplay") element = node;
+      ts.forEachChild(node, visit);
+    };
+    visit(source); if (!element?.expression) throw new Error("Missing actual guidance row expression");
+    const parent = element.parent;
+    expect(ts.isJsxElement(parent) && parent.openingElement.tagName.getText(source)).toBe("ScrollView");
+    if (!ts.isJsxElement(parent)) throw new Error("Guidance must be a shared ScrollView sibling");
+    const done = parent.children.findIndex(node => ts.isJsxExpression(node) && !!node.expression && ts.isConditionalExpression(node.expression)
+      && node.expression.condition.getText(source) === "done");
+    expect(done).toBeGreaterThan(parent.children.indexOf(element));
+    mockGuidanceHosts.length = 0;
+    const tree = evaluateExpression(element.expression.getText(source), { guidanceDisplay: display, React, View: PhoneView,
+      InterviewGuidanceRow, markGuidanceReady: ready, dismissGuidance: dismiss });
+    return renderToStaticMarkup(tree);
+  };
+  return { display, ready, dismiss, cancel, priority, render };
+}
+const contact: NonNullable<ProbeResult["guidance"]> = { kind: "contacts", contacts: ["KR_109"], physicalUrgency: false, corrections: [] };
+async function acceptGuidance(h: ReturnType<typeof setup>, value = contact) {
+  const pending = h.ask([{ role: "user", text: "An original answer", layer: "fact" }], emptyCoverage());
+  h.settle({ zone: "green", question: "A separate question?", layer: "fact", openers: [], guidance: value });
+  await pending;
+}
+
+// Runs the shipped hook and screen end-scroll effect together. Only native
+// commands/timers and React hook cells are inert, not the reveal arbitration.
+function screenScroll(h: ReturnType<typeof setup>, focused = true) {
+  jest.useFakeTimers();
+  const savedRAF = global.requestAnimationFrame, savedCancel = global.cancelAnimationFrame;
+  const frames = new Map<number, FrameRequestCallback>(), archived: FrameRequestCallback[] = [];
+  let frameId = 0;
+  global.requestAnimationFrame = fn => { frames.set(++frameId, fn); archived.push(fn); return frameId; };
+  global.cancelAnimationFrame = id => { if (id != null) frames.delete(id); };
+  const account = jest.requireActual<typeof import("../../lib/auth/account-epoch")>("../../lib/auth/account-epoch");
+  const memory = jest.requireActual<typeof import("../../lib/nav/view-memory")>("../../lib/nav/view-memory");
+  const key = "scroll:phone:interview:guidance";
+  memory.readViewMemory(key); memory.writeViewMemory(key, { x: 0, y: 640 });
+  const scope = { id: "phone:interview", slots: { next: 0 }, focused };
+  const hooks = hookHarness(scope), endEffects = hookHarness();
+  const modules: Record<string, unknown> = { react: hooks.hooks, "../auth/account-epoch": account, "./view-memory": memory };
+  const code = ts.transpileModule(readFileSync(resolve(__dirname, "../../lib/nav/scroll-memory.tsx"), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React },
+  }).outputText;
+  const exports = {} as { useScrollMemory: typeof useScrollMemory };
+  new Function("require", "exports", code)((name: string) => {
+    if (!(name in modules)) throw new Error(`Unexpected real scroll hook import: ${name}`);
+    return modules[name];
+  }, exports);
+  const node = { scrollTo: jest.fn(), scrollToEnd: jest.fn() };
+  const scrollRef = { current: node as unknown as ScrollView };
+  let hook!: ReturnType<typeof useScrollMemory<ScrollView>>;
+  const end = () => endEffects.render(() => {
+    const turns = h.scope.setTurns.mock.calls.at(-1)?.[0] ?? [];
+    const scrollToLatest = initializer("scrollToLatest", { ...h.scope, turns, scrollRef, useCallback: endEffects.hooks.useCallback });
+    let actual: ts.CallExpression | undefined;
+    const visit = (n: ts.Node) => {
+      if (ts.isCallExpression(n) && n.expression.getText(source) === "useEffect"
+        && n.arguments[0]?.getText(source) === "scrollToLatest") actual = n;
+      ts.forEachChild(n, visit);
+    };
+    visit(source); if (!actual) throw new Error("Missing actual end-scroll effect");
+    evaluateExpression(actual.getText(source), { useEffect: endEffects.hooks.useEffect, scrollToLatest });
+  });
+  const render = (commitEnd = true) => {
+    const row = guidanceRuntime(h);
+    hook = hooks.render(() => exports.useScrollMemory<ScrollView>({ testID: "guidance", onScrollBeginDrag: row.cancel }, scrollRef, false, row.priority));
+    hook.ref(node as unknown as ScrollView);
+    if (commitEnd) end();
+  };
+  const layout = () => {
+    hook.onLayout({ nativeEvent: { layout: { width: 320, height: 500 } } } as Parameters<NonNullable<ScrollViewProps["onLayout"]>>[0]);
+    hook.onContentSizeChange(320, 1600);
+  };
+  const flushFrames = () => { const pending = [...frames.values()]; frames.clear(); pending.forEach(fn => fn(0)); };
+  const flush = () => { flushFrames(); jest.runOnlyPendingTimers(); };
+  render(); layout();
+  return { scope, node, render, layout, end, flushFrames, flush, archived, memory, key, get hook() { return hook; },
+    close: () => { hooks.unmount(); endEffects.unmount(); jest.useRealTimers(); global.requestAnimationFrame = savedRAF; global.cancelAnimationFrame = savedCancel; } };
+}
+async function askOrdinary(h: ReturnType<typeof setup>) {
+  const previous = h.scope.setTurns.mock.calls.at(-1)?.[0] ?? [];
+  h.scope.nextProbe.mockResolvedValueOnce({ zone: "green", question: "Ordinary follow-up?", layer: "fact", openers: [] });
+  await h.ask([...previous, { role: "user", text: "A later original answer", layer: "fact" }], emptyCoverage());
+}
+
+test.each(["frame", "settle"])("actual screen acceptance defeats pending %s restore and same-commit end-scroll", async stage => {
+  const h = setup(), m = screenScroll(h);
+  try {
+    const stale = m.archived.slice(); if (stage === "settle") m.flushFrames();
+    await acceptGuidance(h);
+    m.render(false); guidanceRuntime(h).ready(); m.render(false); // Layout can ACK before the passive end effect.
+    expect(h.scope.guidanceScroll.current.pending).toBeNull();
+    m.end(); stale.forEach(fn => fn(0)); m.flush();
+    expect(m.node.scrollTo).toHaveBeenLastCalledWith({ x: 0, y: 0, animated: false });
+    expect(m.node.scrollTo.mock.calls.filter(([v]) => v.y === 0)).toHaveLength(1);
+    expect(m.node.scrollToEnd).not.toHaveBeenCalled();
+    expect(m.memory.readViewMemory(m.key)).toEqual({ x: 0, y: 0 });
+    await askOrdinary(h); m.render(); expect(m.node.scrollToEnd).toHaveBeenCalledTimes(1);
+    expect(guidanceRuntime(h).render()).toContain("109");
+  } finally { m.close(); }
+});
+
+test.each(["ready-first", "focus-first"])("hidden accepted row survives another ask and reveals on first visibility: %s", async order => {
+  const h = setup(), m = screenScroll(h, false);
+  try {
+    await acceptGuidance(h); m.render();
+    if (order === "ready-first") { guidanceRuntime(h).ready(); m.render(); }
+    const token = h.delivery!.token; await askOrdinary(h); m.render(); m.flush();
+    expect(h.scope.guidanceScroll.current.pending).toBe(token); expect(h.scope.guidanceScroll.current.accepted).toBeNull();
+    expect(m.node.scrollTo).not.toHaveBeenCalled(); expect(m.node.scrollToEnd).not.toHaveBeenCalled();
+    m.scope.focused = true; m.render(); m.layout();
+    if (order === "focus-first") {
+      expect(m.node.scrollTo).not.toHaveBeenCalled(); guidanceRuntime(h).ready(); m.render();
+    }
+    m.flush(); expect(m.node.scrollTo.mock.calls).toEqual([[{ x: 0, y: 0, animated: false }]]);
+    expect(h.scope.guidanceScroll.current.pending).toBeNull(); expect(m.node.scrollToEnd).not.toHaveBeenCalled();
+    m.render(); m.layout(); m.flush(); expect(m.node.scrollTo).toHaveBeenCalledTimes(1);
+    await askOrdinary(h); m.render(); expect(m.node.scrollToEnd).toHaveBeenCalledTimes(1);
+  } finally { m.close(); }
+});
+
+test("real drag releases the pending row without reveal and later focus restores the user's offset", async () => {
+  const h = setup(), m = screenScroll(h);
+  try {
+    await acceptGuidance(h); m.render();
+    m.hook.onScrollBeginDrag({} as Parameters<NonNullable<ScrollViewProps["onScrollBeginDrag"]>>[0]);
+    m.hook.onScroll({ nativeEvent: { contentOffset: { x: 0, y: 900 } } } as Parameters<NonNullable<ScrollViewProps["onScroll"]>>[0]);
+    guidanceRuntime(h).ready(); m.render(); m.flush();
+    expect(m.node.scrollTo).not.toHaveBeenCalledWith({ x: 0, y: 0, animated: false });
+    expect(h.scope.guidanceScroll.current.pending).toBeNull(); expect(m.node.scrollToEnd).not.toHaveBeenCalled();
+    m.scope.focused = false; m.render(); m.scope.focused = true; m.render(); m.flush();
+    expect(m.node.scrollTo).toHaveBeenLastCalledWith({ x: 0, y: 900, animated: false });
+    await askOrdinary(h); m.render(); expect(m.node.scrollToEnd).toHaveBeenCalledTimes(1);
+  } finally { m.close(); }
+});
+
+test("accepted contact renders the real shared row through React SSR and survives normal finish", async () => {
+  const h = setup(); await acceptGuidance(h);
+  const first = guidanceRuntime(h); const markup = first.render();
+  expect(markup).toContain("연락 안내"); expect(markup).toContain("한국에서 대화 지원이 필요하면 109로 연락할 수 있습니다.");
+  expect(markup).not.toContain("An original answer"); expect(mockOpenDirectory).not.toHaveBeenCalled();
+  const layout = mockGuidanceHosts.find(host => typeof host.props.onLayout === "function")?.props.onLayout;
+  expect(typeof layout).toBe("function"); (layout as () => void)(); expect(h.delivery?.ready).toBe(true);
+  const token = h.delivery!.token; h.scope.finish();
+  expect(h.scope.ended.current).toBe(true); expect(h.delivery!.token).toBe(token);
+  expect(guidanceRuntime(h).render()).toContain("한국에서 대화 지원이 필요하면 109로 연락할 수 있습니다.");
+  first.dismiss(); expect(guidanceRuntime(h).render()).toBe(""); expect(h.delivery).toBeNull();
+  await h.ask([], {}); expect(h.delivery).toBeNull();
+});
+
+test.each(["owner", "hold", "ABA", "instance", "unmount"])("accepted row and stale layout/dismiss vanish on %s", async change => {
+  const h = setup(); const cleanup = actualEffect("interviewInstance.current += 1", h.scope)();
+  await acceptGuidance(h); const old = guidanceRuntime(h); const calls = h.scope.setGuidanceDelivery.mock.calls.length;
+  const account = jest.requireActual<typeof import("../../lib/auth/account-epoch")>("../../lib/auth/account-epoch");
+  if (change === "owner") noteResolvedOwner("B");
+  if (change === "hold") account.beginAccountOwnerTransition("B");
+  if (change === "ABA") { noteResolvedOwner(null); noteResolvedOwner("A"); }
+  if (change === "instance") h.scope.interviewInstance.current++;
+  if (change === "unmount") cleanup?.();
+  expect(guidanceRuntime(h).render()).toBe(""); old.ready(); old.dismiss(); old.cancel();
+  expect(h.scope.setGuidanceDelivery.mock.calls).toHaveLength(calls);
+  if (change !== "unmount") {
+    actualEffect("lastGuidanceRequest.current = 0", h.scope)();
+    expect(h.delivery).toBeNull(); expect(h.scope.guidanceRef.current).toBeNull();
+  }
+});
+
+test("an accepted updater queued before an owner switch cannot populate the new account", async () => {
+  const h = setup(); const queue: DeliveryUpdate[] = [];
+  h.scope.setGuidanceDelivery.mockImplementationOnce(update => { queue.push(update); });
+  await acceptGuidance(h); expect(queue).toHaveLength(1); expect(h.delivery).toBeNull();
+  noteResolvedOwner("B");
+  const update = queue[0]; expect(typeof update).toBe("function");
+  expect((update as (before: null) => Delivery | null)(null)).toBeNull();
+  expect(guidanceRuntime(h).render()).toBe("");
+});
+
+test("old row callbacks cannot dismiss, ready or acknowledge a replacement delivery", async () => {
+  const h = setup(); await acceptGuidance(h); const old = guidanceRuntime(h);
+  h.scope.nextProbe.mockResolvedValueOnce({ zone: "green", question: "Another question?", layer: "fact", openers: [],
+    guidance: { kind: "unresolved", reason: "unsupported-contact" } });
+  await h.ask([], emptyCoverage()); const replacement = h.delivery!; expect(replacement.token).not.toBe(old.priority!.token);
+  old.ready(); old.dismiss(); old.cancel(); old.priority!.onRevealed();
+  expect(h.delivery).toBe(replacement); expect(h.delivery?.ready).toBe(false);
+  expect(h.scope.guidanceScroll.current.pending).toBe(replacement.token);
+  const current = guidanceRuntime(h); expect(current.render()).toContain("연락처를 확인하지 못했습니다.");
+  current.dismiss(); expect(h.delivery).toBeNull(); current.ready(); current.dismiss();
+  expect(guidanceRuntime(h).render()).toBe("");
+});
+
+test.each(["none", "error", "invalid", "throw"])("later %s retains the previously accepted row", async next => {
+  const h = setup(); await acceptGuidance(h); const delivery = h.delivery!;
+  if (next === "error") h.scope.nextProbe.mockRejectedValueOnce(new Error("offline"));
+  else h.scope.nextProbe.mockResolvedValueOnce({ zone: "green", question: "Ordinary question?", layer: "fact", openers: [],
+    ...(next === "none" ? {} : { guidance: contact }) });
+  const scope = { ...h.scope, resolveProbeGuidanceCopy: next === "invalid" ? () => ({ kind: "invalid" })
+    : next === "throw" ? () => { throw new Error("resolver unavailable"); } : resolveProbeGuidanceCopy };
+  await callback("ask", scope)([], emptyCoverage());
+  expect(h.delivery).toBe(delivery); expect(guidanceRuntime(h).render()).toContain("109");
+});
+
+test.each(["ko", "es", "pt", "id"])("actual common row renders all fixed blocks for %s without a raw model fallback", async locale => {
+  const h = setup(true, locale);
+  await acceptGuidance(h, { kind: "contacts", contacts: ["KR_109", "KR_119", "KR_1388", "GLOBAL_988"], physicalUrgency: true, corrections: [] });
+  const runtime = guidanceRuntime(h); const markup = runtime.render();
+  const copy = resolveProbeGuidanceCopy(h.delivery!.guidance, locale);
+  expect(copy.kind).toBe("ready");
+  if (copy.kind !== "ready") throw new Error("Expected fixed copy");
+  expect(copy.blocks).toHaveLength(3); for (const block of copy.blocks) expect(markup).toContain(block.body);
+  expect(markup).not.toContain("A separate question?"); expect(markup).not.toContain("An original answer");
+  h.scope.finish(); expect(guidanceRuntime(h).render()).toBe(markup);
+});
+
+test("the real ask guidance context becomes false on early RED and after settlement", async () => {
+  const h = setup(); const pending = h.ask([], emptyCoverage());
+  const args = h.scope.nextProbe.mock.calls[0];
+  const context = args[9] as { isCurrent(): boolean };
+  expect(context.isCurrent()).toBe(true);
+  (args[8] as (hotline: string) => void)("KR_109"); expect(context.isCurrent()).toBe(false);
+  h.settle({ zone: "green", question: "Late?", layer: "fact", guidance: contact }); await pending;
+  expect(h.delivery).toBeNull(); expect(context.isCurrent()).toBe(false); expect(h.scope.setTurns).not.toHaveBeenCalled();
+  const ordinary = setup(); await acceptGuidance(ordinary);
+  const settled = ordinary.scope.nextProbe.mock.calls[0][9] as { isCurrent(): boolean };
+  expect(settled.isCurrent()).toBe(false); expect(ordinary.delivery).not.toBeNull();
+});
+
+test("a resolver-side owner transition stops row acceptance and subsequent question changes", async () => {
+  const h = setup(); const ready = resolveProbeGuidanceCopy(contact, "ko");
+  const ask = callback("ask", { ...h.scope, resolveProbeGuidanceCopy: () => { noteResolvedOwner("B"); return ready; } });
+  const pending = ask([], emptyCoverage()); h.settle({ zone: "green", question: "Stale?", layer: "fact", guidance: contact });
+  await pending; expect(h.delivery).toBeNull(); expect(h.scope.setTurns).not.toHaveBeenCalled(); expect(h.scope.setCoverage).not.toHaveBeenCalled();
+});
 
 test.each(["stopped", "unmounted", "active"])("late red reaches app when interview is %s and adds no question or credit", async state => {
   const { scope, settle, ask } = setup();
@@ -280,7 +581,7 @@ test.each(["question", "instance"])("ordinary results from a replaced %s cannot 
 });
 
 test("an older ordinary request cannot settle a newer pending request", async () => {
-  const h = setup(); const first = h.ask([], {}); const secondResult = deferred<{ zone: string }>();
+  const h = setup(); const first = h.ask([], {}); const secondResult = deferred<{ zone: ProbeResult["zone"] }>();
   h.scope.nextProbe.mockImplementationOnce(() => secondResult.promise);
   const second = h.ask([], {}); h.settle({ zone: "green" }); await first;
   expect(h.scope.finish).not.toHaveBeenCalled(); expect(h.scope.setBusy.mock.calls).toEqual([[true], [true]]);
