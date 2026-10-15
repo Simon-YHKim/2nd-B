@@ -33,7 +33,9 @@ const mockLoadLatestStrengths = jest.fn<Promise<LoadedStrengths | null>, unknown
   (..._args: unknown[]) => Promise.resolve(null),
 );
 const mockLoadSevenLevels = jest.fn((..._args: unknown[]) =>
-  Promise.resolve({ northStarBrightness: 0.6 }),
+  Promise.resolve({ northStarBrightness: 0.6, starLevels: {
+    profile: 1, infancy: 1, school: 1, twenties: 1, later: 1, work: 1, now: 1,
+  } }),
 );
 const mockFireCompanion = jest.fn();
 const mockForbiddenBuildPersona = jest.fn((..._args: unknown[]) => {
@@ -374,8 +376,8 @@ jest.mock("@/lib/persona/strengths-survey", () => ({
 }));
 jest.mock("@/lib/persona/domain-stars", () => ({ DOMAIN_STARS: [], getDomainStar: () => null }));
 jest.mock("@/lib/assess/registry", () => ({ OFFERABLE: [] }));
-jest.mock("@/lib/persona/load-seven-levels", () => ({
-  loadSevenLevels: (...args: unknown[]) => mockLoadSevenLevels(...args),
+jest.mock("@/lib/persona/load-seven-levels-strict", () => ({
+  loadSevenLevelsStrict: (...args: unknown[]) => mockLoadSevenLevels(...args),
 }));
 jest.mock("@/lib/persona/center", () => {
   const actual = jest.requireActual<typeof import("../persona/center")>("@/lib/persona/center");

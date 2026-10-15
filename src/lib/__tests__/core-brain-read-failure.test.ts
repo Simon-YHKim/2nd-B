@@ -6,12 +6,14 @@ import { __resetAccountEpochForTests, beginAccountOwnerTransition, clearAccountT
 import { CORE_EVIDENCE_READ_TIMEOUT_MS } from "../persona/use-core-evidence-read";
 import { CORE_ROLE_READ_TIMEOUT_MS } from "../persona/use-core-role-reads";
 import { claimQaPolarisAuto, proposeRoleCards, type RoleCard } from "../persona/role-cards";
+import { m3, m3BrightnessBand } from "../theme/m3";
 
 type Reply = { data: unknown; error?: unknown };
 type Query = { table: string; columns: string; owner: string | null; limit?: number; tags?: string[] };
 let mockHarness: ReturnType<typeof hookHarness>;
 let mockAuth = { userId: "" as string | null, loading: false, hasProfile: true as boolean | null, isMinor: false as boolean | null };
 let mockFocused = true;
+let mockLanguage: "ko" | "en" = "ko";
 let mockEligible = false;
 let mockOverride: (query: Query) => Reply | Promise<Reply> | undefined;
 let mockStatus: () => Reply | Promise<Reply>;
@@ -19,11 +21,15 @@ const mockQueries: Query[] = [];
 const mockPush = jest.fn();
 const mockStatusCalls = jest.fn();
 const mockWrites = jest.fn((..._args: unknown[]) => { throw new Error("Read attempted a server mutation"); });
-const mockLevels = jest.fn<Promise<{ northStarBrightness: number }>, [string]>(async () => ({ northStarBrightness: 0.6 }));
+const legacyLevels = { northStarBrightness: 0.6, starLevels: {
+  profile: 1, infancy: 1, school: 1, twenties: 1, later: 1, work: 1, now: 1,
+} };
+const mockLevels = jest.fn(async (..._args: unknown[]) => legacyLevels);
 const mockStorage = new Map<string, string>();
 const mockStoreWrite = jest.fn((key: string, value: string) => { mockStorage.set(key, value); });
 const record = (owner: string) => ({ id: `${owner}-record`, kind: "journal", topic: `${owner}-record`, created_at: "2026-10-15T00:00:00Z", tags: [] });
 function defaultReply(query: Query): Reply {
+  if (query.table === "users" && query.columns.includes("profile_details")) return { data: { id: query.owner, display_name: null, birth_date: null, profile_details: {} } };
   if (query.table === "users") return { data: { id: query.owner, subscription_tier: "brain", subscription_expires_at: null } };
   if (query.table === "personas") return { data: { version: 1, traits: { openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, neuroticism: 0.5 }, patterns: {}, values: [], markdown_export: "" } };
   return { data: query.table === "records" && query.columns.includes("id, kind, topic") ? [record(query.owner!)] : [] };
@@ -45,14 +51,16 @@ jest.mock("../supabase/client", () => ({ getSupabaseClient: () => ({
   },
 }) }));
 jest.mock("../env", () => ({ getEnv: () => ({ EXPO_PUBLIC_LLM_MODE: "live" }) }));
-jest.mock("../persona/load-seven-levels", () => ({ loadSevenLevels: (owner: string) => mockLevels(owner) }));
+jest.mock("../persona/load-seven-levels", () => ({
+  ...jest.requireActual("../persona/load-seven-levels"), loadSevenLevels: (owner: string) => mockLevels(owner),
+}));
 jest.mock("../persona/role-cards", () => {
   const actual = jest.requireActual<typeof import("../persona/role-cards")>("../persona/role-cards");
   return { ...actual, claimQaPolarisAuto: jest.fn(actual.claimQaPolarisAuto), proposeRoleCards: jest.fn(async () => []), ratifyRoleCard: (...args: unknown[]) => mockWrites(...args) };
 });
 jest.mock("react-native", () => ({ Platform: { OS: "web" }, StyleSheet: { create: (value: unknown) => value, absoluteFill: {} } }));
 jest.mock("react-native-svg", () => ({ Svg: "Svg", Rect: "Rect" }));
-jest.mock("react-i18next", () => ({ useTranslation: () => ({ i18n: { language: "ko" }, t: (key: string, values?: Record<string, unknown>) => key + (values ? JSON.stringify(values) : "") }) }));
+jest.mock("react-i18next", () => ({ useTranslation: () => ({ i18n: { language: mockLanguage }, t: (key: string, values?: Record<string, unknown>) => key + (values ? JSON.stringify(values) : "") }) }));
 jest.mock("expo-router", () => ({ Redirect: "Redirect", useFocusEffect: (callback: () => void | (() => void)) => {
   jest.requireActual<typeof import("react")>("react").useEffect(() => mockFocused ? callback() : undefined, [callback, mockFocused]);
 } }));
@@ -99,9 +107,9 @@ afterAll(() => {
 beforeEach(() => {
   jest.useFakeTimers(); __resetAccountEpochForTests(); mockHarness = hookHarness();
   mockAuth = { userId: `read-owner-${++ownerNumber}`, loading: false, hasProfile: true, isMinor: false };
-  noteResolvedOwner(mockAuth.userId); mockFocused = true; mockEligible = false;
+  noteResolvedOwner(mockAuth.userId); mockFocused = true; mockEligible = false; mockLanguage = "ko";
   mockQueries.length = 0; mockOverride = () => undefined; mockStatus = () => ({ data: { available: true, intro_remaining: 2, tier: "brain" } });
-  mockLevels.mockReset().mockResolvedValue({ northStarBrightness: 0.6 }); mockWrites.mockClear(); mockPush.mockClear(); mockStatusCalls.mockClear();
+  mockLevels.mockReset().mockResolvedValue(legacyLevels); mockWrites.mockClear(); mockPush.mockClear(); mockStatusCalls.mockClear();
   mockStorage.clear(); mockStoreWrite.mockClear(); jest.mocked(claimQaPolarisAuto).mockClear(); jest.mocked(proposeRoleCards).mockReset().mockResolvedValue([]);
 });
 afterEach(() => { mockHarness.unmount(); jest.clearAllTimers(); jest.useRealTimers(); expect(mockWrites).not.toHaveBeenCalled(); });
@@ -133,6 +141,180 @@ function deferred() { let resolve!: (reply: Reply) => void; let reject!: (reason
 function owner(next: string | null) { noteResolvedOwner(next); clearAccountTransition(currentAccountEpoch()); mockAuth.userId = next; }
 const noAuto = () => { expect(claimQaPolarisAuto).not.toHaveBeenCalled(); expect(mockStoreWrite).not.toHaveBeenCalled(); expect(proposeRoleCards).not.toHaveBeenCalled(); };
 
+const brightnessQuery = (q: Query): string | null => q.table === "interview_coverage" ? "coverage"
+  : q.table === "users" && q.columns === "id, display_name, birth_date, profile_details" ? "profile"
+  : q.table === "records" && q.columns === "id" ? "goals"
+  : q.table === "peer_invitations" ? "peers" : q.table === "star_tier_history" ? "ratified" : null;
+const brightnessRetry = (tree: unknown) => nodes(tree).find(n => n.props.testID === "core-brightness-retry");
+const brightnessGraphic = (tree: unknown) => nodes(tree).find(n => n.props.testID === "polaris-synthesis-graphic");
+const emptyStars = (tree: unknown) => nodes(tree).find(n => n.props.testID === "core-empty-stars");
+const starProps = (tree: unknown) => nodes(tree).filter(n => n.type === "PixelStarSvg")
+  .map(n => n.props as unknown as { cx: number; cy: number; r: number; fill: string });
+
+describe("actual strict brightness as an independent owned slot", () => {
+  it.each(["coverage", "profile", "goals", "peers", "ratified"])("%s returned error/rejection/malformed rows never produce a measured picture", async input => {
+    for (const mode of ["error", "reject", "malformed"] as const) {
+      mockOverride = q => brightnessQuery(q) === input
+        ? mode === "error" ? { data: null, error: new Error("offline") }
+          : mode === "reject" ? Promise.reject(new Error("offline")) : { data: null }
+        : undefined;
+      // Retry the failed slot between variants; initial setup remains the real screen.
+      const old = render(); brightnessRetry(old)?.props.onPress!();
+      const tree = await settle();
+      expect(brightnessRetry(tree)).toBeDefined(); expect(brightnessGraphic(tree)).toBeUndefined();
+      expect(starProps(tree)).toEqual([]); expect(drawn(tree)).not.toContain("currentBrightness");
+      expect(drawn(tree)).toContain(`${mockAuth.userId}-record`); expect(drawn(tree)).toContain("savedResult.body");
+      expect(mockLevels).not.toHaveBeenCalled();
+    }
+  });
+
+  it("known coverage failure appears immediately while the peer input hangs", async () => {
+    mockOverride = q => brightnessQuery(q) === "coverage" ? { data: null, error: new Error("coverage offline") }
+      : brightnessQuery(q) === "peers" ? new Promise(() => {}) : undefined;
+    const tree = await settle(); expect(brightnessRetry(tree)).toBeDefined(); expect(brightnessGraphic(tree)).toBeUndefined();
+    expect(drawn(tree)).toContain(`${mockAuth.userId}-record`); expect(drawn(tree)).toContain("roleEmpty");
+  });
+
+  it.each([false, true])("unconfirmed brightness stays unknown at 9999ms and times out at 10000ms; empty=%p", async empty => {
+    mockOverride = q => brightnessQuery(q) === "peers" ? new Promise(() => {})
+      : empty && (isRecords(q) || q.table === "sources") ? { data: [] } : undefined;
+    let tree = await settle(); expect(brightnessGraphic(tree)).toBeUndefined(); expect(emptyStars(tree)).toBeUndefined();
+    expect(brightnessRetry(tree)).toBeUndefined();
+    expect(drawn(tree)).toContain(empty ? "sevenStars" : `${mockAuth.userId}-record`);
+    await jest.advanceTimersByTimeAsync(CORE_ROLE_READ_TIMEOUT_MS - 1); tree = await settle();
+    expect(brightnessRetry(tree)).toBeUndefined(); expect(starProps(tree)).toEqual([]);
+    await jest.advanceTimersByTimeAsync(1); tree = await settle();
+    expect(brightnessRetry(tree)).toBeDefined(); expect(brightnessGraphic(tree)).toBeUndefined(); expect(emptyStars(tree)).toBeUndefined();
+    mockOverride = q => empty && (isRecords(q) || q.table === "sources") ? { data: [] } : undefined;
+    brightnessRetry(tree)!.props.onPress!(); tree = await settle();
+    expect(brightnessRetry(tree)).toBeUndefined();
+    expect(Boolean(emptyStars(tree))).toBe(empty); expect(Boolean(brightnessGraphic(tree))).toBe(!empty);
+  });
+
+  it("confirmed empty inputs use the unchanged seven points and real L1/0.2 calculation", async () => {
+    const tree = await settle(); expect(brightnessGraphic(tree)).toBeDefined();
+    const stars = starProps(tree); expect(stars).toHaveLength(10);
+    expect(stars.slice(0, 7).map(s => [s.cx, s.cy]).sort((a, b) => a[0] - b[0] || a[1] - b[1]))
+      .toEqual([[38, 120], [56, 92], [78, 86], [106, 80], [120, 96], [154, 56], [154, 82]]);
+    expect(stars.slice(0, 7).every(s => s.r === 3 && s.fill === m3.starLadder.rest[0])).toBe(true);
+    expect(stars.slice(7).map(s => [s.cx, s.cy, s.r])).toEqual([[100, 24, 22], [100, 24, 14], [100, 24, 6]]);
+    expect(stars[8].fill).toBe(m3.starLadder.polarisMid[m3BrightnessBand(0.2) - 1]);
+    expect(mockQueries.filter(q => brightnessQuery(q))).toHaveLength(5); expect(mockLevels).not.toHaveBeenCalled();
+  });
+
+  it("actual latest ratification lifts the existing geometry and six-star formula without snapshot relabeling", async () => {
+    mockOverride = q => brightnessQuery(q) === "ratified" ? { data: [
+      { star_id: "seven:now", level: 5 }, { star_id: "seven:now", level: 2 },
+    ] } : undefined;
+    const tree = await settle(), stars = starProps(tree);
+    expect(stars.find(s => s.cx === 154 && s.cy === 56)).toMatchObject({ r: 7, fill: m3.starLadder.rest[4] });
+    expect(stars[8].fill).toBe(m3.starLadder.polarisMid[m3BrightnessBand((5 + 5) / 30) - 1]);
+    expect(drawn(tree)).toContain("savedResult.body"); expect(drawn(tree)).not.toContain("portraitSourceValidated");
+  });
+
+  it("retry reads exactly five brightness inputs and synchronously invalidates a pending actual QA claim", async () => {
+    mockEligible = true; const quota = deferred(); mockStatus = () => quota.promise;
+    mockOverride = q => brightnessQuery(q) === "peers" ? { data: null, error: new Error("offline") } : undefined;
+    const tree = await settle(); expect(claimQaPolarisAuto).toHaveBeenCalledTimes(1); expect(brightnessRetry(tree)).toBeDefined();
+    const count = mockQueries.length, statuses = mockStatusCalls.mock.calls.length;
+    mockOverride = () => undefined; const held = brightnessRetry(tree)!.props.onPress!; held();
+    // Resolve before any React render. The slot's retry must already revoke QA.
+    quota.resolve({ data: { available: true, intro_remaining: 2, tier: "brain" } });
+    await flush(); const next = await settle(); expect(brightnessGraphic(next)).toBeDefined(); noProposal();
+    expect(mockQueries.slice(count).map(brightnessQuery).sort()).toEqual(["coverage", "goals", "peers", "profile", "ratified"]);
+    expect(mockStatusCalls).toHaveBeenCalledTimes(statuses); expect(claimQaPolarisAuto).toHaveBeenCalledTimes(1);
+    const after = mockQueries.length; held(); await settle(); expect(mockQueries).toHaveLength(after);
+  });
+
+  it("optional brightness failure preserves the explicitly authorized initial QA proposal", async () => {
+    mockEligible = true; mockOverride = q => brightnessQuery(q) === "profile" ? { data: null } : undefined;
+    const tree = await settle(); expect(brightnessRetry(tree)).toBeDefined();
+    expect(mockStoreWrite).toHaveBeenCalledTimes(1); expect(proposeRoleCards).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["resolve", "reject"])("late %s after timeout cannot replace the successful brightness retry", async completion => {
+    const old = deferred(); mockOverride = q => brightnessQuery(q) === "ratified" ? old.promise : undefined;
+    await settle(); await jest.advanceTimersByTimeAsync(CORE_ROLE_READ_TIMEOUT_MS);
+    const error = await settle(); mockOverride = () => undefined; brightnessRetry(error)!.props.onPress!();
+    const ready = starProps(await settle()); expect(ready).toHaveLength(10);
+    if (completion === "resolve") old.resolve({ data: [{ star_id: "seven:now", level: 5 }] }); else old.reject(new Error("late"));
+    expect(starProps(await settle())).toEqual(ready); expect(brightnessRetry(await settle())).toBeUndefined();
+  });
+
+  it.each(["owner", "ABA", "hold", "blur", "unmount", "locale"])("late brightness cannot publish after %s changes its original scope", async change => {
+    const old = deferred(); mockOverride = q => brightnessQuery(q) === "ratified" ? old.promise : undefined;
+    await settle(); const originalOwner = mockAuth.userId;
+    mockOverride = q => brightnessQuery(q) === "ratified" ? new Promise(() => {}) : undefined;
+    if (change === "owner") owner("next-owner");
+    if (change === "ABA") { owner(null); owner(originalOwner); }
+    if (change === "hold") beginAccountOwnerTransition("other");
+    if (change === "blur") mockFocused = false;
+    if (change === "locale") mockLanguage = "en";
+    if (change === "unmount") mockHarness.unmount(); else render();
+    const calls = mockQueries.length; old.resolve({ data: [{ star_id: "seven:now", level: 5 }] }); await flush();
+    if (change === "hold" || change === "blur" || change === "unmount") {
+      expect(mockQueries).toHaveLength(calls); if (change !== "unmount") expect(brightnessGraphic(render())).toBeUndefined();
+    } else {
+      // The mounted screen's fresh scope has its own still-pending SELECT.
+      const tree = await settle(); expect(brightnessGraphic(tree)).toBeUndefined(); expect(starProps(tree)).toEqual([]);
+      expect(mockQueries.filter(q => brightnessQuery(q) === "ratified")).toHaveLength(2);
+    }
+  });
+
+  it("a held retry and a queued strict dispatch after owner hold issue no brightness SELECT", async () => {
+    mockOverride = q => brightnessQuery(q) === "profile" ? { data: null } : undefined;
+    const tree = await settle(), held = brightnessRetry(tree)!.props.onPress!, count = mockQueries.length;
+    beginAccountOwnerTransition("other"); held(); await flush(); expect(mockQueries).toHaveLength(count);
+    owner("fresh-owner"); mockOverride = () => undefined; render(); beginAccountOwnerTransition("next"); await flush();
+    expect(mockQueries).toHaveLength(count);
+  });
+
+  it("actual strict dispatch guards stop the four queued peers after the first SELECT observes owner hold", async () => {
+    mockOverride = q => {
+      if (brightnessQuery(q) === "coverage") { beginAccountOwnerTransition("other"); return { data: [] }; }
+      return undefined;
+    };
+    await settle(); expect(mockQueries.filter(q => brightnessQuery(q)).map(brightnessQuery)).toEqual(["coverage"]);
+    expect(brightnessGraphic(render())).toBeUndefined(); noAuto();
+  });
+
+  it("refocus gets a fresh brightness attempt and late pre-blur success cannot replace it", async () => {
+    const old = deferred(); mockOverride = q => brightnessQuery(q) === "ratified" ? old.promise : undefined;
+    await settle(); const snapshotCount = mockQueries.filter(isSnapshot).length;
+    mockFocused = false; render(); mockOverride = () => undefined; mockFocused = true;
+    const ready = starProps(await settle()); expect(ready).toHaveLength(10);
+    old.resolve({ data: [{ star_id: "seven:now", level: 5 }] }); expect(starProps(await settle())).toEqual(ready);
+    expect(mockQueries.filter(isSnapshot)).toHaveLength(snapshotCount);
+    expect(mockQueries.filter(q => brightnessQuery(q) === "ratified")).toHaveLength(2);
+  });
+
+  it("the primary actual snapshot has no injected measured brightness or legacy loader dependency", async () => {
+    const { useCoreEvidenceRead } = jest.requireActual<typeof import("../persona/use-core-evidence-read")>("../persona/use-core-evidence-read");
+    let primary!: ReturnType<typeof useCoreEvidenceRead>;
+    for (let i = 0; i < 45; i++) {
+      primary = mockHarness.render(() => useCoreEvidenceRead(mockAuth.userId, true, "ko", 0, 0, () => {}, () => {}));
+      await Promise.resolve();
+    }
+    expect(primary.status).toBe("ready"); expect(primary.data?.persona?.traitsSource).toBe("heuristic");
+    expect(primary.data?.persona).not.toHaveProperty("soulCoreBrightness"); expect(primary.data).not.toHaveProperty("sevenLevels");
+    expect(mockLevels).not.toHaveBeenCalled(); expect(mockQueries.some(q => brightnessQuery(q))).toBe(false);
+  });
+
+  it("an existing legacy profile L1 cache cannot hide strict failure or prevent fresh ratified recovery", async () => {
+    const legacy = jest.requireActual<typeof import("../persona/load-profile-star")>("../persona/load-profile-star");
+    expect(await legacy.loadProfileStarLevel(mockAuth.userId!)).toBe(1);
+    mockOverride = q => brightnessQuery(q) === "profile" ? { data: null, error: new Error("profile offline") } : undefined;
+    const error = await settle(); expect(brightnessRetry(error)).toBeDefined(); expect(brightnessGraphic(error)).toBeUndefined();
+    const count = mockQueries.length;
+    mockOverride = q => brightnessQuery(q) === "ratified" ? { data: [{ star_id: "seven:profile", level: 5 }] } : undefined;
+    brightnessRetry(error)!.props.onPress!(); const tree = await settle();
+    expect(mockQueries.slice(count).map(brightnessQuery).sort()).toEqual(["coverage", "goals", "peers", "profile", "ratified"]);
+    expect(starProps(tree).find(s => s.cx === 38 && s.cy === 120)).toMatchObject({ r: 7 });
+    expect(await legacy.loadProfileStarLevel(mockAuth.userId!)).toBe(1);
+    legacy.invalidateProfileStarLevel(mockAuth.userId!);
+  });
+});
+
 it("preserves the 24+24 read sample and source-origin detail navigation", async () => {
   mockOverride = (query) => query.table === "sources" ? { data: [{ id: "source-id", kind: "clip", title: "source title", captured_at: "2026-10-15T01:00:00Z", tags: [] }] } : undefined;
   const ready = await settle();
@@ -152,9 +334,8 @@ it("successful empty sources and records keep the existing empty center without 
   const empty = await settle(); expect(drawn(empty)).toContain("sevenStars"); expect(retry(empty)).toBeUndefined(); expect(mockQueries.filter(isSnapshot)).toHaveLength(0);
 });
 
-it.each(["sources", "snapshot", "levels"])("a hanging %s stage ends after the one total ten-second deadline", async (stage) => {
+it.each(["sources", "snapshot"])("a hanging %s stage ends after the one total ten-second deadline", async (stage) => {
   mockOverride = (q) => stage === "sources" && q.table === "sources" || stage === "snapshot" && isSnapshot(q) ? new Promise(() => {}) : undefined;
-  if (stage === "levels") mockLevels.mockReturnValue(new Promise(() => {}));
   pending(await settle()); await jest.advanceTimersByTimeAsync(CORE_EVIDENCE_READ_TIMEOUT_MS - 1); pending(await settle());
   await jest.advanceTimersByTimeAsync(1); failed(await settle());
 });
@@ -284,10 +465,14 @@ it("a role read from a replaced initial attempt cannot activate the eligible QA 
   roles.resolve({ data: [] }); await settle(); noAuto();
 });
 
-it("strengths failure is separate while brightness keeps its existing fallback", async () => {
-  mockOverride = (q) => q.table === "records" && q.tags?.includes("strengths") ? { data: null, error: { message: "offline" } } : undefined;
+it("strengths and strict brightness failures stay separate from the saved primary result", async () => {
+  mockOverride = (q) => q.table === "records" && q.tags?.includes("strengths") || q.table === "peer_invitations"
+    ? { data: null, error: { message: "offline" } } : undefined;
   mockLevels.mockRejectedValue(new Error("levels failed"));
   const ready = await settle(); expect(companionRetry(ready, "strengths")).toBeDefined(); expect(drawn(ready)).toContain(`${mockAuth.userId}-record`);
+  expect(nodes(ready).some(node => node.props.testID === "core-brightness-retry")).toBe(true);
+  expect(nodes(ready).some(node => node.props.testID === "polaris-synthesis-graphic")).toBe(false);
+  expect(mockLevels).not.toHaveBeenCalled();
 });
 
 it("a failed initial snapshot stays failed on refocus until explicit full retry", async () => {
