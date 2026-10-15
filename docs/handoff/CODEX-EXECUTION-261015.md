@@ -1,4 +1,4 @@
-# Codex 실행 인수 · 2026-10-16 04:53 KST
+# Codex 실행 인수 · 2026-10-16 04:59 KST
 
 기준 main `62c7a2df34edf48a2fb32ed22997d07f27b41abc`. 원감사 414건과 겹침을 합친 76개는 인수 기준이다. 이 세션에서 PR 53개를 병합했지만, **앱 반영 완료를 확인한 항목은 0개**다. PR 수를 작업 완료 수로 환산하지 않는다. 아래는 해당 시각의 실행 상태이며 이후 PR의 결과가 우선한다.
 
@@ -131,15 +131,15 @@
 - 구현: 비활성 accepted-only UNNUMBERED 원장/begin/lookup6f221bc4; 공개endpoint/executor 미연결
 - 검증: 실제236migration DB12그룹PASS; R1잠금대기반례2건R2에서원장/fence0으로해소; full1147suites19347PASS1skip; 독립 검토: R2PASS H0M0L0 새M0, 같은구현BLOCK1·역사#2132BLOCK2각각유지
 - 병합: PR#2579 CI대기; 운영미적용; 실제 앱: 미확인
-- 다음: 인증시간재검사경합보완→독립R2·전체verify; 공개Edge/실행기/기기연결후속
-- 조건: #2132는 재설계 이관 상태. 서버 영수증·실패 복구·보관 조건 검토가 선행 / Q32/Q44 재설계 승인은 유지. #2132 전체61파일 복원/메일 활성화 아님. 법무 완료 원문 미복구; Auth/profile-only 구분·원격 삭제 unknown·두버킷·복구/보관/구형클라이언트 계약 선행; 실제독립DB에서iat302초접수재현,보완전미병합. accepted는삭제완료아님. 공개endpoint/executor/기기연결미구현; 대기중 Auth soft-delete도같은M1로재현
+- 다음: #2579 CI확인·병합 후 공개Edge/실행기/기기연결 후속; accepted를 삭제완료로 표시하지 않음
+- 조건: #2132는 재설계 이관 상태. 서버 영수증·실패 복구·보관 조건 검토가 선행 / Q32/Q44 재설계 승인은 유지. #2132 전체61파일 복원/메일 활성화 아님. 법무 완료 원문 미복구; Auth/profile-only 구분·원격 삭제 unknown·두버킷·복구/보관/구형클라이언트 계약 선행. R1의 iat302초 및 잠금대기 중 Auth soft-delete 접수 반례는 R2에서 원장/fence0으로 해소한 역사다. accepted는 삭제완료아님. 공개endpoint/executor/기기연결 미구현
 
 ### T05 · 계정 삭제 확인 낱말을 앱 언어로(「DELETE」 → 「삭제」) + 지운 뒤 한 줄 알림
 
 - 결정: Q-261013-20 · Z38; 우선순위 P1. 원감사 상태: 미착수.
-- 구현: 비활성 accepted-only UNNUMBERED 원장/begin/lookup6f221bc4; 공개endpoint/executor 미연결
-- 검증: 실제236migration DB12그룹PASS; R1잠금대기반례2건R2에서원장/fence0으로해소; full1147suites19347PASS1skip; 독립 검토: R2PASS H0M0L0 새M0, 같은구현BLOCK1·역사#2132BLOCK2각각유지
-- 병합: PR#2579 CI대기; 운영미적용; 실제 앱: 미확인
+- 구현: 확인 낱말은 실제 표시 언어에 맞춘 5언어 및 이전 언어 callback 거부를 #2538로 반영. 삭제 뒤 안내의 서버 선행 준비는 별도 T04 비활성 accepted-only 원장6f221bc4이며 공개endpoint/executor 미연결
+- 검증: 확인 낱말 f86a2079 전체1121suites18780PASS1skip·CI통과. T04 서버 준비는 별도 전체1147suites19347PASS1skip·실제DB12그룹PASS; 독립 검토: 확인 낱말 LOW1 수정 뒤 최종 H0M0L0; T04 서버 준비 R2PASS0·구현BLOCK1 유지
+- 병합: #2538 maina1e09fae 병합; T04 서버 준비 #2579 CI대기; 실제 앱: 미확인
 - 다음: 삭제 완료 안내·T04 영수증 경계를 연결하고 같은 설정 앱 확인
 - 조건: 각 언어에서 입력 검증과 표시 일치. 서버 확인 전 삭제 완료로 표시하지 않음 / T05 확인낱말 코드반영. 삭제후한줄/T04서버영수증/실제앱확인남음
 
@@ -239,7 +239,7 @@
 - 구현: 암호화 native draft store PR#2568 병합; UI 미연결; dormant v2DTO/순수복원b5946211 독립R1PASS0
 - 검증: 최종370d8d28 전체1146suites19331PASS1skip·CI allgreen; v2기존/새회귀95PASS/type/lint/cycles; v2b5946211 full1148suites19411PASS1skip·독립95+55필드거절/9hotline 확인; 독립 검토: 저장 모듈 R2 final PASS H0M0L0·BLOCK1 보존. 후속 연결 설계도 R2 PASS0·별도BLOCK1 보존; dormant v2 R1PASS0 BLOCK0; v2 R1PASS H0M0L0 BLOCK0
 - 병합: PR#2568 mainff507a5f; v2 #2577 main072f53d5; 실제 앱: 미확인
-- 다음: v2 b5946211 전체verify·CI·병합; UI/web/server 연결후속
+- 다음: v2전용 native adapter/CAS → server generation/멱등finalization 및 web exact-session purge → 실제 UI 연결·같은설정 앱 검증
 - 조건: 네이티브 암호화·웹 로그아웃 삭제. 20·21·35의 종료/미저장 규칙과 맞춤 / native 일반 logout 암호문 유지·고정7일·revision삭제·terminalpurge. 읽을 때 만료 삭제이며 앱이 꺼진 순간 물리삭제 보장 아님. UI/web purge ACK·content generation·0225 r0↔T36 규칙전환/서버멱등성 후속; v2codec/restore는main병합, nativev2adapter계획중·UI/storage/server연결전
 
 ### T17 · 인터뷰 답하는 자리에 사실 한 줄 「답은 AI가 읽고 다음 질문을 만듭니다. 저장을 눌러야 기록으로 남습니다.」
@@ -704,10 +704,10 @@
 ### T68 · 텍스트 생성 좌석 전부와 사진 글자 읽기(OCR)를 OpenAI → Claude 로(재설계 D1 · 임베딩 · 음성은 OpenAI 유지)
 
 - 결정: 10-06 23:33 · 10-07 01:20; 우선순위 P1. 원감사 상태: 미착수.
-- 구현: 측정준비#2548·인터뷰실행adapter#2565병합; T36통합#2569; ops부분adapter edd4c9b1 구현·독립검토중
+- 구현: 측정준비#2548·인터뷰실행adapter#2565병합; T36통합#2569; ops부분adapter edd4c9b1 R1PASS0 후 #2573 병합
 - 검증: 56cff079 전체1141suites19229PASS1skip·독립통합PASS0·CI통과; CLI32행2차단30재생10소실; 신규모델0; ops부분edd4c9b1 전체1148suites19353PASS1skip·기존39+독립5PASS; 독립 검토: 어댑터원R1·최종통합PASSH0M0L0; ops부분R1PASSH0M0L0
 - 병합: 측정준비#2548·실제인터뷰도구#2565 mainc21c0373; ops부분PR#2573 maineaca1221 병합; 실제 앱: 미확인
-- 다음: S0안전전달D2·나머지좌석/provider/OCR실측준비; 현재새모델품질측정0
+- 다음: S0 안전전달 D3 R3 PASS0(누적BLOCK2) 계약에 따른 A/B 구현·실제 화면 연결; 나머지좌석/provider/OCR실측준비. 새모델 품질측정0 유지
 - 조건: Sonnet/Opus 배치·품질 회귀 측정. 임베딩·음성은 OpenAI 유지. 큰 재설계 후순위의 예외이며, 운영 전환은 측정·동의·배포 선행 조건을 충족한 뒤 / 도구PASS는실제모델품질PASS아님. 동결B1제외·서버소유Claude/OCR측정경로·예산/가용성·안전/한도조건남음
 
 ### T69 · 좌석 정리 나머지(ops_daily_brief · audit_qa 은퇴 · 라우팅 잔재) · 비서 홈 자동 호출을 버튼으로
