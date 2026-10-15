@@ -75,7 +75,8 @@ jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({
     download: async (path: string) => ({ data: mockObjects.has(path) ? { text: async () => mockObjects.get(path) } : null, error: null }),
   }) },
 }) }));
-jest.mock("../../env", () => ({ getEnv: () => ({ EXPO_PUBLIC_LLM_MODE: "mock" }) }));
+let mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: "mock", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: false };
+jest.mock("../../env", () => ({ getEnv: () => mockRuntimeEnv }));
 jest.mock("../../persona/profile-context", () => ({ loadProfileContext: jest.fn(async () => []) }));
 jest.mock("@google/genai", () => ({ GoogleGenAI: jest.fn(() => { throw new Error("Network forbidden in this fixture"); }) }));
 
@@ -100,6 +101,7 @@ const ORIGINAL = "Line 4 changed the tool at 14:20; scrap fell from 8 to 3 piece
 const ask = () => sendChatMessage({ userId: OWNER, message: "What did I record about the tool change?", locale: "en", tier: "brain" });
 
 beforeEach(async () => {
+  mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: "mock", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: false };
   for (const key of Object.keys(mockTables)) delete mockTables[key];
   mockObjects.clear(); mockRpc.mockClear(); mockUpload.mockClear(); resetPrivacyChangesForTests();
   mockTables.records = [{ user_id: OWNER, body: PRIVATE_DIARY, structured: null }];
@@ -191,7 +193,12 @@ const RED_TURNS: [string, Partial<typeof EVERY_OPTIONAL_INPUT>][] = [
 
 // Q-261014-30 (Simon 2026-10-14): the same turn seen from the seam. The engine, the boundary and
 // the outbox are real; what leaves them is counted at the Supabase client.
-test.each(RED_TURNS)("a device-red turn %s is not counted, reads nothing but today's usage, and writes one audit row and one crisis row", async (_label, optional) => {
+test.each(RED_TURNS.flatMap(([label, optional]) => [
+  [label, optional, "mock", false],
+  [label, optional, "live", false],
+  [label, optional, "live", true],
+] as const))("device-red %s, %j, %s edge=%s: no reads or quota, exactly two safety writes", async (_label, optional, mode, edge) => {
+  mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: mode, EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: edge };
   const calls = jest.spyOn(boundary, "callLlm");
   const realFetch = globalThis.fetch;
   const fetchSpy = jest.fn(async () => { throw new Error("Network forbidden in this fixture"); });
@@ -202,14 +209,14 @@ test.each(RED_TURNS)("a device-red turn %s is not counted, reads nothing but tod
     if (result.status !== "ok") throw new Error("Expected fixed safety response");
     expect(result.reply.safety.zone).toBe("red");
     expect(result.reply.audit.modelUsed).toBe("none-crisis-routed");
-    // The usage as read. This fixture's bump RPC answers 1, so a counted turn would say 1.
-    expect(result.used).toBe(0);
-    expect(result.remaining).toBe(250);
+    // Guidance does not ask the usage service; unknown must not be shown as zero.
+    expect(result.used).toBeNull();
+    expect(result.remaining).toBeNull();
 
     const rpcNames = mockRpc.mock.calls.map(([name]) => name);
     expect(rpcNames.filter((name) => /bump/.test(name))).toEqual([]);
     expect(rpcNames).toEqual(["log_ai_audit_once", "log_crisis_event_once"]);
-    expect(mockTouched).toEqual(["chat_usage"]);
+    expect(mockTouched).toEqual([]);
     // One row, where the context read used to add an embed_index red row of its own.
     expect(mockTables.ai_audit_log).toEqual([
       expect.objectContaining({ p_purpose: "secondb_chat", p_safety_zone: "red", p_model_used: "none-crisis-routed" }),

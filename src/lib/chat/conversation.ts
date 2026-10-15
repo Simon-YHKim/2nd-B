@@ -21,7 +21,7 @@ import { promptSafeName } from "@/lib/persona/address";
 import type { LlmResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
-import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday, type ChatLimitCheck } from "./limits";
+import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
 import { loadStructuredContext } from "../records/load-structured";
 import { loadProfileContext } from "../persona/profile-context";
 import { exportUserWiki } from "../wiki/export";
@@ -97,9 +97,9 @@ export interface SendMessageBlocked {
 export interface SendMessageOk {
   status: "ok";
   reply: LlmResult<string>;
-  used: number;
-  limit: number;
-  remaining: number;
+  used: number | null; // Device-red guidance reads no quota; null is unknown.
+  limit: number | null;
+  remaining: number | null;
 }
 
 export type SendMessageResult = SendMessageBlocked | SendMessageOk;
@@ -211,14 +211,14 @@ const BLOCKED_HINT = {
 };
 
 export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
+  const cut = await answerDeviceRed(input);
+  if (cut) return cut;
   const day = kstDateToday();
   const limit = CHAT_DAILY_LIMIT[input.tier];
 
   // 0090: today's allowance includes any rewarded ad bonus.
   const { used: usedBefore, adBonus } = await readChatUsageDetail(input.userId, day);
   const precheck = checkChatLimit(input.tier, usedBefore, adBonus);
-  const cut = await answerDeviceRed(input, precheck);
-  if (cut) return cut;
   if (!precheck.allowed) {
     return {
       status: "blocked",
@@ -396,10 +396,10 @@ function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): stri
 }
 
 // Q-261014-30 / Q-261015-82: one device-red verdict, one routing call, before
-// limit refusal and context reads, without a bump. Return usage as read.
-// Usage reads still precede this call; handling their failure is a follow-up.
-async function answerDeviceRed(input: SendMessageInput, usage: ChatLimitCheck): Promise<SendMessageOk | null> {
+// any quota read, limit refusal or context read, without a bump.
+// Quota is unknown here; callers retain their last verified usage display.
+async function answerDeviceRed(input: SendMessageInput): Promise<SendMessageOk | null> {
   const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);
   if (!reply) return null;
-  return { status: "ok", reply, used: usage.used, limit: usage.limit, remaining: usage.remaining };
+  return { status: "ok", reply, used: null, limit: null, remaining: null };
 }

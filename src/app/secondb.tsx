@@ -248,6 +248,10 @@ const ChatComposer = memo(
       classifyInputAnyLocale(draft, voiceLocale, { minor: isMinor === true }).zone === "red");
     const submit = () => {
       if (!canSend) return;
+      // Guidance cannot wait for quota or audit storage to answer.
+      if (classifyInputAnyLocale(draft, voiceLocale, { minor: isMinor === true }).zone === "red") {
+        setCrisis({ visible: true, hotline: voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+      }
       // Clear only when the send was accepted, so a cap-blocked send keeps the
       // typed text (the old handleSend returned before clearing on a cap hit).
       if (onSend(draft.trim())) setDraft("");
@@ -974,15 +978,17 @@ function SecondBChatBody() {
             ]);
             // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
             if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
-            setUsedToday(result.used);
-            setLimitRefused(false);
+            if (result.used !== null) {
+              setUsedToday(result.used);
+              setLimitRefused(false);
+            }
             captureEvent(
               secondBSession({
                 action: "message_sent",
                 mode: chatMode,
                 outcome: "ok",
                 turn_count: earlier.length + 1,
-                used: result.used,
+                used: result.used ?? undefined,
                 limit,
                 tier: progression.tier,
               }),

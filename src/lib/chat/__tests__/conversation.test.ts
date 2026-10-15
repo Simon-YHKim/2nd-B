@@ -27,6 +27,8 @@ jest.mock("../usage", () => ({
   // 0090: the cap path reads used + today's rewarded ad bonus together.
   readChatUsageDetail: jest.fn((userId: string, day: string) => {
     captured.push({ fn: "readChatUsageDetail", args: [userId, day], ret: fixtures.used ?? 0 });
+    if (fixtures.usageError) return Promise.reject(fixtures.usageError);
+    if (fixtures.usagePending) return new Promise(() => {});
     return Promise.resolve({ used: fixtures.used ?? 0, adBonus: (fixtures.adBonus as number) ?? 0 });
   }),
   bumpChatUsage: jest.fn((userId: string, day: string) => {
@@ -124,9 +126,13 @@ describe("composer at the daily limit (Q-261015-82)", () => {
   const source = readFileSync(join(__dirname, "../../../app/secondb.tsx"), "utf8");
   const ast = ts.createSourceFile("secondb.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let expression = "";
+  let submitExpression = "";
   const visit = (node: ts.Node): void => {
     if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "canSend" && node.initializer) {
       expression = node.initializer.getText(ast);
+    }
+    if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "submit" && node.initializer) {
+      submitExpression = node.initializer.getText(ast);
     }
     ts.forEachChild(node, visit);
   };
@@ -151,6 +157,52 @@ describe("composer at the daily limit (Q-261015-82)", () => {
     expect(canSend("I want to die", true, true)).toBe(false);
     expect(canSend("hello", true)).toBe(true);
     expect(canSend("  ", true)).toBe(false);
+  });
+
+  test.each([
+    ["I want to die", "en", false, "GLOBAL_988"],
+    ["죽고 싶어요", "ko", true, "KR_1388"],
+    ["죽고 싶어요", "ko", false, "KR_109"],
+  ] as const)("guidance for %s appears before any request starts", (draft, voiceLocale, isMinor, hotline) => {
+    const order: string[] = [];
+    const setCrisis = jest.fn(() => order.push("visible"));
+    const onSend = jest.fn(() => { order.push("request"); return true; });
+    expect(submitExpression).not.toBe("");
+    runInNewContext(`(${submitExpression})()`, {
+      draft, voiceLocale, isMinor, canSend: true, classifyInputAnyLocale, setCrisis, onSend, setDraft: jest.fn(),
+    });
+    expect(order).toEqual(["visible", "request"]);
+    expect(setCrisis).toHaveBeenCalledWith({ visible: true, hotline });
+  });
+
+  test("ordinary text and disabled submits do not open a crisis dialog", () => {
+    const setCrisis = jest.fn();
+    for (const [draft, enabled] of [["hello", true], ["I want to die", false]] as const) {
+      runInNewContext(`(${submitExpression})()`, {
+        draft, voiceLocale: "en", isMinor: false, canSend: enabled,
+        classifyInputAnyLocale, setCrisis, onSend: () => true, setDraft: jest.fn(),
+      });
+    }
+    expect(setCrisis).not.toHaveBeenCalled();
+  });
+
+  test.each([null, 0, 5])("result with usage %s preserves or updates the actual usage display", used => {
+    let guard = "";
+    const visitGuard = (node: ts.Node): void => {
+      if (ts.isIfStatement(node) && node.expression.getText(ast) === "result.used !== null") guard = node.getText(ast);
+      ts.forEachChild(node, visitGuard);
+    };
+    visitGuard(ast);
+    expect(guard).not.toBe("");
+    const setUsedToday = jest.fn(); const setLimitRefused = jest.fn();
+    runInNewContext(guard, { result: { used }, setUsedToday, setLimitRefused });
+    if (used === null) {
+      expect(setUsedToday).not.toHaveBeenCalled();
+      expect(setLimitRefused).not.toHaveBeenCalled();
+    } else {
+      expect(setUsedToday).toHaveBeenCalledWith(used);
+      expect(setLimitRefused).toHaveBeenCalledWith(false);
+    }
   });
 });
 
@@ -247,7 +299,7 @@ describe("sendChatMessage", () => {
     expect(r.remaining).toBe(3); // 5 - 2
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsageDetail", "classifyChatTextForCrisis", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callLlm"]);
+    expect(callNames).toEqual(["classifyChatTextForCrisis", "readChatUsageDetail", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callLlm"]);
 
     // System prompt was assembled from header + exportUserWiki output.
     const geminiCall = captured.find((c) => c.fn === "callLlm");
@@ -318,8 +370,8 @@ describe("sendChatMessage", () => {
     const RED = "I want to die";
     const readers = [loadStructuredContext, loadProfileContext, retrieveChatContext, exportUserWiki] as unknown as jest.Mock[];
     const spies = [
-      readChatUsageDetail,
       classifyChatTextForCrisis,
+      readChatUsageDetail,
       ...readers,
       bumpChatUsageIfUnderCap,
       callLlm,
@@ -331,22 +383,41 @@ describe("sendChatMessage", () => {
       for (const spy of spies) spy.mockClear();
     });
 
-    test("a red verdict is the whole turn: usage read, verdict, answer; no context read, no bump, no model call", async () => {
+    test.each(["failure", "pending"])("red guidance does not depend on a quota read %s", async mode => {
+      fixtures.deviceRed = FIXED;
+      fixtures.usageError = mode === "failure" ? new Error("usage unavailable") : undefined;
+      fixtures.usagePending = mode === "pending";
+      await expect(sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" }))
+        .resolves.toMatchObject({ status: "ok", reply: FIXED, used: null, remaining: null });
+      expect(readChatUsageDetail).not.toHaveBeenCalled();
+      expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
+      expect(callLlm).not.toHaveBeenCalled();
+    });
+
+    test("unknown ordinary usage still fails closed rather than making a paid request", async () => {
+      fixtures.usageError = new Error("usage unavailable");
+      await expect(sendChatMessage({ userId: "u1", message: "hello", locale: "en", tier: "free" }))
+        .rejects.toThrow("usage unavailable");
+      expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
+      expect(callLlm).not.toHaveBeenCalled();
+    });
+
+    test("a red verdict is the whole turn: no quota or context read, no bump, no model call", async () => {
       fixtures.used = 1;
       fixtures.deviceRed = FIXED;
       const r = await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" });
       if (r.status !== "ok") throw new Error("type narrowing");
       expect(r.reply).toBe(FIXED);
 
-      expect(captured.map((c) => c.fn)).toEqual(["readChatUsageDetail", "classifyChatTextForCrisis"]);
+      expect(captured.map((c) => c.fn)).toEqual(["classifyChatTextForCrisis"]);
       for (const reader of readers) expect(reader).not.toHaveBeenCalled();
       expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
       expect(callLlm).not.toHaveBeenCalled();
 
-      // The usage that was read comes back as read: 1 of 5 used, 4 left.
-      expect(r.used).toBe(1);
-      expect(r.limit).toBe(5);
-      expect(r.remaining).toBe(4);
+      // No quota read means no claim about the allowance.
+      expect(r.used).toBeNull();
+      expect(r.limit).toBeNull();
+      expect(r.remaining).toBeNull();
     });
 
     test("the verdict gets the message as typed, the locale, the user and the minor flag", async () => {
@@ -362,16 +433,15 @@ describe("sendChatMessage", () => {
       expect(classifyChatTextForCrisis).toHaveBeenLastCalledWith(RED, "en", "u1", undefined);
     });
 
-    test("remaining keeps today's rewarded-ad bonus and limit stays the bare tier cap", async () => {
+    test("a red response does not invent a rewarded bonus or remaining allowance", async () => {
       fixtures.used = 1;
       fixtures.adBonus = 2;
       fixtures.deviceRed = FIXED;
       const r = await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" });
       if (r.status !== "ok") throw new Error("type narrowing");
-      expect(r.used).toBe(1);
-      expect(r.limit).toBe(5);
-      // Allowance is 5 + 2 and nothing was spent on this turn. `limit - used` would say 4.
-      expect(r.remaining).toBe(6);
+      expect(r.used).toBeNull();
+      expect(r.limit).toBeNull();
+      expect(r.remaining).toBeNull();
     });
 
     test("a null verdict leaves the ordinary path as it was: four context reads, one bump, one model call", async () => {
@@ -408,11 +478,11 @@ describe("sendChatMessage", () => {
       const r = await sendChatMessage({ userId: "u1", message: RED, locale, tier, minor: true, history: [{ role: "user", text: "hello" }] });
       if (r.status !== "ok") throw new Error("crisis guidance must precede a limit notice");
       expect(r.reply).toBe(FIXED);
-      expect(r.used).toBe(used);
-      expect(r.remaining).toBe(0);
+      expect(r.used).toBeNull();
+      expect(r.remaining).toBeNull();
       expect(classifyChatTextForCrisis).toHaveBeenCalledTimes(1);
       expect(classifyChatTextForCrisis).toHaveBeenLastCalledWith(RED, locale, "u1", true);
-      expect(captured.map((c) => c.fn)).toEqual(["readChatUsageDetail", "classifyChatTextForCrisis"]);
+      expect(captured.map((c) => c.fn)).toEqual(["classifyChatTextForCrisis"]);
       for (const reader of readers) expect(reader).not.toHaveBeenCalled();
       expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
       expect(callLlm).not.toHaveBeenCalled();
@@ -428,10 +498,10 @@ describe("sendChatMessage", () => {
       if (r.status !== "ok") throw new Error("device red must be answered, not blocked");
       expect(r.reply).toBe(FIXED);
       expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
-      expect(readChatUsageDetail).toHaveBeenCalledTimes(1);
-      expect(r.used).toBe(5);
-      expect(r.limit).toBe(250);
-      expect(r.remaining).toBe(245);
+      expect(readChatUsageDetail).not.toHaveBeenCalled();
+      expect(r.used).toBeNull();
+      expect(r.limit).toBeNull();
+      expect(r.remaining).toBeNull();
     });
 
     test("a verdict that rejects rejects the turn, uncounted", async () => {
@@ -440,7 +510,7 @@ describe("sendChatMessage", () => {
       await expect(sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "free" })).rejects.toThrow(
         "verdict failed",
       );
-      expect(captured.map((c) => c.fn)).toEqual(["readChatUsageDetail", "classifyChatTextForCrisis"]);
+      expect(captured.map((c) => c.fn)).toEqual(["classifyChatTextForCrisis"]);
       for (const reader of readers) expect(reader).not.toHaveBeenCalled();
       expect(bumpChatUsageIfUnderCap).not.toHaveBeenCalled();
       expect(callLlm).not.toHaveBeenCalled();
@@ -464,7 +534,7 @@ describe("sendChatMessage", () => {
       return CODE.slice(start, end);
     };
 
-    test("the cut comes after reading usage but before a limit refusal, context reads, the bump and the model call", () => {
+    test("the cut precedes every quota read, limit refusal, context read, bump and model call", () => {
       const send = fnBody("export async function sendChatMessage(");
       const at = (needle: string): number => {
         const index = send.indexOf(needle);
@@ -475,12 +545,10 @@ describe("sendChatMessage", () => {
       expect(send.split("answerDeviceRed(")).toHaveLength(2);
       // The verdict's answer is returned by the next statement, with no code in between.
       expect(send.slice(cut - "const cut = await ".length)).toMatch(
-        /^const cut = await answerDeviceRed\(input, precheck\);\n\s*if \(cut\) return cut;\n/,
+        /^const cut = await answerDeviceRed\(input\);\n\s*if \(cut\) return cut;\n/,
       );
-      for (const earlier of ["readChatUsageDetail(", "checkChatLimit("]) {
-        expect([earlier, at(earlier) < cut]).toEqual([earlier, true]);
-      }
       for (const later of [
+        "readChatUsageDetail(", "checkChatLimit(",
         "if (!precheck.allowed)",
         "loadStructuredContext(",
         "loadProfileContext(",
@@ -539,17 +607,17 @@ describe("sendChatMessage", () => {
       return count;
     };
 
-    test("the helper is exactly three statements: ask the boundary, pass a null on, answer with the usage as read", () => {
+    test("the helper asks the boundary, passes a null on, and reports unknown usage for guidance", () => {
       const helper = topLevelFn("answerDeviceRed");
       expect(texts(helper.modifiers)).toEqual(["async"]);
       expect(helper.asteriskToken).toBeUndefined();
       expect(helper.typeParameters).toBeUndefined();
-      expect(texts(helper.parameters)).toEqual(["input: SendMessageInput", "usage: ChatLimitCheck"]);
+      expect(texts(helper.parameters)).toEqual(["input: SendMessageInput"]);
       expect(helper.type ? norm(helper.type) : "").toBe("Promise<SendMessageOk | null>");
       expect(texts(helper.body?.statements)).toEqual([
         "const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);",
         "if (!reply) return null;",
-        'return { status: "ok", reply, used: usage.used, limit: usage.limit, remaining: usage.remaining };',
+        'return { status: "ok", reply, used: null, limit: null, remaining: null };',
       ]);
 
       // The name those statements call is the boundary's own export: imported under its own name,
@@ -578,12 +646,12 @@ describe("sendChatMessage", () => {
       const body = topLevelFn("sendChatMessage").body;
       if (!body) throw new Error("sendChatMessage has no body");
       expect(texts(body.statements.slice(0, 7))).toEqual([
+        "const cut = await answerDeviceRed(input);",
+        "if (cut) return cut;",
         "const day = kstDateToday();",
         "const limit = CHAT_DAILY_LIMIT[input.tier];",
         "const { used: usedBefore, adBonus } = await readChatUsageDetail(input.userId, day);",
         "const precheck = checkChatLimit(input.tier, usedBefore, adBonus);",
-        "const cut = await answerDeviceRed(input, precheck);",
-        "if (cut) return cut;",
         'if (!precheck.allowed) { return { status: "blocked", reason: "limit_reached", limit: precheck.limit, used: precheck.used, upgradeTo: precheck.upgradeTo, hint: BLOCKED_HINT[input.locale](precheck.limit), }; }',
       ]);
       // The helper's declaration and this one call.
@@ -612,7 +680,7 @@ describe("sendChatMessage", () => {
       };
       visit(AST);
       expect(uses).toEqual(['import from "./usage"', "call"]);
-      const cutReturn = body.statements[5];
+      const cutReturn = body.statements[1];
       expect(norm(cutReturn)).toBe("if (cut) return cut;");
       expect(callAt).toBeGreaterThan(cutReturn.getEnd());
       expect(callAt).toBeLessThan(body.getEnd());
@@ -627,7 +695,7 @@ describe("sendChatMessage", () => {
     );
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsageDetail", "classifyChatTextForCrisis", "retrieveChatContext", "exportUserWiki"]);
+    expect(callNames).toEqual(["classifyChatTextForCrisis", "readChatUsageDetail", "retrieveChatContext", "exportUserWiki"]);
     expect(callNames).not.toContain("bumpChatUsageIfUnderCap");
     expect(callNames).not.toContain("callLlm");
   });
