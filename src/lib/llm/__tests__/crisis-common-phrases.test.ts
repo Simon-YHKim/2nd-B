@@ -29,8 +29,16 @@ const SUPPORT = [
   'Kemarin saya menulis "saya ingin mati".',
   "Quiero morir de risa. Quiero morir.", "xquero morrer. Eu quero morrer.",
   "Lampu kamar saya mati lagi. Saya ingin mati.",
+  "Quiero morir, no puedo más.", "Quero morrer; não aguento mais.",
+  "Saya ingin mati sekarang.", "Aku ingin mati sekarang!",
+  "Quiero morir ， no puedo más.", "Quero morrer ； não aguento mais.",
+  'Kemarin saya menulis "saya ingin mati sekarang".',
+  "xaku ingin mati sekarang. Aku ingin mati sekarang.",
 ];
-const EMERGENCY = ["숨을 쉴 수 없어", "숨을 쉴 수 없어요.", "숨을쉴수없어요."];
+const EMERGENCY = [
+  "숨을 쉴 수 없어", "숨을 쉴 수 없어요.", "숨을쉴수없어요.",
+  "숨을 쉴 수 없습니다.", "숨을쉴수없습니다.",
+];
 const ORDINARY = [
   "Quiero morir de risa.", "Quiero morirme de risa.", "Quero morrer de rir.",
   "Eu quero morrer de rir com essa piada.", "Lampu kamar saya mati lagi.",
@@ -40,6 +48,10 @@ const ORDINARY = [
   "xquiero morir.", "équiero morir.", "𐐀quiero morir.",
   "quiero moriré", "quiero morir𐐀", "quero morrer_", "_saya ingin mati.",
   "saya ingin matix", "전숨을쉴수없어요후",
+  "Quiero morir de risa, nada más.", "Quero morrer de rir; essa piada é boa.",
+  "Lampu kamar saya mati sekarang.", "Saya ingin mati lampu sekarang.",
+  "saya ingin mati sekarangx", "𐐀saya ingin mati sekarang.",
+  "aku ingin mati sekarang𐐀", "숨을 쉴 수 있습니다.", "전숨을쉴수없습니다후",
 ];
 
 const savedFlag = process.env.EXPO_PUBLIC_SERVER_SAFETY;
@@ -96,13 +108,15 @@ test.each(ORDINARY)("ordinary complements and embedded words do not become a new
 });
 
 test.each([
-  "Quiero morir.", "Quero morrer.", "Saya ingin mati.", "숨을 쉴 수 없어요.",
-])("both boundary interfaces stop before provider I/O and preserve the number: %s", async (text) => {
+  ["Quiero morir.", false], ["Quero morrer.", false], ["Saya ingin mati.", false],
+  ["Quiero morir, no puedo más.", false], ["Quero morrer; não aguento mais.", false],
+  ["Saya ingin mati sekarang.", false],
+  ["숨을 쉴 수 없어요.", true], ["숨을 쉴 수 없습니다.", true],
+] as const)("both boundary interfaces preserve the number in lexical fallback: %s", async (text, physical) => {
   for (const viaEdge of [false, true]) {
     mockViaEdge = viaEdge;
     for (const locale of ["ko", "en"] as const) {
       for (const minor of [false, true]) {
-        const physical = text === "숨을 쉴 수 없어요.";
         const hotline = physical ? "KR_119" : locale === "en" ? "GLOBAL_988" : minor ? "KR_1388" : "KR_109";
         const result = await callLlm({ userId: "fixture-owner", locale, minor, purpose: "interview_probe", user: text });
         const advisor = await callAdvisor({ userId: "fixture-owner", locale, minor, userMessage: text });
@@ -133,4 +147,5 @@ test("new bounded phrases never cancel existing red phrases or the physical lane
   // Existing conservative policy also applies when the exact physical statement is quoted.
   expect(matchEmergencyLane('어제 "숨을 쉴 수 없어요."라고 썼습니다.')).toBe("medical_emergency");
   expect(matchEmergencyLane("너무 바빠서 숨을 쉴 수 없어요.")).toBe("medical_emergency");
+  expect(matchEmergencyLane('어제 "숨을 쉴 수 없습니다."라고 썼습니다.')).toBe("medical_emergency");
 });

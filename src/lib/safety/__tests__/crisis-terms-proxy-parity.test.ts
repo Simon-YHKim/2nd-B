@@ -302,10 +302,24 @@ describe.each(Object.entries(PROXY_SOURCES))("%s es/pt/id executable parity", (_
     ["Quero morrer.", true],
     ["Saya ingin mati.", true],
     ["Aku ingin mati.", true],
+    ["Quiero morir, no puedo más.", true],
+    ["Quero morrer; não aguento mais.", true],
+    ["Saya ingin mati sekarang.", true],
+    ["Aku ingin mati sekarang!", true],
+    ["Quiero morir ， no puedo más.", true],
+    ["Quero morrer ； não aguento mais.", true],
     ["Quiero morir de risa.", false],
     ["Quero morrer de rir.", false],
     ["Lampu kamar saya mati lagi.", false],
     ["Saya ingin mati lampu sebentar.", false],
+    ["Quiero morir de risa, nada más.", false],
+    ["Quero morrer de rir; essa piada é boa.", false],
+    ["Lampu kamar saya mati sekarang.", false],
+    ["Saya ingin mati lampu sekarang.", false],
+    ["saya ingin mati sekarangx", false],
+    ["𐐀saya ingin mati sekarang.", false],
+    ["aku ingin mati sekarang𐐀", false],
+    ['Kemarin saya menulis "saya ingin mati sekarang".', true],
     ["Quiero morir de risa. Quiero morir.", true],
     ["équiero morir.", false],
     ["𐐀quiero morir.", false],
@@ -339,8 +353,10 @@ describe.each(Object.entries(PROXY_SOURCES))("%s bounded breathing phrase parity
   const hasCrisisTerm = loadHasCrisisTerm(readProxy(relPath), relPath);
   test.each([
     ["숨을 쉴 수 없어요.", true], ["숨을쉴수없어요.", true],
+    ["숨을 쉴 수 없습니다.", true], ["숨을쉴수없습니다.", true],
     ["숨을 쉴 수 있어요.", false], ["숨을 쉴 수 없을 만큼 웃었어요.", false],
     ["전숨을쉴수없어요후", false],
+    ["숨을 쉴 수 있습니다.", false], ["전숨을쉴수없습니다후", false],
   ])("same emergency decision for %s", (text, red) => {
     for (const variant of [text, text.normalize("NFD"), text.replace(/ /g, "\n\u00a0")]) {
       expect(hasCrisisTerm(variant)).toBe(red);

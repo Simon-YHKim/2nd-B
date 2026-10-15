@@ -22,10 +22,10 @@ function previousCharacter(text: string, index: number): string {
 }
 
 function endsCompletePhrase(text: string, after: number): boolean {
-  // Whitespace was already collapsed. End, a sentence mark or a closing quote
+  // Whitespace was already collapsed. End, a clause mark or a closing quote
   // completes only the new wish phrases; a following complement does not.
   const next = text[after] === " " ? after + 1 : after;
-  return next === text.length || /[.!?。！？"'’”»]/u.test(text[next]);
+  return next === text.length || /[.,;!?。！？"'’”»]/u.test(text[next]);
 }
 
 // A bounded number of fixed phrases, scanned linearly. Unicode boundaries avoid

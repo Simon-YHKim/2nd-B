@@ -467,7 +467,7 @@ export const EMERGENCY_PHRASES = {
     ko: [
       "약을 이미 많이 먹었어", "약을 한꺼번에 많이 먹었어", "약을 너무 많이 먹었어",
       "숨을 못 쉬겠어", "지금 숨을 못 쉬고 있어", "지금 피가 멈추지 않아", "피가 계속 나고 멈추지 않아",
-      "숨을 쉴 수 없어",
+      "숨을 쉴 수 없어", "숨을 쉴 수 없습니다",
     ],
     en: [
       "I have taken an overdose", "I just took an overdose", "I took too many pills",
@@ -515,5 +515,5 @@ export const ADDITIONAL_CRISIS_PHRASES: Record<AdditionalCrisisLanguage, readonl
 export const COMPLETE_CRISIS_PHRASES: Record<AdditionalCrisisLanguage, readonly string[]> = {
   es: ["quiero morir", "quiero morirme"],
   pt: ["quero morrer"],
-  id: ["saya ingin mati", "aku ingin mati"],
+  id: ["saya ingin mati", "aku ingin mati", "saya ingin mati sekarang", "aku ingin mati sekarang"],
 };
