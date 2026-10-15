@@ -13,7 +13,8 @@ export interface ContactIntent {
 const word = /[\p{L}\p{N}_]/u;
 const quotePairs: Readonly<Record<string, string>> = { '"': '"', "'": "'", "“": "”", "‘": "’", "「": "」", "『": "』", "`": "`" };
 
-// Mask before recognizing sentences. An unclosed quote excludes its remaining suffix.
+// A quote leaves an opaque token: removing it must not turn `call 109 "times"`
+// into a complete instruction. An unclosed quote excludes its remaining suffix.
 function outsideQuotes(text: string): string {
   const result: string[] = [];
   let closing = "";
@@ -22,9 +23,12 @@ function outsideQuotes(text: string): string {
     const apostrophe = (char === "'" || char === "’") && word.test(text[i - 1] ?? "") && word.test(text[i + 1] ?? "");
     if (closing) {
       result.push(" ");
-      if (char === closing && !apostrophe) closing = "";
+      if (char === closing && !apostrophe) {
+        closing = "";
+        if (/[.!?]/.test(text[i - 1] ?? "")) result.push("\n");
+      }
     } else if (!apostrophe && quotePairs[char]) {
-      closing = quotePairs[char]; result.push(" ");
+      closing = quotePairs[char]; result.push("\uFFFC");
     } else { result.push(char); }
   }
   return result.join("");
@@ -38,7 +42,10 @@ const countryCondition = /^(?:if you(?: are|'re) in (?:the )?(?:us|united states
 const otherCondition = /^(?:if you might act on this tonight|if you need (?:support|help)|if you can),\s*/;
 const numberGroup = "\\d{1,20}(?:-\\d{1,20})?";
 const englishContact = new RegExp(`^(?:please )?(?:call(?: or text)?|text|contact) (${numberGroup}(?: (?:or|and) ${numberGroup})*)(?![\\p{L}\\p{N}_-])`, "u");
-const englishTail = /^(?:$|(?:right )?now(?:\s|$)|for (?:immediate )?(?:support|help)(?:\s|$)|if you(?: are|'re) in |or get someone nearby to call for you$)/;
+const timeTail = "(?:right )?now";
+const purposeTail = "for (?:immediate )?(?:support|help)";
+const countryTail = "if you(?: are|'re) in (?:the )?(?:us|united states|south korea|canada)(?: or canada)?";
+const englishTail = new RegExp(`^(?:${timeTail}(?: ${purposeTail})?(?: ${countryTail}| \\(us/canada\\))?(?:, or call emergency services now| or get someone nearby to call for you)?|${purposeTail}(?: ${timeTail})?(?: ${countryTail})?|${countryTail}(?: ${timeTail})?|or get someone nearby to call for you)?$`);
 const koreanPrefix = /^(?:(?:지금|바로)\s*)?(?:(?:한국에\s*계시면|한국에\s*계시고\s*지금\s*당장\s*혼자\s*버티기\s*어렵다면|대화\s*지원이\s*필요하면|신체에\s*위험이\s*있다면|스스로를\s*해칠\s*생각이\s*들거나,\s*이미\s*뭔가를\s*하신\s*상태라면)\s*)?(?:(?:지금|바로)\s*)?/;
 const koreanContact = new RegExp(`^(${numberGroup}(?:\\s*(?:또는|이나)\\s*${numberGroup})*)(?:로|에)\\s*(?:(?:지금|바로)\\s*)?(?:연락해\\s*주세요|연결해\\s*도움을\\s*받아\\s*주세요|연락하거나\\s*가까운\\s*응급실로\\s*가시겠나요)$`, "u");
 
@@ -76,12 +83,36 @@ function intentFor(sentence: string, next: string): ContactIntent | null {
   return null;
 }
 
+// Preserve punctuation inside numeric/identifier tokens. A decimal must not
+// produce a shorter telephone number when sentences are separated.
+function sentencesOf(text: string): string[] {
+  const parts: string[] = [];
+  let start = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] === "\n") {
+      parts.push(text.slice(start, i)); start = i + 1;
+    } else if (/[.!?;]/.test(text[i])) {
+      let end = i + 1;
+      while (end < text.length && /[.!?;]/.test(text[end])) end += 1;
+      let next = end;
+      while (next < text.length && /\s/.test(text[next])) next += 1;
+      const numericContinuation = /\d/.test(text[i - 1] ?? "") && /\d/.test(text[next] ?? "");
+      if (!numericContinuation && (end === text.length || /\s/.test(text[end]))) {
+        parts.push(text.slice(start, i)); start = end;
+      }
+      i = end - 1;
+    }
+  }
+  parts.push(text.slice(start));
+  return parts.map((part) => part.replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+
 /** Internal grammar only. The public inspector has already checked the source and size. */
 export function findCurrentContactIntents(question: string): ContactIntent[] {
   if (question.length > 4096) return [];
   const normalized = outsideQuotes(question.normalize("NFKC")).toLowerCase()
     .replace(/[’]/g, "'").replace(/\bu\.s\.(?=\s|$)/g, "us");
-  const sentences = normalized.split(/[.!?;\n]+/).map((part) => part.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const sentences = sentencesOf(normalized);
   const result: ContactIntent[] = [];
   for (let i = 0; i < sentences.length; i += 1) {
     const found = intentFor(sentences[i], sentences[i + 1] ?? "");

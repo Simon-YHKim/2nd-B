@@ -177,3 +177,36 @@ describe("positive current contact, not number or uncertainty", () => {
     }
   });
 });
+
+describe("R1: preserve complete numeric tokens and consume the entire current clause", () => {
+  test.each([
+    "Call 109.5 times.", "Call 109.1234 now.", "Call 109.now() to run the method.",
+    "Call 109..5 times.", "Call 109. 5 times.", "Call 109.\n5 times.",
+    "Call 109;5 times.", "Call 109!5 times.", "Call 109?5 times.",
+    "Call 109.abc now.", "Call 109,123 times.", "Call 1234.5 now.",
+    "Call 109 now was the title of the play.", "Call 109 now is the name of the song.",
+    "Call 109 now, a line from a film, was printed on the wall.",
+    "Call 109 for support is the name of the song.", "Call 109 now because that is a movie title.",
+    "Call 109 now if you are in France.", "Call 988 if you are in France.",
+    "Call 112 now for emotional support.", "Call 112 now for conversation support.",
+    "Call 109 now for support in an imaginary country.", "Call 988 if you are in the US is a song.",
+    "Call 109 “times”.", "Call 109 'times'.", "Call 109 ‘times’.", "Call 109 `times`.",
+    "Call 109 now “a title”.", "Call “109” now.", "Call 109 now for “support”.",
+    "Call 109 “times.”", "Call 109 now was “a title.”", "Call 109 now “unfinished",
+  ])("does not manufacture current intent by discarding part of: %s", (question) => {
+    expect(inspectQuestion(question)).toEqual(absent);
+  });
+  test.each([
+    ["Call 109 now.", ["KR_109"]], ["Call 109 now!", ["KR_109"]],
+    ["Call 109 for support.", ["KR_109"]], ["Call 109 right now for immediate support.", ["KR_109"]],
+    ["Call 988 if you are in the US.", ["GLOBAL_988"]],
+    ["Call 988 now if you are in the US or Canada.", ["GLOBAL_988"]],
+    ["Call 119 now or get someone nearby to call for you.", ["KR_119"]],
+    ["If you might act on this tonight, call or text 988 now (US/Canada), or call emergency services now.", ["GLOBAL_988"]],
+    ["“A different remark.” Call 109 now.", ["KR_109"]],
+    ["Call 109 now. “A different remark.”", ["KR_109"]],
+    ["Call 109 now. Friend said “unfinished", ["KR_109"]],
+  ] as const)("keeps an independently complete supported recommendation: %s", (question, contacts) => {
+    expect(inspectQuestion(question).guidance).toMatchObject({ kind: "contacts", contacts });
+  });
+});
