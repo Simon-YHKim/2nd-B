@@ -104,11 +104,12 @@ const MANAGED_KEY_PREFIXES = [
   "capture.journalDraft.v1.",
   "import.history:",
   "interview.drafts.v1.",
+  "interview.drafts.v2.",
   "ops.github.username:",
   "ops.one-off-reminders.v1.",
 ];
-// This namespace is new: there is no approved legacy plaintext to migrate.
-const CIPHERTEXT_ONLY_PREFIXES = ["interview.drafts.v1."];
+// These namespaces have no approved legacy plaintext to migrate.
+const CIPHERTEXT_ONLY_PREFIXES = ["interview.drafts.v1.", "interview.drafts.v2."];
 const SUPABASE_AUTH_KEY_PATTERN =
   /^sb-[a-z0-9_-]+-auth-token(?:-v2)?(?:-code-verifier|-user|-migration-from-v1-complete)?$/i;
 

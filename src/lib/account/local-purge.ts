@@ -3,6 +3,7 @@ import { purgeAvatarPaletteItemsForDeletedAccount } from "../avatar-palette/gall
 import { purgeHealthAutoReadForDeletedAccount } from "../health/auto-read";
 import { purgeImportHistoryForDeletedAccount } from "../import/history";
 import { purgeInterviewDraftsForDeletedAccount } from "../interview/draft-store";
+import { purgeInterviewSnapshotsForDeletedAccount } from "../interview/draft-snapshot-store";
 import { purgeAuditWriteOutboxForOwner } from "../llm/audit-write-outbox";
 import { purgeNoticeLastSeenForDeletedAccount } from "../notices/last-seen";
 import { purgeStarLastSeenForDeletedAccount } from "../persona/star-last-seen";
@@ -42,6 +43,7 @@ export async function purgeDeletedAccountLocalData(userId: string): Promise<Loca
       observe(() => purgeAvatarPaletteItemsForDeletedAccount(owner)),
       observe(() => purgeCaptureDraftsForDeletedAccount(owner)),
       observe(() => purgeInterviewDraftsForDeletedAccount(owner)),
+      observe(() => purgeInterviewSnapshotsForDeletedAccount(owner)),
       observe(() => purgeImportHistoryForDeletedAccount(owner)),
       observe(() => purgeGithubUsernameForDeletedAccount(owner)),
       observe(() => purgeAuditWriteOutboxForOwner(owner)),
