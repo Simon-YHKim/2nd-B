@@ -15,7 +15,7 @@ import { dirname, resolve } from "path";
 import * as ts from "typescript";
 
 import { classifyInput, KO_PARTIAL_SPACING_TERMS, koSpacingForms, koTermSpellings } from "../classifier";
-import { CRISIS_TERMS } from "../lexicon";
+import { CRISIS_TERMS, EMERGENCY_PHRASES } from "../lexicon";
 import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS } from "./crisis-context.fixtures";
 import {
   DAILY_SAMPLE,
@@ -61,7 +61,9 @@ function loadHasCrisisTerm(src: string, relPath: string): (text: string) => bool
   if (!contextImport) throw new Error("shared crisis context import missing from proxy source");
   const languageImport = src.match(/^import \{ matchAdditionalCrisisLanguage \} from ['"][^'"]+['"];$/m)?.[0];
   if (!languageImport) throw new Error("shared additional language import missing from proxy source");
-  const snippet = `${contextImport}\n${languageImport}\n${src.slice(start, end + 2)}\nexports.hasCrisisTerm = hasCrisisTerm;\n`;
+  const emergencyImport = src.split("\n").find((line) => line.startsWith("import ") && line.includes("/emergency-routing.ts"));
+  if (!emergencyImport) throw new Error("shared emergency routing import missing from proxy source");
+  const snippet = `${contextImport}\n${languageImport}\n${emergencyImport}\n${src.slice(start, end + 2)}\nexports.hasCrisisTerm = hasCrisisTerm;\n`;
   const js = ts.transpileModule(snippet, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
@@ -112,6 +114,14 @@ describe.each(Object.entries(PROXY_SOURCES))("%s crisis-term parity", (_name, re
 // NFD-decomposed Hangul, doesn't slip RED -> GREEN).
 describe.each(Object.entries(PROXY_SOURCES))("%s hasCrisisTerm behaviour parity", (_name, relPath) => {
   const hasCrisisTerm = loadHasCrisisTerm(readProxy(relPath), relPath);
+
+  test.each(Object.values(EMERGENCY_PHRASES).flatMap((phrases) => [...phrases.ko, ...phrases.en]))(
+    "explicit emergency is red on both boundaries: %s", (text) => {
+      for (const locale of ["ko", "en"] as const) expect(classifyInput(text, locale).zone).toBe("red");
+      expect(hasCrisisTerm(text)).toBe(true);
+      expect(hasCrisisTerm(text.normalize("NFD").replace(/ /g, "\n\u00a0"))).toBe(true);
+    },
+  );
 
   test.each(BENIGN_CRISIS_CONTEXTS)("narrow benign context passes both boundaries: %s", (text) => {
     expect(classifyInput(text, "ko").zone).not.toBe("red");

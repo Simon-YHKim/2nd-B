@@ -1,3 +1,5 @@
+import { classifyInputAnyLocale } from "../classifier";
+import { checkModelReplyOverlaps } from "../model-reply-scan";
 import {
   emergencyGuidance, emergencyHotline, emergencyLaneForHotline, matchEmergencyLane, parseEmergencyLane,
 } from "../emergency-routing";
@@ -53,4 +55,21 @@ describe("separate emergency lanes", () => {
     expect(emergencyGuidance("KR_109", "ko")).toBeNull();
     expect(emergencyGuidance(undefined, "en")).toBeNull();
   });
+});
+
+
+test.each([
+  ["약을 이미 많이 먹었어요", "KR_119"],
+  ["지금누가나를때리고있어요", "KR_112"],
+  ["I took too many pills.", "KR_119"],
+  ["Someone is threatening me with a knife right now.", "KR_112"],
+] as const)("%s keeps its emergency route across locale, age and reply overlap", (text, hotline) => {
+  for (const locale of ["ko", "en"] as const) {
+    for (const minor of [true, false]) {
+      expect(classifyInputAnyLocale(text, locale, { minor }).crisisRouting?.hotline).toBe(hotline);
+      const result = checkModelReplyOverlaps(`작은 다짐이 되어. ${text}`, locale, { minor, benignOverlaps: true });
+      expect(result.strict.crisisRouting?.hotline).toBe(hotline);
+      expect(result.candidate).toBe(false);
+    }
+  }
 });

@@ -607,7 +607,7 @@ export default function CareerDrilldown() {
         if (res.followup?.zone === "red") {
           setCrisis({
             visible: true,
-            hotline: isKo ? (isMinor === true ? "KR_1388" : "KR_109") : "GLOBAL_988",
+            hotline: res.crisisHotline ?? (isKo ? (isMinor === true ? "KR_1388" : "KR_109") : "GLOBAL_988"),
           });
           setSaving(false);
           return;

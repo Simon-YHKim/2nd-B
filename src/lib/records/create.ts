@@ -193,7 +193,8 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         ? await classifyRecordTextForCrisis(args.body, args.locale, args.userId, args.minor === true, args.session)
         : await classifyRecordTextForCrisis(args.body, args.locale, args.userId, args.minor === true);
       if (crisis) {
-        aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true }; crisisHotline = crisis.safety.crisisRouting?.hotline;
+        aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+        crisisHotline = crisis.safety?.crisisRouting?.hotline;
       }
     } catch (e) {
       if (typeof console !== "undefined")
@@ -267,7 +268,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
             args.userId,
             args.minor === true,
           );
-          if (crisis) { aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true }; crisisHotline = crisis.safety.crisisRouting?.hotline; }
+          if (crisis) {
+            aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+            crisisHotline = crisis.safety?.crisisRouting?.hotline;
+          }
         } catch {
           /* best-effort — never block the save */
         }
@@ -288,7 +292,8 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
           minor: args.minor,
         });
         const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
-        aiFollowup = { text: cappedText, zone: res.safety.zone }; crisisHotline = res.safety.crisisRouting?.hotline;
+        aiFollowup = { text: cappedText, zone: res.safety.zone };
+        crisisHotline = res.safety.crisisRouting?.hotline;
       } catch (e) {
         if (typeof console !== "undefined")
           console.warn("[records] audit follow-up failed; saving without it", (e as Error).message);
@@ -302,7 +307,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
             args.userId,
             args.minor === true,
           );
-          if (crisis) { aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true }; crisisHotline = crisis.safety.crisisRouting?.hotline; }
+          if (crisis) {
+            aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+            crisisHotline = crisis.safety?.crisisRouting?.hotline;
+          }
         } catch {
           /* best-effort — never block the save */
         }

@@ -7,6 +7,7 @@
 
 import { callLlm } from "../llm/boundary";
 import type { LlmResult } from "../llm/types";
+import type { HotlineId } from "../safety/lexicon";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import {
   leaseOwnedTempFile,
@@ -363,6 +364,17 @@ export function isImageOcrEmptyResultError(error: unknown): boolean {
 
 export function isImageOcrCrisisResultError(error: unknown): boolean {
   return error instanceof Error && error.message === IMAGE_OCR_CRISIS_RESULT_ERROR;
+}
+
+/** Only routing metadata survives; extracted text and image data are never attached. */
+export class ImageOcrCrisisResultError extends Error {
+  constructor(readonly hotline?: HotlineId) {
+    super(IMAGE_OCR_CRISIS_RESULT_ERROR);
+  }
+}
+
+export function imageOcrCrisisHotline(error: unknown): HotlineId | undefined {
+  return error instanceof ImageOcrCrisisResultError ? error.hotline : undefined;
 }
 
 export function isImageOcrRepickRequiredError(error: unknown): boolean {
@@ -853,7 +865,7 @@ export async function ocrImageAsset(
   }
   session.assertCurrent();
   if (reply.safety?.zone === "red") {
-    throw new Error(IMAGE_OCR_CRISIS_RESULT_ERROR);
+    throw new ImageOcrCrisisResultError(reply.safety.crisisRouting?.hotline);
   }
   const text = normalizeOcrTextResult(reply.text, locale);
   if (text.length === 0) {

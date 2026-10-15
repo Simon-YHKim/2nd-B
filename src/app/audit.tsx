@@ -276,7 +276,7 @@ function AuditLegacy() {
         // the next prompt is the "cheerful next screen, no hotline" shape.
         setCrisis({
           visible: true,
-          hotline: locale === "ko" ? (isMinor === true ? "KR_1388" : "KR_109") : "GLOBAL_988",
+          hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor === true ? "KR_1388" : "KR_109") : "GLOBAL_988"),
         });
         return;
       }

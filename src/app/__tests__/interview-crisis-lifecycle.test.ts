@@ -30,9 +30,9 @@ function setup() {
   clearAccountTransition(currentAccountEpoch());
   const old = getCrisisNotice();
   if (old) dismissCrisisNotice(old.id);
-  let settle!: (value: { zone: string }) => void;
+  let settle!: (value: { zone: string; hotline?: "KR_119" | "KR_112" }) => void;
   let reject!: (error: Error) => void;
-  const request = new Promise<{ zone: string }>((yes, no) => { settle = yes; reject = no; });
+  const request = new Promise<{ zone: string; hotline?: "KR_119" | "KR_112" }>((yes, no) => { settle = yes; reject = no; });
   const ended = { current: false };
   const mounted = { current: true };
   const scope = {
@@ -138,4 +138,17 @@ test("app guidance is mounted outside route gates while existing screen dialogs 
   expect(router).toContain("<CrisisDialog {...props} Dialog={Modal} />");
   expect(router).toContain("Dialog={MotionModal}");
   expect(router).toContain("if (!notice) return null;");
+});
+
+
+test.each(["KR_119", "KR_112"] as const)("late %s survives interview end without an extra question", async (hotline) => {
+  const { scope, settle, ask } = setup();
+  const pending = ask([{ role: "user", text: "some answer", layer: "fact" }], {}, null, [], "fact");
+  scope.ended.current = true;
+  settle({ zone: "red", hotline });
+  await pending;
+  expect(getCrisisNotice()?.hotline).toBe(hotline);
+  expect(scope.setTurns).not.toHaveBeenCalled();
+  expect(scope.setCoverage).not.toHaveBeenCalled();
+  expect(scope.confirmedAnswer).not.toHaveBeenCalled();
 });

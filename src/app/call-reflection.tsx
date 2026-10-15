@@ -223,7 +223,7 @@ export default function CallReflection() {
       if (reply.safety?.zone === "red") {
         setPhase("idle");
         setSelectedName(null);
-        setCrisis({ visible: true, hotline: hotlineFor(ko, isMinor === true) });
+        setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? hotlineFor(ko, isMinor === true) });
         return;
       }
       const text = reply.text.trim();
@@ -276,7 +276,7 @@ export default function CallReflection() {
         structured: composeStructured("call_reflection", fields) ?? undefined,
       });
       if (saved.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: hotlineFor(ko, isMinor === true) });
+        setCrisis({ visible: true, hotline: saved.crisisHotline ?? hotlineFor(ko, isMinor === true) });
         setBusy(false);
         return;
       }

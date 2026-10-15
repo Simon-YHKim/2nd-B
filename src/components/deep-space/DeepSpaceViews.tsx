@@ -582,7 +582,7 @@ export function CaptureView({
       if (failure.kind === "crisis") {
         // Never "try a clearer photo" for crisis content: close and show the hotline.
         closeOcr();
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: failure.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       setOcrFailure(failure);
@@ -695,7 +695,7 @@ export function CaptureView({
       // detection — surface the hotline exactly like the journal path
       // (capture.tsx handleJournalSubmit) instead of discarding the result.
       if (res.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
       } else {
         // Same opt-in queue as full capture; saving itself never waits for AI.
         enqueueAutoReasoningRecord({

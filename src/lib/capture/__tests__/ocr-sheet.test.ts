@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { LlmConsentError } from "../../llm/boundary";
 import {
-  IMAGE_OCR_CRISIS_RESULT_ERROR,
+  IMAGE_OCR_CRISIS_RESULT_ERROR, ImageOcrCrisisResultError,
   IMAGE_OCR_EMPTY_RESULT_ERROR,
   IMAGE_OCR_INVALID_DATA_ERROR,
   IMAGE_OCR_MISSING_DATA_ERROR,
@@ -19,6 +19,10 @@ const read = (rel: string): string => readFileSync(join(process.cwd(), rel), "ut
 describe("classifyOcrFailure", () => {
   test("a crisis result goes to the hotline, not to a photo-quality message", () => {
     expect(classifyOcrFailure(new Error(IMAGE_OCR_CRISIS_RESULT_ERROR))).toEqual({ kind: "crisis" });
+  });
+
+  test.each(["KR_119", "KR_112"] as const)("preserves %s without OCR text", (hotline) => {
+    expect(classifyOcrFailure(new ImageOcrCrisisResultError(hotline))).toEqual({ kind: "crisis", hotline });
   });
 
   test("a consent refusal from the proxy keeps its code for the consent link", () => {

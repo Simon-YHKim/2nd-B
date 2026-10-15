@@ -13,7 +13,7 @@ import { MotionModal } from "@/components/ui/MotionModal";
 
 import { useCallback, useSyncExternalStore } from "react";
 import { StyleSheet, Linking } from "react-native";
-import { PhoneView as View, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
+import { PhoneView as View, PhonePressable as Pressable, PhoneScrollView as ScrollView } from "@/components/phone/PhoneUIKit";
 import { useTranslation } from "react-i18next";
 import { radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { PixelScrim } from "@/components/pixel/PixelDither";
@@ -90,6 +90,7 @@ function CrisisDialog({ visible, hotline, onClose, Dialog }: CrisisRouterProps &
           <PixelScrim />
         </View>
         <View style={styles.card}>
+          <ScrollView contentContainerStyle={styles.cardContent} style={styles.scroll}>
           <View style={styles.hotlineBadge}>
             <Text variant="subtle" style={styles.hotlineBadgeText}>
               {t("red.badge")}
@@ -134,6 +135,7 @@ function CrisisDialog({ visible, hotline, onClose, Dialog }: CrisisRouterProps &
             </View>
           ) : null}
           <Button label={t("red.dismiss")} variant="secondary" onPress={onClose} />
+          </ScrollView>
         </View>
       </View>
     </Dialog>
@@ -152,10 +154,16 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
     borderWidth: 1,
     borderRadius: radii.lg,
-    padding: spacing.xl,
-    gap: spacing.md,
     width: "100%",
     maxWidth: 440,
+    maxHeight: "100%",
+  },
+  scroll: {
+    flexShrink: 1,
+  },
+  cardContent: {
+    padding: spacing.xl,
+    gap: spacing.md,
   },
   hotlineBadge: {
     alignSelf: "flex-start",

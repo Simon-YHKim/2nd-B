@@ -6,6 +6,7 @@ import { hasCrisisRiskContext } from "./crisis-context";
 import { CRISIS_EVENT_CATEGORY_LIMIT, classifierReportedCategories, recordableCrisisCategories } from "./crisis-event-categories";
 import { CRISIS_TERMS, type Locale } from "./lexicon";
 import { matchAdditionalCrisisLanguage } from "./crisis-language";
+import { matchEmergencyLane } from "./emergency-routing";
 // ── The closed list (Simon 2026-10-13, Q-261013-34 with D1-D3) ───────────────
 // The gate matches Korean terms as bare substrings, so a reply the model wrote
 // can hold a crisis term's letters inside an unrelated word: "다짐이 되어" holds
@@ -71,7 +72,7 @@ export function gateTermsLeft(maskedReply: string): string[] {
   const en = CRISIS_TERMS.en.filter((term) =>
     new RegExp(`(^|[^a-z0-9])${escapeForPattern(term.normalize("NFKC").toLowerCase())}($|[^a-z0-9])`).test(maskedReply),
   );
-  return [...ko, ...en].concat(matchAdditionalCrisisLanguage(maskedReply)?.phrase ?? []);
+  return [...ko, ...en].concat(matchAdditionalCrisisLanguage(maskedReply)?.phrase ?? [], matchEmergencyLane(maskedReply) ?? []);
 }
 
 // Checks a MODEL REPLY. The strict answer is returned untouched in every case.

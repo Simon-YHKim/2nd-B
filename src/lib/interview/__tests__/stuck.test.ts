@@ -263,7 +263,7 @@ describe("발판은 네트워크 없이 즉시 보여준다", () => {
     expect(redBranch).toContain("startInterviewCrisisRouting(");
     expect(redBranch).toContain("crisisRouting,");
     expect(redBranch).toContain("finish()");
-    expect(redBranch).toContain("publishCrisisNotice(owner, hotlineFor())");
+    expect(redBranch).toContain("publishCrisisNotice(owner, safety.crisisRouting?.hotline ?? hotlineFor())");
     expect(redBranch.indexOf("publishCrisisNotice")).toBeLessThan(redBranch.indexOf("route.done"));
     expect(redBranch).toContain("void route.done.catch(");
     expect(redBranch).not.toContain("await classifyInterviewTextForCrisis");
