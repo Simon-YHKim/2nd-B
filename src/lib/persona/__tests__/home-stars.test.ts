@@ -290,7 +290,7 @@ describe("/me/<star> 요약은 사다리 하나로 말한다", () => {
     // started, so it shows that one reason and nothing else (like a period not reached).
     expect(page).toContain('const waitingEmpty = entry?.kind === "previous" && summary !== null && summary.cells === 0 && summary.records === 0;');
     expect(page).not.toContain('t("ds.star.emptyBody")');
-    expect(page).toMatch(/\) : summary === null \? \(\s+<MdCard variant="outlined" style=\{styles\.card\}>\s+<Text[^>]*>\s+\{t\("ds\.star\.loading"\)\}/);
+    expect(page).toMatch(/\) : currentRead\.status === "loading" \? \(\s+<MdCard variant="outlined" style=\{styles\.card\}>\s+<Text[^>]*>\s+\{t\("ds\.star\.loading"\)\}/);
     // No "0 records" line under an empty ladder.
     expect(page).toContain("{summary.records > 0 ? (");
     // The button already says Start until a first layer is covered.

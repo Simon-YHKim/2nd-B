@@ -70,6 +70,7 @@ function CrisisDialog({ visible, hotline, onClose, Dialog }: CrisisRouterProps &
 
   return (
     <Dialog
+      crisisAboveDeviceLock
       visible={visible}
       transparent
       animationType="slide"

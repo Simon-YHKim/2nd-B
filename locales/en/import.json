@@ -77,7 +77,7 @@
   "hub": {
     "back": "Back",
     "import": "Import",
-    "imported": "Imported data",
+    "imported": "Import history",
     "hubBubble": "What should we bring in?",
     "hubTip": "Only what you approve is kept.",
     "tier_critical": "Most sensitive · consent required",
