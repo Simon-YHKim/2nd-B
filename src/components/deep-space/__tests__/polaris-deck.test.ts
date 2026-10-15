@@ -11,6 +11,7 @@ const read = (p: string) => fs.readFileSync(path.join(SRC, p), "utf8");
 const deck = read("components/deep-space/PolarisDeck.tsx");
 const screen = read("app/core-brain.tsx");
 const reader = read("lib/persona/use-core-evidence-read.ts");
+const companions = read("lib/persona/use-core-role-reads.ts");
 
 describe("북극성 persona deck (P3a)", () => {
   test("deck is a paged swiper with tab-dot a11y", () => {
@@ -71,7 +72,8 @@ describe("북극성 persona deck (P3a)", () => {
     const deepSpaceBlock = screen.slice(start, end);
 
     expect(screen).toContain('from "@/lib/persona/seven-stars"');
-    expect(reader).toContain("loadLatestStrengths(getSupabaseClient(), owner)");
+    expect(companions).toContain("loadLatestStrengths(getSupabaseClient(), owner)");
+    expect(reader).not.toContain("loadLatestStrengths");
     expect(deepSpaceBlock).toContain("strengthSummary");
     expect(deepSpaceBlock).toContain("SEVEN_STARS.map");
     expect(screen).toContain("stepPolyline");
@@ -101,7 +103,7 @@ describe("북극성 persona deck (P3a)", () => {
 
   test("empty state opens a canonical self-knowledge star instead of a retired domain check", () => {
     const start = screen.indexOf("if (evidence.length === 0)");
-    const end = screen.indexOf("const cards = persona", start);
+    const end = screen.indexOf("const pieces = persona", start);
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const emptyBlock = screen.slice(start, end);

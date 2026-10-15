@@ -19,6 +19,7 @@ on:
       - "supabase/functions/dashboard-generate/**"
       - "scripts/test-profile-import-sql.mjs"
       - "scripts/test-deletion-receipt-sql.mjs"
+      - "scripts/test-interview-content-authority-sql.mjs"
       - ".github/workflows/supabase-dry-run.yml"
 
 # Least privilege: this workflow only reads the repo (checkout + local tooling).
@@ -400,6 +401,18 @@ jobs:
           psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
             -c 'CREATE DATABASE t04_receipt_test_ci TEMPLATE postgres'
           node scripts/test-deletion-receipt-sql.mjs "$LOCAL_SQL_CONTAINER" t04_receipt_test_ci
+      - name: Exercise dormant interview content authority on full schema clone
+        env:
+          PGPASSWORD: postgres
+          LOCAL_SQL_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          # Use this job's freshly replayed numbered schema, not a cached DB.
+          # The runner checks the complete ledger and installed writer locks
+          # before applying the draft, then exercises real two-connection races.
+          psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE t16_authority_test_ci TEMPLATE postgres'
+          node scripts/test-interview-content-authority-sql.mjs "$LOCAL_SQL_CONTAINER" t16_authority_test_ci
       - name: Verify promoted server-first contracts after numbered scratch replay
         env:
           PGPASSWORD: postgres

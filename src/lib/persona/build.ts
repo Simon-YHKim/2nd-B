@@ -128,6 +128,9 @@ export interface PersonaCard {
   markdownExport: string;
 }
 
+/** Saved fields for the Polaris screen; no claim about unread assessments. */
+export type CorePersonaSnapshot = Omit<PersonaCard, "mbti" | "attachment">;
+
 export interface AuditResponseRow {
   id: string;
   prompt: string | null;
@@ -564,25 +567,32 @@ export type SelfPortraitSignals = Pick<PersonaCard, "mbti" | "attachment" | "val
  * synthesis and must refresh after a user returns from an assessment or audit.
  * This path is SELECT-only: no LLM call, synthesis, or persona write.
  */
-export async function loadSelfPortraitSignals(userId: string): Promise<SelfPortraitSignals> {
+export async function loadSelfPortraitSignals(userId: string, assertCurrent?: () => void): Promise<SelfPortraitSignals> {
+  assertCurrent?.();
   const supabase = getSupabaseClient();
-  const [recordsResult, mbti, attachment] = await Promise.all([
+  const [records, mbti, attachment] = await Promise.all([
     supabase
       .from("records")
       .select("prompt")
       .eq("user_id", userId)
       .eq("kind", "audit_response")
       .order("created_at", { ascending: false })
-      .limit(MAX_PERSONA_ROWS),
+      .limit(MAX_PERSONA_ROWS)
+      .then(({ data, error }) => {
+        assertCurrent?.();
+        // A known prompt failure must not wait behind an unresolved assessment.
+        if (error) throw error;
+        return data ?? [];
+      }),
     loadLatestMbti(supabase, userId),
     loadLatestAttachment(supabase, userId),
   ]);
-  if (recordsResult.error) throw recordsResult.error;
+  assertCurrent?.();
 
   return {
     mbti,
     attachment,
-    values: deriveValues(recordsResult.data ?? []),
+    values: deriveValues(records),
   };
 }
 
@@ -629,6 +639,29 @@ export async function loadPersonaSnapshot(userId: string, assertCurrent?: () => 
   // same snapshot contract; no stale screen starts the dependent assessment reads.
   assertCurrent?.();
   const supabase = getSupabaseClient();
+  const snapshot = await readStoredPersonaSnapshot(supabase, userId, assertCurrent);
+  assertCurrent?.();
+  if (!snapshot) return null;
+  const [mbti, attachment] = await Promise.all([
+    loadLatestMbti(supabase, userId),
+    loadLatestAttachment(supabase, userId),
+  ]);
+  assertCurrent?.();
+  return { ...snapshot, mbti, attachment };
+}
+
+/** Polaris primary read: return stored fields without assessment enrichment. */
+export async function loadCorePersonaSnapshot(userId: string, assertCurrent: () => void): Promise<CorePersonaSnapshot | null> {
+  assertCurrent();
+  const snapshot = await readStoredPersonaSnapshot(getSupabaseClient(), userId, assertCurrent);
+  assertCurrent();
+  return snapshot;
+}
+
+async function readStoredPersonaSnapshot(
+  supabase: ReturnType<typeof getSupabaseClient>, userId: string, assertCurrent?: () => void,
+): Promise<CorePersonaSnapshot | null> {
+  assertCurrent?.();
   const { data, error } = await supabase
     .from("personas")
     .select("version, traits, values, patterns, markdown_export")
@@ -657,12 +690,6 @@ export async function loadPersonaSnapshot(userId: string, assertCurrent?: () => 
   }
   const traits = rawTraits as PersonaTraits;
 
-  const [mbti, attachment] = await Promise.all([
-    loadLatestMbti(supabase, userId),
-    loadLatestAttachment(supabase, userId),
-  ]);
-  assertCurrent?.();
-
   // Legacy persona rows do not persist provenance. Never infer a validated
   // source merely because the saved numbers happen to equal a newer IPIP/BFI
   // result: equal values are not proof that this row came from that instrument.
@@ -681,8 +708,6 @@ export async function loadPersonaSnapshot(userId: string, assertCurrent?: () => 
     traits,
     traitsSource,
     traitConfidence,
-    mbti,
-    attachment,
     values: Array.isArray(row.values)
       ? row.values.filter((value): value is string => typeof value === "string")
       : [],

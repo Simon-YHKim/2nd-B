@@ -170,7 +170,7 @@ describe("core-loop focus refetch contract", () => {
     expect(source).not.toContain("buildPersona");
     expect(reader).toContain("function loadCoreBrainEvidence");
     expect(reader).toContain("loadCoreBrainEvidence(owner, scope.locale, requireCurrent)");
-    expect(reader).toContain("fullRead ? evidence.length > 0 ? await loadPersonaSnapshot(owner, requireCurrent) : null : previous.persona");
+    expect(reader).toContain("fullRead ? evidence.length > 0 ? await loadCorePersonaSnapshot(owner, requireCurrent) : null : previous.persona");
     expect(reader).not.toMatch(/\.(?:insert|update|upsert|delete)\(/);
     expect(reader).not.toMatch(/claimQaPolarisAuto|proposeRoleCards|ratifyRoleCard/);
     // The executed eligible-QA regression also follows the screen's auto effect:
