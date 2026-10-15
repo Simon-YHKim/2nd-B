@@ -295,13 +295,37 @@ export function createChatSessionRegistry(content: ChatContentBoundary, newId = 
       return entryTransaction(choice.entryId, () => {
         if (contentAckFailed || !matches(choice) || !boundary || boundary.phase !== "needs-explicit-start" || !needsExplicitStart || active) return false;
         let committed = false;
+        let candidate: Session | null = null;
         const expected = boundary;
-        const accepted = content.startAfterWipe(owner!, expected, opened => {
-          if (committed || contentAckFailed || !matches(choice) || opened.phase !== "open" || opened.generation !== expected.generation) return;
-          boundary = Object.freeze({ ...opened }); needsExplicitStart = false;
-          createSession(choice.entryId, DEFAULT_INTENT, "replaced"); committed = true;
-        });
-        return accepted && committed;
+        const expectedOwner = owner;
+        let accepted = false;
+        try {
+          accepted = content.startAfterWipe(owner!, expected, opened => {
+            if (committed || contentAckFailed || !matches(choice) || opened.phase !== "open"
+              || opened.wipeId !== null || opened.generation !== expected.generation) return false;
+            boundary = Object.freeze({ ...opened }); needsExplicitStart = false;
+            try { createSession(choice.entryId, DEFAULT_INTENT, "replaced"); }
+            catch { return false; }
+            candidate = active;
+            if (!currentOwner() || owner !== expectedOwner || !candidate
+              || candidate.snapshot.ownerEpoch !== expectedOwner!.epoch
+              || candidate.snapshot.contentGeneration !== opened.generation
+              || entries.get(choice.entryId)?.state !== "active") return false;
+            committed = true;
+            return true;
+          });
+        } catch { accepted = false; }
+        if (!accepted || !committed) {
+          // A failed start must not make the next bare attach silently open.
+          // Never remove a session installed for a different owner.
+          if (owner === expectedOwner && currentOwner()) {
+            boundary = expected; needsExplicitStart = true;
+            if (active === candidate) retireSession("content-wipe");
+            retireEntries("content-wipe");
+          }
+          return false;
+        }
+        return true;
       });
     },
     editDraft(token: ChatSessionToken, text: string, expectedRevision?: number): boolean {
