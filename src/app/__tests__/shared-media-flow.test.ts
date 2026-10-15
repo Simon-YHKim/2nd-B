@@ -132,6 +132,8 @@ describe("shared photo replaces the composer only on its explicit action", () =>
     expect(h.scope.createRecord).not.toHaveBeenCalled();
     expect(h.image.release).not.toHaveBeenCalled();
     expect(h.scope.transferredMedia.current.has("token")).toBe(true);
+    expect(h.scope.router.setParams).toHaveBeenCalledTimes(1);
+    expect(h.scope.router.setParams).toHaveBeenCalledWith({ sharedMedia: undefined, sharedMediaError: undefined });
   });
 
   test("a stale copy is released without replacing newer composer work", async () => {
@@ -141,6 +143,7 @@ describe("shared photo replaces the composer only on its explicit action", () =>
     expect(h.scope.setBody).not.toHaveBeenCalled();
     expect(h.image.release).toHaveBeenCalledTimes(1);
     expect(h.scope.setReceivingMedia).toHaveBeenLastCalledWith(false);
+    expect(h.scope.router.setParams).not.toHaveBeenCalled();
   });
 });
 

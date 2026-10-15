@@ -242,7 +242,7 @@ function CallReflection({ country }: { country: string | null }) {
     const notifyCrisis = (hotline: HotlineId | undefined): void => {
       if (crisisNotified || !safetyOwner.isCurrent()) return;
       crisisNotified = true;
-      publishCrisisNotice(safetyOwner, hotline ?? hotlineFor(ko, false));
+      publishCrisisNotice(safetyOwner, hotline ?? hotlineFor(ko, isMinor));
     };
     let file: Awaited<ReturnType<typeof pickAudioFile>> = null;
     let sharedFile: SharedMediaFile | null = null;
@@ -297,7 +297,7 @@ function CallReflection({ country }: { country: string | null }) {
         // DocumentPicker's normalized MIME is more reliable for file:// URIs
         // than the blob type returned by fetch on Android.
         mimeType: file.mimeType,
-        minor: false,
+        minor: isMinor,
       });
       // Ordinary results belong to this delivery. RED confirmed before a
       // cancellation already reached the owner-leased app notice; the shared
@@ -379,18 +379,18 @@ function CallReflection({ country }: { country: string | null }) {
         topic: t("callReflection.recordTopic"),
         tags: ["call_reflection", "voice"],
         tier: progression.tier,
-        minor: false,
+        minor: isMinor,
         structured: composeStructured("call_reflection", fields) ?? undefined,
       });
       accountLease.assertCurrent();
       if (!mountedRef.current || generation !== deliveryVersionRef.current) {
         if (saved.followup?.zone === "red") {
-          publishCrisisNotice(safetyOwner, saved.crisisHotline ?? hotlineFor(ko, false));
+          publishCrisisNotice(safetyOwner, saved.crisisHotline ?? hotlineFor(ko, isMinor));
         }
         return;
       }
       if (saved.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: saved.crisisHotline ?? hotlineFor(ko, false) });
+        setCrisis({ visible: true, hotline: saved.crisisHotline ?? hotlineFor(ko, isMinor) });
         setBusy(false);
         return;
       }
