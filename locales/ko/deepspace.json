@@ -712,6 +712,9 @@
     "signature": "PolaScope · {{count}}개 별가루"
   },
   "ds": {
+    "network": {
+      "offline": "인터넷에 연결되어 있지 않습니다."
+    },
     "growth": {
       "title": "나의 변화",
       "bubble": "이번 주 별 밝기가 얼마나 바뀌었는지 보세요.",

@@ -4,7 +4,7 @@
 // 플랫폼마다 하는 일(이유는 ./keyboard-avoidance.ts 머리말):
 //
 //   iOS     RN `KeyboardAvoidingView` + behavior "padding" + `iosKeyboardVerticalOffset`.
-//           예전 `Platform.OS === "ios" ? "padding" : undefined` 의 iOS 쪽과 똑같다.
+//           화면 내부 좌표에는 상단 띠가 이동시킨 부모 원점을 더한다.
 //   Android 뷰의 절대 아래 끝과 키보드 윗변이 겹친 만큼 paddingBottom 을 준다.
 //           edge-to-edge 창에서는 adjustResize 가 창을 줄여 주지 않는다.
 //   웹      RN `KeyboardAvoidingView` 를 behavior 없이 그대로(react-native-web 에서는
@@ -20,7 +20,7 @@
 //
 // `useKeyboardReveal` 은 같은 Android 갈래의 짝이다. 영역이 ScrollView 를 줄인 뒤 입력칸
 // 아래의 버튼(예: /capture "담기")까지 키보드 위로 내려 보인다(2026-10-07 실기 R2A-02 후속).
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -37,21 +37,25 @@ import {
 import {
   IOS_KEYBOARD_BEHAVIOR,
   KEYBOARD_REVEAL_MARGIN,
+  iosKeyboardOffset,
   keyboardAvoidanceMode,
   keyboardOverlap,
   keyboardRevealScrollY,
   nextKeyboardPadding,
 } from "./keyboard-avoidance";
+import { KeyboardFrameOffsetContext } from "./keyboard-frame";
 
 // 키보드 높이 훅도 같은 입구로 꺼낼 수 있게 둔다(화면이 키보드 모듈 하나만 import 하도록).
 export { useKeyboard } from "./useKeyboard";
 
 export interface KeyboardAvoidingAreaProps extends ViewProps {
   /**
-   * iOS 전용. RN `KeyboardAvoidingView` 의 keyboardVerticalOffset 으로 그대로 간다
-   * (화면 위 끝에서 이 뷰의 부모까지의 거리). Android 는 재서 정하므로 쓰지 않는다.
+   * iOS 전용. 화면 내부에서 이 뷰의 부모까지의 거리. 상단 띠가 이동시킨 화면 원점은
+   * 공용 영역에서 더한다. Android 는 재서 정하므로 쓰지 않는다.
    */
   iosKeyboardVerticalOffset?: number;
+  /** measureInWindow 로 잰 값은 이미 상단 띠를 포함하므로 "window" 로 표시한다. */
+  iosOffsetCoordinateSpace?: "frame" | "window";
   /**
    * iOS 전용. true 면 iOS 에서는 평범한 View 다. 안쪽 ScrollView 가 iOS 전용 prop
    * `automaticallyAdjustKeyboardInsets` 로 키보드를 이미 피할 때 쓴다. 둘 다 띄우면
@@ -63,9 +67,11 @@ export interface KeyboardAvoidingAreaProps extends ViewProps {
 
 export function KeyboardAvoidingArea({
   iosKeyboardVerticalOffset = 0,
+  iosOffsetCoordinateSpace = "frame",
   iosHandledByScrollView = false,
   ...props
 }: KeyboardAvoidingAreaProps) {
+  const frameOffset = useContext(KeyboardFrameOffsetContext);
   const mode = keyboardAvoidanceMode(Platform.OS);
   if (mode === "ios-padding") {
     if (iosHandledByScrollView) return <View {...props} />;
@@ -73,7 +79,7 @@ export function KeyboardAvoidingArea({
       <KeyboardAvoidingView
         {...props}
         behavior={IOS_KEYBOARD_BEHAVIOR}
-        keyboardVerticalOffset={iosKeyboardVerticalOffset}
+        keyboardVerticalOffset={iosKeyboardOffset(iosKeyboardVerticalOffset, frameOffset, iosOffsetCoordinateSpace)}
       />
     );
   }
