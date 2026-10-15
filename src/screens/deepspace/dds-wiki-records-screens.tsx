@@ -14,7 +14,7 @@ import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { m3 } from "@/lib/theme/m3";
 import { stripDomainTags } from "@/lib/persona/domain-stars";
-import { loadRoleCards, roleEvidenceIds, type RoleCard } from "@/lib/persona/role-cards";
+import { useRoleEvidenceRead } from "@/lib/persona/use-role-evidence-read";
 import { ddsStyles as styles } from "./dds-styles";
 import { Text } from "@/components/ui/Text";
 // Button / PremiumModal / SecondbHead left with DeepSpaceRecordDetailScreen when
@@ -30,7 +30,6 @@ import { captureAccountOwnerLease, currentAccountEpoch, isCurrentAccountEpoch, s
 import { isTimeoutError, withTimeout } from "@/lib/async/with-timeout";
 import { useAppRouter, useHardwareBack, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
-import { listRecordsByIds } from "@/lib/records/create";
 import { SEVEN_STARS } from "@/lib/persona/seven-stars";
 import { listAllRecords } from "@/lib/records/list-all-records";
 import { buildRoleRecordsGraph } from "@/lib/records/records-graph";
@@ -317,10 +316,6 @@ export function DeepSpaceRecordsScreen() {
   }, [tagFilter]);
   const accountEpoch = currentAccountEpoch();
   const [recordsRead, setRecordsRead] = useState<RecordsRead | null>(null);
-  const [roleCards, setRoleCards] = useState<RoleCard[]>([]);
-  const [roleEvidenceRecords, setRoleEvidenceRecords] = useState<RecordsTimelineRecord[]>([]);
-  const [roleCardsUserId, setRoleCardsUserId] = useState<string | null>(null);
-  const [roleCardsEpoch, setRoleCardsEpoch] = useState<number | null>(null);
   // Bumped to re-run the load: on focus re-entry (useFocusRefetch) and on the
   // error-state retry. Rows belong to that request's owner, epoch and retry,
   // so stale rows disappear in render before the next effect even starts.
@@ -401,31 +396,10 @@ export function DeepSpaceRecordsScreen() {
   // double-loads on first render.
   useFocusRefetch(() => setReloadKey((k) => k + 1), Boolean(userId));
 
-  useEffect(() => {
-    if (!userId) return;
-    let alive = true;
-    loadRoleCards(userId).then(async (cards) => {
-      if (!alive || !isCurrentAccountEpoch(accountEpoch)) return;
-      const evidence = await listRecordsByIds(userId, roleEvidenceIds(cards)).catch(() => []);
-      if (alive && isCurrentAccountEpoch(accountEpoch)) {
-        setRoleCards(cards);
-        setRoleEvidenceRecords(evidence as RecordsTimelineRecord[]);
-        setRoleCardsUserId(userId);
-        setRoleCardsEpoch(accountEpoch);
-      }
-    }).catch(() => {
-      if (alive && isCurrentAccountEpoch(accountEpoch)) {
-        setRoleCards([]);
-        setRoleEvidenceRecords([]);
-        setRoleCardsUserId(userId);
-        setRoleCardsEpoch(accountEpoch);
-      }
-    });
-    return () => { alive = false; };
-  }, [userId, accountEpoch, reloadKey]);
-  const ownsRoleCards = roleCardsUserId === userId && roleCardsEpoch === accountEpoch;
-  const visibleRoleCards = ownsRoleCards ? roleCards : [];
-  const visibleRoleEvidence = ownsRoleCards ? roleEvidenceRecords : [];
+  const roleRead = useRoleEvidenceRead(userId, authLoading, reloadKey,
+    JSON.stringify([recordsParams.tags ?? "", recordsParams.period ?? ""]));
+  const visibleRoleCards = roleRead.pair?.cards;
+  const visibleRoleEvidence = roleRead.pair?.evidence;
 
   // Stable across renders so the memoized RecordCard's onPress prop does not
   // change (React.memo keeps unchanged rows from re-rendering on filter taps).
@@ -462,14 +436,14 @@ export function DeepSpaceRecordsScreen() {
     if (view !== "graph") return [];
     if (tagFilter.length > 0 || typeFilter !== "all") return filtered;
     const byId = new Map(filtered.map((record) => [record.id, record]));
-    visibleRoleEvidence.forEach((record) => byId.set(record.id, record));
+    visibleRoleEvidence?.forEach((record) => byId.set(record.id, record as RecordsTimelineRecord));
     return [...byId.values()];
   }, [view, tagFilter, typeFilter, filtered, visibleRoleEvidence]);
   const recordsGraph = useMemo(
     () =>
       buildRoleRecordsGraph(
         graphSourceRecords,
-        visibleRoleCards,
+        visibleRoleCards ?? [],
         isKo ? "ko" : "en",
         t("home:ds.home.polaris"),
       ),
@@ -501,8 +475,9 @@ export function DeepSpaceRecordsScreen() {
   // Z80 (Simon 2026-10-13): a count that was not read is not zero. While the records read is
   // pending or has failed, the two counts show "..." the way the chat's daily count does.
   const countsUnread = loading || loadError;
+  const graphCountsUnread = countsUnread || roleRead.status !== "ready";
   const graphCount = recordsGraph.nodes.filter((node) => node.kind === "record").length;
-  const graphCountText = countsUnread
+  const graphCountText = graphCountsUnread
     ? `... ${t("domains.unit")}`
     : `${graphCount}${graphCount < graphSourceRecords.length ? ` / ${graphSourceRecords.length}` : ""} ${t("domains.unit")}`;
   const triageTitle = countsUnread
@@ -670,6 +645,19 @@ export function DeepSpaceRecordsScreen() {
             <View style={rStyles.centerState}>{errorState}</View>
           ) : loading ? (
             <View style={rStyles.centerState}><GraphLoading /></View>
+          ) : roleRead.status === "error" || roleRead.status === "timeout" ? (
+            <View style={rStyles.centerState}>
+              <View style={styles.wikiPageOpen}>
+                <Text variant="body" style={styles.wikiBody} accessibilityRole="alert">
+                  {t(roleRead.status === "timeout" ? "common:errors.network" : "common:errors.unknown")}
+                </Text>
+                <PixelPressable onPress={roleRead.retry} accessibilityLabel={t("common:actions.retry")} contentStyle={styles.primary}>
+                  <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
+                </PixelPressable>
+              </View>
+            </View>
+          ) : roleRead.status === "loading" ? (
+            <View style={rStyles.centerState}><GraphLoading /></View>
           ) : graphSourceRecords.length > 0 && recordsGraph.nodes.some((node) => node.kind === "persona") ? (
             <RecordsGraph
               graph={recordsGraph}
@@ -680,7 +668,7 @@ export function DeepSpaceRecordsScreen() {
             <View style={rStyles.centerState}>
               <View style={styles.wikiPageOpen}>
                 <Text variant="body" style={styles.wikiBody}>
-                  {visibleRoleCards.some((card) => card.status === "ratified")
+                  {visibleRoleCards?.some((card) => card.status === "ratified")
                     ? t("core-brain:roleGraphFiltered")
                     : t("core-brain:roleGraphEmpty")}
                 </Text>

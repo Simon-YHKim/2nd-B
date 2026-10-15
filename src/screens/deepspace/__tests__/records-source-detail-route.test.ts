@@ -254,7 +254,12 @@ describe("deep-space records source detail routing", () => {
       // c6e3d022 reproduces 56d241df; the slice is 23,568 -> 23,367 chars.
       // From openRecord through all filters, rendering and styles it is
       // byte-identical. Executed lifecycle coverage: wiki-list-read-failure.
-      "a41830283c4bffc1cd34911e92078730c6b68c5f65365fefa715e5d21f1b4db8",
+      // Re-pinned 2026-10-16 (T43 role/evidence reads): only the role reader,
+      // graph readiness/count and read-only retry change. The archive/list,
+      // filter and navigation contracts retain executed regression coverage.
+      // Base 5246d593 reproduces a4183028; the standalone wiki function is
+      // byte-identical. See role-evidence-read-failure for real helper/UI tests.
+      "5a5efe6bc6d0b7aa96ff4363f07566525d82075d689d14fb9bfcd650f35db611",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,
