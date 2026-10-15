@@ -28,7 +28,6 @@ import {
   DOMAIN_TAG_PREFIX,
   DOMAIN_STARS,
   domainTagFor,
-  getDomainStar,
   isDomainId,
   isDomainTag,
   stripDomainTags,
@@ -842,8 +841,7 @@ export function DeepSpaceRecordDetailScreen() {
   const evidenceLine =
     relatedIsSettled && domain
       ? t("deepspace:ds.wikiRecords.secondbLinked", {
-          star:
-            i18n.language === "ko" ? getDomainStar(domain).nameKo : getDomainStar(domain).nameEn,
+          star: t(`home:ds.home.domainName.${domain}`),
           n: relatedItems.length,
         })
       : relatedIsSettled && relatedItems.length > 0
@@ -1343,7 +1341,7 @@ export function DeepSpaceRecordDetailScreen() {
                       variant={selected ? "inset" : "frame"}
                       onPress={() => void moveTo(item.id)}
                       disabled={tagsBusy}
-                      accessibilityLabel={i18n.language === "ko" ? item.nameKo : item.nameEn}
+                      accessibilityLabel={t(`home:ds.home.domainName.${item.id}`)}
                       accessibilityState={{ selected, busy: tagsBusy }}
                       fullWidth
                       contentStyle={styles.actionContent}
@@ -1354,7 +1352,7 @@ export function DeepSpaceRecordDetailScreen() {
                         size={24}
                       />
                       <RNText style={[m3TextStyle("labelLarge"), styles.secondaryLabel]}>
-                        {i18n.language === "ko" ? item.nameKo : item.nameEn}
+                        {t(`home:ds.home.domainName.${item.id}`)}
                       </RNText>
                     </PixelPressable>
                   );
