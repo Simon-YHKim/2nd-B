@@ -38,6 +38,28 @@ test.each(["wiki_pages", "sources", "records", "chat_usage", "self_contexts", "c
   },
 );
 
+test.each(["wiki_pages", "sources", "records", "chat_usage", "self_contexts", "clipper_templates"] as const)(
+  "%s preserves exact count when PostgREST CORS hides Preference-Applied", async table => {
+    const response = table === "records" ? success(1, [{ structured: null }]) : success(1);
+    response.headers.delete("preference-applied"); fetchMock.mockResolvedValue(response);
+    expect(response.headers.get("preference-applied")).toBeNull();
+    expect(await deleteContentRowsCaptured(table, request())).toEqual(table === "records"
+      ? { outcome: "committed", count: 1, recordRows: { state: "complete", rows: [{ structured: null }] } }
+      : { outcome: "committed", count: 1 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1].headers.Prefer).toBe(`count=exact,return=${table === "records" ? "representation" : "minimal"}`);
+  },
+);
+test.each(["missing", "*/*", "*/-1", "*/1.5", "*/01", "*/9007199254740992", "0-0/1"])(
+  "hidden Preference-Applied never substitutes for missing or invalid count %s", async range => {
+    const response = success(1); response.headers.delete("preference-applied");
+    if (range === "missing") response.headers.delete("content-range"); else response.headers.set("content-range", range);
+    fetchMock.mockResolvedValue(response);
+    await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "unknown", count: null });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  },
+);
+
 test.each([0, 1, 321, Number.MAX_SAFE_INTEGER])("exact nonnegative count %s is preserved", async count => {
   fetchMock.mockResolvedValue(success(count));
   await expect(deleteContentRowsCaptured("wiki_pages", request())).resolves.toEqual({ outcome: "committed", count });

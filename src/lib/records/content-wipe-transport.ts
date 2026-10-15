@@ -44,11 +44,18 @@ export function prepareContentWipeRequest(request: CapturedContentWipeRequest) {
 }
 
 function exactDeleteCount(response: Response): number | null {
-  // PostgREST DELETE returns */N, including */0. Read/PATCH ranges are not this proof.
+  // Our fixed count=exact DELETE gets the mutation CTE's actual count as */N.
+  // PostgREST CORS exposes Content-Range, but not Preference-Applied. When the
+  // latter is readable, reject contradictions; its absence is not missing count
+  // proof. This requires the normal commit endpoint documented for this adapter.
   const match = /^\*\/(0|[1-9]\d*)$/.exec(response.headers.get("content-range") ?? "");
-  const preferences = (response.headers.get("preference-applied") ?? "").split(",").map(value => value.trim().toLowerCase());
-  if (!match || !preferences.includes("count=exact") || preferences.includes("tx=rollback")
-    || preferences.some(value => value.startsWith("count=") && value !== "count=exact")) return null;
+  if (!match) return null;
+  const applied = response.headers.get("preference-applied");
+  if (applied !== null) {
+    const preferences = applied.split(",").map(value => value.trim().toLowerCase());
+    if (!preferences.includes("count=exact") || preferences.includes("tx=rollback")
+      || preferences.some(value => value.startsWith("count=") && value !== "count=exact")) return null;
+  }
   const count = Number(match[1]);
   return Number.isSafeInteger(count) ? count : null;
 }

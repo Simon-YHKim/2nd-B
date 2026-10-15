@@ -31,8 +31,8 @@ redirect:error로 redirect 재전송도 허용하지 않는다. 발행 후 abort
 
 | 관측 | 결과 |
 |---|---|
-| 요청과 맞는 200(records)/204(나머지), 정확 `*/N`, count=exact 적용 | nonnegative safe integer DB count 보존 |
-| count 누락/비정상/추정치, tx=rollback, 다른 성공 status | unknown, count=null |
+| 고정 count=exact 요청과 맞는 200(records)/204(나머지), 정확 `*/N` | nonnegative safe integer DB count 보존 |
+| count 누락/비정상, 읽을 수 있는 Preference-Applied의 빈값/추정 count/tx=rollback, 다른 성공 status | unknown, count=null |
 | records 정상 JSON이나 rows 수/row shape가 불완전 | DB committed/count 보존, recordRows.state=unconfirmed |
 | records 완전한 원 rows | private structured 목록만 다음 strict manifest 검증에 전달 |
 | 응답 유실/abort/network/비정상 JSON/불명확한 오류 | unknown, count 0으로 바꾸지 않음 |
@@ -42,7 +42,30 @@ SQL의 확정 거부는 좁은 원 응답만 받는다. JSON object의 code/mess
 400이다. 이들은 PostgREST의 SQL 오류/transaction rollback 계약에 해당한다. 단순 message,
 비슷한 code, proxy 실패, generic 4xx/5xx는 같은 증거가 아니다. 실제 서비스가 정상 commit
 설정과 해당 PostgREST 계약을 사용한다는 기존 전제 위에서 처리하며 이 준비가 운영 설정을
-확인한 것은 아니다. 명시 tx=rollback 응답은 성공으로 올리지 않는다.
+확인한 것은 아니다. 읽을 수 있는 명시 tx=rollback 응답은 성공으로 올리지 않는다.
+
+### 브라우저에서의 count와 transaction 전제
+
+R1은 Preference-Applied의 count=exact를 필수로 요구했다. 그러나 고정 PostgREST CORS는
+Content-Range만 노출하고 Preference-Applied는 노출하지 않는다. 실제 두 origin의 Chromium에서
+정상 응답 6개 모두 unknown이 된 원 반례를 보존한다. Node Response fixture만으로는 이 차이를
+검증할 수 없다.
+
+R2의 count 근거는 **원 고정 count=exact 요청과 DELETE의 실제 mutation count인 `*/N`**이다.
+고정 Query의 MutateReadPlan은 EXPLAIN 없이 mainWrite를 사용하고, mainWrite는 mutation CTE를
+pg_catalog.count로 센다. Response는 그 rsQueryTotal을 DELETE의 `*/N`으로 노출한다. GET의
+planned/estimated 결과나 `0-0/N`을 이 증거로 대체하지 않는다. Preference-Applied가 안 보일 때도
+정확한 status와 nonnegative safe integer `*/N`은 필수다. 헤더가 보이면 기존의 빈값/추정 count/
+rollback 모순 검사를 그대로 적용한다. unknown을 0으로 바꾸거나 재발행하지 않는다.
+
+지원 전제는 신뢰하는 PostgREST endpoint가 이 요청/응답 계약을 그대로 지키며,
+**db-tx-end=commit 또는 commit-allow-override**를 쓰는 것이다. 이 요청은 tx=rollback을 보내지
+않는다. proxy나 DB의 response override가 count/status/transaction 의미를 바꾸는 endpoint,
+rollback/rollback-allow-override 설정은 이 어댑터의 지원 대상이 아니다. 노출되지 않은 rollback
+헤더나 서버 설정을 클라이언트가 판별할 수 있다고 주장하지 않는다. tx=commit을 추가해도 강제
+rollback 설정을 이길 수 없으므로 이를 확인 수단으로 쓰지 않는다. 운영 gateway 설정/버전의
+확인 증거는 아직 없으며, O 이후 실제 활성화 전에 이 서버 전제를 별도로 확인해야 한다.
+확인되지 않으면 새 선택 경로를 활성화하지 않는다. 로컬 테스트 PASS는 이 차단 조건을 풀지 않는다.
 
 `prepareRecordPhotoWipe`는 원 rows 수와 각 structured의 존재/shape부터 검사한다.
 사진 없는 정상 객체/null과 malformed photos를 구분한다. sparse 배열, 빠진 row/structured,
@@ -70,6 +93,9 @@ Storage의 비어 있는 성공 배열은 전체 삭제 완료 증거가 아니�
 
 - PostgREST [DeleteSpec](https://github.com/PostgREST/postgrest/blob/48aa08248b3953f99a0a2ef78c32604cc87b244b/test/spec/Feature/Query/DeleteSpec.hs): exact DELETE `*/1`, 200/representation, count=exact.
 - PostgREST [Response](https://github.com/PostgREST/postgrest/blob/48aa08248b3953f99a0a2ef78c32604cc87b244b/src/library/PostgREST/Response.hs): DELETE는 `contentRangeH 1 0`, representation 200/minimal 204.
+- PostgREST [Query](https://github.com/PostgREST/postgrest/blob/48aa08248b3953f99a0a2ef78c32604cc87b244b/src/library/PostgREST/Query.hs)와 [Statements](https://github.com/PostgREST/postgrest/blob/48aa08248b3953f99a0a2ef78c32604cc87b244b/src/library/PostgREST/Query/Statements.hs): mutation은 추정 계획이 아닌 실제 CTE count.
+- PostgREST [CORS](https://github.com/PostgREST/postgrest/blob/48aa08248b3953f99a0a2ef78c32604cc87b244b/src/library/PostgREST/Cors.hs)와 [CORS 검사](https://github.com/PostgREST/postgrest/blob/48aa08248b3953f99a0a2ef78c32604cc87b244b/test/spec/Feature/CorsSpec.hs): Content-Range 노출, Preference-Applied 비노출.
+- PostgREST [설정](https://github.com/PostgREST/postgrest/blob/48aa08248b3953f99a0a2ef78c32604cc87b244b/docs/references/configuration.rst#db-tx-end): 정상 commit과 강제 rollback 설정의 구분.
 - PostgREST [오류](https://github.com/PostgREST/postgrest/blob/48aa08248b3953f99a0a2ef78c32604cc87b244b/docs/references/errors.rst)와 [transaction](https://github.com/PostgREST/postgrest/blob/48aa08248b3953f99a0a2ef78c32604cc87b244b/docs/references/transactions.rst): SQLSTATE/status 및 DB 실패 rollback.
 - Storage [deleteObjects route](https://github.com/supabase/storage/blob/ac6b3e57a0ed33c846192d4480bd492433f32569/src/http/routes/object/deleteObjects.ts)와 [object implementation](https://github.com/supabase/storage/blob/ac6b3e57a0ed33c846192d4480bd492433f32569/src/storage/object.ts): prefixes 입력, 실제 적용 결과 배열, 부분 집합/버전 처리의 한계.
 - 설치된 storage-js remove의 `/object/{bucket}`와 `{prefixes}`, PostgREST builder의 실제
@@ -92,5 +118,6 @@ terminal account 삭제, 개별 삭제 API는 그대로다.
 보존·hold 즉시 취소와 원 ticket late settlement는 O의 후속 책임이다.
 
 D4 writer 참여, C3/H/UI 활성화, 미참여 writer·다른 runtime/기기와 서버 권한은 별도다.
-실제 Storage/DB transaction·운영 삭제·브라우저/폰·모델 호출 증거는 없다. P의 검사 통과를
+실제 두 origin의 Chromium fetch/CORS 회귀는 실행하지만, 이는 고정 공개 계약을 재현하는 로컬
+HTTP 서버 대역이다. 실제 Storage/DB transaction·운영 gateway·폰·모델 호출 증거는 없다. P의 검사 통과를
 전체 작업 완료율이나 실제 앱 완료로 세지 않는다.
