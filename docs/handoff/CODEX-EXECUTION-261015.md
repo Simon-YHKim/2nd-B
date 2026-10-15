@@ -1,6 +1,6 @@
-# Codex 실행 인수 · 2026-10-16 06:04 KST
+# Codex 전체 실행 인수 · 2026-10-16 08:27 KST
 
-기준 main `b604e993945c7fe77c96d135115e593276d02130`. 원감사 414건·잔여76개는 인수 기준이다. 이 세션 PR **64개 병합**, 같은 설정의 **앱 완료 확인0개**다. PR 수를 76개 작업 완료 수로 환산하지 않는다. 아래는 고정 시각의 상태이며 이후 PR 결과가 우선한다.
+고정 기준 main `2997f4b38e92ebfd8c6ad5f9ad9e2c7a542bb160`. 원감사414건·남은 작업76개. 세션 누적 PR 81개 병합은 작업 완료 수가 아니다. 코드·검사·준비 일부 반영 **34/76 (44.7%)**, 같은 설정 앱·폰 최종 확인 **0개**. 현재 사용자 지시는 새 작업 시작을 멈추고 진행 중이던 후보만 마무리한 뒤 세션 전체를 인계하는 것이다. 이 문서의 스냅샷 뒤 인수 문서 PR 자체는 별도다.
 
 ## 확정 방향과 먼저 볼 상충
 
@@ -13,13 +13,6 @@
 - Z5 승인 원문은 재검색에서 미복구: [복구 TODO](Z5-CONSENT-RECOVERY-261015.md). 다시 승인이나 원문 재전송을 요구한 상태가 아니다. T03 안전·감사 및 T13 새 수집 고지의 원본 복구도 남았다.
 
 
-## 검증 방식과 환경
-
-기존 `npm run verify`를 각 최종 후보에서 실행한다. 새 결함은 실제 함수·화면·세션·SQL을 실행하는 회귀로 보완하고, 독립 검토자는 별도 취소·경합 반례를 확인한다. 코드 읽기와 구조 검사, I/O 대역을 쓴 실행, 실제 DB/브라우저, 폰 확인을 구분한다. 반복 실행 횟수를 더해 테스트 범위를 부풀리지 않는다. 수정 전 코드나 결함 변형이 실패하는지 확인하는 음성 대조도 사용한다.
-
-최근 #2589는 전체1,155suites/19,941tests PASS(1skip), 독립R3PASS H0M0L0·BLOCK2·CI 후 병합했다. #2588은1,152/19,540, #2586은1,153/19,553, #2587은1,154/19,573 PASS(각1skip)다. #2579 삭제 접수는 실제PostgreSQL236개migration·12개회귀그룹과 인증만료/soft-delete 잠금 반례를 실행했고 R2PASS0·BLOCK1·CI 후 병합했다. 접수accepted는 삭제완료가 아니다.
-
-최신 main b604e993의 Linux app:parity는 다름: 코드/main 앱경로0·설치패키지/패치0, Variables 읽기403·8081 응답/기록없음. 같은main 자동APK38805999043은 빌드 중, 기존 QA APK32649e77은 앱경로249개 차이다. 사용자가 연결 권한을 확인하겠다고 답했으며 반복 승인을 요청하지 않는다. 원 Windows PC 상태나 실제 폰 동작을 이 결과로 판단하지 않는다.
 
 ## 중단·운영 조건
 
@@ -31,87 +24,109 @@
 - 10-17 23:20 뒤 Relay 가용 시각은 모든 운영 변경의 승인이나 자동 예약이 아니다. 운영 작업 시 저장소의 적용 중 표시와 실제 선행 조건을 따른다.
 
 
-## 새 상충과 다음 순서
 
-- 인터뷰 S0: 설계D3 R3PASS0·BLOCK2, 확정RED 조기전달A #2583·연락판별B1 #2589 병합. B1의 R3PASS0·BLOCK2 보존. B2-L66034fa7은 승인문구 그대로 기존 조사/문구수 검사 보완 후 재검토 중, B2-R797dfc6e는 고정안내 resolver 독립검토 중이다. 실제 GREEN 안내소실10개는 UI 연결 전으로 미해결이고 원모델 직접109 감소 실패도 유지한다. #2440 동결을 우회하지 않는다.
-- T38: A registry#2575·B controller#2584·C0 capturedRED#2588은 비활성 준비. C1a JSONRPC0ef056c8·C2b context55c8281d는 독립PASS0 후 전체검사대기, C2a44550f2e는 독립검토 중, C2c export는 구현 중이다. 공통 content mutation ledger→quota발행→conversation/supervisor→keep/capture/delete→H 화면연결 순서. 새 접근 차단 ACK와 발행된 쓰기 완료는 다르다.
-- T16: nativev1#2568·v2codec#2577·nativev2#2585 병합, production contentLease는null. 웹A6f95f8fd는 실제SDK/IDB/Web Locks/Chromium·독립PASS0 후 전체검사 중. B0설계R1BLOCK1: empty/unsupported 인증행위·같은잠금 관측수명·재시작 receipt 계약 보완. 서버 generation/원자적최종화S0 설계를 병렬 진행하며 웹writer/UI는 후속이다.
-- T28: 첫keep준비3dc2ea3d는 실제turn/RED identity 보존·독립PASS0·전체1155suites19668PASS1skip 후 #2590 CI 단계. 기존 embedding/export/RAG held 원문 누출은 미해결이며 unconfirmed를 AI 허용으로 바꾸지 않는다.
-- T43: sources#2586·역할/근거#2587 병합. Core A5476d63c는 author439PASS 뒤 독립검토가 늦은missing-column 응답의 취소조회재발행5건을 재현해 R1BLOCK1·수정 중. optional 오류상태/strictbrightness/usage/proposal 및 sources 생성mutation은 별도 잔여다.
-- T54 Q40/41은 이미 승인됐다: memo/fourw/link를 정리 신호에서 빼는 밝기 변화 수용·머지 전 QA 전후 측정, sources까지 한 번에·운영GO. 기존0218 records.system_tags만으로 완료가 아니며 사용자tags 모양으로 자동이행하지 않는다.
+## 최신 결과와 재개 순서
+
+- [전체 세션 맥락·사용자 결정·환경·리스크](CODEX-SESSION-261016.md), [미병합 후보·계약·다음 검토](CODEX-PENDING-261016.md), [원장 JSON](CODEX-TASK-LEDGER-261016.json), [병합 근거 JSON](CODEX-PR-LEDGER-261016.json), [복구 묶음·증거](CODEX-EVIDENCE-261016.md)를 함께 읽는다.
+- 안전 우선순위의 최초 코드 수정은 병합됐으나 운영/모델품질/폰 확인은 끝나지 않았다. 실제 인터뷰 안내 #2605에서 역사적 소실10행은 원로그 그대로 보존하고 현재 actual adapter replay 소실0이다. 원모델 직접109 감소 FAIL2·지원문구1·911 손실 측정은 여전히 실패다. 새 Claude 모델 품질 호출0.
+- T16 서버S1#2602, 웹B0#2603, packet/auth S2a#2604 병합. S2b 실제DB 15그룹 PASS 후보는 독립검토 전이다. 실제 writer·인증 caller·최종저장 endpoint·UI·앱 활성화는 미완료다.
+- T38 대화 경계 준비를 현재 화면 활성화로 세지 않는다. C3 및 삭제P R2는 작성자 검사만 완료·독립검토 대기. O는 준비WT만 있고 제품0, D4/H 화면연결은 미착수다.
+- 짧은답 S1과 북극성 C1/C2의 최종 상태는 아래 원장에 따른다. 두실패/장면선택S2와 reasoning usage는 설계·기존결함 재현만 완료했고 제품0이다.
+- 다음 세션은 S2b·C3·P R2를 구현자와 다른 검토자가 확인하고 원 BLOCK 회차를 이어받는다. 그 뒤 T16 실제연결/대화O·D4·H, 인터뷰S2와 읽기오류 후속을 선행조건 순서로 진행한다. #2440 동결·기준미달모델·법무원문·운영조건을 우회하지 않는다.
+
+## 검증 방법
+
+기존 npm run verify를 최종 push 후보에서 실행한다. lint/type/i18n/법무/안전/constraints/실제 require cycles0/Jest를 포함하며 CI도 같은 명령이다. 독립검토 PASS·새M0·CI PASS가 모두 필요하다. 전체검사/타입/순환 검사는 root가 한 번에 하나씩 배정해 자원 중복을 피했다. 관련 검사도 동일 결과를 중복 합산하지 않는다. 실제 함수·화면 콜백/SDK 대역, PostgreSQL 두연결, Chromium, Android API 대역, 실제폰을 구분한다. 테스트 코드 읽기만으로 PASS를 쓰지 않았다. 원 실패·반례·fixture/setup 실패는 성공 로그로 덮지 않고 보존한다.
 
 ## 병합 근거
 
 | PR | 최종 검토·CI | 병합 |
 |---|---|---|
-| [#2524](https://github.com/Simon-YHKim/2nd-B/pull/2524) | round 1 PASS; 0 findings; all success | `404a906e` |
-| [#2525](https://github.com/Simon-YHKim/2nd-B/pull/2525) | round 1 and latest main integration PASS; 0 findings; all success after main integration | `18a566b9` |
-| [#2526](https://github.com/Simon-YHKim/2nd-B/pull/2526) | round 1 BLOCK medium1; fixed; round 2 PASS 0 findings; all success including fresh SQL replay | `168cec93` |
-| [#2527](https://github.com/Simon-YHKim/2nd-B/pull/2527) | round 1 PASS low1; fixed; final PASS 0 findings; all success | `72bea5ce` |
-| [#2528](https://github.com/Simon-YHKim/2nd-B/pull/2528) | R1 BLOCK medium1; fixed; R2 PASS high/medium/low0; all success run38722950056 | `45a085e2` |
-| [#2529](https://github.com/Simon-YHKim/2nd-B/pull/2529) | R1 PASS0; all success run38726789069 | `7aec028c` |
-| [#2530](https://github.com/Simon-YHKim/2nd-B/pull/2530) | R1 and integrated head PASS0; all success run38729023612 | `9d2362c0` |
-| [#2532](https://github.com/Simon-YHKim/2nd-B/pull/2532) | R1 PASS0; all success run38730264040 | `589efd65` |
-| [#2533](https://github.com/Simon-YHKim/2nd-B/pull/2533) | R1 BLOCK medium1 → R2 PASS0; all success run38731826317 | `03f22c4b` |
-| [#2536](https://github.com/Simon-YHKim/2nd-B/pull/2536) | R1 PASS0; all success | `1010f3ad` |
-| [#2537](https://github.com/Simon-YHKim/2nd-B/pull/2537) | R1 PASS0; all success | `9ad455a0` |
-| [#2538](https://github.com/Simon-YHKim/2nd-B/pull/2538) | R1PASS LOW1 fixed; final PASS0; all success | `a1e09fae` |
-| [#2539](https://github.com/Simon-YHKim/2nd-B/pull/2539) | R1 PASS0; all success run38738210520 | `83f931c0` |
-| [#2110](https://github.com/Simon-YHKim/2nd-B/pull/2110) | final PASS H0/M0/L0; all success | `1e377e57` |
-| [#2540](https://github.com/Simon-YHKim/2nd-B/pull/2540) | final PASS H0/M0/L0; all success | `928f4444` |
-| [#2541](https://github.com/Simon-YHKim/2nd-B/pull/2541) | R1 and numbered final PASS H0/M0/L0; all success including sql38742557109 | `81f45b0d` |
-| [#2542](https://github.com/Simon-YHKim/2nd-B/pull/2542) | R1 PASS H0/M0/L0; all success run38751432272 | `ba3b013e` |
-| [#2544](https://github.com/Simon-YHKim/2nd-B/pull/2544) | R1 PASS H0/M0/L0; all success run38754735789 | `63cacead` |
-| [#2545](https://github.com/Simon-YHKim/2nd-B/pull/2545) | R1 PASS H0/M0/L0; all success run38760467489 | `c4ab94ee` |
-| [#2546](https://github.com/Simon-YHKim/2nd-B/pull/2546) | R1 PASS H0/M0/L0; all success run38760885631 | `b6caf7cb` |
-| [#2547](https://github.com/Simon-YHKim/2nd-B/pull/2547) | R1 PASS H0/M0/L0; all success run38761404800 | `cdcd7633` |
-| [#2548](https://github.com/Simon-YHKim/2nd-B/pull/2548) | R1 overlooked B1 M1 corrected; R2 PASS H0/M0/L0; all success run38763090712 | `84eae1a8` |
-| [#2549](https://github.com/Simon-YHKim/2nd-B/pull/2549) | R1 PASS H0/M0/L0; all success run38766037007 | `1861f2f8` |
-| [#2550](https://github.com/Simon-YHKim/2nd-B/pull/2550) | R2PASSH0M0L0; all success run38766671406 | `184b0017` |
-| [#2551](https://github.com/Simon-YHKim/2nd-B/pull/2551) | R1finalPASSH0M0L0; all success run38766998404 | `c6e3d022` |
-| [#2552](https://github.com/Simon-YHKim/2nd-B/pull/2552) | R2 final PASS H0 M0 L0; prior BLOCK1 retained; all success run38769257194 | `decdda9b` |
-| [#2553](https://github.com/Simon-YHKim/2nd-B/pull/2553) | R1 final PASS H0M0L0; all success run38770984346 | `ab56c928` |
-| [#2554](https://github.com/Simon-YHKim/2nd-B/pull/2554) | R1finalPASSH0M0L0; all success run38772156859 | `f9691698` |
-| [#2555](https://github.com/Simon-YHKim/2nd-B/pull/2555) | R1finalPASSH0M0L0;BLOCK0; all success run38772797711 | `f1ab8126` |
-| [#2556](https://github.com/Simon-YHKim/2nd-B/pull/2556) | R1finalPASSH0M0L0; all success run38773298068 | `99b9ef1b` |
-| [#2557](https://github.com/Simon-YHKim/2nd-B/pull/2557) | R1finalPASSH0M0L0; all success run38775741525 | `4f5e43cc` |
-| [#2558](https://github.com/Simon-YHKim/2nd-B/pull/2558) | R2finalPASSH0M0L0;BLOCK1 retained; all success run38777036587 | `ed6598f9` |
-| [#2559](https://github.com/Simon-YHKim/2nd-B/pull/2559) | R3PASSH0M0L0; BLOCK2 retained; all success run38777376212 | `ed19edfa` |
-| [#2560](https://github.com/Simon-YHKim/2nd-B/pull/2560) | R1finalPASSH0M0L0; all success run38777789606 | `4cb509a3` |
-| [#2561](https://github.com/Simon-YHKim/2nd-B/pull/2561) | R1finalPASSH0M0L0; all success (verify/lint/web-export-smoke) | `94cccd91` |
-| [#2562](https://github.com/Simon-YHKim/2nd-B/pull/2562) | R1finalPASSH0M0L0; all success (verify/lint/web-export-smoke) | `87f0b46c` |
-| [#2563](https://github.com/Simon-YHKim/2nd-B/pull/2563) | R1PASSH0M0L0; all success verify/lint/web-export-smoke | `7615607a` |
-| [#2564](https://github.com/Simon-YHKim/2nd-B/pull/2564) | R1PASSH0M0L0; all success verify/lint/web-export-smoke | `e32def61` |
-| [#2565](https://github.com/Simon-YHKim/2nd-B/pull/2565) | originalR1/integrationPASSH0M0L0; all success verify/lint/web-export-smoke | `c21c0373` |
-| [#2566](https://github.com/Simon-YHKim/2nd-B/pull/2566) | R1 PASS H0 M0 L0; all success | `7f62c0d7` |
-| [#2567](https://github.com/Simon-YHKim/2nd-B/pull/2567) | final independent PASS H0 M0 L0; all success | `c77ee1d1` |
-| [#2568](https://github.com/Simon-YHKim/2nd-B/pull/2568) | R2 final PASS H0 M0 L0; BLOCK1 retained; all success | `ff507a5f` |
-| [#2569](https://github.com/Simon-YHKim/2nd-B/pull/2569) | originalR1 + integrated PASS H0M0L0 BLOCK0; all success run38784311173 | `7b6dcc9a` |
-| [#2570](https://github.com/Simon-YHKim/2nd-B/pull/2570) | R1PASS H0M0L0 BLOCK0; all success run38784756991 | `5104273d` |
-| [#2001](https://github.com/Simon-YHKim/2nd-B/pull/2001) | R1 PASS LOW1 fixed; finalPASS H0M0L0 BLOCK0; verify/web+latesttitle SUCCESS run38785368980; superseded title cancelled | `509654f3` |
-| [#2571](https://github.com/Simon-YHKim/2nd-B/pull/2571) | R1 PASS H0M0L0 BLOCK0; all success run38785956116 | `b676fe84` |
-| [#2572](https://github.com/Simon-YHKim/2nd-B/pull/2572) | R1 PASS H0M0L0 BLOCK0; all success run38792116560 | `4d8898b0` |
-| [#2573](https://github.com/Simon-YHKim/2nd-B/pull/2573) | R1 PASS H0M0L0 BLOCK0; all success run38793258379 | `eaca1221` |
-| [#2574](https://github.com/Simon-YHKim/2nd-B/pull/2574) | R2 PASS H0M0L0 BLOCK1 retained; all success run38793757817 | `8eed16bc` |
-| [#2575](https://github.com/Simon-YHKim/2nd-B/pull/2575) | R2 PASS H0M0L0 BLOCK1 retained; all success run38794466510 | `682ba737` |
-| [#2576](https://github.com/Simon-YHKim/2nd-B/pull/2576) | R1 PASS H0M0L0 BLOCK0; all success run38794978443 | `261bc14d` |
-| [#2577](https://github.com/Simon-YHKim/2nd-B/pull/2577) | R1 PASS H0M0L0 BLOCK0; all success run38795716144 | `072f53d5` |
-| [#2578](https://github.com/Simon-YHKim/2nd-B/pull/2578) | R1PASS H0M0L0 BLOCK0; all success run38796114065 | `62c7a2df` |
-| [#2579](https://github.com/Simon-YHKim/2nd-B/pull/2579) | R2 PASS H0M0L0 BLOCK1 retained; all success including SQL run38796712754/38796712761 | `415f91fa` |
-| [#2580](https://github.com/Simon-YHKim/2nd-B/pull/2580) | R1 PASS H0M0L0 BLOCK0; all success run38797336509 | `fcd5a64c` |
-| [#2581](https://github.com/Simon-YHKim/2nd-B/pull/2581) | R2PASS H0M0L0 BLOCK1 retained; all success run38799388422 | `f3136a15` |
-| [#2582](https://github.com/Simon-YHKim/2nd-B/pull/2582) | R1+integration PASS H0M0L0 BLOCK0; all success run38799957752 | `5246d593` |
-| [#2583](https://github.com/Simon-YHKim/2nd-B/pull/2583) | R2PASS H0M0L0 BLOCK1 retained; all success run38800584875 | `931314f8` |
-| [#2584](https://github.com/Simon-YHKim/2nd-B/pull/2584) | R2 PASS H0M0L0 BLOCK1 retained; all success run38801201374 | `4fcb508d` |
-| [#2585](https://github.com/Simon-YHKim/2nd-B/pull/2585) | R2 PASS H0M0L0 BLOCK1 retained; all success run38802303425 | `46924d07` |
-| [#2586](https://github.com/Simon-YHKim/2nd-B/pull/2586) | R1 PASS H0M0L0 BLOCK0; all success run38802939391 | `fb216f31` |
-| [#2587](https://github.com/Simon-YHKim/2nd-B/pull/2587) | R1 PASS H0M0L0 BLOCK0; all success run38803731545 | `f42df04f` |
-| [#2588](https://github.com/Simon-YHKim/2nd-B/pull/2588) | R1 PASS H0M0L0 BLOCK0; all success run38804219605 | `6393a603` |
-| [#2589](https://github.com/Simon-YHKim/2nd-B/pull/2589) | R3 PASS H0M0L0 BLOCK2 retained; all success run38805004277 and38805004238 | `b604e993` |
+| [#2524](https://github.com/Simon-YHKim/2nd-B/pull/2524) | round 1 PASS; 0 findings; all success | `404a906efde51750b1e99284c9cfa0b5dc7528f6` |
+| [#2525](https://github.com/Simon-YHKim/2nd-B/pull/2525) | round 1 and latest main integration PASS; 0 findings; all success after main integration | `18a566b9d3be2473c96806e3fe5d280faa1020e4` |
+| [#2526](https://github.com/Simon-YHKim/2nd-B/pull/2526) | round 1 BLOCK medium1; fixed; round 2 PASS 0 findings; all success including fresh SQL replay | `168cec93b7887442848faab00ade76af9849f78f` |
+| [#2527](https://github.com/Simon-YHKim/2nd-B/pull/2527) | round 1 PASS low1; fixed; final PASS 0 findings; all success | `72bea5ce6765739333f616f5e56738f3df600971` |
+| [#2528](https://github.com/Simon-YHKim/2nd-B/pull/2528) | R1 BLOCK medium1; fixed; R2 PASS high/medium/low0; all success run38722950056 | `45a085e2affc182ae15274682f2e6b2972681d74` |
+| [#2529](https://github.com/Simon-YHKim/2nd-B/pull/2529) | R1 PASS0; all success run38726789069 | `7aec028cb0fe35c5db82756b45ba2da4795fac56` |
+| [#2530](https://github.com/Simon-YHKim/2nd-B/pull/2530) | R1 and integrated head PASS0; all success run38729023612 | `9d2362c0091eddaec6bdc8c6dd23a8a4f32ecf61` |
+| [#2532](https://github.com/Simon-YHKim/2nd-B/pull/2532) | R1 PASS0; all success run38730264040 | `589efd653d2d72661881b60d824f17eeadc439fe` |
+| [#2533](https://github.com/Simon-YHKim/2nd-B/pull/2533) | R1 BLOCK medium1 → R2 PASS0; all success run38731826317 | `03f22c4bb51eebb80d7b2f782d162d2d48fca0ea` |
+| [#2536](https://github.com/Simon-YHKim/2nd-B/pull/2536) | R1 PASS0; all success | `1010f3ad2f12cf429bf68e44b4b6151fdb093957` |
+| [#2537](https://github.com/Simon-YHKim/2nd-B/pull/2537) | R1 PASS0; all success | `9ad455a0a8475f386f41e5a1b9fe7caad274d334` |
+| [#2538](https://github.com/Simon-YHKim/2nd-B/pull/2538) | R1PASS LOW1 fixed; final PASS0; all success | `a1e09fae61550f5d2bb177b20541fefe5f2bd3a2` |
+| [#2539](https://github.com/Simon-YHKim/2nd-B/pull/2539) | R1 PASS0; all success run38738210520 | `83f931c02c24c7c8ac7e448c63c003fb01a92835` |
+| [#2110](https://github.com/Simon-YHKim/2nd-B/pull/2110) | final PASS H0/M0/L0; all success | `1e377e572fc53755ea92e07b9ff9752e32abf41f` |
+| [#2540](https://github.com/Simon-YHKim/2nd-B/pull/2540) | final PASS H0/M0/L0; all success | `928f4444932a3751dfa034d09825ddd3a4c58edc` |
+| [#2541](https://github.com/Simon-YHKim/2nd-B/pull/2541) | R1 and numbered final PASS H0/M0/L0; all success including sql38742557109 | `81f45b0d9ff7114842d0ab6450b36fb17c2b07b6` |
+| [#2542](https://github.com/Simon-YHKim/2nd-B/pull/2542) | R1 PASS H0/M0/L0; all success run38751432272 | `ba3b013e99ac2b85aebdcbee26283118a746f139` |
+| [#2544](https://github.com/Simon-YHKim/2nd-B/pull/2544) | R1 PASS H0/M0/L0; all success run38754735789 | `63cacead6b43815b82666b793dd619bf1a08301a` |
+| [#2545](https://github.com/Simon-YHKim/2nd-B/pull/2545) | R1 PASS H0/M0/L0; all success run38760467489 | `c4ab94ee6e4cfb28e04601560be6c9131c01eefc` |
+| [#2546](https://github.com/Simon-YHKim/2nd-B/pull/2546) | R1 PASS H0/M0/L0; all success run38760885631 | `b6caf7cbbfb7d9867fc84e122e0c08fd61e9c5ba` |
+| [#2547](https://github.com/Simon-YHKim/2nd-B/pull/2547) | R1 PASS H0/M0/L0; all success run38761404800 | `cdcd76335e142e706d2ba6f65aff23aadde255fa` |
+| [#2548](https://github.com/Simon-YHKim/2nd-B/pull/2548) | R1 overlooked B1 M1 corrected; R2 PASS H0/M0/L0; all success run38763090712 | `84eae1a87f46ccb24bbcb8df5ab65e61a1862f4d` |
+| [#2549](https://github.com/Simon-YHKim/2nd-B/pull/2549) | R1 PASS H0/M0/L0; all success run38766037007 | `1861f2f89db8cd719b0aa28de42f982e424cbdd1` |
+| [#2550](https://github.com/Simon-YHKim/2nd-B/pull/2550) | R2PASSH0M0L0; all success run38766671406 | `184b0017da4be191e2cc2f5fa691f375fb7cb300` |
+| [#2551](https://github.com/Simon-YHKim/2nd-B/pull/2551) | R1finalPASSH0M0L0; all success run38766998404 | `c6e3d02262ed06e98f561e3d4117d8b10f16823c` |
+| [#2552](https://github.com/Simon-YHKim/2nd-B/pull/2552) | R2 final PASS H0 M0 L0; prior BLOCK1 retained; all success run38769257194 | `decdda9b6d332d626aee76e0b41674ca31a8a5a8` |
+| [#2553](https://github.com/Simon-YHKim/2nd-B/pull/2553) | R1 final PASS H0M0L0; all success run38770984346 | `ab56c9287f70607e9cb37de6cca0e01c2e9e61b4` |
+| [#2554](https://github.com/Simon-YHKim/2nd-B/pull/2554) | R1finalPASSH0M0L0; all success run38772156859 | `f96916982e7bdf30072467b4dba4501dd7d054f0` |
+| [#2555](https://github.com/Simon-YHKim/2nd-B/pull/2555) | R1finalPASSH0M0L0;BLOCK0; all success run38772797711 | `f1ab81260496cb0f887f3ca965a0538d5dcf92cb` |
+| [#2556](https://github.com/Simon-YHKim/2nd-B/pull/2556) | R1finalPASSH0M0L0; all success run38773298068 | `99b9ef1b89e426701609a07461f3548c5cf5c42b` |
+| [#2557](https://github.com/Simon-YHKim/2nd-B/pull/2557) | R1finalPASSH0M0L0; all success run38775741525 | `4f5e43cc269b1a2368d85d26799458a5239695c2` |
+| [#2558](https://github.com/Simon-YHKim/2nd-B/pull/2558) | R2finalPASSH0M0L0;BLOCK1 retained; all success run38777036587 | `ed6598f92b7a94f6e2e036b4a24c68948322a8c9` |
+| [#2559](https://github.com/Simon-YHKim/2nd-B/pull/2559) | R3PASSH0M0L0; BLOCK2 retained; all success run38777376212 | `ed19edfa5b0348a1ff50bfd2ba9bb1b030142b1a` |
+| [#2560](https://github.com/Simon-YHKim/2nd-B/pull/2560) | R1finalPASSH0M0L0; all success run38777789606 | `4cb509a308ed716da24bfbf27e2c7511f5622c2f` |
+| [#2561](https://github.com/Simon-YHKim/2nd-B/pull/2561) | R1finalPASSH0M0L0; all success (verify/lint/web-export-smoke) | `94cccd917fada9feada9710b1261d3ed3ffec3fb` |
+| [#2562](https://github.com/Simon-YHKim/2nd-B/pull/2562) | R1finalPASSH0M0L0; all success (verify/lint/web-export-smoke) | `87f0b46c4144cbb4388618120e8dc4e2e144d41b` |
+| [#2563](https://github.com/Simon-YHKim/2nd-B/pull/2563) | R1PASSH0M0L0; all success verify/lint/web-export-smoke | `7615607a15f296dd4291b1ba730f037bbc0a6ff0` |
+| [#2564](https://github.com/Simon-YHKim/2nd-B/pull/2564) | R1PASSH0M0L0; all success verify/lint/web-export-smoke | `e32def61ecf53a3ae1ad1341af558efdca9b343c` |
+| [#2565](https://github.com/Simon-YHKim/2nd-B/pull/2565) | originalR1/integrationPASSH0M0L0; all success verify/lint/web-export-smoke | `c21c03738b1070ba932419bee49f708191a7f745` |
+| [#2566](https://github.com/Simon-YHKim/2nd-B/pull/2566) | R1 PASS H0 M0 L0; all success | `7f62c0d7767cf8482fe1ee1b6c796b7b8e0d2109` |
+| [#2567](https://github.com/Simon-YHKim/2nd-B/pull/2567) | final independent PASS H0 M0 L0; all success | `c77ee1d1e30b45d3fe5463d703bb0d1d5848b7d3` |
+| [#2568](https://github.com/Simon-YHKim/2nd-B/pull/2568) | R2 final PASS H0 M0 L0; BLOCK1 retained; all success | `ff507a5fdce6239e0035a8942f491b0f77e72f68` |
+| [#2569](https://github.com/Simon-YHKim/2nd-B/pull/2569) | originalR1 + integrated PASS H0M0L0 BLOCK0; all success run38784311173 | `7b6dcc9abcd55de8c8034be472072ee9fe9a86ca` |
+| [#2570](https://github.com/Simon-YHKim/2nd-B/pull/2570) | R1PASS H0M0L0 BLOCK0; all success run38784756991 | `5104273dc8b8fc64da0abbc9ad7e82e277f7b523` |
+| [#2001](https://github.com/Simon-YHKim/2nd-B/pull/2001) | R1 PASS LOW1 fixed; finalPASS H0M0L0 BLOCK0; verify/web+latesttitle SUCCESS run38785368980; superseded title cancelled | `509654f3d45c2af6c3018bc2e5dd39823aef9d84` |
+| [#2571](https://github.com/Simon-YHKim/2nd-B/pull/2571) | R1 PASS H0M0L0 BLOCK0; all success run38785956116 | `b676fe848a26aa7547e82d71389480271f3d3398` |
+| [#2572](https://github.com/Simon-YHKim/2nd-B/pull/2572) | R1 PASS H0M0L0 BLOCK0; all success run38792116560 | `4d8898b0026ea098eb57ff6878e4cfc47fe83f30` |
+| [#2573](https://github.com/Simon-YHKim/2nd-B/pull/2573) | R1 PASS H0M0L0 BLOCK0; all success run38793258379 | `eaca1221d28b6bc889cb28e83451377a21b2f022` |
+| [#2574](https://github.com/Simon-YHKim/2nd-B/pull/2574) | R2 PASS H0M0L0 BLOCK1 retained; all success run38793757817 | `8eed16bc2f560a5922bc9448a2279f32703a2c4f` |
+| [#2575](https://github.com/Simon-YHKim/2nd-B/pull/2575) | R2 PASS H0M0L0 BLOCK1 retained; all success run38794466510 | `682ba737069725b898a9e4c16e5aab9fed3b7dc7` |
+| [#2576](https://github.com/Simon-YHKim/2nd-B/pull/2576) | R1 PASS H0M0L0 BLOCK0; all success run38794978443 | `261bc14dc5f76daa8027c6b607643e0c7892d562` |
+| [#2577](https://github.com/Simon-YHKim/2nd-B/pull/2577) | R1 PASS H0M0L0 BLOCK0; all success run38795716144 | `072f53d5591494f0efe5d97b58664087e3a1e765` |
+| [#2578](https://github.com/Simon-YHKim/2nd-B/pull/2578) | R1PASS H0M0L0 BLOCK0; all success run38796114065 | `62c7a2df34edf48a2fb32ed22997d07f27b41abc` |
+| [#2579](https://github.com/Simon-YHKim/2nd-B/pull/2579) | R2 PASS H0M0L0 BLOCK1 retained; all success including SQL run38796712754/38796712761 | `415f91faa1de98200bde911e89bcf77e807f0830` |
+| [#2580](https://github.com/Simon-YHKim/2nd-B/pull/2580) | R1 PASS H0M0L0 BLOCK0; all success run38797336509 | `fcd5a64c7e57cf854b418cb3e930bcee063a0a61` |
+| [#2581](https://github.com/Simon-YHKim/2nd-B/pull/2581) | R2PASS H0M0L0 BLOCK1 retained; all success run38799388422 | `f3136a1524dd73be56051b591c6abbaaf7eb9c40` |
+| [#2582](https://github.com/Simon-YHKim/2nd-B/pull/2582) | R1+integration PASS H0M0L0 BLOCK0; all success run38799957752 | `5246d593af0a31fad4832efd7548d5a9055f6a85` |
+| [#2583](https://github.com/Simon-YHKim/2nd-B/pull/2583) | R2PASS H0M0L0 BLOCK1 retained; all success run38800584875 | `931314f820512b7ebde5359ad931ef1ce41925cb` |
+| [#2584](https://github.com/Simon-YHKim/2nd-B/pull/2584) | R2 PASS H0M0L0 BLOCK1 retained; all success run38801201374 | `4fcb508da631f9ea81da32eca6609024442d3c2e` |
+| [#2585](https://github.com/Simon-YHKim/2nd-B/pull/2585) | R2 PASS H0M0L0 BLOCK1 retained; all success run38802303425 | `46924d07ecc6c66559dae76b6e1315a8c20b78b4` |
+| [#2586](https://github.com/Simon-YHKim/2nd-B/pull/2586) | R1 PASS H0M0L0 BLOCK0; all success run38802939391 | `fb216f31292b9ccadf675dfb3607d4850b1f51c5` |
+| [#2587](https://github.com/Simon-YHKim/2nd-B/pull/2587) | R1 PASS H0M0L0 BLOCK0; all success run38803731545 | `f42df04f8f02bceb84f60e6c29f8dba6e1c36f2e` |
+| [#2588](https://github.com/Simon-YHKim/2nd-B/pull/2588) | R1 PASS H0M0L0 BLOCK0; all success run38804219605 | `6393a603dc3f9ff7a964a13aa7b62c2bd9db8c8d` |
+| [#2589](https://github.com/Simon-YHKim/2nd-B/pull/2589) | R3 PASS H0M0L0 BLOCK2 retained; all success run38805004277 and38805004238 | `b604e993945c7fe77c96d135115e593276d02130` |
+| [#2590](https://github.com/Simon-YHKim/2nd-B/pull/2590) | R1 PASS H0M0L0 BLOCK0; all success run38806736722/38806736587 | `304d350de7a683722a0afbb0f94ab3c804f27807` |
+| [#2591](https://github.com/Simon-YHKim/2nd-B/pull/2591) | R1 PASS H0M0L0 BLOCK0; all success run38807327898/38807327710 | `9460615ac47ea18bb0046eec95789fb073df1e42` |
+| [#2592](https://github.com/Simon-YHKim/2nd-B/pull/2592) | R2 PASS H0M0L0 BLOCK0; initial verify guards corrected; all success run38808853030/38808853174 | `a21c17532794e987280d6f2f1d89f9f06b934a3f` |
+| [#2593](https://github.com/Simon-YHKim/2nd-B/pull/2593) | R1 PASS H0M0L0 BLOCK0; all success run38809441539/38809441380 | `0bce8aee43dbaa9d05e2ab58a103a95e938e0dd3` |
+| [#2594](https://github.com/Simon-YHKim/2nd-B/pull/2594) | R1 PASS H0M0L0 BLOCK0; all success run38810383552/38810383512 | `fb2ab967bc028dc356b520da4701312078d1312d` |
+| [#2595](https://github.com/Simon-YHKim/2nd-B/pull/2595) | R1 PASS H0M0L0 BLOCK0; all success run38810764475/38810764533 | `a68c5e5a7073f2aad2bb5c86f0147bb41181f27f` |
+| [#2596](https://github.com/Simon-YHKim/2nd-B/pull/2596) | R1 and integration PASS H0M0L0 BLOCK0; all success run38811386153/38811386103 | `5f9bcc085b01e9a72a1a5b4683e96bd1407f1207` |
+| [#2597](https://github.com/Simon-YHKim/2nd-B/pull/2597) | R2PASS H0M0L0 BLOCK1; all success38812265668/38812265770 | `d675f265f02ff2e55910e6d02babf9a69416b97a` |
+| [#2598](https://github.com/Simon-YHKim/2nd-B/pull/2598) | R1PASS + anchor deltaPASS H0M0L0 BLOCK0; all success38812959103/38812958998 | `bd4cc19ec577f3599689f6205d5f0e137f357edc` |
+| [#2599](https://github.com/Simon-YHKim/2nd-B/pull/2599) | R2PASS H0M0L0 BLOCK1; all success38813811549/38813811472 | `218dbabb4bc6b618ab6aa8ce7356f5d6a8d73f7f` |
+| [#2600](https://github.com/Simon-YHKim/2nd-B/pull/2600) | R2 + integration + anchor independentPASS H0M0L0 BLOCK1 retained; all success38815222171/38815222202 | `64bf7659a3361f740c00dd3fb1efb9ed22a0e774` |
+| [#2601](https://github.com/Simon-YHKim/2nd-B/pull/2601) | B2a/B2b+integrationPASS H0M0L0 BLOCK0; all success38817948207/38817948303 | `2d760975d75465f0e54e3279dc7434fd469d2680` |
+| [#2602](https://github.com/Simon-YHKim/2nd-B/pull/2602) | S1 original/integration/CI delta PASS H0M0L0 BLOCK0; designBLOCK1; all success38818714792/38818714645/38818714680 | `01fb82c4ebaa6a820e4a5b88d0a63654e40f9ca2` |
+| [#2603](https://github.com/Simon-YHKim/2nd-B/pull/2603) | B0aR2/B0bR1/integration PASS H0M0L0; B0aBLOCK1/designBLOCK1; all success38820309954/38820309952 | `6eb5db40bea9f7009a3160577206c354c04bb164` |
+| [#2604](https://github.com/Simon-YHKim/2nd-B/pull/2604) | independent PASS H0M0L0/newM0; 1164suites20742PASS1skip; all PASS 38820790467/38820790540 | `edfb78f7bf00ee9843f004c693624991e5a71b16` |
+| [#2605](https://github.com/Simon-YHKim/2nd-B/pull/2605) | independent PASS H0M0L0/newM0; 1165suites20795PASS1skip; all PASS 38821348328/38821348329 | `fc15cf869521afa5898485ac40d6ee34e6d8b2a0` |
+| [#2606](https://github.com/Simon-YHKim/2nd-B/pull/2606) | S1 independentR1PASS0/BLOCK0; i18n delta independentPASS86; full1167suites21072PASS1skip; all PASS38822951254/38822951171 | `2997f4b38e92ebfd8c6ad5f9ad9e2c7a542bb160` |
 
 ## 76개 실행 원장
 
-원래 상태는 인수한 원감사 기준이다. 코드·검증·남은 조건을 구분하며 실제 앱·운영 완료는 별도 확인한다.
+원감사 상태는 원본 시점이다. 현재 상태는 각 구현/검증/병합/다음 조건을 읽는다.
 
 ### T01 · 앱 잠금 1차: 앱을 열 때 지문 → 안 되면 폰의 PIN · 패턴 / 잠금 조건(폰 앱에만 · 위기 안내는 잠금 위 · 떠난 지 1분 뒤 다시 묻기)
 
@@ -251,11 +266,11 @@
 ### T16 · 저장 전 인터뷰를 기기에 7일 암호화 임시 보관(앱이 꺼져도 「이어서 / 버리기」)
 
 - 결정: Q-261014-21; 우선순위 P1. 원감사 상태: 미착수.
-- 구현: 암호화v1#2568·v2 codec/복원#2577·nativev2보관#2585 병합, 생산generation provider/UI 미연결. 웹A6f95f8fd 실제SDK/Chromium 검사·독립R1PASS0 후 전체검사대기. 웹B/C·서버최종화·실제writer는 후속.
-- 검증: 최종370d8d28 전체1146suites19331PASS1skip·CI allgreen; v2기존/새회귀95PASS/type/lint/cycles; v2b5946211 full1148suites19411PASS1skip·독립95+55필드거절/9hotline 확인; nativev2 full1152suites19590PASS1skip·독립R2H0M0L0 BLOCK1·CI38802303425; 독립 검토: 저장 모듈 R2 final PASS H0M0L0·BLOCK1 보존. 후속 연결 설계도 R2 PASS0·별도BLOCK1 보존; dormant v2 R1PASS0 BLOCK0; v2 R1PASS H0M0L0 BLOCK0
-- 병합: PR#2568 mainff507a5f; v2 #2577 main072f53d5; nativev2#2585 main46924d07; 실제 앱: 미확인
-- 다음: 웹A R1PASS0 전체검사→CI; B0 설계R1BLOCK1 계약보완; server S0 설계 병렬
-- 조건: 네이티브 암호화·웹 로그아웃 삭제. 20·21·35의 종료/미저장 규칙과 맞춤 / native 일반 logout 암호문 유지·고정7일·revision삭제·terminalpurge. 실제 읽을 때 만료 삭제이며 종료 순간의 물리삭제 보장 아님. v1/v2codec/nativev2adapter 병합, 생산 contentLease null·UI/writer 미연결. 웹A6f95f8fd R1PASS0 전체검사대기. B0설계R1BLOCK1: empty/unsupported 인증행위·같은M관측수명·restart receipt 계약 보완. 서버 generation·원자적최종화 및0225r0↔T36 immutable규칙전환 후속.
+- 구현: 암호화v1#2568·v2codec#2577·nativev2#2585·웹A#2591·서버권한S1#2602·웹B0a+b#2603·서버packet/auth S2a#2604 병합. S2b 원자적 최종저장 SQL은 별도 후보 동결 중, 독립검토 전.
+- 검증: S1 실제236migration/21그룹+독립4, full20607PASS. B0 관련154/Chromium55/독립6, full20714PASS. S2a115PASS/type0/cycles0·PG15 hash 대조, full20742PASS. 각 최종 CI PASS, 각1skip.; 독립 검토: native/webA 기존PASS. B0설계R2PASS BLOCK1·B0a구현R2PASS BLOCK1·B0b R1PASS BLOCK0. S0설계R2PASS BLOCK1·S1 PASS BLOCK0·S2aR2PASS BLOCK1.
+- 병합: 기존#2568/#2577/#2585/#2591 + #2602/#2603/#2604, latest mainedfb78f7; 실제 앱: 미확인
+- 다음: S2b 동결후 독립 검토→full/CI. 이후 실제server endpoint와 웹·native writer/auth/UI 연결. 이 세션은 사용자 요청으로 새 단계 시작하지 않고 인계.
+- 조건: 네이티브 암호화·웹 로그아웃 삭제. 20·21·35의 종료/미저장 규칙과 맞춤 / 실제 writer/UI/server finalize endpoint 미연결. 준비·ACK와 최종저장·drain 구분. S1 UNNUMBERED 비활성; S2까지 실제서버 계약 완료 전 활성화0. 실제앱/폰0.
 
 ### T17 · 인터뷰 답하는 자리에 사실 한 줄 「답은 AI가 읽고 다음 질문을 만듭니다. 저장을 눌러야 기록으로 남습니다.」
 
@@ -287,20 +302,20 @@
 ### T20 · 인터뷰에서 질문을 기다리는 중 「여기까지」를 누르면 늦게 온 위기 판정이 버려짐 + 저장 화면 「저장 안 함」
 
 - 결정: Q-261014-04 · 09; 우선순위 P0. 원감사 상태: 미착수.
-- 구현: PR #2525: 늦은 위기 안내와 인터뷰 종료 구현. T20 저장 안 함은 후속; S0-A f19e21b7 감사await전확정RED observer 전달·request/owner/instance/generation1회종료; B1연락처판별#2589 full19941PASS·R3PASS0 BLOCK2·CI후병합(비활성). B2L은전체검사3실패수정중/B2R구현중; 실제GREEN안내10건미해결
-- 검증: 최신 main 통합 verify 1,115묶음·18,416건 통과 / CI 전체 성공; S0-A full1151suites19523PASS1skip/독립129PASS+실제CLI; 독립 검토: 초기 PASS 및 main 통합 a640c6a5 PASS · high/medium/low 0 · 독립 13묶음/344건; S0-A R2PASSH0M0L0 구현BLOCK1(기존adapter drift보완)
-- 병합: PR #2525 병합 · main 18a566b9; #2583 main931314f8·CI38800584875통과; 실제 앱: 미확인 · Variables 403으로 앱 동일 설정 실행 대기
-- 다음: B2-L 고정문구·B2-R resolver 검증/통합 → B3 실제 화면 안내 연결·실제adapter 회귀. 병합된 B1 R3PASS·BLOCK2와 원모델 직접109 감소FAIL은 그대로 보존
-- 조건: 종료와 응답 도착 순서별 검증. 안전 설계 원문은 이전 PC에 있어 복구 필요 / 8081 실제 동작·app:parity 확인 필요 / 저장 안 함·멱등 저장 후속
+- 구현: PR #2525: 늦은 위기 안내와 인터뷰 종료 구현. T20 저장 안 함은 후속; S0-A f19e21b7 감사await전확정RED observer 전달·request/owner/instance/generation1회종료; B1연락처판별#2589 full19941PASS·R3PASS0 BLOCK2·CI후병합(비활성). B2L은기존가드수정후#2592병합/B2R독립PASS후main통합중; 실제GREEN안내10건미해결; B3 S/R/P/U 실제 인터뷰 안내 전달 #2605 병합.
+- 검증: 최신 main 통합 verify 1,115묶음·18,416건 통과 / CI 전체 성공; S0-A full1151suites19523PASS1skip/독립129PASS+실제CLI; #2605 full1165suites20795PASS1skip·CI38821348328/38821348329 PASS. U 독립24suites917PASS; 실제 adapter replay current 안내소실0.; 독립 검토: 초기 PASS 및 main 통합 a640c6a5 PASS · high/medium/low 0 · 독립 13묶음/344건; S0-A R2PASSH0M0L0 구현BLOCK1(기존adapter drift보완); B3설계R2PASS/BLOCK1, S/R/P/U 개별R1PASS0 및 통합PASS.
+- 병합: PR #2525 병합 · main 18a566b9; #2583 main931314f8·CI38800584875통과; #2605 mainfc15cf869521afa5898485ac40d6ee34e6d8b2a0; 실제 앱: 미확인 · Variables 403으로 앱 동일 설정 실행 대기
+- 다음: 같은 설정앱/폰 확인과 안전 후보 품질 조건을 별도로 검증. T20 저장 안 함/멱등저장/T16 서버 연결은 후속이며 #2440 BLOCK3 우회 금지.
+- 조건: 종료와 응답 도착 순서별 검증. 안전 설계 원문은 이전 PC에 있어 복구 필요 / 이전 GREEN 안내소실10건은 원 로그로 보존하고 현재 실제코드 replay 소실0. 원모델 raw 직접109 감소 FAIL2·지원문구1·911 손실 원측정은 그대로 실패. 실제 새모델 품질측정0, 같은설정앱/폰0. #2440 BLOCK3의 stop/Back/RESET 범위는 동결 유지.
 
 ### T21 · 인터뷰 중 위기 안내가 뜨면 그 인터뷰를 끝냄
 
 - 결정: 10-07 02:42 · 인터뷰 측정 Q8; 우선순위 P0. 원감사 상태: 일부만.
-- 구현: PR #2525: 늦은 위기 안내와 인터뷰 종료 구현. T20 저장 안 함은 후속; B1연락처판별#2589 full19941PASS·R3PASS0 BLOCK2·CI후병합(비활성). B2L은전체검사3실패수정중/B2R구현중; 실제GREEN안내10건미해결
-- 검증: 최신 main 통합 verify 1,115묶음·18,416건 통과 / CI 전체 성공; 독립 검토: 초기 PASS 및 main 통합 a640c6a5 PASS · high/medium/low 0 · 독립 13묶음/344건
-- 병합: PR #2525 병합 · main 18a566b9; 실제 앱: 미확인 · Variables 403으로 앱 동일 설정 실행 대기
-- 다음: 위기 종료 코드의 실제 앱 확인·서버 저장 정책 연결
-- 조건: 20과 함께 질문 재개·늦은 응답·저장 경로 검증 / 8081 실제 동작·app:parity 확인 필요
+- 구현: PR #2525: 늦은 위기 안내와 인터뷰 종료 구현. T20 저장 안 함은 후속; B1연락처판별#2589 full19941PASS·R3PASS0 BLOCK2·CI후병합(비활성). B2L#2592·B2R#2596병합/화면후속; 실제GREEN안내10건미해결; B3 S/R/P/U 실제 인터뷰 안내 전달 #2605 병합.
+- 검증: 최신 main 통합 verify 1,115묶음·18,416건 통과 / CI 전체 성공; #2605 full1165suites20795PASS1skip·CI38821348328/38821348329 PASS. U 독립24suites917PASS; 실제 adapter replay current 안내소실0.; 독립 검토: 초기 PASS 및 main 통합 a640c6a5 PASS · high/medium/low 0 · 독립 13묶음/344건; B3설계R2PASS/BLOCK1, S/R/P/U 개별R1PASS0 및 통합PASS.
+- 병합: PR #2525 병합 · main 18a566b9; #2605 mainfc15cf869521afa5898485ac40d6ee34e6d8b2a0; 실제 앱: 미확인 · Variables 403으로 앱 동일 설정 실행 대기
+- 다음: 같은 설정앱/폰 확인과 안전 후보 품질 조건을 별도로 검증. T20 저장 안 함/멱등저장/T16 서버 연결은 후속이며 #2440 BLOCK3 우회 금지.
+- 조건: 20과 함께 질문 재개·늦은 응답·저장 경로 검증 / 이전 GREEN 안내소실10건은 원 로그로 보존하고 현재 실제코드 replay 소실0. 원모델 raw 직접109 감소 FAIL2·지원문구1·911 손실 원측정은 그대로 실패. 실제 새모델 품질측정0, 같은설정앱/폰0. #2440 BLOCK3의 stop/Back/RESET 범위는 동결 유지.
 
 ### T22 · AI 가 거절하거나 안전 안내를 한 답 아래에 [리마인더 만들기] 같은 버튼이 남지 않게(서버 판정까지)
 
@@ -314,11 +329,11 @@
 ### T23 · 「게시 전 닫기」로 정한 것 둘: 119(신체 응급) · 112(타인 위협) 판정 · es · pt · id 위기 어휘
 
 - 결정: 10-10 16:57 · Q-261010-09; 우선순위 P0. 원감사 상태: 일부만.
-- 구현: es/pt/id #2527 + 119/112 #2528 구현·병합. 명확한 추가 구문의 제한된 닫힌목록 #2550도 병합; 전체 언어 의미판정 해결은 아님
-- 검증: 119/112 전체1118묶음18715건/1skip, Deno 16개 Edge import graph 검사, CI전체통과; #2550 전체1125suites19015PASS1skip·CI통과; 독립 검토: 2527 PASS0. 2528 R1 BLOCK medium1 수정→R2 PASS high/medium/low0; #2550 R2PASS H0M0L0
-- 병합: 2527 main72bea5ce, 2528 main45a085e2; #2550 main184b0017da4be191e2cc2f5fa691f375fb7cb300; 실제 앱: 미완료 · Variables403, 운영프록시0255→0258 선행대기
-- 다음: draft #2543 실측FAIL·미적용 보존. 승인D3·병합A/B1 다음 B2 고정locale/resolver 검증·통합 → B3 화면 연결·실제adapter·앱 확인
-- 조건: 명시된 게시 전 조건. 기존 위기 판정 약화 없음과 언어·레인별 회귀 확인 / 명확한 추가구문#2550은 닫힌목록 범위만 반영됐고 전체 언어 해결이 아님. 원모델 직접109 감소 FAIL·10 GREEN안내소실 해결0 유지. B1 연락문법87f987ff는 R3독립PASS H0M0L0·누적BLOCK2, 기존426+독립64·원반례재생 통과. B2 고정locale와resolver/B3실제화면 연결 뒤 전조합·실제adapter·앱확인 필요.
+- 구현: es/pt/id #2527 + 119/112 #2528 구현·병합. 명확한 추가 구문의 제한된 닫힌목록 #2550도 병합; 전체 언어 의미판정 해결은 아님; B3 S/R/P/U 실제 인터뷰 안내 전달 #2605 병합.
+- 검증: 119/112 전체1118묶음18715건/1skip, Deno 16개 Edge import graph 검사, CI전체통과; #2550 전체1125suites19015PASS1skip·CI통과; #2605 full1165suites20795PASS1skip·CI38821348328/38821348329 PASS. U 독립24suites917PASS; 실제 adapter replay current 안내소실0.; 독립 검토: 2527 PASS0. 2528 R1 BLOCK medium1 수정→R2 PASS high/medium/low0; #2550 R2PASS H0M0L0; B3설계R2PASS/BLOCK1, S/R/P/U 개별R1PASS0 및 통합PASS.
+- 병합: 2527 main72bea5ce, 2528 main45a085e2; #2550 main184b0017da4be191e2cc2f5fa691f375fb7cb300; #2605 mainfc15cf869521afa5898485ac40d6ee34e6d8b2a0; 실제 앱: 미완료 · Variables403, 운영프록시0255→0258 선행대기
+- 다음: 같은 설정앱/폰 확인과 안전 후보 품질 조건을 별도로 검증. T20 저장 안 함/멱등저장/T16 서버 연결은 후속이며 #2440 BLOCK3 우회 금지.
+- 조건: 명시된 게시 전 조건. 기존 위기 판정 약화 없음과 언어·레인별 회귀 확인 / 이전 GREEN 안내소실10건은 원 로그로 보존하고 현재 실제코드 replay 소실0. 원모델 raw 직접109 감소 FAIL2·지원문구1·911 손실 원측정은 그대로 실패. 실제 새모델 품질측정0, 같은설정앱/폰0. #2440 BLOCK3의 stop/Back/RESET 범위는 동결 유지.
 
 ### T24 · AI 답이 위기 안내로 잘못 바뀌는 오탐: 겹침 예외 · 뜻 분류 연결 + 위기 50 · 평범 50 시험
 
@@ -359,10 +374,10 @@
 ### T28 · 위기 판정이 난 글은 저장하되 AI 처리는 건너뛰고 보류 표시
 
 - 결정: 10-07 01:20; 우선순위 P1. 원감사 상태: 일부만.
-- 구현: 저장직후#2532·일괄임베딩#2533차단 병합. 미활성 SQL#2535와연결계획 유지. known RED와정확keep identity보존3dc2ea3d(비활성3파일)는R1독립PASS0·전체19668PASS1skip 후 #2590 CI 단계; 기존embedding/export/RAG 누출은 미해결.
+- 구현: 저장직후#2532·일괄임베딩#2533차단 병합. 미활성 SQL#2535와연결계획 유지. known RED와정확keep identity보존3dc2ea3d(비활성3파일)는R1독립PASS0·전체19668PASS1skip·CI후#2590병합; 기존embedding/export/RAG 누출은 미해결.
 - 검증: 저장 직후18751/일괄18756 PASS, 각 CI 통과. SQL초안 전체18739 PASS·로컬SQL PASS; 독립 검토: 직후R1PASS0·일괄R1BLOCK중간1→R2PASS0·영구SQL준비R1PASS0
-- 병합: #2532·#2533 병합 · main03f22c4b; 실제 앱: 미확인
-- 다음: 첫keep준비#2590 CI 통과 뒤 병합; AI용/사용자용 reader 분리·서버 검증 근거/계보/늦은 RED 삭제 경계 후속
+- 병합: #2532·#2533 병합 · main03f22c4b; #2590 main304d350d; 실제 앱: 미확인
+- 다음: AI용/사용자용 reader 분리·서버 검증 근거/계보/늦은RED 삭제 경계; firstkeep 준비는병합·미활성
 - 조건: 재설계 D4와 저장 동의 정책 대조. 추출·임베딩으로 재전송하지 않음 / 준비 조사에서 held wiki가 현재embedding/snapshot에포함되는실제함수재현. exportUserWiki의AI/사용자내보내기공유·fallback·0239 update제한·서버text-only경계미해결. 사용자원문접근/보관은유지
 
 ### T29 · 끝내는 말로 시작하는 정상 답이 인터뷰를 끝내 버림 → 「여기서 마칠까요?」 [마치기] [계속 이야기하기]
@@ -377,11 +392,11 @@
 ### T30 · 인터뷰가 짧게 끝나는 규칙 고치기(다섯 층 인정 · 세 번 불인정 · 8자 미만)
 
 - 결정: Q-261014-12; 우선순위 P2. 원감사 상태: 미착수.
-- 구현: 미확인
-- 검증: 미확인; 독립 검토: 미실시
-- 병합: 미확인; 실제 앱: 미확인
-- 다음: 짧게 끝나는 규칙을 고친 뒤 기준선 측정
-- 조건: 다섯 층 인정·세 번 불인정·8자 미만 규칙을 결정 원문과 대조 / S0 설계D3 R3PASS0·BLOCK2 보존. A#2583/B1#2589 병합, B2 고정안내/화면연결 후 S1 짧은답 규칙·S2 장면선택·S3 범위/말투·모델기준선 순서. GREEN 안내손실10건은 아직 미해결.
+- 구현: 짧은답 S1 #2606 병합. KO8/EN14/min2관문 제거·승인된 장소단답8개 fact 인정·그외 기존 의미판정. 두실패/장면선택S2는 설계만 제품0.
+- 검증: S1 관련20suites1044PASS; full1167suites21072PASS1skip; CI38822951254/38822951171 allPASS. i18n한줄delta 독립86PASS. 원firstfull21071PASS1FAIL1skip와 conflict초기실패 보존.; 독립 검토: S1 R1PASS H0M0L0/BLOCK0; i18n한줄delta R1PASS0/BLOCK0, 제품4683경로불변 검증.
+- 병합: PR#2606 main2997f4b38e92ebfd8c6ad5f9ad9e2c7a542bb160; 실제 앱: 미확인
+- 다음: S2 두실패/장면선택 계획과 실제baseline4를 인수. 새세션 범위확인 후 구현·검토. 실제앱·폰 및 새모델품질 별도.
+- 조건: 다섯 층 인정·세 번 불인정·8자 미만 규칙을 결정 원문과 대조 / KO8/EN14/min2 제거; 정확한 장소단답8개는 fact에서 인정. 다른층은 모델 판정. Q5 same/missing 인정·none 불인정·other 인정0/추가실패0·error 성공아님. S2 두실패/장면 선택은 계획만 있고 제품0. #2440 보존.
 
 ### T31 · 장면 끝에 [이 이야기 더 · 다른 장면 · 저장하고 마치기] · 한 층에서 두 번 막히면 '다른 장면으로 갈까요?'
 
@@ -389,8 +404,8 @@
 - 구현: 미확인
 - 검증: 미확인; 독립 검토: 미실시
 - 병합: 미확인; 실제 앱: 미확인
-- 다음: 장면 끝 선택 셋과 막힘 안내 구현
-- 조건: 다른 장면·더 이야기·저장 종료의 전환 상태 확인
+- 다음: S2 읽기 설계와 실제baseline4를 인수하고 승인범위 확인 후 구현. 현재 세션 새구현0.
+- 조건: 다른 장면·더 이야기·저장 종료의 전환 상태 확인 / concreteOnly의 기존4개는 사실답4가 아닌 전체층 인정4. 이 predicate를 유지하며 자동종료를 선택UI로 바꾸는 계획. same-scene abandoned 유지, 다른장면에서 초기화. 저장 record/coverage ACK 전 성공/이동 금지; T16 미해결 원자성/unknown은 별도.
 
 ### T32 · AI 가 고르는 다음 물음 범위는 이번 대화 안에서만
 
@@ -449,11 +464,11 @@
 ### T38 · 다른 탭(스크랩 등)에 다녀오면 허슬케이 대화가 사라짐(Z117)
 
 - 결정: Q-261014-05; 우선순위 P2. 원감사 상태: 미착수.
-- 구현: A registry#2575·B controller#2584 병합(비활성). C0 captured RED#2588 R1PASS0·전체19540PASS·CI 후병합. C1a JSON RPC0ef056c8 독립R1PASS0·전체검사대기, C2b 조회준비55c8281d 독립R1PASS0·실제69검사PASS·전체검사대기. 실제 화면/engine/keep/plan/autosave/delete 연결은 후속.
-- 검증: A full1146suites19355PASS1skip·CI38794466510전체PASS; 실제84+독립재진입33 실행; B full1150suites19485PASS1skip·독립R2H0M0L0 BLOCK1·CI38801201374; 독립 검토: A R2PASS H0M0L0; 구현BLOCK1·설계BLOCK1 각각보존
-- 병합: PR#2575 main682ba737; B#2584 main4fcb508d; C0#2588 main6393a603; 실제 앱: 미확인
-- 다음: C1a/C2b 전체검사→CI; C2a embedding/RAG와C2c export 준비; D3a 공통mutationledger 이후 C1b/C1c/C3, H화면연결은후속
-- 조건: 완료/진행 대화·담기/계획 상태의 화면 외 보존, 중복 작업 방지, 계정/동의/위기 보호. T39/0255서버복구는분리·일반대화디스크저장승인아님 / memory-only. content wipe drain/세대·retired entry CAS 설계 보완. 전체 계약 뒤에만 UI연결. 기존 #2318/#2396/#2365 BLOCK 이력 유지
+- 구현: A#2575·B#2584·C0#2588·C1a#2593·C2b#2594·C2a#2595·C2c#2598 병합(비활성). D3ad5d+C1bdce+C1c7a9 독립PASS. root통합45536ce8 법무2delta18PASS/full대기. C3c86 3파일 동결·독립대기. Pdc1 R2 5파일 동결·독립대기. O406은P R1준비뿐/제품0, H미착수.
+- 검증: 서로 겹치는 부분 실행: C1b516+독립6, C1c859/원12/독립추가6 PASS. root원full21017PASS2FAIL1skip(법무핀)→2파일delta독립18PASS, full재실행대기. C3관련911(신규52)+원12PASS/10negative검출. P관련725/원browser12/추가browser96PASS. C3/P type·cycles·full미실행, 앱완료0.; 독립 검토: 상위설계/A/B 각R2PASS BLOCK1. D3a설계BLOCK1·구현R2PASS BLOCK1 별개. C1bR1PASS BLOCK0. C1cR2PASS H0M0L0 새M0/BLOCK1. C3독립대기 BLOCK0, P R1BLOCK H0M1L0/BLOCK1→R2독립대기. root법무deltaPASS0/full대기.
+- 병합: 병합된 T38 준비는 #2575/#2584/#2588/#2593/#2594/#2595/#2598까지. root45536ce8·C3c86·Pdc1은미병합. 실제T38UIcaller0/H미착수.; 실제 앱: 미확인·T38완료0. Actions Variables403/같은설정8081·APK·폰 미충족.
+- 다음: 현재 작업 인계 후 새 단계 중단. root45536ce8 법무delta18PASS 포함 최신main full/CI, C3c86·Pdc1 독립검토. 재개 허용 뒤 O 준비(P R1) 갱신→D1/D2/D4/E/F/G→H 일괄연결→I 앱/폰. T39 분리.
+- 조건: 완료/진행 대화·담기/계획 상태의 화면 외 보존, 중복 작업 방지, 계정/동의/위기 보호. T39/0255서버복구는분리·일반대화디스크저장승인아님 / memory-only. 원legacy사진3PASS2FAIL(next usage/next batch)미해결. C1c원10FAIL2PASS/P CORS원6PASS6FAIL/법무full2FAIL 보존. P운영commit endpoint/gateway미확인으로O/H활성화금지. D3b-O/D4/F/H미연결, 동의생산자·담기/계획/entry·T39잔여. #2318R3/#2396R3/#2365R5 동결과 #2425BLOCK2·#1814/#1839 서버선행 보존.
 
 ### T39 · 다른 앱에 다녀와도 처리가 이어지고, 잃은 답은 횟수 없이 한 번 다시 묻기
 
@@ -494,11 +509,11 @@
 ### T43 · 서버를 못 읽을 때 0 · 빈 화면 대신 「...」 + 실패 문장 + [다시 시도] (남은 화면: 별 요약 · 위키 목록 기한 · 날씨 위치 · 리즈닝 · 위키 페이지 · 리서치 · 스크랩 · …
 
 - 결정: Q-261013-21 ~ 24 · Z40 · Z80; 우선순위 P2. 원감사 상태: 일부만.
-- 구현: 별요약#2547·위키목록#2553·리즈닝#2561·위키페이지#2562·리서치#2571·capture#2576·폰위키#2578·목록밖초점#2580·대화인용#2582·sources#2586 병합. 역할/근거#2587 독립PASS0·전체19573PASS·CI후병합. CoreBrain 주조회/QA재시도 분리 구현 중.
-- 검증: 별요약·위키목록기존병합; 리즈닝102a954f전체19115PASS1skip·위키페이지32478504전체19114PASS1skip·각CI통과; 리서치 기존56PASS·독립경합13PASS; 리서치 전체19307PASS1skip·CI38785956116 allgreen; capture기존관련34suites548PASS; capture1148suites19368PASS1skipCI38794978443; phonewiki1148suites19379PASS1skipCI38796114065; standalone full1148suites19376PASS1skip·독립8suites93PASS; chatcitationfull1153suites19538PASS1skip·독립추가10/통합119PASS; sources독립41PASS·full1153suites19553PASS1skip·R1H0M0L0·CI38802939391; 독립 검토: 각최종R1PASSH0M0L0; 리서치R1 PASS H0M0L0 BLOCK0; captureR1 PASS H0M0L0 독립202+순서오염21PASS; captureR1PASS0; phonewikiR1PASS0; standalone R1PASS H0M0L0 BLOCK0; chatcitation원R1+통합PASS0·sources독립R1 41PASS0
-- 병합: #2547/#2553/#2561/#2562/#2571 병합·리서치 mainb676fe84; #2576 main261bc14d; phonewiki#2578 main62c7a2df; #2580 mainfcd5a64c·CI38797336509통과; #2582 main5246d593·CI38799957752통과; #2586 mainfb216f31; #2587 mainf42df04f; 실제 앱: 미확인
-- 다음: CoreBrain A 주조회/읽기재시도·QA발행경계 구현; B optional상태/C brightness 및 usage/proposal 오류 후속
-- 조건: 별 요약→위키 목록 기한→날씨 위치→리즈닝→위키 페이지·리서치→스크랩. 오류를 0·빈 결과로 표시하지 않음 / 같은설정 앱/폰 미확인. sources 목록/미리보기·역할/근거 조회는 병합. Core A5476d63c 주조회/10초기한/읽기재시도·QA시도기록 guard/늦은snapshot후속SELECT 차단은439PASS후독립R1BLOCK1: 늦은system_tags없음응답 뒤 취소된조회재발행5건재현·수정중. Core B/C optional 오류상태·strictbrightness/cache·usage/proposals helper 오류는 후속. sources makeBrief/makePage mutation의 await후소유권·focus 경계도 별도미해결.
+- 구현: 기존오류화면 수정 + 북극성A#2597·B1#2600·B2a+b#2601 병합. C1엄격밝기조회R2독립PASS, C2파일범위 조사중. C1엄격밝기+C2실제화면 연결 구현 완료, 독립PASS 후 통합 전체검사 대기. reasoning usage는 baseline8·설계만, 제품0.
+- 검증: B2통합 exact4dbcf081 전체1162suites20662PASS1skip·CI38817948207/38817948303. C1R2 원반례12+관련200PASS/type0.; 독립 검토: A R2PASS BLOCK1; B1R2/통합/anchor PASS BLOCK1; B2a/B2b R1PASS BLOCK0 및통합PASS; C1R2PASS BLOCK1. C2 R1PASS H0M0L0/BLOCK0·독립428PASS/source54hash.
+- 병합: #2547/#2553/#2561/#2562/#2571 병합·리서치 mainb676fe84; #2576 main261bc14d; phonewiki#2578 main62c7a2df; #2580 mainfcd5a64c·CI38797336509통과; #2582 main5246d593·CI38799957752통과; #2586 mainfb216f31; #2587 mainf42df04f; #2600 main64bf7659; #2601 main2d760975; 실제 앱: 미확인
+- 다음: 현재C1+C2 최종full/CI 뒤 인계. reasoning usage strict helper/owned hook/화면6파일 계획은 다음세션 구현; 기존auto/SSV전역변경 금지.
+- 조건: 별 요약→위키 목록 기한→날씨 위치→리즈닝→위키 페이지·리서치→스크랩. 오류를 0·빈 결과로 표시하지 않음 / 현재 북극성route 사용자 재개승인. C2는 미확인밝기를 L1/0.2로 바꾸지 않고 독립5입력재시도. empty장식기존유지. 실제앱동일설정/폰미확인·Variables403. reasoning usage baseline8은 결함7+정상empty1 재현이며 수정증거 아님.
 
 ### T44 · 대화 모드를 바꾼 자리로 가는 줄 하나(Z87)
 
