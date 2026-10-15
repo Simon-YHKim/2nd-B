@@ -41,7 +41,7 @@ import { useCoreEvidenceRead } from "@/lib/persona/use-core-evidence-read";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { claimQaPolarisAuto, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
 import { requestGlobalCue } from "@/lib/audio/global-cues";
-import { useCoreCompanionReads, useCoreRoleReads } from "@/lib/persona/use-core-role-reads";
+import { useCoreBrightnessRead, useCoreCompanionReads, useCoreRoleReads } from "@/lib/persona/use-core-role-reads";
 import { useCompanionMoment } from "@/components/art/CompanionSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
@@ -122,10 +122,12 @@ function CoreBrainScreen() {
 
   const primaryRead = useCoreEvidenceRead(userId, !loading && hasProfile === true && isMinor !== null,
     locale, reloadKey, evidenceReloadKey, () => setReloadKey((key) => key + 1), () => fireCompanion("connectionFound"));
-  const { persona = null, evidence = [], sevenLevels = null } = primaryRead.data ?? {};
+  const { persona = null, evidence = [] } = primaryRead.data ?? {};
   const primaryScope = primaryRead.scope;
   const primaryIsCurrent = primaryRead.isCurrent;
   const canAutoPropose = primaryRead.canAutoPropose;
+  const brightnessRead = useCoreBrightnessRead(userId, primaryScope, primaryIsCurrent, primaryRead.invalidateAuto);
+  const sevenLevels = brightnessRead.status === "ready" ? brightnessRead.data : null;
   const roleReads = useCoreRoleReads(userId, primaryScope, primaryIsCurrent, primaryRead.invalidateAuto);
   const companionReads = useCoreCompanionReads(userId, primaryScope, primaryIsCurrent, primaryRead.invalidateAuto);
   const portraitSignals = companionReads.portrait.data;
@@ -291,6 +293,14 @@ function CoreBrainScreen() {
     );
   }
 
+  const brightnessStatus = <View testID="core-brightness-status" style={dsDeck.pageBody}>
+    {brightnessRead.status === "loading" ? <PremiumLoadingState message={t("loading")} />
+      : brightnessRead.status !== "ready" ? <>
+        <Text variant="caption" color="textMuted">{t("loadError")}</Text>
+        <Button label={t("tryAgain")} variant="secondary" testID="core-brightness-retry" onPress={brightnessRead.retry} />
+      </> : null}
+  </View>;
+
   // Empty state (§7) — never fabricate a summary with no pieces. Show a dimmed,
   // locked constellation as the lure: Polaris stays dominant while the seven
   // canonical self-knowledge stars wait at the L1 color band.
@@ -303,7 +313,7 @@ function CoreBrainScreen() {
         <View style={styles.center}>
           <View style={styles.lockedConstellation}>
             <IslandArt id="core" size={120} />
-            <View style={styles.lockedStarRow}>
+            {sevenLevels ? <View testID="core-empty-stars" style={styles.lockedStarRow}>
               {SEVEN_STARS.map((star) => (
                 <View key={star.id} style={styles.starItem}>
                   <View style={[styles.starDot, { backgroundColor: dimStarColor }]} />
@@ -312,7 +322,7 @@ function CoreBrainScreen() {
                   </Text>
                 </View>
               ))}
-            </View>
+            </View> : brightnessStatus}
           </View>
           <Text variant="heading" style={{ marginTop: spacing.lg, textAlign: "center" }}>
             {t("sevenStars")}
@@ -359,8 +369,6 @@ function CoreBrainScreen() {
         <Button label={t("tryAgain")} variant="secondary" testID={`core-${slot}-retry`} onPress={read.retry} />
       </View> : null;
   };
-
-  const starBrightness = sevenLevels?.northStarBrightness ?? null;
 
   // Evidence drawer (§5) — shared by the deep-space deck and the legacy screen.
   const renderEvidenceDrawer = () => (
@@ -434,7 +442,7 @@ function CoreBrainScreen() {
   // The prototype's role/strength sample values are never copied.
   // 북극성 밝기는 이제 **별 여섯**의 평균이다(2026-08-24). 도메인 로더가
   // 그 숫자를 더 이상 들고 있지 않으므로 별 쪽에서 읽는다.
-  const polarisBandIndex = m3BrightnessBand(starBrightness ?? 0.2) - 1;
+  const polarisBandIndex = sevenLevels ? m3BrightnessBand(sevenLevels.northStarBrightness) - 1 : null;
   const strengthSummary = (strengths?.scores ?? []).slice(0, 4).map((score) =>
     locale === "ko" ? STRENGTH_LABEL_KO[score.strength] : STRENGTH_LABEL_EN[score.strength],
   );
@@ -447,6 +455,7 @@ function CoreBrainScreen() {
       accent: cosmic.soulViolet,
       body: (
         <View style={dsDeck.roleBody}>
+          {sevenLevels && polarisBandIndex !== null ? <>
           <View style={dsDeck.polarisGraphic}>
             <Svg
               width="100%"
@@ -464,7 +473,7 @@ function CoreBrainScreen() {
                 <Rect key={`guide-${index}`} x={cell.x} y={cell.y} width={3} height={3} fill={m3.accent.starDim} />
               ))}
               {SEVEN_STARS.map((star) => {
-                const level = sevenLevels?.starLevels?.[star.id] ?? 1;
+                const level = sevenLevels.starLevels[star.id];
                 const point = POLARIS_INPUT_POINTS[star.id];
                 return (
                   <PixelStarSvg
@@ -482,6 +491,7 @@ function CoreBrainScreen() {
             </Svg>
           </View>
           <Text style={dsDeck.roleStatement}>{t("currentBrightness")}</Text>
+          </> : brightnessStatus}
           {visibleRoleCards.map((card) => (
             <View key={card.id} style={{ gap: 6, marginTop: 12 }}>
               <Text variant="heading">{card.label}</Text>

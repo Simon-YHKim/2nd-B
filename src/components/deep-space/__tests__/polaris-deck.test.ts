@@ -38,7 +38,9 @@ describe("북극성 persona deck (P3a)", () => {
     // 밝기만 읽었고 꼬리와 함께 빠졌다(Simon 결정 Q-261004-11 C). 덱의 실데이터 밝기는
     // 일곱 별 로더가 진다.
     expect(screen).toContain("useCoreEvidenceRead(");
-    expect(reader).toContain("loadSevenLevels(owner)");
+    expect(reader).not.toContain("loadSevenLevels");
+    expect(screen).toContain("useCoreBrightnessRead(userId, primaryScope, primaryIsCurrent, primaryRead.invalidateAuto)");
+    expect(companions).toContain("useOwnedSlot(owner, scope, isCurrent, invalidateAuto, loadSevenLevelsStrict)");
     // The tool list used to be four hardcoded `route: "/…"` literals here, and
     // this test pinned that literal form. Both moved: the list is now built from
     // `src/lib/assess/registry.ts`, which fixed two things the hardcoding hid —
