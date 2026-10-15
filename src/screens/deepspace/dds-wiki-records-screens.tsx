@@ -26,8 +26,8 @@ import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { currentAccountEpoch, isCurrentAccountEpoch, subscribeAccountTransition } from "@/lib/auth/account-epoch";
-import { withTimeout } from "@/lib/async/with-timeout";
+import { captureAccountOwnerLease, currentAccountEpoch, isCurrentAccountEpoch, subscribeAccountTransition } from "@/lib/auth/account-epoch";
+import { isTimeoutError, withTimeout } from "@/lib/async/with-timeout";
 import { useAppRouter, useHardwareBack, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { listRecordsByIds } from "@/lib/records/create";
@@ -75,47 +75,56 @@ function dsTimeLabels(t: Tx): TimelineLabels {
  *  were loaded under. */
 interface OwnedWikiRows {
   ownerId: string | null;
+  epoch: number;
+  attempt: number;
+  status: "ready" | "error" | "timeout";
   pages: WikiPageRow[];
   edges: WikiEdge[];
 }
 
 /** Shared so an owner mismatch returns a stable reference and costs no re-render. */
-const NO_WIKI_ROWS: OwnedWikiRows = { ownerId: null, pages: [], edges: [] };
+const NO_WIKI_ROWS: OwnedWikiRows = { ownerId: null, epoch: -1, attempt: -1, status: "ready", pages: [], edges: [] };
+export const WIKI_PAGES_READ_TIMEOUT_MS = 10_000;
 
 function useWikiGraphData() {
   const { userId, loading: authLoading } = useAuth();
+  const accountEpoch = currentAccountEpoch();
+  const [attempt, setAttempt] = useState(0);
   const [held, setHeld] = useState<OwnedWikiRows>(NO_WIKI_ROWS);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || authLoading) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease || lease.epoch !== accountEpoch) return;
     let alive = true;
-    setLoading(true);
-    Promise.all([
+    // Pages and links are one snapshot. Missing links must not look like zero
+    // connections, and a missing page list must not look like an empty library.
+    const work = Promise.all([
       listWikiPages(userId, { limit: 200 }),
-      listAllWikiLinks(userId).catch(() => [] as WikiEdge[]),
-    ])
+      listAllWikiLinks(userId),
+    ]);
+    void withTimeout(work, WIKI_PAGES_READ_TIMEOUT_MS, "Wiki pages")
       .then(([p, e]) => {
-        if (!alive) return;
-        setHeld({ ownerId: userId, pages: p, edges: e });
+        if (!alive || !lease.isCurrent()) return;
+        setHeld({ ownerId: userId, epoch: accountEpoch, attempt, status: "ready", pages: p, edges: e });
       })
-      .catch(() => {
-        if (!alive) return;
-        setHeld({ ownerId: userId, pages: [], edges: [] });
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
+      .catch((error: unknown) => {
+        if (!alive || !lease.isCurrent()) return;
+        setHeld({ ownerId: userId, epoch: accountEpoch, attempt, status: isTimeoutError(error) ? "timeout" : "error", pages: [], edges: [] });
       });
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [accountEpoch, attempt, authLoading, userId]);
 
   // Read back only for the owner they were loaded under. The effect above overwrites
   // `held` only once the network answers, so without this the previous account's rows
   // would be what the screen draws for the whole refetch window.
-  const owned = held.ownerId !== null && held.ownerId === userId ? held : NO_WIKI_ROWS;
-  return { userId, authLoading, pages: owned.pages, edges: owned.edges, loading };
+  const owned = held.ownerId !== null && held.ownerId === userId && held.epoch === accountEpoch && held.attempt === attempt ? held : NO_WIKI_ROWS;
+  const loading = owned === NO_WIKI_ROWS;
+  const loadError = !loading && owned.status !== "ready" ? owned.status : null;
+  const retry = useCallback(() => setAttempt((previous) => previous + 1), []);
+  return { userId, authLoading, pages: owned.pages, edges: owned.edges, loading, loadError, retry };
 }
 
 function GraphLoading() {
@@ -806,7 +815,7 @@ export function DeepSpaceWikiScreen() {
   const floatClear = usePhoneEmbed() ? [styles.wikiFloatClear, NO_FLOAT_CLEAR] : styles.wikiFloatClear;
   const { t, i18n } = useTranslation("deepspace");
   const isKo = i18n.language === "ko";
-  const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
+  const { userId, authLoading, pages, edges, loading, loadError, retry } = useWikiGraphData();
   // Deep-link to one page, by wiki_pages.id. Three screens hold a wiki page id and used
   // to push it at /record/[id], which looks a record up by that id and always 404s -- a
   // page id is not a record id. They send it here instead, which is where it belongs.
@@ -859,7 +868,7 @@ export function DeepSpaceWikiScreen() {
     }
     // Absent from the list. Wait for the load to settle before concluding that -- an
     // id asked for mid-fetch is not yet known to be missing.
-    if (loading) return;
+    if (loading || loadError) return;
     honouredFocusRef.current = honour;
     let alive = true;
     void getWikiPageById(userId, focusPageId)
@@ -872,7 +881,7 @@ export function DeepSpaceWikiScreen() {
     return () => {
       alive = false;
     };
-  }, [focusPageId, pages, loading, userId]);
+  }, [focusPageId, pages, loading, loadError, userId]);
 
   // The fetched row joins the list for every downstream reader, so the tag chips, the
   // graph and the row list all agree about what exists -- but only for the account it
@@ -929,8 +938,8 @@ export function DeepSpaceWikiScreen() {
       <View style={floatClear}>
       <DockBody title={t("wiki.title")}>
       <View style={styles.wikiStatRow}>
-        <View style={styles.wikiStat}><Text variant="heading" style={styles.wikiStatNum}>{view.pageCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statPages")}</Text></View>
-        <View style={styles.wikiStat}><Text variant="heading" style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>{view.edgeCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statLinks")}</Text></View>
+        <View style={styles.wikiStat}><Text variant="heading" style={styles.wikiStatNum}>{loading || loadError ? "..." : view.pageCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statPages")}</Text></View>
+        <View style={styles.wikiStat}><Text variant="heading" style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>{loading || loadError ? "..." : view.edgeCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statLinks")}</Text></View>
       </View>
       <SegBtn
         segments={[
@@ -941,7 +950,7 @@ export function DeepSpaceWikiScreen() {
         onSelect={(key) => setWikiView(key === "graph" ? "graph" : "list")}
         style={styles.wikiViewToggle}
       />
-      {view.tagChips.length > 0 ? (
+      {!loading && !loadError && view.tagChips.length > 0 ? (
         <View style={styles.filterRow}>
           <FilterChip label={t("wiki.filterAll")} active={activeTag === null} onPress={() => setActiveTag(null)} />
           {view.tagChips.map((c) => (
@@ -957,6 +966,13 @@ export function DeepSpaceWikiScreen() {
       <SceneTransition transitionKey={wikiView} kind="replace" animateOnMount={false} style={{ gap: spacing.md }}>
       {loading ? (
         <GraphLoading />
+      ) : loadError ? (
+        <View style={styles.wikiPageOpen}>
+          <Text variant="body" style={styles.wikiBody}>{t(loadError === "timeout" ? "common:errors.network" : "common:errors.unknown")}</Text>
+          <Pressable style={styles.primary} onPress={retry} accessibilityRole="button">
+            <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
+          </Pressable>
+        </View>
       ) : wikiView === "graph" && graphPages.length > 0 ? (
         <WikiGraph
           pages={graphPages}

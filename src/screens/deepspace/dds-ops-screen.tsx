@@ -21,6 +21,7 @@ import { IosButton, IosCardHeader, IosGroup, IosIconButton, IosRow, IosText } fr
 import { phoneIos } from "@/lib/theme/phone-ios";
 import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { withAiCopyTail } from "@/lib/chat/ai-mark";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import {
@@ -706,7 +707,9 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
   function eventFor(recommendation: OpsRecommendation): OpsEventInput {
     return {
       title: recommendation.title,
-      description: recommendation.reason,
+      // Live recommendations are unedited model results; mock previews use fixtures.
+      // Keep the disclosure in the outgoing calendar notes, not the saved routine.
+      description: withAiCopyTail(recommendation.reason, t("secondb:aiCopyTail")),
       startsAtIso: recommendation.startsAtIso ?? nextMorningIso(),
       durationMinutes: recommendation.durationMinutes,
       recurrence: recommendation.recurrence,
@@ -749,9 +752,12 @@ export function DeepSpaceOpsScreen({ surface = "settings" }: { surface?: "settin
         return;
       }
       await Share.share({
-        message: buildChecklistShareText(
-          recommendation.title,
-          recommendation.checklist ?? [recommendation.reason],
+        message: withAiCopyTail(
+          buildChecklistShareText(
+            recommendation.title,
+            recommendation.checklist ?? [recommendation.reason],
+          ),
+          t("secondb:aiCopyTail"),
         ),
       });
     } catch {
