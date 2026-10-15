@@ -7,8 +7,8 @@
 // 이 파일이 지키는 것:
 //   1. 인정되지 않은 답이 여럿 쌓여도 장면이 개수로 끝나지 않는다 (8답 상한 없음).
 //   2. 그래도 장면은 유한하다 -- 다섯 층이 모두 인정되거나, 원래 있던 규칙(거절 · 발판 소진 ·
-//      한 층에서 세 번 인정 못 받음)이 끝낸다. 판정을 받는 호출은 한 층에서 세 번, 한 장면에서
-//      열다섯 번을 넘지 않는다.
+//      한 층에서 세 번 명시적으로 인정 못 받음)이 끝낸다. 다른 층 중립 판정을 빼고 세면
+//      인정/불인정 호출은 한 층에서 세 번, 한 장면에서 열다섯 번을 넘지 않는다(Q5).
 //   3. 마지막 층도 인정돼야 끝난다 (게이트 LAST-01). 판정 전 답을 미리 세어 울림 칸이 빈 채 저장
 //      화면으로 가지 않는다. 오류로 판정을 못 받은 답은 진전으로 세지 않는다.
 //   4. "사실만"의 4답 상한은 인정된 답만 센다 (게이트 LAST-02). 오류 세 번 뒤 네 번째 입력이 모델
@@ -28,6 +28,7 @@ import {
   incrementCoverage,
   nextMove,
   seedQuestion,
+  usableQuestion,
   type Coverage,
   type DrillLayer,
   type InterviewTurn,
@@ -60,6 +61,8 @@ interface Run {
   /** 판정을 받은 `nextProbe` 호출(직전 답에 겨냥 층이 있었다). 층별로도 센다. */
   judged: number;
   judgedPerLayer: Record<DrillLayer, number>;
+  neutral: number;
+  neutralPerLayer: Record<DrillLayer, number>;
   /** 판정을 못 받은 호출(오류 · 위험 신호) 과 그 뒤 겨냥 층 없이 나간 호출. */
   unjudged: number;
   /** 인정되어 칸이 오른 층(순서대로). */
@@ -95,6 +98,7 @@ function simulate(
   const run: Run = {
     done: false, endedBy: null, answers: 0, judged: 0, unjudged: 0, credited: [], asked: [], turns, pending,
     judgedPerLayer: { fact: 0, feeling: 0, meaning: 0, belief: 0, echo: 0 },
+    neutral: 0, neutralPerLayer: { fact: 0, feeling: 0, meaning: 0, belief: 0, echo: 0 },
   };
   const end = (by: EndedBy): void => {
     run.done = true;
@@ -107,7 +111,7 @@ function simulate(
   const ask = (
     history: InterviewTurn[], cov: Coverage,
     stuck: { layer: DrillLayer; streak: number } | null, giveUp: DrillLayer[],
-    credited: DrillLayer | null, step: Step,
+    credited: DrillLayer | null, step: Step, previousStreak: number,
   ): void => {
     const move = nextMove(cov, PERIOD, [], NOW, stuck, giveUp, { history, locale, concreteOnly });
     if (move.kind === "finish" && !credited) {
@@ -156,12 +160,22 @@ function simulate(
     const confirmed = credited && lastAnswer
       ? confirmedAnswer(lastAnswer.text, credited, locale, answeredLayer)
       : false;
+    const otherLayer = credited && answeredLayer != null && answeredLayer !== credited;
     const assessed = history.map((turn, index) => index === history.length - 1 && turn.role === "user"
-      ? { ...turn, answered: Boolean(confirmed) }
+      ? { ...turn, answered: otherLayer ? null : Boolean(confirmed) }
       : turn);
     if (credited && confirmed) {
       coverage = incrementCoverage(cov, PERIOD, credited);
       run.credited.push(credited);
+    }
+    if (credited && otherLayer) {
+      run.neutral += 1;
+      run.neutralPerLayer[credited] += 1;
+      const question = usableQuestion("", assessed, credited, locale);
+      turns = question ? [...assessed, { role: "interviewer", text: question, layer: credited, period: PERIOD }] : assessed;
+      pending = credited;
+      stuckStreak = previousStreak;
+      return;
     }
     if (move.kind === "finish" && confirmed) {
       turns = assessed;
@@ -197,6 +211,7 @@ function simulate(
     const answered: InterviewTurn = { role: "user", text, layer: pending ?? undefined, period: PERIOD };
     const nextTurns = [...turns, answered];
     const blocked = pending != null && (isNonAnswer(text, locale) || !canCreditAnswer(text, pending, locale));
+    const previousStreak = stuckStreak;
     const nextStreak = blocked ? stuckStreak + 1 : 0;
     const stuck = blocked && pending ? { layer: pending, streak: nextStreak } : null;
     const nextAbandoned = pending && nextStreak > MAX_SCAFFOLDS_PER_LAYER && !abandoned.includes(pending)
@@ -207,7 +222,7 @@ function simulate(
     abandoned = nextAbandoned;
     const credited = blocked ? null : pending;
     pending = null;
-    ask(nextTurns, coverage, stuck, nextAbandoned, credited, step);
+    ask(nextTurns, coverage, stuck, nextAbandoned, credited, step, previousStreak);
   }
   run.turns = turns;
   run.pending = pending;
@@ -273,10 +288,10 @@ describe("1. 8답에서 끝나지 않는다 (R2F-09)", () => {
   });
 });
 
-describe("2. 장면은 유한하다 -- 판정 호출은 층마다 3, 장면마다 15 이하", () => {
+describe("2. 인정/명시적 불인정 호출은 층마다 3, 장면마다 15 이하 (중립 제외)", () => {
   it("모델 판정만으로 된 모든 순서(인정 · none)를 다 돌려도 끝나고 상한을 지킨다", () => {
-    // 인정 못 받음 셋(none · 다른 층 · 판정 없음)은 화면에서 같은 길이라(실패 하나로 센다) none 으로
-    // 대표하고, 나머지 둘은 아래 최대 경로 · 무작위 섞기에서 섞는다.
+    // Q5: none만 실패, 판정 없음은 로컬 인정, 다른 층은 중립이다.
+    // 이 전수 순회는 인정/명시적 불인정만 센다. 중립은 아래 별도 회귀에서 섞는다.
     const verdicts: Verdict[] = ["credit", "none"];
     let leaves = 0;
     let completes = 0;
@@ -313,7 +328,7 @@ describe("2. 장면은 유한하다 -- 판정 호출은 층마다 3, 장면마�
   });
 
   it("최대 경로: 다섯 층 모두 두 번씩 못 받고 세 번째에 인정된다 (판정 15회)", () => {
-    const run = simulate("ko", script([N, N, C, O, S, C, N, O, C, S, N, C, N, O, C]));
+    const run = simulate("ko", script([N, N, C, N, N, C, N, N, C, N, N, C, N, N, C]));
     expect(run.judged).toBe(15);
     expect(run.judgedPerLayer).toEqual({ fact: 3, feeling: 3, meaning: 3, belief: 3, echo: 3 });
     expect(run.credited).toEqual([...DRILL_LAYERS]);
@@ -322,11 +337,11 @@ describe("2. 장면은 유한하다 -- 판정 호출은 층마다 3, 장면마�
   });
 
   it("세 번째로 인정 못 받으면 원래대로 대화가 끝난다 (이번에 바꾸지 않은 규칙)", () => {
-    const run = simulate("ko", script([C, O, N, S, C]));
+    const run = simulate("ko", script([C, O, N, N, N, C]));
     expect(run.done).toBe(true);
     expect(run.endedBy).toBe("missed");
-    expect(run.answers).toBe(4);
-    expect(run.judgedPerLayer.feeling).toBe(3);
+    expect(run.answers).toBe(5);
+    expect(run.judgedPerLayer.feeling - run.neutralPerLayer.feeling).toBe(3);
   });
 
   it("발판 · 다른 층 · 판정 없음을 무작위로 섞어도 끝나고 상한을 지킨다 (고정 씨앗 3000회)", () => {
@@ -344,8 +359,8 @@ describe("2. 장면은 유한하다 -- 판정 호출은 층마다 3, 장면마�
     for (let k = 0; k < 3000; k += 1) {
       const run = simulate(k % 2 === 0 ? "ko" : "en", () => pick(), { maxAnswers: 100 });
       expect(run.done).toBe(true);
-      expect(run.judged).toBeLessThanOrEqual(15);
-      for (const layer of DRILL_LAYERS) expect(run.judgedPerLayer[layer]).toBeLessThanOrEqual(3);
+      expect(run.judged - run.neutral).toBeLessThanOrEqual(15);
+      for (const layer of DRILL_LAYERS) expect(run.judgedPerLayer[layer] - run.neutralPerLayer[layer]).toBeLessThanOrEqual(3);
       expectCompleteOnlyWithAllLayers(run);
       maxAnswers = Math.max(maxAnswers, run.answers);
       maxJudged = Math.max(maxJudged, run.judged);
@@ -367,8 +382,8 @@ describe("2. 장면은 유한하다 -- 판정 호출은 층마다 3, 장면마�
     const cycle: readonly Step[] = [E, C, N, E, O, S, B, E, C, N, R];
     let i = 0;
     const mixed = simulate("ko", () => cycle[i++ % cycle.length] ?? null, { maxAnswers: 120 });
-    expect(mixed.judged).toBeLessThanOrEqual(15);
-    for (const layer of DRILL_LAYERS) expect(mixed.judgedPerLayer[layer]).toBeLessThanOrEqual(3);
+    expect(mixed.judged - mixed.neutral).toBeLessThanOrEqual(15);
+    for (const layer of DRILL_LAYERS) expect(mixed.judgedPerLayer[layer] - mixed.neutralPerLayer[layer]).toBeLessThanOrEqual(3);
     expectCompleteOnlyWithAllLayers(mixed);
   });
 
@@ -397,11 +412,19 @@ describe("3. 마지막 층도 인정돼야 끝난다 (게이트 LAST-01)", () =>
     });
   });
 
-  it.each([["다른 층", O], ["판정 없음", S]] as const)("울림 답이 %s 이어도 같은 발판이다", (_label, step) => {
-    const run = simulate("ko", script([...FOUR, step]));
+  it("울림 답이 다른 층이면 인정도 실패도 아닌 채 울림에 머문다", () => {
+    const run = simulate("ko", script([...FOUR, O]));
     expect(run.done).toBe(false);
     expect(run.pending).toBe("echo");
     expect(run.credited).not.toContain("echo");
+    expect(run.neutralPerLayer.echo).toBe(1);
+  });
+
+  it("성공 응답의 울림 판정 없음은 로컬 판정대로 인정되어 완료된다", () => {
+    const run = simulate("ko", script([...FOUR, S]));
+    expect(run.done).toBe(true);
+    expect(run.endedBy).toBe("complete");
+    expect(run.credited).toEqual([...DRILL_LAYERS]);
   });
 
   it.each(["ko", "en"] as const)("%s: 울림 none 두 번 뒤 인정되면 그때 끝난다", (locale) => {
@@ -465,6 +488,10 @@ describe("3. 마지막 층도 인정돼야 끝난다 (게이트 LAST-01)", () =>
 
     it("인정 못 받은 답(answered false)은 세지 않는다", () => {
       expect(move([...fourCredited(), { ...echo, answered: false }])).toEqual({ kind: "drill", layer: "echo" });
+    });
+
+    it("다른 층 중립 답(answered null)은 판정 대기나 진전으로 세지 않는다", () => {
+      expect(move([...fourCredited(), { ...echo, answered: null }])).toEqual({ kind: "drill", layer: "echo" });
     });
   });
 });
@@ -582,6 +609,8 @@ describe("5. 소스 계약 -- 위 시뮬레이터가 옮긴 줄이 화면 · 엔
       'move.kind === "finish" ? credited : move.layer',
       "const confirmed = credited && lastAnswer ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer) : false;",
       "if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));",
+      'if (credited && otherLayer) { const question = usableQuestion("", assessed, credited, locale);',
+      "setPendingLayer(credited); setStuckStreak(stuckStreak); setOpeners([]); return;",
       'if (move.kind === "finish" && confirmed) { setTurns(assessed); finish(); return; }',
       'const streak = currentScene(history).filter((turn) => turn.role === "user" && turn.layer === credited && turn.answered === false).length + 1;',
       "setStuckStreak(streak); if (shouldScaffold(streak)) {",
