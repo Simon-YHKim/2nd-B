@@ -57,7 +57,7 @@ export function createInterviewDraftStore(dependencies: Dependencies) {
 
     function run(operation: (storage: StringStorage) => Promise<InterviewDraftResult>): Promise<InterviewDraftResult> {
       if (!current()) return Promise.resolve({ status: "stale" });
-      return queue(owner, async () => {
+      return queue<InterviewDraftResult>(owner, async () => {
         if (!current()) return { status: "stale" };
         let storage: StringStorage | null;
         try { storage = dependencies.storage(); } catch { return { status: "unconfirmed" }; }
@@ -74,6 +74,13 @@ export function createInterviewDraftStore(dependencies: Dependencies) {
           }
         }).catch(() => ({ executed: true, value: { status: "unconfirmed" } } as const));
         return guarded.executed ? guarded.value : { status: "stale" };
+      }).then((result): InterviewDraftResult => {
+        // The mutation and owner queues add async return boundaries after the
+        // operation's own checks. Gate the public Promise's final settlement,
+        // not only its disk read/write. No await follows this ownership check.
+        // A failure contains no body/success ACK and must remain distinguishable
+        // when an attempted rollback could not confirm storage cleanup.
+        return current() || result.status === "unconfirmed" ? result : { status: "stale" };
       });
     }
 

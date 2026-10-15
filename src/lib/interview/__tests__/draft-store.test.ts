@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
+import { inspect } from "node:util";
 
 const mockFenceValues = new Map<string, string>();
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -398,4 +399,47 @@ test("web support is explicitly pending and never silently uses plaintext localS
   Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
   await expect(interviewDraftsForOwner("owner-a").create(content())).resolves.toEqual({ status: "unsupported" });
   await expect(interviewDraftsForOwner("owner-a").load()).resolves.toEqual({ status: "unsupported" });
+});
+
+const deliveryCases = (["load", "create", "replace", "discard"] as const)
+  .flatMap((operation) => (["switch", "aba", "deletion"] as const).map((transition) => [operation, transition] as const));
+
+test.each(deliveryCases)("public Promise %s rejects %s before final settlement", async (operation, transition) => {
+  let pendingWindows = 0;
+  let reachedSettlement = false;
+  // Explore every microtask cut up to actual public settlement. The budget is
+  // a test safety bound, not a product timing contract or a fixed reproduction tick.
+  for (let ticks = 0; ticks < 256; ticks += 1) {
+    __resetAccountEpochForTests();
+    __resetAccountLocalDeletionFencesForTests();
+    mockFenceValues.clear();
+    owner("owner-a");
+    const h = harness();
+    const access = h.store.forOwner("owner-a");
+    const first = operation === "create" ? null : draftOf(await access.create(content()));
+    const pending = operation === "load" ? access.load()
+      : operation === "create" ? access.create(content())
+        : operation === "replace" ? access.replace(first!, { ...content(), draft: "replacement" })
+          : access.discard(first!);
+    for (let tick = 0; tick < ticks; tick += 1) await Promise.resolve();
+    // A .then observer can lag a settled Promise by a tick. Inspect the native
+    // Promise's state itself; depth 0 never formats the stored body.
+    if (!inspect(pending, { depth: 0 }).includes("<pending>")) {
+      await pending;
+      reachedSettlement = true;
+      break;
+    }
+    pendingWindows += 1;
+    const fence = transition === "deletion" ? installAccountLocalDeletionFence("owner-a") : null;
+    if (transition !== "deletion") {
+      owner("owner-b");
+      if (transition === "aba") owner("owner-a");
+    }
+    const result = await pending;
+    if (fence) await fence;
+    expect({ ticks, status: result.status }).toEqual({ ticks, status: "stale" });
+    expect(result).not.toHaveProperty("draft");
+  }
+  expect(reachedSettlement).toBe(true);
+  expect(pendingWindows).toBeGreaterThan(0);
 });

@@ -41,7 +41,13 @@
 ## 검사와 인수 기준
 
 - 새 회귀는 실제 `createEncryptedNativeStorage` 구현과 Node의 **실제 AES-256-GCM**을 결합한다. 본문 비노출, 어댑터 재생성 후 복호화, 변조·다른 키로 옮긴 암호문 거부, 키 분실, TTL/읽기/수정/재시도, 저장·삭제 실패, 계정/ABA/늦은 읽기/늦은 쓰기/삭제 경합, 터미널 purge를 실행한다. 이 검사는 Expo 네이티브 암호화 바인딩이나 Android 기기 재시작 실측이 아니다.
-- 로컬 타깃 실행: 새 모듈 20개와 기존 경계 검사를 합해 **5 suites / 86 tests PASS**. 기기 실행이나 전체 검사 결과로 대신 세지 않는다.
+- 로컬 타깃 실행: 새 모듈 32개와 기존 경계 검사를 합해 **5 suites / 98 tests PASS**. 기기 실행이나 전체 검사 결과로 대신 세지 않는다.
 - 함께 실행할 기존 검사는 암호화 저장소, 계정 삭제 aggregate, 삭제 fence, account epoch다. 명령은 `npx jest --runInBand --runTestsByPath src/lib/interview/__tests__/draft-store.test.ts src/lib/storage/__tests__/encrypted-native-storage.test.ts src/lib/account/__tests__/local-purge.test.ts src/lib/account/__tests__/local-deletion-fence.test.ts src/lib/auth/__tests__/account-epoch.test.ts`다. 정적 검사와 정확 커밋의 전체 검사 결과는 PR/인수 기록에서 구분한다.
 - 8파일이 필요한 이유: 전용 codec/store/회귀 3개, 공용 암호화 namespace/평문 거부와 기존 회귀 2개, 실제 계정 삭제 연결과 기존 회귀 2개, 이 설계/후속 문서 1개다. 화면·locale·모델·운영·의존성 파일은 변경하지 않는다.
 - 출시 완료에는 독립 검토, 정확 HEAD 전체 검사, PR/CI/main 반영 뒤 실제 앱 흐름, 웹/다중 탭/로그아웃, 네이티브 키·재시작·계정 전환·7일 만료 확인이 더 필요하다. 이 문서와 모듈만으로 전체 T16 완료를 선언하지 않는다.
+
+## 독립 검토 R1 수정 기록
+
+R1(`32392a7c`)은 H0/M1/L0 BLOCK이었다. 내부 read/write의 owner 확인 뒤에도 mutation/owner queue가 응답을 넘기는 동안 public Promise가 pending인 틈이 있었다. 그때 A→B/ABA/계정 삭제 fence가 시작되면 이전 ready/삭제 성공 결과가 반환됐다. 원래 구현에 새 실행 회귀를 적용하면 load/create/replace/discard × 세 전환의 12개가 모두 실패했다. 원본 독립 보고와 실패 로그는 삭제하지 않는다. 누적 BLOCK은 1회다.
+
+수정은 owner queue가 끝난 뒤 public Promise를 확정하는 마지막 동기 `.then`에서 같은 lease와 terminal fence를 확인한다. 그 확인 뒤에는 await가 없다. 본문/성공은 stale로 막고, 본문이나 성공 ACK가 없는 unconfirmed는 저장 복구 실패로 유지한다. 이미 저장된 정상 네이티브 암호문을 로그아웃 때문에 지우지 않는다. 회귀는 각 public Promise의 실제 pending 상태를 확인하며 내부 비동기 순서의 모든 탐색 구간에서 전환시킨다. `.then` 관측자가 한 tick 늦은 상태를 pending이라고 세지 않는다. **호출자가 결과를 소비한 뒤의 계정 전환까지 보장하지 않는다.** 후속 UI는 await한 결과를 반영할 때도 자신의 owner/화면 수명을 확인해야 한다. R2와 정확 HEAD 전체 검사는 별도 게이트다.
