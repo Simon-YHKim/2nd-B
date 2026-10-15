@@ -163,7 +163,7 @@
       "growth": "목표",
       "meals": "식사",
       "museum": "AI 뮤지엄",
-      "notifications": "알림",
+      "notifications": "공지",
       "community": "커뮤니티",
       "avatarPalette": "아바타 팔레트",
       "avatarPaletteShort": "팔레트",
@@ -172,8 +172,8 @@
       "more": "더보기"
     },
     "appsBack": "뒤로",
-    "noticeLoading": "알림을 읽는 중…",
-    "noticeEmpty": "새 알림이 없습니다.",
+    "noticeLoading": "공지를 읽는 중…",
+    "noticeEmpty": "새 공지가 없습니다.",
     "noticeUnread": "읽지 않음",
     "notifications": "휴대전화 알림",
     "push": {
