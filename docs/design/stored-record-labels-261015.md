@@ -45,7 +45,7 @@
 
 - [정적 전후 HTML](stored-record-labels-261015.html): 실제 변경된 기존 53개 키, 157개 언어별 값. 언어별 변경 값: ko 37개, en 47개, es 49개, pt 11개, id 13개. 한국어 별가루 조사에서 나온37키 외에 같은 활성 소비자의 다른 언어에 남은16키를 추가했다.
 - 추가 소비자는 capture submit/pieceSave, ops recommend.off, wiki emptyTag/addPiece, records triageBody, record detail headerLinked/headerAlone, insights weeklyCap, inbox sourcesBody, northstar thinBase, research noLinks, graph tip, career loadError, wikiRecords secondbLinked, reasoning autoBody다. 각 기존 의미·숫자·분모·조건·매개변수·동의 내용은 그대로다.
-- 21개 locale 파일의 값, settings 링크1줄과 인접 구분선1개, pure display2곳, QA 목록2레이블, 기존 의미검사2파일을 변경했다. 새 번역 키/신규 예방 검사/의존성 없음. 5개 namespace ×5언어를 대조했고 이미 기록으로 번역된 값은 바꾸지 않았다.
+- 21개 locale 파일의 값, settings 링크1줄과 인접 구분선1개, pure display2곳, QA 목록2레이블, 기존 의미·설정 계약검사4파일을 변경했다. 새 번역 키/신규 예방 검사/의존성 없음. 5개 namespace ×5언어를 대조했고 이미 기록으로 번역된 값은 바꾸지 않았다.
 - 개인정보 화면 `deepspace:privacy.facts.collect.v`의 EN/PT/ID stardust 계열은 고지·법무 문구 범위로 남겼다. 가입 소개 `deepspace:auth.signUpLead`의 ES fragmento도 T42 가입 문구 범위와 중복되므로 이 단위에는 넣지 않았다. 이는 미해결 항목이지 전환 완료로 세는 예외가 아니다.
 - 설정·locale 명칭의 전후는 정적 자료이며 8081/폰 화면 캡처가 아니다. 실제 앱 완료는 PR/CI/main 후 동일 설정의 8081 및 폰 경로 확인이 남는다.
 
@@ -58,3 +58,4 @@
 - 정적 HTML은 Chromium에서 전체157행/한국어37행, 언어·검색 필터, 복사 또는 선택 fallback을 실행 확인했다. HTML 보고서 확인이며 앱의 화면/기능 검증이 아니다.
 
 - 독립 R1: e0cfd3da 기준 PASS H0/M0/L1, BLOCK0. L1에 따라 삭제된 설정 행 옆의 중복 구분선 한 개를 제거했다. 값·157행 HTML·다른 행·이동 동작은 그대로다.
+- 후속 독립 확인에서 기존 설정 검사 두 개가 제거된 기록 행을 요구하는 것을 발견했다. 858e9311 전체 검증도 같은 두 건 실패(19,329개 통과, 1개 건너뜀)여서 BLOCK1로 기록했다. 승인 Q11에 맞게 기존 목적지·말로 읽는 힌트 검사를 갱신하고, 기록 경로가 설정에 없다는 조건을 유지한다. 다른 설정 행과 의미 검사는 그대로이며 제품 변경은 추가하지 않는다. 수정 뒤 R2 및 전체 검증이 필요하다.
