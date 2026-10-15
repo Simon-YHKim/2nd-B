@@ -19,8 +19,8 @@ const fixture = () => ({
   },
   ruleSet: 'r1-q5', period: 'now', conversationLocale: 'en', uiLanguage: 'es', growthOrigin: false,
   turns: [
-    { n: 1, scene: 1, role: 'interviewer', text: 'Q?', layer: 'fact', origin: 'fixed', askKind: 'seed', openerUnedited: null as boolean | null, state: null as string | null },
-    { n: 2, scene: 1, role: 'user', text: 'A!', layer: 'fact', origin: 'user', askKind: null as string | null, openerUnedited: false as boolean | null, state: 'judged' as string | null },
+    { n: 1, scene: 1, role: 'interviewer' as const, text: 'Q?', layer: 'fact', origin: 'fixed', askKind: 'seed', openerUnedited: null as boolean | null, state: null as string | null },
+    { n: 2, scene: 1, role: 'user' as const, text: 'A!', layer: 'fact', origin: 'user', askKind: null as string | null, openerUnedited: false as boolean | null, state: 'judged' as string | null },
   ],
 });
 const canonicalGolden = 'T16-FINALIZE-PACKET/1\n'
@@ -57,7 +57,7 @@ describe('dormant interview finalize packet', () => {
 
   test('JSON field order/formatting cannot move digest; all identity and source fields do', () => {
     const packet = fixture();
-    const reversed = Object.fromEntries(Object.entries(packet).reverse());
+    const reversed: Record<string, unknown> = Object.fromEntries(Object.entries(packet).reverse());
     reversed.intent = Object.fromEntries(Object.entries(packet.intent).reverse());
     reversed.turns = packet.turns.map(turn => Object.fromEntries(Object.entries(turn).reverse()));
     expect(canonical(decode(JSON.stringify(reversed, null, 2)), owner)).toBe(canonicalGolden);
