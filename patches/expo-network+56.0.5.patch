@@ -1,0 +1,46 @@
+diff --git a/node_modules/expo-network/ios/NetworkModule.swift b/node_modules/expo-network/ios/NetworkModule.swift
+index c7f70ba..2326f3a 100644
+--- a/node_modules/expo-network/ios/NetworkModule.swift
++++ b/node_modules/expo-network/ios/NetworkModule.swift
+@@ -4,7 +4,7 @@
+ let onNetworkStateChanged = "onNetworkStateChanged"
+ 
+ public final class NetworkModule: Module {
+-  private let monitor = NWPathMonitor()
++  private var monitor = NWPathMonitor()
+   private let monitorQueue = DispatchQueue.global(qos: .default)
+ 
+   public func definition() -> ModuleDefinition {
+@@ -34,6 +34,9 @@
+   }
+ 
+   private func setupNetworkMonitoring() {
++    // NWPathMonitor cannot restart after cancel(); observers may mount again.
++    monitor.cancel()
++    monitor = NWPathMonitor()
+     monitor.pathUpdateHandler = { [weak self] path in
+       guard let self else {
+         return
+@@ -117,8 +120,11 @@
+   }
+ 
+   private func getNetworkStateAsync(path: NWPath? = nil) -> [String: Any] {
+-    let currentPath = path ?? getNetworkPathAsync()
+-    let isConnected = currentPath?.status == .satisfied
++    // A read timeout is unknown, not evidence that the device is offline.
++    guard let currentPath = path ?? getNetworkPathAsync() else {
++      return ["type": NetworkType.unknown.description]
++    }
++    let isConnected = currentPath.status == .satisfied
+ 
+     if !isConnected {
+       return [
+@@ -131,7 +137,7 @@
+     let connectionType = NWInterface
+       .InterfaceType
+       .allCases
+-      .filter { currentPath?.usesInterfaceType($0) == true }
++      .filter { currentPath.usesInterfaceType($0) }
+       .first
+ 
+     var currentNetworkType = NetworkType.unknown

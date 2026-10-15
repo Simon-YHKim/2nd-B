@@ -712,6 +712,9 @@
     "signature": "PolaScope · {{count}} serpihan bintang"
   },
   "ds": {
+    "network": {
+      "offline": "Tidak ada koneksi internet."
+    },
     "growth": {
       "title": "Perubahanku",
       "bubble": "Lihat apa yang berubah minggu ini.",

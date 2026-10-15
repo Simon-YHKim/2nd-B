@@ -36,6 +36,9 @@ jest.mock("react-native", () => ({
   StyleSheet: { create: (styles: unknown) => styles },
 }));
 jest.mock("expo-router", () => ({ router: { back: jest.fn() }, useIsFocused: () => true }));
+jest.mock("react-native-safe-area-context", () => ({
+  SafeAreaProvider: ({ children }: { children: React.ReactNode }) => React.createElement("div", { "data-safe-area": true }, children),
+}));
 jest.mock("@/lib/motion/use-reduced-motion", () => ({ useReducedMotionPref: () => true }));
 jest.mock("@/components/ui/PlainText", () => ({ PlainText: "span" }));
 jest.mock("@/components/ui/Text", () => ({ Text: ({ children }: { children: React.ReactNode }) => React.createElement("span", null, children) }));
