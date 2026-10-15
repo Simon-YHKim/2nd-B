@@ -103,9 +103,12 @@ const MANAGED_KEY_PREFIXES = [
   "capture.drafts.v2.",
   "capture.journalDraft.v1.",
   "import.history:",
+  "interview.drafts.v1.",
   "ops.github.username:",
   "ops.one-off-reminders.v1.",
 ];
+// This namespace is new: there is no approved legacy plaintext to migrate.
+const CIPHERTEXT_ONLY_PREFIXES = ["interview.drafts.v1."];
 const SUPABASE_AUTH_KEY_PATTERN =
   /^sb-[a-z0-9_-]+-auth-token(?:-v2)?(?:-code-verifier|-user|-migration-from-v1-complete)?$/i;
 
@@ -721,6 +724,9 @@ export function createEncryptedNativeStorage(
           if (!isManagedDataKey(key)) continue;
           const raw = await dependencies.backing.getItem(key);
           if (raw === null || raw.startsWith(ENCRYPTED_STORAGE_PREFIX)) continue;
+          if (CIPHERTEXT_ONLY_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+            throw new Error("secure_storage_unexpected_plaintext");
+          }
           const encrypted = await encryptValue(key, raw);
           await writeEncryptedWithinCapacity(key, encrypted, true);
           migratedPlaintextKeys += 1;
@@ -773,6 +779,9 @@ export function createEncryptedNativeStorage(
         if (raw === null) return null;
 
         if (!raw.startsWith(ENCRYPTED_STORAGE_PREFIX)) {
+          if (CIPHERTEXT_ONLY_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+            throw new Error("secure_storage_unexpected_plaintext");
+          }
           const encrypted = await encryptValue(key, raw);
           await writeEncryptedWithinCapacity(key, encrypted, true);
           return raw;

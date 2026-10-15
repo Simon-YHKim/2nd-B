@@ -155,6 +155,20 @@ function setCapacityLedger(h: ReturnType<typeof createHarness>, total: number): 
 }
 
 describe("encrypted native storage core", () => {
+  test("refuses unexpected interview plaintext on direct read and startup migration", async () => {
+    const h = createHarness();
+    const key = "interview.drafts.v1.owner-a";
+    h.values.set(key, "unexpected plaintext");
+    await expect(h.storage.getItem(key)).rejects.toThrow("secure_storage_unexpected_plaintext");
+    await expect(h.storage.migrateLegacyPlaintextAtStartup()).rejects.toThrow("secure_storage_migration_failed");
+    expect(h.dependencies.crypto.encrypt).not.toHaveBeenCalled();
+    expect(h.values.get(key)).toBe("unexpected plaintext");
+    expect(h.values.get(MIGRATION_MARKER)).toBeUndefined();
+    // Existing explicit recovery/owner deletion can still remove the unreadable row.
+    await h.storage.removeItem(key);
+    expect(h.values.has(key)).toBe(false);
+  });
+
   test("persists one-off reminder details encrypted across adapter restarts and supports scoped purge", async () => {
     const h = createHarness();
     const key = "ops.one-off-reminders.v1.owner-a";
