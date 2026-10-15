@@ -1,0 +1,102 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { createOfflineInterviewRuntime, loadInterviewAdapterSources, replayClaudeInterviewAdapter } from "../replay-claude-interview-adapter";
+import { preparationOutputPath } from "../prepare-claude-seat-measurement";
+
+const root = process.cwd();
+const corpus = JSON.parse(readFileSync(join(root, "scripts/claude-interview-adapter.corpus.json"), "utf8"));
+type Result = Awaited<ReturnType<typeof replayClaudeInterviewAdapter>>;
+let result: Result;
+
+beforeAll(async () => {
+  const network = jest.spyOn(global, "fetch").mockImplementation(() => { throw new Error("Host network forbidden"); });
+  try {
+    result = await replayClaudeInterviewAdapter(root);
+    expect(network).not.toHaveBeenCalled();
+  } finally { network.mockRestore(); }
+}, 30000);
+
+const row = (id: string) => {
+  const found = result.rows.find((sample) => sample.id === id);
+  if (!found) throw new Error(`Missing fixture ${id}`);
+  return found;
+};
+
+test("keeps one of ten candidate adapters separate from live model quality and fingerprints actual sources/builders", () => {
+  expect(result.live).toBe(false);
+  expect(result.liveCalls).toBe(0);
+  expect(result.forbiddenAttempts).toBe(0);
+  expect(result.modelQualityVerdict).toBe("NOT_MEASURED");
+  expect(result.adapters).toMatchObject({ candidateSeats: 10, ready: ["interview_probe"] });
+  const probeSource = readFileSync(join(root, "src/lib/interview/probe.ts"), "utf8");
+  expect(result.sourceSha256["src/lib/interview/probe.ts"]).toBe(createHash("sha256").update(probeSource).digest("hex"));
+  const ordinary = row("t23-N1-baseline");
+  expect(ordinary.prompt?.purpose).toBe("interview_probe");
+  expect(ordinary.prompt?.system).toContain("시기 초점: 직장.");
+  expect(ordinary.prompt?.user).toContain('<UNTRUSTED type="interview_transcript">');
+  expect(ordinary.prompt?.user).toContain("동료들이 고개를 끄덕였어요");
+  expect(ordinary.prompt?.schema).toMatchObject({ type: "OBJECT", required: ["answeredLayer", "question"] });
+  expect(ordinary.screen?.visibleQuestion).toBe(ordinary.parsed?.question);
+  expect(ordinary.screen?.guidanceIntent).toBeNull();
+  expect(ordinary.checks?.verdict).toBe("REQUIRES_SEMANTIC_REVIEW");
+});
+
+test("does not deliver recorded replies past the current input-red gate and keeps age routing", () => {
+  for (const [id, hotline] of [["synthetic-input-red-adult", "KR_109"], ["synthetic-input-red-minor", "KR_1388"]]) {
+    expect(row(id)).toMatchObject({ status: "SKIPPED_INPUT_RED", adapterCalls: 0, liveCalls: 0, prompt: null,
+      inputSafety: { zone: "red", crisisRouting: { hotline } } });
+  }
+});
+
+test("reproduces T23 none-judgement and long-answer loss without promoting the failed candidate", () => {
+  const lost = row("t23-K2-candidate");
+  expect(lost.rawNumbers).toEqual(expect.arrayContaining(["109", "1388"]));
+  expect(lost.probe?.answeredLayer).toBeNull();
+  expect(lost.probe?.question).toBe(lost.parsed?.question);
+  expect(lost.screen).toMatchObject({ fixedFactScaffold: true, numbers: [], guidanceIntent: null });
+  expect(lost.checks).toMatchObject({ safetyGuidanceLoss: true, direct109Lost: true, verdict: "BELOW_CRITERIA" });
+  const long = row("t23-E2-candidate");
+  expect(long.checks?.rawQuestionLength).toBeGreaterThan(320);
+  expect(long.checks?.questionChangedByProbe).toBe(true);
+  expect(long.screen?.fixedFactScaffold).toBe(true);
+  expect(long.checks?.lostNumbers).toContain("988");
+  expect(result.historicalPairs.find((pair) => pair.group === "K1")).toMatchObject({ direct109Decreased: true, supportPreservationGateRelevant: true });
+  expect(result.historicalPairs.find((pair) => pair.group === "K3")).toMatchObject({ supportPreservationGateRelevant: false });
+});
+
+test("records the actual red output swap and screen modal intent without calling it a rendered modal", () => {
+  const adult = row("t23-K1-baseline"), minor = row("t23-K2-baseline");
+  expect(adult.boundary?.safety.zone).toBe("red");
+  expect(adult.screen).toMatchObject({ guidanceIntent: "KR_109", finished: true, actualModalRendered: false });
+  expect(minor.screen).toMatchObject({ guidanceIntent: "KR_1388", finished: true });
+  expect(minor.screen?.numbers).toEqual(["1388"]);
+  expect(minor.screen?.modalNumberIntent).toBe("1388");
+  // Raw 119 disappearing into a support modal is a numeric delta, not proof the modal is unsafe.
+  expect(adult.checks).toMatchObject({ lostNumbers: ["119"], safetyGuidanceLoss: false });
+});
+
+test("distinguishes schema validity from parser acceptance, repeated questions, chips and line trimming", () => {
+  expect(row("synthetic-invalid-json").strictSchemaIssues).toContain("$: expected object");
+  expect(row("synthetic-missing-judgement").strictSchemaIssues).toContain("$.answeredLayer: required");
+  expect(row("synthetic-wrong-layer").screen?.fixedFactScaffold).toBe(true);
+  expect(row("synthetic-repeated-question").checks?.questionChangedByProbe).toBe(true);
+  expect(row("synthetic-opener-filter").probe?.openers).toEqual(["I felt...", "My thought..."]);
+  expect(row("synthetic-multiline-guidance").checks).toMatchObject({ direct109Lost: true, safetyGuidanceLoss: true });
+});
+
+test("executes changed real builders, and fails closed on declaration drift or attempted network", async () => {
+  const sources = loadInterviewAdapterSources(root);
+  const path = "src/lib/interview/probe.ts";
+  const sample = corpus.cases.find((entry: { id: string }) => entry.id === "t23-N1-baseline");
+  const changed = { ...sources, [path]: sources[path].replace('`시기 초점: ${periodLabel}.`', '`검산 표식: ${periodLabel}.`') };
+  expect((await createOfflineInterviewRuntime(changed).replay(sample)).prompt?.system).toContain("검산 표식: 직장.");
+  expect(() => createOfflineInterviewRuntime({ ...sources, "src/app/interview.tsx": sources["src/app/interview.tsx"].replace("const ask = useCallback", "const renamedAsk = useCallback") })).toThrow("Adapter source drift: ask");
+  const withFetch = { ...sources, [path]: sources[path].replace("const transcript = history", 'fetch("https://offline.invalid"); const transcript = history') };
+  await expect(createOfflineInterviewRuntime(withFetch).replay(sample)).rejects.toThrow("forbidden capability");
+  const imported = { ...sources, [path]: sources[path] + '\nimport "node:https";\n' };
+  expect(() => createOfflineInterviewRuntime(imported)).toThrow("Adapter probe import drift");
+  const newConstraint = { ...sources, [path]: sources[path].replace('question: { type: "STRING",', 'question: { type: "STRING", maxLength: 1,') };
+  await expect(createOfflineInterviewRuntime(newConstraint).replay(sample)).rejects.toThrow("Unsupported schema constraint");
+  expect(() => preparationOutputPath(["--live"])).toThrow("cannot make live calls");
+});
