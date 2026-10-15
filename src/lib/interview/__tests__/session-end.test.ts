@@ -91,17 +91,22 @@ describe("1. 하드 종료 없음", () => {
     expect(codeOnly("src/app/interview.tsx")).not.toMatch(/\bMAX_TURNS\b/);
   });
 
-  it("답을 보낼 때 대화는 위기 또는 사용자의 거절에서만 끝난다", () => {
+  it("위기는 즉시 끝나고 종료 표현은 명시적인 마치기 선택을 기다린다", () => {
     const code = codeOnly("src/app/interview.tsx");
-    const send = between(code, "async function send(", "function changeAngle(");
+    const send = between(code, "async function send(", "function stopChoiceIsCurrent(");
     expect(send.length).toBeGreaterThan(0);
     const finishes = send.match(/\bfinish\(\)/g) ?? [];
-    expect(finishes).toHaveLength(2);
+    expect(finishes).toHaveLength(1);
     const crisis = between(send, 'if (safety.zone === "red")', "const disposition =");
     expect(crisis).toContain("finish()");
     expect(send.indexOf('disposition === "stop"')).toBeGreaterThan(-1);
-    const stop = between(send, 'if (disposition === "stop")', 'if (disposition === "skip")');
-    expect(stop).toContain("finish()");
+    const stop = between(send, 'if (disposition === "stop" && !continued)', 'if (disposition === "skip")');
+    expect(stop).toContain("setStopChoice(pending)");
+    expect(stop).not.toContain("finish()");
+    const choice = between(code, "function resolveStopChoice(", "useHardwareBack(");
+    expect(choice).toContain('if (choice === "finish")');
+    expect(choice).toContain("finish()");
+    expect(choice).toContain("void send(pending.text, pending)");
     // 사용자 답의 개수를 세는 코드 자체가 없어야 한다.
     expect(send).not.toMatch(/role\s*===\s*"user"\)\.length/);
   });
@@ -156,7 +161,7 @@ describe("2. 로컬 안전장치 (모델을 안 부르는 건너뛰기)", () => 
     const code = codeOnly("src/app/interview.tsx");
     const angle = between(code, "function changeAngle(", "async function keepIt(");
     expect(angle.length).toBeGreaterThan(0);
-    const call = "localPromptsExhausted(turns, (turn) => isLocalNonAnswer(turn.text, turn.layer))";
+    const call = "localPromptsExhausted(turns, (turn) => isLocalNonAnswer(turn.text, turn.layer, turn.continuedAfterStop))";
     const guard = angle.indexOf(call);
     expect(guard).toBeGreaterThan(-1);
     expect(guard).toBeLessThan(angle.indexOf("setTurns("));
@@ -168,9 +173,9 @@ describe("2. 로컬 안전장치 (모델을 안 부르는 건너뛰기)", () => 
   it("send() 의 막힘 판정과 건너뛰기 가드가 같은 함수다 (갈라지면 교대 반복이 다시 열린다)", () => {
     const code = codeOnly("src/app/interview.tsx");
     const def = between(code, "const isLocalNonAnswer = useCallback(", "const entriesOf = useCallback(");
-    expect(def).toContain("layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale))");
+    expect(def).toContain("layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale, continuedAfterStop))");
     const send = between(code, "async function send(", "function changeAngle(");
-    expect(send).toContain("const blocked = isLocalNonAnswer(text, pendingLayer);");
+    expect(send).toContain("const blocked = isLocalNonAnswer(text, pendingLayer, Boolean(continued));");
     // 막힘을 따로 다시 계산하는 사본이 없어야 한다.
     expect(send).not.toMatch(/canCreditAnswer\(/);
     expect(send).toContain("layer: pendingLayer ?? undefined");

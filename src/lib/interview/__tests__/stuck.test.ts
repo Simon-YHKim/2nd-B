@@ -243,12 +243,12 @@ describe("발판은 네트워크 없이 즉시 보여준다", () => {
   });
 
   it("C9 분류는 isNonAnswer·coverage·nextProbe보다 먼저 crisis/hotline으로 반환한다", () => {
-    const sendStart = SCREEN.indexOf("async function send(override?: string) {");
+    const sendStart = SCREEN.indexOf("async function send(");
     const classifier = SCREEN.indexOf("classifyInputAnyLocale(text, locale, { minor: isMinor === true })", sendStart);
     const redStart = SCREEN.indexOf('if (safety.zone === "red") {', classifier);
     const redEnd = SCREEN.indexOf("const disposition =", redStart);
     // 막힘 판정은 send() 가 `isLocalNonAnswer` 로 부른다(건너뛰기 가드와 같은 판정, F2049-02).
-    const nonAnswer = SCREEN.indexOf("isLocalNonAnswer(text, pendingLayer)", sendStart);
+    const nonAnswer = SCREEN.indexOf("isLocalNonAnswer(text, pendingLayer, Boolean(continued))", sendStart);
     const coverageWrite = SCREEN.indexOf("setCoverage(nextCoverage)", sendStart);
     const llmBoundary = SCREEN.indexOf("await ask(nextTurns, nextCoverage", sendStart);
 

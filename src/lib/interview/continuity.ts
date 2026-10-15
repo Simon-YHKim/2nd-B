@@ -21,8 +21,9 @@ export function answerDisposition(text: string, locale: "en" | "ko"): AnswerDisp
 
 /** Conservative sufficiency, not an intimacy/length score. One feeling word can suffice;
  * a bare place/name does not yet introduce an event. The model can only veto this gate. */
-export function canCreditAnswer(text: string, layer: DrillLayer, locale: "en" | "ko"): boolean {
-  if (answerDisposition(text, locale) !== "answer") return false;
+export function canCreditAnswer(text: string, layer: DrillLayer, locale: "en" | "ko", continuedAfterStop = false): boolean {
+  const disposition = answerDisposition(text, locale);
+  if (disposition !== "answer" && !(disposition === "stop" && continuedAfterStop)) return false;
   const compact = text.replace(/[\s\p{P}\p{S}]+/gu, "").toLowerCase();
   if (/^(네|예|응|아니|아니요|음|어|yes|no|ok|okay|yeah|hmm|sure)$/.test(compact)) return false;
   if (compact.length < 2) return false;
@@ -40,6 +41,7 @@ export function currentScene(history: readonly InterviewTurn[]): InterviewTurn[]
 
 export function confirmedAnswer(
   text: string, askedLayer: DrillLayer, locale: "en" | "ko", judgedLayer: DrillLayer | null | undefined,
+  continuedAfterStop = false,
 ): boolean {
-  return canCreditAnswer(text, askedLayer, locale) && judgedLayer === askedLayer;
+  return canCreditAnswer(text, askedLayer, locale, continuedAfterStop) && judgedLayer === askedLayer;
 }

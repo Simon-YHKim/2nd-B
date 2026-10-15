@@ -86,6 +86,18 @@ describe("scene continuity and choice", () => {
     expect(confirmedAnswer(scene[1]!.text, "fact", "en", "meaning")).toBe(false);
   });
 
+  it("continuation metadata changes no model instruction or stored answer text", async () => {
+    const answer = { role: "user", text: "Stop signs were everywhere in my town.", layer: "fact" } as const;
+    llm.mockResolvedValue({ text: JSON.stringify({ question: "What stood out about those streets?", answeredLayer: "fact" }), safety: { zone: "green" } } as never);
+    await nextProbe("qa", "en", "work", [scene[0]!, answer], emptyCoverage(), false, 0, "feeling");
+    const before = llm.mock.calls[llm.mock.calls.length - 1]![0];
+    await nextProbe("qa", "en", "work", [scene[0]!, { ...answer, continuedAfterStop: true }], emptyCoverage(), false, 0, "feeling");
+    const after = llm.mock.calls[llm.mock.calls.length - 1]![0];
+    expect(after).toEqual(before);
+    expect(after.user).toContain(answer.text);
+    expect(after.user).not.toContain("continuedAfterStop");
+  });
+
   it("drops a skipped topic from the prompt while retaining the full save transcript", async () => {
     const fresh: InterviewTurn[] = [
       { role: "interviewer", text: "Another moment?", layer: "fact", sceneStart: true },

@@ -78,6 +78,9 @@ export interface InterviewTurn {
   period?: LifePeriod;
   /** Session-only metadata, no change to stored transcript/schema. */
   sceneStart?: boolean;
+  /** Session-only: the user explicitly chose Continue after the stop confirmation.
+   *  This bypasses only that stop interpretation, never safety or answer sufficiency. */
+  continuedAfterStop?: boolean;
   /** Session-only: true = this answer earned its layer's cell, false = it did not.
    *  Unset = no verdict yet: the answer the screen is sending now, or one that never got one. */
   answered?: boolean;
@@ -241,7 +244,7 @@ export function nextMove(
     const last = answers[answers.length - 1];
     // A refusal and exhausted scaffolds end questioning; empty cells are not a reason
     // to revisit a declined topic. No obligation to reach all five layers.
-    if (last && answerDisposition(last.text, thread.locale) === "stop") return { kind: "finish" };
+    if (last && !last.continuedAfterStop && answerDisposition(last.text, thread.locale) === "stop") return { kind: "finish" };
     // 장면은 **답의 개수로 끝나지 않는다** (QA 261005 R2F-09). 여기 있던 `answers.length >= 8`
     // 은 인정 여부와 상관없이 답을 세서, 두 층에서 막혔다 회복한 사람의 장면을 울림(L5)을
     // 묻기도 전에 끊었다. 장면을 끝내는 것은 인정된 진전(아래 `isPeriodComplete`: 다섯 층이 모두
@@ -261,7 +264,7 @@ export function nextMove(
     const progress = scene.filter((turn, index): turn is InterviewTurn & { layer: DrillLayer } =>
       turn.role === "user" && turn.layer !== undefined
       && (turn.answered === true || awaiting(turn, index))
-      && canCreditAnswer(turn.text, turn.layer, thread.locale));
+      && canCreditAnswer(turn.text, turn.layer, thread.locale, turn.continuedAfterStop));
     // "사실만"의 4답 상한도 이 진전만 센다(게이트 LAST-02): 모델이 인정한 답과 지금 판정을 기다리는
     // 답이다. 예전에는 장면의 답을 전부 세서, 오류로 판정을 못 받은 답 셋 뒤 네 번째 입력이 모델
     // 판정 없이 끝났다. 인정 못 받은 답은 화면이 같은 층에 발판을 놓고 세 번째면 끝내므로 유한하다.

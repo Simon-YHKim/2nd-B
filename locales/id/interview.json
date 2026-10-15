@@ -37,6 +37,9 @@
     "concrete": "Faktanya saja",
     "anotherScene": "Adakah kejadian lain yang lebih ingin kamu ceritakan?",
     "concreteQuestion": "Apa satu hal yang kamu ingat pernah lakukan saat itu?",
-    "openerHint": "Ketuk untuk memulai, lalu ubah"
+    "openerHint": "Ketuk untuk memulai, lalu ubah",
+    "stopQuestion": "Apakah kamu ingin mengakhiri di sini?",
+    "stopFinish": "Akhiri",
+    "stopContinue": "Lanjutkan berbicara"
   }
 }

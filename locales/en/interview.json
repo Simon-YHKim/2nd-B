@@ -37,6 +37,9 @@
     "concrete": "Just the facts",
     "anotherScene": "Is there another moment you would like to talk about instead?",
     "concreteQuestion": "What is one thing you remember doing in that moment?",
-    "openerHint": "Tap to start writing, then edit it"
+    "openerHint": "Tap to start writing, then edit it",
+    "stopQuestion": "Would you like to finish here?",
+    "stopFinish": "Finish",
+    "stopContinue": "Continue talking"
   }
 }

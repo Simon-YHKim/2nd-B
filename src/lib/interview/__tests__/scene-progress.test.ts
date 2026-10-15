@@ -580,7 +580,7 @@ describe("5. 소스 계약 -- 위 시뮬레이터가 옮긴 줄이 화면 · 엔
     inOrder(ask, [
       'if (move.kind === "finish" && !credited) { finish(); return; }',
       'move.kind === "finish" ? credited : move.layer',
-      "const confirmed = credited && lastAnswer ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer) : false;",
+      "const confirmed = credited && lastAnswer ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer, lastAnswer.continuedAfterStop) : false;",
       "if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));",
       'if (move.kind === "finish" && confirmed) { setTurns(assessed); finish(); return; }',
       'const streak = currentScene(history).filter((turn) => turn.role === "user" && turn.layer === credited && turn.answered === false).length + 1;',
@@ -604,13 +604,13 @@ describe("5. 소스 계약 -- 위 시뮬레이터가 옮긴 줄이 화면 · 엔
     const screen = code("src/app/interview.tsx");
     const send = between(screen, "async function send(", "function changeAngle(");
     for (const line of [
-      "const blocked = isLocalNonAnswer(text, pendingLayer);",
+      "const blocked = isLocalNonAnswer(text, pendingLayer, Boolean(continued));",
       "const nextStreak = blocked ? stuckStreak + 1 : 0;",
       "const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;",
       "setStuckStreak(nextAbandoned !== abandoned ? 0 : nextStreak);",
       "await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);",
     ]) expect([line, send.includes(line)]).toEqual([line, true]);
-    expect(screen).toContain("layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale))");
+    expect(screen).toContain("layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale, continuedAfterStop))");
   });
 
   it("엔진의 장면 경로는 답의 개수를 세지 않는다 -- 인정된 진전과 판정을 기다리는 답 하나만 센다", () => {
@@ -621,7 +621,7 @@ describe("5. 소스 계약 -- 위 시뮬레이터가 옮긴 줄이 화면 · 엔
     inOrder(scene, [
       "index === scene.length - 1 && turn.answered === undefined && !turn.unsettled",
       "(turn.answered === true || awaiting(turn, index))",
-      "canCreditAnswer(turn.text, turn.layer, thread.locale)",
+      "canCreditAnswer(turn.text, turn.layer, thread.locale, turn.continuedAfterStop)",
       "if (thread.concreteOnly) return progress.length >= 4",
       "for (const turn of progress) sceneCoverage[period][turn.layer] += 1;",
       'if (isPeriodComplete(sceneCoverage, period)) return { kind: "finish" };',

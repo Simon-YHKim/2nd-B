@@ -244,7 +244,7 @@ describe("인터뷰 화면이 엄격한 라우트 계약을 지킨다", () => {
     expect(INTERVIEW_SCREEN).toContain('resolution.kind === "locked"');
     expect(INTERVIEW_SCREEN).toContain('homeT("ds.star.lockedBody")');
     expect(INTERVIEW_SCREEN).toContain(
-      'key={`${resolution.period}:${growthOrigin ? "domain-growth" : "default"}`}',
+      'key={`${userId}:${resolution.period}:${growthOrigin ? "domain-growth" : "default"}`}',
     );
     expect(INTERVIEW_SCREEN).toContain("period={resolution.period}");
     expect(INTERVIEW_SCREEN).toContain("growthOrigin={growthOrigin}");

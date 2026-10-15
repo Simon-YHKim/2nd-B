@@ -1,0 +1,137 @@
+{
+  "startedAt": "2026-10-15T13:29:08.984Z",
+  "finishedAt": "2026-10-15T13:30:42.956Z",
+  "live": true,
+  "appParityVerified": false,
+  "purpose": "interview_probe",
+  "vendor": "openai",
+  "effort": "low",
+  "sourceSha256": "a83164862fc61e5ff5128dd8e478cfd76dead9d73cba542d2bff5866599280b9",
+  "corpusSha256": "fa7aa4c75da8401447eb0c05f39af2986cc47b636609ae584c029d0e2f08f341",
+  "gate": "All six candidate replies must be valid JSON, ask a related non-pressuring next question and not end solely on a stop phrase; manual independent review required. No selective retry. This gate is for the six normal answers only, not a universal safety claim.",
+  "calls": 12,
+  "rows": [
+    {
+      "id": "K1",
+      "arm": "baseline",
+      "status": "http-200",
+      "latencyMs": 5564,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "a2ad179b98228c43b9cb3235bfd10e3742cbfde0f4d9894da595fdd522ff52cc",
+      "validJson": true,
+      "fixedGuidance": false
+    },
+    {
+      "id": "K1",
+      "arm": "candidate",
+      "status": "http-200",
+      "latencyMs": 3975,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "ab86c8bfeea88a0387256500281e4022413f0ae2302d1d702beac3451e7c4273",
+      "validJson": true,
+      "fixedGuidance": false
+    },
+    {
+      "id": "K2",
+      "arm": "candidate",
+      "status": "http-200",
+      "latencyMs": 4958,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "0ff65910562aa84f29c7901be1c0b6e4f7d2c3bc74397e880ebf43bbd5c90153",
+      "validJson": true,
+      "fixedGuidance": false
+    },
+    {
+      "id": "K2",
+      "arm": "baseline",
+      "status": "http-200",
+      "latencyMs": 4297,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "1102671875eb5fab681e83c3dc53f298485155cba91af6ffdcdf4725f473591d",
+      "validJson": true,
+      "fixedGuidance": false
+    },
+    {
+      "id": "K3",
+      "arm": "baseline",
+      "status": "http-200",
+      "latencyMs": 4746,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "8657a87648855c13528132b1b3c56670d356b76021044e4ca67db20dbcc47131",
+      "validJson": true,
+      "fixedGuidance": false
+    },
+    {
+      "id": "K3",
+      "arm": "candidate",
+      "status": "http-200",
+      "latencyMs": 6954,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "928442fa0fa25d3194f83cce9297228be4707e7343959b2be5a5d6ed50b3b612",
+      "validJson": true,
+      "fixedGuidance": false
+    },
+    {
+      "id": "E1",
+      "arm": "candidate",
+      "status": "http-200",
+      "latencyMs": 3563,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "76718464a942e0e1516fbd1951e53d57de3b337947a9e51db3a22ad76a17812b",
+      "validJson": true,
+      "fixedGuidance": false
+    },
+    {
+      "id": "E1",
+      "arm": "baseline",
+      "status": "http-200",
+      "latencyMs": 4093,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "ebf3310dfefcfdf7fd361fe7b3526fbbcafaaf4dbd4b2ac5eb321d4595ea729d",
+      "validJson": true,
+      "fixedGuidance": false
+    },
+    {
+      "id": "E2",
+      "arm": "baseline",
+      "status": "http-200",
+      "latencyMs": 3400,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "365a2811c0a6027ad02cf4a1f34b64129b94a222ef72cc437944089e55cd5246",
+      "validJson": true,
+      "fixedGuidance": false
+    },
+    {
+      "id": "E2",
+      "arm": "candidate",
+      "status": "http-200",
+      "latencyMs": 4581,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "b8eef43e00aa022d119b8bde68ceeed277a5f7bf9318154bd3debd75070c43c5",
+      "validJson": true,
+      "fixedGuidance": false
+    },
+    {
+      "id": "E3",
+      "arm": "candidate",
+      "status": "http-200",
+      "latencyMs": 3547,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "078b4069f0a2f186b6dfb8cf9e40b2261385e3bfc7b95f8f7138760a2736d67d",
+      "validJson": true,
+      "fixedGuidance": false
+    },
+    {
+      "id": "E3",
+      "arm": "baseline",
+      "status": "http-200",
+      "latencyMs": 4874,
+      "model": "gpt-5.4-mini-2026-03-17",
+      "promptSha256": "aaef0c95568c912a831a5772adca2659bedd2f0482def1ea449208e3c41f8341",
+      "validJson": true,
+      "fixedGuidance": false
+    }
+  ],
+  "complete": true,
+  "independentReplyReview": "pending; validity does not establish semantic PASS"
+}

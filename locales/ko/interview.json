@@ -37,6 +37,9 @@
     "concrete": "사실만 이야기할래요",
     "anotherScene": "대신 이야기하고 싶은 다른 장면이 있나요?",
     "concreteQuestion": "그때 직접 했던 행동 중 기억나는 한 가지가 있나요?",
-    "openerHint": "누르면 입력창에 추가됩니다. 고쳐 써도 됩니다"
+    "openerHint": "누르면 입력창에 추가됩니다. 고쳐 써도 됩니다",
+    "stopQuestion": "여기서 마칠까요?",
+    "stopFinish": "마치기",
+    "stopContinue": "계속 이야기하기"
   }
 }

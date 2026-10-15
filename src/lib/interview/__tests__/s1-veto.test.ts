@@ -67,7 +67,7 @@ describe("엔진이 분류를 실어 돌려준다", () => {
 
 describe("확인 전에는 가산하지 않고 모델 혼자 층을 올리지 않는다", () => {
   it("결정론적 후보와 모델 판정이 둘 다 있어야 반영한다", () => {
-    expect(SCREEN).toContain("confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)");
+    expect(SCREEN).toContain("confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer, lastAnswer.continuedAfterStop)");
     expect(SCREEN).toContain("if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited))");
     expect(SCREEN).not.toContain("decrementCoverage(");
   });
@@ -78,8 +78,8 @@ describe("확인 전에는 가산하지 않고 모델 혼자 층을 올리지 �
     expect(incs).toHaveLength(1);
     expect(SCREEN).toContain("const nextCoverage = coverage;");
     // 로컬 관문은 `isLocalNonAnswer` 하나에 있고 send() 가 직전 질문의 층으로 부른다(F2049-02).
-    expect(SCREEN).toContain("layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale))");
-    expect(SCREEN).toContain("const blocked = isLocalNonAnswer(text, pendingLayer);");
+    expect(SCREEN).toContain("layer != null && (isBlockedAnswer(text) || !canCreditAnswer(text, layer, locale, continuedAfterStop))");
+    expect(SCREEN).toContain("const blocked = isLocalNonAnswer(text, pendingLayer, Boolean(continued));");
     // answeredLayer 로 칸을 올리는 코드가 있으면 비대칭이 깨진다.
     expect(SCREEN).not.toMatch(/incrementCoverage\([^)]*answeredLayer/);
   });

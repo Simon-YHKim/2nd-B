@@ -37,6 +37,9 @@
     "concrete": "Só os fatos",
     "anotherScene": "Há outro momento sobre o qual você prefere falar?",
     "concreteQuestion": "O que você se lembra de ter feito naquele momento?",
-    "openerHint": "Toque para começar e edite"
+    "openerHint": "Toque para começar e edite",
+    "stopQuestion": "Quer terminar aqui?",
+    "stopFinish": "Terminar",
+    "stopContinue": "Continuar conversando"
   }
 }
