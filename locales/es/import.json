@@ -77,7 +77,7 @@
   "hub": {
     "back": "Atrás",
     "import": "Importar",
-    "imported": "Datos importados",
+    "imported": "Historial de importación",
     "hubBubble": "¿Qué quieres traer?",
     "hubTip": "Solo se guarda lo que apruebes.",
     "tier_critical": "Muy sensible · requiere consentimiento",
