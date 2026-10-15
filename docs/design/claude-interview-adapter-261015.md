@@ -2,7 +2,7 @@
 
 **Claude 모델 측정은 아직 0회다.** 전환 대상 10좌석 중 `interview_probe` 하나의 실제 builder·parser·화면 후처리를 고정 합성 자료로 실행할 수 있게 했다. 소스 기반 준비 완료와 모델 품질·운영 활성화 완료는 다르다. 다른 9좌석, Claude의 인터뷰 운영 경로, 새 모델 실호출, APK 확인은 이 변경에 포함하지 않는다. 기존 3개 board Sonnet 자리는 이 전환 대상 10개와 별도로 센다.
 
-최종 통합 기준 main은 `ed19edfa5b0348a1ff50bfd2ba9bb1b030142b1a`이다. [좌석 인벤토리·선행 조건](claude-seat-measurement-261015.md)을 유지하며 D1 전환 결정은 유효하다. 동결된 `persona_narrative`를 측정·활성화 대상으로 되살리지 않는다. 앱·프록시·라우팅·안전 문구·동의·설정·SDK에는 변경이 없다.
+T68 최초 통합 기준 main은 `ed19edfa5b0348a1ff50bfd2ba9bb1b030142b1a`이며, T36 후속은 T68 병합 main `c21c03738b1070ba932419bee49f708191a7f745`와 [승인된 판정 처리](interview-verdict-states-261015.md)를 함께 재생한다. [좌석 인벤토리·선행 조건](claude-seat-measurement-261015.md)을 유지하며 D1 전환 결정은 유효하다. 동결된 `persona_narrative`를 측정·활성화 대상으로 되살리지 않는다. 어댑터는 앱·프록시·라우팅·안전 문구·동의·설정·SDK를 수정하지 않는다.
 
 ## 재사용과 실행
 
@@ -16,10 +16,10 @@ npx tsx scripts/replay-claude-interview-adapter.ts --out=/tmp/t68-interview-adap
 - [#2543의 검토된 소스 `0297dfab`](https://github.com/Simon-YHKim/2nd-B/tree/0297dfab3ae2854e8f6d8c5a600b6abbd6cd5aab)의 builder AST 추출·출력 후처리 재생 방식을 확장했다. 그 PR은 기준 main에 없어서 live/auth 실행기를 가져오지 않았다.
 - 현재 `probe.ts`의 선언을 AST로 추출·실행하고 실제 `nextProbe`가 부른 입력을 기록한다. 따라서 `buildSystemPrompt`·`buildUserPrompt`·`PROBE_SCHEMA`·`parseProbeReply`·`usableQuestion`을 별도 구현으로 흉내 내거나 앱 소스를 복사해 유지하지 않는다.
 - 현재 `boundary.ts`의 `callLlm`에서 출력 재분류 시작부터 반환까지와 실제 `crisisObserver` 함수·해당 초기화 표현식을 추출한다. 인터뷰 호출에 observer가 없으면 실제 함수도 undefined를 반환한다. 초기화는 같은 이름을 가진 `callAdvisor` 선언과 구분한다. 현재 `safety.ts`의 실제 `classifySafety` 및 고정 응답 함수를 연결하되 **live/non-Vertex·서버 의미 분류 OFF**라는 오프라인 조건만 준다. 이 값은 실행 문맥의 합성 설정이며 앱 환경 변수는 바꾸지 않는다.
-- 현재 `interview.tsx`의 `ask` callback을 추출해 실행한다. state setter·계정 lease·감사 쓰기·안내 게시·종료는 메모리 대역이다. `entriesOf=[]`이며 계정은 현재인 것으로 고정한다. 이전 다회차 이력·계정 변경·늦은 응답·서버 한도·서버 동의·React 렌더링을 검증하지 않는다.
+- 현재 `interview.tsx`의 `ask` callback을 추출해 실행한다. state setter·계정 lease·감사 쓰기·안내 게시·종료는 메모리 대역이다. `entriesOf=[]`, 요청 전 실패 횟수 0이며 계정은 현재인 것으로 고정한다. T36의 실제 `probe.usableQuestion`을 연결하고 coverage·질문 층·실패 횟수·마지막 답 판정을 기록한다. 이전 다회차 이력·계정 변경·늦은 응답·서버 한도·서버 동의·React 렌더링을 검증하지 않는다.
 - 모달은 실제로 띄우지 않는다. `publishCrisisNotice`에 전달된 hotline ID와 `CrisisRouter.tsx`의 실제 `HOTLINES[hotline].number` 표현식 결과만 기록한다. **boundary의 고정 응답 전문을 모달 본문으로 간주하지 않는다.**
 
-실행 문맥은 허용된 순수 모듈만 읽는다. Node/provider/React 모듈 import는 거부하고 `fetch`·`XMLHttpRequest`·`WebSocket`은 실패시킨다. 앱 코드가 실패를 잡아도 금지 시도 횟수가 있으면 전체 재생을 실패시킨다. 새 import·사라진 AST 선언·지원하지 않는 schema 형태는 조용히 대체하지 않고 멈춘다. fixture 문자열은 실행 코드로 평가하지 않는다.
+실행 문맥은 허용된 순수 모듈만 읽는다. Node/provider/React 모듈 import는 거부하고 `fetch`·`XMLHttpRequest`·`WebSocket`은 실패시킨다. 앱 코드가 실패를 잡아도 금지 시도 횟수가 있으면 전체 재생을 실패시킨다. 고정 정상 응답 재생 중 `drill.failed`가 나오면 미연결 변수 같은 하네스 오류일 수 있으므로 전체 재생을 실패시킨다. 새 import·사라진 AST 선언·지원하지 않는 schema 형태는 조용히 대체하지 않고 멈춘다. fixture 문자열은 실행 코드로 평가하지 않는다.
 
 ## 고정 자료와 출처
 
@@ -42,7 +42,17 @@ JSON에는 현재 HEAD, 모든 실행 소스의 hash, 추출한 probe/화면/bou
 
 입력 red는 현재 기기 분류기로 먼저 검사하며 해당 행은 `SKIPPED_INPUT_RED`, `adapterCalls=0`이다. 합성 모델 응답도 생성 경로에 공급하지 않는다. 현재 과거 24개 입력은 모두 green이고 새 명시적 red 2개만 차단된다. 어휘 추가가 이 과거 우회 표현까지 모두 잡는다는 주장을 하지 않는다.
 
-기준 소스에서 32행 중 2행 차단·30행 재생, 안내 완전 소실 경보는 10행이다. 과거 원답의 109 감소는 숫자상 2쌍이며 그중 자기 위해 우려에 대한 보존 gate 대상은 K1 한 쌍이다. 이는 고정 표본의 관측 수이며 오류율·전체 사용자 영향·Claude 성능으로 환산하지 않는다.
+기준 소스에서 32행 중 2행 차단·30행 재생, 안내 완전 소실 경보는 10행이다. T36 통합 뒤 같은 corpus로 재측정해도 **32/2/30/10과 소실된 10행의 ID가 그대로**다. 과거 원답의 109 감소는 숫자상 2쌍이며 그중 자기 위해 우려에 대한 보존 gate 대상은 K1 한 쌍이다. 이는 고정 표본의 관측 수이며 오류율·전체 사용자 영향·Claude 성능으로 환산하지 않는다.
+
+T36 전후 화면 상태가 바뀐 행은 아래 합성 3개뿐이며 prompt·schema·원답·안내 소실 판정은 바뀌지 않았다. 실제 앱 처리 규칙을 어댑터의 옛 기대에 맞춰 되돌리지 않는다.
+
+| 합성 행 | T36 전 | T36 후 |
+|---|---|---|
+| synthetic-invalid-json | 로컬 충분 답도 불인정·fact 발판·실패 1 | 기존 parser가 판정 없음으로 읽음 → 로컬 인정·feeling으로 진행. strict JSON 미달은 그대로 BELOW_CRITERIA |
+| synthetic-missing-judgement | 불인정·fact 발판·실패 1 | 로컬 인정·feeling으로 진행. schema 필수 answeredLayer 누락은 그대로 BELOW_CRITERIA |
+| synthetic-wrong-layer | 불인정·fact 발판·실패 1 | answered=null 중립·fact의 기존 대체 질문·실패 0·coverage 0. 낙관적으로 생성한 다음 질문은 버림 |
+
+따라서 `fixedFactScaffold=true`였던 wrong-layer 기대는 false로 갱신했다. 실제 질문·판정·질문 층·실패 횟수·coverage도 함께 검사하므로 빈 화면이나 하네스 실패를 정상 중립으로 오인하지 않는다. corpus 원문/해시는 유지했고 실행 소스 hash는 새 정책을 반영한다. 이 3행의 정상 정책 변화는 기존 안전 안내 소실 10행을 고친 결과가 아니다.
 
 | 관측할 실패/경로 | 재생이 남기는 증거 |
 |---|---|

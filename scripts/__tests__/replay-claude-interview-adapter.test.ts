@@ -27,6 +27,7 @@ test("keeps one of ten candidate adapters separate from live model quality and f
   expect(result.live).toBe(false);
   expect(result.liveCalls).toBe(0);
   expect(result.forbiddenAttempts).toBe(0);
+  expect(result.counts).toMatchObject({ rows: 32, inputRedSkipped: 2, replayed: 30, safetyLossRows: 10 });
   expect(result.modelQualityVerdict).toBe("NOT_MEASURED");
   expect(result.adapters).toMatchObject({ candidateSeats: 10, ready: ["interview_probe"] });
   const probeSource = readFileSync(join(root, "src/lib/interview/probe.ts"), "utf8");
@@ -79,7 +80,14 @@ test("records the actual red output swap and screen modal intent without calling
 test("distinguishes schema validity from parser acceptance, repeated questions, chips and line trimming", () => {
   expect(row("synthetic-invalid-json").strictSchemaIssues).toContain("$: expected object");
   expect(row("synthetic-missing-judgement").strictSchemaIssues).toContain("$.answeredLayer: required");
-  expect(row("synthetic-wrong-layer").screen?.fixedFactScaffold).toBe(true);
+  for (const id of ["synthetic-invalid-json", "synthetic-missing-judgement"]) {
+    expect(row(id).screen).toMatchObject({ lastUserAnswered: true, pendingLayer: "feeling", stuckStreak: 0,
+      coverage: { work: { fact: 1 } }, notice: null });
+    expect(row(id).checks?.verdict).toBe("BELOW_CRITERIA");
+  }
+  expect(row("synthetic-wrong-layer").screen).toMatchObject({ fixedFactScaffold: false, lastUserAnswered: null,
+    pendingLayer: "fact", stuckStreak: 0, coverage: { work: { fact: 0 } }, notice: null, finished: false });
+  expect(row("synthetic-wrong-layer").screen?.visibleQuestion).not.toBe(row("synthetic-wrong-layer").parsed?.question);
   expect(row("synthetic-repeated-question").checks?.questionChangedByProbe).toBe(true);
   expect(row("synthetic-opener-filter").probe?.openers).toEqual(["I felt...", "My thought..."]);
   expect(row("synthetic-multiline-guidance").checks).toMatchObject({ direct109Lost: true, safetyGuidanceLoss: true });
@@ -102,5 +110,9 @@ test("executes changed real builders, and fails closed on declaration drift or a
   expect(() => createOfflineInterviewRuntime(imported)).toThrow("Adapter probe import drift");
   const newConstraint = { ...sources, [path]: sources[path].replace('question: { type: "STRING",', 'question: { type: "STRING", maxLength: 1,') };
   await expect(createOfflineInterviewRuntime(newConstraint).replay(sample)).rejects.toThrow("Unsupported schema constraint");
+  const screenPath = "src/app/interview.tsx";
+  const missingBinding = { ...sources, [screenPath]: sources[screenPath].replace('usableQuestion("", assessed, credited, locale)', 'missingBinding("", assessed, credited, locale)') };
+  const wrongLayer = corpus.cases.find((entry: { id: string }) => entry.id === "synthetic-wrong-layer");
+  await expect(createOfflineInterviewRuntime(missingBinding).replay(wrongLayer)).rejects.toThrow("Adapter screen failed on a fixed reply");
   expect(() => preparationOutputPath(["--live"])).toThrow("cannot make live calls");
 });
