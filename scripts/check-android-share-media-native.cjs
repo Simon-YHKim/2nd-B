@@ -27,7 +27,8 @@ function main() {
   const config = { packageName: app.android.package, scheme: Array.isArray(app.scheme) ? app.scheme[0] : app.scheme };
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pola-share-native-"));
   try {
-    fs.writeFileSync(path.join(tmp, "ShareMediaPackage.kt"), plugin.renderShareMediaKotlin(config));
+    const mediaSource = plugin.renderShareMediaKotlin(config);
+    fs.writeFileSync(path.join(tmp, "ShareMediaPackage.kt"), mediaSource);
     fs.writeFileSync(path.join(tmp, "ShareTargetIntent.kt"), plugin.renderShareTargetKotlin(config));
     const run = (bin, commandArgs) => {
       const output = execFileSync(bin, commandArgs, { cwd: tmp, encoding: "utf8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024 });
@@ -41,11 +42,25 @@ function main() {
       "-classpath", [args["android-jar"], path.join(tmp, "classes.jar")].join(path.delimiter),
       "-d", path.join(tmp, "share-helpers.jar"),
     ]);
+    // Replay the shipped take function, not a second implementation of its
+    // CAS/cleanup logic. Android I/O is a controlled stub in this JVM harness.
+    const start = mediaSource.indexOf("  fun take(context: Context,");
+    const end = mediaSource.indexOf("\n  fun discard(token:", start);
+    if (start < 0 || end < start) throw new Error("Could not extract the native take function");
+    const race = fs.readFileSync(path.join(__dirname, "fixtures", "shared-media-timeout-race.kt"), "utf8")
+      .replace(/^__TAKE__$/m, mediaSource.slice(start, end));
+    fs.writeFileSync(path.join(tmp, "TimeoutRace.kt"), race);
+    run("java", [
+      `-Dkotlin.home=${args["kotlin-home"]}`, "-cp", path.join(kotlinLib, "*"),
+      "org.jetbrains.kotlin.cli.jvm.K2JVMCompiler", path.join(tmp, "TimeoutRace.kt"),
+      "-include-runtime", "-d", path.join(tmp, "timeout-race.jar"),
+    ]);
+    run("java", ["-jar", path.join(tmp, "timeout-race.jar")]);
     const sha256 = (file) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
     console.log(`PASS: generated text/media helpers compile; repository React Native ${version}`);
     console.log(`android.jar sha256 ${sha256(args["android-jar"])}`);
     console.log(`React AAR sha256 ${sha256(args["react-aar"])}`);
-    console.log("This verifies Kotlin/API compatibility, not Android provider/device execution.");
+    console.log("Kotlin/API compatibility and controlled lifecycle races passed; Android provider/device execution remains separate.");
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

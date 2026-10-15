@@ -123,8 +123,10 @@ internal object ShareMediaIntent {
     if (entry == null) { promise.reject("share_unavailable", "Shared file is no longer available"); return }
     val settled = AtomicBoolean(false)
     val timeout = Runnable {
-      discard(token)
-      if (settled.compareAndSet(false, true)) promise.reject("share_timeout", "Shared file could not be opened")
+      if (settled.compareAndSet(false, true)) {
+        discard(token)
+        promise.reject("share_timeout", "Shared file could not be opened")
+      }
     }
     handler.postDelayed(timeout, COPY_TIMEOUT_MS)
     try {

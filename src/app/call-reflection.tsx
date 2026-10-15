@@ -18,10 +18,12 @@ import { recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { isAbortError } from "@/lib/async/abort";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
 import { resolveJurisdiction } from "@/lib/auth/consent-age";
 import { discardSharedMedia, takeSharedMedia, type SharedMediaFile } from "@/lib/capture/shared-media";
 import { sharedMediaError, sharedMediaToken } from "@/lib/capture/share-media-intent";
 import { carriesShareMarker, shareRefusedHref } from "@/lib/capture/share-intent";
+import { publishCrisisNotice } from "@/lib/safety/crisis-notice";
 import { composeStructured } from "@/lib/capture/structured";
 import { transcribeAudio } from "@/lib/llm/boundary";
 import { useProgression } from "@/lib/progression/useProgression";
@@ -143,7 +145,11 @@ function CallReflection({ country }: { country: string | null }) {
   const incomingMediaError = sharedMediaError(params.sharedMediaError);
   const shareMarked = carriesShareMarker(params);
   const incomingMediaRef = useRef(incomingMedia);
-  useLayoutEffect(() => { incomingMediaRef.current = incomingMedia; }, [incomingMedia]);
+  const delivery = incomingMedia ?? (incomingMediaError ? `error:${incomingMediaError}` : null);
+  const deliveryRef = useRef(delivery);
+  const deliveryVersionRef = useRef(0);
+  const [deliveryVersion, setDeliveryVersion] = useState(0);
+  const resultVersionRef = useRef<number | null>(null);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [busy, setBusy] = useState(false);
@@ -158,6 +164,27 @@ function CallReflection({ country }: { country: string | null }) {
   });
   const mountedRef = useRef(true);
   const transcribeAbortRef = useRef<AbortController | null>(null);
+  useLayoutEffect(() => {
+    const previous = deliveryRef.current;
+    deliveryRef.current = delivery;
+    incomingMediaRef.current = incomingMedia;
+    // Expo Router reuses this route for another SEND. A new delivery owns a
+    // fresh explicit action, while clearing params after success is only ACK.
+    if (delivery === null || delivery === previous) return;
+    deliveryVersionRef.current += 1;
+    setDeliveryVersion(deliveryVersionRef.current);
+    transcribeAbortRef.current?.abort();
+    transcribeAbortRef.current = null;
+    resultVersionRef.current = null;
+    choosingRef.current = false;
+    setChoosing(false);
+    setBusy(false);
+    setPhase("idle");
+    setTranscript("");
+    setSelectedName(null);
+    setNotice(null);
+    // An already visible safety notice stays above the new intake.
+  }, [delivery, incomingMedia]);
   useEffect(() => () => { discardSharedMedia(incomingMedia); }, [incomingMedia]);
 
   useEffect(() => {
@@ -190,11 +217,20 @@ function CallReflection({ country }: { country: string | null }) {
   }
 
   async function chooseAndTranscribe(useShared = false) {
-    if (!userId || choosingRef.current || phase === "stt" || !ko || isMinor !== false || resolveJurisdiction().country !== "KR") return;
+    if (!userId || deliveryVersion !== deliveryVersionRef.current || choosingRef.current || phase === "stt" || !ko || isMinor !== false || resolveJurisdiction().country !== "KR") return;
+    const generation = deliveryVersion;
+    const safetyOwner = captureAccountOwnerLease(userId);
+    if (!safetyOwner) return;
     choosingRef.current = true;
     setChoosing(true);
     setNotice(null);
     setSelectedName(null);
+    if (!useShared && (incomingMedia || incomingMediaError)) {
+      // Choosing a different file dismisses the previous delivery, including
+      // its error. Another identical error arriving later is a new delivery.
+      discardSharedMedia(incomingMedia);
+      router.setParams({ sharedMedia: undefined, sharedMediaError: undefined });
+    }
 
     const controller = new AbortController();
     transcribeAbortRef.current?.abort();
@@ -254,8 +290,15 @@ function CallReflection({ country }: { country: string | null }) {
         mimeType: file.mimeType,
         minor: false,
       });
+      // Ordinary late results belong to the old delivery. A late red still
+      // reaches the same account even if its transport ignored cancellation.
+      if (reply.safety?.zone === "red" &&
+        (!mountedRef.current || generation !== deliveryVersionRef.current || controller.signal.aborted)) {
+        publishCrisisNotice(safetyOwner, reply.safety.crisisRouting?.hotline ?? hotlineFor(ko, false));
+        return;
+      }
       authenticated.assertCurrent();
-      if (!mountedRef.current || transcribeAbortRef.current !== controller) return;
+      if (!mountedRef.current || generation !== deliveryVersionRef.current || transcribeAbortRef.current !== controller) return;
 
       // C9: a red-zone transcript is swapped server-side for the fixed crisis
       // response. Route to the hotline instead of showing or saving that text.
@@ -271,6 +314,7 @@ function CallReflection({ country }: { country: string | null }) {
         setNotice(t("file.transcriptEmpty"));
         return;
       }
+      resultVersionRef.current = generation;
       setTranscript(text);
       setPhase("result");
     } catch (error) {
@@ -290,19 +334,25 @@ function CallReflection({ country }: { country: string | null }) {
       setNotice(t("file.transcribeFailed"));
     } finally {
       accountLease.release();
-      if (transcribeAbortRef.current === controller) transcribeAbortRef.current = null;
       await releasePickedFile(file);
       await sharedFile?.release();
-      choosingRef.current = false;
-      if (mountedRef.current) setChoosing(false);
-      if (useShared && incomingMediaRef.current === incomingMedia && mountedRef.current && !controller.signal.aborted) {
-        router.setParams({ sharedMedia: undefined, sharedMediaError: undefined });
+      if (transcribeAbortRef.current === controller && generation === deliveryVersionRef.current) {
+        transcribeAbortRef.current = null;
+        choosingRef.current = false;
+        if (mountedRef.current) setChoosing(false);
+        if (useShared && incomingMediaRef.current === incomingMedia && mountedRef.current && !controller.signal.aborted) {
+          router.setParams({ sharedMedia: undefined, sharedMediaError: undefined });
+        }
       }
     }
   }
 
   async function approve() {
-    if (!userId || busy || transcript.length === 0 || !ko || isMinor !== false || resolveJurisdiction().country !== "KR") return;
+    if (!userId || busy || transcript.length === 0 || deliveryVersion !== deliveryVersionRef.current ||
+      resultVersionRef.current !== deliveryVersion || !ko || isMinor !== false || resolveJurisdiction().country !== "KR") return;
+    const generation = deliveryVersion;
+    const safetyOwner = captureAccountOwnerLease(userId);
+    if (!safetyOwner) return;
     setBusy(true);
     const accountLease = beginAccountSessionLease(userId);
     try {
@@ -323,7 +373,12 @@ function CallReflection({ country }: { country: string | null }) {
         structured: composeStructured("call_reflection", fields) ?? undefined,
       });
       accountLease.assertCurrent();
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || generation !== deliveryVersionRef.current) {
+        if (saved.followup?.zone === "red") {
+          publishCrisisNotice(safetyOwner, saved.crisisHotline ?? hotlineFor(ko, false));
+        }
+        return;
+      }
       if (saved.followup?.zone === "red") {
         setCrisis({ visible: true, hotline: saved.crisisHotline ?? hotlineFor(ko, false) });
         setBusy(false);
@@ -331,7 +386,7 @@ function CallReflection({ country }: { country: string | null }) {
       }
       router.push("/records");
     } catch {
-      if (accountLease.signal.aborted || !mountedRef.current) return;
+      if (accountLease.signal.aborted || !mountedRef.current || generation !== deliveryVersionRef.current) return;
       if (typeof console !== "undefined") console.warn("[call-reflection] save failed");
       setBusy(false);
     } finally {
@@ -340,6 +395,8 @@ function CallReflection({ country }: { country: string | null }) {
   }
 
   function discardTranscript() {
+    if (deliveryVersion !== deliveryVersionRef.current) return;
+    resultVersionRef.current = null;
     setTranscript("");
     setSelectedName(null);
     setNotice(null);

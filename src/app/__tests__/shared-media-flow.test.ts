@@ -26,7 +26,10 @@ function audioScope(overrides: Record<string, unknown> = {}) {
   lease.authenticate.mockResolvedValue(lease);
   const scope = {
     userId: "A", phase: "idle", ko: true, isMinor: false, locale: "ko", choosingRef: { current: false },
-    mountedRef: { current: true }, transcribeAbortRef: { current: null }, incomingMedia: "token",
+    deliveryVersion: 0, deliveryVersionRef: { current: 0 }, resultVersionRef: { current: null },
+    captureAccountOwnerLease: () => ({ isCurrent: () => true }), publishCrisisNotice: jest.fn(),
+    mountedRef: { current: true }, transcribeAbortRef: { current: null }, incomingMedia: "token", incomingMediaError: null,
+    discardSharedMedia: jest.fn(),
     incomingMediaRef: { current: "token" }, resolveJurisdiction: jest.fn(() => ({ country: "KR" })),
     takeSharedMedia: jest.fn(async () => ({ uri: "file:///cache/audio", mimeType: "audio/mp4", size: 200, release })),
     beginAccountSessionLease: jest.fn(() => lease), pickAudioFile: jest.fn(async () => null),

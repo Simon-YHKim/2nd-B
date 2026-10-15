@@ -2208,7 +2208,6 @@ function CaptureLegacySession({
     if (!userId || !incomingMedia || receivingMedia || sharedMediaAbort.current || mode !== "ocr" || isMinor === null) return;
     const ticket = beginAsyncProducer();
     const controller = new AbortController();
-    sharedMediaAbort.current?.abort();
     sharedMediaAbort.current = controller;
     setReceivingMedia(true);
     let image: PickedImage | null = null;
