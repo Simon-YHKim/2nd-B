@@ -217,6 +217,8 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // 0090: today's allowance includes any rewarded ad bonus.
   const { used: usedBefore, adBonus } = await readChatUsageDetail(input.userId, day);
   const precheck = checkChatLimit(input.tier, usedBefore, adBonus);
+  const cut = await answerDeviceRed(input, precheck);
+  if (cut) return cut;
   if (!precheck.allowed) {
     return {
       status: "blocked",
@@ -227,8 +229,6 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
       hint: BLOCKED_HINT[input.locale](precheck.limit),
     };
   }
-  const cut = await answerDeviceRed(input, precheck);
-  if (cut) return cut;
   // Context assembly (D-26 A1): try query-relevant retrieval first — embed the
   // message and pull the top-8 semantically relevant pages (RAG). On a hit the
   // prompt carries ONLY those pages plus a slim recent-sources list (~10x smaller
@@ -395,9 +395,9 @@ function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): stri
   return `If the person talks about ending their life or hurting themselves, point them to ${lines}. Do not add a police number for that reason alone. Point to the local emergency number only when their body is in danger right now, such as an injury or something already swallowed. If you cannot tell which it is, stay with ${lines}. Never make up a phone number.`;
 }
 
-// Q-261014-30 (Simon 2026-10-14): a turn the device classifier marks red is
-// answered here, before any context read and without a bump. One verdict, one
-// routing call; the answer carries the usage that was read, unchanged.
+// Q-261014-30 / Q-261015-82: one device-red verdict, one routing call, before
+// limit refusal and context reads, without a bump. Return usage as read.
+// Usage reads still precede this call; handling their failure is a follow-up.
 async function answerDeviceRed(input: SendMessageInput, usage: ChatLimitCheck): Promise<SendMessageOk | null> {
   const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);
   if (!reply) return null;
