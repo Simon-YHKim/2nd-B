@@ -6,6 +6,7 @@ import { chatDisplayText } from "@/lib/chat/display-text";
 import { retryableMessage } from "@/lib/chat/retry-failed";
 import { parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
+import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 
 // Z40: a reply that failed offers "try again". The screen is not rendered here; the handlers and
 // the turn list are taken from the source and run with stand-ins for what they reach.
@@ -45,6 +46,8 @@ function sender(turns: Props[]) {
     return new Promise<Props>((yes, no) => { settle = { resolve: yes, reject: no }; });
   });
   const scope: Props = {
+    captureAccountOwnerLease: () => ({ isCurrent: () => true }), classifyInputAnyLocale, publishCrisisNotice: jest.fn(),
+    conversationId: { current: 0 }, chatMounted: { current: true },
     userId: "A", rev2Persona: "secondb", locale: "ko", progression: { tier: "free" }, turns, chatMode: "analytic", isMinor: false, limit: 10,
     setSending: (sending: boolean) => { if (!sending) { finished(); completion = new Promise<void>(done => { finished = done; }); } },
     setSendingPersona: jest.fn(),

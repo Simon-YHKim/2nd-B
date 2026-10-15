@@ -7,6 +7,7 @@ import { isKeepable } from "@/lib/chat/keep-exchange";
 import { chatDisplayText } from "@/lib/chat/display-text";
 import { formatSourceCitationLabel, parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
+import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 
 const source = readFileSync(resolve(__dirname, "../secondb.tsx"), "utf8");
 const transcript = source.slice(source.indexOf("turns.map((turn, i)"), source.indexOf("{sending ? (", source.indexOf("turns.map((turn, i)")));
@@ -189,6 +190,15 @@ describe("HustleK messenger layout", () => {
     }
   });
 
+  test("the fixed guidance stays out of the transcript rendering because the app modal owns it", () => {
+    const rendered = renderedMessages([
+      { role: "user", text: "my message" },
+      { role: "secondb", text: "fixed guidance", safetyZone: "red", crisisNotice: true },
+    ]);
+    expect(rendered.tree[0]).not.toBeNull();
+    expect(rendered.tree[1]).toBeNull();
+  });
+
   test.each(["ok", "divergent", "blocked", "error", "consent"])("%s replies retain the persona selected at send time across an in-flight switch", async outcome => {
     const declaration = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "handleSend") as ts.VariableDeclaration;
     const callback = (declaration.initializer as ts.CallExpression).arguments[0];
@@ -203,6 +213,8 @@ describe("HustleK messenger layout", () => {
     const setLimitRefused = jest.fn();
     class LlmConsentError extends Error { code = "paused"; }
     const scope: Props = {
+      captureAccountOwnerLease: () => ({ isCurrent: () => true }), classifyInputAnyLocale, publishCrisisNotice: jest.fn(),
+      conversationId: { current: 0 }, chatMounted: { current: true },
       userId: "A", rev2Persona: "meta", locale: "en", progression: { tier: "free" }, turns, chatMode: outcome === "divergent" ? "divergent" : "analytic", isMinor: false, limit: 10,
       setSending: (sending: boolean) => { if (!sending) finished(); }, setSendingPersona,
       setTurns: (updater: (previous: Props[]) => Props[]) => { const next = updater(turns); turns.splice(0, turns.length, ...next); },

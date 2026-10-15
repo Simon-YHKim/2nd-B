@@ -84,5 +84,7 @@ test("pressing the link opens the plans screen", () => {
 
 test("only a refusal sets it, and only a reply or a granted ad bonus clears it", () => {
   const writes = findAll((node) => ts.isCallExpression(node) && node.expression.getText(ast) === "setLimitRefused") as ts.CallExpression[];
-  expect(writes.map((call) => call.arguments.map((arg) => arg.getText(ast)).join(", ")).sort()).toEqual(["false", "false", "true"]);
+  // Red replies now return before ordinary rendering; a known usage count
+  // clears the refusal there too. Unknown usage preserves it (handler tests).
+  expect(writes.map((call) => call.arguments.map((arg) => arg.getText(ast)).join(", ")).sort()).toEqual(["false", "false", "false", "true"]);
 });

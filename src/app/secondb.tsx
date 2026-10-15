@@ -49,7 +49,7 @@ import { chatAutosaveAllowed } from "@/lib/chat/autosave";
 import { getExchangeExpression, getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion, type ChatFollowUp } from "@/lib/chat/presentation-policy";
 import { createChatAutosaveSession } from "@/lib/chat/autosave-session";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
-import { classifyInput, classifyInputAnyLocale } from "@/lib/safety/classifier";
+import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { currentDisplayName } from "@/lib/persona/use-address";
 import {
   CHAT_KEEP_TAG,
@@ -78,7 +78,7 @@ import {
   recordingUriToBase64,
   type RecordingTempLease,
 } from "@/lib/audio/recording-uri";
-import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import { publishCrisisNotice } from "@/lib/safety/crisis-notice";
 import { DomainDashboard } from "@/components/secondb/DomainDashboard";
 import { ChatTextInput } from "@/components/secondb/ChatTextInput";
 import { chatComposerAlignment, chatStatusMaxLines } from "@/components/secondb/chat-font-layout";
@@ -87,7 +87,6 @@ import { ChatPlanSheet } from "@/components/secondb/ChatPlanSheet";
 import { useChatPlans } from "@/components/secondb/useChatPlans";
 import { ChatMessageAvatar, useChatUserAvatar } from "@/components/secondb/ChatMessageAvatar";
 import { HustleKPortrait } from "@/components/character/HustleKPortrait";
-import type { HotlineId } from "@/lib/safety/lexicon";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
 import {
   REV2_PERSONA_IDS,
@@ -172,6 +171,8 @@ interface ChatTurn {
    *  Absent on a consent refusal: sending again cannot change that. */
   retryText?: string;
   safetyZone?: "green" | "yellow" | "red";
+  /** Guidance is shown once by the app host; its fixed text is never a bubble or model history. */
+  crisisNotice?: true;
 }
 
 type ChatMode = "analytic" | "divergent";
@@ -248,11 +249,7 @@ const ChatComposer = memo(
       classifyInputAnyLocale(draft, voiceLocale, { minor: isMinor === true }).zone === "red");
     const submit = () => {
       if (!canSend) return;
-      // Guidance cannot wait for quota or audit storage to answer.
-      const safety = classifyInputAnyLocale(draft, voiceLocale, { minor: isMinor === true });
-      if (safety.zone === "red") {
-        setCrisis({ visible: true, hotline: safety.crisisRouting?.hotline ?? (voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
-      }
+      // The send handler publishes device-red guidance before any await.
       // Clear only when the send was accepted, so a cap-blocked send keeps the
       // typed text (the old handleSend returned before clearing on a cap hit).
       if (onSend(draft.trim())) setDraft("");
@@ -273,10 +270,6 @@ const ChatComposer = memo(
     const voiceStartInFlightRef = useRef(false);
     const voiceAccountLeaseRef = useRef<PendingAccountSessionLease | null>(null);
     const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
-    const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
-      visible: false,
-      hotline: "GLOBAL_988",
-    });
     useEffect(() => {
       if (!voiceNotice) return;
       const timeout = setTimeout(() => setVoiceNotice(null), 3200);
@@ -355,6 +348,7 @@ const ChatComposer = memo(
       if (!userId || voicePhaseRef.current !== "recording") return;
       voiceAccountLeaseRef.current?.abort();
       const accountLease = beginAccountSessionLease(userId);
+      const noticeOwner = captureAccountOwnerLease(userId);
       voiceAccountLeaseRef.current = accountLease;
       updateVoicePhase("transcribing");
       let recordingLease: RecordingTempLease | null = null;
@@ -378,14 +372,14 @@ const ChatComposer = memo(
           locale: voiceLocale,
           base64,
           mimeType,
-          minor: isMinor === true,
+          minor: isMinor !== false,
         });
         authenticated.assertCurrent();
         if (reply.safety?.zone === "red") {
           // C9: the transcript was crisis-swapped server-side; surface the
           // hotline, never the text.
           updateVoicePhase("idle");
-          setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? (voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
+          publishCrisisNotice(noticeOwner, reply.safety.crisisRouting?.hotline ?? (voiceLocale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
           return;
         }
         const transcript = reply.text.trim();
@@ -471,11 +465,6 @@ const ChatComposer = memo(
           )}
         </Pressable>
         </View>
-        <CrisisRouter
-          visible={crisis.visible}
-          hotline={crisis.hotline}
-          onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
-        />
       </View>
     );
   }),
@@ -515,6 +504,11 @@ function SecondBChatBody() {
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const conversationId = useRef(0);
+  const chatMounted = useRef(true);
+  useEffect(() => {
+    chatMounted.current = true;
+    return () => { chatMounted.current = false; };
+  }, []);
   const activeConversationId = conversationId.current;
   const userAvatar = useChatUserAvatar(userId);
   // useTranslation also observes addressVariablesChanged after the root's
@@ -554,10 +548,6 @@ function SecondBChatBody() {
   // 로컬 렉시콘 분류를 돌리고 레드존을 followup 으로 알려준다. 다른 저장 화면
   // (northstar, capture)은 그때 핫라인을 띄운다. 여기만 조용히 저장하면
   // 저장 경로가 안내 없는 유일한 구멍이 된다.
-  const [keepCrisis, setKeepCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
-    visible: false,
-    hotline: "GLOBAL_988",
-  });
   const playSaveCue = useUiSound(RECORD_SAVE_CUE.source, RECORD_SAVE_CUE);
 
   // 담겼는지를 호출자에게 돌려준다. 자동 담기가 실패를 알아야 표시를 되돌릴 수
@@ -602,16 +592,13 @@ function SecondBChatBody() {
       // C9: 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
       // 분류기를 직접 돌린다(비용 0). 다른 저장 화면과 같은 자세를 유지한다 -
       // 안내 없는 저장 경로를 하나 만들지 않기 위해서다.
-      const keptSafety = classifyInput(body, locale, { minor: isMinor === true });
+      const keptSafety = classifyInputAnyLocale(body, locale, { minor: isMinor !== false });
       const crisis = keptSafety.zone === "red";
       // 저장 소리(Q-261006-03)는 사람이 '담기'를 눌렀을 때만. 자동 담기(signal 이 있는 호출)는
       // 답장 소리 바로 뒤에 겹치므로 무음이다.
       if (saveCueAllowed({ crisis, recording: isRecordingAudioMode(), automatic: signal !== undefined })) playSaveCue();
-      if (crisis) {
-        setKeepCrisis({
-          visible: true,
-          hotline: keptSafety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988"),
-        });
+      if (crisis && !(signal && reply.crisisNotice)) {
+        publishCrisisNotice(lease, keptSafety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
       }
       return true;
     } catch (e) {
@@ -906,6 +893,15 @@ function SecondBChatBody() {
       if (!userId) return false;
       const msg = message.trim();
       if (msg.length === 0) return false;
+      const owner = captureAccountOwnerLease(userId);
+      if (!owner) return false;
+      const requestConversation = conversationId.current;
+      const canUpdate = () => owner.isCurrent() && chatMounted.current && requestConversation === conversationId.current;
+      const localSafety = classifyInputAnyLocale(msg, locale, { minor: isMinor !== false });
+      // Fixed guidance must not wait for usage, model, audit or network. The
+      // completed local-red result must not reopen a notice the person closed.
+      const localRed = localSafety.zone === "red";
+      if (localRed) publishCrisisNotice(owner, localSafety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
 
       const requestPersona = rev2Persona;
       // A retry replaces the failed pair (the message and the line that said it failed) instead
@@ -914,7 +910,7 @@ function SecondBChatBody() {
       const earlier = keep === null ? turns : turns.slice(0, keep);
       setSendingPersona(requestPersona);
       setSending(true);
-      setTurns((prev) => [...(keep === null ? prev : prev.slice(0, keep)), { role: "user", text: msg }]);
+      setTurns((prev) => [...(keep === null ? prev : prev.slice(0, keep)), { role: "user", text: msg, ...(localRed ? { safetyZone: "red" as const } : {}) }]);
       void (async () => {
         // AI 응답 대기: every mounted head holds the thinking face (eyes drift
         // up-side) until the reply lands — released in finally either way.
@@ -935,12 +931,18 @@ function SecondBChatBody() {
             // red-zone turns). Synthetic lines (limit/error) are not model
             // replies, so they're excluded here.
             history: earlier
-              .filter((t) => !t.synthetic)
+              .filter((t) => !t.synthetic && t.safetyZone !== "red")
               .map((t) => ({ role: t.role === "user" ? ("user" as const) : ("assistant" as const), text: t.text })),
             mode: chatMode,
-            minor: isMinor === true,
+            minor: isMinor !== false,
           });
           answered = true;
+          if (result.status === "ok" && result.reply.safety?.zone === "red" && !localRed) {
+            // Same-owner safety guidance survives navigation; a stale account
+            // result is rejected by the notice store before publication.
+            publishCrisisNotice(owner, result.reply.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
+          }
+          if (!canUpdate()) return;
           if (result.status === "blocked") {
             setTurns((prev) => [...prev, { role: "secondb", persona: requestPersona, text: result.hint, synthetic: true }]);
             setUsedToday(result.used);
@@ -966,6 +968,21 @@ function SecondBChatBody() {
             // 멈춤은 글로만 알린다(위 result.hint). 옛 가디 그림 순간은 2026-10-05 에
             // 걷었다(Simon 결정 Q-261004-15 A).
           } else {
+            if (result.reply.safety?.zone === "red") {
+              // Keep the boundary's fixed guidance in the in-memory transcript
+              // so existing explicitly opted-in autosave retains its behavior.
+              // The modal is its sole visible copy, actions remain suppressed,
+              // and neither this turn nor its paired input reenters model history.
+              setTurns((prev) => [
+                ...prev.map((turn, index) => index === earlier.length ? { ...turn, safetyZone: "red" as const } : turn),
+                { role: "secondb", persona: requestPersona, text: result.reply.text, safetyZone: "red", crisisNotice: true },
+              ]);
+              if (result.used !== null) {
+                setUsedToday(result.used);
+                setLimitRefused(false);
+              }
+              return;
+            }
             const { display, chips } = parseSourceCitations(result.reply.text);
             // 트위비 3-branch (P5f): Divergent replies on the main chat end with up
             // to three '→ ' next-step lines — lift them into tappable chips.
@@ -997,6 +1014,8 @@ function SecondBChatBody() {
             );
           }
         } catch (e) {
+          if (!canUpdate()) return;
+          if (localRed) return; // fixed guidance was already delivered synchronously
           const consentError = e instanceof LlmConsentError ? e.code : undefined;
           const failText = consentError ? consentT(`serviceControl.${consentError}`) : t("replyFailed");
           setTurns((prev) => [...prev, {
@@ -1007,8 +1026,10 @@ function SecondBChatBody() {
           if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
         } finally {
           releaseThinking();
-          setSending(false);
-          setSendingPersona(null);
+          if (canUpdate()) {
+            setSending(false);
+            setSendingPersona(null);
+          }
         }
       })();
       return true;
@@ -1327,7 +1348,7 @@ function SecondBChatBody() {
               <Text style={ds.emptyBody}>{t("empty")}</Text>
             </View>
           ) : (
-            turns.map((turn, i) => (
+            turns.map((turn, i) => turn.crisisNotice ? null : (
               <View
                 key={i}
                 testID={`chat-message-${turn.role}-${i}`}
@@ -1545,14 +1566,6 @@ function SecondBChatBody() {
           return outcome;
         }}
         locale={locale}
-      />
-      {/* 저장 경로의 위기 안내. 전송 경로(callLlm)는 서버가 응답을 바꿔
-          치지만, 저장은 createRecord 가 로컬 분류를 돌리고 followup 으로
-          알려준다. 다른 저장 화면과 같은 자세를 여기서도 취한다. */}
-      <CrisisRouter
-        visible={keepCrisis.visible}
-        hotline={keepCrisis.hotline}
-        onClose={() => setKeepCrisis((c) => ({ ...c, visible: false }))}
       />
     </DeepSpaceScreen>
   );
