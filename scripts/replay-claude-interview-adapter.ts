@@ -35,7 +35,9 @@ interface Corpus {
 interface Prompt {
   userId: string; locale: "ko" | "en"; minor: boolean; purpose: string;
   system: string; user: string; responseSchema: Record<string, unknown>;
+  onCrisisDetected?: (hotline: HotlineId | undefined) => void;
 }
+type ReplayEffect = "root-notice" | "finish" | "audit" | "crisis-event";
 interface BoundaryReply { text: string; safety: Classifier.SafetyResult }
 interface ParsedReply { question?: unknown; answeredLayer?: unknown; openers?: unknown }
 type ProbeModule = typeof Probe & { parseProbeReply(text: string): ParsedReply | null };
@@ -123,27 +125,34 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
   const observerText = fn(boundaryAst, "crisisObserver").getText(boundaryAst);
   const observerInit = variable(fn(boundaryAst, "callLlm").body!, "notifyCrisis").initializer!.getText(boundaryAst);
   let auditWrites = 0;
-  const outputBoundary = evaluate<(text: string, input: Prompt) => Promise<BoundaryReply>>(
+  const outputBoundary = evaluate<(text: string, input: Prompt, effect: (event: ReplayEffect) => void) => Promise<BoundaryReply>>(
     `${observerText}
-    async function replayOutput(text, input) {
+    async function replayOutput(text, input, effect) {
       const promptHash = 'offline'; const latencyMs = 0; const modelUsedForAudit = 'offline-recorded';
       const vertexBackend = false; const effort = undefined; const servedByProvider = undefined;
       const proxyAudited = true; const fence = () => {};
+      const writeAiAuditLog = async () => { countAudit(); effect('audit'); };
+      const writeCrisisEvent = async () => { countAudit(); effect('crisis-event'); };
       const notifyCrisis = ${observerInit};
       ${boundaryTail}
     }`, {
       ...safety, classifyInput: classifier.classifyInput,
       replySwapCategories: load<Record<string, unknown>>("src/lib/safety/model-reply-scan.ts").replySwapCategories,
-      writeAiAuditLog: async () => { auditWrites += 1; }, writeCrisisEvent: async () => { auditWrites += 1; },
+      countAudit: () => { auditWrites += 1; },
     }, "replayOutput");
 
   const probeAst = parse(PROBE, sources[PROBE]);
   // Check the imports even though only the module's declarations execute below.
   const importAllowlist = new Set(["../llm/boundary", "./loop-check", "../llm/untrusted", "./stuck", "./continuity"]);
   for (const node of probeAst.statements) {
-    if (ts.isImportDeclaration(node) && (!ts.isStringLiteral(node.moduleSpecifier) || !importAllowlist.has(node.moduleSpecifier.text))) {
-      throw new Error("Adapter probe import drift");
-    }
+    if (!ts.isImportDeclaration(node)) continue;
+    if (!ts.isStringLiteral(node.moduleSpecifier)) throw new Error("Adapter probe import drift");
+    const bindings = node.importClause?.namedBindings;
+    // This exact erased dependency is not a new runtime-loader permission.
+    const crisisObserverType = node.moduleSpecifier.text === "../llm/types" && node.importClause?.isTypeOnly === true
+      && !node.importClause.name && bindings && ts.isNamedImports(bindings) && bindings.elements.length === 1
+      && bindings.elements[0].name.text === "CrisisObserver" && !bindings.elements[0].propertyName;
+    if (!importAllowlist.has(node.moduleSpecifier.text) && !crisisObserverType) throw new Error("Adapter probe import drift");
   }
   const probeText = probeAst.statements.filter((node) => !ts.isImportDeclaration(node)).map((node) => node.getText(probeAst)).join("\n");
   const screenAst = parse(SCREEN, sources[SCREEN]);
@@ -151,6 +160,10 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
   if (!ts.isCallExpression(initializer) || initializer.expression.getText(screenAst) !== "useCallback" ||
       !ts.isArrowFunction(initializer.arguments[0])) throw new Error("Adapter screen ask drift");
   const askText = initializer.arguments[0].getText(screenAst);
+  const finishInitializer = variable(screenAst, "finish").initializer!;
+  if (!ts.isCallExpression(finishInitializer) || finishInitializer.expression.getText(screenAst) !== "useCallback"
+      || !ts.isArrowFunction(finishInitializer.arguments[0])) throw new Error("Adapter screen finish drift");
+  const finishText = finishInitializer.arguments[0].getText(screenAst);
   const routerAst = parse(CRISIS_ROUTER, sources[CRISIS_ROUTER]);
   const numberExpression = variable(routerAst, "number").initializer!.getText(routerAst);
 
@@ -170,31 +183,40 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     let prompt: Prompt | null = null, boundary: BoundaryReply | null = null, lastProbe: Probe.ProbeResult | null = null;
     let adapterCalls = 0, visible: Probe.InterviewTurn[] = [], guidance: HotlineId | null = null, finished = false;
     let openers: string[] = [], notice: string | null = null;
+    const effects: ReplayEffect[] = [];
+    let publicationAttempts = 0, finishCalls = 0, busy = false;
     const probe = evaluate<ProbeModule>(probeText, {
       exports: {}, ...load<Record<string, unknown>>("src/lib/interview/loop-check.ts"),
       ...load<Record<string, unknown>>("src/lib/llm/untrusted.ts"), ...stuck, ...continuity,
       callLlm: async (input: Prompt) => {
         adapterCalls += 1; prompt = clone(input);
-        boundary = await outputBoundary(sample.raw, input);
+        boundary = await outputBoundary(sample.raw, input, (event) => { effects.push(event); });
         return boundary;
       },
     }, "({...exports, parseProbeReply})");
     let coverage = probe.emptyCoverage(), pendingLayer: Probe.DrillLayer | null = "fact", streak = 0;
-    const ask = evaluate<(...args: unknown[]) => Promise<void>>(`const ask = ${askText}`, {
+    // One already-mounted interview request. The real ask owns the monotonic
+    // request counter; the real finish owns ended/busy/done/layer/openers.
+    const ended = { current: false }, mounted = { current: true };
+    const interviewInstance = { current: 1 }, probeRequest = { current: 0 }, turnsOwnerRef = { current: history };
+    const scope = {
       userId: "synthetic-offline", period: sample.period, locale: sample.locale, isMinor: sample.minor,
-      concreteOnly: false, ended: { current: false }, mounted: { current: true },
+      concreteOnly: false, ended, mounted, interviewInstance, probeRequest, turnsOwnerRef,
       captureAccountOwnerLease: () => ({ isCurrent: () => true }), entriesOf: () => [],
       ...stuck, ...continuity, nextMove: probe.nextMove, incrementCoverage: probe.incrementCoverage,
       usableQuestion: probe.usableQuestion, stuckStreak: 0,
       nextProbe: async (...args: Parameters<typeof probe.nextProbe>) => { lastProbe = await probe.nextProbe(...args); return lastProbe; },
       hotlineFor: () => classifier.crisisHotlines(sample.locale, sample.minor)[0].id,
-      publishCrisisNotice: (_owner: unknown, id: HotlineId) => { guidance = id; }, finish: () => { finished = true; },
+      publishCrisisNotice: (_owner: unknown, id: HotlineId) => { publicationAttempts += 1; effects.push("root-notice"); guidance = id; return true; },
       t: (key: string) => key, setTurns: (rows: Probe.InterviewTurn[]) => { visible = rows; },
       setOpeners: (rows: string[]) => { openers = rows; }, setNotice: (value: string | null) => { notice = value; },
-      setBusy: () => {}, setPendingLayer: (layer: Probe.DrillLayer | null) => { pendingLayer = layer; },
+      setBusy: (value: boolean) => { busy = value; }, setPendingLayer: (layer: Probe.DrillLayer | null) => { pendingLayer = layer; },
+      setDone: (value: boolean) => { finished = value; if (value) { finishCalls += 1; effects.push("finish"); } },
       setCoverage: (value: Probe.Coverage) => { coverage = value; }, setStuckStreak: (value: number) => { streak = value; },
       readDayLimitRefusal: async () => false, setDayLimited: () => {}, INTERVIEW_PURPOSE: "interview_probe",
-    }, "ask");
+    };
+    const finish = evaluate<() => void>(`const finish = ${finishText}`, scope, "finish");
+    const ask = evaluate<(...args: unknown[]) => Promise<void>>(`const ask = ${askText}`, { ...scope, finish }, "ask");
     await ask(history, probe.emptyCoverage(), null, [], continuity.canCreditAnswer(sample.text, "fact", sample.locale) ? "fact" : null);
     if (forbiddenAttempts) throw new Error("Offline adapter attempted a forbidden capability");
     if (notice === "drill.failed") throw new Error(`Adapter screen failed on a fixed reply: ${sample.id}`);
@@ -225,6 +247,7 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
         schemaSha256: sha(JSON.stringify(captured.prompt.responseSchema)), purpose: captured.prompt.purpose, minor: captured.prompt.minor },
       parsed: clone(parsed), strictSchemaIssues: schemaIssues, boundary: clone(captured.boundary), probe: clone(captured.probe),
       screen: { visibleQuestion, openers: clone(openers), notice, guidanceIntent: guidance, finished,
+        ended: ended.current, busy, requestSequence: probeRequest.current, publicationAttempts, finishCalls, effects,
         pendingLayer, stuckStreak: streak, coverage: clone(coverage),
         lastUserAnswered: visible.filter(turn => turn.role === "user").at(-1)?.answered,
         modalNumberIntent, actualModalRendered: false, numbers: screenNumbers,
@@ -236,7 +259,7 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     };
   }
   return { replay, capabilities: () => ({ forbiddenAttempts, memoryAuditWrites: auditWrites }),
-    extractionSha256: { probe: sha(probeText), screenAsk: sha(askText), outputBoundary: sha(boundaryTail),
+    extractionSha256: { probe: sha(probeText), screenAsk: sha(askText), screenFinish: sha(finishText), outputBoundary: sha(boundaryTail),
       crisisObserver: sha(observerText), crisisObserverInitializer: sha(observerInit), modalNumberExpression: sha(numberExpression) } };
 }
 

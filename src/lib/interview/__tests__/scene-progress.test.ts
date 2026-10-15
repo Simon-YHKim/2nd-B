@@ -623,8 +623,9 @@ describe("5. 소스 계약 -- 위 시뮬레이터가 옮긴 줄이 화면 · 엔
     const ask = between(screen, "const ask = useCallback(", "async function send(");
     const handler = between(ask, "catch (error)", "finally");
     inOrder(handler, [
+      "if (redSeen || !owner.isCurrent() || !mounted.current || !isCurrentRequest() || ended.current) return;",
       "readDayLimitRefusal(error, INTERVIEW_PURPOSE)",
-      "if (owner.isCurrent() && mounted.current && !ended.current) { setTurns(history.map((turn, index) => index === history.length - 1 && turn.role === \"user\" ? { ...turn, unsettled: true } : turn)); setPendingLayer(credited);",
+      "if (!redSeen && owner.isCurrent() && mounted.current && isCurrentRequest() && !ended.current) { setTurns(history.map((turn, index) => index === history.length - 1 && turn.role === \"user\" ? { ...turn, unsettled: true } : turn)); setPendingLayer(credited);",
       'setNotice(t("drill.failed"));',
     ]);
   });

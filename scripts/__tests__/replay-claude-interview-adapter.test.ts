@@ -77,6 +77,52 @@ test("records the actual red output swap and screen modal intent without calling
   expect(adult.checks).toMatchObject({ lostNumbers: ["119"], safetyGuidanceLoss: false });
 });
 
+test("runs the current request refs and real finish, publishing once before the boundary audit", () => {
+  const replayed = result.rows.filter(sample => sample.status === "REPLAYED_CURRENT_CODE");
+  expect(replayed).toHaveLength(30);
+  for (const sample of replayed) expect(sample.screen).toMatchObject({ requestSequence: 1, busy: false });
+  for (const id of ["t23-K1-baseline", "t23-K2-baseline"]) {
+    expect(row(id).screen).toMatchObject({ publicationAttempts: 1, finishCalls: 1,
+      finished: true, ended: true, pendingLayer: null, openers: [],
+      effects: ["root-notice", "finish", "audit", "crisis-event"] });
+  }
+  expect(result.extractionSha256.screenFinish).toMatch(/^[a-f0-9]{64}$/);
+  // A only changes already-confirmed RED delivery; every historical loss is GREEN.
+  expect(result.rows.filter(sample => sample.checks?.safetyGuidanceLoss).map(sample => sample.boundary?.safety.zone))
+    .toEqual(Array(10).fill("green"));
+});
+
+test("callback forwarding and finish source changes are observed by the actual replay", async () => {
+  const sources = loadInterviewAdapterSources(root);
+  const sample = corpus.cases.find((entry: { id: string }) => entry.id === "t23-K1-baseline");
+  const probePath = "src/lib/interview/probe.ts", screenPath = "src/app/interview.tsx";
+  const noEarlyForward = { ...sources, [probePath]: sources[probePath].replace("    onCrisisDetected,\n", "") };
+  expect(noEarlyForward[probePath]).not.toBe(sources[probePath]);
+  const finalOnly = await createOfflineInterviewRuntime(noEarlyForward).replay(sample);
+  expect(finalOnly.screen?.effects).toEqual(["audit", "crisis-event", "root-notice", "finish"]);
+  const changedFinish = { ...sources, [screenPath]: sources[screenPath].replace("    setDone(true);", "    setDone(false);") };
+  expect(changedFinish[screenPath]).not.toBe(sources[screenPath]);
+  expect((await createOfflineInterviewRuntime(changedFinish).replay(sample)).screen)
+    .toMatchObject({ finished: false, ended: true, pendingLayer: null, publicationAttempts: 1 });
+  const missingRef = { ...sources, [screenPath]: sources[screenPath].replace("const instance = interviewInstance.current;", "const instance = missingInstance.current;") };
+  await expect(createOfflineInterviewRuntime(missingRef).replay(sample)).rejects.toThrow("missingInstance");
+});
+
+test("the erased CrisisObserver allowance grants no value import, extra type or network capability", () => {
+  const sources = loadInterviewAdapterSources(root), path = "src/lib/interview/probe.ts";
+  const approved = 'import type { CrisisObserver } from "../llm/types";';
+  expect(sources[path]).toContain(approved);
+  for (const replacement of [
+    'import { CrisisObserver } from "../llm/types";',
+    'import "../llm/types";',
+    'import type { CrisisObserver, PromptInput } from "../llm/types";',
+    'import type { CrisisObserver } from "node:https";',
+  ]) {
+    expect(() => createOfflineInterviewRuntime({ ...sources, [path]: sources[path].replace(approved, replacement) }))
+      .toThrow("Adapter probe import drift");
+  }
+});
+
 test("distinguishes schema validity from parser acceptance, repeated questions, chips and line trimming", () => {
   expect(row("synthetic-invalid-json").strictSchemaIssues).toContain("$: expected object");
   expect(row("synthetic-missing-judgement").strictSchemaIssues).toContain("$.answeredLayer: required");
@@ -100,12 +146,16 @@ test("executes changed real builders, and fails closed on declaration drift or a
   const changed = { ...sources, [path]: sources[path].replace('`시기 초점: ${periodLabel}.`', '`검산 표식: ${periodLabel}.`') };
   expect((await createOfflineInterviewRuntime(changed).replay(sample)).prompt?.system).toContain("검산 표식: 직장.");
   expect(() => createOfflineInterviewRuntime({ ...sources, "src/app/interview.tsx": sources["src/app/interview.tsx"].replace("const ask = useCallback", "const renamedAsk = useCallback") })).toThrow("Adapter source drift: ask");
+  expect(() => createOfflineInterviewRuntime({ ...sources, "src/app/interview.tsx": sources["src/app/interview.tsx"].replace("const finish = useCallback", "const renamedFinish = useCallback") })).toThrow("Adapter source drift: finish");
   const boundaryPath = "src/lib/llm/boundary.ts";
   expect(() => createOfflineInterviewRuntime({ ...sources, [boundaryPath]: sources[boundaryPath].replace("function crisisObserver(", "function renamedObserver(") })).toThrow("Adapter source drift: crisisObserver");
   const changedObserver = { ...sources, [boundaryPath]: sources[boundaryPath].replace("if (!observer) return undefined;", 'fetch("https://offline.invalid"); if (!observer) return undefined;') };
   await expect(createOfflineInterviewRuntime(changedObserver).replay(sample)).rejects.toThrow("forbidden capability");
   const withFetch = { ...sources, [path]: sources[path].replace("const transcript = history", 'fetch("https://offline.invalid"); const transcript = history') };
   await expect(createOfflineInterviewRuntime(withFetch).replay(sample)).rejects.toThrow("forbidden capability");
+  const finishFetch = { ...sources, "src/app/interview.tsx": sources["src/app/interview.tsx"].replace("    setDone(true);", '    fetch("https://offline.invalid"); setDone(true);') };
+  await expect(createOfflineInterviewRuntime(finishFetch).replay(corpus.cases.find((entry: { id: string }) => entry.id === "t23-K1-baseline")))
+    .rejects.toThrow("forbidden capability");
   const imported = { ...sources, [path]: sources[path] + '\nimport "node:https";\n' };
   expect(() => createOfflineInterviewRuntime(imported)).toThrow("Adapter probe import drift");
   const newConstraint = { ...sources, [path]: sources[path].replace('question: { type: "STRING",', 'question: { type: "STRING", maxLength: 1,') };
