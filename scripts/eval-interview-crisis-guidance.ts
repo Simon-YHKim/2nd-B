@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import ts from "typescript";
 import { classifyInputAnyLocale } from "../src/lib/safety/classifier";
-import { interviewCrisisGuidance } from "../src/lib/interview/crisis-guidance";
+import { interviewCrisisGuidance } from "./lib/interview-crisis-guidance-candidate";
 import { INJECTION_GUARD, wrapUntrusted } from "../src/lib/llm/untrusted";
 
 const live = process.argv.includes("--live");
@@ -44,7 +44,7 @@ for (const [before, after] of replacements) {
   candidateSource = candidateSource.replace(before, after);
 }
 if (sha(candidateSource) !== "e0b64aa24108315853246dba0e80946bfc6eb09d9a9f2fd5cdd0ff8c3875d5db") throw new Error("Frozen candidate source drift");
-const helperSource = readFileSync("src/lib/interview/crisis-guidance.ts", "utf8");
+const helperSource = readFileSync("scripts/lib/interview-crisis-guidance-candidate.ts", "utf8");
 // Extract the real builders without importing the React Native boundary.
 function readBuilders(source: string) {
 const ast = ts.createSourceFile("probe.ts", source, ts.ScriptTarget.Latest, true);
@@ -149,7 +149,7 @@ async function main(): Promise<void> {
     if (stopped) break;
   }
   const result = { startedAt, finishedAt: new Date().toISOString(), live, appParityVerified: false,
-    purpose: "interview_probe", vendor: "openai", effort: "low", baselineRevision, baselineSourceSha256: sha(baselineSource), candidateSourceSha256: sha(candidateSource), helperSourceSha256: sha(helperSource),
+    purpose: "interview_probe", vendor: "openai", effort: "low", baselineRevision, baselineSourceSha256: sha(baselineSource), candidateSourceSha256: sha(candidateSource), helperSourceSha256: sha(helperSource), measuredHelperSourceSha256: "10a9a140cc77696958c23bce239d0ac6e2cc45a88c21f08dd4f4d14917e73d55",
     corpusSha256: sha(corpusBytes), gate: corpus.gate, calls, rows,
     complete: rows.length === corpus.cases.length * 2 && rows.every((r) => r.status === "skipped-input-red" || (r.status === "http-200" && r.validJson)),
     independentReplyReview: "pending; validity does not establish semantic PASS" };

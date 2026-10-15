@@ -1,6 +1,6 @@
-import { crisisHotlines } from "../safety/classifier";
-import { emergencyGuidance } from "../safety/emergency-routing";
-import type { Locale } from "../safety/lexicon";
+import { crisisHotlines } from "../../src/lib/safety/classifier";
+import { emergencyGuidance } from "../../src/lib/safety/emergency-routing";
+import type { Locale } from "../../src/lib/safety/lexicon";
 
 /** Model backstop after the input gate. Language is not evidence of location.
  *  Reuse the app's age-aware support table and approved emergency guidance. */

@@ -25,7 +25,7 @@ const corpusNode=find(runner,n=>ts.isVariableDeclaration(n)&&n.name.getText(runn
 const corpus=evaluate('const corpus='+corpusNode.getText(runner),{},'corpus');
 const probeAst=parse('src/lib/interview/probe.ts');let currentRaw;
 const probe=evaluate(probeAst.statements.filter(n=>!ts.isImportDeclaration(n)).map(n=>n.getText(probeAst)).join('\n'),{
- exports:{},callLlm:input=>replayBoundary(currentRaw,input),...require(root+'/src/lib/interview/loop-check.ts'),...require(root+'/src/lib/llm/untrusted.ts'),...stuck,...continuity,...require(root+'/src/lib/interview/crisis-guidance.ts')
+ exports:{},callLlm:input=>replayBoundary(currentRaw,input),...require(root+'/src/lib/interview/loop-check.ts'),...require(root+'/src/lib/llm/untrusted.ts'),...stuck,...continuity
 },'exports');
 const screen=parse('src/app/interview.tsx');
 const askNode=find(screen,n=>ts.isVariableDeclaration(n)&&n.name.getText(screen)==='ask').initializer.arguments[0];

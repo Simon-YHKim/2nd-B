@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { crisisHotlines } from "../../safety/classifier";
-import { emergencyGuidance } from "../../safety/emergency-routing";
-import { interviewCrisisGuidance } from "../crisis-guidance";
+import { crisisHotlines } from "../../src/lib/safety/classifier";
+import { emergencyGuidance } from "../../src/lib/safety/emergency-routing";
+import { interviewCrisisGuidance } from "../lib/interview-crisis-guidance-candidate";
 
 // This helper is a FAILED measured candidate, not a runtime prompt. These
 // checks verify the experiment's inputs; they do not establish model quality.
@@ -27,15 +27,14 @@ describe("unactivated interview guidance candidate", () => {
   });
 
   test("no application consumer can use the failed candidate", () => {
-    const root = path.resolve(__dirname, "../../..");
-    const candidate = path.resolve(__dirname, "../crisis-guidance.ts");
+    const root = path.resolve(__dirname, "../../src");
     const consumers: string[] = [];
     const walk = (dir: string): void => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         if (entry.name === "__tests__") continue;
         const file = path.join(dir, entry.name);
         if (entry.isDirectory()) walk(file);
-        else if (/\.tsx?$/.test(file) && file !== candidate && /interviewCrisisGuidance|["'][^"']*crisis-guidance["']/.test(readFileSync(file, "utf8"))) consumers.push(path.relative(root, file));
+        else if (/\.tsx?$/.test(file) && /interviewCrisisGuidance|["'][^"']*crisis-guidance["']/.test(readFileSync(file, "utf8"))) consumers.push(path.relative(root, file));
       }
     };
     walk(root);

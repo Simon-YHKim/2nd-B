@@ -27,17 +27,18 @@
 ## 보존한 자료와 재현
 
 - `scripts/eval-interview-crisis-guidance.ts`: 기본 offline. 측정 당시 후보 probe를 고정 main에 다섯 치환으로 메모리 안에서 구성하고 hash를 확인한다. `--live`는 실제 QA 호출이므로 이번 실패를 덮기 위해 반복하지 않는다.
-- `src/lib/interview/crisis-guidance.ts`: 측정 당시 helper를 hash 그대로 보존한 **미활성 후보**. 앱의 `probe.ts`는 main으로 복구했다. runtime consumer 0을 검사한다. helper의 단위 검사는 입력 설계를 검산할 뿐 모델의 안전성을 입증하지 않는다.
+- `scripts/lib/interview-crisis-guidance-candidate.ts`: **미활성 후보**를 앱 소스 밖에 분리했다. 앱의 `probe.ts`는 main으로 복구했다. R1은 helper를 src에 두어 성인 기본값·번역 필수검사 두 개를 깨뜨린 중간1건으로 BLOCK이었다. 필수검사는 바꾸지 않고 파일을 scripts로 옮겼다. helper는 세 import의 상대경로만 바뀌었으며 함수 본문은 측정 당시와 같다. runtime consumer 0을 검사한다. helper의 단위 검사는 입력 설계를 검산할 뿐 모델의 안전성을 입증하지 않는다.
 - [실측 결과](T23-INTERVIEW-GUIDANCE-MEASUREMENT-261015.json): 측정 종료 당시 원본. `independentReplyReview: pending`은 당시 상태이며 이후 사실 검산은 위에 설명했다. `fixedGuidance`는 로컬 원답 lexical red 값이지 실제 앱 모달 횟수가 아니다.
 - [합성 원답 24개](T23-INTERVIEW-GUIDANCE-RESPONSES-261015.json): 실제 사용자 글·식별자·비밀값이 없는 고정 합성 자료만 보존했다.
 - `node scripts/replay-interview-crisis-guidance.cjs --out=/tmp/interview-guidance-replay.json`: 앱 실제 함수의 offline 재현. fetch 금지, 기록·감사 쓰기와 화면 setter는 메모리 대역이다. 앱 prompt 복구 뒤에도 독립 재현과24행이 동일했다.
-- `npx tsx scripts/eval-interview-crisis-guidance.ts --out=/tmp/interview-guidance-offline.json`: 호출 없이24개 요청 hash 재생성. 복구 뒤에도 실제 결과의24개 hash와 source/corpus hash가 모두 같았다.
+- `npx tsx scripts/eval-interview-crisis-guidance.ts --out=/tmp/interview-guidance-offline.json`: 호출 없이24개 요청 hash 재생성. 복구 뒤에도 실제 결과의24개 hash와 baseline/candidate/corpus hash가 모두 같았다. helper의 현재 파일 hash와 측정 당시 hash는 import 경로 변경 때문에 구분해 적는다.
 
 | 자료 | SHA-256 |
 |---|---|
 | baseline probe | `a83164862fc61e5ff5128dd8e478cfd76dead9d73cba542d2bff5866599280b9` |
 | measured candidate probe (메모리 재구성) | `e0b64aa24108315853246dba0e80946bfc6eb09d9a9f2fd5cdd0ff8c3875d5db` |
-| helper | `10a9a140cc77696958c23bce239d0ac6e2cc45a88c21f08dd4f4d14917e73d55` |
+| 측정 당시 helper | `10a9a140cc77696958c23bce239d0ac6e2cc45a88c21f08dd4f4d14917e73d55` |
+| scripts로 이동한 helper (import 경로만 변경) | `7d66f381d2f16d73a6867215dd87e9fec072b62aa9cfc378a8e15d9784c4b466` |
 | corpus JSON.stringify | `d5d9bb0d058383af4cff4753e32c0d1356d497c5ac4320907828df8fe8154aa7` |
 | live 결과 | `ef58a0461b5aaff74044afcd5cc62f2babce7efc9da483adf218e7fb84ab4d5f` |
 | 합성 원답 | `e14459dc46a903ec33d03f423ab2d99e191a277349039fb7532e1216d9e735b3` |
