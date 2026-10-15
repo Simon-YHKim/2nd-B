@@ -29,6 +29,26 @@
 
 ## 판정·담기 순서와 다음 연결 조건
 
+### PR #2526 독립 검토 1회차와 추가 수정
+
+`2318ddf7`의 독립 검토는 **BLOCK · medium 1건(PR2526-R1-01)**이다.
+기존 여섯 지적의 회귀 검사와 실제 pg_cron 검사는 통과했지만, 첫 writer와 직접
+Auth DELETE 사이에 남아 있던 교착이 실제 RPC로 재현됐다. 이 판정을 PASS로
+덮어쓰지 않는다. 이번 PR의 BLOCK 횟수는 1회이며, 수정본은 2회차 검토 대상이다.
+
+Auth의 BEFORE ROW DELETE는 이미 계정 행을 잠근 상태다. 이때 계정 배타 잠금을
+기다리면 공유 잠금을 가진 첫 writer가 외래 키 확인을 위해 같은 계정 행을 기다리는
+순환이 생긴다. `interview_account_erasure`도 계정 잠금을 try-lock하고, 경합 시
+`interview_account_busy_retry`(SQLSTATE 40001)로 **삭제 트랜잭션 전체를 취소**하도록
+고쳤다. 직접 Auth/프로필 삭제 호출자는 전체 트랜잭션을 재시도해야 한다.
+앱의 표준 `delete-account`는 먼저 `begin_account_deletion`으로 쓰기 차단을 확정하고
+진행 중 writer를 기다린 뒤 Auth를 삭제하므로 이 순서를 유지한다.
+
+첫 probe·close·commit·context RPC와 실제 Auth DELETE를 양방향으로 실행했다.
+기존 코드에서 실패한 검사가 수정본에서 통과했고, 경합한 삭제는 부분 삭제 없이
+재시도되며 삭제가 먼저 끝나면 writer는 계정 없음/삭제 중으로 거절된다.
+기존 직접 삭제 경합과 데이터 보존 롤백 후 경합도 같은 재시도 계약으로 확인했다.
+
 - writer와 commit은 같은 계정·세션 잠금으로 직렬화한다. red writer가 먼저면 담기는
   coverage를 더하지 않는다. commit이 먼저면 이미 적립한 값은 과거 합계로 유지하고,
   늦은 red는 남은 기록과 대화록의 AI 보류를 올린다. 적립을 되감거나 재적립하지 않는다.
@@ -49,12 +69,15 @@
 
 - 새 `db/tests/interview_transcript_ledger_security.py`: 잘못된 red, 늦은 red,
   담기와 판정의 양방향 경합, 소유자·기록 키, 프로필 삭제, 롤백 coverage,
-  삭제 경합과 롤백 후 삭제 경합의 8개 묶음. CI scratch lane에도 연결했다.
+  삭제 경합과 롤백 후 삭제 경합, 첫 writer와 Auth 삭제 경합, 표준 삭제 울타리 경합의 10개 묶음.
+  CI scratch lane에도 연결했다.
 - 실제 cron 검사는 같은 스크립트의 `--cron-only`이다. pg_cron이 없는 CI에서
   가짜 표로 대신 PASS를 만들지 않는다. 로컬 실제 확장으로 직접 검사했다.
 - 기존 SQL 회귀, 데이터 보존 롤백 왕복, 7개 동시성 묶음을 재실행했다.
-- `npm run verify`: 1,113개 묶음·18,364개 통과·1개 건너뜀. 최종 SQL 트리를
-  별도 새 DB에 CI 고정 버전 Supabase CLI 2.116.0으로 처음부터 적용했다.
+- `npm run verify`: 1,115개 묶음·18,416개 통과·1개 건너뜀. 1회차 검토 SQL 트리를
+  별도 새 DB에 CI 고정 버전 Supabase CLI 2.116.0으로 처음부터 적용했다. R1 수정은
+  그 DB의 별도 복제본에 실제 마이그레이션을 적용해 검증했다. 최신 트리의 처음부터
+  재적용은 이번 PR의 SQL CI가 다시 확인한다.
 - 실제 LLM 호출·운영 적용·앱 연결·기기 검사는 이 SQL 변경에서 수행하지 않았다.
 
 완료 조건은 최신 커밋 CI·독립 검토 PASS·새 중간 지적 0이다. 같은 PR이 3회 BLOCK이면

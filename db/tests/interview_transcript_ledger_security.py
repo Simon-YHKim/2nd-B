@@ -186,11 +186,13 @@ def account_delete_races(db, after_rollback=False):
                     app = 'd6_r4_account_' + uuid.uuid4().hex
                     future = pool.submit(sql, db, account_delete, app, False)
                     try:
-                        wait_blocked(db, app, future)
+                        result = future.result(timeout=3)
+                        assert result.returncode != 0 and '40001' in result.stderr and 'interview_account_busy_retry' in result.stderr, result.stderr
                     finally:
                         holder.query('COMMIT;')
-                    result = future.result(timeout=15)
-                    assert result.returncode == 0, result.stderr
+                    # A direct Auth delete retries its whole transaction after
+                    # the contending writer/delete commits. Nothing is half-erased.
+                    sql(db, account_delete)
         finally:
             holder.close()
         assert sql(db, f"SELECT count(*) FROM public.interview_sessions WHERE owner_id='{user}';").stdout.strip() == '0'
@@ -199,6 +201,111 @@ def account_delete_races(db, after_rollback=False):
 
 def account_delete_races_after_rollback(db):
     account_delete_races(db, after_rollback=True)
+
+
+def first_writer_auth_delete(db):
+    """Real first writes versus real Auth DELETE, both orders; no trigger stubs.
+
+    A third connection pauses the writer at its next real session/record lock,
+    after the account shared key. This is the independent review's reproducer.
+    """
+    for kind in ('probe', 'close', 'commit', 'context'):
+        for writer_first in (True, False):
+            user = owner(db)
+            f = fixture(db, pending=False, owner=user)
+            statement = {
+                'probe': f['probe'],
+                'close': f"SELECT public.close_interview_session('{f['session']}','now','en','user_end',0,0);",
+                'commit': f['commit'],
+                'context': f['blocks'],
+            }[kind]
+            role = 'service_role' if kind in ('probe', 'context') else 'authenticated'
+            writer_sql = 'BEGIN;' + auth(user, role == 'service_role') + f'SET LOCAL ROLE {role};' + statement + 'COMMIT;'
+            delete = f"DELETE FROM auth.users WHERE id='{user}';"
+            gate = Connection(db)
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                    if writer_first:
+                        pause = (f"SELECT id FROM public.records WHERE id='{f['record']}' FOR UPDATE;" if kind == 'context'
+                                 else f"SELECT pg_advisory_xact_lock(hashtextextended('interview_session:{f['session']}',0));")
+                        gate.query('BEGIN;' + pause)
+                        app = 'd6_first_writer_' + uuid.uuid4().hex
+                        writer = pool.submit(sql, db, writer_sql, app, False)
+                        wait_blocked(db, app, writer)
+                        deletion = pool.submit(sql, db, delete, 'd6_first_delete_' + uuid.uuid4().hex, False)
+                        try:
+                            result = deletion.result(timeout=3)
+                            assert result.returncode != 0 and '40001' in result.stderr and 'interview_account_busy_retry' in result.stderr, result.stderr
+                            assert '40P01' not in result.stderr
+                        finally:
+                            gate.query('COMMIT;')
+                        result = writer.result(timeout=15)
+                        assert result.returncode == 0, (kind, result.stderr)
+                        # The failed deletion was atomic and the legitimate write survived.
+                        assert sql(db, f"SELECT count(*) FROM auth.users WHERE id='{user}';").stdout.strip() == '1'
+                        assert sql(db, f"SELECT prompt_hash<>'' FROM public.ai_audit_log WHERE id='{f['audit']}';").stdout.strip() == 't'
+                        sql(db, delete)  # whole transaction retry
+                    else:
+                        gate.query('BEGIN;' + delete)
+                        app = 'd6_first_after_delete_' + uuid.uuid4().hex
+                        writer = pool.submit(sql, db, writer_sql, app, False)
+                        try:
+                            wait_blocked(db, app, writer)
+                        finally:
+                            gate.query('COMMIT;')
+                        result = writer.result(timeout=15)
+                        assert '40P01' not in result.stderr, (kind, result.stderr)
+                        if kind in ('probe', 'context'):
+                            assert result.returncode == 0 and result.stdout.strip() == 'no_account', (kind, result.stdout, result.stderr)
+                        else:
+                            assert result.returncode != 0 and '42501' in result.stderr and 'account_deletion_in_progress' in result.stderr, (kind, result.stderr)
+            finally:
+                gate.close()
+            assert sql(db, f"SELECT count(*) FROM auth.users WHERE id='{user}';").stdout.strip() == '0'
+            assert sql(db, f"SELECT count(*) FROM public.interview_sessions WHERE owner_id='{user}';").stdout.strip() == '0'
+            assert sql(db, f"SELECT count(*) FROM public.interview_probe_verdicts WHERE session_id='{f['session']}';").stdout.strip() == '0'
+            assert sql(db, f"SELECT count(*) FROM public.interview_session_starts WHERE owner_id='{user}';").stdout.strip() == '0'
+            assert sql(db, f"SELECT count(*) FROM public.ai_audit_context_blocks WHERE user_id='{user}';").stdout.strip() == '0'
+            assert sql(db, f"SELECT user_id IS NULL AND prompt_hash='' AND output_hash='' FROM public.ai_audit_log WHERE id='{f['audit']}';").stdout.strip() == 't'
+
+
+def first_writer_fenced_delete(db):
+    """The app's normal fence RPC drains old writes before the Auth DELETE."""
+    for writer_first in (True, False):
+        user = owner(db)
+        f = fixture(db, pending=False, owner=user)
+        session = str(uuid.uuid4())
+        sql(db, f"INSERT INTO auth.sessions(id,user_id) VALUES('{session}','{user}');")
+        service = 'BEGIN;' + auth(user, True) + 'SET LOCAL ROLE service_role;'
+        writer_sql = service + f['probe'] + 'COMMIT;'
+        fence = service + f"SELECT public.begin_account_deletion('{user}','{session}',now()); COMMIT;"
+        if writer_first:
+            gate = Connection(db)
+            try:
+                gate.query(f"BEGIN; SELECT pg_advisory_xact_lock(hashtextextended('interview_session:{f['session']}',0));")
+                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                    app = 'd6_fence_writer_' + uuid.uuid4().hex
+                    writer = pool.submit(sql, db, writer_sql, app, False)
+                    wait_blocked(db, app, writer)
+                    app = 'd6_fence_delete_' + uuid.uuid4().hex
+                    deletion = pool.submit(sql, db, fence, app, False)
+                    try:
+                        wait_blocked(db, app, deletion)
+                    finally:
+                        gate.query('COMMIT;')
+                    result = writer.result(timeout=15)
+                    assert result.returncode == 0 and result.stdout.strip() == 'recorded', result.stderr or result.stdout
+                    result = deletion.result(timeout=15)
+                    assert result.returncode == 0 and result.stdout.strip() == 't', result.stderr or result.stdout
+            finally:
+                gate.close()
+        else:
+            assert sql(db, fence).stdout.strip() == 't'
+        # A committed fence rejects subsequent writes even while Auth still exists.
+        assert sql(db, writer_sql).stdout.strip() == 'no_account'
+        sql(db, f"DELETE FROM auth.users WHERE id='{user}';")
+        assert sql(db, f"SELECT count(*) FROM public.interview_sessions WHERE owner_id='{user}';").stdout.strip() == '0'
+        assert sql(db, f"SELECT user_id IS NULL AND prompt_hash='' AND output_hash='' FROM public.ai_audit_log WHERE id='{f['audit']}';").stdout.strip() == 't'
 
 
 def cron_scope(db, migration):
@@ -252,7 +359,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--template', required=True)
     tests = (invalid_red, late_red, late_red_races, owner_and_record_link, profile_only_delete,
-             rollback_coverage, account_delete_races, account_delete_races_after_rollback)
+             rollback_coverage, account_delete_races, account_delete_races_after_rollback,
+             first_writer_auth_delete, first_writer_fenced_delete)
     parser.add_argument('--case', choices=[test.__name__ for test in tests])
     parser.add_argument('--cron-only', action='store_true', help='exercise actual pg_cron in the template inside a rolled-back transaction')
     parser.add_argument('--migration', default=str(Path(__file__).resolve().parents[1] / 'migrations/0225_interview_transcript_ledger.sql'))

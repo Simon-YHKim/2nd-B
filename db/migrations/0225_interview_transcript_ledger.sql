@@ -835,7 +835,13 @@ SET search_path = ''
 SET row_security = off
 AS $$
 BEGIN
-  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(OLD.id::text, 260913));
+  -- PR2526-R1-01: a BEFORE ROW DELETE already holds the Auth/profile row.
+  -- A first writer holds account shared before its FK needs that row. Never
+  -- wait here in the inverse order; the direct deleter must retry its whole
+  -- transaction. Normal delete-account fences/drains writers before Auth DELETE.
+  IF NOT pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended(OLD.id::text, 260913)) THEN
+    RAISE EXCEPTION 'interview_account_busy_retry' USING ERRCODE = '40001';
+  END IF;
   UPDATE public.ai_audit_log AS a SET prompt_hash = '', output_hash = ''
    WHERE a.user_id = OLD.id AND a.purpose = 'interview_probe'
      AND (a.prompt_hash <> '' OR a.output_hash <> '');
