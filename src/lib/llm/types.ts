@@ -1,4 +1,5 @@
 import type { SafetyResult, SafetyZone } from "../safety/classifier";
+import type { HotlineId } from "../safety/lexicon";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 
 export type GeminiModel = "lite" | "flash" | "pro";
@@ -74,6 +75,9 @@ export interface AdvisorResult {
   audit: AuditMeta;
 }
 
+/** Routing metadata only; synchronous notification after a confirmed RED fence. */
+export type CrisisObserver = (hotline: HotlineId | undefined) => void;
+
 export interface PromptInput {
   userId: string;
   /**
@@ -83,6 +87,8 @@ export interface PromptInput {
   session?: AuthenticatedAccountSessionLease;
   locale: "en" | "ko";
   purpose: PromptPurpose;
+  /** Optional early RED guidance, before audit awaits; never bypasses session fences. */
+  onCrisisDetected?: CrisisObserver;
   system?: string;
   user: string;
   model?: GeminiModel;

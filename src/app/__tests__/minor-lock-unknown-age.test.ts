@@ -257,7 +257,7 @@ describe("외부 가져오기(/import) - 기기 건강 잠금은 모름도 막�
   });
 });
 
-describe("통화 회고(/call-reflection) - 성인 · 한국어 한정 게이트는 모름도 막는다", () => {
+describe("통화 회고(/call-reflection) - 성인 · 한국 · 한국어 한정 게이트는 모름도 막는다", () => {
   const sf = parse("src/app/call-reflection.tsx");
   const screen = sf.statements.find(
     (node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === "CallReflection",
@@ -270,13 +270,16 @@ describe("통화 회고(/call-reflection) - 성인 · 한국어 한정 게이트
       find(s.expression, (node): node is ts.Identifier => ts.isIdentifier(node) && node.text === "isMinor").length > 0,
   );
 
-  test("확인된 성인 + 한국어만 연다", () => {
+  test("한국어는 국가가 아니다: 확인된 성인 + KR + 한국어만 연다", () => {
     expect(gateIndex).toBeGreaterThan(-1);
     const condition = (statements[gateIndex] as ts.IfStatement).expression.getText(sf);
     for (const ko of [true, false]) {
       for (const isMinor of AGES) {
-        const blocked = !(ko && isMinor === false);
-        expect({ ko, isMinor, blocked: evaluate(condition, { ko, isMinor }) }).toEqual({ ko, isMinor, blocked });
+        for (const country of ["KR", "US", "GB", null]) {
+          const blocked = !(ko && country === "KR" && isMinor === false);
+          expect({ ko, country, isMinor, blocked: evaluate(condition, { ko, country, isMinor }) })
+            .toEqual({ ko, country, isMinor, blocked });
+        }
       }
     }
   });

@@ -31,6 +31,8 @@ import ts from "typescript";
 
 import { buildDeepWikiView, snippetOf, type WikiEdge } from "@/screens/deepspace/wiki-graph-view";
 import type { WikiPageRow } from "@/lib/wiki/types";
+import { captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "@/lib/auth/account-epoch";
+import { isTimeoutError, withTimeout } from "@/lib/async/with-timeout";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 
@@ -483,6 +485,7 @@ describe("a fetched citation row belongs to the account that fetched it", () => 
       "return WikiFocus;",
       {
         buildDeepWikiView,
+        loadError: null,
         getWikiPageById: async (userId: string, id: string) => {
           fetched.push({ userId, id });
           return library[userId]?.[id] ?? null;
@@ -548,6 +551,7 @@ describe("a fetched citation row belongs to the account that fetched it", () => 
       "return WikiFocus;",
       {
         buildDeepWikiView,
+        loadError: null,
         getWikiPageById: async (userId: string, id: string) => {
           fetched.push({ userId, id });
           return library[userId]?.[id] ?? null;
@@ -602,7 +606,7 @@ interface OwnedRows {
 describe("the loaded window belongs to the account that loaded it", () => {
   test("the lifted pieces are the real ones", () => {
     expect(ROWS_PIECES[1].startsWith("useEffect(")).toBe(true);
-    expect(ROWS_PIECES[1]).toContain("setHeld({ ownerId: userId, pages: p, edges: e })");
+    expect(ROWS_PIECES[1]).toContain('setHeld({ ownerId: userId, epoch: accountEpoch, attempt, status: "ready", pages: p, edges: e })');
     expect(ROWS_PIECES[2]).toContain("held.ownerId === userId");
   });
 
@@ -617,6 +621,9 @@ describe("the loaded window belongs to the account that loaded it", () => {
         "function WikiRows(props, H) {",
         "  const { useState, useEffect } = H;",
         "  const { userId } = props;",
+        "  const authLoading = false;",
+        "  const accountEpoch = currentAccountEpoch();",
+        "  const attempt = 0;",
         ROWS_PIECES.join("\n"),
         "  return owned;",
         "}",
@@ -624,7 +631,11 @@ describe("the loaded window belongs to the account that loaded it", () => {
       "return WikiRows;",
       {
         NO_WIKI_ROWS: { ownerId: null, pages: [], edges: [] } as OwnedRows,
-        setLoading: () => undefined,
+        captureAccountOwnerLease,
+        currentAccountEpoch,
+        withTimeout,
+        isTimeoutError,
+        WIKI_PAGES_READ_TIMEOUT_MS: 10_000,
         listWikiPages: async (userId: string) => {
           loaded.push(userId);
           return library[userId] ?? [];
@@ -634,8 +645,11 @@ describe("the loaded window belongs to the account that loaded it", () => {
     );
 
     const runtime = focusRuntime();
-    const render = (userId: string | null): Promise<OwnedRows> =>
-      runtime.render(rows as never, { userId } as never) as unknown as Promise<OwnedRows>;
+    const render = (userId: string | null): Promise<OwnedRows> => {
+      noteResolvedOwner(userId);
+      clearAccountTransition(currentAccountEpoch());
+      return runtime.render(rows as never, { userId } as never) as unknown as Promise<OwnedRows>;
+    };
 
     const asA = await render("owner-a");
     expect(loaded).toEqual(["owner-a"]);
@@ -643,6 +657,8 @@ describe("the loaded window belongs to the account that loaded it", () => {
 
     // The owner flips. This is the commit straight after, with B's own load still
     // in flight - the window the fence exists for.
+    noteResolvedOwner("owner-b");
+    clearAccountTransition(currentAccountEpoch());
     const firstAsB = runtime.renderOnce<OwnedRows>(rows as never, { userId: "owner-b" });
     expect(firstAsB.pages).toEqual([]);
     expect(firstAsB.edges).toEqual([]);

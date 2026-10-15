@@ -347,5 +347,15 @@
   "manualTab": "사용 안내서",
   "shareRefused": {
     "body": "공유한 내용은 저장하지 않았습니다. 로그인을 마친 뒤 다시 공유해 주세요."
+  },
+  "sharedMedia": {
+    "photoReady": "사진을 공유받았습니다.",
+    "photoReplace": "공유한 사진으로 사진과 본문 바꾸기",
+    "discard": "공유 파일 버리기",
+    "audioSend": "공유한 녹음을 글로 옮기기",
+    "multiple": "한 번에 파일 하나만 공유해 주세요.",
+    "unreadable": "공유 파일을 열지 못했습니다. 원래 앱에서 다시 공유해 주세요.",
+    "unavailable": "공유 파일을 더 이상 열 수 없습니다. 원래 앱에서 다시 공유해 주세요.",
+    "audioName": "공유받은 녹음"
   }
 }

@@ -22,7 +22,7 @@ import { isTimeoutError, withTimeout } from "../async/with-timeout";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
 import { proxyFnForVendor, safetyVendor } from "./routing";
-import { MODELS } from "./types";
+import { MODELS, type CrisisObserver } from "./types";
 // C3: the Flash classifier makes a real Gemini call client-side (not via the
 // gemini-proxy), so the proxy never logs it. This module audits its own call.
 // safety.ts is a sanctioned LLM-boundary module (already C1-allowlisted for
@@ -416,9 +416,14 @@ async function requestProxyClassification(
 export async function classifySafety(
   userMessage: string,
   locale: "en" | "ko",
-  opts?: { userId?: string; capturedSession?: AuthenticatedAccountSessionLease },
+  opts?: { userId?: string; capturedSession?: AuthenticatedAccountSessionLease; onRed?: CrisisObserver },
 ): Promise<SafetyResult> {
   opts?.capturedSession?.assertCurrent();
+  const notifyRed = (result: SafetyResult): void => {
+    if (result.zone !== "red" || !opts?.onRed) return;
+    opts.capturedSession?.assertCurrent();
+    try { opts.onRed(result.hotline); } catch { /* Continue the classifier's audit/result. */ }
+  };
   // Layer 1: lexicon. Always runs synchronously. Dual-locale: catch a crisis
   // term written in the other language than the UI locale (mirrors the proxy
   // EN+KO gate + classifyInputAnyLocale) - the largest single-locale blind spot.
@@ -428,13 +433,18 @@ export async function classifySafety(
     if (lexOther.zone === "red") lex = lexOther;
   }
 
+  notifyRed(lex);
   if (lex.hotline) return lex; // Explicit emergencies never wait for a model classification.
   const client = getFlashClient();
   if (!client) {
     // D4 (flag-gated): try the server-side classifier before degrading to lexicon.
     const viaProxy = await classifyViaProxy(userMessage, locale, opts?.capturedSession);
     opts?.capturedSession?.assertCurrent();
-    if (viaProxy) return mergeResults(lex, viaProxy);
+    if (viaProxy) {
+      const result = mergeResults(lex, viaProxy);
+      notifyRed(result);
+      return result;
+    }
     noteSemanticUnavailable({
       userId: opts?.userId,
       lexiconZone: lex.zone,
@@ -496,6 +506,7 @@ export async function classifySafety(
         if (typeof console !== "undefined") console.warn("[safety] classifier payload unparseable, using lexicon");
       }
     }
+    notifyRed(result);
     // C3: a real Gemini Flash call happened. The classifier runs client-side (not
     // via the gemini-proxy), so the proxy never logs it — audit it here,
     // best-effort, when attributable to a user. On the public web build the Flash

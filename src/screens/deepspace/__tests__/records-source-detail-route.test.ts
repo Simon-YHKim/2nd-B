@@ -291,6 +291,10 @@ describe("deep-space records source detail routing", () => {
     // previous digest 3df2eb1f8ceb487c0c0ba75257ed3382587f5ba32c78cc959a221a91f0d5affc.
     // 2026-10-08: same scoped list/graph transition as records, preserving the
     // original gap. Removing the two wrapper tags reproduces 5d80807c exactly.
-    expect(sha256(wiki)).toBe("24f3475eecdf94a09afc755003c5de6dd6e959975fad4590b01a49ebd384028e");
+    // 2026-10-15, Q-261013-21/Z80: the page list now exposes a failed read,
+    // retry and unread counts; citation lookup waits for a successful list.
+    // The ab56c928 baseline reproduces 24f3475e above; this slice changes
+    // 12,132 -> 12,697 chars. The neighboring records renderer is unchanged.
+    expect(sha256(wiki)).toBe("9b7973b102c1cfc223123dfe7b59d65ce622db32e02af526c4e884e9c5a8f417");
   });
 });

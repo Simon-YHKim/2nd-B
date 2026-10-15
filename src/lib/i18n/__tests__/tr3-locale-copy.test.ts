@@ -397,7 +397,7 @@ describe("tr3 /reasoning: the screen copy reads ds.reasoningScreen.*", () => {
     ]);
     expect([rs("ko").title, rs("ko").unlimited, rs("ko").reasonSelected, rs("ko").runHint, rs("ko").viewPlans, rs("ko").queuedSource]).toEqual([
       "리즈닝",
-      "무제한으로 별을 이을 수 있습니다",
+      "무제한으로 영역을 이을 수 있습니다",
       "선택한 자료 리즈닝",
       "자료를 선택하면 실행 버튼이 켜집니다.",
       "플랜 보기",

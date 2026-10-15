@@ -19,6 +19,8 @@ import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRet
 import { AutoReasoningIntroSheet } from "@/components/deep-space/AutoReasoningIntroSheet";
 import { ReasoningLimitSheet } from "@/components/deep-space/ReasoningLimitSheet";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureAccountOwnerLease, currentAccountEpoch } from "@/lib/auth/account-epoch";
+import { isTimeoutError, withTimeout } from "@/lib/async/with-timeout";
 import { rewardedAdsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning, reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
@@ -81,6 +83,7 @@ import { fontFamilies } from "@/theme/typography";
 const rsnAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
 const REASONING_RATIFIED_TAG = "reasoning:ratified";
 const MAX_SELECTION = 5;
+export const REASONING_LIST_READ_TIMEOUT_MS = 10_000;
 
 function useAutoReasoning(userId: string | null) {
   const [enabled, setEnabledState] = useState(false);
@@ -698,6 +701,15 @@ function recordTitle(
 
 type ItemRunState = { state: "waiting" | "running" | "done"; domain?: DomainId };
 type ScreenPhase = "idle" | "running" | "done" | "error";
+type ReasoningListRead = {
+  ownerId: string;
+  epoch: number;
+  attempt: number;
+  language: string;
+  status: "ready" | "error" | "timeout";
+  items: ReasoningItem[];
+};
+const NO_REASONING_ITEMS: ReasoningItem[] = [];
 type DeferredRunError = "limit" | "generic" | { kind: "safety"; hotline?: import("@/lib/safety/lexicon").HotlineId };
 
 // A background task can finish after its screen unmounts. Keep the outcome
@@ -727,9 +739,16 @@ export default function ReasoningScreen() {
   const auto = useAutoReasoning(userId);
   const task = useTaskStatus();
 
-  const [items, setItems] = useState<ReasoningItem[]>([]);
+  const accountEpoch = currentAccountEpoch();
+  const [listRead, setListRead] = useState<ReasoningListRead | null>(null);
+  const [listAttempt, setListAttempt] = useState(0);
+  const ownsList = listRead?.ownerId === userId && listRead?.epoch === accountEpoch;
+  const items = ownsList ? listRead.items : NO_REASONING_ITEMS;
+  const currentListRead = ownsList && listRead.attempt === listAttempt && listRead.language === uiLng ? listRead : null;
+  const listLoading = currentListRead === null;
+  const listFailed = currentListRead !== null && currentListRead.status !== "ready";
+  const listReady = currentListRead?.status === "ready";
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const [listLoading, setListLoading] = useState(true);
   const [used, setUsed] = useState(0);
   const [rewardCredits, setRewardCredits] = useState(0);
   const [phase, setPhase] = useState<ScreenPhase>("idle");
@@ -859,11 +878,16 @@ export default function ReasoningScreen() {
 
   useEffect(() => {
     if (loading || !userId) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease || lease.epoch !== accountEpoch) return;
     let cancelled = false;
-    setListLoading(true);
-    void Promise.all([listRecentRecords(userId, 60), listSourcePieces(userId, { excludeProfileImports: true }), getReasoningUsage(userId)])
+    const current = () => !cancelled && lease.isCurrent();
+    // Bound the whole list read, including quota, once. Retrying this read does
+    // not repeat recovery, start a run, or discard the user's selection/review.
+    const work = Promise.all([listRecentRecords(userId, 60), listSourcePieces(userId, { excludeProfileImports: true }), getReasoningUsage(userId)]);
+    void withTimeout(work, REASONING_LIST_READ_TIMEOUT_MS, "Reasoning list")
       .then(([records, sources, usage]) => {
-        if (cancelled) return;
+        if (!current()) return;
         // A fixed t for the painted language: the list re-reads when the language (or its
         // lazy pack) changes, not on every i18n event the hook's t follows.
         const tl = i18n.getFixedT(uiLng, "deepspace");
@@ -894,30 +918,33 @@ export default function ReasoningScreen() {
           tags: source.tags ?? [],
           icon: "link",
         }));
-        setItems(
-          [...recordItems, ...sourceItems]
+        setListRead({
+          ownerId: userId, epoch: accountEpoch, attempt: listAttempt, language: uiLng, status: "ready",
+          items: [...recordItems, ...sourceItems]
             .filter((item) => !item.tags.includes(REASONING_RATIFIED_TAG))
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
             .slice(0, 80),
-        );
+        });
         setUsed(usage.used);
         setRewardCredits(usage.rewardCredits);
       })
-      .catch(() => {
-        if (!cancelled) setErrorText(i18n.t("ds.reasoningScreen.loadFailed", { ns: "deepspace", lng: uiLng }));
-      })
-      .finally(() => {
-        if (!cancelled) setListLoading(false);
+      .catch((error: unknown) => {
+        if (!current()) return;
+        setListRead((previous) => ({
+          ownerId: userId, epoch: accountEpoch, attempt: listAttempt, language: uiLng,
+          status: isTimeoutError(error) ? "timeout" : "error",
+          items: previous?.ownerId === userId && previous.epoch === accountEpoch ? previous.items : NO_REASONING_ITEMS,
+        }));
       });
     return () => {
       cancelled = true;
     };
-  }, [i18n, loading, uiLng, userId]);
+  }, [accountEpoch, i18n, listAttempt, loading, uiLng, userId]);
 
   const cap = reasoningCapForTier(progression.tier);
   const remaining = remainingReasoning(progression.tier, used, rewardCredits);
   const unlimited = remaining === Infinity;
-  const depleted = !unlimited && remaining <= 0;
+  const depleted = listReady && !unlimited && remaining <= 0;
   const selectedItems = useMemo(
     () => items.filter((item) => selected.has(item.key)),
     [items, selected],
@@ -969,7 +996,7 @@ export default function ReasoningScreen() {
   }, []);
 
   const startRun = useCallback(() => {
-    if (!userId || isMinor == null || selectedItems.length === 0 || phase === "running") return;
+    if (!userId || isMinor == null || !listReady || selectedItems.length === 0 || phase === "running") return;
     if (depleted) return;
     if (task.phase === "running") {
       setErrorText(t("ds.reasoningScreen.busyOther"));
@@ -1069,6 +1096,7 @@ export default function ReasoningScreen() {
     userId,
     selectedItems,
     phase,
+    listReady,
     depleted,
     task.phase,
     t,
@@ -1123,8 +1151,10 @@ export default function ReasoningScreen() {
         await markProposalApplied(userId, proposal.runId, proposal.ordinal);
         pending = pending.filter((candidate) => candidate.key !== proposal.key);
       }
-      setItems((current) =>
-        current.filter((item) => !accepted.some((proposal) => proposal.key === item.key)),
+      setListRead((current) =>
+        current?.ownerId === userId && current.epoch === accountEpoch
+          ? { ...current, items: current.items.filter((item) => !accepted.some((proposal) => proposal.key === item.key)) }
+          : current,
       );
       setProposals([]);
       setSelected(new Set());
@@ -1148,7 +1178,7 @@ export default function ReasoningScreen() {
       if (accepted.length > 0) invalidateDomainLevels(userId);
       setApplying(false);
     }
-  }, [applying, phase, proposals, selected, t, userId]);
+  }, [accountEpoch, applying, phase, proposals, selected, t, userId]);
 
   const reasoningTitle = t("ds.reasoningScreen.title");
   if (loading) return <InlineLoader />;
@@ -1180,7 +1210,7 @@ export default function ReasoningScreen() {
   // Split display (spec 결정 5 + 계약 13): weekly base and monthly reward are
   // separate ledgers with separate reset instants — never merge them into one
   // "N회 남음 · 월요일 초기화" line. The RUN gate (depleted) still counts both.
-  const quotaCopy = unlimited
+  const quotaCopy = !listReady ? "..." : unlimited
     ? t("ds.reasoningScreen.unlimited")
     : t("ds.reasoningScreen.weeklyLeft", {
         cap: cap ?? 0,
@@ -1188,7 +1218,7 @@ export default function ReasoningScreen() {
       });
   // Same words as THE limit sheet's reward line (ds.reasoningLimit.rewardLeft).
   const rewardCopy =
-    !unlimited && rewardCredits > 0
+    listReady && !unlimited && rewardCredits > 0
       ? t("ds.reasoningLimit.rewardLeft", { n: rewardCredits, month: monthLabelFor(uiLng, monthBucket()) })
       : null;
 
@@ -1227,7 +1257,7 @@ export default function ReasoningScreen() {
       >
         <View style={styles.frame}>
         <FlatList
-          data={phase === "running" || phase === "done" ? displayedRunItems : items}
+          data={phase === "running" || phase === "done" ? displayedRunItems : listReady ? items : NO_REASONING_ITEMS}
           keyExtractor={(item) => item.key}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
@@ -1388,7 +1418,7 @@ export default function ReasoningScreen() {
                     ? phase === "done"
                       ? t("ds.reasoningScreen.selectProposals")
                       : t("ds.reasoningScreen.processing")
-                    : t("ds.reasoningScreen.selectionCount", {
+                    : !listReady ? "..." : t("ds.reasoningScreen.selectionCount", {
                         n: selected.size,
                         max: Math.min(MAX_SELECTION, items.length),
                       })}
@@ -1399,10 +1429,18 @@ export default function ReasoningScreen() {
                   <RNText style={styles.errorText}>{errorText}</RNText>
                 </View>
               ) : null}
+              {listFailed ? (
+                <View style={styles.errorCard}>
+                  <RNText style={styles.errorText}>
+                    {currentListRead?.status === "timeout" ? t("common:errors.network") : t("ds.reasoningScreen.loadFailed")}
+                  </RNText>
+                  <MdButton label={t("common:actions.retry")} variant="tonal" onPress={() => setListAttempt((attempt) => attempt + 1)} />
+                </View>
+              ) : null}
             </View>
           }
           ListEmptyComponent={
-            <View style={styles.empty}>
+            !listFailed ? <View style={styles.empty}>
               <RNText style={styles.emptyTitle}>
                 {listLoading
                   ? t("ds.reasoningScreen.loadingItems")
@@ -1415,7 +1453,7 @@ export default function ReasoningScreen() {
                   onPress={() => router.push("/capture")}
                 />
               ) : null}
-            </View>
+            </View> : null
           }
           renderItem={({ item }) => {
             const chosen = selected.has(item.key);
@@ -1474,7 +1512,8 @@ export default function ReasoningScreen() {
             disabled={
               applying ||
               (phase !== "running" && phase !== "done" && selected.size === 0 && !depleted) ||
-              listLoading
+              listLoading ||
+              (phase !== "running" && phase !== "done" && listFailed)
             }
             onPress={() => {
               if (phase === "running") cancelRun();
