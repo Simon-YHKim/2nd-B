@@ -46,6 +46,56 @@ export interface AuthMutationContext {
   readonly destructiveSafe: boolean;
 }
 
+export class AuthMutationContextUnavailableError extends Error {
+  constructor() {
+    super("The auth mutation context is no longer available.");
+    this.name = "AuthMutationContextUnavailableError";
+  }
+}
+
+interface RegisteredMutationScope {
+  runtime: AuthStorageRuntime;
+  open: boolean;
+  realWebLock: boolean;
+  retired(): boolean;
+  tasks: Promise<void>[];
+  failure: { error: unknown } | null;
+}
+
+const mutationScopes = new WeakMap<AuthMutationContext, RegisteredMutationScope>();
+
+/** Register before the first await. Only the issuing, still-open real M callback
+ * can register work; copying its public boolean does not copy that authority.
+ * This deliberately returns the tracked Promise itself, so an accidentally
+ * unawaited helper cannot create an unobserved rejection outside the drain. */
+export function runWithWebAuthMutationContext<T>(
+  runtime: AuthStorageRuntime,
+  context: AuthMutationContext,
+  operation: (assertCurrent: () => void) => MaybePromise<T>,
+): Promise<T> {
+  const scope = mutationScopes.get(context);
+  const assertCurrent = () => {
+    if (!scope || scope.runtime !== runtime || !scope.open || !scope.realWebLock || scope.retired()) {
+      throw new AuthMutationContextUnavailableError();
+    }
+  };
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (error: unknown) => void;
+  const task = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  try {
+    assertCurrent();
+    scope!.tasks.push(task.then(() => undefined, (error: unknown) => {
+      scope!.failure ??= { error };
+    }));
+    Promise.resolve(operation(assertCurrent)).then((value) => {
+      try { assertCurrent(); resolve(value); } catch (error) { reject(error); }
+    }, reject);
+  } catch (error) {
+    reject(error);
+  }
+  return task;
+}
+
 export interface AuthStorageKeys {
   v1Primary: string;
   v2Primary: string;
@@ -345,7 +395,7 @@ export function createAuthStorageRuntime(
     return exclusive(name, () => fn(), options.web && verifiedMutationDepth > 0);
   };
 
-  return {
+  const runtime: AuthStorageRuntime = {
     storageKey: keys.v2Primary,
     storage: gatedStorage,
     sdkLock,
@@ -365,10 +415,51 @@ export function createAuthStorageRuntime(
         keys.mutationLock,
         async (crossTabLockHeld) => {
           const destructiveSafe = crossTabLockHeld || !options.web;
+          const context = Object.freeze({ destructiveSafe });
+          const scope: RegisteredMutationScope = {
+            runtime, open: true, realWebLock: options.web && crossTabLockHeld,
+            retired: () => retired, tasks: [], failure: null,
+          };
+          mutationScopes.set(context, scope);
           if (crossTabLockHeld) verifiedMutationDepth += 1;
           try {
-            return await fn({ destructiveSafe });
+            let outcome: GuardedOutcome<T>;
+            try {
+              const returned = fn(context);
+              if (returned instanceof Promise) {
+                // Native Promise callbacks keep their scope until settlement
+                // is observed. Do not add a yield for plain synchronous values.
+                outcome = { ok: true, value: await returned };
+              } else {
+                scope.open = false;
+                // Read a foreign/custom thenable's getter exactly once, while
+                // closed: getter reentrancy cannot start work after fn returned.
+                const then = returned !== null && (typeof returned === "object" || typeof returned === "function")
+                  ? (returned as unknown as PromiseLike<T>).then : undefined;
+                if (typeof then === "function") {
+                  scope.open = true;
+                  // Preserve asynchronous thenable assimilation, first settle
+                  // wins, and adoption of a pending nested Promise.
+                  const adopted = new Promise<T>((resolve, reject) => {
+                    queueMicrotask(() => {
+                      try { then.call(returned, resolve, reject); } catch (error) { reject(error); }
+                    });
+                  });
+                  outcome = { ok: true, value: await adopted };
+                } else outcome = { ok: true, value: returned as T };
+              }
+            }
+            catch (error) { outcome = { ok: false, error }; }
+            // Stop new work and later stages, but do not release M underneath
+            // a D transaction or a public SDK call that has already started.
+            scope.open = false;
+            await Promise.all(scope.tasks);
+            if (!outcome.ok) throw outcome.error;
+            if (scope.failure) throw scope.failure.error;
+            return outcome.value;
           } finally {
+            scope.open = false;
+            mutationScopes.delete(context);
             if (crossTabLockHeld) verifiedMutationDepth -= 1;
           }
         },
@@ -376,6 +467,7 @@ export function createAuthStorageRuntime(
       );
     },
   };
+  return runtime;
 }
 
 export function resolveAuthStorage(web: boolean): SupportedStorage | undefined {
@@ -482,9 +574,11 @@ function expectationMatches(
 export async function assertExpectedSessionInsideMutation(
   client: Pick<GoTrueClient, "getSession">,
   expected: AuthSessionExpectation,
+  options: { allowAlreadyCleared?: boolean } = {},
 ): Promise<void> {
   const { data, error } = await client.getSession();
   if (error) throw error;
+  if (options.allowAlreadyCleared && expected.userId !== null && data.session === null) return;
   if (!expectationMatches(expected, data.session)) throw new AuthSessionOwnerChangedError();
 }
 

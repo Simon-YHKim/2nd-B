@@ -1,4 +1,162 @@
-# T16 웹 초안 폐기 준비 A
+# T16 웹 초안 폐기 준비 A / B0a / B0b
+
+
+## B0b 추가: 원 logout intent와 IDB version 2
+
+준비 기준은 main `5f9bcc085b01e9a72a1a5b4683e96bd1407f1207`에 B0a R2
+`e928ff711d642f999e25fd0602d0775afcb6184b`를 local merge한
+`1b630b988ee6acc12687cab4fe99b1230edc9abb`다. B0a R2는 독립 검토 PASS H0/M0/L0,
+구현 BLOCK 1회 이력을 유지한다. B0 설계의 BLOCK 1회와는 별도다. **B0b 자체의 독립 검토·전체
+verify·CI·머지 및 제품 연결은 별도 단계다.** 이 준비 변경은 여전히 기존 인증 caller 다섯 곳,
+AuthContext, 본문 writer, UI, native 저장소와 서버를 연결하지 않는다.
+
+같은 DB 이름 `secondB.interviewWeb.v1:<storageKey>`의 IndexedDB version을 2로 올린다. control의
+row version과 필드는 v1 그대로이며 active.logoutId는 null이다. `logoutIntents` out-of-line store에
+singleton `current` 한 행만 추가한다. 필드는 정확히 v=1, kind=web-interview-logout, ownerId,
+sessionId, storageGeneration, 원 activeRevision, 원 logoutId, 원 scope(global/local)다.
+본문·token·token hash·임의 null expectation·SDK 완료 flag는 저장하지 않는다. 이 행은 로컬
+작업 식별자이며 서버 폐기나 다른 기기의 JWT 무효화 증거가 아니다.
+
+oldVersion 0에서는 세 store를 한 versionchange로 만든다. oldVersion 1에서는 같은 upgrade
+transaction에서 기존 두 store의 정확 schema/control key-value/body key 관계를 검증한 뒤 empty
+intent store를 추가한다. 기존 control/body를 복사·삭제·재발급하지 않는다. orphan, undefined 값,
+unknown 필드/index/store/version, 손상된 관계는 abort한다. schema 생성 뒤 부분 실패도 전체
+versionchange를 rollback해야 한다. blocked/timeout 뒤 늦은 upgrade는 schema를 만들지 않는다.
+기존 연결은 versionchange 때 닫고, 옛 v1 adapter가 v2를 open하면 VersionError로 실패한다.
+
+inspect/prepare/purge/lookup/activate는 같은 D 안에서 세 store의 전체 metadata key/value와 body
+key를 함께 읽는다. 본문 payload는 읽지 않는다. 정확 empty는 세 store 모두 행 0일 때뿐이다.
+active+body0, inactive+body0, orphan intent는 empty가 아니다. 모든 성공은 transaction.oncomplete다.
+
+`resolveWebInterviewSignOut`와 already-M helper는 B0a의 실제 context identity/lifetime/drain을
+계승한다. 첫 await 전에 expected와 request를 복사하고 M 아래 S 확인→fresh D→필요한 S 재대조→
+D 준비/폐기 또는 receipt 조회→마지막 S/public signOut을 수행한다. S를 잡은 채 D를 기다리거나
+D/S 안에서 M을 다시 얻지 않는다. readonly 관측을 밖에서 받아 인증 권한으로 소비하는 API는 없다.
+
+- `new`는 명시적인 새 동작이다. 현재 stable auth와 fresh active/no-intent를 확인한 뒤
+  `createLogoutId(copiedTicket)`를 정확히 한 번 호출한다. caller는 받은 ticket과 생성한 ID를
+  실제 captured expected/scope와 함께 메모리에 보존할 수 있다. intent prepare oncomplete 전에는
+  purge/SDK를 시작하지 않는다. 이미 pending intent가 있으면 new는 conflict이며 overwrite하지 않는다.
+- `resume`은 ID 생성 함수가 없다. durable intent의 원 tuple/activeRevision/ID/scope를 복원하며
+  expected.accessToken은 null이다. 같은 process의 `original`이 있으면 원 ID/tuple/revision/scope가
+  durable intent와 모두 같아야 한다. active는 같은 ID로 purge, inactive는 원 activeRevision로
+  lookup해 receipt.revision=activeRevision+1을 확인한다. 현재 auth를 다시 확인한 뒤만 SDK를 호출한다.
+- active/no-intent 또는 옛 A의 inactive/no-intent에서 original도 없으면
+  `unconfirmed-missing-origin`이다. 자동 ID 생성, inactive.revision-1로 원 요청 합성, SDK 호출은 0이다.
+  실제 in-memory original이 있으면 active의 exact prepare를 재시도할 수 있다. 옛 inactive는 A의
+  explicit helper로만 대조하고 intent를 소급 작성하지 않는다.
+- initial empty는 같은 M의 auth-only다. new.scope 또는 resume.emptyScope는 이 분기에만 쓰인다.
+  durable intent가 있으면 항상 원 intent.scope를 쓰며 emptyScope로 확대·축소하지 않는다. 원 bound
+  original을 제출한 resume에 empty가 나오면 conflict다. auth-only는 purge receipt를 반환하지 않는다.
+
+A의 기존 두 인자 purge/lookup은 유지한다. 인증 helper는 선택적인 세 번째 scope를 전달하며,
+intent가 있을 때 같은 D에서 원 scope까지 검증한다. 따라서 기존 explicit helper로 원 local intent를
+global signOut으로 확대할 수 없다. intent가 없을 때 known-null+실제 captured context의 A 계약은
+그대로다. 단순 null에서 owner/session/ID를 추측하지 않는다.
+
+prepare는 control/body를 바꾸지 않는다. purge는 원 intent와 active tuple/revision을 다시 대조하고,
+A대로 control inactive/revision+1과 정확 body 삭제를 한 transaction에 commit한다. intent는 남긴다.
+SDK 실패·응답 유실은 이 metadata를 지우거나 SDK-complete flag를 만들지 않는다. 새 M에서 원 ID로
+재대조·재전달할 수 있으며 SDK side effect가 정확히 한 번이라는 보장은 하지 않는다.
+
+새 activation은 같은 M, live stable auth, 정확 previous inactive receipt, 다른 generation을 요구한다.
+matching intent 제거와 새 active control(revision+1/logoutId=null)은 같은 D에서 commit한다. active
+pending intent를 activation으로 덮지 않는다. 후속 C writer는 자신의 D CAS에서 pending intent도
+거부해야 한다. 이번 변경은 writer API나 body 쓰기를 구현하지 않는다.
+
+| 관측/현재 auth | resolver 결과 |
+|---|---|
+| 정확 empty + stable/legacy/known-null | 기존 expected 비교와 fresh D 후 auth-only |
+| active/no-intent + stable + 명시 new | 원 ID 1회→prepare 완료→exact purge→최종 SDK |
+| active/inactive + matching intent + 같은 stable 또는 known-null | 원 ID/scope/activeRevision로 재개 |
+| bound legacy, 다른 owner, 같은 owner의 새 session, auth read error | SDK 0, 새 ID 0, body/intent 보존 |
+| no-intent + original 없음 | missing-origin, 자동 새 ID/SDK 0 |
+| scope/ID/tuple/revision 불일치, corrupt/unsupported/blocked/timeout/abort | 성공 receipt/SDK 0 |
+| prepare 완료 전달 지연 또는 callback scope 종료 | 해당 invocation purge/SDK 0; intent의 실제 commit 가능성은 fresh D에서만 재판정 |
+| SDK 실패 또는 완료 직후 재시작 | intent/receipt 보존, current auth 재대조, 같은 원 작업의 재전달만 |
+| 새 generation activation 뒤 옛 작업 재시도 | 옛 작업 conflict, 새 body/auth 보존 |
+
+실행 검증은 기존 A/B0a runner를 확장한다. 실제 Chromium IDB2/Web Locks/두 page, 실제 SDK/runtime,
+합성 네트워크 응답을 쓴다. v1 exact/손상/부분 upgrade abort, prepare request-success 뒤 abort/늦은 ACK,
+동시 다른 ID/scope CAS, known-null/foreign/legacy/unknown, 새 generation과 옛 retry를 검사한다.
+전용 profile SIGKILL은 prepare 전/queued prepare/prepare 후/purge 후/SDK pending/SDK 후 여섯 지점에서
+원 ID 복구 또는 missing-origin을 확인한다. 전원 차단이나 실제 기기의 저장장치 고장을 검증한 것은 아니다.
+현재 관련 6 suites/154개(그 안의 session-mutation-v2 96개)와 실제 Chromium 55그룹이 통과했다.
+55그룹은 A19/B0a14/B0b22이며 기존 검사를 중복 합산하지 않는다. scratch 변이 5종(조기 prepare ACK,
+missing-origin에서 새 ID, scope 확대, 미검증 upgrade, 새 generation의 옛 intent 잔존)은 모두 실제
+assertion에서 실패했다. 최종 artifact hash는 해당 구현 handoff/receipt에 동결한다. 앱 설정 parity/운영 Auth/폰 검증으로
+바꾸지 않으며 B1/B2와 서버 선행 조건 전에는 제품 활성화하지 않는다.
+
+## B0a 추가: 이미 가진 M과 초기 빈 저장소
+
+2026-10-15, 기반 `9460615ac47ea18bb0046eec95789fb073df1e42`. B0 설계 R1 BLOCK 1회 뒤 독립 R2
+PASS를 받은 계약의 첫 구현 단위다. 구현 독립 R1은 H0/M1/L0으로 BLOCK 1회이며, 아래 R2 수정은 별도 재검토 대상이다. 제품의 기존 다섯 인증 caller와 AuthContext는 연결하지 않았다.
+아래 A의 exact ticket/purge 계약과 IndexedDB version 1의 두 store는 유지한다. **이 절은 B0a 당시 경계다. B0b의 durable intent/IDB2/resolver 준비는 위 별도 절에서 다룬다.**
+
+`session-mutation.ts`는 실제 runtime이 발급한 context 객체를 callback 수명 동안 private WeakMap에
+보관한다. `runWithWebAuthMutationContext`는 같은 runtime·같은 context·살아 있는 callback·실제 웹 M을
+요구한다. public `destructiveSafe` 값을 복사하거나 저장한 객체로 권한을 연장할 수 없다. 종료한 context,
+다른 runtime, retired runtime, process fallback은 새 helper 작업을 시작하지 못한다.
+
+동기 callback의 일반값 반환과 throw는 같은 JavaScript stack에서 등록 문을 닫는다. 반환값이 native
+Promise면 기존 await의 settlement 관측까지 열린다. foreign/custom thenable은 getter를 한 번만
+읽으며, getter 실행 중에는 문을 닫아 재진입을 거부한다. 실제 then 함수가 확인된 뒤에는 비동기
+assimilation과 중첩 Promise adoption이 끝날 때까지 수명을 유지한다. first resolve/reject 이후 throw는
+Promise 규칙대로 무시하며, 실제 settlement를 관측한 뒤의 microtask는 새 작업을 등록할 수 없다.
+동기값에도 무조건 await를 적용해 callback 반환 뒤 microtask에서 D를 시작하던 R1 M1을 수정했다.
+
+이미-M helper는 첫 await 전에 작업을 등록하고 그 Promise 자체를 반환한다. 정상 await는 그대로
+helper 종료→callback 종료→M 해제다. caller가 실수로 helper를 await하지 않고 callback을 끝내면 새 작업과
+다음 단계 시작을 닫고 **등록 작업이 settle할 때까지 M을 유지**한다. getSession/D 대기 뒤에는 SDK를
+시작하지 않는다. public SDK signOut을 이미 시작했다면 취소했다고 주장하지 않고 SDK 종료까지 M을
+유지한다. 이 경우 결과는 성공이 아니며 이미 commit한 D를 복원하지 않는다. callback 원 오류가 있으면
+그 오류를 보존하고, 그렇지 않으면 등록 작업의 오류를 전달한다. SDK 무응답을 임의 timeout으로 성공
+또는 잠금 해제로 바꾸지 않는다. 등록 작업이 없는 기존 ordinary auth callback은 같은 계약을 유지한다.
+
+`signOutExpectedWebInterviewSessionInsideMutation`은 실제 context를 받아 M 재획득 없이 A의 원
+expected/ticket/logoutId를 처리한다. outer 함수도 같은 helper를 쓴다. guard wrapper는 실제 SDK의
+getSession await 뒤와 signOut 직전에 scope를 확인하며 기존 expected-session primitive를 재사용한다.
+S를 보유한 채 D를 기다리거나 D 안에서 S/M을 얻지 않는다.
+
+`lifecycle.inspect()`는 기존 schema/control/body key 검사를 같은 readonly D에서 수행하며 성공은
+oncomplete뿐이다. 반환은 empty/active(ticket)/inactive(receipt)이고 **SDK 허가증이 아니다.**
+active인데 body가 0인 경우와 inactive는 empty가 아니다. control 없음+body 있음, 잘못된 schema/field/key,
+다른 tuple, denied/blocked/timeout/abort는 empty로 바꾸지 않는다. 아직 DB가 없는 첫 catalog 생성은
+기존 A 초기화에 따르며 본문 폐기로 세지 않는다. body payload는 읽거나 반환하지 않는다.
+
+`signOutEmptyWebInterviewSession`과 inside-M 버전은 이전 observation을 입력으로 받지 않는다.
+매 호출 **M→S(expected 확인, 종료)→fresh D empty/oncomplete→S(최종 비교, public signOut)→M 해제**다.
+성공값은 `{kind:"auth-only"}`이며 purge receipt/원문 삭제/과거 보관 미사용 이력을 만들지 않는다.
+SDK 실패 뒤 재시도나 다음 callback에서도 반드시 fresh D를 확인한다. 다른 탭 activation은 같은 M을
+요구하고, 미래 writer는 D에서 exact active tuple/revision CAS를 해야 한다. 모든 body write에 M을
+새로 요구한다는 뜻은 아니다. 실제 writer 연결은 후속 C의 검토 범위다.
+
+| 상태 | B0a 동작 |
+|---|---|
+| 정확 초기 empty + 같은 stable session | auth-only 허용. 같은 session의 token rotation 유지 |
+| 정확 초기 empty + legacy | 기존 owner/token equality만 메모리에서 사용. token 교체면 거부 |
+| 정확 초기 empty + known-null | expected null 또는 원 non-null expected의 이미 지워짐 의미 유지 |
+| bound active/inactive | empty helper는 거부. 원 stable expected + exact ticket/ID의 explicit helper만 가능 |
+| D 불가/오류 또는 auth read 오류 | SDK 0. known-null이나 empty로 접지 않음 |
+| D 이후 다른 owner/새 session | 기존 최종 비교로 SDK 0. 이미 폐기된 D를 복원하지 않음 |
+| callback 종료/복사 context/다른 runtime | 새 D/SDK 시작 0. 이미 시작한 작업만 M 안에서 settle |
+
+실행 검증은 기존 auth-js 2.106.1 SDK/runtime과 기존 Jest suite를 확장하고, 실제 Chromium runner의
+A 검사에 B0a 반례를 더했다. SDK의 네트워크 응답과 fault만 synthetic이며 IDB/Web Locks는 실제다.
+R2에서는 관련 6 suites/137개(그 안의 `session-mutation-v2` 79개)와 Chromium 33그룹이 통과했다. 로그는 최종 handoff/receipt에 동결한다. R1의 Jest `session-mutation-v2` 69개와 Chromium 31그룹 PASS만으로는 위 동기 반환 반례를 잡지 못했다. 기존 A의 19그룹을 유지하고,
+empty/legacy/null/readonly abort·늦은 완료, fresh retry, context 복사/재사용, 두 page activation 대기,
+callback 조기 종료의 실제 S/IDB/SDK 6시점을 추가했다. 실제 LockManager의 held/pending도 검사한다.
+전용 browser profile의 SIGKILL/restart 4시점은 A의 보관 사실 검사이며 B0b 복구 구현 증거가 아니다.
+R1 scratch 번들 음성 대조 4종도 실행했다. 조기 D ACK, context 복사 허용, 등록 작업 drain 제거,
+empty 관측 캐시 재사용이 각각 실제 브라우저 assertion에서 실패했다. 제품 소스에는 변이를 넣지 않았다.
+
+R2는 동기 반환/throw 뒤 실제 D·auth-only·explicit helper의 시작 0, then getter 재진입 0, 실제 SDK를 기다리는 thenable의 두 page M 대기를 추가 검사한다. R1 독립 반례 원본·관측은 보존하고 별도 출력에 재실행한다. R1 runtime을 scratch 번들에 되돌리는 음성 대조도 추가했다.
+
+B0a R2 독립 검토는 PASS H0/M0/L0이며 구현 BLOCK 1회 이력을 유지한다. 전체 verify/CI/merge는 root의 통합 원장으로 관리한다. B0a를 B0 전체, 웹 로그아웃 제품 통합, 원문 자동
+보관, 서버 generation, 폰 QA 또는 T16 완료로 표시하지 않는다. 기존 five-caller/B1, 외부 이벤트/B2,
+법무 원문 TODO 및 서버 S0/S1/S2는 그대로 남아 있다.
+
+## A 구현 기준과 기존 증거
 
 2026-10-15. 구현 시작 기준 `f3136a1524dd73be56051b591c6abbaaf7eb9c40`.
 승인된 후속 설계 `cbd8a11610e95f6d52308dc9b93c2ca551c6ef1164d479887764b2326e371ac2`의
