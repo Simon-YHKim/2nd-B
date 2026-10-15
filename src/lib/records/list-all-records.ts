@@ -17,6 +17,7 @@
 // listRecentRecords() is left as it is: the streak and the other screens that call it keep their
 // window.
 import { getSupabaseClient } from "../supabase/client";
+import { throwIfAborted } from "../async/abort";
 
 /** Rows asked for at a time. */
 export const WIKI_RECORDS_PAGE = 100;
@@ -65,14 +66,17 @@ function fromCursor<Q extends { lte(column: "created_at", value: string): Q; or(
   return cursor ? query.lte("created_at", cursor.createdAt).or(afterCursorFilter(cursor)) : query;
 }
 
-async function readPage(userId: string, cursor: PageCursor | null) {
-  const { data, error } = await fromCursor(
+async function readPage(userId: string, cursor: PageCursor | null, signal?: AbortSignal) {
+  let query = fromCursor(
     getSupabaseClient().from("records").select("id, kind, body, topic, summary, tags, created_at, audit_period").eq("user_id", userId),
     cursor,
   )
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(WIKI_RECORDS_PAGE);
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query;
+  throwIfAborted(signal);
   if (error) throw error;
   return data ?? [];
 }
@@ -81,12 +85,15 @@ async function readPage(userId: string, cursor: PageCursor | null) {
  * Every record of this owner, newest first. A failed page throws: a list missing its older half
  * would look complete, so the caller shows its error state instead (the wiki's retry).
  */
-export async function listAllRecords(userId: string) {
+export async function listAllRecords(userId: string, options: { signal?: AbortSignal } = {}) {
   if (!userId) return [];
   const rows: Awaited<ReturnType<typeof readPage>> = [];
   let cursor: PageCursor | null = null;
   while (rows.length < WIKI_RECORDS_MAX) {
-    const page = await readPage(userId, cursor);
+    // A timed-out/unmounted list must not keep walking pages, even if the
+    // transport ignores cancellation and its current page eventually answers.
+    throwIfAborted(options.signal);
+    const page = await readPage(userId, cursor, options.signal);
     rows.push(...page);
     if (page.length < WIKI_RECORDS_PAGE) break;
     const last = page[page.length - 1];

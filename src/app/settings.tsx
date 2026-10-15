@@ -77,7 +77,7 @@ const SETTINGS_SURFACE_COPY: Record<
 > = {
   en: {
     reasoning: "Reasoning",
-    reasoningSub: "Automatic runs · item selection",
+    reasoningSub: "Reviews material and suggests connections",
     wikiAuto: "Auto wiki pages",
     wikiAutoSub: "Turn new captures into wiki pages by themselves",
     devScreens: "Developer",
@@ -85,7 +85,7 @@ const SETTINGS_SURFACE_COPY: Record<
   },
   ko: {
     reasoning: "리즈닝",
-    reasoningSub: "자동 실행 · 자료 선택",
+    reasoningSub: "자료를 살펴 연결을 제안합니다",
     wikiAuto: "위키 자동 만들기",
     wikiAutoSub: "새로 저장한 자료를 알아서 위키 페이지로 만듭니다",
     devScreens: "개발자",
@@ -93,7 +93,7 @@ const SETTINGS_SURFACE_COPY: Record<
   },
   es: {
     reasoning: "Razonamiento",
-    reasoningSub: "Ejecuciones automáticas · selección de material",
+    reasoningSub: "Revisa el material y sugiere conexiones",
     wikiAuto: "Páginas wiki automáticas",
     wikiAutoSub: "Convierte las capturas nuevas en páginas wiki",
     devScreens: "Desarrollador",
@@ -101,7 +101,7 @@ const SETTINGS_SURFACE_COPY: Record<
   },
   pt: {
     reasoning: "Raciocínio",
-    reasoningSub: "Execuções automáticas · seleção de material",
+    reasoningSub: "Analisa o material e sugere conexões",
     wikiAuto: "Páginas wiki automáticas",
     wikiAutoSub: "Transforma capturas novas em páginas wiki",
     devScreens: "Desenvolvedor",
@@ -109,7 +109,7 @@ const SETTINGS_SURFACE_COPY: Record<
   },
   id: {
     reasoning: "Penalaran",
-    reasoningSub: "Jalankan otomatis · pilih materi",
+    reasoningSub: "Meninjau materi dan menyarankan keterkaitan",
     wikiAuto: "Halaman wiki otomatis",
     wikiAutoSub: "Ubah bahan baru menjadi halaman wiki",
     devScreens: "Pengembang",
