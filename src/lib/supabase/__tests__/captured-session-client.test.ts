@@ -7,6 +7,7 @@ jest.mock("../../env", () => ({
 
 import {
   invokeFunctionWithCapturedSession,
+  rpcJsonWithCapturedSession,
   rpcWithCapturedSession,
 } from "../captured-session-client";
 
@@ -15,6 +16,86 @@ const originalFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = originalFetch;
   jest.restoreAllMocks();
+});
+
+describe("captured-session JSON RPC transport", () => {
+  test.each([7, 0, null, { count: 3 }, [1, 2], "unvalidated", false])("returns JSON as transport data: %j", async (value) => {
+    const fetchMock = jest.fn().mockResolvedValue(new Response(JSON.stringify(value)));
+    globalThis.fetch = fetchMock as typeof fetch;
+    const signal = new AbortController().signal;
+    const args = Object.freeze({ p_day: "2026-10-16" });
+    await expect(rpcJsonWithCapturedSession("bump_chat_usage_if_under_cap", args, "captured-a", signal))
+      .resolves.toEqual({ data: value, error: null });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("https://project.example.test/rest/v1/rpc/bump_chat_usage_if_under_cap", {
+      method: "POST", signal, body: JSON.stringify(args),
+      headers: { Authorization: "Bearer captured-a", apikey: "public-anon-key", "content-type": "application/json" },
+    });
+  });
+
+  test.each(["../escape", "name?query=1", "name/path", "", "rpc%2fother"])("rejects invalid routes before fetch: %s", async (name) => {
+    globalThis.fetch = jest.fn();
+    await expect(rpcJsonWithCapturedSession(name, {}, "captured-a")).rejects.toThrow("captured_session_route_invalid");
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  test("rejects a missing token before fetch", async () => {
+    globalThis.fetch = jest.fn();
+    await expect(rpcJsonWithCapturedSession("get_chat_usage", {}, "")).rejects.toThrow("captured_session_token_missing");
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  test.each([400, 401, 409, 500])("preserves HTTP %i context without retrying or exposing its body in the error", async (status) => {
+    const body = JSON.stringify({ code: "P0001", message: "private upstream detail" });
+    const fetchMock = jest.fn().mockResolvedValue(new Response(body, { status }));
+    globalThis.fetch = fetchMock as typeof fetch;
+    const result = await rpcJsonWithCapturedSession("bump_chat_usage_if_under_cap", {}, "captured-a");
+    expect(result.data).toBeNull();
+    expect(result.error?.message).toBe("captured_session_request_failed");
+    expect(result.error?.context.status).toBe(status);
+    expect(await result.error?.context.text()).toBe(body);
+    expect(JSON.stringify(result.error)).toBe("{}");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(["", "not-json", "{\"count\":"])("malformed success is an error with the original success context: %s", async (body) => {
+    globalThis.fetch = jest.fn().mockResolvedValue(new Response(body, { status: 200 })) as typeof fetch;
+    const result = await rpcJsonWithCapturedSession("bump_chat_usage_if_under_cap", {}, "captured-a");
+    expect(result.data).toBeNull();
+    expect(result.error?.context.status).toBe(200);
+    expect(await result.error?.context.text()).toBe(body);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("no-content success is not converted to zero or a confirmed mutation result", async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue(new Response(null, { status: 204 })) as typeof fetch;
+    const result = await rpcJsonWithCapturedSession("bump_chat_usage_if_under_cap", {}, "captured-a");
+    expect(result.data).toBeNull();
+    expect(result.error?.context.status).toBe(204);
+  });
+
+  test("a rejected transport stays a rejection and never retries", async () => {
+    const failure = new Error("transport unavailable");
+    globalThis.fetch = jest.fn().mockRejectedValue(failure) as typeof fetch;
+    await expect(rpcJsonWithCapturedSession("get_chat_usage", {}, "captured-a")).rejects.toBe(failure);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("keeps an issued response available for the original caller to settle after cancellation", async () => {
+    let resolve!: (response: Response) => void;
+    const pending = new Promise<Response>((done) => { resolve = done; });
+    const fetchMock = jest.fn().mockReturnValue(pending);
+    globalThis.fetch = fetchMock as typeof fetch;
+    const controller = new AbortController();
+    const result = rpcJsonWithCapturedSession("bump_chat_usage_if_under_cap", {}, "captured-a", controller.signal);
+    controller.abort();
+    // A transport can already have received the server result when aborted.
+    // It is the caller's job to settle its ticket and then reject publication.
+    resolve(new Response("8"));
+    await expect(result).resolves.toEqual({ data: 8, error: null });
+    expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("captured-session Supabase transport", () => {
