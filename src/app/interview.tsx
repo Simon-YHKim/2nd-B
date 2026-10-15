@@ -36,7 +36,7 @@ import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneTextIn
 // 표식은 사용자 태그 칸(`tags`)이 아니라 앱 표식 칸(`records.system_tags`)에 쓴다 —
 // /discover · /research 가 `interview` 를 사용자의 주제로 보여 주지 않게.
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StyleSheet } from "react-native";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
@@ -265,6 +265,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const kbHeight = useKeyboard();
 
   const [turns, setTurns] = useState<InterviewTurn[]>([]);
+  // A local question change and a send can arrive from the same old render.
+  // Claim the new question synchronously, then reconcile at the commit.
+  const turnsOwnerRef = useRef(turns);
+  useLayoutEffect(() => { turnsOwnerRef.current = turns; }, [turns]);
   const [coverage, setCoverage] = useState<Coverage>(emptyCoverage);
   /** 이 세션을 시작할 때 이미 저장돼 있던 행렬. 저장할 때 **이번에 판 만큼만**
    *  더하기 위해 남겨둔다(0143). ref 인 이유는 렌더를 유발할 값이 아니라서다. */
@@ -600,7 +604,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       return;
     }
     // A same-render double tap must not submit two answers before busy paints.
-    if (sending.current) return;
+    if (sending.current || turnsOwnerRef.current !== turns) return;
     const owner = captureAccountOwnerLease(userId);
     if (!owner) return;
     const editRevision = draftEditRevision.current;
@@ -629,6 +633,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         ? [...abandoned, pendingLayer]
         : abandoned;
 
+    turnsOwnerRef.current = nextTurns;
     setTurns(nextTurns);
     setCoverage(nextCoverage);
     // 포기했으면 연속 카운터도 초기화한다 -- 다음 층은 새로 시작하는 것이 맞다.
@@ -641,6 +646,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     try {
       const outcome = await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);
       if (outcome === "limited" && owner.isCurrent() && mounted.current && !ended.current) {
+        turnsOwnerRef.current = turns;
         setTurns(turns);
         setPendingLayer(pendingLayer);
         setOpeners(openers);
@@ -656,7 +662,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   }
 
   function changeAngle(choice: "skip" | "concrete") {
-    if (busy || ended.current) return;
+    if (busy || sending.current || turnsOwnerRef.current !== turns || ended.current) return;
     // 모델을 부르지 않는 길이라 서버 한도에 안 닿는다. 답 없이 연달아 붙은 질문만
     // 세서 막는다 -- 건너뛰기를 계속 눌러도 끝없이 길어지지 않게(session-end.ts).
     // "모르겠어요"처럼 발판으로 받은 답은 답으로 세지 않는다 -- send() 와 같은 판정.
@@ -666,7 +672,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     }
     const text = t(choice === "skip" ? "drill.anotherScene" : "drill.concreteQuestion");
     if (choice === "concrete" && currentScene(turns).some((turn) => turn.text === text)) return;
-    setTurns([...turns, { role: "interviewer", text, layer: "fact", period, sceneStart: choice === "skip" }]);
+    const nextTurns: InterviewTurn[] = [...turns, { role: "interviewer", text, layer: "fact", period, sceneStart: choice === "skip" }];
+    turnsOwnerRef.current = nextTurns;
+    setTurns(nextTurns);
     setConcreteOnly(choice === "concrete");
     setPendingLayer("fact");
     setStuckStreak(0);

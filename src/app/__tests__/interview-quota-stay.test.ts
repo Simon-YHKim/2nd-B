@@ -37,7 +37,7 @@ function setup() {
     ],
     draft: "  My unsent draft, with spacing  ", pendingLayer: "emotion", openers: ["An opening"],
     coverage: { unchanged: true }, stuckStreak: 2, abandoned: ["meaning"], busy: false,
-    notice: null as string | null, done: false,
+    notice: null as string | null, done: false, concreteOnly: false,
   };
   const state = { ...initial };
   const updates: string[] = [];
@@ -49,18 +49,27 @@ function setup() {
     ...initial, ...setters, userId: "A", locale: "en", period: "school", isMinor: false,
     mounted: { current: true }, ended: { current: false }, coverageReady: true, concreteOnly: false,
     draftEditRevision: { current: 0 }, sending: { current: false }, crisisRouting: { current: false },
+    turnsOwnerRef: { current: initial.turns }, localPromptsExhausted: () => false, currentScene: () => [],
     captureAccountOwnerLease, readDayLimitRefusal, INTERVIEW_PURPOSE,
     entriesOf: () => [], nextMove: () => ({ kind: "drill", layer: "emotion" }), nextProbe: jest.fn(() => request),
     classifyInputAnyLocale: jest.fn(() => ({ zone: "green" })), answerDisposition: () => "continue",
     isLocalNonAnswer: () => false, MAX_SCAFFOLDS_PER_LAYER: 2, t: (key: string) => key,
     startInterviewCrisisRouting: jest.fn((_guard, _input, visible) => { visible(); return { started: true, done: Promise.resolve() }; }),
     publishCrisisNotice: jest.fn(), hotlineFor: () => "KR_109", finish: (): unknown => undefined,
-    ask: (..._args: unknown[]): unknown => undefined,
+    ask: (..._args: unknown[]): unknown => undefined, changeAngle: (..._args: unknown[]): unknown => undefined,
     confirmedAnswer: jest.fn(), incrementCoverage: jest.fn(), createRecord: jest.fn(), addCoverage: jest.fn(),
   };
   scope.finish = callback("finish", scope);
   scope.ask = callback("ask", scope);
-  return { scope, state, initial, updates, reject, send: callback("send", scope), edit: callback("editDraft", scope) };
+  scope.changeAngle = callback("changeAngle", scope);
+  function render() {
+    Object.assign(scope, state);
+    scope.turnsOwnerRef.current = state.turns;
+    scope.ask = callback("ask", scope);
+    scope.changeAngle = callback("changeAngle", scope);
+    return { send: callback("send", scope), change: scope.changeAngle };
+  }
+  return { scope, state, initial, updates, reject, render, send: callback("send", scope), change: scope.changeAngle, edit: callback("editDraft", scope) };
 }
 
 test.each([
@@ -155,4 +164,49 @@ test("after a quota refusal, crisis input still routes before any additional req
   expect(h.scope.incrementCoverage).not.toHaveBeenCalled();
   expect(h.state.turns).toBe(h.initial.turns);
   expect(h.state.done).toBe(true);
+});
+
+
+test.each(["skip", "concrete"])("a same-render %s cannot replace a question while its answer is pending", async (choice) => {
+  const h = setup(); const pending = h.send();
+  const before = { ...h.state };
+  h.change(choice);
+  expect(h.state).toEqual(before);
+  h.reject(quota()); await pending;
+  expect(h.state).toEqual({ ...h.initial, notice: "drill.dayLimit" });
+  expect(h.scope.nextProbe).toHaveBeenCalledTimes(1);
+});
+
+test.each(["skip", "concrete"])("a same-render send cannot answer the stale question after %s", async (choice) => {
+  const h = setup(); h.change(choice);
+  const changed = { ...h.state };
+  await h.send();
+  expect(h.scope.nextProbe).not.toHaveBeenCalled();
+  expect(h.state).toEqual(changed);
+  expect(h.state.pendingLayer).toBe("fact");
+  expect(h.state.concreteOnly).toBe(choice === "concrete");
+  h.change(choice === "skip" ? "concrete" : "skip");
+  expect(h.state).toEqual(changed);
+});
+
+test("a newly committed local question stays usable and quota restores that question", async () => {
+  const h = setup(); h.change("concrete");
+  await h.edit("ANSWER TO THE NEW QUESTION");
+  const changed = { ...h.state };
+  const pending = h.render().send();
+  h.reject(quota()); await pending;
+  expect(h.state).toEqual({ ...changed, notice: "drill.dayLimit" });
+  expect(h.state.pendingLayer).toBe("fact");
+  expect(h.state.concreteOnly).toBe(true);
+  expect(h.scope.nextProbe).toHaveBeenCalledTimes(1);
+});
+
+test("after quota the user can explicitly choose a new scene without another request", async () => {
+  const h = setup(); const pending = h.send(); h.reject(quota()); await pending;
+  h.render().change("skip");
+  expect(h.state.turns.at(-1)).toMatchObject({ text: "drill.anotherScene", layer: "fact", sceneStart: true });
+  expect(h.state.pendingLayer).toBe("fact");
+  expect(h.state.concreteOnly).toBe(false);
+  expect(h.state.notice).toBeNull();
+  expect(h.scope.nextProbe).toHaveBeenCalledTimes(1);
 });
