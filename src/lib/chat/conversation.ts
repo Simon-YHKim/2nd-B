@@ -21,7 +21,7 @@ import { promptSafeName } from "@/lib/persona/address";
 import type { LlmResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
-import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday, type ChatLimitCheck } from "./limits";
+import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
 import { loadStructuredContext } from "../records/load-structured";
 import { loadProfileContext } from "../persona/profile-context";
 import { exportUserWiki } from "../wiki/export";
@@ -97,9 +97,9 @@ export interface SendMessageBlocked {
 export interface SendMessageOk {
   status: "ok";
   reply: LlmResult<string>;
-  used: number;
-  limit: number;
-  remaining: number;
+  used: number | null; // Device-red guidance reads no quota; null is unknown.
+  limit: number | null;
+  remaining: number | null;
 }
 
 export type SendMessageResult = SendMessageBlocked | SendMessageOk;
@@ -211,6 +211,8 @@ const BLOCKED_HINT = {
 };
 
 export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
+  const cut = await answerDeviceRed(input);
+  if (cut) return cut;
   const day = kstDateToday();
   const limit = CHAT_DAILY_LIMIT[input.tier];
 
@@ -227,8 +229,6 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
       hint: BLOCKED_HINT[input.locale](precheck.limit),
     };
   }
-  const cut = await answerDeviceRed(input, precheck);
-  if (cut) return cut;
   // Context assembly (D-26 A1): try query-relevant retrieval first — embed the
   // message and pull the top-8 semantically relevant pages (RAG). On a hit the
   // prompt carries ONLY those pages plus a slim recent-sources list (~10x smaller
@@ -395,11 +395,11 @@ function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): stri
   return `If the person talks about ending their life or hurting themselves, point them to ${lines}. Do not add a police number for that reason alone. Point to the local emergency number only when their body is in danger right now, such as an injury or something already swallowed. If you cannot tell which it is, stay with ${lines}. Never make up a phone number.`;
 }
 
-// Q-261014-30 (Simon 2026-10-14): a turn the device classifier marks red is
-// answered here, before any context read and without a bump. One verdict, one
-// routing call; the answer carries the usage that was read, unchanged.
-async function answerDeviceRed(input: SendMessageInput, usage: ChatLimitCheck): Promise<SendMessageOk | null> {
+// Q-261014-30 / Q-261015-82: one device-red verdict, one routing call, before
+// any quota read, limit refusal or context read, without a bump.
+// Quota is unknown here; callers retain their last verified usage display.
+async function answerDeviceRed(input: SendMessageInput): Promise<SendMessageOk | null> {
   const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);
   if (!reply) return null;
-  return { status: "ok", reply, used: usage.used, limit: usage.limit, remaining: usage.remaining };
+  return { status: "ok", reply, used: null, limit: null, remaining: null };
 }

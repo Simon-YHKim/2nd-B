@@ -49,7 +49,7 @@ import { chatAutosaveAllowed } from "@/lib/chat/autosave";
 import { getExchangeExpression, getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion, type ChatFollowUp } from "@/lib/chat/presentation-policy";
 import { createChatAutosaveSession } from "@/lib/chat/autosave-session";
 import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
-import { classifyInput } from "@/lib/safety/classifier";
+import { classifyInput, classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { currentDisplayName } from "@/lib/persona/use-address";
 import {
   CHAT_KEEP_TAG,
@@ -198,7 +198,7 @@ interface ChatComposerHandle {
 interface ChatComposerProps {
   /** A send is in flight — drives the send-button spinner and blocks re-send. */
   sending: boolean;
-  /** The non-draft half of canSend: not sending and under the daily cap. */
+  /** Ordinary sends require this gate; device-red drafts can bypass the cap. */
   sendEnabled: boolean;
   /** Commit a message. Returns true when accepted (composer clears its draft),
    *  false when the send was refused (e.g. reasoning cap) so the draft is kept. */
@@ -240,9 +240,18 @@ const ChatComposer = memo(
     const [inputHeight, setInputHeight] = useState(0);
     const composerAlignment = chatComposerAlignment(Platform.OS, fontScale, draft.length === 0 ? 0 : inputHeight);
     useImperativeHandle(ref, () => ({ prefill: (text: string) => setDraft(text) }), []);
-    const canSend = draft.trim().length > 0 && sendEnabled;
+    const { userId, isMinor } = useAuth();
+    const voiceLocale = i18n.language === "ko" ? ("ko" as const) : ("en" as const);
+    // Q-261015-82: a reached AI cap must not disable the path to fixed crisis guidance.
+    // This is only a button gate; the engine still owns routing, audit and quota checks.
+    const canSend = draft.trim().length > 0 && !sending && (sendEnabled ||
+      classifyInputAnyLocale(draft, voiceLocale, { minor: isMinor === true }).zone === "red");
     const submit = () => {
       if (!canSend) return;
+      // Guidance cannot wait for quota or audit storage to answer.
+      if (classifyInputAnyLocale(draft, voiceLocale, { minor: isMinor === true }).zone === "red") {
+        setCrisis({ visible: true, hotline: voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+      }
       // Clear only when the send was accepted, so a cap-blocked send keeps the
       // typed text (the old handleSend returned before clearing on a cap hit).
       if (onSend(draft.trim())) setDraft("");
@@ -253,8 +262,6 @@ const ChatComposer = memo(
     // transcript is proposed into the draft for review, never auto-sent
     // (propose -> ratify). transcribeAudio holds C1/C3/C9: a red-zone
     // transcript never reaches the draft — it routes to the crisis surface.
-    const { userId, isMinor } = useAuth();
-    const voiceLocale = i18n.language === "ko" ? ("ko" as const) : ("en" as const);
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
     const recorderLifecycle = useMemo(
       () => createRecorderLifecycle(audioRecorder, { onIdle: restoreEffectsAfterRecording }),
@@ -804,7 +811,7 @@ function SecondBChatBody() {
     [progression.tier, adBonusToday],
   );
   // Under today's limit (null = the count is still loading, so allow until we know). The
-  // composer and [다시 시도] both read this one, so neither can send where the other cannot.
+  // ordinary composer sends and [다시 시도] share this gate; device-red drafts are the exception.
   const underLimit = usedToday === null || usedToday < allowance;
 
   useEffect(() => {
@@ -971,15 +978,17 @@ function SecondBChatBody() {
             ]);
             // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
             if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
-            setUsedToday(result.used);
-            setLimitRefused(false);
+            if (result.used !== null) {
+              setUsedToday(result.used);
+              setLimitRefused(false);
+            }
             captureEvent(
               secondBSession({
                 action: "message_sent",
                 mode: chatMode,
                 outcome: "ok",
                 turn_count: earlier.length + 1,
-                used: result.used,
+                used: result.used ?? undefined,
                 limit,
                 tier: progression.tier,
               }),
@@ -1056,11 +1065,11 @@ function SecondBChatBody() {
   // which keys off isMinor that is null until the birth date is on file).
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  // The non-draft half of the composer's send gate: not already sending and
+  // The ordinary-message half of the composer's send gate: not already sending and
   // under the daily AI limit (server also rejects via ChatLimitExceededError,
   // but the UI should not look actionable). usedToday===null means the count is
   // still loading, so allow until we know. ChatComposer ANDs this with a
-  // non-empty draft.
+  // non-empty draft, with a device-red exception for fixed crisis guidance.
   const sendEnabled = !sending && underLimit;
   const hasTurns = turns.length > 0;
 
