@@ -259,8 +259,8 @@
     "noticesTitle": "Pengumuman",
     "faqs": {
       "brightness": {
-        "q": "Apa beda kecerahan (cahaya bintang) dan tingkat keyakinan?",
-        "a": "Cahaya bintang menunjukkan seberapa banyak yang sudah kamu simpan di area itu; tingkat keyakinan menunjukkan seberapa jauh perkiraan HustleK sudah diverifikasi. Keduanya bergerak sendiri-sendiri."
+        "q": "Apa arti kecerahan bintang?",
+        "a": "Kecerahan bintang wawancara menunjukkan berapa lapis wawancara yang sudah kamu buka. Cakupan bisa mencapai L4; L5 baru muncul setelah kamu menyetujui sebuah usulan."
       },
       "plan": {
         "q": "Apakah paket berbayar membuatnya lebih pintar?",
@@ -842,9 +842,9 @@
       "meaning": "makna",
       "edit": "Sunting",
       "move": "Pindahkan",
-      "fillStar": "Isi bintang ini",
+      "fillStar": "Isi bidang ini",
       "fillStarBody": "Tambahkan informasi untuk bidang ini.",
-      "secondbLinked": "Catatan ini terhubung dengan bintang '{{star}}'. Ada {{n}} catatan serupa dalam rentang waktu yang sama.",
+      "secondbLinked": "Catatan ini terhubung dengan bidang '{{star}}'. Ada {{n}} catatan serupa dalam rentang waktu yang sama.",
       "makeWikiPage": "Buat halaman wiki",
       "wikiPageMade": "Halaman wiki dibuat"
     },
@@ -993,7 +993,7 @@
       "reviewTitle": "Tinjau hasil",
       "selectedTitle": "{{n}} dipilih",
       "progressDone": "Semua item sudah terhubung",
-      "progressRunning": "Menghubungkan bintangmu",
+      "progressRunning": "Menghubungkan bidangmu",
       "unlimited": "Keterkaitan tanpa batas",
       "weeklyLeft": "Sisa {{left}} dari {{cap}} jatah minggu ini · reset hari Senin",
       "cancel": "Batal",

@@ -259,8 +259,8 @@
     "noticesTitle": "Avisos",
     "faqs": {
       "brightness": {
-        "q": "¿En qué se diferencian el brillo (la luz de las estrellas) y la confianza?",
-        "a": "La luz de las estrellas indica cuánto has guardado en esa área; la confianza, cuánto se ha comprobado la estimación de HustleK. Las dos cambian por separado."
+        "q": "¿Qué significa el brillo de las estrellas?",
+        "a": "El brillo de una estrella de entrevista indica cuántas capas de la entrevista has abierto. La cobertura llega hasta L4; L5 solo aparece cuando confirmas una propuesta."
       },
       "plan": {
         "q": "¿Un plan de pago lo hace más inteligente?",
@@ -842,9 +842,9 @@
       "meaning": "significado",
       "edit": "Editar",
       "move": "Mover",
-      "fillStar": "Completar esta estrella",
+      "fillStar": "Completar esta área",
       "fillStarBody": "Añade información sobre esta área.",
-      "secondbLinked": "Este fragmento se conecta con tu estrella '{{star}}'. {{n}} registros similares están en el mismo periodo.",
+      "secondbLinked": "Este fragmento se conecta con tu área '{{star}}'. {{n}} registros similares están en el mismo periodo.",
       "makeWikiPage": "Crear página wiki",
       "wikiPageMade": "Página wiki creada"
     },
@@ -993,7 +993,7 @@
       "reviewTitle": "Revisar resultados",
       "selectedTitle": "{{n}} seleccionados",
       "progressDone": "Todos los elementos están conectados",
-      "progressRunning": "Conectando tus estrellas",
+      "progressRunning": "Conectando tus áreas",
       "unlimited": "Conexiones ilimitadas",
       "weeklyLeft": "Búsquedas disponibles esta semana: {{left}} de {{cap}} · se reinician el lunes",
       "cancel": "Cancelar",

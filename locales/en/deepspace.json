@@ -259,8 +259,8 @@
     "noticesTitle": "Notices",
     "faqs": {
       "brightness": {
-        "q": "What's the difference between brightness (starlight) and confidence?",
-        "a": "Starlight is how much you've captured in that area; confidence is how well HustleK's estimate has been verified. The two move independently."
+        "q": "What does star brightness mean?",
+        "a": "An interview star's brightness shows how many interview layers you have opened. Coverage can reach L4; L5 appears only after you confirm a proposal."
       },
       "plan": {
         "q": "Does a paid plan make it smarter?",
@@ -842,9 +842,9 @@
       "meaning": "meaning",
       "edit": "Edit",
       "move": "Move",
-      "fillStar": "Add information to this star",
+      "fillStar": "Add information to this area",
       "fillStarBody": "Add information for this domain.",
-      "secondbLinked": "This record is linked to your '{{star}}' star. {{n}} related records were saved around the same time.",
+      "secondbLinked": "This record is linked to your '{{star}}' area. {{n}} related records were saved around the same time.",
       "makeWikiPage": "Make a wiki page",
       "wikiPageMade": "Wiki page created"
     },
@@ -993,7 +993,7 @@
       "reviewTitle": "Review results",
       "selectedTitle": "{{n}} selected",
       "progressDone": "All items are connected",
-      "progressRunning": "Connecting your stars",
+      "progressRunning": "Connecting your areas",
       "unlimited": "Unlimited connections",
       "weeklyLeft": "{{left}} of {{cap}} runs left this week · resets Monday",
       "cancel": "Cancel",
