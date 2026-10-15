@@ -20,7 +20,8 @@ const mockRatify = jest.fn();
 const mockCue = jest.fn();
 const mockStatusCalls = jest.fn();
 const mockWrites = jest.fn((..._args: unknown[]) => { throw new Error("Read attempted a server mutation"); });
-const mockLevels = jest.fn<Promise<{ northStarBrightness: number }>, [string]>(async () => ({ northStarBrightness: 0.6 }));
+const mockLevels = jest.fn(async (..._args: unknown[]) => ({ northStarBrightness: 0.6,
+  starLevels: { profile: 1, infancy: 1, school: 1, twenties: 1, later: 1, work: 1, now: 1 } }));
 const mockStorage = new Map<string, string>();
 const mockStoreWrite = jest.fn((key: string, value: string) => { mockStorage.set(key, value); });
 const record = (owner: string) => ({ id: `${owner}-record`, kind: "journal", topic: `${owner}-record`, created_at: "2026-10-15T00:00:00Z", tags: [] });
@@ -46,7 +47,7 @@ jest.mock("../supabase/client", () => ({ getSupabaseClient: () => ({
   },
 }) }));
 jest.mock("../env", () => ({ getEnv: () => ({ EXPO_PUBLIC_LLM_MODE: "live" }) }));
-jest.mock("../persona/load-seven-levels", () => ({ loadSevenLevels: (owner: string) => mockLevels(owner) }));
+jest.mock("../persona/load-seven-levels-strict", () => ({ loadSevenLevelsStrict: (...args: unknown[]) => mockLevels(...args) }));
 jest.mock("../persona/role-cards", () => {
   const actual = jest.requireActual<typeof import("../persona/role-cards")>("../persona/role-cards");
   return { ...actual, claimQaPolarisAuto: jest.fn(actual.claimQaPolarisAuto), proposeRoleCards: jest.fn(async () => []), ratifyRoleCard: (...args: unknown[]) => mockRatify(...args) };
@@ -103,7 +104,7 @@ beforeEach(() => {
   mockAuth = { userId: `read-owner-${++ownerNumber}`, loading: false, hasProfile: true, isMinor: false };
   noteResolvedOwner(mockAuth.userId); mockFocused = true; mockEligible = false;
   mockQueries.length = 0; mockOverride = () => undefined; mockStatus = () => ({ data: { available: true, intro_remaining: 2, tier: "brain" } });
-  mockLevels.mockReset().mockResolvedValue({ northStarBrightness: 0.6 }); mockWrites.mockClear(); mockPush.mockClear();
+  mockLevels.mockClear(); mockWrites.mockClear(); mockPush.mockClear();
   mockCue.mockClear(); mockRatify.mockReset().mockResolvedValue([]); mockStatusCalls.mockClear(); jest.mocked(proposeRoleCards).mockReset().mockResolvedValue([]);
   mockStorage.clear(); mockStoreWrite.mockClear(); jest.mocked(claimQaPolarisAuto).mockClear(); jest.mocked(proposeRoleCards).mockClear();
 });

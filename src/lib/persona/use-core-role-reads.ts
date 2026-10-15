@@ -4,6 +4,7 @@ import { getSupabaseClient } from "../supabase/client";
 import { loadLatestStrengths, loadSelfPortraitSignals } from "./build";
 import { loadRoleCardsStrict, type RoleCard } from "./role-cards";
 import { loadPolarisQuotaStrict } from "./polaris-quota";
+import { loadSevenLevelsStrict } from "./load-seven-levels-strict";
 
 export const CORE_ROLE_READ_TIMEOUT_MS = 10_000;
 type Attempt = { active: boolean; cancel: () => void };
@@ -61,6 +62,12 @@ function useOwnedSlot<T>(owner: string | null, scope: object | null, isCurrent: 
 }
 
 const loadCoreStrengths = (owner: string) => loadLatestStrengths(getSupabaseClient(), owner);
+
+/** Brightness is unknown until all five strict inputs belong to this attempt. */
+export function useCoreBrightnessRead(owner: string | null, scope: object | null,
+  isCurrent: () => boolean, invalidateAuto: () => void) {
+  return useOwnedSlot(owner, scope, isCurrent, invalidateAuto, loadSevenLevelsStrict);
+}
 
 /** Optional measured panels share ownership, but never another slot's result. */
 export function useCoreCompanionReads(owner: string | null, scope: object | null,
