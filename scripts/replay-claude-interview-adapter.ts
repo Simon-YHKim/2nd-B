@@ -49,7 +49,7 @@ function parse(file: string, text: string): ts.SourceFile {
   return ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true,
     file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
 }
-function one(ast: ts.SourceFile, test: (node: ts.Node) => boolean, label: string): ts.Node {
+function one(ast: ts.Node, test: (node: ts.Node) => boolean, label: string): ts.Node {
   const found: ts.Node[] = [];
   const visit = (node: ts.Node): void => { if (test(node)) found.push(node); ts.forEachChild(node, visit); };
   visit(ast);
@@ -59,7 +59,7 @@ function one(ast: ts.SourceFile, test: (node: ts.Node) => boolean, label: string
 function fn(ast: ts.SourceFile, name: string): ts.FunctionDeclaration {
   return one(ast, (node) => ts.isFunctionDeclaration(node) && node.name?.text === name, name) as ts.FunctionDeclaration;
 }
-function variable(ast: ts.SourceFile, name: string): ts.VariableDeclaration {
+function variable(ast: ts.Node, name: string): ts.VariableDeclaration {
   const node = one(ast, (node) => ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name, name) as ts.VariableDeclaration;
   if (!node.initializer) throw new Error(`Adapter initializer drift: ${name}`);
   return node;
@@ -120,12 +120,16 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     .some((declaration) => declaration.name.getText(boundaryAst) === "lexical") ? index : -1).filter((index) => index >= 0);
   if (!statements || starts?.length !== 1 || !statements.slice(starts[0]).some(ts.isReturnStatement)) throw new Error("Adapter output boundary drift");
   const boundaryTail = statements.slice(starts[0]).map((node) => node.getText(boundaryAst)).join("\n");
+  const observerText = fn(boundaryAst, "crisisObserver").getText(boundaryAst);
+  const observerInit = variable(fn(boundaryAst, "callLlm").body!, "notifyCrisis").initializer!.getText(boundaryAst);
   let auditWrites = 0;
   const outputBoundary = evaluate<(text: string, input: Prompt) => Promise<BoundaryReply>>(
-    `async function replayOutput(text, input) {
+    `${observerText}
+    async function replayOutput(text, input) {
       const promptHash = 'offline'; const latencyMs = 0; const modelUsedForAudit = 'offline-recorded';
       const vertexBackend = false; const effort = undefined; const servedByProvider = undefined;
       const proxyAudited = true; const fence = () => {};
+      const notifyCrisis = ${observerInit};
       ${boundaryTail}
     }`, {
       ...safety, classifyInput: classifier.classifyInput,
@@ -226,7 +230,8 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     };
   }
   return { replay, capabilities: () => ({ forbiddenAttempts, memoryAuditWrites: auditWrites }),
-    extractionSha256: { probe: sha(probeText), screenAsk: sha(askText), outputBoundary: sha(boundaryTail), modalNumberExpression: sha(numberExpression) } };
+    extractionSha256: { probe: sha(probeText), screenAsk: sha(askText), outputBoundary: sha(boundaryTail),
+      crisisObserver: sha(observerText), crisisObserverInitializer: sha(observerInit), modalNumberExpression: sha(numberExpression) } };
 }
 
 function numbers(text: string): string[] { return [...new Set(text.match(/\b(?:109|119|112|1388|988|911)\b/g) ?? [])].sort(); }

@@ -2,7 +2,7 @@
 
 **Claude 모델 측정은 아직 0회다.** 전환 대상 10좌석 중 `interview_probe` 하나의 실제 builder·parser·화면 후처리를 고정 합성 자료로 실행할 수 있게 했다. 소스 기반 준비 완료와 모델 품질·운영 활성화 완료는 다르다. 다른 9좌석, Claude의 인터뷰 운영 경로, 새 모델 실호출, APK 확인은 이 변경에 포함하지 않는다. 기존 3개 board Sonnet 자리는 이 전환 대상 10개와 별도로 센다.
 
-기준 main은 `decdda9b6d332d626aee76e0b41674ca31a8a5a8`이다. [좌석 인벤토리·선행 조건](claude-seat-measurement-261015.md)을 유지하며 D1 전환 결정은 유효하다. 동결된 `persona_narrative`를 측정·활성화 대상으로 되살리지 않는다. 앱·프록시·라우팅·안전 문구·동의·설정·SDK에는 변경이 없다.
+최종 통합 기준 main은 `ed19edfa5b0348a1ff50bfd2ba9bb1b030142b1a`이다. [좌석 인벤토리·선행 조건](claude-seat-measurement-261015.md)을 유지하며 D1 전환 결정은 유효하다. 동결된 `persona_narrative`를 측정·활성화 대상으로 되살리지 않는다. 앱·프록시·라우팅·안전 문구·동의·설정·SDK에는 변경이 없다.
 
 ## 재사용과 실행
 
@@ -15,7 +15,7 @@ npx tsx scripts/replay-claude-interview-adapter.ts --out=/tmp/t68-interview-adap
 - 기존 `prepare-claude-seat-measurement.ts`를 실행해 좌석 목록·동결 상태·고정 corpus·소스 현황을 먼저 대조한다. 이 도구의 `preparationOutputPath`로 CLI 인자 계약도 재사용한다.
 - [#2543의 검토된 소스 `0297dfab`](https://github.com/Simon-YHKim/2nd-B/tree/0297dfab3ae2854e8f6d8c5a600b6abbd6cd5aab)의 builder AST 추출·출력 후처리 재생 방식을 확장했다. 그 PR은 기준 main에 없어서 live/auth 실행기를 가져오지 않았다.
 - 현재 `probe.ts`의 선언을 AST로 추출·실행하고 실제 `nextProbe`가 부른 입력을 기록한다. 따라서 `buildSystemPrompt`·`buildUserPrompt`·`PROBE_SCHEMA`·`parseProbeReply`·`usableQuestion`을 별도 구현으로 흉내 내거나 앱 소스를 복사해 유지하지 않는다.
-- 현재 `boundary.ts`의 `callLlm`에서 출력 재분류 시작부터 반환까지를 추출한다. 현재 `safety.ts`의 실제 `classifySafety` 및 고정 응답 함수를 연결하되 **live/non-Vertex·서버 의미 분류 OFF**라는 오프라인 조건만 준다. 이 값은 실행 문맥의 합성 설정이며 앱 환경 변수는 바꾸지 않는다.
+- 현재 `boundary.ts`의 `callLlm`에서 출력 재분류 시작부터 반환까지와 실제 `crisisObserver` 함수·해당 초기화 표현식을 추출한다. 인터뷰 호출에 observer가 없으면 실제 함수도 undefined를 반환한다. 초기화는 같은 이름을 가진 `callAdvisor` 선언과 구분한다. 현재 `safety.ts`의 실제 `classifySafety` 및 고정 응답 함수를 연결하되 **live/non-Vertex·서버 의미 분류 OFF**라는 오프라인 조건만 준다. 이 값은 실행 문맥의 합성 설정이며 앱 환경 변수는 바꾸지 않는다.
 - 현재 `interview.tsx`의 `ask` callback을 추출해 실행한다. state setter·계정 lease·감사 쓰기·안내 게시·종료는 메모리 대역이다. `entriesOf=[]`이며 계정은 현재인 것으로 고정한다. 이전 다회차 이력·계정 변경·늦은 응답·서버 한도·서버 동의·React 렌더링을 검증하지 않는다.
 - 모달은 실제로 띄우지 않는다. `publishCrisisNotice`에 전달된 hotline ID와 `CrisisRouter.tsx`의 실제 `HOTLINES[hotline].number` 표현식 결과만 기록한다. **boundary의 고정 응답 전문을 모달 본문으로 간주하지 않는다.**
 
@@ -38,7 +38,7 @@ npx tsx scripts/replay-claude-interview-adapter.ts --out=/tmp/t68-interview-adap
 
 ## 결과 계약과 현재 실패
 
-JSON에는 현재 HEAD, 모든 실행 소스의 hash, 추출한 probe/화면/boundary 조각 hash, corpus hash, 각 prompt와 schema 및 hash를 남긴다. 각 행은 **원답 → 원답 parser 결과 → boundary 교체 결과 → 실제 nextProbe 결과 → 화면 질문/안내 ID/종료 의도**를 분리한다. strict JSON/schema 검사와 앱의 관대한 parser 수용도 구분한다.
+JSON에는 현재 HEAD, 모든 실행 소스의 hash, 추출한 probe/화면/boundary/observer 조각 hash, corpus hash, 각 prompt와 schema 및 hash를 남긴다. 각 행은 **원답 → 원답 parser 결과 → boundary 교체 결과 → 실제 nextProbe 결과 → 화면 질문/안내 ID/종료 의도**를 분리한다. strict JSON/schema 검사와 앱의 관대한 parser 수용도 구분한다.
 
 입력 red는 현재 기기 분류기로 먼저 검사하며 해당 행은 `SKIPPED_INPUT_RED`, `adapterCalls=0`이다. 합성 모델 응답도 생성 경로에 공급하지 않는다. 현재 과거 24개 입력은 모두 green이고 새 명시적 red 2개만 차단된다. 어휘 추가가 이 과거 우회 표현까지 모두 잡는다는 주장을 하지 않는다.
 

@@ -92,6 +92,10 @@ test("executes changed real builders, and fails closed on declaration drift or a
   const changed = { ...sources, [path]: sources[path].replace('`시기 초점: ${periodLabel}.`', '`검산 표식: ${periodLabel}.`') };
   expect((await createOfflineInterviewRuntime(changed).replay(sample)).prompt?.system).toContain("검산 표식: 직장.");
   expect(() => createOfflineInterviewRuntime({ ...sources, "src/app/interview.tsx": sources["src/app/interview.tsx"].replace("const ask = useCallback", "const renamedAsk = useCallback") })).toThrow("Adapter source drift: ask");
+  const boundaryPath = "src/lib/llm/boundary.ts";
+  expect(() => createOfflineInterviewRuntime({ ...sources, [boundaryPath]: sources[boundaryPath].replace("function crisisObserver(", "function renamedObserver(") })).toThrow("Adapter source drift: crisisObserver");
+  const changedObserver = { ...sources, [boundaryPath]: sources[boundaryPath].replace("if (!observer) return undefined;", 'fetch("https://offline.invalid"); if (!observer) return undefined;') };
+  await expect(createOfflineInterviewRuntime(changedObserver).replay(sample)).rejects.toThrow("forbidden capability");
   const withFetch = { ...sources, [path]: sources[path].replace("const transcript = history", 'fetch("https://offline.invalid"); const transcript = history') };
   await expect(createOfflineInterviewRuntime(withFetch).replay(sample)).rejects.toThrow("forbidden capability");
   const imported = { ...sources, [path]: sources[path] + '\nimport "node:https";\n' };
