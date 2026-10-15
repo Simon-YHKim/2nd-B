@@ -297,6 +297,22 @@ describe.each(Object.entries(PROXY_SOURCES))("%s es/pt/id executable parity", (_
     ["Aku mau bunuh diri malam ini.", true],
     ["Saya ingin mengakhiri hidup saya.", true],
     ["Aku melukai diri sendiri.", true],
+    ["Quiero morir.", true],
+    ["Quiero morirme.", true],
+    ["Quero morrer.", true],
+    ["Saya ingin mati.", true],
+    ["Aku ingin mati.", true],
+    ["Quiero morir de risa.", false],
+    ["Quero morrer de rir.", false],
+    ["Lampu kamar saya mati lagi.", false],
+    ["Saya ingin mati lampu sebentar.", false],
+    ["Quiero morir de risa. Quiero morir.", true],
+    ["équiero morir.", false],
+    ["𐐀quiero morir.", false],
+    ["quiero morir𐐀", false],
+    ["No quiero morir.", true],
+    ["Não quero morrer.", true],
+    ['Kemarin saya menulis "saya ingin mati".', true],
     ["Quiero terminar mi trabajo y descansar.", false],
     ["Quero terminar o projeto amanhã.", false],
     ["Saya ingin menyelesaikan pekerjaan ini.", false],
@@ -314,6 +330,24 @@ describe.each(Object.entries(PROXY_SOURCES))("%s es/pt/id executable parity", (_
         const result = classifyInput(variant, locale);
         expect(result.zone === "red").toBe(red);
         if (red) expect(result.crisisRouting?.hotline).toBe(locale === "ko" ? "KR_109" : "GLOBAL_988");
+      }
+    }
+  });
+});
+
+describe.each(Object.entries(PROXY_SOURCES))("%s bounded breathing phrase parity", (_name, relPath) => {
+  const hasCrisisTerm = loadHasCrisisTerm(readProxy(relPath), relPath);
+  test.each([
+    ["숨을 쉴 수 없어요.", true], ["숨을쉴수없어요.", true],
+    ["숨을 쉴 수 있어요.", false], ["숨을 쉴 수 없을 만큼 웃었어요.", false],
+    ["전숨을쉴수없어요후", false],
+  ])("same emergency decision for %s", (text, red) => {
+    for (const variant of [text, text.normalize("NFD"), text.replace(/ /g, "\n\u00a0")]) {
+      expect(hasCrisisTerm(variant)).toBe(red);
+      for (const locale of ["ko", "en"] as const) {
+        const result = classifyInput(variant, locale);
+        expect(result.zone === "red").toBe(red);
+        if (red) expect(result.crisisRouting?.hotline).toBe("KR_119");
       }
     }
   });
