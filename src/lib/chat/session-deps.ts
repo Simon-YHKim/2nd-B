@@ -29,7 +29,10 @@ export type CapturedChatInput = SendMessageInput & {
 };
 
 /** C/D must implement the real captured transport and issued-write supervisor.
- * Creation starts no I/O. retire(true) acknowledges synchronous access fencing
+ * Creation starts no I/O, but may synchronously publish an owner/content change.
+ * Retirement during construction has no completed handoff and returns false;
+ * the returned supervisor is retired/released without authenticating or sending.
+ * retire(true) acknowledges synchronous access fencing
  * and phase-aware cancellation/handoff, NOT a confirmed server write outcome.
  * Wipe preserves issued-write signals until settlement; owner/consent cancellation
  * keeps unconfirmed tickets in a metadata-only ledger. release cannot erase them. */

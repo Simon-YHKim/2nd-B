@@ -1,6 +1,6 @@
 # T38 B: 대화 send controller 준비
 
-기준 main: `682ba737069725b898a9e4c16e5aab9fed3b7dc7` (A #2575). 승인 설계는 [D2](chat-session-registry-261015.md)다. 설계 BLOCK1, A 구현 BLOCK1은 각각 보존한다. B 구현의 독립 검토는 별도이며 현재 아직 요청 전이다.
+기준 main: `682ba737069725b898a9e4c16e5aab9fed3b7dc7` (A #2575). 승인 설계는 [D2](chat-session-registry-261015.md)다. 설계 BLOCK1, A 구현 BLOCK1은 각각 보존한다. B 구현 R1은 생성 중 인계 ACK 소실 M1로 BLOCK1이며, 아래 보완 뒤 독립 R2를 기다린다.
 
 ## 범위
 
@@ -20,6 +20,8 @@
 
 retire의 true는 **동기 접근 차단 및 정책에 맞는 취소/감독자 인계 ACK**다. 발행한 write가 완료됐다는 뜻이 아니다. read/model은 content wipe에서 중단하되, 이미 발행한 mutation signal은 실제 settlement까지 보존해야 한다. account hold/동의 OFF의 기존 취소 뒤 미확정 결과는 별도의 본문 없는 unknown ledger에 남는다. release/Promise 종료/work map 비움은 rollback 또는 drain 완료 증명이 아니다. false/throw 인계는 실패로 보존하고 A의 wipe ACK를 막는다. controller dispose도 false를 호출자에게 돌려주며, 실패한 work는 다음 wipe가 다시 확인하도록 등록을 유지한다.
 
+R1에서 감독자 생성 함수 안의 동기 wipe가 아직 null인 감독자를 보고 true ACK를 반환하고, 늦게 받은 감독자의 false/throw를 버리는 반례를 확인했다. 이제 생성 전·생성 중·설치 완료·인계 중·인계 완료를 구분한다. 생성/인계 중 동기 재진입에는 확인되지 않은 인계를 false로 즉시 반환하고 이후 true로 뒤집지 않는다. 늦게 설치된 감독자도 같은 인계 경로를 거쳐 인증/전송 없이 retire와 release를 각각 한 번 실행한다. 생성 전 취소에는 인계할 감독자가 없으므로 true가 가능하고, 설치 후 정상 true ACK도 유지한다. 보수적으로 거부한 생성 중 wipe는 자동 재시작하지 않는다. 이 반례는 발행 쓰기 소실을 재현한 것이 아니며 실제 drain 구현은 여전히 C/D다.
+
 C/D는 실제 각 await·과금/감사/저장 발행 직전 fence, captured transport, mutation observer와 ledger를 구현해야 한다. B 테스트는 실행 controller와 실제 registry/account epoch, deferred I/O 감독자로 **인계 계약**을 확인한다. 서버 commit 보장 또는 프로세스 종료 뒤 미확정 쓰기 복구의 증거가 아니다.
 
 ## 후속 연결 순서
@@ -32,4 +34,4 @@ C/D는 실제 각 await·과금/감사/저장 발행 직전 fence, captured tran
 
 ## 검증
 
-controller 신규 46개와 기존 registry/account epoch/autosave 84개, 합계 130개 실행 PASS. type/lint/cycles와 exact SHA의 결과는 인수 영수증에 남긴다. 독립 PASS와 부모 전체 verify/CI 전에는 완료로 닫지 않는다. 검토 결과를 기록할 때 설계/A의 기존 BLOCK 이력을 지우지 않는다.
+controller 59개와 기존 registry/account epoch/autosave 84개, 합계 143개 실행 PASS. R1의 46개에 생성 중 wipe/owner shutdown/dispose × late false/throw/true, retire 중 dispose 재진입, 설치 후 true 대조를 더했다. type/lint/cycles와 exact SHA의 결과는 인수 영수증에 남긴다. 독립 PASS와 부모 전체 verify/CI 전에는 완료로 닫지 않는다. 설계/A/B의 각 BLOCK1 이력을 지우지 않는다.

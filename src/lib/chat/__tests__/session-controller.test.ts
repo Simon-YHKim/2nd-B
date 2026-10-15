@@ -44,7 +44,7 @@ function fixture() {
   const operations: {
     input?: CapturedChatInput; response: ReturnType<typeof deferred<SendMessageResult>>;
     auth: ReturnType<typeof deferred<AuthenticatedAccountSessionLease>>; capability: AuthenticatedAccountSessionLease;
-    abort: AbortController; send: jest.Mock; audit: jest.Mock; retire: jest.Mock; release: jest.Mock;
+    abort: AbortController; authenticate: jest.Mock; send: jest.Mock; audit: jest.Mock; retire: jest.Mock; release: jest.Mock;
     issued: boolean; unknown: boolean; confirmed: boolean; ack: boolean;
   }[] = [];
   let deferAuth = false;
@@ -59,6 +59,7 @@ function fixture() {
         accessToken: "private-test-capability", assertCurrent, abort: () => abort.abort(), release };
       const response = deferred<SendMessageResult>(); const auth = deferred<AuthenticatedAccountSessionLease>();
       const op: (typeof operations)[number] = { response, auth, capability, abort, input: undefined as CapturedChatInput | undefined,
+        authenticate: jest.fn(() => auth.promise),
         send: jest.fn((input: CapturedChatInput) => { op.input = input; return response.promise; }),
         audit: jest.fn((input: CapturedChatInput) => { op.input = input; return response.promise as Promise<SendMessageOk>; }),
         retire: jest.fn((reason: string) => {
@@ -69,7 +70,7 @@ function fixture() {
       };
       operations.push(op);
       if (!deferAuth) auth.resolve(capability);
-      return { lease: { ...capability, authenticate: () => auth.promise }, send: op.send, auditLocalRed: op.audit, retire: op.retire, release };
+      return { lease: { ...capability, authenticate: op.authenticate }, send: op.send, auditLocalRed: op.audit, retire: op.retire, release };
     }),
     publishCrisisNotice: jest.fn(publishCrisisNotice),
     consentError: jest.fn((error) => error instanceof ConsentError ? error.code : null),
@@ -275,13 +276,67 @@ test("content wipe cancels read/model but ACK for issued write only hands off dr
   // A confirmed outcome still does not automatically run deletion or open the session.
 });
 
-test.each([false, "throw"])("failed supervisor handoff %s blocks wipe acknowledgement", async result => {
+test.each([false, "throw", true])("installed supervisor handoff %s determines wipe acknowledgement", async result => {
   const f = fixture(); f.send(); await flush();
-  if (result === false) f.operations[0].ack = false; else f.operations[0].retire.mockImplementation(() => { throw new Error("handoff"); });
-  expect(f.wipe()).toEqual([false]);
+  if (result === false) f.operations[0].ack = false;
+  else if (result === "throw") f.operations[0].retire.mockImplementation(() => { throw new Error("handoff"); });
+  expect(f.wipe()).toEqual([result === true]);
   f.changeContent({ generation: 1, phase: "needs-explicit-start", wipeId: "wipe" });
-  expect(f.registry.startAfterWipe(f.registry.getSnapshot("entry")!.choice)).toBe(false);
-  expect(f.controller.dispose()).toBe(false); expect(f.controller.dispose()).toBe(false);
+  expect(f.registry.startAfterWipe(f.registry.getSnapshot("entry")!.choice)).toBe(result === true);
+  expect(f.controller.dispose()).toBe(result === true); expect(f.controller.dispose()).toBe(result === true);
+  f.operations[0].response.resolve(reply("Retired result")); await flush();
+  expect(f.operations[0].retire).toHaveBeenCalledTimes(1); expect(f.operations[0].release).toHaveBeenCalledTimes(1);
+});
+
+describe.each(["wipe", "account", "dispose"] as const)("%s while the supervisor is being created", fence => {
+  test.each([false, "throw", true])("never acknowledges an unconfirmed handoff even if the late result is %s", async result => {
+    const f = fixture(); const event = jest.fn(); f.controller.subscribeCompletion(event);
+    const begin = jest.mocked(f.deps.beginOperation).getMockImplementation()!;
+    let synchronousAck: boolean | undefined; let deletionStarts = 0;
+    jest.mocked(f.deps.beginOperation).mockImplementation((...args) => {
+      const supervisor = begin(...args);
+      f.operations[0].retire.mockImplementation(() => {
+        if (result === "throw") throw new Error("late handoff refused");
+        return result;
+      });
+      if (fence === "wipe") synchronousAck = f.wipe()[0];
+      else {
+        if (fence === "account") beginAccountOwnerTransition("b");
+        synchronousAck = f.controller.dispose();
+      }
+      if (synchronousAck) deletionStarts += 1;
+      return supervisor;
+    });
+    expect(f.send().accepted).toBe(true); await flush();
+    expect(synchronousAck).toBe(false); expect(deletionStarts).toBe(0);
+    expect(f.operations).toHaveLength(1);
+    const op = f.operations[0];
+    expect(op.authenticate).not.toHaveBeenCalled(); expect(op.send).not.toHaveBeenCalled(); expect(op.audit).not.toHaveBeenCalled();
+    expect(op.retire).toHaveBeenCalledTimes(1);
+    expect(op.retire).toHaveBeenCalledWith(fence === "wipe" ? "content-wipe" : fence === "account" ? "account" : "disposed");
+    expect(op.release).toHaveBeenCalledTimes(1); expect(f.releaseThinking).toHaveBeenCalledTimes(1);
+    expect(event).not.toHaveBeenCalled(); expect(f.controller.getSnapshot(f.session)).toBeNull();
+    if (fence === "wipe") {
+      f.changeContent({ generation: 1, phase: "needs-explicit-start", wipeId: "wipe" });
+      expect(f.registry.startAfterWipe(f.registry.getSnapshot("entry")!.choice)).toBe(false);
+    }
+    expect(f.controller.dispose()).toBe(false); expect(f.controller.dispose()).toBe(false);
+  });
+});
+
+test.each([false, "throw", true])("dispose reentry during retire keeps the pending ACK false when the outer result is %s", async result => {
+  const f = fixture(); const event = jest.fn(); f.controller.subscribeCompletion(event); f.send(); await flush();
+  let synchronousAck: boolean | undefined;
+  f.operations[0].retire.mockImplementation(() => {
+    synchronousAck = f.controller.dispose();
+    if (result === "throw") throw new Error("handoff refused");
+    return result;
+  });
+  expect(f.wipe()).toEqual([false]); expect(synchronousAck).toBe(false);
+  expect(f.controller.dispose()).toBe(false);
+  f.operations[0].response.resolve(reply("Retired result")); await flush();
+  expect(event).not.toHaveBeenCalled(); expect(f.operations[0].retire).toHaveBeenCalledTimes(1);
+  expect(f.operations[0].release).toHaveBeenCalledTimes(1); expect(f.releaseThinking).toHaveBeenCalledTimes(1);
 });
 
 test("old finally cannot clear a new work claimed by settle publication", async () => {

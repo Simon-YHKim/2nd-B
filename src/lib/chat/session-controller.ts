@@ -18,6 +18,7 @@ interface Running {
   session: ChatSessionToken; owner: AccountOwnerLease; work: ChatWorkToken | null;
   meta: ChatSendOperation; admission: ChatSendAdmission; input: SendMessageInput;
   supervisor: ChatOperationSupervisor | null; retired: ChatRetirementReason | null;
+  supervisorPhase: "unstarted" | "creating" | "ready" | "retiring" | "retired";
   persona: SessionTurn["persona"]; acknowledged: boolean; releaseThinking: (() => void) | null; answered: boolean;
 }
 interface State { session: ChatSessionToken; snapshot: ChatControllerSnapshot }
@@ -50,13 +51,26 @@ export function createChatSessionController(registry: Registry, deps: ChatSessio
     if (state && !registry.isCurrent(state.session)) { state = null; notify(); }
   }
   const unsubscribe = registry.subscribe(forgetInvalidState);
+  function failedHandoff(op: Running): false {
+    op.acknowledged = false; handoffFailed = true;
+    return false;
+  }
+  function handoff(op: Running): boolean {
+    // A reentrant caller needs an ACK now; a constructor/retire still on the
+    // stack has not supplied it. A later true cannot undo that negative ACK.
+    if (op.supervisorPhase === "creating" || op.supervisorPhase === "retiring") return failedHandoff(op);
+    if (op.supervisorPhase === "ready") {
+      op.supervisorPhase = "retiring";
+      try { if (!op.supervisor!.retire(op.retired!)) failedHandoff(op); }
+      catch { failedHandoff(op); }
+      finally { op.supervisorPhase = "retired"; }
+    }
+    return op.acknowledged;
+  }
   function retire(op: Running, reason: ChatRetirementReason): boolean {
-    if (op.retired) return op.acknowledged;
-    op.retired = reason; // Close all body/effect gates before calling external code.
+    op.retired ??= reason; // Close all body/effect gates before calling external code.
+    handoff(op);
     releaseThinking(op);
-    try { op.acknowledged = op.supervisor?.retire(reason) ?? true; }
-    catch { op.acknowledged = false; }
-    if (!op.acknowledged) handoffFailed = true;
     forgetInvalidState();
     return op.acknowledged;
   }
@@ -152,8 +166,11 @@ export function createChatSessionController(registry: Registry, deps: ChatSessio
       if (!current(op)) return;
       const release = deps.holdThinking(); op.releaseThinking = release;
       if (!current(op)) { releaseThinking(op); return; }
-      const supervisor = deps.beginOperation(op.owner, op.session, op.meta.id); op.supervisor = supervisor;
-      if (!current(op)) { supervisor.retire(op.retired ?? "disposed"); return; }
+      op.supervisorPhase = "creating";
+      try { op.supervisor = deps.beginOperation(op.owner, op.session, op.meta.id); }
+      finally { op.supervisorPhase = op.supervisor ? "ready" : "unstarted"; }
+      const supervisor = op.supervisor;
+      if (!current(op)) { retire(op, op.retired ?? "disposed"); return; }
       const lease = supervisor.lease;
       lease.assertCurrent();
       if (lease.userId !== op.owner.ownerId || lease.epoch !== op.owner.epoch) throw new Error("chat_session_mismatch");
@@ -231,7 +248,7 @@ export function createChatSessionController(registry: Registry, deps: ChatSessio
         const captured = Object.freeze({ ...admission, errors: Object.freeze({ ...admission.errors }) });
         const session: ChatSessionToken = Object.freeze({ ownerId: snapshot.ownerId, ownerEpoch: snapshot.ownerEpoch,
           contentGeneration: snapshot.contentGeneration, sessionId: snapshot.sessionId, sessionGeneration: snapshot.sessionGeneration });
-        op = { session, owner, work: null, meta, admission: captured, supervisor: null, retired: null,
+        op = { session, owner, work: null, meta, admission: captured, supervisor: null, supervisorPhase: "unstarted", retired: null,
           persona: snapshot.persona, acknowledged: true, releaseThinking: null, answered: false,
           input: { userId: owner.ownerId, message: text, locale: captured.locale, tier: captured.tier,
             displayName: captured.displayName, personaHint: captured.personaHint, mode: snapshot.mode, minor: captured.minor !== false,
@@ -269,14 +286,13 @@ export function createChatSessionController(registry: Registry, deps: ChatSessio
     },
     /** Owner shutdown, never route detach. A false handoff stays registered for wipe ACK. */
     dispose(): boolean {
-      if (stopped) return !handoffFailed;
-      stopped = true; unsubscribe(); state = null;
+      if (!stopped) { stopped = true; unsubscribe(); state = null; }
       let acknowledged = !handoffFailed;
       for (const op of running) {
         if (!retire(op, "disposed")) acknowledged = false;
         else if (op.work) registry.settleWork(op.work);
       }
-      listeners.clear(); completions.clear(); return acknowledged;
+      listeners.clear(); completions.clear(); return acknowledged && !handoffFailed;
     },
   };
 }
