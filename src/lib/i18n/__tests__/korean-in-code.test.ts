@@ -49,6 +49,7 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/records/detect-domain.ts": "도메인 분류용 한국어 키워드 목록",
   "src/lib/chat/plan-suggestions.ts": "대화의 반복 의도·취소·오전/오후를 해석하는 한국어 매칭 규칙. UI 문구는 secondb.json에서 번역",
   "src/lib/chat/sources.ts": "치환된 인용 이름 뒤의 한국어 조사 쌍을 josaFor에 연결하는 문법 규칙. 중립 낱말은 화면에서 번역해 전달",
+  "src/lib/safety/emergency-routing.ts": "앱과 Edge 공용 한국어 문법 규칙 및 ko/en 고정 긴급 안내. 런타임 i18n 없이 같은 안내를 반환하며 각 UI 언어의 번호·본문은 emergency-dialog 검사로 대조",
   "src/lib/safety/lexicon.ts": "금지어 패턴 (안전 분류기 입력)",
   "src/lib/safety/crisis-context.ts": "의도 부인과 업무·휴식 문맥을 판별하는 한국어 문법 규칙. 사용자에게 표시하는 문구가 아님",
   "src/lib/safety/classifier.ts": "위기 입력 검사가 띄어쓰기를 일부만 뺀 꼴까지 읽는 위기 낱말의 이름 목록(Q-261015-80). 사용자에게 표시하는 문구가 아님",

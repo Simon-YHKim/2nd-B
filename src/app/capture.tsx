@@ -67,7 +67,7 @@ import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import {
   pickImageAsset,
   ocrImageAsset,
-  isImageOcrCrisisResultError,
+  isImageOcrCrisisResultError, imageOcrCrisisHotline,
   isImageOcrEmptyResultError,
   isImageCameraPermissionDeniedError,
   isImageOcrTooLargeError,
@@ -2219,7 +2219,7 @@ function CaptureLegacySession({
       // blocking finding). Route to the crisis modal like the journal path.
       if (isImageOcrCrisisResultError(e)) {
         if (!sessionActiveRef.current) return;
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: imageOcrCrisisHotline(e) ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       if (!asyncProducerIsCurrent(ticket, "ocr")) return;
@@ -2328,7 +2328,7 @@ function CaptureLegacySession({
       if (reply.safety?.zone === "red") {
         if (!sessionActiveRef.current) return;
         setFileNotice(null);
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       // Appending is safe across body edits, but not across a mode switch or a
@@ -2546,7 +2546,7 @@ ${transcript}`;
       });
       submissionSettled = true;
       if (res.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
       } else {
         enqueueAutoReasoningRecord({
           userId,
@@ -2707,7 +2707,7 @@ ${transcript}`;
       // save wrote the safety ledger and showed the user NOTHING. Same hotline
       // modal, same followup card.
       if (res.followup?.zone === "red") {
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
       } else {
         enqueueAutoReasoningRecord({
           userId,
@@ -2904,7 +2904,7 @@ ${transcript}`;
       if (reply.safety?.zone === "red") {
         if (!sessionActiveRef.current) return;
         updateVoicePhase("idle");
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       // Appending is safe across newer voice text, but not across a mode switch
@@ -3127,7 +3127,7 @@ ${transcript}`;
           if (!submitIsCurrent(submitController)) return;
           if (crisis) {
             memoCrisisDetected = true;
-            setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+            setCrisis({ visible: true, hotline: crisis.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
           }
         } catch (e) {
           if (!submitIsCurrent(submitController)) return;

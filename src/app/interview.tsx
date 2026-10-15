@@ -437,7 +437,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         // Safety still reaches the app after stop or route removal. Ordinary
         // answers must not reopen a finished interview or change its coverage.
         if (probe.zone === "red") {
-          publishCrisisNotice(owner, hotlineFor());
+          publishCrisisNotice(owner, probe.hotline ?? hotlineFor());
           if (mounted.current) finish();
           return;
         }
@@ -572,7 +572,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           // The answer stays outside the saved transcript until the separate
           // crisis-save AI hold is wired; this route must not add AI egress.
           finish();
-          publishCrisisNotice(owner, hotlineFor());
+          publishCrisisNotice(owner, safety.crisisRouting?.hotline ?? hotlineFor());
         },
         () => {},
       );
@@ -690,7 +690,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       });
       if (!owner.isCurrent()) return;
       if (saved.followup?.zone === "red") {
-        publishCrisisNotice(owner, hotlineFor());
+        publishCrisisNotice(owner, saved.crisisHotline ?? hotlineFor());
         if (mounted.current) finish();
         return;
       }

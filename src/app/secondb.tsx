@@ -249,8 +249,9 @@ const ChatComposer = memo(
     const submit = () => {
       if (!canSend) return;
       // Guidance cannot wait for quota or audit storage to answer.
-      if (classifyInputAnyLocale(draft, voiceLocale, { minor: isMinor === true }).zone === "red") {
-        setCrisis({ visible: true, hotline: voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+      const safety = classifyInputAnyLocale(draft, voiceLocale, { minor: isMinor === true });
+      if (safety.zone === "red") {
+        setCrisis({ visible: true, hotline: safety.crisisRouting?.hotline ?? (voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
       }
       // Clear only when the send was accepted, so a cap-blocked send keeps the
       // typed text (the old handleSend returned before clearing on a cap hit).
@@ -384,7 +385,7 @@ const ChatComposer = memo(
           // C9: the transcript was crisis-swapped server-side; surface the
           // hotline, never the text.
           updateVoicePhase("idle");
-          setCrisis({ visible: true, hotline: voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+          setCrisis({ visible: true, hotline: reply.safety.crisisRouting?.hotline ?? (voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
           return;
         }
         const transcript = reply.text.trim();
@@ -601,14 +602,15 @@ function SecondBChatBody() {
       // C9: 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
       // 분류기를 직접 돌린다(비용 0). 다른 저장 화면과 같은 자세를 유지한다 -
       // 안내 없는 저장 경로를 하나 만들지 않기 위해서다.
-      const crisis = classifyInput(body, locale, { minor: isMinor === true }).zone === "red";
+      const keptSafety = classifyInput(body, locale, { minor: isMinor === true });
+      const crisis = keptSafety.zone === "red";
       // 저장 소리(Q-261006-03)는 사람이 '담기'를 눌렀을 때만. 자동 담기(signal 이 있는 호출)는
       // 답장 소리 바로 뒤에 겹치므로 무음이다.
       if (saveCueAllowed({ crisis, recording: isRecordingAudioMode(), automatic: signal !== undefined })) playSaveCue();
       if (crisis) {
         setKeepCrisis({
           visible: true,
-          hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988",
+          hotline: keptSafety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988"),
         });
       }
       return true;

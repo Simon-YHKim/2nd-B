@@ -65,7 +65,7 @@ export interface AdvisorInput {
 }
 
 export interface AdvisorResult {
-  text: string;
+  text: string; hotline?: import("../safety/lexicon").HotlineId;
   zone: "green" | "yellow" | "red";
   triggers: string[];
   fixedTemplate: boolean;

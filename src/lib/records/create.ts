@@ -141,6 +141,8 @@ export interface CreatedRecord {
    */
   tags: string[];
   followup?: RecordFollowup;
+  /** Ephemeral routing only; never written into ai_followup or record metadata. */
+  crisisHotline?: import("../safety/lexicon").HotlineId;
 }
 
 // Quest XP action for each record kind. Capturing data is the core
@@ -167,6 +169,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   const supabase = getSupabaseClient();
 
   let aiFollowup: RecordFollowup | null = null;
+  let crisisHotline: CreatedRecord["crisisHotline"];
   // Premium gate (Brain floor): the Advisor follow-up is the marginal-cost
   // surface; when the caller names its tier, enforce the entitlement here
   // too so a stale/bypassed toggle can't reach callAdvisor.
@@ -191,6 +194,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         : await classifyRecordTextForCrisis(args.body, args.locale, args.userId, args.minor === true);
       if (crisis) {
         aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+        crisisHotline = crisis.safety?.crisisRouting?.hotline;
       }
     } catch (e) {
       if (typeof console !== "undefined")
@@ -218,6 +222,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
           minor: args.minor,
         });
         const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
+        crisisHotline = res.hotline;
         aiFollowup = {
           text: cappedText,
           zone: res.zone,
@@ -263,7 +268,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
             args.userId,
             args.minor === true,
           );
-          if (crisis) aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+          if (crisis) {
+            aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+            crisisHotline = crisis.safety?.crisisRouting?.hotline;
+          }
         } catch {
           /* best-effort — never block the save */
         }
@@ -285,6 +293,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
         });
         const cappedText = res.text.length > 4000 ? res.text.slice(0, 4000) + "…" : res.text;
         aiFollowup = { text: cappedText, zone: res.safety.zone };
+        crisisHotline = res.safety.crisisRouting?.hotline;
       } catch (e) {
         if (typeof console !== "undefined")
           console.warn("[records] audit follow-up failed; saving without it", (e as Error).message);
@@ -298,7 +307,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
             args.userId,
             args.minor === true,
           );
-          if (crisis) aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+          if (crisis) {
+            aiFollowup = { text: crisis.text, zone: "red", fixedTemplate: true };
+            crisisHotline = crisis.safety?.crisisRouting?.hotline;
+          }
         } catch {
           /* best-effort — never block the save */
         }
@@ -386,7 +398,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       : await insertRecord(true);
   if (error) {
     if (args.clientRequestId !== undefined && error.code === "23505") {
-      return replayKeyedRecord(args, args.clientRequestId, error, aiFollowup);
+      return replayKeyedRecord(args, args.clientRequestId, error, aiFollowup, crisisHotline);
     }
     throw error;
   }
@@ -421,7 +433,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
     });
   }
 
-  return { id: data.id, tags: storedTags, followup: aiFollowup ?? undefined };
+  return { id: data.id, tags: storedTags, followup: aiFollowup ?? undefined, crisisHotline };
 }
 
 // D5 (J2 auto-embed): when the ADULT user has opted in (records_embedding pref,
@@ -479,6 +491,7 @@ async function replayKeyedRecord(
   clientRequestId: string,
   insertError: unknown,
   followup: RecordFollowup | null,
+  crisisHotline?: CreatedRecord["crisisHotline"],
 ): Promise<CreatedRecord> {
   args.session?.assertCurrent();
   const { data: existing, error } = await withTimeout(
@@ -513,6 +526,7 @@ async function replayKeyedRecord(
     id: existing.id,
     tags: Array.isArray(existing.tags) ? existing.tags : [],
     followup: followup ?? undefined,
+    crisisHotline,
   };
 }
 

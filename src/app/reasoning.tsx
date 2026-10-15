@@ -243,7 +243,7 @@ class ReasoningLimitError extends Error {
 }
 
 class ReasoningSafetyError extends Error {
-  constructor() {
+  constructor(readonly hotline?: import("@/lib/safety/lexicon").HotlineId) {
     super("reasoning_safety");
   }
 }
@@ -324,14 +324,10 @@ async function loadSafeBatchText(
     }),
   );
   throwIfCancelled(input.signal);
-  if (
-    entries.some(
-      ([, text]) =>
-        classifyInputAnyLocale(text, input.locale, { minor: input.minor }).zone === "red",
-    )
-  ) {
-    throw new ReasoningSafetyError();
-  }
+  const crisis = entries.map(([, text]) =>
+    classifyInputAnyLocale(text, input.locale, { minor: input.minor }),
+  ).find((result) => result.zone === "red");
+  if (crisis) throw new ReasoningSafetyError(crisis.crisisRouting?.hotline);
   return new Map(entries);
 }
 
@@ -434,7 +430,7 @@ async function produceProposals(
       // wrap is safe — same pattern as conversation.ts.
       user: `<UNTRUSTED type="records_json">${JSON.stringify({ records: payload })}</UNTRUSTED>`,
     });
-    if (reply.safety.zone === "red") throw new ReasoningSafetyError();
+    if (reply.safety.zone === "red") throw new ReasoningSafetyError(reply.safety.crisisRouting?.hotline);
     throwIfCancelled(input.signal);
 
     const allowedIds = new Set(recordItems.map((item) => item.refId));
@@ -480,7 +476,7 @@ async function produceProposals(
       // Manual fence for the same double-sanitize reason as the records batch.
       user: `<UNTRUSTED type="sources_json">${JSON.stringify({ sources: payload })}</UNTRUSTED>`,
     });
-    if (reply.safety.zone === "red") throw new ReasoningSafetyError();
+    if (reply.safety.zone === "red") throw new ReasoningSafetyError(reply.safety.crisisRouting?.hotline);
     throwIfCancelled(input.signal);
 
     const allowedIds = new Set(sourceItems.map((item) => item.refId));
@@ -702,7 +698,7 @@ function recordTitle(
 
 type ItemRunState = { state: "waiting" | "running" | "done"; domain?: DomainId };
 type ScreenPhase = "idle" | "running" | "done" | "error";
-type DeferredRunError = "limit" | "safety" | "generic";
+type DeferredRunError = "limit" | "generic" | { kind: "safety"; hotline?: import("@/lib/safety/lexicon").HotlineId };
 
 // A background task can finish after its screen unmounts. Keep the outcome
 // until the result route opens so failure never disappears behind a dismissed
@@ -743,6 +739,7 @@ export default function ReasoningScreen() {
   const [completedCount, setCompletedCount] = useState(0);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [crisisVisible, setCrisisVisible] = useState(false);
+  const [crisisHotline, setCrisisHotline] = useState<import("@/lib/safety/lexicon").HotlineId | undefined>();
   const [limitSheetVisible, setLimitSheetVisible] = useState(false);
   // Spec A 인터랙션 "처음 ON": the first enable confirms the consumption rules
   // in a bottom sheet before the pref flips; later enables toggle directly.
@@ -803,7 +800,8 @@ export default function ReasoningScreen() {
     if (!deferred) return;
     deferredRunErrors.delete(userId);
     dismissTask();
-    if (deferred === "safety") {
+    if (typeof deferred === "object" && deferred.kind === "safety") {
+      setCrisisHotline(deferred.hotline);
       setPhase("idle");
       setCrisisVisible(true);
     } else if (deferred === "limit") {
@@ -1041,7 +1039,7 @@ export default function ReasoningScreen() {
             error instanceof ReasoningLimitError
               ? "limit"
               : error instanceof ReasoningSafetyError
-                ? "safety"
+                ? { kind: "safety", hotline: error.hotline }
                 : (error as Error).message === "reasoning_cancelled"
                   ? null
                   : "generic";
@@ -1055,6 +1053,7 @@ export default function ReasoningScreen() {
             setPhase("idle");
             setLimitSheetVisible(true);
           } else if (error instanceof ReasoningSafetyError) {
+            setCrisisHotline(error.hotline);
             setPhase("idle");
             setCrisisVisible(true);
           } else if ((error as Error).message === "reasoning_cancelled") {
@@ -1498,7 +1497,7 @@ export default function ReasoningScreen() {
 
       <CrisisRouter
         visible={crisisVisible}
-        hotline={ko ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988"}
+        hotline={crisisHotline ?? (ko ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988")}
         onClose={() => setCrisisVisible(false)}
       />
 

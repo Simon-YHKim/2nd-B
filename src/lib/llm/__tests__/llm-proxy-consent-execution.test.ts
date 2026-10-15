@@ -131,6 +131,7 @@ function host(vendor: Vendor, mode: Mode = "text") {
       : { purpose: "persona_narrative", user: "I build practical tools", system: "Describe the supplied text" };
   return {
     rpc, fetch, auditRows,
+    setText: (text: string) => { if ("texts" in body) body.texts = [text]; else body.user = text; },
     run: () => handler(new Request("https://fixture.invalid/proxy", { method: "POST", headers: {
       authorization: `Bearer fixture.${Buffer.from(JSON.stringify({ sub: userId, role: "authenticated" })).toString("base64url")}.fixture`,
       "content-type": "application/json", origin: "http://localhost:8081",
@@ -323,5 +324,24 @@ describe("strict snapshot and failure privacy", () => {
       expect(fixture.auditRows[0].total_tokens).toBe(12);
       expect(JSON.stringify(warn.mock.calls)).not.toMatch(/private|fixture-key|aaaa/);
     } finally { warn.mockRestore(); }
+  });
+});
+
+
+describe.each(routes.filter(([, mode]) => mode === "text" || mode === "embed"))("%s %s emergency routing before egress", (vendor, mode) => {
+  test.each([
+    ["약을 이미 많이 먹었어요", "medical_emergency"],
+    ["I can’t breathe right now!", "medical_emergency"],
+    ["지금 누군가 나를 칼로 위협하고 있어", "immediate_threat"],
+    ["Someone is attacking me right now", "immediate_threat"],
+  ] as const)("%s returns closed metadata without quota or model work", async (text, lane) => {
+    const fixture = host(vendor, mode);
+    fixture.setText(text);
+    const response = await fixture.run();
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({ error: "safety_red_zone", reason: "crisis_term_detected", crisis_lane: lane });
+    expect(fixture.fetch).not.toHaveBeenCalled();
+    expect(fixture.rpc.mock.calls.some(([name]) => name === "bump_gemini_spend")).toBe(false);
+    expect(fixture.auditRows).toHaveLength(0);
   });
 });

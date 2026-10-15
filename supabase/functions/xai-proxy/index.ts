@@ -59,7 +59,7 @@ import {
   corsPreflight,
   dailyCapForRank,
   djb2,
-  hasCrisisTerm,
+  hasCrisisTerm, emergencyLanePayload,
   isLlmJsonObject,
   isUsableHeaderValue,
   jsonResponse,
@@ -304,7 +304,7 @@ Deno.serve(async (req: Request) => {
   // LLM_SERVER_SAFETY_SEAT flag with it or the classifier cannot read the text
   // it exists to classify.
   if (hasCrisisTerm(userText)) {
-    return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
+    return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected', ...emergencyLanePayload(userText) }, 422);
   }
 
   // Historical rows have no trustworthy writer provenance and there is not

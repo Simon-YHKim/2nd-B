@@ -14,7 +14,7 @@
 // classifySafety() at the top of every Advisor call.
 
 import { GoogleGenAI } from "@google/genai";
-
+import { emergencyGuidance, emergencyHotlineForText } from "../safety/emergency-routing";
 import { getEnv } from "../env";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import { abortError, throwIfAborted } from "../async/abort";
@@ -33,7 +33,7 @@ import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-
 export type SafetyZone = "green" | "yellow" | "red";
 
 export interface SafetyResult {
-  zone: SafetyZone;
+  zone: SafetyZone; hotline?: import("../safety/lexicon").HotlineId;
   triggers: string[];
   confidence: number;
   source: "lexicon" | "llm" | "lexicon+llm" | "lexicon-fallback";
@@ -187,7 +187,7 @@ function noteSemanticUnavailable(opts?: {
 function lexiconToResult(text: string, locale: "en" | "ko"): SafetyResult {
   const r = lexiconClassify(text, locale);
   return {
-    zone: r.zone,
+    zone: r.zone, hotline: emergencyHotlineForText(text),
     triggers: r.categories.length > 0 ? r.categories : r.matched.length > 0 ? ["lexicon_match"] : [],
     confidence: r.zone === "red" ? 0.95 : r.zone === "yellow" ? 0.6 : 0.4,
     source: "lexicon-fallback",
@@ -212,7 +212,7 @@ function mergeResults(a: SafetyResult, b: SafetyResult): SafetyResult {
   // recognized zone instead of leaking the unknown string downstream.
   const winnerZone: SafetyZone = order.includes(winner.zone) ? winner.zone : order[0];
   return {
-    zone: winnerZone,
+    zone: winnerZone, hotline: a.hotline ?? b.hotline,
     triggers: [...new Set([...a.triggers, ...b.triggers])],
     confidence: Math.max(a.confidence, b.confidence),
     source: "lexicon+llm",
@@ -428,7 +428,7 @@ export async function classifySafety(
     if (lexOther.zone === "red") lex = lexOther;
   }
 
-  // Layer 2: Gemini Flash, only when we have a real client.
+  if (lex.hotline) return lex; // Explicit emergencies never wait for a model classification.
   const client = getFlashClient();
   if (!client) {
     // D4 (flag-gated): try the server-side classifier before degrading to lexicon.
@@ -546,8 +546,9 @@ export async function classifySafety(
 // commit, and reconstructing "what did red-ko-v3 say" needs this line to be exact.
 export function fixedCrisisResponse(
   locale: "en" | "ko",
-  minor = false,
+  minor = false, hotline?: import("../safety/lexicon").HotlineId,
 ): { text: string; version: string } {
+  const emergency = emergencyGuidance(hotline, locale); if (emergency) return emergency;
   const hotlineBlock = crisisHotlines(locale, minor)
     .map((h) => (locale === "ko" ? `📞 ${h.number} - ${h.label} (24시간, 무료)` : `📞 ${h.number} - ${h.label}`))
     .join("\n");
@@ -581,3 +582,4 @@ If calling is hard, you can go to your nearest emergency room.`,
 // import line there would move every cited line.
 export { classifierReportedCategories, recordableCrisisCategories } from "../safety/crisis-event-categories";
 export { replySwapCategories } from "../safety/model-reply-scan";
+export { emergencyGuidance, emergencyRoute, parseEmergencyLane } from "../safety/emergency-routing";

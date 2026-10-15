@@ -14,7 +14,9 @@
 // Pure: the error classification and the insert rules are tested without a render.
 
 import { LlmConsentError, type LlmConsentErrorCode } from "../llm/boundary";
+import type { HotlineId } from "../safety/lexicon";
 import {
+  imageOcrCrisisHotline,
   isImageOcrCrisisResultError,
   isImageOcrEmptyResultError,
   isImageOcrInvalidDataError,
@@ -40,7 +42,7 @@ export type OcrFailureCopy =
   | "ocrRead";
 
 export type OcrFailure =
-  | { kind: "crisis" }
+  | { kind: "crisis"; hotline?: HotlineId }
   | { kind: "consent"; code: LlmConsentErrorCode }
   | { kind: "message"; copy: OcrFailureCopy; retry: boolean };
 
@@ -51,7 +53,10 @@ export type OcrFailure =
  * call that cannot succeed).
  */
 export function classifyOcrFailure(error: unknown): OcrFailure {
-  if (isImageOcrCrisisResultError(error)) return { kind: "crisis" };
+  if (isImageOcrCrisisResultError(error)) {
+    const hotline = imageOcrCrisisHotline(error);
+    return { kind: "crisis", ...(hotline ? { hotline } : {}) };
+  }
   if (error instanceof LlmConsentError) return { kind: "consent", code: error.code };
   if (isImageOcrEmptyResultError(error)) return { kind: "message", copy: "ocrEmptyResult", retry: true };
   if (isImageOcrTooLargeError(error)) return { kind: "message", copy: "ocrTooLarge", retry: false };

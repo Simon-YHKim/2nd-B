@@ -49,6 +49,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { prepareCrisisScanText } from '../../../src/lib/safety/crisis-context.ts';
+import { emergencyLanePayload, matchEmergencyLane } from '../../../src/lib/safety/emergency-routing.ts';
 import { matchAdditionalCrisisLanguage } from '../../../src/lib/safety/crisis-language.ts';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld } from '../_shared/llm-consent.ts';
 import { beginChatTurnAttempt, claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
@@ -340,6 +341,7 @@ function matchesTermEn(lowerHaystack: string, term: string): boolean {
   return false;
 }
 function hasCrisisTerm(text: string): boolean {
+  if (matchEmergencyLane(text)) return true;
   if (matchAdditionalCrisisLanguage(text)) return true;
   const lower = normalizeForMatch(prepareCrisisScanText(text));
   for (const term of CRISIS_TERMS_EN) {
@@ -492,7 +494,7 @@ Deno.serve(async (req: Request) => {
       // client already zero-vectors these before sending (C9); this is the
       // bypassed-client backstop, same no-oracle 422 as the chat path.
       if (hasCrisisTerm(t)) {
-        return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
+        return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected', ...emergencyLanePayload(t) }, 422);
       }
       texts.push(t);
     }
@@ -782,7 +784,7 @@ Deno.serve(async (req: Request) => {
   if (!safetyClassifySeat && hasCrisisTerm(userText)) {
     return jsonResponse(req, {
       error: 'safety_red_zone',
-      reason: 'crisis_term_detected',
+      reason: 'crisis_term_detected', ...emergencyLanePayload(userText),
     }, 422);
   }
 

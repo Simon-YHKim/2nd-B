@@ -40,6 +40,7 @@ import { filterPhoneWikiPages } from "@/lib/wiki/phone-search";
 import { getBacklinks, getWikiPageById, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import type { HotlineId } from "@/lib/safety/lexicon";
 import { OpsPhoneContent, type OpsPhoneScreen } from "@/screens/deepspace/ops/PhoneOpsContent";
 import { MuseumPhoneContent } from "@/screens/deepspace/museum/MuseumTimelineScreen";
 import { PhoneEmbedProvider, splitPhoneRoute, type PhoneEmbedNav } from "@/lib/nav/phone-embed";
@@ -197,6 +198,7 @@ function AccountDashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const [captureBusy, setCaptureBusy] = useState(false);
   const [captureState, setCaptureState] = useState<"idle" | "saved" | "failed">("idle");
   const [crisisVisible, setCrisisVisible] = useState(false);
+  const [crisisHotline, setCrisisHotline] = useState<HotlineId | undefined>();
   const [focusSeconds, setFocusSeconds] = useState(25 * 60);
   const [focusRunning, setFocusRunning] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -519,7 +521,10 @@ function AccountDashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
       if (!mounted.current || !lease.isCurrent()) return;
       setDraft("");
       setCaptureState("saved");
-      if (saved.followup?.zone === "red") setCrisisVisible(true);
+      if (saved.followup?.zone === "red") {
+        setCrisisHotline(saved.crisisHotline);
+        setCrisisVisible(true);
+      }
       setRefresh((value) => value + 1);
     } catch {
       if (mounted.current && lease.isCurrent()) setCaptureState("failed");
@@ -810,7 +815,7 @@ function AccountDashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     <WeatherSheet mode={isMinor === false ? weatherSheet : null} busy={clockWeather.state.busy} failed={clockWeather.state.failed}
       onTerms={() => { clockWeather.cancel(); setWeatherSheet(null); go("/terms"); }}
       onClose={() => { clockWeather.cancel(); setWeatherSheet(null); }} onEnable={() => { void clockWeather.enable().then((saved) => { if (saved) setWeatherSheet(null); }); }} />
-    <CrisisRouter visible={crisisVisible} hotline={i18n.language.toLowerCase().startsWith("ko") ? isMinor ? "KR_1388" : "KR_109" : "GLOBAL_988"} onClose={() => setCrisisVisible(false)} />
+    <CrisisRouter visible={crisisVisible} hotline={crisisHotline ?? (i18n.language.toLowerCase().startsWith("ko") ? isMinor ? "KR_1388" : "KR_109" : "GLOBAL_988")} onClose={() => setCrisisVisible(false)} />
     </PhoneDesignProvider>
   </DeepSpaceScreen>;
 }

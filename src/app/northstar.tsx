@@ -151,7 +151,7 @@ export default function NorthstarSentence() {
         // gap the map flagged (call-reflection shows the modal; this screen
         // did not). router.back() runs when the user closes the modal.
         setSaving(false);
-        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        setCrisis({ visible: true, hotline: res.crisisHotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
         return;
       }
       // 북극성 문장이 갱신됐다 — the head lights up with it.

@@ -18,7 +18,7 @@
 // Both entry flows collect and both write, but the write does not always live
 // in the screen file, so name all four sites:
 //   collect  <ConsentBlock>             src/screens/deepspace/dds-sign-up-screen.tsx:425
-//                                       src/app/(auth)/complete-profile.tsx:380
+//                                       src/app/(auth)/complete-profile.tsx:382
 //            <ConsentNotice>
 //
 // ⚠ 2026-09-08: 이 줄은 `sign-up.tsx:219` 을 가리키고 있었다 - `<ConsentNotice>` 가

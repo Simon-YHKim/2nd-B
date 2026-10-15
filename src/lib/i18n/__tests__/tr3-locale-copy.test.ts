@@ -344,7 +344,7 @@ describe("tr3 /reasoning: the screen copy reads ds.reasoningScreen.*", () => {
     expect(REASONING).not.toContain("formatRewardRemaining");
     expect(REASONING).not.toContain("getDomainStar");
     // Not copy: the connect prompt's language and the crisis hotline keep the ko/en locale.
-    expect(REASONING).toContain('hotline={ko ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988"}');
+    expect(REASONING).toContain('hotline={crisisHotline ?? (ko ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988")}');
     expect(REASONING).toContain('const locale: "ko" | "en" = ko ? "ko" : "en";');
   });
 

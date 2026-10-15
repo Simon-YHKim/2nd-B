@@ -89,7 +89,7 @@ const CITES: CommentCite[] = [
   },
   {
     from: "src/lib/supabase/consent.ts",
-    cite: "src/app/(auth)/complete-profile.tsx:380",
+    cite: "src/app/(auth)/complete-profile.tsx:382",
     symbol: "<ConsentNotice",
     why: "같은 것의 두 번째 진입 화면. ⚠ 이 줄이 :308 에서 밀린 채 방치돼 있었다.",
   },

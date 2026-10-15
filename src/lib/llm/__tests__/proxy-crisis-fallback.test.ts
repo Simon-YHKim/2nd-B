@@ -92,6 +92,42 @@ function proxy422(body: unknown): { context: { status: number; json: () => Promi
 
 const BENIGN_EN = "Today I planned my week and it felt productive.";
 
+describe("closed emergency metadata from the server", () => {
+  beforeEach(() => {
+    mockInvoke.mockReset();
+    mockClassifySafety.mockReset().mockResolvedValue(GREEN);
+    auditMock.mockClear();
+    crisisMock.mockClear();
+  });
+
+  test.each([
+    ["medical_emergency", "KR_119", "119"],
+    ["immediate_threat", "KR_112", "112"],
+  ] as const)("preserves %s through both LLM interfaces and UI locales", async (lane, hotline, number) => {
+    for (const locale of ["ko", "en"] as const) {
+      for (const minor of [true, false]) {
+        mockInvoke.mockResolvedValue({ data: null, error: proxy422({ error: "safety_red_zone", crisis_lane: lane }) });
+        const result = await callLlm({ userId: "u1", locale, minor, purpose: "interview_probe", user: BENIGN_EN });
+        expect(result.safety.crisisRouting?.hotline).toBe(hotline);
+        expect(result.text).toContain(locale === "ko" ? `한국에 계시면 ${number}` : `In South Korea, call ${number}`);
+        const advisor = await callAdvisor({ userId: "u1", locale, minor, userMessage: BENIGN_EN });
+        expect(advisor.hotline).toBe(hotline);
+        expect(advisor.text).toContain(number);
+        expect(advisor.zone).toBe("red");
+      }
+    }
+  });
+
+  test.each([undefined, null, "KR_119", "tel:112", "__proto__", 119, {}, []])(
+    "unrecognized lane %p keeps the existing support fallback", async (crisis_lane) => {
+      mockInvoke.mockResolvedValue({ data: null, error: proxy422({ error: "safety_red_zone", crisis_lane }) });
+      const result = await callLlm({ userId: "u1", locale: "ko", minor: true, purpose: "interview_probe", user: BENIGN_EN });
+      expect(result.safety.crisisRouting?.hotline).toBe("KR_1388");
+      expect(result.text).toContain("1388 또는 109");
+    },
+  );
+});
+
 describe("callLlm — proxy 422 crisis fallback (C9 follow-up)", () => {
   beforeEach(() => {
     mockInvoke.mockReset();
