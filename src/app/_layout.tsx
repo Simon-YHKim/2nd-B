@@ -44,6 +44,7 @@ import { HealthAutoReadSync } from "@/components/health/HealthAutoReadSync";
 import { ChatReminderResponseSync } from "@/components/secondb/ChatReminderResponseSync";
 import { GlobalCueHost } from "@/components/audio/GlobalCueHost";
 import { AppCrisisHost } from "@/components/safety/CrisisRouter";
+import { DeviceLockGate } from "@/components/auth/DeviceLockGate";
 import { beginAccountSessionLease } from "@/lib/auth/account-session-lease";
 import { armWebRecoveryPendingFromLocation } from "@/lib/auth/recovery-proof-store";
 import { hydrateAnalyticsConsent } from "@/lib/analytics/auth-conversions";
@@ -243,6 +244,7 @@ export default function RootLayout() {
             {/* Big SecondB head follows touch on every screen (auto by size >= 80);
                 bubbling onTouch* so it never steals taps. Dock + Toast are global
                 overlays for the background-task loading system. */}
+            <DeviceLockGate>
             <SecondbHeadTrackProvider>
             <IntroGate fontsReady={fontsReady}>
               <AvatarSetupGate>
@@ -305,6 +307,7 @@ export default function RootLayout() {
                 at its skip button must not land on the dock tab underneath. */}
             <IntroExitShield />
             </SecondbHeadTrackProvider>
+            </DeviceLockGate>
             <AppCrisisHost />
           </AuthProvider>
       </SafeAreaProvider>

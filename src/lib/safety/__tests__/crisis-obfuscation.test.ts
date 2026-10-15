@@ -84,7 +84,7 @@ describe("Q-261011-05 obfuscation request gate (not a verdict)", () => {
       collect(JSON.parse(readFileSync(resolve(dir, file), "utf8")));
     }
     // 2026-10-15: interview.drill.processingNotice adds one disclosure per locale.
-    expect(strings).toHaveLength(4403);
+    expect(strings).toHaveLength(4410);
     expect(strings.filter(hasCrisisObfuscation)).toEqual([]);
   });
 

@@ -3,8 +3,11 @@ import { Animated, Modal, Platform, StyleSheet, type ModalProps } from "react-na
 import { sceneMotion } from "@/lib/motion/scene-motion";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { usePhoneDesign } from "@/lib/theme/phone-design-context";
+import { useDeviceLockCovered, useCrisisLockPriority } from "@/lib/auth/device-lock-context";
 
 export interface MotionModalProps extends ModalProps {
+  /** Safety notice only. Ordinary dialogs must never bypass device lock. */
+  crisisAboveDeviceLock?: boolean;
   /** False immediately removes the dialog and its children, bypassing exit. */
   active?: boolean;
   transitionKind?: "sheet" | "replace";
@@ -17,7 +20,8 @@ export interface MotionModalProps extends ModalProps {
  * screens use ScreenModal so blur bypasses the ordinary closing animation.
  */
 export function MotionModal({
-  active = true,
+  active: requestedActive = true,
+  crisisAboveDeviceLock = false,
   visible = true,
   animationType,
   transitionKind = animationType === "slide" ? "sheet" : "replace",
@@ -26,10 +30,13 @@ export function MotionModal({
   children,
   ...props
 }: MotionModalProps) {
+  const deviceCovered = useDeviceLockCovered();
+  const active = requestedActive && (!deviceCovered || crisisAboveDeviceLock);
   const phone = usePhoneDesign();
   const reduced = useReducedMotionPref();
   const requested = visible !== false && visible !== null;
   const open = active && requested;
+  useCrisisLockPriority(crisisAboveDeviceLock && open);
   const [present, setPresent] = useState(open);
   const [ready, setReady] = useState(false);
   const progress = useRef(new Animated.Value(reduced ? 1 : 0)).current;

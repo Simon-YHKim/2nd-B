@@ -8,6 +8,7 @@ import ts from "typescript";
 type Tree = { type: string; props: Record<string, unknown> };
 type Props = Record<string, unknown>;
 function mount(initial: Props, reduced = false, phone = false, nativeShown = true) {
+  let deviceCovered = false;
   const source = readFileSync(resolve(__dirname, "../MotionModal.tsx"), "utf8");
   const js = ts.transpileModule(source, { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX,
@@ -74,6 +75,7 @@ function mount(initial: Props, reduced = false, phone = false, nativeShown = tru
     "@/lib/theme/phone-design-context": { usePhoneDesign: () => phone },
     "@/lib/motion/use-reduced-motion": { useReducedMotionPref: () => reduced },
     "@/lib/motion/scene-motion": { sceneMotion },
+    "@/lib/auth/device-lock-context": { useDeviceLockCovered: () => deviceCovered, useCrisisLockPriority: () => {} },
   };
   new Function("require", "exports", js)((name: string) => {
     if (!(name in modules)) throw new Error(`Unexpected dependency: ${name}`);
@@ -95,10 +97,32 @@ function mount(initial: Props, reduced = false, phone = false, nativeShown = tru
     get tree() { return tree; }, animations, sceneMotion, show,
     update(next: Props, beforeEffects?: (value: Tree) => void) { props = { ...props, ...next }; const nextTree = render(); beforeEffects?.(nextTree); flush(); },
     reduce() { reduced = true; render(); flush(); },
+    cover(value: boolean, beforeEffects?: (value: Tree) => void) { deviceCovered = value; const nextTree = render(); beforeEffects?.(nextTree); flush(); },
     finish() { animations[animations.length - 1].finish(); flush(); },
     unmount() { slots.forEach(slot => slot.cleanup?.()); },
   };
 }
+
+test("device lock immediately removes an ordinary dialog, including an interrupted exit", () => {
+  const onExitComplete = jest.fn();
+  const host = mount({ visible: true, children: "private", onExitComplete });
+  host.update({ visible: false });
+  const exit = host.animations[host.animations.length - 1];
+  host.cover(true, tree => {
+    expect(tree.props.visible).toBe(false);
+    expect(tree.props.children).toBeNull();
+  });
+  exit.finish();
+  expect(onExitComplete).not.toHaveBeenCalled();
+});
+
+test("a crisis notice remains above device lock but never overrides route blur", () => {
+  const host = mount({ visible: true, crisisAboveDeviceLock: true, children: "hotline" });
+  host.cover(true);
+  expect(host.tree.props.visible).toBe(true);
+  host.update({ active: false });
+  expect(host.tree.props.visible).toBe(false);
+});
 
 test("native dialog events survive; ordinary close finishes before the host disappears", () => {
   const onRequestClose = jest.fn(); const onShow = jest.fn(); const onDismiss = jest.fn(); const onExitComplete = jest.fn();
