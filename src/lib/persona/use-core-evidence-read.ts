@@ -6,7 +6,6 @@ import { getSupabaseClient } from "../supabase/client";
 import { withSystemTagsColumn } from "../records/system-tags";
 import { loadCorePersonaSnapshot, type CorePersonaSnapshot } from "./build";
 import { mergeEvidence, type OriginShard, type RawRecordRow, type RawSourceRow } from "./evidence";
-import { loadSevenLevels, type SevenLevels } from "./load-seven-levels";
 
 export const CORE_EVIDENCE_READ_TIMEOUT_MS = 10_000;
 /** Both archives are required; an error response must not wait for its peer. */
@@ -30,7 +29,7 @@ export async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko",
   return mergeEvidence(rows, clips, locale);
 }
 
-type Data = { evidence: OriginShard[]; persona: CorePersonaSnapshot | null; sevenLevels: SevenLevels | null };
+type Data = { evidence: OriginShard[]; persona: CorePersonaSnapshot | null };
 type Scope = { ownerId: string | null; locale: "en" | "ko"; lease: ReturnType<typeof captureAccountOwnerLease> };
 type Key = { scope: Scope; reloadKey: number; evidenceReloadKey: number };
 type Session = { key: Key; cancel: () => void; active: boolean; ready: boolean; autoAllowed: boolean };
@@ -87,18 +86,12 @@ export function useCoreEvidenceRead(
     const owner = scope.ownerId;
     const work = Promise.resolve().then(async (): Promise<Data> => {
       requireCurrent();
-      const [evidence, nextStars] = await Promise.all([
-        loadCoreBrainEvidence(owner, scope.locale, requireCurrent),
-        loadSevenLevels(owner).catch(() => null),
-      ]);
+      const evidence = await loadCoreBrainEvidence(owner, scope.locale, requireCurrent);
       requireCurrent();
       // Refocus refreshes evidence; only mount/full retry reads the saved snapshot.
       const snapshot = fullRead ? evidence.length > 0 ? await loadCorePersonaSnapshot(owner, requireCurrent) : null : previous.persona;
       requireCurrent();
-      return {
-        evidence, sevenLevels: fullRead ? nextStars : nextStars ?? previous.sevenLevels,
-        persona: fullRead && snapshot && nextStars ? { ...snapshot, soulCoreBrightness: nextStars.northStarBrightness } : snapshot,
-      };
+      return { evidence, persona: snapshot };
     });
     void withTimeout(Promise.race([work, cancelled]), CORE_EVIDENCE_READ_TIMEOUT_MS, "Core evidence")
       .then((data) => {
