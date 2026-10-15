@@ -9,6 +9,7 @@ type Tree = { type: string; props: Record<string, unknown> };
 type Props = Record<string, unknown>;
 const windowMetrics = { insets: { top: 44, bottom: 34, left: 0, right: 0 }, frame: { x: 0, y: 0, width: 390, height: 844 } };
 function mount(initial: Props, reduced = false, phone = false, nativeShown = true) {
+  let deviceCovered = false;
   const source = readFileSync(resolve(__dirname, "../MotionModal.tsx"), "utf8");
   const js = ts.transpileModule(source, { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX,
@@ -76,6 +77,7 @@ function mount(initial: Props, reduced = false, phone = false, nativeShown = tru
     "@/lib/theme/phone-design-context": { usePhoneDesign: () => phone },
     "@/lib/motion/use-reduced-motion": { useReducedMotionPref: () => reduced },
     "@/lib/motion/scene-motion": { sceneMotion },
+    "@/lib/auth/device-lock-context": { useDeviceLockCovered: () => deviceCovered, useCrisisLockPriority: () => {} },
     "react-native-safe-area-context": { SafeAreaProvider: "SafeAreaProvider" },
     "@/lib/ui/keyboard-frame": { KeyboardFrameOffsetContext: { Provider: "KeyboardFrameProvider" } },
     "@/lib/ui/window-safe-area": { WindowSafeAreaContext: {} },
@@ -100,11 +102,32 @@ function mount(initial: Props, reduced = false, phone = false, nativeShown = tru
     get tree() { return tree; }, animations, sceneMotion, show,
     update(next: Props, beforeEffects?: (value: Tree) => void) { props = { ...props, ...next }; const nextTree = render(); beforeEffects?.(nextTree); flush(); },
     reduce() { reduced = true; render(); flush(); },
+    cover(value: boolean, beforeEffects?: (value: Tree) => void) { deviceCovered = value; const nextTree = render(); beforeEffects?.(nextTree); flush(); },
     finish() { animations[animations.length - 1].finish(); flush(); },
     unmount() { slots.forEach(slot => slot.cleanup?.()); },
   };
 }
 
+test("device lock immediately removes an ordinary dialog, including an interrupted exit", () => {
+  const onExitComplete = jest.fn();
+  const host = mount({ visible: true, children: "private", onExitComplete });
+  host.update({ visible: false });
+  const exit = host.animations[host.animations.length - 1];
+  host.cover(true, tree => {
+    expect(tree.props.visible).toBe(false);
+    expect(tree.props.children).toBeNull();
+  });
+  exit.finish();
+  expect(onExitComplete).not.toHaveBeenCalled();
+});
+
+test("a crisis notice remains above device lock but never overrides route blur", () => {
+  const host = mount({ visible: true, crisisAboveDeviceLock: true, children: "hotline" });
+  host.cover(true);
+  expect(host.tree.props.visible).toBe(true);
+  host.update({ active: false });
+  expect(host.tree.props.visible).toBe(false);
+});
 function scene(tree: Tree): Tree {
   const safeArea = tree.props.children as Tree;
   expect(safeArea.type).toBe("SafeAreaProvider");
