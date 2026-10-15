@@ -239,7 +239,7 @@
     "saveFailed": "Couldn't save. Please try again.",
     "deleteAccount": {
       "body": "Your records, captures, wiki, usage and account are permanently erased. This cannot be undone. Export anything you need first.",
-      "typePrompt": "Type \"DELETE\" to proceed.",
+      "typePrompt": "Type \"{{phrase}}\" to proceed.",
       "inputA11y": "Deletion confirmation",
       "buttonA11y": "Delete account permanently",
       "button": "Delete account",
