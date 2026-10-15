@@ -280,13 +280,13 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   /** 이 사용자에게 해당되는 시기. 진행 행렬의 열이 된다. */
   const coveredPeriods = useMemo(() => livedPeriods(age), [age]);
   const [draft, setDraft] = useState("");
+  const draftEditRevision = useRef(0);
+  const sending = useRef(false);
   const [busy, setBusy] = useState(false);
   const [pendingLayer, setPendingLayer] = useState<DrillLayer | null>(null);
   /** 이번 질문에 딸린 **말문 후보**. 누르면 보내지 않고 입력창을 채운다. */
   const [openers, setOpeners] = useState<string[]>([]);
   const [done, setDone] = useState(false);
-  /** 서버가 오늘 몫이 찼다고 거절해서 끝났다. 끝 화면의 안내 한 줄만 바뀐다. */
-  const [dayLimited, setDayLimited] = useState(false);
   const ended = useRef(false);
   const mounted = useRef(true);
   const [concreteOnly, setConcreteOnly] = useState(false);
@@ -487,13 +487,12 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         setOpeners(probe.openers);
       } catch (error) {
         if (!owner.isCurrent() || !mounted.current || ended.current) return;
-        // 오늘 몫이 찼다는 서버 거절은 오류가 아니라 끝맺음이다(session-end.ts).
-        // 지금까지의 대화와 판 칸은 그대로 남고, 담기는 끝 화면의 같은 버튼이 한다.
-        // 마지막 답의 칸은 모델 확인을 못 받았으므로 더하지 않는다 -- 실패 때와 같은 규칙.
+        // Q-261014-17: a quota refusal keeps the current question and draft.
+        // The caller restores only this request's input; no answer is credited.
         if (await readDayLimitRefusal(error, INTERVIEW_PURPOSE)) {
           if (owner.isCurrent() && mounted.current && !ended.current) {
-            setDayLimited(true);
-            finish();
+            setNotice(t("drill.dayLimit"));
+            return "limited" as const;
           }
           return;
         }
@@ -547,6 +546,11 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
 
   const userTurns = turns.filter((turn) => turn.role === "user").length;
 
+  function editDraft(value: string) {
+    draftEditRevision.current += 1;
+    setDraft(value);
+  }
+
   // `override` 는 답변 칩이 쓴다. 칩을 누르면 `setDraft` 후 `send()` 를 부르는 대신
   // 곧바로 그 말을 보낸다 — 상태 갱신은 다음 렌더에나 반영돼서, 그 사이에 보내면
   // 직전 draft(대개 빈 문자열)가 나간다.
@@ -595,6 +599,11 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       changeAngle("skip");
       return;
     }
+    // A same-render double tap must not submit two answers before busy paints.
+    if (sending.current) return;
+    const owner = captureAccountOwnerLease(userId);
+    if (!owner) return;
+    const editRevision = draftEditRevision.current;
     // 답변이 붙는 층은 **직전 질문이 겨냥한 층**이다. 되묻기였다면 층이 없다 --
     // 그건 깊이를 판 것이 아니라 방향을 바꾼 것이므로 coverage 를 올리지 않는다.
     const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period };
@@ -628,7 +637,22 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     setDraft("");
     setOpeners([]);
     setPendingLayer(null);
-    await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);
+    sending.current = true;
+    try {
+      const outcome = await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);
+      if (outcome === "limited" && owner.isCurrent() && mounted.current && !ended.current) {
+        setTurns(turns);
+        setPendingLayer(pendingLayer);
+        setOpeners(openers);
+        setStuckStreak(stuckStreak);
+        setAbandoned(abandoned);
+        // The field is disabled while busy, but a queued native edit or a
+        // newer user action still owns its text. Never overwrite that edit.
+        if (draftEditRevision.current === editRevision) setDraft(override ?? draft);
+      }
+    } finally {
+      sending.current = false;
+    }
   }
 
   function changeAngle(choice: "skip" | "concrete") {
@@ -738,7 +762,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
           <>
             <Text style={[m3TextStyle("titleLarge"), styles.saveTitle]}>{t("drill.saveTitle")}</Text>
             <Text style={[m3TextStyle("bodyMedium"), styles.saveBody]}>
-              {dayLimited ? t("drill.dayLimit") : t("drill.closing")}
+              {t("drill.closing")}
             </Text>
             {/* 이만큼 팠다 -- 담을지 정하는 자리에서 보여준다.
              *
@@ -838,7 +862,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
                 {openers.map((o) => (
                   <Pressable
                     key={o}
-                    onPress={() => setDraft(o)}
+                    onPress={() => editDraft(o)}
                     style={styles.answerChip}
                     accessibilityRole="button"
                     accessibilityLabel={o}
@@ -875,7 +899,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
             </Text>
             <TextInput
               value={draft}
-              onChangeText={setDraft}
+              onChangeText={editDraft}
               placeholder={t("drill.placeholder")}
               placeholderTextColor={m3.color.onSurfaceVariant}
               multiline
