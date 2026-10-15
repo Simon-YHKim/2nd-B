@@ -35,7 +35,8 @@ import { SEVEN_STARS } from "@/lib/persona/seven-stars";
 import { listAllRecords } from "@/lib/records/list-all-records";
 import { buildRoleRecordsGraph } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
-import { getWikiPageById, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
+import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
+import { useFocusedWikiPage } from "@/lib/wiki/use-focused-wiki-page";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { buildDeepWikiView, type WikiEdge } from "./wiki-graph-view";
 import { buildRecordsTimeline, type TimelineLabels, type TimelineRecord } from "./records-timeline";
@@ -822,79 +823,36 @@ export function DeepSpaceWikiScreen() {
   // (The legacy wiki screen has focusSourceId, keyed on source_id; this is the live
   // deep-space screen and it read no params at all.)
   const { focusPageId } = useScreenParams<{ focusPageId?: string }>();
+  const focusRead = useFocusedWikiPage(userId, focusPageId, pages, loading || !!loadError, authLoading);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   // Which page row is expanded. null until the user taps; the first page renders
   // expanded by default (matching the old fixed-open-first behaviour) but any row
   // can now toggle open via its caret.
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const honouredFocusRef = useRef<typeof focusRead.key | null>(null);
+  const [expanded, setExpanded] = useState<{ key: typeof focusRead.key; id: string | null } | null>(null);
+  const expandedId = expanded?.key === focusRead.key ? expanded.id : null;
+  const setExpandedId = useCallback((id: string | null) => {
+    // A manual row/graph choice supersedes an outstanding citation expansion.
+    honouredFocusRef.current = focusRead.key;
+    setExpanded({ key: focusRead.key, id });
+  }, [focusRead.key]);
   // rev2 P4b: list <-> node-graph view. The graph honours the same tag filter;
   // tapping a node twice opens it back in the list (progressive disclosure).
   const [wikiView, setWikiView] = useState<"list" | "graph">("list");
 
-  // A page this screen never loaded. The list is the 200 most recently updated rows
-  // (useWikiGraphData above), and a SecondB citation can name a page well outside that
-  // window: the RAG path retrieves by vector neighbourhood (lib/chat/rag.ts), which has
-  // no recency floor at all. Pinning an id that is not in `pages` pins nothing, so the
-  // deep link used to land silently on the default row - the source card opening
-  // something that is not the source. The absent row is fetched by id and carried
-  // alongside the list instead.
-  //
-  // Carried WITH the account it was fetched for, for the reason OwnedWikiRows gives:
-  // one row of someone's own writing is still their writing, and a bare WikiPageRow
-  // here would be readable by whoever the next published owner turns out to be.
-  const [linkedPage, setLinkedPage] = useState<{ ownerId: string; page: WikiPageRow } | null>(null);
-  // Honoured once per (account, ID) pair, not once per screen. The old guard was
-  // `expandedId !== null`, which meant the second citation opened from the same mounted
-  // /wiki - after any row had been expanded, including by the deep link itself - was
-  // dropped without a trace. The account half is what stops a focus honoured for one
-  // owner from silencing the same id for the next one.
-  const honouredFocusRef = useRef<{ ownerId: string; focusPageId: string } | null>(null);
-
-  // A ?focusPageId= deep link opens that page. Must sit ABOVE the early returns below --
-  // a hook after a conditional return breaks the hook order (react-hooks/rules-of-hooks
-  // caught this). A stale or foreign id still falls back to the default (first page)
-  // rather than leaving every row collapsed.
+  // Mark a citation honoured only after its owned page is known. Later renders
+  // must not reopen it over a row the user deliberately selected.
   useEffect(() => {
-    if (!userId || !focusPageId) return;
-    // The pair, held as two fields rather than one joined key: a UUID is opaque and a
-    // separator that happens to appear in one would silently merge two different pairs.
-    const honoured = honouredFocusRef.current;
-    if (honoured && honoured.ownerId === userId && honoured.focusPageId === focusPageId) return;
-    const honour = { ownerId: userId, focusPageId };
-    if (pages.some((p) => p.id === focusPageId)) {
-      honouredFocusRef.current = honour;
-      setExpandedId(focusPageId);
-      return;
-    }
-    // Absent from the list. Wait for the load to settle before concluding that -- an
-    // id asked for mid-fetch is not yet known to be missing.
-    if (loading || loadError) return;
-    honouredFocusRef.current = honour;
-    let alive = true;
-    void getWikiPageById(userId, focusPageId)
-      .then((page) => {
-        if (!alive || !page) return;
-        setLinkedPage({ ownerId: userId, page });
-        setExpandedId(page.id);
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [focusPageId, pages, loading, loadError, userId]);
+    if (focusRead.status !== "ready" || !focusRead.page || !focusPageId || honouredFocusRef.current === focusRead.key) return;
+    honouredFocusRef.current = focusRead.key;
+    setExpandedId(focusPageId);
+  }, [focusRead.status, focusRead.page, focusRead.key, focusPageId, setExpandedId]);
 
-  // The fetched row joins the list for every downstream reader, so the tag chips, the
-  // graph and the row list all agree about what exists -- but only for the account it
-  // was fetched for. `pages` is already fenced the same way by useWikiGraphData, so an
-  // owner that does not match reads an empty library rather than the last one's.
+  // Only the current owner/epoch/target's successful row joins the window.
+  const linkedPage = focusRead.page;
   const listedPages = useMemo(
-    () =>
-      linkedPage &&
-      linkedPage.ownerId === userId &&
-      !pages.some((p) => p.id === linkedPage.page.id)
-        ? [linkedPage.page, ...pages]
-        : pages,
-    [pages, linkedPage, userId],
+    () => linkedPage && !pages.some((page) => page.id === linkedPage.id) ? [linkedPage, ...pages] : pages,
+    [pages, linkedPage],
   );
 
   // The page the user asked to open is pinned into the list: the graph draws every page but
@@ -923,13 +881,11 @@ export function DeepSpaceWikiScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  // Default the first page open when nothing is explicitly toggled. An id that is not in
-  // the current view is not a toggle -- it is left over. That happens when a tag filter
-  // hides the open row, and it is also what an account swap leaves behind, so the
-  // fallback is keyed on what is actually drawable rather than on the id being non-null.
+  // A citation must never silently open an unrelated default row while its
+  // target is waiting, failed, missing or hidden by a tag filter.
   const openId = view.pages.some((p) => p.id === expandedId)
     ? expandedId
-    : (view.pages[0]?.id ?? null);
+    : focusPageId ? null : (view.pages[0]?.id ?? null);
 
   // rev2 records: the companion FLOATS over the surface (sb-app), so the body
   // clears its height instead of being pushed by a header band.
@@ -963,6 +919,20 @@ export function DeepSpaceWikiScreen() {
           ))}
         </View>
       ) : null}
+      {!loading && !loadError && focusPageId && focusRead.status !== "ready" ? (
+        <View style={styles.wikiPageOpen}>
+          <Text variant="body" style={styles.wikiBody} accessibilityLiveRegion="polite">
+            {focusRead.status === "loading" ? "..." : focusRead.status === "missing"
+              ? t("recordDetail:state.missingTitle")
+              : t(focusRead.status === "timeout" ? "common:errors.network" : "common:errors.unknown")}
+          </Text>
+          {focusRead.status === "error" || focusRead.status === "timeout" ? (
+            <Pressable style={styles.primary} onPress={focusRead.retry} accessibilityRole="button">
+              <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
       <SceneTransition transitionKey={wikiView} kind="replace" animateOnMount={false} style={{ gap: spacing.md }}>
       {loading ? (
         <GraphLoading />
@@ -973,7 +943,7 @@ export function DeepSpaceWikiScreen() {
             <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
           </Pressable>
         </View>
-      ) : wikiView === "graph" && graphPages.length > 0 ? (
+      ) : focusPageId && focusRead.status !== "ready" && view.pages.length === 0 ? null : wikiView === "graph" && graphPages.length > 0 ? (
         <WikiGraph
           pages={graphPages}
           edges={edges}
@@ -994,7 +964,7 @@ export function DeepSpaceWikiScreen() {
         <>
           {view.pages.map((p) => {
             const isOpen = p.id === openId;
-            const toggle = () => setExpandedId((prev) => ((prev ?? view.pages[0]?.id ?? null) === p.id ? null : p.id));
+            const toggle = () => setExpandedId(isOpen ? null : p.id);
             if (isOpen) {
               return (
                 <View key={p.id} style={styles.wikiPageOpen}>
