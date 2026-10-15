@@ -7,6 +7,7 @@ import ts from "typescript";
 // animation callbacks and focus loss be exercised without loading RN.
 type Tree = { type: string; props: Record<string, unknown> };
 type Props = Record<string, unknown>;
+const windowMetrics = { insets: { top: 44, bottom: 34, left: 0, right: 0 }, frame: { x: 0, y: 0, width: 390, height: 844 } };
 function mount(initial: Props, reduced = false, phone = false, nativeShown = true) {
   let deviceCovered = false;
   const source = readFileSync(resolve(__dirname, "../MotionModal.tsx"), "utf8");
@@ -29,6 +30,7 @@ function mount(initial: Props, reduced = false, phone = false, nativeShown = tru
     }
   };
   const hooks = {
+    useContext: () => windowMetrics,
     useState: (initialValue: unknown) => {
       const slot = slots[index] ?? (slots[index] = { value: initialValue });
       index += 1;
@@ -76,6 +78,9 @@ function mount(initial: Props, reduced = false, phone = false, nativeShown = tru
     "@/lib/motion/use-reduced-motion": { useReducedMotionPref: () => reduced },
     "@/lib/motion/scene-motion": { sceneMotion },
     "@/lib/auth/device-lock-context": { useDeviceLockCovered: () => deviceCovered, useCrisisLockPriority: () => {} },
+    "react-native-safe-area-context": { SafeAreaProvider: "SafeAreaProvider" },
+    "@/lib/ui/keyboard-frame": { KeyboardFrameOffsetContext: { Provider: "KeyboardFrameProvider" } },
+    "@/lib/ui/window-safe-area": { WindowSafeAreaContext: {} },
   };
   new Function("require", "exports", js)((name: string) => {
     if (!(name in modules)) throw new Error(`Unexpected dependency: ${name}`);
@@ -123,6 +128,17 @@ test("a crisis notice remains above device lock but never overrides route blur",
   host.update({ active: false });
   expect(host.tree.props.visible).toBe(false);
 });
+function scene(tree: Tree): Tree {
+  const safeArea = tree.props.children as Tree;
+  expect(safeArea.type).toBe("SafeAreaProvider");
+  expect(safeArea.props.initialMetrics).toBe(windowMetrics);
+  const keyboardFrame = safeArea.props.children as Tree;
+  expect(keyboardFrame.type).toBe("KeyboardFrameProvider");
+  expect(keyboardFrame.props.value).toBe(0);
+  const animated = keyboardFrame.props.children as Tree;
+  expect(animated.type).toBe("AnimatedView");
+  return animated;
+}
 
 test("native dialog events survive; ordinary close finishes before the host disappears", () => {
   const onRequestClose = jest.fn(); const onShow = jest.fn(); const onDismiss = jest.fn(); const onExitComplete = jest.fn();
@@ -132,7 +148,7 @@ test("native dialog events survive; ordinary close finishes before the host disa
   expect(onShow).toHaveBeenCalledWith({ nativeEvent: {} });
   host.finish(); host.update({ visible: false });
   expect(host.tree.props.visible).toBe(true);
-  expect((host.tree.props.children as Tree).props.pointerEvents).toBe("none");
+  expect(scene(host.tree).props.pointerEvents).toBe("none");
   expect(onExitComplete).not.toHaveBeenCalled();
   host.finish();
   expect(host.tree.props.visible).toBe(false);
@@ -184,7 +200,7 @@ test("entry waits for the native window; closing before first show cannot leave 
   expect(delayed.animations).toHaveLength(0);
   delayed.show();
   expect(delayed.animations).toHaveLength(1);
-  expect((delayed.tree.props.children as Tree).props.collapsable).toBe(false);
+  expect(scene(delayed.tree).props.collapsable).toBe(false);
   const interrupted = mount({ visible: true, onExitComplete }, false, false, false);
   interrupted.update({ visible: false });
   expect(interrupted.tree.props.visible).toBe(false);

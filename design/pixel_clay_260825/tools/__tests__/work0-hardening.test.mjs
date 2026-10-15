@@ -953,7 +953,9 @@ test('notice exit disables input immediately, removes closed content and preserv
   assert.match(noticeSource, /onExitComplete=\{completeClose\}/);
   assert.match(screenSource, /visible=\{screenModalVisible\(props\.visible, screenFocused\)\} active=\{screenFocused\}/);
   assert.match(modalSource, /const shown = active && \(requested \|\| \(!reduced && present\)\);/);
-  assert.match(modalSource, /\{shown \? \([\s\S]*<Animated\.View[\s\S]*\{children\}[\s\S]*<\/Animated\.View>\s*\) : null\}/);
+  // The window geometry providers share the same shown/null lifetime as the
+  // animated content. Neither may keep closed or blurred inputs mounted.
+  assert.match(modalSource, /\{shown \? \(\s*<SafeAreaProvider\b[^>]*>\s*<KeyboardFrameOffsetContext\.Provider value=\{0\}>\s*<Animated\.View[\s\S]*\{children\}[\s\S]*<\/Animated\.View>\s*<\/KeyboardFrameOffsetContext\.Provider>\s*<\/SafeAreaProvider>\s*\) : null\}/);
   assert.match(modalSource, /pointerEvents=\{open \? "auto" : "none"\}/);
   assert.match(modalSource, /accessibilityElementsHidden=\{!open\}/);
   assert.match(modalSource, /aria-hidden=\{!open\}/);

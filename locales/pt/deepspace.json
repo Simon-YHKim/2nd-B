@@ -712,6 +712,9 @@
     "signature": "PolaScope · {{count}} fagulhas de estrela"
   },
   "ds": {
+    "network": {
+      "offline": "Sem conexão com a internet."
+    },
     "growth": {
       "title": "Minha mudança",
       "bubble": "Veja o que mudou nos seus registros nesta semana.",

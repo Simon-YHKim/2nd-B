@@ -1,9 +1,12 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Animated, Modal, Platform, StyleSheet, type ModalProps } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { sceneMotion } from "@/lib/motion/scene-motion";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { useDeviceLockCovered, useCrisisLockPriority } from "@/lib/auth/device-lock-context";
+import { KeyboardFrameOffsetContext } from "@/lib/ui/keyboard-frame";
+import { WindowSafeAreaContext } from "@/lib/ui/window-safe-area";
 
 export interface MotionModalProps extends ModalProps {
   /** Safety notice only. Ordinary dialogs must never bypass device lock. */
@@ -33,6 +36,7 @@ export function MotionModal({
   const deviceCovered = useDeviceLockCovered();
   const active = requestedActive && (!deviceCovered || crisisAboveDeviceLock);
   const phone = usePhoneDesign();
+  const windowMetrics = useContext(WindowSafeAreaContext);
   const reduced = useReducedMotionPref();
   const requested = visible !== false && visible !== null;
   const open = active && requested;
@@ -96,6 +100,8 @@ export function MotionModal({
       onShow?.(event);
     }}>
       {shown ? (
+        <SafeAreaProvider initialMetrics={windowMetrics} style={styles.scene}>
+        <KeyboardFrameOffsetContext.Provider value={0}>
         <Animated.View
           collapsable={false}
           testID="modal-scene-transition"
@@ -114,6 +120,8 @@ export function MotionModal({
         >
           {children}
         </Animated.View>
+        </KeyboardFrameOffsetContext.Provider>
+        </SafeAreaProvider>
       ) : null}
     </Modal>
   );

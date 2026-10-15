@@ -40,6 +40,14 @@ export function keyboardAvoidanceMode(os: string): KeyboardAvoidanceMode {
  */
 export const IOS_KEYBOARD_BEHAVIOR = "padding" as const;
 
+export function iosKeyboardOffset(
+  offset: number,
+  frameOffset: number,
+  coordinateSpace: "frame" | "window",
+): number {
+  return coordinateSpace === "window" ? offset : offset + frameOffset;
+}
+
 export interface MeasuredFrame {
   /** RN 루트 기준 세로 위치(`measure` 콜백의 pageY). */
   pageY: number;

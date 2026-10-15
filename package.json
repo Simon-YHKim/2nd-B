@@ -88,6 +88,7 @@
     "expo-local-authentication": "~56.0.4",
     "expo-localization": "~56.0.6",
     "expo-location": "~56.0.19",
+    "expo-network": "~56.0.5",
     "expo-notifications": "~56.0.19",
     "expo-router": "~56.2.12",
     "expo-secure-store": "~56.0.4",
@@ -161,7 +162,8 @@
   "expo": {
     "autolinking": {
       "buildFromSource": [
-        "expo-local-authentication"
+        "expo-local-authentication",
+        "expo-network"
       ]
     }
   }
