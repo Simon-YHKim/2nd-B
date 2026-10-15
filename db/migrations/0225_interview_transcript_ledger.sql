@@ -85,6 +85,10 @@ CREATE OR REPLACE FUNCTION public.guard_interview_record_hold()
 RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
 BEGIN
   IF current_user IN ('anon', 'authenticated') THEN
+    IF TG_OP = 'UPDATE' AND OLD.client_request_id LIKE 'interview:%'
+       AND NEW.client_request_id IS DISTINCT FROM OLD.client_request_id THEN
+      RAISE EXCEPTION 'interview_record_session_key_is_fixed' USING ERRCODE = '42501';
+    END IF;
     IF (TG_OP = 'INSERT' AND NEW.interview_ai_hold)
        OR (TG_OP = 'UPDATE' AND NEW.interview_ai_hold IS DISTINCT FROM OLD.interview_ai_hold) THEN
       RAISE EXCEPTION 'interview_record_hold_server_only' USING ERRCODE = '42501';
@@ -218,7 +222,8 @@ CREATE INDEX IF NOT EXISTS interview_sessions_record_idx
 -- 전부 적는다(기록 · 교체 · 장면 역행 · 상한 초과 · 종료 뒤 재시도). 거절한 호출도 화면에는 응답이
 -- 갔을 수 있으므로, 그 해시는 세션이 저장된 동안만 남고 세션을 접을 때 함께 비운다(D6-54).
 -- 판정 행의 audit_id · prior_audit_ids 도 모두 여기 있다. 소유자 열 없음: 세션을 따라 지워진다.
--- 입력 검증 실패는 결속 없이 즉시 해시를 비우고 상태값으로 답한다(D6R3-52).
+-- 입력 검증 실패는 즉시 해시를 비우고 상태값으로 답한다(D6R3-52). 소유가 확인된 red만
+-- 감사 ID를 남겨 다음 담기의 hold 근거로 쓴다(D6R4-01).
 CREATE TABLE IF NOT EXISTS public.interview_session_audit_ids (
   audit_id    uuid        PRIMARY KEY,
   session_id  uuid        NOT NULL REFERENCES public.interview_sessions(id) ON DELETE CASCADE,
@@ -757,6 +762,9 @@ DECLARE
 BEGIN
   SELECT s.owner_id INTO v_owner FROM public.interview_sessions AS s WHERE s.id = OLD.session_id;
   IF v_owner IS NOT NULL THEN
+    IF NOT pg_catalog.pg_try_advisory_xact_lock_shared(pg_catalog.hashtextextended(v_owner::text, 260913)) THEN
+      RAISE EXCEPTION 'interview_account_busy_retry' USING ERRCODE = '40001';
+    END IF;
     PERFORM public.erase_audit_hashes(v_owner,
       pg_catalog.array_remove(OLD.prior_audit_ids || OLD.audit_id, NULL), 'interview_probe');
   END IF;
@@ -779,6 +787,11 @@ SET search_path = ''
 SET row_security = off
 AS $$
 BEGIN
+  -- D6-LOCAL-01: a row DELETE must not wait for the account key while holding
+  -- the session row. Account erasure owns that key before touching audit rows.
+  IF NOT pg_catalog.pg_try_advisory_xact_lock_shared(pg_catalog.hashtextextended(OLD.owner_id::text, 260913)) THEN
+    RAISE EXCEPTION 'interview_account_busy_retry' USING ERRCODE = '40001';
+  END IF;
   -- Direct DELETE already owns the row. Fail for retry instead of waiting behind a writer holding the key.
   IF NOT pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended('interview_session:' || OLD.id::text, 0)) THEN
     RAISE EXCEPTION 'interview_session_busy_retry' USING ERRCODE = '40001';
@@ -792,6 +805,25 @@ $$;
 DROP TRIGGER IF EXISTS interview_session_erasure ON public.interview_sessions;
 CREATE TRIGGER interview_session_erasure BEFORE DELETE ON public.interview_sessions
   FOR EACH ROW EXECUTE FUNCTION public.interview_session_erasure();
+
+-- Heads and turns can be deleted without their session. Fence them before any
+-- verdict FK cascade touches audit hashes; keep this trigger during rollback.
+CREATE OR REPLACE FUNCTION public.interview_owned_erasure_lock()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NOT pg_catalog.pg_try_advisory_xact_lock_shared(pg_catalog.hashtextextended(OLD.user_id::text, 260913)) THEN
+    RAISE EXCEPTION 'interview_account_busy_retry' USING ERRCODE = '40001';
+  END IF;
+  RETURN OLD;
+END;
+$$;
+DROP TRIGGER IF EXISTS interview_owned_erasure_lock ON public.interview_transcripts;
+CREATE TRIGGER interview_owned_erasure_lock BEFORE DELETE ON public.interview_transcripts
+  FOR EACH ROW EXECUTE FUNCTION public.interview_owned_erasure_lock();
+DROP TRIGGER IF EXISTS interview_owned_erasure_lock ON public.interview_transcript_turns;
+CREATE TRIGGER interview_owned_erasure_lock BEFORE DELETE ON public.interview_transcript_turns
+  FOR EACH ROW EXECUTE FUNCTION public.interview_owned_erasure_lock();
 
 -- The auth.users BEFORE boundary precedes every public.users/ledger FK action.
 -- A second boundary on public.users covers direct removal of the public profile too.
@@ -807,6 +839,12 @@ BEGIN
   UPDATE public.ai_audit_log AS a SET prompt_hash = '', output_hash = ''
    WHERE a.user_id = OLD.id AND a.purpose = 'interview_probe'
      AND (a.prompt_hash <> '' OR a.output_hash <> '');
+  -- D6R4-04: these rows reference auth.users, so a service-side profile-only
+  -- DELETE has no FK cascade for them. Clean them under the same account key.
+  -- Do not fold into anonymous usage totals during account erasure.
+  DELETE FROM public.interview_sessions WHERE owner_id = OLD.id;
+  DELETE FROM public.ai_audit_context_blocks WHERE user_id = OLD.id;
+  DELETE FROM public.interview_session_starts WHERE owner_id = OLD.id;
   RETURN OLD;
 END;
 $$;
@@ -843,10 +881,53 @@ CREATE TRIGGER interview_session_count_start
 ----------------------------------------------------------------------
 -- 4. 판정 기록 (프록시 전용, service_role)
 ----------------------------------------------------------------------
+-- D6R4-01/02: a verified red call can arrive after commit or parent deletion.
+-- The surviving owned record's idempotency key is the durable session link.
+-- Called with the account and session keys held, after checking audit reuse.
+-- NOWAIT also covers direct parent/record DELETE: never form a reverse row/key
+-- wait cycle. The service caller must retry SQLSTATE 40001 before settling.
+CREATE OR REPLACE FUNCTION public.hold_interview_record_for_red(
+  p_user_id uuid, p_session_id uuid, p_audit_id uuid
+) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' SET row_security = off AS $$
+DECLARE
+  v_record uuid;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.ai_audit_log AS a
+                 WHERE a.id = p_audit_id AND a.user_id = p_user_id
+                   AND a.purpose = 'interview_probe' AND a.event_source = 'server_verified'
+                   AND a.safety_zone = 'red')
+     OR EXISTS (SELECT 1 FROM public.interview_sessions AS s
+                 WHERE s.id = p_session_id AND s.owner_id <> p_user_id) THEN
+    RETURN;
+  END IF;
+  BEGIN
+    SELECT r.id INTO v_record FROM public.records AS r
+     WHERE r.user_id = p_user_id AND r.client_request_id = 'interview:' || p_session_id::text
+     FOR UPDATE NOWAIT;
+    IF NOT FOUND THEN RETURN; END IF;
+    PERFORM t.id FROM public.interview_transcripts AS t
+     WHERE t.record_id = v_record AND t.user_id = p_user_id FOR UPDATE NOWAIT;
+    PERFORM tt.turn_no FROM public.interview_transcript_turns AS tt
+     JOIN public.interview_transcripts AS t ON t.id = tt.transcript_id
+     WHERE t.record_id = v_record AND tt.user_id = p_user_id FOR UPDATE OF tt NOWAIT;
+  EXCEPTION WHEN lock_not_available THEN
+    RAISE EXCEPTION 'interview_record_busy_retry' USING ERRCODE = '40001';
+  END;
+  UPDATE public.records SET interview_ai_hold = true WHERE id = v_record;
+  UPDATE public.interview_transcripts SET ai_hold = true WHERE record_id = v_record AND user_id = p_user_id;
+  UPDATE public.interview_transcript_turns AS tt SET ai_hold = true
+   FROM public.interview_transcripts AS t
+   WHERE t.id = tt.transcript_id AND t.record_id = v_record AND tt.user_id = p_user_id;
+  -- Earlier coverage is a historical total. Do not decrement or re-credit it;
+  -- all subsequent AI evidence reads must honor the monotonic record hold.
+END;
+$$;
+
 -- 프록시(openai · claude 공용 모듈)는 판정 호출의 감사 행을 쓴 뒤 이 함수를 부른다. 행은 프록시가
 -- 직접 본 것으로 만든다: verdict · model_layer 는 모델 출력에서, local_gate 는 실제 프롬프트의
--- 마지막 답에서 다시 계산한 값, final_credit 은 공용 규칙 모듈(r0) 값이다. 실패해도 프록시는 응답을
--- 막지 않는다(감사 행 쓰기와 같은 규율).
+-- 마지막 답에서 다시 계산한 값, final_credit 은 공용 규칙 모듈(r0) 값이다. 연결 시 40001은 재시도하고
+-- 기록 확정 전에는 AI 후속 처리로 넘기지 않는다. 사용자에게 위기 번호를 표시하는 것은 기다리지 않는다.
 --
 -- 세션 행이 없으면 만든다(소유자 = JWT 사용자). 남의 세션 · 담기가 끝난 세션 · 시기나 언어가 다른
 -- 세션 · 장면 번호가 거꾸로 간 호출은 적지 않고 사유를 돌려준다. 같은 턴을 다시 부르면(장애 전환
@@ -955,10 +1036,19 @@ BEGIN
     RETURN 'duplicate';
   END IF;
 
+  PERFORM public.hold_interview_record_for_red(p_user_id, p_session_id, p_audit_id);
+
   -- D6R3-52: a bad payload cannot roll back its own cleanup. Verify ownership and
   -- audit reuse first, then erase this unbound call immediately and return a status.
   -- Even a NULL session id or invalid period must not leave an uncollectable hash.
   IF v_invalid IS NOT NULL THEN
+    -- Keep only the verified audit id/safety label for a provably owned session;
+    -- hashes are still erased immediately. A later commit must see this red.
+    INSERT INTO public.interview_session_audit_ids (audit_id, session_id)
+      SELECT p_audit_id, s.id FROM public.interview_sessions AS s
+       WHERE s.id = p_session_id AND s.owner_id = p_user_id
+         AND EXISTS (SELECT 1 FROM public.ai_audit_log AS a WHERE a.id = p_audit_id AND a.safety_zone = 'red')
+      ON CONFLICT (audit_id) DO NOTHING;
     PERFORM public.erase_audit_hashes(p_user_id, ARRAY[p_audit_id], 'interview_probe');
     RETURN v_invalid;
   END IF;
@@ -1926,7 +2016,15 @@ DECLARE
 BEGIN
   IF to_regprocedure('cron.schedule(text,text,text)') IS NOT NULL THEN
     FOREACH v_name IN ARRAY ARRAY['sweep-interview-sessions', 'prune-interview-ledgers'] LOOP
-      FOR v_job_id IN EXECUTE 'SELECT jobid FROM cron.job WHERE jobname = $1' USING v_name LOOP
+      -- pg_cron names are unique per username, not per database. schedule()
+      -- would overwrite a same-owner job in another database: refuse atomically.
+      EXECUTE 'SELECT jobid FROM cron.job WHERE jobname = $1
+        AND username = current_user AND database <> current_database()' INTO v_job_id USING v_name;
+      IF v_job_id IS NOT NULL THEN
+        RAISE EXCEPTION '0225: cleanup cron name belongs to another database';
+      END IF;
+      FOR v_job_id IN EXECUTE 'SELECT jobid FROM cron.job WHERE jobname = $1
+        AND username = current_user AND database = current_database()' USING v_name LOOP
         EXECUTE 'SELECT cron.unschedule($1)' USING v_job_id;
       END LOOP;
     END LOOP;
@@ -2000,8 +2098,10 @@ BEGIN
            ('public.interview_probe_verdicts'::regclass, 'interview_verdict_erasure'),
            ('public.interview_sessions'::regclass, 'interview_session_count_start'),
            ('public.interview_sessions'::regclass, 'interview_session_erasure'),
+           ('public.interview_transcripts'::regclass, 'interview_owned_erasure_lock'),
+           ('public.interview_transcript_turns'::regclass, 'interview_owned_erasure_lock'),
            ('auth.users'::regclass, 'interview_account_erasure'),
-           ('public.users'::regclass, 'interview_account_erasure'))) <> 9 THEN
+           ('public.users'::regclass, 'interview_account_erasure'))) <> 11 THEN
     RAISE EXCEPTION '0225: a ledger trigger is missing';
   END IF;
 
@@ -2010,6 +2110,7 @@ BEGIN
               JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
              WHERE n.nspname = 'public'
                AND p.proname IN ('guard_interview_record_hold', 'erase_audit_hashes', 'interview_account_writable', 'fold_interview_session',
+                                 'hold_interview_record_for_red', 'interview_owned_erasure_lock',
                                  'interview_verdict_erasure', 'interview_session_count_start',
                                  'interview_session_erasure', 'interview_account_erasure',
                                  'record_interview_probe_verdict', 'close_interview_session',
@@ -2031,6 +2132,8 @@ $postcondition$;
 -- 같은 파일에서 회수한다(Rule B).
 
 REVOKE ALL ON FUNCTION public.guard_interview_record_hold() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.hold_interview_record_for_red(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.interview_owned_erasure_lock() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_session_erasure() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_account_erasure() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.interview_int_array_add(integer[], integer[]) FROM PUBLIC, anon, authenticated, service_role;

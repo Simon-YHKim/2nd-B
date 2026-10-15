@@ -2723,6 +2723,11 @@ jobs:
           PGPASSWORD: postgres
           PGPORT: 5432
         run: python3 db/tests/interview_transcript_ledger_concurrency.py --template postgres
+      - name: Exercise D6 rejected red, late red, account erasure and rollback guards
+        env:
+          PGPASSWORD: postgres
+          PGPORT: 5432
+        run: python3 db/tests/interview_transcript_ledger_security.py --template postgres
       - name: Exercise records.system_tags, its hand move and its rollback (0218)
         env:
           PGPASSWORD: postgres
