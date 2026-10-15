@@ -1,0 +1,17 @@
+diff --git a/node_modules/react-native/Libraries/Components/Keyboard/KeyboardAvoidingView.js b/node_modules/react-native/Libraries/Components/Keyboard/KeyboardAvoidingView.js
+--- a/node_modules/react-native/Libraries/Components/Keyboard/KeyboardAvoidingView.js
++++ b/node_modules/react-native/Libraries/Components/Keyboard/KeyboardAvoidingView.js
+@@ -180,9 +180,12 @@
+   };
+ 
+   componentDidUpdate(
+-    _: KeyboardAvoidingViewProps,
++    prevProps: KeyboardAvoidingViewProps,
+     prevState: KeyboardAvoidingViewState,
+   ): void {
++    if (prevProps.keyboardVerticalOffset !== this.props.keyboardVerticalOffset) {
++      void this._updateBottomIfNecessary();
++    }
+     const enabled = this.props.enabled ?? true;
+     if (enabled && this._bottom !== prevState.bottom) {
+       this.setState({bottom: this._bottom});
