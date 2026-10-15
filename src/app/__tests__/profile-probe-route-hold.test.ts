@@ -26,6 +26,8 @@ import { join } from "node:path";
 import * as vm from "node:vm";
 import * as ts from "typescript";
 
+import { withTimeout } from "../../lib/async/with-timeout";
+import { currentAccountEpoch, isCurrentAccountEpoch, subscribeAccountTransition } from "../../lib/auth/account-epoch";
 import * as profileProbe from "../../lib/auth/profile-probe";
 import { SHARE_REFUSED_PARAMS, isMarkedShareCapture, shareRefusedHref } from "../../lib/capture/share-intent";
 import {
@@ -285,8 +287,15 @@ const screenLayout = (() => {
   }) => Element;
 })();
 
-/** /records 가 그리는 DeepSpaceRecordsScreen 의 조회 effect. authLoading 은 안 보고 userId 만 본다. */
+/** /records 가 그리는 DeepSpaceRecordsScreen 의 실제 조회 effect. */
 const RECORDS = parse("src/screens/deepspace/dds-wiki-records-screens.tsx");
+const RECORDS_TIMEOUT = only(
+  find(RECORDS, (node): node is ts.VariableDeclaration =>
+    ts.isVariableDeclaration(node) && node.name.getText(RECORDS) === "WIKI_LIST_READ_TIMEOUT_MS"),
+  "wiki-list read deadline",
+).initializer;
+if (!RECORDS_TIMEOUT) throw new Error("wiki-list read deadline must have an initializer");
+const recordsTimeoutMs = vm.runInNewContext(toJs(RECORDS_TIMEOUT.getText(RECORDS))) as number;
 const RECORDS_LOAD = toJs(
   `(${only(
     find(functionDeclaration(RECORDS, "DeepSpaceRecordsScreen"), isCallTo("useEffect")).filter(
@@ -307,10 +316,15 @@ function recordsScene(reads: Reads) {
     const load = vm.runInNewContext(RECORDS_LOAD, {
       userId,
       authLoading,
+      accountEpoch: currentAccountEpoch(),
       reloadKey: 0,
-      setLoading: () => undefined,
-      setLoadError: () => undefined,
-      setRecords: () => undefined,
+      AbortController,
+      withTimeout,
+      WIKI_LIST_READ_TIMEOUT_MS: recordsTimeoutMs,
+      isCurrentAccountEpoch,
+      subscribeAccountTransition,
+      NO_RECORDS: [],
+      setRecordsRead: () => undefined,
       listAllRecords: async (id: string) => {
         reads.records.push(id);
         return [];
