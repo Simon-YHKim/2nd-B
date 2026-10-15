@@ -712,6 +712,9 @@
     "signature": "PolaScope · {{count}} stardust"
   },
   "ds": {
+    "network": {
+      "offline": "No internet connection."
+    },
     "growth": {
       "title": "My progress",
       "bubble": "See how your star brightness changed this week.",
