@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 import * as Crypto from "expo-crypto";
 import { useTranslation } from "react-i18next";
 import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
-import { getChatPlanSuggestions, isCurrentChatPlanSuggestion, type ChatPlanSuggestion, type ChatPlanSuggestionState } from "@/lib/chat/plan-suggestions";
+import { getChatPlanSuggestions, isCurrentChatPlanSuggestion, openableChatPlanSuggestion, trackAsked, type ChatPlanAsked, type ChatPlanSuggestion, type ChatPlanSuggestionState } from "@/lib/chat/plan-suggestions";
 import { saveChatPlan } from "@/lib/chat/save-plan";
 import type { ChatPlanDraft } from "@/lib/chat/plan-draft";
 import type { ChatAction } from "./ChatActionBar";
@@ -11,8 +11,12 @@ import type { ChatAction } from "./ChatActionBar";
 const candidateKey = (candidate: ChatPlanSuggestion) => `${candidate.conversationId}:${candidate.replyIndex}:${candidate.kind}`;
 
 /** A suggestion opens an editor. Only its confirm handler may save or schedule. */
-export function useChatPlans(userId: string | null, state: ChatPlanSuggestionState) {
+export function useChatPlans(userId: string | null, shown: ChatPlanSuggestionState) {
   const { t } = useTranslation("secondb");
+  // "In 5 minutes" counts from when this screen saw the message go out, not from each render.
+  const asked = useRef<ChatPlanAsked | null>(null);
+  asked.current = trackAsked(asked.current, userId, shown, new Date());
+  const state: ChatPlanSuggestionState = { ...shown, asked: asked.current };
   const [selected, setSelected] = useState<ChatPlanSuggestion | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -40,11 +44,13 @@ export function useChatPlans(userId: string | null, state: ChatPlanSuggestionSta
   }, [userId, state.conversationId]);
 
   function open(candidate: ChatPlanSuggestion) {
-    if (inFlight.current || !userId || !captureAccountOwnerLease(userId)
-      || !isCurrentChatPlanSuggestion(candidate, live.current.state)) return;
+    if (inFlight.current || !userId || !captureAccountOwnerLease(userId)) return;
+    // A stated moment runs out while the button sits on screen. Open what the same pair proposes now.
+    const current = openableChatPlanSuggestion(candidate, live.current.state);
+    if (!current) return;
     setNotice(null);
     setSheetNotice(null);
-    setSelected(candidate);
+    setSelected(current);
   }
 
   async function confirm(draft: ChatPlanDraft) {

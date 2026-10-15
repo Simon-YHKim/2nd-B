@@ -25,6 +25,7 @@ import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
 import { loadStructuredContext } from "../records/load-structured";
 import { loadProfileContext } from "../persona/profile-context";
 import { exportUserWiki } from "../wiki/export";
+import { chatPlanPromptLine } from "./plan-suggestions";
 import { formatRagPages, retrieveChatContext } from "./rag";
 import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail } from "./usage";
 
@@ -349,7 +350,7 @@ ${sanitizeUntrusted(structuredBlock)}
       : `This person's name is ${safeName}. Address them as ${safeName}.\n\n`
     : "";
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
-  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
+  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${chatPlanPromptLine(input.message, input.locale, { minor: input.minor })}${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
   // C1/C3/C9 are enforced by callLlm, whose own red-zone short-circuit still
   // runs for every turn that gets here. Device-red input was already routed
