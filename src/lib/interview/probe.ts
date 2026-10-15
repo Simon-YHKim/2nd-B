@@ -28,6 +28,7 @@ import {
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 import { scaffoldQuestion, shouldScaffold } from "./stuck";
 import { answerDisposition, canCreditAnswer, currentScene } from "./continuity";
+import { inspectProbeContactGuidance, type ProbeGuidance } from "./probe-guidance";
 
 /**
  * 인터뷰가 다루는 자리. **북두칠성 일곱 중 인터뷰가 있는 여섯과 1:1** 이다
@@ -446,6 +447,8 @@ function buildUserPrompt(history: InterviewTurn[]): string {
 
 export interface ProbeResult {
   question: string;
+  /** Accepted non-RED contact metadata, separate from interview text and verdict. */
+  guidance?: Exclude<ProbeGuidance, { kind: "none" }>;
   /**
    * **말문 후보** — 이 질문에 답을 시작할 만한 짧은 문장 최대 2개.
    *
@@ -470,6 +473,12 @@ export interface ProbeResult {
   answeredLayer?: DrillLayer | null;
 }
 
+export interface ProbeGuidanceContext {
+  readonly isMinor: boolean | null;
+  /** The original request's owner, instance, request and completion fence. */
+  isCurrent(): boolean;
+}
+
 /** Generate the next interviewer question.
  *
  *  Given the current coverage matrix + the active period, deterministically
@@ -490,6 +499,8 @@ export async function nextProbe(
   forceLayer: DrillLayer | null = null,
   /** Forward confirmed RED before the boundary's audit awaits. */
   onCrisisDetected?: CrisisObserver,
+  /** Optional delivery context; never sent to the model or persisted. */
+  guidanceContext?: ProbeGuidanceContext,
 ): Promise<ProbeResult> {
   // 어느 층을 물을지를 **부르는 쪽이 정할 수도 있다.** 발판이 그렇다 --
   // 막힌 층에 그대로 머무른다. 안 주면 예전처럼 빈 칸을 찾아 내려간다.
@@ -514,13 +525,23 @@ export async function nextProbe(
   const parsed = parseProbeReply(typeof res.text === "string" ? res.text : "");
   const raw = typeof parsed?.question === "string" ? parsed.question : typeof res.text === "string" ? res.text : "";
   const cleaned = raw.trim().split("\n")[0]?.trim() ?? "";
+  let guidance: ProbeResult["guidance"];
+  if (res.safety.zone !== "red" && guidanceContext) {
+    try {
+      if (guidanceContext.isCurrent() === true) {
+        const inspected = inspectProbeContactGuidance(res.text, guidanceContext.isMinor);
+        if (inspected.status === "inspected" && inspected.evidence === "current-contact") guidance = inspected.guidance;
+      }
+    } catch { /* Failed inspection is not evidence of a contact recommendation. */ }
+  }
   return {
-    question: usableQuestion(cleaned, history, layer, locale, scaffoldStreak),
-    openers: readOpeners(parsed),
+    question: usableQuestion(guidance ? "" : cleaned, history, layer, locale, scaffoldStreak),
+    openers: guidance ? [] : readOpeners(parsed),
     zone: res.safety.zone,
     hotline: res.safety.crisisRouting?.hotline,
     layer,
     answeredLayer: askedLayer === null ? undefined : readAnsweredLayer(parsed),
+    ...(guidance ? { guidance } : {}),
   };
 }
 
