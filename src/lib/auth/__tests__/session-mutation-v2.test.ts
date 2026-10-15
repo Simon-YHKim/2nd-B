@@ -1,4 +1,11 @@
 import { GoTrueClient, processLock, type LockFunc, type SupportedStorage } from "@supabase/auth-js";
+import { activateExpectedWebInterviewSession, signOutExpectedWebInterviewSession } from "../web-interview-signout";
+import {
+  WebInterviewLifecycleError,
+  type WebInterviewLifecycle,
+  type WebInterviewPurgeReceipt,
+  type WebInterviewTicket,
+} from "../../interview/web-draft-lifecycle";
 import {
   AuthLocalClearUnavailableError,
   AuthLockWaitTimeoutError,
@@ -1087,5 +1094,155 @@ describe("a runtime retired during its v1 -> v2 migration (KZ-1840-1)", () => {
     const live = createAuthStorageRuntime({ url, storage: windowOnto(shared, []), web: false });
     await live.ready();
     expect(bundleOnDisk(shared, keys)).toEqual(MIGRATED);
+  });
+});
+
+// The SDK and auth runtime are real. The D barrier below is a sequencing double;
+// scripts/qa/interview-web-logout.cjs independently executes actual IndexedDB.
+describe("dormant web interview logout coordinator with the real SDK", () => {
+  let sequence = 0;
+  async function setup(locks: "valid" | "missing" | "invalid" = "valid") {
+    const storage = new MemoryStorage();
+    const trace: string[] = [];
+    const request: TestBrowserLockRequest = (name, _options, callback) =>
+      processLock(name, -1, async () => {
+        trace.push(name.startsWith("lock:") ? "S:enter" : "M:enter");
+        try { return await callback(locks === "invalid" ? null : { name, mode: "exclusive" }); }
+        finally { trace.push(name.startsWith("lock:") ? "S:exit" : "M:exit"); }
+      });
+    const runtime = createAuthStorageRuntime({
+      url: `https://web-draft-${++sequence}.supabase.co`, storage, web: true,
+      ...(locks === "missing" ? { navigatorLocksAvailable: false } : { navigatorLockRequest: request }),
+    });
+    await runtime.ready();
+    const a = session("web-a", "web-session-a");
+    storage.setItem(runtime.storageKey, JSON.stringify(a));
+    let sdkFailure = false;
+    const fetcher = jest.fn(async (_input: RequestInfo | globalThis.URL) => {
+      trace.push("SDK:request");
+      return sdkFailure ? jsonResponse({ message: "synthetic failure" }, 500) : new Response(null, { status: 204 });
+    });
+    const client = makeClient(runtime.storage!, runtime.storageKey, runtime.sdkLock, fetcher as typeof fetch);
+    const expected = await captureAuthSessionExpectation(client, runtime);
+    const ticket: WebInterviewTicket = { ownerId: a.user.id, sessionId: "web-session-a", storageGeneration: "generation-a", revision: 1 };
+    const receipt: WebInterviewPurgeReceipt = { ...ticket, revision: 2, phase: "inactive", logoutId: "logout-a" };
+    const lifecycle: WebInterviewLifecycle = {
+      storageKey: runtime.storageKey,
+      activate: jest.fn(async () => ticket),
+      purge: jest.fn(async () => { trace.push("D:complete"); return receipt; }),
+      lookup: jest.fn(async () => receipt),
+    };
+    trace.length = 0;
+    return { storage, runtime, client, expected, ticket, receipt, lifecycle, fetcher, trace,
+      failSdk: () => { sdkFailure = true; } };
+  }
+
+  test("releases snapshot S before D and never calls SDK before D ACK", async () => {
+    const h = await setup();
+    let release!: (value: WebInterviewPurgeReceipt) => void;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    h.lifecycle.purge = jest.fn(() => new Promise((resolve) => {
+      expect(h.trace.at(-1)).toBe("S:exit");
+      h.trace.push("D:start"); entered(); release = resolve;
+    }));
+    const pending = signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a");
+    await started;
+    expect(h.fetcher).not.toHaveBeenCalled();
+    expect(h.trace.filter((v) => v === "M:exit")).toHaveLength(0);
+    h.trace.push("D:complete"); release(h.receipt);
+    await expect(pending).resolves.toEqual(h.receipt);
+    expect(h.trace.indexOf("D:complete")).toBeLessThan(h.trace.indexOf("SDK:request"));
+    expect(h.trace.at(-1)).toBe("M:exit");
+    expect(h.storage.getItem(h.runtime.storageKey)).toBeNull();
+  });
+
+  test.each(["unconfirmed", "conflict", "unsupported"] as const)("D %s keeps auth and calls SDK zero times", async (code) => {
+    const h = await setup();
+    h.lifecycle.purge = jest.fn(async () => { throw new WebInterviewLifecycleError(code); });
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a"))
+      .rejects.toMatchObject({ code });
+    expect(h.fetcher).not.toHaveBeenCalled();
+    expect(h.storage.getItem(h.runtime.storageKey)).not.toBeNull();
+  });
+
+  test.each(["missing", "invalid"] as const)("%s Web Locks prevent D and SDK", async (locks) => {
+    const h = await setup(locks);
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a"))
+      .rejects.toBeInstanceOf(AuthLocalClearUnavailableError);
+    expect(h.lifecycle.purge).not.toHaveBeenCalled();
+    expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test.each([["web-a", "new-session"], ["web-b", "web-session-b"]])("rejects live %s / %s before D", async (owner, sid) => {
+    const h = await setup();
+    h.storage.setItem(h.runtime.storageKey, JSON.stringify(session(owner, sid)));
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a"))
+      .rejects.toBeInstanceOf(AuthSessionOwnerChangedError);
+    expect(h.lifecycle.purge).not.toHaveBeenCalled();
+    expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test("same stable session accepts token rotation and preserves local scope", async () => {
+    const h = await setup();
+    h.storage.setItem(h.runtime.storageKey, JSON.stringify(session("web-a", "web-session-a", 2)));
+    await signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a", "local");
+    expect(h.fetcher).toHaveBeenCalledTimes(1);
+    expect(String(h.fetcher.mock.calls[0][0])).toContain("scope=local");
+  });
+
+  test("missing stable session rejects activation even if a legacy token exists", async () => {
+    const h = await setup();
+    await expect(activateExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, { ...h.expected, sessionId: null }, "new", null))
+      .rejects.toBeInstanceOf(AuthSessionOwnerChangedError);
+    expect(h.lifecycle.activate).not.toHaveBeenCalled();
+  });
+
+  test("required adapter/project binding and a real-shaped receipt cannot be omitted", async () => {
+    const h = await setup();
+    for (const adapter of [undefined, { ...h.lifecycle, storageKey: "other-project" }]) {
+      await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, adapter as WebInterviewLifecycle, h.expected, h.ticket, "logout-a"))
+        .rejects.toMatchObject({ code: "unsupported" });
+    }
+    h.lifecycle.purge = jest.fn(async () => undefined as unknown as WebInterviewPurgeReceipt);
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a"))
+      .rejects.toMatchObject({ code: "unconfirmed" });
+    expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test("copies caller ticket and expectation before queued M work", async () => {
+    const h = await setup();
+    let release!: () => void;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const hold = h.runtime.runMutation(() => new Promise<void>((resolve) => { release = resolve; entered(); }), { requireCrossTab: true });
+    await started;
+    const ticket = { ...h.ticket };
+    const expected = { ...h.expected };
+    const pending = signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, expected, ticket, "logout-a");
+    ticket.sessionId = "mutated";
+    expected.sessionId = "mutated";
+    release(); await hold;
+    await expect(pending).resolves.toEqual(h.receipt);
+    expect(h.lifecycle.purge).toHaveBeenCalledWith(h.ticket, "logout-a");
+  });
+
+  test("SDK failure follows D ACK and does not reactivate", async () => {
+    const h = await setup();
+    h.failSdk();
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a")).rejects.toBeDefined();
+    expect(h.lifecycle.purge).toHaveBeenCalledTimes(1);
+    expect(h.lifecycle.activate).not.toHaveBeenCalled();
+    expect(h.trace.indexOf("D:complete")).toBeLessThan(h.trace.indexOf("SDK:request"));
+  });
+
+  test("already-cleared exact ticket still requires D before the SDK event", async () => {
+    const h = await setup();
+    h.storage.removeItem(h.runtime.storageKey);
+    const events: string[] = [];
+    h.client.onAuthStateChange((event) => { if (event === "SIGNED_OUT") events.push(event); });
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a")).resolves.toEqual(h.receipt);
+    expect(h.lifecycle.purge).toHaveBeenCalledTimes(1);
+    expect(events).toContain("SIGNED_OUT");
   });
 });
