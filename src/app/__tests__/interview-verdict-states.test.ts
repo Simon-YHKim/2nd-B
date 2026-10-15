@@ -6,12 +6,15 @@ import { join } from "node:path";
 import * as ts from "typescript";
 import { captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../lib/auth/account-epoch";
 import { answerDisposition, canCreditAnswer, confirmedAnswer, currentScene } from "../../lib/interview/continuity";
-import { emptyCoverage, incrementCoverage, nextMove, nextProbe, seedQuestion, usableQuestion, type Coverage, type DrillLayer, type InterviewTurn } from "../../lib/interview/probe";
-import { storedTurns } from "../../lib/interview/saved-story";
+import { DRILL_LAYERS, LIFE_PERIODS, emptyCoverage, incrementCoverage, nextMove, nextProbe, seedQuestion, usableQuestion, type Coverage, type DrillLayer, type InterviewTurn } from "../../lib/interview/probe";
+import { storedTurns, storyTitle } from "../../lib/interview/saved-story";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "../../lib/interview/session-end";
 import { isNonAnswer, MAX_SCAFFOLDS_PER_LAYER, scaffoldQuestion, shouldScaffold } from "../../lib/interview/stuck";
 import { callLlm } from "../../lib/llm/boundary";
 import { classifyInputAnyLocale } from "../../lib/safety/classifier";
+import { resolveProbeGuidanceCopy } from "../../lib/interview/probe-guidance-copy";
+import { recallInterviewSystemTags } from "../../lib/records/system-tags";
+import * as guidanceInspector from "../../lib/interview/probe-guidance";
 
 jest.mock("../../lib/llm/boundary", () => ({ callLlm: jest.fn() }));
 const llm = jest.mocked(callLlm);
@@ -33,7 +36,7 @@ function callback(name: string, scope: Record<string, unknown>): (...args: unkno
   return new Function(...Object.keys(scope), `${js}\nreturn run;`)(...Object.values(scope));
 }
 
-function setup(locale: "ko" | "en" = "ko", minor = false) {
+function setup(locale: "ko" | "en" = "ko", minor: boolean | null = false) {
   llm.mockReset();
   noteResolvedOwner(null); noteResolvedOwner("A"); clearAccountTransition(currentAccountEpoch());
   const state = {
@@ -41,16 +44,20 @@ function setup(locale: "ko" | "en" = "ko", minor = false) {
     coverage: emptyCoverage() as Coverage, draft: "", pendingLayer: "fact" as DrillLayer | null,
     openers: [] as string[], stuckStreak: 0, abandoned: [] as DrillLayer[], busy: false,
     notice: null as string | null, done: false, concreteOnly: false,
+    guidanceDelivery: null as unknown,
   };
   const updates: string[] = [];
   const setters = Object.fromEntries(Object.keys(state).map((name) => [
     `set${name[0].toUpperCase()}${name.slice(1)}`,
-    jest.fn((value: unknown) => { Object.assign(state, { [name]: value }); updates.push(name); }),
+    jest.fn((value: unknown) => { Object.assign(state, { [name]: typeof value === "function" ? value((state as Record<string, unknown>)[name]) : value }); updates.push(name); }),
   ]));
   const scope = {
     ...state, ...setters, userId: "A", period: "work", locale, isMinor: minor, coverageReady: true,
     ended: { current: false }, mounted: { current: true }, sending: { current: false },
     interviewInstance: { current: 1 }, probeRequest: { current: 0 },
+    guidanceRef: { current: null as unknown }, lastGuidanceRequest: { current: 0 },
+    guidanceScroll: { current: { pending: null, accepted: null } }, resolveProbeGuidanceCopy,
+    isGuidanceCurrent: (..._args: unknown[]): unknown => false,
     turnsOwnerRef: { current: state.turns }, draftEditRevision: { current: 0 }, crisisRouting: { current: false },
     captureAccountOwnerLease, answerDisposition, canCreditAnswer, confirmedAnswer, currentScene,
     nextMove, nextProbe, usableQuestion, incrementCoverage, scaffoldQuestion, shouldScaffold,
@@ -62,6 +69,7 @@ function setup(locale: "ko" | "en" = "ko", minor = false) {
     finish: (): unknown => undefined, ask: (..._args: unknown[]): unknown => undefined,
     changeAngle: (..._args: unknown[]): unknown => undefined,
   };
+  scope.isGuidanceCurrent = callback("isGuidanceCurrent", scope);
   scope.finish = callback("finish", scope);
   function render() {
     Object.assign(scope, state);
@@ -71,8 +79,8 @@ function setup(locale: "ko" | "en" = "ko", minor = false) {
     return { send: callback("send", scope), change: scope.changeAngle };
   }
   const text = locale === "ko" ? "회의에서 제 생각을 이야기했는데 동료가 끝까지 들어주었습니다" : "My colleague listened while I shared my ideas in our meeting";
-  async function submit(verdict: DrillLayer | "none" | undefined, index = 0) {
-    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: verdict, question: `MODEL NEXT QUESTION ${index}?`, openers: ["MODEL OPENER"] }), safety: { zone: "green" } } as never);
+  async function submit(verdict: DrillLayer | "none" | undefined, index = 0, question = `MODEL NEXT QUESTION ${index}?`) {
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: verdict, question, openers: ["MODEL OPENER"] }), safety: { zone: "green" } } as never);
     state.draft = `${text} ${index}`;
     await render().send();
   }
@@ -308,4 +316,92 @@ test.each(["KR_119", "KR_112"])("v2 retains the actual output-crisis %s route wi
   await h.render().send(); const result = roundtrip(snapshotOf(h, "crisis-ended", "crisis"));
   expect(result.draft.state.crisisHotline).toBe(hotline); expect(result.next).toBe("ended");
   expect(h.scope.publishCrisisNotice).toHaveBeenCalledTimes(1); expect(llm).toHaveBeenCalledTimes(1);
+});
+
+
+test.each([
+  ["fact", true, 1], [undefined, true, 1], ["none", false, 0], ["belief", null, 0],
+] as const)("actual positive guidance preserves %s verdict and never enters turns, prompt or draft", async (verdict, answered, credit) => {
+  const h = setup(); await h.submit(verdict, 0, "Call 109 now.");
+  expect(h.state.guidanceDelivery).toMatchObject({ guidance: { kind: "contacts", contacts: ["KR_109"] }, ready: false });
+  expect(h.state.turns.find(turn => turn.role === "user")?.answered).toBe(answered);
+  expect(h.state.coverage.work.fact).toBe(credit); expect(h.state.done).toBe(false);
+  expect(JSON.stringify(storedTurns(h.state.turns))).not.toMatch(/109|guidance|contacts/);
+  const value = snapshotOf(h); expect(JSON.stringify(value)).not.toMatch(/109|guidance|contacts/); roundtrip(value);
+  const delivered = h.state.guidanceDelivery;
+  await h.submit(undefined, 1); expect(h.state.guidanceDelivery).toBe(delivered);
+  expect(JSON.stringify(llm.mock.calls[1]![0])).not.toMatch(/Call 109 now|한국에서 대화 지원|"guidance"|"contacts"/);
+});
+
+test.each([true, null, false])("actual ask forwards age %p unchanged into B1", async minor => {
+  const inspect = jest.spyOn(guidanceInspector, "inspectProbeContactGuidance");
+  try {
+    const h = setup("ko", minor); await h.submit("fact", 0, "Call 109 now.");
+    expect(inspect).toHaveBeenCalledWith(expect.any(String), minor);
+    expect(llm.mock.calls[0]![0].minor).toBe(minor === true);
+    expect(h.state.guidanceDelivery).toMatchObject({ guidance: { kind: "contacts", contacts: minor === false ? ["KR_109"] : ["KR_1388", "KR_109"] } });
+  } finally { inspect.mockRestore(); }
+});
+
+test.each(["B", "ABA", "hold", "request", "instance", "ended", "unmounted"])(
+  "actual deferred ask rejects %s before B1 inspection", async change => {
+    const inspect = jest.spyOn(guidanceInspector, "inspectProbeContactGuidance");
+    try {
+      const h = setup(); let settle!: (value: unknown) => void;
+      llm.mockImplementationOnce(() => new Promise(resolve => { settle = resolve; }) as never);
+      h.state.draft = h.text; const pending = h.render().send();
+      if (change === "B") noteResolvedOwner("B");
+      if (change === "ABA") { noteResolvedOwner(null); noteResolvedOwner("A"); }
+      if (change === "hold") jest.requireActual<typeof import("../../lib/auth/account-epoch")>("../../lib/auth/account-epoch").beginAccountOwnerTransition("B");
+      if (change === "request") h.scope.probeRequest.current++;
+      if (change === "instance") h.scope.interviewInstance.current++;
+      if (change === "ended") h.scope.ended.current = true;
+      if (change === "unmounted") h.scope.mounted.current = false;
+      settle({ text: JSON.stringify({ answeredLayer: "fact", question: "Call 109 now." }), safety: { zone: "green" } });
+      await pending; expect(inspect).not.toHaveBeenCalled(); expect(h.state.guidanceDelivery).toBeNull();
+      expect(h.state.coverage).toEqual(emptyCoverage());
+    } finally { inspect.mockRestore(); }
+  });
+
+test("final-layer guidance remains accepted when the actual verdict finishes the interview", async () => {
+  const h = setup(); for (let i = 0; i < 4; i++) await h.submit(undefined, i);
+  await h.submit("echo", 4, "Call 109 now.");
+  expect(h.state.done).toBe(true); expect(h.state.coverage.work.echo).toBe(1);
+  expect(h.state.guidanceDelivery).toMatchObject({ guidance: { kind: "contacts" } });
+  expect(h.scope.isGuidanceCurrent(h.state.guidanceDelivery)).toBe(true);
+});
+
+test("another-layer guidance survives exhaustion without inventing credit or premature finish", async () => {
+  const h = setup(); for (let i = 0; i < 7; i++) await h.submit("belief", i, "Call 109 now.");
+  expect(h.state.done).toBe(false); expect(h.state.coverage).toEqual(emptyCoverage());
+  expect(h.state.guidanceDelivery).toMatchObject({ guidance: { kind: "contacts" } });
+  expect(h.state.turns.every(turn => !turn.text.includes("109"))).toBe(true);
+});
+
+test.each(['{"question":"Call 109 now."', 'not JSON: Call 109 now.', '{"question":"I called 109 yesterday."}'])(
+  "parse failure or historical text does not create a guidance row: %s", async text => {
+    const h = setup(); llm.mockResolvedValueOnce({ text, safety: { zone: "green" } } as never);
+    h.state.draft = h.text; await h.render().send(); expect(h.state.guidanceDelivery).toBeNull();
+  });
+
+test("actual keepIt stores original answers only, with no row metadata or fixed copy", async () => {
+  jest.useFakeTimers();
+  try {
+    const h = setup(); await h.submit("fact", 0, "Call 109 now.");
+    const createRecord = jest.fn().mockResolvedValue({ id: "saved" }), addCoverage = jest.fn().mockResolvedValue(undefined);
+    const setFailModal = jest.fn();
+    const scope = { ...h.scope, ...h.state, saving: false, storedTurns, storyTitle, recallInterviewSystemTags,
+      setSaving: jest.fn(), createRecord, homeT: (key: string) => key, auditPeriod: "work", growthOrigin: false,
+      baseCoverage: { current: emptyCoverage() }, emptyCoverage, LIFE_PERIODS, DRILL_LAYERS, addCoverage,
+      loadSevenLevels: jest.fn().mockResolvedValue({ starLevels: {} }), recordSevenTiers: jest.fn(),
+      setToast: jest.fn(), saveCueAllowed: () => false, isRecordingAudioMode: () => false, playSaveCue: jest.fn(),
+      router: { replace: jest.fn() }, setFailModal };
+    await callback("keepIt", scope)();
+    expect(setFailModal).not.toHaveBeenCalled(); expect(createRecord).toHaveBeenCalledTimes(1);
+    const saved = createRecord.mock.calls[0][0];
+    expect(saved.body).toContain(h.text); expect(saved.summary).toBe(storyTitle("ds.star.work", [`${h.text} 0`]));
+    expect(JSON.stringify(saved)).not.toMatch(/109|guidance|contacts|연락 안내/);
+    expect(saved).toMatchObject({ withFollowup: false, kind: "audit_response" });
+    expect(addCoverage).toHaveBeenCalledWith("A", expect.objectContaining({ work: { fact: 1, feeling: 0, meaning: 0, belief: 0, echo: 0 } }));
+  } finally { jest.useRealTimers(); }
 });
