@@ -74,6 +74,38 @@ export async function loadRoleCards(userId: string): Promise<RoleCard[]> {
   return parseRoleCards(patterns?.[ROLE_CARDS_KEY]);
 }
 
+/** Display-only read: malformed storage is unread, never confirmed absence.
+ * Keep the permissive generation/approval reader and card acceptance unchanged. */
+export async function loadRoleCardsStrict(userId: string): Promise<RoleCard[]> {
+  if (!userId) throw new Error("Role-card owner is required");
+  const { data, error } = await getSupabaseClient().from("personas")
+    .select("patterns").eq("user_id", userId).eq("version", 1).maybeSingle();
+  if (error) throw error;
+  if (data === null) return [];
+  if (!data || typeof data !== "object" || Array.isArray(data) || !("patterns" in data)) {
+    throw new Error("Invalid role-card row");
+  }
+  const patterns: unknown = data.patterns;
+  // The existing schema permits a null patterns column before roles are saved.
+  if (patterns === null) return [];
+  if (!patterns || typeof patterns !== "object" || Array.isArray(patterns)) {
+    throw new Error("Invalid role-card patterns");
+  }
+  if (!Object.prototype.hasOwnProperty.call(patterns, ROLE_CARDS_KEY)) return [];
+  const value = (patterns as Record<string, unknown>)[ROLE_CARDS_KEY];
+  if (typeof value !== "string") throw new Error("Invalid role-card value");
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed)) throw new Error("Invalid role-card array");
+  // Validate each saved item with the existing parser before its display cap.
+  // A filtered item, including one after the first three, is a read failure.
+  const cards = parsed.map((item) => {
+    const [card] = parseRoleCards(JSON.stringify([item]));
+    if (!card) throw new Error("Invalid saved role card");
+    return card;
+  });
+  return cards.slice(0, 3);
+}
+
 export function roleEvidenceIds(cards: readonly RoleCard[]): string[] {
   return [...new Set(cards.filter((card) => card.status === "ratified")
     .flatMap((card) => card.evidenceRefs)

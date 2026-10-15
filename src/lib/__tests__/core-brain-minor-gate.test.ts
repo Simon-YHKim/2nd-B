@@ -349,9 +349,10 @@ jest.mock("@/lib/supabase/client", () => ({ getSupabaseClient: () => mockSupabas
 jest.mock("@/lib/wiki/queries", () => ({ listInferredLinkDetails: async () => [] }));
 jest.mock("@/lib/persona/polaris-quota", () => ({
   loadPolarisQuota: (userId: string) => mockLoadPolarisQuota(userId),
+  loadPolarisQuotaStrict: (userId: string) => mockLoadPolarisQuota(userId),
 }));
 jest.mock("@/lib/persona/role-cards", () => ({
-  loadRoleCards: async () => [], claimQaPolarisAuto: async () => false,
+  loadRoleCards: async () => [], loadRoleCardsStrict: async () => [], claimQaPolarisAuto: async () => false,
   proposeRoleCards: (...args: unknown[]) => mockForbiddenLlm(...args),
   ratifyRoleCard: (...args: unknown[]) => mockMutationWriter("ratifyRoleCard", ...args),
 }));

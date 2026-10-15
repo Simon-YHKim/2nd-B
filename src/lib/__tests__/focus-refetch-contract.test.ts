@@ -176,7 +176,7 @@ describe("core-loop focus refetch contract", () => {
     // The executed eligible-QA regression also follows the screen's auto effect:
     // a retry cannot spend merely because these read statements contain no writes.
     expect(source).toContain("!canAutoPropose() || roleReadScope !== primaryScope");
-    expect(source).toContain("roleCards.length > 0, evidence.length > 0, current");
+    expect(source).toContain("visibleRoleCards.length > 0, evidence.length > 0, current");
   });
 
   it("refreshes the shipped Home when focus returns", () => {
