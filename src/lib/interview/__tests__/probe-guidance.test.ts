@@ -210,3 +210,62 @@ describe("R1: preserve complete numeric tokens and consume the entire current cl
     expect(inspectQuestion(question).guidance).toMatchObject({ kind: "contacts", contacts });
   });
 });
+
+
+describe("R2: line wrapping preserves the whole clause and explicit sentence boundaries", () => {
+  const separators = [
+    ["LF", "\n"], ["CRLF", "\r\n"], ["CR", "\r"],
+    ["LS", "\u2028"], ["PS", "\u2029"], ["tab", "\t"], ["NBSP", "\u00a0"],
+  ] as const;
+  describe.each(separators)("%s", (_name, gap) => {
+    test.each([
+      ["Call 109", "times."], ["Call 109 now", "was the title of the play."],
+      ["Call 109 now", "for emotional support."], ["Call 112 now", "for conversation support."],
+      ["Call 109", ".5 times."], ["Call 109.", "5 times."],
+      ["Call 109 now", "if you are in France."], ["Call 109", "“times”."],
+      ["Call 109 now", "“a title”."], ["Call 109 now", "“a title.”"],
+      ["Call 109 now was", "the title of the play."], ["Call 109.5", "times."],
+      ["친구가 “109로", "연락해 주세요”라고 했어요."], ["친구가 “109로", "연락해 주세요"],
+      ["Do not", "call 109 now."], ["Call 1", "09 now."],
+      ["The name of the play is", "Call 109 now."], ["Call 109 now", "is a song title."],
+    ])("does not discard a continuation: %s / %s", (before, after) => {
+      expect(inspectQuestion(`${before}${gap}${after}`)).toEqual(absent);
+    });
+    test("preserves whitespace on both sides of numeric punctuation", () => {
+      for (const punctuation of [".", "..", ";", "!", "?"]) {
+        expect(inspectQuestion(`Call 109${gap}${punctuation}${gap}5 times.`)).toEqual(absent);
+      }
+    });
+    test.each([
+      ["109로", "연락해 주세요.", ["KR_109"]],
+      ["109로 연락해", "주세요.", ["KR_109"]],
+      ["Call 109 now", "for immediate support.", ["KR_109"]],
+      ["Call 988 now", "if you are in the US.", ["GLOBAL_988"]],
+      ["If you are in physical danger now,", "contact your local emergency service.", ["KR_119"]],
+    ] as const)("keeps supported whitespace inside a current clause: %s / %s", (before, after, contacts) => {
+      expect(inspectQuestion(`${before}${gap}${after}`).guidance).toMatchObject({ kind: "contacts", contacts });
+    });
+    test("retains conflicting purpose across the wrap", () => {
+      expect(inspectQuestion(`Call 112 now${gap}for support.`).guidance).toEqual({
+        kind: "unresolved", reason: "conflicting-intent",
+      });
+    });
+    test.each([
+      ["Call 109 now.", "Call 988 now.", ["KR_109", "GLOBAL_988"]],
+      ["Call 109 now.", "Friend said “unfinished", ["KR_109"]],
+      ["“A different remark.”", "Call 109 now.", ["KR_109"]],
+      ["Call 109 now.", "What happened?", ["KR_109"]],
+      ["What happened?", "Call 109 now.", ["KR_109"]],
+      ["친구가 “109로 연락해 주세요.”라고 했어요.", "Call 988 now.", ["GLOBAL_988"]],
+    ] as const)("does not join independently terminated sentences: %s / %s", (before, after, contacts) => {
+      expect(inspectQuestion(`${before}${gap}${after}`).guidance).toMatchObject({ kind: "contacts", contacts });
+    });
+    test("punctuation inside a quoted unit cannot complete the preceding instruction", () => {
+      expect(inspectQuestion(`Call 109${gap}“times.”${gap}What happened?`)).toEqual(absent);
+      expect(inspectQuestion(`“Call 109 now.${gap}Call 988 now.”`)).toEqual(absent);
+      expect(inspectQuestion(`Call 109${gap}“times.”${gap}Call 988 now.`).guidance).toMatchObject({
+        kind: "contacts", contacts: ["GLOBAL_988"],
+      });
+    });
+  });
+});

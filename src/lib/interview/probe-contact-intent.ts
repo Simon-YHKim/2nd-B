@@ -25,7 +25,10 @@ function outsideQuotes(text: string): string {
       result.push(" ");
       if (char === closing && !apostrophe) {
         closing = "";
-        if (/[.!?]/.test(text[i - 1] ?? "")) result.push("\n");
+        // Keep an explicit quoted sentence end, not a synthetic line break.
+        // The opaque opening token still prevents quoted units from completing
+        // an instruction before the quote.
+        if (/[.!?]/.test(text[i - 1] ?? "")) result.push(". ");
       }
     } else if (!apostrophe && quotePairs[char]) {
       closing = quotePairs[char]; result.push("\uFFFC");
@@ -83,20 +86,21 @@ function intentFor(sentence: string, next: string): ContactIntent | null {
   return null;
 }
 
-// Preserve punctuation inside numeric/identifier tokens. A decimal must not
-// produce a shorter telephone number when sentences are separated.
+// A line wrap is whitespace inside a clause, not evidence that it ended. Only
+// explicit sentence punctuation separates clauses. Preserve punctuation inside
+// numeric/identifier tokens, including whitespace around a wrapped decimal.
 function sentencesOf(text: string): string[] {
   const parts: string[] = [];
   let start = 0;
   for (let i = 0; i < text.length; i += 1) {
-    if (text[i] === "\n") {
-      parts.push(text.slice(start, i)); start = i + 1;
-    } else if (/[.!?;]/.test(text[i])) {
+    if (/[.!?;]/.test(text[i])) {
       let end = i + 1;
       while (end < text.length && /[.!?;]/.test(text[end])) end += 1;
       let next = end;
       while (next < text.length && /\s/.test(text[next])) next += 1;
-      const numericContinuation = /\d/.test(text[i - 1] ?? "") && /\d/.test(text[next] ?? "");
+      let previous = i - 1;
+      while (previous >= start && /\s/.test(text[previous])) previous -= 1;
+      const numericContinuation = /\d/.test(text[previous] ?? "") && /\d/.test(text[next] ?? "");
       if (!numericContinuation && (end === text.length || /\s/.test(text[end]))) {
         parts.push(text.slice(start, i)); start = end;
       }
