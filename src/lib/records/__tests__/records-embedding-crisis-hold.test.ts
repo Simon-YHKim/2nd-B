@@ -85,6 +85,15 @@ test("a stored RED result holds ordinary-looking text without reclassifying by m
   expect(mockWrites).toEqual([]);
 });
 
+test("a signal completed across fields beyond the cap is held in direct and batch paths", async () => {
+  const split = { ...row, topic: `${"ordinary note. ".repeat(150)}I want to`, summary: "die", body: "ordinary split" };
+  expect(await embedAndStoreRecord("owner", split, "en", false, true)).toBe(false);
+  mockRows.push(split);
+  expect(await backfillRecordEmbeddings("owner", { consented: true })).toMatchObject({ scanned: 0, embedded: 0, fetched: 1 });
+  expect(mockEmbed).not.toHaveBeenCalled();
+  expect(mockWrites).toEqual([]);
+});
+
 test("ordinary records retain the consent and minor gates", async () => {
   expect(await embedAndStoreRecord("owner", row, "en", false, false)).toBe(false);
   expect(await embedAndStoreRecord("owner", row, "en", true, true)).toBe(false);

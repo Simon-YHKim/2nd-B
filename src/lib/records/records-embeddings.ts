@@ -85,7 +85,7 @@ function recordEmbeddingHeld(record: EmbeddableRecord): boolean {
   if (typeof followup === "object" && followup !== null && "zone" in followup && followup.zone === "red") {
     return true;
   }
-  return [record.topic, record.summary, record.body].some(
+  return [record.topic, record.summary, record.body, recordEmbeddingText(record, Infinity)].some(
     (field) => typeof field === "string" && classifyInputAnyLocale(field, "en").zone === "red",
   );
 }
