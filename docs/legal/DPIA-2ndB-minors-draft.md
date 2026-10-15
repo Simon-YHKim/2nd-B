@@ -245,7 +245,7 @@ connected**, and a privacy document should not report a credential as a data flo
         ┌────────────────────────────────────────────────────────────────────────┐
         │ exportUserWiki()  ──► snapshot = pages + sources (body ≤600 chars).       │
         │   includeRecords DEFAULTS FALSE → journal text NOT in chat/recommend       │
-        │   prompts (export.ts:213-215; conversation.ts:151-156; recommend.ts:5-7)   │
+        │   prompts (export.ts:213-215; conversation.ts:158-163; recommend.ts:5-7)   │
         │ snapshot fenced as <UNTRUSTED> (injection guard)                           │
         │   ──► callGemini()  (C9 in-classify ▸ C3 audit ▸ C1 single egress)         │
         │        ├─ live: gemini-proxy edge fn (key server-side, spend-capped) ──┐   │
@@ -306,7 +306,7 @@ connected**, and a privacy document should not report a credential as a data flo
 | # | Purpose | Personal data involved | Special-category? | Where in system |
 |---|---------|------------------------|-------------------|-----------------|
 | P1 | **Account creation & age-tier gating** | birth_date (DOB), email, derived `minor_tier`/`account_status` | No (DOB is identifying, not special) | `db/migrations/0030_server_age_gate.sql`; `src/lib/auth/consent-age.ts` |
-| P2 | **Core service: AI-assisted journaling / "second brain" reflection** | journal & note records, wiki pages, sources | **Yes — mental-health inferences** (GDPR Art.9 / PIPA §23) | `src/lib/chat/conversation.ts:130-164` `SYSTEM_PROMPT_HEADER`; `src/lib/wiki/export.ts` |
+| P2 | **Core service: AI-assisted journaling / "second brain" reflection** | journal & note records, wiki pages, sources | **Yes — mental-health inferences** (GDPR Art.9 / PIPA §23) | `src/lib/chat/conversation.ts:137-171` `SYSTEM_PROMPT_HEADER`; `src/lib/wiki/export.ts` |
 | P3 | **LLM processing of user entries via Gemini gateway (incl. overseas transfer)** | clipped wiki/source snapshot (journal **excluded**), prompt/output hashes | Yes (derived from P2) | `src/lib/llm/boundary.ts`; `supabase/functions/gemini-proxy/index.ts`; `src/lib/llm/audit` → `db/migrations/0004_ai_audit_log.sql` |
 | P4 | **Crisis detection & human-handoff routing** | message text (transient, classified), categorical crisis event | **Yes — health/safety** | `src/lib/llm/safety.ts:547-577`; `db/migrations/0012_crisis_events.sql` |
 | P5 | **Consent record-keeping (accountability ledger)** | consent acks, versions, hashed IP/UA | No | `db/migrations/0031_consent_records.sql` |
