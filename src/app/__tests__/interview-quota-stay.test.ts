@@ -48,6 +48,7 @@ function setup() {
   const scope = {
     ...initial, ...setters, userId: "A", locale: "en", period: "school", isMinor: false,
     mounted: { current: true }, ended: { current: false }, coverageReady: true, concreteOnly: false,
+    interviewInstance: { current: 1 }, probeRequest: { current: 0 },
     draftEditRevision: { current: 0 }, sending: { current: false }, crisisRouting: { current: false },
     turnsOwnerRef: { current: initial.turns }, localPromptsExhausted: () => false, currentScene: () => [],
     captureAccountOwnerLease, readDayLimitRefusal, INTERVIEW_PURPOSE,
@@ -55,7 +56,7 @@ function setup() {
     classifyInputAnyLocale: jest.fn(() => ({ zone: "green" })), answerDisposition: () => "continue",
     isLocalNonAnswer: () => false, MAX_SCAFFOLDS_PER_LAYER: 2, t: (key: string) => key,
     startInterviewCrisisRouting: jest.fn((_guard, _input, visible) => { visible(); return { started: true, done: Promise.resolve() }; }),
-    publishCrisisNotice: jest.fn(), hotlineFor: () => "KR_109", finish: (): unknown => undefined,
+    publishCrisisNotice: jest.fn().mockReturnValue(true), hotlineFor: () => "KR_109", finish: (): unknown => undefined,
     ask: (..._args: unknown[]): unknown => undefined, changeAngle: (..._args: unknown[]): unknown => undefined,
     confirmedAnswer: jest.fn(), incrementCoverage: jest.fn(), createRecord: jest.fn(), addCoverage: jest.fn(),
   };
