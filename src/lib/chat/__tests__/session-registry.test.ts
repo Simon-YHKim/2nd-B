@@ -369,3 +369,132 @@ test("account hold during a wipe callback still clears route bindings synchronou
   const fresh = opened(registry, "A");
   expect(fresh.session.sessionId).not.toBe(session.sessionId); expect(fresh.session.turns).toEqual([]);
 });
+
+function onNextChange(registry: ReturnType<typeof createChatSessionRegistry>, run: () => void, draft = false) {
+  let armed = true;
+  const listener = () => { if (armed) { armed = false; run(); } };
+  return draft ? registry.subscribeDraft(listener) : registry.subscribe(listener);
+}
+
+test.each(["hold", "direct", "ABA", "wipe", "dispose", "clear", "replace"])(
+  "attach does not return a private snapshot invalidated by a %s subscriber", change => {
+    const { registry, content } = fixture(); const { session } = opened(registry);
+    registry.replaceTurns(session, [{ ...turn(), text: "A private body" }]);
+    onNextChange(registry, () => {
+      if (change === "hold") beginAccountOwnerTransition("b");
+      if (change === "direct") publishOwner("b");
+      if (change === "ABA") { publishOwner("b"); publishOwner("a"); opened(registry, "fresh"); }
+      if (change === "wipe") content.change({ generation: 1, phase: "blocked", wipeId: "wipe" });
+      if (change === "dispose") registry.dispose();
+      if (change === "clear") expect(registry.clear(registry.getSnapshot("A")!.choice)).toBe(true);
+      if (change === "replace") opened(registry, "replacement", context("new"));
+    });
+    expect(registry.attachView("a", "bare")).toBeNull();
+    expect(registry.isCurrent(session)).toBe(false);
+    // A rejected attachment must not leave an inaccessible view handle behind.
+    if (registry.getSnapshot("bare")) expect(registry.releaseEntry("bare")).toBe(true);
+  },
+);
+
+test("attach rejects a snapshot superseded within the same live session and leaves no view handle", () => {
+  const { registry } = fixture(); const { session } = opened(registry);
+  registry.replaceTurns(session, [turn()]);
+  onNextChange(registry, () => { registry.replaceTurns(session, [{ ...turn(), text: "newer text" }]); });
+  expect(registry.attachView("a", "bare")).toBeNull();
+  expect(registry.getSessionSnapshot(session)?.turns[0].text).toBe("newer text");
+  expect(registry.releaseEntry("bare")).toBe(true);
+});
+
+test.each(["hold", "direct", "ABA", "wipe", "dispose", "settled", "replace"])(
+  "claim does not return a capability invalidated by a %s subscriber", change => {
+    const { registry, content } = fixture(); const { session } = opened(registry);
+    const retire = jest.fn();
+    onNextChange(registry, () => {
+      if (change === "hold") beginAccountOwnerTransition("b");
+      if (change === "direct") publishOwner("b");
+      if (change === "ABA") { publishOwner("b"); publishOwner("a"); opened(registry, "fresh"); }
+      if (change === "wipe") content.change({ generation: 1, phase: "blocked", wipeId: "wipe" });
+      if (change === "dispose") registry.dispose();
+      if (change === "settled" || change === "replace") {
+        const work = registry.getSessionSnapshot(session)!.work[0];
+        expect(registry.settleWork(work)).toBe(true);
+        if (change === "replace") opened(registry, "replacement", context("new"));
+      }
+    });
+    expect(registry.claimWork(session, "send", "q", retire)).toBeNull();
+    if (change === "settled" || change === "replace") expect(retire).not.toHaveBeenCalled();
+    else expect(retire).toHaveBeenCalledTimes(1);
+  },
+);
+
+test.each(["chooseCurrent", "chooseNew", "clear", "startAfterWipe", "releaseEntry"] as const)(
+  "%s rejects its acknowledgement after a subscriber changes owner", method => {
+    const { registry, content } = fixture(); const { view } = opened(registry);
+    if (method === "startAfterWipe") content.change({ generation: 1, phase: "needs-explicit-start", wipeId: "wipe" });
+    if (method === "releaseEntry") registry.detachView(view.viewId);
+    const choice = registry.getSnapshot("A")!.choice;
+    onNextChange(registry, () => { beginAccountOwnerTransition("b"); });
+    const result = method === "chooseNew" ? registry.chooseNew(choice, context("new"))
+      : method === "releaseEntry" ? registry.releaseEntry("A") : registry[method](choice);
+    expect(result).toBe(false); expect(registry.getSnapshot("A")).toBeNull();
+  },
+);
+
+test("entry acknowledgement rejects a same-session binding replacement during notification", () => {
+  const { registry } = fixture(); opened(registry);
+  onNextChange(registry, () => { registry.chooseCurrent(registry.getSnapshot("A")!.choice); });
+  expect(registry.chooseCurrent(registry.getSnapshot("A")!.choice)).toBe(false);
+  expect(registry.getSnapshot("A")!.binding.state).toBe("active");
+});
+
+test.each(["editDraft", "replaceTurns", "settleWork"] as const)(
+  "%s rejects its acknowledgement after a subscriber changes owner", method => {
+    const { registry } = fixture(); const { session } = opened(registry);
+    const work = method === "settleWork" ? registry.claimWork(session, "send", "q", jest.fn()) : null;
+    onNextChange(registry, () => { beginAccountOwnerTransition("b"); }, method === "editDraft");
+    const result = method === "editDraft" ? registry.editDraft(session, "new input")
+      : method === "replaceTurns" ? registry.replaceTurns(session, [turn()]) : registry.settleWork(work!);
+    expect(result).toBe(false); expect(registry.getSessionSnapshot(session)).toBeNull();
+  },
+);
+
+test("read-only and unrelated-view subscribers retain successful returns", () => {
+  const { registry } = fixture(); const { session } = opened(registry);
+  const read = jest.fn(() => { registry.getSnapshot("A"); registry.getSessionSnapshot(session); });
+  registry.subscribe(read);
+  const attached = registry.attachView("a", "bare")!;
+  expect(attached.snapshot).toBe(registry.getSnapshot("bare"));
+  onNextChange(registry, () => { registry.attachView("a", "A"); });
+  const work = registry.claimWork(session, "send", "q", jest.fn());
+  expect(work).not.toBeNull(); expect(registry.settleWork(work!)).toBe(true);
+  expect(read).toHaveBeenCalled();
+});
+
+test("a subscriber attaching another bare route does not reject the still-owned attachment", () => {
+  const { registry } = fixture(); opened(registry);
+  onNextChange(registry, () => { opened(registry, "other-bare"); });
+  const attached = registry.attachView("a", "bare");
+  expect(attached).not.toBeNull();
+  expect(attached!.snapshot).toBe(registry.getSnapshot("bare"));
+  expect(attached!.snapshot.session).toBe(registry.getSnapshot("other-bare")!.session);
+  expect(registry.releaseEntry("bare")).toBe(false);
+  registry.detachView(attached!.viewId);
+  expect(registry.releaseEntry("bare")).toBe(true);
+});
+
+test("a subscriber replacing a settled work token cannot return the old capability or unset the new work", () => {
+  const { registry } = fixture(); const { session } = opened(registry);
+  let oldWork: ReturnType<typeof registry.claimWork> = null;
+  let newWork: ReturnType<typeof registry.claimWork> = null;
+  onNextChange(registry, () => {
+    oldWork = registry.getSessionSnapshot(session)!.work[0];
+    expect(registry.settleWork(oldWork)).toBe(true);
+    newWork = registry.claimWork(session, "send", "q", jest.fn());
+  });
+  expect(registry.claimWork(session, "send", "q", jest.fn())).toBeNull();
+  expect(newWork).not.toBeNull();
+  expect(newWork).not.toBe(oldWork);
+  expect(registry.settleWork(oldWork!)).toBe(false);
+  expect(registry.getSessionSnapshot(session)!.work).toEqual([newWork]);
+  expect(registry.settleWork(newWork!)).toBe(true);
+});

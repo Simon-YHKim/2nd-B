@@ -49,11 +49,32 @@ export function createChatSessionRegistry(content: ChatContentBoundary, newId = 
     if (changed) notify(listeners);
     if (typed) notify(draftListeners);
   }
-  function transaction<T>(fallback: T, command: () => T): T {
+  function transaction<T>(fallback: T, command: () => T, valid: (result: T) => boolean = () => true): T {
     if (changing || stopped) return fallback;
     changing = true;
-    try { return command(); }
+    let result = fallback;
+    let stillOwned = () => false;
+    try {
+      result = command();
+      const completed = { owner, boundary, active, needsExplicitStart, contentAckFailed };
+      // publish can synchronously change owner, wipe or replace the session.
+      // Check after every observer has returned, before handing a value to the caller.
+      stillOwned = () => !stopped && currentOwner() && owner === completed.owner
+        && active === completed.active && needsExplicitStart === completed.needsExplicitStart
+        && contentAckFailed === completed.contentAckFailed
+        && boundary?.generation === completed.boundary?.generation
+        && boundary?.phase === completed.boundary?.phase && boundary?.wipeId === completed.boundary?.wipeId;
+    }
     finally { changing = false; publish(); }
+    return stillOwned() && valid(result) ? result : fallback;
+  }
+  function entryTransaction(entryId: string, command: () => boolean): boolean {
+    let committed: ChatEntryBinding | undefined;
+    return transaction(false, () => {
+      const result = command();
+      committed = entries.get(entryId);
+      return result;
+    }, () => entries.get(entryId) === committed);
   }
   function currentOwner() {
     return owner !== null && owner.isCurrent() && !isAccountLocalDeletionFencedInMemory(owner.ownerId);
@@ -205,7 +226,8 @@ export function createChatSessionRegistry(content: ChatContentBoundary, newId = 
     getDraftSnapshot(token: ChatSessionToken): ChatDraftSnapshot | null { return owns(token) ? active!.draft : null; },
     isCurrent: owns,
     attachView(ownerId: string, entryId: string, intent: ChatContextIntent | null = null) {
-      return transaction<{ viewId: string; snapshot: ChatEntrySnapshot } | null>(null, () => {
+      let attachedView: string | null = null;
+      const result = transaction<{ viewId: string; snapshot: ChatEntrySnapshot } | null>(null, () => {
         if (!entryId || !ensureOwner(ownerId) || !boundary) return null;
         if (!entries.has(entryId)) {
           if (needsExplicitStart || boundary.phase !== "open") {
@@ -227,31 +249,41 @@ export function createChatSessionRegistry(content: ChatContentBoundary, newId = 
         if (dirty) snapshots.clear();
         const value = snapshot(entryId)!;
         const viewId = newId(); views.set(viewId, entryId);
+        attachedView = viewId;
         return { viewId, snapshot: value };
+      }, value => {
+        const current = snapshot(entryId);
+        return value !== null && views.get(value.viewId) === entryId
+          && current?.binding === value.snapshot.binding && current.session === value.snapshot.session;
       });
+      // A rejected attachment gives the caller no handle with which to detach.
+      if (!result && attachedView !== null) views.delete(attachedView);
+      // Another entry can invalidate the shared snapshot cache without changing
+      // this binding or session. Return its settled external-store reference.
+      return result ? { viewId: result.viewId, snapshot: snapshot(entryId)! } : null;
     },
     detachView(viewId: string) { views.delete(viewId); },
     /** Only the navigation host can assert removal from its history. Detach is not pop. */
     releaseEntry(entryId: string): boolean {
-      return transaction(false, () => {
+      return entryTransaction(entryId, () => {
         if ([...views.values()].includes(entryId)) return false;
         snapshots.delete(entryId); const removed = entries.delete(entryId); if (removed) markChanged(); return removed;
       });
     },
     chooseCurrent(choice: ChatEntryChoice): boolean {
-      return transaction(false, () => {
+      return entryTransaction(choice.entryId, () => {
         if (!matches(choice) || !active || !owns(active.snapshot)) return false;
         bind(choice.entryId); return true;
       });
     },
     chooseNew(choice: ChatEntryChoice, intent: ChatContextIntent): boolean {
-      return transaction(false, () => {
+      return entryTransaction(choice.entryId, () => {
         if (!matches(choice) || !boundary || boundary.phase !== "open" || needsExplicitStart || active?.work.size) return false;
         createSession(choice.entryId, intent, "replaced"); return true;
       });
     },
     clear(choice: ChatEntryChoice): boolean {
-      return transaction(false, () => {
+      return entryTransaction(choice.entryId, () => {
         if (!matches(choice) || !active || !owns(active.snapshot) || active.work.size
           || entries.get(choice.entryId)?.state !== "active") return false;
         const intent = { fromNode: active.snapshot.context.fromNode, mode: active.snapshot.mode,
@@ -260,7 +292,7 @@ export function createChatSessionRegistry(content: ChatContentBoundary, newId = 
       });
     },
     startAfterWipe(choice: ChatEntryChoice): boolean {
-      return transaction(false, () => {
+      return entryTransaction(choice.entryId, () => {
         if (contentAckFailed || !matches(choice) || !boundary || boundary.phase !== "needs-explicit-start" || !needsExplicitStart || active) return false;
         let committed = false;
         const expected = boundary;
@@ -309,7 +341,7 @@ export function createChatSessionRegistry(content: ChatContentBoundary, newId = 
           sessionGeneration: token.sessionGeneration, kind, key, operationId: newId(),
         });
         active!.work.set(work.operationId, { token: work, retire }); reviseWork(); return work;
-      });
+      }, work => work !== null && owns(work) && active!.work.get(work.operationId)?.token === work);
     },
     settleWork(work: ChatWorkToken): boolean {
       return transaction(false, () => {

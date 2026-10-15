@@ -8,6 +8,8 @@
 
 Q-261014-05의 큰 꼴 승인과 Q20/Q21의 서로 다른 범위를 따른다. 단순 turns 복원을 먼저 화면에 연결하지 않는다. 아래에 보존한 D2 설계는 독립 R2 **PASS H0/M0/L0**이며 D1의 BLOCK 1회는 유지한다. D2 원본 SHA256은 `2104efd686c3cba35102dab228233f11b4480224182cb286fd8f9b6c9531f277`이다. 원본에 쓰인 “R2 요청본”, “구현 0”과 44개 회귀 계획은 **그 설계 작성 시점의 기록**이다. 현재 제품 구현/검사 결과와 섞지 않는다. 이 A 구현의 독립 검토와 전체 검사는 별도다.
 
+A 구현 `7c2dab65`의 독립 R1은 **BLOCK H0/M1/L0**였다. 동기 구독자가 계정 전환을 시작한 뒤에도 `attachView`가 이미 만든 옛 본문 snapshot을 반환했다. 공개 명령은 구독 통지까지 끝낸 뒤 owner epoch·content generation·session과 해당 entry/work identity를 다시 확인하며, 만료된 반환은 null/false로 버리도록 보완했다. 거절한 attachment는 caller가 받을 수 없는 view handle도 해제한다. 읽기만 하거나 다른 bare entry를 붙이는 정상 구독자는 같은 소유권의 반환을 막지 않는다. 이 보완은 **독립 R2 검토 대기**이며 코드 BLOCK 1회와 설계 BLOCK 1회를 따로 보존한다.
+
 ## 이번 단위의 동작
 
 - `session-types.ts`로 기존 ChatTurn의 **11개 필드** 및 ChatMode를 옮겼다. role/text/citationText/persona/chips/branches/synthetic/consentError/retryText/safetyZone/crisisNotice가 모두 같다. 화면의 타입 제거 후 JavaScript 출력도 기준 main과 같다.
@@ -31,6 +33,8 @@ Q-261014-05의 큰 꼴 승인과 Q20/Q21의 서로 다른 범위를 따른다. �
 ## 검증 범위
 
 실제 registry/실제 account-epoch를 호출하는 실행 회귀로 재부착·계정 hold/ABA·busy와 오래된 선택·단조 sequence·draft CAS·snapshot 불변성·wipe ACK/명시 새 시작을 검사한다. storage/model/삭제 API를 대역으로 성공시켜 앱 완료라고 판정하지 않는다. source proof는 기존 ChatTurn 멤버와 화면의 타입 제거 후 JavaScript 출력이 모두 동일함을 비교한다. 최종 정확 SHA와 검사 결과는 인수/독립 검토에 별도로 기록한다. 전체 verify/PR/CI/main/8081/기기 확인 전에는 이 준비 단위를 앱 수정 완료로 세지 않는다.
+
+R1 보완 회귀는 공개 호출이 반환되기 전 구독자가 hold·직접 계정 전환·ABA·content wipe·dispose·entry/session 교체·work 종료/재발급을 수행하는 순서를 실행한다. 앞선 코드에서 24개 실패를 확인한 검사를 유지했고, 정상 bare entry 동시 부착까지 거절하던 보완 초안의 추가 실패도 고쳤다. 실제 registry 58개와 기존 account-epoch·autosave 26개, 총 3 suites / 84 tests가 통과했다. 이는 이후 controller나 앱 연결의 검증 수가 아니다.
 
 ---
 
