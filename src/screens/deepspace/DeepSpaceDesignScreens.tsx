@@ -56,7 +56,7 @@ import {
   type LocalPurgeOutcome,
 } from "@/lib/account/deletion-completion";
 import { purgeDeletedAccountLocalData } from "@/lib/account/local-purge";
-import { currentAccountEpoch } from "@/lib/auth/account-epoch";
+import { captureAccountOwnerLease, currentAccountEpoch } from "@/lib/auth/account-epoch";
 import { buildPersona, loadPersonaRatifiableSignals } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
@@ -88,7 +88,7 @@ import { type EvidenceShard } from "@/lib/persona/evidence";
 import { RatifySheet, runRatifyDecisionOnce } from "@/components/persona/RatifySheet";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { readPrivacyPrefsStrict } from "@/lib/supabase/privacy-strict";
-import { withTimeout } from "@/lib/async/with-timeout";
+import { isTimeoutError, withTimeout } from "@/lib/async/with-timeout";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
 import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
 import {
@@ -2275,6 +2275,15 @@ const RESEARCH_SAT = [
   { cx: 185, cy: 90, r: 4, fill: colors.cyanDim, stroke: colors.border },
 ] as const;
 
+export const RESEARCH_READ_TIMEOUT_MS = 10_000;
+type OwnedResearchRead<T> = {
+  ownerId: string;
+  epoch: number;
+  generation: number;
+  status: "loading" | "ready" | "error" | "timeout";
+  rows: T[];
+};
+
 export function DeepSpaceResearchScreen() {
   const router = useAppRouter(); // Phone-aware: inside the dashboard phone, links and proposals open in the phone.
   const { t, i18n } = useTranslation("deepspace");
@@ -2288,28 +2297,45 @@ export function DeepSpaceResearchScreen() {
   // orphans / islands all keep working, now over real data. $0: pure tag
   // overlap, no LLM and no embeddings (the kNN layer stays consent-gated).
   const { userId, loading: authLoading } = useAuth();
-  // Every load below is held WITH the account it was loaded for, and read back
-  // only while that account is still the one signed in. The route can stay
-  // mounted across an account change (A out, B in); a bare value kept A's
-  // records, tag chips and link proposals on B's screen until B's own loads
-  // answered (QA 261004 SG-02). A different owner reads as "not loaded yet".
-  const [heldRecords, setHeldRecords] = useState<{ ownerId: string; rows: GraphRecord[] } | null>(null);
+  // Owner + epoch also distinguish A -> B -> A. Each list has its own
+  // generation and deadline; one failed read cannot hide the other list.
+  const epoch = currentAccountEpoch();
+  const mounted = useRef(false);
+  const recordsGeneration = useRef(0);
+  const proposalsGeneration = useRef(0);
   useEffect(() => {
-    if (!userId) return;
-    let alive = true;
-    void listRecentRecords(userId)
-      .then((rows) => {
-        if (alive) setHeldRecords({ ownerId: userId, rows: rows as GraphRecord[] });
-      })
-      .catch(() => {
-        if (alive) setHeldRecords({ ownerId: userId, rows: [] });
-      });
+    mounted.current = true;
     return () => {
-      alive = false;
+      mounted.current = false;
+      recordsGeneration.current += 1;
+      proposalsGeneration.current += 1;
     };
-  }, [userId]);
-  const records = heldRecords !== null && userId !== null && heldRecords.ownerId === userId ? heldRecords.rows : null;
-  const loading = userId != null && records === null;
+  }, []);
+  const [heldRecords, setHeldRecords] = useState<OwnedResearchRead<GraphRecord> | null>(null);
+  const loadRecords = useCallback(async (current: () => boolean = () => true) => {
+    if (!userId || authLoading || !mounted.current || !current()) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease || lease.epoch !== epoch) return;
+    const generation = ++recordsGeneration.current;
+    const owner = { ownerId: userId, epoch, generation };
+    const canPublish = () => mounted.current && current() && lease.isCurrent() && recordsGeneration.current === generation;
+    setHeldRecords({ ...owner, status: "loading", rows: [] });
+    try {
+      const rows = await withTimeout(listRecentRecords(userId), RESEARCH_READ_TIMEOUT_MS, "research records");
+      if (canPublish()) setHeldRecords({ ...owner, status: "ready", rows: rows as GraphRecord[] });
+    } catch (error) {
+      if (canPublish()) setHeldRecords({ ...owner, status: isTimeoutError(error) ? "timeout" : "error", rows: [] });
+    }
+  }, [userId, authLoading, epoch]);
+  useEffect(() => {
+    let alive = true;
+    void loadRecords(() => alive);
+    return () => { alive = false; };
+  }, [loadRecords]);
+  const recordsRead = heldRecords?.ownerId === userId && heldRecords.epoch === epoch && heldRecords.generation === recordsGeneration.current ? heldRecords : null;
+  const records = recordsRead?.status === "ready" ? recordsRead.rows : null;
+  const loading = recordsRead === null || recordsRead.status === "loading";
+  const recordsError = recordsRead?.status === "error" || recordsRead?.status === "timeout";
   const view = useMemo(() => {
     const graph = recordsToResearchGraph(records ?? [], {
       locale: i18n.language === "ko" ? "ko" : "en",
@@ -2321,34 +2347,44 @@ export function DeepSpaceResearchScreen() {
   // graph's focused tag label rather than refetching.
   // The picked chip is one of the owner's own tag names, and the graph caption
   // prints it, so it is held with its owner like the records it came from.
-  const [clusterPick, setClusterPick] = useState<{ ownerId: string; tag: string } | null>(null);
-  const activeCluster = clusterPick !== null && userId !== null && clusterPick.ownerId === userId ? clusterPick.tag : null;
+  const [clusterPick, setClusterPick] = useState<{ ownerId: string; epoch: number; tag: string } | null>(null);
+  const activeCluster = clusterPick !== null && userId !== null && clusterPick.ownerId === userId && clusterPick.epoch === epoch ? clusterPick.tag : null;
 
   // propose->ratify: AI-proposed (inferred) links awaiting the user's verdict.
-  const [heldProposals, setHeldProposals] = useState<{ ownerId: string; rows: InferredLinkDetail[] } | null>(null);
-  const proposals = heldProposals !== null && userId !== null && heldProposals.ownerId === userId ? heldProposals.rows : [];
+  const [heldProposals, setHeldProposals] = useState<OwnedResearchRead<InferredLinkDetail> | null>(null);
+  const proposalsRead = heldProposals?.ownerId === userId && heldProposals.epoch === epoch && heldProposals.generation === proposalsGeneration.current ? heldProposals : null;
+  const proposals = proposalsRead?.status === "ready" ? proposalsRead.rows : [];
+  const proposalsLoading = proposalsRead === null || proposalsRead.status === "loading";
+  const proposalsError = proposalsRead?.status === "error" || proposalsRead?.status === "timeout";
   const [proposing, setProposing] = useState(false);
   const [actingKey, setActingKey] = useState<string | null>(null);
   // Screen-reader feedback for ratify/reject: the row removal alone is silent,
   // so announce the outcome via a polite live region (persona-sim a11y, D-25).
   const [announce, setAnnounce] = useState("");
 
-  const loadProposals = useMemo(
-    () => async (uid: string, current: () => boolean = () => true) => {
-      const rows = await listInferredLinkDetails(uid).catch(() => [] as InferredLinkDetail[]);
-      if (current()) setHeldProposals({ ownerId: uid, rows });
-    },
-    [],
-  );
+  const loadProposals = useCallback(async (uid: string, current: () => boolean = () => true) => {
+    if (uid !== userId || authLoading || !mounted.current || !current()) return;
+    const lease = captureAccountOwnerLease(uid);
+    // A completion from an older write handler may request a refresh. It must
+    // not start a read under the same owner's newer account session.
+    if (!lease || lease.epoch !== epoch) return;
+    const generation = ++proposalsGeneration.current;
+    const owner = { ownerId: uid, epoch, generation };
+    const canPublish = () => mounted.current && current() && lease.isCurrent() && proposalsGeneration.current === generation;
+    setHeldProposals({ ...owner, status: "loading", rows: [] });
+    try {
+      const rows = await withTimeout(listInferredLinkDetails(uid), RESEARCH_READ_TIMEOUT_MS, "research proposals");
+      if (canPublish()) setHeldProposals({ ...owner, status: "ready", rows });
+    } catch (error) {
+      if (canPublish()) setHeldProposals({ ...owner, status: isTimeoutError(error) ? "timeout" : "error", rows: [] });
+    }
+  }, [userId, authLoading, epoch]);
 
   useEffect(() => {
     if (!userId) return;
-    // A slow answer for the previous owner must not land after this owner's.
     let alive = true;
     void loadProposals(userId, () => alive);
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [userId, loadProposals]);
 
   async function findProposals() {
@@ -2425,7 +2461,7 @@ export function DeepSpaceResearchScreen() {
 
   const satellites = RESEARCH_SAT.slice(0, Math.max(1, Math.min(view.hubs.length, 4)));
   const headerText =
-    view.headline !== null
+    loading || recordsError ? "..." : view.headline !== null
       ? t("research.headerFound", { count: view.edgeCount })
       : t("research.headerNone");
 
@@ -2435,6 +2471,13 @@ export function DeepSpaceResearchScreen() {
       <Text variant="body" style={styles.lead}>{t("research.lead")}</Text>
       {loading ? (
         <GraphLoading />
+      ) : recordsError ? (
+        <View style={styles.insightViolet}>
+          <Text variant="body" accessibilityLiveRegion="polite" style={styles.insightVioletText}>{t(recordsRead?.status === "timeout" ? "common:errors.network" : "common:errors.unknown")}</Text>
+          <Pressable style={styles.primary} accessibilityRole="button" onPress={() => void loadRecords()}>
+            <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
+          </Pressable>
+        </View>
       ) : (
         <>
         {/* The records half. This gate counts RECORDS; the proposal half below
@@ -2459,7 +2502,7 @@ export function DeepSpaceResearchScreen() {
                   label={`${c.tag} · ${c.count}`}
                   active={activeCluster === c.tag}
                   violet={activeCluster === null ? i === 0 : false}
-                  onPress={() => setClusterPick(activeCluster === c.tag ? null : { ownerId: userId, tag: c.tag })}
+                  onPress={() => setClusterPick(activeCluster === c.tag ? null : { ownerId: userId, epoch, tag: c.tag })}
                 />
               ))}
             </View>
@@ -2529,6 +2572,8 @@ export function DeepSpaceResearchScreen() {
         </>
         )}
 
+        </>
+      )}
           {/* propose->ratify: AI proposes semantic links, the user decides.
               Outside the records gate on purpose — see the note above. */}
           <Text variant="caption" pixelEn style={styles.tlLabel}>{t("research.proposalsLabel")}</Text>
@@ -2541,7 +2586,16 @@ export function DeepSpaceResearchScreen() {
               {announce}
             </RNText>
           ) : null}
-          {proposals.length === 0 ? (
+          {proposalsLoading ? (
+            <GraphLoading />
+          ) : proposalsError ? (
+            <View style={styles.insightViolet}>
+              <Text variant="body" accessibilityLiveRegion="polite" style={styles.insightVioletText}>{t(proposalsRead?.status === "timeout" ? "common:errors.network" : "common:errors.unknown")}</Text>
+              <Pressable style={styles.primary} accessibilityRole="button" onPress={() => void loadProposals(userId)}>
+                <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
+              </Pressable>
+            </View>
+          ) : proposals.length === 0 ? (
             <View style={styles.insightViolet}>
               <Text variant="body" style={styles.insightVioletText}>{t("research.noProposals")}</Text>
             </View>
@@ -2584,8 +2638,6 @@ export function DeepSpaceResearchScreen() {
           >
             <Text variant="caption" style={styles.smallBtnGhostText}>{proposing ? t("research.gettingProposals") : t("research.getProposals")}</Text>
           </Pressable>
-        </>
-      )}
     </Shell>
   );
 }
