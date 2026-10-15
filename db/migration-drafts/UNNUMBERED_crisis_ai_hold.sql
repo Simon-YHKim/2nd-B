@@ -1,0 +1,130 @@
+-- D4 (2026-10-07 01:20): keep the person's record, skip later AI processing.
+-- Unnumbered preparation only. Do not apply to production or activate readers
+-- until the complete reader inventory and rollout in the accompanying design
+-- are verified. 0225 must already be applied. This file is NOT a full D4 rollout.
+-- No raw text scan, external request, new content copy, or unhold operation.
+SET LOCAL lock_timeout = '10s';
+
+DO $prerequisites$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_attribute
+    WHERE attrelid = 'public.records'::regclass
+      AND attname = 'interview_ai_hold' AND NOT attisdropped
+  ) THEN
+    RAISE EXCEPTION 'crisis_ai_hold: 0225 interview hold is required';
+  END IF;
+END;
+$prerequisites$;
+
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS ai_hold boolean NOT NULL DEFAULT false;
+ALTER TABLE public.sources ADD COLUMN IF NOT EXISTS ai_hold boolean NOT NULL DEFAULT false;
+ALTER TABLE public.wiki_pages ADD COLUMN IF NOT EXISTS ai_hold boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.records.ai_hold IS
+  'Monotonic D4 AI hold. Does not remove access to the original record or permit automatic release.';
+COMMENT ON COLUMN public.sources.ai_hold IS
+  'Monotonic D4 AI hold. Raw clipping and user export remain available.';
+COMMENT ON COLUMN public.wiki_pages.ai_hold IS
+  'Monotonic D4 AI hold. AI readers also check a linked source hold.';
+
+-- INVOKER: no extra owner or service privileges. Existing table RLS still
+-- applies. A client may raise its own hold, never lower an existing hold.
+-- Trusted writers and old clients obey the same lifetime rule. A future release
+-- requires a separately reviewed contract; no bypass flag is introduced here.
+CREATE OR REPLACE FUNCTION public.guard_record_ai_hold()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+BEGIN
+  IF NEW.ai_hold IS NULL THEN
+    RAISE EXCEPTION 'record_ai_hold_must_be_boolean' USING ERRCODE = '22004';
+  END IF;
+  NEW.ai_hold := NEW.ai_hold
+    OR (TG_OP = 'UPDATE' AND OLD.ai_hold)
+    OR NEW.interview_ai_hold
+    OR COALESCE(NEW.ai_followup ->> 'zone' = 'red', false);
+  IF NEW.ai_hold THEN
+    NEW.embedding := NULL;
+    NEW.embedding_model := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.guard_record_ai_hold() FROM PUBLIC, anon, authenticated, service_role;
+DROP TRIGGER IF EXISTS guard_record_ai_hold ON public.records;
+CREATE TRIGGER guard_record_ai_hold BEFORE INSERT OR UPDATE ON public.records
+  FOR EACH ROW EXECUTE FUNCTION public.guard_record_ai_hold();
+
+CREATE OR REPLACE FUNCTION public.guard_source_ai_hold()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+BEGIN
+  IF NEW.ai_hold IS NULL THEN
+    RAISE EXCEPTION 'source_ai_hold_must_be_boolean' USING ERRCODE = '22004';
+  END IF;
+  NEW.ai_hold := NEW.ai_hold OR (TG_OP = 'UPDATE' AND OLD.ai_hold);
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.guard_source_ai_hold() FROM PUBLIC, anon, authenticated, service_role;
+DROP TRIGGER IF EXISTS guard_source_ai_hold ON public.sources;
+CREATE TRIGGER guard_source_ai_hold BEFORE INSERT OR UPDATE ON public.sources
+  FOR EACH ROW EXECUTE FUNCTION public.guard_source_ai_hold();
+
+CREATE OR REPLACE FUNCTION public.guard_wiki_page_ai_hold()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+BEGIN
+  IF NEW.ai_hold IS NULL THEN
+    RAISE EXCEPTION 'wiki_page_ai_hold_must_be_boolean' USING ERRCODE = '22004';
+  END IF;
+  NEW.ai_hold := NEW.ai_hold OR (TG_OP = 'UPDATE' AND OLD.ai_hold);
+  -- A source page inherits its parent's hold. Missing/foreign parents are not
+  -- evidence of eligibility. Repointing a page cannot release a previous hold.
+  IF NEW.source_id IS NOT NULL THEN
+    NEW.ai_hold := NEW.ai_hold OR NOT EXISTS (
+      SELECT 1 FROM public.sources s
+      WHERE s.id = NEW.source_id AND s.user_id = NEW.user_id AND NOT s.ai_hold
+    );
+  END IF;
+  IF TG_OP = 'UPDATE' AND OLD.source_id IS NOT NULL THEN
+    NEW.ai_hold := NEW.ai_hold OR NOT EXISTS (
+      SELECT 1 FROM public.sources s
+      WHERE s.id = OLD.source_id AND s.user_id = OLD.user_id AND NOT s.ai_hold
+    );
+  END IF;
+  IF NEW.ai_hold THEN
+    NEW.embedding := NULL;
+    NEW.embedding_model := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.guard_wiki_page_ai_hold() FROM PUBLIC, anon, authenticated, service_role;
+DROP TRIGGER IF EXISTS guard_wiki_page_ai_hold ON public.wiki_pages;
+CREATE TRIGGER guard_wiki_page_ai_hold BEFORE INSERT OR UPDATE ON public.wiki_pages
+  FOR EACH ROW EXECUTE FUNCTION public.guard_wiki_page_ai_hold();
+
+-- Existing authoritative record flags, not a new interpretation of raw text.
+-- No source/page backfill is inferred from tags, titles, or prose.
+UPDATE public.records SET ai_hold = true
+WHERE NOT ai_hold AND (interview_ai_hold OR ai_followup ->> 'zone' = 'red');
+
+-- These views are for future AI readers only. The user's own detail/export
+-- readers must keep using the original tables. Missing views must fail closed;
+-- there is no fallback to an unfiltered table.
+CREATE OR REPLACE VIEW public.records_ai_eligible
+WITH (security_invoker = true, security_barrier = true) AS
+SELECT r.* FROM public.records r WHERE NOT r.ai_hold AND NOT r.interview_ai_hold;
+CREATE OR REPLACE VIEW public.sources_ai_eligible
+WITH (security_invoker = true, security_barrier = true) AS
+SELECT s.* FROM public.sources s WHERE NOT s.ai_hold;
+CREATE OR REPLACE VIEW public.wiki_pages_ai_eligible
+WITH (security_invoker = true, security_barrier = true) AS
+SELECT w.* FROM public.wiki_pages w
+WHERE NOT w.ai_hold
+  AND (w.source_id IS NULL OR EXISTS (
+    SELECT 1 FROM public.sources s
+    WHERE s.id = w.source_id AND s.user_id = w.user_id AND NOT s.ai_hold
+  ));
+
+REVOKE ALL ON public.records_ai_eligible, public.sources_ai_eligible, public.wiki_pages_ai_eligible
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT ON public.records_ai_eligible, public.sources_ai_eligible, public.wiki_pages_ai_eligible
+  TO authenticated, service_role;
