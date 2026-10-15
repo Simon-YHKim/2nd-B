@@ -1,4 +1,5 @@
 import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
+import { MotionModal } from "@/components/ui/MotionModal";
 // Renders a non-dismissable (but closeable) modal when the Safety
 // Classifier returns a red zone. Surfaces locale-aware hotlines.
 // Does not invoke any LLM; the caller has already short-circuited.
@@ -10,7 +11,7 @@ import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 //   dialer; on web most browsers prompt to call via the system handler.
 // - aria/accessibility hints surface the hotline number to screen readers.
 
-import { useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { StyleSheet, Linking } from "react-native";
 import { PhoneView as View, PhonePressable as Pressable } from "@/components/phone/PhoneUIKit";
 import { useTranslation } from "react-i18next";
@@ -19,6 +20,7 @@ import { PixelScrim } from "@/components/pixel/PixelDither";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { HOTLINES, type HotlineId } from "@/lib/safety/lexicon";
+import { dismissCrisisNotice, getCrisisNotice, subscribeCrisisNotice } from "@/lib/safety/crisis-notice";
 
 export interface CrisisRouterProps {
   visible: boolean;
@@ -32,7 +34,20 @@ export interface CrisisRouterProps {
 // the rest — surfaced as a secondary row, never replacing the call box.
 export const CRISIS_DIRECTORY_URL = "https://findahelpline.com";
 
-export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
+export function CrisisRouter(props: CrisisRouterProps) {
+  return <CrisisDialog {...props} Dialog={Modal} />;
+}
+
+/** Mounted above routes. Navigation may finish before a safety request does. */
+export function AppCrisisHost() {
+  const notice = useSyncExternalStore(subscribeCrisisNotice, getCrisisNotice, () => null);
+  // Unmount immediately on account transition, including any exit animation.
+  if (!notice) return null;
+  return <CrisisDialog visible hotline={notice.hotline} Dialog={MotionModal}
+    onClose={() => dismissCrisisNotice(notice.id)} />;
+}
+
+function CrisisDialog({ visible, hotline, onClose, Dialog }: CrisisRouterProps & { Dialog: typeof Modal }) {
   const { t } = useTranslation("safety");
   const number = HOTLINES[hotline].number;
 
@@ -52,7 +67,7 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
   }, []);
 
   return (
-    <Modal
+    <Dialog
       visible={visible}
       transparent
       animationType="slide"
@@ -119,7 +134,7 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
           <Button label={t("red.dismiss")} variant="secondary" onPress={onClose} />
         </View>
       </View>
-    </Modal>
+    </Dialog>
   );
 }
 
