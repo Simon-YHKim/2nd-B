@@ -54,7 +54,7 @@ import {
   corsPreflight,
   dailyCapForRank,
   djb2,
-  hasCrisisTerm,
+  hasCrisisTerm, emergencyLanePayload,
   isLlmJsonObject,
   isUsableHeaderValue,
   jsonResponse,
@@ -262,7 +262,7 @@ Deno.serve(async (req: Request) => {
   // Scans ONLY the `user` turn (the genuine utterance), never the curated
   // `system` channel (which legitimately carries crisis-reference vocabulary).
   if (hasCrisisTerm(userText)) {
-    return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
+    return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected', ...emergencyLanePayload(userText) }, 422);
   }
 
   // Historical rows have no trustworthy writer provenance and there is not

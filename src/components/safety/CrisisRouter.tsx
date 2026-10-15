@@ -21,6 +21,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { HOTLINES, type HotlineId } from "@/lib/safety/lexicon";
 import { dismissCrisisNotice, getCrisisNotice, subscribeCrisisNotice } from "@/lib/safety/crisis-notice";
+import { emergencyGuidance } from "@/lib/safety/emergency-routing";
 
 export interface CrisisRouterProps {
   visible: boolean;
@@ -48,8 +49,9 @@ export function AppCrisisHost() {
 }
 
 function CrisisDialog({ visible, hotline, onClose, Dialog }: CrisisRouterProps & { Dialog: typeof Modal }) {
-  const { t } = useTranslation("safety");
+  const { t, i18n } = useTranslation("safety");
   const number = HOTLINES[hotline].number;
+  const emergency = emergencyGuidance(hotline, i18n.language.toLowerCase().startsWith("ko") ? "ko" : "en");
 
   const handleCall = useCallback(() => {
     // Strip non-digits for the tel: URI (e.g. "1577-0199" → "15770199").
@@ -95,8 +97,8 @@ function CrisisDialog({ visible, hotline, onClose, Dialog }: CrisisRouterProps &
           </View>
           {/* 제목은 글만 둔다. 옆에 있던 옛 캐릭터 '가디' 그림은 2026-10-05 에 뺐다
               (Simon 결정 Q-261004-15 A). 안내 문구 · 번호 · 라우팅은 그대로다. */}
-          <Text variant="heading">{t("red.title")}</Text>
-          <Text variant="body" color="textMuted">{t("red.body")}</Text>
+          <Text variant="heading">{t(emergency ? "red.emergency.title" : "red.title")}</Text>
+          <Text variant="body" color="textMuted">{emergency?.text ?? t("red.body")}</Text>
           {/* Safety-critical: visuals live on the wrapper View, NOT the
               Pressable — Fabric Android drops function-form Pressable styles
               (#680), which can render the hotline box invisible. */}
@@ -105,7 +107,7 @@ function CrisisDialog({ visible, hotline, onClose, Dialog }: CrisisRouterProps &
               onPress={handleCall}
               accessibilityRole="button"
               accessibilityHint={t("red.callHint")}
-              accessibilityLabel={`${number}: ${HOTLINES[hotline].label}`}
+              accessibilityLabel={emergency ? t(`red.hotline.${hotline}`) : `${number}: ${HOTLINES[hotline].label}`}
               style={styles.hotlinePress}
               android_ripple={{ color: withAlpha(semantic.danger, 0.12) }}
             >
@@ -113,7 +115,7 @@ function CrisisDialog({ visible, hotline, onClose, Dialog }: CrisisRouterProps &
                 {t(`red.hotline.${hotline}`)}
               </Text>
               <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
-                {t("red.callCta")}
+                {t(emergency ? "red.emergency.callCta" : "red.callCta")}
               </Text>
             </Pressable>
           </View>

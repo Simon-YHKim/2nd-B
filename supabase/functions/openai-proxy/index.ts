@@ -56,7 +56,7 @@ import {
   corsPreflight,
   dailyCapForRank,
   djb2,
-  hasCrisisTerm,
+  hasCrisisTerm, emergencyLanePayload,
   isLlmJsonObject,
   isUsableHeaderValue,
   jsonResponse,
@@ -445,7 +445,7 @@ async function handleOpenAi(
       // this is the bypassed-client backstop, and it must exist here too or
       // switching vendors would quietly remove a safety layer.
       if (hasCrisisTerm(t)) {
-        return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
+        return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected', ...emergencyLanePayload(t) }, 422);
       }
       texts.push(t);
     }
@@ -723,7 +723,7 @@ async function handleOpenAi(
   const safetyClassifySeat =
     purpose === 'safety_classify' && Deno.env.get('LLM_SERVER_SAFETY_SEAT') === '1';
   if (!safetyClassifySeat && hasCrisisTerm(userText)) {
-    return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
+    return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected', ...emergencyLanePayload(userText) }, 422);
   }
 
   // EFFECTIVE tier via effective_subscription_tier (0088), NOT the raw

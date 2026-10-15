@@ -7,6 +7,7 @@
     "../../src/lib/llm/untrusted": "../../src/lib/llm/untrusted.ts",
     "../../src/lib/safety/lexicon": "../../src/lib/safety/lexicon.ts",
     "../../src/lib/safety/classifier": "../../src/lib/safety/classifier.ts",
+    "../../src/lib/safety/emergency-routing": "../../src/lib/safety/emergency-routing.ts",
     "../../src/lib/safety/crisis-context": "../../src/lib/safety/crisis-context.ts"
   }
 }

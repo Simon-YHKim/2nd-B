@@ -455,6 +455,7 @@ export interface ProbeResult {
    */
   openers: string[];
   zone: "green" | "yellow" | "red";
+  hotline?: import("../safety/lexicon").HotlineId;
   /** The layer the next question is probing for. Caller increments coverage
    *  with this layer once the user answers. */
   layer: DrillLayer;
@@ -513,6 +514,7 @@ export async function nextProbe(
     question: usableQuestion(cleaned, history, layer, locale, scaffoldStreak),
     openers: readOpeners(parsed),
     zone: res.safety.zone,
+    hotline: res.safety.crisisRouting?.hotline,
     layer,
     answeredLayer: askedLayer === null ? undefined : readAnsweredLayer(parsed),
   };

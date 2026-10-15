@@ -7,7 +7,7 @@ import {
   type Locale,
 } from "./lexicon";
 import { prepareCrisisScanText } from "./crisis-context";
-
+import { emergencyHotline, matchEmergencyLane } from "./emergency-routing";
 export type SafetyZone = "green" | "yellow" | "red";
 
 export interface SafetyResult {
@@ -87,19 +87,19 @@ function pickCrisisHotline(locale: Locale, minor = false): { id: HotlineId; labe
 
 // Classifies a user input or LLM output. Order:
 //   1. CRISIS_TERMS → red (short-circuit, surface hotline)
-//   2. FORBIDDEN_TERMS → yellow (downgrade; surface rephrase hint)
+//   2. FORBIDDEN_TERMS → yellow (downgrade; surface rephrase hint). Explicit emergencies are red.
 //   3. otherwise → green
 export function classifyInput(text: string, locale: Locale, opts: ClassifyOptions = {}): SafetyResult {
   if (!text || text.trim().length === 0) {
     return { zone: "green", matched: [], categories: [] };
   }
-  const crisisMatches: string[] = [];
+  const emergency = matchEmergencyLane(text), crisisMatches: string[] = emergency ? [emergency] : [];
   const crisisScanText = prepareCrisisScanText(text);
   for (const term of CRISIS_TERMS[locale]) {
     if (matchesTerm(crisisScanText, term, locale) || (locale === "ko" && matchesJoinedKoTerm(crisisScanText, term))) crisisMatches.push(term);
   }
   if (crisisMatches.length > 0) {
-    const h = pickCrisisHotline(locale, opts.minor);
+    const h = emergency ? { id: emergencyHotline(emergency), ...HOTLINES[emergencyHotline(emergency)] } : pickCrisisHotline(locale, opts.minor);
     return {
       zone: "red",
       matched: crisisMatches,
