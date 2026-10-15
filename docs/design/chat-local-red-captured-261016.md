@@ -12,11 +12,11 @@ GREEN은 null이며 안내 callback·감사·quota·모델 호출이 없다. RED
 
 ## 검증
 
-기존 6 suites에서 171 tests PASS. 기존 실제 boundary/outbox 검사에 여섯 경로(EN/KO·성인/청소년·119/112)의 legacy 대비와 captured token/signal/early callback 순서를 추가했다. 기존 captured-session 검사에는 실제 account lease/epoch를 사용해 GREEN, owner/signal 불일치, 시작 전 abort/hold/ABA, callback 중 취소/owner 변경, 두 감사 단계 각각의 대기 중 변경을 넣었다. 새 실행 사례는 총21개이며 171개 안에 포함된다.
+기존 6 suites에서 172 tests PASS. 기존 실제 boundary/outbox 검사에 여섯 경로(EN/KO·성인/청소년·119/112)의 legacy 대비와 captured token/signal/early callback 순서를 추가했다. 기존 captured-session 검사에는 실제 account lease/epoch를 사용해 GREEN, owner/signal 불일치, 시작 전 abort/hold/ABA, callback 중 취소/owner 변경, 두 감사 단계 각각의 대기 중 변경과 route 완료 뒤 helper 반환 직전의 owner 변경을 넣었다. 새 실행 사례는 총22개이며 172개 안에 포함된다.
 
 기존 boundary.mock의 AST 보안 계약은 삭제하지 않고 승인된 옵션/fence/observer/direct route 경로를 고정하도록 갱신했다. 호출 이름의 실제 binding과 helper가 파일 마지막에 있어 이전 법무 인용 행을 이동하지 않는 조건도 유지한다. 이 필수 기존 계약 갱신 때문에 제품1 + 기존 검사3 + 문서1의 5파일이다.
 
-첫 타깃 실행에는 검사 기대값의 outbox kind 오기(crisis_events)를 실제 kind(crisis_event)로 고친 이력이 있다. 이후 관련 실행에서 승인 전 3문장 AST 계약이 새 옵션을 거부한 결과도 보존했다. 최종 171 PASS는 두 기존 검사를 수정한 뒤의 결과다. type/lint/cycles 및 exact SHA는 인수 영수증에 기록한다. 작성자가 독립 PASS나 전체 verify/CI/앱 확인을 대신 선언하지 않는다.
+첫 타깃 실행에는 검사 기대값의 outbox kind 오기(crisis_events)를 실제 kind(crisis_event)로 고친 이력이 있다. 이후 관련 실행에서 승인 전 3문장 AST 계약이 새 옵션을 거부한 결과도 보존했다. 최종 172 PASS는 두 기존 검사를 수정하고 route 완료 뒤 반환 경합 사례를 추가한 뒤의 결과다. type/lint/cycles 및 exact SHA는 인수 영수증에 기록한다. 작성자가 독립 PASS나 전체 verify/CI/앱 확인을 대신 선언하지 않는다.
 
 ## 후속
 

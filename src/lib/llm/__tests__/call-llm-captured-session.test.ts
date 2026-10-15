@@ -309,4 +309,21 @@ describe("chat local RED with a captured account session", () => {
     moveOwner(); finish(); await rejected;
     expect(mockEnqueueAuditWrite).toHaveBeenCalledTimes(stage); expect(observer).toHaveBeenCalledTimes(1); noEgressOrQuota();
   });
+
+  test("an owner hold after routing settles still fences the helper's returned result", async () => {
+    const capability = await session(); const observer = jest.fn();
+    let finish!: () => void; const pendingEvent = new Promise<void>(resolve => { finish = resolve; });
+    mockEnqueueAuditWrite.mockResolvedValueOnce(undefined).mockImplementationOnce(() => pendingEvent);
+    const result = classifyChatTextForCrisis(RED, "en", "user-a", false, { session: capability, onCrisisDetected: observer });
+    const rejected = expect(result).rejects.toMatchObject({ name: "AbortError" });
+    for (let i = 0; i < 6; i++) await Promise.resolve();
+    expect(mockEnqueueAuditWrite).toHaveBeenCalledTimes(2);
+    finish();
+    // The event writer resumes first; then routeCrisis gets its final fence.
+    // Put the owner hold after that continuation, before this helper resumes.
+    await Promise.resolve();
+    await Promise.resolve().then(() => moveOwner());
+    await rejected;
+    expect(observer).toHaveBeenCalledTimes(1); expect(mockEnqueueAuditWrite).toHaveBeenCalledTimes(2); noEgressOrQuota();
+  });
 });
