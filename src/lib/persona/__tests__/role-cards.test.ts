@@ -1,4 +1,4 @@
-import { interviewEvidenceExcerpt, loadRoleCards, parseRoleCards, ratifyRoleCard, roleEvidenceIds, roleInputFromInterviews } from "../role-cards";
+import { interviewEvidenceExcerpt, loadRoleCards, loadRoleCardsStrict, parseRoleCards, ratifyRoleCard, roleEvidenceIds, roleInputFromInterviews } from "../role-cards";
 import type { PersonaCard } from "../build";
 import type { SevenStarId } from "../seven-stars";
 import type { LadderLevel } from "../brightness";
@@ -8,6 +8,10 @@ import type { RoleCard } from "../role-cards";
 
 let mockStoredPatterns: Record<string, unknown> = {};
 let mockOnWrite: (() => void) | undefined;
+let mockReadReply: { data: unknown; error?: unknown } | undefined;
+const mockSelect = jest.fn();
+const mockEq = jest.fn();
+const mockUpdate = jest.fn();
 jest.mock("../../supabase/captured-session-client", () => ({ rpcWithCapturedSession: jest.fn().mockResolvedValue({ error: null }) }));
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
@@ -16,9 +20,10 @@ jest.mock("../../supabase/client", () => ({
       let pending: Record<string, unknown> | null = null;
       let writing = false;
       return {
-        select() { return this; },
-        eq() { return this; },
+        select(...args: unknown[]) { mockSelect(...args); return this; },
+        eq(...args: unknown[]) { mockEq(...args); return this; },
         update(payload: { patterns: Record<string, unknown> }) {
+          mockUpdate(payload);
           pending = payload.patterns;
           writing = true;
           return this;
@@ -29,7 +34,7 @@ jest.mock("../../supabase/client", () => ({
             mockOnWrite?.();
             return { data: { user_id: "u1" }, error: null };
           }
-          return { data: { patterns: mockStoredPatterns }, error: null };
+          return mockReadReply ?? { data: { patterns: mockStoredPatterns }, error: null };
         },
       };
     },
@@ -107,7 +112,7 @@ describe("life-star role-card input", () => {
 
 describe("role-card approval storage", () => {
   beforeEach(() => {
-    mockStoredPatterns = {}; mockOnWrite = undefined; noteResolvedOwner("u1");
+    mockStoredPatterns = {}; mockOnWrite = undefined; mockReadReply = undefined; noteResolvedOwner("u1");
     jest.mocked(rpcWithCapturedSession).mockReset().mockImplementation(async (name,args) => {
       if (name === "ratify_polaris_role_card") {
         const expected = args.p_card as RoleCard;
@@ -150,5 +155,62 @@ describe("role-card approval storage", () => {
     mockOnWrite = () => noteResolvedOwner("u2");
     await expect(ratifyRoleCard("u1",parseRoleCards(mockStoredPatterns.role_cards_v1)[0])).rejects.toThrow();
     expect(jest.mocked(rpcWithCapturedSession).mock.calls.map(([name]) => name)).toEqual(["ratify_polaris_role_card"]);
+  });
+});
+
+describe("display-only strict role read", () => {
+  const card = {
+    id: "builder", label: "Builder", summary: "Builds", status: "proposed",
+    evidenceRefs: ["record:11111111-1111-4111-8111-111111111111"],
+    evidence: { domains: ["work"], constructs: ["openness"] }, claimStrength: 2,
+  };
+  beforeEach(() => {
+    mockReadReply = undefined; mockStoredPatterns = {}; mockOnWrite = undefined;
+    mockSelect.mockClear(); mockEq.mockClear(); mockUpdate.mockClear();
+  });
+  afterEach(() => { expect(mockUpdate).not.toHaveBeenCalled(); });
+
+  it.each([null, { patterns: null }, { patterns: {} }, { patterns: { role_cards_v1: "[]" } }])(
+    "accepts confirmed absent or empty storage %#", async data => {
+      mockReadReply = { data };
+      await expect(loadRoleCardsStrict("u1")).resolves.toEqual([]);
+      expect(mockSelect.mock.calls).toEqual([["patterns"]]);
+      expect(mockEq.mock.calls).toEqual([["user_id", "u1"], ["version", 1]]);
+    },
+  );
+
+  it.each([
+    undefined, [], {}, { patterns: [] }, { patterns: "invalid" },
+    { patterns: { role_cards_v1: null } }, { patterns: { role_cards_v1: [] } },
+    { patterns: { role_cards_v1: "{" } }, { patterns: { role_cards_v1: "{}" } },
+    { patterns: { role_cards_v1: '[{"id":"broken"}]' } },
+    { patterns: { role_cards_v1: JSON.stringify([card, { id: "broken" }]) } },
+    { patterns: { role_cards_v1: JSON.stringify([card, card, card, { id: "broken" }]) } },
+  ].map(data => ({ data })))("rejects malformed storage without silently filtering cards %#", async ({ data }) => {
+    mockReadReply = { data };
+    await expect(loadRoleCardsStrict("u1")).rejects.toThrow();
+  });
+
+  it("preserves valid legacy card acceptance and the existing three-card cap", async () => {
+    const cards = [card, { ...card, id: "planner", status: "ratified" }, { ...card, id: "third" }, { ...card, id: "fourth" }];
+    mockStoredPatterns = { role_cards_v1: JSON.stringify(cards) };
+    await expect(loadRoleCardsStrict("u1")).resolves.toEqual(await loadRoleCards("u1"));
+    expect(await loadRoleCardsStrict("u1")).toEqual(cards.slice(0, 3));
+  });
+
+  it("leaves the permissive mutation reader's malformed fallback unchanged", async () => {
+    mockStoredPatterns = { role_cards_v1: "{" };
+    await expect(loadRoleCards("u1")).resolves.toEqual([]);
+    await expect(loadRoleCardsStrict("u1")).rejects.toThrow();
+  });
+
+  it("rejects a returned read error even when data looks empty", async () => {
+    const error = new Error("offline"); mockReadReply = { data: null, error };
+    await expect(loadRoleCardsStrict("u1")).rejects.toBe(error);
+  });
+
+  it("does not query without an owner", async () => {
+    await expect(loadRoleCardsStrict("")).rejects.toThrow();
+    expect(mockSelect).not.toHaveBeenCalled(); expect(mockEq).not.toHaveBeenCalled();
   });
 });

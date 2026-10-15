@@ -352,7 +352,7 @@ jest.mock("@/lib/persona/polaris-quota", () => ({
   loadPolarisQuotaStrict: (userId: string) => mockLoadPolarisQuota(userId),
 }));
 jest.mock("@/lib/persona/role-cards", () => ({
-  loadRoleCards: async () => [], claimQaPolarisAuto: async () => false,
+  loadRoleCards: async () => [], loadRoleCardsStrict: async () => [], claimQaPolarisAuto: async () => false,
   proposeRoleCards: (...args: unknown[]) => mockForbiddenLlm(...args),
   ratifyRoleCard: (...args: unknown[]) => mockMutationWriter("ratifyRoleCard", ...args),
 }));

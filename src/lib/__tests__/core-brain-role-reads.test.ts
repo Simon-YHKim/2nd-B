@@ -152,6 +152,42 @@ it("only a successful current empty role read displays empty categories", async(
   expect(categories(tree)).toHaveLength(1);expect(categories(tree)[0].props.cards).toEqual([]);
 });
 
+it.each([
+  ["bad JSON", { patterns: { role_cards_v1: "{" } }],
+  ["non-array JSON", { patterns: { role_cards_v1: "{}" } }],
+  ["invalid card shape", { patterns: { role_cards_v1: '[{"id":"broken"}]' } }],
+  ["array patterns", { patterns: [] }],
+  ["non-string role value", { patterns: { role_cards_v1: [] } }],
+])("malformed %s remains unread and cannot authorize eligible QA", async (_name, data) => {
+  mockEligible = true; mockOverride = q => roleQuery(q) ? { data } : undefined;
+  const tree = await settle();
+  expect(drawn(tree)).not.toContain("roleEmpty"); expect(categories(tree)).toHaveLength(0);
+  expect(drawn(tree)).toContain("roleLoadError"); expect(retrySlot(tree, "roles")).toBeDefined();
+  expect(drawn(tree)).toContain("generationAllowance"); noAuto();
+});
+
+it.each([null, { patterns: null }, { patterns: {} }, { patterns: { role_cards_v1: "[]" } }])(
+  "confirmed absent or empty roles still permit the first eligible QA proposal %#", async data => {
+    mockEligible = true; mockOverride = q => roleQuery(q) ? { data } : undefined;
+    await settle();
+    expect(claimQaPolarisAuto).toHaveBeenCalledTimes(1);
+    expect(mockStoreWrite).toHaveBeenCalledTimes(1); expect(proposeRoleCards).toHaveBeenCalledTimes(1);
+  },
+);
+
+it("recovering malformed storage retries only roles without restoring QA eligibility", async () => {
+  mockEligible = true;
+  mockOverride = q => roleQuery(q) ? { data: { patterns: { role_cards_v1: "{" } } } : undefined;
+  const failed = await settle(); noAuto();
+  const reads = mockQueries.length, statuses = mockStatusCalls.mock.calls.length;
+  mockOverride = q => roleQuery(q) ? { data: { patterns: { role_cards_v1: "[]" } } } : undefined;
+  retrySlot(failed, "roles").props.onPress!(); const recovered = await settle();
+  expect(drawn(recovered)).toContain("roleEmpty"); expect(categories(recovered)[0].props.cards).toEqual([]);
+  expect(retrySlot(recovered, "roles")).toBeUndefined();
+  expect(mockQueries.slice(reads)).toHaveLength(1); expect(mockQueries.slice(reads).every(roleQuery)).toBe(true);
+  expect(mockStatusCalls).toHaveBeenCalledTimes(statuses); noAuto();
+});
+
 it.each(["error","pending","empty","cards"])("the evidence-empty deck keeps role status %s",async mode=>{
   mockOverride=q=>q.table==="sources" || q.table==="records" ? {data:[]}
     :roleQuery(q)? mode==="error"?{data:null,error:new Error("offline")}:mode==="pending"?new Promise(()=>{}):mode==="cards"?rolesReply():{data:null}:undefined;

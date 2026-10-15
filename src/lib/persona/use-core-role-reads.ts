@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isTimeoutError, withTimeout } from "../async/with-timeout";
-import { loadRoleCards, type RoleCard } from "./role-cards";
+import { loadRoleCardsStrict, type RoleCard } from "./role-cards";
 import { loadPolarisQuotaStrict } from "./polaris-quota";
 
 export const CORE_ROLE_READ_TIMEOUT_MS = 10_000;
@@ -54,7 +54,7 @@ function useOwnedSlot<T>(owner: string | null, scope: object | null, isCurrent: 
 
 export function useCoreRoleReads(owner: string | null, scope: object | null,
   isCurrent: () => boolean, invalidateAuto: () => void) {
-  const roles = useOwnedSlot(owner, scope, isCurrent, invalidateAuto, loadRoleCards);
+  const roles = useOwnedSlot(owner, scope, isCurrent, invalidateAuto, loadRoleCardsStrict);
   const quota = useOwnedSlot(owner, scope, isCurrent, invalidateAuto, loadPolarisQuotaStrict);
   const key = useRef(scope); key.current = scope;
   const mutation = useRef<object | null>(null);
