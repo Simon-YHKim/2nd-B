@@ -36,7 +36,7 @@ import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView a
 // 내가 방금 찾아낸 결함을 내 손으로 다시 만드는 것이다. 그래서 지금은 위키를
 // 파라미터 없이 연다. 점프는 위키 회차(검색·지표와 같은 묶음)에서 받는 쪽을
 // 먼저 만들고 잇는다.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { Redirect } from "expo-router";
@@ -50,21 +50,17 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { DeepSpaceLoader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { listSources } from "@/lib/wiki/queries";
-import { downloadRawClipping } from "@/lib/wiki/storage";
+import { useSourcesRead, type SourceBodyState } from "@/lib/wiki/use-sources-read";
+import { accountEpochFromSnapshot, accountTransitionPendingFromSnapshot, accountTransitionSnapshot, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { readPhase1, runPhase1, type Phase1Result } from "@/lib/wiki/phase1";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { isProfileContextImportSource } from "@/lib/wiki/profile-context-source";
-import { fetchProfileImportedContext, type ProfileImportedContext } from "@/lib/supabase/profile-context-import";
 import { ProfileContextSummary } from "@/components/profile-import/summary";
 import type { SourceKind, SourceRow } from "@/lib/wiki/types";
 
 /** 미리보기로 보여 주는 앞부분 길이. 본문 전체는 열지 않는다 — 이 화면은
  *  읽는 자리가 아니라 **무엇이 들어왔는지 알아보는** 자리다. */
 const PREVIEW_CHARS = 600;
-
-/** 한 화면에서 다루는 최대 소스 수. 옛 화면과 같은 값. */
-const LIST_LIMIT = 100;
 
 const KIND_GLYPH: Readonly<Record<string, string>> = {
   article: "article",
@@ -85,8 +81,6 @@ function promptLocale(language: string | undefined): "en" | "ko" {
   return language?.toLowerCase().startsWith("ko") === true ? "ko" : "en";
 }
 
-type BodyState = { kind: "loading" } | { kind: "text"; text: string } | { kind: "context"; context: ProfileImportedContext } | { kind: "error" };
-
 function Loading() {
   return (
     <View style={s.loading}>
@@ -100,9 +94,10 @@ export function DeepSpaceSourcesScreen() {
   const router = useAppRouter();
   const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
+  const transition = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
 
   const title = t("ds.sources.title");
-  if (authLoading) {
+  if (authLoading || accountTransitionPendingFromSnapshot(transition)) {
     return (
       <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
         <Loading />
@@ -111,7 +106,7 @@ export function DeepSpaceSourcesScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  return <SourcesBody key={userId} userId={userId} title={title} />;
+  return <SourcesBody key={`${userId}:${accountEpochFromSnapshot(transition)}`} userId={userId} title={title} />;
 }
 
 function SourcesBody({ userId, title }: { userId: string; title: string }) {
@@ -120,55 +115,13 @@ function SourcesBody({ userId, title }: { userId: string; title: string }) {
   const { isMinor } = useAuth();
   const locale = promptLocale(i18n.language);
 
-  const [rows, setRows] = useState<SourceRow[] | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [bodyById, setBodyById] = useState<Record<string, BodyState>>({});
+  const read = useSourcesRead(userId);
+  const { rows } = read.list;
+  const { expandedId, load } = read;
   const [briefId, setBriefId] = useState<string | null>(null);
   const [pageId, setPageId] = useState<string | null>(null);
   const [openBrief, setOpenBrief] = useState<{ id: string; result: Phase1Result } | null>(null);
   const [notice, setNotice] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      setRows(await listSources(userId, { limit: LIST_LIMIT }));
-    } catch (e) {
-      console.warn("[sources] listSources failed", (e as Error).message);
-      setRows([]);
-      setNotice({ tone: "bad", text: t("ds.sources.loadError") });
-    }
-  }, [userId, t]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  // 본문은 펼칠 때 한 번만 받아 캐시한다. 실패는 캐시하되 **다시 누르면 다시
-  // 시도**한다 — 실패를 성공처럼 캐시하면 사용자는 영원히 같은 오류를 본다.
-  const toggleExpand = useCallback(
-    (row: SourceRow) => {
-      const next = expandedId === row.id ? null : row.id;
-      setExpandedId(next);
-      if (next === null) return;
-      const cached = bodyById[row.id];
-      if (cached !== undefined && (cached.kind === "text" || cached.kind === "context")) return;
-      setBodyById((prev) => ({ ...prev, [row.id]: { kind: "loading" } }));
-      if (isProfileContextImportSource(row.frontmatter)) {
-        void fetchProfileImportedContext(userId, row.id)
-          .then((context) => setBodyById((prev) => ({ ...prev, [row.id]: { kind: "context", context } })))
-          .catch(() => setBodyById((prev) => ({ ...prev, [row.id]: { kind: "error" } })));
-        return;
-      }
-      const inline = row.frontmatter?._body_fallback;
-      const fallback = typeof inline === "string" && inline.trim().length > 0 ? inline : null;
-      const read = row.storage_path?.trim()
-        ? downloadRawClipping(row.storage_path).catch(() => fallback)
-        : Promise.resolve(fallback);
-      void read
-        .then((text) => setBodyById((prev) => ({ ...prev, [row.id]: text === null ? { kind: "error" } : { kind: "text", text } })))
-        .catch(() => setBodyById((prev) => ({ ...prev, [row.id]: { kind: "error" } })));
-    },
-    [expandedId, bodyById, userId],
-  );
 
   const makeBrief = useCallback(
     async (row: SourceRow) => {
@@ -209,14 +162,6 @@ function SourcesBody({ userId, title }: { userId: string; title: string }) {
     [pageId, userId, load, t],
   );
 
-  if (rows === null) {
-    return (
-      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
-        <Loading />
-      </DeepSpaceScreen>
-    );
-  }
-
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
@@ -232,7 +177,16 @@ function SourcesBody({ userId, title }: { userId: string; title: string }) {
           </View>
         ) : null}
 
-        {rows.length === 0 ? (
+        {rows === null ? (
+          <View style={s.empty}>
+            <RNText style={[m3TextStyle("bodyMedium"), s.dim]} accessibilityLiveRegion="polite">
+              {read.list.status === "loading" ? "..." : t(read.list.status === "timeout" ? "common:errors.network" : "common:errors.unknown")}
+            </RNText>
+            {read.list.status === "error" || read.list.status === "timeout" ? <MdButton
+              label={t("common:actions.retry")} variant="text" onPress={read.retryList}
+              accessibilityLabel={t("common:actions.retry")} /> : null}
+          </View>
+        ) : rows.length === 0 ? (
           <View style={s.empty}>
             <RNText style={[m3TextStyle("bodyMedium"), s.dim]}>{t("ds.sources.empty")}</RNText>
             <MdButton
@@ -253,11 +207,12 @@ function SourcesBody({ userId, title }: { userId: string; title: string }) {
                 key={row.id}
                 row={row}
                 expanded={expandedId === row.id}
-                body={bodyById[row.id]}
+                body={expandedId === row.id ? read.body : undefined}
                 briefRunning={briefId === row.id}
                 pageRunning={pageId === row.id}
                 brief={openBrief !== null && openBrief.id === row.id ? openBrief.result : null}
-                onToggle={() => toggleExpand(row)}
+                onToggle={() => read.toggle(row)}
+                onRetryBody={read.retryPreview}
                 onMakeBrief={() => void makeBrief(row)}
                 onShowBrief={() => {
                   const stored = readPhase1(row.frontmatter);
@@ -284,11 +239,12 @@ function sourceTitle(row: SourceRow, t: (k: string) => string): string {
 interface CardProps {
   row: SourceRow;
   expanded: boolean;
-  body: BodyState | undefined;
+  body: SourceBodyState | undefined;
   briefRunning: boolean;
   pageRunning: boolean;
   brief: Phase1Result | null;
   onToggle: () => void;
+  onRetryBody: () => void;
   onMakeBrief: () => void;
   onShowBrief: () => void;
   onHideBrief: () => void;
@@ -342,7 +298,11 @@ function SourceCard(p: CardProps) {
           {p.body === undefined || p.body.kind === "loading" ? (
             <RNText style={[m3TextStyle("bodySmall"), s.dim]}>{t("ds.sources.previewLoading")}</RNText>
           ) : p.body.kind === "error" ? (
-            <RNText style={[m3TextStyle("bodySmall"), s.dim]}>{t("ds.sources.previewError")}</RNText>
+            <View>
+              <RNText style={[m3TextStyle("bodySmall"), s.dim]} accessibilityLiveRegion="polite">{t(p.body.errorKey)}</RNText>
+              <MdButton label={t("common:actions.retry")} variant="text" onPress={p.onRetryBody}
+                accessibilityLabel={t("common:actions.retry")} />
+            </View>
           ) : p.body.kind === "context" ? (
             <ProfileContextSummary context={p.body.context} />
           ) : (
