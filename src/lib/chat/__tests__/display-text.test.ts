@@ -97,7 +97,7 @@ test("copy, wiki capture, reply storage and citation navigation keep the origina
   expect(findCalls("composeExchangeBody")[0].arguments[0].getText(ast)).toContain("reply: reply.text");
   expect(findCalls("parseSourceCitations")[0].arguments[0].getText(ast)).toBe("result.reply.text");
   expect(source).toContain("text: twi.display, chips, branches: twi.branches, safetyZone: result.reply.safety?.zone");
-  expect(source).toContain("onPress={() => setRefDrawer(turn.chips ?? [])}");
+  expect(source).toContain("onPress={() => citedWiki.openDrawer(turn.chips ?? [])}");
   expect(source).toContain("onPress={() => openCitedPage(slug)}");
   const helper = readFileSync(resolve(__dirname, "../display-text.ts"), "utf8");
   expect(helper).not.toMatch(/\bimport\b/);

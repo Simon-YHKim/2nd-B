@@ -64,7 +64,7 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { retryableMessage } from "@/lib/chat/retry-failed";
 import { writeClipboardText } from "@/lib/capture/clipboard";
-import { getWikiPage } from "@/lib/wiki/queries";
+import { useCitedWikiPage } from "@/lib/chat/use-cited-wiki-page";
 import { LlmConsentError, transcribeAudio } from "@/lib/llm/boundary";
 import { ServiceConsentLink } from "@/components/consent/ServiceConsentLink";
 import { MdButton } from "@/components/m3";
@@ -642,6 +642,7 @@ function SecondBChatBody() {
     params.mode === "divergent" ? "twi" : "secondb",
   );
   function selectRev2Persona(id: Rev2PersonaId): void {
+    citedWiki.closeDrawer();
     setRev2Persona(id);
     setChatMode(rev2PersonaMode(id));
   }
@@ -661,8 +662,6 @@ function SecondBChatBody() {
   // Divergent turn is in flight. Holds at rest otherwise; static under reduced
   // motion. (Replaces the old dreamPink "벨라 신호" now that Divergent is a mode.)
   const divergentPulse = useRef(new Animated.Value(0.6)).current;
-  // Reference drawer (chat pack §6): the cited pieces of a tapped answer.
-  const [refDrawer, setRefDrawer] = useState<string[] | null>(null);
   // Funnel: fire ai_limit_hit at most once per mount when the daily cap is hit.
   const limitHitFiredRef = useRef(false);
   // The tier the server says to upgrade to (from a blocked turn). Falls back to
@@ -682,6 +681,10 @@ function SecondBChatBody() {
   // closed): users.privacy_prefs.ads resolves async, route from the live
   // pathname, tier/minor from context.
   const pathname = usePathname();
+  const citedWiki = useCitedWikiPage(userId, { conversation: conversationId, key: JSON.stringify([
+    rev2Persona, chatMode, pathname, params.fromNode, params.mode, params.panel,
+  ]) }, (pageId) => router.push({ pathname: "/wiki", params: { focusPageId: pageId } }));
+  const refDrawer = citedWiki.slugs;
   const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
   // 대화 자동 저장 동의 (chat_autosave). 같은 fetch 로 읽는다 - 왕복을 하나 더
   // 만들 이유가 없다. null 은 "아직 모른다" 이고, 그 상태에서는 자동 저장이
@@ -1070,46 +1073,9 @@ function SecondBChatBody() {
   const sendEnabled = !sending && underLimit;
   const hasTurns = turns.length > 0;
 
-  // -- One citation tap, one implementation ---------------------------------
-  // Citations are wiki-page slugs (lib/chat/sources.ts). Resolve the slug to a
-  // page id and deep-link it through /wiki?focusPageId, which the shipped wiki
-  // screen reads (dds-wiki-records-screens.tsx). A miss - no sign-in, an unknown
-  // slug, a failed query - still lands on the wiki list, which is what the tap
-  // used to do unconditionally.
-  //
-  // Hoisted out of the two drawers on purpose. The deep-space chrome resolved
-  // (med#23) while the legacy chrome carried a "once a slug->page resolver
-  // exists" note beside a bare router.push("/wiki") - a logic fork inside a file
-  // whose own header (line 216) promises the two chromes differ in CHROME only.
-  // The fork is now structurally impossible: both drawers call this.
-  //
-  // The lookup is async, so the tap outlives the account that made it. Supabase can
-  // publish owner A -> owner B with no signed-out frame (AuthContext supports that
-  // publication), and a continuation that still calls router.push moves B's app because
-  // of A's tap. This is not a read of A's writing - /wiki re-queries under B's user id
-  // and the query is owner-filtered - it is B's screen being taken somewhere B did not
-  // ask to go. So the owner lease is captured at tap time and both continuations check
-  // it, the same shape lib/ops uses around its permission prompts. A null lease means
-  // the published owner has already moved, so the tap is dropped rather than falling
-  // back to the list: landing B on the wiki list is the same wrong move, quieter.
-  const openCitedPage = (slug: string) => {
-    setRefDrawer(null);
-    if (!userId) {
-      router.push("/wiki");
-      return;
-    }
-    const lease = captureAccountOwnerLease(userId);
-    if (!lease) return;
-    void getWikiPage(userId, slug)
-      .then((page) => {
-        if (!lease.isCurrent()) return;
-        if (page) router.push({ pathname: "/wiki", params: { focusPageId: page.id } });
-        else router.push("/wiki");
-      })
-      .catch(() => {
-        if (lease.isCurrent()) router.push("/wiki");
-      });
-  };
+  // Citations carry slugs, not page IDs. The owned drawer resolves the chosen
+  // slug before navigation and keeps missing/failed reads visible for the user.
+  const openCitedPage = (slug: string) => citedWiki.openCitedPage(slug);
 
 
   // ── Deep-space chrome (real composer + real answers + citations + states) ──
@@ -1220,6 +1186,7 @@ function SecondBChatBody() {
                 if (sending || keeping !== null || keepInFlight.current || chatPlans.busy) return;
                 autosaveSessionRef.current?.stop();
                 autosaveSessionRef.current = null;
+                citedWiki.closeDrawer();
                 conversationId.current += 1;
                 setTurns([]);
                 setKeptIdx(new Set());
@@ -1366,7 +1333,7 @@ function SecondBChatBody() {
                   {turn.role === "secondb" && turn.chips && turn.chips.length > 0 ? (
                     <Pressable
                       style={ds.chipRow}
-                      onPress={() => setRefDrawer(turn.chips ?? [])}
+                      onPress={() => citedWiki.openDrawer(turn.chips ?? [])}
                       accessibilityRole="button"
                       accessibilityLabel={
                         t("drewOnPieces", { n: turn.chips.length })
@@ -1445,12 +1412,12 @@ function SecondBChatBody() {
         visible={refDrawer !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => setRefDrawer(null)}
+        onRequestClose={citedWiki.closeDrawer}
       >
         {/* Scrim: not a button (avoid nesting the drawer buttons in a web button). */}
         <Pressable
           style={ds.modalBackdrop}
-          onPress={() => setRefDrawer(null)}
+          onPress={citedWiki.closeDrawer}
           accessibilityLabel={t("closeReferenced")}
           accessibilityHint={t("closeReferencedHint")}
         >
@@ -1483,11 +1450,21 @@ function SecondBChatBody() {
                 >
                   <Text style={ds.drawerCardTitle}>{formatSourceCitationLabel(slug, t("deepspace:time.recordFallback"))}</Text>
                   <Text style={ds.drawerCardMeta}>{t("reference_piece_meta")}</Text>
+                  {citedWiki.slug === slug ? <Text style={ds.drawerCardMeta} accessibilityLiveRegion="polite">
+                    {citedWiki.status === "loading" ? "..." : t(citedWiki.status === "missing" ? "recordDetail:state.missingTitle"
+                      : citedWiki.status === "timeout" ? "common:errors.network" : "common:errors.unknown")}
+                  </Text> : null}
                 </Pressable>
               ))}
             </ScrollView>
+            {citedWiki.status === "error" || citedWiki.status === "timeout" ? <Pressable
+              onPress={citedWiki.retry}
+              style={ds.drawerClose}
+              accessibilityRole="button"
+              accessibilityLabel={t("common:actions.retry")}
+            ><Text style={ds.drawerCloseText}>{t("common:actions.retry")}</Text></Pressable> : null}
             <Pressable
-              onPress={() => setRefDrawer(null)}
+              onPress={citedWiki.closeDrawer}
               style={ds.drawerClose}
               accessibilityRole="button"
               accessibilityLabel={t("closeChip")}
