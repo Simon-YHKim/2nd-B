@@ -2,10 +2,16 @@ const mockCapturedInvoke = jest.fn();
 const mockGlobalInvoke = jest.fn();
 const mockClassifySafety = jest.fn();
 const mockEnqueueAuditWrite = jest.fn();
+const mockGetSession = jest.fn();
+const mockGlobalRpc = jest.fn();
+const mockGlobalFrom = jest.fn();
 
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
     functions: { invoke: (...args: unknown[]) => mockGlobalInvoke(...args) },
+    auth: { getSession: (...args: unknown[]) => mockGetSession(...args) },
+    rpc: (...args: unknown[]) => mockGlobalRpc(...args),
+    from: (...args: unknown[]) => mockGlobalFrom(...args),
   }),
 }));
 
@@ -42,7 +48,9 @@ jest.mock("@google/genai", () => ({
 }));
 
 import type { AuthenticatedAccountSessionLease } from "../../auth/account-session-lease";
-import { callLlm } from "../boundary";
+import { beginAccountSessionLease } from "../../auth/account-session-lease";
+import { __resetAccountEpochForTests, beginAccountOwnerTransition, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../auth/account-epoch";
+import { callLlm, classifyChatTextForCrisis } from "../boundary";
 
 function capturedSession(owner = "user-a") {
   let current = true;
@@ -196,5 +204,109 @@ describe("callLlm captured account session", () => {
       expect.objectContaining({ ownerUserId: "user-a" }),
       expect.objectContaining({ accessToken: "captured-token-a" }),
     );
+  });
+});
+
+describe("chat local RED with a captured account session", () => {
+  const releases: (() => void)[] = [];
+  const GREEN = "Today I went for a walk.";
+  const RED = "I want to die";
+  const noEgressOrQuota = () => {
+    expect(mockCapturedInvoke).not.toHaveBeenCalled(); expect(mockGlobalInvoke).not.toHaveBeenCalled();
+    expect(mockClassifySafety).not.toHaveBeenCalled(); expect(mockGlobalRpc).not.toHaveBeenCalled();
+    expect(mockGlobalFrom).not.toHaveBeenCalled();
+    expect(mockGetSession).toHaveBeenCalledTimes(1); // authentication, never a boundary re-read
+  };
+  async function session() {
+    const pending = beginAccountSessionLease("user-a"); releases.push(pending.release);
+    return pending.authenticate();
+  }
+  function moveOwner(aba = false) {
+    beginAccountOwnerTransition("user-b");
+    if (aba) {
+      noteResolvedOwner("user-b"); clearAccountTransition(currentAccountEpoch());
+      noteResolvedOwner("user-a"); clearAccountTransition(currentAccountEpoch());
+    }
+  }
+  beforeEach(() => {
+    jest.resetAllMocks(); __resetAccountEpochForTests(); noteResolvedOwner("user-a");
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: "user-a" }, access_token: "captured-chat-token" } }, error: null });
+    mockEnqueueAuditWrite.mockResolvedValue(undefined);
+  });
+  afterEach(() => { releases.splice(0).forEach(release => release()); __resetAccountEpochForTests(); });
+
+  test("GREEN returns null with no observer, audit, model, quota or second auth read", async () => {
+    const capability = await session(); const observer = jest.fn();
+    await expect(classifyChatTextForCrisis(GREEN, "en", "user-a", false, {
+      session: capability, signal: capability.signal, onCrisisDetected: observer,
+    })).resolves.toBeNull();
+    expect(observer).not.toHaveBeenCalled(); expect(mockEnqueueAuditWrite).not.toHaveBeenCalled(); noEgressOrQuota();
+  });
+
+  test.each([GREEN, RED])("owner mismatch is refused even before local routing: %s", async text => {
+    const capability = await session(); const observer = jest.fn();
+    await expect(classifyChatTextForCrisis(text, "en", "user-b", false, {
+      session: capability, onCrisisDetected: observer,
+    })).rejects.toThrow("llm_session_owner_mismatch");
+    expect(observer).not.toHaveBeenCalled(); expect(mockEnqueueAuditWrite).not.toHaveBeenCalled(); noEgressOrQuota();
+  });
+
+  test.each([GREEN, RED])("different signal is refused before local routing: %s", async text => {
+    const capability = await session(); const observer = jest.fn();
+    await expect(classifyChatTextForCrisis(text, "en", "user-a", false, {
+      session: capability, signal: new AbortController().signal, onCrisisDetected: observer,
+    })).rejects.toThrow("llm_session_signal_mismatch");
+    expect(observer).not.toHaveBeenCalled(); expect(mockEnqueueAuditWrite).not.toHaveBeenCalled(); noEgressOrQuota();
+  });
+
+  test.each(["abort", "hold", "ABA"])("%s before classification starts no audit or observer", async reason => {
+    const capability = await session(); const observer = jest.fn();
+    if (reason === "abort") capability.abort(); else moveOwner(reason === "ABA");
+    await expect(classifyChatTextForCrisis(RED, "en", "user-a", false, {
+      session: capability, onCrisisDetected: observer,
+    })).rejects.toMatchObject({ name: "AbortError" });
+    expect(observer).not.toHaveBeenCalled(); expect(mockEnqueueAuditWrite).not.toHaveBeenCalled(); noEgressOrQuota();
+  });
+
+  test.each(["abort", "hold", "ABA", "hold-and-throw"])("observer %s reentry fences the first audit", async reason => {
+    const capability = await session();
+    const observer = jest.fn(() => {
+      if (reason === "abort") capability.abort(); else moveOwner(reason === "ABA");
+      if (reason === "hold-and-throw") throw new Error("observer effect failed");
+    });
+    await expect(classifyChatTextForCrisis(RED, "en", "user-a", false, {
+      session: capability, onCrisisDetected: observer,
+    })).rejects.toMatchObject({ name: "AbortError" });
+    expect(observer).toHaveBeenCalledTimes(1); expect(observer).toHaveBeenCalledWith("GLOBAL_988");
+    expect(mockEnqueueAuditWrite).not.toHaveBeenCalled(); noEgressOrQuota();
+  });
+
+  test("an observer exception alone preserves both original captured ledgers", async () => {
+    const capability = await session(); const order: string[] = [];
+    mockEnqueueAuditWrite.mockImplementation(async (entry) => { order.push(entry.kind); });
+    const observer = jest.fn(() => { order.push("visible"); throw new Error("UI effect"); });
+    await expect(classifyChatTextForCrisis(RED, "en", "user-a", false, {
+      session: capability, onCrisisDetected: observer,
+    })).resolves.toMatchObject({ safety: { zone: "red", crisisRouting: { hotline: "GLOBAL_988" } } });
+    expect(order).toEqual(["visible", "ai_audit_log", "crisis_event"]); expect(observer).toHaveBeenCalledTimes(1);
+    for (const [entry, delivery] of mockEnqueueAuditWrite.mock.calls) {
+      expect(entry.ownerUserId).toBe("user-a");
+      expect(delivery).toMatchObject({ userId: "user-a", accessToken: "captured-chat-token", signal: capability.signal });
+      expect(delivery.assertCurrent).toBe(capability.assertCurrent);
+    }
+    noEgressOrQuota();
+  });
+
+  test.each([1, 2])("owner hold during audit %s prevents later audit/result without hiding the early notice", async stage => {
+    const capability = await session(); const observer = jest.fn();
+    let finish!: () => void; const pendingAudit = new Promise<void>(resolve => { finish = resolve; });
+    let calls = 0;
+    mockEnqueueAuditWrite.mockImplementation(() => ++calls === stage ? pendingAudit : Promise.resolve());
+    const result = classifyChatTextForCrisis(RED, "en", "user-a", false, { session: capability, onCrisisDetected: observer });
+    const rejected = expect(result).rejects.toMatchObject({ name: "AbortError" });
+    for (let i = 0; i < 6; i++) await Promise.resolve();
+    expect(observer).toHaveBeenCalledTimes(1); expect(mockEnqueueAuditWrite).toHaveBeenCalledTimes(stage);
+    moveOwner(); finish(); await rejected;
+    expect(mockEnqueueAuditWrite).toHaveBeenCalledTimes(stage); expect(observer).toHaveBeenCalledTimes(1); noEgressOrQuota();
   });
 });
