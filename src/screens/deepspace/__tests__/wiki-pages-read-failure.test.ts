@@ -2,13 +2,14 @@
 // Replace native views and Supabase transport; no server or model call runs.
 import type { ReactElement } from "react";
 import { hookHarness } from "../../../lib/nav/__tests__/hook-harness";
-import { beginAccountOwnerTransition, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../../lib/auth/account-epoch";
+import { __resetAccountEpochForTests, beginAccountOwnerTransition, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../../lib/auth/account-epoch";
 
 type Reply = { data: unknown; error: unknown };
 type Query = { table: string; owner: string; id?: string; columns?: string; limit?: number; order?: [string, unknown] };
 let mockHarness: ReturnType<typeof hookHarness>;
 let mockAuth = { userId: "owner-a" as string | null, loading: false };
 let mockParams: { focusPageId?: string } = {};
+let mockRouteFocused = true;
 let mockOverride: (query: Query) => Reply | Promise<Reply> | undefined;
 const mockQueries: Query[] = [];
 const pageRow = (id: string, owner = "owner-a", tags: string[] = []) => ({ id, user_id: owner, slug: id, title: id, body_md: `body ${id}`, kind: "note", tags, created_at: "2026-10-15T00:00:00Z", updated_at: "2026-10-15T00:00:00Z" });
@@ -31,7 +32,7 @@ jest.mock("../../../lib/supabase/client", () => ({ getSupabaseClient: () => ({ f
 } }) }));
 jest.mock("react-native", () => ({ Platform: { OS: "web" }, StyleSheet: { create: (value: unknown) => value } }));
 jest.mock("react-i18next", () => ({ useTranslation: () => ({ i18n: { language: "ko" }, t: (key: string, values?: Record<string, unknown>) => key + (values ? JSON.stringify(values) : "") }) }));
-jest.mock("expo-router", () => ({ Redirect: "Redirect", useFocusEffect: jest.fn() }));
+jest.mock("expo-router", () => ({ Redirect: "Redirect", useFocusEffect: (callback: () => void | (() => void)) => mockHarness.hooks.useEffect(() => mockRouteFocused ? callback() : undefined, [callback, mockRouteFocused]) }));
 jest.mock("@/components/phone/PhoneUIKit", () => ({ PhoneFlatList: "FlatList", PhonePressable: "Pressable", PhoneScrollView: "ScrollView", PhoneView: "View" }));
 jest.mock("@/components/motion/SceneTransition", () => ({ SceneTransition: "SceneTransition" }));
 jest.mock("@/components/ui/PlainText", () => ({ PlainText: "RNText" }));
@@ -61,14 +62,15 @@ beforeAll(() => {
   spies.push(jest.spyOn(React, "useMemo").mockImplementation(((fn: () => unknown, deps: readonly unknown[]) => mockHarness.hooks.useMemo(fn, deps)) as typeof React.useMemo));
   spies.push(jest.spyOn(React, "useCallback").mockImplementation(((fn: unknown, deps: readonly unknown[]) => mockHarness.hooks.useCallback(fn, deps)) as typeof React.useCallback));
   spies.push(jest.spyOn(React, "useEffect").mockImplementation(((fn: () => void | (() => void), deps: readonly unknown[]) => mockHarness.hooks.useEffect(fn, deps)) as typeof React.useEffect));
+  spies.push(jest.spyOn(React, "useSyncExternalStore").mockImplementation(((...args: Parameters<typeof React.useSyncExternalStore>) => mockHarness.hooks.useSyncExternalStore(args[0], args[1])) as typeof React.useSyncExternalStore));
   (globalThis as { React?: unknown }).React = React;
   const module = jest.requireActual<typeof import("../dds-wiki-records-screens")>("../dds-wiki-records-screens");
   Screen = module.DeepSpaceWikiScreen; timeoutMs = module.WIKI_PAGES_READ_TIMEOUT_MS;
 });
 afterAll(() => { spies.forEach((spy) => spy.mockRestore()); delete (globalThis as { React?: unknown }).React; });
 beforeEach(() => {
-  jest.useFakeTimers(); noteResolvedOwner("owner-a"); clearAccountTransition(currentAccountEpoch());
-  mockHarness = hookHarness(); mockAuth = { userId: "owner-a", loading: false }; mockParams = {}; mockQueries.length = 0; mockOverride = () => undefined;
+  jest.useFakeTimers(); __resetAccountEpochForTests(); noteResolvedOwner("owner-a"); clearAccountTransition(currentAccountEpoch());
+  mockHarness = hookHarness(); mockAuth = { userId: "owner-a", loading: false }; mockParams = {}; mockRouteFocused = true; mockQueries.length = 0; mockOverride = () => undefined;
 });
 afterEach(() => { mockHarness?.unmount(); jest.clearAllTimers(); jest.useRealTimers(); });
 
@@ -175,4 +177,88 @@ test("pre-publication hold blocks a new read and a same-owner return uses a fres
 test("unmount rejects late results without state writes", async () => {
   const old = deferred(); mockOverride = () => old.promise; await settle(); mockHarness.unmount();
   old.resolve({ data: [], error: null }); for (let i = 0; i < 25; i++) await Promise.resolve(); expect(mockHarness.dirty).toBe(false);
+});
+
+
+// These actual component cases replace the older partial-AST focus tests in
+// citation-opens-the-cited-page: the complete hook/query/render path now runs.
+const expanded = (tree: unknown, id: string) => nodes(tree).find((node) => node.props.accessibilityLabel === id)?.props.accessibilityState?.expanded === true;
+
+test("out-of-window citation failure is retryable and never opens the unrelated default row", async () => {
+  mockParams = { focusPageId: "old-cited" };
+  mockOverride = (query) => query.id ? { data: null, error: new Error("citation failed") } : undefined;
+  let tree = await settle(); expect(drawn(tree)).toContain("common:errors.unknown"); expect(drawn(tree)).not.toContain("recordDetail:state.missingTitle");
+  expect(expanded(tree, "owner-a-page")).toBe(false);
+  mockOverride = () => undefined; retry(tree)!.props.onPress!(); tree = await settle();
+  expect(drawn(tree)).toContain("body old-cited"); expect(expanded(tree, "old-cited")).toBe(true);
+  expect(mockQueries.filter((query) => query.id)).toHaveLength(2);
+  expect(mockQueries.filter((query) => !query.id)).toHaveLength(2); // Retry does not repeat the list or any mutation.
+});
+
+test("an out-of-window citation hang reaches 10 seconds and late completion cannot replace retry", async () => {
+  const slow = deferred(); mockParams = { focusPageId: "old-cited" }; mockOverride = (query) => query.id ? slow.promise : undefined;
+  let tree = await settle(); expect(drawn(tree)).toContain("..."); expect(expanded(tree, "owner-a-page")).toBe(false);
+  jest.advanceTimersByTime(9_999); expect(retry(await settle())).toBeUndefined();
+  jest.advanceTimersByTime(1); tree = await settle(); expect(drawn(tree)).toContain("common:errors.network");
+  mockOverride = () => undefined; retry(tree)!.props.onPress!(); tree = await settle(); expect(drawn(tree)).toContain("body old-cited");
+  slow.resolve({ data: pageRow("stale-cited"), error: null }); tree = await settle(); expect(drawn(tree)).not.toContain("stale-cited"); expect(expanded(tree, "old-cited")).toBe(true);
+});
+
+test("a successful missing citation is distinct from failure and does not open another record", async () => {
+  mockParams = { focusPageId: "missing" }; mockOverride = (query) => query.id ? { data: null, error: null } : undefined;
+  const tree = await settle(); expect(drawn(tree)).toContain("recordDetail:state.missingTitle"); expect(drawn(tree)).not.toContain("common:errors.unknown");
+  expect(retry(tree)).toBeUndefined(); expect(expanded(tree, "owner-a-page")).toBe(false);
+});
+
+test("an empty successful list cannot disguise the failed citation as an empty-library prompt", async () => {
+  mockParams = { focusPageId: "old-cited" }; mockOverride = (query) => query.id ? { data: null, error: new Error("failed") } : { data: [], error: null };
+  const tree = await settle(); expect(drawn(tree)).toContain("common:errors.unknown"); expect(drawn(tree)).not.toContain("wiki.emptyAll"); expect(drawn(tree)).not.toContain("wiki.addPiece");
+});
+
+test("each successful sequential citation is pinned, while ordinary rerenders preserve a manual row choice", async () => {
+  mockParams = { focusPageId: "first-cited" }; let tree = await settle(); expect(expanded(tree, "first-cited")).toBe(true);
+  nodes(tree).find((node) => node.props.accessibilityLabel === "owner-a-page")!.props.onPress!(); tree = await settle(); expect(expanded(tree, "owner-a-page")).toBe(true);
+  mockParams = { focusPageId: "second-cited" }; expect(expanded(render(), "owner-a-page")).toBe(false);
+  tree = await settle(); expect(expanded(tree, "second-cited")).toBe(true); expect(drawn(tree)).not.toContain("first-cited");
+  expect(mockQueries.filter((query) => query.id).map((query) => query.id)).toEqual(["first-cited", "second-cited"]);
+});
+
+test("manual selection while a citation is pending is not overwritten by its late success", async () => {
+  const slow = deferred(); mockParams = { focusPageId: "old-cited" }; mockOverride = (query) => query.id ? slow.promise : undefined;
+  let tree = await settle(); nodes(tree).find((node) => node.props.accessibilityLabel === "owner-a-page")!.props.onPress!();
+  slow.resolve({ data: pageRow("old-cited"), error: null }); tree = await settle(); expect(expanded(tree, "owner-a-page")).toBe(true); expect(expanded(tree, "old-cited")).toBe(false);
+});
+
+test("replaced citation target rejects the first target's late result and retry callback", async () => {
+  mockParams = { focusPageId: "first-cited" }; mockOverride = (query) => query.id === "first-cited" ? { data: null, error: new Error("failed") } : undefined;
+  const first = await settle(); const staleRetry = retry(first)!.props.onPress!;
+  const slow = deferred(); mockOverride = (query) => query.id === "second-cited" ? slow.promise : undefined;
+  mockParams = { focusPageId: "second-cited" }; await settle(); const calls = mockQueries.length; staleRetry(); await settle(); expect(mockQueries).toHaveLength(calls);
+  mockParams = { focusPageId: "third-cited" }; let tree = await settle(); expect(expanded(tree, "third-cited")).toBe(true);
+  slow.resolve({ data: pageRow("second-cited"), error: null }); tree = await settle(); expect(drawn(tree)).not.toContain("second-cited"); expect(expanded(tree, "third-cited")).toBe(true);
+});
+
+test("fetched citation A disappears before B reads, including when B asks for the same ID", async () => {
+  mockParams = { focusPageId: "cited" }; mockOverride = (query) => query.id ? { data: query.owner === "owner-a" ? pageRow("cited", "owner-a", ["private-a-tag"]) : null, error: null } : undefined;
+  let tree = await settle(); expect(drawn(tree)).toContain("body cited"); expect(drawn(tree)).toContain("private-a-tag");
+  noteResolvedOwner("owner-b"); clearAccountTransition(currentAccountEpoch()); mockAuth.userId = "owner-b";
+  expect(drawn(render())).not.toContain("body cited"); tree = await settle(); expect(drawn(tree)).not.toContain("private-a-tag"); expect(drawn(tree)).not.toContain("body cited");
+  expect(drawn(tree)).toContain("recordDetail:state.missingTitle"); expect(expanded(tree, "owner-b-page")).toBe(false);
+  expect(mockQueries.filter((query) => query.id).map((query) => query.owner)).toEqual(["owner-a", "owner-b"]);
+});
+
+test("publication hold and same-owner ABA retire the old citation result and retry", async () => {
+  mockParams = { focusPageId: "cited" }; mockOverride = (query) => query.id ? { data: null, error: new Error("failed") } : undefined;
+  const staleRetry = retry(await settle())!.props.onPress!; beginAccountOwnerTransition(null); await settle(); const calls = mockQueries.length; staleRetry(); await settle(); expect(mockQueries).toHaveLength(calls);
+  noteResolvedOwner(null); noteResolvedOwner("owner-a"); clearAccountTransition(currentAccountEpoch()); mockOverride = () => undefined;
+  let tree = await settle(); expect(expanded(tree, "cited")).toBe(true); const freshCalls = mockQueries.length; staleRetry(); tree = await settle(); expect(mockQueries).toHaveLength(freshCalls); expect(expanded(tree, "cited")).toBe(true);
+});
+
+test("blur/unmount cancel the focused read wait, and refocus retries a failed citation", async () => {
+  const slow = deferred(); mockParams = { focusPageId: "cited" }; mockOverride = (query) => query.id ? slow.promise : undefined;
+  await settle(); mockRouteFocused = false; await settle(); expect(jest.getTimerCount()).toBe(0);
+  mockOverride = () => undefined; mockRouteFocused = true; let tree = await settle(); expect(expanded(tree, "cited")).toBe(true);
+  slow.reject(new Error("old focus failure")); tree = await settle(); expect(retry(tree)).toBeUndefined();
+  const last = deferred(); mockParams = { focusPageId: "unmounted" }; mockOverride = (query) => query.id ? last.promise : undefined; await settle(); mockHarness.unmount();
+  last.resolve({ data: pageRow("unmounted"), error: null }); for (let i = 0; i < 25; i++) await Promise.resolve(); expect(mockHarness.dirty).toBe(false); expect(jest.getTimerCount()).toBe(0);
 });

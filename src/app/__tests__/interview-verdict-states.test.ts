@@ -1,3 +1,6 @@
+import { INTERVIEW_DRAFT_TTL_MS } from "../../lib/interview/draft-codec";
+import { encodeInterviewDraftSnapshot, type InterviewDraftSnapshot, type InterviewStableSnapshot } from "../../lib/interview/draft-snapshot";
+import { prepareInterviewDraftRestore } from "../../lib/interview/draft-restore";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as ts from "typescript";
@@ -192,4 +195,116 @@ test("the current neutral question retains T34 same-render ownership and quota r
   reject({ context: new Response(JSON.stringify({ error: "purpose_limit_exceeded", feature: INTERVIEW_PURPOSE }), { status: 429 }) });
   await pending; expect(h.state).toEqual({ ...before, notice: "drill.dayLimit" });
   expect(h.state.turns.some(t => t.answered === null)).toBe(true);
+});
+
+// The dormant v2 codec consumes the outcomes of the actual screen callbacks above.
+// No copied send/ask logic and no storage/UI activation is used for these roundtrips.
+function snapshotOf(h: ReturnType<typeof setup>, phase: InterviewStableSnapshot["phase"] = "active",
+  endReason: InterviewStableSnapshot["endReason"] = null): InterviewDraftSnapshot {
+  return { v: 2, ownerId: "A", draftId: "screen-draft", revision: 4, createdAt: 1000,
+    expiresAt: 1000 + INTERVIEW_DRAFT_TTL_MS, contentGeneration: "content-1", period: "work",
+    uiLanguage: h.scope.locale, conversationLocale: h.scope.locale, growthOrigin: false,
+    state: { turns: h.state.turns, draft: h.state.draft, inputRevision: h.scope.draftEditRevision.current,
+      pendingLayer: h.state.pendingLayer, openers: h.state.openers, stuckStreak: h.state.stuckStreak,
+      abandoned: h.state.abandoned, concreteOnly: h.state.concreteOnly, phase, endReason,
+      crisisHotline: phase === "crisis-ended" ? h.scope.publishCrisisNotice.mock.calls.at(-1)?.[1] : null,
+      notice: h.state.notice as InterviewStableSnapshot["notice"],
+      coverage: { base: emptyCoverage(), current: h.state.coverage, baseline: "confirmed" } }, pending: null };
+}
+function roundtrip(value: InterviewDraftSnapshot) {
+  const context = { ownerId: "A", accountEpoch: currentAccountEpoch(), viewGeneration: 1,
+    inputRevision: 0, content: { status: "confirmed" as const, generation: "content-1" } };
+  const result = prepareInterviewDraftRestore(encodeInterviewDraftSnapshot(value), context, context, 1001);
+  if (result.status !== "restored") throw new Error(`Unexpected restore ${result.status}`);
+  expect(result.draft).toEqual(value);
+  return result;
+}
+
+test.each([
+  ["fact", true, 1], [undefined, true, 1], ["none", false, 0], ["belief", null, 0],
+] as const)("v2 preserves the actual safe %s verdict, asked layer, coverage and question", async (verdict, answered, credit) => {
+  const h = setup(); await h.submit(verdict);
+  const result = roundtrip(snapshotOf(h));
+  expect(result.draft.state.turns.find(turn => turn.role === "user")?.answered).toBe(answered);
+  expect(result.draft.state.coverage.current.work.fact).toBe(credit);
+  expect(result.draft.state.pendingLayer).toBe(credit ? "feeling" : "fact");
+  expect(result.next).toBe("resume-choice"); expect(llm).toHaveBeenCalledTimes(1);
+});
+
+test.each([false, true])("v2 keeps actual quota rollback and late edit=%s, without a rejected user turn", async lateEdit => {
+  const h = setup(); await h.submit("none"); await h.submit("belief", 1);
+  h.state.draft = h.text; h.state.openers = ["Original opener"];
+  const before = snapshotOf(h); let reject!: (error: unknown) => void;
+  llm.mockImplementationOnce(() => new Promise((_yes, no) => { reject = no; }) as never);
+  const pending = h.render().send();
+  if (lateEdit) { h.scope.draftEditRevision.current++; h.state.draft = "Newer unsent edit"; }
+  reject({ context: new Response(JSON.stringify({ error: "purpose_limit_exceeded", feature: INTERVIEW_PURPOSE }), { status: 429 }) });
+  await pending;
+  const result = roundtrip(snapshotOf(h));
+  expect(result.draft.state.turns).toEqual(before.state.turns);
+  expect(result.draft.state.pendingLayer).toBe(before.state.pendingLayer);
+  expect(result.draft.state.openers).toEqual(before.state.openers);
+  expect(result.draft.state.stuckStreak).toBe(before.state.stuckStreak);
+  expect(result.draft.state.abandoned).toEqual(before.state.abandoned);
+  expect(result.draft.state.draft).toBe(lateEdit ? "Newer unsent edit" : h.text);
+  expect(result.draft.state.notice).toBe("drill.dayLimit");
+  expect(llm).toHaveBeenCalledTimes(3);
+});
+
+test("v2 preserves actual non-quota failure as unsettled, never a successful missing verdict", async () => {
+  const h = setup(); h.state.draft = h.text;
+  llm.mockRejectedValueOnce({ context: new Response(JSON.stringify({ error: "rate_limited" }), { status: 429 }) });
+  await h.render().send(); const result = roundtrip(snapshotOf(h));
+  expect(result.draft.state.turns.at(-1)).toMatchObject({ unsettled: true });
+  expect(result.draft.state.turns.at(-1)?.answered).toBeUndefined();
+  expect(result.draft.state.coverage.current).toEqual(emptyCoverage());
+  expect(result.draft.state.notice).toBe("drill.failed");
+});
+
+test("v2 captures an actual in-flight send without auto-running or letting its eventual answer mutate the copy", async () => {
+  const h = setup(); h.state.draft = h.text;
+  const before = snapshotOf(h).state; let settle!: (value: unknown) => void;
+  llm.mockImplementationOnce(() => new Promise(resolve => { settle = resolve; }) as never);
+  const sent = h.render().send();
+  const value = snapshotOf(h); value.pending = { kind: "request", requestId: "request-1", submittedAnswer: h.text,
+    inputRevision: before.inputRevision, before };
+  const result = roundtrip(value);
+  expect(result.next).toBe("request-unconfirmed"); expect(result.draft.state.turns.at(-1)?.answered).toBeUndefined();
+  expect(result.draft.state.coverage.current).toEqual(emptyCoverage()); expect(llm).toHaveBeenCalledTimes(1);
+  settle({ text: JSON.stringify({ answeredLayer: "fact", question: "Next question?" }), safety: { zone: "green" } });
+  await sent; expect(h.state.coverage.work.fact).toBe(1);
+  expect(result.draft.state.coverage.current.work.fact).toBe(0);
+  expect(result.draft.state.turns.at(-1)?.answered).toBeUndefined();
+});
+
+test.each(["input", "output"])("v2 keeps actual %s crisis termination and never adds input crisis to the transcript", async input => {
+  const h = setup("ko", true); h.state.draft = input === "input" ? "죽고 싶어요" : h.text;
+  if (input === "output") llm.mockResolvedValueOnce({ text: "", safety: { zone: "red", crisisRouting: { hotline: "KR_1388" } } } as never);
+  await h.render().send();
+  expect(h.state.done).toBe(true); expect(h.scope.ended.current).toBe(true);
+  const result = roundtrip(snapshotOf(h, "crisis-ended", "crisis"));
+  expect(result.next).toBe("ended"); expect(result.draft.state.pendingLayer).toBeNull();
+  expect(result.draft.state.coverage.current).toEqual(emptyCoverage());
+  if (input === "input") expect(result.draft.state.turns.some(turn => turn.text === h.state.draft)).toBe(false);
+  expect(h.scope.publishCrisisNotice).toHaveBeenCalledTimes(1);
+});
+
+test("v2 keeps the actual user finish while a safe response arrives late", async () => {
+  const h = setup(); h.state.draft = h.text; let settle!: (value: unknown) => void;
+  llm.mockImplementationOnce(() => new Promise(resolve => { settle = resolve; }) as never);
+  const sent = h.render().send(); h.scope.finish();
+  const result = roundtrip(snapshotOf(h, "ended", "user-stop"));
+  expect(result.next).toBe("ended");
+  settle({ text: JSON.stringify({ answeredLayer: "fact", question: "Next question?" }), safety: { zone: "green" } });
+  await sent; expect(h.state.coverage).toEqual(emptyCoverage());
+  expect(result.draft.state.phase).toBe("ended"); expect(llm).toHaveBeenCalledTimes(1);
+});
+
+
+test.each(["KR_119", "KR_112"])("v2 retains the actual output-crisis %s route without publishing it again", async hotline => {
+  const h = setup(); h.state.draft = h.text;
+  llm.mockResolvedValueOnce({ text: "", safety: { zone: "red", crisisRouting: { hotline } } } as never);
+  await h.render().send(); const result = roundtrip(snapshotOf(h, "crisis-ended", "crisis"));
+  expect(result.draft.state.crisisHotline).toBe(hotline); expect(result.next).toBe("ended");
+  expect(h.scope.publishCrisisNotice).toHaveBeenCalledTimes(1); expect(llm).toHaveBeenCalledTimes(1);
 });

@@ -107,6 +107,8 @@ describe("a wiki page id is never used as a record id", () => {
     expect(src).toMatch(/useScreenParams<\{ focusPageId\?: string \}>\(\)/);
     expect(src).toMatch(/setExpandedId\(focusPageId\)/);
     // And it must not blow past a stale/foreign id: guard on the page actually existing.
-    expect(src).toMatch(/pages\.some\(\(p\) => p\.id === focusPageId\)/);
+    expect(src).toContain("useFocusedWikiPage(userId, focusPageId, pages,");
+    const focusedRead = read(join(ROOT, "src/lib/wiki/use-focused-wiki-page.ts"));
+    expect(focusedRead).toMatch(/pages\.find\(\(page\) => page\.id === focusPageId\)/);
   });
 });

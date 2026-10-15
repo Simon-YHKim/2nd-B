@@ -295,6 +295,12 @@ describe("deep-space records source detail routing", () => {
     // retry and unread counts; citation lookup waits for a successful list.
     // The ab56c928 baseline reproduces 24f3475e above; this slice changes
     // 12,132 -> 12,697 chars. The neighboring records renderer is unchanged.
-    expect(sha256(wiki)).toBe("9b7973b102c1cfc223123dfe7b59d65ce622db32e02af526c4e884e9c5a8f417");
+    // 2026-10-16 T43: focused citations now use an owner/epoch/target/attempt
+    // read hook with timeout/error/missing states and read-only retry. Successful
+    // manual row selection stays separate from pending citation expansion.
+    // The eaca1221 base reproduces 9b7973b1 above; the neighboring records
+    // renderer remains byte-identical (a4183028). Actual screen/query lifecycle
+    // regressions live in wiki-pages-read-failure.test.ts.
+    expect(sha256(wiki)).toBe("6ec96f4a734f4973641981a3e19a2931a9f6b0f68605e089ff3b24ca452f1169");
   });
 });
