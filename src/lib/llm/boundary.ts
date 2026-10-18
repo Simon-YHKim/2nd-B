@@ -24,13 +24,14 @@ import {
 import type { LlmVendor } from "./routing";
 import { retrieveEvidence } from "../knowledge/retrieve";
 import { loadDomainLevels } from "../persona/load-domain-levels";
-import { classifyInput, classifyInputAnyLocale, crisisHotlines, type SafetyResult } from "../safety/classifier";
+import { classifyInput, classifyInputAnyLocale, type SafetyResult } from "../safety/classifier";
 import { hasCrisisObfuscation } from "../safety/crisis-obfuscation";
+import { createCrisisRouting, crisisObserver, inspectProxyCrisisRejection } from "../safety/crisis-route";
 import { getSupabaseClient } from "../supabase/client";
 import { invokeFunctionWithCapturedSession } from "../supabase/captured-session-client";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
 import { enqueueAuditWrite } from "./audit-write-outbox";
-import { classifierReportedCategories, classifyObfuscatedInput, classifySafety, emergencyGuidance, emergencyRoute, fixedCrisisResponse, noteObfuscationUnavailable, parseEmergencyLane, recordableCrisisCategories, replySwapCategories } from "./safety";
+import { classifierReportedCategories, classifyObfuscatedInput, classifySafety, emergencyRoute, fixedCrisisResponse, noteObfuscationUnavailable, recordableCrisisCategories, replySwapCategories } from "./safety";
 import {
   MODELS,
   PURPOSE_TIER,
@@ -44,20 +45,6 @@ import {
   type CrisisObserver,
   type ReasoningEffort,
 } from "./types";
-
-// Optional UI guidance runs once, after the same ownership/cancellation fence
-// as the result. Only routing metadata crosses this callback; UI exceptions
-// cannot skip the audit path or change the standard result.
-function crisisObserver(observer: CrisisObserver | undefined, fence: () => void): CrisisObserver | undefined {
-  if (!observer) return undefined;
-  let notified = false;
-  return (hotline) => {
-    fence();
-    if (notified) return;
-    notified = true;
-    try { observer(hotline); } catch { /* The audited result still follows. */ }
-  };
-}
 
 // Web Crypto SubtleCrypto fallback to a simple non-cryptographic hash when
 // running outside a browser/RN runtime (e.g. node tests). Audit hashes are
@@ -357,11 +344,6 @@ const MOCK_RESPONSES: Record<
   },
 };
 
-type ProxyCrisisDecision = {
-  route: boolean;
-  confirmedMarker: boolean; lane?: import("../safety/emergency-routing").EmergencyLane | null;
-};
-
 export type LlmConsentErrorCode = "consent_required" | "consent_check_unavailable";
 
 /** A server consent refusal is terminal across providers, including collect mode. */
@@ -392,200 +374,15 @@ async function inspectProxyConsentRejection(error: unknown): Promise<LlmConsentE
   }
 }
 
-// C9 fallback (2026-06-10 audit follow-up): gemini-proxy is the second,
-// server-authoritative crisis gate. When a crisis phrasing slips past the
-// client lexicon but the proxy's hasCrisisTerm catches it, functions.invoke
-// rejects with a FunctionsHttpError (status 422). Treat unreadable 422 bodies
-// as a UX fail-safe (show the fixed hotline template) but only write the
-// restricted crisis_events row when the proxy marker is explicit.
-async function inspectProxyCrisisRejection(error: unknown): Promise<ProxyCrisisDecision> {
-  const noRoute = { route: false, confirmedMarker: false };
-  if (!error || typeof error !== "object") return noRoute;
-  const ctx = (error as { context?: { status?: number; clone?: unknown; json?: unknown } })
-    .context;
-  if (!ctx || typeof ctx !== "object" || ctx.status !== 422) return noRoute;
-  try {
-    const target =
-      typeof ctx.clone === "function"
-        ? ((ctx.clone as () => { json?: () => Promise<unknown> })())
-        : (ctx as { json?: () => Promise<unknown> });
-    if (typeof target.json !== "function") return { route: true, confirmedMarker: false };
-    const body = (await target.json()) as { error?: unknown; crisis_lane?: unknown } | null;
-    if (body?.error === "safety_red_zone") return { route: true, confirmedMarker: true, lane: parseEmergencyLane(body.crisis_lane) };
-    return noRoute;
-  } catch {
-    return { route: true, confirmedMarker: false };
-  }
-}
-
-// RED SafetyResult for a proxy-detected crisis. The client classifier
-// returned green/yellow, so there is no matched-term list — the proxy body
-// intentionally never echoes the matched term (no oracle).
-function proxyCrisisSafetyResult(locale: "en" | "ko", minor = false, lane?: unknown): SafetyResult {
-  const h = crisisHotlines(locale, minor)[0];
-  return {
-    zone: "red",
-    matched: [],
-    categories: ["crisis"],
-    crisisRouting: emergencyRoute(lane) ?? { hotline: h.id, label: h.label, number: h.number },
-  };
-}
-
-// C9 fallback for record saves that do NOT pass through callAdvisor/callLlm
-// at all (free-tier journal, advisor toggle off, plain notes — persona sim
-// P1-1): classify locally (zero LLM cost) and, on red, run the SAME audited
-// crisis routing as every LLM surface (ai_audit_log + crisis_events + the
-// fixed hotline text). Returns null when the text is not red.
-export async function classifyRecordTextForCrisis(
-  text: string,
-  locale: "en" | "ko",
-  userId: string,
-  minor = false,
-  session?: AuthenticatedAccountSessionLease,
-): Promise<LlmResult<string> | null> {
-  session?.assertCurrent();
-  // Dual-locale, same as the chat input path (callLlm): catch a crisis term
-  // written in a language other than the UI locale (a ko-UI user typing English
-  // self-harm text, or vice versa). The note-save path previously used the
-  // single-locale classifier, so cross-locale crisis captures were missed here
-  // while the chat path caught them (persona-validate: crisis-lexicon parity).
-  const safety = classifyInputAnyLocale(text, locale, { minor });
-  if (safety.zone !== "red") return null;
-  return routeCrisis(safety, locale, userId, djb2(text), minor, "record_save_red", { session });
-}
-
-// Interview answers are classified by the screen before any non-answer or
-// coverage logic. RED still needs the same C3/DPIA ledgers as an LLM boundary
-// interception, with an honest interview source and purpose. GREEN returns
-// null and therefore performs no write and no model call.
-export async function classifyInterviewTextForCrisis(
-  text: string,
-  locale: "en" | "ko",
-  userId: string,
-  minor = false,
-): Promise<LlmResult<string> | null> {
-  const safety = classifyInputAnyLocale(text, locale, { minor });
-  if (safety.zone !== "red") return null;
-  return routeCrisis(safety, locale, userId, djb2(text), minor, "interview_input_red", {
-    purpose: "interview_probe",
-  });
-}
-
-export interface InterviewCrisisRoutingInput {
-  text: string;
-  locale: "en" | "ko";
-  userId: string;
-  minor?: boolean;
-}
-
-export interface InterviewCrisisRoutingRun {
-  started: boolean;
-  done: Promise<LlmResult<string> | null>;
-}
-
-// The screen owns the synchronous classifier and calls this only for RED.
-// Guard + visibility happen synchronously before either ledger can wait on the
-// network. The returned promise remains observable so the caller can handle a
-// rejected background write without delaying the hotline UI.
-export function startInterviewCrisisRouting(
-  guard: { current: boolean },
-  input: InterviewCrisisRoutingInput,
-  onVisible: () => void,
-  onSettled: () => void,
-): InterviewCrisisRoutingRun {
-  if (guard.current) return { started: false, done: Promise.resolve(null) };
-  guard.current = true;
-  onVisible();
-  const done = classifyInterviewTextForCrisis(
-    input.text,
-    input.locale,
-    input.userId,
-    input.minor,
-  ).finally(() => {
-    guard.current = false;
-    onSettled();
-  });
-  return { started: true, done };
-}
-
-async function routeCrisis(
-  result: SafetyResult,
-  locale: "en" | "ko",
-  userId: string,
-  promptHash: string,
-  minor = false,
-  sourceTag = "input_red",
-  opts: {
-    recordCrisisEvent?: boolean;
-    purpose?: string;
-    session?: AuthenticatedAccountSessionLease;
-    classifierConfidence?: number;
-  } = {},
-): Promise<LlmResult<string>> {
-  if (opts.session?.userId !== undefined && opts.session.userId !== userId) {
-    throw new Error("llm_session_owner_mismatch");
-  }
-  opts.session?.assertCurrent();
-  // Same hotline set as the Advisor path (single source of truth):
-  // KO adult -> 109, KO minor -> 1388 + 109, EN -> 988.
-  const numbers = crisisHotlines(locale, minor).map((hl) => hl.number);
-  const joined = locale === "ko" ? numbers.join(" 또는 ") : numbers.join(" or ");
-  const text = emergencyGuidance(result.crisisRouting?.hotline, locale)?.text ?? (
-    locale === "ko"
-      ? `지금 많이 힘드신 것 같아요. 혼자 견디지 마시고 ${joined}로 연락해 주세요. 전문가가 24시간 함께합니다.`
-      : `It sounds like you're going through a lot right now. Please reach out to ${joined} - trained responders are available 24/7.`);
-  const audit = {
-    promptHash,
-    outputHash: djb2(text),
-    modelUsed: "none-crisis-routed",
-    vertexBackend: false,
-    safetyZone: "red" as const,
-    latencyMs: 0,
-    // 0095: attribute the intercepted call's purpose when the caller had one
-    // (callLlm paths); record-save scans have no PromptPurpose — NULL row.
-    ...(opts.purpose ? { purpose: opts.purpose } : {}),
-  };
-  // C3: crisis routing MUST be audited. The whole point of audit_log is an
-  // audit trail proving the safety classifier intercepted dangerous input.
-  await writeAiAuditLog(
-    userId,
-    audit,
-    "[ai_audit_log] crisis insert failed",
-    opts.session,
-  );
-  // Separate restricted ledger (crisis_events), parity with callAdvisor's input-RED
-  // path. Without this every callLlm surface (chat/journal/interview/persona/
-  // import/clipper/phase1) intercepted a crisis but left NO categorical trace in the
-  // restricted log. Map the classifier fields conservatively (RED confidence
-  // 0.95 like lexiconToResult unless a semantic input supplied its measured value;
-  // no C-SSRS level;
-  // categories else "lexicon_match", tagged with sourceTag — input_red for the
-  // client short-circuit, proxy_input_red for a confirmed server-gate 422
-  // fallback, proxy_input_red_unconfirmed for an unreadable 422 UX fail-safe —
-  // to distinguish from the output_swap path). Unconfirmed proxy fallbacks skip
-  // crisis_events to avoid over-recording in the restricted ledger.
-  const lexCategories =
-    result.categories.length > 0
-      ? result.categories
-      : result.matched.length > 0
-        ? ["lexicon_match"]
-        : [];
-  if (opts.recordCrisisEvent !== false) {
-    await writeCrisisEvent(
-      userId,
-      {
-        classifierConfidence: opts.classifierConfidence ?? 0.95,
-        triggerCategories: [...lexCategories, sourceTag],
-        routingTemplateVersion: emergencyGuidance(result.crisisRouting?.hotline, locale)?.version ?? "routecrisis-inline-v1",
-        locale,
-      },
-      "[crisis_events] crisis insert failed",
-      opts.session,
-    );
-  }
-  opts.session?.assertCurrent();
-  return { text, safety: result, audit };
-}
+// The crisis route, from the RED judgment to the guidance, lives in ../safety/crisis-route.ts,
+// which reads no configuration (Simon 2026-10-18, Q-261018-48). These are its entry points, bound
+// to the two ledger writers above; callers keep importing them from here.
+const crisisRouting = createCrisisRouting({ writeAiAuditLog, writeCrisisEvent });
+export const classifyRecordTextForCrisis = crisisRouting.classifyRecordTextForCrisis;
+export const classifyInterviewTextForCrisis = crisisRouting.classifyInterviewTextForCrisis;
+export const startInterviewCrisisRouting = crisisRouting.startInterviewCrisisRouting;
+export const classifyChatTextForCrisis = crisisRouting.classifyChatTextForCrisis;
+export type { InterviewCrisisRoutingInput, InterviewCrisisRoutingRun } from "../safety/crisis-route";
 
 // Root-OBJECT schema convention (전사 규약, docs/handoff/ai_260721.md §responseSchema):
 // OpenAI's response_format rejects array roots, so a root-ARRAY schema works on
@@ -627,7 +424,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   const promptHash = djb2(`${input.system ?? ""}${input.user}`);
   if (inputSafety.zone === "red") {
     notifyCrisis?.(inputSafety.crisisRouting?.hotline);
-    return (await routeCrisis(
+    return (await crisisRouting.routeCrisis(
       inputSafety,
       input.locale,
       input.userId,
@@ -652,7 +449,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     fence();
     if (semanticInput?.zone === "red") {
       notifyCrisis?.(undefined);
-      return (await routeCrisis(
+      return (await crisisRouting.routeCrisis(
         { zone: "red", matched: [], categories: ["crisis"] },
         input.locale,
         input.userId,
@@ -823,11 +620,23 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       return result;
     };
     const t0 = Date.now();
+    // C9 fallback: the server gate caught what the client lexicon missed —
+    // surface the same hotline routing as a client-side RED, never the raw
+    // FunctionsHttpError. The proxy does not audit its 422 rejection (it
+    // audits only successful Gemini calls), so the client writes the audit.
+    // The restricted crisis_events row is added only when the body explicitly
+    // carries safety_red_zone; unreadable 422s still show the hotline template.
+    // Each proxy reply is checked as soon as it arrives, before any setting is
+    // read (Q-261018-48): the failover switch below never stands between a
+    // crisis rejection and the guidance.
+    const proxyCrisisCall = { locale: input.locale, minor: input.minor, userId: input.userId, promptHash, purpose: input.purpose, session: input.session, notifyCrisis, fence };
     let { data, error } = await invokeProxy(primaryFn);
+    const primaryCrisis = error ? await crisisRouting.routeProxyRejection(error, proxyCrisisCall) : null;
+    if (primaryCrisis) return primaryCrisis as unknown as LlmResult<T>;
     // D-26 outage failover: a vendor seat that fails outside crisis/consent gates
     // falls back ONCE to its Phase 1 assignment (gemini-proxy) — "each vendor
     // row's outage fallback is that row's Phase 1 assignment". A crisis 422 is
-    // handled below and never retried (all proxies share the same gate, so a
+    // answered above and never retried (all proxies share the same gate, so a
     // retry would just re-reject — and must not look like an outage).
     // The retry target is a switch now, not the literal "gemini-proxy" (that
     // key stops working in September, at which point the retry would be a
@@ -838,24 +647,6 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
     // Reservation-backed calls cannot reuse a claimed slot on another provider.
     if (error && input.purpose !== "persona_synthesis" && input.purpose !== "reasoning_connect" && failoverFn && failoverFn !== primaryFn) {
-      const vendorCrisis = await inspectProxyCrisisRejection(error);
-      fence();
-      if (vendorCrisis.route) {
-        notifyCrisis?.(proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane).crisisRouting?.hotline);
-        return (await routeCrisis(
-          proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane),
-          input.locale,
-          input.userId,
-          promptHash,
-          input.minor,
-          vendorCrisis.confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed",
-          {
-            recordCrisisEvent: vendorCrisis.confirmedMarker,
-            purpose: input.purpose,
-            session: input.session,
-          },
-        )) as unknown as LlmResult<T>;
-      }
       if (typeof console !== "undefined") {
         console.warn(`[llm] ${primaryFn} failed for ${input.purpose} - falling back to ${failoverFn}`);
       }
@@ -865,35 +656,11 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // only place anyone can check which vendor did what.
       servedByProvider = failoverTarget as LlmVendor;
       ({ data, error } = await invokeProxy(failoverFn));
+      const failoverCrisis = error ? await crisisRouting.routeProxyRejection(error, proxyCrisisCall) : null;
+      if (failoverCrisis) return failoverCrisis as unknown as LlmResult<T>;
     }
     latencyMs = Date.now() - t0;
-    if (error) {
-      // C9 fallback: the server gate caught what the client lexicon missed —
-      // surface the same hotline routing as a client-side RED, never the raw
-      // FunctionsHttpError. The proxy does not audit its 422 rejection (it
-      // audits only successful Gemini calls), so the client writes the audit.
-      // The restricted crisis_events row is added only when the body explicitly
-      // carries safety_red_zone; unreadable 422s still show the hotline template.
-      const proxyCrisis = await inspectProxyCrisisRejection(error);
-      fence();
-      if (proxyCrisis.route) {
-        notifyCrisis?.(proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane).crisisRouting?.hotline);
-        return (await routeCrisis(
-          proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane),
-          input.locale,
-          input.userId,
-          promptHash,
-          input.minor,
-          proxyCrisis.confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed",
-          {
-            recordCrisisEvent: proxyCrisis.confirmedMarker,
-            purpose: input.purpose,
-            session: input.session,
-          },
-        )) as unknown as LlmResult<T>;
-      }
-      throw error;
-    }
+    if (error) throw error;
     const payload = data as { text?: string; modelUsed?: string; audited?: boolean } | null;
     text = payload?.text ?? "";
     modelUsedForAudit = payload?.modelUsed ?? model;
@@ -1848,39 +1615,4 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     })),
     audit,
   };
-}
-
-// Chat turns are classified by the conversation engine before it reads any
-// context or counts the turn (Simon 2026-10-14, Q-261014-30). RED gets the same
-// ledgers and fixed guidance as callLlm's own short-circuit (same source tag,
-// same purpose). GREEN returns null: no write, no model call.
-export async function classifyChatTextForCrisis(
-  text: string,
-  locale: "en" | "ko",
-  userId: string,
-  minor?: boolean,
-  options?: {
-    session: AuthenticatedAccountSessionLease;
-    signal?: AbortSignal;
-    onCrisisDetected?: CrisisObserver;
-  },
-): Promise<LlmResult<string> | null> {
-  if (options && options.session.userId !== userId) throw new Error("llm_session_owner_mismatch");
-  if (options?.signal && options.signal !== options.session.signal) throw new Error("llm_session_signal_mismatch");
-  const fence = (): void => {
-    throwIfAborted(options?.session.signal);
-    options?.session.assertCurrent();
-  };
-  fence();
-  const safety = classifyInputAnyLocale(text, locale, { minor });
-  if (safety.zone !== "red") return null;
-  const notifyCrisis = crisisObserver(options?.onCrisisDetected, fence);
-  notifyCrisis?.(safety.crisisRouting?.hotline);
-  // An observer can synchronously change owner or cancel without throwing.
-  fence();
-  const reply = await routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", {
-    purpose: "secondb_chat", session: options?.session,
-  });
-  fence();
-  return reply;
 }

@@ -78,6 +78,10 @@ const AD = "src/lib/ads/policy.ts";
 const CV = "src/lib/chat/conversation.ts";
 const AT = "src/lib/analytics/__tests__/analytics.test.ts";
 const LR = "scripts/check-legal-review.ts";
+// 2026-10-18 (Q-261018-48): the crisis route moved out of the boundary into its own file, which moved every
+// boundary citation. These two hold the re-pointed ones, so the next move cannot leave them on other code.
+const B = "src/lib/llm/boundary.ts";
+const CR = "src/lib/safety/crisis-route.ts";
 
 const ANCHORS: Anchor[] = [
   { cite: "src/lib/analytics/auth-conversions.ts:47", symbol: "requiresGuardianConsent(age, resolveJurisdiction())",
@@ -96,6 +100,30 @@ const ANCHORS: Anchor[] = [
     why: "키 없는 웹 빌드에서 의미 층이 꺼진다는 잔여위험 서술의 근거." },
   { cite: `${S}:551-563`, symbol: "crisisHotlines",
     why: "미성년 라우팅이 실제로 핫라인 목록을 부르는 자리." },
+  { cite: `${CR}:65-83`, symbol: "inspectProxyCrisisRejection",
+    why: "3층 방어 중 셋째 층(서버 422 위기 판정)을 읽는 자리." },
+  { cite: `${CR}:65-96`, symbol: "proxyCrisisSafetyResult",
+    why: "서버가 고른 레인으로 고정 안내를 만드는 자리. 어긋나면 서버 판정과 다른 번호를 읽게 된다." },
+  { cite: `${CR}:118-134`, symbol: "classifyRecordTextForCrisis",
+    why: "모델을 거치지 않는 기록 저장에도 같은 위기 경로가 돈다는 주장." },
+  { cite: `${CR}:178-255`, symbol: "crisis_events",
+    why: "위기 경로가 두 원장(ai_audit_log + crisis_events)에 쓴다는 주장." },
+  { cite: `${B}:423-436`, symbol: "classifyInputAnyLocale(input.user",
+    why: "callLlm 의 입력 관문(C9). RED 면 모델 호출 전에 끝난다는 주장." },
+  { cite: `${B}:720-789`, symbol: "replySwapCategories(semantic.triggers",
+    why: "모델 답이 RED 면 고정 안내로 바뀐다는 주장(callLlm)." },
+  { cite: `${B}:1326-1364`, symbol: "classifySafety(input.userMessage",
+    why: "callAdvisor 의 입력 관문." },
+  { cite: `${B}:1544-1585`, symbol: "\"output_swap\"",
+    why: "callAdvisor 의 답 교체." },
+  { cite: `${B}:152-160`, symbol: "assertDirectEgressAllowed",
+    why: "한도 없는 직접 API 키 호출을 막는 자리." },
+  { cite: `${B}:176-195`, symbol: "kind: \"ai_audit_log\"",
+    why: "모든 호출이 해시만 담은 감사 행을 쓴다는 주장(C3)." },
+  { cite: `${B}:563-668`, symbol: "invokeProxy(primaryFn)",
+    why: "서버 프록시(키 · 한도 · 서버 위기 관문)를 거친다는 주장." },
+  { cite: `${B}:1314-1618`, symbol: "export async function callAdvisor",
+    why: "callAdvisor 전체." },
   { cite: `${C}:71-80`, symbol: "crisisHotlines",
     why: "(locale, minor) → 핫라인 표시 순서." },
   { cite: `${C}:76-78`, symbol: "KR_1388",

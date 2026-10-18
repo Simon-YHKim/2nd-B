@@ -180,7 +180,7 @@ test("executes changed real builders, and fails closed on declaration drift or a
   expect((await createOfflineInterviewRuntime(changed).replay(sample)).prompt?.system).toContain("검산 표식: 직장.");
   expect(() => createOfflineInterviewRuntime({ ...sources, "src/app/interview.tsx": sources["src/app/interview.tsx"].replace("const ask = useCallback", "const renamedAsk = useCallback") })).toThrow("Adapter source drift: ask");
   expect(() => createOfflineInterviewRuntime({ ...sources, "src/app/interview.tsx": sources["src/app/interview.tsx"].replace("const finish = useCallback", "const renamedFinish = useCallback") })).toThrow("Adapter source drift: finish");
-  const boundaryPath = "src/lib/llm/boundary.ts";
+  const boundaryPath = "src/lib/safety/crisis-route.ts"; // crisisObserver moved here from boundary.ts (Q-261018-48)
   expect(() => createOfflineInterviewRuntime({ ...sources, [boundaryPath]: sources[boundaryPath].replace("function crisisObserver(", "function renamedObserver(") })).toThrow("Adapter source drift: crisisObserver");
   const changedObserver = { ...sources, [boundaryPath]: sources[boundaryPath].replace("if (!observer) return undefined;", 'fetch("https://offline.invalid"); if (!observer) return undefined;') };
   await expect(createOfflineInterviewRuntime(changedObserver).replay(sample)).rejects.toThrow("forbidden capability");

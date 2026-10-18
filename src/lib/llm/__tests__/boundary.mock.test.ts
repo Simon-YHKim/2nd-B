@@ -341,8 +341,11 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
   // itself from one that hands a red text to callLlm (callLlm would cut it again and write the
   // same rows), and a diff with no deleted line does not show where the function was added.
   describe("in the source", () => {
-    const SOURCE = readFileSync(join(__dirname, "..", "boundary.ts"), "utf8").replace(/\r\n/g, "\n");
-    const file = ts.createSourceFile("boundary.ts", SOURCE, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    // The crisis route moved to safety/crisis-route.ts (Q-261018-48): the router is declared inside
+    // createCrisisRouting there, and boundary.ts re-exports the bound copy.
+    const SOURCE = readFileSync(join(__dirname, "..", "..", "safety", "crisis-route.ts"), "utf8").replace(/\r\n/g, "\n");
+    const BOUNDARY = readFileSync(join(__dirname, "..", "boundary.ts"), "utf8").replace(/\r\n/g, "\n");
+    const file = ts.createSourceFile("crisis-route.ts", SOURCE, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
     /** The one top-level function declaration of that name. */
     const topLevelFunction = (name: string): ts.FunctionDeclaration => {
       const found = file.statements.filter(
@@ -351,7 +354,16 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
       expect([name, found.length]).toEqual([name, 1]);
       return found[0]!;
     };
-    const declaration = (): ts.FunctionDeclaration => topLevelFunction("classifyChatTextForCrisis");
+    /** The one router of that name declared directly in createCrisisRouting. */
+    const routerFunction = (name: string): ts.FunctionDeclaration => {
+      const statements: readonly ts.Statement[] = topLevelFunction("createCrisisRouting").body?.statements ?? [];
+      const found = statements.filter(
+        (node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === name,
+      );
+      expect([name, found.length]).toEqual([name, 1]);
+      return found[0]!;
+    };
+    const declaration = (): ts.FunctionDeclaration => routerFunction("classifyChatTextForCrisis");
     /** A node as written, with every run of whitespace folded to one space. */
     const norm = (node: ts.Node): string => node.getText(file).replace(/\s+/g, " ");
     const texts = (nodes: readonly ts.Node[] | undefined): string[] => (nodes ?? []).map((node) => norm(node));
@@ -365,7 +377,7 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
     // execute this path with live mode, real outbox delivery and owner/observer reentry.
     test("the declaration permits only the captured fence, one verdict and the existing direct route", () => {
       const fn = declaration();
-      expect(texts(fn.modifiers)).toEqual(["export", "async"]);
+      expect(texts(fn.modifiers)).toEqual(["async"]);
       expect(fn.asteriskToken).toBeUndefined();
       expect(fn.typeParameters).toBeUndefined();
       expect(texts(fn.parameters)).toEqual([
@@ -435,8 +447,8 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
     };
 
     test("the classifier, direct route, hash and fence helpers remain bound once", () => {
-      expect(bindingsOf("classifyInputAnyLocale")).toEqual(["import classifyInputAnyLocale from ../safety/classifier"]);
-      expect(bindingsOf("routeCrisis")).toEqual(["top-level function"]);
+      expect(bindingsOf("classifyInputAnyLocale")).toEqual(["import classifyInputAnyLocale from ./classifier"]);
+      expect(bindingsOf("routeCrisis")).toEqual(["nested function"]);
       expect(bindingsOf("djb2")).toEqual(["top-level function"]);
       expect(bindingsOf("crisisObserver")).toEqual(["top-level function"]);
       expect(bindingsOf("throwIfAborted")).toEqual(["import throwIfAborted from ../async/abort"]);
@@ -455,17 +467,13 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
       ]);
     });
 
-    // Legal documents cite eleven positions of this file by line number, so the function goes
-    // after everything else. Whether those lines still read the same is compared with
-    // origin/main in the PR; this only holds the position.
-    test("it is the last top-level declaration of the file", () => {
-      const fn = declaration();
-      expect(file.statements[file.statements.length - 1]).toBe(fn);
-      const flags = ts.getCombinedModifierFlags(fn);
-      expect(flags & ts.ModifierFlags.Export).not.toBe(0);
+    // Callers keep importing it from boundary.ts, which binds the router once to its ledger writers.
+    test("boundary.ts exports the router bound to the two ledger writers, and nothing else of that name", () => {
+      expect(BOUNDARY).toContain("\nconst crisisRouting = createCrisisRouting({ writeAiAuditLog, writeCrisisEvent });\n");
+      expect(BOUNDARY).toContain("\nexport const classifyChatTextForCrisis = crisisRouting.classifyChatTextForCrisis;\n");
+      expect(BOUNDARY.match(/classifyChatTextForCrisis/g)).toHaveLength(2);
+      const flags = ts.getCombinedModifierFlags(declaration());
       expect(flags & ts.ModifierFlags.Async).not.toBe(0);
-      // Nothing but the end of the file follows its closing brace.
-      expect(SOURCE.slice(fn.getEnd()).trim()).toBe("");
     });
   });
 });

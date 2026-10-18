@@ -15,6 +15,8 @@ const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const PROBE = "src/lib/interview/probe.ts", SCREEN = "src/app/interview.tsx";
 const SAFETY = "src/lib/llm/safety.ts", BOUNDARY = "src/lib/llm/boundary.ts";
 const CRISIS_ROUTER = "src/components/safety/CrisisRouter.tsx";
+// The crisis route (crisisObserver included) moved out of boundary.ts (Q-261018-48).
+const CRISIS_ROUTE = "src/lib/safety/crisis-route.ts";
 const GUIDANCE_ROW = "src/components/interview/InterviewGuidanceRow.tsx";
 const COPY_JSON = ["locales/en/safety.json", "locales/ko/safety.json"];
 const PURE_MODULES = [
@@ -47,7 +49,7 @@ interface ParsedReply { question?: unknown; answeredLayer?: unknown; openers?: u
 type ProbeModule = typeof Probe & { parseProbeReply(text: string): ParsedReply | null };
 
 export function loadInterviewAdapterSources(root: string): Record<string, string> {
-  return Object.fromEntries([...PURE_MODULES, ...COPY_JSON, PROBE, SCREEN, SAFETY, BOUNDARY, CRISIS_ROUTER, GUIDANCE_ROW]
+  return Object.fromEntries([...PURE_MODULES, ...COPY_JSON, PROBE, SCREEN, SAFETY, BOUNDARY, CRISIS_ROUTE, CRISIS_ROUTER, GUIDANCE_ROW]
     .map((file) => [file, readFileSync(join(root, file), "utf8")]));
 }
 
@@ -128,7 +130,8 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     .some((declaration) => declaration.name.getText(boundaryAst) === "lexical") ? index : -1).filter((index) => index >= 0);
   if (!statements || starts?.length !== 1 || !statements.slice(starts[0]).some(ts.isReturnStatement)) throw new Error("Adapter output boundary drift");
   const boundaryTail = statements.slice(starts[0]).map((node) => node.getText(boundaryAst)).join("\n");
-  const observerText = fn(boundaryAst, "crisisObserver").getText(boundaryAst);
+  const routeAst = parse(CRISIS_ROUTE, sources[CRISIS_ROUTE]);
+  const observerText = fn(routeAst, "crisisObserver").getText(routeAst).replace(/^export\s+/, "");
   const observerInit = variable(fn(boundaryAst, "callLlm").body!, "notifyCrisis").initializer!.getText(boundaryAst);
   let auditWrites = 0;
   const outputBoundary = evaluate<(text: string, input: Prompt, effect: (event: ReplayEffect) => void) => Promise<BoundaryReply>>(

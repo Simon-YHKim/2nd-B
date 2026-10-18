@@ -215,7 +215,8 @@ describe('⚠ "모르겠다"는 성찰 기록이 아니다 (되묻기가 대신 
 
 describe("발판은 네트워크 없이 즉시 보여준다", () => {
   const SCREEN = readFileSync(join(__dirname, "..", "..", "..", "app", "interview.tsx"), "utf8");
-  const BOUNDARY = readFileSync(join(__dirname, "..", "..", "llm", "boundary.ts"), "utf8");
+  // The crisis route moved out of llm/boundary.ts into safety/crisis-route.ts (Q-261018-48); boundary re-exports it.
+  const ROUTE = readFileSync(join(__dirname, "..", "..", "safety", "crisis-route.ts"), "utf8");
 
   it.each([
     ["ko", false, "죽고 싶어요. 모르겠어요"],
@@ -268,9 +269,9 @@ describe("발판은 네트워크 없이 즉시 보여준다", () => {
     expect(redBranch).toContain("void route.done.catch(");
     expect(redBranch).not.toContain("await classifyInterviewTextForCrisis");
     expect(redBranch).not.toMatch(/isNonAnswer|incrementCoverage|setCoverage|nextProbe|callLlm/);
-    expect(BOUNDARY).toMatch(/export function startInterviewCrisisRouting[\s\S]*onVisible\(\)[\s\S]*classifyInterviewTextForCrisis\(/);
-    expect(BOUNDARY).toMatch(/async function routeCrisis[\s\S]*await writeAiAuditLog\(/);
-    expect(BOUNDARY).toMatch(/async function routeCrisis[\s\S]*await writeCrisisEvent\(/);
+    expect(ROUTE).toMatch(/function startInterviewCrisisRouting[\s\S]*onVisible\(\)[\s\S]*classifyInterviewTextForCrisis\(/);
+    expect(ROUTE).toMatch(/async function routeCrisis[\s\S]*await writeAiAuditLog\(/);
+    expect(ROUTE).toMatch(/async function routeCrisis[\s\S]*await writeCrisisEvent\(/);
     expect(SCREEN).toContain('isMinor ? "KR_1388" : "KR_109"');
     expect(SCREEN).toContain(': "GLOBAL_988"');
   });

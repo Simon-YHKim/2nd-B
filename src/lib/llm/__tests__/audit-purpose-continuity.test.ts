@@ -27,6 +27,8 @@ const sql = readFileSync(join(root, "db", "migrations", "0095_ai_audit_purpose_r
 const auditTs = readFileSync(join(root, "src", "lib", "supabase", "audit.ts"), "utf8");
 const boundaryTs = readFileSync(join(root, "src", "lib", "llm", "boundary.ts"), "utf8");
 const safetyTs = readFileSync(join(root, "src", "lib", "llm", "safety.ts"), "utf8");
+// The crisis route moved to safety/crisis-route.ts (Q-261018-48); boundary.ts re-exports it.
+const crisisRouteTs = readFileSync(join(root, "src", "lib", "safety", "crisis-route.ts"), "utf8");
 
 describe("0095_ai_audit_purpose_rpc.sql - signature migration", () => {
   test("drops the 0038 6-arg signature and recreates with three DEFAULT NULL params", () => {
@@ -237,7 +239,7 @@ describe("gemini.ts / safety.ts - every client-written audit row carries a purpo
     // proxy-unaudited fallback) row.
     expect(boundaryTs.match(/purpose: input\.purpose,/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     // Crisis routing threads the caller's purpose through routeCrisis opts.
-    expect(boundaryTs).toMatch(
+    expect(crisisRouteTs).toMatch(
       /opts: \{\s*recordCrisisEvent\?: boolean;\s*purpose\?: string;\s*session\?: AuthenticatedAccountSessionLease;\s*classifierConfidence\?: number;\s*\}/,
     );
     expect(
