@@ -242,10 +242,11 @@ describe("gemini.ts / safety.ts - every client-written audit row carries a purpo
     expect(crisisRouteTs).toMatch(
       /opts: \{\s*recordCrisisEvent\?: boolean;\s*purpose\?: string;\s*session\?: AuthenticatedAccountSessionLease;\s*classifierConfidence\?: number;\s*\}/,
     );
-    expect(
-      // The crisis answers (input RED, meaning RED, proxy 422) are made in the crisis gate since Q-261018-48.
-      crisisRouteTs.match(/purpose: input\.purpose,\s*session: input\.session/g)?.length ?? 0,
-    ).toBeGreaterThanOrEqual(3);
+    // The crisis answers (input RED, meaning RED, proxy 422) are made in the crisis gate since Q-261018-48;
+    // the gate copies the caller's purpose and session once when it opens and threads them to all three.
+    expect(crisisRouteTs).toContain("const { user, system, locale, minor, userId, purpose, session, onCrisisDetected } = input;");
+    expect(crisisRouteTs.match(/\bpurpose,\s*session,/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(crisisRouteTs).toContain("{ purpose, session, classifierConfidence }");
   });
 
   test("embed / transcription / advisor rows use the proxy-continuity labels", () => {

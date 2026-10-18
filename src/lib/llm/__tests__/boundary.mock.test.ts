@@ -52,6 +52,13 @@ import { insertCrisisEvent } from "../../supabase/crisis-events";
 const insertMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;
 const crisisMock = insertCrisisEvent as jest.MockedFunction<typeof insertCrisisEvent>;
 
+// A crisis result comes back before its two ledger writes (Simon 2026-10-18 21:18, Q-261018-57 가):
+// let the hand-off and the outbox delivery finish before looking at the ledgers.
+async function settleLedgers(): Promise<void> {
+  for (let i = 0; i < 4; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+  await getAuditWriteOutboxForTests();
+}
+
 describe("callLlm (mock mode)", () => {
   beforeEach(async () => {
     await resetAuditWriteOutboxForTests();
@@ -73,6 +80,7 @@ describe("callLlm (mock mode)", () => {
     expect(r.text).not.toMatch(/^\[MOCK\]/);
     expect(r.text).toMatch(/988/);
     expect(mockGenerateContent).not.toHaveBeenCalled();
+    await settleLedgers();
     // routeCrisis must write the restricted crisis_events ledger (cycle-3 fix:
     // every callLlm crisis interception is recorded, parity with callAdvisor).
     expect(crisisMock).toHaveBeenCalledTimes(1);
@@ -112,7 +120,7 @@ describe("callLlm (mock mode)", () => {
     expect(await getAuditWriteOutboxForTests()).toHaveLength(0);
   });
 
-  test("a pending-record C9 route stops ledger continuation when its owner lease changes", async () => {
+  test("a pending-record C9 route shows the guidance first and stops ledger continuation when its owner lease changes", async () => {
     let current = true;
     const lease = {
       userId: "u1",
@@ -121,11 +129,16 @@ describe("callLlm (mock mode)", () => {
       assertCurrent: () => { if (!current) throw new Error("owner changed"); },
     } as unknown as AuthenticatedAccountSessionLease;
     insertMock.mockImplementationOnce(async () => { current = false; });
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
 
-    await expect(classifyRecordTextForCrisis("I want to die", "en", "u1", false, lease))
-      .rejects.toThrow("owner changed");
+    // Q-261018-57 가: the record save gets its guidance first, the ledgers follow.
+    const result = await classifyRecordTextForCrisis("I want to die", "en", "u1", false, lease);
+    expect(result?.safety.zone).toBe("red");
+    expect(result?.text).toMatch(/988/);
+    await settleLedgers();
     expect(insertMock).toHaveBeenCalledTimes(1);
     expect(crisisMock).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
 
@@ -167,6 +180,7 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
   };
 
   const resetLedgers = async (): Promise<void> => {
+    await settleLedgers();
     await resetAuditWriteOutboxForTests();
     mockGenerateContent.mockClear();
     insertMock.mockClear();
@@ -190,6 +204,7 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
       // The message alone is hashed: this path has no system prompt.
       expect(r.audit.promptHash).toBe(djb2(RED_EN));
 
+      await settleLedgers();
       expect(insertMock).toHaveBeenCalledTimes(1);
       expect(insertMock.mock.calls[0]![0]).toEqual({ userId: OWNER, ...r.audit });
       expect(crisisMock).toHaveBeenCalledTimes(1);
@@ -232,6 +247,7 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
     expect(r.safety.zone).toBe("red");
     expect(r.text).toContain(crisisHotlines(uiLocale)[0].number);
     expect(r.text).toBe((await classifyChatTextForCrisis(uiLocale === "ko" ? RED_KO : RED_EN, uiLocale, OWNER))?.text);
+    await settleLedgers();
     expect(insertMock.mock.calls[0]![0]).toMatchObject({ purpose: "secondb_chat", safetyZone: "red" });
     expect(crisisMock.mock.calls[0]![0]).toMatchObject({ locale: uiLocale });
     expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("input_red");
@@ -263,6 +279,7 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
       user: RED_KO,
       minor: true,
     });
+    await settleLedgers();
     expect(insertMock).toHaveBeenCalledTimes(1);
     expect(crisisMock).toHaveBeenCalledTimes(1);
     const llmAudit = insertMock.mock.calls[0]![0]!;
@@ -277,6 +294,7 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
     expect(direct.text).toBe(viaLlm.text);
     expect(direct.safety).toEqual(viaLlm.safety);
     expect(direct.audit).toEqual({ ...viaLlm.audit, promptHash: djb2(RED_KO) });
+    await settleLedgers();
     expect(insertMock).toHaveBeenCalledTimes(1);
     expect(insertMock.mock.calls[0]![0]).toEqual({ ...llmAudit, promptHash: djb2(RED_KO) });
     expect(crisisMock).toHaveBeenCalledTimes(1);
@@ -293,6 +311,7 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
     crisisMock.mockRejectedValue(Object.assign(new Error("client_audit_rate_limited"), { code: "54000" }));
     const r = await classifyChatTextForCrisis(RED_EN, "en", OWNER);
     expect(r).toEqual(accepted);
+    await settleLedgers();
 
     expect(insertMock).toHaveBeenCalledTimes(1);
     expect(crisisMock).toHaveBeenCalledTimes(1);
@@ -313,6 +332,7 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
     insertMock.mockRejectedValue(new Error("db down"));
     const r = await classifyChatTextForCrisis(RED_EN, "en", OWNER);
     expect(r).toEqual(accepted);
+    await settleLedgers();
 
     const queued = await getAuditWriteOutboxForTests();
     expect(queued.map((row) => row.kind)).toEqual(["ai_audit_log", "crisis_event"]);

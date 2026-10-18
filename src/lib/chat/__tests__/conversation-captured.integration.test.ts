@@ -86,6 +86,12 @@ afterEach(async () => {
   for (const key of envKeys) { if (originalEnv[key] === undefined) delete process.env[key]; else process.env[key] = originalEnv[key]; }
 });
 
+// A crisis result comes back before its two ledger writes (Simon 2026-10-18 21:18, Q-261018-57 가):
+// let the hand-off and the outbox delivery finish before looking at the ledgers.
+async function settleLedgers(): Promise<void> {
+  for (let i = 0; i < 4; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 test("real ordinary pipeline preserves captured token/signal through RAG, quota, model and safety", async () => {
   const f = await fixture();
   mockAuth.mockResolvedValue({ data: { session: { user: { id: "b" }, access_token: "mutable-b" } }, error: null });
@@ -126,6 +132,7 @@ test.each(["send", "strict"])("real local RED %s emits guidance and audits witho
   expect(result).toMatchObject({ status: "ok", used: null, limit: null, remaining: null,
     reply: { safety: { zone: "red" }, audit: { modelUsed: "none-crisis-routed" } } });
   expect(f.input.onCrisisDetected).toHaveBeenCalledTimes(1); expect(mockQueries).toEqual([]); expect(mockRpc).not.toHaveBeenCalled();
+  await settleLedgers();
   expect(fetchMock).toHaveBeenCalledTimes(2); expect(fetchMock.mock.calls.every(call => String(call[0]).includes("/rest/v1/rpc/log_"))).toBe(true);
   expect(facts(f)).toEqual([]);
 });

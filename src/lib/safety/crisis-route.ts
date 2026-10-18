@@ -1,13 +1,17 @@
 // The shared crisis route: from "is this RED?" to the guidance a person sees.
 //
 // Simon 2026-10-18 12:00 (Q-261018-48 가): this path lives in a file that reads no configuration.
+// Simon 2026-10-18 21:18 (Q-261018-57 가): the claim is exactly two things, no setting-reaching
+// import and a crisis result returned at once; record saves show the guidance first as well, and
+// callLlm's failover order stays as it was.
 // boundary.ts re-exports the entry points (callers are unchanged) and hands in the two ledger
-// writers, because the audit transport reaches the Supabase client and its settings. The bodies
-// below moved from boundary.ts unchanged apart from indentation. callLlm opens one gate per call
-// (openPromptCrisisGate): its input judgment, hash, observer and fence are made here, and the
-// proxy 422 and meaning-check RED answers of the same call go through that gate.
-// __tests__/crisis-route-config-free.test.ts pins this file's import closure, the host globals it
-// may touch and its surface, and runs every entry point with configuration reads made to throw.
+// writers, because the audit transport reaches the Supabase client and its settings. A crisis
+// result is decided and returned without waiting for either ledger; the two writes follow it in
+// their old order (routeCrisis). callLlm opens one gate per call (openPromptCrisisGate): its input
+// judgment, hash, observer and fence are made here, and the proxy 422 and meaning-check RED answers
+// of the same call go through that gate.
+// __tests__/crisis-route-config-free.test.ts walks this file's import closure (the guarantee) and
+// checks that every entry point returns the guidance while the ledgers never settle.
 
 import { throwIfAborted } from "../async/abort";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
@@ -24,7 +28,8 @@ export interface CrisisEventFields {
   locale: "en" | "ko";
 }
 
-/** The two ledgers every crisis routing writes: ai_audit_log (C3) and the restricted crisis_events. */
+/** The two ledgers every crisis routing writes: ai_audit_log (C3) and the restricted crisis_events.
+ *  routeCrisis hands both writes on and returns without waiting for them. */
 export interface CrisisLedger {
   writeAiAuditLog(userId: string, audit: AuditMeta, warnLabel: string, session?: AuthenticatedAccountSessionLease): Promise<void>;
   writeCrisisEvent(userId: string, payload: CrisisEventFields, warnLabel: string, session?: AuthenticatedAccountSessionLease): Promise<void>;
@@ -50,6 +55,12 @@ function djb2(s: string): string {
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   return (h >>> 0).toString(16);
+}
+
+// A ledger write that rejects is reported with its label, as the outbox does for a failed delivery.
+// It never reaches the result: the guidance has already been returned.
+function warnLedger(label: string): void {
+  if (typeof console !== "undefined") console.warn(label);
 }
 
 export type ProxyCrisisDecision = {
@@ -165,8 +176,8 @@ export function createCrisisRouting(ledger: CrisisLedger) {
 
   // The screen owns the synchronous classifier and calls this only for RED.
   // Guard + visibility happen synchronously before either ledger can wait on the
-  // network. The returned promise remains observable so the caller can handle a
-  // rejected background write without delaying the hotline UI.
+  // network. The returned promise settles with the result (it no longer waits
+  // for the ledgers) and stays observable for a rejected routing.
   function startInterviewCrisisRouting(
     guard: { current: boolean },
     input: InterviewCrisisRoutingInput,
@@ -227,12 +238,6 @@ export function createCrisisRouting(ledger: CrisisLedger) {
     };
     // C3: crisis routing MUST be audited. The whole point of audit_log is an
     // audit trail proving the safety classifier intercepted dangerous input.
-    await writeAiAuditLog(
-      userId,
-      audit,
-      "[ai_audit_log] crisis insert failed",
-      opts.session,
-    );
     // Separate restricted ledger (crisis_events), parity with callAdvisor's input-RED
     // path. Without this every callLlm surface (chat/journal/interview/persona/
     // import/clipper/phase1) intercepted a crisis but left NO categorical trace in the
@@ -250,20 +255,21 @@ export function createCrisisRouting(ledger: CrisisLedger) {
         : result.matched.length > 0
           ? ["lexicon_match"]
           : [];
-    if (opts.recordCrisisEvent !== false) {
-      await writeCrisisEvent(
-        userId,
-        {
-          classifierConfidence: opts.classifierConfidence ?? 0.95,
-          triggerCategories: [...lexCategories, sourceTag],
-          routingTemplateVersion: emergencyGuidance(result.crisisRouting?.hotline, locale)?.version ?? "routecrisis-inline-v1",
-          locale,
-        },
-        "[crisis_events] crisis insert failed",
-        opts.session,
-      );
-    }
-    opts.session?.assertCurrent();
+    const event: CrisisEventFields | null = opts.recordCrisisEvent === false ? null : {
+      classifierConfidence: opts.classifierConfidence ?? 0.95,
+      triggerCategories: [...lexCategories, sourceTag],
+      routingTemplateVersion: emergencyGuidance(result.crisisRouting?.hotline, locale)?.version ?? "routecrisis-inline-v1",
+      locale,
+    };
+    const session = opts.session;
+    // Guidance first (Q-261018-57 가): the result is fixed above and returned now, without waiting
+    // for either ledger. The audit row is handed on first and the restricted row after it settles,
+    // the order they always ran in; a rejected audit write no longer drops the restricted row. A
+    // write that never settles holds only the writes behind it, never the guidance.
+    void writeAiAuditLog(userId, audit, "[ai_audit_log] crisis insert failed", session)
+      .catch(() => warnLedger("[ai_audit_log] crisis insert failed"))
+      .then(() => (event ? writeCrisisEvent(userId, event, "[crisis_events] crisis insert failed", session) : undefined))
+      .catch(() => warnLedger("[crisis_events] crisis insert failed"));
     return { text, safety: result, audit };
   }
 
@@ -343,18 +349,21 @@ export function createCrisisRouting(ledger: CrisisLedger) {
   // RED prompt starts its routing at once. Classification is synchronous, so a green prompt goes on
   // without an extra await. The later crisis answers of the same call use the same gate.
   function openPromptCrisisGate(input: PromptCrisisInput, signal: AbortSignal | undefined) {
+    // Each field is read once, here. The later answers of the same call use these copies, so a
+    // change to the caller's object after the gate opened does not reach them.
+    const { user, system, locale, minor, userId, purpose, session, onCrisisDetected } = input;
     const fence = (): void => {
       throwIfAborted(signal);
-      input.session?.assertCurrent();
+      session?.assertCurrent();
     };
-    const notifyCrisis = crisisObserver(input.onCrisisDetected, fence);
-    const inputSafety = classifyInputAnyLocale(input.user, input.locale, { minor: input.minor });
-    const promptHash = djb2(`${input.system ?? ""}${input.user}`);
+    const notifyCrisis = crisisObserver(onCrisisDetected, fence);
+    const inputSafety = classifyInputAnyLocale(user, locale, { minor });
+    const promptHash = djb2(`${system ?? ""}${user}`);
     const routeInputRed = (): Promise<LlmResult<string>> => {
       notifyCrisis?.(inputSafety.crisisRouting?.hotline);
-      return routeCrisis(inputSafety, input.locale, input.userId, promptHash, input.minor, "input_red", {
-        purpose: input.purpose,
-        session: input.session,
+      return routeCrisis(inputSafety, locale, userId, promptHash, minor, "input_red", {
+        purpose,
+        session,
       });
     };
     return Object.freeze({
@@ -364,12 +373,12 @@ export function createCrisisRouting(ledger: CrisisLedger) {
       routed: inputSafety.zone === "red" ? routeInputRed() : null,
       // A proxy rejected the call: the server crisis gate's 422 becomes the same guidance.
       routeProxyRejection: (error: unknown): Promise<LlmResult<string> | null> => routeProxyRejection(error, {
-        locale: input.locale,
-        minor: input.minor,
-        userId: input.userId,
+        locale,
+        minor,
+        userId,
         promptHash,
-        purpose: input.purpose,
-        session: input.session,
+        purpose,
+        session,
         notifyCrisis,
         fence,
       }),
@@ -378,12 +387,12 @@ export function createCrisisRouting(ledger: CrisisLedger) {
         notifyCrisis?.(undefined);
         return routeCrisis(
           { zone: "red", matched: [], categories: ["crisis"] },
-          input.locale,
-          input.userId,
+          locale,
+          userId,
           promptHash,
-          input.minor,
+          minor,
           "input_semantic_red",
-          { purpose: input.purpose, session: input.session, classifierConfidence },
+          { purpose, session, classifierConfidence },
         );
       },
     });

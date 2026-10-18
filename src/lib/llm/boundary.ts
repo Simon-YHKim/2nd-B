@@ -599,34 +599,24 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       }
       return result;
     };
+    const t0 = Date.now();
+    let { data, error } = await invokeProxy(primaryFn);
     // D-26 outage failover: a vendor seat that fails outside crisis/consent gates
     // falls back ONCE to its Phase 1 assignment (gemini-proxy) — "each vendor
     // row's outage fallback is that row's Phase 1 assignment". A crisis 422 is
-    // answered below and never retried (all proxies share the same gate, so a
+    // handled below and never retried (all proxies share the same gate, so a
     // retry would just re-reject — and must not look like an outage).
     // The retry target is a switch now, not the literal "gemini-proxy" (that
     // key stops working in September, at which point the retry would be a
     // guaranteed second failure that also replaces the real error). Comparing
     // against primaryFn rather than a fixed name also generalises the old
     // guard: retrying the proxy that just failed is not a failover.
-    // The switch is read here, before the call (it was read right after the
-    // first reply; the same read, one step earlier), so no setting is read
-    // between a crisis rejection and its guidance (Q-261018-48).
     const failoverTarget = failoverVendor();
     const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
-    const t0 = Date.now();
-    // C9 fallback: the server gate caught what the client lexicon missed —
-    // surface the same hotline routing as a client-side RED, never the raw
-    // FunctionsHttpError. The proxy does not audit its 422 rejection (it
-    // audits only successful Gemini calls), so the client writes the audit.
-    // The restricted crisis_events row is added only when the body explicitly
-    // carries safety_red_zone; unreadable 422s still show the hotline template.
-    // Each proxy reply goes to the crisis gate as soon as it arrives.
-    let { data, error } = await invokeProxy(primaryFn);
-    const primaryCrisis = error ? await crisisGate.routeProxyRejection(error) : null;
-    if (primaryCrisis) return primaryCrisis as unknown as LlmResult<T>;
     // Reservation-backed calls cannot reuse a claimed slot on another provider.
     if (error && input.purpose !== "persona_synthesis" && input.purpose !== "reasoning_connect" && failoverFn && failoverFn !== primaryFn) {
+      const vendorCrisis = await crisisGate.routeProxyRejection(error);
+      if (vendorCrisis) return vendorCrisis as unknown as LlmResult<T>;
       if (typeof console !== "undefined") {
         console.warn(`[llm] ${primaryFn} failed for ${input.purpose} - falling back to ${failoverFn}`);
       }
@@ -636,11 +626,19 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // only place anyone can check which vendor did what.
       servedByProvider = failoverTarget as LlmVendor;
       ({ data, error } = await invokeProxy(failoverFn));
-      const failoverCrisis = error ? await crisisGate.routeProxyRejection(error) : null;
-      if (failoverCrisis) return failoverCrisis as unknown as LlmResult<T>;
     }
     latencyMs = Date.now() - t0;
-    if (error) throw error;
+    if (error) {
+      // C9 fallback: the server gate caught what the client lexicon missed —
+      // surface the same hotline routing as a client-side RED, never the raw
+      // FunctionsHttpError. The proxy does not audit its 422 rejection (it
+      // audits only successful Gemini calls), so the client writes the audit.
+      // The restricted crisis_events row is added only when the body explicitly
+      // carries safety_red_zone; unreadable 422s still show the hotline template.
+      const proxyCrisis = await crisisGate.routeProxyRejection(error);
+      if (proxyCrisis) return proxyCrisis as unknown as LlmResult<T>;
+      throw error;
+    }
     const payload = data as { text?: string; modelUsed?: string; audited?: boolean } | null;
     text = payload?.text ?? "";
     modelUsedForAudit = payload?.modelUsed ?? model;

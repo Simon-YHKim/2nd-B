@@ -300,34 +300,37 @@ describe("chat local RED with a captured account session", () => {
     noEgressOrQuota();
   });
 
-  test.each([1, 2])("owner hold during audit %s prevents later audit/result without hiding the early notice", async stage => {
+  // Q-261018-57 가: the result no longer waits for either ledger. An owner change while a write is
+  // held cannot take back the guidance already returned; it stops the writes that would follow.
+  test.each([1, 2])("owner hold during audit %s: the result came first, and later ledger writes stop", async stage => {
     const capability = await session(); const observer = jest.fn();
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
     let finish!: () => void; const pendingAudit = new Promise<void>(resolve => { finish = resolve; });
     let calls = 0;
     mockEnqueueAuditWrite.mockImplementation(() => ++calls === stage ? pendingAudit : Promise.resolve());
-    const result = classifyChatTextForCrisis(RED, "en", "user-a", false, { session: capability, onCrisisDetected: observer });
-    const rejected = expect(result).rejects.toMatchObject({ name: "AbortError" });
-    for (let i = 0; i < 6; i++) await Promise.resolve();
+    await expect(classifyChatTextForCrisis(RED, "en", "user-a", false, { session: capability, onCrisisDetected: observer }))
+      .resolves.toMatchObject({ safety: { zone: "red", crisisRouting: { hotline: "GLOBAL_988" } } });
+    for (let i = 0; i < 10; i++) await Promise.resolve();
     expect(observer).toHaveBeenCalledTimes(1); expect(mockEnqueueAuditWrite).toHaveBeenCalledTimes(stage);
-    moveOwner(); finish(); await rejected;
+    moveOwner(); finish();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
     expect(mockEnqueueAuditWrite).toHaveBeenCalledTimes(stage); expect(observer).toHaveBeenCalledTimes(1); noEgressOrQuota();
+    warn.mockRestore();
   });
 
-  test("an owner hold after routing settles still fences the helper's returned result", async () => {
+  test("an owner change right after the guidance was decided still fences the helper's returned result", async () => {
     const capability = await session(); const observer = jest.fn();
-    let finish!: () => void; const pendingEvent = new Promise<void>(resolve => { finish = resolve; });
-    mockEnqueueAuditWrite.mockResolvedValueOnce(undefined).mockImplementationOnce(() => pendingEvent);
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    mockEnqueueAuditWrite.mockResolvedValue(undefined);
     const result = classifyChatTextForCrisis(RED, "en", "user-a", false, { session: capability, onCrisisDetected: observer });
     const rejected = expect(result).rejects.toMatchObject({ name: "AbortError" });
-    for (let i = 0; i < 6; i++) await Promise.resolve();
-    expect(mockEnqueueAuditWrite).toHaveBeenCalledTimes(2);
-    finish();
-    // The event writer resumes first; then routeCrisis gets its final fence.
-    // Put the owner hold after that continuation, before this helper resumes.
-    await Promise.resolve();
-    await Promise.resolve().then(() => moveOwner());
+    // routeCrisis already returned; the hold lands before this helper's last fence resumes.
+    moveOwner();
     await rejected;
-    expect(observer).toHaveBeenCalledTimes(1); expect(mockEnqueueAuditWrite).toHaveBeenCalledTimes(2); noEgressOrQuota();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    // The audit row reached the outbox before the hold; the restricted row's writer refuses after it.
+    expect(observer).toHaveBeenCalledTimes(1); expect(mockEnqueueAuditWrite).toHaveBeenCalledTimes(1); noEgressOrQuota();
+    warn.mockRestore();
   });
 });
 

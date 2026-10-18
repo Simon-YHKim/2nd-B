@@ -63,6 +63,12 @@ import type { AuditMeta } from "../types";
 const auditMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;
 const crisisMock = insertCrisisEvent as jest.MockedFunction<typeof insertCrisisEvent>;
 
+// A crisis result comes back before its two ledger writes (Simon 2026-10-18 21:18, Q-261018-57 가):
+// let the hand-off and the outbox delivery finish before looking at the ledgers.
+async function settleLedgers(): Promise<void> {
+  for (let i = 0; i < 4; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 const GREEN = {
   zone: "green" as const,
   triggers: [] as string[],
@@ -193,6 +199,7 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
     expect(mockInvoke).toHaveBeenCalledTimes(1);
     expect(mockInvoke.mock.calls[0]![0]).toBe("openai-proxy");
     // A 500 is an outage, not a crisis gate: no hotline, no crisis row.
+    await settleLedgers();
     expect(crisisMock).not.toHaveBeenCalled();
   });
 
@@ -247,6 +254,7 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
     expect(mockInvoke).toHaveBeenCalledTimes(1); // no failover on a crisis gate
     expect(r.safety.zone).toBe("red");
     expect(r.text).toMatch(/988/);
+    await settleLedgers();
     expect(crisisMock).toHaveBeenCalledTimes(1);
     expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("proxy_input_red");
   });

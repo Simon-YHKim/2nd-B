@@ -143,6 +143,7 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
       const proxyAudited = true; const fence = () => {};
       const writeAiAuditLog = async () => { countAudit(); effect('audit'); };
       const writeCrisisEvent = async () => { countAudit(); effect('crisis-event'); };
+      const { onCrisisDetected } = input; // the gate copies the caller's callback once (Q-261018-57)
       const notifyCrisis = ${observerInit};
       ${boundaryTail}
     }`, {

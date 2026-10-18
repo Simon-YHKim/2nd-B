@@ -77,6 +77,13 @@ import { insertCrisisEvent } from "../../supabase/crisis-events";
 const insertMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;
 const crisisMock = insertCrisisEvent as jest.MockedFunction<typeof insertCrisisEvent>;
 
+// A crisis result comes back before its two ledger writes (Simon 2026-10-18 21:18, Q-261018-57 가):
+// let the hand-off and the outbox delivery finish before looking at the ledgers.
+async function settleLedgers(): Promise<void> {
+  for (let i = 0; i < 4; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+  await getAuditWriteOutboxForTests();
+}
+
 // The vendor switches this suite depends on, with their pre-test values so the
 // pin never leaks into another suite in the same worker.
 const PINNED_SWITCHES = [
@@ -106,6 +113,7 @@ describe("callLlm", () => {
   });
 
   beforeEach(async () => {
+    await settleLedgers();
     await resetAuditWriteOutboxForTests();
     mockGenerateContent.mockClear();
     insertMock.mockClear();
@@ -167,6 +175,7 @@ describe("callLlm", () => {
     });
     expect(r.safety.zone).toBe("red");
     expect(mockGenerateContent).not.toHaveBeenCalled();
+    await settleLedgers();
     expect(insertMock).toHaveBeenCalledTimes(1);
     const arg = insertMock.mock.calls[0]![0]!;
     expect(arg.safetyZone).toBe("red");
@@ -195,6 +204,7 @@ describe("callLlm", () => {
 
     expect(result?.safety.zone).toBe("red");
     expect(mockGenerateContent).not.toHaveBeenCalled();
+    await settleLedgers();
     expect(insertMock).toHaveBeenCalledTimes(1);
     expect(insertMock.mock.calls[0]![0]).toMatchObject({
       userId: "interview-user",
@@ -300,6 +310,7 @@ describe("callLlm", () => {
         expect(reference.text).toContain(input.numbers);
         for (const number of input.absent) expect([number, reference.text.includes(number)]).toEqual([number, false]);
         expect(reference.safety.crisisRouting?.number).toBe(input.primary);
+        await settleLedgers();
         await resetAuditWriteOutboxForTests();
         insertMock.mockClear();
         crisisMock.mockClear();
@@ -318,6 +329,7 @@ describe("callLlm", () => {
           expect(mockGenerateContent).not.toHaveBeenCalled();
           expect(live.client).not.toHaveBeenCalled();
           expect(live.capturedInvoke).not.toHaveBeenCalled();
+          await settleLedgers();
           expect(insertMock).toHaveBeenCalledTimes(1);
           expect(insertMock.mock.calls[0]![0]).toMatchObject({
             userId: "chat-user",
@@ -344,6 +356,7 @@ describe("callLlm", () => {
       const reference = await send(actual.classifyChatTextForCrisis, input);
       expect(reference?.text).toContain(input.numbers);
       expect(reference?.safety.crisisRouting?.number).toBe(input.primary);
+      await settleLedgers();
       await resetAuditWriteOutboxForTests(); insertMock.mockClear(); crisisMock.mockClear();
       const order: string[] = [];
       insertMock.mockImplementationOnce(async () => { order.push("audit"); });
@@ -362,6 +375,7 @@ describe("callLlm", () => {
         expect(result).toEqual(reference);
         expect(observer).toHaveBeenCalledTimes(1);
         expect(observer).toHaveBeenCalledWith(reference!.safety.crisisRouting?.hotline);
+        await settleLedgers();
         expect(order).toEqual(["visible", "audit", "event"]);
         expect(insertMock).toHaveBeenCalledTimes(1); expect(crisisMock).toHaveBeenCalledTimes(1);
         expect(insertMock.mock.calls[0].slice(1, 3)).toEqual([session.accessToken, session.signal]);
@@ -423,7 +437,7 @@ describe("callLlm", () => {
     expect(crisisMock).not.toHaveBeenCalled();
   });
 
-  test("deferred interview ledgers never delay visible UI and concurrent starts route exactly once", async () => {
+  test("deferred interview ledgers never delay visible UI or the result, and concurrent starts route exactly once", async () => {
     const events: string[] = [];
     let releaseAudit!: () => void;
     const deferredAudit = new Promise<void>((resolve) => {
@@ -477,16 +491,20 @@ describe("callLlm", () => {
     expect(events[0]).toBe("visible");
     expect(events).not.toContain("duplicate-visible");
 
+    // Q-261018-57 가: the routing settles with its result while the audit row is still held.
+    expect((await first.done)?.safety.zone).toBe("red");
+    expect(guard.current).toBe(false);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(insertMock).toHaveBeenCalledTimes(1);
     expect(crisisMock).not.toHaveBeenCalled();
-    expect(events.slice(0, 2)).toEqual(["visible", "audit"]);
+    expect(events.filter((e) => e !== "settled")).toEqual(["visible", "audit"]);
+    expect(events).toContain("settled");
 
     releaseAudit();
-    await first.done;
+    await settleLedgers();
     expect(crisisMock).toHaveBeenCalledTimes(1);
-    expect(events).toEqual(["visible", "audit", "crisis-event", "settled"]);
-    expect(guard.current).toBe(false);
+    expect(events.filter((e) => e !== "settled")).toEqual(["visible", "audit", "crisis-event"]);
+    expect(events.filter((e) => e === "settled")).toHaveLength(1);
   });
 
   test("multimodal: image is attached as an inlineData part on the direct/Vertex path", async () => {

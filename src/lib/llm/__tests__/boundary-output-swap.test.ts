@@ -68,6 +68,12 @@ import { insertCrisisEvent } from "../../supabase/crisis-events";
 const auditMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;
 const crisisMock = insertCrisisEvent as jest.MockedFunction<typeof insertCrisisEvent>;
 
+// A crisis result comes back before its two ledger writes (Simon 2026-10-18 21:18, Q-261018-57 가):
+// let the hand-off and the outbox delivery finish before looking at the ledgers.
+async function settleLedgers(): Promise<void> {
+  for (let i = 0; i < 4; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 const RED = {
   zone: "red" as const,
   triggers: ["active_ideation_no_method"],
@@ -120,6 +126,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     expect(result.safety.crisisRouting?.hotline).toBe(hotline);
     expect(result.text).toContain(`In South Korea, call ${number}`);
     expect(result.text).not.toContain(text);
+    await settleLedgers();
     expect(auditMock.mock.calls[0][0].modelUsed).toContain("+swap:");
   });
 
@@ -142,6 +149,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     expect(r.text).toMatch(/988/);
     expect(r.safety.zone).toBe("red");
     expect(mockClassifySafety).toHaveBeenCalledTimes(1);
+    await settleLedgers();
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock.mock.calls[0]![0]!.safetyZone).toBe("red");
     expect(auditMock.mock.calls[0]![0]!.modelUsed).toMatch(/\+swap:/);
@@ -162,6 +170,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
 
     expect(r.text).toBe("Noted — saved your weekly plan.");
     expect(r.safety.zone).toBe("green");
+    await settleLedgers();
     expect(crisisMock).not.toHaveBeenCalled();
     expect(auditMock.mock.calls[0]![0]!.safetyZone).toBe("green");
   });
@@ -194,6 +203,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     expect(result.text).toBe(answer);
     expect(result.safety.zone).toBe("green");
     expect(mockClassifySafety).toHaveBeenCalledTimes(1);
+    await settleLedgers();
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock.mock.calls[0][0].modelUsed).not.toContain("+swap:");
     expect(crisisMock).not.toHaveBeenCalled();
@@ -228,7 +238,9 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
 
     expect(r.safety.zone).toBe("red");
     expect(r.text).not.toContain("사실이 아니에요");
+    await settleLedgers();
     expect(crisisMock).toHaveBeenCalledTimes(1);
+    await settleLedgers();
     const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
     expect(categories).toEqual(["lexicon_match", "output_swap", "crisis_term:15"]);
     for (const entry of categories) expect(entry).toMatch(/^[a-z_]+(:[0-9]+)?$/);
@@ -240,6 +252,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
 
     await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "오늘 계획을 세웠어요." });
 
+    await settleLedgers();
     const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
     expect(categories.filter((entry: string) => entry.startsWith("crisis_term:"))).toEqual(["crisis_term:1", "crisis_term:13"]);
   });
@@ -250,6 +263,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
 
     await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "Today I planned my week and it felt productive." });
 
+    await settleLedgers();
     const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
     expect(categories).toContain("output_swap");
     expect(categories.some((entry: string) => entry.startsWith("crisis_term:"))).toBe(false);
@@ -260,7 +274,9 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
 
     expect(r.safety.zone).toBe("red");
     expect(mockGenerateContent).not.toHaveBeenCalled();
+    await settleLedgers();
     expect(crisisMock).toHaveBeenCalledTimes(1);
+    await settleLedgers();
     const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
     expect(categories).toContain("input_red");
     expect(categories).not.toContain("output_swap");
@@ -274,6 +290,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
     const r = await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "Today I planned my week and it felt productive." });
 
     expect(r.safety.zone).toBe("red");
+    await settleLedgers();
     expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toEqual(["lexicon_match", "output_swap", "crisis_term:1"]);
   });
 
@@ -286,6 +303,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
 
     await callLlm({ userId: "u1", locale: "en", purpose: "source_ingest", user: "Today I planned my week and it felt productive." });
 
+    await settleLedgers();
     const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
     expect(categories).toEqual(["unlisted", "passive_ideation", "output_swap"]);
     expect(JSON.stringify(categories)).not.toContain("slip away");
@@ -295,6 +313,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
   test("the user's own words leave only fixed names in the record", async () => {
     await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "가족에게 짐이 되는 것 같아" });
 
+    await settleLedgers();
     const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
     expect(categories).toEqual(["crisis", "input_red"]);
   });
@@ -306,6 +325,7 @@ describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () =
 
     await callLlm({ userId: "u1", locale: "ko", purpose: "source_ingest", user: "오늘 계획을 세웠어요." });
 
+    await settleLedgers();
     const categories = crisisMock.mock.calls[0]![0]!.triggerCategories;
     expect(categories).toEqual(["unlisted", "passive_ideation", "output_swap", "crisis_term:15"]);
     expect(categories).not.toContain("crisis_term:7");

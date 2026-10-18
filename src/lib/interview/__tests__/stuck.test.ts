@@ -270,8 +270,9 @@ describe("발판은 네트워크 없이 즉시 보여준다", () => {
     expect(redBranch).not.toContain("await classifyInterviewTextForCrisis");
     expect(redBranch).not.toMatch(/isNonAnswer|incrementCoverage|setCoverage|nextProbe|callLlm/);
     expect(ROUTE).toMatch(/function startInterviewCrisisRouting[\s\S]*onVisible\(\)[\s\S]*classifyInterviewTextForCrisis\(/);
-    expect(ROUTE).toMatch(/async function routeCrisis[\s\S]*await writeAiAuditLog\(/);
-    expect(ROUTE).toMatch(/async function routeCrisis[\s\S]*await writeCrisisEvent\(/);
+    // Q-261018-57 가: both ledgers are still written, handed on after the result is decided.
+    expect(ROUTE).toMatch(/async function routeCrisis[\s\S]*void writeAiAuditLog\(/);
+    expect(ROUTE).toMatch(/async function routeCrisis[\s\S]*writeCrisisEvent\(userId, event,/);
     expect(SCREEN).toContain('isMinor ? "KR_1388" : "KR_109"');
     expect(SCREEN).toContain(': "GLOBAL_988"');
   });

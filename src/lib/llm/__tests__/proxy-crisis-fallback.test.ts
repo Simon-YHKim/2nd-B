@@ -74,6 +74,12 @@ import { insertCrisisEvent } from "../../supabase/crisis-events";
 const auditMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;
 const crisisMock = insertCrisisEvent as jest.MockedFunction<typeof insertCrisisEvent>;
 
+// A crisis result comes back before its two ledger writes (Simon 2026-10-18 21:18, Q-261018-57 가):
+// let the hand-off and the outbox delivery finish before looking at the ledgers.
+async function settleLedgers(): Promise<void> {
+  for (let i = 0; i < 4; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 const GREEN = {
   zone: "green" as const,
   triggers: [] as string[],
@@ -154,10 +160,12 @@ describe("callLlm — proxy 422 crisis fallback (C9 follow-up)", () => {
     expect(r.safety.crisisRouting?.number).toBe("988");
     // C3: the proxy does NOT audit its 422 rejection, so the client row is
     // the only record — it must exist and be marked crisis-routed.
+    await settleLedgers();
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock.mock.calls[0]![0]!.modelUsed).toBe("none-crisis-routed");
     expect(auditMock.mock.calls[0]![0]!.safetyZone).toBe("red");
     // Restricted ledger: tagged as the server-gate catch, not input_red.
+    await settleLedgers();
     expect(crisisMock).toHaveBeenCalledTimes(1);
     expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("proxy_input_red");
   });
@@ -188,6 +196,7 @@ describe("callLlm — proxy 422 crisis fallback (C9 follow-up)", () => {
     await expect(
       callLlm({ userId: "u1", locale: "en", purpose: "interview_probe", user: BENIGN_EN }),
     ).rejects.toBe(boom);
+    await settleLedgers();
     expect(crisisMock).not.toHaveBeenCalled();
   });
 
@@ -198,6 +207,7 @@ describe("callLlm — proxy 422 crisis fallback (C9 follow-up)", () => {
     await expect(
       callLlm({ userId: "u1", locale: "en", purpose: "interview_probe", user: BENIGN_EN }),
     ).rejects.toBe(other);
+    await settleLedgers();
     expect(crisisMock).not.toHaveBeenCalled();
   });
 
@@ -221,6 +231,7 @@ describe("callLlm — proxy 422 crisis fallback (C9 follow-up)", () => {
 
     expect(r.safety.zone).toBe("red");
     expect(r.text).toMatch(/988/);
+    await settleLedgers();
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(crisisMock).not.toHaveBeenCalled();
   });
@@ -248,6 +259,7 @@ describe("callAdvisor — proxy 422 crisis fallback (C9 follow-up)", () => {
     expect(r.text).toMatch(/988/);
     expect(r.triggers).toContain("proxy_input_red");
     // Client bookkeeping is the only record (proxy never audited the 422).
+    await settleLedgers();
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock.mock.calls[0]![0]!.modelUsed).toMatch(/^none-crisis-routed-proxy:/);
     expect(crisisMock).toHaveBeenCalledTimes(1);
@@ -262,6 +274,7 @@ describe("callAdvisor — proxy 422 crisis fallback (C9 follow-up)", () => {
     await expect(
       callAdvisor({ userId: "u1", locale: "en", userMessage: BENIGN_EN }),
     ).rejects.toBe(boom);
+    await settleLedgers();
     expect(crisisMock).not.toHaveBeenCalled();
   });
 
@@ -283,6 +296,7 @@ describe("callAdvisor — proxy 422 crisis fallback (C9 follow-up)", () => {
     expect(r.fixedTemplate).toBe(true);
     expect(r.text).toMatch(/988/);
     expect(r.triggers).toContain("proxy_input_red_unconfirmed");
+    await settleLedgers();
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(crisisMock).not.toHaveBeenCalled();
   });

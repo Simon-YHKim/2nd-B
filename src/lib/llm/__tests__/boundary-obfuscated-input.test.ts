@@ -44,6 +44,13 @@ const mockLexicon = jest.mocked(classifyInputAnyLocale);
 const mockGate = jest.mocked(hasCrisisObfuscation);
 const mockAudit = jest.mocked(insertAiAuditLog);
 const mockCrisis = jest.mocked(insertCrisisEvent);
+
+// A crisis result comes back before its two ledger writes (Simon 2026-10-18 21:18, Q-261018-57 가):
+// let the hand-off and the outbox delivery finish before looking at the ledgers (microtasks only,
+// part of this file runs under fake timers).
+async function settleLedgers(): Promise<void> {
+  for (let i = 0; i < 100; i++) await Promise.resolve();
+}
 const flags = ["EXPO_PUBLIC_OBFUSCATION_SAFETY", "EXPO_PUBLIC_SERVER_SAFETY", "EXPO_PUBLIC_CHAT_VENDOR", "EXPO_PUBLIC_FAILOVER_VENDOR"];
 const saved = flags.map((key) => process.env[key]);
 const semanticResponse = (zone: string) => ({ data: { text: JSON.stringify({ zone, triggers: ["active_ideation_no_method"], confidence: 0.87 }) }, error: null });
@@ -78,8 +85,10 @@ test.each([
   expect(classifySafety).not.toHaveBeenCalled();
   expect(result.text).toContain(number);
   expect(result.safety.zone).toBe("red");
+  await settleLedgers();
   expect(mockAudit).toHaveBeenCalledTimes(1);
   expect(result.audit).toMatchObject({ modelUsed: "none-crisis-routed", purpose: "secondb_chat", safetyZone: "red" });
+  await settleLedgers();
   expect(mockCrisis).toHaveBeenCalledTimes(1);
   expect(mockCrisis.mock.calls[0][0]).toMatchObject({ classifierConfidence: 0.87, triggerCategories: ["crisis", "input_semantic_red"], locale });
   expect(healthRows()).toHaveLength(0);
@@ -92,6 +101,7 @@ test.each(["green", "yellow"])("semantic %s generates once with the original use
   expect(semanticCalls()).toHaveLength(1);
   expect(generationCalls()).toHaveLength(1);
   expect(generationCalls()[0][1].body.user).toBe(input.user);
+  await settleLedgers();
   expect(mockCrisis).not.toHaveBeenCalled();
   expect(healthRows()).toHaveLength(0);
   expect(mockLexicon.mock.invocationCallOrder[0]).toBeLessThan(mockGate.mock.invocationCallOrder[0]);
@@ -107,6 +117,7 @@ test.each(["transport", "limit", "malformed"])("null from %s fails open with one
   expect(generationCalls()).toHaveLength(1);
   expect(healthRows()).toHaveLength(1);
   expect(healthRows()[0][0]).toMatchObject({ promptHash: "", outputHash: "", purpose: "safety_classify" });
+  await settleLedgers();
   expect(mockCrisis).not.toHaveBeenCalled();
 });
 
@@ -141,6 +152,7 @@ test.each(["I want to die.", "지금 죽고 싶어.", "self-harm"])("lexicon RED
   expect(result.text).toContain("988");
   expect(mockGate).not.toHaveBeenCalled();
   expect(mockInvoke).not.toHaveBeenCalled();
+  await settleLedgers();
   expect(mockCrisis.mock.calls[0][0]).toMatchObject({ classifierConfidence: 0.95, triggerCategories: ["crisis", "input_red"] });
 });
 
@@ -160,6 +172,7 @@ test.each(["red", "green", "unavailable"])("session invalidated while awaiting %
   expect(mockCapturedInvoke).toHaveBeenCalledTimes(1);
   expect(mockCapturedInvoke).toHaveBeenCalledWith("openai-proxy", session.accessToken, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   expect(generationCalls()).toHaveLength(0);
+  await settleLedgers();
   expect(mockAudit).not.toHaveBeenCalled();
   expect(mockCrisis).not.toHaveBeenCalled();
 });
@@ -169,6 +182,7 @@ test("abort while waiting for semantics never generates or records", async () =>
   mockInvoke.mockImplementationOnce(async () => { controller.abort(); return semanticResponse("green"); });
   await expect(callLlm({ ...input, signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
   expect(generationCalls()).toHaveLength(0);
+  await settleLedgers();
   expect(mockAudit).not.toHaveBeenCalled();
   expect(mockCrisis).not.toHaveBeenCalled();
 });
@@ -181,6 +195,7 @@ test("callLlm itself fences after the semantic await even if the classifier retu
   });
   await expect(callLlm({ ...input, signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
   expect(mockInvoke).not.toHaveBeenCalled();
+  await settleLedgers();
   expect(mockAudit).not.toHaveBeenCalled();
 });
 
@@ -208,6 +223,7 @@ describe("R1 bounded semantic wait in callLlm", () => {
     expect(settled).toHaveBeenCalledWith(expect.objectContaining({ text: generationResponse.data.text }));
     expect(healthRows()).toHaveLength(1);
     expect(generationCalls()).toHaveLength(1);
+    await settleLedgers();
     expect(mockAudit.mock.invocationCallOrder[0]).toBeLessThan(mockInvoke.mock.invocationCallOrder[1]);
     expect(mockCrisis).not.toHaveBeenCalled();
     expect(jest.getTimerCount()).toBe(0);
@@ -224,6 +240,7 @@ describe("R1 bounded semantic wait in callLlm", () => {
     await jest.advanceTimersByTimeAsync(0);
     expect(settled).toHaveBeenCalledTimes(1);
     expect(generationCalls()).toHaveLength(zone === "red" ? 0 : 1);
+    await settleLedgers();
     expect(mockCrisis).toHaveBeenCalledTimes(zone === "red" ? 1 : 0);
     expect(healthRows()).toHaveLength(0);
     expect(jest.getTimerCount()).toBe(0);
@@ -242,6 +259,7 @@ describe("R1 bounded semantic wait in callLlm", () => {
     await jest.runAllTimersAsync();
     expect(settled).toHaveBeenCalledTimes(1);
     expect(generationCalls()).toHaveLength(1);
+    await settleLedgers();
     expect(mockAudit).toHaveBeenCalledTimes(auditCount);
     expect(mockCrisis).not.toHaveBeenCalled();
   });
@@ -273,12 +291,14 @@ describe("R1 bounded semantic wait in callLlm", () => {
       kind === "invalid" ? { message: "stale-session" } : { name: "AbortError" },
     ));
     expect(generationCalls()).toHaveLength(0);
+    await settleLedgers();
     expect(mockAudit).not.toHaveBeenCalled();
     expect(mockCrisis).not.toHaveBeenCalled();
     expect(jest.getTimerCount()).toBe(0);
     await jest.runAllTimersAsync();
     expect(rejected).toHaveBeenCalledTimes(1);
     expect(generationCalls()).toHaveLength(0);
+    await settleLedgers();
     expect(mockAudit).not.toHaveBeenCalled();
   });
 });

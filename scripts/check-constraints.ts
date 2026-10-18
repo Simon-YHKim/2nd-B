@@ -5,6 +5,7 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import * as ts from "typescript";
 
 import { FORBIDDEN_TERMS, CRISIS_TERMS } from "../src/lib/safety/lexicon";
 import { describeOwners, findMainVerifyOwners } from "./main-verify-owner";
@@ -531,23 +532,48 @@ results.push(
 
 results.push(
   check("C9", () => {
-    const wrapper = read("src/lib/llm/boundary.ts");
-    // crude AST check: the input classifier (classifyInput or the dual-locale
-    // classifyInputAnyLocale) must appear before generateContent. Since
-    // Q-261018-48 callLlm's input judgment lives in the crisis gate
-    // (src/lib/safety/crisis-route.ts, no settings): the wrapper must open that
-    // gate on the caller's input before generateContent, and the gate must run
-    // the classifier on input.user. Both halves are required.
-    const route = read("src/lib/safety/crisis-route.ts");
-    const gateIdx = wrapper.search(/crisisRouting\.openPromptCrisisGate\(input, signal\)/);
-    const generateIdx = wrapper.indexOf("generateContent");
-    // The gate's own body: from its declaration to the first line that closes a router ("  }").
-    const gateStart = route.indexOf("function openPromptCrisisGate(");
-    const gateFn = gateStart >= 0 ? route.slice(gateStart).split(/\r?\n {2}\}\r?\n/)[0] : "";
-    const gateClassifies = gateFn.includes(
-      "const inputSafety = classifyInputAnyLocale(input.user, input.locale, { minor: input.minor });",
-    );
-    const ok = gateIdx >= 0 && generateIdx >= 0 && gateIdx < generateIdx && gateClassifies;
+    // AST check, so comments and string text do not count. Since Q-261018-48 callLlm's input judgment
+    // lives in the crisis gate (src/lib/safety/crisis-route.ts, no settings): callLlm must open that gate
+    // on the caller's input and return its routed result on the next statement, both before any
+    // generateContent call, and the gate's own body must classify the prompt with classifyInputAnyLocale
+    // as a top-level statement and route on that verdict.
+    const printer = ts.createPrinter({ removeComments: true });
+    const flat = (node: ts.Node, sf: ts.SourceFile): string =>
+      printer.printNode(ts.EmitHint.Unspecified, node, sf).replace(/\s+/g, " ").trim();
+    const parseFile = (rel: string): ts.SourceFile =>
+      ts.createSourceFile(rel, read(rel), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const findFunction = (root: ts.Node, name: string): ts.FunctionDeclaration | undefined => {
+      let hit: ts.FunctionDeclaration | undefined;
+      const visit = (node: ts.Node): void => {
+        if (!hit && ts.isFunctionDeclaration(node) && node.name?.text === name) hit = node;
+        if (!hit) ts.forEachChild(node, visit);
+      };
+      visit(root);
+      return hit;
+    };
+    const wrapper = parseFile("src/lib/llm/boundary.ts");
+    const callLlm = findFunction(wrapper, "callLlm");
+    const body = callLlm?.body?.statements ?? [];
+    const printedBody = body.map((st) => flat(st, wrapper));
+    const gateAt = printedBody.indexOf("const crisisGate = crisisRouting.openPromptCrisisGate(input, signal);");
+    const returnsAtOnce = gateAt >= 0
+      && printedBody[gateAt + 1] === "if (crisisGate.routed) return (await crisisGate.routed) as unknown as LlmResult<T>;";
+    let firstGenerate = -1;
+    const visitGenerate = (node: ts.Node): void => {
+      if (firstGenerate < 0 && ts.isPropertyAccessExpression(node) && node.name.text === "generateContent") {
+        firstGenerate = node.getStart(wrapper);
+      }
+      ts.forEachChild(node, visitGenerate);
+    };
+    if (callLlm) visitGenerate(callLlm);
+    const gateFirst = gateAt >= 0 && firstGenerate >= 0 && body[gateAt].getEnd() < firstGenerate;
+    const route = parseFile("src/lib/safety/crisis-route.ts");
+    const gate = findFunction(route, "openPromptCrisisGate");
+    const gateBody = (gate?.body?.statements ?? []).map((st) => flat(st, route));
+    const classifies = gateBody.includes("const inputSafety = classifyInputAnyLocale(user, locale, { minor });");
+    const routesOnIt = gateBody.some((st) => st.startsWith("return Object.freeze({")
+      && st.includes('routed: inputSafety.zone === "red" ? routeInputRed() : null'));
+    const ok = returnsAtOnce && gateFirst && classifies && routesOnIt;
     return {
       id: "C9",
       status: ok ? "PASS" : "FAIL",
