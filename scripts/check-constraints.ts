@@ -1365,8 +1365,12 @@ results.push(
       koConsent.notice.trustTitle === "기록은 판매하지 않습니다" &&
       enConsent.privacy.trustTitle === "Default: private and off" &&
       koConsent.privacy.trustTitle === "기본값은 비공개와 꺼짐" &&
-      enConsent.notice.ackOverseas.includes("encrypted service data") &&
-      koConsent.notice.ackOverseas.includes("암호화된 서비스 데이터") &&
+      // Z5 (Q-261013-06 approved text, Q-261018-49 가): the overseas ack names each
+      // company and country instead of the old "encrypted service data" summary.
+      enConsent.notice.ackOverseas.includes("Supabase, Inc. (US)") &&
+      enConsent.notice.ackOverseas.includes("OpenAI, Anthropic (US)") &&
+      koConsent.notice.ackOverseas.includes("Supabase, Inc.(미국)") &&
+      koConsent.notice.ackOverseas.includes("OpenAI, Anthropic(미국)") &&
       enConsent.privacy.keys.external_analytics.desc.includes("Record contents are not sent") &&
       koConsent.privacy.keys.external_analytics.desc.includes("기록 본문은 보내지 않습니다") &&
       notice.includes('t("notice.trustTitle")') &&

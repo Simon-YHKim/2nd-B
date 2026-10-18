@@ -72,6 +72,13 @@ const FROZEN_SIGNUP_REVISION_TUPLES = {
     termsVersion: "2026-10-05",
     confirmationEligible: true,
   },
+  // 2026-10-18 (Q-261018-49 가): Z5 쉬운 말 동의 문구 + 방침은 게시된 2026-10-07 판. 약관 그대로.
+  "email-v10": {
+    consentVersion: "2026-10-18",
+    policyVersion: "2026-10-07",
+    termsVersion: "2026-10-05",
+    confirmationEligible: true,
+  },
 } as const;
 
 const migrations = readdirSync(migrationDir)
@@ -83,8 +90,9 @@ const migrations = readdirSync(migrationDir)
   });
 
 // The email-v9 release candidate is the numbered 0215 in the list above; its
-// draft overlay was deleted when it got its number (Q-261005-07). Production
-// publication separately requires the live status RPC to match it.
+// draft overlay was deleted when it got its number (Q-261005-07). email-v10 is
+// 0262, written as a numbered file. Production publication separately requires
+// the live status RPC to match the client's revision.
 
 function lastPatternMatch(source: string, pattern: RegExp) {
   const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
@@ -187,8 +195,9 @@ describe("verified-email consent ledger", () => {
   });
 
   test("keeps current and historical email revisions confirmation-eligible", () => {
-    expect(authSignupRevision()).toBe("email-v9");
-    expect(contractTuple(authSignupRevision() as "email-v9").confirmationEligible).toBe(true);
+    expect(authSignupRevision()).toBe("email-v10");
+    expect(contractTuple(authSignupRevision() as "email-v10").confirmationEligible).toBe(true);
+    expect(contractTuple("email-v9").confirmationEligible).toBe(true);
     expect(contractTuple("email-v7").confirmationEligible).toBe(true);
     expect(contractTuple("email-v6").confirmationEligible).toBe(true);
     expect(contractTuple("email-v5").confirmationEligible).toBe(true);

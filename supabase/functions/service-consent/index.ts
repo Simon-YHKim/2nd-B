@@ -8,16 +8,18 @@ import {
   readLlmProxyJsonObject, userIdFromJwt,
 } from '../_shared/llm-proxy-common.ts';
 
-const CURRENT_REVISION = 'service-v4';
+const CURRENT_REVISION = 'service-v5';
 const LEGACY_REVISION = 'service-v1';
 // service-v2 is the PolaScope (email-v7) client; service-v4 maps the email-v9
-// notice revision (0215). Installed clients keep their own reviewed tuple.
+// notice revision (0215); service-v5 maps the email-v10 notice revision (0262).
+// Installed clients keep their own reviewed tuple.
 // service-v3 is reserved for the unmerged #2024 re-consent draft.
-const REVISIONS = new Set([LEGACY_REVISION,'service-v2',CURRENT_REVISION]);
+const REVISIONS = new Set([LEGACY_REVISION,'service-v2','service-v4',CURRENT_REVISION]);
 const STATUS_RPC: Record<string, string> = {
   'service-v1':'llm_service_consent_status',
   'service-v2':'llm_service_consent_status_v2',
   'service-v4':'llm_service_consent_status_v4',
+  'service-v5':'llm_service_consent_status_v5',
 };
 const ACK_KEYS = ['service','llmProcessing','overseasTransfer','sensitiveData','safetyNotice'];
 const STATUS_KEYS = ['contract_revision','consent_version','policy_version','terms_version','state','change_token','can_grant'];
