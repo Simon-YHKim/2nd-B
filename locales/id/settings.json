@@ -27,6 +27,7 @@
   },
   "actions": {
     "signOutHint": "Keluar dan kembali ke layar masuk.",
+    "signOutAllHint": "Keluar di semua perangkat dan kembali ke layar masuk.",
     "deleteJournalsHint": "Membuka konfirmasi sebelum menghapus semua entri jurnal.",
     "deleteNotesHint": "Membuka konfirmasi sebelum menghapus semua catatan.",
     "deleteAuditHint": "Membuka konfirmasi sebelum menghapus semua respons audit.",
@@ -71,6 +72,9 @@
     "signOut": {
       "title": "Keluar dari akun?",
       "cancelHint": "Menutup konfirmasi ini tanpa keluar."
+    },
+    "signOutAll": {
+      "title": "Keluar dari semua perangkat?"
     },
     "confirm": {
       "label": "Dialog konfirmasi pengaturan",
@@ -161,6 +165,7 @@
   "deleteEverything": "Hapus semuanya",
   "finalCheck": "Pemeriksaan akhir: semuanya akan hilang. Sudah ekspor dulu?",
   "signOut": "Keluar",
+  "signOutAll": "Keluar dari semua perangkat",
   "couldntSignOut": "Tidak dapat keluar",
   "signOutError": "Terjadi kesalahan saat keluar. Coba lagi sebentar lagi.",
   "deletedN": "{{n}} dihapus",
