@@ -33,7 +33,69 @@
 **⚠ 2026-10-14: 지금 기준은 활성 창 상한 400KB · 예산 320KB · 보관 부분 하나 360KB 다(`/simon-handoff` Step 2-B). 위에 적힌 100KB 는 옛 값이다. 이번에 2026-10-11 00:02 ~ 2026-10-12 22:30 의 블록 28개를 `HANDOFF-2026-10-p3.md` 맨 위로 옮겼다 - 10 월 블록은 계속 그 파일로 간다(360KB 를 넘으면 `-p4`).**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-16 08:33 KST / Codex 세션 종료 인수
+## Latest — 2026-10-18 11:28 KST / 2ndb-4e · 인수 1차: 안전 서버 반영 · T60 · Z5 원문 보존 · 멈춤 둘(기기 잠금 · X06) · 물음 13
+
+이 창(2ndb-4e)은 대표님 08:56 지시 「이전 세션에서 작업하던 내용을 정리해서 모두 완수하는 역할」로 Codex 10-16 보고서(`C:\Users\202502\Downloads\polascope-session-results-261016.html` · 76개 + 15개)를 이어받았다. 순서는 Q-261015-82(안전 → 보안 → 인터뷰 · 화면 · 재설계 T69 ~ 76 은 뒤).
+
+### 어디까지 왔나
+- main HEAD `8339304c` · 8081 = origin/main · `npm run app:parity` 「같음」(10:57 `bb4a08be` 에서 마지막으로 잼 · 그 뒤 머지는 문서만).
+- 머지 PR: #2610 T60(위기 낱말 20 · 21 기록 · 10:04 `c802cc59` · 그 커밋의 APK 빌드 성공) · #2612 Z5 승인 원문 보존(10:55) · #2613 오전 결정 기록(11:20) · #2614 2ndb-f6 결정 세 줄 대신 기록(11:27).
+- 운영: 프록시 다섯 재배포(09:44 · openai v155 · gemini v169 · dashboard-generate v11 · claude v149 · xai v84 · 전부 `70a65fd5`) · 공용 설치 보강(expo-local-authentication · expo-network 56.0.5 + 패치 셋).
+- 8081 에서 확인(운영 쓰기 0): T19 · T21 · T23(119 · 112 · es) · T27 · T60(10:1x) · T11 · T50 · T56(11:2x · 다섯 언어 × 폭 390 · 360 · 잘림 0). T56 의 폰 큰 글씨는 폰 확인으로 남음.
+- 열린 PR: **#2611 X06**(공용 위기 라우팅 구조 시험) 초안 · 독립 검토 3회 모두 BLOCK(3회차 high 8) → 규칙대로 멈춤 · Q-261018-48.
+- 멈춤 보고: **기기 잠금(#2555)이 화면 잠금 없는 폰의 주인을 막음**(Rufus 점검 Z124 · Z125 · 10-14 12:49 의 뒤집는 조건) → Q-261018-47 · QA APK 게시(Q-42)는 그 답 뒤.
+
+### 보고서와 물음
+- 보고서(M 등급 · 5판): <https://claude.ai/artifact/4pP4UwP1o3W1FwtRp96QyJ> · 원본 스크립트는 이 세션의 scratchpad `report261018/`(state.json → build.py).
+- 미답 13(보고서 결정 탭 순서): Q-261018-47 기기 잠금 · 48 X06 방향 · 40 Codex 묶음 파일 · 41 0225 · 0226 운영 GO · 49 Z5 를 언제 넣을지(분석 B · 충돌 기록 · 위치 약관과 한 개정으로 묶을지) · 52 장소 이름을 AI 에서 뺄지 · 53 위치정보관리책임자 · 43 날씨 약관 게시 · 시행일 · 42 QA APK · 50 로그아웃 범위 · 51 360px 안내 · 45 OpenAI 조직 설정 · 46 #2440 동결. Q-44 는 대표님 10:35 「위치기반 서비스 사업자 신고 진행하자.」(Relay 전달)로 닫음.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | Q-47 답 → 기기 잠금 수정(추천 가: 로그인 상태 + 폰에 화면 잠금이 있을 때만 묻기) · 그다음 Q-42 | small | ⭐ 주인이 앱에 못 들어가는 결함 |
+| B | Q-48 답 → X06(추천 가: 위기 함수를 설정 없는 파일로 옮기고 import 폐쇄 시험 · 반나절 ~ 하루 · 새 PR 1회차부터) | medium | 안전 |
+| C | Q-40 · 41 답 → 2차 웨이브(S2b 독립 검토 T16 · 0225 · 0226 운영 T62 · T20 · T28) | large | 순서상 다음 |
+| D | Q-49 답 → Z5 구현(문구 en · ko + es/pt/id 는 영어 · CONSENT_VERSION · 서버 튜플 email-v10 · 처리방침 판본 10-06 대 10-07 정리) · 원문은 `docs/handoff/Z5-CONSENT-APPROVED-TEXT-261013.md` | medium | 법무 둘째 의견 「출시 전」 |
+| E | Q-52 · 53 답 → 장소 이름 AI 제외(A 면 `ai-exclusion.ts` 판정 확장 + `proposalsToMarkdown` 표시) · `takeout.what` 문구 · 약관 · 방침(게시는 따로) | small | 약관 ⑤ 와 어긋남 |
+| F | Q-50 · 51 답 → 로그아웃 범위 · 360px 안내 두 줄 | small | |
+| G | T08: Octavius 회신(`.bots/relay/outbox/coding-4e-octavius-otp-expiry-1053.note.result.md`)으로 운영 OTP 만료 600 확인 | small | 읽기만 |
+| H | T09 개인정보 화면 낱말: 글쓰기는 Argon 후보 → 대표님 선택(10-18 결정) | medium | |
+
+### 막힌 것
+- 대표님 답 13개(위). 전달받은 일(Relay · 2ndb-f6)은 준비까지만 했다 - 푸시 · PR · 머지는 대표님이 이 창에 직접 말씀하신 뒤.
+- 이 PC 에 Supabase 관리 API 토큰이 없어 운영 Auth 설정을 직접 읽지 못한다(T08 은 Octavius 에 요청).
+
+### 적용 중인 정책 (영구)
+1. 같은 PR 이 독립 검토에서 세 번 BLOCK 이면 멈추고 여쭘(Q-261014-83 나 · 현행 규칙).
+2. 전달받은 결정은 준비까지만(메모리 규칙) · 결정 기록에 일반 「작은 판단은 묻지 말고」 허락은 없음(11:05 확인).
+3. APK 게시는 대표님 요청 때만(10-07) · 머지 뒤 CI 자동 빌드로 parity 를 맞춘다.
+4. 글쓰기는 Gemini 4 Argon 도움 · 고르기와 올리기는 대표님(10-18 · 2ndb-f6 창).
+5. 기록 PR 은 한 창으로 모은다(2ndb-f6 줄도 이 창 PR 로 받음 · #2614).
+
+### 핵심 파일 위치
+```
+docs/handoff/Z5-CONSENT-APPROVED-TEXT-261013.md   Z5 승인 원문(한국어 = 시안 = 법무 초안 · 영어 원본)
+src/lib/llm/__tests__/crisis-route-reads-no-config.test.ts   X06 시험(#2611 가지에만)
+E:/Coding Infra/reports/handoff-261018/ui/        8081 캡처 도구(t19 · t21 · screens_text_check)와 결과
+E:/Coding Infra/reports/devlab-261010/gates/gate_generic.py   독립 검토 실행기
+```
+
+### 검증
+```bash
+npm run verify        # 이 PC 는 메모리가 모자라면 jest 가 거짓 빨강 - 판정은 PR CI
+npm run app:parity    # 끝내기 전 「같음」
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin && git show origin/main:DECISIONS.md | tail -30
+# 보고서 결정 탭에서 답이 온 물음부터: A(Q-47) → B(Q-48) → C(Q-40 · 41)
+```
+- 기록 파일 크기: `DECISIONS.md` 355KB · 이 파일 약 370KB. 둘 다 400KB 에 가깝다 - 다음 기록 때 기간으로 나눌 것(요약 금지 · §0-1).
+
+---
+
+## 2026-10-16 08:33 KST / Codex 세션 종료 인수
 
 ### 현재 상태
 
