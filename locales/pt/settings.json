@@ -27,6 +27,7 @@
   },
   "actions": {
     "signOutHint": "Sai da conta e volta para a tela de login.",
+    "signOutAllHint": "Sai da conta em todos os dispositivos e volta para a tela de login.",
     "deleteJournalsHint": "Abre uma confirmação antes de apagar todas as entradas do diário.",
     "deleteNotesHint": "Abre uma confirmação antes de apagar todas as notas.",
     "deleteAuditHint": "Abre uma confirmação antes de apagar todas as respostas de avaliação.",
@@ -71,6 +72,9 @@
     "signOut": {
       "title": "Sair da conta?",
       "cancelHint": "Fecha esta confirmação sem sair da conta."
+    },
+    "signOutAll": {
+      "title": "Sair de todos os dispositivos?"
     },
     "confirm": {
       "label": "Diálogo de confirmação de configurações",
@@ -161,6 +165,7 @@
   "deleteEverything": "Excluir tudo",
   "finalCheck": "Verificação final: tudo será apagado. Você exportou antes?",
   "signOut": "Sair",
+  "signOutAll": "Sair de todos os dispositivos",
   "couldntSignOut": "Não foi possível sair",
   "signOutError": "Algo deu errado ao sair. Tente de novo em um instante.",
   "deletedN": "{{n}} excluídos",

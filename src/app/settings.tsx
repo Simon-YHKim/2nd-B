@@ -456,6 +456,27 @@ export default function Settings() {
 
   // Surface a calm, product-tone failure with a retry. The raw error stays in
   // the console for debugging and never appears in the user-facing Alert text.
+  // Q-261018-50 가(Simon 10-18): 로그아웃은 이 기기만("local"), 「모든 기기에서 로그아웃」은 "global".
+  // 두 단추가 같은 길을 쓴다.
+  function signOutAndLeave(scope: "local" | "global"): () => Promise<void> {
+    return async () => {
+      try {
+        await signOut(scope);
+        // Go straight to /sign-in. Routing via "/" could briefly render
+        // with a stale session before the SIGNED_OUT event lands.
+        router.dismissAll();
+        router.replace("/sign-in");
+      } catch (e) {
+        showActionError(
+          "signOut",
+          e,
+          t("couldntSignOut"),
+          t("signOutError"),
+        );
+      }
+    };
+  }
+
   function showActionError(
     context: string,
     error: unknown,
@@ -1039,22 +1060,14 @@ export default function Settings() {
             accessibilityHint={t("actions.signOutHint")}
             variant="secondary"
             disabled={busy !== null}
-            onPress={() => confirm(t("actions.signOutHint"), async () => {
-              try {
-                await signOut();
-                // Go straight to /sign-in. Routing via "/" could briefly render
-                // with a stale session before the SIGNED_OUT event lands.
-                router.dismissAll();
-                router.replace("/sign-in");
-              } catch (e) {
-                showActionError(
-                  "signOut",
-                  e,
-                  t("couldntSignOut"),
-                  t("signOutError"),
-                );
-              }
-            }, { title: t("modals.signOut.title"), action: t("signOut"), actionHint: t("actions.signOutHint"), cancelHint: t("modals.signOut.cancelHint") })}
+            onPress={() => confirm(t("actions.signOutHint"), signOutAndLeave("local"), { title: t("modals.signOut.title"), action: t("signOut"), actionHint: t("actions.signOutHint"), cancelHint: t("modals.signOut.cancelHint") })}
+          />
+          <Button
+            label={t("signOutAll")}
+            accessibilityHint={t("actions.signOutAllHint")}
+            variant="secondary"
+            disabled={busy !== null}
+            onPress={() => confirm(t("actions.signOutAllHint"), signOutAndLeave("global"), { title: t("modals.signOutAll.title"), action: t("signOutAll"), actionHint: t("actions.signOutAllHint"), cancelHint: t("modals.signOut.cancelHint") })}
           />
         </View>
 

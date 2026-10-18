@@ -1286,7 +1286,10 @@ export async function signOutAuthCallbackSession(
   return true;
 }
 
-export async function signOut(scope: "global" | "local" = "global"): Promise<void> {
+// Q-261018-50 가(Simon 10-18): 사용자가 누르는 로그아웃의 기본은 이 기기만이다. 모든 기기는 설정의
+// 「모든 기기에서 로그아웃」이 "global" 로 부른다. 계정 삭제(signOutExpected 기본 "global")와 비밀번호
+// 변경 · 복구(서버가 세션을 끝냄)는 그대로 모든 기기다.
+export async function signOut(scope: "global" | "local" = "local"): Promise<void> {
   const expected = await captureSignOutExpectation();
   // Remove only the captured owner's OS notifications and preference keys
   // before releasing auth. If another account wins while cleanup awaits, the

@@ -37,7 +37,7 @@ describe("account sign-out navigation dismissal", () => {
   }) => {
     const signOutCall = source.includes("await signOutExpected(authExpectation);")
       ? "await signOutExpected(authExpectation);"
-      : "await signOut();";
+      : "await signOut(scope);";
     const signOutAt = source.indexOf(signOutCall);
     const dismissAt = source.indexOf("router.dismissAll();", signOutAt);
     const replaceAt = source.indexOf('router.replace("/sign-in");', signOutAt);

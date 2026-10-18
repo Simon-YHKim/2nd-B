@@ -27,6 +27,7 @@
   },
   "actions": {
     "signOutHint": "Cierra sesión y regresa a la pantalla de inicio de sesión.",
+    "signOutAllHint": "Cierra sesión en todos los dispositivos y regresa a la pantalla de inicio de sesión.",
     "deleteJournalsHint": "Abre una confirmación antes de eliminar todas las entradas del diario.",
     "deleteNotesHint": "Abre una confirmación antes de eliminar todas las notas.",
     "deleteAuditHint": "Abre una confirmación para eliminar las respuestas sobre tu pasado.",
@@ -71,6 +72,9 @@
     "signOut": {
       "title": "¿Cerrar sesión?",
       "cancelHint": "Cierra esta confirmación sin cerrar sesión."
+    },
+    "signOutAll": {
+      "title": "¿Cerrar sesión en todos los dispositivos?"
     },
     "confirm": {
       "label": "Diálogo de confirmación de ajustes",
@@ -161,6 +165,7 @@
   "deleteEverything": "Eliminar todo",
   "finalCheck": "Comprobación final: todo desaparecerá. ¿Exportaste primero?",
   "signOut": "Cerrar sesión",
+  "signOutAll": "Cerrar sesión en todos los dispositivos",
   "couldntSignOut": "No se pudo cerrar sesión",
   "signOutError": "Algo salió mal al cerrar sesión. Inténtalo de nuevo en un momento.",
   "deletedN": "Se eliminaron {{n}}",
