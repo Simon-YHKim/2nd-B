@@ -4,25 +4,27 @@
 // crisis function cannot read the environment configuration" as separate work. Five review rounds of #2483 each
 // found a new configuration a mutation could hide in: a `live && viaEdge && ...` branch inside routeCrisis passed
 // every test because the tests ran one setting at a time. Adding settings to a matrix never ends. This check
-// closes the door instead: the code that decides the crisis guidance cannot name a setting, a vendor, the mode or
-// the edge at all.
+// closes the door instead.
 //
 // Threat model: settings that reach the crisis routing during ordinary maintenance (a new import, a helper, an
-// options field, a value passed by a caller). The ways around a name-based check (dynamic import, import.meta,
-// global objects, shadowing a module name) are refused outright rather than analysed.
+// options field, a value passed by a caller, a module constant). Every identifier is resolved by the TypeScript
+// checker to its real declaration, so names cannot be hidden by shadowing; host globals and dynamic loading are
+// refused outright rather than analysed.
 //
-// What is checked (TypeScript syntax trees, comments ignored):
-//  A. The crisis functions in boundary.ts use only allowed outside names: pure safety helpers imported from fixed
-//     specifiers, the audit transport, three built-ins, module constants whose value is a literal, and each other.
-//     No local name may shadow a module-level name; no import(), import.meta, or setting name inside a string.
-//  B. routeCrisis takes exactly four option fields, reads no other, and builds its guidance only from the safety
-//     result, the locale and the age (the hotline table). The values its callers pass for those three are pinned.
-//  C. Only callLlm calls the crisis routing from outside the set, so a new wrapper cannot sit in front unchecked.
-//  D. Every outside helper is followed to the module that defines it (plain re-exports only). The pure helpers'
-//     whole import closure is pinned: seven modules, no package import, no global object, no dynamic import, no
-//     env or vendor-routing module. The audit transport is held to the same rules at module level only: it sends the
-//     ledger write, and the screens show the guidance before that write settles (secondb.tsx publishCrisisNotice
-//     before the send; interview.tsx startInterviewCrisisRouting onVisible before `done`).
+// What is checked:
+//  A. Every name the crisis functions use resolves to: a local declaration, another crisis function, an allowed
+//     helper imported plainly from a fixed specifier, a module const whose value is a plain literal, or one of
+//     three built-ins. No import(), import.meta, or setting name inside a string.
+//  B. routeCrisis takes exactly four option fields, reads only those, builds its guidance only from the safety
+//     result, the locale and the hotline table, and returns one fixed object. Every call to it is pinned, argument
+//     by argument, per calling function (so a setting cannot ride in on an existing option either).
+//  C. Only callLlm calls the crisis routing from outside the set, wherever the reference sits (class, namespace).
+//  D. Every allowed helper is followed to the module that defines it (plain re-exports only). The pure helpers'
+//     whole runtime import closure is pinned (seven modules, no package) and may use only language built-ins. The
+//     audit transport is held to its current pinned globals, with globalThis only as `.navigator` and require()
+//     only of the storage package; it may not import the env or vendor-routing module or expo-constants. The
+//     screens show the guidance before that write settles (secondb.tsx publishCrisisNotice before the send;
+//     interview.tsx startInterviewCrisisRouting onVisible before `done`), so the transport cannot hold it back.
 // The last block feeds mutated sources to the same checks, so each rule is shown to fail where it should.
 import { existsSync, readFileSync } from "fs";
 import { join, posix, resolve } from "path";
@@ -32,7 +34,6 @@ const ROOT = resolve(__dirname, "../../../..");
 const BOUNDARY = "src/lib/llm/boundary.ts";
 const AUDIT_TRANSPORT = "src/lib/llm/audit-write-outbox.ts";
 
-// The functions that decide the crisis guidance (routers) and the helpers they call in the file.
 const ROUTERS = [
   "routeCrisis",
   "classifyRecordTextForCrisis",
@@ -42,9 +43,9 @@ const ROUTERS = [
   "proxyCrisisSafetyResult",
 ] as const;
 const HELPERS = ["writeAiAuditLog", "writeCrisisEvent", "crisisObserver", "djb2"] as const;
-const CRISIS_FUNCTIONS: readonly string[] = [...ROUTERS, ...HELPERS];
+const CRISIS_FUNCTIONS = new Set<string>([...ROUTERS, ...HELPERS]);
 
-// Outside names the crisis functions may use, with the exact specifier boundary.ts imports each one from.
+// Helpers the crisis functions may use, each imported plainly from this exact specifier.
 const ALLOWED_IMPORTS: Readonly<Record<string, string>> = {
   crisisHotlines: "../safety/classifier",
   classifyInputAnyLocale: "../safety/classifier",
@@ -54,25 +55,24 @@ const ALLOWED_IMPORTS: Readonly<Record<string, string>> = {
   enqueueAuditWrite: "./audit-write-outbox",
   throwIfAborted: "../async/abort",
 };
-const BUILTINS = new Set(["Error", "undefined", "Promise"]);
+const FUNCTION_GLOBALS = new Set(["Error", "undefined", "Promise"]);
+const OUTSIDE_ROUTER_CALLERS = new Set(["callLlm"]);
 
-// Functions outside the set that call the routing. A new caller has to be looked at and added here.
-const OUTSIDE_ROUTER_CALLERS = ["callLlm"];
-
-// routeCrisis: the option fields it takes, and what its callers pass for the three values the guidance depends on.
 const ROUTE_CRISIS_OPTIONS = ["classifierConfidence", "purpose", "recordCrisisEvent", "session"];
-const ROUTE_CRISIS_GUIDANCE_ARGS = [
-  // [safety result, locale, minor] at each call, whitespace collapsed
-  "safety | locale | minor", // classifyRecordTextForCrisis
-  "safety | locale | minor", // classifyInterviewTextForCrisis
-  "safety | locale | minor", // classifyChatTextForCrisis
-  "inputSafety | input.locale | input.minor",
-  '{ zone: "red", matched: [], categories: ["crisis"] } | input.locale | input.minor',
-  "proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane) | input.locale | input.minor",
-  "proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane) | input.locale | input.minor",
-].sort();
+const ROUTE_CRISIS_RETURN = "return { text, safety: result, audit };";
+// Every call to routeCrisis, per calling function, arguments with whitespace collapsed.
+const ROUTE_CRISIS_CALLS: Readonly<Record<string, string[]>> = {
+  callLlm: [
+    "inputSafety, input.locale, input.userId, promptHash, input.minor, \"input_red\", { purpose: input.purpose, session: input.session }",
+    "proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane), input.locale, input.userId, promptHash, input.minor, proxyCrisis.confirmedMarker ? \"proxy_input_red\" : \"proxy_input_red_unconfirmed\", { recordCrisisEvent: proxyCrisis.confirmedMarker, purpose: input.purpose, session: input.session, }",
+    "proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane), input.locale, input.userId, promptHash, input.minor, vendorCrisis.confirmedMarker ? \"proxy_input_red\" : \"proxy_input_red_unconfirmed\", { recordCrisisEvent: vendorCrisis.confirmedMarker, purpose: input.purpose, session: input.session, }",
+    "{ zone: \"red\", matched: [], categories: [\"crisis\"] }, input.locale, input.userId, promptHash, input.minor, \"input_semantic_red\", { purpose: input.purpose, session: input.session, classifierConfidence: semanticInput.confidence }",
+  ],
+  classifyChatTextForCrisis: ["safety, locale, userId, djb2(text), minor, \"input_red\", { purpose: \"secondb_chat\", session: options?.session, }"],
+  classifyInterviewTextForCrisis: ["safety, locale, userId, djb2(text), minor, \"interview_input_red\", { purpose: \"interview_probe\", }"],
+  classifyRecordTextForCrisis: ["safety, locale, userId, djb2(text), minor, \"record_save_red\", { session }"],
+};
 
-// The pure helpers' import closure, pinned. The audit transport is checked on its own (see D above).
 const PURE_CLOSURE = [
   "src/lib/async/abort.ts",
   "src/lib/safety/classifier.ts",
@@ -82,9 +82,14 @@ const PURE_CLOSURE = [
   "src/lib/safety/emergency-routing.ts",
   "src/lib/safety/lexicon.ts",
 ];
+// Language built-ins only: nothing that reads the host (storage, process, navigator, network, globals object).
+const PURE_GLOBALS = new Set(["Array", "Boolean", "Error", "Infinity", "JSON", "Map", "Math", "NaN", "Number", "Object",
+  "RegExp", "Set", "String", "Symbol", "isFinite", "isNaN", "parseFloat", "parseInt", "undefined"]);
+// What the audit transport uses today, pinned. A new host global there has to be looked at.
+const TRANSPORT_GLOBALS = new Set(["Array", "Date", "Error", "JSON", "Promise", "Set", "console", "globalThis", "localStorage", "require", "undefined"]);
+const TRANSPORT_REQUIRE = "@react-native-async-storage/async-storage";
 
 const SETTING_IN_STRING = /EXPO_PUBLIC_|LLM_MODE|VIA_EDGE|USE_VERTEX/;
-const GLOBAL_OBJECTS = new Set(["process", "globalThis", "window", "global", "self", "require", "eval", "Function", "getEnv"]);
 const CONFIG_MODULES = ["src/lib/env.ts", "src/lib/llm/routing.ts"];
 
 interface Finding {
@@ -97,10 +102,6 @@ function read(rel: string): string {
   return readFileSync(join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
 }
 
-function parse(rel: string, text: string): ts.SourceFile {
-  return ts.createSourceFile(rel, text, ts.ScriptTarget.Latest, true, rel.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-}
-
 function resolveSpecifier(fromRel: string, spec: string): string | null {
   const base = spec.startsWith("@/") ? posix.join("src", spec.slice(2)) : posix.join(posix.dirname(fromRel), spec);
   for (const candidate of [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`]) {
@@ -109,63 +110,59 @@ function resolveSpecifier(fromRel: string, spec: string): string | null {
   return null;
 }
 
+// A program over in-memory sources, so mutated text goes through the same checker. No lib and no module
+// resolution: an identifier with no declaration in these files is a global.
+function analyze(files: Record<string, string>): { checker: ts.TypeChecker; source: (rel: string) => ts.SourceFile } {
+  const options: ts.CompilerOptions = { noResolve: true, noLib: true, target: ts.ScriptTarget.ES2022, types: [] };
+  const host = ts.createCompilerHost(options);
+  const parsed = new Map<string, ts.SourceFile>();
+  const keyOf = (name: string) => Object.keys(files).find((k) => name === k || name.replace(/\\/g, "/").endsWith(`/${k}`));
+  host.getSourceFile = (name) => {
+    const key = keyOf(name);
+    if (!key) return undefined;
+    if (!parsed.has(key)) parsed.set(key, ts.createSourceFile(key, files[key], ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS));
+    return parsed.get(key);
+  };
+  host.fileExists = (name) => keyOf(name) !== undefined;
+  host.readFile = (name) => { const key = keyOf(name); return key ? files[key] : undefined; };
+  const program = ts.createProgram(Object.keys(files), options, host);
+  return {
+    checker: program.getTypeChecker(),
+    source: (rel) => {
+      const sf = program.getSourceFiles().find((s) => s.fileName === rel || s.fileName.endsWith(`/${rel}`));
+      if (!sf) throw new Error(`not in program: ${rel}`);
+      return sf;
+    },
+  };
+}
+
 function insideType(node: ts.Node): boolean {
   for (let p: ts.Node | undefined = node.parent; p; p = p.parent) if (ts.isTypeNode(p)) return true;
   return false;
 }
 
+// An identifier that refers to a value (not a property name, a declared name or a type).
 function isReference(node: ts.Identifier): boolean {
   const p = node.parent;
   if (insideType(node)) return false;
   if (ts.isPropertyAccessExpression(p) && p.name === node) return false;
-  if ((ts.isPropertyAssignment(p) || ts.isPropertySignature(p) || ts.isMethodDeclaration(p)) && p.name === node) return false;
-  if (ts.isQualifiedName(p)) return false;
+  if ((ts.isPropertyAssignment(p) || ts.isPropertySignature(p) || ts.isMethodDeclaration(p) || ts.isPropertyDeclaration(p) ||
+       ts.isMethodSignature(p) || ts.isEnumMember(p) || ts.isGetAccessor(p) || ts.isSetAccessor(p)) && p.name === node) return false;
+  if (ts.isQualifiedName(p) || ts.isImportSpecifier(p) || ts.isExportSpecifier(p) || ts.isImportClause(p) || ts.isNamespaceImport(p)) return false;
   if ((ts.isParameter(p) || ts.isVariableDeclaration(p) || ts.isBindingElement(p) || ts.isFunctionDeclaration(p) ||
-       ts.isClassDeclaration(p) || ts.isImportSpecifier(p) || ts.isExportSpecifier(p) || ts.isImportClause(p) ||
-       ts.isNamespaceImport(p)) && (p as { name?: ts.Node }).name === node) return false;
-  if (ts.isImportSpecifier(p) || ts.isExportSpecifier(p)) return false;
+       ts.isFunctionExpression(p) || ts.isClassDeclaration(p) || ts.isClassExpression(p) || ts.isInterfaceDeclaration(p) ||
+       ts.isTypeAliasDeclaration(p) || ts.isEnumDeclaration(p) || ts.isModuleDeclaration(p) || ts.isLabeledStatement(p)) &&
+      (p as { name?: ts.Node }).name === node) return false;
+  if ((ts.isBreakStatement(p) || ts.isContinueStatement(p)) && p.label === node) return false;
+  if (ts.isBindingElement(p) && p.propertyName === node) return false;
   return true;
 }
 
-// Names a source file binds at module level: imports, functions, classes, variables.
-function moduleNames(sf: ts.SourceFile): Set<string> {
-  const out = new Set<string>();
-  for (const s of sf.statements) {
-    if (ts.isImportDeclaration(s) && s.importClause) {
-      if (s.importClause.name) out.add(s.importClause.name.text);
-      const b = s.importClause.namedBindings;
-      if (b && ts.isNamespaceImport(b)) out.add(b.name.text);
-      if (b && ts.isNamedImports(b)) for (const e of b.elements) out.add(e.name.text);
-    }
-    if ((ts.isFunctionDeclaration(s) || ts.isClassDeclaration(s)) && s.name) out.add(s.name.text);
-    if (ts.isVariableStatement(s)) for (const d of s.declarationList.declarations) if (ts.isIdentifier(d.name)) out.add(d.name.text);
-  }
-  return out;
-}
-
-// Module constants whose value is a plain literal (strings, numbers, booleans, arrays and objects of those).
-function literalConstants(sf: ts.SourceFile): Set<string> {
-  const isLiteral = (e: ts.Expression): boolean =>
-    ts.isStringLiteralLike(e) || ts.isNumericLiteral(e) || e.kind === ts.SyntaxKind.TrueKeyword || e.kind === ts.SyntaxKind.FalseKeyword ||
-    (ts.isArrayLiteralExpression(e) && e.elements.every((x) => ts.isExpression(x) && isLiteral(x))) ||
-    (ts.isObjectLiteralExpression(e) && e.properties.every((p) => ts.isPropertyAssignment(p) && isLiteral(p.initializer))) ||
-    (ts.isAsExpression(e) && isLiteral(e.expression));
-  const out = new Set<string>();
-  for (const s of sf.statements) {
-    if (!ts.isVariableStatement(s) || !(s.declarationList.flags & ts.NodeFlags.Const)) continue;
-    for (const d of s.declarationList.declarations) {
-      if (ts.isIdentifier(d.name) && d.initializer && isLiteral(d.initializer)) out.add(d.name.text);
-    }
-  }
-  return out;
-}
-
-function topLevelFunctions(sf: ts.SourceFile): Map<string, ts.FunctionDeclaration> {
-  const out = new Map<string, ts.FunctionDeclaration>();
-  sf.forEachChild((node) => {
-    if (ts.isFunctionDeclaration(node) && node.name) out.set(node.name.text, node);
-  });
-  return out;
+function declarationOf(checker: ts.TypeChecker, id: ts.Identifier): ts.Declaration | null {
+  const symbol = ts.isShorthandPropertyAssignment(id.parent) && id.parent.name === id
+    ? checker.getShorthandAssignmentValueSymbol(id.parent)
+    : checker.getSymbolAtLocation(id);
+  return symbol?.declarations?.[0] ?? null;
 }
 
 function walk(node: ts.Node, visit: (n: ts.Node) => void): void {
@@ -173,7 +170,31 @@ function walk(node: ts.Node, visit: (n: ts.Node) => void): void {
   node.forEachChild((child) => walk(child, visit));
 }
 
-// Refused anywhere in checked code: import(), import.meta / new.target, and a setting named in a string.
+function topLevelStatement(node: ts.Node): ts.Node {
+  let n = node;
+  while (n.parent && !ts.isSourceFile(n.parent)) n = n.parent;
+  return n;
+}
+
+function statementName(s: ts.Node, sf: ts.SourceFile): string {
+  if ((ts.isFunctionDeclaration(s) || ts.isClassDeclaration(s) || ts.isModuleDeclaration(s) || ts.isEnumDeclaration(s)) && s.name) return s.name.getText(sf);
+  if (ts.isVariableStatement(s)) return s.declarationList.declarations.map((d) => d.name.getText(sf)).join(",");
+  return "<module statement>";
+}
+
+function isPlainLiteral(e: ts.Expression): boolean {
+  if (ts.isStringLiteralLike(e) || ts.isNumericLiteral(e) || e.kind === ts.SyntaxKind.TrueKeyword || e.kind === ts.SyntaxKind.FalseKeyword) return true;
+  if (ts.isPrefixUnaryExpression(e) && e.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(e.operand)) return true;
+  if (ts.isAsExpression(e) || ts.isSatisfiesExpression(e) || ts.isParenthesizedExpression(e)) return isPlainLiteral(e.expression);
+  if (ts.isArrayLiteralExpression(e)) return e.elements.every((x) => !ts.isSpreadElement(x) && !ts.isOmittedExpression(x) && isPlainLiteral(x));
+  if (ts.isObjectLiteralExpression(e)) {
+    return e.properties.every((p) => ts.isPropertyAssignment(p) &&
+      (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name) || ts.isNumericLiteral(p.name)) && isPlainLiteral(p.initializer));
+  }
+  return false;
+}
+
+// import(), import.meta / new.target, and a setting named in a string.
 function escapeHatches(node: ts.Node, where: string): Finding[] {
   const found: Finding[] = [];
   walk(node, (n) => {
@@ -184,60 +205,59 @@ function escapeHatches(node: ts.Node, where: string): Finding[] {
   return found;
 }
 
-function checkBoundary(text: string): { findings: Finding[]; seen: Record<string, string[]> } {
-  const sf = parse(BOUNDARY, text);
-  const fns = topLevelFunctions(sf);
-  const modNames = moduleNames(sf);
-  const literals = literalConstants(sf);
+function within(node: ts.Node, container: ts.Node): boolean {
+  return node.getSourceFile() === container.getSourceFile() && node.pos >= container.pos && node.end <= container.end;
+}
+
+function checkBoundary(text: string): { findings: Finding[]; seen: Record<string, string[]>; outsideCallers: string[] } {
+  const { checker, source } = analyze({ [BOUNDARY]: text });
+  const sf = source(BOUNDARY);
   const findings: Finding[] = [];
   const seen: Record<string, string[]> = {};
-  const set = new Set(CRISIS_FUNCTIONS);
+  const fns = new Map<string, ts.FunctionDeclaration>();
+  for (const s of sf.statements) if (ts.isFunctionDeclaration(s) && s.name) fns.set(s.name.text, s);
 
-  // The allowed imports really come from the fixed specifiers (an alias or another module would not be checked).
-  const importedFrom = new Map<string, string>();
-  for (const s of sf.statements) {
-    if (!ts.isImportDeclaration(s) || !ts.isStringLiteral(s.moduleSpecifier) || !s.importClause) continue;
-    const b = s.importClause.namedBindings;
-    if (b && ts.isNamedImports(b)) {
-      for (const e of b.elements) importedFrom.set(e.name.text, e.propertyName ? `${s.moduleSpecifier.text} as alias of ${e.propertyName.text}` : s.moduleSpecifier.text);
-    }
-  }
-  for (const [name, spec] of Object.entries(ALLOWED_IMPORTS)) {
-    if (importedFrom.get(name) !== spec) findings.push({ where: BOUNDARY, problem: `${name} is not imported plainly from ${spec} (found ${importedFrom.get(name) ?? "nothing"})` });
-  }
-
+  // A. What each crisis function uses, by real declaration.
   for (const name of CRISIS_FUNCTIONS) {
     const fn = fns.get(name);
     if (!fn) {
       findings.push({ where: name, problem: "missing from boundary.ts" });
       continue;
     }
-    const declared = new Set<string>();
-    const used = new Set<string>();
+    const outside = new Set<string>();
     walk(fn, (n) => {
-      if (n === fn) return;
-      const named = n as { name?: ts.Node };
-      if ((ts.isParameter(n) || ts.isVariableDeclaration(n) || ts.isBindingElement(n) || ts.isFunctionDeclaration(n) ||
-           ts.isClassDeclaration(n) || ts.isFunctionExpression(n)) && named.name && ts.isIdentifier(named.name)) {
-        declared.add(named.name.text);
+      if (!ts.isIdentifier(n) || !isReference(n)) return;
+      const decl = declarationOf(checker, n);
+      if (!decl) {
+        outside.add(n.text);
+        if (!FUNCTION_GLOBALS.has(n.text)) findings.push({ where: name, problem: `uses the global ${n.text}` });
+        return;
       }
-      if (ts.isIdentifier(n) && isReference(n)) used.add(n.text);
+      if (within(decl, fn)) return; // a local of this function (lexically resolved)
+      outside.add(n.text);
+      if (ts.isFunctionDeclaration(decl)) {
+        if (!CRISIS_FUNCTIONS.has(n.text)) findings.push({ where: name, problem: `calls ${n.text}, a function in boundary.ts outside the checked set` });
+        return;
+      }
+      if (ts.isImportSpecifier(decl)) {
+        const importDecl = decl.parent.parent.parent;
+        const spec = ts.isStringLiteral(importDecl.moduleSpecifier) ? importDecl.moduleSpecifier.text : "?";
+        if (ALLOWED_IMPORTS[decl.name.text] !== spec || decl.propertyName || decl.name.text !== n.text) {
+          findings.push({ where: name, problem: `uses ${n.text}, imported from ${spec}, which is not an allowed helper` });
+        }
+        return;
+      }
+      if (ts.isVariableDeclaration(decl) && ts.isIdentifier(decl.name) && ts.isVariableDeclarationList(decl.parent) &&
+          (decl.parent.flags & ts.NodeFlags.Const) && ts.isSourceFile(decl.parent.parent.parent) && decl.initializer && isPlainLiteral(decl.initializer)) {
+        return; // a module const whose value is a plain literal
+      }
+      findings.push({ where: name, problem: `uses ${n.text}, a module value that is not a plain literal const` });
     });
-    for (const local of declared) {
-      if (modNames.has(local) || GLOBAL_OBJECTS.has(local)) findings.push({ where: name, problem: `declares ${local}, which shadows a module or global name` });
-    }
-    const outside = [...used].filter((u) => !declared.has(u)).sort();
-    seen[name] = outside;
-    for (const u of outside) {
-      if (set.has(u)) continue;
-      if (Object.prototype.hasOwnProperty.call(ALLOWED_IMPORTS, u) || BUILTINS.has(u) || literals.has(u)) continue;
-      if (fns.has(u)) findings.push({ where: name, problem: `calls ${u}, a function in boundary.ts outside the checked set` });
-      else findings.push({ where: name, problem: `uses ${u}, which is not on the allow list` });
-    }
+    seen[name] = [...outside].sort();
     findings.push(...escapeHatches(fn, name));
   }
 
-  // B. routeCrisis options and guidance.
+  // B. routeCrisis options, guidance and return.
   const route = fns.get("routeCrisis");
   if (route) {
     const optsParam = route.parameters.find((p) => ts.isIdentifier(p.name) && p.name.text === "opts");
@@ -247,74 +267,66 @@ function checkBoundary(text: string): { findings: Finding[]; seen: Record<string
     if (JSON.stringify(members) !== JSON.stringify(ROUTE_CRISIS_OPTIONS)) {
       findings.push({ where: "routeCrisis", problem: `option fields are ${JSON.stringify(members)}, not ${JSON.stringify(ROUTE_CRISIS_OPTIONS)}` });
     }
+    const params = new Map(route.parameters.filter((p) => ts.isIdentifier(p.name)).map((p) => [(p.name as ts.Identifier).text, p]));
+    let textDecl: ts.VariableDeclaration | null = null;
+    const returns: string[] = [];
     walk(route, (n) => {
-      if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === "opts" && !ROUTE_CRISIS_OPTIONS.includes(n.name.text)) {
-        findings.push({ where: "routeCrisis", problem: `reads opts.${n.name.text}` });
+      if (ts.isIdentifier(n) && isReference(n) && optsParam && declarationOf(checker, n) === optsParam) {
+        const p = n.parent;
+        if (!(ts.isPropertyAccessExpression(p) && p.expression === n && ROUTE_CRISIS_OPTIONS.includes(p.name.text))) {
+          findings.push({ where: "routeCrisis", problem: `uses opts other than through its four fields (${p.getText(sf).slice(0, 60)})` });
+        }
       }
-      if (ts.isElementAccessExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === "opts") {
-        findings.push({ where: "routeCrisis", problem: "reads opts by a computed key" });
-      }
-      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === "text" && n.initializer) {
-        const refs = new Set<string>();
-        walk(n.initializer, (x) => { if (ts.isIdentifier(x) && isReference(x)) refs.add(x.text); });
-        const extra = [...refs].filter((r) => !["emergencyGuidance", "result", "locale", "joined"].includes(r));
-        if (extra.length > 0) findings.push({ where: "routeCrisis", problem: `builds the guidance text from ${extra.join(", ")}` });
-      }
+      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === "text") textDecl = n;
+      if (ts.isReturnStatement(n)) returns.push(n.getText(sf).replace(/\s+/g, " "));
     });
+    const td = textDecl as ts.VariableDeclaration | null;
+    if (!td || !td.initializer || !(td.parent.flags & ts.NodeFlags.Const)) {
+      findings.push({ where: "routeCrisis", problem: "the guidance text is not a const with an initializer" });
+    } else {
+      const allowed = new Set<ts.Node | undefined>([params.get("result"), params.get("locale")]);
+      walk(td.initializer, (x) => {
+        if (!ts.isIdentifier(x) || !isReference(x)) return;
+        const decl = declarationOf(checker, x);
+        const ok = decl !== null && (allowed.has(decl) ||
+          (ts.isImportSpecifier(decl) && decl.name.text === "emergencyGuidance") ||
+          (ts.isVariableDeclaration(decl) && ts.isIdentifier(decl.name) && decl.name.text === "joined" && within(decl, route)));
+        if (!ok) findings.push({ where: "routeCrisis", problem: `builds the guidance text from ${x.text}` });
+      });
+    }
+    if (JSON.stringify(returns) !== JSON.stringify([ROUTE_CRISIS_RETURN])) {
+      findings.push({ where: "routeCrisis", problem: `returns ${JSON.stringify(returns)}, not exactly ${ROUTE_CRISIS_RETURN}` });
+    }
   }
-  const callArgs: string[] = [];
+
+  // B (callers) and C. Every reference to a router, by real declaration, wherever it sits.
+  const routerDecls = new Set<ts.Node>([...ROUTERS].map((r) => fns.get(r)).filter((d): d is ts.FunctionDeclaration => !!d));
+  const calls: Record<string, string[]> = {};
+  const outsideCallers = new Set<string>();
   walk(sf, (n) => {
-    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === "routeCrisis") {
-      const a = n.arguments;
-      callArgs.push([a[0], a[1], a[4]].map((x) => (x ? x.getText(sf).replace(/\s+/g, " ") : "(none)")).join(" | "));
+    if (!ts.isIdentifier(n) || !isReference(n)) return;
+    const decl = declarationOf(checker, n);
+    if (!decl || !routerDecls.has(decl)) return;
+    const container = statementName(topLevelStatement(n), sf);
+    if (!CRISIS_FUNCTIONS.has(container)) {
+      outsideCallers.add(container);
+      if (!OUTSIDE_ROUTER_CALLERS.has(container)) findings.push({ where: container, problem: `refers to ${n.text} from outside the checked set` });
+    }
+    if (n.text === "routeCrisis" && ts.isCallExpression(n.parent) && n.parent.expression === n) {
+      (calls[container] = calls[container] ?? []).push(n.parent.arguments.map((a) => a.getText(sf)).join(", ").replace(/\s+/g, " "));
+    } else if (n.text === "routeCrisis") {
+      findings.push({ where: container, problem: "refers to routeCrisis other than by calling it" });
     }
   });
-  callArgs.sort();
-  if (JSON.stringify(callArgs) !== JSON.stringify(ROUTE_CRISIS_GUIDANCE_ARGS)) {
-    findings.push({ where: "routeCrisis callers", problem: `guidance arguments changed: ${JSON.stringify(callArgs)}` });
+  for (const k of Object.keys(calls)) calls[k].sort();
+  const pinned = Object.fromEntries(Object.entries(ROUTE_CRISIS_CALLS).map(([k, v]) => [k, [...v].sort()]));
+  if (JSON.stringify(Object.keys(calls).sort().map((k) => [k, calls[k]])) !== JSON.stringify(Object.keys(pinned).sort().map((k) => [k, pinned[k]]))) {
+    findings.push({ where: "routeCrisis callers", problem: `routeCrisis calls changed: ${JSON.stringify(calls)}` });
   }
-
-  // C. Outside callers of the routing.
-  const routerSet = new Set<string>(ROUTERS);
-  const outsideCallers: string[] = [];
-  sf.forEachChild((n) => {
-    const name = ts.isFunctionDeclaration(n) && n.name ? n.name.text
-      : ts.isVariableStatement(n) ? n.declarationList.declarations.map((d) => d.name.getText(sf)).join(",") : null;
-    if (!name || set.has(name)) return;
-    let calls = false;
-    walk(n, (x) => { if (ts.isIdentifier(x) && routerSet.has(x.text) && isReference(x)) calls = true; });
-    if (calls) outsideCallers.push(name);
-  });
-  if (JSON.stringify(outsideCallers.sort()) !== JSON.stringify(OUTSIDE_ROUTER_CALLERS)) {
-    findings.push({ where: "boundary.ts", problem: `the crisis routing is called from ${JSON.stringify(outsideCallers)}, not only ${JSON.stringify(OUTSIDE_ROUTER_CALLERS)}` });
-  }
-  return { findings, seen };
+  return { findings, seen, outsideCallers: [...outsideCallers].sort() };
 }
 
-// D. Follow an imported name to the module that defines it. Only `export { name } from "x"` is followed; an alias,
-// a re-export of something imported, or a missing declaration is a finding.
-function definingModule(name: string, rel: string, sources: (r: string) => string, depth = 0): { rel?: string; problem?: string } {
-  if (depth > 4) return { problem: `re-export chain too long for ${name}` };
-  const sf = parse(rel, sources(rel));
-  for (const s of sf.statements) {
-    if (ts.isExportDeclaration(s) && s.exportClause && ts.isNamedExports(s.exportClause)) {
-      const e = s.exportClause.elements.find((x) => x.name.text === name);
-      if (!e) continue;
-      if (e.propertyName) return { problem: `${rel} exports ${name} as an alias of ${e.propertyName.text}` };
-      if (!s.moduleSpecifier || !ts.isStringLiteral(s.moduleSpecifier)) return { problem: `${rel} re-exports ${name} that it imported` };
-      const next = resolveSpecifier(rel, s.moduleSpecifier.text);
-      if (!next) return { problem: `${rel} re-exports ${name} from an unresolved module` };
-      return definingModule(name, next, sources, depth + 1);
-    }
-  }
-  const declares = sf.statements.some((s) =>
-    (ts.isFunctionDeclaration(s) && s.name?.text === name && s.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) ||
-    (ts.isVariableStatement(s) && s.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) &&
-      s.declarationList.declarations.some((d) => ts.isIdentifier(d.name) && d.name.text === name)));
-  return declares ? { rel } : { problem: `${rel} does not declare ${name}` };
-}
-
-// Runtime imports of a module (type-only imports and exports are erased and cannot read anything).
+// Runtime imports (type-only imports and exports are erased).
 function runtimeImports(rel: string, sf: ts.SourceFile): { relative: string[]; packages: string[] } {
   const relative: string[] = [];
   const packages: string[] = [];
@@ -326,7 +338,11 @@ function runtimeImports(rel: string, sf: ts.SourceFile): { relative: string[]; p
         c.namedBindings.elements.length > 0 && c.namedBindings.elements.every((e) => e.isTypeOnly));
       if (!typeOnly) spec = s.moduleSpecifier.text;
     }
-    if (ts.isExportDeclaration(s) && !s.isTypeOnly && s.moduleSpecifier && ts.isStringLiteral(s.moduleSpecifier)) spec = s.moduleSpecifier.text;
+    if (ts.isExportDeclaration(s) && s.moduleSpecifier && ts.isStringLiteral(s.moduleSpecifier)) {
+      const typeOnly = s.isTypeOnly || (!!s.exportClause && ts.isNamedExports(s.exportClause) &&
+        s.exportClause.elements.length > 0 && s.exportClause.elements.every((e) => e.isTypeOnly));
+      if (!typeOnly) spec = s.moduleSpecifier.text;
+    }
     if (!spec) continue;
     if (spec.startsWith(".") || spec.startsWith("@/")) relative.push(resolveSpecifier(rel, spec) ?? `UNRESOLVED ${spec}`);
     else packages.push(spec);
@@ -334,32 +350,62 @@ function runtimeImports(rel: string, sf: ts.SourceFile): { relative: string[]; p
   return { relative, packages };
 }
 
-function checkModuleRules(rel: string, text: string): Finding[] {
-  const sf = parse(rel, text);
-  const findings: Finding[] = escapeHatches(sf, rel);
-  walk(sf, (n) => {
-    if (ts.isIdentifier(n) && isReference(n) && GLOBAL_OBJECTS.has(n.text)) findings.push({ where: rel, problem: `uses ${n.text}` });
-  });
-  const { relative, packages } = runtimeImports(rel, sf);
-  for (const r of relative) if (CONFIG_MODULES.includes(r) || r.startsWith("UNRESOLVED")) findings.push({ where: rel, problem: `imports ${r}` });
-  for (const p of packages) findings.push({ where: rel, problem: `imports the package ${p}` });
-  return findings;
+// Follow an imported name to the module that defines it. Only `export { name } from "x"` is followed.
+function definingModule(name: string, rel: string, sources: (r: string) => string, depth = 0): { rel?: string; problem?: string } {
+  if (depth > 4) return { problem: `re-export chain too long for ${name}` };
+  const sf = ts.createSourceFile(rel, sources(rel), ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+  for (const s of sf.statements) {
+    if (ts.isExportDeclaration(s) && s.exportClause && ts.isNamedExports(s.exportClause)) {
+      const e = s.exportClause.elements.find((x) => x.name.text === name);
+      if (!e) continue;
+      if (e.propertyName) return { problem: `${rel} exports ${name} as an alias of ${e.propertyName.text}` };
+      if (!s.moduleSpecifier || !ts.isStringLiteral(s.moduleSpecifier)) return { problem: `${rel} re-exports ${name} that it imported` };
+      const next = resolveSpecifier(rel, s.moduleSpecifier.text);
+      if (!next) return { problem: `${rel} re-exports ${name} from an unresolved module` };
+      return definingModule(name, next, sources, depth + 1);
+    }
+  }
+  const exported = (m?: ts.NodeArray<ts.ModifierLike>) => !!m?.some((x) => x.kind === ts.SyntaxKind.ExportKeyword);
+  const declares = sf.statements.some((s) =>
+    (ts.isFunctionDeclaration(s) && s.name?.text === name && exported(s.modifiers)) ||
+    (ts.isVariableStatement(s) && exported(s.modifiers) && s.declarationList.declarations.some((d) => ts.isIdentifier(d.name) && d.name.text === name)));
+  return declares ? { rel } : { problem: `${rel} does not declare ${name}` };
 }
 
-function checkTransportRules(rel: string, text: string): Finding[] {
-  const sf = parse(rel, text);
+function isConfigImport(rel: string, spec: string): boolean {
+  if (spec === "expo-constants" || spec.startsWith("expo-constants/")) return true;
+  const target = spec.startsWith(".") || spec.startsWith("@/") ? resolveSpecifier(rel, spec) : null;
+  return !!target && CONFIG_MODULES.includes(target);
+}
+
+function checkModule(checker: ts.TypeChecker, sf: ts.SourceFile, rel: string, transport: boolean): Finding[] {
   const findings: Finding[] = escapeHatches(sf, rel);
   walk(sf, (n) => {
-    if (!ts.isIdentifier(n) || !isReference(n) || !GLOBAL_OBJECTS.has(n.text)) return;
-    const p = n.parent;
-    if (n.text === "globalThis" && ts.isPropertyAccessExpression(p) && p.expression === n && p.name.text === "navigator") return;
-    if (n.text === "require" && ts.isCallExpression(p) && p.expression === n && p.arguments.length === 1 &&
-        ts.isStringLiteral(p.arguments[0]) && !p.arguments[0].text.startsWith(".") && p.arguments[0].text !== "expo-constants") return;
-    findings.push({ where: rel, problem: `uses ${n.text}` });
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === "require" && !declarationOf(checker, n.expression)) {
+      const arg = n.arguments[0];
+      const spec = n.arguments.length === 1 && arg && ts.isStringLiteral(arg) ? arg.text : null;
+      if (!transport || spec !== TRANSPORT_REQUIRE) findings.push({ where: rel, problem: `uses require(${spec ?? "a computed name"})` });
+      return;
+    }
+    if (!ts.isIdentifier(n) || !isReference(n) || declarationOf(checker, n)) return;
+    if (n.text === "require" && ts.isCallExpression(n.parent) && n.parent.expression === n) return; // judged above
+    if (transport) {
+      if (n.text === "globalThis") {
+        const p = n.parent;
+        if (!(ts.isPropertyAccessExpression(p) && p.expression === n && p.name.text === "navigator")) findings.push({ where: rel, problem: "uses globalThis other than globalThis.navigator" });
+        return;
+      }
+      if (!TRANSPORT_GLOBALS.has(n.text) || n.text === "require") findings.push({ where: rel, problem: `uses the global ${n.text}` });
+    } else if (!PURE_GLOBALS.has(n.text)) {
+      findings.push({ where: rel, problem: `uses the global ${n.text}` });
+    }
   });
   const { relative, packages } = runtimeImports(rel, sf);
-  for (const r of relative) if (CONFIG_MODULES.includes(r)) findings.push({ where: rel, problem: `imports ${r}` });
-  for (const p of packages) if (p === "expo-constants") findings.push({ where: rel, problem: `imports the package ${p}` });
+  for (const r of relative) if (r.startsWith("UNRESOLVED") || CONFIG_MODULES.includes(r)) findings.push({ where: rel, problem: `imports ${r}` });
+  for (const p of packages) {
+    if (!transport) findings.push({ where: rel, problem: `imports the package ${p}` });
+    else if (isConfigImport(rel, p)) findings.push({ where: rel, problem: `imports the package ${p}` });
+  }
   return findings;
 }
 
@@ -373,22 +419,23 @@ function checkHelperModules(sources: (r: string) => string): { findings: Finding
     if (r.problem) findings.push({ where: name, problem: r.problem });
     else if (r.rel) defining[name] = r.rel;
   }
-  // The pure helpers: follow every runtime import to the end.
   const closure = new Set<string>();
-  const queue = Object.entries(defining).filter(([, rel]) => rel !== AUDIT_TRANSPORT).map(([, rel]) => rel);
+  const queue = Object.values(defining).filter((rel) => rel !== AUDIT_TRANSPORT);
   while (queue.length > 0) {
     const rel = queue.shift() as string;
     if (closure.has(rel)) continue;
     closure.add(rel);
     if (rel.startsWith("UNRESOLVED")) continue;
-    const text = sources(rel);
-    findings.push(...checkModuleRules(rel, text));
-    queue.push(...runtimeImports(rel, parse(rel, text)).relative.filter((r) => !closure.has(r)));
+    const sf = ts.createSourceFile(rel, sources(rel), ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+    queue.push(...runtimeImports(rel, sf).relative.filter((r) => !closure.has(r)));
   }
-  // The audit transport: no configuration on the module itself. It may import packages and its own transport
-  // modules, read globalThis.navigator (platform) and require() a package named by a plain string (lazy storage).
+  const files: Record<string, string> = {};
+  for (const rel of closure) if (!rel.startsWith("UNRESOLVED")) files[rel] = sources(rel);
+  files[AUDIT_TRANSPORT] = sources(AUDIT_TRANSPORT);
+  const { checker, source } = analyze(files);
+  for (const rel of closure) if (!rel.startsWith("UNRESOLVED")) findings.push(...checkModule(checker, source(rel), rel, false));
   if (defining.enqueueAuditWrite === AUDIT_TRANSPORT) {
-    findings.push(...checkTransportRules(AUDIT_TRANSPORT, sources(AUDIT_TRANSPORT)));
+    findings.push(...checkModule(checker, source(AUDIT_TRANSPORT), AUDIT_TRANSPORT, true));
   } else {
     findings.push({ where: "enqueueAuditWrite", problem: `is not defined in ${AUDIT_TRANSPORT}` });
   }
@@ -398,34 +445,38 @@ function checkHelperModules(sources: (r: string) => string): { findings: Finding
 const boundaryText = read(BOUNDARY);
 
 describe("the shared crisis routing reads no configuration (Q-261014-81)", () => {
-  it("sees the crisis functions and what they use (positive control)", () => {
-    const { findings, seen } = checkBoundary(boundaryText);
+  it("sees the crisis functions, their helpers and their one outside caller (positive control)", () => {
+    const { findings, seen, outsideCallers } = checkBoundary(boundaryText);
     expect(findings.filter((f) => f.problem.startsWith("missing"))).toEqual([]);
     expect(seen.routeCrisis).toEqual(expect.arrayContaining(["writeAiAuditLog", "writeCrisisEvent", "emergencyGuidance", "crisisHotlines"]));
     expect(seen.startInterviewCrisisRouting).toEqual(expect.arrayContaining(["classifyInterviewTextForCrisis"]));
     expect(seen.proxyCrisisSafetyResult).toEqual(expect.arrayContaining(["crisisHotlines", "emergencyRoute"]));
+    expect(outsideCallers).toEqual(["callLlm"]);
   });
 
-  it("A-C: allowed names only, no shadowing or escape hatch, fixed options, pinned guidance inputs, one outside caller", () => {
+  it("A-C: resolved names only, fixed options and return, pinned calls, one outside caller", () => {
     expect(checkBoundary(boundaryText).findings).toEqual([]);
   });
 
-  it("D: outside helpers come from modules that read no configuration, and their closure is pinned", () => {
+  it("D: helpers come from modules that read no configuration, and the closure is pinned", () => {
     const { findings, closure, defining } = checkHelperModules(read);
     expect(findings).toEqual([]);
     expect(closure).toEqual(PURE_CLOSURE);
-    // emergencyGuidance, emergencyRoute and recordableCrisisCategories pass through llm/safety.ts (which reads
-    // configuration) as plain re-exports; the module that defines them is the one that counts.
+    // These pass through llm/safety.ts (which reads configuration) as plain re-exports; the defining module counts.
     expect(defining.emergencyGuidance).toBe("src/lib/safety/emergency-routing.ts");
     expect(defining.recordableCrisisCategories).toBe("src/lib/safety/crisis-event-categories.ts");
   });
 });
 
 describe("each rule fails where it should (mutations fed to the same checks)", () => {
-  function mutate(fnName: string, insert: string, text = boundaryText): string {
-    const fn = topLevelFunctions(parse(BOUNDARY, text)).get(fnName);
+  function fnBodyStart(text: string, fnName: string): number {
+    const sf = ts.createSourceFile(BOUNDARY, text, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+    const fn = sf.statements.find((s): s is ts.FunctionDeclaration => ts.isFunctionDeclaration(s) && s.name?.text === fnName);
     if (!fn?.body) throw new Error(`function not found: ${fnName}`);
-    const at = fn.body.getStart() + 1;
+    return fn.body.getStart() + 1;
+  }
+  function mutate(fnName: string, insert: string, text = boundaryText): string {
+    const at = fnBodyStart(text, fnName);
     const out = `${text.slice(0, at)}\n${insert}\n${text.slice(at)}`;
     expect(out).not.toBe(text); // a no-op mutation proves nothing
     return out;
@@ -435,57 +486,76 @@ describe("each rule fails where it should (mutations fed to the same checks)", (
     return text.replace(from, to);
   }
   const problems = (text: string) => checkBoundary(text).findings.map((f) => `${f.where}: ${f.problem}`).join("\n");
+  const prepend = (line: string) => `${line}\n${boundaryText}`;
 
   it.each([
     ["a mode read in routeCrisis", "routeCrisis", "  if (getEnv().EXPO_PUBLIC_LLM_MODE === \"live\") throw new Error(\"x\");", "getEnv"],
     ["a vendor read", "routeCrisis", "  void resolveVendorForPurpose(\"secondb_chat\");", "resolveVendorForPurpose"],
-    ["process.env", "routeCrisis", "  void process.env.X;", "uses process"],
+    ["process.env", "routeCrisis", "  void process.env.X;", "global process"],
     ["an edge client in a ledger helper", "writeAiAuditLog", "  void getSupabaseClient();", "getSupabaseClient"],
     ["a setting carried by an unchecked helper", "routeCrisis", "  void assertDirectEgressAllowed(getEnv());", "assertDirectEgressAllowed"],
     ["a mode read in a direct router", "classifyChatTextForCrisis", "  if (getEnv().EXPO_PUBLIC_LLM_MODE === \"mock\") return null;", "getEnv"],
     ["a setting in the interview wrapper", "startInterviewCrisisRouting", "  if (getEnv().EXPO_PUBLIC_LLM_MODE === \"mock\") return { started: false, done: Promise.resolve(null) };", "getEnv"],
     ["a setting in the proxy lane mapper", "proxyCrisisSafetyResult", "  void getEnv();", "getEnv"],
-    ["a shadowed module name", "routeCrisis", "  { const getEnv = 0; void getEnv; }", "shadows"],
     ["a dynamic import", "routeCrisis", "  const runtime = await import(\"../env\"); void runtime;", "dynamic import"],
     ["import.meta", "routeCrisis", "  void import.meta;", "import.meta"],
-    ["globalThis", "routeCrisis", "  void globalThis[\"process\"];", "uses globalThis"],
+    ["globalThis", "routeCrisis", "  void globalThis[\"process\"];", "global globalThis"],
+    ["localStorage", "routeCrisis", "  void localStorage.getItem(\"mode\");", "global localStorage"],
     ["a setting named in a string", "routeCrisis", "  const key = \"EXPO_PUBLIC_LLM_MODE\"; void key;", "names a setting"],
   ])("catches %s", (_label, fnName, insert, expected) => {
     expect(problems(mutate(fnName, insert))).toContain(expected);
   });
 
-  it("allows a module constant that is only a literal (ordinary maintenance)", () => {
-    const withConst = `const CRISIS_COPY_VERSION = "routecrisis-inline-v2";\n${boundaryText}`;
-    expect(problems(mutate("routeCrisis", "  void CRISIS_COPY_VERSION;", withConst))).toBe("");
+  it("resolves names lexically: a module value hidden behind a same-named local in a block is still caught", () => {
+    const text = mutate("routeCrisis", "  if (crisisMode === \"live\") void 0;\n  { const crisisMode = 0; void crisisMode; }",
+      prepend("const { EXPO_PUBLIC_LLM_MODE: crisisMode } = getEnv();"));
+    expect(problems(text)).toContain("uses crisisMode, a module value");
+  });
+
+  it("does not mistake a local that shadows a module name for that module value (no false alarm)", () => {
+    expect(problems(mutate("routeCrisis", "  { const getEnv = 0; void getEnv; }"))).toBe("");
+  });
+
+  it("allows a module const that is a plain literal, but not one with a computed key", () => {
+    expect(problems(mutate("routeCrisis", "  void CRISIS_COPY_VERSION;", prepend("const CRISIS_COPY_VERSION = \"routecrisis-inline-v2\";")))).toBe("");
+    const computed = mutate("routeCrisis", "  void BY_MODE.live;", prepend("const BY_MODE = { [getEnv().EXPO_PUBLIC_LLM_MODE]: true } as const;"));
+    expect(problems(computed)).toContain("uses BY_MODE, a module value that is not a plain literal const");
   });
 
   it("catches a new option field and a read of it", () => {
     const text = replaceOnce(boundaryText, "    classifierConfidence?: number;\n", "    classifierConfidence?: number;\n    viaEdge?: boolean;\n");
-    const out = problems(mutate("routeCrisis", "  if (opts.viaEdge) return { text: \"\", safety: result, audit: undefined as never };", text));
+    const out = problems(mutate("routeCrisis", "  if (opts.viaEdge) throw new Error(\"x\");", text));
     expect(out).toContain("option fields are");
-    expect(out).toContain("reads opts.viaEdge");
+    expect(out).toContain("uses opts other than through its four fields");
   });
 
-  it("catches guidance built from something other than the result, locale and age", () => {
-    const text = replaceOnce(boundaryText.replace(/\r\n/g, "\n"), "  const text = emergencyGuidance(result.crisisRouting?.hotline, locale)?.text ?? (",
+  it("catches a setting riding in on an existing option at a call", () => {
+    const text = replaceOnce(boundaryText, "            recordCrisisEvent: proxyCrisis.confirmedMarker,",
+      "            recordCrisisEvent: getEnv().EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION === \"true\" && proxyCrisis.confirmedMarker,");
+    expect(problems(text)).toContain("routeCrisis calls changed");
+  });
+
+  it("catches guidance built from something other than the result, locale and table", () => {
+    const text = replaceOnce(boundaryText, "  const text = emergencyGuidance(result.crisisRouting?.hotline, locale)?.text ?? (",
       "  const text = emergencyGuidance(result.crisisRouting?.hotline, opts.purpose === \"x\" ? \"en\" : locale)?.text ?? (");
     expect(problems(text)).toContain("builds the guidance text from opts");
   });
 
-  it("catches a caller that passes a different locale or result", () => {
-    const text = replaceOnce(boundaryText.replace(/\r\n/g, "\n"), "      inputSafety,\n      input.locale,", "      inputSafety,\n      input.locale === \"ko\" ? \"en\" : input.locale,");
-    expect(problems(text)).toContain("guidance arguments changed");
+  it("catches a changed return that swaps the guidance", () => {
+    const text = replaceOnce(boundaryText, "  return { text, safety: result, audit };", "  return { text: opts.purpose ? text : \"\", safety: result, audit };");
+    expect(problems(text)).toContain("returns");
   });
 
-  it("catches a new wrapper that calls the routing from outside the set", () => {
-    const text = `${boundaryText}\nexport async function newCrisisWrapper(t: string) {\n  return classifyRecordTextForCrisis(t, "ko", "u");\n}\n`;
-    expect(problems(text)).toContain("newCrisisWrapper");
+  it("catches a new wrapper, a class method and a namespace calling the routing from outside the set", () => {
+    expect(problems(`${boundaryText}\nexport async function newCrisisWrapper(t: string) {\n  return classifyRecordTextForCrisis(t, "ko", "u");\n}\n`)).toContain("newCrisisWrapper");
+    expect(problems(`${boundaryText}\nexport class Wrap {\n  run(t: string) { return classifyRecordTextForCrisis(t, "ko", "u"); }\n}\n`)).toContain("Wrap");
+    expect(problems(`${boundaryText}\nexport namespace Hidden {\n  export const run = (t: string) => startInterviewCrisisRouting({ current: false }, { text: t, locale: "ko", userId: "u" }, () => {}, () => {});\n}\n`)).toContain("Hidden");
   });
 
   it("catches a helper imported under an alias", () => {
-    const text = replaceOnce(boundaryText.replace(/\r\n/g, "\n"), "import { classifyInput, classifyInputAnyLocale, crisisHotlines,",
+    const text = replaceOnce(boundaryText, "import { classifyInput, classifyInputAnyLocale, crisisHotlines,",
       "import { classifyInput, classifyInputAnyLocale, crisisHotlines as configuredHotlines,");
-    expect(problems(text)).toContain("crisisHotlines is not imported plainly");
+    expect(problems(mutate("routeCrisis", "  void configuredHotlines;", text))).toContain("configuredHotlines");
   });
 
   describe("helper modules", () => {
@@ -502,12 +572,16 @@ describe("each rule fails where it should (mutations fed to the same checks)", (
       ["an env import", "src/lib/safety/emergency-routing.ts", "import { getEnv } from \"../env\";\n", "imports src/lib/env.ts"],
       ["a vendor routing import", "src/lib/safety/classifier.ts", "import { resolveVendorForPurpose } from \"../llm/routing\";\n", "imports src/lib/llm/routing.ts"],
       ["a package import", "src/lib/safety/lexicon.ts", "import Constants from \"expo-constants\";\n", "imports the package expo-constants"],
-      ["a global object", "src/lib/safety/crisis-context.ts", "export const LEAK = globalThis[\"process\"];\n", "uses globalThis"],
+      ["globalThis", "src/lib/safety/crisis-context.ts", "export const LEAK = globalThis[\"process\"];\n", "global globalThis"],
+      ["localStorage", "src/lib/safety/emergency-routing.ts", "export const MODE = localStorage.getItem(\"mode\");\n", "global localStorage"],
+      ["navigator", "src/lib/safety/classifier.ts", "export const UA = navigator.userAgent;\n", "global navigator"],
       ["a dynamic import", "src/lib/safety/emergency-routing.ts", "export const later = () => import(\"../env\");\n", "dynamic import"],
       ["import.meta", "src/lib/async/abort.ts", "export const META = import.meta;\n", "import.meta"],
-      ["the transport reading the environment", AUDIT_TRANSPORT, "import { getEnv } from \"../env\";\n", "imports src/lib/env.ts"],
-      ["the transport reading a global other than navigator", AUDIT_TRANSPORT, "export const P = globalThis.process;\n", "uses globalThis"],
-      ["the transport requiring a relative module", AUDIT_TRANSPORT, "export const E = () => require(\"../env\");\n", "uses require"],
+      ["the transport importing the env module", AUDIT_TRANSPORT, "import { getEnv } from \"../env\";\n", "imports src/lib/env.ts"],
+      ["the transport importing expo-constants by subpath", AUDIT_TRANSPORT, "import C from \"expo-constants/build/Constants\";\n", "expo-constants/build/Constants"],
+      ["the transport reading a global other than navigator", AUDIT_TRANSPORT, "export const P = globalThis.process;\n", "globalThis other than globalThis.navigator"],
+      ["the transport requiring the env module by alias", AUDIT_TRANSPORT, "export const E = () => require(\"@/lib/env\");\n", "require(@/lib/env)"],
+      ["the transport using a new host global", AUDIT_TRANSPORT, "export const S = sessionStorage.getItem(\"x\");\n", "global sessionStorage"],
     ])("catch %s", (_label, rel, prefix, expected) => {
       expect(helperProblems({ [rel]: `${prefix}${read(rel)}` })).toContain(expected);
     });
@@ -519,9 +593,11 @@ describe("each rule fails where it should (mutations fed to the same checks)", (
       expect(helperProblems({ [rel]: text })).toContain("emergencyGuidance");
     });
 
-    it("ignore a comment that mentions getEnv (only executable code counts)", () => {
+    it("ignore comments and type-only re-exports (no false alarm)", () => {
       const rel = "src/lib/safety/emergency-routing.ts";
       expect(helperProblems({ [rel]: `// never call getEnv or read process.env here\n${read(rel)}` })).toBe("");
+      const lex = "src/lib/safety/lexicon.ts";
+      expect(helperProblems({ [lex]: `export { type Foo } from "some-types-package";\n${read(lex)}` })).toBe("");
     });
   });
 });
