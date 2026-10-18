@@ -155,6 +155,12 @@ export function visibleManualActions(actions: readonly ManualAction[], os: strin
   return os === "web" ? actions.filter(({ nativeOnly }) => !nativeOnly) : actions;
 }
 
+/** The topics as this platform shows them. The screen searches and draws this one list, so a
+ *  button left out on the web cannot match a search either (review #2640 r2). */
+export function manualTopicsOn(topics: readonly ManualTopic[], os: string): readonly ManualTopic[] {
+  return topics.map((topic) => ({ ...topic, actions: visibleManualActions(topic.actions, os) }));
+}
+
 function searchableText(topic: ManualTopic): string {
   return [topic.question, topic.answer, ...topic.actions.map(({ label }) => label)].join(" ");
 }

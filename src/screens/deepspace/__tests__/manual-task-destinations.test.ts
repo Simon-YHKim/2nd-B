@@ -8,6 +8,7 @@
 // available in this repo, so the two screen hooks are checked at their call sites.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import * as ts from "typescript";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => false }, useLocalSearchParams: () => ({}) }));
 jest.mock("@/lib/supabase/client", () => {
@@ -22,7 +23,14 @@ import { loadNotifications } from "@/lib/ops/notifications-sdk.web";
 
 import { exportAccountData } from "../dds-account-actions";
 import { DATA_RIGHTS } from "../dds-data-content";
-import { manualTopicsFor, visibleManualActions, type ManualTopic, type ManualTranslate } from "../dds-manual-content";
+import {
+  filterManualTopics,
+  manualTopicsFor,
+  manualTopicsOn,
+  visibleManualActions,
+  type ManualTopic,
+  type ManualTranslate,
+} from "../dds-manual-content";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 const read = (...parts: string[]) => readFileSync(join(ROOT, ...parts), "utf8").split("\r\n").join("\n");
@@ -55,6 +63,63 @@ function functionBody(source: string, name: string): string {
   return source.slice(start, next < 0 ? undefined : next);
 }
 
+function parse(...parts: string[]): ts.SourceFile {
+  return ts.createSourceFile(parts.join("/"), read(...parts), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+}
+
+/** name -> module for every import in the file (default and named). */
+function importsOf(file: ts.SourceFile): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const statement of file.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const from = statement.moduleSpecifier.text;
+    const clause = statement.importClause;
+    if (clause?.name) out.set(clause.name.text, from);
+    if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+      for (const element of clause.namedBindings.elements) out.set(element.name.text, from);
+    }
+  }
+  return out;
+}
+
+/** The module whose default export the dashboard phone draws for `path`, read from the
+ *  PHONE_ROUTE_SCREENS object literal by the TypeScript parser. */
+function phoneScreenModule(path: string): string | null {
+  const file = parse("src", "components", "dashboard", "phone-screens.tsx");
+  let screen: string | null = null;
+  const visit = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "PHONE_ROUTE_SCREENS" &&
+        node.initializer && ts.isObjectLiteralExpression(node.initializer)) {
+      for (const property of node.initializer.properties) {
+        if (ts.isPropertyAssignment(property) && ts.isStringLiteral(property.name) && property.name.text === path &&
+            ts.isIdentifier(property.initializer)) screen = property.initializer.text;
+      }
+    }
+    node.forEachChild(visit);
+  };
+  visit(file);
+  if (screen === null) return null;
+  const declaration = file.statements.find((statement): statement is ts.ImportDeclaration =>
+    ts.isImportDeclaration(statement) && statement.importClause?.name?.text === screen);
+  return declaration && ts.isStringLiteral(declaration.moduleSpecifier) ? declaration.moduleSpecifier.text : null;
+}
+
+/** `module#Name` for every imported component the file draws as a JSX tag. */
+function drawnComponents(...parts: string[]): Set<string> {
+  const file = parse(...parts);
+  const imports = importsOf(file);
+  const out = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && ts.isIdentifier(node.tagName)) {
+      const from = imports.get(node.tagName.text);
+      if (from) out.add(`${from}#${node.tagName.text}`);
+    }
+    node.forEachChild(visit);
+  };
+  visit(file);
+  return out;
+}
+
 const TASKS = [
   { id: "refund", route: "/subscription", path: "/subscription", params: {} },
   { id: "export", route: "/data?open=account-export", path: "/data", params: { open: "account-export" } },
@@ -68,7 +133,22 @@ describe("each task button reaches its screen, as a page and inside the dashboar
     expect(existsSync(join(ROOT, "src", "app", `${path.slice(1)}.tsx`))).toBe(true);
     // Inside the phone the guide pushes the whole route; the phone splits it and keeps the query.
     expect(splitPhoneRoute(route)).toEqual({ path, params });
-    expect(read("src", "components", "dashboard", "phone-screens.tsx")).toContain(`  "${path}": `);
+    // ...and draws the same route module the page uses, not some other screen.
+    expect(phoneScreenModule(path)).toBe(`@/app${path}`);
+  });
+
+  // The route module, in turn, draws the screen that does the task (and reads the query).
+  test.each([
+    ["/data", "@/screens/deepspace/dds-data-screen#DeepSpaceDataScreen"],
+    ["/privacy", "@/screens/deepspace/DeepSpaceDesignScreens#DeepSpacePrivacyDesignScreen"],
+    ["/permissions", "@/screens/deepspace/DeepSpaceDesignScreens#DeepSpacePermissionsScreen"],
+  ])("%s draws %s", (path, screen) => {
+    expect([...drawnComponents("src", "app", `${path.slice(1)}.tsx`)]).toContain(screen);
+  });
+
+  test("the subscription route module is the subscription screen itself", () => {
+    expect(read("src", "app", "subscription.tsx")).toContain("export default function SubscriptionScreen() {");
+    expect(read("src", "app", "subscription.tsx")).toContain('{t("subscription.refund.title")}');
   });
 
   test("the phone hands the query to the screen it opens", () => {
@@ -117,6 +197,19 @@ describe("notifications come only in the phone app", () => {
     for (const item of manualTopicsFor(translatorFor("en")).filter(({ id }) => id !== "notifications")) {
       expect(visibleManualActions(item.actions, "web")).toEqual(item.actions);
     }
+  });
+
+  // Review #2640 r2: the label of a button left out on the web must not match a search there.
+  test("a button left out on the web is not searchable there; on a phone it is", () => {
+    for (const [locale, label] of [["ko", "권한 관리"], ["en", "Manage permissions"]] as const) {
+      const topics = manualTopicsFor(translatorFor(locale));
+      expect(filterManualTopics(manualTopicsOn(topics, "web"), label).map(({ id }) => id)).toEqual([]);
+      expect(filterManualTopics(manualTopicsOn(topics, "android"), label).map(({ id }) => id)).toEqual(["notifications"]);
+    }
+    // The question itself still finds the topic on the web.
+    const ko = manualTopicsOn(manualTopicsFor(translatorFor("ko")), "web");
+    expect(filterManualTopics(ko, "알림").map(({ id }) => id)).toEqual(["notifications"]);
+    expect(ko.find(({ id }) => id === "notifications")?.actions).toEqual([]);
   });
 
   const WEB_SENTENCE: Record<(typeof LOCALES)[number], string> = {

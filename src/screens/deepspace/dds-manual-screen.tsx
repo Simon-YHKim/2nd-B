@@ -20,7 +20,7 @@ import {
   filterManualTopics,
   manualScreenCopyFor,
   manualTopicsFor,
-  visibleManualActions,
+  manualTopicsOn,
   type ManualTopicId,
 } from "./dds-manual-content";
 
@@ -34,7 +34,7 @@ export function DeepSpaceManualScreen() {
   // 있는데도 영어를 봤다. 문구가 번들로 갔으니 좁힐 이유가 없다.
   const { t, i18n } = useTranslation(["manual", "deepspace", "common"]);
   const copy = manualScreenCopyFor(t);
-  const topics = useMemo(() => manualTopicsFor(t), [t, i18n.language]);
+  const topics = useMemo(() => manualTopicsOn(manualTopicsFor(t), Platform.OS), [t, i18n.language]);
   const [query, setQuery] = useState("");
   const [expandedId, setExpandedId] = useState<ManualTopicId | null>("stars");
   const filteredTopics = useMemo(() => filterManualTopics(topics, query), [query, topics]);
@@ -92,7 +92,6 @@ export function DeepSpaceManualScreen() {
           <View style={styles.topicList}>
             {filteredTopics.map((topic) => {
               const expanded = topic.id === expandedId;
-              const actions = visibleManualActions(topic.actions, Platform.OS);
               return (
                 <View key={topic.id} style={styles.topicBlock}>
                   <PixelPressable
@@ -119,9 +118,9 @@ export function DeepSpaceManualScreen() {
                       <RNText style={[m3TextStyle("bodyMedium"), styles.answerText]}>
                         {topic.answer}
                       </RNText>
-                      {actions.length > 0 ? (
+                      {topic.actions.length > 0 ? (
                         <View style={styles.actionList}>
-                          {actions.map((action) => (
+                          {topic.actions.map((action) => (
                             <PixelPressable
                               key={action.route}
                               variant="frame"

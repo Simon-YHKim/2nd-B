@@ -185,14 +185,14 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(source).toContain('router.push("/secondb")');
   });
 
-  // The answer buttons come through visibleManualActions, so a button whose screen has nothing to
-  // do on this platform is not drawn (the notifications button on the web, Z69).
-  test("draws only the buttons this platform can use", () => {
+  // The screen searches and draws one list made for this platform, so a button whose screen has
+  // nothing to do here is neither drawn nor searchable (the notifications button on the web, Z69).
+  test("searches and draws only the buttons this platform can use", () => {
     const code = read(SCREEN).replace(/^\s*\/\/.*$/gm, "");
-    expect(code).toContain("const actions = visibleManualActions(topic.actions, Platform.OS);");
-    expect(code).toContain("{actions.length > 0 ? (");
-    expect(code).toContain("{actions.map((action) => (");
-    expect(code).not.toContain("topic.actions.map(");
+    expect(code).toContain("const topics = useMemo(() => manualTopicsOn(manualTopicsFor(t), Platform.OS), [t, i18n.language]);");
+    expect(code).toContain("const filteredTopics = useMemo(() => filterManualTopics(topics, query), [query, topics]);");
+    expect(code).toContain("{topic.actions.length > 0 ? (");
+    expect(code.split("manualTopicsFor(").length - 1).toBe(1);
   });
 
   test("every literal t() key on the screen resolves in its namespace (no raw keys)", () => {
