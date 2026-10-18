@@ -46,18 +46,20 @@ export function prepareContentWipeRequest(request: CapturedContentWipeRequest) {
 /**
  * Review #2627 r4 -> Q-261018-60 가: a visible Preference-Applied commits only in a known shape. This request sends
  * `count=exact,return=minimal|representation`, so the known shape is exactly one `count=exact` and at most one
- * `return=minimal` or `return=representation`, comma separated with optional spaces or tabs around the commas.
+ * `return=` of the mode this table asked for (records: representation, every other table: minimal), comma
+ * separated with optional spaces or tabs around the commas.
  * No ";" parameters, no other preference, no empty element, no quoting or spacing inside an element. Names and
  * values compare case-insensitively. Anything else - including spellings that merely agree - stays unknown.
  */
-function knownAppliedPreferences(header: string): boolean {
+function knownAppliedPreferences(header: string, expectedReturn: "minimal" | "representation"): boolean {
   const elements = header.split(",").map(element => element.replace(/^[ \t]+|[ \t]+$/g, "").toLowerCase());
   const counts = elements.filter(element => element === "count=exact").length;
-  const returns = elements.filter(element => element === "return=minimal" || element === "return=representation").length;
+  // Review #2627 r5 (Q-261018-63 가): a visible return must be the mode this table asked for.
+  const returns = elements.filter(element => element === `return=${expectedReturn}`).length;
   return counts === 1 && returns <= 1 && counts + returns === elements.length;
 }
 
-function exactDeleteCount(response: Response): number | null {
+function exactDeleteCount(response: Response, expectedReturn: "minimal" | "representation"): number | null {
   // Our fixed count=exact DELETE gets the mutation CTE's actual count as */N.
   // PostgREST CORS exposes Content-Range, but not Preference-Applied. When the
   // latter is readable, reject contradictions; its absence is not missing count
@@ -67,7 +69,7 @@ function exactDeleteCount(response: Response): number | null {
   const applied = response.headers.get("preference-applied");
   if (applied !== null) {
     // Visible: only the known shape commits (knownAppliedPreferences); everything else stays unknown.
-    if (!knownAppliedPreferences(applied)) return null;
+    if (!knownAppliedPreferences(applied, expectedReturn)) return null;
   }
   const count = Number(match[1]);
   return Number.isSafeInteger(count) ? count : null;
@@ -120,7 +122,7 @@ export async function deleteContentRowsCaptured(
         ? { outcome: "definitely-not-committed", count: null } : unknownResult();
     }
     if (response.status !== (table === "records" ? 200 : 204)) return unknownResult();
-    const count = exactDeleteCount(response);
+    const count = exactDeleteCount(response, table === "records" ? "representation" : "minimal");
     if (count === null) return unknownResult();
     if (table !== "records") return { outcome: "committed", count };
     if (!isJson(response)) return unknownResult();

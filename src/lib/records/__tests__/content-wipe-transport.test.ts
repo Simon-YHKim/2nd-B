@@ -9,7 +9,7 @@ const request = (): CapturedContentWipeRequest => ({ userId: "owner-a", accessTo
 function success(count = 0, rows?: unknown, headers: Record<string, string> = {}): Response {
   return new Response(rows === undefined ? null : JSON.stringify(rows), {
     status: rows === undefined ? 204 : 200,
-    headers: { "content-range": `*/${count}`, "preference-applied": "return=representation, count=exact", "content-type": "application/json; charset=utf-8", ...headers },
+    headers: { "content-range": `*/${count}`, "preference-applied": rows === undefined ? "return=minimal, count=exact" : "return=representation, count=exact", "content-type": "application/json; charset=utf-8", ...headers },
   });
 }
 const failure = (status: number, code: string, extra: Record<string, unknown> = {}) => new Response(
@@ -94,11 +94,29 @@ test.each([
 // count=exact, optionally one return=minimal or return=representation (what this request sends), comma separated
 // with optional whitespace, no ";" parameters. Every other spelling, including ones that merely agree, is unknown.
 test.each([
-  "count=exact", "Count=Exact", "return=minimal, count=exact", "count=exact,return=representation", " count=exact ",
+  "count=exact", "Count=Exact", "return=minimal, count=exact", " count=exact ",
   "count=exact , return=minimal", "RETURN=MINIMAL,COUNT=EXACT",
 ])("visible preference %s in a known shape with the exact */N commits", async preference => {
   fetchMock.mockResolvedValue(success(7, undefined, { "preference-applied": preference }));
   await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "committed", count: 7 });
+});
+// Review #2627 r5 -> Q-261018-63 가: a visible return must be the mode this table asked for - records asked
+// return=representation (200), every other table return=minimal (204). No return at all still commits.
+test.each([
+  { table: "records" as const, preference: "count=exact,return=representation", outcome: "committed" },
+  { table: "records" as const, preference: "count=exact", outcome: "committed" },
+  { table: "records" as const, preference: "count=exact,return=minimal", outcome: "unknown" },
+  { table: "records" as const, preference: "RETURN=MINIMAL, count=exact", outcome: "unknown" },
+  { table: "sources" as const, preference: "count=exact,return=representation", outcome: "unknown" },
+  { table: "sources" as const, preference: "Return=Representation, count=exact", outcome: "unknown" },
+  { table: "wiki_pages" as const, preference: "count=exact,return=representation", outcome: "unknown" },
+])("$table with visible $preference is $outcome", async ({ table, preference, outcome }) => {
+  fetchMock.mockResolvedValue(table === "records"
+    ? success(0, [], { "preference-applied": preference })
+    : success(0, undefined, { "preference-applied": preference }));
+  const result = await deleteContentRowsCaptured(table, request());
+  expect(result.outcome).toBe(outcome);
+  if (outcome === "unknown") expect(result).toEqual({ outcome: "unknown", count: null });
 });
 // The three empty-parameter cases from round 4, the parameter cases from round 3, and the spellings rounds 2-3 had
 // accepted: all unknown now.

@@ -63,7 +63,8 @@ rollback 모순 검사를 그대로 적용한다. unknown을 0으로 바꾸거�
 `return=representation` 많아야 하나를 쉼표로 이은 것뿐이다(쉼표 앞뒤 공백 · 탭과 대소문자만 허용). `;` 매개변수, 다른
 preference, 빈 자리, 따옴표나 `=` 앞뒤 공백 같은 표기 변형은 뜻이 같아 보여도 전부 unknown이다. 2 · 3회차에 RFC 7240
 파서로 넓혔더니 회차마다 새 표기 구멍(`tx = rollback` · `;` 뒤 매개변수 · 빈 `;`)이 나와 좁혔다. 헤더가 숨은 정상 경로
-(브라우저 CORS)는 그대로다.
+(브라우저 CORS)는 그대로다. `return` 이 보이면 그 테이블이 요청한 값이어야 한다(#2627 5회차 지적 · Q-261018-63 가):
+`records` 는 `return=representation`(200), 나머지 테이블은 `return=minimal`(204). 엇갈리면 unknown, 없으면 그대로 허용.
 
 지원 전제는 신뢰하는 PostgREST endpoint가 이 요청/응답 계약을 그대로 지키며,
 **db-tx-end=commit 또는 commit-allow-override**를 쓰는 것이다. 이 요청은 tx=rollback을 보내지
