@@ -77,34 +77,103 @@ assert.equal(last(await run(`SELECT to_regclass('public.interview_content_author
   AND position('pg_try_advisory_xact_lock_shared' IN pg_get_functiondef('public.interview_session_erasure()'::regprocedure))>0
   AND NOT has_function_privilege('authenticated','public.erase_my_data(text)','EXECUTE');`)), 't', 'fresh schema plus installed owner-lock floor');
 pass('fresh complete numbered schema and actual erasure-lock preflight');
-await run(`BEGIN;${s1}${up}COMMIT;`);
+// Review #2618 r1: the down must restore the S1/legacy catalog exactly, not only drop the new
+// objects. A fingerprint of both schemas S1/S2b touch (definitions incl. SECURITY DEFINER,
+// volatility and SET search_path, owners, normalized ACLs, view bodies, columns, constraints,
+// indexes, triggers incl. those on other schemas' tables that call these functions, RLS flags,
+// policies) is taken with S1 alone and compared with the state after S2b up + down.
+// Comments (pg_description) and default privileges are not part of it.
+const FINGERPRINT_SQL = `
+WITH s AS (SELECT oid, nspname FROM pg_namespace WHERE nspname IN ('public','interview_authority_private'))
+SELECT kind||'|'||name||'|'||md5(detail) FROM (
+ SELECT 'schema' AS kind, s.nspname AS name,
+   pg_get_userbyid(n.nspowner)||'|'||coalesce((SELECT string_agg(a::text, ',' ORDER BY a::text) FROM unnest(n.nspacl) a),'') AS detail
+   FROM s JOIN pg_namespace n ON n.oid=s.oid
+ UNION ALL
+ SELECT 'function', s.nspname||'.'||p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',
+   pg_get_functiondef(p.oid)||'|'||pg_get_userbyid(p.proowner)||'|'||
+   coalesce((SELECT string_agg(a::text, ',' ORDER BY a::text) FROM unnest(p.proacl) a),'')
+   FROM pg_proc p JOIN s ON s.oid=p.pronamespace WHERE p.prokind IN ('f','p')
+ UNION ALL
+ SELECT CASE c.relkind WHEN 'v' THEN 'view' WHEN 'm' THEN 'matview' ELSE 'table' END, s.nspname||'.'||c.relname,
+   c.relkind||'|'||coalesce(CASE WHEN c.relkind IN ('v','m') THEN pg_get_viewdef(c.oid) END,'')||'|'||
+   pg_get_userbyid(c.relowner)||'|'||coalesce((SELECT string_agg(a::text, ',' ORDER BY a::text) FROM unnest(c.relacl) a),'')||'|'||
+   c.relrowsecurity::text||'|'||c.relforcerowsecurity::text||'|'||coalesce(array_to_string(c.reloptions, ','),'')||'|'||
+   coalesce((SELECT string_agg(a.attname||':'||format_type(a.atttypid,a.atttypmod)||':'||a.attnotnull::text||':'||
+       a.attidentity||':'||a.attgenerated||':'||coalesce(pg_get_expr(d.adbin,d.adrelid),'')||':'||
+       coalesce((SELECT string_agg(x::text, ',' ORDER BY x::text) FROM unnest(a.attacl) x),''), ';' ORDER BY a.attnum)
+     FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum
+     WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped),'')
+   FROM pg_class c JOIN s ON s.oid=c.relnamespace WHERE c.relkind IN ('r','p','v','m','f','S')
+ UNION ALL
+ SELECT 'constraint', s.nspname||'.'||cl.relname||'.'||co.conname, pg_get_constraintdef(co.oid)||'|'||co.convalidated::text
+   FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid JOIN s ON s.oid=cl.relnamespace
+ UNION ALL
+ SELECT 'index', s.nspname||'.'||i.relname, pg_get_indexdef(i.oid)
+   FROM pg_index x JOIN pg_class i ON i.oid=x.indexrelid JOIN s ON s.oid=i.relnamespace
+ UNION ALL
+ SELECT 'trigger', n.nspname||'.'||cl.relname||'.'||t.tgname, pg_get_triggerdef(t.oid)||'|'||t.tgenabled::text
+   FROM pg_trigger t JOIN pg_class cl ON cl.oid=t.tgrelid JOIN pg_namespace n ON n.oid=cl.relnamespace
+   JOIN pg_proc f ON f.oid=t.tgfoid
+   WHERE NOT t.tgisinternal AND (cl.relnamespace IN (SELECT oid FROM s) OR f.pronamespace IN (SELECT oid FROM s))
+ UNION ALL
+ SELECT 'policy', schemaname||'.'||tablename||'.'||policyname,
+   permissive||'|'||array_to_string(roles, ',')||'|'||cmd||'|'||coalesce(qual,'')||'|'||coalesce(with_check,'')
+   FROM pg_policies WHERE schemaname IN ('public','interview_authority_private')
+) f ORDER BY 1;`;
+const fingerprint = async () => (await run(FINGERPRINT_SQL)).split(/\r?\n/)
+  .filter((line) => /^(schema|function|table|view|matview|constraint|index|trigger|policy)\|/.test(line));
+const catalogDiff = (expected, actual) => {
+  const want = new Set(expected); const got = new Set(actual);
+  const name = (line) => line.split('|').slice(0, 2).join('|');
+  return { missing: expected.filter((line) => !got.has(line)).map(name), extra: actual.filter((line) => !want.has(line)).map(name) };
+};
+// The four original 0225 controls, unchanged. Run in the S1 state after the S2b down and
+// again with S2b applied, so a wrongly restored legacy function is exercised before the
+// next up overwrites it.
+async function original0225Controls(state) {
+  await run(read('db/tests/interview_transcript_ledger_regression.sql'));
+  await run(read('db/tests/interview_transcript_ledger_rollback.sql')
+    .replace('\\ir ../migrations/rollback/0225_down.sql', () => read('db/migrations/rollback/0225_down.sql'))
+    .replace('\\ir ../migrations/0225_interview_transcript_ledger.sql', () => read('db/migrations/0225_interview_transcript_ledger.sql')));
+  pass(`unchanged original 0225 SQL regression and rollback/reapply (${state})`);
+  // The original Python controls use host psql. Route their unchanged arguments
+  // to this exact local Docker container, retaining application labels/options so
+  // their pg_stat_activity assertions observe actual waits. No external DB env.
+  const shimDir = mkdtempSync(join(tmpdir(), 't16-finalize-psql-'));
+  try {
+    writeFileSync(join(shimDir, 'psql'), `#!/bin/sh\nexec docker --host '${socket}' exec -i -e PGPASSWORD=postgres -e PGAPPNAME -e PGOPTIONS '${container}' psql -U postgres "$@"\n`, { mode: 0o700 });
+    for (const file of ['interview_transcript_ledger_concurrency.py', 'interview_transcript_ledger_security.py']) {
+      const result = await new Promise((resolveResult, reject) => {
+        const child = spawn('python3', [resolve(root, `db/tests/${file}`), '--template', database],
+          { env: { ...env, PATH: `${shimDir}:${env.PATH}` }, timeout: 180_000 });
+        let out = ''; let err = '';
+        child.stdout.on('data', (data) => { out += data; }); child.stderr.on('data', (data) => { err += data; });
+        child.on('error', reject); child.on('close', (code) => resolveResult({ code, out, err }));
+      });
+      process.stdout.write(result.out); assert.equal(result.code, 0, result.err || result.out);
+    }
+  } finally { rmSync(shimDir, { recursive: true, force: true }); }
+  pass(`unchanged original 0225 Python concurrency/security controls (${state})`);
+}
+
+await run(`BEGIN;${s1}COMMIT;`);
+const s1Catalog = await fingerprint();
+assert(s1Catalog.length > 100, `catalog fingerprint read only ${s1Catalog.length} objects`);
+await run(`BEGIN;${up}COMMIT;`);
+const s2bDiff = catalogDiff(s1Catalog, await fingerprint());
+assert(s2bDiff.missing.length + s2bDiff.extra.length > 0, 'the fingerprint must see S2b change the catalog');
+assert(s2bDiff.missing.some((name) => name.startsWith('function|public.commit_interview_session(')),
+  'the fingerprint must see S2b replace a legacy function body');
 await run(down);
+const downDiff = catalogDiff(s1Catalog, await fingerprint());
+assert.deepEqual(downDiff, { missing: [], extra: [] }, 'S2b down must restore the exact S1/legacy catalog');
+pass(`S2b down restores the exact S1/legacy catalog (${s1Catalog.length} objects: definitions, owners, ACLs, views, columns, constraints, indexes, triggers, policies)`);
 await run(read(`${draft}tests/interview-atomic-finalize-rollback.sql`));
+await original0225Controls('S1 state after the S2b down');
 await run(`BEGIN;${up}COMMIT;BEGIN;${up}COMMIT;`);
-pass('empty down restores legacy/S1 and repeated S2b apply');
-await run(read('db/tests/interview_transcript_ledger_regression.sql'));
-await run(read('db/tests/interview_transcript_ledger_rollback.sql')
-  .replace('\\ir ../migrations/rollback/0225_down.sql', () => read('db/migrations/rollback/0225_down.sql'))
-  .replace('\\ir ../migrations/0225_interview_transcript_ledger.sql', () => read('db/migrations/0225_interview_transcript_ledger.sql')));
-pass('unchanged original 0225 SQL regression and rollback/reapply');
-// The original Python controls use host psql. Route their unchanged arguments
-// to this exact local Docker container, retaining application labels/options so
-// their pg_stat_activity assertions observe actual waits. No external DB env.
-const shimDir = mkdtempSync(join(tmpdir(), 't16-finalize-psql-'));
-try {
-  writeFileSync(join(shimDir, 'psql'), `#!/bin/sh\nexec docker --host '${socket}' exec -i -e PGPASSWORD=postgres -e PGAPPNAME -e PGOPTIONS '${container}' psql -U postgres "$@"\n`, { mode: 0o700 });
-  for (const file of ['interview_transcript_ledger_concurrency.py', 'interview_transcript_ledger_security.py']) {
-    const result = await new Promise((resolveResult, reject) => {
-      const child = spawn('python3', [resolve(root, `db/tests/${file}`), '--template', database],
-        { env: { ...env, PATH: `${shimDir}:${env.PATH}` }, timeout: 180_000 });
-      let out = ''; let err = '';
-      child.stdout.on('data', (data) => { out += data; }); child.stderr.on('data', (data) => { err += data; });
-      child.on('error', reject); child.on('close', (code) => resolveResult({ code, out, err }));
-    });
-    process.stdout.write(result.out); assert.equal(result.code, 0, result.err || result.out);
-  }
-} finally { rmSync(shimDir, { recursive: true, force: true }); }
-pass('unchanged original 0225 Python concurrency/security controls');
+pass('repeated S2b apply after the down');
+await original0225Controls('S2b re-applied');
 await run(regression);
 await run(read(`${draft}tests/interview-atomic-finalize-erasure.sql`).replace('/* FINALIZE_FIXTURE */', () => sharedFixture));
 pass('actual-role atomic receipt/fault/legacy/r1-q5 and real FK erasure lifecycle SQL');

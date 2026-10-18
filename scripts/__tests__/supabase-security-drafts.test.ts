@@ -208,6 +208,46 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     }
   });
 
+  // Review #2618 r1: the S2b runner imports the real S2a packet module, so that module
+  // and everything it imports must trigger the dry-run lane, not only the runner.
+  test("the S2b DB lane re-runs when the real packet module or anything it imports changes", () => {
+    const pullRequestPaths = (() => {
+      const lines = workflow.split("\n");
+      const start = lines.findIndex((line) => /^\s{4}paths:\s*$/.test(line));
+      expect(start).toBeGreaterThan(-1);
+      const out: string[] = [];
+      for (const line of lines.slice(start + 1)) {
+        const m = /^\s{6}- "([^"]+)"\s*$/.exec(line);
+        if (m) out.push(m[1]);
+        else if (!/^\s*(#.*)?$/.test(line)) break;
+      }
+      return out;
+    })();
+    const closure = new Set<string>();
+    const todo = ["supabase/functions/_shared/interview-finalize-packet.ts"];
+    const spec = /(?:import|export)\s[^'"]*?from\s+['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+    while (todo.length > 0) {
+      const file = todo.pop() as string;
+      if (closure.has(file)) continue;
+      closure.add(file);
+      for (const m of read(file).matchAll(spec)) {
+        const target = m[1] ?? m[2];
+        if (!target.startsWith(".") && !target.startsWith("@/")) continue;
+        const base = target.startsWith("@/") ? `src/${target.slice(2)}` : join(file, "..", target).replace(/\\/g, "/");
+        const found = ["", ".ts", ".tsx", "/index.ts"].map((ext) => base + ext).find((path) => existsSync(join(ROOT, path)));
+        expect(found).toBeDefined();
+        todo.push(found as string);
+      }
+    }
+    expect([...closure].sort()).toEqual([
+      "src/lib/interview/saved-story.ts",
+      "supabase/functions/_shared/interview-finalize-packet.ts",
+      "supabase/functions/_shared/request-json.ts",
+    ]);
+    for (const file of closure) expect(pullRequestPaths).toContain(file);
+    expect(pullRequestPaths).toContain("scripts/test-interview-atomic-finalize-sql.mjs");
+  });
+
   test("numbered migrations keep the bytes they were promoted with", () => {
     expect(promotedDigestDrift(promoted, readNumberedMigration)).toEqual([]);
   });

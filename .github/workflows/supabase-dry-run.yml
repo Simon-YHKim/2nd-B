@@ -21,6 +21,11 @@ on:
       - "scripts/test-deletion-receipt-sql.mjs"
       - "scripts/test-interview-content-authority-sql.mjs"
       - "scripts/test-interview-atomic-finalize-sql.mjs"
+      # The S2b runner loads the real S2a packet module and what it imports;
+      # a change there must re-run the DB parity lane (review #2618 r1).
+      - "supabase/functions/_shared/interview-finalize-packet.ts"
+      - "supabase/functions/_shared/request-json.ts"
+      - "src/lib/interview/saved-story.ts"
       - ".github/workflows/supabase-dry-run.yml"
 
 # Least privilege: this workflow only reads the repo (checkout + local tooling).
