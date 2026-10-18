@@ -433,12 +433,13 @@ export function DeepSpaceIntegrationsScreen() {
 // mirror the canon byte for byte (tr1-locale-copy.test.ts) and only keep the
 // five-locale key parity; the ko screen still reads the canon.
 //
-// HONESTY (audit follow-up) for support.faqs.call: transcription is cloud STT
+// HONESTY (audit follow-up) for support.faqs.voice: transcription is cloud STT
 // through the spend-capped LLM proxy, not on-device; the old copy claimed
 // on-device. What IS true: the original audio is deleted from the device right
-// after transcription.
-const GAPS_FAQ_KEYS = ["brightness", "plan", "call"] as const;
-const GAPS_NOTICE_KEYS = ["modes", "museum", "voice"] as const;
+// after transcription. The question asked about call recording until Z73
+// (Simon 2026-10-13): the app records no calls, and the answer was always about
+// voice transcription, so the key and the question now say that.
+const GAPS_FAQ_KEYS = ["brightness", "plan", "voice"] as const;
 const GAPS_FACT_KEYS = ["onDevice", "collect", "retention", "delete"] as const;
 
 // Map a canon Material-symbol icon name to a local CLONE_ICON glyph, falling
@@ -447,16 +448,13 @@ function gapGlyph(name: string): CloneIconName {
   return (CLONE_ICON.has(name) ? name : "sparkle") as CloneIconName;
 }
 
-// Token-only styles for the gaps-pack sections (FAQ / notices / facts / concepts).
+// Token-only styles for the gaps-pack sections (FAQ / facts / concepts).
 const gap = StyleSheet.create({
   flex1: { flex: 1 },
   row: { paddingVertical: spacing.sm },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
   qRow: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: spacing.sm },
   answer: { marginTop: spacing.xs },
-  noticeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
-  tag: { borderRadius: m3.shape.full, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  tagText: { color: colors.cyanSoft, fontSize: 11 },
   factRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", paddingVertical: spacing.sm },
   factText: { flex: 1, gap: 2 },
 });
@@ -502,21 +500,11 @@ export function DeepSpaceSupportDesignScreen() {
         })}
       </Card>
 
-      {/* 공지사항 / Notices (canonGaps.notices) — tag + title + date. */}
+      {/* Notices: one row to the real notices screen, named as that screen is (Z73,
+          Simon 2026-10-13). The three lines here were the canon's fixed sample text,
+          with no year, and could not be opened. */}
       <Card>
-        <Text variant="caption" style={styles.section}>{t("support.noticesTitle")}</Text>
-        {canonGaps.notices.map((n, i) => {
-          const key = GAPS_NOTICE_KEYS[i];
-          const title = ko || !key ? n.t : t(`support.notices.${key}.t`);
-          const tag = ko || !key ? n.tag : t(`support.notices.${key}.tag`);
-          return (
-            <View key={n.t} style={[gap.noticeRow, i < canonGaps.notices.length - 1 && gap.rowDivider]}>
-              <View style={gap.tag}><Text variant="caption" style={gap.tagText}>{tag}</Text></View>
-              <Text variant="body" style={[styles.actionLabel, gap.flex1]}>{title}</Text>
-              <Text variant="subtle" style={styles.actionValue}>{n.d}</Text>
-            </View>
-          );
-        })}
+        <Action label={t("ops:phone.apps.notifications")} onPress={() => router.push("/notices")} />
       </Card>
 
       <Text variant="subtle" style={styles.footer}>{t("support.footer", { version: appVersion() ?? "?" })}</Text>
