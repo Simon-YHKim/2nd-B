@@ -34,7 +34,6 @@ const {
   makePublishCheck,
   publishQaSequence,
   runQaPublish,
-  qaPublishReaders,
   validateQaReleaseNotes,
   planFollow,
   parsePreflight,
