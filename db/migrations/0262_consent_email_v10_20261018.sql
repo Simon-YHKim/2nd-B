@@ -39,6 +39,33 @@ BEGIN
     ) THEN
     RAISE EXCEPTION 'consent_email_v10_prerequisite_not_ready' USING ERRCODE='55000';
   END IF;
+  -- The five functions below are re-created from their 0215 bodies plus the email-v10 /
+  -- service-v5 rows. Refuse unless they still are exactly 0215's (whitespace-free body,
+  -- SECURITY DEFINER, volatility, settings), so a later change is never silently reverted.
+  IF (SELECT md5(string_agg(p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')|'
+        || md5(pg_catalog.regexp_replace(p.prosrc, '\s', '', 'g')) || '|' || p.prosecdef::text || '|'
+        || p.provolatile::text || '|' || COALESCE(pg_catalog.array_to_string(p.proconfig, ','), ''),
+        E'\n' ORDER BY p.proname COLLATE "C"))
+      FROM pg_catalog.pg_proc AS p JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname = ANY (ARRAY['capture_llm_consent_provenance',
+        'llm_consent_current_decision','signup_consent_contract','signup_consent_contract_status',
+        'write_llm_service_consent'])) IS DISTINCT FROM '838125357759d1ec4136696bb19bcd02' THEN
+    RAISE EXCEPTION 'consent_email_v10_functions_changed_since_0215' USING ERRCODE='55000';
+  END IF;
+  -- One owner for the consent ledger and every function this file replaces or adds beside.
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_proc AS p
+    WHERE p.oid = ANY (ARRAY['public.signup_consent_contract(text)'::regprocedure,
+        'public.signup_consent_contract_status()'::regprocedure,
+        'public.capture_llm_consent_provenance()'::regprocedure,
+        'public.llm_consent_current_decision(uuid)'::regprocedure,
+        'public.write_llm_service_consent(uuid,text,text,text,jsonb,text)'::regprocedure,
+        'public.llm_service_consent_status_v4(uuid)'::regprocedure])
+      AND p.proowner IS DISTINCT FROM (SELECT c.relowner FROM pg_catalog.pg_class AS c
+                                        WHERE c.oid = 'public.consent_records'::regclass)
+  ) THEN
+    RAISE EXCEPTION 'consent_email_v10_owner_mismatch' USING ERRCODE='55000';
+  END IF;
 END
 $preflight$;
 
@@ -302,6 +329,14 @@ BEGIN
     'policy_version','2026-10-07','terms_version','2026-10-05','state',state,
     'change_token',change_token,'can_grant',eligible);
 END $$;
+-- A SECURITY DEFINER runs as its owner: give v5 the owner of the v4 status function it mirrors.
+DO $owner$
+BEGIN
+  EXECUTE pg_catalog.format('ALTER FUNCTION public.llm_service_consent_status_v5(uuid) OWNER TO %I',
+    (SELECT pg_catalog.pg_get_userbyid(p.proowner) FROM pg_catalog.pg_proc AS p
+      WHERE p.oid = 'public.llm_service_consent_status_v4(uuid)'::regprocedure));
+END
+$owner$;
 REVOKE ALL ON FUNCTION public.llm_service_consent_status_v5(uuid) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.llm_service_consent_status_v5(uuid) TO service_role;
 
@@ -438,6 +473,13 @@ BEGIN
     OR NOT has_function_privilege('service_role','public.llm_service_consent_status_v2(uuid)','EXECUTE')
     OR has_function_privilege('anon','public.write_llm_service_consent(uuid,text,text,text,jsonb,text)','EXECUTE')
     OR has_function_privilege('authenticated','public.write_llm_service_consent(uuid,text,text,text,jsonb,text)','EXECUTE')
+    OR (SELECT count(DISTINCT p.proowner) FROM pg_catalog.pg_proc AS p
+        WHERE p.oid = ANY (ARRAY['public.llm_service_consent_status_v5(uuid)'::regprocedure,
+          'public.llm_service_consent_status_v4(uuid)'::regprocedure,
+          'public.write_llm_service_consent(uuid,text,text,text,jsonb,text)'::regprocedure,
+          'public.signup_consent_contract_status()'::regprocedure])) <> 1
+    OR NOT (SELECT p.prosecdef FROM pg_catalog.pg_proc AS p
+            WHERE p.oid = 'public.llm_service_consent_status_v5(uuid)'::regprocedure)
   THEN
     RAISE EXCEPTION 'consent_email_v10_contract_not_ready' USING ERRCODE='55000';
   END IF;

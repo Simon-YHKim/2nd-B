@@ -58,7 +58,7 @@ const promoted = [
   ["0210", "polascope_consent_20260928", "12a40e2208601f237cbccac5a3b49043f004719e916f828078eccf388f407b9f"],
   ["0215", "consent_email_v9_20261006", "e5f38f6a6fa856729d24caf811dd2d300405a403b4129a842c6f27f2c30670e6"],
   ["0216", "peer_response_rate_limit", "7b7abc8d550ff17cc4f13457d8eec8904d4c821884dcaa892b5dbd8feb685946"],
-  ["0262", "consent_email_v10_20261018", "677b4bc7a6c77302609b4515b5dd7a512dfe24d13ae7e8176b94139eaf51c4e7"],
+  ["0262", "consent_email_v10_20261018", "b7debcea9593692c9aa6115072b0af5a5b86007b0743cf3fe423a05e23dd7bf5"],
 ] as const;
 
 const normalizedSqlSha256 = (sql: string) =>

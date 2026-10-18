@@ -124,6 +124,22 @@ describe("service consent management Edge", () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "service_consent_unavailable" });
   });
+  it.each([
+    ["consent_version", "2026-10-06"], ["policy_version", "2026-10-06"], ["terms_version", "2026-10-13"],
+  ])("fails closed when a service-v5 status carries another %s (%s)", async (key, value) => {
+    const fixture = host(); fixture.result({ ...statusV5, [key]: value });
+    const response = await fixture.run({ action: "status", contractRevision: "service-v5" });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "service_consent_unavailable" });
+  });
+  it("fails closed when a legacy status names its own revision with another date", async () => {
+    for (const [revision, body] of [["service-v4", { ...statusV2, policy_version: "2026-10-07" }],
+      ["service-v1", { ...status, consent_version: "2026-10-18" }]] as const) {
+      const fixture = host(); fixture.result(body);
+      const response = await fixture.run(revision === "service-v1" ? { action: "status" } : { action: "status", contractRevision: revision });
+      expect(response.status).toBe(503);
+    }
+  });
   it("fails closed when the v4 database status returns a legacy tuple", async () => {
     const fixture = host(); fixture.result(status);
     const response = await fixture.run({ action: "status", contractRevision: "service-v4" });

@@ -44,6 +44,20 @@ BEGIN
     OR EXISTS(SELECT 1 FROM public.signup_consent_contract('email-v8'))
     OR EXISTS(SELECT 1 FROM public.signup_consent_contract('unreviewed'))
   THEN RAISE EXCEPTION 'email-v10 signup tuple preservation/current contract failed'; END IF;
+  -- The v5 DEFINER runs as the same owner as the v4 status function and the writer.
+  IF (SELECT p.proowner FROM pg_catalog.pg_proc AS p
+       WHERE p.oid='public.llm_service_consent_status_v5(uuid)'::regprocedure)
+     IS DISTINCT FROM (SELECT p.proowner FROM pg_catalog.pg_proc AS p
+       WHERE p.oid='public.llm_service_consent_status_v4(uuid)'::regprocedure)
+    OR (SELECT p.proowner FROM pg_catalog.pg_proc AS p
+       WHERE p.oid='public.llm_service_consent_status_v5(uuid)'::regprocedure)
+     IS DISTINCT FROM (SELECT p.proowner FROM pg_catalog.pg_proc AS p
+       WHERE p.oid='public.write_llm_service_consent(uuid,text,text,text,jsonb,text)'::regprocedure)
+    OR NOT (SELECT p.prosecdef FROM pg_catalog.pg_proc AS p
+       WHERE p.oid='public.llm_service_consent_status_v5(uuid)'::regprocedure)
+    OR (SELECT pg_catalog.array_to_string(p.proconfig, ',') FROM pg_catalog.pg_proc AS p
+       WHERE p.oid='public.llm_service_consent_status_v5(uuid)'::regprocedure) IS DISTINCT FROM 'search_path=""'
+  THEN RAISE EXCEPTION 'email-v10 v5 status owner/definer/search_path failed'; END IF;
 END $$;
 
 -- The unchanged confirmation trigger resolves the new email-v10 client and the
