@@ -1248,7 +1248,7 @@ function SecondBChatBody() {
           turnCount: turns.length,
         }) ? (
           <View testID="chat-save-notice" style={ds.saveNotice} accessibilityRole="alert">
-            <Text style={ds.saveNoticeTitle} numberOfLines={1} ellipsizeMode="tail">{t("chatSaveNotice")}</Text>
+            <Text style={ds.saveNoticeTitle} numberOfLines={2} ellipsizeMode="tail">{t("chatSaveNotice")}</Text>
               <Pressable
                 onPress={() => {
                   dismissSaveNotice();
