@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
@@ -56,7 +56,7 @@ describe("PIXEL-CLAY /manual content contract", () => {
 
   test("gives every question real content and distinct destinations", () => {
     const topics = manualTopicsFor(translatorFor("en"));
-    expect(topics).toHaveLength(5);
+    expect(topics).toHaveLength(9);
     expect(topics.every(({ answer }) => answer.trim().length > 40)).toBe(true);
     expect(topics.map(({ actions }) => actions[0]?.route)).toEqual([
       "/secondb?panel=dashboard",
@@ -64,6 +64,10 @@ describe("PIXEL-CLAY /manual content contract", () => {
       "/records",
       "/review",
       "/privacy",
+      "/subscription",
+      "/data?open=account-export",
+      "/privacy?section=delete",
+      "/permissions",
     ]);
     expect(topics.flatMap(({ actions }) => actions.map(({ route }) => route))).toEqual(
       expect.arrayContaining(["/privacy", "/iden", "/data?open=account-export", "/support"]),
@@ -75,7 +79,71 @@ describe("PIXEL-CLAY /manual content contract", () => {
     expect(filterManualTopics(topics, "  위키 ").map(({ id }) => id)).toEqual(["source"]);
     expect(filterManualTopics(topics, "L5").map(({ id }) => id)).toEqual(["brightness", "ratify"]);
     expect(filterManualTopics(topics, "찾을 수 없는 값")).toEqual([]);
-    expect(filterManualTopics(topics, "")).toHaveLength(5);
+    expect(filterManualTopics(topics, "")).toHaveLength(9);
+  });
+});
+
+// Z69 (Simon 2026-10-13 20:43, Q-261013-22): searching the guide for "환불" or "알림" found nothing
+// and sent the visitor to HustleK, which spends a daily turn. Simon picked "add the four common
+// tasks as questions, each answer with a button to that screen" (refund · export · delete account ·
+// notifications, the four the 2026-10-13 proposal named).
+describe("the guide answers the four common tasks with a button to the screen", () => {
+  const TASKS = [
+    { id: "refund", route: "/subscription", question: "환불은 어떻게 받나요?" },
+    { id: "export", route: "/data?open=account-export", question: "내 기록을 내보내려면?" },
+    { id: "deleteAccount", route: "/privacy?section=delete", question: "계정을 지우려면?" },
+    { id: "notifications", route: "/permissions", question: "알림은 어디서 바꾸나요?" },
+  ] as const;
+
+  test("each task is one question with one button, in the order proposed", () => {
+    const topics = manualTopicsFor(translatorFor("ko"));
+    const tail = topics.slice(-TASKS.length);
+    expect(tail.map(({ id }) => id)).toEqual(TASKS.map(({ id }) => id));
+    for (const [i, task] of TASKS.entries()) {
+      expect(tail[i].question).toBe(task.question);
+      expect(tail[i].actions.map(({ route }) => route)).toEqual([task.route]);
+    }
+  });
+
+  test("the words that found nothing now find their task", () => {
+    const topics = manualTopicsFor(translatorFor("ko"));
+    expect(filterManualTopics(topics, "환불").map(({ id }) => id)).toEqual(["refund"]);
+    expect(filterManualTopics(topics, "알림").map(({ id }) => id)).toEqual(["notifications"]);
+    const en = manualTopicsFor(translatorFor("en"));
+    expect(filterManualTopics(en, "refund").map(({ id }) => id)).toEqual(["refund"]);
+    expect(filterManualTopics(en, "notifications").map(({ id }) => id)).toEqual(["notifications"]);
+  });
+
+  // The button has to land on a screen that exists as its own page. The four task buttons also
+  // have to open inside the dashboard phone (the guide pushes through useAppRouter, which hands
+  // the phone a path; these four are screens in the phone's route table).
+  test("every button in the guide opens a route the app has, and the task buttons open in the phone", () => {
+    const routes = new Set(manualTopicsFor(translatorFor("en")).flatMap(({ actions }) => actions.map(({ route }) => route)));
+    for (const route of routes) {
+      const path = route.split("?")[0];
+      expect({ route, page: existsSync(join(ROOT, "src", "app", `${path.slice(1)}.tsx`)) }).toEqual({ route, page: true });
+    }
+    const phone = read(join(ROOT, "src", "components", "dashboard", "phone-screens.tsx"));
+    for (const { route } of TASKS) {
+      const path = route.split("?")[0];
+      expect({ route, phone: phone.includes(`  "${path}": `) }).toEqual({ route, phone: true });
+    }
+  });
+
+  // The delete button lands on the delete card: the privacy screen scrolls to it for this query.
+  test("the delete button's query is the one the privacy screen reads", () => {
+    const screens = read(join(ROOT, "src", "screens", "deepspace", "DeepSpaceDesignScreens.tsx"));
+    expect(screens).toContain('useStartAtEndWhen("section", "delete")');
+  });
+
+  // Push notifications come only in the phone app (the web build loads no notification module),
+  // so the notifications answer says so instead of sending a web visitor to an empty screen.
+  test("the notifications answer says the web version sends none", () => {
+    expect(read(join(ROOT, "src", "lib", "ops", "notifications-sdk.web.ts"))).toContain("return null;");
+    for (const locale of LOCALES) {
+      const answer = manualTopicsFor(translatorFor(locale)).find(({ id }) => id === "notifications")?.answer ?? "";
+      expect({ locale, web: /\bweb\b|웹/i.test(answer) }).toEqual({ locale, web: true });
+    }
   });
 });
 
@@ -90,7 +158,7 @@ describe("사용 안내서가 앱이 제공하는 모든 언어로 풀린다", (
     for (const locale of LOCALES) {
       const t = translatorFor(locale);
       const topics = manualTopicsFor(t);
-      expect(topics).toHaveLength(5);
+      expect(topics).toHaveLength(9);
       for (const topic of topics) {
         expect(topic.question.trim().length).toBeGreaterThan(4);
         expect(topic.answer.trim().length).toBeGreaterThan(40);

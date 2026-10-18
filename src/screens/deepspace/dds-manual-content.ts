@@ -12,7 +12,16 @@
 // 그래서 이 파일은 이제 **id · 아이콘 · 목적지**만 갖는다. 문구는 키로 가리키고
 // 화면이 t() 로 푼다. 새 문구는 다른 모든 카피와 같은 길을 탄다.
 
-export type ManualTopicId = "stars" | "brightness" | "source" | "ratify" | "data";
+export type ManualTopicId =
+  | "stars"
+  | "brightness"
+  | "source"
+  | "ratify"
+  | "data"
+  | "refund"
+  | "export"
+  | "deleteAccount"
+  | "notifications";
 
 export type ManualRoute =
   | "/secondb?panel=dashboard"
@@ -22,9 +31,21 @@ export type ManualRoute =
   | "/privacy"
   | "/iden"
   | "/data?open=account-export"
-  | "/support";
+  | "/support"
+  | "/subscription"
+  | "/privacy?section=delete"
+  | "/permissions";
 
-export type ManualGlyph = "home" | "sparkle" | "book" | "taskAlt" | "lock";
+export type ManualGlyph =
+  | "home"
+  | "sparkle"
+  | "book"
+  | "taskAlt"
+  | "lock"
+  | "creditCard"
+  | "download"
+  | "trash"
+  | "notifications";
 
 /** 번들에서 문구를 꺼내는 함수. 화면의 `t` 를 그대로 넘긴다. */
 export type ManualTranslate = (key: string) => string;
@@ -62,6 +83,9 @@ const ACTION_KEY: Record<ManualRoute, string> = {
   "/iden": "iden",
   "/data?open=account-export": "accountExport",
   "/support": "support",
+  "/subscription": "subscription",
+  "/privacy?section=delete": "deleteAccount",
+  "/permissions": "permissions",
 };
 
 interface TopicSpec {
@@ -81,6 +105,12 @@ const TOPIC_SPECS: readonly TopicSpec[] = [
     icon: "lock",
     routes: ["/privacy", "/iden", "/data?open=account-export", "/support"],
   },
+  // Common tasks (Z69, Simon 2026-10-13): a search for refund or notifications found nothing
+  // and sent the visitor to the chat. Each answer has one button to the screen that does it.
+  { id: "refund", icon: "creditCard", routes: ["/subscription"] },
+  { id: "export", icon: "download", routes: ["/data?open=account-export"] },
+  { id: "deleteAccount", icon: "trash", routes: ["/privacy?section=delete"] },
+  { id: "notifications", icon: "notifications", routes: ["/permissions"] },
 ];
 
 const SCREEN_FIELDS = [
