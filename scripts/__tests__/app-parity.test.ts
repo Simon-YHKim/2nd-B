@@ -27,6 +27,10 @@ const {
   validateQaRunMetadata,
   validateQaArtifactMetadata,
   qaArtifactState,
+  dispatchedRunId,
+  pickDispatchedRun,
+  resolveQaBuild,
+  assertPublishable,
   validateQaReleaseNotes,
   planFollow,
   parsePreflight,
@@ -958,31 +962,115 @@ describe("app-parity: 고른 빌드의 APK 산출물 상태", () => {
   const sha = "c".repeat(40);
   const runId = 39095364639;
   const artifact = { id: 1, name: `2ndb-android-${sha}`, expired: false, workflow_run: { id: runId, head_sha: sha } };
+  const list = (...artifacts: object[]) => ({ total_count: artifacts.length, artifacts });
 
   it("살아 있는 산출물은 그대로 쓴다", () => {
-    expect(qaArtifactState({ total_count: 1, artifacts: [artifact] }, runId, sha)).toBe("ready");
+    expect(qaArtifactState(list(artifact), runId, sha)).toBe("ready");
   });
 
   it("보관 기간이 지난 산출물과 없는 산출물을 구분해 알린다", () => {
-    expect(qaArtifactState({ total_count: 1, artifacts: [{ ...artifact, expired: true }] }, runId, sha)).toBe("expired");
-    expect(qaArtifactState({ total_count: 1, artifacts: [{ ...artifact, name: "other" }] }, runId, sha)).toBe("missing");
-    expect(qaArtifactState({ total_count: 0, artifacts: [] }, runId, sha)).toBe("missing");
+    expect(qaArtifactState(list({ ...artifact, expired: true }), runId, sha)).toBe("expired");
+    expect(qaArtifactState(list({ ...artifact, name: "other" }), runId, sha)).toBe("missing");
+    expect(qaArtifactState(list(), runId, sha)).toBe("missing");
   });
 
-  it("목록이 불완전하거나 다른 실행 · 커밋의 산출물이면 새로 빌드하지 않고 멈춘다", () => {
+  it("목록이 불완전하거나 보존 상태 · 실행 · 커밋을 알 수 없으면 새로 빌드하지 않고 멈춘다", () => {
     expect(() => qaArtifactState({ total_count: 2, artifacts: [artifact] }, runId, sha)).toThrow(/QA 산출물 목록/);
+    expect(() => qaArtifactState({ artifacts: [artifact] }, runId, sha)).toThrow(/QA 산출물 목록/);
+    expect(() => qaArtifactState({ total_count: "1", artifacts: [artifact] }, runId, sha)).toThrow(/QA 산출물 목록/);
     expect(() => qaArtifactState({}, runId, sha)).toThrow(/QA 산출물 목록/);
-    expect(() => qaArtifactState({ artifacts: [artifact, { ...artifact, id: 2 }] }, runId, sha)).toThrow(/QA 산출물/);
-    expect(() => qaArtifactState({ artifacts: [{ ...artifact, workflow_run: { id: 1, head_sha: sha } }] }, runId, sha)).toThrow(/QA 산출물/);
-    expect(() => qaArtifactState({ artifacts: [{ ...artifact, workflow_run: { id: runId, head_sha: "d".repeat(40) } }] }, runId, sha))
-      .toThrow(/QA 산출물/);
+    expect(() => qaArtifactState(list(artifact, { ...artifact, id: 2 }), runId, sha)).toThrow(/하나보다 많다/);
+    expect(() => qaArtifactState(list({ ...artifact, expired: undefined }), runId, sha)).toThrow(/보존 상태/);
+    expect(() => qaArtifactState(list({ ...artifact, expired: "false" }), runId, sha)).toThrow(/보존 상태/);
+    expect(() => qaArtifactState(list({ ...artifact, workflow_run: { id: 1, head_sha: sha } }), runId, sha)).toThrow(/다르다/);
+    expect(() => qaArtifactState(list({ ...artifact, workflow_run: { id: runId, head_sha: "d".repeat(40) } }), runId, sha)).toThrow(/다르다/);
+  });
+});
+
+describe("app-parity: qa-release 가 올릴 빌드를 정하는 길", () => {
+  const sha = "c".repeat(40);
+  const run = { databaseId: 11, headSha: sha, status: "completed", conclusion: "success", event: "push" };
+  const fresh = { databaseId: 99, headSha: sha, status: "completed", conclusion: "success", event: "workflow_dispatch" };
+  const artifactsFor = (expired: boolean | null) => () =>
+    expired === null
+      ? { total_count: 0, artifacts: [] }
+      : { total_count: 1, artifacts: [{ name: `2ndb-android-${sha}`, expired, workflow_run: { id: run.databaseId, head_sha: sha } }] };
+
+  async function choose(status: object, phoneRunId: number | null, expired: boolean | null) {
+    const dispatch = jest.fn(async (_reason: string) => fresh);
+    const readArtifacts = jest.fn(artifactsFor(expired));
+    const chosen = await resolveQaBuild({ status, phoneRunId, readArtifacts, dispatch });
+    return { chosen, dispatch, readArtifacts };
+  }
+
+  it("살아 있는 산출물이면 새로 빌드하지 않는다", async () => {
+    const { chosen, dispatch } = await choose({ state: "success", run }, null, false);
+    expect(chosen).toBe(run);
+    expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it("qa-release 는 고른 빌드의 산출물이 만료 · 없음이면 새로 빌드하는 길로 간다", () => {
+  it("만료 · 없음이면 한 번 새로 빌드하고 그 빌드를 올린다", async () => {
+    for (const expired of [true, null]) {
+      const { chosen, dispatch } = await choose({ state: "success", run }, null, expired);
+      expect(chosen).toBe(fresh);
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      expect(dispatch.mock.calls[0][0]).toMatch(expired ? /보관 기간\(7일\)/ : /없다/);
+    }
+  });
+
+  it("이미 폰 APK 인 빌드는 산출물을 보지도 새로 빌드하지도 않는다", async () => {
+    const { chosen, dispatch, readArtifacts } = await choose({ state: "success", run }, run.databaseId, true);
+    expect(chosen).toBe(run);
+    expect(readArtifacts).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("같은 설정의 성공 빌드가 없으면 산출물을 보지 않고 한 번 새로 빌드한다", async () => {
+    const { chosen, dispatch, readArtifacts } = await choose({ state: "failed", run }, null, false);
+    expect(chosen).toBe(fresh);
+    expect(readArtifacts).not.toHaveBeenCalled();
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("산출물 목록을 판단할 수 없으면 새로 빌드하지 않고 멈춘다", async () => {
+    const dispatch = jest.fn(async () => fresh);
+    await expect(resolveQaBuild({ status: { state: "success", run }, phoneRunId: null, readArtifacts: () => ({ artifacts: [] }), dispatch }))
+      .rejects.toThrow(/QA 산출물 목록/);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("디스패치한 실행은 gh 가 돌려준 번호로, 없으면 새로 생긴 수동 실행이 하나일 때만 고른다", () => {
+    expect(dispatchedRunId("https://github.com/Simon-YHKim/2nd-B/actions/runs/39095364639\n")).toBe(39095364639);
+    expect(dispatchedRunId("Created workflow_dispatch event for android-release.yml at main")).toBeNull();
+    const old = { ...fresh, databaseId: 5 };
+    const other = { ...fresh, databaseId: 7 };
+    const pushRun = { ...run, databaseId: 8 };
+    const before = new Set(["5"]);
+    expect(pickDispatchedRun(before, [other, fresh, old], 99)).toBe(fresh);
+    expect(pickDispatchedRun(before, [other, old], 99)).toBeNull();
+    expect(pickDispatchedRun(before, [pushRun, fresh, old], null)).toBe(fresh);
+    expect(pickDispatchedRun(before, [old], null)).toBeNull();
+    expect(() => pickDispatchedRun(before, [other, fresh, old], null)).toThrow(/가릴 수 없어 멈춘다/);
+  });
+
+  it("내려받기 · 게시 직전에 지금의 main 과 Variables 로 다시 맞춰 보고, 다르면 올리지 않는다", () => {
+    const digest = "d".repeat(64);
+    const ok = { runInfo: fresh, mainSha: sha, sameApp: (a: string, b: string) => a === b, notes: { digest, abi: "arm64-v8a" }, freshDigest: digest, explicitRun: false };
+    expect(() => assertPublishable(ok)).not.toThrow();
+    expect(() => assertPublishable({ ...ok, mainSha: "e".repeat(40) })).toThrow(/앱 코드가 다르다/);
+    expect(() => assertPublishable({ ...ok, freshDigest: "f".repeat(64) })).toThrow(/지금 설정과 다르다/);
+  });
+
+  it("qa-release 는 이 판단들을 거치고, 내려받기 전과 게시 전에 한 번씩 다시 본다", () => {
     const script = read("scripts/app-parity.cjs");
     const body = script.slice(script.indexOf("async function cmdQaRelease"), script.indexOf("module.exports"));
-    expect(body).toMatch(/qaArtifactState\(/);
-    expect(body).toMatch(/dispatchFreshBuild\(/);
+    expect(body).toMatch(/resolveQaBuild\(\{/);
+    expect(body).toMatch(/pickDispatchedRun\(before, listBuildRuns\(\), knownId\)/);
+    const download = body.indexOf('"run", "download"');
+    const create = body.indexOf('"release", "create"');
+    const checks = [...body.matchAll(/requireCurrentAppAndConfig\(\);/g)].map((m) => m.index ?? -1);
+    expect(checks.filter((at) => at < download)).toHaveLength(1);
+    expect(checks.filter((at) => at > download && at < create)).toHaveLength(1);
   });
 });
 
