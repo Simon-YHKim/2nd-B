@@ -1137,7 +1137,7 @@ results.push(
       // 배송 대화 말풍선이 같은 동작을 longPressCopy 힌트로 알린다.
       jarvis.includes('accessibilityHint={t("longPressCopy")}') &&
       // UI2-CHAT-04/05: the retired intro has no controls; both save choices stay named.
-      jarvis.includes('accessibilityLabel={t("chatSaveNoticeOpen")}') &&
+      jarvis.includes('accessibilityLabel={t("chatSaveNoticeOpenLabel")}') &&
       jarvis.includes('accessibilityLabel={t("chatSaveNoticeDismiss")}') &&
       jarvis.includes('t("closeReferencedHint")') &&
       // 2026-10-04: 옛 홈 그래프 NavGraph 의 핀 9줄(버튼 수 >= 7 · nav* 키 8개)을

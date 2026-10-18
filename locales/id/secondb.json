@@ -91,6 +91,7 @@
   "nPieces": "{{n}} serpihan",
   "chatSaveNotice": "Percakapan ini tidak disimpan",
   "chatSaveNoticeOpen": "Buka pengaturan",
+  "chatSaveNoticeOpenLabel": "Buka pengaturan",
   "chatSaveNoticeDismiss": "Tutup",
   "planSuggestion": {
     "routineButton": "Buat rutinitas",
