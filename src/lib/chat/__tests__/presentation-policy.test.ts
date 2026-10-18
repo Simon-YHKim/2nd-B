@@ -45,6 +45,8 @@ describe("contextual reply actions", () => {
     expect(actions("프랑스 수도가 어디야?", "프랑스의 수도는 파리입니다.").followUps).toEqual([]);
     expect(actions("직장을 옮길지 고민하고 있어", "안녕하세요. 무엇을 도와드릴까요?").followUps).toEqual([]);
     expect(actions("I am considering a new career", "Hello, Alex. How can I help you today?").followUps).toEqual([]);
+    // Q-261018-55 다: chat replies are now informal Korean.
+    expect(actions("직장을 옮길지 고민하고 있어", "안녕, 브로. 뭘 도와줄까?").followUps).toEqual([]);
   });
 
   test("new-angle is relevant to a real choice, even a short question", () => {
@@ -302,8 +304,30 @@ describe("per-exchange HustleK expressions", () => {
     ["Explain this code.", '```js\nconsole.log("Congratulations!");\n```\nThis prints the supplied message.'],
     ["Tell me about the word sad.", "The word sad is an adjective."],
     ["What might happen?", "If you succeed, you can celebrate later."],
+    ["이 문장 뜻은?", "'미안해'는 사과할 때 쓰는 말이야."],
+    ["이 문장 뜻은?", "'푹 쉬어'는 쉬라고 권하는 말이야."],
     ["What does apology mean?", "You could say sorry to acknowledge a mistake."],
   ])("does not act out quoted, hypothetical, or merely mentioned emotion: %s", (prompt, answer) => {
     expect(expression(prompt, answer)).toBe("A01");
+  });
+
+  // Simon 2026-10-18 Q-261018-55 다: Korean chat replies are informal (반말 + 브로). The same portraits must
+  // follow the informal endings, or HustleK would fall back to neutral for every warm reply.
+  test.each([
+    ["고마워!", "도움이 됐다니 다행이다.", "A02"],
+    ["걱정돼서 아무것도 못 하겠어", "한 번에 다 안 해도 괜찮아. 천천히 해도 돼.", "A02"],
+    ["이번 시험에 합격했어!", "오우, 브로. 축하해! 준비한 게 제대로 통했네.", "A07"],
+    ["이제 잘게", "좋아, 브로. 오늘은 푹 쉬어. 잘 자.", "D12"],
+    ["이제 잘게", "편히 쉬어.", "D12"],
+    ["이번 일이 잘 안됐어", "많이 속상했겠다. 무슨 일이 있었어?", "C07"],
+    ["요즘 너무 지쳤어", "그동안 많이 지쳤겠다.", "C07"],
+    ["도움이 됐어", "말해 줘서 고마워.", "A11"],
+    ["너무 졸려. 어제 3시간밖에 못 잤어", "잠이 3시간이면 무리해서 버티기보다 잠깐 쉬는 쪽이 나아 보여.", "B04"],
+    ["그런 뜻 아니야", "아, 내가 잘못 알아들었네. 다시 정리해 볼게.", "B10"],
+    ["그런 뜻 아니야", "미안해, 브로. 다시 볼게.", "B10"],
+    ["안녕", "안녕, 브로. 오늘은 무슨 얘기 할까?", "A02"],
+    ["응원해 줘", "응원해. 하나씩 하면 돼.", "A02"],
+  ])("follows the informal Korean reply's own tone: %s -> %s", (prompt, answer, expected) => {
+    expect(expression(prompt, answer)).toBe(expected);
   });
 });

@@ -39,7 +39,7 @@ function compact(text: string): string {
 // make that paragraph disappear. Repeated greeting/acknowledgement tokens count
 // as social text, even if someone repeats them past a length threshold.
 const SOCIAL_ONLY = /^(?:안녕(?:하세요|하십니까)?|감사(?:합니다|해요)|고마워(?:요)?|고맙습니다|네|예|응|알겠(?:어|어요|습니다)|좋(?:아|아요)|정말|hello|hi|hey|howareyou|thanks|thankyou(?:verymuch)?|ok(?:ay)?|yes|sure|gotit|yourewelcome|hola|muchasgracias|gracias|vale|entendido|denada|ola|muitoobrigad[oa]|obrigad[oa]|tudobem|sim|halo|hai|terimakasih|samasama|baik|iya)+$/u;
-const REFUSAL = /(?:도와드릴\s*수\s*없|도울\s*수\s*없|요청.{0,15}(?:응할|수행할)\s*수\s*없|\b(?:cannot|can['’]?t|unable to)\s+(?:help|assist|comply)\b|\bno puedo\s+(?:ayudar|cumplir)\b|\bn[aã]o posso\s+(?:ajudar|atender)\b|\btidak (?:bisa|dapat)\s+(?:membantu|memenuhi)\b)/iu;
+const REFUSAL = /(?:도와(?:드릴|줄)\s*수\s*없|도울\s*수\s*없|요청.{0,15}(?:응할|수행할)\s*수\s*없|\b(?:cannot|can['’]?t|unable to)\s+(?:help|assist|comply)\b|\bno puedo\s+(?:ayudar|cumplir)\b|\bn[aã]o posso\s+(?:ajudar|atender)\b|\btidak (?:bisa|dapat)\s+(?:membantu|memenuhi)\b)/iu;
 
 function usableReply(turn: ChatPresentationTurn | undefined): turn is ChatPresentationTurn {
   return !!turn && isKeepable(turn) && !turn.consentError && turn.safetyZone !== "red" && !REFUSAL.test(turn.text);
@@ -67,7 +67,7 @@ export interface ChatReplyActions {
 }
 
 const TEST_ONLY = /^(?:(?:test(?:ing)?|테스트(?:입니다|예요|중)?|시험|확인|체크)(?:메시지|message)?\d*|[ㅋㅎ])+$/u;
-const GENERIC_INVITATION = /(?:무엇을\s*도와|어떻게\s*도와|어떤\s*이야기를|\b(?:how can i help|what (?:can i (?:help|do)|would you like)|como (?:puedo|posso) ajudar|en qu[eé] puedo ayudar|apa yang bisa saya bantu)\b)/iu;
+const GENERIC_INVITATION = /(?:(?:무엇을|뭘|뭐)\s*도와|어떻게\s*도와|어떤\s*이야기를|\b(?:how can i help|what (?:can i (?:help|do)|would you like)|como (?:puedo|posso) ajudar|en qu[eé] puedo ayudar|apa yang bisa saya bantu)\b)/iu;
 const CHOICE_TOPIC = /(?:고민|선택|장단점|결정|이직|갈등|관점|포기|비교|\b(?:decid\w*|decision|choos\w*|choice|tradeoffs?|consider\w*|dilemma|perspective|rethink|decidir|escolher|memilih|pertimbangkan)\b)/iu;
 const GOAL_TOPIC = /(?:계획|목표|준비|어디서부터|시작|습관|루틴|하고\s*싶|해야|어떻게|\b(?:plan\w*|goal|prepar\w*|start|habit|routine|want to|need to|how|objetivo|meta|rencana|mulai)\b)/iu;
 const ACTION_ADVICE = /(?:해\s*보|시도해|적어|골라|정해|나눠|만들어|확인해|(?:^\s*(?:[-*•]\s*)?|\byou (?:can|could)\s+)(?:try|write|choose|schedule|start|list|set aside|review|reserve|compare|tente|escreva|coba|tulis)\b)/iu;
@@ -166,13 +166,13 @@ const NEGATED_SUCCESS = /(?:(?:성공|합격|완성).{0,12}(?:못|않|아니)|(?
 // Match what the assistant is doing in its reply, not an emotion mentioned as a
 // topic. In particular, the supplied attentive portrait (B01) also smiles;
 // uncertain/protected replies use the visibly neutral A01 instead.
-const APOLOGY = /(?:^(?:(?:제가\s*)?오해해서\s*)?(?:미안(?:해요|합니다|해)|죄송(?:해요|합니다))(?:\s|,|$)|(?:제가|내가|말씀하신\s*뜻을|질문의\s*뜻을).{0,24}(?:잘못\s*(?:이해했|받아들였)|오해했)|^(?:제가\s*)?너무\s*앞서갔|^(?:(?:i['’]m|i am)\s+)?sorry\b(?!\s+(?:to hear|for your|about your))|^i\s+(?:apologi[sz]e|misunderstood)\b|^(?:lo siento|desculp[ae]|maaf)\b)/iu;
-const EMPATHY = /(?:(?:힘드셨|힘들었|힘드시|속상하셨|속상했|외로우셨|지치셨)겠(?:어요|네요|습니다)|^(?:that|it)\s+sounds\s+(?:(?:really|very)\s+)?(?:hard|difficult|painful|exhausting)\b|^(?:(?:i['’]m|i am)\s+)?sorry\s+(?:to hear|for your loss|about your loss)\b)/iu;
+const APOLOGY = /(?:^(?:(?:제가\s*)?오해해서\s*)?(?:미안(?:해요|합니다|해)|죄송(?:해요|합니다))(?:\s|,|$)|(?:제가|내가|말씀하신\s*뜻을|질문의\s*뜻을).{0,24}(?:잘못\s*(?:이해했|받아들였|알아들었)|오해했)|^(?:제가\s*)?너무\s*앞서갔|^(?:(?:i['’]m|i am)\s+)?sorry\b(?!\s+(?:to hear|for your|about your))|^i\s+(?:apologi[sz]e|misunderstood)\b|^(?:lo siento|desculp[ae]|maaf)\b)/iu;
+const EMPATHY = /(?:(?:힘드셨|힘들었|힘드시|속상하셨|속상했|외로우셨|외로웠|지치셨|지쳤)겠(?:어요|네요|습니다|다|네|어)|^(?:that|it)\s+sounds\s+(?:(?:really|very)\s+)?(?:hard|difficult|painful|exhausting)\b|^(?:(?:i['’]m|i am)\s+)?sorry\s+(?:to hear|for your loss|about your loss)\b)/iu;
 const CONGRATULATION = /(?:(?:^|[을를]\s*)축하(?:합니다|해요|해|드려요|드립니다)(?:\s|,|$)|^(?:congratulations|congrats|felicidades|parab[eé]ns)\b|^selamat\s+atas\b)/iu;
-const REST_FAREWELL = /(?:^(?:(?:오늘은|이제)\s*)?(?:푹\s*쉬세요|편히\s*쉬세요|잘\s*자요|좋은\s*밤\s*보내세요)|^(?:rest well|sleep well|good night|buenas noches|boa noite|selamat tidur)\b)/iu;
-const GRATITUDE = /(?:(?:고마워요|고맙습니다|감사합니다)(?:\s|,|$)|^(?:thanks|thank you|gracias|obrigad[oa]|terima kasih)\b)/iu;
-const REFLECTION = /(?:생각|돌아보|정리|계획|우선순위|비교해|방식|루틴|(?:나아|좋아|맞아)\s*보입니다|\b(?:reflect|reflection|consider|plan|planning|priorities|realized|realised|reflexionar|refletir|planejar|pensar|rencana|merenung|memikirkan)\b)/iu;
-const WARM_REPLY = /(?:도움이\s*되었다니\s*다행|천만에요|괜찮아요|천천히\s*해도|응원합니다|\b(?:you(?:['’]re| are) welcome|take your time|one step at a time|de nada|sama-sama)\b)/iu;
+const REST_FAREWELL = /(?:^(?:(?:오늘은|이제)\s*)?(?:푹\s*쉬(?:세요|어)|편히\s*쉬(?:세요|어)|잘\s*자(?:요)?(?=$|[\s,~])|좋은\s*밤\s*보내(?:세요)?)|^(?:rest well|sleep well|good night|buenas noches|boa noite|selamat tidur)\b)/iu;
+const GRATITUDE = /(?:(?:고마워(?:요)?|고맙습니다|감사합니다)(?:\s|,|$)|^(?:thanks|thank you|gracias|obrigad[oa]|terima kasih)\b)/iu;
+const REFLECTION = /(?:생각|돌아보|정리|계획|우선순위|비교해|방식|루틴|(?:나아|좋아|맞아)\s*보(?:입니다|여)|\b(?:reflect|reflection|consider|plan|planning|priorities|realized|realised|reflexionar|refletir|planejar|pensar|rencana|merenung|memikirkan)\b)/iu;
+const WARM_REPLY = /(?:도움이\s*(?:되었다니|됐다니)\s*다행|천만에(?:요)?|괜찮아(?:요)?|천천히\s*해도|응원(?:합니다|해)|\b(?:you(?:['’]re| are) welcome|take your time|one step at a time|de nada|sama-sama)\b)/iu;
 const GREETING = /^(?:안녕(?:하세요|하십니까)?|こんにちは|hello\b|hi\b|hey\b|hola\b|ol[aá]\b|halo\b|hai\b)/iu;
 
 function expressionText(text: string): string {
