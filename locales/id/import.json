@@ -140,7 +140,7 @@
       "takeout": {
         "name": "Google Timeline",
         "sub": "Lokasi · file Takeout",
-        "what": "Hanya pola tempat dan lama singgah. Koordinat persis tidak disimpan."
+        "what": "Hanya nama tempat yang kamu pilih. Koordinat dan rute tidak disimpan."
       },
       "sms": {
         "name": "SMS",
@@ -150,7 +150,7 @@
       "live-location": {
         "name": "Riwayat lokasi",
         "sub": "Lokasi · file ekspor",
-        "what": "Hanya pola tempat dan lama singgah. Koordinat persis tidak disimpan."
+        "what": "Hanya nama tempat yang kamu pilih. Koordinat dan rute tidak disimpan."
       },
       "health": {
         "name": "Kesehatan",
