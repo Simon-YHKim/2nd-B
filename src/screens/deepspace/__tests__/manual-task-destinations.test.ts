@@ -147,6 +147,64 @@ function phoneScreenModule(path: string): string | null {
   return declaration && ts.isStringLiteral(declaration.moduleSpecifier) ? declaration.moduleSpecifier.text : null;
 }
 
+/** `const <binding> = <callee>(...)` written directly in the function body (not in a callback or a branch). */
+function directCalls(fn: ts.FunctionDeclaration, callee: string): ts.CallExpression[] {
+  const out: ts.CallExpression[] = [];
+  for (const statement of fn.body?.statements ?? []) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      const init = declaration.initializer;
+      if (init && ts.isCallExpression(init) && ts.isIdentifier(init.expression) && init.expression.text === callee) out.push(init);
+    }
+  }
+  return out;
+}
+
+const stringArgs = (call: ts.CallExpression): (string | null)[] =>
+  call.arguments.map((arg) => (ts.isStringLiteral(arg) ? arg.text : null));
+
+/** Visit the function's own returned trees, not descending into nested functions. */
+function walkReturned(fn: ts.FunctionDeclaration, visit: (node: ts.Node) => void): void {
+  const walk = (node: ts.Node): void => {
+    if (ts.isFunctionLike(node)) return;
+    visit(node);
+    node.forEachChild(walk);
+  };
+  for (const expression of ownReturns(fn)) walk(expression);
+}
+
+/** JSX attributes in the returned tree whose value is exactly `{name}`. */
+function attributesBoundTo(fn: ts.FunctionDeclaration, name: string): string[] {
+  const out: string[] = [];
+  walkReturned(fn, (node) => {
+    if (ts.isJsxAttribute(node) && node.initializer && ts.isJsxExpression(node.initializer) &&
+        node.initializer.expression && ts.isIdentifier(node.initializer.expression) && node.initializer.expression.text === name) {
+      out.push(node.name.getText());
+    }
+  });
+  return out;
+}
+
+/** Elements in the returned tree whose onPress is `() => router.push("<route>")`, as attribute name -> value text. */
+function rowsOpening(fn: ts.FunctionDeclaration, route: string): Record<string, string>[] {
+  const out: Record<string, string>[] = [];
+  walkReturned(fn, (node) => {
+    if (!ts.isJsxSelfClosingElement(node) && !ts.isJsxOpeningElement(node)) return;
+    const attributes: Record<string, string> = {};
+    let opens = false;
+    for (const attribute of node.attributes.properties) {
+      if (!ts.isJsxAttribute(attribute) || !attribute.initializer) continue;
+      attributes[attribute.name.getText()] = attribute.initializer.getText();
+      const value = ts.isJsxExpression(attribute.initializer) ? attribute.initializer.expression : undefined;
+      if (attribute.name.getText() === "onPress" && value && ts.isArrowFunction(value) && ts.isCallExpression(value.body) &&
+          value.body.expression.getText() === "router.push" && value.body.arguments.length === 1 &&
+          ts.isStringLiteral(value.body.arguments[0]) && value.body.arguments[0].text === route) opens = true;
+    }
+    if (opens) out.push(attributes);
+  });
+  return out;
+}
+
 const DESIGN_SCREENS = ["src", "screens", "deepspace", "DeepSpaceDesignScreens.tsx"] as const;
 
 const TASKS = [
@@ -190,15 +248,31 @@ describe("each task button reaches its screen, as a page and inside the dashboar
   test("My data opens the export card for the export button's query", () => {
     const open = splitPhoneRoute("/data?open=account-export").params.open;
     expect(DATA_RIGHTS.find((item) => item.id === open)?.id).toBe("account-export");
-    const screen = read("src", "screens", "deepspace", "dds-data-screen.tsx");
-    expect(screen).toContain("const { open } = useScreenParams<{ open?: string }>();");
-    expect(screen).toContain("() => DATA_RIGHTS.find((item) => item.id === open)?.id ?? null,");
+    const screen = topFunction(parse("src", "screens", "deepspace", "dds-data-screen.tsx"), "DeepSpaceDataScreen");
+    // The query is read directly in the screen body ...
+    const params = directCalls(screen, "useScreenParams");
+    expect(params.map((call) => (call.parent as ts.VariableDeclaration).name.getText())).toEqual(["{ open }"]);
+    // ... and the card list's open card starts as the one the query names.
+    const opened = directCalls(screen, "useState").filter((call) => {
+      const first = call.arguments[0];
+      return first !== undefined && ts.isArrowFunction(first) &&
+        first.body.getText() === "DATA_RIGHTS.find((item) => item.id === open)?.id ?? null";
+    });
+    expect(opened).toHaveLength(1);
   });
 
   test("the privacy screen scrolls to its delete card for the delete button's query", () => {
     const [[name, value]] = Object.entries(splitPhoneRoute("/privacy?section=delete").params);
     const privacy = topFunction(parse(...DESIGN_SCREENS), "DeepSpacePrivacyDesignScreen");
-    expect(ownStatements(privacy).some((st) => st.includes(`useStartAtEndWhen("${name}", "${value}")`))).toBe(true);
+    // Called directly in the screen body with the query's own name and value, and the screen's
+    // returned tree scrolls with what it gives back.
+    const calls = directCalls(privacy, "useStartAtEndWhen").filter((call) => {
+      const args = stringArgs(call);
+      return args.length === 2 && args[0] === name && args[1] === value;
+    });
+    expect(calls).toHaveLength(1);
+    const binding = (calls[0].parent as ts.VariableDeclaration).name.getText();
+    expect(attributesBoundTo(privacy, binding)).toEqual(["scroll"]);
     expect(returnedText(privacy)).toContain('{t("account.delete")}');
     expect(returnedText(privacy)).toContain('{t("privacy.deleteAccount.body")}');
     // The hook reads the same params the phone hands over (and the page's own query outside it).
@@ -208,13 +282,12 @@ describe("each task button reaches its screen, as a page and inside the dashboar
 
   // The answer names the other way to the same card: Settings, then Account, then Delete account.
   test("Settings opens the account screen, whose delete row is the guide's delete button", () => {
-    expect(read("src", "app", "settings.tsx")).toContain(
-      '<M3LinkRow icon="person" label={t("nav.account")} hint={t("nav.accountHint")} onPress={() => router.push("/account")} />',
-    );
-    const account = read("src", "screens", "deepspace", "dds-account-screen.tsx");
-    const row = account.indexOf('onPress={() => router.push("/privacy?section=delete")}');
-    expect(row).toBeGreaterThan(-1);
-    expect(account.slice(row, row + 300)).toContain('accessibilityLabel={t("deepspace:account.delete")}');
+    // Rows the exported screens actually return (rows in an unused function do not count).
+    const settings = topFunction(parse("src", "app", "settings.tsx"), "default");
+    expect(rowsOpening(settings, "/account").map((row) => row.label)).toEqual(['{t("nav.account")}']);
+    const account = topFunction(parse("src", "screens", "deepspace", "dds-account-screen.tsx"), "DeepSpaceAccountScreen");
+    const deleteRows = rowsOpening(account, "/privacy?section=delete");
+    expect(deleteRows.map((row) => row.accessibilityLabel)).toEqual(['{t("deepspace:account.delete")}']);
     expect(topic("en", "deleteAccount").actions.map((action) => action.route)).toEqual(["/privacy?section=delete"]);
   });
 });
