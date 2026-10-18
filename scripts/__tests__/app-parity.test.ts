@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import * as ts from "typescript";
 import { parse } from "yaml";
 
 // 앱과 localhost 는 같은 소프트웨어다 (Simon 결정 2026-09-29 · 갱신 2026-09-30). 기준은 origin/main
@@ -34,6 +35,7 @@ const {
   makePublishCheck,
   publishQaSequence,
   runQaPublish,
+  runQaRelease,
   validateQaReleaseNotes,
   planFollow,
   parsePreflight,
@@ -1197,22 +1199,51 @@ describe("app-parity: qa-release 가 올릴 빌드를 정하는 길", () => {
         expect(publish).not.toHaveBeenCalled();
       });
 
-      it("qa-release 는 runQaPublish 에 실제 읽기를 넘겨서만 게시하고, 게시 명령은 publish 단계 안에만 있다", () => {
+      // 리뷰 #2621 r4 (Q-261018-61 가): 고르기 ~ 게시 전체가 runQaRelease 로 갔다. cmdQaRelease 는 실제 의존성만 넘기고,
+      // 그 연결(어느 이름이 어느 실제 함수인가)은 AST 로 고정한다 - 값을 화살표 함수로 바꾸는 변이는 여기서 깨진다.
+      it("cmdQaRelease 는 qaReleaseDeps() 의 실제 함수로만 runQaRelease 를 부르고, 게시 · 내려받기 명령은 한 곳씩이다", () => {
         const script = read("scripts/app-parity.cjs");
-        const body = script.slice(script.indexOf("async function cmdQaRelease"), script.indexOf("module.exports"));
-        expect(body).toMatch(/resolveQaBuild\(\{/);
-        expect(body).toMatch(/const \{ outcome \} = await runQaPublish\(\{[\s\S]*readers: qaPublishReaders\(root\),/);
-        expect(body).not.toMatch(/makePublishCheck\(|publishQaSequence\(/);
-        expect(body.match(/"release", "create"/g)).toHaveLength(1);
-        const publishStep = body.slice(body.indexOf("publish: async (p) =>"), body.indexOf("if (outcome === \"already\")"));
-        expect(publishStep).toContain('"release", "create"');
-        expect(body.match(/"run", "download"/g)).toHaveLength(1);
-        expect(body.slice(body.indexOf("async function prepareQaRelease")).includes('"run", "download"')).toBe(true);
-        const readers = script.slice(script.indexOf("function qaPublishReaders"), script.indexOf("function validateQaReleaseNotes"));
-        expect(readers).toMatch(/latestMain: \(\) => \{\s*fetchMain\(root\);\s*return git\(\["rev-parse", MAIN_REF\]\);/);
-        expect(readers).toContain("repoVars: loadRepoVars,");
-        expect(readers).toContain("workflowAt: (commit) => git([\"show\", `${commit}:${WORKFLOW}`]),");
-        expect(readers).toContain("readNotes: (runId) => buildNotes(runId),");
+        const sf = ts.createSourceFile("app-parity.cjs", script, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+        const fn = (name: string) => {
+          let found: ts.FunctionDeclaration | undefined;
+          sf.forEachChild((node) => { if (ts.isFunctionDeclaration(node) && node.name?.text === name) found = node; });
+          if (!found?.body) throw new Error(`no function ${name}`);
+          return found.body;
+        };
+        const deps = fn("qaReleaseDeps").statements;
+        expect(deps).toHaveLength(1);
+        const ret = deps[0] as ts.ReturnStatement;
+        expect(ts.isReturnStatement(ret) && ret.expression && ts.isObjectLiteralExpression(ret.expression)).toBe(true);
+        const props = Object.fromEntries((ret.expression as ts.ObjectLiteralExpression).properties.map((prop) => {
+          if (ts.isShorthandPropertyAssignment(prop)) return [prop.name.text, prop.name.text];
+          if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name)) return [prop.name.text, prop.initializer.getText(sf)];
+          throw new Error(`unexpected property ${prop.getText(sf)}`);
+        }));
+        expect(props).toEqual({
+          git: "git", gh: "gh", fetchMain: "fetchMain", loadRepoVars: "loadRepoVars", buildNotes: "buildNotes",
+          latestPhoneApk: "latestPhoneApk", listBuildRuns: "listBuildRuns", buildStatusFor: "buildStatusFor",
+          sameAppCode: "sameAppCode", waitRun: "waitRun", sleep: "sleep", log: "console.log",
+          prepareRelease: "prepareQaReleaseFiles", publishRelease: "publishQaRelease",
+        });
+        expect(fn("cmdQaRelease").statements.map((st) => st.getText(sf))).toEqual([
+          'const root = git(["rev-parse", "--show-toplevel"]);',
+          "process.chdir(root);",
+          "await runQaRelease(qaReleaseDeps(), { argv, root });",
+        ]);
+        const orchestrator = fn("runQaRelease").getText(sf);
+        expect(orchestrator).toContain("readers: qaPublishReaders(root, deps),");
+        expect(orchestrator).not.toMatch(/makePublishCheck\(|publishQaSequence\(/);
+        // 밖의 읽기 · 실행은 deps 로만 부른다(같은 이름의 실제 함수를 직접 부르면 시험이 가짜를 끼울 수 없다).
+        expect(orchestrator).not.toMatch(/(?<![.\w])(?:git|gh|fetchMain|loadRepoVars|buildNotes|latestPhoneApk|listBuildRuns|buildStatusFor|sameAppCode|waitRun|sleep|prepareQaReleaseFiles|publishQaRelease)\(|console\.log/);
+        expect(script.match(/"release", "create"/g)).toHaveLength(1);
+        expect(fn("publishQaRelease").getText(sf)).toContain('"release", "create"');
+        expect(script.match(/"run", "download"/g)).toHaveLength(1);
+        expect(fn("prepareQaReleaseFiles").getText(sf)).toContain('"run", "download"');
+        const readers = fn("qaPublishReaders").getText(sf);
+        expect(readers).toMatch(/latestMain: \(\) => \{\s*d\.fetchMain\(root\);\s*return d\.git\(\["rev-parse", MAIN_REF\]\);/);
+        expect(readers).toContain("repoVars: () => d.loadRepoVars(),");
+        expect(readers).toContain("workflowAt: (commit) => d.git([\"show\", `${commit}:${WORKFLOW}`]),");
+        expect(readers).toContain("readNotes: (runId) => d.buildNotes(runId),");
       });
     });
   });
@@ -1262,5 +1293,140 @@ describe("app-parity: 규칙이 저장소에 박혀 있다", () => {
     const section = claude.slice(claude.indexOf("앱과 localhost 는 같은 소프트웨어다"), claude.indexOf("## Project context"));
     expect(section).toContain("공개 출시 전 pre-release 는 개인 테스트용");
     expect(read("scripts/app-parity.cjs")).toContain("공개 출시 전 pre-release 는 개인 테스트용");
+  });
+});
+
+
+// 리뷰 #2621 r4 (Q-261018-61 가): qa-release 를 가짜 의존성으로 처음부터 끝까지 돌린다(git · gh · 대기 · 내려받기 ·
+// 게시가 전부 가짜). 고른 빌드 · sameApp · 폰 APK · 지정 런 여부 · 읽기가 게시 단계까지 그대로 가는지 본다.
+describe("app-parity: qa-release 를 처음부터 끝까지(가짜 의존성)", () => {
+  const MAIN = "c".repeat(40);
+  const OTHER = "e".repeat(40);
+  const WF = ".github/workflows/android-release.yml";
+  const varsA = { EXPO_PUBLIC_CHAT_VENDOR: "openai" };
+  const notes = { digest: envDigest(appEnv(workflow, varsA)), abi: "arm64-v8a" };
+  const okRun = { databaseId: 11, headSha: MAIN, status: "completed", conclusion: "success", event: "push" };
+  const listOf = (id: number, sha: string, expired: boolean) => ({
+    total_count: 1,
+    artifacts: [{ name: `2ndb-android-${sha}`, expired, workflow_run: { id, head_sha: sha, head_branch: "main", repository_id: 7, head_repository_id: 7 } }],
+  });
+  const pinned = (id: number, over: object = {}) => ({
+    id, workflow_id: 299995038, path: WF, repository: { full_name: "Simon-YHKim/2nd-B", id: 7 },
+    head_repository: { full_name: "Simon-YHKim/2nd-B" }, head_branch: "main", event: "workflow_dispatch", head_sha: MAIN,
+    status: "completed", conclusion: "success", created_at: "2026-10-18T00:00:00Z", ...over,
+  });
+  type Opts = {
+    phone?: object | null; status?: object; mainAfterPrepare?: string; pinnedOver?: object; expired?: boolean;
+    runs?: () => object[]; waited?: (id: number) => object;
+  };
+  function fake(o: Opts = {}) {
+    const calls = { prepare: [] as { runInfo: { databaseId: number }; ctx: { phone: unknown; paths: unknown } }[], publish: [] as unknown[], dispatch: 0, artifacts: 0, shows: [] as string[], log: [] as string[] };
+    const deps = {
+      git: (args: string[]) => {
+        if (args[0] === "rev-parse" && args[1] === "origin/main") return calls.prepare.length && o.mainAfterPrepare ? o.mainAfterPrepare : MAIN;
+        if (args[0] === "show") { calls.shows.push(args[1]); return workflow; }
+        throw new Error(`unexpected git ${args.join(" ")}`);
+      },
+      gh: (args: string[]) => {
+        if (args[0] === "workflow" && args[1] === "run") { calls.dispatch++; return "https://github.com/Simon-YHKim/2nd-B/actions/runs/99"; }
+        const target = String(args[1] ?? "");
+        if (args[0] === "api" && target.endsWith("/actions/workflows/android-release.yml")) return JSON.stringify({ id: 299995038, path: WF });
+        const art = /\/actions\/runs\/(\d+)\/artifacts/.exec(target);
+        if (art) {
+          calls.artifacts++;
+          const raw = pinned(Number(art[1]), o.pinnedOver);
+          return JSON.stringify(listOf(Number(art[1]), Number(art[1]) === okRun.databaseId ? okRun.headSha : raw.head_sha, o.expired ?? false));
+        }
+        const one = /\/actions\/runs\/(\d+)$/.exec(target);
+        if (one) return JSON.stringify(pinned(Number(one[1]), o.pinnedOver));
+        throw new Error(`unexpected gh ${args.join(" ")}`);
+      },
+      fetchMain: () => undefined,
+      loadRepoVars: () => varsA,
+      buildNotes: () => notes,
+      latestPhoneApk: () => o.phone ?? null,
+      listBuildRuns: () => (o.runs ? o.runs() : []),
+      buildStatusFor: () => o.status ?? { state: "success", run: okRun },
+      sameAppCode: (a: string, b: string) => a === b,
+      waitRun: async (id: number) => (o.waited ? o.waited(id) : { ...okRun, databaseId: id }),
+      sleep: async () => undefined,
+      log: (message: string) => { calls.log.push(message); },
+      prepareRelease: async (runInfo: { databaseId: number }, _n: unknown, ctx: { phone: unknown; paths: unknown }) => {
+        calls.prepare.push({ runInfo, ctx });
+        return { prepared: runInfo.databaseId };
+      },
+      publishRelease: async (prepared: unknown) => { calls.publish.push(prepared); },
+    };
+    return { deps, calls };
+  }
+  const go = (deps: object, argv: string[] = []) => runQaRelease(deps, { argv, root: "/repo" });
+
+  it("기본 경로: 고른 빌드를 그 커밋의 워크플로로 두 번 확인하고 내려받아 게시한다", async () => {
+    const { deps, calls } = fake();
+    await expect(go(deps)).resolves.toMatchObject({ outcome: "published", runInfo: { databaseId: 11 } });
+    expect(calls.prepare).toHaveLength(1);
+    expect(calls.prepare[0].runInfo).toBe(okRun);
+    expect(calls.prepare[0].ctx.phone).toBeNull();
+    expect(calls.publish).toEqual([{ prepared: 11 }]);
+    expect(calls.shows.filter((x) => x === `${MAIN}:${WF}`).length).toBe(3);
+    expect(calls.dispatch).toBe(0);
+  });
+
+  it("기본 경로: 고른 빌드가 이미 폰 APK 면 내려받지도 게시하지도 않는다", async () => {
+    const { deps, calls } = fake({ phone: { runId: 11, tag: "qa-261018-cccccccc", sha: MAIN } });
+    await expect(go(deps)).resolves.toMatchObject({ outcome: "already" });
+    expect(calls.prepare).toHaveLength(0);
+    expect(calls.publish).toHaveLength(0);
+    expect(calls.log.some((m) => m.includes("이미 이 빌드(런 11)"))).toBe(true);
+  });
+
+  it("기본 경로: 내려받은 뒤 main 에 앱 변경이 들어오면 게시하지 않는다", async () => {
+    const { deps, calls } = fake({ mainAfterPrepare: OTHER });
+    await expect(go(deps)).rejects.toThrow(/앱 코드가 다르다/);
+    expect(calls.prepare).toHaveLength(1);
+    expect(calls.publish).toHaveLength(0);
+  });
+
+  it("기본 경로: 같은 설정의 성공 빌드가 없으면 한 번 새로 빌드해서 그 빌드를 올린다", async () => {
+    let seen = 0;
+    const fresh = { databaseId: 99, headSha: MAIN, status: "completed", conclusion: "success", event: "workflow_dispatch" };
+    const { deps, calls } = fake({
+      status: { state: "failed", run: { ...okRun, conclusion: "failure" } },
+      runs: () => (seen++ === 0 ? [] : [fresh]),
+      waited: () => fresh,
+    });
+    await expect(go(deps)).resolves.toMatchObject({ outcome: "published", runInfo: { databaseId: 99 } });
+    expect(calls.dispatch).toBe(1);
+    expect(calls.prepare.map((c) => c.runInfo.databaseId)).toEqual([99]);
+  });
+
+  it("--run: 지정한 실행의 산출물을 「이미 폰 APK」 판정 전과 내려받기 직전에 확인하고 게시한다", async () => {
+    const { deps, calls } = fake();
+    await expect(go(deps, ["--run=42"])).resolves.toMatchObject({ outcome: "published", runInfo: { databaseId: 42 } });
+    expect(calls.artifacts).toBe(2);
+    expect(calls.prepare.map((c) => c.runInfo.databaseId)).toEqual([42]);
+    expect(calls.publish).toEqual([{ prepared: 42 }]);
+  });
+
+  it("--run: 이미 폰 APK 여도 산출물이 만료됐으면 거절한다(「이미 있음」으로 끝내지 않는다)", async () => {
+    const { deps, calls } = fake({ phone: { runId: 42, tag: "qa-261018-cccccccc-r42", sha: MAIN }, expired: true });
+    await expect(go(deps, ["--run=42"])).rejects.toThrow(/보존 상태가 다르다/);
+    expect(calls.prepare).toHaveLength(0);
+    expect(calls.publish).toHaveLength(0);
+    expect(calls.log.some((m) => m.includes("이미 이 빌드"))).toBe(false);
+  });
+
+  it("--run: 이미 폰 APK 이고 산출물이 맞으면 한 번 확인하고 끝낸다", async () => {
+    const { deps, calls } = fake({ phone: { runId: 42, tag: "qa-261018-cccccccc-r42", sha: MAIN } });
+    await expect(go(deps, ["--run=42"])).resolves.toMatchObject({ outcome: "already" });
+    expect(calls.artifacts).toBe(1);
+    expect(calls.prepare).toHaveLength(0);
+  });
+
+  it("--run: 지정한 실행의 커밋이 main 과 앱 코드가 다르면 거절한다", async () => {
+    const { deps, calls } = fake({ pinnedOver: { head_sha: OTHER } });
+    await expect(go(deps, ["--run=42"])).rejects.toThrow(/빌드 42 의 커밋이 origin\/main 과 앱 코드가 다르다/);
+    expect(calls.prepare).toHaveLength(0);
+    expect(calls.publish).toHaveLength(0);
   });
 });
