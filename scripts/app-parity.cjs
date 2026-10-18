@@ -1921,6 +1921,27 @@ function validateQaArtifactMetadata(body, rawRun) {
   return artifact;
 }
 
+/**
+ * 기본 경로(런을 지정하지 않음)에서 고른 빌드의 APK 산출물 상태. "ready" 면 그대로 쓰고, 보관 기간(7일 ·
+ * Q-261018-54 가)이 지나 "expired" 거나 아예 "missing" 이면 새로 빌드한다. 목록이 불완전하거나 다른 실행 ·
+ * 커밋의 산출물이 보이면 판단할 수 없으므로 새로 빌드하지 않고 멈춘다.
+ */
+function qaArtifactState(body, runId, sha) {
+  const artifacts = body && body.artifacts;
+  if (!Array.isArray(artifacts) || (body.total_count !== undefined && body.total_count !== artifacts.length)) {
+    throw new Error("QA 산출물 목록이 불완전하다");
+  }
+  const expected = `2ndb-android-${sha}`;
+  const matches = artifacts.filter((a) => a.name === expected);
+  if (matches.length === 0) return "missing";
+  if (matches.length > 1) throw new Error(`QA 산출물 ${expected} 이 하나보다 많다`);
+  const source = matches[0].workflow_run;
+  if (!source || String(source.id) !== String(runId) || source.head_sha !== sha) {
+    throw new Error(`QA 산출물 ${expected} 의 실행 · 커밋이 고른 빌드와 다르다`);
+  }
+  return matches[0].expired === false ? "ready" : "expired";
+}
+
 function validateQaReleaseNotes(notes, expectedDigest, event, explicitRun, runId) {
   if ((explicitRun || event === "workflow_dispatch") && (!notes.digest || !notes.abi)) {
     throw new Error(`빌드 ${runId} 의 설정 digest 또는 ABI 주석이 없다 - 수동/지정 빌드는 올리지 않는다`);
@@ -1961,6 +1982,25 @@ async function cmdQaRelease(argv) {
 
   const phone = latestPhoneApk();
   const runArg = flag(argv, "run");
+  // 같은 설정의 폰용 빌드가 없거나(Variables 가 빌드 뒤 바뀜 · 게이트 · 실패 · 취소) 고른 빌드의 산출물이
+  // 만료됐으면 기본 입력으로 새로 빌드한다.
+  const dispatchFreshBuild = async (reason) => {
+    console.log(`${reason} - android-release 를 기본 입력으로 돌린다.`);
+    const since = Date.now() - 5000;
+    gh(["workflow", "run", "android-release.yml", "--repo", REPO, "--ref", "main"]);
+    // 디스패치는 그 순간의 main 으로 돈다 - 기다리는 동안 main 이 움직였으면 target 과 SHA 가 다르다.
+    let started = null;
+    for (let i = 0; i < 20 && !started; i++) {
+      await sleep(6000);
+      started = listBuildRuns().filter((r) => r.event === "workflow_dispatch" && Date.parse(r.createdAt) >= since).pop() || null;
+    }
+    if (!started) throw new Error("새 빌드가 2분 안에 보이지 않았다 - Actions 탭에서 확인할 것");
+    currentMain();
+    if (!sameApp(started.headSha, target)) {
+      console.log(`그사이 origin/main 에 앱 변경이 들어왔다 - 새 main ${String(started.headSha).slice(0, 8)} 의 빌드(런 ${started.databaseId})를 올린다.`);
+    }
+    return waitRun(started.databaseId);
+  };
   let runInfo = null;
   let pinnedRaw = null;
   if (runArg !== undefined) {
@@ -1985,24 +2025,16 @@ async function cmdQaRelease(argv) {
       st = buildStatusFor(target, paths, root, localDigest, workflow, currentMain());
     }
     if (st.state === "success") {
-      runInfo = st.run;
+      const onPhone = phone && phone.runId && String(phone.runId) === String(st.run.databaseId);
+      const state = onPhone
+        ? "ready" // 이미 폰 APK 다 - 아래에서 새로 올리지 않고 끝난다.
+        : qaArtifactState(JSON.parse(gh(["api", `repos/${REPO}/actions/runs/${st.run.databaseId}/artifacts?per_page=100`])),
+          st.run.databaseId, st.run.headSha);
+      runInfo = state === "ready"
+        ? st.run
+        : await dispatchFreshBuild(`고른 빌드(런 ${st.run.databaseId})의 APK 산출물이 ${state === "expired" ? "보관 기간(7일)이 지나 없어졌다" : "없다"}`);
     } else {
-      // 같은 설정의 폰용 빌드가 없다(Variables 가 빌드 뒤 바뀜 · 게이트 · 실패 · 취소) - 기본 입력으로 새로 빌드한다.
-      console.log(`같은 코드 · 같은 설정의 폰용 성공 빌드가 없다(${st.state}) - android-release 를 기본 입력으로 돌린다.`);
-      const since = Date.now() - 5000;
-      gh(["workflow", "run", "android-release.yml", "--repo", REPO, "--ref", "main"]);
-      // 디스패치는 그 순간의 main 으로 돈다 - 기다리는 동안 main 이 움직였으면 target 과 SHA 가 다르다.
-      let started = null;
-      for (let i = 0; i < 20 && !started; i++) {
-        await sleep(6000);
-        started = listBuildRuns().filter((r) => r.event === "workflow_dispatch" && Date.parse(r.createdAt) >= since).pop() || null;
-      }
-      if (!started) throw new Error("새 빌드가 2분 안에 보이지 않았다 - Actions 탭에서 확인할 것");
-      currentMain();
-      if (!sameApp(started.headSha, target)) {
-        console.log(`그사이 origin/main 에 앱 변경이 들어왔다 - 새 main ${String(started.headSha).slice(0, 8)} 의 빌드(런 ${started.databaseId})를 올린다.`);
-      }
-      runInfo = await waitRun(started.databaseId);
+      runInfo = await dispatchFreshBuild(`같은 코드 · 같은 설정의 폰용 성공 빌드가 없다(${st.state})`);
     }
   }
   if (runInfo.status !== "completed") runInfo = await waitRun(runInfo.databaseId);
@@ -2062,7 +2094,7 @@ async function cmdQaRelease(argv) {
     ? git(["log", "--oneline", "--no-merges", `${phone.sha}..${sha}`, "--", ...paths]).split("\n").filter(Boolean)
     : [];
   const notes = [
-    "**QA 빌드 - 정식 릴리스 아님.** 폰에서 main 을 볼 때 올리는 진단 APK 입니다. localhost(8081)는 이 커밋의 origin/main 을 같은 설정으로 띄웁니다 (CLAUDE.md '앱과 localhost 는 같은 소프트웨어다').",
+    "**QA 빌드 - 정식 릴리스 아님.** 공개 출시 전 pre-release 는 개인 테스트용입니다. 폰에서 main 을 볼 때 올리는 진단 APK 입니다. localhost(8081)는 이 커밋의 origin/main 을 같은 설정으로 띄웁니다 (CLAUDE.md '앱과 localhost 는 같은 소프트웨어다').",
     "",
     `- 소스: \`main\` \`${sha}\``,
     `- 빌드: android-release.yml 런 ${runInfo.databaseId} (${runInfo.event || "push"}, GitHub Actions, EAS 미사용)`,
@@ -2119,6 +2151,7 @@ module.exports = {
   buildRunsFromApi,
   validateQaRunMetadata,
   validateQaArtifactMetadata,
+  qaArtifactState,
   validateQaReleaseNotes,
   planFollow,
   parsePreflight,

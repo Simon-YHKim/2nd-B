@@ -26,6 +26,7 @@ const {
   buildRunsFromApi,
   validateQaRunMetadata,
   validateQaArtifactMetadata,
+  qaArtifactState,
   validateQaReleaseNotes,
   planFollow,
   parsePreflight,
@@ -951,6 +952,40 @@ describe("app-parity: 감독자가 origin/main 을 따라간다(실제 git 저�
   });
 });
 
+// Q-261018-54 가(Simon 10-18 12:00): 진단 빌드 산출물은 7일 보관하고, 폰에 올리려고 고른 빌드의 산출물이
+// 만료됐으면 qa-release 가 새로 빌드한다. 고른 빌드는 그 런의 산출물 목록으로 판단한다.
+describe("app-parity: 고른 빌드의 APK 산출물 상태", () => {
+  const sha = "c".repeat(40);
+  const runId = 39095364639;
+  const artifact = { id: 1, name: `2ndb-android-${sha}`, expired: false, workflow_run: { id: runId, head_sha: sha } };
+
+  it("살아 있는 산출물은 그대로 쓴다", () => {
+    expect(qaArtifactState({ total_count: 1, artifacts: [artifact] }, runId, sha)).toBe("ready");
+  });
+
+  it("보관 기간이 지난 산출물과 없는 산출물을 구분해 알린다", () => {
+    expect(qaArtifactState({ total_count: 1, artifacts: [{ ...artifact, expired: true }] }, runId, sha)).toBe("expired");
+    expect(qaArtifactState({ total_count: 1, artifacts: [{ ...artifact, name: "other" }] }, runId, sha)).toBe("missing");
+    expect(qaArtifactState({ total_count: 0, artifacts: [] }, runId, sha)).toBe("missing");
+  });
+
+  it("목록이 불완전하거나 다른 실행 · 커밋의 산출물이면 새로 빌드하지 않고 멈춘다", () => {
+    expect(() => qaArtifactState({ total_count: 2, artifacts: [artifact] }, runId, sha)).toThrow(/QA 산출물 목록/);
+    expect(() => qaArtifactState({}, runId, sha)).toThrow(/QA 산출물 목록/);
+    expect(() => qaArtifactState({ artifacts: [artifact, { ...artifact, id: 2 }] }, runId, sha)).toThrow(/QA 산출물/);
+    expect(() => qaArtifactState({ artifacts: [{ ...artifact, workflow_run: { id: 1, head_sha: sha } }] }, runId, sha)).toThrow(/QA 산출물/);
+    expect(() => qaArtifactState({ artifacts: [{ ...artifact, workflow_run: { id: runId, head_sha: "d".repeat(40) } }] }, runId, sha))
+      .toThrow(/QA 산출물/);
+  });
+
+  it("qa-release 는 고른 빌드의 산출물이 만료 · 없음이면 새로 빌드하는 길로 간다", () => {
+    const script = read("scripts/app-parity.cjs");
+    const body = script.slice(script.indexOf("async function cmdQaRelease"), script.indexOf("module.exports"));
+    expect(body).toMatch(/qaArtifactState\(/);
+    expect(body).toMatch(/dispatchFreshBuild\(/);
+  });
+});
+
 describe("app-parity: 규칙이 저장소에 박혀 있다", () => {
   const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
   const script = read("scripts/app-parity.cjs");
@@ -984,5 +1019,16 @@ describe("app-parity: 규칙이 저장소에 박혀 있다", () => {
       expect(section).toContain(needle);
     }
     expect(read("AGENTS.md")).toContain("앱과 localhost 는 같은 소프트웨어다");
+  });
+
+  it("진단 빌드 산출물은 7일 보관하고, 공개 출시 전 pre-release 는 개인 테스트용이라고 적는다(Q-261018-54 가)", () => {
+    const build = (parse(workflow) as { jobs: Record<string, { steps: { uses?: string; with?: Record<string, unknown> }[] }> }).jobs.build;
+    const uploads = build.steps.filter((step) => String(step.uses ?? "").startsWith("actions/upload-artifact@"));
+    expect(uploads.length).toBeGreaterThan(0);
+    for (const step of uploads) expect(step.with?.["retention-days"]).toBe(7);
+    const claude = read("CLAUDE.md");
+    const section = claude.slice(claude.indexOf("앱과 localhost 는 같은 소프트웨어다"), claude.indexOf("## Project context"));
+    expect(section).toContain("공개 출시 전 pre-release 는 개인 테스트용");
+    expect(read("scripts/app-parity.cjs")).toContain("공개 출시 전 pre-release 는 개인 테스트용");
   });
 });

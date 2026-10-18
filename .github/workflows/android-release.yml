@@ -449,4 +449,6 @@ jobs:
           name: 2ndb-android-${{ github.sha }}
           path: ${{ steps.collect.outputs.dir }}/*
           if-no-files-found: error
-          retention-days: 30
+          # Q-261018-54 가(Simon 10-18): 진단 빌드 산출물은 7일 보관한다. 폰에 올릴 빌드의 산출물이
+          # 만료됐으면 npm run app:qa-release 가 새로 빌드한다(scripts/app-parity.cjs qaArtifactState).
+          retention-days: 7
