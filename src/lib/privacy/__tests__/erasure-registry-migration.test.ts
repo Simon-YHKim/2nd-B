@@ -201,7 +201,11 @@ const rollbackLedgerNames = (): string[] => {
 // Wrong about a file? Then something it hung on the two objects is lost to the
 // rollback, and the round trip is red about it IF owned_state reads that thing.
 // Where it does not, nobody is: the workflow's header lists what is not collected.
-const LOOKED_AT_AND_ITS_LEDGER_ROW_MAY_STAY: Readonly<Record<string, string>> = {};
+const LOOKED_AT_AND_ITS_LEDGER_ROW_MAY_STAY: Readonly<Record<string, string>> = {
+  // Its only unreadable SQL is ALTER FUNCTION public.llm_service_consent_status_v5 OWNER TO the
+  // v4 status function's owner; it touches neither erasure_registry nor erase_my_data.
+  "0262_consent_email_v10_20261018.sql": "consent functions only (email-v10 / service-v5), no erasure objects",
+};
 
 // An early PROMPT, not a verdict on the list. It asks that a person has accounted
 // for each file this reader can point at, in `npm run verify`, before anything is
