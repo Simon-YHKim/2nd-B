@@ -490,7 +490,7 @@ function executionStage(execution: CapturedChatUsageExecution | null) {
 function chatTurnToneLine(input: SendMessageInput): string {
   if (input.locale !== "ko") return "";
   const yellow = (["ko", "en"] as const).some((l) => classifyInput(input.message, l, { minor: input.minor }).zone === "yellow");
-  if (yellow) return "이번 답에는 농담과 '브로'를 쓰지 말고 차분하게 말하세요.\n\n";
+  if (yellow) return "이번 답에는 농담을 하지 말고, 이름과 '브로'를 포함한 어떤 호칭도 붙이지 말고 차분하게 말하세요.\n\n";
   const lastReply = [...(input.history ?? [])].reverse().find((turn) => turn.role === "assistant");
   if (lastReply?.text.includes("브로")) return "바로 앞 답에 이미 '브로'를 썼습니다. 이번 답에는 '브로'를 쓰지 마세요.\n\n";
   return "";

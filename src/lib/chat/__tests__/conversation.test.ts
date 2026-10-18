@@ -909,7 +909,7 @@ describe("captured local-RED result contract", () => {
 // Review #2632 r1 (Q-261018-55 다): the always-on register line cannot know whether this turn is yellow or
 // whether the previous reply already said bro, so the engine tells the model for this reply only.
 describe("Korean chat tone for this turn", () => {
-  const HEAVY = "이번 답에는 농담과 '브로'를 쓰지 말고 차분하게 말하세요.";
+  const HEAVY = "이번 답에는 농담을 하지 말고, 이름과 '브로'를 포함한 어떤 호칭도 붙이지 말고 차분하게 말하세요.";
   const NO_REPEAT = "바로 앞 답에 이미 '브로'를 썼습니다. 이번 답에는 '브로'를 쓰지 마세요.";
   const systemOf = async (over: Record<string, unknown> = {}) => {
     reset();
@@ -941,6 +941,19 @@ describe("Korean chat tone for this turn", () => {
     expect(older).not.toContain(NO_REPEAT);
     const en = await systemOf({ locale: "en", message: "I think I have depression. Help me plan today.", history: [{ role: "assistant", text: "Sure, bro." }] });
     expect(en).not.toMatch(/이번 답에는|브로/);
+  });
+
+  // Review #2632 r2: FactK / JoyK hints come after the shared rules, so they must carry the same exception.
+  test.each(["meta", "twi"] as const)("the %s hint keeps the user's polite-speech wish in the final prompt", async (persona) => {
+    const fs = jest.requireActual("node:fs") as typeof import("node:fs");
+    const nodePath = jest.requireActual("node:path") as typeof import("node:path");
+    const ko = JSON.parse(fs.readFileSync(nodePath.resolve(__dirname, "../../../../locales/ko/secondb.json"), "utf8"));
+    const system = await systemOf({ message: "존댓말로 말해 주세요. 오늘 할 일 정리 좀 도와주세요.", personaHint: ko.rev2[persona].systemHint, displayName: "민지" });
+    expect(system).toContain("존댓말이나 다른 호칭을 원하거나 호칭을 싫어하면 바로 따르세요");
+    const at = [...system.matchAll(/편한 반말로 말하세요/g)].map((m) => m.index ?? 0);
+    expect(at.length).toBe(1);
+    for (const i of at) expect(system.slice(Math.max(0, i - 40), i)).toContain("사용자가 존댓말을 원하지 않으면 ");
+    expect(system.indexOf(ko.rev2[persona].systemHint)).toBeGreaterThan(system.indexOf("이 사람의 이름은"));
   });
 
   test("the name line yields to the user's own wishes and to the hard-moment rule", async () => {

@@ -171,8 +171,11 @@ const EMPATHY = /(?:(?:힘드셨|힘들었|힘드시|속상하셨|속상했|외�
 const CONGRATULATION = /(?:(?:^|[을를]\s*)축하(?:합니다|해요|해|드려요|드립니다)(?:\s|,|$)|^(?:congratulations|congrats|felicidades|parab[eé]ns)\b|^selamat\s+atas\b)/iu;
 const REST_FAREWELL = /(?:^(?:(?:오늘은|이제)\s*)?(?:푹\s*쉬(?:세요|어)|편히\s*쉬(?:세요|어)|잘\s*자(?:요)?(?=$|[\s,~])|좋은\s*밤\s*보내(?:세요)?)|^(?:rest well|sleep well|good night|buenas noches|boa noite|selamat tidur)\b)/iu;
 const GRATITUDE = /(?:(?:고마워(?:요)?|고맙습니다|감사합니다)(?:\s|,|$)|^(?:thanks|thank you|gracias|obrigad[oa]|terima kasih)\b)/iu;
-const REFLECTION = /(?:생각|돌아보|정리|계획|우선순위|비교해|방식|루틴|(?:나아|좋아|맞아)\s*보(?:입니다|여)|\b(?:reflect|reflection|consider|plan|planning|priorities|realized|realised|reflexionar|refletir|planejar|pensar|rencana|merenung|memikirkan)\b)/iu;
+const REFLECTION = /(?:생각|돌아보|정리|계획|우선순위|비교해|방식|루틴|(?:나아|좋아|맞아)\s*보(?:입니다|여)(?!\s*[?？])|\b(?:reflect|reflection|consider|plan|planning|priorities|realized|realised|reflexionar|refletir|planejar|pensar|rencana|merenung|memikirkan)\b)/iu;
 const WARM_REPLY = /(?:도움이\s*(?:되었다니|됐다니)\s*다행|천만에(?:요)?|괜찮아(?!요?\s*[?？])|천천히\s*해도|응원(?:합니다|해)(?!요?\s*[?？])|\b(?:you(?:['’]re| are) welcome|take your time|one step at a time|de nada|sama-sama)\b)/iu;
+// Review #2632 r2: a sentence that asks about an act ("괜찮아?", "응원해 줄까?") or talks about it
+// ("잘못 알아들었다는 뜻은 아니야", "안 괜찮아") does not perform it.
+const MENTION_OR_NEGATION = /(?:다는|라는|냐는)\s*(?:뜻|말|건|게|것|얘기|이야기)|(?:^|\s)안\s*괜찮/u;
 const GREETING = /^(?:안녕(?:하세요|하십니까)?|こんにちは|hello\b|hi\b|hey\b|hola\b|ol[aá]\b|halo\b|hai\b)/iu;
 
 function expressionText(text: string): string {
@@ -202,7 +205,10 @@ export function getExchangeExpression(
   if (!answer || answer.role !== "secondb") return "A01";
   if (!usableReply(answer)) return "A01";
   const response = expressionText(answer.text);
-  const sentences = response.split(/[.!?。！？\n]+/u).map(part => part.trim().replace(/^(?:아|앗|네)[,，]\s*/u, ""));
+  const sentences = (response.match(/[^.!?。！？\n]+[.!?。！？]*/gu) ?? [])
+    .map(part => part.trim().replace(/^(?:아|앗|네)[,，]\s*/u, ""))
+    .filter(sentence => !/[?？]\s*$/u.test(sentence) && !MENTION_OR_NEGATION.test(sentence))
+    .map(sentence => sentence.replace(/[.!?。！？]+$/u, "").trim());
   if (sentences.some(sentence => APOLOGY.test(sentence))) return "B10";
   if (sentences.some(sentence => EMPATHY.test(sentence))) return "C07";
   const promptIndex = findPromptIndex(turns, replyIndex);
@@ -211,7 +217,7 @@ export function getExchangeExpression(
   if (sentences.some(sentence => REST_FAREWELL.test(sentence))) return "D12";
   if (sentences.some(sentence => GRATITUDE.test(sentence))) return "A11";
   if (REFLECTION.test(response)) return "B04";
-  if (WARM_REPLY.test(response) || compact(response).length <= 120 && GREETING.test(response)) return "A02";
+  if (sentences.some(sentence => WARM_REPLY.test(sentence)) || compact(response).length <= 120 && GREETING.test(response)) return "A02";
   if (/[?？]\s*$/u.test(response)) return "B05";
   return "A01";
 }
