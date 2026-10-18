@@ -137,7 +137,7 @@ function runtimeExports(sf: ts.SourceFile): string[] {
     }
     if (ts.isExportAssignment(stmt)) { names.push("default"); continue; }
     if (!isExported(stmt)) continue;
-    const isDefault = ts.getModifiers(stmt)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword) ?? false;
+    const isDefault = (ts.canHaveModifiers(stmt) && ts.getModifiers(stmt)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)) ?? false;
     if ((ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt) || ts.isEnumDeclaration(stmt)) && (stmt.name || isDefault)) names.push(isDefault ? "default" : stmt.name!.text);
     else if (ts.isVariableStatement(stmt)) for (const d of stmt.declarationList.declarations) names.push(d.name.getText(sf));
   }
