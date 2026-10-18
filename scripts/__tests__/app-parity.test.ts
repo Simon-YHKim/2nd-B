@@ -33,6 +33,8 @@ const {
   assertPublishable,
   makePublishCheck,
   publishQaSequence,
+  runQaPublish,
+  qaPublishReaders,
   validateQaReleaseNotes,
   planFollow,
   parsePreflight,
@@ -1137,17 +1139,82 @@ describe("app-parity: qa-release 가 올릴 빌드를 정하는 길", () => {
       expect(publish).not.toHaveBeenCalled();
     });
 
-    it("qa-release 는 이 확인 · 순서를 쓰고, 게시 명령은 순서의 publish 단계 안에만 있다", () => {
-      const script = read("scripts/app-parity.cjs");
-      const body = script.slice(script.indexOf("async function cmdQaRelease"), script.indexOf("module.exports"));
-      expect(body).toMatch(/resolveQaBuild\(\{/);
-      expect(body).toMatch(/makePublishCheck\(\{[\s\S]*latestMain: \(\) => \{\s*fetchMain\(root\);[\s\S]*repoVars: loadRepoVars,/);
-      expect(body).toMatch(/await publishQaSequence\(\{/);
-      expect(body.match(/"release", "create"/g)).toHaveLength(1);
-      const publishStep = body.slice(body.indexOf("publish: async (p) =>"), body.indexOf("if (outcome === \"already\")"));
-      expect(publishStep).toContain('"release", "create"');
-      expect(body.match(/"run", "download"/g)).toHaveLength(1);
-      expect(body.slice(body.indexOf("async function prepareQaRelease")).includes('"run", "download"')).toBe(true);
+    // 리뷰 #2621 r3 (Q-261018-58 가): qa-release 의 게시 구간(runQaPublish)을 가짜 읽기로 끝까지 돌려 연결을 고정한다.
+    // 확인을 아무것도 안 하는 함수로 바꾸거나, 다른 빌드의 주석 · 다른 커밋의 워크플로를 쓰면 아래 시험이 깨진다.
+    describe("qa-release 의 게시 구간은 고른 빌드의 주석 · 최신 main · 지금 Variables 로 두 번 확인한다", () => {
+      type Over = { mains?: string[]; vars?: Record<string, string>[]; notes?: object };
+      const readersFor = (log: string[], over: Over = {}) => {
+        const mains = [...(over.mains ?? [sha, sha])];
+        const vars = [...(over.vars ?? [varsA, varsA])];
+        return {
+          readNotes: jest.fn((runId: number) => { log.push(`notes:${runId}`); return over.notes ?? notesFor(varsA); }),
+          latestMain: jest.fn(() => { log.push("main"); return mains.shift(); }),
+          repoVars: jest.fn(() => { log.push("vars"); return vars.shift(); }),
+          workflowAt: jest.fn((commit: string) => { log.push(`workflow:${commit}`); return workflow; }),
+        };
+      };
+      const publishWith = (readers: ReturnType<typeof readersFor>, log: string[], phone: object | null = null) => {
+        const prepare = jest.fn(async (notes: object) => { log.push("prepare"); return { prepared: true, notes }; });
+        const publish = jest.fn(async (_p: object) => { log.push("publish"); });
+        const result = runQaPublish({ runInfo: fresh, explicitRun: false, sameApp: (a: string, b: string) => a === b, phone, readers, prepare, publish });
+        return { result, prepare, publish };
+      };
+
+      it("그 빌드의 주석을 읽고, 그 빌드 커밋의 워크플로로 내려받기 전 · 게시 전에 한 번씩 확인한 뒤 게시한다", async () => {
+        const log: string[] = [];
+        const { result, prepare, publish } = publishWith(readersFor(log), log);
+        await expect(result).resolves.toEqual({ outcome: "published", notes: notesFor(varsA) });
+        const check = ["main", `workflow:${fresh.headSha}`, "vars"];
+        expect(log).toEqual([`notes:${fresh.databaseId}`, ...check, "prepare", ...check, "publish"]);
+        expect(prepare).toHaveBeenCalledWith(notesFor(varsA));
+        expect(publish).toHaveBeenCalledWith({ prepared: true, notes: notesFor(varsA) });
+      });
+
+      it("두 확인 사이에 main 이나 Variables 가 바뀌면 내려받은 뒤라도 게시하지 않는다", async () => {
+        const cases: [Over, RegExp][] = [[{ mains: [sha, "e".repeat(40)] }, /앱 코드가 다르다/], [{ vars: [varsA, varsB] }, /지금 설정과 다르다/]];
+        for (const [over, reason] of cases) {
+          const log: string[] = [];
+          const { result, prepare, publish } = publishWith(readersFor(log, over), log);
+          await expect(result).rejects.toThrow(reason);
+          expect(prepare).toHaveBeenCalledTimes(1);
+          expect(publish).not.toHaveBeenCalled();
+        }
+      });
+
+      it("고른 빌드의 주석이 지금 설정과 다르면 내려받지도 않는다", async () => {
+        const log: string[] = [];
+        const { result, prepare, publish } = publishWith(readersFor(log, { notes: notesFor(varsB) }), log);
+        await expect(result).rejects.toThrow(/지금 설정과 다르다/);
+        expect(prepare).not.toHaveBeenCalled();
+        expect(publish).not.toHaveBeenCalled();
+      });
+
+      it("이미 폰 APK 인 빌드는 한 번 확인하고 끝낸다", async () => {
+        const log: string[] = [];
+        const { result, prepare, publish } = publishWith(readersFor(log), log, { runId: fresh.databaseId });
+        await expect(result).resolves.toMatchObject({ outcome: "already" });
+        expect(log).toEqual([`notes:${fresh.databaseId}`, "main", `workflow:${fresh.headSha}`, "vars"]);
+        expect(prepare).not.toHaveBeenCalled();
+        expect(publish).not.toHaveBeenCalled();
+      });
+
+      it("qa-release 는 runQaPublish 에 실제 읽기를 넘겨서만 게시하고, 게시 명령은 publish 단계 안에만 있다", () => {
+        const script = read("scripts/app-parity.cjs");
+        const body = script.slice(script.indexOf("async function cmdQaRelease"), script.indexOf("module.exports"));
+        expect(body).toMatch(/resolveQaBuild\(\{/);
+        expect(body).toMatch(/const \{ outcome \} = await runQaPublish\(\{[\s\S]*readers: qaPublishReaders\(root\),/);
+        expect(body).not.toMatch(/makePublishCheck\(|publishQaSequence\(/);
+        expect(body.match(/"release", "create"/g)).toHaveLength(1);
+        const publishStep = body.slice(body.indexOf("publish: async (p) =>"), body.indexOf("if (outcome === \"already\")"));
+        expect(publishStep).toContain('"release", "create"');
+        expect(body.match(/"run", "download"/g)).toHaveLength(1);
+        expect(body.slice(body.indexOf("async function prepareQaRelease")).includes('"run", "download"')).toBe(true);
+        const readers = script.slice(script.indexOf("function qaPublishReaders"), script.indexOf("function validateQaReleaseNotes"));
+        expect(readers).toMatch(/latestMain: \(\) => \{\s*fetchMain\(root\);\s*return git\(\["rev-parse", MAIN_REF\]\);/);
+        expect(readers).toContain("repoVars: loadRepoVars,");
+        expect(readers).toContain("workflowAt: (commit) => git([\"show\", `${commit}:${WORKFLOW}`]),");
+        expect(readers).toContain("readNotes: (runId) => buildNotes(runId),");
+      });
     });
   });
 });

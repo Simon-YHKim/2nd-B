@@ -2019,6 +2019,44 @@ async function publishQaSequence({ check, alreadyOnPhone, prepare, publish }) {
   return "published";
 }
 
+/**
+ * 게시 대상 빌드가 정해진 뒤의 게시 구간(리뷰 #2621 r3: 이 연결을 실행 시험으로 고정한다). 그 빌드의 주석을 읽고,
+ * 부를 때마다 최신 main · 지금 Variables · 그 빌드 커밋의 워크플로로 다시 맞춰 보는 확인을 만들어
+ * 확인 → 내려받기 · 준비 → 다시 확인 → 게시 순서에 그대로 넣는다. qa-release 는 이 함수로만 게시한다.
+ */
+async function runQaPublish({ runInfo, explicitRun, sameApp, phone, readers, prepare, publish }) {
+  const notes = readers.readNotes(runInfo.databaseId);
+  const check = makePublishCheck({
+    runInfo,
+    notes,
+    sameApp,
+    explicitRun,
+    latestMain: readers.latestMain,
+    repoVars: readers.repoVars,
+    workflowAt: readers.workflowAt,
+  });
+  const outcome = await publishQaSequence({
+    check,
+    alreadyOnPhone: () => Boolean(phone && phone.runId && String(phone.runId) === String(runInfo.databaseId)),
+    prepare: () => prepare(notes),
+    publish,
+  });
+  return { outcome, notes };
+}
+
+/** qa-release 가 runQaPublish 에 넘기는 실제 읽기: 최신 main(받기에 실패하면 throw) · 저장소 Variables · 빌드 커밋의 워크플로 · 빌드 주석. */
+function qaPublishReaders(root) {
+  return {
+    latestMain: () => {
+      fetchMain(root);
+      return git(["rev-parse", MAIN_REF]);
+    },
+    repoVars: loadRepoVars,
+    workflowAt: (commit) => git(["show", `${commit}:${WORKFLOW}`]),
+    readNotes: (runId) => buildNotes(runId),
+  };
+}
+
 function validateQaReleaseNotes(notes, expectedDigest, event, explicitRun, runId) {
   // 리뷰 #2621 r2: push 빌드도 주석이 없으면 지금 설정과 맞춰 볼 수 없으므로 올리지 않는다(기본 경로는 새로 빌드한다).
   if (!notes || !notes.digest || !notes.abi) {
@@ -2112,31 +2150,21 @@ async function cmdQaRelease(argv) {
   }
   if (runInfo.status !== "completed") runInfo = await waitRun(runInfo.databaseId);
   if (runInfo.conclusion !== "success") throw new Error(`빌드 ${runInfo.databaseId} 결과 ${runInfo.conclusion} - APK 를 올리지 않는다`);
-  const notesOfRun = buildNotes(runInfo.databaseId);
   // 내려받기 직전과 게시 직전에 다시 본다: 기본 · 지정 경로 모두 지금의 origin/main 과 앱 코드가 같아야 하고,
   // 설정 digest 는 지금 저장소 Variables 와 그 빌드 커밋의 워크플로로 다시 계산해 빌드 주석과 맞춘다.
   // 최신 main 을 다시 받지 못하면(fetchMain 실패) 게시하지 않는다.
-  const check = makePublishCheck({
+  const { outcome } = await runQaPublish({
     runInfo,
-    notes: notesOfRun,
-    sameApp,
     explicitRun: runArg !== undefined,
-    latestMain: () => {
-      fetchMain(root);
-      return git(["rev-parse", MAIN_REF]);
-    },
-    repoVars: loadRepoVars,
-    workflowAt: (commit) => git(["show", `${commit}:${WORKFLOW}`]),
-  });
-  const outcome = await publishQaSequence({
-    check,
-    alreadyOnPhone: () => Boolean(phone && phone.runId && String(phone.runId) === String(runInfo.databaseId)),
-    prepare: async () => {
+    sameApp,
+    phone,
+    readers: qaPublishReaders(root),
+    prepare: async (notesOfRun) => {
       if (pinnedRaw) {
         const artifacts = JSON.parse(gh(["api", `repos/${REPO}/actions/runs/${runInfo.databaseId}/artifacts?per_page=100`]));
         validateQaArtifactMetadata(artifacts, pinnedRaw);
       }
-      return prepareQaRelease();
+      return prepareQaRelease(notesOfRun);
     },
     publish: async (p) => {
       gh([
@@ -2161,7 +2189,7 @@ async function cmdQaRelease(argv) {
   return;
 
   // 내려받기 · ABI 확인 · sha256 · 게시 글. 게시(release create)는 publishQaSequence 가 다시 확인한 뒤에 한다.
-  async function prepareQaRelease() {
+  async function prepareQaRelease(notesOfRun) {
   const sha = runInfo.headSha;
   const sha8 = sha.slice(0, 8);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "qa-apk-"));
@@ -2248,6 +2276,8 @@ module.exports = {
   assertPublishable,
   makePublishCheck,
   publishQaSequence,
+  runQaPublish,
+  qaPublishReaders,
   validateQaReleaseNotes,
   planFollow,
   parsePreflight,
