@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AppState, BackHandler, Keyboard, Platform, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useSegments } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GateCover } from "@/components/ui/GateCover";
 import { Text } from "@/components/ui/Text";
@@ -36,11 +37,23 @@ function NativeDeviceLockGate({ children }: { children: ReactNode }) {
   const priority = useSyncExternalStore(subscribeCrisisLockPriority, crisisLockPrioritySnapshot, () => false);
   const observedScope = useRef(scope);
   const held = accountTransitionPendingFromSnapshot(scope) || observedScope.current !== scope;
-  // Q-261018-47: the lock guards a signed-in session only. Every owner change
+  // Q-261018-47: the OS is asked only for a signed-in session. Every owner change
   // (sign-in, sign-out, switch) moves the transition snapshot above, so this is
-  // re-read on the same render; the new owner's first render is still `held`.
+  // re-read on the same render.
   const signedIn = currentAccountOwner() !== null;
-  const covered = signedIn && (state.covered || held);
+  // Review #2619 r1: after a sign-out (including one from another device) the
+  // previous owner's screens stay mounted until their own redirect reaches the
+  // sign-in group. Keep them covered, with no prompt, until then. A run that was
+  // never signed in has nothing to hide, so a signed-out cold start stays open.
+  const segments = useSegments();
+  const onSignInSide = segments[0] === "(auth)";
+  const hadOwner = useRef(false);
+  const retainedAfterSignOut = !signedIn && hadOwner.current && !onSignInSide;
+  const covered = held || retainedAfterSignOut || (signedIn && state.covered);
+  useLayoutEffect(() => {
+    if (signedIn) hadOwner.current = true;
+    else if (onSignInSide) hadOwner.current = false;
+  }, [signedIn, onSignInSide]);
 
   useLayoutEffect(() => {
     observedScope.current = scope;
@@ -77,7 +90,7 @@ function NativeDeviceLockGate({ children }: { children: ReactNode }) {
           accessibilityViewIsModal testID="device-lock-cover">
           <Text variant="heading">{t(message)}</Text>
           <Button label={t(state.pending ? "deviceLock.checking" : "deviceLock.unlock")}
-            disabled={state.pending || held || Boolean(notice) || priority} onPress={() => { void lock.unlock(); }} />
+            disabled={!signedIn || state.pending || held || Boolean(notice) || priority} onPress={() => { void lock.unlock(); }} />
         </View>
       ) : null}>
         {children}
