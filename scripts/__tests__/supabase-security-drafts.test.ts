@@ -215,8 +215,24 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
   // import() and `new URL(..., import.meta.url)`), and any loader whose target is not a string
   // literal fails the test instead of being skipped.
   const S2B_PACKET_ROOT = "supabase/functions/_shared/interview-finalize-packet.ts";
-  function moduleLoads(fileName: string, source: string): { targets: string[]; unresolvable: string[] } {
-    const sf = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  // Review #2618 r3: each file is parsed with the script kind of its extension and a syntax error
+  // fails the walk; `require` counts only when it is not a binding declared in the file (a checker
+  // over a one-file program without lib resolves local bindings and leaves the global unresolved).
+  function moduleLoads(fileName: string, source: string): { targets: string[]; unresolvable: string[]; syntax: string[] } {
+    const kind = /\.tsx$/.test(fileName) ? ts.ScriptKind.TSX : /\.jsx$/.test(fileName) ? ts.ScriptKind.JSX
+      : /\.[cm]?js$/.test(fileName) ? ts.ScriptKind.JS : ts.ScriptKind.TS;
+    const virtual = `/closure/${fileName}`;
+    const sf = ts.createSourceFile(virtual, source, ts.ScriptTarget.Latest, true, kind);
+    const options: ts.CompilerOptions = { noLib: true, noResolve: true, allowJs: true, jsx: ts.JsxEmit.Preserve, types: [] };
+    const host = ts.createCompilerHost(options);
+    host.getSourceFile = (name) => (name === virtual ? sf : undefined);
+    host.fileExists = (name) => name === virtual;
+    host.readFile = (name) => (name === virtual ? source : undefined);
+    const program = ts.createProgram([virtual], options, host);
+    const checker = program.getTypeChecker();
+    const syntax = program.getSyntacticDiagnostics(sf).map((d) => ts.flattenDiagnosticMessageText(d.messageText, " "));
+    const declaredHere = (id: ts.Identifier) =>
+      (checker.getSymbolAtLocation(id)?.declarations ?? []).some((decl) => decl.getSourceFile() === sf);
     const targets: string[] = [];
     const unresolvable: string[] = [];
     const take = (expr: ts.Node | undefined, node: ts.Node) => {
@@ -232,7 +248,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
         const arg = node.argument;
         take(ts.isLiteralTypeNode(arg) ? arg.literal : undefined, node);
       } else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword
-        || (ts.isIdentifier(node.expression) && node.expression.text === "require"))) {
+        || (ts.isIdentifier(node.expression) && node.expression.text === "require" && !declaredHere(node.expression)))) {
         take(node.arguments[0], node);
       } else if (ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "URL"
         && node.arguments?.length === 2 && /import\.meta\.url/.test(node.arguments[1].getText(sf))) {
@@ -242,8 +258,14 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     };
     visit(sf);
     for (const ref of sf.referencedFiles) targets.push(ref.fileName);
-    return { targets, unresolvable };
+    return { targets, unresolvable, syntax };
   }
+  // Remote modules must name an exact version: npm:/jsr: need `@x.y.z` (optional prerelease) and
+  // http(s) URLs need a `@x.y.z` or `@vx.y.z` path segment. Only `node:` builtins pass as they are.
+  const EXACT = String.raw`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?`;
+  const pinnedRemote = (target: string) =>
+    new RegExp(`^(?:npm|jsr):(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*@${EXACT}(?:/.*)?$`, "i").test(target)
+    || new RegExp(`^https?://[^\\s]+@v?${EXACT}(?:[/?#].*)?$`, "i").test(target);
   function localClosure(rootFile: string, readFile: (path: string) => string, exists: (path: string) => boolean) {
     const closure = new Set<string>();
     const problems: string[] = [];
@@ -252,10 +274,15 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
       const file = todo.pop() as string;
       if (closure.has(file)) continue;
       closure.add(file);
-      const { targets, unresolvable } = moduleLoads(file, readFile(file));
+      const { targets, unresolvable, syntax } = moduleLoads(file, readFile(file));
+      for (const message of syntax) problems.push(`${file}: syntax error ${message}`);
       for (const text of unresolvable) problems.push(`${file}: non-literal module load ${text}`);
       for (const target of targets) {
-        if (/^(?:node|npm|jsr|https?):/.test(target)) continue;
+        if (/^node:/.test(target)) continue;
+        if (/^(?:npm|jsr|https?):/i.test(target)) {
+          if (!pinnedRemote(target)) problems.push(`${file}: remote import ${target} is not pinned to an exact version`);
+          continue;
+        }
         if (!target.startsWith(".") && !target.startsWith("@/") && !target.startsWith("/")) {
           problems.push(`${file}: bare import ${target} is not a pinned remote or local file`);
           continue;
@@ -302,19 +329,35 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
         'const d = await import(`./dynamic.ts`);',
         'type U = import("./import-type.ts").U;',
         'const w = new URL("./asset.ts", import.meta.url);',
-        'import { z } from "npm:zod@3";',
+        'import { z } from "npm:zod@3.23.8";',
+        'import { join } from "jsr:@std/path@1.0.8";',
+        'import { y } from "https://esm.sh/yaml@2.5.1";',
+        'import { V } from "./view.tsx";',
+        'export const own = (require: (name: string) => unknown, name: string) => require(name);',
       ].join("\n"),
+      "a/view.tsx": 'import "./tsx-dep.ts";\nexport const V = () => <div title="x">{1}</div>;',
       "a/side-effect.ts": "", "a/type-only.ts": "", "a/reexport.ts": "", "a/import-equals.ts": "",
       "a/required.ts": "", "a/dynamic.ts": "", "a/import-type.ts": "", "a/asset.ts": "", "a/referenced.d.ts": "",
+      "a/tsx-dep.ts": "",
     };
     const walk = (root: string) => localClosure(root, (path) => files[path], (path) => path in files);
     expect(walk("a/root.ts")).toEqual({ closure: Object.keys(files).sort(), problems: [] });
-    files["a/root.ts"] += '\nconst name = "./x.ts"; await import(name); require(name);\nimport "zod";';
+    files["a/root.ts"] += [
+      "", 'const name = "./x.ts"; await import(name); require(name);', 'import "zod";',
+      'import "npm:zod";', 'import "npm:zod@3";', 'import "jsr:@std/path";', 'import "https://esm.sh/zod";',
+    ].join("\n");
+    files["a/broken.ts"] = "export const = ;";
+    files["a/root.ts"] += '\nimport "./broken.ts";';
     const { problems } = walk("a/root.ts");
     expect(problems).toEqual([
       "a/root.ts: non-literal module load import(name)",
       "a/root.ts: non-literal module load require(name)",
       "a/root.ts: bare import zod is not a pinned remote or local file",
+      "a/root.ts: remote import npm:zod is not pinned to an exact version",
+      "a/root.ts: remote import npm:zod@3 is not pinned to an exact version",
+      "a/root.ts: remote import jsr:@std/path is not pinned to an exact version",
+      "a/root.ts: remote import https://esm.sh/zod is not pinned to an exact version",
+      expect.stringMatching(/^a\/broken\.ts: syntax error /),
     ]);
     // A side-effect import added to the real packet module would join the closure, so
     // the lane test above fails until the new file is listed in the workflow paths.

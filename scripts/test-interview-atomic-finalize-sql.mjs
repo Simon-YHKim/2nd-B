@@ -85,7 +85,8 @@ pass('fresh complete numbered schema and actual erasure-lock preflight');
 // collation, storage and compression, table persistence, replica identity, partitioning and
 // inheritance, non-view rules,
 // constraints, indexes, triggers incl. those on other schemas' tables that call these functions,
-// RLS flags, policies, sequences (parameters, last value, ownership), enum/domain/composite
+// RLS flags, policies, sequences (parameters, last_value and is_called read from the sequence
+// itself so a never-called RESTART 42 and 73 differ, ownership), enum/domain/composite
 // types and default privileges. Physical dropped-column slots are not compared: PostgreSQL
 // keeps them after ADD + DROP, so the claim is a logical restore and the runner prints how
 // many such slots the up + down left. probeFingerprint() below proves each property moves it.
@@ -120,7 +121,8 @@ SELECT kind||'|'||name||'|'||md5(detail) FROM (
  UNION ALL
  SELECT 'sequence', s.nspname||'.'||c.relname,
    format_type(sq.seqtypid, NULL)||'|'||sq.seqstart||'|'||sq.seqincrement||'|'||sq.seqmax||'|'||sq.seqmin||'|'||
-   sq.seqcache||'|'||sq.seqcycle::text||'|'||coalesce(pg_sequence_last_value(c.oid::regclass)::text,'(unread)')||'|'||
+   sq.seqcache||'|'||sq.seqcycle::text||'|'||
+   query_to_xml(format('SELECT last_value, is_called FROM %I.%I', s.nspname, c.relname), false, true, '')::text||'|'||
    coalesce((SELECT string_agg(pg_describe_object(d.refclassid, d.refobjid, d.refobjsubid)||':'||d.deptype::text, ','
        ORDER BY d.refobjid, d.refobjsubid)
      FROM pg_depend d WHERE d.classid='pg_class'::regclass AND d.objid=c.oid AND d.deptype IN ('a','i')),'')
@@ -209,7 +211,7 @@ ${FINGERPRINT_SPLIT}ROLLBACK;`);
   const commentLines = movedNames(base, commented);
   assert.equal(commentLines.length, 3, `comments on a constraint, a column and a function must each move it: ${commentLines}`);
   assert(commentLines.every((name) => name.startsWith('comment|')), commentLines.join(', '));
-  const [created, revoked, altered] = await snapshots(`BEGIN;
+  const [created, revoked, altered, restarted42, restarted73, called73] = await snapshots(`BEGIN;
 CREATE FUNCTION public.fingerprint_probe() RETURNS int LANGUAGE sql AS 'SELECT 1';
 CREATE SEQUENCE public.fingerprint_probe_seq;
 CREATE TYPE public.fingerprint_probe_enum AS ENUM ('a');
@@ -219,6 +221,9 @@ SELECT nextval('public.fingerprint_probe_seq');
 ALTER TYPE public.fingerprint_probe_enum ADD VALUE 'b';
 ALTER DEFAULT PRIVILEGES IN SCHEMA interview_authority_private GRANT USAGE ON TYPES TO service_role;
 ${FINGERPRINT_SPLIT}ALTER SEQUENCE public.fingerprint_probe_seq INCREMENT BY 7;
+${FINGERPRINT_SPLIT}ALTER SEQUENCE public.fingerprint_probe_seq RESTART WITH 42;
+${FINGERPRINT_SPLIT}ALTER SEQUENCE public.fingerprint_probe_seq RESTART WITH 73;
+${FINGERPRINT_SPLIT}SELECT setval('public.fingerprint_probe_seq', 73, true);
 ${FINGERPRINT_SPLIT}ROLLBACK;`);
   const probeName = (prefix) => (line) => line.startsWith(prefix);
   assert(created.some(probeName('function|public.fingerprint_probe()|')), 'a new function must appear');
@@ -229,7 +234,11 @@ ${FINGERPRINT_SPLIT}ROLLBACK;`);
     'type|public.fingerprint_probe_enum',
   ], 'default vs empty ACL, a sequence read, an enum value and a default privilege must each move it');
   assert.deepEqual(movedNames(revoked, altered), ['sequence|public.fingerprint_probe_seq'], 'a sequence parameter must move it');
-  pass('catalog fingerprint moves for comments, default vs empty ACL, sequence state and parameters, enum values and default privileges');
+  const seq = ['sequence|public.fingerprint_probe_seq'];
+  assert.deepEqual(movedNames(altered, restarted42), seq, 'a RESTART must move it');
+  assert.deepEqual(movedNames(restarted42, restarted73), seq, 'two never-called RESTART values must differ');
+  assert.deepEqual(movedNames(restarted73, called73), seq, 'the same value called and not called must differ');
+  pass('catalog fingerprint moves for comments, default vs empty ACL, sequence parameters, reads, RESTART values and is_called, enum values and default privileges');
 }
 // The four original 0225 controls, unchanged. Run in the S1 state after the S2b down and
 // again with S2b applied, so a wrongly restored legacy function is exercised before the
