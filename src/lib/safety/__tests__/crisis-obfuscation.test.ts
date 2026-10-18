@@ -86,7 +86,9 @@ describe("Q-261011-05 obfuscation request gate (not a verdict)", () => {
     // 2026-10-15: six approved interview-guidance strings added per locale (4419 + 6).
     // 2026-10-18: one spoken-name string added per locale for the save notice button (Q-261018-51).
     // 2026-10-18: three all-devices sign-out strings added per locale (Q-261018-50).
-    expect(strings).toHaveLength(4429);
+    // 2026-10-19: the help screen's three fixed notice lines (title and tag each) and their
+    // section title left per locale; notices are one row to the notices screen (Z73, 4429 - 7).
+    expect(strings).toHaveLength(4422);
     expect(strings.filter(hasCrisisObfuscation)).toEqual([]);
   });
 
