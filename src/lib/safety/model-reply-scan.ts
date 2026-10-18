@@ -124,12 +124,12 @@ export const KO_CRISIS_TERM_CODES: Readonly<Record<string, number>> = {
 
 export const MODEL_REPLY_TERM_CATEGORY_PREFIX = "crisis_term:";
 
-// The numbers a crisis record may hold today: crisis_term:1 to crisis_term:19,
-// the server's closed list (db/migrations/0254_crisis_category_closed_list.sql)
-// and the app's (crisis-event-categories.ts). 20 and 21 are assigned above but
-// are not written until a migration adds them to both lists; writing them now
-// would come back as "unlisted".
-const RECORDED_TERM_CODE_MAX = 19;
+// The numbers a crisis record may hold: crisis_term:1 to crisis_term:21, the
+// server's closed list (db/migrations/0260_crisis_category_terms_to_21.sql,
+// applied in production 2026-10-17 00:36 KST) and the app's
+// (crisis-event-categories.ts). Before 0260 the cap was 19 and 20 and 21 were
+// not written, since the server would have turned them into "unlisted".
+const RECORDED_TERM_CODE_MAX = 21;
 
 // Category entries for a replaced MODEL REPLY: the fixed number of each matched
 // Korean term, in ascending order, and nothing else. A term without a number

@@ -1,6 +1,6 @@
 import { classifyInput, classifyInputAnyLocale } from "../classifier";
 import { hasCrisisRiskContext } from "../crisis-context";
-import { CRISIS_EVENT_CATEGORY_LIMIT } from "../crisis-event-categories";
+import { CRISIS_EVENT_CATEGORY_LIMIT, recordableCrisisCategories } from "../crisis-event-categories";
 import { ADDITIONAL_CRISIS_PHRASES, CRISIS_TERMS } from "../lexicon";
 import {
   KO_CRISIS_TERM_CODES,
@@ -292,9 +292,9 @@ describe("the fixed numbers (D3)", () => {
     expect(KO_CRISIS_TERM_CODES["끝내 버릴"]).toBe(21);
   });
 
-  it("write 20 and 21 nowhere yet: the record's closed list stops at 19 (0254)", () => {
-    expect(modelReplyTermCategories(["끝내 버리고 싶", "끝내 버릴"])).toEqual([]);
-    expect(modelReplyTermCategories(["끝내 버릴", "유서"])).toEqual(["crisis_term:13"]);
+  it("write 20 and 21 too: 0260 widened the record's closed list to 21 (applied in production 2026-10-17)", () => {
+    expect(modelReplyTermCategories(["끝내 버리고 싶", "끝내 버릴"])).toEqual(["crisis_term:20", "crisis_term:21"]);
+    expect(modelReplyTermCategories(["끝내 버릴", "유서"])).toEqual(["crisis_term:13", "crisis_term:21"]);
   });
 
   it("turn matched terms into ascending category entries and nothing else", () => {
@@ -308,12 +308,24 @@ describe("the fixed numbers (D3)", () => {
     expect(modelReplyTermCategories(["constructor", "toString", "__proto__", "0", "20", "다짐이 되"])).toEqual([]);
   });
 
-  it("carry no text: every entry is the prefix and a number from 1 to 19", () => {
+  it("carry no text: every entry is the prefix and a number from 1 to 21", () => {
     for (const entry of modelReplyTermCategories([...CRISIS_TERMS.ko])) {
-      expect(entry).toMatch(/^crisis_term:(?:[1-9]|1[0-9])$/);
+      expect(entry).toMatch(/^crisis_term:(?:[1-9]|1[0-9]|2[01])$/);
     }
-    // 21 terms, 19 of them recordable today.
-    expect(modelReplyTermCategories([...CRISIS_TERMS.ko])).toHaveLength(19);
+    // 21 terms, all 21 recordable since 0260.
+    expect(modelReplyTermCategories([...CRISIS_TERMS.ko])).toHaveLength(21);
+  });
+
+  it("write only numbers the record's closed list keeps, never one it turns into unlisted", () => {
+    for (const entry of modelReplyTermCategories([...CRISIS_TERMS.ko])) {
+      expect(recordableCrisisCategories(["output_swap", entry])).toEqual(["output_swap", entry]);
+    }
+  });
+
+  // Review round one (PR #2610): 20 and 21 are recordable now, but still only on a replaced AI reply.
+  it("keep no term number and no unlisted stand-in on a record of the user's own words (0254)", () => {
+    expect(recordableCrisisCategories(["input_red", "crisis_term:20", "crisis_term:21", "free text"])).toEqual(["input_red"]);
+    expect(recordableCrisisCategories(["interview_input_red", "crisis_term:21"])).toEqual(["interview_input_red"]);
   });
 });
 
@@ -336,6 +348,28 @@ describe("replySwapCategories", () => {
     expect(replySwapCategories([], reply)).toEqual(["output_swap", "crisis_term:1"]);
     expect(replySwapCategories([], reply, true)).toEqual(["output_swap", "crisis_term:1"]);
     expect(replySwapCategories([], reply, false)).toEqual(["output_swap", "crisis_term:1"]);
+  });
+
+  // Review round one (PR #2610): the emphatic forms go through the real path (the reply is scanned,
+  // the matched terms are numbered, cut to the record's room and normalised), not a hand-made list.
+  it("records the emphatic forms 끝내 버리고 싶 and 끝내 버릴 as 20 and 21 from the reply itself (0260)", () => {
+    expect(replySwapCategories([], "그냥 다 끝내 버리고 싶다는 말이 답에 들어갔습니다.", false)).toEqual([
+      "output_swap",
+      "crisis_term:20",
+    ]);
+    expect(replySwapCategories(["lexicon_match"], "오늘 밤 다 끝내 버릴 거라는 문장이 있었습니다.", false)).toEqual([
+      "lexicon_match",
+      "output_swap",
+      "crisis_term:21",
+    ]);
+  });
+
+  it("keeps all fifteen numbers 7 to 21 with the marker: exactly the record's sixteen entries", () => {
+    const terms = Object.entries(KO_CRISIS_TERM_CODES).filter(([, code]) => code >= 7).map(([term]) => term);
+    expect(terms).toHaveLength(15);
+    const list = replySwapCategories([], terms.join(" / "), false);
+    expect(list).toEqual(["output_swap", ...Array.from({ length: 15 }, (_, i) => `crisis_term:${i + 7}`)]);
+    expect(list).toHaveLength(CRISIS_EVENT_CATEGORY_LIMIT);
   });
 
   it("gives the numbers in ascending order", () => {

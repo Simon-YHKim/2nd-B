@@ -42,7 +42,7 @@ export const CRISIS_EVENT_FIXED_CATEGORIES: readonly string[] = [
 const FIXED = new Set(CRISIS_EVENT_FIXED_CATEGORIES);
 
 // crisis_term:1 to crisis_term:21, the fixed numbers of the Korean gate terms (0260 widened the server's list
-// from 19). What the app writes is capped in model-reply-scan.ts until 0260 is applied in production.
+// from 19; applied in production 2026-10-17). What the app writes uses the same cap
 // (model-reply-scan.ts). No other number and nothing after the number.
 function isTermNumber(entry: string): boolean {
   const prefix = "crisis_term:";
