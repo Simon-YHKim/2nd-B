@@ -10,6 +10,9 @@ function mount(os = "android", initialOwner: string | null = "owner-a") {
   let scope = 0; let priority = false; let state = "active";
   let owner: string | null = initialOwner; let screenLock: boolean | null = true;
   let segments: string[] = initialOwner ? ["records"] : ["(auth)", "sign-in"];
+  type RootState = { index: number; routes: { name: string }[] } | undefined;
+  const stackOf = (names: string[], index = names.length - 1): RootState => ({ index, routes: names.map(name => ({ name })) });
+  let rootState: RootState = initialOwner ? stackOf(["index", "records"]) : stackOf(["(auth)"]);
   const lockCheck = jest.fn(async () => screenLock);
   let complete!: (value: DeviceAuthResult) => void;
   const auth = jest.fn(() => new Promise<DeviceAuthResult>(resolve => { complete = resolve; }));
@@ -30,7 +33,7 @@ function mount(os = "android", initialOwner: string | null = "owner-a") {
       BackHandler: { addEventListener: (_: string, listener: () => boolean) => { backListeners.add(listener); return { remove: () => backListeners.delete(listener) }; } },
     },
     "react-i18next": { useTranslation: () => ({ t: (key: string) => key }) },
-    "expo-router": { useSegments: () => segments },
+    "expo-router": { useSegments: () => segments, useRootNavigationState: () => rootState },
     "react-native-safe-area-context": { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) },
     "@/components/ui/GateCover": { GateCover: "GateCover" }, "@/components/ui/Text": { Text: "Text" }, "@/components/ui/Button": { Button: "Button" },
     "@/lib/theme/tokens": { semantic: { background: "#000" }, spacing: { xl: 24, lg: 16 } },
@@ -61,6 +64,9 @@ function mount(os = "android", initialOwner: string | null = "owner-a") {
     owner(value: string | null, nextScope: number) { owner = value; this.account(nextScope); },
     phoneHasScreenLock(value: boolean | null) { screenLock = value; },
     route(...value: string[]) { segments = value; render(); },
+    // The root navigator's committed state (what is actually mounted and focused).
+    stack(names: string[] | undefined, index?: number) { rootState = names ? stackOf(names, index) : undefined; render(); },
+    get unlockPress() { return ((this.gate.props.cover as Node).props.children as Node[])[1].props.onPress as () => void; },
     async settle() { for (let i = 0; i < 8; i++) await Promise.resolve(); render(); },
     app(value: string) { state = value; for (const listener of stateListeners) listener(value); render(); },
     crisis(value: boolean) { priority = value; render(); },
@@ -116,15 +122,15 @@ test("signed out from the start (no earlier owner this run): no cover, no prompt
   expect(host.auth).not.toHaveBeenCalled();
   host.app("background"); host.app("active"); await host.settle();
   expect(host.gate.props.cover).toBeNull(); expect(host.auth).not.toHaveBeenCalled();
-  // A cold start reads "/" before the home sends a signed-out visitor to sign-in: nothing to hide.
-  host.route(); expect(host.gate.props.cover).toBeNull();
+  // A cold start mounts "/" before the home sends a signed-out visitor to sign-in: nothing to hide.
+  host.stack(["index"]); expect(host.gate.props.cover).toBeNull();
   host.unmount();
 });
 
-test("sign-out keeps the previous owner's retained screen covered with no prompt until sign-in shows", async () => {
+test("sign-out keeps the previous owner's screens covered until the root navigator shows sign-in", async () => {
   const host = mount();
   await host.finish(); expect(host.gate.props.cover).toBeNull();
-  // Sign-out (or a sign-out from another device) publishes null while A's screen is still mounted.
+  // Sign-out (or one from another device) publishes null while A's stack is still mounted.
   host.owner(null, 2);
   expect(host.gate.props.cover).not.toBeNull();
   expect(host.backBlocked).toBe(true);
@@ -132,26 +138,47 @@ test("sign-out keeps the previous owner's retained screen covered with no prompt
   expect(host.gate.props.cover).not.toBeNull();
   const button = (host.gate.props.cover as Node).props.children as Node[];
   expect(button[1].props.disabled).toBe(true);
-  expect(host.auth).toHaveBeenCalledTimes(1);
-  // The screen's own redirect reaches sign-in: the cover lifts on that very render
-  // (a ref write alone would not re-render), still with no prompt.
+  // Segments alone are not proof (review #2619 r2): the old route is still the focused scene.
   host.route("(auth)", "sign-in");
+  expect(host.gate.props.cover).not.toBeNull();
+  host.stack(undefined); expect(host.gate.props.cover).not.toBeNull();
+  // A screen's own <Redirect> replaces only the top scene; sign-in focused on top lifts the cover.
+  host.stack(["index", "(auth)"]);
   expect(host.gate.props.cover).toBeNull();
-  await host.settle();
-  expect(host.gate.props.cover).toBeNull();
+  // Back to a retained scene before the stack is cleared: covered again, still no prompt.
+  host.stack(["index"]); expect(host.gate.props.cover).not.toBeNull();
+  // Sign-in present in the stack but not the focused scene is not enough either.
+  host.stack(["index", "(auth)"], 0); expect(host.gate.props.cover).not.toBeNull();
+  host.stack(["index", "(auth)"]); expect(host.gate.props.cover).toBeNull();
+  // Only sign-in left in the root stack: nothing of A remains, so later signed-out visits are open.
+  host.stack(["(auth)"]); await host.settle();
+  host.stack(["index"]); expect(host.gate.props.cover).toBeNull();
   expect(host.auth).toHaveBeenCalledTimes(1);
-  // Nothing of A is left once sign-in was reached: a signed-out visit elsewhere is not covered.
-  host.route(); await host.settle();
-  expect(host.gate.props.cover).toBeNull();
   host.unmount();
 });
 
-test("a phone left covered stays covered when a remote sign-out arrives", async () => {
+test("a phone left covered stays covered when a remote sign-out arrives, and sign-in is not trapped", async () => {
   const host = mount(); expect(host.gate.props.cover).not.toBeNull();
   host.owner(null, 2); await host.settle(); host.render();
   expect(host.gate.props.cover).not.toBeNull();
-  host.route("(auth)", "sign-in"); await host.settle();
+  // No dismissAll on this path: the stack keeps the home under sign-in, which must still open.
+  host.stack(["index", "(auth)"]); await host.settle();
   expect(host.gate.props.cover).toBeNull();
+  expect(host.auth).toHaveBeenCalledTimes(1);
+  host.unmount();
+});
+
+test("an unlock tap captured before sign-out cannot prompt after it", async () => {
+  const host = mount();
+  await host.finish({ success: false, error: "cancelled" });
+  expect(host.gate.props.cover).not.toBeNull();
+  const press = host.unlockPress;
+  host.owner(null, 2); await host.settle();
+  press(); await host.settle();
+  expect(host.auth).toHaveBeenCalledTimes(1);
+  host.stack(["(auth)"]); await host.settle();
+  press(); await host.settle();
+  expect(host.auth).toHaveBeenCalledTimes(1);
   host.unmount();
 });
 
@@ -160,7 +187,7 @@ test("a pending owner transition covers before the new owner is published, witho
   host.account(1);
   expect(host.gate.props.cover).not.toBeNull();
   await host.settle(); expect(host.auth).not.toHaveBeenCalled();
-  host.owner("owner-b", 2); host.route("records");
+  host.owner("owner-b", 2); host.stack(["index"]);
   expect(host.gate.props.cover).not.toBeNull();
   expect(host.auth).toHaveBeenCalledTimes(1);
   host.unmount();
@@ -168,7 +195,7 @@ test("a pending owner transition covers before the new owner is published, witho
 
 test("signing in covers and asks once", async () => {
   const host = mount("android", null);
-  host.owner("owner-a", 2); host.route("records");
+  host.owner("owner-a", 2); host.stack(["index"]);
   expect(host.gate.props.cover).not.toBeNull();
   expect(host.auth).toHaveBeenCalledTimes(1);
   await host.finish(); expect(host.gate.props.cover).toBeNull();
@@ -179,8 +206,8 @@ test("A -> signed out -> B: A's earlier success never opens B, and B is asked ag
   const host = mount();
   await host.finish(); expect(host.gate.props.cover).toBeNull();
   host.owner(null, 2); expect(host.gate.props.cover).not.toBeNull();
-  host.route("(auth)", "sign-in"); await host.settle(); expect(host.gate.props.cover).toBeNull();
-  host.owner("owner-b", 4); host.route("records");
+  host.stack(["(auth)"]); await host.settle(); expect(host.gate.props.cover).toBeNull();
+  host.owner("owner-b", 4); host.stack(["index"]);
   expect(host.gate.props.cover).not.toBeNull();
   expect(host.auth).toHaveBeenCalledTimes(2);
   await host.finish(); expect(host.gate.props.cover).toBeNull();

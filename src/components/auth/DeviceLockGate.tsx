@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AppState, BackHandler, Keyboard, Platform, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { useSegments } from "expo-router";
+import { useRootNavigationState } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GateCover } from "@/components/ui/GateCover";
 import { Text } from "@/components/ui/Text";
@@ -27,6 +27,9 @@ function NativeDeviceLockGate({ children }: { children: ReactNode }) {
     authenticate: () => authenticateDevice(labels.current), cancel: cancelDeviceAuthentication,
     screenLock: deviceHasScreenLock,
     scope: () => {
+      // Review #2619 r2: an effect or button callback created before a sign-out can
+      // still run after it. No published owner means nothing to unlock: no prompt.
+      if (currentAccountOwner() === null) return null;
       const snapshot = accountTransitionSnapshot();
       return accountTransitionPendingFromSnapshot(snapshot) ? null : snapshot;
     },
@@ -41,19 +44,29 @@ function NativeDeviceLockGate({ children }: { children: ReactNode }) {
   // (sign-in, sign-out, switch) moves the transition snapshot above, so this is
   // re-read on the same render.
   const signedIn = currentAccountOwner() !== null;
-  // Review #2619 r1: after a sign-out (including one from another device) the
-  // previous owner's screens stay mounted until their own redirect reaches the
-  // sign-in group. Keep them covered, with no prompt, until then. A run that was
-  // never signed in has nothing to hide, so a signed-out cold start stays open.
-  const segments = useSegments();
-  const onSignInSide = segments[0] === "(auth)";
+  // Review #2619 r1 · r2: after a sign-out (including one from another device) the
+  // previous owner's scenes stay mounted until navigation removes them. Keep them
+  // covered, with no prompt, while the root navigator's focused scene is not the
+  // sign-in group. Segments are not proof (account-epoch shouldReleaseAccountTransition):
+  // the old stack can outlive the path change. Sign-in focused on top lifts the cover
+  // even if a screen's <Redirect> left the home underneath, so nobody is trapped; the
+  // previous owner is forgotten only once sign-in is the sole root scene, so going back
+  // to a retained scene before that covers it again. A run that was never signed in
+  // has nothing to hide, so a signed-out cold start stays open.
+  const rootState = useRootNavigationState() as
+    | { index?: number; routes?: readonly { name?: string }[] }
+    | undefined;
+  const rootRoutes = rootState?.routes ?? [];
+  const focusedIndex = typeof rootState?.index === "number" ? rootState.index : rootRoutes.length - 1;
+  const signInShown = rootRoutes[focusedIndex]?.name === "(auth)";
+  const onlySignInLeft = rootRoutes.length === 1 && rootRoutes[0]?.name === "(auth)";
   const hadOwner = useRef(false);
-  const retainedAfterSignOut = !signedIn && hadOwner.current && !onSignInSide;
+  const retainedAfterSignOut = !signedIn && hadOwner.current && !signInShown;
   const covered = held || retainedAfterSignOut || (signedIn && state.covered);
   useLayoutEffect(() => {
     if (signedIn) hadOwner.current = true;
-    else if (onSignInSide) hadOwner.current = false;
-  }, [signedIn, onSignInSide]);
+    else if (onlySignInLeft) hadOwner.current = false;
+  }, [signedIn, onlySignInLeft]);
 
   useLayoutEffect(() => {
     observedScope.current = scope;
