@@ -96,11 +96,11 @@ SELECT kind||'|'||name||'|'||md5(detail) FROM (
    FROM pg_proc p JOIN s ON s.oid=p.pronamespace WHERE p.prokind IN ('f','p')
  UNION ALL
  SELECT CASE c.relkind WHEN 'v' THEN 'view' WHEN 'm' THEN 'matview' ELSE 'table' END, s.nspname||'.'||c.relname,
-   c.relkind||'|'||coalesce(CASE WHEN c.relkind IN ('v','m') THEN pg_get_viewdef(c.oid) END,'')||'|'||
+   c.relkind::text||'|'||coalesce(CASE WHEN c.relkind IN ('v','m') THEN pg_get_viewdef(c.oid) END,'')||'|'||
    pg_get_userbyid(c.relowner)||'|'||coalesce((SELECT string_agg(a::text, ',' ORDER BY a::text) FROM unnest(c.relacl) a),'')||'|'||
    c.relrowsecurity::text||'|'||c.relforcerowsecurity::text||'|'||coalesce(array_to_string(c.reloptions, ','),'')||'|'||
    coalesce((SELECT string_agg(a.attname||':'||format_type(a.atttypid,a.atttypmod)||':'||a.attnotnull::text||':'||
-       a.attidentity||':'||a.attgenerated||':'||coalesce(pg_get_expr(d.adbin,d.adrelid),'')||':'||
+       a.attidentity::text||':'||a.attgenerated::text||':'||coalesce(pg_get_expr(d.adbin,d.adrelid),'')||':'||
        coalesce((SELECT string_agg(x::text, ',' ORDER BY x::text) FROM unnest(a.attacl) x),''), ';' ORDER BY a.attnum)
      FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum
      WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped),'')
