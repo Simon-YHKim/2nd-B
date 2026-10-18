@@ -126,11 +126,19 @@ function isTypeOnlyExport(stmt: ts.ExportDeclaration): boolean {
 const isExported = (node: ts.Node): boolean =>
   ts.canHaveModifiers(node) && (ts.getModifiers(node)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false);
 
+// Every runtime export form: declarations, local export lists (`export { patterns }`), default exports.
 function runtimeExports(sf: ts.SourceFile): string[] {
   const names: string[] = [];
   for (const stmt of sf.statements) {
+    if (ts.isExportDeclaration(stmt) && !stmt.moduleSpecifier && !isTypeOnlyExport(stmt)) {
+      const clause = stmt.exportClause;
+      if (clause && ts.isNamedExports(clause)) for (const e of clause.elements) if (!e.isTypeOnly) names.push(e.name.text);
+      continue;
+    }
+    if (ts.isExportAssignment(stmt)) { names.push("default"); continue; }
     if (!isExported(stmt)) continue;
-    if ((ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt) || ts.isEnumDeclaration(stmt)) && stmt.name) names.push(stmt.name.text);
+    const isDefault = ts.getModifiers(stmt)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword) ?? false;
+    if ((ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt) || ts.isEnumDeclaration(stmt)) && (stmt.name || isDefault)) names.push(isDefault ? "default" : stmt.name!.text);
     else if (ts.isVariableStatement(stmt)) for (const d of stmt.declarationList.declarations) names.push(d.name.getText(sf));
   }
   return names.sort();
@@ -365,6 +373,8 @@ describe("A-C: the crisis route file reads no configuration", () => {
     };
     for (const rel of PINNED_CLOSURE) {
       const mod = jest.requireActual(resolve(ROOT, rel)) as Record<string, unknown>;
+      // The loaded module object itself, whatever export form produced it.
+      expect([rel, Object.keys(mod).filter((k) => k !== "__esModule").sort()]).toEqual([rel, [...PINNED_EXPORTS[rel]].sort()]);
       for (const name of PINNED_EXPORTS[rel]) {
         expect([rel, name, name in mod]).toEqual([rel, name, true]);
         check(mod[name], `${rel}:${name}`);
@@ -459,6 +469,8 @@ describe("A-C: the crisis route file reads no configuration", () => {
     test.each([
       ["a top-level let in a closure module", "src/lib/safety/crisis-context.ts", (t: string) => `${t}\nlet mode = 0;\n`, /crisis-context\.ts: top-level let\/var/],
       ["a new export in a closure module", "src/lib/safety/emergency-routing.ts", (t: string) => `${t}\nexport function extra(): void {}\n`, /emergency-routing\.ts: runtime exports/],
+      ["a local export list in a closure module", "src/lib/safety/emergency-routing.ts", (t: string) => `${t}\nexport { patterns };\n`, /emergency-routing\.ts: runtime exports/],
+      ["a default export in a closure module", "src/lib/safety/crisis-language.ts", (t: string) => `${t}\nexport default normalize;\n`, /crisis-language\.ts: runtime exports/],
       ["a function property read in a closure module", "src/lib/safety/classifier.ts", (t: string) => `${t}\nconst hidden = (classifyInput as { flag?: boolean }).flag;\n`, /classifier\.ts: property of function classifyInput/],
       ["a host global in a closure module", "src/lib/safety/lexicon.ts", (t: string) => `${t}\nconst hidden = globalThis;\n`, /lexicon\.ts: host global globalThis/],
     ])("%s", (_label, rel, mutate, problem) => {
