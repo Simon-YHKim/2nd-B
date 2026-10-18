@@ -9,6 +9,15 @@ import { summarizeLocations } from "../location";
 
 const LOCALES = ["ko", "en", "es", "pt", "id"] as const;
 const DWELL = /머문|dwell|estancia|permanência|singgah/iu;
+// The approved line per language (independent review 2026-10-19 low: pin the promise itself,
+// not only the absence of the old words).
+const APPROVED: Record<(typeof LOCALES)[number], string> = {
+  ko: "고른 장소 이름만 저장합니다. 좌표와 이동 경로는 저장하지 않습니다.",
+  en: "Only the place names you choose. We don't store coordinates or routes.",
+  es: "Solo los nombres de los lugares que elijas. No guardamos coordenadas ni recorridos.",
+  pt: "Só os nomes dos lugares que você escolher. Não guardamos coordenadas nem trajetos.",
+  id: "Hanya nama tempat yang kamu pilih. Koordinat dan rute tidak disimpan.",
+};
 
 function sourceCopy(locale: string, key: string): string {
   const file = path.resolve(__dirname, `../../../../locales/${locale}/import.json`);
@@ -33,9 +42,10 @@ describe("location import copy matches what the importer keeps", () => {
   });
 
   test.each(LOCALES.flatMap((locale) => [[locale, "takeout"], [locale, "live-location"]] as const))(
-    "%s sources.%s.what does not promise a dwell-time pattern",
+    "%s sources.%s.what says only chosen place names are kept",
     (locale, key) => {
       expect(sourceCopy(locale, key)).not.toMatch(DWELL);
+      expect(sourceCopy(locale, key)).toBe(APPROVED[locale]);
     },
   );
 });
