@@ -358,11 +358,11 @@ ${sanitizeUntrusted(structuredBlock)}
   // 이 값은 시스템 프롬프트 안에 들어가므로 한 호출부의 실수가 곧 주입이 된다.
   // 씻는 비용은 0 이고, 두 번 씻어도 결과는 같다.
   const safeName = promptSafeName(input.displayName);
-  const addressLine = safeName
+  const addressLine = (safeName
     ? input.locale === "ko"
-      ? `이 사람의 이름은 ${safeName} 입니다. 부를 때는 이름이나 '브로'를 쓰고 '님'은 붙이지 마세요.\n\n`
+      ? `이 사람의 이름은 ${safeName} 입니다. 사용자가 다른 호칭이나 존댓말을 원하지 않으면 이름이나 '브로'로 부르고 '님'은 붙이지 마세요. 사용자의 요청과 힘든 순간에 호칭을 빼는 규칙이 이 줄보다 먼저입니다.\n\n`
       : `This person's name is ${safeName}. Address them as ${safeName}.\n\n`
-    : "";
+    : "") + chatTurnToneLine(input);
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
   const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
@@ -482,4 +482,16 @@ function executionStage(execution: CapturedChatUsageExecution | null) {
     execution?.session.assertCurrent();
     return result;
   };
+}
+
+// 이번 턴에만 붙는 말투 보정(Q-261018-55 다 · 리뷰 #2632 r1). 항상 켜진 말투 줄(SYSTEM_PROMPT_HEADER)은
+// 이번 입력이 노랑(임상 어휘가 섞인 무거운 이야기)인지, 바로 앞 답에 이미 「브로」가 있었는지 모른다.
+// 그 둘은 여기서 정해 이번 답에만 알린다. 한국어 대화 답에만 해당한다(반말 · 「브로」는 한국어 말투다).
+function chatTurnToneLine(input: SendMessageInput): string {
+  if (input.locale !== "ko") return "";
+  const yellow = (["ko", "en"] as const).some((l) => classifyInput(input.message, l, { minor: input.minor }).zone === "yellow");
+  if (yellow) return "이번 답에는 농담과 '브로'를 쓰지 말고 차분하게 말하세요.\n\n";
+  const lastReply = [...(input.history ?? [])].reverse().find((turn) => turn.role === "assistant");
+  if (lastReply?.text.includes("브로")) return "바로 앞 답에 이미 '브로'를 썼습니다. 이번 답에는 '브로'를 쓰지 마세요.\n\n";
+  return "";
 }

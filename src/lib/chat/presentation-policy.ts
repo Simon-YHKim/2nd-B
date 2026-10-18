@@ -167,12 +167,12 @@ const NEGATED_SUCCESS = /(?:(?:성공|합격|완성).{0,12}(?:못|않|아니)|(?
 // topic. In particular, the supplied attentive portrait (B01) also smiles;
 // uncertain/protected replies use the visibly neutral A01 instead.
 const APOLOGY = /(?:^(?:(?:제가\s*)?오해해서\s*)?(?:미안(?:해요|합니다|해)|죄송(?:해요|합니다))(?:\s|,|$)|(?:제가|내가|말씀하신\s*뜻을|질문의\s*뜻을).{0,24}(?:잘못\s*(?:이해했|받아들였|알아들었)|오해했)|^(?:제가\s*)?너무\s*앞서갔|^(?:(?:i['’]m|i am)\s+)?sorry\b(?!\s+(?:to hear|for your|about your))|^i\s+(?:apologi[sz]e|misunderstood)\b|^(?:lo siento|desculp[ae]|maaf)\b)/iu;
-const EMPATHY = /(?:(?:힘드셨|힘들었|힘드시|속상하셨|속상했|외로우셨|외로웠|지치셨|지쳤)겠(?:어요|네요|습니다|다|네|어)|^(?:that|it)\s+sounds\s+(?:(?:really|very)\s+)?(?:hard|difficult|painful|exhausting)\b|^(?:(?:i['’]m|i am)\s+)?sorry\s+(?:to hear|for your loss|about your loss)\b)/iu;
+const EMPATHY = /(?:(?:힘드셨|힘들었|힘드시|속상하셨|속상했|외로우셨|외로웠|지치셨|지쳤)겠(?:어요|네요|습니다|다|네|어)(?![는고])|^(?:that|it)\s+sounds\s+(?:(?:really|very)\s+)?(?:hard|difficult|painful|exhausting)\b|^(?:(?:i['’]m|i am)\s+)?sorry\s+(?:to hear|for your loss|about your loss)\b)/iu;
 const CONGRATULATION = /(?:(?:^|[을를]\s*)축하(?:합니다|해요|해|드려요|드립니다)(?:\s|,|$)|^(?:congratulations|congrats|felicidades|parab[eé]ns)\b|^selamat\s+atas\b)/iu;
 const REST_FAREWELL = /(?:^(?:(?:오늘은|이제)\s*)?(?:푹\s*쉬(?:세요|어)|편히\s*쉬(?:세요|어)|잘\s*자(?:요)?(?=$|[\s,~])|좋은\s*밤\s*보내(?:세요)?)|^(?:rest well|sleep well|good night|buenas noches|boa noite|selamat tidur)\b)/iu;
 const GRATITUDE = /(?:(?:고마워(?:요)?|고맙습니다|감사합니다)(?:\s|,|$)|^(?:thanks|thank you|gracias|obrigad[oa]|terima kasih)\b)/iu;
 const REFLECTION = /(?:생각|돌아보|정리|계획|우선순위|비교해|방식|루틴|(?:나아|좋아|맞아)\s*보(?:입니다|여)|\b(?:reflect|reflection|consider|plan|planning|priorities|realized|realised|reflexionar|refletir|planejar|pensar|rencana|merenung|memikirkan)\b)/iu;
-const WARM_REPLY = /(?:도움이\s*(?:되었다니|됐다니)\s*다행|천만에(?:요)?|괜찮아(?:요)?|천천히\s*해도|응원(?:합니다|해)|\b(?:you(?:['’]re| are) welcome|take your time|one step at a time|de nada|sama-sama)\b)/iu;
+const WARM_REPLY = /(?:도움이\s*(?:되었다니|됐다니)\s*다행|천만에(?:요)?|괜찮아(?!요?\s*[?？])|천천히\s*해도|응원(?:합니다|해)(?!요?\s*[?？])|\b(?:you(?:['’]re| are) welcome|take your time|one step at a time|de nada|sama-sama)\b)/iu;
 const GREETING = /^(?:안녕(?:하세요|하십니까)?|こんにちは|hello\b|hi\b|hey\b|hola\b|ol[aá]\b|halo\b|hai\b)/iu;
 
 function expressionText(text: string): string {

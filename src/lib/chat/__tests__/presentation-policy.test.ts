@@ -306,6 +306,8 @@ describe("per-exchange HustleK expressions", () => {
     ["What might happen?", "If you succeed, you can celebrate later."],
     ["이 문장 뜻은?", "'미안해'는 사과할 때 쓰는 말이야."],
     ["이 문장 뜻은?", "'푹 쉬어'는 쉬라고 권하는 말이야."],
+    ["힘든 일 있었어?", "힘들었겠다는 뜻은 아니야. 그냥 물어본 거야."],
+    ["애가 아파", "아이가 잘 자라는 게 제일이지."],
     ["What does apology mean?", "You could say sorry to acknowledge a mistake."],
   ])("does not act out quoted, hypothetical, or merely mentioned emotion: %s", (prompt, answer) => {
     expect(expression(prompt, answer)).toBe("A01");
@@ -327,6 +329,9 @@ describe("per-exchange HustleK expressions", () => {
     ["그런 뜻 아니야", "미안해, 브로. 다시 볼게.", "B10"],
     ["안녕", "안녕, 브로. 오늘은 무슨 얘기 할까?", "A02"],
     ["응원해 줘", "응원해. 하나씩 하면 돼.", "A02"],
+    ["오늘 어땠어?", "괜찮아?", "B05"],
+    ["오늘 어땠어?", "괜찮아요?", "B05"],
+    ["응원해 줘", "응원해?", "B05"],
   ])("follows the informal Korean reply's own tone: %s -> %s", (prompt, answer, expected) => {
     expect(expression(prompt, answer)).toBe(expected);
   });

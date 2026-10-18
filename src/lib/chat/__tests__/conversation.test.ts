@@ -904,3 +904,49 @@ describe("captured local-RED result contract", () => {
     expect(captured.map(call => call.fn)).toEqual(["classifyChatTextForCrisis"]);
   });
 });
+
+
+// Review #2632 r1 (Q-261018-55 다): the always-on register line cannot know whether this turn is yellow or
+// whether the previous reply already said bro, so the engine tells the model for this reply only.
+describe("Korean chat tone for this turn", () => {
+  const HEAVY = "이번 답에는 농담과 '브로'를 쓰지 말고 차분하게 말하세요.";
+  const NO_REPEAT = "바로 앞 답에 이미 '브로'를 썼습니다. 이번 답에는 '브로'를 쓰지 마세요.";
+  const systemOf = async (over: Record<string, unknown> = {}) => {
+    reset();
+    fixtures.used = 0;
+    captured.length = 0;
+    await sendChatMessage({ userId: "u1", message: "오늘 할 일 정리해 줘", locale: "ko", tier: "soma", ...over } as Parameters<typeof sendChatMessage>[0]);
+    return (captured.find((c) => c.fn === "callLlm")?.args[0] as { system: string }).system;
+  };
+
+  test("a yellow turn turns jokes and bro off for this reply, after the name line and before the data", async () => {
+    const message = "요즘 우울증인 것 같아. 오늘 할 일 좀 정리해 줘.";
+    expect(classifyInput(message, "ko").zone).toBe("yellow");
+    const system = await systemOf({ message, displayName: "민지" });
+    expect(system.split(HEAVY).length).toBe(2);
+    expect(system.indexOf(HEAVY)).toBeGreaterThan(system.indexOf("이 사람의 이름은"));
+    expect(system.indexOf(HEAVY)).toBeLessThan(system.indexOf("<UNTRUSTED"));
+    expect(system).not.toContain(NO_REPEAT);
+  });
+
+  test("bro in the reply right before is not repeated this turn", async () => {
+    const system = await systemOf({ history: [{ role: "user", text: "안녕" }, { role: "assistant", text: "안녕, 브로. 뭐 도와줄까?" }] });
+    expect(system.split(NO_REPEAT).length).toBe(2);
+    expect(system).not.toContain(HEAVY);
+  });
+
+  test("an ordinary turn, an older bro and English add neither line", async () => {
+    expect(await systemOf()).not.toMatch(/이번 답에는/);
+    const older = await systemOf({ history: [{ role: "assistant", text: "안녕, 브로." }, { role: "user", text: "고마워" }, { role: "assistant", text: "천만에." }] });
+    expect(older).not.toContain(NO_REPEAT);
+    const en = await systemOf({ locale: "en", message: "I think I have depression. Help me plan today.", history: [{ role: "assistant", text: "Sure, bro." }] });
+    expect(en).not.toMatch(/이번 답에는|브로/);
+  });
+
+  test("the name line yields to the user's own wishes and to the hard-moment rule", async () => {
+    const system = await systemOf({ displayName: "민지" });
+    expect(system).toContain("이 사람의 이름은 민지 입니다. 사용자가 다른 호칭이나 존댓말을 원하지 않으면 이름이나 '브로'로 부르고 '님'은 붙이지 마세요.");
+    expect(system).toContain("사용자의 요청과 힘든 순간에 호칭을 빼는 규칙이 이 줄보다 먼저입니다.");
+    expect(system).not.toContain("민지님");
+  });
+});
