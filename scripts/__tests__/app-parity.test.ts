@@ -31,6 +31,8 @@ const {
   pickDispatchedRun,
   resolveQaBuild,
   assertPublishable,
+  makePublishCheck,
+  publishQaSequence,
   validateQaReleaseNotes,
   planFollow,
   parsePreflight,
@@ -528,7 +530,9 @@ describe("app-parity: 지정한 QA 빌드의 출처", () => {
     expect(() => validateQaReleaseNotes({ digest, abi: null }, digest, "push", true, run.id)).toThrow(/설정 digest/);
     expect(() => validateQaReleaseNotes({ digest: "e".repeat(64), abi: "arm64-v8a" }, digest, "workflow_dispatch", true, run.id)).toThrow(/지금 설정과 다르다/);
     expect(() => validateQaReleaseNotes({ digest, abi: "x86_64" }, digest, "workflow_dispatch", true, run.id)).toThrow(/x86_64/);
-    expect(() => validateQaReleaseNotes({ digest: null, abi: null }, digest, "push", false, run.id)).not.toThrow();
+    // 리뷰 #2621 r2: push 빌드도 주석이 없으면 지금 설정과 맞춰 볼 수 없어 올리지 않는다.
+    expect(() => validateQaReleaseNotes({ digest: null, abi: null }, digest, "push", false, run.id)).toThrow(/설정 digest/);
+    expect(() => validateQaReleaseNotes({ digest, abi: "arm64-v8a" }, digest, "push", false, run.id)).not.toThrow();
   });
 
   it.each([
@@ -984,6 +988,9 @@ describe("app-parity: 고른 빌드의 APK 산출물 상태", () => {
     expect(() => qaArtifactState(list({ ...artifact, expired: "false" }), runId, sha)).toThrow(/보존 상태/);
     expect(() => qaArtifactState(list({ ...artifact, workflow_run: { id: 1, head_sha: sha } }), runId, sha)).toThrow(/다르다/);
     expect(() => qaArtifactState(list({ ...artifact, workflow_run: { id: runId, head_sha: "d".repeat(40) } }), runId, sha)).toThrow(/다르다/);
+    // 이름이 다른 산출물도 출처가 고른 런 · 커밋이 아니면 「없음」으로 넘기지 않는다.
+    expect(() => qaArtifactState(list({ ...artifact, name: "other", workflow_run: { id: 1, head_sha: sha } }), runId, sha)).toThrow(/다르다/);
+    expect(() => qaArtifactState(list({ ...artifact, name: "other", workflow_run: undefined }), runId, sha)).toThrow(/다르다/);
   });
 });
 
@@ -996,11 +1003,13 @@ describe("app-parity: qa-release 가 올릴 빌드를 정하는 길", () => {
       ? { total_count: 0, artifacts: [] }
       : { total_count: 1, artifacts: [{ name: `2ndb-android-${sha}`, expired, workflow_run: { id: run.databaseId, head_sha: sha } }] };
 
-  async function choose(status: object, phoneRunId: number | null, expired: boolean | null) {
+  const annotated = () => ({ digest: "d".repeat(64), abi: "arm64-v8a" });
+  async function choose(status: object, phoneRunId: number | null, expired: boolean | null, notes = annotated) {
     const dispatch = jest.fn(async (_reason: string) => fresh);
     const readArtifacts = jest.fn(artifactsFor(expired));
-    const chosen = await resolveQaBuild({ status, phoneRunId, readArtifacts, dispatch });
-    return { chosen, dispatch, readArtifacts };
+    const readNotes = jest.fn(notes);
+    const chosen = await resolveQaBuild({ status, phoneRunId, readNotes, readArtifacts, dispatch });
+    return { chosen, dispatch, readArtifacts, readNotes };
   }
 
   it("살아 있는 산출물이면 새로 빌드하지 않는다", async () => {
@@ -1025,6 +1034,16 @@ describe("app-parity: qa-release 가 올릴 빌드를 정하는 길", () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  it("설정 digest · ABI 주석이 없는 옛 빌드는 산출물을 보지 않고 한 번 새로 빌드한다", async () => {
+    for (const notes of [() => ({ digest: null, abi: null }), () => ({ digest: "d".repeat(64), abi: null }), () => null]) {
+      const { chosen, dispatch, readArtifacts } = await choose({ state: "success", run }, null, false, notes as never);
+      expect(chosen).toBe(fresh);
+      expect(readArtifacts).not.toHaveBeenCalled();
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      expect(dispatch.mock.calls[0][0]).toMatch(/주석이 없다/);
+    }
+  });
+
   it("같은 설정의 성공 빌드가 없으면 산출물을 보지 않고 한 번 새로 빌드한다", async () => {
     const { chosen, dispatch, readArtifacts } = await choose({ state: "failed", run }, null, false);
     expect(chosen).toBe(fresh);
@@ -1034,7 +1053,7 @@ describe("app-parity: qa-release 가 올릴 빌드를 정하는 길", () => {
 
   it("산출물 목록을 판단할 수 없으면 새로 빌드하지 않고 멈춘다", async () => {
     const dispatch = jest.fn(async () => fresh);
-    await expect(resolveQaBuild({ status: { state: "success", run }, phoneRunId: null, readArtifacts: () => ({ artifacts: [] }), dispatch }))
+    await expect(resolveQaBuild({ status: { state: "success", run }, phoneRunId: null, readNotes: annotated, readArtifacts: () => ({ artifacts: [] }), dispatch }))
       .rejects.toThrow(/QA 산출물 목록/);
     expect(dispatch).not.toHaveBeenCalled();
   });
@@ -1061,16 +1080,75 @@ describe("app-parity: qa-release 가 올릴 빌드를 정하는 길", () => {
     expect(() => assertPublishable({ ...ok, freshDigest: "f".repeat(64) })).toThrow(/지금 설정과 다르다/);
   });
 
-  it("qa-release 는 이 판단들을 거치고, 내려받기 전과 게시 전에 한 번씩 다시 본다", () => {
-    const script = read("scripts/app-parity.cjs");
-    const body = script.slice(script.indexOf("async function cmdQaRelease"), script.indexOf("module.exports"));
-    expect(body).toMatch(/resolveQaBuild\(\{/);
-    expect(body).toMatch(/pickDispatchedRun\(before, listBuildRuns\(\), knownId\)/);
-    const download = body.indexOf('"run", "download"');
-    const create = body.indexOf('"release", "create"');
-    const checks = [...body.matchAll(/requireCurrentAppAndConfig\(\);/g)].map((m) => m.index ?? -1);
-    expect(checks.filter((at) => at < download)).toHaveLength(1);
-    expect(checks.filter((at) => at > download && at < create)).toHaveLength(1);
+  describe("게시 직전 확인은 부를 때마다 main 과 Variables 를 새로 읽는다", () => {
+    const digestFor = (vars: Record<string, string>) => ({ workflow: workflow, vars });
+    const notesFor = (vars: Record<string, string>) => ({ digest: envDigest(appEnv(workflow, vars)), abi: "arm64-v8a" });
+    const varsA = { EXPO_PUBLIC_CHAT_VENDOR: "openai" };
+    const varsB = { EXPO_PUBLIC_CHAT_VENDOR: "claude" };
+    const base = (over: object = {}) => ({
+      runInfo: fresh, notes: notesFor(varsA), sameApp: (a: string, b: string) => a === b, explicitRun: false,
+      latestMain: () => sha, repoVars: () => varsA, workflowAt: () => workflow, ...over,
+    });
+
+    it("main · Variables 를 매번 다시 읽어, 사이에 바뀌면 두 번째 확인에서 멈춘다", () => {
+      expect(digestFor(varsA).vars).not.toEqual(varsB);
+      expect(notesFor(varsA).digest).not.toBe(notesFor(varsB).digest);
+      const mains = [sha, "e".repeat(40)];
+      const movedMain = makePublishCheck(base({ latestMain: jest.fn(() => mains.shift()) }));
+      expect(() => movedMain()).not.toThrow();
+      expect(() => movedMain()).toThrow(/앱 코드가 다르다/);
+      const vars = [varsA, varsB];
+      const movedVars = makePublishCheck(base({ repoVars: jest.fn(() => vars.shift()) }));
+      expect(() => movedVars()).not.toThrow();
+      expect(() => movedVars()).toThrow(/지금 설정과 다르다/);
+    });
+
+    it("main 을 받지 못하거나 Variables 를 읽지 못하면 멈춘다", () => {
+      expect(() => makePublishCheck(base({ latestMain: () => { throw new Error("fetch failed"); } }))()).toThrow(/fetch failed/);
+      expect(() => makePublishCheck(base({ repoVars: () => { throw new Error("variables failed"); } }))()).toThrow(/variables failed/);
+    });
+
+    it("확인이 실패하면 그 뒤 단계(내려받기 · 게시)는 돌지 않는다", async () => {
+      const steps: string[] = [];
+      const run = (fails: number[]) => {
+        let n = 0;
+        return publishQaSequence({
+          check: () => { n++; steps.push(`check${n}`); if (fails.includes(n)) throw new Error(`check ${n} failed`); },
+          alreadyOnPhone: () => false,
+          prepare: async () => { steps.push("prepare"); return { ok: true }; },
+          publish: async () => { steps.push("publish"); },
+        });
+      };
+      await expect(run([1])).rejects.toThrow(/check 1 failed/);
+      expect(steps).toEqual(["check1"]);
+      steps.length = 0;
+      await expect(run([2])).rejects.toThrow(/check 2 failed/);
+      expect(steps).toEqual(["check1", "prepare", "check2"]);
+      steps.length = 0;
+      await expect(run([])).resolves.toBe("published");
+      expect(steps).toEqual(["check1", "prepare", "check2", "publish"]);
+    });
+
+    it("이미 폰 APK 인 빌드는 확인 뒤 내려받지도 게시하지도 않는다", async () => {
+      const prepare = jest.fn(async () => ({}));
+      const publish = jest.fn(async () => {});
+      await expect(publishQaSequence({ check: () => {}, alreadyOnPhone: () => true, prepare, publish })).resolves.toBe("already");
+      expect(prepare).not.toHaveBeenCalled();
+      expect(publish).not.toHaveBeenCalled();
+    });
+
+    it("qa-release 는 이 확인 · 순서를 쓰고, 게시 명령은 순서의 publish 단계 안에만 있다", () => {
+      const script = read("scripts/app-parity.cjs");
+      const body = script.slice(script.indexOf("async function cmdQaRelease"), script.indexOf("module.exports"));
+      expect(body).toMatch(/resolveQaBuild\(\{/);
+      expect(body).toMatch(/makePublishCheck\(\{[\s\S]*latestMain: \(\) => \{\s*fetchMain\(root\);[\s\S]*repoVars: loadRepoVars,/);
+      expect(body).toMatch(/await publishQaSequence\(\{/);
+      expect(body.match(/"release", "create"/g)).toHaveLength(1);
+      const publishStep = body.slice(body.indexOf("publish: async (p) =>"), body.indexOf("if (outcome === \"already\")"));
+      expect(publishStep).toContain('"release", "create"');
+      expect(body.match(/"run", "download"/g)).toHaveLength(1);
+      expect(body.slice(body.indexOf("async function prepareQaRelease")).includes('"run", "download"')).toBe(true);
+    });
   });
 });
 
