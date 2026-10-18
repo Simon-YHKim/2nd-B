@@ -44,74 +44,17 @@ export function prepareContentWipeRequest(request: CapturedContentWipeRequest) {
 }
 
 /**
- * Review #2627 r2: read Preference-Applied as RFC 7240 preferences - token [BWS "=" BWS (token /
- * quoted-string)] followed by ";" parameters, comma-separated with optional whitespace and empty
- * elements. Names and values compare case-insensitively. Review #2627 r3: ";" parameters keep their
- * name and value too, so the caller can hold them to the same count/tx rule. Anything that does not
- * parse returns null so the caller treats the response as unconfirmed.
+ * Review #2627 r4 -> Q-261018-60 가: a visible Preference-Applied commits only in a known shape. This request sends
+ * `count=exact,return=minimal|representation`, so the known shape is exactly one `count=exact` and at most one
+ * `return=minimal` or `return=representation`, comma separated with optional spaces or tabs around the commas.
+ * No ";" parameters, no other preference, no empty element, no quoting or spacing inside an element. Names and
+ * values compare case-insensitively. Anything else - including spellings that merely agree - stays unknown.
  */
-type AppliedPair = Readonly<{ name: string; value: string | null }>;
-function parsePreferenceApplied(header: string): readonly Readonly<AppliedPair & { params: readonly AppliedPair[] }>[] | null {
-  const TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+/;
-  const preferences: (AppliedPair & { params: readonly AppliedPair[] })[] = [];
-  let at = 0;
-  const skipSpace = () => { while (header[at] === " " || header[at] === "\t") at++; };
-  const token = (): string | null => {
-    const match = TOKEN.exec(header.slice(at));
-    if (!match) return null;
-    at += match[0].length;
-    return match[0];
-  };
-  const word = (): string | null => {
-    if (header[at] !== "\"") return token();
-    at++;
-    let value = "";
-    while (at < header.length) {
-      const char = header[at];
-      if (char === "\"") { at++; return value; }
-      if (char === "\\") {
-        if (at + 1 >= header.length) return null;
-        value += header[at + 1];
-        at += 2;
-        continue;
-      }
-      if (char === "\r" || char === "\n") return null;
-      value += char;
-      at++;
-    }
-    return null;
-  };
-  const nameAndValue = (): { name: string; value: string | null } | null => {
-    const name = token();
-    if (name === null) return null;
-    skipSpace();
-    if (header[at] !== "=") return { name: name.toLowerCase(), value: null };
-    at++;
-    skipSpace();
-    const value = word();
-    return value === null ? null : { name: name.toLowerCase(), value: value.toLowerCase() };
-  };
-  for (;;) {
-    skipSpace();
-    if (at >= header.length) return preferences;
-    if (header[at] === ",") { at++; continue; }
-    const preference = nameAndValue();
-    if (preference === null) return null;
-    const params: AppliedPair[] = [];
-    skipSpace();
-    while (header[at] === ";") {
-      at++;
-      skipSpace();
-      if (at < header.length && header[at] !== ";" && header[at] !== ",") {
-        const param = nameAndValue();
-        if (param === null) return null;
-        params.push(param);
-        skipSpace();
-      }
-    }
-    if (at < header.length && header[at] !== ",") return null;
-    preferences.push({ ...preference, params });
-  }
+function knownAppliedPreferences(header: string): boolean {
+  const elements = header.split(",").map(element => element.replace(/^[ \t]+|[ \t]+$/g, "").toLowerCase());
+  const counts = elements.filter(element => element === "count=exact").length;
+  const returns = elements.filter(element => element === "return=minimal" || element === "return=representation").length;
+  return counts === 1 && returns <= 1 && counts + returns === elements.length;
 }
 
 function exactDeleteCount(response: Response): number | null {
@@ -123,14 +66,8 @@ function exactDeleteCount(response: Response): number | null {
   if (!match) return null;
   const applied = response.headers.get("preference-applied");
   if (applied !== null) {
-    // Visible: a top-level count must be present, and every count or tx in any position (preference
-    // or ";" parameter) must be exact or commit. A bare name has no value and stays unknown.
-    const preferences = parsePreferenceApplied(applied);
-    if (preferences === null) return null;
-    const pairs = preferences.flatMap(preference => [preference, ...preference.params]);
-    if (!preferences.some(preference => preference.name === "count")
-      || pairs.some(pair => pair.name === "count" && pair.value !== "exact")
-      || pairs.some(pair => pair.name === "tx" && pair.value !== "commit")) return null;
+    // Visible: only the known shape commits (knownAppliedPreferences); everything else stays unknown.
+    if (!knownAppliedPreferences(applied)) return null;
   }
   const count = Number(match[1]);
   return Number.isSafeInteger(count) ? count : null;

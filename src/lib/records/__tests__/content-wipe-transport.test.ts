@@ -90,32 +90,33 @@ test.each([
   fetchMock.mockResolvedValue(success(0, undefined, { "preference-applied": preference }));
   await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "unknown", count: null });
 });
+// Review #2627 r4 -> Q-261018-60 가: a visible Preference-Applied commits only in a known shape - exactly one
+// count=exact, optionally one return=minimal or return=representation (what this request sends), comma separated
+// with optional whitespace, no ";" parameters. Every other spelling, including ones that merely agree, is unknown.
 test.each([
-  "count=exact", "Count=Exact", "return=minimal, count=exact", 'count="exact"', "count = exact , tx = commit",
-  'count=exact;foo="a,b", tx="commit"', "count=exact,,tx=commit", " count=exact ; q=1 ", "COUNT=EXACT, TX=COMMIT",
-])("visible preference %s with the exact */N commits", async preference => {
+  "count=exact", "Count=Exact", "return=minimal, count=exact", "count=exact,return=representation", " count=exact ",
+  "count=exact , return=minimal", "RETURN=MINIMAL,COUNT=EXACT",
+])("visible preference %s in a known shape with the exact */N commits", async preference => {
   fetchMock.mockResolvedValue(success(7, undefined, { "preference-applied": preference }));
   await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "committed", count: 7 });
 });
-// Review #2627 r3: ";" parameters keep their name and value, and a count or tx in any position follows the same
-// rule (count = exact, tx = commit, a bare name stays unknown). A count that appears only as a parameter is not
-// the applied count preference, so it stays unknown too.
+// The three empty-parameter cases from round 4, the parameter cases from round 3, and the spellings rounds 2-3 had
+// accepted: all unknown now.
 test.each([
+  "count=exact;", "count=exact;;", "count=exact; ,",
   "count=exact;tx=rollback", "count=exact;count=planned", "return=minimal;tx=rollback,count=exact",
   "COUNT=EXACT;TX=ROLLBACK", "count=exact;Count=Planned", "Return=Minimal;Tx=RollBack, count=exact",
   "count=exact;tx", "count=exact;count", 'count=exact;tx="rollback"', "count=exact; tx = rollback",
   "count=exact;foo=1;tx=rollback", "return=minimal;count=exact",
-])("visible preference %s with a protected parameter stays unknown", async preference => {
+  'count="exact"', "count = exact , tx = commit", 'count=exact;foo="a,b", tx="commit"', "count=exact,,tx=commit",
+  " count=exact ; q=1 ", "COUNT=EXACT, TX=COMMIT", 'count=exact;foo="a,b"', "count=exact;tx=commit", "count=exact;count=exact",
+  "COUNT=EXACT;TX=COMMIT, return=minimal;q=1", "count=exact, tx=commit", "count=exact, count=exact",
+  "count=exact, return=minimal, return=representation", "count=exact, return=headers-only", "count=exact,", ",count=exact",
+  "return=minimal", "count=exact\treturn=minimal",
+])("visible preference %s outside the known shape stays unknown", async preference => {
   fetchMock.mockResolvedValue(success(0, undefined, { "preference-applied": preference }));
   await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "unknown", count: null });
 });
-test.each([
-  'count=exact;foo="a,b"', "count=exact;tx=commit", "count=exact;count=exact", "COUNT=EXACT;TX=COMMIT, return=minimal;q=1",
-])("visible preference %s with agreeing parameters commits", async preference => {
-  fetchMock.mockResolvedValue(success(7, undefined, { "preference-applied": preference }));
-  await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "committed", count: 7 });
-});
-
 test.each([
   { status: 401, code: "42501" }, { status: 403, code: "42501" }, { status: 409, code: "23503" },
   { status: 400, code: "23514" }, { status: 400, code: "P0001" },

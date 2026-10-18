@@ -58,14 +58,12 @@ planned/estimated 결과나 `0-0/N`을 이 증거로 대체하지 않는다. Pre
 정확한 status와 nonnegative safe integer `*/N`은 필수다. 헤더가 보이면 기존의 빈값/추정 count/
 rollback 모순 검사를 그대로 적용한다. unknown을 0으로 바꾸거나 재발행하지 않는다.
 
-보이는 Preference-Applied는 RFC 7240 문법으로 읽는다(#2627 2회차 지적). `=` 앞뒤 공백, 따옴표 값,
-`;` 매개변수, 대소문자를 정규화한 뒤 판정한다. count는 하나 이상 있어야 하고 전부 exact여야 하며,
-tx가 있으면 전부 commit이어야 한다. 문법에 맞지 않는 헤더는 unknown이다. 그래서 `tx = rollback`,
-`tx="rollback"`, `tx=rollback;foo=bar`, `count = planned` 같은 표기 변형도 성공으로 올라가지 않는다.
-`;` 매개변수도 이름과 값을 그대로 남겨 같은 규칙으로 본다(#2627 3회차 지적 · Q-261018-59 가). 맨 앞 자리에
-count가 하나 이상 있어야 하고, 어느 자리에 있든 count는 exact, tx는 commit이어야 하며, 값 없는 이름은
-unknown이다. 그래서 `count=exact;tx=rollback`, `count=exact;count=planned`,
-`return=minimal;tx=rollback,count=exact` 도 unknown이고, `count=exact;foo="a,b"` 는 그대로 성공이다.
+보이는 Preference-Applied는 **아는 모양일 때만** 성공으로 받는다(#2627 4회차 지적 · Q-261018-60 가). 이 요청은
+`count=exact,return=minimal|representation` 을 보내므로 아는 모양은 `count=exact` 정확히 하나와 `return=minimal` 또는
+`return=representation` 많아야 하나를 쉼표로 이은 것뿐이다(쉼표 앞뒤 공백 · 탭과 대소문자만 허용). `;` 매개변수, 다른
+preference, 빈 자리, 따옴표나 `=` 앞뒤 공백 같은 표기 변형은 뜻이 같아 보여도 전부 unknown이다. 2 · 3회차에 RFC 7240
+파서로 넓혔더니 회차마다 새 표기 구멍(`tx = rollback` · `;` 뒤 매개변수 · 빈 `;`)이 나와 좁혔다. 헤더가 숨은 정상 경로
+(브라우저 CORS)는 그대로다.
 
 지원 전제는 신뢰하는 PostgREST endpoint가 이 요청/응답 계약을 그대로 지키며,
 **db-tx-end=commit 또는 commit-allow-override**를 쓰는 것이다. 이 요청은 tx=rollback을 보내지
