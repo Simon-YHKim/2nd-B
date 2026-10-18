@@ -32,7 +32,7 @@ redirect:error로 redirect 재전송도 허용하지 않는다. 발행 후 abort
 | 관측 | 결과 |
 |---|---|
 | 고정 count=exact 요청과 맞는 200(records)/204(나머지), 정확 `*/N` | nonnegative safe integer DB count 보존 |
-| count 누락/비정상, 읽을 수 있는 Preference-Applied의 빈값/추정 count/tx=rollback, 다른 성공 status | unknown, count=null |
+| count 누락/비정상, 읽을 수 있는 Preference-Applied의 빈값/파싱 불가/exact 아닌 count/commit 아닌 tx, 다른 성공 status | unknown, count=null |
 | records 정상 JSON이나 rows 수/row shape가 불완전 | DB committed/count 보존, recordRows.state=unconfirmed |
 | records 완전한 원 rows | private structured 목록만 다음 strict manifest 검증에 전달 |
 | 응답 유실/abort/network/비정상 JSON/불명확한 오류 | unknown, count 0으로 바꾸지 않음 |
@@ -57,6 +57,11 @@ pg_catalog.count로 센다. Response는 그 rsQueryTotal을 DELETE의 `*/N`으�
 planned/estimated 결과나 `0-0/N`을 이 증거로 대체하지 않는다. Preference-Applied가 안 보일 때도
 정확한 status와 nonnegative safe integer `*/N`은 필수다. 헤더가 보이면 기존의 빈값/추정 count/
 rollback 모순 검사를 그대로 적용한다. unknown을 0으로 바꾸거나 재발행하지 않는다.
+
+보이는 Preference-Applied는 RFC 7240 문법으로 읽는다(#2627 2회차 지적). `=` 앞뒤 공백, 따옴표 값,
+`;` 매개변수, 대소문자를 정규화한 뒤 판정한다. count는 하나 이상 있어야 하고 전부 exact여야 하며,
+tx가 있으면 전부 commit이어야 한다. 문법에 맞지 않는 헤더는 unknown이다. 그래서 `tx = rollback`,
+`tx="rollback"`, `tx=rollback;foo=bar`, `count = planned` 같은 표기 변형도 성공으로 올라가지 않는다.
 
 지원 전제는 신뢰하는 PostgREST endpoint가 이 요청/응답 계약을 그대로 지키며,
 **db-tx-end=commit 또는 commit-allow-override**를 쓰는 것이다. 이 요청은 tx=rollback을 보내지

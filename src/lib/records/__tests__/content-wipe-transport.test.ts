@@ -78,6 +78,25 @@ test.each(["", "count=planned", "count=estimated", "count=exact,count=estimated"
     await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "unknown", count: null });
   },
 );
+// Review #2627 r2: a visible Preference-Applied is read as RFC 7240 preferences (optional whitespace around
+// "=", quoted values, ";" parameters, case-insensitive names). Rollback, any count other than exact, any
+// tx other than commit, and anything that does not parse stay unknown.
+test.each([
+  "count=exact, tx = rollback", 'count=exact, tx="rollback"', "count=exact, tx=rollback;foo=bar", "count=exact, TX=ROLLBACK",
+  "count=exact, count = planned", 'count="estimated"', "count=exact;x=1, count=planned;y=2", "count", "count=exact, tx",
+  "count=exact, tx=maybe", 'count=exact, tx="rollback', "count=exact, =rollback", "count=exact, tx=roll back",
+  "count=exact, tx==rollback", "count=exact, t{x}=commit", 'count=exact, tx="roll\\back"', "count=exact; ;, tx=rollback",
+])("visible preference %s stays unknown", async preference => {
+  fetchMock.mockResolvedValue(success(0, undefined, { "preference-applied": preference }));
+  await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "unknown", count: null });
+});
+test.each([
+  "count=exact", "Count=Exact", "return=minimal, count=exact", 'count="exact"', "count = exact , tx = commit",
+  'count=exact;foo="a,b", tx="commit"', "count=exact,,tx=commit", " count=exact ; q=1 ", "COUNT=EXACT, TX=COMMIT",
+])("visible preference %s with the exact */N commits", async preference => {
+  fetchMock.mockResolvedValue(success(7, undefined, { "preference-applied": preference }));
+  await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "committed", count: 7 });
+});
 
 test.each([
   { status: 401, code: "42501" }, { status: 403, code: "42501" }, { status: 409, code: "23503" },

@@ -43,6 +43,72 @@ export function prepareContentWipeRequest(request: CapturedContentWipeRequest) {
   };
 }
 
+/**
+ * Review #2627 r2: read Preference-Applied as RFC 7240 preferences - token [BWS "=" BWS (token /
+ * quoted-string)] followed by ";" parameters, comma-separated with optional whitespace and empty
+ * elements. Names and values compare case-insensitively; parameters are ignored. Anything that does
+ * not parse returns null so the caller treats the response as unconfirmed.
+ */
+function parsePreferenceApplied(header: string): readonly Readonly<{ name: string; value: string | null }>[] | null {
+  const TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+/;
+  const preferences: { name: string; value: string | null }[] = [];
+  let at = 0;
+  const skipSpace = () => { while (header[at] === " " || header[at] === "\t") at++; };
+  const token = (): string | null => {
+    const match = TOKEN.exec(header.slice(at));
+    if (!match) return null;
+    at += match[0].length;
+    return match[0];
+  };
+  const word = (): string | null => {
+    if (header[at] !== "\"") return token();
+    at++;
+    let value = "";
+    while (at < header.length) {
+      const char = header[at];
+      if (char === "\"") { at++; return value; }
+      if (char === "\\") {
+        if (at + 1 >= header.length) return null;
+        value += header[at + 1];
+        at += 2;
+        continue;
+      }
+      if (char === "\r" || char === "\n") return null;
+      value += char;
+      at++;
+    }
+    return null;
+  };
+  const nameAndValue = (): { name: string; value: string | null } | null => {
+    const name = token();
+    if (name === null) return null;
+    skipSpace();
+    if (header[at] !== "=") return { name: name.toLowerCase(), value: null };
+    at++;
+    skipSpace();
+    const value = word();
+    return value === null ? null : { name: name.toLowerCase(), value: value.toLowerCase() };
+  };
+  for (;;) {
+    skipSpace();
+    if (at >= header.length) return preferences;
+    if (header[at] === ",") { at++; continue; }
+    const preference = nameAndValue();
+    if (preference === null) return null;
+    skipSpace();
+    while (header[at] === ";") {
+      at++;
+      skipSpace();
+      if (at < header.length && header[at] !== ";" && header[at] !== ",") {
+        if (nameAndValue() === null) return null;
+        skipSpace();
+      }
+    }
+    if (at < header.length && header[at] !== ",") return null;
+    preferences.push(preference);
+  }
+}
+
 function exactDeleteCount(response: Response): number | null {
   // Our fixed count=exact DELETE gets the mutation CTE's actual count as */N.
   // PostgREST CORS exposes Content-Range, but not Preference-Applied. When the
@@ -52,9 +118,12 @@ function exactDeleteCount(response: Response): number | null {
   if (!match) return null;
   const applied = response.headers.get("preference-applied");
   if (applied !== null) {
-    const preferences = applied.split(",").map(value => value.trim().toLowerCase());
-    if (!preferences.includes("count=exact") || preferences.includes("tx=rollback")
-      || preferences.some(value => value.startsWith("count=") && value !== "count=exact")) return null;
+    // Visible: every count must be exact (and at least one present), every tx must be commit.
+    const preferences = parsePreferenceApplied(applied);
+    if (preferences === null) return null;
+    const counts = preferences.filter(preference => preference.name === "count");
+    if (counts.length === 0 || counts.some(preference => preference.value !== "exact")
+      || preferences.some(preference => preference.name === "tx" && preference.value !== "commit")) return null;
   }
   const count = Number(match[1]);
   return Number.isSafeInteger(count) ? count : null;
