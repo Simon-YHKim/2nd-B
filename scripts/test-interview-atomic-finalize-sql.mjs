@@ -77,37 +77,71 @@ assert.equal(last(await run(`SELECT to_regclass('public.interview_content_author
   AND position('pg_try_advisory_xact_lock_shared' IN pg_get_functiondef('public.interview_session_erasure()'::regprocedure))>0
   AND NOT has_function_privilege('authenticated','public.erase_my_data(text)','EXECUTE');`)), 't', 'fresh schema plus installed owner-lock floor');
 pass('fresh complete numbered schema and actual erasure-lock preflight');
-// Review #2618 r1: the down must restore the S1/legacy catalog exactly, not only drop the new
-// objects. A fingerprint of both schemas S1/S2b touch (definitions incl. SECURITY DEFINER,
-// volatility and SET search_path, owners, normalized ACLs, view bodies, columns, constraints,
-// indexes, triggers incl. those on other schemas' tables that call these functions, RLS flags,
-// policies) is taken with S1 alone and compared with the state after S2b up + down.
-// Comments (pg_description) and default privileges are not part of it.
+// Review #2618 r1 · r2: the down must restore the S1/legacy catalog, not only drop the new
+// objects. A fingerprint of both schemas S1/S2b touch is taken with S1 alone and compared with
+// the state after S2b up + down. It covers definitions incl. SECURITY DEFINER, volatility and
+// SET search_path, owners, ACLs with default (NULL), empty and explicit entries kept apart,
+// comments on every object kind below, view bodies, visible columns in order with defaults,
+// collation, storage and compression, table persistence, replica identity, partitioning and
+// inheritance, non-view rules,
+// constraints, indexes, triggers incl. those on other schemas' tables that call these functions,
+// RLS flags, policies, sequences (parameters, last value, ownership), enum/domain/composite
+// types and default privileges. Physical dropped-column slots are not compared: PostgreSQL
+// keeps them after ADD + DROP, so the claim is a logical restore and the runner prints how
+// many such slots the up + down left. probeFingerprint() below proves each property moves it.
+const aclText = (expr) => `CASE WHEN ${expr} IS NULL THEN '(default)' WHEN cardinality(${expr}) = 0 THEN '(empty)'
+  ELSE (SELECT string_agg(acl_item::text, ',' ORDER BY acl_item::text) FROM unnest(${expr}) acl_item) END`;
+const FINGERPRINT_SCHEMAS = `('public','interview_authority_private')`;
 const FINGERPRINT_SQL = `
-WITH s AS (SELECT oid, nspname FROM pg_namespace WHERE nspname IN ('public','interview_authority_private'))
+WITH s AS (SELECT oid, nspname FROM pg_namespace WHERE nspname IN ${FINGERPRINT_SCHEMAS})
 SELECT kind||'|'||name||'|'||md5(detail) FROM (
- SELECT 'schema' AS kind, s.nspname AS name,
-   pg_get_userbyid(n.nspowner)||'|'||coalesce((SELECT string_agg(a::text, ',' ORDER BY a::text) FROM unnest(n.nspacl) a),'') AS detail
+ SELECT 'schema' AS kind, s.nspname AS name, pg_get_userbyid(n.nspowner)||'|'||${aclText('n.nspacl')} AS detail
    FROM s JOIN pg_namespace n ON n.oid=s.oid
  UNION ALL
  SELECT 'function', s.nspname||'.'||p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',
-   pg_get_functiondef(p.oid)||'|'||pg_get_userbyid(p.proowner)||'|'||
-   coalesce((SELECT string_agg(a::text, ',' ORDER BY a::text) FROM unnest(p.proacl) a),'')
+   pg_get_functiondef(p.oid)||'|'||pg_get_userbyid(p.proowner)||'|'||${aclText('p.proacl')}
    FROM pg_proc p JOIN s ON s.oid=p.pronamespace WHERE p.prokind IN ('f','p')
  UNION ALL
  SELECT CASE c.relkind WHEN 'v' THEN 'view' WHEN 'm' THEN 'matview' ELSE 'table' END, s.nspname||'.'||c.relname,
    c.relkind::text||'|'||coalesce(CASE WHEN c.relkind IN ('v','m') THEN pg_get_viewdef(c.oid) END,'')||'|'||
-   pg_get_userbyid(c.relowner)||'|'||coalesce((SELECT string_agg(a::text, ',' ORDER BY a::text) FROM unnest(c.relacl) a),'')||'|'||
+   pg_get_userbyid(c.relowner)||'|'||${aclText('c.relacl')}||'|'||
    c.relrowsecurity::text||'|'||c.relforcerowsecurity::text||'|'||coalesce(array_to_string(c.reloptions, ','),'')||'|'||
+   c.relpersistence::text||'|'||c.relreplident::text||'|'||c.relispartition::text||'|'||coalesce(pg_get_expr(c.relpartbound, c.oid),'')||'|'||
+   coalesce(pg_get_partkeydef(c.oid),'')||'|'||
+   coalesce((SELECT string_agg(i.inhparent::regclass::text, ',' ORDER BY i.inhseqno) FROM pg_inherits i WHERE i.inhrelid=c.oid),'')||'|'||
    coalesce((SELECT string_agg(a.attname||':'||format_type(a.atttypid,a.atttypmod)||':'||a.attnotnull::text||':'||
        a.attidentity::text||':'||a.attgenerated::text||':'||coalesce(pg_get_expr(d.adbin,d.adrelid),'')||':'||
-       coalesce((SELECT string_agg(x::text, ',' ORDER BY x::text) FROM unnest(a.attacl) x),''), ';' ORDER BY a.attnum)
+       CASE WHEN a.attcollation = 0 THEN '' ELSE a.attcollation::regcollation::text END||':'||a.attstorage::text||':'||
+       a.attcompression::text||':'||
+       ${aclText('a.attacl')}, ';' ORDER BY a.attnum)
      FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum
      WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped),'')
    FROM pg_class c JOIN s ON s.oid=c.relnamespace WHERE c.relkind IN ('r','p','v','m','f','S')
  UNION ALL
+ SELECT 'sequence', s.nspname||'.'||c.relname,
+   format_type(sq.seqtypid, NULL)||'|'||sq.seqstart||'|'||sq.seqincrement||'|'||sq.seqmax||'|'||sq.seqmin||'|'||
+   sq.seqcache||'|'||sq.seqcycle::text||'|'||coalesce(pg_sequence_last_value(c.oid::regclass)::text,'(unread)')||'|'||
+   coalesce((SELECT string_agg(pg_describe_object(d.refclassid, d.refobjid, d.refobjsubid)||':'||d.deptype::text, ','
+       ORDER BY d.refobjid, d.refobjsubid)
+     FROM pg_depend d WHERE d.classid='pg_class'::regclass AND d.objid=c.oid AND d.deptype IN ('a','i')),'')
+   FROM pg_class c JOIN s ON s.oid=c.relnamespace JOIN pg_sequence sq ON sq.seqrelid=c.oid
+ UNION ALL
+ SELECT 'type', s.nspname||'.'||t.typname, t.typtype::text||'|'||pg_get_userbyid(t.typowner)||'|'||${aclText('t.typacl')}||'|'||
+   CASE t.typtype
+     WHEN 'e' THEN coalesce((SELECT string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder) FROM pg_enum e WHERE e.enumtypid=t.oid),'')
+     WHEN 'd' THEN format_type(t.typbasetype, t.typtypmod)||':'||t.typnotnull::text||':'||coalesce(t.typdefault,'')||':'||
+       coalesce((SELECT string_agg(k.conname||'='||pg_get_constraintdef(k.oid), ';' ORDER BY k.conname) FROM pg_constraint k WHERE k.contypid=t.oid),'')
+     WHEN 'c' THEN coalesce((SELECT string_agg(a.attname||':'||format_type(a.atttypid,a.atttypmod), ';' ORDER BY a.attnum)
+       FROM pg_attribute a WHERE a.attrelid=t.typrelid AND a.attnum>0 AND NOT a.attisdropped),'')
+     ELSE '' END
+   FROM pg_type t JOIN s ON s.oid=t.typnamespace
+   WHERE t.typtype IN ('e','d','c','r','m') AND (t.typtype <> 'c' OR (SELECT k.relkind FROM pg_class k WHERE k.oid=t.typrelid)='c')
+ UNION ALL
  SELECT 'constraint', s.nspname||'.'||cl.relname||'.'||co.conname, pg_get_constraintdef(co.oid)||'|'||co.convalidated::text
    FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid JOIN s ON s.oid=cl.relnamespace
+ UNION ALL
+ SELECT 'rule', s.nspname||'.'||cl.relname||'.'||r.rulename, pg_get_ruledef(r.oid)||'|'||r.ev_enabled::text
+   FROM pg_rewrite r JOIN pg_class cl ON cl.oid=r.ev_class JOIN s ON s.oid=cl.relnamespace WHERE r.rulename <> '_RETURN'
  UNION ALL
  SELECT 'index', s.nspname||'.'||i.relname, pg_get_indexdef(i.oid)
    FROM pg_index x JOIN pg_class i ON i.oid=x.indexrelid JOIN s ON s.oid=i.relnamespace
@@ -119,15 +153,84 @@ SELECT kind||'|'||name||'|'||md5(detail) FROM (
  UNION ALL
  SELECT 'policy', schemaname||'.'||tablename||'.'||policyname,
    permissive||'|'||array_to_string(roles, ',')||'|'||cmd||'|'||coalesce(qual,'')||'|'||coalesce(with_check,'')
-   FROM pg_policies WHERE schemaname IN ('public','interview_authority_private')
+   FROM pg_policies WHERE schemaname IN ${FINGERPRINT_SCHEMAS}
+ UNION ALL
+ SELECT 'defacl', pg_get_userbyid(da.defaclrole)||'.'||coalesce(n.nspname,'(all schemas)')||'.'||da.defaclobjtype::text,
+   ${aclText('da.defaclacl')}
+   FROM pg_default_acl da LEFT JOIN pg_namespace n ON n.oid=da.defaclnamespace
+   WHERE da.defaclnamespace=0 OR da.defaclnamespace IN (SELECT oid FROM s)
+ UNION ALL
+ SELECT 'comment', pg_describe_object(dc.classoid, dc.objoid, dc.objsubid), dc.description
+   FROM pg_description dc
+   WHERE (dc.classoid='pg_namespace'::regclass AND dc.objoid IN (SELECT oid FROM s))
+      OR (dc.classoid='pg_class'::regclass AND EXISTS (SELECT 1 FROM pg_class k JOIN s ON s.oid=k.relnamespace WHERE k.oid=dc.objoid))
+      OR (dc.classoid='pg_proc'::regclass AND EXISTS (SELECT 1 FROM pg_proc k JOIN s ON s.oid=k.pronamespace WHERE k.oid=dc.objoid))
+      OR (dc.classoid='pg_constraint'::regclass AND EXISTS (SELECT 1 FROM pg_constraint k JOIN s ON s.oid=k.connamespace WHERE k.oid=dc.objoid))
+      OR (dc.classoid='pg_type'::regclass AND EXISTS (SELECT 1 FROM pg_type k JOIN s ON s.oid=k.typnamespace WHERE k.oid=dc.objoid))
+      OR (dc.classoid='pg_trigger'::regclass AND EXISTS (SELECT 1 FROM pg_trigger k JOIN pg_class r ON r.oid=k.tgrelid JOIN pg_proc fp ON fp.oid=k.tgfoid
+        WHERE k.oid=dc.objoid AND (r.relnamespace IN (SELECT oid FROM s) OR fp.pronamespace IN (SELECT oid FROM s))))
+      OR (dc.classoid='pg_rewrite'::regclass AND EXISTS (SELECT 1 FROM pg_rewrite k JOIN pg_class r ON r.oid=k.ev_class JOIN s ON s.oid=r.relnamespace WHERE k.oid=dc.objoid))
+      OR (dc.classoid='pg_policy'::regclass AND EXISTS (SELECT 1 FROM pg_policy k JOIN pg_class r ON r.oid=k.polrelid JOIN s ON s.oid=r.relnamespace WHERE k.oid=dc.objoid))
 ) f ORDER BY 1;`;
-const fingerprint = async () => (await run(FINGERPRINT_SQL)).split(/\r?\n/)
-  .filter((line) => /^(schema|function|table|view|matview|constraint|index|trigger|policy)\|/.test(line));
+const FINGERPRINT_KINDS = /^(schema|function|table|view|matview|sequence|type|constraint|rule|index|trigger|policy|defacl|comment)\|/;
+const FINGERPRINT_SPLIT = `${FINGERPRINT_SQL}\nSELECT 'FINGERPRINT_SPLIT';\n`;
+// Every FINGERPRINT_SPLIT in one session yields one snapshot, in order.
+const snapshots = async (sql) => (await run(sql)).split(/\r?\n/).reduce((all, line) => {
+  if (line === 'FINGERPRINT_SPLIT') all.push([]); else if (FINGERPRINT_KINDS.test(line)) all.at(-1).push(line);
+  return all;
+}, [[]]).slice(0, -1);
+const fingerprint = async () => (await snapshots(FINGERPRINT_SPLIT))[0];
 const catalogDiff = (expected, actual) => {
   const want = new Set(expected); const got = new Set(actual);
   const name = (line) => line.split('|').slice(0, 2).join('|');
   return { missing: expected.filter((line) => !got.has(line)).map(name), extra: actual.filter((line) => !want.has(line)).map(name) };
 };
+const movedNames = (before, after) => { const d = catalogDiff(before, after); return [...new Set([...d.missing, ...d.extra])]; };
+const droppedSlotsSql = `SELECT count(*) FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid
+  JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ${FINGERPRINT_SCHEMAS} AND a.attisdropped;`;
+// Review #2618 r2: each property the fingerprint claims must move it. Everything below runs in
+// transactions that roll back, on the S1 catalog, before S2b is applied.
+async function probeFingerprint(s1Catalog) {
+  const [base, commented] = await snapshots(`BEGIN;
+${FINGERPRINT_SPLIT}DO $probe$ DECLARE c record; col record; fn regprocedure; BEGIN
+  SELECT co.conname, co.conrelid::regclass AS rel INTO STRICT c FROM pg_constraint co JOIN pg_namespace n ON n.oid=co.connamespace
+    WHERE n.nspname='public' AND co.conrelid<>0 ORDER BY co.conrelid::regclass::text, co.conname LIMIT 1;
+  EXECUTE format('COMMENT ON CONSTRAINT %I ON %s IS %L', c.conname, c.rel, 'fingerprint probe');
+  SELECT a.attname, a.attrelid::regclass AS rel INTO STRICT col FROM pg_attribute a JOIN pg_class k ON k.oid=a.attrelid
+    JOIN pg_namespace n ON n.oid=k.relnamespace WHERE n.nspname='public' AND k.relkind='r' AND a.attnum>0 AND NOT a.attisdropped
+    ORDER BY a.attrelid::regclass::text, a.attnum LIMIT 1;
+  EXECUTE format('COMMENT ON COLUMN %s.%I IS %L', col.rel, col.attname, 'fingerprint probe');
+  SELECT p.oid::regprocedure INTO STRICT fn FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='public' AND p.proname='commit_interview_session' ORDER BY p.oid LIMIT 1;
+  EXECUTE format('COMMENT ON FUNCTION %s IS %L', fn, 'fingerprint probe');
+END $probe$;
+${FINGERPRINT_SPLIT}ROLLBACK;`);
+  assert.deepEqual(base, s1Catalog, 'the fingerprint must be repeatable');
+  const commentLines = movedNames(base, commented);
+  assert.equal(commentLines.length, 3, `comments on a constraint, a column and a function must each move it: ${commentLines}`);
+  assert(commentLines.every((name) => name.startsWith('comment|')), commentLines.join(', '));
+  const [created, revoked, altered] = await snapshots(`BEGIN;
+CREATE FUNCTION public.fingerprint_probe() RETURNS int LANGUAGE sql AS 'SELECT 1';
+CREATE SEQUENCE public.fingerprint_probe_seq;
+CREATE TYPE public.fingerprint_probe_enum AS ENUM ('a');
+${FINGERPRINT_SPLIT}REVOKE ALL ON FUNCTION public.fingerprint_probe() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.fingerprint_probe() FROM CURRENT_USER;
+SELECT nextval('public.fingerprint_probe_seq');
+ALTER TYPE public.fingerprint_probe_enum ADD VALUE 'b';
+ALTER DEFAULT PRIVILEGES IN SCHEMA interview_authority_private GRANT USAGE ON TYPES TO service_role;
+${FINGERPRINT_SPLIT}ALTER SEQUENCE public.fingerprint_probe_seq INCREMENT BY 7;
+${FINGERPRINT_SPLIT}ROLLBACK;`);
+  const probeName = (prefix) => (line) => line.startsWith(prefix);
+  assert(created.some(probeName('function|public.fingerprint_probe()|')), 'a new function must appear');
+  assert.deepEqual(movedNames(created, revoked).sort(), [
+    'defacl|postgres.interview_authority_private.T',
+    'function|public.fingerprint_probe()',
+    'sequence|public.fingerprint_probe_seq',
+    'type|public.fingerprint_probe_enum',
+  ], 'default vs empty ACL, a sequence read, an enum value and a default privilege must each move it');
+  assert.deepEqual(movedNames(revoked, altered), ['sequence|public.fingerprint_probe_seq'], 'a sequence parameter must move it');
+  pass('catalog fingerprint moves for comments, default vs empty ACL, sequence state and parameters, enum values and default privileges');
+}
 // The four original 0225 controls, unchanged. Run in the S1 state after the S2b down and
 // again with S2b applied, so a wrongly restored legacy function is exercised before the
 // next up overwrites it.
@@ -160,6 +263,9 @@ async function original0225Controls(state) {
 await run(`BEGIN;${s1}COMMIT;`);
 const s1Catalog = await fingerprint();
 assert(s1Catalog.length > 100, `catalog fingerprint read only ${s1Catalog.length} objects`);
+await probeFingerprint(s1Catalog);
+assert.deepEqual(await fingerprint(), s1Catalog, 'the fingerprint probes must leave the catalog as it was');
+const droppedSlotsBefore = Number(last(await run(droppedSlotsSql)));
 await run(`BEGIN;${up}COMMIT;`);
 const s2bDiff = catalogDiff(s1Catalog, await fingerprint());
 assert(s2bDiff.missing.length + s2bDiff.extra.length > 0, 'the fingerprint must see S2b change the catalog');
@@ -167,8 +273,12 @@ assert(s2bDiff.missing.some((name) => name.startsWith('function|public.commit_in
   'the fingerprint must see S2b replace a legacy function body');
 await run(down);
 const downDiff = catalogDiff(s1Catalog, await fingerprint());
-assert.deepEqual(downDiff, { missing: [], extra: [] }, 'S2b down must restore the exact S1/legacy catalog');
-pass(`S2b down restores the exact S1/legacy catalog (${s1Catalog.length} objects: definitions, owners, ACLs, views, columns, constraints, indexes, triggers, policies)`);
+assert.deepEqual(downDiff, { missing: [], extra: [] }, 'S2b down must restore the S1/legacy catalog');
+const droppedSlotsAfter = Number(last(await run(droppedSlotsSql)));
+pass(`S2b down restores the S1/legacy catalog logically (${s1Catalog.length} objects: definitions, owners, `
+  + 'ACLs with default vs empty kept apart, comments, sequences incl. last value, types, default privileges, views, '
+  + 'visible columns, constraints, indexes, triggers, policies; physical dropped-column slots are not compared: '
+  + `${droppedSlotsBefore} before, ${droppedSlotsAfter} after)`);
 await run(read(`${draft}tests/interview-atomic-finalize-rollback.sql`));
 await original0225Controls('S1 state after the S2b down');
 await run(`BEGIN;${up}COMMIT;BEGIN;${up}COMMIT;`);
