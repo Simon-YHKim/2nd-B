@@ -1255,7 +1255,7 @@ function SecondBChatBody() {
                   router.push("/privacy");
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={t("chatSaveNoticeOpen")}
+                accessibilityLabel={t("chatSaveNoticeOpenLabel")}
                 style={ds.saveNoticeBtn}
               >
                 <Text style={ds.saveNoticeBtnText} numberOfLines={1}>{t("chatSaveNoticeOpen")}</Text>

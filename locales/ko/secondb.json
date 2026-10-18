@@ -91,6 +91,7 @@
   "nPieces": "참고한 별가루 {{n}}",
   "chatSaveNotice": "이 대화는 남지 않습니다",
   "chatSaveNoticeOpen": "설정",
+  "chatSaveNoticeOpenLabel": "설정 열기",
   "chatSaveNoticeDismiss": "닫기",
   "planSuggestion": {
     "routineButton": "루틴으로 만들기",

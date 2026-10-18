@@ -130,6 +130,9 @@ describe("chat screen tidy", () => {
   test("Korean save notice uses the short copy", () => {
     expect(copy("ko").chatSaveNotice).toBe("이 대화는 남지 않습니다");
     expect(copy("ko").chatSaveNoticeOpen).toBe("설정");
+    // The visible button is short; the spoken name keeps saying what it opens (review #2623 r1).
+    expect(copy("ko").chatSaveNoticeOpenLabel).toBe("설정 열기");
+    for (const locale of locales) expect(copy(locale).chatSaveNoticeOpenLabel).toEqual(expect.any(String));
   });
 
   test("save notice wraps to at most two lines with the original settings and dismissal actions", () => {
@@ -141,7 +144,7 @@ describe("chat screen tidy", () => {
     expect(texts.map(el => el.children)).toEqual([["chatSaveNotice"], ["chatSaveNoticeOpen"]]);
     expect(texts[0].props).toMatchObject({ numberOfLines: 2, ellipsizeMode: "tail" });
     const buttons = descendants(notice, "Pressable");
-    expect(buttons.map(el => el.props.accessibilityLabel)).toEqual(["chatSaveNoticeOpen", "chatSaveNoticeDismiss"]);
+    expect(buttons.map(el => el.props.accessibilityLabel)).toEqual(["chatSaveNoticeOpenLabel", "chatSaveNoticeDismiss"]);
     (buttons[0].props.onPress as () => void)();
     expect(dismissSaveNotice).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith("/privacy");
