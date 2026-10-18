@@ -60,8 +60,8 @@ const styles = StyleSheet.create({
   // 그래서 `--u` 가 4px -> 2px 로 가면서 `s4` 가 16 -> 8 이 되자, 자식이 한 줄인
   // 카드가 통째로 44 아래로 내려갔다. 실측:
   //
-  //   /ops '오늘의 추천'  (DeepSpaceDesignScreens.tsx:2617)  52 -> 36
-  //   /ops '다음 추천'    (DeepSpaceDesignScreens.tsx:2627)  48 -> 32
+  //   /ops '오늘의 추천'  (DeepSpaceDesignScreens.tsx:2629)  52 -> 36
+  //   /ops '다음 추천'    (DeepSpaceDesignScreens.tsx:2639)  48 -> 32
   //   DatePicker 연도 칸  (date-picker/DatePicker.tsx:772)   48 -> 36
   //
   // 이 셋은 화면 코드가 아니라 **여기**가 원인이다 - 호출부가 `style` 을 주면

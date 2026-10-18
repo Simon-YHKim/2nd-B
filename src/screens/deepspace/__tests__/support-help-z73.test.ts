@@ -74,6 +74,35 @@ function accessesIn(fn: ts.FunctionDeclaration): string[] {
 
 const SUPPORT = ["src", "screens", "deepspace", "DeepSpaceDesignScreens.tsx"];
 
+/** `const <binding> = <callee>()` written directly in the function body, as binding names. */
+function directBindings(fn: ts.FunctionDeclaration, callee: string): string[] {
+  const out: string[] = [];
+  for (const statement of fn.body?.statements ?? []) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      const init = declaration.initializer;
+      if (init && ts.isCallExpression(init) && ts.isIdentifier(init.expression) && init.expression.text === callee) {
+        out.push(declaration.name.getText());
+      }
+    }
+  }
+  return out;
+}
+
+/** The module a top-level named import comes from. */
+function importedFrom(parts: string[], name: string): string[] {
+  const file = ts.createSourceFile(parts.join("/"), read(...parts), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const out: string[] = [];
+  for (const statement of file.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (bindings && ts.isNamedImports(bindings) && bindings.elements.some((e) => e.name.text === name && !e.propertyName)) {
+      out.push(statement.moduleSpecifier.text);
+    }
+  }
+  return out;
+}
+
 describe("the help screen's notices are one row to the notices screen", () => {
   test("exactly one row opens /notices, named with the notices screen's own title key", () => {
     const support = topFunction(SUPPORT, "DeepSpaceSupportDesignScreen");
@@ -82,6 +111,14 @@ describe("the help screen's notices are one row to the notices screen", () => {
     // The notices screen titles itself with the same key, so the row and the screen cannot drift.
     expect(read("src", "app", "notices.tsx")).toContain('title={t("phone.apps.notifications")}');
     expect(read("src", "app", "notices.tsx")).toContain('const { t, i18n } = useTranslation("ops");');
+  });
+
+  // Inside the dashboard phone the row must open the phone's own notices screen, so the `router`
+  // the row calls is the phone-aware one bound in the screen body, not expo-router's global router.
+  test("the row's router is the phone-aware one, bound directly in the screen body", () => {
+    const support = topFunction(SUPPORT, "DeepSpaceSupportDesignScreen");
+    expect(directBindings(support, "useAppRouter")).toEqual(["router"]);
+    expect(importedFrom(SUPPORT, "useAppRouter")).toEqual(["@/lib/nav/phone-embed"]);
   });
 
   test("the screen no longer draws the canon's fixed notice lines", () => {
@@ -108,12 +145,38 @@ describe("the help screen asks about voice transcription, not call recording", (
     }
   });
 
-  const CALL: Record<(typeof LOCALES)[number], RegExp> = { en: /call/i, ko: /통화/, es: /llamada/i, pt: /chamada/i, id: /panggilan/i };
-  test.each(LOCALES)("%s: the FAQ says transcription and never call recording", (locale) => {
+  // Word for word: the question, and the answer's facts (encrypted connection, the AI server does the
+  // transcription, the original audio is deleted from the device right after, only the text and
+  // signals are kept, encrypted). The Korean answer is the one the screen always had.
+  const VOICE_FAQ: Record<(typeof LOCALES)[number], { q: string; a: string }> = {
+    ko: {
+      q: "음성 받아쓰기는 안전한가요?",
+      a: "받아쓰기는 암호화된 연결로 AI 서버를 거치고, 원본 음성은 받아쓰기 직후 기기에서 삭제합니다. 텍스트와 신호만 암호화해 남깁니다.",
+    },
+    en: {
+      q: "Is voice transcription safe?",
+      a: "Voice is transcribed on the AI server over an encrypted connection, and the original audio is deleted from your device right after. Only the text and signals are kept, encrypted.",
+    },
+    es: {
+      q: "¿Es segura la transcripción de voz?",
+      a: "La voz se transcribe en el servidor de IA mediante una conexión cifrada, y el audio original se borra de tu dispositivo justo después. Solo se guardan, cifrados, el texto y las señales.",
+    },
+    pt: {
+      q: "A transcrição de voz é segura?",
+      a: "A voz é transcrita no servidor de IA por uma conexão criptografada, e o áudio original é apagado do seu dispositivo logo depois. Só o texto e os sinais ficam guardados, criptografados.",
+    },
+    id: {
+      q: "Apakah transkripsi suara aman?",
+      a: "Suara ditranskripsikan di server AI melalui koneksi terenkripsi, lalu audio aslinya langsung dihapus dari perangkatmu. Hanya teks dan sinyalnya yang disimpan dalam bentuk terenkripsi.",
+    },
+  };
+  const CALL: Record<(typeof LOCALES)[number], RegExp> = { en: /\bcalls?\b/i, ko: /통화/, es: /llamada/i, pt: /chamada/i, id: /panggilan/i };
+  test.each(LOCALES)("%s: the FAQ asks about transcription, word for word, and never about call recording", (locale) => {
     const faqs = (JSON.parse(read("locales", locale, "deepspace.json")) as {
       support: { faqs: Record<string, { q: string; a: string }> };
     }).support.faqs;
     expect(Object.keys(faqs)).toEqual(["brightness", "plan", "voice"]);
+    expect(faqs.voice).toEqual(VOICE_FAQ[locale]);
     for (const { q, a } of Object.values(faqs)) expect({ locale, call: CALL[locale].test(`${q} ${a}`) }).toEqual({ locale, call: false });
   });
 });
