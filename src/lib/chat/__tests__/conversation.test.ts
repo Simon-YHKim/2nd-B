@@ -929,6 +929,22 @@ describe("Korean chat tone for this turn", () => {
     expect(system).not.toContain(NO_REPEAT);
   });
 
+  // Review #2632 r5 (Q-261018-67 가): a Korean-UI turn written in English is classified by the English lexicon
+  // too, and when it is yellow while the reply right before said bro, the yellow line wins: it already removes
+  // every address, so the narrower no-repeat line must not replace it.
+  test("an English yellow turn in the Korean chat, right after a bro reply, gets only the yellow line", async () => {
+    const message = "I think I need therapy. Help me plan today.";
+    expect(classifyInput(message, "en").zone).toBe("yellow");
+    expect(classifyInput(message, "ko").zone).toBe("green");
+    const system = await systemOf({
+      message, displayName: "민지",
+      history: [{ role: "user", text: "안녕" }, { role: "assistant", text: "안녕, 브로. 뭐 도와줄까?" }],
+    });
+    expect(system.split(HEAVY).length).toBe(2);
+    expect(system).not.toContain(NO_REPEAT);
+    expect(system.indexOf(HEAVY)).toBeGreaterThan(system.indexOf("이 사람의 이름은"));
+  });
+
   test("bro in the reply right before is not repeated this turn", async () => {
     const system = await systemOf({ history: [{ role: "user", text: "안녕" }, { role: "assistant", text: "안녕, 브로. 뭐 도와줄까?" }] });
     expect(system.split(NO_REPEAT).length).toBe(2);
