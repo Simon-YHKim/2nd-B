@@ -16,6 +16,12 @@ export function createDeviceLock(options: {
   authenticate: () => Promise<DeviceAuthResult>;
   cancel: () => void;
   scope?: () => number | null;
+  /**
+   * Asked only after the OS reports not_enrolled. Only an explicit false (the phone
+   * has no screen lock) opens the gate (Q-261018-47); true, null or a throw keeps
+   * the not_enrolled cover.
+   */
+  screenLock?: () => Promise<boolean | null>;
 }) {
   let appActive = options.active;
   let authorized = false;
@@ -73,6 +79,12 @@ export function createDeviceLock(options: {
       let result: DeviceAuthResult;
       try { result = await options.authenticate(); }
       catch { result = { success: false, error: "failed" }; }
+      if (!result.success && result.error === "not_enrolled" && options.screenLock && attempt === generation) {
+        let hasScreenLock: boolean | null = null;
+        try { hasScreenLock = await options.screenLock(); }
+        catch { hasScreenLock = null; }
+        if (hasScreenLock === false) result = { success: true };
+      }
       pending = false;
       if (disposed) return;
       if (attempt === generation && scope === options.scope?.()) {

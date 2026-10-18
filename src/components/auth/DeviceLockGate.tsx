@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AppState, BackHandler, Keyboard, Platform, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useRootNavigationState } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GateCover } from "@/components/ui/GateCover";
 import { Text } from "@/components/ui/Text";
@@ -8,8 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { semantic, spacing } from "@/lib/theme/tokens";
 import { createDeviceLock } from "@/lib/auth/device-lock";
 import { DeviceLockCoveredContext, crisisLockPrioritySnapshot, subscribeCrisisLockPriority } from "@/lib/auth/device-lock-context";
-import { authenticateDevice, cancelDeviceAuthentication } from "@/lib/auth/native-device-auth";
-import { accountTransitionSnapshot, accountTransitionPendingFromSnapshot, subscribeAccountTransition } from "@/lib/auth/account-epoch";
+import { authenticateDevice, cancelDeviceAuthentication, deviceHasScreenLock } from "@/lib/auth/native-device-auth";
+import { accountTransitionSnapshot, accountTransitionPendingFromSnapshot, currentAccountOwner, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { getCrisisNotice, subscribeCrisisNotice } from "@/lib/safety/crisis-notice";
 
 export function DeviceLockGate({ children }: { children: ReactNode }) {
@@ -24,7 +25,11 @@ function NativeDeviceLockGate({ children }: { children: ReactNode }) {
   const [lock] = useState(() => createDeviceLock({
     now: () => Date.now(), active: AppState.currentState === "active",
     authenticate: () => authenticateDevice(labels.current), cancel: cancelDeviceAuthentication,
+    screenLock: deviceHasScreenLock,
     scope: () => {
+      // Review #2619 r2: an effect or button callback created before a sign-out can
+      // still run after it. No published owner means nothing to unlock: no prompt.
+      if (currentAccountOwner() === null) return null;
       const snapshot = accountTransitionSnapshot();
       return accountTransitionPendingFromSnapshot(snapshot) ? null : snapshot;
     },
@@ -35,7 +40,33 @@ function NativeDeviceLockGate({ children }: { children: ReactNode }) {
   const priority = useSyncExternalStore(subscribeCrisisLockPriority, crisisLockPrioritySnapshot, () => false);
   const observedScope = useRef(scope);
   const held = accountTransitionPendingFromSnapshot(scope) || observedScope.current !== scope;
-  const covered = state.covered || held;
+  // Q-261018-47: the OS is asked only for a signed-in session. Every owner change
+  // (sign-in, sign-out, switch) moves the transition snapshot above, so this is
+  // re-read on the same render.
+  const signedIn = currentAccountOwner() !== null;
+  // Review #2619 r1 · r2: after a sign-out (including one from another device) the
+  // previous owner's scenes stay mounted until navigation removes them. Keep them
+  // covered, with no prompt, while the root navigator's focused scene is not the
+  // sign-in group. Segments are not proof (account-epoch shouldReleaseAccountTransition):
+  // the old stack can outlive the path change. Sign-in focused on top lifts the cover
+  // even if a screen's <Redirect> left the home underneath, so nobody is trapped; the
+  // previous owner is forgotten only once sign-in is the sole root scene, so going back
+  // to a retained scene before that covers it again. A run that was never signed in
+  // has nothing to hide, so a signed-out cold start stays open.
+  const rootState = useRootNavigationState() as
+    | { index?: number; routes?: readonly { name?: string }[] }
+    | undefined;
+  const rootRoutes = rootState?.routes ?? [];
+  const focusedIndex = typeof rootState?.index === "number" ? rootState.index : rootRoutes.length - 1;
+  const signInShown = rootRoutes[focusedIndex]?.name === "(auth)";
+  const onlySignInLeft = rootRoutes.length === 1 && rootRoutes[0]?.name === "(auth)";
+  const hadOwner = useRef(false);
+  const retainedAfterSignOut = !signedIn && hadOwner.current && !signInShown;
+  const covered = held || retainedAfterSignOut || (signedIn && state.covered);
+  useLayoutEffect(() => {
+    if (signedIn) hadOwner.current = true;
+    else if (onlySignInLeft) hadOwner.current = false;
+  }, [signedIn, onlySignInLeft]);
 
   useLayoutEffect(() => {
     observedScope.current = scope;
@@ -59,8 +90,8 @@ function NativeDeviceLockGate({ children }: { children: ReactNode }) {
     if ((notice || priority) && state.pending) lock.reset();
   }, [notice, priority, state.pending, lock]);
   useEffect(() => {
-    if (!held && !notice && !priority && state.needsAuthentication && !state.pending && !state.error) void lock.unlock();
-  }, [held, notice, priority, state.needsAuthentication, state.pending, state.error, state.covered, lock]);
+    if (signedIn && !held && !notice && !priority && state.needsAuthentication && !state.pending && !state.error) void lock.unlock();
+  }, [signedIn, held, notice, priority, state.needsAuthentication, state.pending, state.error, state.covered, lock]);
 
   const message = state.error === "not_enrolled" ? "deviceLock.setup" :
     state.error === "unavailable" ? "deviceLock.unavailable" :
@@ -72,7 +103,7 @@ function NativeDeviceLockGate({ children }: { children: ReactNode }) {
           accessibilityViewIsModal testID="device-lock-cover">
           <Text variant="heading">{t(message)}</Text>
           <Button label={t(state.pending ? "deviceLock.checking" : "deviceLock.unlock")}
-            disabled={state.pending || held || Boolean(notice) || priority} onPress={() => { void lock.unlock(); }} />
+            disabled={!signedIn || state.pending || held || Boolean(notice) || priority} onPress={() => { void lock.unlock(); }} />
         </View>
       ) : null}>
         {children}

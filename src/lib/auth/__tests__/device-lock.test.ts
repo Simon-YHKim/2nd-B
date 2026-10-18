@@ -81,6 +81,71 @@ test("background attempts and an unmounted session never authenticate or accept 
   expect(f.lock.getSnapshot().covered).toBe(true);
 });
 
+// Q-261018-47 (Simon 10-18 12:00 · 가): ask only when the phone has a screen lock; a phone without
+// one opens. The screen-lock answer is consulted only after the OS itself reports not_enrolled.
+function noLockFixture(screenLock: () => Promise<boolean | null>) {
+  let now = 100_000;
+  let complete: (result: DeviceAuthResult) => void = () => {};
+  const authenticate = jest.fn(() => new Promise<DeviceAuthResult>(resolve => { complete = resolve; }));
+  const check = jest.fn(screenLock);
+  const lock = createDeviceLock({ now: () => now, active: true, authenticate, cancel: jest.fn(), screenLock: check });
+  const settle = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
+  return { lock, authenticate, check, settle, at(value: number) { now = value; },
+    complete(value: DeviceAuthResult) { complete(value); } };
+}
+
+test("a phone the OS reports without a screen lock opens after the check confirms it", async () => {
+  const f = noLockFixture(async () => false);
+  const request = f.lock.unlock(); f.complete({ success: false, error: "not_enrolled" }); await request;
+  expect(f.check).toHaveBeenCalledTimes(1);
+  expect(f.lock.getSnapshot()).toMatchObject({ covered: false, pending: false, error: null });
+});
+
+const lockedAnswers: ReadonlyArray<[string, () => Promise<boolean | null>]> = [
+  ["a screen lock", async () => true],
+  ["no answer", async () => null],
+  ["a failing check", async () => { throw Error("native"); }],
+];
+test.each(lockedAnswers)(
+  "not_enrolled with %s stays covered", async (_label, answer) => {
+    const f = noLockFixture(answer);
+    const request = f.lock.unlock(); f.complete({ success: false, error: "not_enrolled" }); await request;
+    expect(f.lock.getSnapshot()).toMatchObject({ covered: true, error: "not_enrolled" });
+  });
+
+test.each(["cancelled", "unavailable", "failed"] as const)("%s never consults the screen-lock check and stays covered", async error => {
+  const f = noLockFixture(async () => false);
+  const request = f.lock.unlock(); f.complete({ success: false, error }); await request;
+  expect(f.check).not.toHaveBeenCalled();
+  expect(f.lock.getSnapshot()).toMatchObject({ covered: true, error });
+});
+
+test("an OS success never consults the screen-lock check", async () => {
+  const f = noLockFixture(async () => false);
+  const request = f.lock.unlock(); f.complete({ success: true }); await request;
+  expect(f.check).not.toHaveBeenCalled();
+  expect(f.lock.getSnapshot().covered).toBe(false);
+});
+
+test("an account change during the screen-lock check cannot open the new scope", async () => {
+  let answer!: (value: boolean | null) => void;
+  const f = noLockFixture(() => new Promise<boolean | null>(resolve => { answer = resolve; }));
+  const request = f.lock.unlock(); f.complete({ success: false, error: "not_enrolled" });
+  await f.settle(); expect(f.check).toHaveBeenCalledTimes(1);
+  f.lock.reset(); answer(false); await request;
+  expect(f.lock.getSnapshot()).toMatchObject({ covered: true, pending: false });
+});
+
+test("after the one-minute grace a phone without a screen lock is checked again", async () => {
+  const f = noLockFixture(async () => false);
+  let request = f.lock.unlock(); f.complete({ success: false, error: "not_enrolled" }); await request;
+  f.at(110_000); f.lock.setActive(false); f.at(170_000); f.lock.setActive(true);
+  expect(f.lock.getSnapshot().covered).toBe(true);
+  request = f.lock.unlock(); f.complete({ success: false, error: "not_enrolled" }); await request;
+  expect(f.check).toHaveBeenCalledTimes(2);
+  expect(f.lock.getSnapshot().covered).toBe(false);
+});
+
 test("a rejected native request stays covered and clears the pending hold", async () => {
   const lock = createDeviceLock({ now: () => 1, active: true, cancel() {}, authenticate: async () => { throw Error("missing module"); } });
   await lock.unlock();
