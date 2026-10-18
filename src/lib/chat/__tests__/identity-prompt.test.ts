@@ -67,7 +67,7 @@ describe("세컨비 정체성 프롬프트", () => {
     const h = header();
     expect(h).toContain("말투는 편한 반말을 씁니다");
     expect(h).toContain("'오우, 브로'");
-    expect(h).toContain("매번 붙이지 마세요");
+    expect(h).toContain("가끔 섞되, 매번 붙이지는 마세요");
     expect(h).toContain("존댓말이나 다른 호칭을 원하거나 호칭을 싫어하면 바로 따르세요");
     expect(h).toContain("농담과 호칭을 빼고 차분하게 말하세요");
     expect(h).not.toContain("'~습니다'");
