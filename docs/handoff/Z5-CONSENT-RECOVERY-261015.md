@@ -25,14 +25,14 @@
 
 ## Claude가 복구할 원본 위치
 
-1. 승인 시안: <https://claude.ai/artifact/RJLy46JBMGRKub8mctrVzk>. 이 환경에서는 본문을 열람하지 못했다. 사용자 계정에서 접근 가능한 Claude 세션으로 원문을 확인한다.
+1. 승인 시안: <https://claude.ai/artifact/RJLy46JBMGRKub8mctrVzk>. 이 환경에서는 본문을 열람하지 못했다. 사용자 계정에서 접근 가능한 Claude 세션으로 원문을 확인한다. (2026-10-18 2ndb-4e 가 열람함 · 아래 TODO 첫 줄)
 2. #2339에 연결된 원 세션: <https://claude.ai/code/session_01Twu82tgTBG8S1aUYwkqxPA>.
 3. 당시 PC/백업: `.bots/legal/outbox/coding-legal-z5-consent-plain.result.md`(10-13 02:54), `.bots/legal/outbox/coding-legal-z5-current-screen-0306.result.md`(둘째 의견). 요청 맥락은 `.bots/relay/inbox/coding-legal-z5-consent-plain-0234.note.md`.
 4. 승인 근거: [DECISIONS-2026-10-13.md](../../DECISIONS-2026-10-13.md) 03:02의 시안 설명과 20:43의 사용자 선택. 03:02의 “답 대기”는 20:43 승인으로 해소됐다.
 
 ## 다음 TODO · 끝나는 조건
 
-- [ ] **원문 복구:** 위 자료에서 소개 문장과 필수 다섯·선택 하나의 정확한 문장을 확보한다. 시안과 법무 초안이 다르면 승인된 시안 기준 차이를 기록한다. 원문·출처·판본을 저장소 문서로 보존해 다음 인수에서도 읽게 한다. 원본 접근도 불가능하면 복구 불가라는 사실과 미적용 상태를 유지한다.
+- [x] **원문 복구:** 2026-10-18 끝남. [Z5-CONSENT-APPROVED-TEXT-261013.md](Z5-CONSENT-APPROVED-TEXT-261013.md) 에 한국어(승인 시안) · 영어(법무 초안) 원문과 출처 해시를 보존했다. 한국어 10줄은 시안과 법무 초안이 글자까지 같다(10/10). 아래 나머지 TODO 는 그대로 남는다. (원래 할 일: 위 자료에서 소개 문장과 필수 다섯·선택 하나의 정확한 문장을 확보한다. 시안과 법무 초안이 다르면 승인된 시안 기준 차이를 기록한다. 원문·출처·판본을 저장소 문서로 보존해 다음 인수에서도 읽게 한다. 원본 접근도 불가능하면 복구 불가라는 사실과 미적용 상태를 유지한다.)
 - [ ] **조건 대조:** 기록상 `ackSensitive`의 “건강, 신념” 예시, `ackOverseas`의 회사·나라·항목, `ackSafety`의 별도 동의 의미를 유지한다. 이는 요약된 점검 조건이며 원문을 대신하지 않는다. 당시 법무 봇 의견은 법률 자문이 아니었다.
 - [ ] **구현·버전:** 현재 KO/EN/ES/PT/ID의 동의 본문·상세·스냅샷을 대조하고 실제 문구 변경에 필요한 동의 버전·서버 튜플을 함께 맞춘다. 서버 변경이 필요하면 콘솔 선행 확인 뒤 활성화한다. #2536의 동일 문구 복구와 새 문구 적용을 구분한다.
 - [ ] **검증:** 법무 의미 검토, `check:safety-consent-locale`, `check:legal-snapshot`, 전체 verify, 독립 PASS·새 중간 지적 0, CI → main → 같은 설정의 8081 전후 확인과 app:parity 같음. 폰에서 읽기·체크·가입 경로 확인 전 T02를 완료로 세지 않는다.
