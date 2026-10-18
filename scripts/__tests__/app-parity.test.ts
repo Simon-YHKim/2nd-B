@@ -31,6 +31,7 @@ const {
   dispatchedRunId,
   pickDispatchedRun,
   resolveQaBuild,
+  isAlreadyOnPhone,
   assertPublishable,
   makePublishCheck,
   publishQaSequence,
@@ -1007,11 +1008,11 @@ describe("app-parity: qa-release 가 올릴 빌드를 정하는 길", () => {
       : { total_count: 1, artifacts: [{ name: `2ndb-android-${sha}`, expired, workflow_run: { id: run.databaseId, head_sha: sha } }] };
 
   const annotated = () => ({ digest: "d".repeat(64), abi: "arm64-v8a" });
-  async function choose(status: object, phoneRunId: number | null, expired: boolean | null, notes = annotated) {
+  async function choose(status: object, phone: object | null, expired: boolean | null, notes = annotated) {
     const dispatch = jest.fn(async (_reason: string) => fresh);
     const readArtifacts = jest.fn(artifactsFor(expired));
     const readNotes = jest.fn(notes);
-    const chosen = await resolveQaBuild({ status, phoneRunId, readNotes, readArtifacts, dispatch });
+    const chosen = await resolveQaBuild({ status, phone, readNotes, readArtifacts, dispatch });
     return { chosen, dispatch, readArtifacts, readNotes };
   }
 
@@ -1031,8 +1032,26 @@ describe("app-parity: qa-release 가 올릴 빌드를 정하는 길", () => {
   });
 
   it("이미 폰 APK 인 빌드는 산출물을 보지도 새로 빌드하지도 않는다", async () => {
-    const { chosen, dispatch, readArtifacts } = await choose({ state: "success", run }, run.databaseId, true);
+    const { chosen, dispatch, readArtifacts } = await choose({ state: "success", run }, { runId: run.databaseId, sha, tag: "qa-x" }, true);
     expect(chosen).toBe(run);
+    expect(readArtifacts).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  // 리뷰 #2621 r5 · Q-261018-64 가: 「이미 폰 APK」는 런 번호와 커밋을 함께 본다. 런 번호만 같고 커밋이 다르면
+  // QA 릴리스 기록을 믿을 수 없으므로 산출물을 보지도 · 새로 빌드하지도 않고 멈춘다.
+  it("「이미 폰 APK」는 런 번호와 커밋이 둘 다 같을 때만이고, 런 번호만 같으면 멈춘다", async () => {
+    const other = "e".repeat(40);
+    expect(isAlreadyOnPhone(null, run)).toBe(false);
+    expect(isAlreadyOnPhone({ runId: null, sha }, run)).toBe(false);
+    expect(isAlreadyOnPhone({ runId: 12, sha }, run)).toBe(false);
+    expect(isAlreadyOnPhone({ runId: "11", sha }, run)).toBe(true);
+    expect(() => isAlreadyOnPhone({ runId: 11, sha: other, tag: "qa-y" }, run)).toThrow(/커밋이 다르다/);
+    expect(() => isAlreadyOnPhone({ runId: 11, sha: null }, run)).toThrow(/커밋이 다르다/);
+    const dispatch = jest.fn(async () => fresh);
+    const readArtifacts = jest.fn(artifactsFor(true));
+    await expect(resolveQaBuild({ status: { state: "success", run }, phone: { runId: 11, sha: other, tag: "qa-y" }, readNotes: annotated, readArtifacts, dispatch }))
+      .rejects.toThrow(/커밋이 다르다/);
     expect(readArtifacts).not.toHaveBeenCalled();
     expect(dispatch).not.toHaveBeenCalled();
   });
@@ -1056,7 +1075,7 @@ describe("app-parity: qa-release 가 올릴 빌드를 정하는 길", () => {
 
   it("산출물 목록을 판단할 수 없으면 새로 빌드하지 않고 멈춘다", async () => {
     const dispatch = jest.fn(async () => fresh);
-    await expect(resolveQaBuild({ status: { state: "success", run }, phoneRunId: null, readNotes: annotated, readArtifacts: () => ({ artifacts: [] }), dispatch }))
+    await expect(resolveQaBuild({ status: { state: "success", run }, phone: null, readNotes: annotated, readArtifacts: () => ({ artifacts: [] }), dispatch }))
       .rejects.toThrow(/QA 산출물 목록/);
     expect(dispatch).not.toHaveBeenCalled();
   });
@@ -1190,9 +1209,17 @@ describe("app-parity: qa-release 가 올릴 빌드를 정하는 길", () => {
         expect(publish).not.toHaveBeenCalled();
       });
 
+      it("런 번호만 같고 커밋이 다른 폰 APK 기록이면 내려받지도 게시하지도 않고 멈춘다", async () => {
+        const log: string[] = [];
+        const { result, prepare, publish } = publishWith(readersFor(log), log, { runId: fresh.databaseId, sha: "e".repeat(40) });
+        await expect(result).rejects.toThrow(/커밋이 다르다/);
+        expect(prepare).not.toHaveBeenCalled();
+        expect(publish).not.toHaveBeenCalled();
+      });
+
       it("이미 폰 APK 인 빌드는 한 번 확인하고 끝낸다", async () => {
         const log: string[] = [];
-        const { result, prepare, publish } = publishWith(readersFor(log), log, { runId: fresh.databaseId });
+        const { result, prepare, publish } = publishWith(readersFor(log), log, { runId: fresh.databaseId, sha: fresh.headSha });
         await expect(result).resolves.toMatchObject({ outcome: "already" });
         expect(log).toEqual([`notes:${fresh.databaseId}`, "main", `workflow:${fresh.headSha}`, "vars"]);
         expect(prepare).not.toHaveBeenCalled();
@@ -1320,7 +1347,7 @@ describe("app-parity: qa-release 를 처음부터 끝까지(가짜 의존성)", 
     runs?: () => object[]; waited?: (id: number) => object;
   };
   function fake(o: Opts = {}) {
-    const calls = { prepare: [] as { runInfo: { databaseId: number }; ctx: { phone: unknown; paths: unknown } }[], publish: [] as unknown[], dispatch: 0, artifacts: 0, shows: [] as string[], log: [] as string[] };
+    const calls = { prepare: [] as { runInfo: { databaseId: number }; notes: unknown; ctx: { phone: unknown; paths: unknown } }[], publish: [] as unknown[], dispatch: 0, artifacts: 0, shows: [] as string[], log: [] as string[] };
     const deps = {
       git: (args: string[]) => {
         if (args[0] === "rev-parse" && args[1] === "origin/main") return calls.prepare.length && o.mainAfterPrepare ? o.mainAfterPrepare : MAIN;
@@ -1343,7 +1370,7 @@ describe("app-parity: qa-release 를 처음부터 끝까지(가짜 의존성)", 
       },
       fetchMain: () => undefined,
       loadRepoVars: () => varsA,
-      buildNotes: () => notes,
+      buildNotes: (runId: number) => ({ ...notes, runId }),
       latestPhoneApk: () => o.phone ?? null,
       listBuildRuns: () => (o.runs ? o.runs() : []),
       buildStatusFor: () => o.status ?? { state: "success", run: okRun },
@@ -1351,8 +1378,8 @@ describe("app-parity: qa-release 를 처음부터 끝까지(가짜 의존성)", 
       waitRun: async (id: number) => (o.waited ? o.waited(id) : { ...okRun, databaseId: id }),
       sleep: async () => undefined,
       log: (message: string) => { calls.log.push(message); },
-      prepareRelease: async (runInfo: { databaseId: number }, _n: unknown, ctx: { phone: unknown; paths: unknown }) => {
-        calls.prepare.push({ runInfo, ctx });
+      prepareRelease: async (runInfo: { databaseId: number }, notesOfRun: unknown, ctx: { phone: unknown; paths: unknown }) => {
+        calls.prepare.push({ runInfo, notes: notesOfRun, ctx });
         return { prepared: runInfo.databaseId };
       },
       publishRelease: async (prepared: unknown) => { calls.publish.push(prepared); },
@@ -1366,6 +1393,7 @@ describe("app-parity: qa-release 를 처음부터 끝까지(가짜 의존성)", 
     await expect(go(deps)).resolves.toMatchObject({ outcome: "published", runInfo: { databaseId: 11 } });
     expect(calls.prepare).toHaveLength(1);
     expect(calls.prepare[0].runInfo).toBe(okRun);
+    expect(calls.prepare[0].notes).toEqual({ ...notes, runId: 11 });
     expect(calls.prepare[0].ctx.phone).toBeNull();
     expect(calls.publish).toEqual([{ prepared: 11 }]);
     expect(calls.shows.filter((x) => x === `${MAIN}:${WF}`).length).toBe(3);
@@ -1398,6 +1426,24 @@ describe("app-parity: qa-release 를 처음부터 끝까지(가짜 의존성)", 
     await expect(go(deps)).resolves.toMatchObject({ outcome: "published", runInfo: { databaseId: 99 } });
     expect(calls.dispatch).toBe(1);
     expect(calls.prepare.map((c) => c.runInfo.databaseId)).toEqual([99]);
+    expect(calls.prepare[0].notes).toEqual({ ...notes, runId: 99 });
+  });
+
+  it("기본 경로: 폰 APK 기록의 런 번호만 같고 커밋이 다르면 산출물 · 디스패치 · 게시 없이 멈춘다", async () => {
+    const { deps, calls } = fake({ phone: { runId: 11, tag: "qa-261018-eeeeeeee", sha: OTHER } });
+    await expect(go(deps)).rejects.toThrow(/커밋이 다르다/);
+    expect(calls.artifacts).toBe(0);
+    expect(calls.dispatch).toBe(0);
+    expect(calls.prepare).toHaveLength(0);
+    expect(calls.publish).toHaveLength(0);
+  });
+
+  it("--run: 폰 APK 기록의 런 번호만 같고 커밋이 다르면 「이미 있음」으로 끝내지 않고 멈춘다", async () => {
+    const { deps, calls } = fake({ phone: { runId: 42, tag: "qa-261018-eeeeeeee-r42", sha: OTHER } });
+    await expect(go(deps, ["--run=42"])).rejects.toThrow(/커밋이 다르다/);
+    expect(calls.prepare).toHaveLength(0);
+    expect(calls.publish).toHaveLength(0);
+    expect(calls.log.some((m) => m.includes("이미 이 빌드"))).toBe(false);
   });
 
   it("--run: 지정한 실행의 산출물을 「이미 폰 APK」 판정 전과 내려받기 직전에 확인하고 게시한다", async () => {
@@ -1405,6 +1451,7 @@ describe("app-parity: qa-release 를 처음부터 끝까지(가짜 의존성)", 
     await expect(go(deps, ["--run=42"])).resolves.toMatchObject({ outcome: "published", runInfo: { databaseId: 42 } });
     expect(calls.artifacts).toBe(2);
     expect(calls.prepare.map((c) => c.runInfo.databaseId)).toEqual([42]);
+    expect(calls.prepare[0].notes).toEqual({ ...notes, runId: 42 });
     expect(calls.publish).toEqual([{ prepared: 42 }]);
   });
 

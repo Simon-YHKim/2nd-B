@@ -1969,14 +1969,32 @@ function pickDispatchedRun(beforeIds, runs, knownId) {
 }
 
 /**
+ * 「이 빌드가 이미 폰 QA APK 인가」(리뷰 #2621 r5 · Q-261018-64 가). 런 번호와 커밋 SHA 를 함께 본다 - 둘 다 같으면 true,
+ * 폰 APK 가 없거나 런 번호가 다르면 false. 런 번호는 같은데 커밋이 다르거나 비었으면(최신 QA 릴리스 본문의 런 번호와
+ * 대상 커밋이 어긋남) 그 기록을 믿을 수 없으므로 게시 · 디스패치 없이 멈춘다. qa-release 의 두 판단 자리
+ * (resolveQaBuild · runQaPublish)가 이 함수만 쓴다.
+ */
+function isAlreadyOnPhone(phone, runInfo) {
+  if (!phone || !phone.runId || !runInfo) return false;
+  if (String(phone.runId) !== String(runInfo.databaseId)) return false;
+  if (!phone.sha || String(phone.sha) !== String(runInfo.headSha)) {
+    throw new Error(
+      `폰 QA APK ${phone.tag || ""} 의 런 번호(${phone.runId})는 이 빌드와 같은데 커밋이 다르다` +
+        `(${String(phone.sha || "?").slice(0, 8)} / ${String(runInfo.headSha).slice(0, 8)}) - QA 릴리스 기록이 맞지 않아 멈춘다`,
+    );
+  }
+  return true;
+}
+
+/**
  * 기본 경로에서 올릴 빌드를 정한다. 고른 성공 빌드가 이미 폰 APK 면 그대로(아래에서 새로 올리지 않고 끝난다),
  * 산출물이 살아 있으면 그대로, 보관 기간이 지났거나 없으면 새로 빌드한다. 같은 설정의 성공 빌드가 없어도 새로
  * 빌드한다. 산출물 목록을 판단할 수 없으면 새로 빌드하지 않고 멈춘다(qaArtifactState 가 throw).
  */
-async function resolveQaBuild({ status, phoneRunId, readNotes, readArtifacts, dispatch }) {
+async function resolveQaBuild({ status, phone, readNotes, readArtifacts, dispatch }) {
   if (status.state !== "success") return dispatch(`같은 코드 · 같은 설정의 폰용 성공 빌드가 없다(${status.state})`);
   const run = status.run;
-  if (phoneRunId && String(phoneRunId) === String(run.databaseId)) return run;
+  if (isAlreadyOnPhone(phone, run)) return run;
   // 게시 대상은 설정 digest · ABI 주석이 꼭 있어야 한다(그래야 게시 직전에 지금 설정과 맞춰 볼 수 있다).
   // 주석을 남기기 전의 옛 빌드면 쓰지 않고 새로 빌드한다.
   const notes = readNotes(run.databaseId);
@@ -2037,7 +2055,7 @@ async function runQaPublish({ runInfo, explicitRun, sameApp, phone, readers, pre
   });
   const outcome = await publishQaSequence({
     check,
-    alreadyOnPhone: () => Boolean(phone && phone.runId && String(phone.runId) === String(runInfo.databaseId)),
+    alreadyOnPhone: () => isAlreadyOnPhone(phone, runInfo),
     prepare: () => prepare(notes),
     publish,
   });
@@ -2148,7 +2166,7 @@ async function runQaRelease(deps, { argv, root }) {
     }
     runInfo = await resolveQaBuild({
       status: st,
-      phoneRunId: phone && phone.runId,
+      phone,
       readNotes: (runId) => deps.buildNotes(runId),
       readArtifacts,
       dispatch: dispatchFreshBuild,
@@ -2309,6 +2327,7 @@ module.exports = {
   dispatchedRunId,
   pickDispatchedRun,
   resolveQaBuild,
+  isAlreadyOnPhone,
   assertPublishable,
   makePublishCheck,
   publishQaSequence,
