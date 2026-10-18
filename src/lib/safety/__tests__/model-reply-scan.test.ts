@@ -1,6 +1,6 @@
 import { classifyInput, classifyInputAnyLocale } from "../classifier";
 import { hasCrisisRiskContext } from "../crisis-context";
-import { CRISIS_EVENT_CATEGORY_LIMIT } from "../crisis-event-categories";
+import { CRISIS_EVENT_CATEGORY_LIMIT, recordableCrisisCategories } from "../crisis-event-categories";
 import { ADDITIONAL_CRISIS_PHRASES, CRISIS_TERMS } from "../lexicon";
 import {
   KO_CRISIS_TERM_CODES,
@@ -292,9 +292,9 @@ describe("the fixed numbers (D3)", () => {
     expect(KO_CRISIS_TERM_CODES["끝내 버릴"]).toBe(21);
   });
 
-  it("write 20 and 21 nowhere yet: the record's closed list stops at 19 (0254)", () => {
-    expect(modelReplyTermCategories(["끝내 버리고 싶", "끝내 버릴"])).toEqual([]);
-    expect(modelReplyTermCategories(["끝내 버릴", "유서"])).toEqual(["crisis_term:13"]);
+  it("write 20 and 21 too: 0260 widened the record's closed list to 21 (applied in production 2026-10-17)", () => {
+    expect(modelReplyTermCategories(["끝내 버리고 싶", "끝내 버릴"])).toEqual(["crisis_term:20", "crisis_term:21"]);
+    expect(modelReplyTermCategories(["끝내 버릴", "유서"])).toEqual(["crisis_term:13", "crisis_term:21"]);
   });
 
   it("turn matched terms into ascending category entries and nothing else", () => {
@@ -308,12 +308,18 @@ describe("the fixed numbers (D3)", () => {
     expect(modelReplyTermCategories(["constructor", "toString", "__proto__", "0", "20", "다짐이 되"])).toEqual([]);
   });
 
-  it("carry no text: every entry is the prefix and a number from 1 to 19", () => {
+  it("carry no text: every entry is the prefix and a number from 1 to 21", () => {
     for (const entry of modelReplyTermCategories([...CRISIS_TERMS.ko])) {
-      expect(entry).toMatch(/^crisis_term:(?:[1-9]|1[0-9])$/);
+      expect(entry).toMatch(/^crisis_term:(?:[1-9]|1[0-9]|2[01])$/);
     }
-    // 21 terms, 19 of them recordable today.
-    expect(modelReplyTermCategories([...CRISIS_TERMS.ko])).toHaveLength(19);
+    // 21 terms, all 21 recordable since 0260.
+    expect(modelReplyTermCategories([...CRISIS_TERMS.ko])).toHaveLength(21);
+  });
+
+  it("write only numbers the record's closed list keeps, never one it turns into unlisted", () => {
+    for (const entry of modelReplyTermCategories([...CRISIS_TERMS.ko])) {
+      expect(recordableCrisisCategories(["output_swap", entry])).toEqual(["output_swap", entry]);
+    }
   });
 });
 
