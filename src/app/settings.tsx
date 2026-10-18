@@ -6,7 +6,7 @@ import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView a
 // The M3 rows are the capture-matching visuals; the sections below carry the
 // account/data/language/danger-zone behavior and localized helper copy.
 
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { isDevSurfaceEnabled } from "@/lib/dev/gate";
 import { reactExpression } from "@/lib/companion/expression";
@@ -32,7 +32,8 @@ import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { signOut } from "@/lib/supabase/auth";
+import { AuthSessionOwnerChangedError, captureSignOutExpectation, signOutCaptured } from "@/lib/supabase/auth";
+import type { AuthSessionExpectation } from "@/lib/auth/session-mutation";
 // Direct module import (NOT the components/deepspace barrel) — the barrel has a
 // known require cycle that crashed the /settings path once already (PR 711).
 import { changeUiLanguage } from "@/lib/i18n";
@@ -420,6 +421,8 @@ export default function Settings() {
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
   const [toast, setToast] = useState<SettingsToast | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
+  // One sign-out at a time (review #2625 r1): a second confirm or a double tap does nothing.
+  const signOutInFlight = useRef(false);
   const [actionError, setActionError] = useState<ActionError>(null);
   const [dataDeleteStep, setDataDeleteStep] = useState<DataDeleteStep>("records");
   const [openDisclosures, setOpenDisclosures] = useState<Record<SettingsDisclosureKey, boolean>>({
@@ -454,29 +457,55 @@ export default function Settings() {
     setPendingConfirm({ message, onYes, ask });
   }
 
-  // Surface a calm, product-tone failure with a retry. The raw error stays in
-  // the console for debugging and never appears in the user-facing Alert text.
   // Q-261018-50 가(Simon 10-18): 로그아웃은 이 기기만("local"), 「모든 기기에서 로그아웃」은 "global".
-  // 두 단추가 같은 길을 쓴다.
-  function signOutAndLeave(scope: "local" | "global"): () => Promise<void> {
+  // 두 단추가 같은 길을 쓴다. 누른 순간의 세션을 붙잡아 두고 그 세션만 끊는다(review #2625 r1): 확인 사이에
+  // 다른 계정이 들어왔으면 compare-and-set 이 거절하고 아무도 로그아웃되지 않는다. 한 번에 하나만 돈다.
+  async function askSignOut(scope: "local" | "global"): Promise<void> {
+    if (signOutInFlight.current) return;
+    let expected: AuthSessionExpectation;
+    try {
+      expected = await captureSignOutExpectation();
+    } catch (e) {
+      showActionError("signOut", e, t("couldntSignOut"), t("signOutError"));
+      return;
+    }
+    if (!expected.userId) return;
+    if (scope === "local") {
+      confirm(t("actions.signOutHint"), signOutAndLeave(expected, "local"), { title: t("modals.signOut.title"), action: t("signOut"), actionHint: t("actions.signOutHint"), cancelHint: t("modals.signOut.cancelHint") });
+    } else {
+      confirm(t("actions.signOutAllHint"), signOutAndLeave(expected, "global"), { title: t("modals.signOutAll.title"), action: t("signOutAll"), actionHint: t("actions.signOutAllHint"), cancelHint: t("modals.signOut.cancelHint") });
+    }
+  }
+
+  function signOutAndLeave(expected: AuthSessionExpectation, scope: "local" | "global"): () => Promise<void> {
     return async () => {
+      if (signOutInFlight.current) return;
+      signOutInFlight.current = true;
+      setBusy("signOut");
       try {
-        await signOut(scope);
-        // Go straight to /sign-in. Routing via "/" could briefly render
-        // with a stale session before the SIGNED_OUT event lands.
-        router.dismissAll();
-        router.replace("/sign-in");
+        await signOutCaptured(expected, scope);
       } catch (e) {
+        signOutInFlight.current = false;
+        setBusy(null);
+        // Another account took over after the button was pressed: nothing was signed out.
+        if (e instanceof AuthSessionOwnerChangedError) return;
         showActionError(
           "signOut",
           e,
           t("couldntSignOut"),
           t("signOutError"),
         );
+        return;
       }
+      // Go straight to /sign-in. Routing via "/" could briefly render
+      // with a stale session before the SIGNED_OUT event lands.
+      router.dismissAll();
+      router.replace("/sign-in");
     };
   }
 
+  // Surface a calm, product-tone failure with a retry. The raw error stays in
+  // the console for debugging and never appears in the user-facing Alert text.
   function showActionError(
     context: string,
     error: unknown,
@@ -1060,14 +1089,14 @@ export default function Settings() {
             accessibilityHint={t("actions.signOutHint")}
             variant="secondary"
             disabled={busy !== null}
-            onPress={() => confirm(t("actions.signOutHint"), signOutAndLeave("local"), { title: t("modals.signOut.title"), action: t("signOut"), actionHint: t("actions.signOutHint"), cancelHint: t("modals.signOut.cancelHint") })}
+            onPress={() => void askSignOut("local")}
           />
           <Button
             label={t("signOutAll")}
             accessibilityHint={t("actions.signOutAllHint")}
             variant="secondary"
             disabled={busy !== null}
-            onPress={() => confirm(t("actions.signOutAllHint"), signOutAndLeave("global"), { title: t("modals.signOutAll.title"), action: t("signOutAll"), actionHint: t("actions.signOutAllHint"), cancelHint: t("modals.signOut.cancelHint") })}
+            onPress={() => void askSignOut("global")}
           />
         </View>
 
