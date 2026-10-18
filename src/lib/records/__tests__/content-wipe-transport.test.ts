@@ -97,6 +97,24 @@ test.each([
   fetchMock.mockResolvedValue(success(7, undefined, { "preference-applied": preference }));
   await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "committed", count: 7 });
 });
+// Review #2627 r3: ";" parameters keep their name and value, and a count or tx in any position follows the same
+// rule (count = exact, tx = commit, a bare name stays unknown). A count that appears only as a parameter is not
+// the applied count preference, so it stays unknown too.
+test.each([
+  "count=exact;tx=rollback", "count=exact;count=planned", "return=minimal;tx=rollback,count=exact",
+  "COUNT=EXACT;TX=ROLLBACK", "count=exact;Count=Planned", "Return=Minimal;Tx=RollBack, count=exact",
+  "count=exact;tx", "count=exact;count", 'count=exact;tx="rollback"', "count=exact; tx = rollback",
+  "count=exact;foo=1;tx=rollback", "return=minimal;count=exact",
+])("visible preference %s with a protected parameter stays unknown", async preference => {
+  fetchMock.mockResolvedValue(success(0, undefined, { "preference-applied": preference }));
+  await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "unknown", count: null });
+});
+test.each([
+  'count=exact;foo="a,b"', "count=exact;tx=commit", "count=exact;count=exact", "COUNT=EXACT;TX=COMMIT, return=minimal;q=1",
+])("visible preference %s with agreeing parameters commits", async preference => {
+  fetchMock.mockResolvedValue(success(7, undefined, { "preference-applied": preference }));
+  await expect(deleteContentRowsCaptured("sources", request())).resolves.toEqual({ outcome: "committed", count: 7 });
+});
 
 test.each([
   { status: 401, code: "42501" }, { status: 403, code: "42501" }, { status: 409, code: "23503" },

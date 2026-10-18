@@ -62,6 +62,10 @@ rollback 모순 검사를 그대로 적용한다. unknown을 0으로 바꾸거�
 `;` 매개변수, 대소문자를 정규화한 뒤 판정한다. count는 하나 이상 있어야 하고 전부 exact여야 하며,
 tx가 있으면 전부 commit이어야 한다. 문법에 맞지 않는 헤더는 unknown이다. 그래서 `tx = rollback`,
 `tx="rollback"`, `tx=rollback;foo=bar`, `count = planned` 같은 표기 변형도 성공으로 올라가지 않는다.
+`;` 매개변수도 이름과 값을 그대로 남겨 같은 규칙으로 본다(#2627 3회차 지적 · Q-261018-59 가). 맨 앞 자리에
+count가 하나 이상 있어야 하고, 어느 자리에 있든 count는 exact, tx는 commit이어야 하며, 값 없는 이름은
+unknown이다. 그래서 `count=exact;tx=rollback`, `count=exact;count=planned`,
+`return=minimal;tx=rollback,count=exact` 도 unknown이고, `count=exact;foo="a,b"` 는 그대로 성공이다.
 
 지원 전제는 신뢰하는 PostgREST endpoint가 이 요청/응답 계약을 그대로 지키며,
 **db-tx-end=commit 또는 commit-allow-override**를 쓰는 것이다. 이 요청은 tx=rollback을 보내지

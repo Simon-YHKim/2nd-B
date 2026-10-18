@@ -46,12 +46,14 @@ export function prepareContentWipeRequest(request: CapturedContentWipeRequest) {
 /**
  * Review #2627 r2: read Preference-Applied as RFC 7240 preferences - token [BWS "=" BWS (token /
  * quoted-string)] followed by ";" parameters, comma-separated with optional whitespace and empty
- * elements. Names and values compare case-insensitively; parameters are ignored. Anything that does
- * not parse returns null so the caller treats the response as unconfirmed.
+ * elements. Names and values compare case-insensitively. Review #2627 r3: ";" parameters keep their
+ * name and value too, so the caller can hold them to the same count/tx rule. Anything that does not
+ * parse returns null so the caller treats the response as unconfirmed.
  */
-function parsePreferenceApplied(header: string): readonly Readonly<{ name: string; value: string | null }>[] | null {
+type AppliedPair = Readonly<{ name: string; value: string | null }>;
+function parsePreferenceApplied(header: string): readonly Readonly<AppliedPair & { params: readonly AppliedPair[] }>[] | null {
   const TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+/;
-  const preferences: { name: string; value: string | null }[] = [];
+  const preferences: (AppliedPair & { params: readonly AppliedPair[] })[] = [];
   let at = 0;
   const skipSpace = () => { while (header[at] === " " || header[at] === "\t") at++; };
   const token = (): string | null => {
@@ -95,17 +97,20 @@ function parsePreferenceApplied(header: string): readonly Readonly<{ name: strin
     if (header[at] === ",") { at++; continue; }
     const preference = nameAndValue();
     if (preference === null) return null;
+    const params: AppliedPair[] = [];
     skipSpace();
     while (header[at] === ";") {
       at++;
       skipSpace();
       if (at < header.length && header[at] !== ";" && header[at] !== ",") {
-        if (nameAndValue() === null) return null;
+        const param = nameAndValue();
+        if (param === null) return null;
+        params.push(param);
         skipSpace();
       }
     }
     if (at < header.length && header[at] !== ",") return null;
-    preferences.push(preference);
+    preferences.push({ ...preference, params });
   }
 }
 
@@ -118,12 +123,14 @@ function exactDeleteCount(response: Response): number | null {
   if (!match) return null;
   const applied = response.headers.get("preference-applied");
   if (applied !== null) {
-    // Visible: every count must be exact (and at least one present), every tx must be commit.
+    // Visible: a top-level count must be present, and every count or tx in any position (preference
+    // or ";" parameter) must be exact or commit. A bare name has no value and stays unknown.
     const preferences = parsePreferenceApplied(applied);
     if (preferences === null) return null;
-    const counts = preferences.filter(preference => preference.name === "count");
-    if (counts.length === 0 || counts.some(preference => preference.value !== "exact")
-      || preferences.some(preference => preference.name === "tx" && preference.value !== "commit")) return null;
+    const pairs = preferences.flatMap(preference => [preference, ...preference.params]);
+    if (!preferences.some(preference => preference.name === "count")
+      || pairs.some(pair => pair.name === "count" && pair.value !== "exact")
+      || pairs.some(pair => pair.name === "tx" && pair.value !== "commit")) return null;
   }
   const count = Number(match[1]);
   return Number.isSafeInteger(count) ? count : null;
