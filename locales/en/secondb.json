@@ -91,6 +91,7 @@
   "nPieces": "{{n}} pieces",
   "chatSaveNotice": "This conversation is not being saved",
   "chatSaveNoticeOpen": "Open settings",
+  "chatSaveNoticeOpenLabel": "Open settings",
   "chatSaveNoticeDismiss": "Dismiss",
   "planSuggestion": {
     "routineButton": "Make a routine",

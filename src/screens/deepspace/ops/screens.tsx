@@ -1881,7 +1881,8 @@ function ReminderCard({ vm, starWord, onToggle, onPermissionSettings }: {
 
 function ReminderPermissionSettings({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation("secondb");
-  return <MdButton variant="tonal" label={t("chatSaveNoticeOpen")} onPress={onPress} />;
+  // 「설정 열기」 그대로(대화 안내 단추는 Q-261018-51 로 「설정」이 됐지만 이 단추는 그대로).
+  return <MdButton variant="tonal" label={t("chatSaveNoticeOpenLabel")} onPress={onPress} />;
 }
 
 export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => void } = {}) {

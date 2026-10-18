@@ -84,8 +84,9 @@ describe("Q-261011-05 obfuscation request gate (not a verdict)", () => {
       collect(JSON.parse(readFileSync(resolve(dir, file), "utf8")));
     }
     // 2026-10-15: six approved interview-guidance strings added per locale (4419 + 6).
+    // 2026-10-18: one spoken-name string added per locale for the save notice button (Q-261018-51).
     // 2026-10-18: three all-devices sign-out strings added per locale (Q-261018-50).
-    expect(strings).toHaveLength(4428);
+    expect(strings).toHaveLength(4429);
     expect(strings.filter(hasCrisisObfuscation)).toEqual([]);
   });
 

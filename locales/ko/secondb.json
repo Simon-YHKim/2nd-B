@@ -89,8 +89,9 @@
   "captureBranch": "기록 추가: {{branch}}",
   "askLens": "{{lens}}에게 물어보기…",
   "nPieces": "참고한 별가루 {{n}}",
-  "chatSaveNotice": "지금 이 대화는 남지 않습니다",
-  "chatSaveNoticeOpen": "설정 열기",
+  "chatSaveNotice": "이 대화는 남지 않습니다",
+  "chatSaveNoticeOpen": "설정",
+  "chatSaveNoticeOpenLabel": "설정 열기",
   "chatSaveNoticeDismiss": "닫기",
   "planSuggestion": {
     "routineButton": "루틴으로 만들기",
