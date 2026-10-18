@@ -39,7 +39,7 @@
       },
       "refund": {
         "question": "How do I get a refund?",
-        "answer": "Request it in Manage subscription, in Settings. That screen shows whether you can get a refund right now, and why."
+        "answer": "Request it in Manage subscription, in Settings. If you have a payment, that screen shows whether you can get a refund right now, and why."
       },
       "export": {
         "question": "How do I export my records?",

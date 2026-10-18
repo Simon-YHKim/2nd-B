@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
@@ -90,8 +90,8 @@ describe("PIXEL-CLAY /manual content contract", () => {
 describe("the guide answers the four common tasks with a button to the screen", () => {
   const TASKS = [
     { id: "refund", route: "/subscription", question: "환불은 어떻게 받나요?" },
-    { id: "export", route: "/data?open=account-export", question: "내 기록을 내보내려면?" },
-    { id: "deleteAccount", route: "/privacy?section=delete", question: "계정을 지우려면?" },
+    { id: "export", route: "/data?open=account-export", question: "내 기록은 어떻게 내보내나요?" },
+    { id: "deleteAccount", route: "/privacy?section=delete", question: "계정은 어떻게 지우나요?" },
     { id: "notifications", route: "/permissions", question: "알림은 어디서 바꾸나요?" },
   ] as const;
 
@@ -114,37 +114,8 @@ describe("the guide answers the four common tasks with a button to the screen", 
     expect(filterManualTopics(en, "notifications").map(({ id }) => id)).toEqual(["notifications"]);
   });
 
-  // The button has to land on a screen that exists as its own page. The four task buttons also
-  // have to open inside the dashboard phone (the guide pushes through useAppRouter, which hands
-  // the phone a path; these four are screens in the phone's route table).
-  test("every button in the guide opens a route the app has, and the task buttons open in the phone", () => {
-    const routes = new Set(manualTopicsFor(translatorFor("en")).flatMap(({ actions }) => actions.map(({ route }) => route)));
-    for (const route of routes) {
-      const path = route.split("?")[0];
-      expect({ route, page: existsSync(join(ROOT, "src", "app", `${path.slice(1)}.tsx`)) }).toEqual({ route, page: true });
-    }
-    const phone = read(join(ROOT, "src", "components", "dashboard", "phone-screens.tsx"));
-    for (const { route } of TASKS) {
-      const path = route.split("?")[0];
-      expect({ route, phone: phone.includes(`  "${path}": `) }).toEqual({ route, phone: true });
-    }
-  });
-
-  // The delete button lands on the delete card: the privacy screen scrolls to it for this query.
-  test("the delete button's query is the one the privacy screen reads", () => {
-    const screens = read(join(ROOT, "src", "screens", "deepspace", "DeepSpaceDesignScreens.tsx"));
-    expect(screens).toContain('useStartAtEndWhen("section", "delete")');
-  });
-
-  // Push notifications come only in the phone app (the web build loads no notification module),
-  // so the notifications answer says so instead of sending a web visitor to an empty screen.
-  test("the notifications answer says the web version sends none", () => {
-    expect(read(join(ROOT, "src", "lib", "ops", "notifications-sdk.web.ts"))).toContain("return null;");
-    for (const locale of LOCALES) {
-      const answer = manualTopicsFor(translatorFor(locale)).find(({ id }) => id === "notifications")?.answer ?? "";
-      expect({ locale, web: /\bweb\b|웹/i.test(answer) }).toEqual({ locale, web: true });
-    }
-  });
+  // Where each button lands, and what the answers claim about those screens:
+  // manual-task-destinations.test.ts.
 });
 
 describe("사용 안내서가 앱이 제공하는 모든 언어로 풀린다", () => {
@@ -212,6 +183,16 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(source).toContain("resetCoachmarks(userId)");
     expect(source).toContain('router.replace("/")');
     expect(source).toContain('router.push("/secondb")');
+  });
+
+  // The answer buttons come through visibleManualActions, so a button whose screen has nothing to
+  // do on this platform is not drawn (the notifications button on the web, Z69).
+  test("draws only the buttons this platform can use", () => {
+    const code = read(SCREEN).replace(/^\s*\/\/.*$/gm, "");
+    expect(code).toContain("const actions = visibleManualActions(topic.actions, Platform.OS);");
+    expect(code).toContain("{actions.length > 0 ? (");
+    expect(code).toContain("{actions.map((action) => (");
+    expect(code).not.toContain("topic.actions.map(");
   });
 
   test("every literal t() key on the screen resolves in its namespace (no raw keys)", () => {

@@ -39,7 +39,7 @@
       },
       "refund": {
         "question": "Bagaimana cara meminta pengembalian dana?",
-        "answer": "Minta lewat Kelola langganan di Pengaturan. Layar itu menunjukkan apakah pengembalian dana bisa didapat sekarang, beserta alasannya."
+        "answer": "Minta lewat Kelola langganan di Pengaturan. Jika ada pembayaran, layar itu menunjukkan apakah pengembalian dana bisa didapat sekarang, beserta alasannya."
       },
       "export": {
         "question": "Bagaimana cara mengekspor catatanku?",

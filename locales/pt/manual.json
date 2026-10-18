@@ -39,7 +39,7 @@
       },
       "refund": {
         "question": "Como peço um reembolso?",
-        "answer": "Peça em Gerenciar assinatura, dentro de Opções. Essa tela mostra se você pode receber um reembolso agora e por quê."
+        "answer": "Peça em Gerenciar assinatura, dentro de Opções. Se você tem um pagamento, essa tela mostra se pode receber um reembolso agora e por quê."
       },
       "export": {
         "question": "Como exporto meus registros?",

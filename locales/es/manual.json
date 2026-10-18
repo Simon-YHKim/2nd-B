@@ -39,7 +39,7 @@
       },
       "refund": {
         "question": "¿Cómo pido un reembolso?",
-        "answer": "Pídelo en Gestionar suscripción, dentro de Opciones. Esa pantalla muestra si puedes recibir un reembolso ahora y por qué."
+        "answer": "Pídelo en Gestionar suscripción, dentro de Opciones. Si tienes un pago, esa pantalla muestra si puedes recibir un reembolso ahora y por qué."
       },
       "export": {
         "question": "¿Cómo exporto mis registros?",

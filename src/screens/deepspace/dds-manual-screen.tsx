@@ -1,6 +1,6 @@
 import { PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { useMemo, useState } from "react";
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import type { Href } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -20,6 +20,7 @@ import {
   filterManualTopics,
   manualScreenCopyFor,
   manualTopicsFor,
+  visibleManualActions,
   type ManualTopicId,
 } from "./dds-manual-content";
 
@@ -91,6 +92,7 @@ export function DeepSpaceManualScreen() {
           <View style={styles.topicList}>
             {filteredTopics.map((topic) => {
               const expanded = topic.id === expandedId;
+              const actions = visibleManualActions(topic.actions, Platform.OS);
               return (
                 <View key={topic.id} style={styles.topicBlock}>
                   <PixelPressable
@@ -117,24 +119,26 @@ export function DeepSpaceManualScreen() {
                       <RNText style={[m3TextStyle("bodyMedium"), styles.answerText]}>
                         {topic.answer}
                       </RNText>
-                      <View style={styles.actionList}>
-                        {topic.actions.map((action) => (
-                          <PixelPressable
-                            key={action.route}
-                            variant="frame"
-                            onPress={() => router.push(action.route as Href)}
-                            accessibilityLabel={action.label}
-                            accessibilityRole="link"
-                            fullWidth
-                            contentStyle={styles.actionContent}
-                          >
-                            <RNText style={[m3TextStyle("labelLarge"), styles.actionText]}>
-                              {action.label}
-                            </RNText>
-                            <PixelGlyph name="arrowForward" color={m3.color.primary} size={24} />
-                          </PixelPressable>
-                        ))}
-                      </View>
+                      {actions.length > 0 ? (
+                        <View style={styles.actionList}>
+                          {actions.map((action) => (
+                            <PixelPressable
+                              key={action.route}
+                              variant="frame"
+                              onPress={() => router.push(action.route as Href)}
+                              accessibilityLabel={action.label}
+                              accessibilityRole="link"
+                              fullWidth
+                              contentStyle={styles.actionContent}
+                            >
+                              <RNText style={[m3TextStyle("labelLarge"), styles.actionText]}>
+                                {action.label}
+                              </RNText>
+                              <PixelGlyph name="arrowForward" color={m3.color.primary} size={24} />
+                            </PixelPressable>
+                          ))}
+                        </View>
+                      ) : null}
                     </PixelSurface>
                   ) : null}
                 </View>

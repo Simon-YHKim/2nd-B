@@ -53,6 +53,8 @@ export type ManualTranslate = (key: string) => string;
 export interface ManualAction {
   label: string;
   route: ManualRoute;
+  /** The screen has something to do only in the phone app (see NATIVE_ONLY). */
+  nativeOnly: boolean;
 }
 
 export interface ManualTopic {
@@ -87,6 +89,11 @@ const ACTION_KEY: Record<ManualRoute, string> = {
   "/privacy?section=delete": "deleteAccount",
   "/permissions": "permissions",
 };
+
+/** Destinations with nothing to do on the web. The permissions screen draws its rows only on a
+ *  phone, and the web build loads no notification module (notifications-sdk.web.ts), so on the
+ *  web the notifications answer stands without a button. */
+const NATIVE_ONLY: ReadonlySet<ManualRoute> = new Set<ManualRoute>(["/permissions"]);
 
 interface TopicSpec {
   id: ManualTopicId;
@@ -135,8 +142,17 @@ export function manualTopicsFor(t: ManualTranslate): readonly ManualTopic[] {
     icon,
     question: t(`manual:guide.topics.${id}.question`),
     answer: t(`manual:guide.topics.${id}.answer`),
-    actions: routes.map((route) => ({ label: t(`manual:guide.actions.${ACTION_KEY[route]}`), route })),
+    actions: routes.map((route) => ({
+      label: t(`manual:guide.actions.${ACTION_KEY[route]}`),
+      route,
+      nativeOnly: NATIVE_ONLY.has(route),
+    })),
   }));
+}
+
+/** The buttons this platform draws: on the web, the ones that would open an empty screen are left out. */
+export function visibleManualActions(actions: readonly ManualAction[], os: string): readonly ManualAction[] {
+  return os === "web" ? actions.filter(({ nativeOnly }) => !nativeOnly) : actions;
 }
 
 function searchableText(topic: ManualTopic): string {
