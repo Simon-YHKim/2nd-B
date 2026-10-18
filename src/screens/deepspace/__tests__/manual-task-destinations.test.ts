@@ -55,19 +55,14 @@ function topic(locale: string, id: ManualTopic["id"]): ManualTopic {
   return found;
 }
 
-/** The body of one exported function: from its declaration to the next top-level export. */
-function functionBody(source: string, name: string): string {
-  const start = source.indexOf(`export function ${name}(`);
-  expect(start).toBeGreaterThan(-1);
-  const next = source.indexOf("\nexport ", start + 1);
-  return source.slice(start, next < 0 ? undefined : next);
-}
-
 function parse(...parts: string[]): ts.SourceFile {
   return ts.createSourceFile(parts.join("/"), read(...parts), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 }
 
-/** name -> module for every import in the file (default and named). */
+const hasModifier = (node: ts.Node, kind: ts.SyntaxKind): boolean =>
+  ts.canHaveModifiers(node) && (ts.getModifiers(node) ?? []).some((m) => m.kind === kind);
+
+/** name -> module for the file's top-level imports (default and named). */
 function importsOf(file: ts.SourceFile): Map<string, string> {
   const out = new Map<string, string>();
   for (const statement of file.statements) {
@@ -82,43 +77,77 @@ function importsOf(file: ts.SourceFile): Map<string, string> {
   return out;
 }
 
-/** The module whose default export the dashboard phone draws for `path`, read from the
- *  PHONE_ROUTE_SCREENS object literal by the TypeScript parser. */
-function phoneScreenModule(path: string): string | null {
-  const file = parse("src", "components", "dashboard", "phone-screens.tsx");
-  let screen: string | null = null;
+/** A top-level function declaration: the file's `export default function`, or an exported one by name. */
+function topFunction(file: ts.SourceFile, name: string): ts.FunctionDeclaration {
+  const found = file.statements.filter((statement): statement is ts.FunctionDeclaration =>
+    ts.isFunctionDeclaration(statement) && statement.body !== undefined && hasModifier(statement, ts.SyntaxKind.ExportKeyword) &&
+    (name === "default" ? hasModifier(statement, ts.SyntaxKind.DefaultKeyword) : statement.name?.text === name));
+  expect({ name, count: found.length }).toEqual({ name, count: 1 });
+  return found[0];
+}
+
+/** The expressions this function itself returns (returns inside nested functions are not its own). */
+function ownReturns(fn: ts.FunctionDeclaration): ts.Expression[] {
+  const out: ts.Expression[] = [];
   const visit = (node: ts.Node): void => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "PHONE_ROUTE_SCREENS" &&
-        node.initializer && ts.isObjectLiteralExpression(node.initializer)) {
-      for (const property of node.initializer.properties) {
-        if (ts.isPropertyAssignment(property) && ts.isStringLiteral(property.name) && property.name.text === path &&
-            ts.isIdentifier(property.initializer)) screen = property.initializer.text;
-      }
-    }
+    if (node !== fn && ts.isFunctionLike(node)) return;
+    if (ts.isReturnStatement(node) && node.expression) out.push(node.expression);
     node.forEachChild(visit);
   };
-  visit(file);
-  if (screen === null) return null;
+  visit(fn);
+  return out;
+}
+
+/** JSX tag names inside an expression, not counting JSX built by nested functions. */
+function jsxTags(expression: ts.Node): string[] {
+  const out: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isFunctionLike(node)) return;
+    if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && ts.isIdentifier(node.tagName)) out.push(node.tagName.text);
+    node.forEachChild(visit);
+  };
+  visit(expression);
+  return out;
+}
+
+/** The text of what the function returns: the screen it actually draws. */
+const returnedText = (fn: ts.FunctionDeclaration): string => ownReturns(fn).map((e) => e.getText()).join("\n");
+
+/** Statements directly in the function body (not inside callbacks or branches). */
+const ownStatements = (fn: ts.FunctionDeclaration): string[] => (fn.body?.statements ?? []).map((st) => st.getText());
+
+/** `module#Name` for the imported components the route module's default export returns. */
+function routeDraws(path: string): string[] {
+  const file = parse("src", "app", `${path.slice(1)}.tsx`);
+  const imports = importsOf(file);
+  return ownReturns(topFunction(file, "default"))
+    .flatMap((expression) => jsxTags(expression))
+    .filter((tag) => imports.has(tag))
+    .map((tag) => `${imports.get(tag)}#${tag}`);
+}
+
+/** The module whose default export the dashboard phone draws for `path`: the top-level
+ *  PHONE_ROUTE_SCREENS object literal, its one property for `path`, and the top-level default
+ *  import that property names. */
+function phoneScreenModule(path: string): string | null {
+  const file = parse("src", "components", "dashboard", "phone-screens.tsx");
+  const table = file.statements
+    .filter(ts.isVariableStatement)
+    .flatMap((statement) => [...statement.declarationList.declarations])
+    .filter((declaration) => ts.isIdentifier(declaration.name) && declaration.name.text === "PHONE_ROUTE_SCREENS");
+  expect(table).toHaveLength(1);
+  const literal = table[0].initializer;
+  if (!literal || !ts.isObjectLiteralExpression(literal)) return null;
+  const entries = literal.properties.filter((property): property is ts.PropertyAssignment =>
+    ts.isPropertyAssignment(property) && ts.isStringLiteral(property.name) && property.name.text === path);
+  if (entries.length !== 1 || !ts.isIdentifier(entries[0].initializer)) return null;
+  const screen = entries[0].initializer.text;
   const declaration = file.statements.find((statement): statement is ts.ImportDeclaration =>
-    ts.isImportDeclaration(statement) && statement.importClause?.name?.text === screen);
+    ts.isImportDeclaration(statement) && statement.importClause?.name?.text === screen && !statement.importClause.isTypeOnly);
   return declaration && ts.isStringLiteral(declaration.moduleSpecifier) ? declaration.moduleSpecifier.text : null;
 }
 
-/** `module#Name` for every imported component the file draws as a JSX tag. */
-function drawnComponents(...parts: string[]): Set<string> {
-  const file = parse(...parts);
-  const imports = importsOf(file);
-  const out = new Set<string>();
-  const visit = (node: ts.Node): void => {
-    if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && ts.isIdentifier(node.tagName)) {
-      const from = imports.get(node.tagName.text);
-      if (from) out.add(`${from}#${node.tagName.text}`);
-    }
-    node.forEachChild(visit);
-  };
-  visit(file);
-  return out;
-}
+const DESIGN_SCREENS = ["src", "screens", "deepspace", "DeepSpaceDesignScreens.tsx"] as const;
 
 const TASKS = [
   { id: "refund", route: "/subscription", path: "/subscription", params: {} },
@@ -137,18 +166,18 @@ describe("each task button reaches its screen, as a page and inside the dashboar
     expect(phoneScreenModule(path)).toBe(`@/app${path}`);
   });
 
-  // The route module, in turn, draws the screen that does the task (and reads the query).
+  // The route module's default export, in turn, returns the screen that does the task.
   test.each([
     ["/data", "@/screens/deepspace/dds-data-screen#DeepSpaceDataScreen"],
     ["/privacy", "@/screens/deepspace/DeepSpaceDesignScreens#DeepSpacePrivacyDesignScreen"],
     ["/permissions", "@/screens/deepspace/DeepSpaceDesignScreens#DeepSpacePermissionsScreen"],
-  ])("%s draws %s", (path, screen) => {
-    expect([...drawnComponents("src", "app", `${path.slice(1)}.tsx`)]).toContain(screen);
+  ])("%s returns %s", (path, screen) => {
+    expect(routeDraws(path)).toContain(screen);
   });
 
-  test("the subscription route module is the subscription screen itself", () => {
-    expect(read("src", "app", "subscription.tsx")).toContain("export default function SubscriptionScreen() {");
-    expect(read("src", "app", "subscription.tsx")).toContain('{t("subscription.refund.title")}');
+  test("the subscription route's default export returns the refund block itself", () => {
+    const fn = topFunction(parse("src", "app", "subscription.tsx"), "default");
+    expect(returnedText(fn)).toContain('{t("subscription.refund.title")}');
   });
 
   test("the phone hands the query to the screen it opens", () => {
@@ -168,22 +197,34 @@ describe("each task button reaches its screen, as a page and inside the dashboar
 
   test("the privacy screen scrolls to its delete card for the delete button's query", () => {
     const [[name, value]] = Object.entries(splitPhoneRoute("/privacy?section=delete").params);
-    const privacy = functionBody(read("src", "screens", "deepspace", "DeepSpaceDesignScreens.tsx"), "DeepSpacePrivacyDesignScreen");
-    expect(privacy).toContain(`useStartAtEndWhen("${name}", "${value}")`);
-    expect(privacy).toContain('t("account.delete")');
+    const privacy = topFunction(parse(...DESIGN_SCREENS), "DeepSpacePrivacyDesignScreen");
+    expect(ownStatements(privacy).some((st) => st.includes(`useStartAtEndWhen("${name}", "${value}")`))).toBe(true);
+    expect(returnedText(privacy)).toContain('{t("account.delete")}');
+    expect(returnedText(privacy)).toContain('{t("privacy.deleteAccount.body")}');
     // The hook reads the same params the phone hands over (and the page's own query outside it).
-    expect(functionBody(read("src", "lib", "nav", "phone-embed.tsx"), "useStartAtEndWhen")).toContain(
-      "const wanted = useScreenParams<Record<string, string>>()[name] === value;",
+    const hook = topFunction(parse("src", "lib", "nav", "phone-embed.tsx"), "useStartAtEndWhen");
+    expect(ownStatements(hook)).toContain("const wanted = useScreenParams<Record<string, string>>()[name] === value;");
+  });
+
+  // The answer names the other way to the same card: Settings, then Account, then Delete account.
+  test("Settings opens the account screen, whose delete row is the guide's delete button", () => {
+    expect(read("src", "app", "settings.tsx")).toContain(
+      '<M3LinkRow icon="person" label={t("nav.account")} hint={t("nav.accountHint")} onPress={() => router.push("/account")} />',
     );
+    const account = read("src", "screens", "deepspace", "dds-account-screen.tsx");
+    const row = account.indexOf('onPress={() => router.push("/privacy?section=delete")}');
+    expect(row).toBeGreaterThan(-1);
+    expect(account.slice(row, row + 300)).toContain('accessibilityLabel={t("deepspace:account.delete")}');
+    expect(topic("en", "deleteAccount").actions.map((action) => action.route)).toEqual(["/privacy?section=delete"]);
   });
 });
 
 describe("notifications come only in the phone app", () => {
   test("the web build loads no notification module and the permissions rows are phone-only", () => {
     expect(loadNotifications()).toBeNull();
-    const permissions = functionBody(read("src", "screens", "deepspace", "DeepSpaceDesignScreens.tsx"), "DeepSpacePermissionsScreen");
-    expect(permissions).toContain('const native = Platform.OS !== "web";');
-    expect(permissions).toContain('<PermissionRow kind="notif"');
+    const permissions = topFunction(parse(...DESIGN_SCREENS), "DeepSpacePermissionsScreen");
+    expect(ownStatements(permissions)).toContain('const native = Platform.OS !== "web";');
+    expect(returnedText(permissions)).toMatch(/\{native \? \(\s*<Card>\s*<PermissionRow kind="notif"/);
   });
 
   test("on the web the notifications answer has no button; the other three keep theirs", () => {
@@ -236,7 +277,7 @@ describe("what the answers say the screens do", () => {
         expect({ locale, status, reason: (reasons[refundReasonKey(status)] ?? "").length > 0 }).toEqual({ locale, status, reason: true });
       }
     }
-    const screen = read("src", "app", "subscription.tsx");
+    const screen = returnedText(topFunction(parse("src", "app", "subscription.tsx"), "default"));
     const gate = screen.indexOf('{eligibility && eligibility.status !== "no_payment" ? (');
     const reason = screen.indexOf("{t(`subscription.refund.reason.${reasonKey}`, {");
     expect(gate).toBeGreaterThan(-1);
@@ -273,5 +314,43 @@ describe("what the answers say the screens do", () => {
     const { excluded: _dropped, ...withoutList } = bundle;
     clientMock.__invoke.mockResolvedValueOnce({ data: withoutList, error: null });
     await expect(requestAccountExport()).rejects.toThrow();
+  });
+});
+
+describe("the answers use the names the screens show", () => {
+  type Bundle = Record<string, unknown>;
+  const at = (bundle: Bundle, path: string): string => {
+    const value = path.split(".").reduce<unknown>((node, part) => (node as Bundle)?.[part], bundle);
+    if (typeof value !== "string") throw new Error(`no ${path}`);
+    return value;
+  };
+
+  test.each(LOCALES)("%s", (locale) => {
+    const settings = JSON.parse(read("locales", locale, "settings.json")) as Bundle;
+    const deepspace = JSON.parse(read("locales", locale, "deepspace.json")) as Bundle;
+    expect(topic(locale, "refund").answer).toContain(at(settings, "subscription.rowLabel"));
+    expect(topic(locale, "export").answer).toContain(at(settings, "nav.data"));
+    expect(topic(locale, "deleteAccount").answer).toContain(at(settings, "nav.account"));
+    expect(topic(locale, "deleteAccount").answer).toContain(at(deepspace, "account.delete"));
+    expect(topic(locale, "notifications").answer).toContain(at(settings, "permissions"));
+    const settingsName = at(settings, "settings");
+    for (const id of ["refund", "export", "deleteAccount", "notifications"] as const) {
+      expect({ locale, id, settings: topic(locale, id).answer.includes(settingsName) }).toEqual({ locale, id, settings: true });
+    }
+  });
+
+  // "Deleting cannot be undone": the delete card the button lands on says so in the same words,
+  // in every locale.
+  const CANNOT_UNDO: Record<(typeof LOCALES)[number], string> = {
+    en: "cannot be undone",
+    ko: "되돌릴 수 없",
+    es: "No se puede deshacer",
+    pt: "Não dá para desfazer",
+    id: "tidak bisa dibatalkan",
+  };
+  test.each(LOCALES)("%s: the delete answer and the delete card both say it cannot be undone", (locale) => {
+    const deepspace = JSON.parse(read("locales", locale, "deepspace.json")) as Bundle;
+    expect(at(deepspace, "privacy.deleteAccount.body")).toContain(CANNOT_UNDO[locale]);
+    expect(topic(locale, "deleteAccount").answer).toContain(CANNOT_UNDO[locale]);
   });
 });

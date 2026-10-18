@@ -47,7 +47,7 @@
       },
       "deleteAccount": {
         "question": "Como excluo minha conta?",
-        "answer": "Escolha Excluir conta em Conta, dentro de Opções. Uma conta excluída não pode ser recuperada, então exporte antes os dados de que precisa."
+        "answer": "Escolha Excluir conta em Conta, dentro de Opções. Não dá para desfazer, então exporte antes o que precisar."
       },
       "notifications": {
         "question": "Onde mudo as notificações?",

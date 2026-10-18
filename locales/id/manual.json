@@ -47,7 +47,7 @@
       },
       "deleteAccount": {
         "question": "Bagaimana cara menghapus akunku?",
-        "answer": "Pilih Hapus akun di Akun pada Pengaturan. Akun yang dihapus tidak bisa dipulihkan, jadi ekspor dulu data yang kamu perlukan."
+        "answer": "Pilih Hapus akun di Akun pada Pengaturan. Ini tidak bisa dibatalkan, jadi ekspor dulu apa pun yang kamu perlukan."
       },
       "notifications": {
         "question": "Di mana mengubah notifikasi?",

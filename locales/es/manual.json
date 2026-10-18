@@ -47,7 +47,7 @@
       },
       "deleteAccount": {
         "question": "¿Cómo elimino mi cuenta?",
-        "answer": "Elige Eliminar cuenta en Cuenta, dentro de Opciones. Una cuenta eliminada no se puede recuperar, así que exporta antes los datos que necesites."
+        "answer": "Elige Eliminar cuenta en Cuenta, dentro de Opciones. No se puede deshacer, así que exporta antes lo que necesites."
       },
       "notifications": {
         "question": "¿Dónde cambio las notificaciones?",

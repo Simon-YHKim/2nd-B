@@ -47,7 +47,7 @@
       },
       "deleteAccount": {
         "question": "How do I delete my account?",
-        "answer": "Choose Delete account in Account, in Settings. A deleted account cannot be restored, so export the data you need first."
+        "answer": "Choose Delete account in Account, in Settings. Deleting cannot be undone, so export anything you need first."
       },
       "notifications": {
         "question": "Where do I change notifications?",
