@@ -56,6 +56,7 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/interview/probe-contact-intent.ts": "안전 처리 뒤 모델 질문의 KO/EN 현재 연락 권유를 읽는 닫힌 입력 문법. 한국어 패턴은 번역하거나 화면에 표시하는 문구가 아님",
   "src/lib/safety/classifier.ts": "위기 입력 검사가 띄어쓰기를 일부만 뺀 꼴까지 읽는 위기 낱말의 이름 목록(Q-261015-80). 사용자에게 표시하는 문구가 아님",
   "src/lib/safety/model-reply-scan.ts": "모델 답 검사에서만 넘기는 닫힌 겹침 낱말 목록과 위기 낱말의 고정 번호표. 사용자에게 표시하는 문구가 아님",
+  "src/lib/safety/model-reply-review.ts": "Q39의 한국어 고정 치환 사본과 마지막 제외 조건. 측정 준비 helper이며 사용자에게 표시하는 문구가 아님",
   "src/lib/safety/crisis-obfuscation.ts": "쪼갠 입력을 의미 판정에 보낼지 정하는 낱말·글자 규칙. 번역할 UI 문구가 아님",
   "src/lib/safety/anthro.ts": "의인화 금지 패턴",
   "src/lib/safety/crisis-eval-corpus.ts": "위기 분류 평가 픽스처 — 번역하면 평가가 무의미",
