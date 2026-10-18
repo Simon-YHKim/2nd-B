@@ -39,6 +39,25 @@ export async function authenticateDevice(labels: {
   }
 }
 
+/**
+ * Whether the phone has any screen lock (PIN, pattern, password or biometrics).
+ * false only on an explicit SecurityLevel.NONE from the OS. Web, an older binary
+ * without the module, a failing query or an unknown value answer null, which
+ * never opens the gate (Q-261018-47: a phone without a screen lock opens).
+ */
+export async function deviceHasScreenLock(): Promise<boolean | null> {
+  if (Platform.OS === "web") return null;
+  try {
+    const native = await loadNative();
+    const level: unknown = await native.getEnrolledLevelAsync();
+    const { NONE, SECRET, BIOMETRIC_WEAK, BIOMETRIC_STRONG } = native.SecurityLevel;
+    if (level === NONE) return false;
+    return level === SECRET || level === BIOMETRIC_WEAK || level === BIOMETRIC_STRONG ? true : null;
+  } catch {
+    return null;
+  }
+}
+
 export function cancelDeviceAuthentication(): void {
   generation += 1;
   if (!nativeModule) return;

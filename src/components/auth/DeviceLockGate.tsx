@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { semantic, spacing } from "@/lib/theme/tokens";
 import { createDeviceLock } from "@/lib/auth/device-lock";
 import { DeviceLockCoveredContext, crisisLockPrioritySnapshot, subscribeCrisisLockPriority } from "@/lib/auth/device-lock-context";
-import { authenticateDevice, cancelDeviceAuthentication } from "@/lib/auth/native-device-auth";
-import { accountTransitionSnapshot, accountTransitionPendingFromSnapshot, subscribeAccountTransition } from "@/lib/auth/account-epoch";
+import { authenticateDevice, cancelDeviceAuthentication, deviceHasScreenLock } from "@/lib/auth/native-device-auth";
+import { accountTransitionSnapshot, accountTransitionPendingFromSnapshot, currentAccountOwner, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { getCrisisNotice, subscribeCrisisNotice } from "@/lib/safety/crisis-notice";
 
 export function DeviceLockGate({ children }: { children: ReactNode }) {
@@ -24,6 +24,7 @@ function NativeDeviceLockGate({ children }: { children: ReactNode }) {
   const [lock] = useState(() => createDeviceLock({
     now: () => Date.now(), active: AppState.currentState === "active",
     authenticate: () => authenticateDevice(labels.current), cancel: cancelDeviceAuthentication,
+    screenLock: deviceHasScreenLock,
     scope: () => {
       const snapshot = accountTransitionSnapshot();
       return accountTransitionPendingFromSnapshot(snapshot) ? null : snapshot;
@@ -35,7 +36,11 @@ function NativeDeviceLockGate({ children }: { children: ReactNode }) {
   const priority = useSyncExternalStore(subscribeCrisisLockPriority, crisisLockPrioritySnapshot, () => false);
   const observedScope = useRef(scope);
   const held = accountTransitionPendingFromSnapshot(scope) || observedScope.current !== scope;
-  const covered = state.covered || held;
+  // Q-261018-47: the lock guards a signed-in session only. Every owner change
+  // (sign-in, sign-out, switch) moves the transition snapshot above, so this is
+  // re-read on the same render; the new owner's first render is still `held`.
+  const signedIn = currentAccountOwner() !== null;
+  const covered = signedIn && (state.covered || held);
 
   useLayoutEffect(() => {
     observedScope.current = scope;
@@ -59,8 +64,8 @@ function NativeDeviceLockGate({ children }: { children: ReactNode }) {
     if ((notice || priority) && state.pending) lock.reset();
   }, [notice, priority, state.pending, lock]);
   useEffect(() => {
-    if (!held && !notice && !priority && state.needsAuthentication && !state.pending && !state.error) void lock.unlock();
-  }, [held, notice, priority, state.needsAuthentication, state.pending, state.error, state.covered, lock]);
+    if (signedIn && !held && !notice && !priority && state.needsAuthentication && !state.pending && !state.error) void lock.unlock();
+  }, [signedIn, held, notice, priority, state.needsAuthentication, state.pending, state.error, state.covered, lock]);
 
   const message = state.error === "not_enrolled" ? "deviceLock.setup" :
     state.error === "unavailable" ? "deviceLock.unavailable" :
