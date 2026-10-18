@@ -6,7 +6,7 @@ import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView a
 // The M3 rows are the capture-matching visuals; the sections below carry the
 // account/data/language/danger-zone behavior and localized helper copy.
 
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { isDevSurfaceEnabled } from "@/lib/dev/gate";
 import { reactExpression } from "@/lib/companion/expression";
@@ -34,6 +34,7 @@ import { useFontStyle } from "@/lib/settings/readable-font";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AuthSessionOwnerChangedError, captureSignOutExpectation, signOutCaptured } from "@/lib/supabase/auth";
 import type { AuthSessionExpectation } from "@/lib/auth/session-mutation";
+import { createSignOutGate } from "@/lib/auth/sign-out-gate";
 // Direct module import (NOT the components/deepspace barrel) — the barrel has a
 // known require cycle that crashed the /settings path once already (PR 711).
 import { changeUiLanguage } from "@/lib/i18n";
@@ -421,8 +422,13 @@ export default function Settings() {
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
   const [toast, setToast] = useState<SettingsToast | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
-  // One sign-out at a time (review #2625 r1): a second confirm or a double tap does nothing.
-  const signOutInFlight = useRef(false);
+  // One sign-out flow at a time, from the press to the end (review #2625 r1 · r2).
+  const [signOutGate] = useState(createSignOutGate);
+  // A sign-out dialog closed without confirming returns the gate to idle. A confirm moves it to
+  // "running" before this runs, so this never stops a sign-out that has started.
+  useEffect(() => {
+    if (pendingConfirm === null) signOutGate.cancelConfirm();
+  }, [pendingConfirm, signOutGate]);
   const [actionError, setActionError] = useState<ActionError>(null);
   const [dataDeleteStep, setDataDeleteStep] = useState<DataDeleteStep>("records");
   const [openDisclosures, setOpenDisclosures] = useState<Record<SettingsDisclosureKey, boolean>>({
@@ -461,15 +467,24 @@ export default function Settings() {
   // 두 단추가 같은 길을 쓴다. 누른 순간의 세션을 붙잡아 두고 그 세션만 끊는다(review #2625 r1): 확인 사이에
   // 다른 계정이 들어왔으면 compare-and-set 이 거절하고 아무도 로그아웃되지 않는다. 한 번에 하나만 돈다.
   async function askSignOut(scope: "local" | "global"): Promise<void> {
-    if (signOutInFlight.current) return;
+    // Take the gate before the first await; both buttons are disabled while the session is read.
+    if (!signOutGate.tryCapture()) return;
+    setBusy("signOut");
     let expected: AuthSessionExpectation;
     try {
       expected = await captureSignOutExpectation();
     } catch (e) {
+      signOutGate.release();
+      setBusy(null);
       showActionError("signOut", e, t("couldntSignOut"), t("signOutError"));
       return;
     }
-    if (!expected.userId) return;
+    setBusy(null);
+    if (!expected.userId) {
+      signOutGate.release();
+      return;
+    }
+    signOutGate.confirming();
     if (scope === "local") {
       confirm(t("actions.signOutHint"), signOutAndLeave(expected, "local"), { title: t("modals.signOut.title"), action: t("signOut"), actionHint: t("actions.signOutHint"), cancelHint: t("modals.signOut.cancelHint") });
     } else {
@@ -479,13 +494,12 @@ export default function Settings() {
 
   function signOutAndLeave(expected: AuthSessionExpectation, scope: "local" | "global"): () => Promise<void> {
     return async () => {
-      if (signOutInFlight.current) return;
-      signOutInFlight.current = true;
+      if (!signOutGate.tryRun()) return;
       setBusy("signOut");
       try {
         await signOutCaptured(expected, scope);
       } catch (e) {
-        signOutInFlight.current = false;
+        signOutGate.release();
         setBusy(null);
         // Another account took over after the button was pressed: nothing was signed out.
         if (e instanceof AuthSessionOwnerChangedError) return;

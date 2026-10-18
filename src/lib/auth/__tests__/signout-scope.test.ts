@@ -39,7 +39,7 @@ describe("Q-261018-50: sign-out scope", () => {
     const capture = ask.indexOf("expected = await captureSignOutExpectation();");
     expect(capture).toBeGreaterThan(-1);
     expect(ask.indexOf("confirm(")).toBeGreaterThan(capture);
-    expect(ask).toContain("if (!expected.userId) return;");
+    expect(ask).toContain("if (!expected.userId) {");
     expect(auth).toContain("export async function signOutCaptured(");
     const captured = auth.slice(auth.indexOf("export async function signOutCaptured("));
     expect(captured.slice(0, captured.indexOf("\n}\n"))).toContain("await signOutExpected(expected, scope);");
@@ -54,22 +54,40 @@ describe("Q-261018-50: sign-out scope", () => {
     expect(leave.indexOf("router.replace(\"/sign-in\");")).toBeGreaterThan(leave.indexOf("return;\n    }\n"));
   });
 
-  test("one sign-out at a time: the latch is taken before the await and released only on failure", () => {
-    expect(settings).toContain("const signOutInFlight = useRef(false);");
+  // The gate's own behaviour is in sign-out-gate.test.ts; these check that settings uses it in order.
+  test("the gate is taken before the session is read, and the dialog opens only after it", () => {
+    expect(settings).toContain("const [signOutGate] = useState(createSignOutGate);");
     const ask = settings.slice(settings.indexOf("async function askSignOut("), settings.indexOf("function signOutAndLeave("));
-    expect(ask.indexOf("if (signOutInFlight.current) return;")).toBe(ask.indexOf("{") + ask.slice(ask.indexOf("{")).indexOf("if (signOutInFlight.current) return;"));
-    const leave = settings.slice(settings.indexOf("function signOutAndLeave("), settings.indexOf("function showActionError("));
-    const guard = leave.indexOf("if (signOutInFlight.current) return;");
-    const take = leave.indexOf("signOutInFlight.current = true;");
-    const busy = leave.indexOf('setBusy("signOut");');
-    const call = leave.indexOf("await signOutCaptured(expected, scope);");
-    expect(guard).toBeGreaterThan(-1);
-    expect(take).toBeGreaterThan(guard);
+    const take = ask.indexOf("if (!signOutGate.tryCapture()) return;");
+    const busy = ask.indexOf('setBusy("signOut");');
+    const read = ask.indexOf("await captureSignOutExpectation();");
+    const confirming = ask.indexOf("signOutGate.confirming();");
+    expect(take).toBeGreaterThan(-1);
     expect(busy).toBeGreaterThan(take);
-    expect(call).toBeGreaterThan(busy);
+    expect(read).toBeGreaterThan(busy);
+    expect(confirming).toBeGreaterThan(read);
+    expect(ask.indexOf("confirm(")).toBeGreaterThan(confirming);
+    expect(ask.slice(take, read)).not.toContain("await");
+    // Capture failure and "nobody signed in" release the gate.
+    expect(ask.split("signOutGate.release();")).toHaveLength(3);
+  });
+
+  test("only the confirm of an open dialog runs, and a failure or an owner change releases the gate", () => {
+    const leave = settings.slice(settings.indexOf("function signOutAndLeave("), settings.indexOf("function showActionError("));
+    const run = leave.indexOf("if (!signOutGate.tryRun()) return;");
+    const call = leave.indexOf("await signOutCaptured(expected, scope);");
+    expect(run).toBeGreaterThan(-1);
+    expect(call).toBeGreaterThan(run);
     const failure = leave.slice(leave.indexOf("} catch (e) {"));
-    expect(failure.indexOf("signOutInFlight.current = false;")).toBeGreaterThan(-1);
-    expect(failure.indexOf("setBusy(null);")).toBeGreaterThan(-1);
+    expect(failure.indexOf("signOutGate.release();")).toBeGreaterThan(-1);
+    expect(failure.indexOf("signOutGate.release();")).toBeLessThan(failure.indexOf("if (e instanceof AuthSessionOwnerChangedError) return;"));
+  });
+
+  test("closing the dialog without confirming returns the gate to idle", () => {
+    expect(settings).toMatch(/useEffect\(\(\) => \{\n\s*if \(pendingConfirm === null\) signOutGate\.cancelConfirm\(\);\n\s*\}, \[pendingConfirm, signOutGate\]\);/);
+  });
+
+  test("both sign-out buttons are disabled while a flow is reading or signing out", () => {
     // Both sign-out buttons are disabled while it runs.
     expect(settings.match(/label=\{t\("signOut(All)?"\)\}\n\s*accessibilityHint=\{t\("actions\.signOut(All)?Hint"\)\}\n\s*variant="secondary"\n\s*disabled=\{busy !== null\}/g)).toHaveLength(2);
   });
