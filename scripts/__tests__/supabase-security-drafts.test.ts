@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import * as ts from "typescript";
 
@@ -241,6 +241,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
       ts.forEachChild(node, visit);
     };
     visit(sf);
+    for (const ref of sf.referencedFiles) targets.push(ref.fileName);
     return { targets, unresolvable };
   }
   function localClosure(rootFile: string, readFile: (path: string) => string, exists: (path: string) => boolean) {
@@ -281,7 +282,8 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
 
   test("the S2b DB lane re-runs when the real packet module or anything it loads changes", () => {
     expect(pullRequestPaths.start).toBeGreaterThan(-1);
-    const { closure, problems } = localClosure(S2B_PACKET_ROOT, read, (path) => existsSync(join(ROOT, path)));
+    const isFile = (path: string) => existsSync(join(ROOT, path)) && statSync(join(ROOT, path)).isFile();
+    const { closure, problems } = localClosure(S2B_PACKET_ROOT, read, isFile);
     expect(problems).toEqual([]);
     expect(closure).toContain(S2B_PACKET_ROOT);
     for (const file of closure) expect(pullRequestPaths.paths).toContain(file);
@@ -291,6 +293,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
   test("the S2b closure walk sees every way a module can load another", () => {
     const files: Record<string, string> = {
       "a/root.ts": [
+        '/// <reference path="./referenced.d.ts" />',
         'import "./side-effect.ts";',
         'import type { T } from "./type-only.ts";',
         'export * from "./reexport.ts";',
@@ -302,7 +305,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
         'import { z } from "npm:zod@3";',
       ].join("\n"),
       "a/side-effect.ts": "", "a/type-only.ts": "", "a/reexport.ts": "", "a/import-equals.ts": "",
-      "a/required.ts": "", "a/dynamic.ts": "", "a/import-type.ts": "", "a/asset.ts": "",
+      "a/required.ts": "", "a/dynamic.ts": "", "a/import-type.ts": "", "a/asset.ts": "", "a/referenced.d.ts": "",
     };
     const walk = (root: string) => localClosure(root, (path) => files[path], (path) => path in files);
     expect(walk("a/root.ts")).toEqual({ closure: Object.keys(files).sort(), problems: [] });
