@@ -517,3 +517,29 @@ export const COMPLETE_CRISIS_PHRASES: Record<AdditionalCrisisLanguage, readonly 
   pt: ["quero morrer"],
   id: ["saya ingin mati", "aku ingin mati", "saya ingin mati sekarang", "aku ingin mati sekarang"],
 };
+
+// The crisis route reads these tables (src/lib/safety/crisis-route.ts and its pure imports). Freezing
+// them at load means no other module can change what the crisis route reads, whatever settings that
+// module sees (Q-261018-48). RegExp objects keep their own state (the global patterns move lastIndex
+// while matching), so the arrays that hold them are frozen but the patterns are not.
+function deepFreeze(value: unknown): void {
+  if (value === null || typeof value !== "object" || value instanceof RegExp || Object.isFrozen(value)) return;
+  for (const key of Object.keys(value)) deepFreeze((value as Record<string, unknown>)[key]);
+  Object.freeze(value);
+}
+for (const table of [
+  FORBIDDEN_TERMS,
+  CRISIS_TERMS,
+  APPROVED_L2_ONLY_MARKERS,
+  HOTLINES,
+  LEXICON_SCAN_ALLOWLIST,
+  ANALYSIS_UNIVERSAL_FORBIDDEN,
+  LEXICON_NON_CLINICAL_CONTEXTS,
+  ANALYSIS_JURISDICTION_FORBIDDEN,
+  ANALYSIS_BANNED_CLAIM_PATTERNS,
+  EMERGENCY_PHRASES,
+  ADDITIONAL_CRISIS_PHRASES,
+  COMPLETE_CRISIS_PHRASES,
+]) {
+  deepFreeze(table);
+}

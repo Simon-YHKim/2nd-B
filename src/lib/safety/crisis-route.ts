@@ -3,8 +3,9 @@
 // Simon 2026-10-18 12:00 (Q-261018-48 가): this path lives in a file that reads no configuration.
 // boundary.ts re-exports the entry points (callers are unchanged) and hands in the two ledger
 // writers, because the audit transport reaches the Supabase client and its settings. The bodies
-// below moved from boundary.ts unchanged apart from indentation; routeProxyRejection is the proxy
-// 422 handling callLlm repeated twice, now answered right after each proxy reply.
+// below moved from boundary.ts unchanged apart from indentation. callLlm opens one gate per call
+// (openPromptCrisisGate): its input judgment, hash, observer and fence are made here, and the
+// proxy 422 and meaning-check RED answers of the same call go through that gate.
 // __tests__/crisis-route-config-free.test.ts pins this file's import closure, the host globals it
 // may touch and its surface, and runs every entry point with configuration reads made to throw.
 
@@ -100,6 +101,18 @@ export interface InterviewCrisisRoutingInput {
   locale: "en" | "ko";
   userId: string;
   minor?: boolean;
+}
+
+/** What callLlm hands its crisis gate: the prompt, the caller's observer and identity. */
+export interface PromptCrisisInput {
+  user: string;
+  system?: string;
+  locale: "en" | "ko";
+  minor?: boolean;
+  userId: string;
+  purpose?: string;
+  session?: AuthenticatedAccountSessionLease;
+  onCrisisDetected?: CrisisObserver;
 }
 
 export interface InterviewCrisisRoutingRun {
@@ -324,9 +337,60 @@ export function createCrisisRouting(ledger: CrisisLedger) {
     );
   }
 
+  // callLlm's own input gate (C9), opened before anything else of the call is read. The fence and
+  // the observer are built here from the caller's own signal, session and callback; the prompt is
+  // classified in both locales (a crisis term in the other language still counts) and hashed; a
+  // RED prompt starts its routing at once. Classification is synchronous, so a green prompt goes on
+  // without an extra await. The later crisis answers of the same call use the same gate.
+  function openPromptCrisisGate(input: PromptCrisisInput, signal: AbortSignal | undefined) {
+    const fence = (): void => {
+      throwIfAborted(signal);
+      input.session?.assertCurrent();
+    };
+    const notifyCrisis = crisisObserver(input.onCrisisDetected, fence);
+    const inputSafety = classifyInputAnyLocale(input.user, input.locale, { minor: input.minor });
+    const promptHash = djb2(`${input.system ?? ""}${input.user}`);
+    const routeInputRed = (): Promise<LlmResult<string>> => {
+      notifyCrisis?.(inputSafety.crisisRouting?.hotline);
+      return routeCrisis(inputSafety, input.locale, input.userId, promptHash, input.minor, "input_red", {
+        purpose: input.purpose,
+        session: input.session,
+      });
+    };
+    return Object.freeze({
+      safety: inputSafety,
+      promptHash,
+      notifyCrisis,
+      routed: inputSafety.zone === "red" ? routeInputRed() : null,
+      // A proxy rejected the call: the server crisis gate's 422 becomes the same guidance.
+      routeProxyRejection: (error: unknown): Promise<LlmResult<string> | null> => routeProxyRejection(error, {
+        locale: input.locale,
+        minor: input.minor,
+        userId: input.userId,
+        promptHash,
+        purpose: input.purpose,
+        session: input.session,
+        notifyCrisis,
+        fence,
+      }),
+      // The meaning check read the prompt as RED (no matched term: the classifier answers with meaning).
+      routeSemanticRed: (classifierConfidence: number): Promise<LlmResult<string>> => {
+        notifyCrisis?.(undefined);
+        return routeCrisis(
+          { zone: "red", matched: [], categories: ["crisis"] },
+          input.locale,
+          input.userId,
+          promptHash,
+          input.minor,
+          "input_semantic_red",
+          { purpose: input.purpose, session: input.session, classifierConfidence },
+        );
+      },
+    });
+  }
+
   return Object.freeze({
-    routeCrisis,
-    routeProxyRejection,
+    openPromptCrisisGate,
     classifyRecordTextForCrisis,
     classifyInterviewTextForCrisis,
     startInterviewCrisisRouting,

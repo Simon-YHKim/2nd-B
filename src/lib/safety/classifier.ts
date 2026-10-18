@@ -210,3 +210,6 @@ function additionalCrisisMatches(text: string): string[] {
   const match = matchAdditionalCrisisLanguage(text);
   return match ? [match.phrase] : [];
 }
+
+// Read by the crisis route; frozen so no other module can change it (Q-261018-48).
+Object.freeze(KO_PARTIAL_SPACING_TERMS);

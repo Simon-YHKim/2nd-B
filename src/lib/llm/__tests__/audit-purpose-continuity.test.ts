@@ -243,7 +243,8 @@ describe("gemini.ts / safety.ts - every client-written audit row carries a purpo
       /opts: \{\s*recordCrisisEvent\?: boolean;\s*purpose\?: string;\s*session\?: AuthenticatedAccountSessionLease;\s*classifierConfidence\?: number;\s*\}/,
     );
     expect(
-      boundaryTs.match(/purpose: input\.purpose,\s*session: input\.session/g)?.length ?? 0,
+      // The crisis answers (input RED, meaning RED, proxy 422) are made in the crisis gate since Q-261018-48.
+      crisisRouteTs.match(/purpose: input\.purpose,\s*session: input\.session/g)?.length ?? 0,
     ).toBeGreaterThanOrEqual(3);
   });
 

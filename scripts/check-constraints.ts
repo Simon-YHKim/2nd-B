@@ -533,10 +533,21 @@ results.push(
   check("C9", () => {
     const wrapper = read("src/lib/llm/boundary.ts");
     // crude AST check: the input classifier (classifyInput or the dual-locale
-    // classifyInputAnyLocale) must appear before generateContent.
-    const classifyIdx = wrapper.search(/classifyInput(?:AnyLocale)?\(input\.user/);
+    // classifyInputAnyLocale) must appear before generateContent. Since
+    // Q-261018-48 callLlm's input judgment lives in the crisis gate
+    // (src/lib/safety/crisis-route.ts, no settings): the wrapper must open that
+    // gate on the caller's input before generateContent, and the gate must run
+    // the classifier on input.user. Both halves are required.
+    const route = read("src/lib/safety/crisis-route.ts");
+    const gateIdx = wrapper.search(/crisisRouting\.openPromptCrisisGate\(input, signal\)/);
     const generateIdx = wrapper.indexOf("generateContent");
-    const ok = classifyIdx >= 0 && generateIdx >= 0 && classifyIdx < generateIdx;
+    // The gate's own body: from its declaration to the first line that closes a router ("  }").
+    const gateStart = route.indexOf("function openPromptCrisisGate(");
+    const gateFn = gateStart >= 0 ? route.slice(gateStart).split(/\r?\n {2}\}\r?\n/)[0] : "";
+    const gateClassifies = gateFn.includes(
+      "const inputSafety = classifyInputAnyLocale(input.user, input.locale, { minor: input.minor });",
+    );
+    const ok = gateIdx >= 0 && generateIdx >= 0 && gateIdx < generateIdx && gateClassifies;
     return {
       id: "C9",
       status: ok ? "PASS" : "FAIL",

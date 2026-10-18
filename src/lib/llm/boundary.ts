@@ -24,7 +24,7 @@ import {
 import type { LlmVendor } from "./routing";
 import { retrieveEvidence } from "../knowledge/retrieve";
 import { loadDomainLevels } from "../persona/load-domain-levels";
-import { classifyInput, classifyInputAnyLocale, type SafetyResult } from "../safety/classifier";
+import { classifyInput, type SafetyResult } from "../safety/classifier";
 import { hasCrisisObfuscation } from "../safety/crisis-obfuscation";
 import { createCrisisRouting, crisisObserver, inspectProxyCrisisRejection } from "../safety/crisis-route";
 import { getSupabaseClient } from "../supabase/client";
@@ -414,26 +414,15 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     input.session?.assertCurrent();
   };
   fence();
-  const notifyCrisis = crisisObserver(input.onCrisisDetected, fence);
   assertRootObjectSchema(input.responseSchema);
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
   // Dual-locale: catch a crisis term written in the other language than the UI
   // locale, matching embedTexts + the proxy gate (the direct/Vertex path has no
-  // proxy backstop, so this is the only input short-circuit there).
-  const inputSafety = classifyInputAnyLocale(input.user, input.locale, { minor: input.minor });
-  const promptHash = djb2(`${input.system ?? ""}${input.user}`);
-  if (inputSafety.zone === "red") {
-    notifyCrisis?.(inputSafety.crisisRouting?.hotline);
-    return (await crisisRouting.routeCrisis(
-      inputSafety,
-      input.locale,
-      input.userId,
-      promptHash,
-      input.minor,
-      "input_red",
-      { purpose: input.purpose, session: input.session },
-    )) as unknown as LlmResult<T>;
-  }
+  // proxy backstop, so this is the only input short-circuit there). The gate
+  // (../safety/crisis-route.ts, no settings) classifies, hashes and routes.
+  const crisisGate = crisisRouting.openPromptCrisisGate(input, signal);
+  if (crisisGate.routed) return (await crisisGate.routed) as unknown as LlmResult<T>;
+  const { safety: inputSafety, promptHash, notifyCrisis } = crisisGate;
 
   // Q-261011-05: lexicon first, then app-only obfuscation gate, then meaning.
   // Neither the gate alone nor an unavailable semantic result changes a verdict.
@@ -448,16 +437,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     });
     fence();
     if (semanticInput?.zone === "red") {
-      notifyCrisis?.(undefined);
-      return (await crisisRouting.routeCrisis(
-        { zone: "red", matched: [], categories: ["crisis"] },
-        input.locale,
-        input.userId,
-        promptHash,
-        input.minor,
-        "input_semantic_red",
-        { purpose: input.purpose, session: input.session, classifierConfidence: semanticInput.confidence },
-      )) as unknown as LlmResult<T>;
+      return (await crisisGate.routeSemanticRed(semanticInput.confidence)) as unknown as LlmResult<T>;
     }
     if (semanticInput === null) {
       noteObfuscationUnavailable(input.userId, inputSafety.zone, input.session, signal);
@@ -619,6 +599,21 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       }
       return result;
     };
+    // D-26 outage failover: a vendor seat that fails outside crisis/consent gates
+    // falls back ONCE to its Phase 1 assignment (gemini-proxy) — "each vendor
+    // row's outage fallback is that row's Phase 1 assignment". A crisis 422 is
+    // answered below and never retried (all proxies share the same gate, so a
+    // retry would just re-reject — and must not look like an outage).
+    // The retry target is a switch now, not the literal "gemini-proxy" (that
+    // key stops working in September, at which point the retry would be a
+    // guaranteed second failure that also replaces the real error). Comparing
+    // against primaryFn rather than a fixed name also generalises the old
+    // guard: retrying the proxy that just failed is not a failover.
+    // The switch is read here, before the call (it was read right after the
+    // first reply; the same read, one step earlier), so no setting is read
+    // between a crisis rejection and its guidance (Q-261018-48).
+    const failoverTarget = failoverVendor();
+    const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
     const t0 = Date.now();
     // C9 fallback: the server gate caught what the client lexicon missed —
     // surface the same hotline routing as a client-side RED, never the raw
@@ -626,25 +621,10 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     // audits only successful Gemini calls), so the client writes the audit.
     // The restricted crisis_events row is added only when the body explicitly
     // carries safety_red_zone; unreadable 422s still show the hotline template.
-    // Each proxy reply is checked as soon as it arrives, before any setting is
-    // read (Q-261018-48): the failover switch below never stands between a
-    // crisis rejection and the guidance.
-    const proxyCrisisCall = { locale: input.locale, minor: input.minor, userId: input.userId, promptHash, purpose: input.purpose, session: input.session, notifyCrisis, fence };
+    // Each proxy reply goes to the crisis gate as soon as it arrives.
     let { data, error } = await invokeProxy(primaryFn);
-    const primaryCrisis = error ? await crisisRouting.routeProxyRejection(error, proxyCrisisCall) : null;
+    const primaryCrisis = error ? await crisisGate.routeProxyRejection(error) : null;
     if (primaryCrisis) return primaryCrisis as unknown as LlmResult<T>;
-    // D-26 outage failover: a vendor seat that fails outside crisis/consent gates
-    // falls back ONCE to its Phase 1 assignment (gemini-proxy) — "each vendor
-    // row's outage fallback is that row's Phase 1 assignment". A crisis 422 is
-    // answered above and never retried (all proxies share the same gate, so a
-    // retry would just re-reject — and must not look like an outage).
-    // The retry target is a switch now, not the literal "gemini-proxy" (that
-    // key stops working in September, at which point the retry would be a
-    // guaranteed second failure that also replaces the real error). Comparing
-    // against primaryFn rather than a fixed name also generalises the old
-    // guard: retrying the proxy that just failed is not a failover.
-    const failoverTarget = failoverVendor();
-    const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
     // Reservation-backed calls cannot reuse a claimed slot on another provider.
     if (error && input.purpose !== "persona_synthesis" && input.purpose !== "reasoning_connect" && failoverFn && failoverFn !== primaryFn) {
       if (typeof console !== "undefined") {
@@ -656,7 +636,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // only place anyone can check which vendor did what.
       servedByProvider = failoverTarget as LlmVendor;
       ({ data, error } = await invokeProxy(failoverFn));
-      const failoverCrisis = error ? await crisisRouting.routeProxyRejection(error, proxyCrisisCall) : null;
+      const failoverCrisis = error ? await crisisGate.routeProxyRejection(error) : null;
       if (failoverCrisis) return failoverCrisis as unknown as LlmResult<T>;
     }
     latencyMs = Date.now() - t0;

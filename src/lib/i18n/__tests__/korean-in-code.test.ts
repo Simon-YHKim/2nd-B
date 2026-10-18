@@ -49,6 +49,7 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   "src/lib/records/detect-domain.ts": "도메인 분류용 한국어 키워드 목록",
   "src/lib/chat/plan-suggestions.ts": "대화의 반복 의도·취소·오전/오후를 해석하는 한국어 매칭 규칙. UI 문구는 secondb.json에서 번역",
   "src/lib/chat/sources.ts": "치환된 인용 이름 뒤의 한국어 조사 쌍을 josaFor에 연결하는 문법 규칙. 중립 낱말은 화면에서 번역해 전달",
+  "src/lib/safety/crisis-route.ts": "위기 경로의 고정 안내 대체 문장(번호 연결 낱말 포함). boundary.ts 에서 그대로 옮겨 왔고(Q-261018-48) 설정 · 런타임 i18n 없이 같은 안내를 돌려줘야 하는 자리",
   "src/lib/safety/emergency-routing.ts": "앱과 Edge 공용 한국어 문법 규칙 및 ko/en 고정 긴급 안내. 런타임 i18n 없이 같은 안내를 반환하며 각 UI 언어의 번호·본문은 emergency-dialog 검사로 대조",
   "src/lib/safety/lexicon.ts": "금지어 패턴 (안전 분류기 입력)",
   "src/lib/safety/crisis-context.ts": "의도 부인과 업무·휴식 문맥을 판별하는 한국어 문법 규칙. 사용자에게 표시하는 문구가 아님",
@@ -259,7 +260,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/knowledge/retrieve.ts": 30,
   // 2026-10-07 S0.5: 49 -> 29. MOCK_RESPONSES 에서 호출부 없는 좌석 imagine(ko 11줄) 과
   // import_ingest(ko 9줄) 의 미리보기 견본이 빠졌다. **고친 것이 아니라 빠진 것**이다.
-  "src/lib/llm/boundary.ts": 29,
+  "src/lib/llm/boundary.ts": 26,
   "src/lib/llm/safety.ts": 4,
   "src/lib/llm/untrusted.ts": 1,
   "src/lib/notices/adapt.ts": 2,

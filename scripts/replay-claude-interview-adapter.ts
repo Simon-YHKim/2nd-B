@@ -132,7 +132,8 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
   const boundaryTail = statements.slice(starts[0]).map((node) => node.getText(boundaryAst)).join("\n");
   const routeAst = parse(CRISIS_ROUTE, sources[CRISIS_ROUTE]);
   const observerText = fn(routeAst, "crisisObserver").getText(routeAst).replace(/^export\s+/, "");
-  const observerInit = variable(fn(boundaryAst, "callLlm").body!, "notifyCrisis").initializer!.getText(boundaryAst);
+  // callLlm takes its observer from the crisis gate (Q-261018-48); the gate builds it from the caller's callback.
+  const observerInit = variable(fn(routeAst, "openPromptCrisisGate").body!, "notifyCrisis").initializer!.getText(routeAst);
   let auditWrites = 0;
   const outputBoundary = evaluate<(text: string, input: Prompt, effect: (event: ReplayEffect) => void) => Promise<BoundaryReply>>(
     `${observerText}
