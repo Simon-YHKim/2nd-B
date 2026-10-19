@@ -355,7 +355,7 @@ function buildSystemPrompt(
       "1) 한 번에 한 가지 질문만 합니다. 짧고, 구체적이고, 부드럽게.",
       "말투는 쉬운 일상어로, 설명은 '~습니다', 질문은 '~나요?'·'~까요?'를 씁니다. 상투적인 칭찬·공감이나 추상적인 비유 없이 바로 묻고, 층·단계 같은 내부 용어를 질문에 드러내지 마세요.",
       "비밀이나 말하기 불편한 일을 요구하지 마세요. 기억나지 않는 내용을 상상해서 채우게 하지 마세요. 직접 기억한 것과 나중에 들은 이야기를 구분하세요. 사용자가 답하지 않겠다고 하면 그 뜻을 존중하는 것이 깊이 단계보다 우선합니다.",
-      "2) 사용자의 마지막 답에 직접 이어붙입니다 — 답의 어느 부분을 더 듣고 싶은지 명확히 합니다. 질문 앞에 마지막 답에서 한 구절을 작은따옴표로 짧게 받아 주고, '~라고 하셨는데'처럼 자연스럽게 이어서 한 가지를 묻습니다. 받아 주는 구절은 사용자 말 그대로 몇 단어이고 물음표를 넣지 않으며, 평가 · 칭찬 · 해석을 덧붙이지 않습니다. 아직 답이 없거나, 답하지 않겠다고 했거나, 모르겠다고 했으면 받아 줄 구절 없이 바로 묻습니다. 받아 주기는 말하는 방식일 뿐이라 답이 어느 깊이에 닿았는지의 판정을 바꾸지 않습니다.",
+      "2) 사용자의 마지막 답에 직접 이어붙입니다 — 답의 어느 부분을 더 듣고 싶은지 명확히 합니다. 질문 앞에 마지막 답에서 한 구절을 작은따옴표로 짧게 받아 주고, '~라고 하셨는데'처럼 자연스럽게 이어서 한 가지를 묻습니다. 받아 주는 구절은 사용자 말 그대로 몇 단어이고 물음표를 넣지 않으며, 평가 · 칭찬 · 해석을 덧붙이지 않습니다. 아직 답이 없거나, 답하지 않겠다고 했거나, 모르겠다고 했으면 받아 줄 구절 없이 바로 묻습니다. 받아 주기는 말하는 방식일 뿐이라 답이 어느 깊이에 닿았는지의 판정을 바꾸지 않습니다. 그만두겠다는 신호(규칙 4)나 위기 신호(규칙 5)가 있으면 받아 주지도 묻지도 않고 그 규칙만 따릅니다.",
       "같은 장면의 사람·행동·사용자 표현을 이어갑니다. 질문에서 사용자의 '제가·나는' 같은 1인칭을 인터뷰어 자신의 말처럼 재사용하지 않습니다. 사용자 말로 명확히 인용하거나 주어를 생략합니다. 답에 없는 사건이나 속마음을 지어내지 않습니다. 짧아도 구체적인 답이면 충분합니다. 다른 장면으로 넘어가려면 사용자의 선택이 먼저입니다.",
       "감정은 말하고 싶은 범위에서만 묻습니다. 숨겨진 진실·더 솔직한 답을 요구하거나 공개 정도를 칭찬하지 않습니다. 감정 대신 그때 한 행동을 이야기해도 되고, 건너뛰거나 여기서 저장해도 됩니다.",
       "3) 진단·조언·해석은 절대 하지 않습니다. 그저 더 듣는 다음 질문만.",
@@ -408,7 +408,7 @@ function buildSystemPrompt(
     "1) ONE question at a time. Short, specific, gentle.",
     "Use plain, conversational language. Ask directly without canned praise, stock empathy, elaborate metaphors, or internal layer labels.",
     "Do not ask for secrets or uncomfortable disclosures. Do not ask the user to imagine missing memories. Distinguish direct memories from stories heard later. Respecting a choice not to answer takes priority over reaching a depth layer.",
-    "2) Anchor directly on the user's last answer — make clear which part you want to hear more about. Begin by taking back one short phrase from that answer in quotation marks (their exact words, a few words, no question mark, no praise, evaluation or interpretation) and lead naturally into one question, for example with 'You said ...'. If there is no answer yet, or they chose not to answer, or said they don't know, ask without it. Taking a phrase back is only a way of speaking; it never changes the judgement of which depth the answer reached.",
+    "2) Anchor directly on the user's last answer — make clear which part you want to hear more about. Begin by taking back one short phrase from that answer in quotation marks (their exact words, a few words, no question mark, no praise, evaluation or interpretation) and lead naturally into one question, for example with 'You said ...'. If there is no answer yet, or they chose not to answer, or said they don't know, ask without it. Taking a phrase back is only a way of speaking; it never changes the judgement of which depth the answer reached. If there is a stop signal (rule 4) or crisis signals (rule 5), do not take a phrase back or ask; follow only that rule.",
     "Stay with the same scene, people, actions, and the user's own wording. In questions, do not reuse the user's first-person I/me as the interviewer's voice. Clearly quote it as the user's words, or refer to the user without taking over their first person. Do not invent events or hidden feelings. A short specific answer is sufficient. Change scenes only when the user chooses to.",
     "Invite feelings only if they want to share. Never seek hidden truths, demand greater honesty, or praise disclosure. They may describe a concrete action instead, skip, or stop and save at any time.",
     "3) NEVER diagnose, advise, or interpret. Just the next question that elicits more.",
@@ -635,6 +635,33 @@ function readAnsweredLayer(parsed: ProbeReply | null): DrillLayer | null | undef
  * 여기서는 **이미 물은 것과 사실상 같으면 버린다.** 그 자리에는 그 층을 겨냥한
  * 고정 질문이 들어간다 -- 한 번 더 LLM 을 부르는 것보다 싸고 결과가 예측 가능하다.
  */
+// T33 (Q-261014-15): the question may open by taking back one phrase of the user's last answer.
+// A quote the user never said, a quote of a non-answer, or any quote after a non-answer is refused,
+// so the prepared question is used instead. Quotes are found only where a quote mark is not inside
+// a Latin word (so "What's" is not a quote, and "don't" stays inside one); a Korean particle may follow the closing mark.
+const ECHO_QUOTE = /(?<![A-Za-z0-9])['‘"“「『]((?:[^'‘’"“”「」『』\n]|(?<=[A-Za-z])['’](?=[A-Za-z])){1,80})['’"”」』](?![A-Za-z])/gu;
+const ECHO_NON_ANSWER = /모르겠|기억\s*(?:이\s*)?안\s*나|하고\s*싶지\s*않|말하고\s*싶지|싫어|그만|don['’]?t\s+(?:really\s+)?know|not\s+sure|no\s+idea|rather\s+not|don['’]?t\s+want\s+to|\bstop\b/iu;
+const ECHO_LEAD = /^\s*you said,?\s*|라고\s*하셨는데,?|고\s*하셨는데,?/giu;
+
+function echoQuotes(candidate: string): string[] {
+  return [...candidate.matchAll(ECHO_QUOTE)].map((match) => match[1].trim()).filter(Boolean);
+}
+
+function echoProblem(candidate: string, history: readonly InterviewTurn[], locale: "en" | "ko"): boolean {
+  const quotes = echoQuotes(candidate);
+  if (quotes.length === 0) return false;
+  const last = [...history].reverse().find((turn) => turn.role === "user")?.text ?? "";
+  if (!last.trim() || answerDisposition(last, locale) !== "answer") return true;
+  const flat = (value: string) => value.replace(/\s+/gu, " ").trim().toLowerCase().replace(/[.,!?。！？]+$/u, "");
+  const source = flat(last);
+  return quotes.some((quote) => !source.includes(flat(quote)) || ECHO_NON_ANSWER.test(quote));
+}
+
+/** The question without its echoed quote, for the repeat check only (never shown). */
+function questionCore(candidate: string): string {
+  return candidate.replace(ECHO_QUOTE, " ").replace(ECHO_LEAD, " ").replace(/^[\s,，.\-–—:]+/u, "").trim();
+}
+
 export function usableQuestion(
   candidate: string,
   history: readonly InterviewTurn[],
@@ -661,7 +688,8 @@ export function usableQuestion(
     });
   };
   if (candidate.length > 0 && candidate.length <= 320 && (candidate.match(/[?？]/g)?.length ?? 0) <= 1
-    && !candidate.startsWith("{") && !candidate.startsWith("```") && !repeated(candidate)) return candidate;
+    && !candidate.startsWith("{") && !candidate.startsWith("```") && !repeated(candidate)
+    && !echoProblem(candidate, history, locale) && !repeated(questionCore(candidate))) return candidate;
   // 발판일 때 같은 층의 원래 질문을 돌려주면 방금 못 답한 그 질문을 그대로
   // 다시 묻게 된다. 발판은 발판용 문장이 따로 있다.
   const fallbacks = scaffoldStreak > 0
