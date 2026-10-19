@@ -2,6 +2,23 @@
 BEGIN;
 
 -- Run after 0264, on a disposable local database. Every probe is rolled back.
+-- The real trigger closure is required even in narrow local fixtures: 0223
+-- reads users, 0239 reads sources/profile_context_imports, and the DELETE-only
+-- 0242/0251 functions run with their existing definer rights.
+DO $trigger_fixture$
+BEGIN
+  IF (SELECT count(*) FROM (VALUES
+    ('sources_minor_import_clamp','public.reject_minor_locked_import_sources()'),
+    ('aa_profile_import_source_guard','public.guard_profile_import_rows()'),
+    ('zz_profile_import_source_erasure','public.clear_profile_import_on_source_delete()'),
+    ('purge_reasoning_proposals','public.purge_reasoning_proposals_of_erased()')
+  ) expected(name,fn) JOIN pg_trigger t ON t.tgname=expected.name
+    AND t.tgfoid=to_regprocedure(expected.fn)
+    WHERE t.tgrelid='public.sources'::regclass AND NOT t.tgisinternal AND t.tgenabled='O') <> 4 THEN
+    RAISE EXCEPTION 'source trigger fixture incomplete';
+  END IF;
+END $trigger_fixture$;
+
 INSERT INTO auth.users (id, email) VALUES
   ('5a5a0264-0000-4000-8000-000000000001', 'sources-tags-one@example.invalid'),
   ('5a5a0264-0000-4000-8000-000000000002', 'sources-tags-two@example.invalid');
@@ -72,6 +89,9 @@ END $contract$;
 -- probe's SELECT/UPDATE rights inside its rolled-back transaction, keeping the
 -- real owner policy and managed-import trigger unchanged.
 GRANT SELECT, UPDATE ON public.sources TO authenticated;
+-- 0223's invoker trigger reads the owner's age tier through the real users RLS.
+-- 0239 already explicitly grants its import ledger SELECT in the migration.
+GRANT SELECT ON public.users TO authenticated;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '5a5a0264-0000-4000-8000-000000000001', true);
 DO $ownership$
@@ -92,6 +112,23 @@ BEGIN
   GET DIAGNOSTICS affected=ROW_COUNT;
   IF affected<>0 THEN RAISE EXCEPTION 'cross-owner update escaped RLS'; END IF;
 END $ownership$;
+RESET ROLE;
+
+-- A real minor-account write must still reach 0223 and be refused. Changing the
+-- birth date uses the existing server age trigger; the fixture never sets tier.
+UPDATE public.users SET birth_date=(CURRENT_DATE-INTERVAL '16 years')::date
+WHERE id='5a5a0264-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+DO $minor_import$
+BEGIN
+  BEGIN
+    UPDATE public.sources SET frontmatter=jsonb_build_object('import_kind','sms')
+      WHERE id='5a5a0264-0000-4000-8000-0000000000a1';
+    RAISE EXCEPTION 'minor source update escaped import lock';
+  EXCEPTION WHEN SQLSTATE 'P0001' THEN
+    IF SQLERRM NOT LIKE 'minor_import_locked:%' THEN RAISE; END IF;
+  END;
+END $minor_import$;
 RESET ROLE;
 
 -- No trigger may classify sources by either tag array.

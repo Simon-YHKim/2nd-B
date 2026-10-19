@@ -68,14 +68,14 @@ function rejectionSql(setup, expected, candidate = migration) {
 green("full regression", regression);
 green("scratch grants enable real RLS probes and roll back to the prior ACL", `
   CREATE TEMP TABLE t54_prior_acl ON COMMIT DROP AS
-    SELECT relacl FROM pg_class WHERE oid='public.sources'::regclass;
+    SELECT oid,relacl FROM pg_class WHERE oid IN ('public.sources'::regclass,'public.users'::regclass);
   SAVEPOINT t54_grants;
-  REVOKE ALL ON public.sources FROM PUBLIC, authenticated;
+  REVOKE ALL ON public.sources, public.users FROM PUBLIC, authenticated;
   ${regression}
   ROLLBACK TO SAVEPOINT t54_grants;
   DO $acl$ BEGIN
-    IF (SELECT relacl FROM pg_class WHERE oid='public.sources'::regclass)
-      IS DISTINCT FROM (SELECT relacl FROM t54_prior_acl) THEN
+    IF EXISTS(SELECT 1 FROM pg_class c JOIN t54_prior_acl prior USING(oid)
+      WHERE c.relacl IS DISTINCT FROM prior.relacl) THEN
       RAISE EXCEPTION 'scratch grant fixture leaked privileges';
     END IF;
   END $acl$;`);
@@ -142,6 +142,7 @@ green("managed import rejects direct marker update", `
   -- Match the regression fixture's scratch-only table rights. This transaction
   -- rolls them back, and the existing managed-import trigger must still refuse.
   GRANT SELECT, UPDATE ON public.sources TO authenticated;
+  GRANT SELECT ON public.users TO authenticated;
   SET LOCAL ROLE authenticated;
   SELECT set_config('request.jwt.claim.sub','5a5a0264-0000-4000-8000-000000000004',true);
   DO $managed$ BEGIN
@@ -163,6 +164,9 @@ const mutations = [
   ["allow domain markers", migration.replace("WHEN lower(array_to_string(system_tags, ',')) ~ '(^|,)domain:' THEN false", "")],
   ["allow NULL elements", migration.replace("WHEN array_position(system_tags, NULL) IS NOT NULL THEN false", "WHEN array_position(system_tags, NULL) IS NOT NULL THEN true")],
   ["remove owner RLS", `${migration}\nALTER TABLE public.sources DISABLE ROW LEVEL SECURITY;`],
+  ["bypass minor import trigger", `${migration}
+    CREATE OR REPLACE FUNCTION public.reject_minor_locked_import_sources() RETURNS trigger
+    LANGUAGE plpgsql SET search_path=public AS $bypass$ BEGIN RETURN NEW; END $bypass$;`],
 ];
 let killed = 0;
 for (const [label, candidate, test] of mutations) {
@@ -170,21 +174,27 @@ for (const [label, candidate, test] of mutations) {
   const sql = test ? test(candidate) : `${noColumn}\n${candidate}\n${regression}`;
   const result = execute(`BEGIN;\n${sql}\nROLLBACK;`);
   if (result.status === 0) throw new Error(`Mutation survived: ${label}`);
-  if (!/expected migration rejection|shape accepted|cross-owner update escaped RLS/.test(result.stderr)) {
+  if (!/expected migration rejection|shape accepted|cross-owner update escaped RLS|minor source update escaped import lock/.test(result.stderr)) {
     throw new Error(`Mutation failed for an unrelated reason (${label}): ${result.stderr}`);
   }
   killed++;
   console.log(`KILLED ${label}`);
 }
-const missingFixtureGrant = regression.replace("GRANT SELECT, UPDATE ON public.sources TO authenticated;", "");
-if (missingFixtureGrant === regression) throw new Error("Scratch-grant mutation did not edit the fixture");
-const fixtureMutation = execute(`BEGIN;
-  REVOKE ALL ON public.sources FROM PUBLIC, authenticated;
-  ${missingFixtureGrant}
-  ROLLBACK;`);
-if (fixtureMutation.status === 0 || !/permission denied for table sources/.test(fixtureMutation.stderr)) {
-  throw new Error(`Scratch-grant mutation survived or failed for another reason: ${fixtureMutation.stderr}`);
+const scratchGrants = [
+  ["sources", "GRANT SELECT, UPDATE ON public.sources TO authenticated;"],
+  ["users", "GRANT SELECT ON public.users TO authenticated;"],
+];
+for (const [table, grant] of scratchGrants) {
+  const missingFixtureGrant = regression.replace(grant, "");
+  if (missingFixtureGrant === regression) throw new Error(`Scratch-grant mutation did not edit ${table}`);
+  const fixtureMutation = execute(`BEGIN;
+    REVOKE ALL ON public.sources, public.users FROM PUBLIC, authenticated;
+    ${missingFixtureGrant}
+    ROLLBACK;`);
+  if (fixtureMutation.status === 0 || !fixtureMutation.stderr.includes(`permission denied for table ${table}`)) {
+    throw new Error(`Scratch-grant mutation survived or failed for another reason (${table}): ${fixtureMutation.stderr}`);
+  }
+  killed++;
+  console.log(`KILLED remove scratch ${table} grants`);
 }
-killed++;
-console.log("KILLED remove scratch source grants");
-console.log(`PASS T54 SQL: ${assertions} contracts; ${killed}/${mutations.length + 1} mutations killed`);
+console.log(`PASS T54 SQL: ${assertions} contracts; ${killed}/${mutations.length + scratchGrants.length} mutations killed`);
