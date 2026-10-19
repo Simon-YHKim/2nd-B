@@ -173,6 +173,8 @@
     "on": "Activado",
     "off": "Desactivado",
     "policy": "Política de privacidad",
+    "terms": "Términos de servicio",
+    "refund": "Política de reembolso",
     "view": "Ver",
     "processingLog": "Registro de procesamiento de datos",
     "last7": "Últimos 7 días",
@@ -184,12 +186,12 @@
     "atGlance": "De un vistazo",
     "facts": {
       "onDevice": {
-        "label": "Primero en el dispositivo",
-        "v": "El contenido original que importas se analiza en tu dispositivo; solo se guardan, cifradas, las señales derivadas."
+        "label": "Cómo se usan los registros",
+        "v": "Los registros se guardan en el servidor. El contenido necesario para las funciones de IA se envía a los proveedores de IA."
       },
       "collect": {
         "label": "Qué recopilamos",
-        "v": "Las motas de estrella que guardas, las puntuaciones de lentes y los patrones de uso. Ubicación y comunicaciones, solo con tu consentimiento."
+        "v": "Información de la cuenta, registros guardados y datos de uso del servicio, entre otros."
       },
       "retention": {
         "label": "Plazo de conservación",
@@ -209,7 +211,7 @@
       "loadingSettings": "Cargando ajustes…",
       "allow": "Permitir estadísticas de uso",
       "lockedUnder18": "Bloqueado para menores de 18",
-      "applied": "GA4 activo en la web · Firebase y Clarity desactivados en Android",
+      "applied": "La elección se aplica a Google Analytics en la web · Estadísticas de uso desactivadas en Android",
       "enableFailed": "No se pudieron activar las estadísticas. Inténtalo de nuevo.",
       "withdrawSaveFailed": "No se pudo guardar. La retirada de las estadísticas ya se aplicó en este dispositivo; vuelve a intentar guardar.",
       "adsSaveFailed": "No se pudo guardar el ajuste de anuncios. Inténtalo de nuevo."
@@ -227,10 +229,10 @@
     "semantic": {
       "title": "Conexiones de registros por significado",
       "minorLocked": "Las conexiones por significado están desactivadas y no se pueden activar.",
-      "onBody": "Activadas. Los registros se indexan por significado para mostrar los que se parecen.",
-      "turnOffA11y": "Desactivar las conexiones por significado",
-      "turnOff": "Desactivar y borrar vectores",
-      "offBody": "Desactivadas. Actívalas para conectar registros de significado parecido, aunque no compartan etiquetas.",
+      "onBody": "Conecta registros de significado parecido. Al desactivar, se borran los datos para las conexiones y se conservan tus registros.",
+      "turnOffA11y": "Desactivar las conexiones por significado y borrar los datos de conexión",
+      "turnOff": "Desactivar y borrar datos de conexión",
+      "offBody": "Desactivadas. Actívalas para conectar registros de significado parecido.",
       "turnOnA11y": "Activar las conexiones por significado",
       "turnOn": "Activar"
     },

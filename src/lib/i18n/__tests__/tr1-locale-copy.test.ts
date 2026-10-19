@@ -74,7 +74,7 @@ describe("tr1: screens read the moved keys", () => {
   it("/privacy reads every moved privacy key and none of the old English literals", () => {
     const en = flatten(at(pack("en", "deepspace"), "privacy"));
     const moved = Object.keys(en).filter((k) =>
-      /^(atGlance|analytics\.|recommend\.|semantic\.|understand|saveFailed|deleteAccount\.)/.test(k),
+      /^(terms|refund|atGlance|analytics\.|recommend\.|semantic\.|understand|saveFailed|deleteAccount\.)/.test(k),
     );
     expect(moved.length).toBeGreaterThanOrEqual(36);
     for (const k of moved) expect({ key: k, used: privacyScreen.includes(`t("privacy.${k}"`) }).toEqual({ key: k, used: true });
@@ -210,7 +210,7 @@ describe("tr1: the Korean screen still paints the canon, and the ko keys mirror 
 
 describe("tr1: es/pt/id carry their own text", () => {
   const MOVED: Record<string, string[]> = {
-    deepspace: ["privacy.atGlance", "privacy.facts", "privacy.analytics", "privacy.recommend", "privacy.semantic", "privacy.understand", "privacy.understandA11y", "privacy.saveFailed", "privacy.deleteAccount", "support.faqs", "onboarding.skip", "onboarding.slides"],
+    deepspace: ["privacy.terms", "privacy.refund", "privacy.atGlance", "privacy.facts", "privacy.analytics", "privacy.recommend", "privacy.semantic", "privacy.understand", "privacy.understandA11y", "privacy.saveFailed", "privacy.deleteAccount", "support.faqs", "onboarding.skip", "onboarding.slides"],
     "core-brain": ["portrait", "savedResult", "polarisGraphicA11y", "deck"],
     brightness: ["shiftNudge", "shiftNudgeCited"],
   };

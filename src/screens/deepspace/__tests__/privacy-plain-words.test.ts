@@ -1,0 +1,89 @@
+// Z76 / T09: the privacy summary uses everyday words, and its legal links work.
+// Source contracts avoid importing the React Native renderer (RN 0.85).
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import ts from "typescript";
+
+const read = (file: string) => readFileSync(join(process.cwd(), file), "utf8");
+const FILE = "src/screens/deepspace/DeepSpaceDesignScreens.tsx";
+const ast = ts.createSourceFile(FILE, read(FILE), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const screen = ast.statements.find((node): node is ts.FunctionDeclaration =>
+  ts.isFunctionDeclaration(node) && node.name?.text === "DeepSpacePrivacyDesignScreen",
+);
+if (!screen) throw new Error("Privacy screen not found");
+
+function attribute(node: ts.JsxSelfClosingElement, name: string): string | undefined {
+  const attr = node.attributes.properties.find((prop): prop is ts.JsxAttribute =>
+    ts.isJsxAttribute(prop) && prop.name.getText(ast) === name,
+  );
+  const init = attr?.initializer;
+  return init && ts.isJsxExpression(init) ? init.expression?.getText(ast) : undefined;
+}
+
+function strings(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (value && typeof value === "object") return Object.values(value).flatMap(strings);
+  return [];
+}
+
+const JARGON = {
+  ko: /온디바이스|파생\s*신호|렌즈\s*점수|벡터|GA4|색인/i,
+  en: /on.device\s+first|derived\s+signals?|lens\s+scores?|vectors?|GA4|index(?:ed|ing)?|semantic/i,
+  es: /primero en el dispositivo|señales derivadas|puntuaciones de lentes|vectores|GA4|index(?:a|ar)/i,
+  pt: /primeiro no dispositivo|sinais derivados|pontuações de lentes|vetores|GA4|index(?:a|ar)/i,
+  id: /diproses di perangkat lebih dulu|sinyal turun|skor lensa|vektor|GA4|diindeks/i,
+};
+const LABELS = {
+  ko: ["이용약관", "환불 정책"],
+  en: ["Terms of service", "Refund policy"],
+  es: ["Términos de servicio", "Política de reembolso"],
+  pt: ["Termos de uso", "Política de reembolso"],
+  id: ["Ketentuan layanan", "Kebijakan pengembalian dana"],
+};
+const locales = Object.keys(JARGON) as (keyof typeof JARGON)[];
+
+describe("privacy plain words and legal links (Z76)", () => {
+  it("puts terms and refund immediately after the policy, in the same card, with working routes", () => {
+    const actions: ts.JsxSelfClosingElement[] = [];
+    const visit = (node: ts.Node): void => {
+      if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(ast) === "Action") actions.push(node);
+      ts.forEachChild(node, visit);
+    };
+    visit(screen);
+    const legal = ["policy", "terms", "refund"].map((key) => {
+      const matches = actions.filter((node) => attribute(node, "label") === `t("privacy.${key}")`);
+      expect(matches).toHaveLength(1);
+      return matches[0];
+    });
+    const parent = legal[0].parent;
+    expect(ts.isJsxElement(parent) && parent.openingElement.tagName.getText(ast)).toBe("Card");
+    legal.forEach((node, i) => {
+      expect(node.parent).toBe(parent);
+      expect(attribute(node, "value")).toBe('t("privacy.view")');
+      const route = ["privacy-policy", "terms", "refund"][i];
+      expect(attribute(node, "onPress")).toBe(`() => router.push("/${route}")`);
+      expect(read(`src/app/(auth)/${route}.tsx`)).toContain("DeepSpaceLegalDocScreen");
+    });
+    if (!ts.isJsxElement(parent)) throw new Error("Legal links have no card");
+    const siblings = parent.children.filter((node) => !(ts.isJsxText(node) ||
+      (ts.isJsxExpression(node) && !node.expression)));
+    const start = siblings.indexOf(legal[0]);
+    expect(siblings.slice(start, start + 3)).toEqual(legal);
+  });
+
+  it.each(locales)("%s privacy copy has no retired or developer terms", (locale) => {
+    const { privacy } = JSON.parse(read(`locales/${locale}/deepspace.json`));
+    const copy = strings(privacy);
+    expect(copy.length).toBeGreaterThan(50);
+    expect(copy.filter((value) => JARGON[locale].test(value))).toEqual([]);
+  });
+
+  it.each(locales)("%s names both legal documents and keeps the analytics providers", (locale) => {
+    const { privacy } = JSON.parse(read(`locales/${locale}/deepspace.json`));
+    expect([privacy.terms, privacy.refund]).toEqual(LABELS[locale]);
+    for (const provider of ["Google Analytics", "Firebase Analytics", "Microsoft Clarity"]) {
+      expect(privacy.analytics.adultLead).toContain(provider);
+    }
+    expect(privacy.analytics.applied).toContain("Google Analytics");
+  });
+});

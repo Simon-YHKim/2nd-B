@@ -173,6 +173,8 @@
     "on": "Aktif",
     "off": "Nonaktif",
     "policy": "Kebijakan privasi",
+    "terms": "Ketentuan layanan",
+    "refund": "Kebijakan pengembalian dana",
     "view": "Lihat",
     "processingLog": "Log pemrosesan data",
     "last7": "7 hari terakhir",
@@ -184,12 +186,12 @@
     "atGlance": "Sekilas",
     "facts": {
       "onDevice": {
-        "label": "Diproses di perangkat lebih dulu",
-        "v": "Konten asli yang kamu impor dianalisis di perangkatmu; hanya sinyal turunannya yang disimpan dalam bentuk terenkripsi."
+        "label": "Cara catatan digunakan",
+        "v": "Catatan disimpan di server. Konten yang diperlukan untuk fitur AI dikirim ke penyedia AI."
       },
       "collect": {
         "label": "Yang kami kumpulkan",
-        "v": "Serpihan bintang yang kamu simpan, skor lensa, dan pola penggunaan. Lokasi dan komunikasi hanya dengan persetujuanmu."
+        "v": "Antara lain informasi akun, catatan yang disimpan, dan data penggunaan layanan."
       },
       "retention": {
         "label": "Masa penyimpanan",
@@ -209,7 +211,7 @@
       "loadingSettings": "Memuat pengaturan…",
       "allow": "Izinkan statistik penggunaan",
       "lockedUnder18": "Terkunci untuk usia di bawah 18",
-      "applied": "GA4 aktif di web · Firebase dan Clarity nonaktif di Android",
+      "applied": "Pilihan berlaku untuk Google Analytics di web · Statistik penggunaan nonaktif di Android",
       "enableFailed": "Statistik tidak dapat diaktifkan. Coba lagi.",
       "withdrawSaveFailed": "Gagal menyimpan. Penarikan statistik sudah berlaku di perangkat ini; coba simpan lagi.",
       "adsSaveFailed": "Pengaturan iklan gagal disimpan. Coba lagi."
@@ -227,10 +229,10 @@
     "semantic": {
       "title": "Koneksi catatan berdasarkan makna",
       "minorLocked": "Koneksi berdasarkan makna dinonaktifkan dan tidak dapat diaktifkan.",
-      "onBody": "Aktif. Catatan diindeks berdasarkan makna untuk menampilkan yang mirip.",
-      "turnOffA11y": "Matikan koneksi berdasarkan makna",
-      "turnOff": "Matikan dan hapus vektor",
-      "offBody": "Nonaktif. Aktifkan untuk menghubungkan catatan yang maknanya mirip, meski tidak punya tag yang sama.",
+      "onBody": "Menghubungkan catatan yang maknanya mirip. Jika dimatikan, data untuk menghubungkan catatan dihapus dan catatanmu tetap tersimpan.",
+      "turnOffA11y": "Matikan koneksi berdasarkan makna dan hapus data penghubung",
+      "turnOff": "Matikan dan hapus data penghubung",
+      "offBody": "Nonaktif. Aktifkan untuk menghubungkan catatan yang maknanya mirip.",
       "turnOnA11y": "Aktifkan koneksi berdasarkan makna",
       "turnOn": "Aktifkan"
     },
