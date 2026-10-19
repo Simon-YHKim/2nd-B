@@ -177,10 +177,10 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
       || names.elements.length !== 1 || names.elements[0].name.text !== name || names.elements[0].propertyName
       || names.elements[0].isTypeOnly) throw new Error("Adapter screen guidance binding drift");
   }
-  const initializer = variable(screenAst, "ask").initializer!;
-  if (!ts.isCallExpression(initializer) || initializer.expression.getText(screenAst) !== "useCallback" ||
-      !ts.isArrowFunction(initializer.arguments[0])) throw new Error("Adapter screen ask drift");
-  const askText = initializer.arguments[0].getText(screenAst);
+  const askText = fn(screenAst, "ask").getText(screenAst);
+  const flowNames = ["sessionCurrent", "frameSnapshot", "stampCurrent", "actionCurrent", "beginAction", "releaseAction",
+    "commitFrame", "showChoice", "acceptIntoFrame", "latchCrisis", "availableChoices"];
+  const flowText = flowNames.map(name => fn(screenAst, name).getText(screenAst)).join("\n");
   const finishInitializer = variable(screenAst, "finish").initializer!;
   if (!ts.isCallExpression(finishInitializer) || finishInitializer.expression.getText(screenAst) !== "useCallback"
       || !ts.isArrowFunction(finishInitializer.arguments[0])) throw new Error("Adapter screen finish drift");
@@ -278,6 +278,13 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     const scope = {
       userId: "synthetic-offline", period: sample.period, locale: sample.locale, isMinor: sample.minor,
       concreteOnly: false, ended, mounted, interviewInstance, probeRequest, turnsOwnerRef,
+      turns: history, coverage, pendingLayer, openers, abandoned: [], draft: "",
+      draftEditRevision: { current: 0 }, sending: { current: false }, contextRef: { current: {} },
+      sessionContext: { current: null as object | null }, sessionOwner: { current: { isCurrent: () => true } },
+      flowRef: { current: { revision: 0, action: null, choice: null, receipt: { phase: "idle" }, crisisLatched: false, crisisEpoch: 0 } },
+      setChoice: () => {}, setDraft: () => {}, setAbandoned: () => {}, setConcreteOnly: () => {},
+      isLocalNonAnswer: (text: string, layer: Probe.DrillLayer) => !continuity.canCreditAnswer(text, layer, sample.locale),
+      localPromptsExhausted: () => false, ...probe,
       guidanceRef: { current: null as unknown }, lastGuidanceRequest: { current: 0 },
       guidanceScroll: { current: { pending: null, accepted: null } }, ...fixedCopy,
       setGuidanceDelivery: (next: unknown) => { guidanceDelivery = typeof next === "function" ? next(guidanceDelivery) : next; },
@@ -287,16 +294,17 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
       nextProbe: async (...args: Parameters<typeof probe.nextProbe>) => { lastProbe = await probe.nextProbe(...args); return lastProbe; },
       hotlineFor: () => classifier.crisisHotlines(sample.locale, sample.minor)[0].id,
       publishCrisisNotice: (_owner: unknown, id: HotlineId) => { publicationAttempts += 1; effects.push("root-notice"); guidance = id; return true; },
-      t: (key: string) => key, setTurns: (rows: Probe.InterviewTurn[]) => { visible = rows; },
-      setOpeners: (rows: string[]) => { openers = rows; }, setNotice: (value: string | null) => { notice = value; },
-      setBusy: (value: boolean) => { busy = value; }, setPendingLayer: (layer: Probe.DrillLayer | null) => { pendingLayer = layer; },
-      setDone: (value: boolean) => { finished = value; if (value) { finishCalls += 1; effects.push("finish"); } },
-      setCoverage: (value: Probe.Coverage) => { coverage = value; }, setStuckStreak: (value: number) => { streak = value; },
+      t: (key: string) => key, setTurns: (rows: Probe.InterviewTurn[] | ((previous: Probe.InterviewTurn[]) => Probe.InterviewTurn[])) => { visible = typeof rows === "function" ? rows(visible) : rows; },
+      setOpeners: (rows: string[] | ((previous: string[]) => string[])) => { openers = typeof rows === "function" ? rows(openers) : rows; }, setNotice: (value: string | null | ((previous: string | null) => string | null)) => { notice = typeof value === "function" ? value(notice) : value; },
+      setBusy: (value: boolean | ((previous: boolean) => boolean)) => { busy = typeof value === "function" ? value(busy) : value; }, setPendingLayer: (layer: Probe.DrillLayer | null | ((previous: Probe.DrillLayer | null) => Probe.DrillLayer | null)) => { pendingLayer = typeof layer === "function" ? layer(pendingLayer) : layer; },
+      setDone: (value: boolean | ((previous: boolean) => boolean)) => { finished = typeof value === "function" ? value(finished) : value; if (finished) { finishCalls += 1; effects.push("finish"); } },
+      setCoverage: (value: Probe.Coverage | ((previous: Probe.Coverage) => Probe.Coverage)) => { coverage = typeof value === "function" ? value(coverage) : value; }, setStuckStreak: (value: number | ((previous: number) => number)) => { streak = typeof value === "function" ? value(streak) : value; },
       readDayLimitRefusal: async () => false, setDayLimited: () => {}, INTERVIEW_PURPOSE: "interview_probe",
     };
+    scope.sessionContext.current = scope.contextRef.current;
     const isGuidanceCurrent = evaluate<(delivery: unknown) => boolean>(`const isGuidanceCurrent = ${currentGuidanceText};`, scope, "isGuidanceCurrent");
     const finish = evaluate<() => void>(`const finish = ${finishText}`, scope, "finish");
-    const ask = evaluate<(...args: unknown[]) => Promise<void>>(`const ask = ${askText}`, { ...scope, finish, isGuidanceCurrent }, "ask");
+    const ask = evaluate<(...args: unknown[]) => Promise<void>>(`${flowText}\n${askText}`, { ...scope, finish, isGuidanceCurrent }, "ask");
     await ask(history, probe.emptyCoverage(), null, [], continuity.canCreditAnswer(sample.text, "fact", sample.locale) ? "fact" : null);
     if (forbiddenAttempts) throw new Error("Offline adapter attempted a forbidden capability");
     if (notice === "drill.failed") throw new Error(`Adapter screen failed on a fixed reply: ${sample.id}`);

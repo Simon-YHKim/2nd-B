@@ -1,3 +1,7 @@
+import * as sceneProbe from "../../lib/interview/probe";
+import * as sceneStuck from "../../lib/interview/stuck";
+import * as sceneEnd from "../../lib/interview/session-end";
+import type { InterviewFlow, InterviewChoice, SaveReceipt } from "../interview";
 import { INTERVIEW_DRAFT_TTL_MS } from "../../lib/interview/draft-codec";
 import { encodeInterviewDraftSnapshot, type InterviewDraftSnapshot, type InterviewStableSnapshot } from "../../lib/interview/draft-snapshot";
 import { prepareInterviewDraftRestore } from "../../lib/interview/draft-restore";
@@ -36,6 +40,21 @@ function callback(name: string, scope: Record<string, unknown>): (...args: unkno
   return new Function(...Object.keys(scope), `${js}\nreturn run;`)(...Object.values(scope));
 }
 
+function wireFlow(scope: Record<string, unknown>) {
+  const names = ["sessionCurrent", "frameSnapshot", "stampCurrent", "actionCurrent", "beginAction", "releaseAction", "commitFrame", "showChoice", "acceptIntoFrame", "latchCrisis", "availableChoices", "ask", "startNewScene", "changeAngle", "chooseNext", "canContinueSave", "writeReceipt", "showSaveFailure", "completeSave", "saveCoverage", "retryCoverage", "keepIt", "send", "editDraft"];
+  const bodies = names.map(name => {
+    let found: ts.FunctionDeclaration | undefined;
+    const visit = (node: ts.Node): void => {
+      if (ts.isFunctionDeclaration(node) && node.name?.text === name) found = node;
+      ts.forEachChild(node, visit);
+    };
+    visit(source); if (!found) throw new Error(`Missing flow callback ${name}`);
+    return found.getText(source);
+  }).join("\n");
+  const js = ts.transpileModule(bodies, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  Object.assign(scope, new Function(...Object.keys(scope), `${js}\nreturn {${names.join(",")}};`)(...Object.values(scope)));
+}
+
 function setup(locale: "ko" | "en" = "ko", minor: boolean | null = false) {
   llm.mockReset();
   noteResolvedOwner(null); noteResolvedOwner("A"); clearAccountTransition(currentAccountEpoch());
@@ -45,6 +64,7 @@ function setup(locale: "ko" | "en" = "ko", minor: boolean | null = false) {
     openers: [] as string[], stuckStreak: 0, abandoned: [] as DrillLayer[], busy: false,
     notice: null as string | null, done: false, concreteOnly: false,
     guidanceDelivery: null as unknown,
+    choice: null as InterviewChoice | null, saveReceipt: { phase: "idle" } as SaveReceipt, saving: false, failModal: false, toast: null as unknown,
   };
   const updates: string[] = [];
   const setters = Object.fromEntries(Object.keys(state).map((name) => [
@@ -52,7 +72,17 @@ function setup(locale: "ko" | "en" = "ko", minor: boolean | null = false) {
     jest.fn((value: unknown) => { Object.assign(state, { [name]: typeof value === "function" ? value((state as Record<string, unknown>)[name]) : value }); updates.push(name); }),
   ]));
   const scope = {
-    ...state, ...setters, userId: "A", period: "work", locale, isMinor: minor, coverageReady: true,
+    ...sceneProbe, ...sceneStuck, ...sceneEnd,
+    sessionContext: { current: null as object | null }, sessionOwner: { current: captureAccountOwnerLease("A") }, contextRef: { current: { key: "initial" } },
+    flowRef: { current: { revision: 0, action: null, choice: null, receipt: { phase: "idle" }, crisisLatched: false, crisisEpoch: 0 } as InterviewFlow },
+
+    ...state, ...setters,
+    storedTurns, storyTitle, recallInterviewSystemTags, homeT: (key: string) => key, auditPeriod: "work", growthOrigin: false,
+    baseCoverage: { current: emptyCoverage() }, createRecord: jest.fn().mockResolvedValue({ id: "saved" }),
+    addCoverage: jest.fn().mockResolvedValue({ kind: "acknowledged", receipt: "upsert" }),
+    loadSevenLevels: jest.fn().mockResolvedValue({ starLevels: {} }), recordSevenTiers: jest.fn(),
+    saveCueAllowed: () => true, isRecordingAudioMode: () => false, playSaveCue: jest.fn(), router: { replace: jest.fn() },
+    userId: "A", period: "work", locale, isMinor: minor, coverageReady: true,
     ended: { current: false }, mounted: { current: true }, sending: { current: false },
     interviewInstance: { current: 1 }, probeRequest: { current: 0 },
     guidanceRef: { current: null as unknown }, lastGuidanceRequest: { current: 0 },
@@ -73,14 +103,22 @@ function setup(locale: "ko" | "en" = "ko", minor: boolean | null = false) {
   scope.isLocalNonAnswer = callback("isLocalNonAnswer", { ...scope,
     isBlockedAnswer: callback("isBlockedAnswer", { ...scope, isNonAnswer }),
   }) as typeof scope.isLocalNonAnswer;
+  scope.sessionContext.current = scope.contextRef.current;
   scope.isGuidanceCurrent = callback("isGuidanceCurrent", scope);
   scope.finish = callback("finish", scope);
+  wireFlow(scope);
   function render() {
     Object.assign(scope, state);
     scope.turnsOwnerRef.current = state.turns;
+    wireFlow(scope);
     scope.ask = callback("ask", scope);
     scope.changeAngle = callback("changeAngle", scope);
-    return { send: callback("send", scope), change: scope.changeAngle };
+    return { send: callback("send", scope), change: scope.changeAngle,
+      choose: callback("chooseNext", scope), newScene: callback("startNewScene", scope),
+      save: callback("keepIt", scope), retry: callback("retryCoverage", scope), edit: callback("editDraft", scope),
+      mode: () => callback("projectMode", scope)(Boolean(scope.sessionOwner.current?.isCurrent()) && scope.mounted.current,
+        scope.flowRef.current.crisisLatched, scope.ended.current, state.done, state.choice),
+    };
   }
   const text = locale === "ko" ? "회의에서 제 생각을 이야기했는데 동료가 끝까지 들어주었습니다" : "My colleague listened while I shared my ideas in our meeting";
   async function submit(verdict: DrillLayer | "none" | undefined, index = 0, question = `MODEL NEXT QUESTION ${index}?`) {
@@ -141,7 +179,8 @@ describe.each(["same", "missing", "none", "other"] as const)("S1 actual %s verdi
     expect(h.state.pendingLayer).toBe(credit ? DRILL_LAYERS[DRILL_LAYERS.indexOf(layer) + 1] ?? null : layer);
     expect(h.state.stuckStreak).toBe(kind === "none" ? 1 : 0);
     // S1 preserves the current final-layer completion. Scene choices belong to S2.
-    expect(h.state.done).toBe(credit && layer === "echo"); expect(llm).toHaveBeenCalledTimes(1);
+    expect(h.state.done).toBe(false);
+    if (credit && layer === "echo") expect(h.state.choice).toMatchObject({ kind: "sceneChoice", reason: "first-pass-handled" }); expect(llm).toHaveBeenCalledTimes(1);
     if (!credit) expect(h.state.turns.some(turn => turn.text === "What happened next in that moment?")).toBe(false);
   });
 });
@@ -195,16 +234,11 @@ describe.each(["error", "quota", "red", "early-red"] as const)("S1 actual short 
   });
 });
 
-test("S1 actual short answers preserve the existing miss budget and other-layer neutrality until S2", async () => {
-  const h = setup();
-  for (const verdict of ["none", "none", "belief", "none"]) {
-    h.state.draft = "집을 나왔어요";
-    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: verdict, question: "Next question?" }), safety: { zone: "green" } } as never);
-    await h.render().send();
-    if (verdict === "belief") { expect(h.state.stuckStreak).toBe(2); expect(h.state.done).toBe(false); }
-  }
-  expect(llm).toHaveBeenCalledTimes(4); expect(h.state.coverage).toEqual(emptyCoverage());
-  expect(h.state.done).toBe(true); expect(h.state.turns.filter(turn => turn.role === "user").map(turn => turn.answered)).toEqual([false, false, null, false]);
+test("S2 choice blocks queued ordinary answers after two misses", async () => {
+  const h = setup(); await h.submit("none", 0); await h.submit("none", 1);
+  const before = h.state.turns; await h.submit("belief", 2);
+  expect(h.state.turns).toBe(before); expect(h.state.choice).toMatchObject({ kind: "stuckChoice", attempts: 2 });
+  expect(h.state.done).toBe(false); expect(llm).toHaveBeenCalledTimes(2);
 });
 
 test("S1 actual local-prompt guard uses the same candidate gate after twelve local questions", async () => {
@@ -215,7 +249,8 @@ test("S1 actual local-prompt guard uses the same candidate gate after twelve loc
     llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "none", question: "Next question?" }), safety: { zone: "green" } } as never);
     await h.render().send(); h.render().change("skip");
     expect(llm).toHaveBeenCalledTimes(text === "I left" ? 1 : 0);
-    expect(h.state.done).toBe(text === "Office"); expect(h.state.coverage).toEqual(emptyCoverage());
+    expect(h.state.done).toBe(false);
+    if (text === "Office") expect(h.state.choice).toMatchObject({ kind: "sceneChoice", reason: "local-prompts-exhausted" }); expect(h.state.coverage).toEqual(emptyCoverage());
   }
 });
 
@@ -248,35 +283,36 @@ test("a missing final-layer verdict can complete only the locally sufficient fif
   const h = setup();
   for (let i = 0; i < 5; i++) await h.submit(undefined, i);
   expect(h.state.coverage.work).toEqual({ fact: 1, feeling: 1, meaning: 1, belief: 1, echo: 1 });
-  expect(h.state.done).toBe(true); expect(llm).toHaveBeenCalledTimes(5);
+  expect(h.state.done).toBe(false); expect(h.state.choice).toMatchObject({ kind: "sceneChoice", reason: "first-pass-handled" }); expect(llm).toHaveBeenCalledTimes(5);
 });
 
 test("another named layer preserves earlier misses, the asked layer and original saved words", async () => {
-  const h = setup(); await h.submit("none", 0); await h.submit("none", 1);
-  expect(h.state.stuckStreak).toBe(2);
+  const h = setup(); await h.submit("none", 0);
+  expect(h.state.stuckStreak).toBe(1);
   await h.submit("belief", 2);
-  expect(h.state.stuckStreak).toBe(2); expect(h.state.done).toBe(false);
+  expect(h.state.stuckStreak).toBe(1); expect(h.state.done).toBe(false);
   expect(h.state.pendingLayer).toBe("fact"); expect(h.state.coverage).toEqual(emptyCoverage());
   const neutral = h.state.turns.find(t => t.answered === null)!;
   expect(neutral).toMatchObject({ text: `${h.text} 2`, layer: "fact", role: "user" });
   expect(storedTurns(h.state.turns)).toContainEqual(neutral);
   expect(h.state.turns.filter(t => t.role === "interviewer").at(-1)?.layer).toBe("fact");
   expect(h.state.turns.some(t => t.text.startsWith("MODEL NEXT QUESTION"))).toBe(false);
-  expect(h.state.openers).toEqual([]); expect(llm).toHaveBeenCalledTimes(3);
+  expect(h.state.openers).toEqual([]); expect(llm).toHaveBeenCalledTimes(2);
   // A subsequent explicit none still consumes the third miss; neutrality does not reset it.
-  await h.submit("none", 3); expect(h.state.done).toBe(true); expect(h.state.coverage).toEqual(emptyCoverage());
+  await h.submit("none", 3); expect(h.state.done).toBe(false); expect(h.state.choice).toMatchObject({ kind: "stuckChoice" }); expect(h.state.coverage).toEqual(emptyCoverage());
 });
 
 test("neutral responses do not exhaust the miss budget or end when local questions run out", async () => {
   const h = setup();
   for (let i = 0; i < 7; i++) await h.submit("belief", i);
-  expect(h.state.turns.filter(t => t.role === "user")).toHaveLength(7);
+  expect(h.state.turns.filter(t => t.role === "user")).toHaveLength(4);
   expect(h.state.turns.filter(t => t.role === "user").every(t => t.answered === null)).toBe(true);
   const questions = h.state.turns.filter(t => t.role === "interviewer");
   expect(new Set(questions.map(t => t.text)).size).toBe(questions.length);
   expect(questions.every(t => t.layer === "fact")).toBe(true);
-  expect(h.state.done).toBe(false); expect(h.state.stuckStreak).toBe(0); expect(h.state.pendingLayer).toBe("fact");
-  expect(h.state.coverage).toEqual(emptyCoverage()); expect(llm).toHaveBeenCalledTimes(7);
+  expect(h.state.done).toBe(false); expect(h.state.stuckStreak).toBe(0); expect(h.state.pendingLayer).toBeNull();
+  expect(h.state.choice).toMatchObject({ kind: "sceneChoice", reason: "question-exhausted" });
+  expect(h.state.coverage).toEqual(emptyCoverage()); expect(llm).toHaveBeenCalledTimes(4);
   expect(nextMove(h.state.coverage, "work", [], new Date(), null, [], { history: h.state.turns, locale: "ko" })).toEqual({ kind: "drill", layer: "fact" });
 });
 
@@ -300,8 +336,8 @@ test("another-layer verdict at the final layer cannot accept the optimistic fini
 test("a local non-answer after neutrality retains the existing scaffold budget", async () => {
   const h = setup(); await h.submit("none", 0); await h.submit("none", 1); await h.submit("belief", 2);
   h.state.draft = "모르겠어요"; await h.render().send();
-  expect(h.state.done).toBe(true); expect(h.state.coverage).toEqual(emptyCoverage());
-  expect(llm).toHaveBeenCalledTimes(3);
+  expect(h.state.done).toBe(false); expect(h.state.choice).toMatchObject({ kind: "stuckChoice" }); expect(h.state.coverage).toEqual(emptyCoverage());
+  expect(llm).toHaveBeenCalledTimes(2);
 });
 
 test("local non-answers remain outside model egress and coverage", async () => {
@@ -514,7 +550,7 @@ test.each(["B", "ABA", "hold", "request", "instance", "ended", "unmounted"])(
 test("final-layer guidance remains accepted when the actual verdict finishes the interview", async () => {
   const h = setup(); for (let i = 0; i < 4; i++) await h.submit(undefined, i);
   await h.submit("echo", 4, "Call 109 now.");
-  expect(h.state.done).toBe(true); expect(h.state.coverage.work.echo).toBe(1);
+  expect(h.state.done).toBe(false); expect(h.state.choice?.kind).toBe("sceneChoice"); expect(h.state.coverage.work.echo).toBe(1);
   expect(h.state.guidanceDelivery).toMatchObject({ guidance: { kind: "contacts" } });
   expect(h.scope.isGuidanceCurrent(h.state.guidanceDelivery)).toBe(true);
 });
@@ -536,7 +572,7 @@ test("actual keepIt stores original answers only, with no row metadata or fixed 
   jest.useFakeTimers();
   try {
     const h = setup(); await h.submit("fact", 0, "Call 109 now.");
-    const createRecord = jest.fn().mockResolvedValue({ id: "saved" }), addCoverage = jest.fn().mockResolvedValue(undefined);
+    const createRecord = jest.fn().mockResolvedValue({ id: "saved" }), addCoverage = jest.fn().mockResolvedValue({ kind: "acknowledged", receipt: "upsert" });
     const setFailModal = jest.fn();
     const scope = { ...h.scope, ...h.state, saving: false, storedTurns, storyTitle, recallInterviewSystemTags,
       setSaving: jest.fn(), createRecord, homeT: (key: string) => key, auditPeriod: "work", growthOrigin: false,
@@ -544,12 +580,272 @@ test("actual keepIt stores original answers only, with no row metadata or fixed 
       loadSevenLevels: jest.fn().mockResolvedValue({ starLevels: {} }), recordSevenTiers: jest.fn(),
       setToast: jest.fn(), saveCueAllowed: () => false, isRecordingAudioMode: () => false, playSaveCue: jest.fn(),
       router: { replace: jest.fn() }, setFailModal };
+    scope.ended.current = true; scope.turnsOwnerRef.current = h.state.turns; wireFlow(scope);
     await callback("keepIt", scope)();
     expect(setFailModal).not.toHaveBeenCalled(); expect(createRecord).toHaveBeenCalledTimes(1);
     const saved = createRecord.mock.calls[0][0];
     expect(saved.body).toContain(h.text); expect(saved.summary).toBe(storyTitle("ds.star.work", [`${h.text} 0`]));
     expect(JSON.stringify(saved)).not.toMatch(/109|guidance|contacts|연락 안내/);
     expect(saved).toMatchObject({ withFollowup: false, kind: "audit_response" });
-    expect(addCoverage).toHaveBeenCalledWith("A", expect.objectContaining({ work: { fact: 1, feeling: 0, meaning: 0, belief: 0, echo: 0 } }));
+    expect(addCoverage).toHaveBeenCalledWith("A", expect.objectContaining({ work: { fact: 1, feeling: 0, meaning: 0, belief: 0, echo: 0 } }), expect.any(Function));
   } finally { jest.useRealTimers(); }
+});
+
+
+test.each([['local', 'local'], ['local', 'model'], ['model', 'local'], ['model', 'model']])(
+  "S2 actual second failure offers a choice: %s then %s", async (first, second) => {
+    const h = setup("en");
+    for (const kind of [first, second]) {
+      h.state.draft = kind === "local" ? "I don't know" : "I left";
+      if (kind === "model") llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "none", question: "Next?" }), safety: { zone: "green" } } as never);
+      await h.render().send();
+    }
+    expect(h.state.done).toBe(false);
+    expect(h.state.pendingLayer).toBeNull();
+    expect(h.state.turns.filter(t => t.role === "user").map(t => t.answered)).toEqual([false, false]);
+    expect(h.state.turns.filter(t => t.role === "interviewer")).toHaveLength(2);
+  });
+
+
+function deferred<T>() { let resolve!: (value: T) => void; let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
+async function completed(concrete = false) {
+  const h = atLayer("echo", "en"); h.state.concreteOnly = concrete;
+  await h.submit("echo", 9, "What happened next?");
+  expect(h.state.choice?.kind).toBe("sceneChoice"); return h;
+}
+function reply(verdict: string | undefined, question = "What did you do after you left?", openers = ["Then I"]) {
+  return { text: JSON.stringify({ answeredLayer: verdict, question, openers }), safety: { zone: "green" } } as never;
+}
+
+test.each(["fact", "none", "belief", undefined])("S2 question-only more leaves previous verdicts and coverage intact: %s", async verdict => {
+  const h = await completed(); const users = h.state.turns.filter(t => t.role === "user"), cov = h.state.coverage;
+  const choice = h.state.choice!; llm.mockResolvedValueOnce(reply(verdict));
+  await h.render().choose("more", choice);
+  expect(llm).toHaveBeenCalledTimes(2); expect(h.state.choice).toBeNull();
+  expect(h.state.turns.filter(t => t.role === "user")).toEqual(users); expect(h.state.coverage).toBe(cov);
+  expect(h.state.pendingLayer).toBe("fact"); expect(h.state.turns.at(-1)?.layer).toBe("fact");
+  expect(llm.mock.calls[1][0].system).toContain("L1");
+  await h.submit("fact", 10, "What happened outside?");
+  expect(h.state.choice).toMatchObject({ kind: "sceneChoice", reason: "first-pass-handled" });
+  expect(h.state.coverage.work.fact).toBe(2); expect(h.state.done).toBe(false);
+});
+test("S2 concrete answers and more use local fact questions without model openers", async () => {
+  const h = setup("en"); h.render().change("concrete"); expect(llm).not.toHaveBeenCalled();
+  await h.submit("fact", 0, "How did that change your beliefs?");
+  expect(h.state.turns.at(-1)?.text).toBe(usableQuestion("", h.state.turns.slice(0, -1), "fact", "en"));
+  expect(h.state.openers).toEqual([]); expect(h.state.pendingLayer).toBe("fact");
+  const c = await completed(true), before = llm.mock.calls.length;
+  await c.render().choose("more", c.state.choice);
+  expect(llm).toHaveBeenCalledTimes(before); expect(c.state.openers).toEqual([]); expect(c.state.pendingLayer).toBe("fact");
+});
+test("S2 concrete never revives abandoned fact or clears misses", () => {
+  const h = setup("en"); h.state.abandoned = ["fact"]; h.state.stuckStreak = 1;
+  h.render().change("concrete");
+  expect(h.state.choice).toMatchObject({ kind: "sceneChoice", reason: "no-eligible" });
+  expect(h.state.abandoned).toEqual(["fact"]); expect(h.state.stuckStreak).toBe(1); expect(llm).not.toHaveBeenCalled();
+});
+test("S2 skip-layer commits only its abandonment and assigns the next allowed target", async () => {
+  const h = setup("en"); await h.render().send("I don't know"); await h.render().send("I don't know");
+  const users = h.state.turns.filter(t => t.role === "user"), cov = h.state.coverage;
+  llm.mockResolvedValueOnce(reply("fact")); await h.render().choose("skip-layer", h.state.choice);
+  expect(h.state.abandoned).toEqual(["fact"]); expect(h.state.coverage).toBe(cov);
+  expect(h.state.turns.filter(t => t.role === "user")).toEqual(users);
+  expect(h.state.pendingLayer).toBe("feeling"); expect(llm.mock.calls[0][0].system).toContain("L2");
+});
+test.each(["error", "quota"])("S2 %s restores the same choice and gives retry a new token", async failure => {
+  const h = await completed(); const choice = h.state.choice!; const d = deferred<never>();
+  llm.mockImplementationOnce(() => d.promise); const actions = h.render(); const first = actions.choose("more", choice);
+  const firstToken = h.scope.flowRef.current.action!.token;
+  await actions.choose("more", choice); await actions.send("stop"); actions.change("skip");
+  expect(llm).toHaveBeenCalledTimes(2);
+  d.reject(failure === "quota" ? { context: new Response(JSON.stringify({ error: "daily_limit_exceeded" }), { status: 429 }) } : new Error("offline"));
+  await first;
+  expect(h.state.choice?.generation).toBe(choice.generation); expect(h.state.choice?.snapshot).toBe(choice.snapshot);
+  expect(h.state.turns).toBe(choice.snapshot.turns); expect(h.state.pendingLayer).toBeNull();
+  const next = deferred<never>(); llm.mockImplementationOnce(() => next.promise);
+  const retry = h.render().choose("more", h.state.choice); expect(h.scope.flowRef.current.action!.token).not.toBe(firstToken);
+  next.reject(new Error("offline")); await retry;
+});
+test("S2 skip-layer error does not commit proposed abandonment", async () => {
+  const h = setup("en"); await h.render().send("I don't know"); await h.render().send("I don't know");
+  const choice = h.state.choice; llm.mockRejectedValueOnce(new Error("offline"));
+  await h.render().choose("skip-layer", choice);
+  expect(h.state.choice?.generation).toBe(choice?.generation); expect(h.state.abandoned).toEqual([]); expect(h.state.pendingLayer).toBeNull();
+});
+test.each(["exhausted", "guard"])("S2 skip-layer commits abandonment when local replacement is %s", async condition => {
+  const h = setup("en");
+  if (condition === "exhausted") for (let n = 0; n < 3; n++) h.state.turns.push({ role: "interviewer", text: usableQuestion("", h.state.turns, "feeling", "en"), layer: "feeling" });
+  else for (let n = 0; n < 10; n++) h.state.turns.push({ role: "interviewer", text: `Earlier ${n}?`, layer: "fact", sceneStart: n === 8 });
+  await h.render().send("I don't know"); await h.render().send("I don't know");
+  llm.mockResolvedValueOnce(reply("fact", ""));
+  await h.render().choose("skip-layer", h.state.choice);
+  expect(h.state.abandoned).toEqual(["fact"]); expect(h.state.choice).toMatchObject({ kind: "sceneChoice",
+    reason: condition === "exhausted" ? "question-exhausted" : "local-prompts-exhausted" });
+  expect(h.state.pendingLayer).toBeNull(); expect(llm).toHaveBeenCalledTimes(1);
+});
+test("S2 no-answer guard does not preblock a normal model more and only blocks local fallback", async () => {
+  for (const model of [true, false]) {
+    const h = await completed();
+    // Synthetic choice snapshot at the whole-history guard, independent of completion.
+    const history: InterviewTurn[] = Array.from({ length: 12 }, (_, i) => ({ role: "interviewer", text: `Old prompt ${i}?`, layer: "fact", sceneStart: i === 10 }));
+    h.state.turns = history; h.state.choice = { ...h.state.choice!, snapshot: { ...h.state.choice!.snapshot, turns: history } };
+    h.scope.flowRef.current.choice = h.state.choice;
+    llm.mockResolvedValueOnce(reply(undefined, model ? "Where did you go afterwards?" : ""));
+    await h.render().choose("more", h.state.choice);
+    expect(llm).toHaveBeenCalledTimes(2);
+    if (model) expect(h.state.turns.at(-1)?.text).toBe("Where did you go afterwards?");
+    else expect(h.state.choice).toMatchObject({ reason: "local-prompts-exhausted" });
+  }
+});
+test("S2 unavailable and stale choice buttons make no request; new scene preserves accumulated credit", async () => {
+  const h = await completed(); const old = h.state.choice!, cov = h.state.coverage;
+  h.render().newScene(old); expect(h.state.concreteOnly).toBe(false); expect(h.state.abandoned).toEqual([]);
+  expect(h.state.coverage).toBe(cov); expect(h.state.turns.at(-1)).toMatchObject({ sceneStart: true, layer: "fact" });
+  await h.render().choose("more", old); expect(llm).toHaveBeenCalledTimes(1);
+  const exhausted = { ...old, reason: "question-exhausted" as const }; h.state.choice = exhausted; h.scope.flowRef.current.choice = exhausted;
+  await h.render().choose("more", exhausted); expect(llm).toHaveBeenCalledTimes(1);
+});
+
+test.each(["choice", "saving", "busy"])("S2 queued empty send keeps the %s notice untouched", async lock => {
+  const h = lock === "choice" || lock === "saving" ? await completed() : setup();
+  if (lock === "saving") {
+    h.scope.createRecord.mockImplementationOnce(() => new Promise(() => {}));
+    void h.render().save(h.state.choice);
+  }
+  if (lock === "busy") h.state.busy = true;
+  h.state.notice = "Keep this notice";
+  const before = h.updates.length, calls = llm.mock.calls.length;
+  await h.render().send("   ");
+  expect(h.state.notice).toBe("Keep this notice");
+  expect(h.updates.slice(before)).toEqual([]);
+  expect(llm).toHaveBeenCalledTimes(calls);
+});
+
+describe("S2 actual save receipts", () => {
+  beforeEach(() => jest.useFakeTimers()); afterEach(() => jest.useRealTimers());
+  test("record then coverage ACK, frozen intent, double tap and exactly-once effects", async () => {
+    const h = await completed(); const record = deferred<{ id: string }>(), coverage = deferred<unknown>();
+    h.scope.createRecord.mockReturnValueOnce(record.promise); h.scope.addCoverage.mockReturnValueOnce(coverage.promise);
+    const actions = h.render(), pending = actions.save(h.state.choice);
+    await actions.save(h.state.choice); actions.edit("changed"); actions.newScene(h.state.choice);
+    expect(h.scope.createRecord).toHaveBeenCalledTimes(1); expect(h.scope.addCoverage).not.toHaveBeenCalled(); expect(h.state.done).toBe(false);
+    expect(h.state.toast).toBeNull(); expect(h.scope.router.replace).not.toHaveBeenCalled();
+    record.resolve({ id: "record-1" }); await Promise.resolve(); await Promise.resolve();
+    expect(h.scope.addCoverage).toHaveBeenCalledTimes(1); expect(h.state.toast).toBeNull();
+    coverage.resolve({ kind: "acknowledged", receipt: "upsert" }); await pending; await Promise.resolve();
+    expect(h.scope.flowRef.current.receipt).toMatchObject({ phase: "committed", recordId: "record-1" });
+    expect(h.state.toast).toMatchObject({ tone: "success" }); expect(h.scope.playSaveCue).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(700); expect(h.scope.router.replace).toHaveBeenCalledTimes(1);
+    await h.render().save(h.state.choice); h.render().retry(); expect(h.scope.createRecord).toHaveBeenCalledTimes(1);
+  });
+  test.each(["throw", "no-id"])("record %s is unknown forever in this memory intent", async failure => {
+    const h = await completed();
+    if (failure === "throw") h.scope.createRecord.mockRejectedValueOnce(new Error("timeout")); else h.scope.createRecord.mockResolvedValueOnce({});
+    await h.render().save(h.state.choice); h.state.failModal = false; h.scope.finish();
+    await h.render().save(); h.render().retry();
+    expect(h.scope.flowRef.current.receipt).toMatchObject({ phase: "recordPending", record: "unknown" });
+    expect(h.scope.createRecord).toHaveBeenCalledTimes(1); expect(h.scope.addCoverage).not.toHaveBeenCalled(); expect(h.state.toast).toBeNull();
+  });
+  test("only notApplied permits coverage-only retry; unknown never retries", async () => {
+    const h = await completed(); h.scope.addCoverage.mockResolvedValueOnce({ kind: "notApplied" });
+    await h.render().save(h.state.choice); expect(h.scope.flowRef.current.receipt).toMatchObject({ phase: "coveragePending", coverage: "retryable", recordId: "saved" });
+    h.scope.addCoverage.mockResolvedValueOnce({ kind: "unknown" }); h.render().retry(); await Promise.resolve(); await Promise.resolve();
+    h.render().retry(); await h.render().save(h.state.choice);
+    expect(h.scope.createRecord).toHaveBeenCalledTimes(1); expect(h.scope.addCoverage).toHaveBeenCalledTimes(2);
+    expect(h.scope.flowRef.current.receipt).toMatchObject({ phase: "coveragePending", coverage: "unknown", recordId: "saved" });
+    expect(h.state.toast).toBeNull();
+  });
+  test.each(["record", "coverage", "retryable", "unknown"])("finish immediately wins over %s receipt without erasing it", async stage => {
+    const h = await completed(); const d = deferred<unknown>();
+    if (stage === "record") h.scope.createRecord.mockReturnValueOnce(d.promise);
+    else if (stage === "coverage") h.scope.addCoverage.mockReturnValueOnce(d.promise);
+    else h.scope.addCoverage.mockResolvedValueOnce({ kind: stage === "retryable" ? "notApplied" : "unknown" });
+    const pending = h.render().save(h.state.choice); await Promise.resolve(); await Promise.resolve();
+    h.scope.finish(); expect(h.render().mode()).toEqual({ mode: "legacy-ended" });
+    await h.render().save(); h.render().retry();
+    if (stage === "record") d.resolve({ id: "late" }); else d.resolve({ kind: "acknowledged", receipt: "upsert" });
+    await pending;
+    expect(h.scope.flowRef.current.receipt).toMatchObject({ continuation: "interrupted" });
+    expect(h.scope.createRecord).toHaveBeenCalledTimes(1); expect(h.state.toast).toBeNull(); expect(h.scope.router.replace).not.toHaveBeenCalled();
+  });
+  test("legacy-ended can save normally, including repeated finish and zero delta", async () => {
+    const h = setup("en"); await h.render().send("I don't know"); h.scope.finish();
+    h.scope.addCoverage.mockResolvedValueOnce({ kind: "acknowledged", receipt: "zero-delta" });
+    const pending = h.render().save(); h.scope.finish(); await pending;
+    expect(h.scope.createRecord).toHaveBeenCalledTimes(1); expect(h.scope.flowRef.current.receipt).toMatchObject({ phase: "committed", coverage: "zero-delta" });
+    expect(h.state.toast).toMatchObject({ tone: "success" });
+  });
+  test.each(["red", "owner", "ABA", "context", "instance", "unmount"])("%s during record wait retains late ACK but starts no coverage", async change => {
+    const h = await completed(); const d = deferred<{ id: string }>(); h.scope.createRecord.mockReturnValueOnce(d.promise);
+    const pending = h.render().save(h.state.choice);
+    if (change === "red") await h.render().send("I want to die");
+    if (change === "owner" || change === "ABA") { noteResolvedOwner("B"); if (change === "ABA") { noteResolvedOwner("A"); clearAccountTransition(currentAccountEpoch()); } }
+    if (change === "context") h.scope.contextRef.current = { key: "new-context" };
+    if (change === "instance") h.scope.interviewInstance.current += 1;
+    if (change === "unmount") h.scope.mounted.current = false;
+    d.resolve({ id: "late" }); await pending;
+    expect(h.scope.flowRef.current.receipt).toMatchObject({ phase: "coveragePending", recordId: "late", continuation: "interrupted" });
+    expect(h.scope.addCoverage).not.toHaveBeenCalled(); expect(h.state.toast).toBeNull();
+  });
+  test("save-result RED latches before synchronous publication re-entry and keeps its id", async () => {
+    const h = await completed(); h.scope.createRecord.mockResolvedValueOnce({ id: "red-record", followup: { zone: "red" } });
+    h.scope.publishCrisisNotice.mockImplementation(() => { void h.render().save(h.state.choice); return true; });
+    await h.render().save(h.state.choice);
+    expect(h.scope.flowRef.current.crisisLatched).toBe(true); expect(h.scope.flowRef.current.receipt).toMatchObject({ recordId: "red-record", continuation: "interrupted" });
+    expect(h.scope.createRecord).toHaveBeenCalledTimes(1); expect(h.scope.addCoverage).not.toHaveBeenCalled();
+  });
+  test("RED while tiers load prevents history write and the 700ms return", async () => {
+    const h = await completed(); const levels = deferred<{ starLevels: object }>(); h.scope.loadSevenLevels.mockReturnValueOnce(levels.promise);
+    await h.render().save(h.state.choice); await h.render().send("I want to die");
+    levels.resolve({ starLevels: {} }); await Promise.resolve(); jest.advanceTimersByTime(700);
+    expect(h.scope.recordSevenTiers).not.toHaveBeenCalled(); expect(h.scope.router.replace).not.toHaveBeenCalled();
+  });
+});
+
+
+test("S2 synthetic assignment mismatch uses the requested layer, not the returned label", async () => {
+  const h = await completed();
+  h.scope.nextProbe = jest.fn().mockResolvedValue({ zone: "green", question: "MODEL MISMATCH?", layer: "belief", openers: ["MODEL"], questionSource: "model" });
+  await h.render().choose("more", h.state.choice);
+  expect(h.state.pendingLayer).toBe("fact"); expect(h.state.turns.at(-1)?.text).not.toBe("MODEL MISMATCH?"); expect(h.state.openers).toEqual([]);
+});
+test("S2 queued ordinary commits cannot land after owner change", async () => {
+  const h = setup("en"); const queue: Array<(prior: unknown) => unknown> = [];
+  Object.assign(h.scope, { setCoverage: jest.fn(update => queue.push(update)) });
+  await h.submit("fact"); noteResolvedOwner("B");
+  for (const update of queue) expect(update(h.state.coverage)).toBe(h.state.coverage);
+});
+describe("S2 save fence timing", () => {
+  beforeEach(() => jest.useFakeTimers()); afterEach(() => jest.useRealTimers());
+  test.each(["claim", "record-ack", "success", "sound"])("RED at %s prevents the next irreversible step", async stage => {
+    const h = await completed();
+    const red = () => { void h.render().send("I want to die"); };
+    if (stage === "claim") Object.assign(h.scope, { setSaving: jest.fn(red) });
+    if (stage === "record-ack") Object.assign(h.scope, { setSaveReceipt: jest.fn(update => {
+      const next = update(h.state.saveReceipt); h.state.saveReceipt = next;
+      if (next.phase === "coveragePending") red();
+    }) });
+    if (stage === "success") Object.assign(h.scope, { setToast: jest.fn(update => { h.state.toast = update(null); red(); }) });
+    if (stage === "sound") h.scope.playSaveCue.mockImplementation(red);
+    await h.render().save(h.state.choice); await Promise.resolve(); jest.advanceTimersByTime(700);
+    expect(h.scope.createRecord).toHaveBeenCalledTimes(stage === "claim" ? 0 : 1);
+    expect(h.scope.addCoverage).toHaveBeenCalledTimes(["claim", "record-ack"].includes(stage) ? 0 : 1);
+    expect(h.scope.playSaveCue).toHaveBeenCalledTimes(stage === "sound" ? 1 : 0);
+    expect(h.scope.loadSevenLevels).not.toHaveBeenCalled(); expect(h.scope.router.replace).not.toHaveBeenCalled();
+  });
+  test("RED during a sent coverage write keeps the later ACK without success effects", async () => {
+    const h = await completed(); const d = deferred<unknown>(); h.scope.addCoverage.mockReturnValueOnce(d.promise);
+    const pending = h.render().save(h.state.choice); await Promise.resolve(); await Promise.resolve();
+    await h.render().send("I want to die"); d.resolve({ kind: "acknowledged", receipt: "upsert" }); await pending;
+    expect(h.scope.flowRef.current.receipt).toMatchObject({ phase: "committed", continuation: "interrupted", effectsStarted: false });
+    expect(h.state.toast).toBeNull(); expect(h.scope.playSaveCue).not.toHaveBeenCalled();
+  });
+  test("the queued success updater checks its own fence after RED", async () => {
+    const h = await completed(); const queued: Array<(prior: unknown) => unknown> = [];
+    Object.assign(h.scope, { setToast: jest.fn(update => queued.push(update)) });
+    await h.render().save(h.state.choice); expect(queued).toHaveLength(1);
+    await h.render().send("I want to die"); expect(queued[0](null)).toBeNull();
+    jest.advanceTimersByTime(700); expect(h.scope.router.replace).not.toHaveBeenCalled();
+  });
 });
