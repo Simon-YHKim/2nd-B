@@ -1,7 +1,33 @@
-// T09 F4/F5: execute the real effect/handler bodies without the RN renderer.
+// T09 F4/F6: real effect/handler bodies and the shared deletion module, no RN renderer.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import { clearRecordEmbeddings, waitForRecordEmbeddingCleanup } from "../../../lib/records/records-embeddings";
+
+jest.mock("../../../lib/llm/boundary", () => ({ EMBED_DIM: 4, embedTexts: jest.fn() }));
+const mockClearQuery = jest.fn(async () => ({ error: null as Error | null }));
+const mockNot = jest.fn(() => mockClearQuery());
+const mockEq = jest.fn(() => ({ not: mockNot }));
+const mockUpdate = jest.fn(() => ({ eq: mockEq }));
+const mockFrom = jest.fn(() => ({ update: mockUpdate }));
+jest.mock("../../../lib/supabase/client", () => ({
+  getSupabaseClient: () => ({ from: mockFrom }),
+}));
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockClearQuery.mockReset().mockResolvedValue({ error: null });
+});
+
+function deferred() {
+  let resolve!: () => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<{ error: Error | null }>((done, fail) => {
+    resolve = () => done({ error: null });
+    reject = fail;
+  });
+  return { promise, resolve, reject };
+}
 
 const file = "src/screens/deepspace/DeepSpaceDesignScreens.tsx";
 const source = readFileSync(join(process.cwd(), file), "utf8");
@@ -40,11 +66,13 @@ function harness() {
     userId: "owner-a", busy: false, ko: true,
     activeUserRef: { current: "owner-a" }, privacyMountedRef: { current: true },
     prefsUserRef: { current: null as string | null }, prefsRef: { current: null as typeof storedOff | null },
-    embeddingCleanupRef: { current: false }, minorRef: { current: false },
+    minorRef: { current: false },
     embeddingEnableRef: { current: false },
     readPrivacyPrefsStrict: jest.fn(async () => ({ ...storedOff })),
     withTimeout: (promise: Promise<unknown>) => promise, PRIVACY_READ_TIMEOUT_MS: 10_000,
-    clearRecordEmbeddings: jest.fn(async (_owner: string) => undefined),
+    clearRecordEmbeddings: jest.fn(clearRecordEmbeddings),
+    waitForRecordEmbeddingCleanup,
+    backfillAllRecordEmbeddings: jest.fn(async () => undefined),
     savePrivacyPrefs: jest.fn(async (_owner: string, _prefs: unknown, _options: unknown) => undefined),
     showPrefs: jest.fn((prefs: typeof storedOff) => setEmbedOn(prefs.records_embedding)),
     setPrefsReadFailed: jest.fn(), setEmbeddingCleanupBusy: jest.fn(),
@@ -62,23 +90,38 @@ describe("disabled record connections retry cleanup on privacy entry", () => {
     expect(ts.isCallExpression(first) && first.expression.getText(ast)).toBe("useCallback");
   });
 
-  it("retries once per entry after failure, quietly, without changing stored choices", async () => {
+  it("keeps the cleanup error through entry, another failure and a pending retry until success", async () => {
     const h = harness();
-    h.context.clearRecordEmbeddings.mockRejectedValueOnce(new Error("offline"));
+    mockClearQuery.mockRejectedValueOnce(new Error("offline"));
     const leave = h.enter();
     await settle();
     expect(h.context.clearRecordEmbeddings).toHaveBeenCalledTimes(1);
     expect(h.context.clearRecordEmbeddings).toHaveBeenLastCalledWith("owner-a");
-    expect(h.context.setEmbedErr).not.toHaveBeenCalledWith(true);
+    expect(h.context.setEmbedErr).toHaveBeenLastCalledWith(true);
+    expect(h.context.setEmbedErr).not.toHaveBeenCalledWith(false);
     expect(h.context.setPrefsReadFailed).not.toHaveBeenCalledWith(true);
-    expect(h.context.embeddingCleanupRef.current).toBe(false);
     expect(h.context.setEmbeddingCleanupBusy).toHaveBeenLastCalledWith(false);
     leave();
-    h.enter();
+    mockClearQuery.mockResolvedValueOnce({ error: new Error("still offline") });
+    const leaveAgain = h.enter();
     await settle();
     expect(h.context.clearRecordEmbeddings).toHaveBeenCalledTimes(2);
+    expect(h.context.setEmbedErr).not.toHaveBeenCalledWith(false);
+    leaveAgain();
+    const deletion = deferred();
+    mockClearQuery.mockReturnValueOnce(deletion.promise);
+    h.enter();
+    await settle();
+    try {
+      expect(h.context.setEmbedErr).toHaveBeenLastCalledWith(true);
+      expect(h.context.setEmbedErr).not.toHaveBeenCalledWith(false);
+    } finally {
+      deletion.resolve();
+      await settle();
+    }
+    expect(h.context.setEmbedErr).toHaveBeenLastCalledWith(false);
     expect(h.context.savePrivacyPrefs).not.toHaveBeenCalled();
-    expect(h.shown).toEqual([false, false]);
+    expect(h.shown).toEqual([false, false, false]);
   });
 
   it("a failed deletion after switching off preserves withdrawal and retries on re-entry", async () => {
@@ -86,7 +129,7 @@ describe("disabled record connections retry cleanup on privacy entry", () => {
     h.context.prefsUserRef.current = "owner-a";
     h.context.prefsRef.current = { ...storedOff, records_embedding: true };
     h.context.readPrivacyPrefsStrict.mockResolvedValueOnce({ ...storedOff, records_embedding: true });
-    h.context.clearRecordEmbeddings.mockRejectedValueOnce(new Error("offline"));
+    mockClearQuery.mockRejectedValueOnce(new Error("offline"));
     await handler("disableEmbedding", h.context)();
     expect(h.context.savePrivacyPrefs).toHaveBeenCalledTimes(1);
     expect(h.context.savePrivacyPrefs).toHaveBeenCalledWith("owner-a", storedOff, {
@@ -163,22 +206,173 @@ describe("disabled record connections retry cleanup on privacy entry", () => {
     expect(h.context.savePrivacyPrefs).not.toHaveBeenCalled();
   });
 
-  it("does not overlap cleanup or allow opt-in while the old deletion is pending", async () => {
-    const h = harness();
-    let resolve!: () => void;
-    h.context.clearRecordEmbeddings.mockReturnValueOnce(new Promise((done) => { resolve = () => done(undefined); }));
-    const leave = h.enter();
+  it.each(["disable", "entry"])("waits for an unmounted screen's %s cleanup before a new screen saves opt-in", async (start) => {
+    const oldScreen = harness();
+    const deletion = deferred();
+    const order: string[] = [];
+    mockClearQuery.mockReturnValueOnce(deletion.promise.then((result) => {
+      order.push("deleted");
+      return result;
+    }));
+    oldScreen.context.prefsUserRef.current = "owner-a";
+    let oldHandler: Promise<void> | undefined;
+    const leave = start === "entry" ? oldScreen.enter() : () => undefined;
+    if (start === "disable") oldHandler = handler("disableEmbedding", oldScreen.context)();
     await settle();
-    expect(h.context.embeddingCleanupRef.current).toBe(true);
-    await handler("enableEmbedding", h.context)();
-    expect(h.context.savePrivacyPrefs).not.toHaveBeenCalled();
     leave();
+    oldScreen.context.privacyMountedRef.current = false;
+    oldScreen.context.setEmbedErr.mockClear();
+    const newScreen = harness();
+    newScreen.enter();
+    await settle();
+    newScreen.context.savePrivacyPrefs.mockImplementation(async () => { order.push("enabled"); });
+    const enabling = handler("enableEmbedding", newScreen.context)();
+    await settle();
+    try {
+      expect(mockClearQuery).toHaveBeenCalledTimes(1);
+      expect(newScreen.context.savePrivacyPrefs).not.toHaveBeenCalled();
+      expect(newScreen.context.backfillAllRecordEmbeddings).not.toHaveBeenCalled();
+      expect(newScreen.context.setBusy).toHaveBeenLastCalledWith(true);
+    } finally {
+      deletion.resolve();
+      await Promise.all([oldHandler, enabling]);
+      await settle();
+    }
+    expect(order).toEqual(["deleted", "enabled"]);
+    expect(newScreen.context.savePrivacyPrefs).toHaveBeenCalledWith("owner-a", {
+      ...storedOff, records_embedding: true,
+    }, { before: storedOff });
+    expect(newScreen.context.backfillAllRecordEmbeddings).toHaveBeenCalledTimes(1);
+    expect(newScreen.context.setBusy).toHaveBeenLastCalledWith(false);
+    expect(newScreen.context.embeddingEnableRef.current).toBe(false);
+    expect(oldScreen.context.setEmbedErr).not.toHaveBeenCalled();
+  });
+
+  it.each(["unmount", "owner", "minor", "failure"])("does not enable after waiting when %s changes", async (change) => {
+    const h = harness();
+    h.context.prefsUserRef.current = "owner-a";
+    h.context.setEmbedErr(true);
+    const deletion = deferred();
+    mockClearQuery.mockReturnValueOnce(deletion.promise);
+    // No focus effect in the new screen: opt-in must consult the module itself.
+    const clearing = clearRecordEmbeddings("owner-a").catch(() => undefined);
+    const enabling = handler("enableEmbedding", h.context)();
+    await settle();
+    try {
+      expect(h.context.savePrivacyPrefs).not.toHaveBeenCalled();
+      expect(h.context.setEmbedErr).not.toHaveBeenCalledWith(false);
+      if (change === "unmount") h.context.privacyMountedRef.current = false;
+      if (change === "owner") h.context.activeUserRef.current = "owner-b";
+      if (change === "minor") h.context.minorRef.current = true;
+    } finally {
+      if (change === "failure") deletion.reject(new Error("offline"));
+      else deletion.resolve();
+      await Promise.all([clearing, enabling]);
+    }
+    expect(h.context.savePrivacyPrefs).not.toHaveBeenCalled();
+    expect(h.context.embeddingEnableRef.current).toBe(false);
+    if (change === "failure") expect(h.context.setEmbedErr).toHaveBeenLastCalledWith(true);
+  });
+
+  it("keeps an earlier error during a manual deletion and clears it only on success", async () => {
+    const h = harness();
+    h.context.prefsUserRef.current = "owner-a";
+    h.context.setEmbedErr(true);
+    const deletion = deferred();
+    mockClearQuery.mockReturnValueOnce(deletion.promise);
+    const disabling = handler("disableEmbedding", h.context)();
+    await settle();
+    try {
+      expect(h.context.setEmbedErr).not.toHaveBeenCalledWith(false);
+    } finally {
+      deletion.resolve();
+      await disabling;
+    }
+    expect(h.context.setEmbedErr).toHaveBeenLastCalledWith(false);
+  });
+
+  it("keeps an earlier deletion error if the next preference read fails", async () => {
+    const h = harness();
+    h.context.setEmbedErr(true);
+    h.context.readPrivacyPrefsStrict.mockRejectedValueOnce(new Error("offline"));
     h.enter();
     await settle();
-    expect(h.context.clearRecordEmbeddings).toHaveBeenCalledTimes(1);
-    resolve();
+    expect(h.context.setEmbedErr).not.toHaveBeenCalledWith(false);
+  });
+
+  it("uses the existing failure copy and keeps both opt-in buttons busy during cleanup", () => {
+    expect(source).toMatch(/\{embedErr \? \(\s*<Text[^>]*>\{t\("privacy.saveFailed"\)\}/);
+    expect(source.match(/disabled=\{busy \|\| embeddingCleanupBusy\}/g)).toHaveLength(2);
+  });
+});
+
+describe("record cleanup is shared per owner for this app process", () => {
+  it("does not make a different owner wait for a pending deletion", async () => {
+    const deletion = deferred();
+    mockClearQuery.mockReturnValueOnce(deletion.promise);
+    const clearing = clearRecordEmbeddings("owner-a");
+    let finished = false;
+    const waiting = waitForRecordEmbeddingCleanup("owner-b").then(() => { finished = true; });
     await settle();
-    expect(h.context.embeddingCleanupRef.current).toBe(false);
-    expect(h.context.setEmbeddingCleanupBusy).toHaveBeenLastCalledWith(false);
+    try {
+      expect(finished).toBe(true);
+    } finally {
+      deletion.resolve();
+      await Promise.all([clearing, waiting]);
+    }
+  });
+
+  it("waits for a subsequent cleanup that starts before the first wait resumes", async () => {
+    const first = deferred();
+    const second = deferred();
+    mockClearQuery.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const clearing = clearRecordEmbeddings("owner-a");
+    const reclearing = clearing.then(() => clearRecordEmbeddings("owner-a"));
+    let finished = false;
+    const waiting = waitForRecordEmbeddingCleanup("owner-a").then(() => { finished = true; });
+    first.resolve();
+    await settle();
+    try {
+      expect(mockClearQuery).toHaveBeenCalledTimes(2);
+      expect(finished).toBe(false);
+    } finally {
+      second.resolve();
+      await Promise.all([reclearing, waiting]);
+    }
+    expect(finished).toBe(true);
+  });
+
+  it("shares one pending deletion per owner while another owner can delete independently", async () => {
+    const deletion = deferred();
+    mockClearQuery.mockReturnValueOnce(deletion.promise);
+    const first = clearRecordEmbeddings("owner-a");
+    const second = clearRecordEmbeddings("owner-a");
+    const other = clearRecordEmbeddings("owner-b");
+    try {
+      await other;
+      expect(first).toBe(second);
+      expect(mockClearQuery).toHaveBeenCalledTimes(2);
+      expect(mockEq.mock.calls).toEqual([["user_id", "owner-a"], ["user_id", "owner-b"]]);
+    } finally {
+      deletion.resolve();
+      await Promise.all([first, second]);
+    }
+    await clearRecordEmbeddings("owner-a");
+    expect(mockClearQuery).toHaveBeenCalledTimes(3);
+    expect(mockFrom).toHaveBeenLastCalledWith("records");
+    expect(mockUpdate).toHaveBeenLastCalledWith({ embedding: null, embedding_model: null });
+    expect(mockNot).toHaveBeenLastCalledWith("embedding", "is", null);
+  });
+
+  it.each(["rejection", "error response"])("releases a failed deletion after %s so it can be retried", async (failure) => {
+    const error = new Error("offline");
+    if (failure === "rejection") mockClearQuery.mockRejectedValueOnce(error);
+    else mockClearQuery.mockResolvedValueOnce({ error });
+    const first = clearRecordEmbeddings("owner-a");
+    const second = clearRecordEmbeddings("owner-a");
+    const results = await Promise.allSettled([first, second]);
+    expect(results).toEqual([{ status: "rejected", reason: error }, { status: "rejected", reason: error }]);
+    await expect(clearRecordEmbeddings("owner-a")).resolves.toBeUndefined();
+    expect(mockClearQuery).toHaveBeenCalledTimes(2);
   });
 });

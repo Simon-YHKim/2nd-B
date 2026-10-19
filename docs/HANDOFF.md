@@ -1,5 +1,16 @@
 # 2nd-Brain Handoff
 
+## Latest — 2026-10-19 12:13:18 KST / T09 · PR #2648 3회차 · 사용자별 삭제 공유·실패 표시 유지
+
+- 같은 가지 `fix/privacy-plain-words-261019`에서 이번 지시의 **F6와 F4 화면 정직성만** 수정했다. 아래 2회차 블록의 「실패는 조용히」·화면별 ref 방식은 이번 구현으로 대체됐다. F2·F3 법무 대기는 그대로다.
+- F6: `records-embeddings.ts:118`의 모듈 수준 `Map<string, Promise<void>>` 하나로 사용자별 진행 중 삭제를 공유한다. 끄기·포커스 진입 재시도는 같은 `clearRecordEmbeddings`를 쓰며, 성공·실패 모두 표에서 해제돼 다음 재시도가 가능하다. 다른 계정의 삭제는 서로 기다리지 않는다. `enableEmbedding`은 `waitForRecordEmbeddingCleanup` 뒤에만 켜짐을 저장하며 기다리는 동안 busy다. 화면이 닫혀도 표는 남는다.
+- F4: 재진입 삭제 실패도 기존 `embedErr`와 `privacy.saveFailed`로 표시한다. 진입·켜기·끄기 시작 때 오류를 지우지 않고, 삭제 성공 뒤에만 지운다(계정 변경 시 초기화는 별개). 재시도 경로는 개인정보 화면 재진입이며 새 문구·키·서버 작업·SQL·영속 상태를 추가하지 않았다.
+- 검증: 수정 전 23개 중 12개 assertion 실패로 재현. 최종 관련 Jest **8묶음 133개 PASS**(`--maxWorkers=2`, 실행 전 여유 메모리 3,782,444 KB). 실제 화면 함수와 실제 삭제 모듈을 연결해 옛 화면의 끄기/재진입 삭제 → 언마운트 → 새 화면의 켜기에서 **삭제 완료 → 켜짐 저장** 순서를 고정했다. TypeScript·변경 TS/TSX 4파일 ESLint·금지어(1,800파일)·C7(4,435키/40 namespace/5언어)·긴 줄표(981 source 파일)·require cycles(0개) 모두 종료코드 0.
+- 변이 **12/12 검출(100%)**: 켜기 기다림 제거(6개 시험 실패)·사용자 불일치·삭제 공유 제거·실패 후 진행표 해제 제거·연속 삭제 기다림 제거·오류 숨김/선제 초기화/성공 후 미해제·끄기 삭제 제거·busy 제거. 런타임 오류·timeout 0, 각 실행 뒤 파일 바이트 복원. 변이 전 최소 여유 메모리 5,734,544 KB. RN 렌더 시험 없음.
+- **남긴 것 / F4 내구성**: 화면에 다시 들어오지 않거나 앱을 다시 켜면 이 클라이언트 표로 삭제 완료를 보장할 수 없다. 표는 영속 저장소가 아니며 재시작 때 비어 있다. 제안은 `public.users.privacy_prefs`의 `records_embedding`이 꺼짐으로 바뀌는 **같은 트랜잭션에서**, `public.records.user_id = NEW.id`의 `embedding`·`embedding_model`을 NULL로 만드는 DB 트리거다. 사실 근거: `src/lib/supabase/privacy.ts:56`이 `users.privacy_prefs`를 `id`로 갱신, `src/lib/privacy/prefs.ts:32`가 JSON 키를 정의, `src/lib/records/records-embeddings.ts:132`의 UPDATE가 대상 열 둘과 `user_id` 조건을 명시한다. 열 정의는 `db/migrations/0032_minor_privacy_defaults.sql:13`, `0071_records_pgvector.sql:19`, `0142_embedding_provenance.sql:61`. 마이그레이션·운영 적용은 Relay 경유의 별도 범위다. 진행 중인 embedding 쓰기와의 서버 경합까지는 별도 설계·검증이 필요하다.
+- **2회차 지적 상태**: F1·F5 닫힘 유지, F2·F3 법무 대기, F4 화면 표시 조치 완료/내구적 삭제 열림, F6 구현·회귀·변이 확인/독립 검토 대기. `docs/RECORDS-EMBEDDING.md`의 기존 「동의가 OFF 인 상태로 남는 벡터는 없다」 서술도 내구성 보장의 근거로 쓰면 안 된다. 이번에는 범위 밖 문서 수정 대신 이 한계를 인수한다.
+- PR 초안 유지. 전체 verify는 PR CI, 머지 조건은 **독립 검토(Codex daybreak) PASS + 새 medium 0 + CI 초록**이며 법무 확인도 남아 있다. 머지·8081 확인은 코디네이터 담당. 운영 접근·QA 로그인·LLM 호출·배포·APK·8081 조작·인터뷰 #2440 범위 변경 없음. VISION: 알아가기 · 개인 비서 기반.
+
 ## Latest — 2026-10-19 11:56:35 KST / T09 · PR #2648 2회차 · 고지 복원·연결 데이터 삭제 재시도
 
 - 같은 가지 `fix/privacy-plain-words-261019`에서 1회차 F1·F4·F5를 고쳤다. F1: 5언어 `privacy.facts.collect.v`와 캐논 원본·배포 미러에 위치·통신 자료는 동의할 때만 모은다는 조건을 복원했다. 새 키는 없고 C7·언어 문자열 핀은 4,435 그대로다.

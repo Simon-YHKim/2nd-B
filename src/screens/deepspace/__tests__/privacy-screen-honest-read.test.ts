@@ -47,7 +47,6 @@ function harness(read: () => Promise<Record<string, unknown>>) {
     busy: false,
     ko: true,
     minorRef: { current: false },
-    embeddingCleanupRef: { current: false },
     embeddingEnableRef: { current: false },
     prefsUserRef: { current: OWNER as string | null },
     privacyMountedRef: { current: true },
@@ -76,6 +75,7 @@ function harness(read: () => Promise<Record<string, unknown>>) {
     recordRecommendationsConsent: async () => true,
     backfillAllRecordEmbeddings: async () => undefined,
     clearRecordEmbeddings: async () => undefined,
+    waitForRecordEmbeddingCleanup: async () => undefined,
   };
   return { context, saves, errors };
 }
