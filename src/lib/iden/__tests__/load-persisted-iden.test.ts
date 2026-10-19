@@ -1,6 +1,6 @@
 interface QueryResult {
   data: unknown;
-  error: { message: string } | null;
+  error: { message: string; code?: string } | null;
   count?: number | null;
 }
 
@@ -60,6 +60,7 @@ jest.mock("../../supabase/client", () => ({
 import { buildIdenExport } from "../iden-export";
 import { loadPersistedIden, visibleIdenDocForExport } from "../load-persisted-iden";
 import type { IdenDoc } from "../types";
+import { NORTHSTAR_AI_TAG, northstarAiTag } from "../../persona/northstar-provenance";
 
 const PERSONA_COLUMNS = "traits, values, patterns, created_at, version";
 
@@ -69,7 +70,7 @@ function resetFixtures() {
   for (const fn of Object.values(forbiddenWrites)) fn.mockClear();
   fixtures["users:display_name"] = { data: [{ display_name: "Simon" }], error: null };
   fixtures[`personas:${PERSONA_COLUMNS}`] = { data: [], error: null };
-  fixtures["records:body, created_at"] = { data: [], error: null };
+  fixtures["records:body, created_at, system_tags"] = { data: [], error: null };
   fixtures["sources:count"] = { data: null, error: null, count: 0 };
   fixtures["records:count"] = { data: null, error: null, count: 0 };
   fixtures["wiki_pages:count"] = { data: null, error: null, count: 0 };
@@ -98,7 +99,7 @@ describe("loadPersistedIden", () => {
       }],
       error: null,
     };
-    fixtures["records:body, created_at"] = {
+    fixtures["records:body, created_at, system_tags"] = {
       data: [{ body: "I build tools that help me understand myself.", created_at: "2026-08-28T00:00:00Z" }],
       error: null,
     };
@@ -150,6 +151,40 @@ describe("loadPersistedIden", () => {
     fixtures[`personas:${PERSONA_COLUMNS}`] = { data: null, error: { message: "db unavailable" } };
 
     await expect(loadPersistedIden("user-a", { locale: "ko" })).rejects.toEqual({ message: "db unavailable" });
+  });
+
+  it.each(["matched", "edited", "bare", "user tags", "absent"])("northstar %s attribution reaches all artifacts only with an exact fingerprint", async (mode) => {
+    const body = "I keep learning.";
+    fixtures["records:body, created_at, system_tags"] = {
+      data: [{ body: mode === "edited" ? `${body}!` : body, created_at: "then",
+        system_tags: mode === "matched" || mode === "edited" ? [northstarAiTag(body)] : mode === "bare" ? [NORTHSTAR_AI_TAG] : [],
+        tags: [northstarAiTag(body)],
+      }], error: null,
+    };
+    const doc = await loadPersistedIden("owner");
+    expect(doc?.oneLinerAiSuggested === true).toBe(mode === "matched");
+    const visible = visibleIdenDocForExport(doc!, []);
+    const exported = buildIdenExport(visible, { aiCopyTail: "AI TAIL" });
+    for (const text of [exported.iden, exported.json, exported.html]) expect(text.includes("AI TAIL")).toBe(mode === "matched");
+    const hidden = buildIdenExport(visibleIdenDocForExport(doc!, ["northstar"]), { aiCopyTail: "AI TAIL" });
+    for (const text of [hidden.iden, hidden.json, hidden.html]) expect(text).not.toContain("AI TAIL");
+  });
+
+  it("a missing 0218 column reads the legacy sentence without user-tag attribution", async () => {
+    fixtures["records:body, created_at, system_tags"] = { data: null, error: { code: "42703", message: "column system_tags does not exist" } };
+    fixtures["records:body, created_at"] = { data: [{ body: "Saved line", tags: [northstarAiTag("Saved line")] }], error: null };
+    const doc = await loadPersistedIden("owner");
+    expect(doc?.oneLiner).toBe("Saved line");
+    expect(doc?.oneLinerAiSuggested).toBeUndefined();
+    expect(calls.filter((call) => call.table === "records" && !call.countOnly).map((call) => call.columns)).toEqual(["body, created_at, system_tags", "body, created_at"]);
+  });
+
+  it("a persisted fixed safety summary is not a model summary", async () => {
+    fixtures[`personas:${PERSONA_COLUMNS}`] = { data: [{ patterns: { summary: "Fixed response", __summary_source: "fixed_safety" } }], error: null };
+    const doc = await loadPersistedIden("owner");
+    expect(doc?.summary?.source.kind).toBe("derived");
+    const exported = buildIdenExport(doc!, { aiCopyTail: "AI TAIL" });
+    for (const text of [exported.iden, exported.json, exported.html]) expect(text).not.toContain("AI TAIL");
   });
 });
 

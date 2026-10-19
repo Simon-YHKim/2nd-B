@@ -75,7 +75,7 @@ export const DRILL_LAYERS: readonly DrillLayer[] = [
 export interface InterviewTurn {
   role: "interviewer" | "user";
   text: string;
-  /** Matches a displayed opener after edge trimming only. Not a credit verdict. */
+  /** Actual chip selection and exact raw draft match. Not a credit verdict. */
   fromOpener?: boolean;
   /** Layer the *answer* sits in (interviewer turn has the layer it was probing for). */
   layer?: DrillLayer;

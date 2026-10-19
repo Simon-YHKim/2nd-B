@@ -1,9 +1,5 @@
 # 2nd-Brain Handoff
 
-## 2026-10-19 T37 말문 후보 출처 (구현 → 코디네이터 검토)
-
-`feat/interview-opener-verbatim-261019`: 그대로 보낸 후보의 출처를 원문·층 판정 history·비준 근거·제안 프롬프트에 보존. 인정 규칙과 #2440·S2 선택/영수증은 유지. 관련 46 suites / 1,717 tests PASS, 변이 10/10 실패 확인. [구현·꼬리표 소비 목록·검증·남긴 것](handoff/t37-opener-verbatim-261019.md). 초안 PR 이후 독립 검토·CI·머지·8081은 Claude Code 2ndb-4e 담당.
-
 ## 이 로그는 기간으로 쪼개져 있다
 
 단일 파일 100KB 상한(Simon 지침 §2 · §0-1)을 지키려고 **요약이 아니라 기간으로**
@@ -12,7 +8,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-10-07 ~ 2026-10-13 07:40(10-13 의 나머지 블록은 활성 창) | [handoff/HANDOFF-2026-10-p3.md](handoff/HANDOFF-2026-10-p3.md) | 66 | 195KB |
+| 2026-10-07 ~ 2026-10-13 07:40(10-13 의 나머지 블록은 활성 창) | [handoff/HANDOFF-2026-10-p3.md](handoff/HANDOFF-2026-10-p3.md) | 68 | 203KB |
 | 2026-10-05 12:00 ~ 2026-10-07 15:16 | [handoff/HANDOFF-2026-10-p2.md](handoff/HANDOFF-2026-10-p2.md) | 25 | 75KB |
 | 2026-10-01 01:07 ~ 2026-10-05 05:40 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 43 | 97KB |
 | 2026-09-28 01:2x ~ 2026-09-30 23:57 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 24 | 66KB |
@@ -37,128 +33,70 @@
 **⚠ 2026-10-14: 지금 기준은 활성 창 상한 400KB · 예산 320KB · 보관 부분 하나 360KB 다(`/simon-handoff` Step 2-B). 위에 적힌 100KB 는 옛 값이다. 이번에 2026-10-11 00:02 ~ 2026-10-12 22:30 의 블록 28개를 `HANDOFF-2026-10-p3.md` 맨 위로 옮겼다 - 10 월 블록은 계속 그 파일로 간다(360KB 를 넘으면 `-p4`).**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## 구현 인수 4회차 마무리 2 · 2026-10-19 / Codex gpt-6-astra → 2ndb-4e · PR #2651
+## Latest — 2026-10-19 18:02 KST / 2ndb-4e · 인수 9차: T18 머지 · T54 Relay 대기 · 0263 검토 통과 · 검토자 대체(daybreak 용량 초과)
 
-코디네이터 결정: 0263의 판본·복구 세대는 사용자 선택이 아닌 서버 메타데이터다.
-트리거/CAS와 앱 코드는 3b1e54da 그대로 두고 0194 회귀 시험만 정렬했다.
+**목적.** 대표님 /goal(10-19 01:42) 「모두 완료될때 까지 진행해. 모두 권장안으로 하면 돼.」로 Codex 10-16 장부 76개를 이어 간다. 완료 = 머지 + 8081 확인 + `app:parity` 같음. 장부: `docs/handoff/CODEX-EXECUTION-261015.md` · `docs/handoff/CODEX-TASK-LEDGER-261016.json`.
 
-- `llm_service_consent_management_regression.sql`은 저장된 서버 키
-  `records_embedding_revision`·`records_embedding_recovery` 두 개만 이름으로 제외한다.
-  입력에 `records_embedding:false`를 명시해 0263의 기본값 정규화와 혼동하지 않는다.
-  그 선택을 포함한 나머지 JSON 전체를 비교하므로 알려지지 않은 선택과 일회용 표식도
-  빠져나가지 못한다. 영수증 writer가 사용자 선택을 바꾸지 않는 0194의 계약은 유지된다.
-- `git fetch origin` 뒤 `origin/main` c305f6f7을 병합했다. 충돌은 DECISIONS.md 하나였고
-  main 줄 다음에 이 PR 줄을 붙여 CRLF·빈 줄 없음으로 해소했다.
-- 병합 전·후 모두 db/tests SQL 파일 49/49(전용 초기 스키마 포함) 통과.
-  최종 0263 실행 묶음 25개 통과(실제 역할/RLS·CAS·경합·정리·재설치).
-  이번 변경은 시험 정렬이라 성능 측정은 생략했으며 앞 회차 수치를 재측정으로 세지 않는다.
-- Jest 30 suites/432 tests(전체 src/lib/legal·DPIA 앵커 포함), tsc, PR TS/MJS 12개 ESLint,
-  금지어·C7(4,444키/40 namespaces/5언어)·긴 줄표 검사 종료 0.
-  Jest 직전 여유 메모리 4,137,804KB, --maxWorkers=2.
-- 변이 17/17 검출: 서버 키 제외 2개 각각 원복, 사용자 선택 10개 각각 변경,
-  명시 선택 2개 삭제, 알 수 없는 키 1개·일회용 표식 2개 추가. 원본 0194 실패 재현,
-  서버 메타데이터만 바뀐 양성 대조 및 정상 시험 재검증도 통과했다.
-- 원자료·재생 도구·HTML: `E:/Coding Infra/reports/devlab-261010/s2-astra/embed-r4c-verification/`.
-  로컬은 PG16/pgvector psql 재생이다. 고정 Supabase CLI·전체 verify는 PR CI가 판정한다.
-  같은 가지 push·초안 유지. 독립 검토·main 머지·운영 적용·게시·8081 확인은 맡지 않았다.
-  머지 조건: Codex daybreak PASS + 새 medium 0 + CI 초록. #2440 동결 범위 직접 수정 없음.
+**최종 갱신.** 2026-10-19 18:02 KST · Claude Code 2ndb-4e. 분담: 구현 Codex gpt-6-astra @xhigh · 독립 검토 Codex daybreak, 단 15:02 부터 daybreak 가 「Selected model is at capacity」로 판정을 못 내 **다른 벤더 Claude 하위 검토자**가 대신 본다(DECISIONS 26.10.19 17:18 · 판정 원문 `E:/Coding Infra/reports/devlab-261010/gates/*-claude-r*.txt`) · 확인 · 머지 · 8081 · 기록은 Claude.
 
-## 구현 인수 4회차 · 2026-10-19 / Codex gpt-6-astra → 2ndb-4e · PR #2651
+**지금까지(15:15 이후).**
+- T18 #2657 머지(17:12 · `6f497266`) · Q-261019-42 는 /goal 권장안 「가」로 · 8081: 제안 문장 그대로 저장 → 공유 카드에 「AI가 생성한 내용 (PolaScope)」 · 직접 쓴 문장은 표시 없음.
+- #2651(0263 · 연결용 데이터 서버 삭제) 5회차 PASS(대체 검토) · 운영 문서에 설치 검사 권한 아홉 개 · 머지는 Q-261019-44 답 뒤.
+- T54 #2658(초안 · 0264 `sources.system_tags`) 독립 검토 PASS WITH CONCERNS · QA 전후 측정 끝(커리어 L3 → L2 하나 · 정리함 그대로) · 서버 먼저라 Relay 에 0264 단독 적용 요청(`.bots/relay/inbox/coding-4e-0264-apply-request-1801.note.md`).
+- T28 은 초안 #2535(위기 AI 보류 계약 · R1 PASS)가 0225 운영 적용을 선행으로 요구해 Relay 대기로 확인.
 
-같은 가지·초안 유지. 3회차 판정의 medium 2건·low 1건만 수정했다.
+**다음 1개.** Relay 가 0264 를 적용하면: 운영 문서 4단계의 읽기 전용 PostgREST 확인 → #2658 초안 해제 · 머지 → 8081(위키 꼬리표 · 정리함 · 비준) → parity.
 
-- 표식 없는 UPDATE OFF→ON은 `40001 / records_embedding_consent_conflict`로 실패한다.
-  SQL에서 서버 OFF/전체 JSON/NULL 쌍 유지, Jest에서 main과 같은 무표식 저장 경로의
-  실패 전파·화면에 넘길 로컬 값 OFF·grant 원장 미기록을 확인했다. 새 CAS 켜기는 유지한다.
-- 정리 시작 검사는 네 트리거의 이름·함수·이벤트·대상 열·WHEN·활성을 설치 검사와 맞췄다.
-  각 트리거 6종 변경, 총 24건을 정리 시작 전에 거절했다.
-- authenticated 열 권한 네 개를 추가 검사한다. 테이블 권한을 나머지 열 권한으로 바꾸고
-  필요한 한 열만 뺀 네 경우 모두 설치 실패·권한 롤백을 확인했다.
-- 전체 번호 스키마 psql 재생 + SQL 26개 묶음, Jest 11 suites/192 tests 통과.
-  변이 SQL 12/12 + 앱 2/2 = 14/14 검출. tsc·변경 ESLint·금지어·C7·긴 줄표·DEFINER 종료 0.
-  `prefs.ts`/앱 소스 변경 없음, DPIA 앵커 시험 통과. UI·문자열·#2440 범위 변경 없음.
-- 10만 행 철회 3,704.376ms, WAL 438,990,112 bytes, 잔여 0. 쓰기/삭제 가드 0/100,000회,
-  updated_at 100,001회. PG16/pgvector·2 CPU/768 MiB·synthetic 768차원/HNSW 단일 측정이다.
-  운영 상한의 증거가 아니며 운영 5회·시간 여유·상한 알림 조건은 유지한다.
-- [처리 표와 적용 계약](ops/records-embedding-consent-0263.md).
-  원자료: `E:/Coding Infra/reports/devlab-261010/s2-astra/embed-r4-verification/`.
-  독립 검토(Codex daybreak) PASS + 새 medium 0 + CI 초록 뒤에만 코디네이터가 머지한다.
-  운영 적용·잔여 정리·게시·8081 확인·직접 삭제 제거는 이 구현 갈래에서 하지 않았다.
+**막힌 것.** 대표님 답(Q-261019-41 · 43 · 44) · 법무 답(T09 #2648) · Relay 운영 적용(0225 · 0226 · 0262 · 0263(답 뒤) · 0264) · #2440 동결(T16 · T20 · T35) · 서버 선행(T28 · T38 · T39 · T40 · T44) · daybreak 용량.
 
-## 구현 인수 3회차 · 2026-10-19 / Codex gpt-6-astra → 2ndb-4e · PR #2651
+**TODO.** ① 0264 적용 확인 → #2658 ② Q-44 답 → #2651 머지 · Relay 0263 ③ 법무 답 → #2648 4회차 ④ daybreak 가 돌아오면 다시 기본 검토자.
 
-같은 `fix/embed-consent-server-trigger-261019` 가지, 초안 유지. 2회차 판정의 medium 2건을
-보강했다. 아래 2회차의 늦은 NULL 미해결·잘못된 판본 실패 설명은 이번 내용으로 대체한다.
+**미해결 질문.** Q-261019-41(T22 · 이월 1회) · Q-261019-43(T33) · Q-261019-44(0263). Q-261019-42 는 16:04 권장안 「가」로 닫음. 보고서: <https://claude.ai/artifact/4pP4UwP1o3W1FwtRp96QyJ>.
 
-- 지적 1: ON에서 완전한 OLD 쌍을 직접 두 NULL로 만드는 정상 경로는 없었다.
-  위기 보류·본문 수정·모델 교체·단건 삭제·서버/Edge 조사 목록과 파일:행은
-  [운영 인수](ops/records-embedding-consent-0263.md)에 있다. 새 BEFORE UPDATE 가드가
-  완전한 쌍→NULL만 사용자 `FOR SHARE` 뒤 판단해 현재 ON이면 OLD 쌍을 유지한다.
-  반쪽 정리·소유자 변경·OFF 서버 철회·행 DELETE는 그대로 작동한다.
-- 지적 2: JSON 타입·정수 모양·범위 확인 뒤에만 bigint로 캐스트한다. 기존 판본 이상
-  10종에서도 OFF·서버 판본 1로 복구하며 같은 트랜잭션에서 삭제한다. 숫자 1의 재사용에
-  따른 옛 CAS=2 충돌은 서버 UUID 복구 토큰으로 구분한다. 명시적 앱 켜기에서 새로 읽은
-  토큰+판본이 모두 맞아야 켜진다. 일반 UPDATE는 토큰을 덮거나 지울 수 없다.
-  일반 필드 UPDATE에서 BEFORE 복구가 일어나도 삭제하도록 AFTER 이벤트를 맞췄다.
-- 검증: SQL 18개 실행 묶음, Jest 11 suites/190 tests(legal 앵커 포함), 변이 19/19
-  (SQL 16 + 앱 3). 소유자 WHEN만 제거한 동등 변이 1건은 분모에서 제외했다.
-  tsc·변경 ESLint·금지어·C7 4,433키/40 namespaces/5언어·긴 줄표·제약·DEFINER 종료 0.
-  변이 원복 후 SQL·Jest 정상본 재검증. 최종 10만 행 철회 4,201.240ms, 잔여 0,
-  쓰기 가드 0회·삭제 가드 100,000회·updated_at 100,001회. 로컬 단일 측정이다.
-- `prefs.ts`·DPIA 인용·UI 문구·로케일·#2440 동결 경계는 변경하지 않았다.
-  남김: 오래된 false 객체 자체의 철회, 본문 수정 후 벡터 무효화/내구성 ai_hold,
-  일반 저장 0행 판정·다른 선택의 전체 객체 덮어쓰기·모델 provenance는 기존 별도 범위다.
-- 운영 미적용. 전체 CI·독립 검토·머지·게시·8081 확인은 코디네이터/Relay가 이어간다.
-  순서는 토큰까지 반영한 앱 머지·게시 → Relay 0263 적용 → 잔여 정리/0 확인이다.
-  직접 삭제 제거는 운영 5회 성능·timeout·상한 알림 조건 뒤의 별도 PR이다.
-  원자료: `E:/Coding Infra/reports/devlab-261010/s2-astra/embed-r3-verification/`.
+**요청.** 없음.
 
-## 구현 인수 2회차 · 2026-10-19 / Codex gpt-6-astra → 2ndb-4e · PR #2651
+## 2026-10-19 15:15 KST / 2ndb-4e · 인수 8차: S2 · T37 머지와 8081 확인 · T09 법무 대기 · 0263 서버 삭제 검토 · 물음 셋
 
-같은 `fix/embed-consent-server-trigger-261019` 가지의 보강이며 초안을 유지한다.
-아래 1회차의 전체 true 덮어쓰기·DOWN 설명은 이번 내용으로 대체한다.
+**목적.** 대표님 /goal(10-19 01:42) 「모두 완료될때 까지 진행해. 모두 권장안으로 하면 돼.」로 Codex 10-16 장부 76개를 안전 → 보안 → 인터뷰 · 화면 순서로 이어 간다. 완료 = 머지 + 8081 확인 + `app:parity` 같음. 장부 · 순서: `docs/handoff/CODEX-EXECUTION-261015.md` · `docs/handoff/CODEX-TASK-LEDGER-261016.json`.
 
-- 지적 1(high): JSON 판본 CAS와 명시적 앱 켜기 표식. 일반 UPDATE의 OFF→ON 차단,
-  철회/반복 OFF가 판본을 전진. 표식은 소비하며 충돌은 자동 재시도하지 않는다.
-  앱 켜기는 raw 판본을 엄격히 읽고 정확히 한 행의 실제 ON 응답을 확인한다.
-- 지적 3(high): 운영 DOWN 파일 제거. 등록부는 모든 번호의 DOWN을 요구하지 않는다.
-  시험 실행기에만 DROP을 두고 실제 DB 이름 검사·호출자 rollback·원장 보존을 확인한다.
-- 지적 2(medium): 일괄 ON NULL 차단을 넣지 않았다. ON 상태의 반쪽 데이터 정리
-  (`db/ops/records_embedding_cleanup_batch.sql:46`, `:58`)를 깨기 때문이다.
-  조사한 모든 후보와 실제 정상 경로 시험은 [운영 문서](ops/records-embedding-consent-0263.md)에 있다.
-  코디네이터가 독립 검토에 이 근거를 먼저 넘기고 DECISIONS에 판단을 남긴다.
-  이 갈래는 기존 결정 줄을 그대로 두고 PR이 추가한 빈 줄 하나만 지웠다(CRLF).
-- 최신 전체 스키마 psql 재생, SQL 15개 묶음(원복 후 성능 제외 14개), Jest 10/169 통과.
-  이번 변이 SQL/실행기 8/8 + 앱 10/10 검출. 10만 행 철회 2,518.513ms,
-  잔여 0, 새 쓰기 검사 호출 0, 기존 updated_at 100,001. 단일 로컬 측정이다.
-  tsc·변경 ESLint·금지어·C7·긴 줄표·제약·DEFINER 검사 종료 0.
-- **순서가 바뀜:** 표식 앱 머지·웹 게시/번들 확인 → Relay의 0263 적용 → 잔여 정리/0 확인.
-  기존 DB도 표식 JSON을 저장할 수 있다. 서버부터 적용하면 옛 웹의 켜기는 OFF로 낮춰진다.
-  옛 설치 앱·캐시 웹은 새로 켜려면 업데이트가 필요하다. 직접 삭제 제거는 여전히 별도 조건이다.
-- 남김: 늦은 NULL/false의 새 벡터 손실, 일반 저장/철회의 0행 판정, 다른 선택의 전체 객체 덮어쓰기.
-  운영 적용·전체 CI 판정·독립 검토·머지·게시·8081 확인은 코디네이터/Relay 소유이며 미실행.
-  원자료: `E:/Coding Infra/reports/devlab-261010/s2-astra/embed-r2-verification/`.
+**최종 갱신.** 2026-10-19 15:15 KST · Claude Code 2ndb-4e(코디네이터). 11:07 부터 분담: 구현 Codex gpt-6-astra @xhigh(`codex exec`) · 독립 검토 Codex daybreak(`E:/Coding Infra/reports/devlab-261010/gates/gate_generic.py` · `gate_design.py`) · 확인 · 머지 · 8081 · 기록은 Claude. /vibe Orca 레인은 계정 · 과금 인증서 전이라 쓰지 않는다(DECISIONS 26.10.19 11:07).
 
-## 구현 인수 1회차 이력 · 2026-10-19 / Codex gpt-6-astra → 2ndb-4e · 연결용 데이터 서버 철회
+**지금까지(10-19 오후).**
+- T30 · T31 인터뷰 S2 #2650 머지(13:40 · `0c037696`) · 설계 검토 5회 · 구현 검토 2회차 PASS · 8081: 「모르겠어요」 두 번째에 「다른 장면으로 갈까요?」 + [다른 장면] · [이 질문 건너뛰기].
+- T37 말문 후보 「답변(제안 그대로)」 #2652 머지(14:30 · `c305f6f7`) · 후속 #2654(14:48 · `401881fa`) · 8081: 저장 요청 본문에 「답변:」 1 · 「답변(제안 그대로)」 1 · 실제 모델(`self_model_propose`): 그대로 인용 3/6 → 1/6 · 지시문 따라 쓰기 0/12.
+- T09 개인정보 화면 쉬운 말 #2648(초안): 구현 검토 3회 BLOCK → 화면 쪽 삭제 장치를 되돌려 문구 · 약관 · 환불 줄로 좁힘(`6bcee8d6`). 법무 확인 요청 = Relay 우편함 `coding-4e-t09-privacy-legal-ask-1143.note.md`.
+- 새 항목 · 연결용 데이터 서버 삭제 #2651(초안 · 마이그레이션 `0263_records_embedding_consent_guard.sql`): 설계 검토 2회(2회차 통과) · 구현 검토 4회차 PASS WITH CONCERNS → low 고침 `36290ea0` · CI 전부 초록 · 5회차 검토는 daybreak 「용량 초과」로 판정 없이 끊겨 재시도 중(실패 산출물 `gates/failed-capacity/`).
+- `app:parity` 같음(`401881fa` · APK 빌드 진행).
 
-브랜치 `fix/embed-consent-server-trigger-261019`, 마이그레이션 `0263`.
-구현 범위는 사용자 철회·기록 쓰기 트리거 둘, 실제 저장 RETURNING 판정,
-SQL 계약·실제 경합·10만 행 시험, Relay 운영 인수다.
-현재 화면의 직접 삭제와 백필 종료 정리는 유지한다. UI·문자열 키·#2440 경계는 변경하지 않았다.
+**다음 1개.** #2651 5회차 판정 → 대표님께 Q-261019-44(0263 머지와 Relay 적용 순서: 앱 쪽이 먼저 머지 · 게시돼도 옛 DB 와 맞물리고, 적용은 Relay 가 「적용 중」 표시 뒤 · 운영 문서 `docs/ops/records-embedding-consent-0263.md`).
 
-- [Relay 적용 순서·성능 수치·앱 전환 조건](ops/records-embedding-consent-0263.md).
-- 전체 스키마를 로컬 PG16·pgvector로 재생. 실제 역할/RLS, 경합·교착, rollback·재적용 통과.
-  10만 행 철회 3,140.204ms, 새 검사 호출 0, 기존 updated_at 호출 100,001, SQL 변이 14/14 검출.
-- 관련 Jest 8 suites / 106 tests, 앱 변이 8/8 검출 후 원복 재검증 통과.
-  tsc·변경 파일 ESLint·금지어·C7(5언어 4,433키)·긴 줄표·제약·DEFINER 권한 검사 종료코드 0.
-  전체 verify와 빌드 판정은 발주대로 PR CI에 맡긴다.
-- 운영 적용·잔여 집계/정리·상한 접근 알림·독립 구현 검토·머지·8081 확인은 **미완료**다.
-  구현 담당은 초안 PR까지만 맡으며 코디네이터가 검토·머지·8081을 이어간다.
-- 운영 설치는 대표님 확인 뒤 Relay 경유. 직접 삭제를 뺀 앱 배포 뒤 트리거 DOWN은 영구 금지.
-  기존 모델 위에 벡터만 바꾸는 옛 쓰기의 provenance, 전체 객체 마지막 쓰기 우선,
-  늦은 NULL 삭제, `savePrivacyPrefs` 0행 판정은 이번에 해결하지 않는다.
+**막힌 것.** 법무 답(T09 · Z5 등) · Relay 운영 적용(0225 · 0226 · 0262 · 0263) · 대표님 답(Q-261019-41 · 42 · 43 · 44) · #2440 동결(T16 · T20 · T35) · 서버 선행(T28 · T38 · T39 · T40 · T44 · T54) · APK 는 요청 때만.
 
-## Latest — 2026-10-19 00:33 KST / 2ndb-4e · 인수 7차: 레인 말투 머지 · 8081 확인 · 지금 열린 물음 0
+**TODO.** ① #2651 5회차 판정 기록 ② 법무 답 오면 #2648 4회차(같은 PR · 남은 회차 둘) ③ Relay 답 오면 0225 · 0226 · 0262 · 0263 적용 확인 ④ 대표님 답 오면 해당 항목.
+
+**미해결 질문.** Q-261019-41(T22 계획 버튼 · 이월 1회) · Q-261019-42(T18 북극성 공유 카드 AI 표시 · 이월 1회) · Q-261019-43(T33 인터뷰 말투 다음 걸음) · Q-261019-44(0263 머지 · 적용 순서). 보고서 v22: <https://claude.ai/artifact/4pP4UwP1o3W1FwtRp96QyJ>.
+
+**요청.** 없음(새 REQ 없음).
+
+## 2026-10-19 T37 후속: override 한도 복원 (#2652 검토 2회차)
+
+`fix/interview-opener-override-261019`: direct-send override가 있으면 `beginAction` snapshot의
+`openerSelection`을 비운다. 같은 후보 글자를 override로 보낸 뒤 429로 복원해도 다음 일반 답에
+「제안 그대로」가 붙지 않는다. `fromOpener` 주석도 실제 칩 선택과 raw draft 정확 일치로 정정했다.
+KO·EN 실제 콜백 회귀시험 2개는 수정 전 실패, 수정 후 통과했다. 표식 제거 줄을 뺀 변이 **1/1 검출**
+(새 시험 **2/2 실패**, 원본 바이트 복원). 최종 관련 **11 suites / 703 tests PASS**, 실패·skip 0.
+TypeScript·변경 파일 ESLint·금지어(1,801파일)·C7(4,444키·40 namespace·5언어)·긴 줄표(982소스)
+모두 종료코드 0. Jest 직전 가용 메모리 최솟값 3,833,636KB. 원자료: `%TEMP%/2ndb-t37-followup-261019/`.
+UI 문자열·키, #2440 stop/Back/RESET·`answerDisposition`, 인정·coverage 규칙은 변경하지 않았다.
+전체 verify는 PR CI, 독립 검토(Codex daybreak)·머지·8081 확인은 Claude Code 2ndb-4e 담당이다.
+현재 연결된 `dontKnow`는 로컬 처리되므로 이 시험은 429 조합의 계약 회귀이며 실제 앱 LLM 호출은 없다.
+VISION 축: **1 알아가기**.
+
+## 2026-10-19 T37 말문 후보 출처 (구현 → 코디네이터 검토)
+
+`feat/interview-opener-verbatim-261019`: 그대로 보낸 후보의 출처를 원문·층 판정 history·비준 근거·제안 프롬프트에 보존. 인정 규칙과 #2440·S2 선택/영수증은 유지. 관련 46 suites / 1,717 tests PASS, 변이 10/10 실패 확인. [구현·꼬리표 소비 목록·검증·남긴 것](handoff/t37-opener-verbatim-261019.md). 초안 PR 이후 독립 검토·CI·머지·8081은 Claude Code 2ndb-4e 담당.
+
+## 2026-10-19 00:33 KST / 2ndb-4e · 인수 7차: 레인 말투 머지 · 8081 확인 · 지금 열린 물음 0
 
 00:09 블록 뒤의 일. 대표님이 이 창에 직접 00:17 에 Q-261018-67 가(시험 하나만 · 6회차 한 번)를 주셨다(DECISIONS 26.10.19 00:17).
 
@@ -1619,31 +1557,4 @@ npm run app:parity
 - **도구 메모**: `gate_generic.py` 의 `--s 이름=경로` 는 이름에 `=` 가 있으면 깨진다(04:00 한 번 헛돎 · 결과 파일이 없으면 통과가 아니다). 구현 갈래의 `-o last.md` 는 작업자가 쓴 긴 보고를 마지막 짧은 메시지로 덮어쓴다 → 긴 보고는 `codex-impl/z12-r1.report.md`(다시 만든 것) · 짧은 것은 `z12-r1.final-message.md`.
 - **운영에 남은 시험 계정**: 0. **에뮬레이터**: P4a 는 Rufus 가 쓰는 중(켜져 있음) · P7Pro 꺼짐.
 - **app:parity**: 03:17 에 "같음"(`4b12af95`). 그 뒤 main 은 2ndb-53 의 머지로 움직였고(03:54 에 그 세션이 "같음" 확인) 이 세션은 그 뒤 main 에 넣은 것이 없다.
-
-## 2026-10-13 03:28 / 2ndb-79: A-Z 본편 수신 · #2335 머지(8081 확인) · Z20 · Z19 는 Simon 결정 대기 · Z12 구현 중 - 다음은 Z12 구현 결과
-
-- **지금까지**: ① A-Z 본편(Z19 ~ Z39) 수신 · 2ndb-53 과 나눠 맡음(이 세션 = Z12 · Z13 · Z20 · Z21 · Z24 · Z33 · Z38 뒤쪽 · Z39). ② **#2335 머지**(03:16 · main `4b12af95`): 가입 실패 안내가 다음 입력 · 새 시도까지 남는다. 8081 에서 응답을 가로채 확인(운영 쓰기 0). 1회차 검토가 막은 "DB 거절 → 기존 계정 카드"는 뺐다. ③ **Z20 원인 확인**: 대화는 기록 본문을 설계상 읽지 않는다(`conversation.ts:254-261` · `export.ts:23-27`). 화면 소개 · 예시 질문과 어긋난다 → Simon 결정(Q-261013-28). ④ **보고서**: https://claude.ai/artifact/UtELW66iaCBWxwrrwVjLd4 (원본 `<scratchpad>/az-report/az-status.src.html` · 빌드 `build.py` · 다시 게시는 같은 경로 `az-status.html`). ⑤ **Z12 · Z13 · Z24 구현 시작**(03:25 · 발주 `E:/Coding Infra/reports/devlab-261010/codex-impl/z12-r1.prompt.md` · 워크트리 `.worktrees/z12-signin-notice-261013` · 브랜치 `fix/signin-notice-above-button`).
-- **다음 1개**: Z12 구현 결과(`codex-impl/z12-r1.last.md` · `runs.log`) → 코드 읽기 → main 병합 → 표적 테스트(`npx jest --maxWorkers=2 src/lib/legal src/lib/auth src/lib/supabase` + `npx tsc --noEmit`) → push → PR(번호는 만든 출력에서만) → 과제 파일 `gates/z12-task.md` 작성 → `python -B "E:/Coding Infra/reports/devlab-261010/gates/gate_generic.py" z12 1 <PR> <워크트리> <과제 파일> --s … -- <구현 보고>` → PASS 면 `APP_MERGE=1 bash "E:/Coding Infra/reports/codex-audit-261010/merge_when_green.sh" <PR>` → 8081 확인(로그인 응답을 가로채 400 을 돌려주기 · 빈 칸으로 누르기 · 운영 쓰기 0).
-- **Simon 결정 대기(보고서 결정 탭)**: Q-261013-28(허슬케이가 기록을 읽을지) · Q-261013-29(계정 전환 빈 화면 — #2318 은 멈춤 · 새 제안 "계정이 바뀌면 앱이 스스로 다시 시작") · Q-261013-30(메모리로 꺼진 작업 — #2333 머지 도우미 · 확인용 서버) · Q-261013-31(Z1 보류).
-- **그다음**: (가) Z33(AI 답 문체) · Z21 — Z20 결정과 같이 · 프롬프트는 머지 전에 8082 에서 실제 모델로 확인(Q-261013-30 의 답이 필요) (나) Z38 뒤쪽(삭제 뒤 안내가 왜 안 뜨는지) · Z39(재현부터) (다) O2 다시(그 턴에만 붙는 힌트) · O1(새 문구 → 시안) (라) 고친 것이 모이면 새 빌드 메모를 Device Lab 에 넘기고 2회차 점검.
-- **기록 PR #2333**: 열려 있다(02:38 · 02:44 · 02:58 · 03:13 · 03:20 · 03:25 줄과 이 블록). 머지 도우미는 02:47 에 메모리 부족으로 꺼졌고 Q-261013-30 의 답 전에는 다시 띄우지 않는다.
-- **후속(낮음)**: #2335 2회차 low 2 = DPIA 문서(`docs/legal/DPIA-2ndB-minors-draft.md`)의 줄 인용을 읽는 회귀 검사가 없다. low 1(언어 전환)은 Z12 구현에 넣었다.
-- **운영에 남은 시험 계정**: 0(이 세션 것은 02:43 삭제 · Rufus 것은 02:53 삭제 · 둘 다 운영 0행 확인).
-- **에뮬레이터**: P4a(`emulator-5554`)는 Rufus 가 켜 둔 채 넘겼다(QA 로그인 · 글꼴 1.0). P7Pro 는 꺼져 있다.
-- **다음 빌드 메모에 넣을 것**: #2320 · #2321 · #2325 · #2328 · #2331 · #2332 · #2334 · #2335 · 2ndb-53 의 계정 화면 수정(main `663451bc`) · "글을 찾을 때는 content-desc 로 찾거나 U+2060 을 빼고 비교" · 빌드 `edc40407` 은 쓰지 말 것.
-- **확인하지 못한 것**: #2335 의 기기(Android) 동작 · TalkBack 이 남아 있는 안내를 되풀이해 읽는지 · Z20 조사 중 조사 에이전트만 읽은 부분(검색 경로 · 서버 쪽 대화 함수) · "앱이 스스로 다시 시작"이 폰 릴리스 빌드에서 되는지.
-- **app:parity**: 03:17 에 "같음"(`4b12af95`). 그 뒤 main 은 2ndb-53 의 머지로 `663451bc` 가 됐고 이 블록을 쓸 때는 치지 않았다.
-
-## 2026-10-13 02:46 / 2ndb-79: #2318 은 3회차도 막혀 멈춤(머지 안 함) · 둘째 시험 계정 삭제 끝 · Z1 구현 중 - 다음은 Z1 구현 결과
-
-- **지금까지**: ① **#2318(계정 전환 빈 화면)**: 3회차 독립 검토 BLOCK(high 1 = 앞 계정의 900ms 환영 타이머가 뒤 계정 아래에서 터짐 · medium 1 = 약관 · 동의 안내의 뒤로 가기 출구 누락 · low 1 = 인용 줄) → Simon 01:54 말씀(「또 막히면 멈춰」)대로 **멈췄다**. PR 은 draft(head `10056972` · 워크트리 `.worktrees/acct-switch-261013`). 앱은 고치기 전 그대로다. ② 둘째 시험 계정은 02:43 에 앱의 계정 삭제로 지웠고 02:44 에 운영 0행을 확인했다. ③ **A-Z 실사용 점검**: Rufus 가 02:34 에 만든 새 계정이 02:35 에 정상 확인돼 본편을 이어간다(Q-261013-27 은 거뒀다 · 내 02:35 안내는 틀려서 02:45 에 정정). 2차 관찰 Z12 ~ Z18 이 더 왔다. ④ **O2**: #2324 를 머지했다가 #2327 로 되돌렸다(지금은 처음 관찰 그대로). ⑤ **Z1(가입 거절 안내 · 실패 안내 수명)**: 02:34 에 구현 시작(워크트리 `.worktrees/z1-signup-reject-261013` · 시작 커밋 `ed8c9e56` · 발주 `E:/Coding Infra/reports/devlab-261010/codex-impl/z1-r1.prompt.md`).
-- **다음 1개**: Z1 구현이 끝나면 코드 읽기 → main 병합 → push → PR → `python -B "E:/Coding Infra/reports/devlab-261010/gates/gate_generic.py" z1 1 <PR> "E:/2ndB/.worktrees/z1-signup-reject-261013" <과제 파일> --s … -- "…/codex-impl/z1-r1.last.md"`(과제 파일 `gates/z1-task.md` 는 아직 없다 · `o2-task.md` 모양으로 쓴다) → PASS 면 머지 → 8081 에서 가입 응답을 가로채 500 모양을 돌려주는 방식으로 확인(운영에 계정을 만들지 않는다).
-- **그다음**: (가) **Z12 · Z13**(로그인 · 재설정에서 빈 값 · 형식 오류에 안내 없음 · 2ndb-53 에 "내가 맡겠다"고 제안함 · 답 확인) (나) **O2 다시**: 그 턴에만 붙는 힌트 + 머지 전에 8082 에서 실제 모델 확인(`ui/shoot_chat_o2.cjs`) (다) O1(새 문구 → 시안 → Simon) (라) Rufus 본편 결과가 오면 P0 · P1 부터 · AI 답변 사례는 이 세션.
-- **#2318 을 다시 하게 되면**(Simon 이 정할 때만): 3회차 검토 원문 `gates/acct-daybreak-r3.txt` 의 세 지적 + "계정이 바뀌는 순간에 살아 있을 수 있는 타이머 · 구독 · 이동 전부를 표로". `router.back()` 을 출구 감사에 넣을 것. 기기 확인에는 계정 둘이 필요하다(둘째 계정은 다시 만들어야 한다 — Simon 결정 필요).
-- **운영에 남아 있는 시험 계정**: Rufus 의 A-Z 계정 1(id `9bebeaf5…` · 02:34 생성 · 정상 확인). 점검이 끝나면 Rufus 가 앱의 계정 삭제로 지우고, 이 세션이 운영 읽기로 0행을 확인한다. 이 세션이 만든 시험 계정은 0.
-- **에뮬레이터**: P4a 는 Rufus 가 켜 둔 채 쓰는 중(`emulator-5554`). P7Pro 는 꺼져 있고 이제 켜도 된다.
-- **Legal**: Z5(동의 문장을 쉬운 한 줄로) 초안 요청을 02:34 에 올렸다(`.bots/relay/inbox/coding-legal-z5-consent-plain-0234.note.md` · 결과 자리 `legal/outbox/coding-legal-z5-consent-plain.result.md`). 오면 2ndb-53 에 넘긴다.
-- **다음 빌드 메모에 넣을 것**: #2320 · #2321 · #2325 · #2328 · #2331(2ndb-53) · "글을 찾을 때는 content-desc 로 찾거나 U+2060 을 빼고 비교" · 빌드 `edc40407` 은 쓰지 말 것.
-- **확인하지 못한 것**: 정확히 같은 주소로 다시 가입할 때의 화면(읽기로 본 추정) · D2 의 TalkBack 낭독 · 고친 #2318 이 실제 기기에서 풀리는지(머지하지 않아 볼 수 없었다).
-- **app:parity**: 02:14 에 "같음"(`e2c226dd`). 그 뒤 main 은 다른 세션의 머지로 움직였고 이 블록을 쓸 때는 치지 않았다.
 

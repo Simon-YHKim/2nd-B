@@ -217,6 +217,27 @@ describe("T37 opener provenance follows the submitted answer", () => {
     expect(h.state.turns.find(turn => turn.role === "user")).not.toHaveProperty("fromOpener");
   });
 
+  test.each(["ko", "en"] as const)("%s: quota rollback after an identical override cannot revive opener provenance", async locale => {
+    const h = setup(locale); h.state.openers = [h.text]; h.render().select(0);
+    const initialTurns = h.state.turns;
+    llm.mockRejectedValueOnce({ context: new Response(JSON.stringify({ error: "purpose_limit_exceeded", feature: INTERVIEW_PURPOSE }), { status: 429 }) });
+    await h.render().send(h.text);
+    expect(h.state.notice).toBe("drill.dayLimit");
+    expect(h.state.turns).toBe(initialTurns);
+    expect(h.state.draft).toBe(h.text);
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await h.render().send();
+    const answer = h.state.turns.find(turn => turn.role === "user");
+    expect(answer).toMatchObject({ text: h.text, answered: true });
+    expect(answer).not.toHaveProperty("fromOpener");
+    expect(interviewAnswerLabel(answer?.fromOpener, locale)).toBe(locale === "ko" ? "답변" : "A");
+    expect(llm.mock.calls[1]![0].user).not.toContain("suggested, sent as is");
+    h.scope.finish(); await h.render().save();
+    const savedBody = h.scope.createRecord.mock.calls[0]![0].body;
+    expect(savedBody).toContain(`${locale === "ko" ? "답변" : "A"}: ${h.text}`);
+    expect(savedBody).not.toContain(locale === "ko" ? "제안 그대로" : "suggested, sent as is");
+  });
+
   test.each(["leading-space", "trailing-newline"])("raw %s mismatch cannot pass by trimming even with a selection", async change => {
     const h = setup("en"); h.state.openers = [h.text]; h.render().select(0);
     // Exercise the send guard independently of the normal edit invalidation.

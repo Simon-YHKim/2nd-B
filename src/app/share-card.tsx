@@ -20,7 +20,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppRouter, usePhoneEmbed } from "@/lib/nav/phone-embed";
 import { spacing } from "@/lib/theme/tokens";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
-import { fetchCurrentNorthstar } from "@/lib/persona/northstar";
+import { fetchCurrentNorthstar, type NorthstarState } from "@/lib/persona/northstar";
 import { deriveCardProps, shareInsightCard } from "@/lib/share/insight-card";
 import { countUserPieces } from "@/lib/share/piece-count";
 
@@ -52,7 +52,7 @@ export default function ShareCardScreen() {
   // med#31: the card ignored the user's saved 북극성 문장 — always the canned
   // default. med#32: a star-count load FAILURE fell through to 4 fabricated
   // stars on a SHARE surface (정직한 밝기 violation) — it is an error state now.
-  const [heldSentence, setHeldSentence] = useState<Owned<string | null> | null>(null);
+  const [heldSentence, setHeldSentence] = useState<Owned<NorthstarState> | null>(null);
   const [failedOwner, setFailedOwner] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [sharing, setSharing] = useState(false);
@@ -80,7 +80,7 @@ export default function ShareCardScreen() {
     // the sentence an earlier load (or an earlier account) left behind.
     void fetchCurrentNorthstar(owner)
       .then((s) => {
-        if (alive) setHeldSentence({ ownerId: owner, value: s.sentence || null });
+        if (alive) setHeldSentence({ ownerId: owner, value: s });
       })
       .catch(() => {});
     // Signature line count — countUserPieces resolves null on failure, so no catch.
@@ -94,7 +94,9 @@ export default function ShareCardScreen() {
 
   const litStars = ownedBy(heldLitStars, userId);
   const pieceCount = ownedBy(heldPieceCount, userId);
-  const sentence = ownedBy(heldSentence, userId);
+  const sentence = ownedBy(heldSentence, userId)?.sentence ?? null;
+  const aiCopyTail = sentence?.trim() && ownedBy(heldSentence, userId)?.aiSuggested === true
+    ? t("secondb:aiCopyTail") : undefined;
   const loadFailed = userId !== null && failedOwner === userId;
 
   const barTitle = t("deepspace:shareCard.barTitle");
@@ -142,6 +144,7 @@ export default function ShareCardScreen() {
         insight: card.insight,
         handle: card.handle,
         litCount,
+        aiCopyTail,
         viewRef: captureRef.current ?? undefined,
       });
     } finally {
@@ -161,6 +164,7 @@ export default function ShareCardScreen() {
         insight: card.insight,
         handle: card.handle,
         litCount,
+        aiCopyTail,
         viewRef: captureRef.current ?? undefined,
       });
     } finally {
@@ -190,7 +194,7 @@ export default function ShareCardScreen() {
           {litCount === null ? (
             <PremiumLoadingState message={t("deepspace:shareCard.loading")} />
           ) : (
-            <ShareCard variant={variant} insight={card.insight} pieceCount={pieceCount} litCount={litCount} size={previewSize} isKo={isKo} />
+            <ShareCard variant={variant} insight={card.insight} aiCopyTail={aiCopyTail} pieceCount={pieceCount} litCount={litCount} size={previewSize} isKo={isKo} />
           )}
         </View>
 
@@ -222,7 +226,7 @@ export default function ShareCardScreen() {
         {litCount !== null ? (
           <View style={styles.captureHost} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <View ref={captureRef} collapsable={false}>
-              <ShareCard variant={variant} insight={card.insight} pieceCount={pieceCount} litCount={litCount} size={1080} isKo={isKo} />
+              <ShareCard variant={variant} insight={card.insight} aiCopyTail={aiCopyTail} pieceCount={pieceCount} litCount={litCount} size={1080} isKo={isKo} />
             </View>
           </View>
         ) : null}

@@ -139,7 +139,7 @@ import {
 } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
 import { backfillEmbeddings, proposeAllRelatedLinks } from "@/lib/wiki/embeddings";
-import { exportIden } from "@/lib/iden/iden-export";
+import { exportIden, withIdenAiCopyTail } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { listRecentRecords } from "@/lib/records/create";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
@@ -2667,17 +2667,17 @@ export function DeepSpaceFormatsScreen() {
     setNote(null);
     try {
       if (format === "iden") {
-        const r = await exportIden(userId, { locale, minor: isMinor === true });
+        const r = await exportIden(userId, { locale, minor: isMinor === true, aiCopyTail: t("secondb:aiCopyTail") });
         setResult({ text: r.iden, name: r.idenFilename });
       } else if (format === "html") {
-        const r = await exportIden(userId, { locale, minor: isMinor === true });
+        const r = await exportIden(userId, { locale, minor: isMinor === true, aiCopyTail: t("secondb:aiCopyTail") });
         setResult({ text: r.html, name: r.htmlFilename });
       } else if (format === "markdown") {
-        const r = await exportUserWiki(userId, { locale, includeRecords });
+        const r = await exportUserWiki(userId, { locale, includeRecords, aiCopyTail: t("secondb:aiCopyTail") });
         setResult({ text: r.prompt, name: "polascope-wiki.md" });
       } else {
         const doc = await buildIdenDoc(userId, { locale, minor: isMinor === true });
-        setResult({ text: JSON.stringify(doc, null, 2), name: "polascope-iden.json" });
+        setResult({ text: JSON.stringify(withIdenAiCopyTail(doc, t("secondb:aiCopyTail")), null, 2), name: "polascope-iden.json" });
       }
     } catch {
       setNote("error");
