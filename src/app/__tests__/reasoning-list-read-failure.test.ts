@@ -339,10 +339,22 @@ test("a pre-publication hold hides the number and starts no new usage read", asy
   const dispatches = mockDispatches.length; beginAccountOwnerTransition("owner-b"); tree = await settle();
   expect(drawn(tree)).not.toContain("ds.reasoningScreen.weeklyLeft"); limitSheet(tree).props.onChanged(); await settle();
   expect(mockDispatches.length).toBe(dispatches);
+  beginAccountOwnerTransition("owner-a"); tree = await settle(); expect(drawn(tree)).toContain(quota(tree, 1));
 });
 
 test("unmount rejects a late usage result without state writes", async () => {
   const late = deferred<unknown>(); mockCounter.mockImplementationOnce(() => late.promise); await settle();
+  expect(mockCounter).toHaveBeenCalledTimes(1);
   mockHarness.unmount(); late.resolve(counterRow("owner-a", 0));
-  for (let i = 0; i < 20; i++) await Promise.resolve(); expect(mockHarness.dirty).toBe(false);
+  for (let i = 0; i < 100; i++) await Promise.resolve(); expect(mockHarness.dirty).toBe(false);
+});
+
+test("an account transition cancels an in-flight usage read before React renders again", async () => {
+  let tree = await settle(); const late = deferred<unknown>(); mockCounter.mockImplementationOnce(() => late.promise);
+  limitSheet(tree).props.onChanged(); tree = await settle();
+  beginAccountOwnerTransition("owner-b"); // no render between the hold and the late reply
+  late.resolve(counterRow("owner-a", 0));
+  for (let i = 0; i < 100; i++) await Promise.resolve();
+  expect(mockCounter).toHaveBeenCalledTimes(2); expect(mockHarness.dirty).toBe(false);
+  beginAccountOwnerTransition("owner-a");
 });
