@@ -68,6 +68,10 @@ BEGIN
 END $contract$;
 
 -- Existing owner RLS remains the authorization boundary for both columns.
+-- Vanilla scratch DBs lack Supabase's table-privilege floor. Supply only this
+-- probe's SELECT/UPDATE rights inside its rolled-back transaction, keeping the
+-- real owner policy and managed-import trigger unchanged.
+GRANT SELECT, UPDATE ON public.sources TO authenticated;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '5a5a0264-0000-4000-8000-000000000001', true);
 DO $ownership$

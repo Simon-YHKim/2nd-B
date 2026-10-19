@@ -66,6 +66,19 @@ function rejectionSql(setup, expected, candidate = migration) {
 }
 
 green("full regression", regression);
+green("scratch grants enable real RLS probes and roll back to the prior ACL", `
+  CREATE TEMP TABLE t54_prior_acl ON COMMIT DROP AS
+    SELECT relacl FROM pg_class WHERE oid='public.sources'::regclass;
+  SAVEPOINT t54_grants;
+  REVOKE ALL ON public.sources FROM PUBLIC, authenticated;
+  ${regression}
+  ROLLBACK TO SAVEPOINT t54_grants;
+  DO $acl$ BEGIN
+    IF (SELECT relacl FROM pg_class WHERE oid='public.sources'::regclass)
+      IS DISTINCT FROM (SELECT relacl FROM t54_prior_acl) THEN
+      RAISE EXCEPTION 'scratch grant fixture leaked privileges';
+    END IF;
+  END $acl$;`);
 green("reapply twice preserves every source row, policy, grant and trigger", `
   CREATE TEMP TABLE t54_before ON COMMIT DROP AS ${schemaSnapshot};
   ${migration}
@@ -126,6 +139,9 @@ green("managed import rejects direct marker update", `
   INSERT INTO public.sources(id,user_id,kind,title,storage_path,frontmatter)
     VALUES('5a5a0264-0000-4000-8000-0000000000a4','5a5a0264-0000-4000-8000-000000000004',
       'inbox','managed','t54/managed.md','{"profile_context_no_expansion":true}');
+  -- Match the regression fixture's scratch-only table rights. This transaction
+  -- rolls them back, and the existing managed-import trigger must still refuse.
+  GRANT SELECT, UPDATE ON public.sources TO authenticated;
   SET LOCAL ROLE authenticated;
   SELECT set_config('request.jwt.claim.sub','5a5a0264-0000-4000-8000-000000000004',true);
   DO $managed$ BEGIN
@@ -160,4 +176,15 @@ for (const [label, candidate, test] of mutations) {
   killed++;
   console.log(`KILLED ${label}`);
 }
-console.log(`PASS T54 SQL: ${assertions} contracts; ${killed}/${mutations.length} mutations killed`);
+const missingFixtureGrant = regression.replace("GRANT SELECT, UPDATE ON public.sources TO authenticated;", "");
+if (missingFixtureGrant === regression) throw new Error("Scratch-grant mutation did not edit the fixture");
+const fixtureMutation = execute(`BEGIN;
+  REVOKE ALL ON public.sources FROM PUBLIC, authenticated;
+  ${missingFixtureGrant}
+  ROLLBACK;`);
+if (fixtureMutation.status === 0 || !/permission denied for table sources/.test(fixtureMutation.stderr)) {
+  throw new Error(`Scratch-grant mutation survived or failed for another reason: ${fixtureMutation.stderr}`);
+}
+killed++;
+console.log("KILLED remove scratch source grants");
+console.log(`PASS T54 SQL: ${assertions} contracts; ${killed}/${mutations.length + 1} mutations killed`);
