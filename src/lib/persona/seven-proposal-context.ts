@@ -116,6 +116,8 @@ export async function buildSevenProposalContext(
   const chunks: string[] = [];
   let budget = EVIDENCE_CHAR_BUDGET;
   for (const r of rows) {
+    // Keep answer labels verbatim, including suggested-answer provenance. Never
+    // extract only A:/답변: lines or strip labels before the proposal prompt.
     const text = [r.prompt?.trim(), r.body?.trim()].filter(Boolean).join("\n");
     if (!text) continue;
     const take = text.slice(0, Math.min(600, budget));

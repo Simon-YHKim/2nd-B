@@ -96,7 +96,7 @@ import {
 } from "@/lib/interview/probe";
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "@/lib/interview/session-end";
-import { storedTurns, storyTitle } from "@/lib/interview/saved-story";
+import { interviewAnswerLabel, storedTurns, storyTitle } from "@/lib/interview/saved-story";
 import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
 import { isRecordingAudioMode } from "@/lib/audio/audio-session";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
@@ -832,6 +832,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     if (!action) return;
     const blocked = isLocalNonAnswer(text, pendingLayer);
     const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period,
+      // Match only this question's displayed candidates. trim() is the existing send policy;
+      // inner whitespace, case, punctuation and Unicode composition remain exact.
+      ...(openers.some(opener => opener.trim() === text) ? { fromOpener: true } : {}),
       ...(blocked ? { answered: false } : {}) };
     const nextTurns = [...turns, answered];
     const nextCoverage = coverage;
@@ -984,10 +987,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     const owner = captureAccountOwnerLease(userId);
     if (!owner) return;
       const qLabel = locale === "ko" ? "질문" : "Q";
-      const aLabel = locale === "ko" ? "답변" : "A";
       // 마지막 답까지만 담는다 -- "여기까지"로 끝내면 답 없는 질문이 끝에 붙어 있다(Z63).
       const transcript = storedTurns(turns)
-        .map((turn) => `${turn.role === "interviewer" ? qLabel : aLabel}: ${turn.text}`)
+        .map((turn) => `${turn.role === "interviewer" ? qLabel : interviewAnswerLabel(turn.fromOpener, locale)}: ${turn.text}`)
         .join("\n\n");
       // withFollowup:false performs a local C9 check, not a semantic scan.
       // Its red result still needs guidance even after leaving this route.

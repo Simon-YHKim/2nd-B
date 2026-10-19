@@ -195,7 +195,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   // core-brain 은 2026-10-06 에 6 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A,
   // 저장 결과 카드 · 덱 제목 · 그래픽 라벨 · 내보내기를 core-brain/persona 키로).
   "src/app/iden.tsx": 7,
-  "src/app/interview.tsx": 3,
+  "src/app/interview.tsx": 2,
   "src/app/ipip-neo.tsx": 16,
   "src/app/motivation.tsx": 6,
   "src/app/notices.tsx": 9, // 38 -> 10: D-06 목업 제거; 10 -> 9: T49 제목을 번역 키로 연결
@@ -255,6 +255,8 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/import/proposals.ts": 17,
   // 2026-09-25: two KO/EN paired scene-continuity and voluntary-disclosure prompt rules.
   "src/lib/interview/probe.ts": 58,
+  // Q7 stored transcript labels: KO/EN pair, also used in model history and dormant finalize.
+  "src/lib/interview/saved-story.ts": 2,
   // Offline-only layer fixtures; all five questions have an explicit English branch.
   "src/lib/interview/mock-probe.ts": 5,
   "src/lib/interview/stuck.ts": 10,
@@ -278,7 +280,8 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/persona/motivation-survey.ts": 22,
   "src/lib/persona/northstar.ts": 6,
   "src/lib/persona/proposal-display.ts": 11,
-  "src/lib/persona/propose-self-model.ts": 9,
+  // Q7: both language prompts name both provenance labels for mixed-language records.
+  "src/lib/persona/propose-self-model.ts": 11,
   // reflection-scaffold.ts(4) 는 2026-10-06 에 파일째 E:/Legacy 로 갔다
   // (Simon 결정 Q-261005-08 B). **고친 것이 아니라 빠진 것**이다.
   "src/lib/persona/rlss.ts": 15,

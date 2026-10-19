@@ -8,6 +8,13 @@ import {
 import { storedTurns, storyTitle } from '../../src/lib/interview/saved-story';
 
 const owner = '11111111-1111-4111-8111-111111111111';
+
+test.each(['ko', 'en', 'es', 'pt', 'id'])('T37 dormant record renderer preserves explicit opener provenance for %s', uiLanguage => {
+  const value = fixture(); value.uiLanguage = uiLanguage;
+  value.conversationLocale = uiLanguage === 'ko' ? 'ko' : 'en';
+  value.turns[1].openerUnedited = true;
+  expect(render(value, 'Star').body).toContain(uiLanguage === 'ko' ? '답변(제안 그대로): A!' : 'A (suggested, sent as is): A!');
+});
 const fixture = () => ({
   v: 1,
   intent: {

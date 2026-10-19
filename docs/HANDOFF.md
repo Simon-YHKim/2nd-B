@@ -1,5 +1,9 @@
 # 2nd-Brain Handoff
 
+## 2026-10-19 T37 말문 후보 출처 (구현 → 코디네이터 검토)
+
+`feat/interview-opener-verbatim-261019`: 그대로 보낸 후보의 출처를 원문·층 판정 history·비준 근거·제안 프롬프트에 보존. 인정 규칙과 #2440·S2 선택/영수증은 유지. 관련 46 suites / 1,717 tests PASS, 변이 10/10 실패 확인. [구현·꼬리표 소비 목록·검증·남긴 것](handoff/t37-opener-verbatim-261019.md). 초안 PR 이후 독립 검토·CI·머지·8081은 Claude Code 2ndb-4e 담당.
+
 ## 이 로그는 기간으로 쪼개져 있다
 
 단일 파일 100KB 상한(Simon 지침 §2 · §0-1)을 지키려고 **요약이 아니라 기간으로**

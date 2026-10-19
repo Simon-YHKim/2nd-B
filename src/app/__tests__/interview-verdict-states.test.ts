@@ -13,7 +13,7 @@ import { dismissCrisisNotice, getCrisisNotice, publishCrisisNotice } from "../..
 import { hookHarness } from "../../lib/nav/__tests__/hook-harness";
 import { answerDisposition, canCreditAnswer, confirmedAnswer, currentScene } from "../../lib/interview/continuity";
 import { DRILL_LAYERS, LIFE_PERIODS, emptyCoverage, incrementCoverage, nextMove, nextProbe, seedQuestion, usableQuestion, type Coverage, type DrillLayer, type InterviewTurn, type ProbeResult } from "../../lib/interview/probe";
-import { storedTurns, storyTitle } from "../../lib/interview/saved-story";
+import { interviewAnswerLabel, storedTurns, storyTitle } from "../../lib/interview/saved-story";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "../../lib/interview/session-end";
 import { isNonAnswer, MAX_SCAFFOLDS_PER_LAYER, scaffoldQuestion, shouldScaffold } from "../../lib/interview/stuck";
 import { callLlm } from "../../lib/llm/boundary";
@@ -79,7 +79,7 @@ function setup(locale: "ko" | "en" = "ko", minor: boolean | null = false) {
     flowRef: { current: { revision: 0, action: null, choice: null, receipt: { phase: "idle" }, crisisLatched: false, crisisEpoch: 0 } as InterviewFlow },
 
     ...state, ...setters,
-    storedTurns, storyTitle, recallInterviewSystemTags, homeT: (key: string) => key, auditPeriod: "work", growthOrigin: false,
+    interviewAnswerLabel, storedTurns, storyTitle, recallInterviewSystemTags, homeT: (key: string) => key, auditPeriod: "work", growthOrigin: false,
     baseCoverage: { current: emptyCoverage() }, createRecord: jest.fn().mockResolvedValue({ id: "saved" }),
     addCoverage: jest.fn().mockResolvedValue({ kind: "acknowledged", receipt: "upsert" }),
     loadSevenLevels: jest.fn().mockResolvedValue({ starLevels: {} }), recordSevenTiers: jest.fn(),
@@ -145,6 +145,51 @@ function atLayer(layer: DrillLayer, locale: "ko" | "en") {
   h.state.pendingLayer = layer;
   return h;
 }
+
+describe("T37 opener provenance follows the submitted answer", () => {
+  test.each(["fact", "feeling", "none", undefined] as const)("%s verdict has identical credit and system rules with provenance", async verdict => {
+    const run = async (marked: boolean) => {
+      const h = setup("en"); h.state.draft = h.text;
+      h.state.openers = marked ? [` \t${h.text}\n`] : [];
+      llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: verdict, question: "How did that feel?" }), safety: { zone: "green" } } as never);
+      await h.render().send();
+      const answer = h.state.turns.find(turn => turn.role === "user");
+      expect(answer?.fromOpener).toBe(marked ? true : undefined);
+      return { coverage: h.state.coverage, answered: answer?.answered, system: llm.mock.calls[0]![0].system };
+    };
+    expect(await run(true)).toEqual(await run(false));
+  });
+
+  test.each(["ko", "en"] as const)("%s: send, model history and saved original retain the marker", async locale => {
+    const h = setup(locale);
+    h.state.openers = [h.text];
+    h.state.draft = `  ${h.text}\n`;
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await h.render().send();
+    expect(h.state.turns.find(turn => turn.role === "user")).toMatchObject({ text: h.text, fromOpener: true, answered: true });
+    expect(h.state.coverage.work.fact).toBe(1);
+    expect(llm.mock.calls[0]![0].user).toContain(`A (suggested, sent as is) (fact): ${h.text}`);
+    h.scope.finish();
+    await h.render().save();
+    expect(h.scope.createRecord.mock.calls[0]![0].body).toContain(
+      `${locale === "ko" ? "답변(제안 그대로)" : "A (suggested, sent as is)"}: ${h.text}`,
+    );
+  });
+
+  test.each(["letter", "inner-space", "newline", "punctuation", "case", "different-question"])("%s is an ordinary answer", async change => {
+    const h = setup("en");
+    h.state.openers = change === "different-question" ? ["Another question's opener"] : [h.text];
+    h.state.draft = change === "letter" ? h.text + "s" : change === "inner-space" ? h.text.replace(" ", "  ")
+      : change === "newline" ? h.text.replace(" ", "\n") : change === "punctuation" ? h.text + "."
+        : change === "case" ? h.text.toLowerCase() : h.text;
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await h.render().send();
+    expect(h.state.turns.find(turn => turn.role === "user")).not.toHaveProperty("fromOpener");
+    expect(llm.mock.calls[0]![0].user).not.toContain("suggested, sent as is");
+    h.scope.finish(); await h.render().save();
+    expect(h.scope.createRecord.mock.calls[0]![0].body).toContain(`A: ${h.state.turns[1]!.text}`);
+  });
+});
 
 // Q4 removes the generic KO8/EN14 and minimum-two-character proxy for meaning.
 // Q5 applies local fallback only to a successful missing verdict, never none/other.

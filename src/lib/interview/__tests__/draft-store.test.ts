@@ -117,6 +117,14 @@ function draftOf(result: InterviewDraftResult) {
   return result.draft;
 }
 
+test.each([undefined, false, true])("T37 v1 storage roundtrip preserves old and marked answers: %s", async fromOpener => {
+  const h = harness(); const input = content();
+  input.turns[1] = { ...input.turns[1]!, ...(fromOpener === undefined ? {} : { fromOpener }) };
+  const created = draftOf(await h.store.forOwner("owner-a").create(input));
+  expect(draftOf(await h.restart().forOwner("owner-a").load()).turns).toEqual(created.turns);
+  expect(created.turns).toEqual(input.turns);
+});
+
 function owner(value: string | null) {
   noteResolvedOwner(value);
   clearAccountTransition(currentAccountEpoch());

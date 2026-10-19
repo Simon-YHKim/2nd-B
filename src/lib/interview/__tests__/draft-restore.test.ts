@@ -22,6 +22,26 @@ function read(value = fixture(), captured = context(), current = context(), now 
   return prepareInterviewDraftRestore(encodeInterviewDraftSnapshot(value), captured, current, now);
 }
 
+test.each([undefined, false, true])("T37 v2 keeps old and marked turns: %s", fromOpener => {
+  const value = fixture();
+  value.state.turns.push({ role: "user", text: "I joined a band", ...(fromOpener === undefined ? {} : { fromOpener }) });
+  const restored = read(value);
+  expect(restored.status).toBe("restored");
+  if (restored.status !== "restored") throw new Error("expected restored");
+  expect(restored.draft.state.turns).toEqual(value.state.turns);
+});
+
+test.each([null, "true", 1])("T37 rejects invalid opener provenance: %s", fromOpener => {
+  const value = fixture();
+  value.state.turns.push({ role: "user", text: "I joined a band", ...{ fromOpener: fromOpener as unknown as boolean } });
+  expect(() => encodeInterviewDraftSnapshot(value)).toThrow("interview_draft_invalid");
+});
+
+test("T37 interviewer turns cannot claim answer provenance", () => {
+  const value = fixture(); value.state.turns[0].fromOpener = true;
+  expect(() => encodeInterviewDraftSnapshot(value)).toThrow("interview_draft_invalid");
+});
+
 test("a detached roundtrip preserves every field without inventing baseline confirmation", () => {
   const value = fixture(); value.state.coverage.base.school.fact = 2; value.state.coverage.current.school.fact = 3;
   const result = read(value); expect(result.status).toBe("restored");

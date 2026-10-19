@@ -61,10 +61,11 @@ function keysOnly(value: Record<string, unknown>, keys: readonly string[]): bool
 
 function validTurn(value: unknown): value is InterviewDraftTurn {
   if (!object(value) || !keysOnly(value, [
-    "role", "text", "layer", "period", "sceneStart", "answered", "unsettled",
+    "role", "text", "layer", "period", "sceneStart", "answered", "unsettled", "fromOpener",
   ])) return false;
   return (value.role === "interviewer" || value.role === "user")
     && typeof value.text === "string"
+    && (value.fromOpener === undefined || (value.role === "user" && typeof value.fromOpener === "boolean"))
     && (value.layer === undefined || (typeof value.layer === "string" && Object.hasOwn(layers, value.layer)))
     && (value.period === undefined || (typeof value.period === "string" && Object.hasOwn(periods, value.period)))
     && (value.sceneStart === undefined || typeof value.sceneStart === "boolean")
