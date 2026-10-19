@@ -40,7 +40,7 @@ const sameBytes = (draft: string, numbered: string) =>
 // not applied yet may be revised before its GO, and its digest moves in the same
 // commit with the reason.
 const promoted = [
-  ["0263", "records_embedding_consent_guard", "6b84efcab8857bf6b551f24711c357430a5091ef3192a10fd790037452b4f667"],
+  ["0263", "records_embedding_consent_guard", "687f87e3548fc9ec60c17c4cd051efa27ccf02387c7ddad76aa6ec58d80abd3b"],
   ["0261", "reward_ssv_grant_helper_acl", "781b0a218086fed68ec3a89b134998a05fc044f1a9708c4088e49ca25669b039"],
   ["0236", "dashboard_generation", "a86ab9e7c03e335d0eb27b8c90f5e18b345824975e112d5ad51de57a5287d4b3"],
   ["0191", "signup_consent_admob_20260925", "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648"],
@@ -314,7 +314,6 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(workflow).toContain("GRANT SELECT, INSERT, UPDATE, DELETE ON public.records TO authenticated;");
     for (const path of [
       "db/migrations/0263_records_embedding_consent_guard.sql",
-      "db/migrations/rollback/0263_down.sql",
       "db/tests/records_embedding_consent_regression.sql",
       "db/ops/records_embedding_cleanup_batch.sql",
     ]) {
@@ -329,6 +328,11 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(runner).toContain("--no-password");
     expect(runner).toContain("npipe:////./pipe/docker_engine");
     expect(runner).toContain("unix:///var/run/docker.sock");
+    expect(existsSync(join(ROOT, "db/migrations/rollback/0263_down.sql"))).toBe(false);
+    expect(runner).toContain("IF current_database() !~ '^embed_consent_test_[a-z0-9_]+$'");
+    expect(runner).toContain("disposable embedding test database required");
+    expect(runner).toContain("embed_stale_full_true");
+    expect(runner).toContain("embed_stale_cas");
   });
 
   test("exercises the numbered 0216 peer limiter without replaying its draft", () => {

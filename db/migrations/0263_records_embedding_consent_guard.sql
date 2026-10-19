@@ -1,29 +1,75 @@
 -- 0263_records_embedding_consent_guard.sql
--- Server-first; operational application is Relay-owned and pending approval.
+-- Publish the marker-aware app FIRST; Relay applies this server change second.
 -- Successful allowed -> disallowed user changes atomically clear both record
 -- columns. Candidate writes lock/read the current user, including service_role.
 -- Only READ COMMITTED is supported for withdrawal/non-NULL candidate writes.
 -- Deadlocks/timeouts abort the whole transaction; no exception is swallowed.
 -- Installation does NOT scan/clean existing rows. See docs/ops/records-embedding-consent-0263.md.
--- The current app's direct cleanup stays. App cutover is blocked until server
+-- The current app's direct cleanup stays. Removing it is blocked until server
 -- installation, residual=0, and the 100,000-row/production timeout gates pass.
 -- Local PG16/pgvector, full replay, 2 CPU/768 MiB, synthetic 768-dim/HNSW:
--- 100,000-row withdrawal = 3140.204 ms; WAL = 437792776 bytes; guard calls = 0;
--- existing updated_at calls = 100001. 0/1k/10k = 6.471/26.504/223.935 ms.
+-- Implementation R2: 100,000-row withdrawal = 2518.513 ms; WAL = 418372160 bytes;
+-- guard calls = 0; updated_at calls = 100001. 0/1k/10k = 5.481/19.209/149.338 ms.
 -- One local sample, not a production bound. Proposed initial cap=50k, alert=40k;
 -- cutover requires 5 production-scale samples <=min(request_timeout/3, timeout-5s)
 -- and operational count alerts. See runbook; no app direct deletion removed here.
 -- R2-02: an embedding-only UPDATE over an existing model retains that model.
 -- A row-image trigger cannot distinguish omitted from explicitly repeated model;
 -- provenance of legacy partial writes is not guaranteed. No model is invented.
--- PERMANENT COMPATIBILITY: after any app omits direct deletion, production DOWN
--- removing/disabling either trigger is forbidden, even after an app rollback.
+-- PERMANENT COMPATIBILITY: production DOWN removing/disabling any of the three
+-- triggers is forbidden, even after an app rollback.
 -- Use a reviewed forward fix, or keep withdrawal and NULL every write candidate.
--- The DOWN file is for disposable local structure tests only; erased data is lost.
+-- No production DOWN file. Disposable structure tests inline their guarded DROP.
 -- CLI owns the transaction; no top-level BEGIN/COMMIT here.
 
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
+
+-- JSON CAS, no new column/RPC. Only the explicit enable action sends the next
+-- revision. Ordinary full-object saves cannot promote OFF to ON. A withdrawal
+-- (including OFF -> OFF) consumes a revision, invalidating pending enable writes.
+-- Ignore client revision changes and consume/remove the one-use enable marker.
+CREATE OR REPLACE FUNCTION public.guard_records_embedding_consent()
+RETURNS trigger
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path = ''
+SET row_security = off
+AS $function$
+DECLARE
+  v_revision bigint := 0;
+  v_was_allowed boolean := false;
+  v_allowed boolean;
+  v_enable jsonb := NEW.privacy_prefs -> 'records_embedding_enable_revision';
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    v_revision := COALESCE((OLD.privacy_prefs ->> 'records_embedding_revision')::bigint, 0);
+    v_was_allowed := COALESCE(
+      OLD.privacy_prefs -> 'records_embedding' = 'true'::jsonb
+      AND OLD.minor_tier = 'adult'
+      AND OLD.birth_date <= (CURRENT_DATE - INTERVAL '18 years')::date, false);
+  END IF;
+  -- Same integer domain as Number.isSafeInteger in the client; fail closed.
+  IF v_revision < 0 OR v_revision >= 9007199254740991 THEN
+    RAISE EXCEPTION 'records_embedding_invalid_revision' USING ERRCODE = '22023';
+  END IF;
+  v_allowed := COALESCE(
+    NEW.privacy_prefs -> 'records_embedding' = 'true'::jsonb
+    AND NEW.minor_tier = 'adult'
+    AND NEW.birth_date <= (CURRENT_DATE - INTERVAL '18 years')::date, false);
+  IF v_enable IS NOT NULL AND v_allowed THEN
+    IF v_enable IS DISTINCT FROM pg_catalog.to_jsonb(v_revision + 1) THEN
+      RAISE EXCEPTION 'records_embedding_consent_conflict' USING ERRCODE = '40001';
+    END IF;
+    v_revision := v_revision + 1;
+  ELSIF NOT v_was_allowed OR NOT v_allowed THEN
+    NEW.privacy_prefs := NEW.privacy_prefs || '{"records_embedding":false}'::jsonb;
+    v_revision := v_revision + 1;
+  END IF;
+  NEW.privacy_prefs := (NEW.privacy_prefs - 'records_embedding_enable_revision')
+    || pg_catalog.jsonb_build_object('records_embedding_revision', v_revision);
+  RETURN NEW;
+END;
+$function$;
 
 CREATE OR REPLACE FUNCTION public.clear_record_embeddings_on_privacy_change()
 RETURNS trigger
@@ -96,8 +142,17 @@ $function$;
 
 ALTER FUNCTION public.clear_record_embeddings_on_privacy_change() OWNER TO postgres;
 ALTER FUNCTION public.guard_record_embedding_write() OWNER TO postgres;
+ALTER FUNCTION public.guard_records_embedding_consent() OWNER TO postgres;
 REVOKE ALL ON FUNCTION public.clear_record_embeddings_on_privacy_change() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.guard_record_embedding_write() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.guard_records_embedding_consent() FROM PUBLIC, anon, authenticated, service_role;
+
+-- Runs after the existing age/default/minor BEFORE triggers. All UPDATE events
+-- preserve server revision ownership, even a caller changing only the JSON key.
+DROP TRIGGER IF EXISTS zz_records_embedding_consent_cas ON public.users;
+CREATE TRIGGER zz_records_embedding_consent_cas
+  BEFORE INSERT OR UPDATE ON public.users
+  FOR EACH ROW EXECUTE FUNCTION public.guard_records_embedding_consent();
 
 DROP TRIGGER IF EXISTS zz_records_embedding_consent_changed ON public.users;
 CREATE TRIGGER zz_records_embedding_consent_changed
@@ -128,7 +183,8 @@ BEGIN
   FOR v_fn IN
     SELECT p.* FROM pg_catalog.pg_proc AS p WHERE p.oid IN (
       'public.clear_record_embeddings_on_privacy_change()'::regprocedure,
-      'public.guard_record_embedding_write()'::regprocedure
+      'public.guard_record_embedding_write()'::regprocedure,
+      'public.guard_records_embedding_consent()'::regprocedure
     )
   LOOP
     IF v_fn.proowner <> v_owner OR NOT v_fn.prosecdef OR v_fn.provolatile <> 'v'
@@ -172,6 +228,11 @@ BEGIN
         AND tgname = 'zz_records_embedding_consent_changed' AND NOT tgisinternal
         AND tgtype = 17 AND tgenabled = 'O' AND tgqual IS NULL
         AND tgfoid = 'public.clear_record_embeddings_on_privacy_change()'::regprocedure
+     ) OR NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_trigger WHERE tgrelid = 'public.users'::regclass
+        AND tgname = 'zz_records_embedding_consent_cas' AND NOT tgisinternal
+        AND tgtype = 23 AND tgenabled = 'O' AND tgattr = ''::int2vector AND tgqual IS NULL
+        AND tgfoid = 'public.guard_records_embedding_consent()'::regprocedure
      ) OR NOT EXISTS (
        SELECT 1 FROM pg_catalog.pg_trigger WHERE tgrelid = 'public.records'::regclass
         AND tgname = 'zz_records_embedding_write_guard' AND NOT tgisinternal

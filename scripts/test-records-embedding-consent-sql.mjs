@@ -16,16 +16,28 @@ if (!/^(?:polascope_[a-z0-9_]+|[a-f0-9]{64})$/.test(container ?? '')
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const up = read('db/migrations/0263_records_embedding_consent_guard.sql');
-const down = read('db/migrations/rollback/0263_down.sql');
+// Test-only structure reset, never a deployable rollback. The DB checks itself;
+// the caller owns the transaction and verifies the ledger/other objects survive.
+const dropTestObjects = `DO $local$ BEGIN
+  IF current_database() !~ '^embed_consent_test_[a-z0-9_]+$' THEN
+    RAISE EXCEPTION 'disposable embedding test database required';
+  END IF;
+END $local$;
+DROP TRIGGER zz_records_embedding_write_guard ON public.records;
+DROP TRIGGER zz_records_embedding_consent_changed ON public.users;
+DROP TRIGGER zz_records_embedding_consent_cas ON public.users;
+DROP FUNCTION public.guard_record_embedding_write();
+DROP FUNCTION public.clear_record_embeddings_on_privacy_change();
+DROP FUNCTION public.guard_records_embedding_consent();`;
 const regression = read('db/tests/records_embedding_consent_regression.sql');
 const cleanup = read('db/ops/records_embedding_cleanup_batch.sql');
 const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^(?:PG|DOCKER_)/i.test(name)));
 const socket = process.platform === 'win32' ? 'npipe:////./pipe/docker_engine' : 'unix:///var/run/docker.sock';
 let checks = 0;
 const pass = (label) => { checks++; process.stdout.write(`PASS ${label}\n`); };
-function start(sql, { hold = false, timeout = 45_000 } = {}) {
+function start(sql, { hold = false, timeout = 45_000, targetDatabase = database } = {}) {
   const child = spawn('docker', ['--host', socket, 'exec', '-i', container, 'psql', '-X', '--no-password',
-    '-U', 'postgres', '-d', database, '-Atq', '-v', 'ON_ERROR_STOP=1'], { env, timeout });
+    '-U', 'postgres', '-d', targetDatabase, '-Atq', '-v', 'ON_ERROR_STOP=1'], { env, timeout });
   let out = ''; let err = ''; let readyResolve; let readyReject;
   const ready = new Promise((yes, no) => { readyResolve = yes; readyReject = no; });
   // Ordinary (non-holder) clients do not consume ready.
@@ -50,14 +62,16 @@ async function run(sql, opts) {
 const id = (n) => `ec026300-0000-4000-8001-${String(n).padStart(12, '0')}`;
 const rid = (n) => `ec026300-0000-4000-8002-${String(n).padStart(12, '0')}`;
 const vec = 'array_fill(0.1::real, ARRAY[768])::public.vector';
-const on = (n) => `UPDATE public.users SET privacy_prefs='{"records_embedding":true}' WHERE id='${id(n)}';`;
+const on = (n) => `UPDATE public.users SET privacy_prefs=privacy_prefs || jsonb_build_object(
+  'records_embedding',true,'records_embedding_enable_revision',
+  COALESCE((privacy_prefs->>'records_embedding_revision')::bigint,0)+1) WHERE id='${id(n)}';`;
 const off = (n) => `UPDATE public.users SET privacy_prefs='{"records_embedding":false}' WHERE id='${id(n)}';`;
 const insert = (n, record = n) => `INSERT INTO public.records(id,user_id,kind,body,embedding,embedding_model)
   VALUES('${rid(record)}','${id(n)}','note','fixture',${vec},'model-a');`;
 async function fixture(n) {
   await run(`INSERT INTO auth.users(id,email) VALUES('${id(n)}','embed-race-${n}@example.invalid');
     INSERT INTO public.users(id,email,birth_date,locale,privacy_prefs)
-    VALUES('${id(n)}','embed-race-${n}@example.invalid','1990-01-01','en','{"records_embedding":true}');`);
+    VALUES('${id(n)}','embed-race-${n}@example.invalid','1990-01-01','en','{}'); ${on(n)}`);
 }
 async function empty(n) {
   assert.equal(await run(`SELECT NOT EXISTS(SELECT 1 FROM public.records WHERE user_id='${id(n)}'
@@ -107,6 +121,32 @@ pass('bad FORCE RLS, missing client SELECT and unexpected ACL abort installation
 if (mode === '--contracts-only') process.exit(0);
 
 for (let n = 101; n <= 110; n++) await fixture(n);
+// Two sessions: pause a revocation before commit, then deliver the old full
+// true object. The waiter must see the committed revision, not resurrect ON.
+const snapshot = await run(`SELECT privacy_prefs::text FROM public.users WHERE id='${id(110)}';`);
+await race(off(110), `UPDATE public.users SET privacy_prefs='${snapshot}'::jsonb WHERE id='${id(110)}';
+  ${insert(110)}`, 'embed_stale_full_true');
+assert.equal(await run(`SELECT privacy_prefs->'records_embedding' FROM public.users WHERE id='${id(110)}';`), 'false');
+await empty(110);
+pass('two-session stale full true after withdrawal cannot restore consent or vectors');
+
+// Even an intentional ON prepared before a later OFF -> OFF must conflict.
+const expected = Number(await run(`SELECT privacy_prefs->>'records_embedding_revision' FROM public.users WHERE id='${id(110)}';`)) + 1;
+const revoker110 = start(`BEGIN; ${off(110)}`, { hold: true });
+try {
+  await revoker110.ready;
+  const pending = start(`SET application_name='embed_stale_cas'; UPDATE public.users SET privacy_prefs=
+    '{"records_embedding":true,"records_embedding_enable_revision":${expected}}' WHERE id='${id(110)}';`);
+  await observeWait('embed_stale_cas');
+  revoker110.finish();
+  assert.equal((await revoker110.done).code, 0);
+  const rejected = await pending.done;
+  assert.notEqual(rejected.code, 0);
+  assert(rejected.err.includes('records_embedding_consent_conflict'), rejected.err);
+} finally { revoker110.finish(); await revoker110.done; }
+await run(on(110));
+assert.equal(await run(`SELECT privacy_prefs->'records_embedding' FROM public.users WHERE id='${id(110)}';`), 'true');
+pass('two-session stale explicit enable conflicts; fresh CAS enables after withdrawal');
 await race(insert(101), off(101), 'embed_write_first');
 await empty(101);
 pass('write-first SHARE lock blocks withdrawal; committed late INSERT is cleared');
@@ -187,17 +227,37 @@ assert.equal(json(await run(batch(id(108)))).end_of_sweep, true);
 assert.equal(await run(`SELECT embedding IS NOT NULL FROM public.records WHERE id='${rid(109)}';`), 't');
 pass('cleanup skips locked user, rechecks current eligibility on next sweep after ON');
 
+// F-09: legitimate cleanup while consent is ON. Keep the complete pair, clear
+// the historical half pair. A blanket ON => reject NULL guard breaks this path.
+await fixture(111);
+await run(`BEGIN; ${insert(111)} ALTER TABLE public.records DISABLE TRIGGER zz_records_embedding_write_guard;
+  INSERT INTO public.records(user_id,kind,body,embedding_model) VALUES('${id(111)}','note','half','orphan');
+  ALTER TABLE public.records ENABLE TRIGGER zz_records_embedding_write_guard; COMMIT;`);
+assert.equal(json(await run(batch(id(110)))).cleared, 1);
+assert.equal(await run(`SELECT count(*) FROM public.records WHERE user_id='${id(111)}' AND embedding IS NOT NULL;`), '1');
+assert.equal(await run(`SELECT privacy_prefs->'records_embedding' FROM public.users WHERE id='${id(111)}';`), 'true');
+pass('normal ON cleanup clears historical half pair and preserves complete pair');
+
 const otherTriggers = `SELECT tgrelid::regclass::text||':'||tgname||':'||tgfoid::text||':'||tgenabled::text
   FROM pg_trigger WHERE tgrelid IN ('public.users'::regclass,'public.records'::regclass)
-  AND tgname NOT IN ('zz_records_embedding_write_guard','zz_records_embedding_consent_changed') ORDER BY 1;`;
+  AND tgname NOT IN ('zz_records_embedding_write_guard','zz_records_embedding_consent_changed','zz_records_embedding_consent_cas') ORDER BY 1;`;
 const before = await run(otherTriggers);
-await run(down);
-assert.equal(await run("SELECT to_regprocedure('public.guard_record_embedding_write()') IS NULL AND to_regprocedure('public.clear_record_embeddings_on_privacy_change()') IS NULL;"), 't');
+const ledger = await run('SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;');
+await run(`BEGIN; ${dropTestObjects}
+  DO $$ BEGIN IF to_regprocedure('public.guard_records_embedding_consent()') IS NOT NULL THEN
+    RAISE EXCEPTION 'test DROP failed'; END IF; END $$;
+  ROLLBACK;`);
+assert.equal(await run("SELECT to_regprocedure('public.guard_records_embedding_consent()') IS NOT NULL;"), 't');
+// Local container's postgres DB has a production-like name. The unchanged SQL
+// must fail BEFORE any DROP; even an unexpectedly accepted call is rolled back.
+const refused = await start(`BEGIN; ${dropTestObjects} ROLLBACK;`, { targetDatabase: 'postgres' }).done;
+assert.notEqual(refused.code, 0);
+assert(refused.err.includes('disposable embedding test database required'), `database fence must reject before DROP: ${refused.err}`);
+await run(`BEGIN; ${dropTestObjects} ${up} COMMIT;`);
 assert.equal(await run(otherTriggers), before);
-await run(`BEGIN; ${up} COMMIT;`);
-assert.equal(await run(otherTriggers), before);
+assert.equal(await run('SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;'), ledger);
 await run(regression);
-pass('local DOWN/reapply preserves other triggers and restores full contract');
+pass('inline disposable DROP/reapply: caller rollback, DB-name refusal, unchanged ledger and other triggers');
 if (mode === '--skip-performance') {
   process.stdout.write(`PASS ${checks} executed groups; performance skipped explicitly\n`);
   process.exit(0);
