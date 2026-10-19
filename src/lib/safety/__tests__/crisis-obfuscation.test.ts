@@ -88,7 +88,9 @@ describe("Q-261011-05 obfuscation request gate (not a verdict)", () => {
     // 2026-10-18: three all-devices sign-out strings added per locale (Q-261018-50).
     // 2026-10-19: the help screen's three fixed notice lines (title and tag each) and their
     // section title left per locale; notices are one row to the notices screen (Z73, 4429 - 7).
-    expect(strings).toHaveLength(4422);
+    // 2026-10-19: the user guide's four common tasks, a question and an answer each, plus three
+    // button labels, added per locale (Z69, 4422 + 11).
+    expect(strings).toHaveLength(4433);
     expect(strings.filter(hasCrisisObfuscation)).toEqual([]);
   });
 
