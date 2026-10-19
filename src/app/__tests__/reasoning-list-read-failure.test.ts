@@ -1,14 +1,23 @@
 // Execute the actual screen with hook lifetimes. Native views and service
 // boundaries are controlled; no model, server mutation or recovery RPC runs.
+// T43: the usage numbers come from the actual strict loader over a fake Supabase
+// transport (usage_counters + credit_summary_self). The list and the usage are two
+// reads now, so a list failure no longer hides confirmed usage, and a usage failure
+// shows "..." + its own retry instead of 0 or a fake remaining count.
 import type { ReactElement } from "react";
 import { hookHarness } from "../../lib/nav/__tests__/hook-harness";
 import { beginAccountOwnerTransition, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../lib/auth/account-epoch";
+import { weekBucket } from "../../lib/entitlements/usage";
 
 let mockHarness: ReturnType<typeof hookHarness>;
 let mockAuth = { userId: "owner-a" as string | null, loading: false, isMinor: false, hasProfile: true, profileProbeFailed: false, refresh: jest.fn() };
 const mockRecords = jest.fn();
 const mockSources = jest.fn();
 const mockUsage = jest.fn();
+const mockCounter = jest.fn();
+const mockLedger = jest.fn();
+const mockDispatches: string[] = [];
+let mockFocused = true;
 const mockRecover = jest.fn();
 const mockPending = jest.fn();
 const mockModel = jest.fn();
@@ -24,7 +33,12 @@ jest.mock("react-native", () => ({
   Animated: { Value: class { setValue() {} interpolate() { return 0; } }, loop: () => ({ start() {}, stop() {} }), timing: jest.fn() },
 }));
 jest.mock("react-i18next", () => ({ useTranslation: () => ({ t: mockTranslate, i18n: mockI18n }) }));
-jest.mock("expo-router", () => ({ Redirect: "Redirect" }));
+jest.mock("expo-router", () => ({
+  Redirect: "Redirect",
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    jest.requireActual<typeof import("react")>("react").useEffect(() => (mockFocused ? callback() : undefined), [callback, mockFocused]);
+  },
+}));
 jest.mock("@/components/phone/PhoneUIKit", () => ({ PhoneAnimatedView: "AnimatedView", PhoneFlatList: "FlatList", PhonePressable: "Pressable", PhoneView: "View" }));
 jest.mock("@/components/ui/PlainText", () => ({ PlainText: "RNText" }));
 jest.mock("@/components/pixel/PixelGlyph", () => ({ PixelGlyph: "PixelGlyph" }));
@@ -42,7 +56,8 @@ jest.mock("@/lib/auth/AuthContext", () => ({ useAuth: () => mockAuth }));
 jest.mock("@/lib/nav/phone-embed", () => ({ useAppRouter: () => ({ push: mockPush, back: jest.fn() }) }));
 jest.mock("@/lib/progression/useProgression", () => ({ useProgression: () => ({ tier: "free" }) }));
 jest.mock("@/lib/ads/policy", () => ({ rewardedAdsConfigured: () => false }));
-jest.mock("@/lib/entitlements/usage", () => ({ getReasoningUsage: (...args: unknown[]) => mockUsage(...args), monthBucket: () => "2026-10" }));
+jest.mock("@/lib/entitlements/usage", () => ({ ...jest.requireActual("@/lib/entitlements/usage"), getReasoningUsage: (...args: unknown[]) => mockUsage(...args) }));
+jest.mock("@/lib/supabase/client", () => ({ getSupabaseClient: () => mockClient() }));
 jest.mock("@/lib/llm/boundary", () => ({ callLlm: (...args: unknown[]) => mockModel(...args) }));
 jest.mock("@/lib/analytics", () => ({ captureEvent: jest.fn(), proposalDecided: jest.fn() }));
 jest.mock("@/lib/reasoning/auto-pref", () => ({ getAutoIntroSeen: () => Promise.resolve(true), getAutoReasoningEnabled: () => Promise.resolve(false), setAutoIntroSeen: jest.fn(), setAutoReasoningEnabled: jest.fn() }));
@@ -59,6 +74,20 @@ jest.mock("@/lib/wiki/phase2", () => ({ generateSourcePage: jest.fn() }));
 jest.mock("@/lib/wiki/queries", () => ({}));
 jest.mock("@/lib/wiki/storage", () => ({}));
 jest.mock("@/lib/tasks/store", () => ({ useTaskStatus: () => ({ phase: "idle" }), dismissTask: jest.fn(), sendToBackground: jest.fn(), startTask: jest.fn() }));
+
+type Reply = { data?: unknown; error?: { message: string } | null };
+type Then = (ok: (reply: Reply) => unknown, no?: (error: unknown) => unknown) => Promise<unknown>;
+function mockClient() {
+  const chain: { owner?: string; select: () => typeof chain; eq: (col: string, value: string) => typeof chain; then: Then } = {
+    select: () => chain,
+    eq: (col, value) => { if (col === "user_id") chain.owner = value; return chain; },
+    then: (ok, no) => { mockDispatches.push("counter"); return Promise.resolve(mockCounter(chain.owner)).then(ok, no); },
+  };
+  return { from: () => chain, rpc: () => ({ then: ((ok, no) => { mockDispatches.push("ledger"); return Promise.resolve(mockLedger()).then(ok, no); }) as Then }) };
+}
+const counterRow = (owner: string, used: number) => ({ data: [{ user_id: owner, month_bucket: weekBucket(), reasoning_used: used }], error: null });
+const ledgerOf = (available: unknown, earned: unknown = 0) => ({ data: { available, ad_earned_this_month: earned }, error: null });
+let usedFor: Record<string, number> = {};
 
 let Screen: () => ReactElement;
 let timeoutMs: number;
@@ -83,10 +112,15 @@ beforeEach(() => {
   mockRecords.mockImplementation((owner: string) => Promise.resolve([record(`${owner}-record`)]));
   mockSources.mockResolvedValue([]); mockUsage.mockResolvedValue(usage);
   mockRecover.mockResolvedValue(0); mockPending.mockResolvedValue([]);
+  mockFocused = true; mockDispatches.length = 0; usedFor = {};
+  mockCounter.mockImplementation((owner: string) => Promise.resolve(counterRow(owner, usedFor[owner] ?? 1)));
+  mockLedger.mockImplementation(() => Promise.resolve(ledgerOf(0)));
 });
 afterEach(() => {
   mockHarness?.unmount(); jest.clearAllTimers(); jest.useRealTimers();
   expect(mockModel).not.toHaveBeenCalled(); expect(mockRun).not.toHaveBeenCalled();
+  // The screen never reads the fail-open legacy getter (only automatic runs keep it).
+  expect(mockUsage).not.toHaveBeenCalled();
 });
 
 type Item = { key: string };
@@ -109,13 +143,13 @@ const render = () => mockHarness.render(Screen);
 async function settle() { let tree = render(); for (let i = 0; i < 20; i++) { await Promise.resolve(); tree = render(); } return tree; }
 const list = (tree: unknown) => nodes(tree).find((node) => node.type === "FlatList")!;
 const keys = (tree: unknown) => list(tree).props.data?.map((item) => item.key);
-const retry = (tree: unknown) => nodes(tree).find((node) => node.props.label === "common:actions.retry");
+const retry = (tree: unknown) => nodes(tree).find((node) => node.props.label === "common:actions.retry" && (node.props as { testID?: string }).testID !== "reasoning-usage-retry");
+const usageRetry = (tree: unknown) => nodes(tree).find((node) => (node.props as { testID?: string }).testID === "reasoning-usage-retry");
 function deferred<T>() { let resolve!: (value: T) => void; let reject!: (error: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 function expectFailed(tree: unknown, timeout = false, unknownCounts = true) {
   expect(drawn(tree)).toContain(timeout ? "common:errors.network" : "ds.reasoningScreen.loadFailed");
   expect(drawn(tree)).not.toContain("ds.reasoningScreen.emptyItems");
   expect(drawn(tree)).not.toContain("ds.reasoningScreen.captureFirst");
-  expect(drawn(tree)).not.toContain("ds.reasoningScreen.weeklyLeft");
   if (unknownCounts) expect(drawn(tree)).toContain("...");
   expect(retry(tree)).toBeDefined();
 }
@@ -129,15 +163,15 @@ test.each(["records", "sources"])("%s rejection shows failure and retry instead 
   expect(mockRecover).toHaveBeenCalledTimes(1); expect(mockPending).toHaveBeenCalledTimes(1);
 });
 
-test.each(["records", "sources", "usage"])("%s stall reaches the whole-list deadline; a late reply cannot replace retry", async (kind) => {
+test.each(["records", "sources"])("%s stall reaches the whole-list deadline; a late reply cannot replace retry", async (kind) => {
   const stalled = deferred<unknown>();
-  const read = kind === "records" ? mockRecords : kind === "sources" ? mockSources : mockUsage;
+  const read = kind === "records" ? mockRecords : mockSources;
   read.mockReturnValueOnce(stalled.promise);
   let tree = await settle(); expect(drawn(tree)).toContain("ds.reasoningScreen.loadingItems");
   jest.advanceTimersByTime(timeoutMs - 1); tree = await settle(); expect(retry(tree)).toBeUndefined();
   jest.advanceTimersByTime(1); tree = await settle(); expectFailed(tree, true);
   retry(tree)!.props.onPress!(); tree = await settle(); expect(keys(tree)).toEqual(["record:owner-a-record"]);
-  stalled.resolve(kind === "usage" ? { ...usage, used: 99 } : []);
+  stalled.resolve([]);
   tree = await settle(); expect(keys(tree)).toEqual(["record:owner-a-record"]); expect(retry(tree)).toBeUndefined();
 });
 
@@ -207,4 +241,108 @@ test("an earlier language read's late rejection cannot erase the new successful 
   mockI18n.language = "en"; mockI18n.resolvedLanguage = "en"; expect(keys(await settle())).toEqual(["record:owner-a-record"]);
   old.reject(new Error("late failure")); const tree = await settle();
   expect(keys(tree)).toEqual(["record:owner-a-record"]); expect(retry(tree)).toBeUndefined();
+});
+
+// ---- T43 usage: the baseline defects of the 10-16 plan, now fixed, plus the lifetime edges ----
+const quota = (tree: unknown, left: number) => `ds.reasoningScreen.weeklyLeft{"cap":2,"left":${left}}`;
+function expectUsageUnknown(tree: unknown, timeout = false) {
+  const text = drawn(tree);
+  expect(text).toContain(timeout ? "common:errors.network" : "ds.reasoningScreen.loadFailed");
+  expect(text).not.toContain("ds.reasoningScreen.weeklyLeft");
+  expect(text).not.toContain("ds.reasoningScreen.depletedTitle");
+  expect(text).not.toContain("ds.reasoningScreen.weeklyLimitReached");
+  expect(text).toContain("...");
+  expect(usageRetry(tree)).toBeDefined();
+}
+const limitSheet = (tree: unknown) => nodes(tree).find((node) => node.type === "ReasoningLimitSheet") as unknown as { props: { onChanged: () => void } };
+function selectFirst(tree: unknown) { const row = list(tree).props.data![0]; list(tree).props.renderItem!({ item: row }).props.onPress!(); }
+const runButtonOf = (tree: unknown) => nodes(tree).find((node) => node.props.label === 'ds.reasoningScreen.reasonN{"n":1}');
+
+test("1 a counter error shows unknown usage and a usage retry, never a remaining count", async () => {
+  mockCounter.mockImplementationOnce(() => Promise.resolve({ error: { message: "boom" } }));
+  let tree = await settle(); expectUsageUnknown(tree); expect(keys(tree)).toEqual(["record:owner-a-record"]);
+  selectFirst(tree); tree = await settle();
+  const run = runButtonOf(tree)!; expect(run.props.disabled).toBe(true); run.props.onPress!();
+  const before = { records: mockRecords.mock.calls.length, dispatches: mockDispatches.length };
+  usageRetry(tree)!.props.onPress!(); tree = await settle();
+  expect(drawn(tree)).toContain(quota(tree, 1));
+  expect(mockDispatches.slice(before.dispatches)).toEqual(["counter", "ledger"]);
+  expect(mockRecords.mock.calls.length).toBe(before.records); expect(mockRecover).toHaveBeenCalledTimes(1);
+});
+
+test("2 a ledger error with two runs used is unknown, not depleted", async () => {
+  usedFor["owner-a"] = 2; mockLedger.mockImplementationOnce(() => Promise.resolve({ error: { message: "42501" } }));
+  expectUsageUnknown(await settle());
+});
+
+test("3 a malformed ledger number is unknown, not depleted", async () => {
+  usedFor["owner-a"] = 2; mockLedger.mockImplementationOnce(() => Promise.resolve(ledgerOf("bad")));
+  expectUsageUnknown(await settle());
+});
+
+test("4 an immediate counter error shows at once while the ledger hangs", async () => {
+  mockCounter.mockImplementationOnce(() => Promise.resolve({ error: { message: "boom" } }));
+  mockLedger.mockImplementationOnce(() => new Promise(() => undefined));
+  expectUsageUnknown(await settle());
+});
+
+test("5 a refresh that fails after a confirmed number never paints a fake higher number", async () => {
+  let tree = await settle(); expect(drawn(tree)).toContain(quota(tree, 1));
+  mockCounter.mockImplementationOnce(() => Promise.resolve({ error: { message: "boom" } }));
+  limitSheet(tree).props.onChanged(); tree = await settle();
+  expectUsageUnknown(tree); expect(drawn(tree)).not.toContain(quota(tree, 2));
+});
+
+test("6 a stalled refresh shows ... at once and times out into retry; the old number is not current", async () => {
+  let tree = await settle(); expect(drawn(tree)).toContain(quota(tree, 1));
+  const stalled = deferred<unknown>(); mockCounter.mockImplementationOnce(() => stalled.promise);
+  limitSheet(tree).props.onChanged(); tree = await settle();
+  expect(drawn(tree)).not.toContain("ds.reasoningScreen.weeklyLeft"); expect(drawn(tree)).toContain("...");
+  jest.advanceTimersByTime(9_999); tree = await settle(); expect(usageRetry(tree)).toBeUndefined();
+  jest.advanceTimersByTime(1); tree = await settle(); expectUsageUnknown(tree, true);
+  stalled.resolve(counterRow("owner-a", 0)); tree = await settle(); expectUsageUnknown(tree, true);
+});
+
+test("7 owner A's late refresh cannot overwrite owner B's number", async () => {
+  let tree = await settle(); expect(drawn(tree)).toContain(quota(tree, 1));
+  const late = deferred<unknown>(); mockCounter.mockImplementationOnce(() => late.promise);
+  limitSheet(tree).props.onChanged(); await settle();
+  usedFor["owner-b"] = 2; noteResolvedOwner("owner-b"); clearAccountTransition(currentAccountEpoch()); mockAuth.userId = "owner-b";
+  tree = await settle(); expect(drawn(tree)).toContain(quota(tree, 0));
+  late.resolve(counterRow("owner-a", 0)); tree = await settle(); expect(drawn(tree)).toContain(quota(tree, 0));
+});
+
+test("8 a successfully read empty counter and zero ledger really is two left", async () => {
+  mockCounter.mockImplementationOnce(() => Promise.resolve({ data: [], error: null }));
+  const tree = await settle(); expect(drawn(tree)).toContain(quota(tree, 2)); expect(usageRetry(tree)).toBeUndefined();
+});
+
+test("refresh and retry never re-run the recovery sweep or the review restore", async () => {
+  let tree = await settle();
+  for (let i = 0; i < 3; i++) { limitSheet(tree).props.onChanged(); tree = await settle(); }
+  mockCounter.mockImplementationOnce(() => Promise.resolve({ error: { message: "boom" } }));
+  limitSheet(tree).props.onChanged(); tree = await settle(); usageRetry(tree)!.props.onPress!(); tree = await settle();
+  expect(mockRecover).toHaveBeenCalledTimes(1); expect(mockPending).toHaveBeenCalledTimes(1);
+});
+
+test("a blur drops a late usage result and refocus reads again", async () => {
+  await settle(); const late = deferred<unknown>(); mockCounter.mockImplementationOnce(() => late.promise);
+  mockFocused = false; await settle(); mockFocused = true; let tree = await settle();
+  expect(drawn(tree)).toContain("..."); late.resolve(counterRow("owner-a", 1)); tree = await settle();
+  mockFocused = false; await settle();
+  const dispatches = mockDispatches.length; mockFocused = true; tree = await settle();
+  expect(mockDispatches.length).toBe(dispatches + 2); expect(drawn(tree)).toContain(quota(tree, 1));
+});
+
+test("a pre-publication hold hides the number and starts no new usage read", async () => {
+  let tree = await settle(); expect(drawn(tree)).toContain(quota(tree, 1));
+  const dispatches = mockDispatches.length; beginAccountOwnerTransition("owner-b"); tree = await settle();
+  expect(drawn(tree)).not.toContain("ds.reasoningScreen.weeklyLeft"); limitSheet(tree).props.onChanged(); await settle();
+  expect(mockDispatches.length).toBe(dispatches);
+});
+
+test("unmount rejects a late usage result without state writes", async () => {
+  const late = deferred<unknown>(); mockCounter.mockImplementationOnce(() => late.promise); await settle();
+  mockHarness.unmount(); late.resolve(counterRow("owner-a", 0));
+  for (let i = 0; i < 20; i++) await Promise.resolve(); expect(mockHarness.dirty).toBe(false);
 });
