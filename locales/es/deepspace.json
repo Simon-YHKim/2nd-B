@@ -191,7 +191,7 @@
       },
       "collect": {
         "label": "Qué recopilamos",
-        "v": "Información de la cuenta, registros guardados y datos de uso del servicio, entre otros."
+        "v": "Información de la cuenta, registros guardados y datos de uso del servicio, entre otros. Los datos de ubicación y comunicaciones solo se recopilan con tu consentimiento."
       },
       "retention": {
         "label": "Plazo de conservación",

@@ -42,6 +42,46 @@ const LABELS = {
 };
 const locales = Object.keys(JARGON) as (keyof typeof JARGON)[];
 
+// Pin each disclosure where the user reads it, not a bag of words from the whole screen.
+// These clauses preserve the condition, action and object together in each language.
+const FACTS = {
+  ko: {
+    collect: /위치·통신 자료는 동의할 때만 모읍니다\./,
+    stored: /기록을 서버에 저장하며/,
+    sent: /AI 기능에 필요한 내용은 AI 제공사로 보냅니다/,
+    removed: /끄면 연결용 데이터만 삭제하고 기록은 남깁니다/,
+    applied: /^웹 Google Analytics에 선택 반영 · Android 사용 통계 꺼짐$/,
+  },
+  en: {
+    collect: /Location and communications data are collected only with your consent\./,
+    stored: /Records are stored on the server/,
+    sent: /Content needed for AI features is sent to AI providers/,
+    removed: /Turning this off removes connection data and keeps your records/,
+    applied: /^Choice applies to web Google Analytics · Android usage statistics off$/,
+  },
+  es: {
+    collect: /Los datos de ubicación y comunicaciones solo se recopilan con tu consentimiento\./,
+    stored: /Los registros se guardan en el servidor/,
+    sent: /El contenido necesario para las funciones de IA se envía a los proveedores de IA/,
+    removed: /Al desactivar, se borran los datos para las conexiones y se conservan tus registros/,
+    applied: /^La elección se aplica a Google Analytics en la web · Estadísticas de uso desactivadas en Android$/,
+  },
+  pt: {
+    collect: /Os dados de localização e comunicações só são coletados com seu consentimento\./,
+    stored: /Os registros ficam salvos no servidor/,
+    sent: /O conteúdo necessário para as funções de IA é enviado aos fornecedores de IA/,
+    removed: /Ao desligar, os dados usados nas conexões são excluídos e seus registros ficam salvos/,
+    applied: /^A escolha vale para o Google Analytics na web · Estatísticas de uso desativadas no Android$/,
+  },
+  id: {
+    collect: /Data lokasi dan komunikasi hanya dikumpulkan dengan persetujuanmu\./,
+    stored: /Catatan disimpan di server/,
+    sent: /Konten yang diperlukan untuk fitur AI dikirim ke penyedia AI/,
+    removed: /Jika dimatikan, data untuk menghubungkan catatan dihapus dan catatanmu tetap tersimpan/,
+    applied: /^Pilihan berlaku untuk Google Analytics di web · Statistik penggunaan nonaktif di Android$/,
+  },
+};
+
 describe("privacy plain words and legal links (Z76)", () => {
   it("puts terms and refund immediately after the policy, in the same card, with working routes", () => {
     const actions: ts.JsxSelfClosingElement[] = [];
@@ -85,5 +125,32 @@ describe("privacy plain words and legal links (Z76)", () => {
       expect(privacy.analytics.adultLead).toContain(provider);
     }
     expect(privacy.analytics.applied).toContain("Google Analytics");
+  });
+
+  describe.each(locales)("%s required facts", (locale) => {
+    const { privacy } = JSON.parse(read(`locales/${locale}/deepspace.json`));
+    const fact = FACTS[locale];
+    it("collect requires consent for both location and communications", () => {
+      expect(privacy.facts.collect.v).toMatch(fact.collect);
+    });
+    it("processing says server storage and transmission to AI providers", () => {
+      expect(privacy.facts.onDevice.v).toMatch(fact.stored);
+      expect(privacy.facts.onDevice.v).toMatch(fact.sent);
+    });
+    it("turning connections off removes connection data and retains records", () => {
+      expect(privacy.semantic.onBody).toMatch(fact.removed);
+    });
+    it("the analytics choice applies on web while Android statistics stay off", () => {
+      expect(privacy.analytics.applied).toMatch(fact.applied);
+    });
+  });
+
+  it.each([
+    "design/proto_rev2/reference-app/data/screens/gaps.json",
+    "public/proto/data/screens/gaps.json",
+  ])("%s retains the collection condition in the Korean fact actually rendered", (file) => {
+    const { privacyFacts } = JSON.parse(read(file));
+    const fact = privacyFacts.find((entry: { label: string }) => entry.label === "수집 항목");
+    expect(fact?.v).toMatch(FACTS.ko.collect);
   });
 });

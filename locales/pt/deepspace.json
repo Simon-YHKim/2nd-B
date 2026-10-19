@@ -191,7 +191,7 @@
       },
       "collect": {
         "label": "O que coletamos",
-        "v": "Informações da conta, registros salvos e dados de uso do serviço, entre outros."
+        "v": "Informações da conta, registros salvos e dados de uso do serviço, entre outros. Os dados de localização e comunicações só são coletados com seu consentimento."
       },
       "retention": {
         "label": "Período de retenção",

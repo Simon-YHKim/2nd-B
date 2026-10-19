@@ -191,7 +191,7 @@
       },
       "collect": {
         "label": "Yang kami kumpulkan",
-        "v": "Antara lain informasi akun, catatan yang disimpan, dan data penggunaan layanan."
+        "v": "Antara lain informasi akun, catatan yang disimpan, dan data penggunaan layanan. Data lokasi dan komunikasi hanya dikumpulkan dengan persetujuanmu."
       },
       "retention": {
         "label": "Masa penyimpanan",

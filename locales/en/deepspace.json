@@ -191,7 +191,7 @@
       },
       "collect": {
         "label": "What we collect",
-        "v": "Account information, saved records and service usage details, among other data."
+        "v": "Account information, saved records and service usage details, among other data. Location and communications data are collected only with your consent."
       },
       "retention": {
         "label": "Retention",

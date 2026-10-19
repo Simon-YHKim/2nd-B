@@ -47,6 +47,8 @@ function harness(read: () => Promise<Record<string, unknown>>) {
     busy: false,
     ko: true,
     minorRef: { current: false },
+    embeddingCleanupRef: { current: false },
+    embeddingEnableRef: { current: false },
     prefsUserRef: { current: OWNER as string | null },
     privacyMountedRef: { current: true },
     activeUserRef: { current: OWNER as string | null },
@@ -237,7 +239,7 @@ describe("the screen's own read", () => {
   it("is strict and has a deadline", () => {
     expect(screen).toContain('void withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs").then(');
     expect(SOURCE).toContain("const PRIVACY_READ_TIMEOUT_MS = 10_000;");
-    expect(screen).toContain("}, [userId, prefsReload]);");
+    expect(screen).toContain("}, [userId, prefsReload]));");
   });
 
   it("a failed read says so, unless the health card's strict read already knows the choices", () => {
