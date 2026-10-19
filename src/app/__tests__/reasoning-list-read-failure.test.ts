@@ -325,11 +325,13 @@ test("refresh and retry never re-run the recovery sweep or the review restore", 
   expect(mockRecover).toHaveBeenCalledTimes(1); expect(mockPending).toHaveBeenCalledTimes(1);
 });
 
-test("a blur drops a late usage result and refocus reads again", async () => {
-  await settle(); const late = deferred<unknown>(); mockCounter.mockImplementationOnce(() => late.promise);
-  mockFocused = false; await settle(); mockFocused = true; let tree = await settle();
-  expect(drawn(tree)).toContain("..."); late.resolve(counterRow("owner-a", 1)); tree = await settle();
-  mockFocused = false; await settle();
+test("a result that arrives while blurred is dropped without a state write, and refocus reads again", async () => {
+  let tree = await settle(); const late = deferred<unknown>(); mockCounter.mockImplementationOnce(() => late.promise);
+  limitSheet(tree).props.onChanged(); await settle(); // the refresh read is in flight
+  mockFocused = false; await settle(); // blur cleanup
+  late.resolve(counterRow("owner-a", 0));
+  for (let i = 0; i < 100; i++) await Promise.resolve();
+  expect(mockHarness.dirty).toBe(false);
   const dispatches = mockDispatches.length; mockFocused = true; tree = await settle();
   expect(mockDispatches.length).toBe(dispatches + 2); expect(drawn(tree)).toContain(quota(tree, 1));
 });
@@ -338,8 +340,9 @@ test("a pre-publication hold hides the number and starts no new usage read", asy
   let tree = await settle(); expect(drawn(tree)).toContain(quota(tree, 1));
   const dispatches = mockDispatches.length; beginAccountOwnerTransition("owner-b"); tree = await settle();
   expect(drawn(tree)).not.toContain("ds.reasoningScreen.weeklyLeft"); limitSheet(tree).props.onChanged(); await settle();
-  expect(mockDispatches.length).toBe(dispatches);
+  expect(mockDispatches.length).toBe(dispatches); expect(mockRecover).toHaveBeenCalledTimes(1);
   beginAccountOwnerTransition("owner-a"); tree = await settle(); expect(drawn(tree)).toContain(quota(tree, 1));
+  expect(mockRecover.mock.calls.length).toBeLessThanOrEqual(2);
 });
 
 test("unmount rejects a late usage result without state writes", async () => {
@@ -357,4 +360,39 @@ test("an account transition cancels an in-flight usage read before React renders
   for (let i = 0; i < 100; i++) await Promise.resolve();
   expect(mockCounter).toHaveBeenCalledTimes(2); expect(mockHarness.dirty).toBe(false);
   beginAccountOwnerTransition("owner-a");
+});
+
+test("a ready run press captured before a refresh, a blur or an account change starts nothing", async () => {
+  const startTask = jest.requireMock("@/lib/tasks/store").startTask as jest.Mock;
+  let tree = await settle(); selectFirst(tree); tree = await settle();
+  const beforeRefresh = runButtonOf(tree)!; expect(beforeRefresh.props.disabled).toBe(false);
+  const late = deferred<unknown>(); mockCounter.mockImplementationOnce(() => late.promise);
+  limitSheet(tree).props.onChanged(); beforeRefresh.props.onPress!(); // no render in between
+  expect(startTask).not.toHaveBeenCalled();
+  late.resolve(counterRow("owner-a", 1)); tree = await settle();
+  const beforeBlur = runButtonOf(tree)!; expect(beforeBlur.props.disabled).toBe(false);
+  mockFocused = false; await settle(); beforeBlur.props.onPress!();
+  expect(startTask).not.toHaveBeenCalled();
+  mockFocused = true; tree = await settle();
+  const beforeSwitch = runButtonOf(tree)!; expect(beforeSwitch.props.disabled).toBe(false);
+  beginAccountOwnerTransition("owner-b"); beforeSwitch.props.onPress!(); // no render in between
+  expect(startTask).not.toHaveBeenCalled();
+  beginAccountOwnerTransition("owner-a"); await settle();
+});
+
+test("A -> B -> A with no render in between refuses the old generation's refresh", async () => {
+  let tree = await settle(); expect(drawn(tree)).toContain(quota(tree, 1));
+  const oldRefresh = limitSheet(tree).props.onChanged; const dispatches = mockDispatches.length;
+  beginAccountOwnerTransition("owner-b"); beginAccountOwnerTransition("owner-a"); // hold, then same-owner return
+  oldRefresh(); // must not count as a request in the new generation
+  tree = await settle();
+  // The new confirmed generation reads once on its own (two dispatches); an accepted old
+  // refresh would have added a second read.
+  expect(mockDispatches.length).toBe(dispatches + 2);
+  expect(limitSheet(tree).props.onChanged).not.toBe(oldRefresh);
+  expect(drawn(tree)).toContain(quota(tree, 1));
+  // Called again once the new generation has settled, the old callback changes nothing:
+  // no read, and the confirmed number stays (it must not leave the screen stuck on "...").
+  const settled = mockDispatches.length; oldRefresh(); tree = await settle();
+  expect(mockDispatches.length).toBe(settled); expect(drawn(tree)).toContain(quota(tree, 1));
 });

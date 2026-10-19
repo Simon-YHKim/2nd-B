@@ -796,6 +796,7 @@ export default function ReasoningScreen() {
   // One identity per signed-in owner generation (see use-reasoning-usage-read.ts), so the
   // recovery effect below never re-runs because of a refresh, a retry or a focus change.
   const refreshUsage = usageRead.refresh;
+  const confirmUsageCurrent = usageRead.confirmCurrent;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -997,6 +998,9 @@ export default function ReasoningScreen() {
 
   const startRun = useCallback(() => {
     if (!userId || isMinor == null || !listReady || !usageReady || selectedItems.length === 0 || phase === "running") return;
+    // A press captured in an earlier render re-checks the usage at press time: a refresh,
+    // blur or account transition since then has already dropped the ready token.
+    if (!confirmUsageCurrent()) return;
     if (depleted) return;
     if (task.phase === "running") {
       setErrorText(t("ds.reasoningScreen.busyOther"));
@@ -1098,6 +1102,7 @@ export default function ReasoningScreen() {
     phase,
     listReady,
     usageReady,
+    confirmUsageCurrent,
     depleted,
     task.phase,
     t,
