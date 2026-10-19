@@ -14,6 +14,17 @@
     "setAside": "Apa yang berubah jika kamu menyisihkan pikiran ini selama lima menit?"
   },
   "drill": {
+    "sceneChoice": "Mau lanjut bagaimana?",
+    "continueScene": "Lanjutkan cerita ini",
+    "newScene": "Kejadian lain",
+    "saveAndFinish": "Simpan dan selesai",
+    "changeSceneChoice": "Mau membahas kejadian lain?",
+    "skipLayer": "Lewati pertanyaan ini",
+    "questionsExhausted": "Tidak ada pertanyaan lanjutan.",
+    "localPromptsExhausted": "Pertanyaan tidak dapat ditambah lagi.",
+    "coverageSaveFailed": "Progres belum tersimpan.",
+    "recordSaveUnknown": "Belum dapat memastikan cerita tersimpan.",
+    "coverageSaveUnknown": "Belum dapat memastikan progres tersimpan.",
     "opening": "Mulai dari periode hidup yang mana? Satu adegan yang terlintas sudah cukup.",
     "placeholder": "Tulis sebanyak atau sesedikit yang kamu mau",
     "processingNotice": "AI membaca jawaban Anda untuk membuat pertanyaan berikutnya. Jawaban Anda menjadi catatan tersimpan hanya saat Anda memilih untuk menyimpan.",

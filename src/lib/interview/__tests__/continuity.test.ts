@@ -51,7 +51,7 @@ describe("scene continuity and choice", () => {
     const credited = { ...scene[1]!, answered: true };
     expect(nextMove(emptyCoverage(), "work", [], now, null, [], {
       history: [scene[0]!, credited, credited, credited, scene[1]!], locale: "en", concreteOnly: true,
-    })).toEqual({ kind: "finish" });
+    })).toEqual({ kind: "sceneChoice", reason: "concrete-progress" });
   });
 
   it("counts only credited answers toward the factual path's limit (gate LAST-02)", () => {
@@ -70,7 +70,7 @@ describe("scene continuity and choice", () => {
   it("ends after the scaffold budget without reaching for a more intimate layer", () => {
     expect(nextMove(emptyCoverage(), "work", [], now, { layer: "meaning", streak: 3 }, [], {
       history: scene, locale: "en",
-    })).toEqual({ kind: "finish" });
+    })).toEqual({ kind: "stuckChoice", layer: "meaning", attempts: 2 });
   });
 
   it.each(["", "yes", "hmm", "Office", "I don't know", "not sure"])("does not credit sparse facts: %s", (answer) => {
