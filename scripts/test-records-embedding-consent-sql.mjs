@@ -91,15 +91,19 @@ async function observeWait(label) {
   }
   throw new Error(`No observed lock wait: ${label}`);
 }
-async function race(holderSql, waiterSql, label, afterWait = () => {}) {
+async function race(holderSql, waiterSql, label, expectedError) {
   const holder = start(`BEGIN; ${holderSql}`, { hold: true });
   try {
     await holder.ready;
     const waiter = start(`SET application_name='${label}'; ${waiterSql}`);
-    try { await observeWait(label); await afterWait(); }
+    try { await observeWait(label); }
     finally { holder.finish(); }
     const results = await Promise.all([holder.done, waiter.done]);
-    for (const result of results) assert.equal(result.code, 0, result.err);
+    assert.equal(results[0].code, 0, results[0].err);
+    if (expectedError) {
+      assert.notEqual(results[1].code, 0, 'stale unmarked enable reported success');
+      assert(results[1].err.includes(expectedError), results[1].err);
+    } else assert.equal(results[1].code, 0, results[1].err);
   } finally { holder.finish(); await holder.done; }
 }
 
@@ -124,6 +128,62 @@ for (const [tamper, message] of [
 }
 assert.equal(await run("SELECT relforcerowsecurity FROM pg_class WHERE oid='public.records'::regclass;"), 't');
 pass('bad FORCE RLS, missing client SELECT and unexpected ACL abort installation without partial state');
+// Replace table-wide access with all other columns: each trial lacks exactly
+// one required column privilege, rather than masking it with a table grant.
+for (const [table, column, privilege] of [
+  ['users', 'privacy_prefs', 'SELECT'],
+  ['records', 'user_id', 'SELECT'],
+  ['records', 'embedding', 'UPDATE'],
+  ['records', 'embedding_model', 'UPDATE'],
+]) {
+  const others = await run(`SELECT string_agg(quote_ident(attname),',' ORDER BY attnum)
+    FROM pg_attribute WHERE attrelid='public.${table}'::regclass
+    AND attnum>0 AND NOT attisdropped AND attname<>'${column}';`);
+  const rejected = await start(`BEGIN;
+    REVOKE ${privilege} ON public.${table} FROM authenticated;
+    REVOKE ${privilege} (${column}) ON public.${table} FROM authenticated;
+    GRANT ${privilege} (${others}) ON public.${table} TO authenticated;
+    DO $$ BEGIN IF has_column_privilege('authenticated','public.${table}','${column}','${privilege}') THEN
+      RAISE EXCEPTION 'test privilege was not removed'; END IF; END $$;
+    ${up} COMMIT;`).done;
+  assert.notEqual(rejected.code, 0, `installation accepted missing ${table}.${column} ${privilege}`);
+  assert(rejected.err.includes('0263 required owner/client privileges missing'), rejected.err);
+  assert.equal(await run(`SELECT has_column_privilege('authenticated','public.${table}','${column}','${privilege}');`), 't');
+  pass(`installation rejects missing ${table}.${column} ${privilege}; privileges roll back`);
+}
+
+// Use the executable cleanup, including its preflight, against one malformed
+// binding at a time. Even an empty database must reject before a sweep starts.
+for (const [table, trigger] of [
+  ['users', 'zz_records_embedding_consent_changed'],
+  ['users', 'zz_records_embedding_consent_cas'],
+  ['records', 'zz_records_embedding_write_guard'],
+  ['records', 'zz_records_embedding_delete_guard'],
+]) {
+  const definition = await run(`SELECT pg_get_triggerdef(oid) FROM pg_trigger
+    WHERE tgrelid='public.${table}'::regclass AND tgname='${trigger}';`);
+  const recreate = (definition) => `DROP TRIGGER ${trigger} ON public.${table}; ${definition};`;
+  for (const [label, tamper] of [
+    ['disabled', `ALTER TABLE public.${table} DISABLE TRIGGER ${trigger};`],
+    ['name', `ALTER TRIGGER ${trigger} ON public.${table} RENAME TO wrong_embedding_trigger;`],
+    ['function', recreate(definition.replace(/EXECUTE FUNCTION .*$/, 'EXECUTE FUNCTION public.set_updated_at()'))],
+    ['event', recreate(definition.includes('INSERT OR UPDATE')
+      ? definition.replace('INSERT OR UPDATE', 'UPDATE')
+      : definition.replace(/BEFORE|AFTER/, (timing) => timing === 'BEFORE' ? 'AFTER' : 'BEFORE'))],
+    ['WHEN', recreate(definition.includes(' WHEN ')
+      ? definition.replace(/ WHEN .* EXECUTE/, ' WHEN (true) EXECUTE')
+      : definition.replace(' EXECUTE', ' WHEN (true) EXECUTE'))],
+    ['columns', recreate(definition.replace('UPDATE ON', 'UPDATE OF id ON'))],
+  ]) {
+    const rejected = await start(`BEGIN; ${tamper}\n\\set after_user ''\n${cleanup.replace('BEGIN;', '').replace('COMMIT;', 'ROLLBACK;')}`).done;
+    assert.notEqual(rejected.code, 0, `cleanup accepted ${trigger} ${label}`);
+    assert(rejected.err.includes('install and verify 0263 before cleanup'), rejected.err);
+    assert(!rejected.out.split(/\r?\n/).some((line) => line.startsWith('{')), 'cleanup returned a batch result before rejecting');
+  }
+  assert.equal(await run(`SELECT pg_get_triggerdef(oid) FROM pg_trigger
+    WHERE tgrelid='public.${table}'::regclass AND tgname='${trigger}' AND tgenabled='O';`), definition);
+  pass(`cleanup rejects ${trigger}: disabled/name/function/event/WHEN/columns (6); bindings roll back`);
+}
 if (mode === '--contracts-only') process.exit(0);
 
 for (let n = 101; n <= 110; n++) await fixture(n);
@@ -131,10 +191,10 @@ for (let n = 101; n <= 110; n++) await fixture(n);
 // true object. The waiter must see the committed revision, not resurrect ON.
 const snapshot = await run(`SELECT privacy_prefs::text FROM public.users WHERE id='${id(110)}';`);
 await race(off(110), `UPDATE public.users SET privacy_prefs='${snapshot}'::jsonb WHERE id='${id(110)}';
-  ${insert(110)}`, 'embed_stale_full_true');
+  ${insert(110)}`, 'embed_stale_full_true', 'records_embedding_consent_conflict');
 assert.equal(await run(`SELECT privacy_prefs->'records_embedding' FROM public.users WHERE id='${id(110)}';`), 'false');
 await empty(110);
-pass('two-session stale full true after withdrawal cannot restore consent or vectors');
+pass('two-session stale full true after withdrawal reports conflict and cannot restore consent or vectors');
 
 // Even an intentional ON prepared before a later OFF -> OFF must conflict.
 const expected = Number(await run(`SELECT privacy_prefs->>'records_embedding_revision' FROM public.users WHERE id='${id(110)}';`)) + 1;

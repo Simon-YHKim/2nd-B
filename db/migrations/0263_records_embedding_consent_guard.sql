@@ -81,6 +81,11 @@ BEGIN
     NEW.privacy_prefs -> 'records_embedding' = 'true'::jsonb
     AND NEW.minor_tier = 'adult'
     AND NEW.birth_date <= (CURRENT_DATE - INTERVAL '18 years')::date, false);
+  IF TG_OP = 'UPDATE' AND NOT v_was_allowed AND v_allowed AND v_enable IS NULL THEN
+    -- Old apps do not read RETURNING. A quiet OFF would look like a successful
+    -- grant to their screen and consent ledger. Reject the entire save instead.
+    RAISE EXCEPTION 'records_embedding_consent_conflict' USING ERRCODE = '40001';
+  END IF;
   IF NOT v_revision_valid THEN
     -- Recovery must commit even for withdrawal. Discard this request's enable
     -- marker; only a later fresh CAS against the normalized revision can enable.
@@ -295,8 +300,12 @@ BEGIN
      OR NOT pg_catalog.has_column_privilege('postgres', 'public.records', 'embedding', 'UPDATE')
      OR NOT pg_catalog.has_column_privilege('postgres', 'public.records', 'embedding_model', 'UPDATE')
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.users', 'privacy_prefs', 'UPDATE')
+     OR NOT pg_catalog.has_column_privilege('authenticated', 'public.users', 'privacy_prefs', 'SELECT')
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.users', 'id', 'SELECT')
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.records', 'id', 'SELECT')
+     OR NOT pg_catalog.has_column_privilege('authenticated', 'public.records', 'user_id', 'SELECT')
+     OR NOT pg_catalog.has_column_privilege('authenticated', 'public.records', 'embedding', 'UPDATE')
+     OR NOT pg_catalog.has_column_privilege('authenticated', 'public.records', 'embedding_model', 'UPDATE')
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.records', 'embedding_model', 'SELECT') THEN
     RAISE EXCEPTION '0263 required owner/client privileges missing';
   END IF;

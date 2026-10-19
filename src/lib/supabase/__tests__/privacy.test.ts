@@ -27,6 +27,7 @@ jest.mock("../client", () => {
 
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "../privacy";
 import { defaultPrivacyPrefs } from "../../privacy/prefs";
+import { beginPrivacyChange, currentPrivacyChange, resetPrivacyChangesForTests } from "../../privacy/changes";
 
 const { __mock, __maybeSingle, __update, __eqUpdate, __insert } = require("../client") as {
   __mock: { from: jest.Mock };
@@ -93,6 +94,30 @@ describe("savePrivacyPrefs", () => {
     __eqUpdate.mockResolvedValueOnce({ error: new Error("rls denied") });
     await expect(savePrivacyPrefs("u1", defaultPrivacyPrefs())).rejects.toThrow("rls denied");
     expect(__insert).not.toHaveBeenCalled(); // a failed save is not a consent change
+  });
+
+  test("legacy unmarked enable conflict keeps local display and consent ledger OFF", async () => {
+    resetPrivacyChangesForTests();
+    const before = defaultPrivacyPrefs();
+    beginPrivacyChange("legacy-user", before);
+    mockBeforeState(before);
+    const conflict = { code: "40001", message: "records_embedding_consent_conflict" };
+    __eqUpdate.mockResolvedValueOnce({ error: conflict });
+    let displayed = before;
+    const requested = { ...before, records_embedding: true };
+    // Same plain UPDATE/eq path as main's old savePrivacyPrefs: no marker,
+    // no RETURNING and no new option. Screens accept the value only on success.
+    const saving = savePrivacyPrefs("legacy-user", requested).then(() => { displayed = requested; });
+    await expect(saving).rejects.toEqual(conflict);
+    expect(__update).toHaveBeenCalledTimes(1);
+    expect(__update).toHaveBeenCalledWith({ privacy_prefs: requested });
+    expect(__eqUpdate).toHaveBeenCalledWith("id", "legacy-user");
+    expect(__maybeSingle).toHaveBeenCalledTimes(1);
+    expect(displayed.records_embedding).toBe(false);
+    expect(currentPrivacyChange("legacy-user")?.prefs.records_embedding).toBe(false);
+    expect(__mock.from).not.toHaveBeenCalledWith("consent_changes");
+    expect(__insert).not.toHaveBeenCalled();
+    resetPrivacyChangesForTests();
   });
 });
 

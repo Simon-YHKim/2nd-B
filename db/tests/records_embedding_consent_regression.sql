@@ -270,9 +270,22 @@ UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'la
 SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records WHERE id = pg_temp.embed_user(15)), 'authenticated late write clears');
 -- The revision belongs to the server, not the full preference object. Replay
 -- old/future client metadata without a one-use marker cannot resurrect consent.
-UPDATE public.users SET privacy_prefs = '{"records_embedding":true,"records_embedding_revision":999999}' WHERE id = pg_temp.embed_user(5);
-SELECT pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding' = 'false'::jsonb
-  AND (privacy_prefs->>'records_embedding_revision')::bigint < 999999 FROM public.users WHERE id = pg_temp.embed_user(5)), 'ordinary true and spoofed revision denied');
+DO $$ DECLARE previous jsonb; request jsonb; BEGIN
+  SELECT privacy_prefs INTO previous FROM public.users WHERE id = pg_temp.embed_user(5);
+  FOREACH request IN ARRAY ARRAY['{"records_embedding":true}'::jsonb,
+    '{"records_embedding":true,"records_embedding_revision":999999}'::jsonb] LOOP
+    BEGIN
+      UPDATE public.users SET privacy_prefs = request WHERE id = pg_temp.embed_user(5);
+      RAISE EXCEPTION 'unmarked enable reported success';
+    EXCEPTION WHEN SQLSTATE '40001' THEN
+      PERFORM pg_temp.check_embedding(SQLERRM = 'records_embedding_consent_conflict', 'stable unmarked enable error key');
+    END;
+    PERFORM pg_temp.check_embedding((SELECT privacy_prefs = previous FROM public.users
+      WHERE id = pg_temp.embed_user(5)), 'unmarked enable leaves entire OFF state unchanged');
+    PERFORM pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL
+      FROM public.records WHERE id = pg_temp.embed_user(15)), 'unmarked enable leaves vectors OFF');
+  END LOOP;
+END $$;
 SELECT pg_temp.enable_embedding(5);
 SELECT pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding' = 'true'::jsonb
   AND NOT (privacy_prefs ? 'records_embedding_enable_revision') FROM public.users WHERE id = pg_temp.embed_user(5)), 'authenticated fresh CAS consumes marker');

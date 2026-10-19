@@ -40,7 +40,7 @@ const sameBytes = (draft: string, numbered: string) =>
 // not applied yet may be revised before its GO, and its digest moves in the same
 // commit with the reason.
 const promoted = [
-  ["0263", "records_embedding_consent_guard", "da9c1fa83d06115928b318ee00ef07d0ad57493bf488716889a47eac68210a71"],
+  ["0263", "records_embedding_consent_guard", "0980977c62e25893eb0addcb1a471cc392db41972d48c0005c8657f79b4be754"],
   ["0261", "reward_ssv_grant_helper_acl", "781b0a218086fed68ec3a89b134998a05fc044f1a9708c4088e49ca25669b039"],
   ["0236", "dashboard_generation", "a86ab9e7c03e335d0eb27b8c90f5e18b345824975e112d5ad51de57a5287d4b3"],
   ["0191", "signup_consent_admob_20260925", "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648"],
@@ -337,6 +337,16 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(runner).toContain("assert.equal(deleteGuardCalls, count");
     expect(runner).toContain("DROP TRIGGER zz_records_embedding_delete_guard ON public.records;");
     expect(runner).toContain("DROP FUNCTION public.guard_record_embedding_delete();");
+  });
+
+  test("cleanup checks all four trigger bindings exactly as the 0263 installer before selecting users", () => {
+    const installation = read("db/migrations/0263_records_embedding_consent_guard.sql");
+    const cleanup = read("db/ops/records_embedding_cleanup_batch.sql");
+    const bindingCheck = /IF NOT EXISTS \(\n       SELECT 1 FROM pg_catalog\.pg_trigger[\s\S]+?\) THEN/;
+    const expected = installation.match(bindingCheck)?.[0];
+    expect(expected).toBeDefined();
+    expect(cleanup.match(bindingCheck)?.[0]).toBe(expected);
+    expect(cleanup.indexOf(expected!)).toBeLessThan(cleanup.indexOf("SELECT u.id INTO v_user"));
   });
 
   test("exercises the numbered 0216 peer limiter without replaying its draft", () => {

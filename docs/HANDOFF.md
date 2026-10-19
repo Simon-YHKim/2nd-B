@@ -33,6 +33,28 @@
 **⚠ 2026-10-14: 지금 기준은 활성 창 상한 400KB · 예산 320KB · 보관 부분 하나 360KB 다(`/simon-handoff` Step 2-B). 위에 적힌 100KB 는 옛 값이다. 이번에 2026-10-11 00:02 ~ 2026-10-12 22:30 의 블록 28개를 `HANDOFF-2026-10-p3.md` 맨 위로 옮겼다 - 10 월 블록은 계속 그 파일로 간다(360KB 를 넘으면 `-p4`).**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
+## 구현 인수 4회차 · 2026-10-19 / Codex gpt-6-astra → 2ndb-4e · PR #2651
+
+같은 가지·초안 유지. 3회차 판정의 medium 2건·low 1건만 수정했다.
+
+- 표식 없는 UPDATE OFF→ON은 `40001 / records_embedding_consent_conflict`로 실패한다.
+  SQL에서 서버 OFF/전체 JSON/NULL 쌍 유지, Jest에서 main과 같은 무표식 저장 경로의
+  실패 전파·화면에 넘길 로컬 값 OFF·grant 원장 미기록을 확인했다. 새 CAS 켜기는 유지한다.
+- 정리 시작 검사는 네 트리거의 이름·함수·이벤트·대상 열·WHEN·활성을 설치 검사와 맞췄다.
+  각 트리거 6종 변경, 총 24건을 정리 시작 전에 거절했다.
+- authenticated 열 권한 네 개를 추가 검사한다. 테이블 권한을 나머지 열 권한으로 바꾸고
+  필요한 한 열만 뺀 네 경우 모두 설치 실패·권한 롤백을 확인했다.
+- 전체 번호 스키마 psql 재생 + SQL 26개 묶음, Jest 11 suites/192 tests 통과.
+  변이 SQL 12/12 + 앱 2/2 = 14/14 검출. tsc·변경 ESLint·금지어·C7·긴 줄표·DEFINER 종료 0.
+  `prefs.ts`/앱 소스 변경 없음, DPIA 앵커 시험 통과. UI·문자열·#2440 범위 변경 없음.
+- 10만 행 철회 3,704.376ms, WAL 438,990,112 bytes, 잔여 0. 쓰기/삭제 가드 0/100,000회,
+  updated_at 100,001회. PG16/pgvector·2 CPU/768 MiB·synthetic 768차원/HNSW 단일 측정이다.
+  운영 상한의 증거가 아니며 운영 5회·시간 여유·상한 알림 조건은 유지한다.
+- [처리 표와 적용 계약](ops/records-embedding-consent-0263.md).
+  원자료: `E:/Coding Infra/reports/devlab-261010/s2-astra/embed-r4-verification/`.
+  독립 검토(Codex daybreak) PASS + 새 medium 0 + CI 초록 뒤에만 코디네이터가 머지한다.
+  운영 적용·잔여 정리·게시·8081 확인·직접 삭제 제거는 이 구현 갈래에서 하지 않았다.
+
 ## 구현 인수 3회차 · 2026-10-19 / Codex gpt-6-astra → 2ndb-4e · PR #2651
 
 같은 `fix/embed-consent-server-trigger-261019` 가지, 초안 유지. 2회차 판정의 medium 2건을

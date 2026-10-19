@@ -31,7 +31,8 @@ VISION 축은 1(자기 데이터의 사용 선택)과 2(동의한 기록으로 �
 **적용 순서:** 독립 검토·CI 통과 → 이 앱 변경 머지 → 새 웹 앱 게시와 실제 번들 확인 →
 Relay의 0263 운영 적용 → 잔여 정리/0 확인. 앱 머지·게시와 운영 적용은 구현 담당이 하지 않는다.
 기존 DB는 표식을 사용하지 않는 JSON 키로 저장하므로 앱을 먼저 게시해도 켜기가 동작한다.
-반대로 서버를 먼저 적용하면 지금 웹 앱의 표식 없는 OFF→ON은 OFF로 저장된다.
+반대로 서버를 먼저 적용하면 지금 웹 앱의 표식 없는 OFF→ON은
+`40001 / records_embedding_consent_conflict`로 실패한다. 서버 OFF·로컬 OFF·기존 원장을 유지한다.
 옛 모바일·캐시된 웹은 서버 적용 후 새로 켜지 못하며 업데이트/새로고침이 필요하다.
 ON 유지와 철회는 계속 가능하다. **직접 삭제를 없애는 앱 전환은 아래 §4의 별도 후속**이다.
 
@@ -52,14 +53,14 @@ OFF 상태의 철회 삭제, OLD 반쪽 정리, 행 자체 DELETE는 계속 허�
 
 | 조사한 경로 | 코드 근거 | 확인한 동작 |
 |---|---|---|
-| ON 상태의 반쪽 데이터 정리 | `db/ops/records_embedding_cleanup_batch.sql:40`, `:46`, `:52`, `:58` | 현재 동의가 ON이어도 vector/model 한쪽만 있으면 두 열을 비움. 정상 경로이며 실제 SQL 시험으로 고정 |
-| 쓰기 중 반쪽·소유자 교체 | `db/migrations/0263_records_embedding_consent_guard.sql:149`, `:154` | non-NULL 후보를 서버가 두 NULL로 바꿈. 삭제 가드가 먼저 실행되므로 이 NULL은 유지 |
+| ON 상태의 반쪽 데이터 정리 | `db/ops/records_embedding_cleanup_batch.sql:55`, `:67`, `:74`, `:76` | 현재 동의가 ON이어도 vector/model 한쪽만 있으면 두 열을 비움. 정상 경로이며 실제 SQL 시험으로 고정 |
+| 쓰기 중 반쪽·소유자 교체 | `db/migrations/0263_records_embedding_consent_guard.sql:154`, `:159` | non-NULL 후보를 서버가 두 NULL로 바꿈. 삭제 가드가 먼저 실행되므로 이 NULL은 유지 |
 | `recordEmbeddingHeld` | `src/lib/records/records-embeddings.ts:85`, `:154`, `:261` | 계산/백필 제외만 함. 기존 벡터 삭제는 아님 |
 | 본문 수정 | `src/lib/records/create.ts:639` | `update(patch)`만 실행. 벡터 비우기·재계산 경로 없음 |
 | 모델 교체 | `db/migrations/0068_reset_wiki_embeddings.sql:29`, `0142_embedding_provenance.sql:81` | 0068은 wiki만 비움. 0142는 records 모델명을 채움. 현재 records의 모델 교체용 NULL 경로 없음 |
 | 화면 철회·백필 종료 | `DeepSpaceDesignScreens.tsx:1038`, `records-embeddings.ts:398` | OFF 저장/조회 뒤 호출. ON에서 쓰는 정상 기능이 아니라 지연되면 문제의 손실을 만드는 경로 |
 | 단건·여러 기록 삭제 | `src/lib/records/create.ts:660`, `src/lib/records/delete-bulk.ts:20`, `:37`, `:53`, `:69` | 행 자체 DELETE. UPDATE 가드와 무관하며 동의 ON에서도 계속 삭제 |
-| 서버 함수·정리 SQL | `db/migrations/0263_records_embedding_consent_guard.sql:131`; `db/ops/records_embedding_cleanup_batch.sql:58` | 철회는 현재 OFF에서 삭제. 정리 배치는 OFF 또는 OLD 반쪽만 선택 |
+| 서버 함수·정리 SQL | `db/migrations/0263_records_embedding_consent_guard.sql:136`; `db/ops/records_embedding_cleanup_batch.sql:76` | 철회는 현재 OFF에서 삭제. 정리 배치는 OFF 또는 OLD 반쪽만 선택 |
 | Edge 임베딩 | `supabase/functions/openai-proxy/index.ts:567`, `supabase/functions/gemini-proxy/index.ts:636` | 모델 응답을 반환. records의 벡터를 NULL로 갱신하는 Edge 경로 없음 |
 
 검색 범위: `src`, `db`, `scripts`, `supabase/functions`의 embedding 쓰기·NULL·삭제 호출.
@@ -79,6 +80,20 @@ OFF 상태의 철회 삭제, OLD 반쪽 정리, 행 자체 DELETE는 계속 허�
 잘못된 경우도 철회·정규화한다. 서버 복구가 없었던 사용자의 기존 CAS 계약은 유지한다.
 이 복구는 이름만 바꾸는 UPDATE에도 발생할 수 있어 AFTER는 모든 사용자 UPDATE의
 최종 행을 확인한다. 잘못된 판본 때문에 철회 자체가 롤백되는 경로를 없앴다.
+
+## 구현 4회차: 옛 앱 오류와 설치 검사
+
+구현 3회차 판정의 medium 2건·low 1건만 보강했다.
+
+| 지적 | 변경 | 회귀 근거 |
+|---|---|---|
+| 표식 없는 OFF→ON의 성공 오인 | UPDATE의 해당 전이를 기존 CAS와 같은 SQLSTATE `40001`, 메시지 키 `records_embedding_consent_conflict`로 거절 | 실제 authenticated SQL에서 오류 코드·키·전체 OFF JSON·NULL 쌍 유지. Jest는 main과 같은 무표식 저장 경로에서 실패 전파·화면에 넘길 값과 로컬 동의 OFF·grant 미기록 확인. 새 CAS 켜기 성공 유지 |
+| 정리 전 두 트리거만 검사 | 네 트리거의 이름·함수·이벤트·대상 열·WHEN·활성을 설치 검사와 같게 검사 | 각 트리거 × 비활성·이름·함수·이벤트·WHEN·대상 열 6종 = 24건 모두 정리 전 실패. Jest로 설치/정리 조건 일치와 사용자 선택 전 검사 위치 고정 |
+| 클라이언트 열 권한 누락 | `users.privacy_prefs SELECT`, `records.user_id SELECT`, `records.embedding/embedding_model UPDATE` 검사 | 테이블 권한을 나머지 열 권한으로 바꿔 하나씩만 제거한 4건 모두 설치 실패·롤백 |
+
+표식 없는 OFF→ON 검사는 판본 복구보다 먼저 실행한다. 오류를 성공으로 오인하지 않게
+해당 요청 전체를 거절하며, 기존 ON 유지·철회·표식 있는 켜기·잘못된 판본의 철회 복구는 유지한다.
+앱 소스·`prefs.ts`·문자열·로케일 키는 바꾸지 않았다. DPIA 인용 이동은 없다.
 
 ## 적용 전 조건
 
@@ -220,7 +235,7 @@ COMMIT;
 | OFF 뒤 오래된 true 전체 객체/낡은 켜기 표식 | 동의 복원 불가. 유효한 새 표식만 켜기 가능 |
 | OFF→ON 뒤 오래된 NULL 요청 | 현재 ON의 완전한 쌍은 유지. 반쪽 정리는 계속 가능 |
 | OFF→ON 뒤 오래된 false 전체 객체 | 철회 의사를 서버에서 구별하지 않음. OFF로 저장하고 삭제하는 기존 동작 유지 |
-| 잘못된 저장 판본에서 철회·다른 UPDATE | 서버 판본 1·새 복구 토큰·OFF로 복구하고 삭제. 같은 요청으로 켜지지 않음 |
+| 잘못된 저장 판본에서 철회·다른 UPDATE | 서버 판본 1·새 복구 토큰·OFF로 복구하고 삭제. 표식 없는 OFF→ON은 위 충돌 오류로 거절 |
 
 R2-02는 수용한 한계다. 행 이미지로 열 생략과 동일 모델명 재전송을 구별할 수 없어 모델을
 추측하거나 비우지 않는다. 정확한 provenance가 필요하면 별도 RPC/세대 계약으로 전환한다.
@@ -251,6 +266,27 @@ REVOKE ALL ON FUNCTION public.guard_record_embedding_write() FROM PUBLIC, anon, 
 ```
 
 ## 로컬 검증 기록
+
+2026-10-19 구현 4회차: 전체 번호 스키마 psql 재생, SQL 계약·경합·성능
+**26개 실행 묶음**, 관련 Jest **11 suites / 192 tests** 통과.
+변이 **SQL 12/12 + 앱 2/2 = 14/14** 검출. 조용한 OFF 복원·오류 코드/키 교체·
+네 권한 검사 누락·기존 두 트리거 검사 복원·네 트리거 검사 개별 누락·앱 오류 무시/
+오류 전 로컬 ON 반영을 각각 실행했다. 정상 파일 바이트를 복원했다.
+tsc·변경 파일 ESLint·금지어·C7(4,433키·40 namespaces·5언어)·긴 줄표·DEFINER 검사 종료 0.
+원자료: `E:/Coding Infra/reports/devlab-261010/s2-astra/embed-r4-verification/`.
+같은 2 CPU·768 MiB PG16/pgvector·768차원/HNSW 환경, 규모별 1회 측정이다.
+
+| 대상 행 | 철회 SQL 시간(ms) | WAL bytes | 쓰기 검사 호출 | 삭제 검사 호출 | 기존 updated_at 호출 |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 5.549 | 248 | 0 | 0 | 1 |
+| 1,000 | 29.095 | 999,064 | 0 | 1,000 | 1,001 |
+| 10,000 | 240.265 | 9,811,368 | 0 | 10,000 | 10,001 |
+| 100,000 | 3,704.376 | 438,990,112 | 0 | 100,000 | 100,001 |
+
+잔여 모두 0. DB 시계의 SQL 시간이며 커밋 왕복·운영 분포·동시 부하 상한이 아니다.
+과거 회차와 개선율을 비교하지 않는다. 운영 5회 측정·독립 검토·CI는 별도 조건이다.
+
+### 이전 3회차 기록
 
 2026-10-19 구현 3회차: SQL 계약·경합·성능 **18개 실행 묶음** 통과.
 번호 마이그레이션 전체 psql 재생 후 최종 0263 재설치·실제 역할·경합·성능을 확인했다.

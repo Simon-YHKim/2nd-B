@@ -26,11 +26,29 @@ BEGIN
      OR pg_catalog.row_security_active('public.records'::regclass) THEN
     RAISE EXCEPTION 'cleanup requires the reviewed administrative role';
   END IF;
-  IF (SELECT count(*) FROM pg_catalog.pg_trigger WHERE tgenabled = 'O' AND NOT tgisinternal AND (
-        (tgrelid = 'public.users'::regclass AND tgname = 'zz_records_embedding_consent_changed'
-          AND tgfoid = 'public.clear_record_embeddings_on_privacy_change()'::regprocedure)
-        OR (tgrelid = 'public.records'::regclass AND tgname = 'zz_records_embedding_write_guard'
-          AND tgfoid = 'public.guard_record_embedding_write()'::regprocedure))) <> 2 THEN
+  IF NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_trigger WHERE tgrelid = 'public.users'::regclass
+        AND tgname = 'zz_records_embedding_consent_changed' AND NOT tgisinternal
+        AND tgtype = 17 AND tgenabled = 'O' AND tgattr = ''::int2vector AND tgqual IS NULL
+        AND tgfoid = 'public.clear_record_embeddings_on_privacy_change()'::regprocedure
+     ) OR NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_trigger WHERE tgrelid = 'public.users'::regclass
+        AND tgname = 'zz_records_embedding_consent_cas' AND NOT tgisinternal
+        AND tgtype = 23 AND tgenabled = 'O' AND tgattr = ''::int2vector AND tgqual IS NULL
+        AND tgfoid = 'public.guard_records_embedding_consent()'::regprocedure
+     ) OR NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_trigger WHERE tgrelid = 'public.records'::regclass
+        AND tgname = 'zz_records_embedding_write_guard' AND NOT tgisinternal
+        AND tgtype = 23 AND tgenabled = 'O' AND tgattr = ''::int2vector
+        AND pg_catalog.pg_get_triggerdef(oid) LIKE '%WHEN (((new.embedding IS NOT NULL) OR (new.embedding_model IS NOT NULL)))%'
+        AND tgfoid = 'public.guard_record_embedding_write()'::regprocedure
+     ) OR NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_trigger WHERE tgrelid = 'public.records'::regclass
+        AND tgname = 'zz_records_embedding_delete_guard' AND NOT tgisinternal
+        AND tgtype = 19 AND tgenabled = 'O' AND tgattr = ''::int2vector
+        AND pg_catalog.pg_get_triggerdef(oid) LIKE '%WHEN (((old.embedding IS NOT NULL) AND (old.embedding_model IS NOT NULL) AND (new.embedding IS NULL) AND (new.embedding_model IS NULL) AND (NOT (old.user_id IS DISTINCT FROM new.user_id))))%'
+        AND tgfoid = 'public.guard_record_embedding_delete()'::regprocedure
+     ) THEN
     RAISE EXCEPTION 'install and verify 0263 before cleanup';
   END IF;
   SELECT u.id INTO v_user FROM public.users AS u
