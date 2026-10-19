@@ -87,7 +87,7 @@ function topFunction(file: ts.SourceFile, name: string): ts.FunctionDeclaration 
 }
 
 /** The expressions this function itself returns (returns inside nested functions are not its own). */
-function ownReturns(fn: ts.FunctionDeclaration): ts.Expression[] {
+function ownReturns(fn: ts.FunctionLikeDeclaration): ts.Expression[] {
   const out: ts.Expression[] = [];
   const visit = (node: ts.Node): void => {
     if (node !== fn && ts.isFunctionLike(node)) return;
@@ -259,6 +259,37 @@ describe("each task button reaches its screen, as a page and inside the dashboar
         first.body.getText() === "DATA_RIGHTS.find((item) => item.id === open)?.id ?? null";
     });
     expect(opened).toHaveLength(1);
+
+    // Review #2640 r5: that state has to be what the card list draws. Take the state and its setter
+    // from that one useState, then follow the screen's returned DATA_RIGHTS.map callback: each card
+    // decides `expanded` from that state, its header toggles it with that setter, and its detail is
+    // folded away unless `expanded`.
+    const binding = (opened[0].parent as ts.VariableDeclaration).name;
+    expect(ts.isArrayBindingPattern(binding)).toBe(true);
+    const [state, setter] = (binding as ts.ArrayBindingPattern).elements.map((element) => element.getText());
+    expect([state, setter]).toEqual(["expandedId", "setExpandedId"]);
+
+    const callbacks: ts.ArrowFunction[] = [];
+    walkReturned(screen, (node) => {
+      if (ts.isCallExpression(node) && node.expression.getText() === "DATA_RIGHTS.map" && node.arguments.length === 1 &&
+          ts.isArrowFunction(node.arguments[0])) callbacks.push(node.arguments[0]);
+    });
+    expect(callbacks).toHaveLength(1);
+    const card = callbacks[0];
+    const item = card.parameters[0].name.getText();
+    const statements = ts.isBlock(card.body) ? card.body.statements : ts.factory.createNodeArray<ts.Statement>([]);
+    const expandedFrom = statements
+      .filter(ts.isVariableStatement)
+      .flatMap((statement) => [...statement.declarationList.declarations])
+      .filter((declaration) => declaration.name.getText() === "expanded")
+      .map((declaration) => declaration.initializer?.getText());
+    expect(expandedFrom).toEqual([`${item}.id === ${state}`]);
+
+    const cardTree = ownReturns(card).map((expression) => expression.getText()).join("\n");
+    expect(cardTree).toContain(`onPress={() => ${setter}(expanded ? null : ${item}.id)}`);
+    expect(cardTree).toContain("style={[styles.detailSurface, !expanded && styles.detailFolded]}");
+    expect(cardTree).toContain(`{${item}.id === "account-export" ? (`);
+    expect(cardTree).toContain("<AccountExportPanel />");
   });
 
   test("the privacy screen scrolls to its delete card for the delete button's query", () => {
