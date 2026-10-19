@@ -186,7 +186,7 @@ export function ShareCard({ variant, insight, aiCopyTail, pieceCount, litCount =
         </View>
       )}
       {aiCopyTail ? (
-        <Text style={[styles.disclosure, inkColor(), { left: 12 * k, right: 12 * k, bottom: 10 * k, fontSize: 11 * k, lineHeight: 14 * k }]}>
+        <Text style={[styles.footerText, styles.disclosure, inkColor(), { left: 12 * k, right: 12 * k, bottom: 10 * k, fontSize: 11 * k, lineHeight: 14 * k }]}>
           {aiCopyTail}
         </Text>
       ) : null}
@@ -195,7 +195,7 @@ export function ShareCard({ variant, insight, aiCopyTail, pieceCount, litCount =
 }
 
 const styles = StyleSheet.create({
-  disclosure: { position: "absolute", textAlign: "center", fontFamily: fontFamilies.readable },
+  disclosure: { position: "absolute", textAlign: "center" },
   card: {
     overflow: "hidden",
     borderWidth: 1,
