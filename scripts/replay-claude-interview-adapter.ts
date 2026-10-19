@@ -18,6 +18,8 @@ const CRISIS_ROUTER = "src/components/safety/CrisisRouter.tsx";
 const GUIDANCE_ROW = "src/components/interview/InterviewGuidanceRow.tsx";
 const COPY_JSON = ["locales/en/safety.json", "locales/ko/safety.json"];
 const PURE_MODULES = [
+  "src/lib/interview/opener-selection.ts",
+  "src/lib/interview/saved-story.ts",
   "src/lib/interview/loop-check.ts", "src/lib/interview/stuck.ts", "src/lib/interview/continuity.ts",
   "src/lib/interview/probe-guidance.ts", "src/lib/interview/probe-contact-intent.ts",
   "src/lib/interview/probe-guidance-copy.ts", "src/lib/i18n/locales.ts", "src/lib/safety/help-directory.ts",
@@ -149,7 +151,7 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
 
   const probeAst = parse(PROBE, sources[PROBE]);
   // Check the imports even though only the module's declarations execute below.
-  const importAllowlist = new Set(["../llm/boundary", "./loop-check", "../llm/untrusted", "./stuck", "./continuity"]);
+  const importAllowlist = new Set(["../llm/boundary", "./loop-check", "../llm/untrusted", "./stuck", "./continuity", "./saved-story"]);
   for (const node of probeAst.statements) {
     if (!ts.isImportDeclaration(node)) continue;
     if (!ts.isStringLiteral(node.moduleSpecifier)) throw new Error("Adapter probe import drift");
@@ -262,6 +264,7 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     const probe = evaluate<ProbeModule>(probeText, {
       exports: {}, ...load<Record<string, unknown>>("src/lib/interview/loop-check.ts"),
       ...load<Record<string, unknown>>("src/lib/llm/untrusted.ts"), ...stuck, ...continuity,
+      ...load<Record<string, unknown>>("src/lib/interview/saved-story.ts"),
       ...load<Record<string, unknown>>("src/lib/interview/probe-guidance.ts"),
       callLlm: async (input: Prompt) => {
         adapterCalls += 1; prompt = clone(input);
@@ -276,6 +279,8 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     const interviewInstance = { current: 1 }, probeRequest = { current: 0 }, turnsOwnerRef = { current: history };
     let guidanceDelivery: unknown = null;
     const scope = {
+      ...load<Record<string, unknown>>("src/lib/interview/opener-selection.ts"),
+      openerSelection: { current: undefined },
       userId: "synthetic-offline", period: sample.period, locale: sample.locale, isMinor: sample.minor,
       concreteOnly: false, ended, mounted, interviewInstance, probeRequest, turnsOwnerRef,
       turns: history, coverage, pendingLayer, openers, abandoned: [], draft: "",

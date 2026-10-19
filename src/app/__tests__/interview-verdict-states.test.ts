@@ -13,7 +13,8 @@ import { dismissCrisisNotice, getCrisisNotice, publishCrisisNotice } from "../..
 import { hookHarness } from "../../lib/nav/__tests__/hook-harness";
 import { answerDisposition, canCreditAnswer, confirmedAnswer, currentScene } from "../../lib/interview/continuity";
 import { DRILL_LAYERS, LIFE_PERIODS, emptyCoverage, incrementCoverage, nextMove, nextProbe, seedQuestion, usableQuestion, type Coverage, type DrillLayer, type InterviewTurn, type ProbeResult } from "../../lib/interview/probe";
-import { storedTurns, storyTitle } from "../../lib/interview/saved-story";
+import { interviewAnswerLabel, storedTurns, storyTitle } from "../../lib/interview/saved-story";
+import { isUneditedOpener, type OpenerSelection } from "../../lib/interview/opener-selection";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "../../lib/interview/session-end";
 import { isNonAnswer, MAX_SCAFFOLDS_PER_LAYER, scaffoldQuestion, shouldScaffold } from "../../lib/interview/stuck";
 import { callLlm } from "../../lib/llm/boundary";
@@ -43,7 +44,7 @@ function callback(name: string, scope: Record<string, unknown>): (...args: unkno
 }
 
 function wireFlow(scope: Record<string, unknown>) {
-  const names = ["sessionCurrent", "frameSnapshot", "stampCurrent", "actionCurrent", "beginAction", "releaseAction", "commitFrame", "showChoice", "acceptIntoFrame", "latchCrisis", "availableChoices", "ask", "startNewScene", "changeAngle", "chooseNext", "canContinueSave", "writeReceipt", "showSaveFailure", "completeSave", "saveCoverage", "retryCoverage", "keepIt", "send", "editDraft"];
+  const names = ["sessionCurrent", "frameSnapshot", "stampCurrent", "actionCurrent", "beginAction", "releaseAction", "commitFrame", "showChoice", "acceptIntoFrame", "latchCrisis", "availableChoices", "ask", "startNewScene", "changeAngle", "chooseNext", "canContinueSave", "writeReceipt", "showSaveFailure", "completeSave", "saveCoverage", "retryCoverage", "keepIt", "send", "editDraft", "selectOpener"];
   const bodies = names.map(name => {
     let found: ts.FunctionDeclaration | undefined;
     const visit = (node: ts.Node): void => {
@@ -75,11 +76,12 @@ function setup(locale: "ko" | "en" = "ko", minor: boolean | null = false) {
   ]));
   const scope = {
     ...sceneProbe, ...sceneStuck, ...sceneEnd,
+    isUneditedOpener, openerSelection: { current: undefined as OpenerSelection | undefined },
     sessionContext: { current: null as object | null }, sessionOwner: { current: captureAccountOwnerLease("A") }, contextRef: { current: { key: "initial" } },
     flowRef: { current: { revision: 0, action: null, choice: null, receipt: { phase: "idle" }, crisisLatched: false, crisisEpoch: 0 } as InterviewFlow },
 
     ...state, ...setters,
-    storedTurns, storyTitle, recallInterviewSystemTags, homeT: (key: string) => key, auditPeriod: "work", growthOrigin: false,
+    interviewAnswerLabel, storedTurns, storyTitle, recallInterviewSystemTags, homeT: (key: string) => key, auditPeriod: "work", growthOrigin: false,
     baseCoverage: { current: emptyCoverage() }, createRecord: jest.fn().mockResolvedValue({ id: "saved" }),
     addCoverage: jest.fn().mockResolvedValue({ kind: "acknowledged", receipt: "upsert" }),
     loadSevenLevels: jest.fn().mockResolvedValue({ starLevels: {} }), recordSevenTiers: jest.fn(),
@@ -118,6 +120,7 @@ function setup(locale: "ko" | "en" = "ko", minor: boolean | null = false) {
     return { send: callback("send", scope), change: scope.changeAngle,
       choose: callback("chooseNext", scope), newScene: callback("startNewScene", scope),
       save: callback("keepIt", scope), retry: callback("retryCoverage", scope), edit: callback("editDraft", scope),
+      select: callback("selectOpener", scope),
       mode: () => callback("projectMode", scope)(Boolean(scope.sessionOwner.current?.isCurrent()) && scope.mounted.current,
         scope.flowRef.current.crisisLatched, scope.ended.current, state.done, state.choice),
     };
@@ -145,6 +148,145 @@ function atLayer(layer: DrillLayer, locale: "ko" | "en") {
   h.state.pendingLayer = layer;
   return h;
 }
+
+describe("T37 opener provenance follows the submitted answer", () => {
+  test("typing an identical candidate without selecting its chip has no provenance", async () => {
+    const h = setup("en"); h.state.openers = [h.text];
+    h.render().edit(h.text);
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await h.render().send();
+    expect(h.state.turns.find(turn => turn.role === "user")).not.toHaveProperty("fromOpener");
+  });
+
+  test.each(["fact", "feeling", "none", undefined] as const)("%s verdict has identical credit and system rules with provenance", async verdict => {
+    const run = async (marked: boolean) => {
+      const h = setup("en"); h.state.draft = h.text;
+      h.state.openers = [h.text];
+      if (marked) h.render().select(0);
+      llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: verdict, question: "How did that feel?" }), safety: { zone: "green" } } as never);
+      await h.render().send();
+      const answer = h.state.turns.find(turn => turn.role === "user");
+      expect(answer?.fromOpener).toBe(marked ? true : undefined);
+      return { coverage: h.state.coverage, answered: answer?.answered, system: llm.mock.calls[0]![0].system };
+    };
+    expect(await run(true)).toEqual(await run(false));
+  });
+
+  test.each(["ko", "en"] as const)("%s: send, model history and saved original retain the marker", async locale => {
+    const h = setup(locale);
+    h.state.openers = [h.text];
+    h.render().select(0);
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await h.render().send();
+    expect(h.state.turns.find(turn => turn.role === "user")).toMatchObject({ text: h.text, fromOpener: true, answered: true });
+    expect(h.state.coverage.work.fact).toBe(1);
+    expect(llm.mock.calls[0]![0].user).toContain(`A (suggested, sent as is) (fact): ${h.text}`);
+    h.scope.finish();
+    await h.render().save();
+    expect(h.scope.createRecord.mock.calls[0]![0].body).toContain(
+      `${locale === "ko" ? "답변(제안 그대로)" : "A (suggested, sent as is)"}: ${h.text}`,
+    );
+  });
+
+  test.each(["letter", "inner-space", "newline", "punctuation", "case", "leading-space", "trailing-space", "leading-newline", "trailing-newline", "edit-restore", "different-question"])("%s is an ordinary answer", async change => {
+    const h = setup("en");
+    h.state.openers = [h.text]; h.render().select(0);
+    const edited = change === "letter" ? h.text + "s" : change === "inner-space" ? h.text.replace(" ", "  ")
+      : change === "newline" ? h.text.replace(" ", "\n") : change === "punctuation" ? h.text + "."
+        : change === "case" ? h.text.toLowerCase() : change === "leading-space" ? ` ${h.text}`
+          : change === "trailing-space" ? `${h.text} ` : change === "leading-newline" ? `\n${h.text}` : `${h.text}\n`;
+    if (change === "different-question") {
+      h.state.turns = [...h.state.turns, { role: "interviewer", text: "A different question?", layer: "fact", period: "work" }];
+    } else {
+      h.render().edit(edited);
+      expect(h.scope.openerSelection.current).toBeUndefined();
+      if (change === "edit-restore") h.render().edit(h.text);
+    }
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await h.render().send();
+    expect(h.state.turns.find(turn => turn.role === "user")).not.toHaveProperty("fromOpener");
+    expect(llm.mock.calls[0]![0].user).not.toContain("suggested, sent as is");
+    h.scope.finish(); await h.render().save();
+    expect(h.scope.createRecord.mock.calls[0]![0].body).toContain(`A: ${h.state.turns.find(turn => turn.role === "user")!.text}`);
+  });
+
+  test("a direct-send override cannot borrow the selected chip's provenance", async () => {
+    const h = setup("en"); h.state.openers = [h.text]; h.render().select(0);
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await h.render().send(h.text);
+    expect(h.state.turns.find(turn => turn.role === "user")).not.toHaveProperty("fromOpener");
+  });
+
+  test.each(["leading-space", "trailing-newline"])("raw %s mismatch cannot pass by trimming even with a selection", async change => {
+    const h = setup("en"); h.state.openers = [h.text]; h.render().select(0);
+    // Exercise the send guard independently of the normal edit invalidation.
+    h.state.draft = change === "leading-space" ? ` ${h.text}` : `${h.text}\n`;
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await h.render().send();
+    expect(h.state.turns.find(turn => turn.role === "user")).not.toHaveProperty("fromOpener");
+  });
+
+  test("selecting a chip again creates fresh provenance after an edit", async () => {
+    const h = setup("en"); h.state.openers = ["Another candidate", h.text];
+    h.render().select(1); h.render().edit(`${h.text} `); h.render().select(1);
+    expect(h.scope.openerSelection.current?.openerIndex).toBe(1);
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await h.render().send();
+    expect(h.state.turns.find(turn => turn.role === "user")?.fromOpener).toBe(true);
+    expect(h.scope.openerSelection.current).toBeUndefined();
+  });
+
+  test("a stale question's chip callback cannot select an old candidate", () => {
+    const h = setup("en"); h.state.openers = [h.text]; const stale = h.render();
+    stale.newScene(); stale.select(0);
+    expect(h.state.draft).toBe(""); expect(h.scope.openerSelection.current).toBeUndefined();
+  });
+
+  test.each(["repeated-question", "replaced-question", "replaced-candidate"])("%s cannot reuse a selected chip", async change => {
+    const h = setup("en"); h.state.openers = [h.text]; h.render().select(0);
+    if (change === "repeated-question") h.state.turns = [...h.state.turns, { ...h.state.turns[0] }];
+    if (change === "replaced-question") h.state.turns = [{ ...h.state.turns[0], text: "A different question?" }];
+    if (change === "replaced-candidate") h.state.openers = ["A different candidate"];
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await h.render().send();
+    expect(h.state.turns.find(turn => turn.role === "user")).not.toHaveProperty("fromOpener");
+  });
+
+  test("the candidate Pressable selects provenance while TextInput invalidates it", () => {
+    expect(screen).toMatch(/openers\.map\(\(o, index\) => \([\s\S]*?onPress=\{\(\) => selectOpener\(index\)\}/);
+    expect(screen).toMatch(/<TextInput[\s\S]*?onChangeText=\{editDraft\}/);
+  });
+
+  test.each([false, true])("quota rollback preserves selection only without an intervening edit: %s", async edited => {
+    const h = setup("en"); h.state.openers = [h.text]; h.render().select(0);
+    let reject!: (error: unknown) => void;
+    llm.mockImplementationOnce(() => new Promise((_yes, no) => { reject = no; }) as never);
+    const pending = h.render().send();
+    expect(h.scope.openerSelection.current).toBeUndefined();
+    if (edited) { h.render().edit(`${h.text} `); h.render().edit(h.text); }
+    reject({ context: new Response(JSON.stringify({ error: "purpose_limit_exceeded", feature: INTERVIEW_PURPOSE }), { status: 429 }) });
+    await pending;
+    expect(h.state.draft).toBe(h.text);
+    expect(Boolean(h.scope.openerSelection.current)).toBe(!edited);
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await h.render().send();
+    expect(h.state.turns.find(turn => turn.role === "user")?.fromOpener).toBe(edited ? undefined : true);
+  });
+
+  test.each(["selected", "edited", "legacy"])("restored %s draft retains only known, unedited selection", async kind => {
+    const h = setup("en"); h.state.openers = [h.text];
+    if (kind !== "legacy") h.render().select(0);
+    else h.render().edit(h.text);
+    if (kind === "edited") { h.render().edit(`${h.text} `); h.render().edit(h.text); }
+    const restored = roundtrip(snapshotOf(h)).draft.state;
+    const fresh = setup("en");
+    Object.assign(fresh.state, { turns: restored.turns, draft: restored.draft, openers: restored.openers, pendingLayer: restored.pendingLayer });
+    fresh.scope.openerSelection.current = restored.openerSelection;
+    llm.mockResolvedValueOnce({ text: JSON.stringify({ answeredLayer: "fact", question: "How did that feel?" }), safety: { zone: "green" } } as never);
+    await fresh.render().send();
+    expect(fresh.state.turns.find(turn => turn.role === "user")?.fromOpener).toBe(kind === "selected" ? true : undefined);
+  });
+});
 
 // Q4 removes the generic KO8/EN14 and minimum-two-character proxy for meaning.
 // Q5 applies local fallback only to a successful missing verdict, never none/other.
@@ -400,6 +542,7 @@ function snapshotOf(h: ReturnType<typeof setup>, phase: InterviewStableSnapshot[
     expiresAt: 1000 + INTERVIEW_DRAFT_TTL_MS, contentGeneration: "content-1", period: "work",
     uiLanguage: h.scope.locale, conversationLocale: h.scope.locale, growthOrigin: false,
     state: { turns: h.state.turns, draft: h.state.draft, inputRevision: h.scope.draftEditRevision.current,
+      ...(h.scope.openerSelection.current ? { openerSelection: h.scope.openerSelection.current } : {}),
       pendingLayer: h.state.pendingLayer, openers: h.state.openers, stuckStreak: h.state.stuckStreak,
       abandoned: h.state.abandoned, concreteOnly: h.state.concreteOnly, phase, endReason,
       crisisHotline: phase === "crisis-ended" ? h.scope.publishCrisisNotice.mock.calls.at(-1)?.[1] : null,
@@ -633,7 +776,7 @@ function contextHarness() {
     styles: {}, m3TextStyle: () => ({}) };
   const probe = jest.fn().mockResolvedValue({ zone: "green", layer: "feeling", question: "How did that moment feel?", questionSource: "model", answeredLayer: "fact" });
   const scope = {
-    ...sceneProbe, ...sceneStuck, ...sceneEnd, ...native, projectMode: callback("projectMode", {}),
+    ...sceneProbe, ...sceneStuck, ...sceneEnd, ...native, isUneditedOpener, projectMode: callback("projectMode", {}),
     useTranslation: () => ({ t: (key: string) => key, i18n: { language: context.language } }),
     useAuth: () => ({ userId: context.userId, isMinor: context.isMinor, age: 30 }),
     useAppRouter: () => ({ replace: jest.fn() }), useKeyboard: () => 0, useGoHomeStop: () => {},

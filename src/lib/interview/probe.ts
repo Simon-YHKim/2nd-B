@@ -17,6 +17,7 @@
 // signals are deterministic functions here (LLM-agnostic per C1/C9).
 
 import { callLlm } from "../llm/boundary";
+import { interviewAnswerLabel } from "./saved-story";
 import type { CrisisObserver } from "../llm/types";
 import {
   detectLoops,
@@ -74,6 +75,8 @@ export const DRILL_LAYERS: readonly DrillLayer[] = [
 export interface InterviewTurn {
   role: "interviewer" | "user";
   text: string;
+  /** Matches a displayed opener after edge trimming only. Not a credit verdict. */
+  fromOpener?: boolean;
   /** Layer the *answer* sits in (interviewer turn has the layer it was probing for). */
   layer?: DrillLayer;
   /** Period this turn sits under. A turn can switch period when user changes focus. */
@@ -491,7 +494,7 @@ function buildSystemPrompt(
 // The transcript is stored user material — fence it (was raw until 2026-07-26).
 function buildUserPrompt(history: InterviewTurn[]): string {
   const transcript = history
-    .map((t) => (t.role === "interviewer" ? `Q (${t.layer ?? "choice"}): ${t.text}` : `A (${t.layer ?? "choice"}): ${t.text}`))
+    .map((t) => (t.role === "interviewer" ? `Q (${t.layer ?? "choice"}): ${t.text}` : `${interviewAnswerLabel(t.fromOpener, "en")} (${t.layer ?? "choice"}): ${t.text}`))
     .join("\n");
   return wrapUntrusted("interview_transcript", transcript);
 }
@@ -505,7 +508,7 @@ export interface ProbeResult {
    * **말문 후보** — 이 질문에 답을 시작할 만한 짧은 문장 최대 2개.
    *
    * ⚠ 이건 답이 아니다. 화면은 이걸 누르면 **보내지 않고 입력창을 채운다** —
-   *   모델이 지어낸 문장이 사용자의 기록으로 남으면 안 되기 때문이다.
+   *   그대로 보낸 경우 fromOpener로 출처를 남겨 사용자가 쓴 말과 구분한다(Q7).
    *   이 저장소의 데이터 방향(위키가 원본, 페르소나가 파생)이 그걸 요구한다.
    * ⚠ 모델이 안 주면 빈 배열이다. 그때는 칩이 안 뜨고 화면은 그대로 돈다.
    */

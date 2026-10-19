@@ -450,7 +450,8 @@ const frozenContracts = [
   [
     "src/lib/interview/probe.ts",
     "buildUserPrompt",
-    "4ac88ac239166f321efecc423ca1706a32a8650202b416cccba7d741a76e46fc"
+    // T37/Q7: carry provenance in history; buildSystemPrompt and credit rules stay frozen.
+    "afe8ea9945644896b04150f37d793e5d685b9df4bd4513411d8d730b08d49e3d"
   ],
   [
     "src/lib/interview/probe.ts",

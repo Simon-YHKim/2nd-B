@@ -1,6 +1,7 @@
 import * as sceneProbe from "../../lib/interview/probe";
 import * as sceneStuck from "../../lib/interview/stuck";
 import * as sceneEnd from "../../lib/interview/session-end";
+import { isUneditedOpener } from "../../lib/interview/opener-selection";
 import type { InterviewFlow, InterviewChoice, SaveReceipt } from "../interview";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -115,6 +116,7 @@ function setup(resetOwner = true, locale = "ko") {
   const mounted = { current: true };
   const scope = {
     ...sceneProbe, ...sceneStuck, ...sceneEnd,
+    isUneditedOpener, openerSelection: { current: undefined },
     sessionContext: { current: null as object | null }, sessionOwner: { current: captureAccountOwnerLease("A") }, contextRef: { current: { key: "initial" } },
     flowRef: { current: { revision: 0, action: null, choice: null, receipt: { phase: "idle" }, crisisLatched: false, crisisEpoch: 0 } as InterviewFlow },
 
