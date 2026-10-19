@@ -635,73 +635,88 @@ function readAnsweredLayer(parsed: ProbeReply | null): DrillLayer | null | undef
  * 여기서는 **이미 물은 것과 사실상 같으면 버린다.** 그 자리에는 그 층을 겨냥한
  * 고정 질문이 들어간다 -- 한 번 더 LLM 을 부르는 것보다 싸고 결과가 예측 가능하다.
  */
-// T33 (Q-261014-15 · independent review r1 · r2): the question opens by taking back one phrase of the
-// user's last answer. The prompt asks for it; this check makes it hold on the model path:
-// - a quote the user never said, or any quote after a non-answer, is refused;
-// - after a real answer a question with no quote gets a phrase taken mechanically from the answer;
-// - after a stop or a decline the only fallback is the rule-4 closing line, never another question;
+// T33 (Q-261014-15 · independent review r1 · r2 · r3): the question opens by taking back one phrase of
+// the user's last answer. The prompt asks for it; on the model path (`{ echo: true }`) this check makes it hold:
+// - after a stop (the shared `answerDisposition`) the reply is rule 4's closing line, before anything else;
+// - after a real answer in the current scene, a question opens with exactly one quote that is a stretch of
+//   the user's own words: the model's quote when it is leading, single and true; otherwise a phrase taken
+//   from the answer, in front of the model's question or, when that does not fit, of a prepared one;
+// - after decline · unsure · skip, or with no answer in the current scene, nothing is quoted;
+// - a Korean question body ends in 해요체 and asks or suggests one thing (STYLE.md B안);
 // - a line without a question mark (rule-4 closing, rule-5 pivot) is never given an echo.
-// The kind of answer is judged on the whole answer, never on the quoted words, so a true quote that
-// only contains a negative word ("싫어서", "don't want to leave") is kept.
+// Decline and unsure are judged on the whole current answer, anchored, so a past refusal told as a story
+// ("하고 싶지 않았어요") or a negative word inside a real answer ("싫어서", "don't want to leave") is an answer.
 // Quote marks inside a Latin word ("What's", "don't") are not quote boundaries.
 const ECHO_QUOTE = /(?<![A-Za-z0-9])['‘"“「『]((?:[^'‘’"“”「」『』\n]|(?<=[A-Za-z])['’](?=[A-Za-z])){1,80})['’"”」』](?![A-Za-z])/gu;
-const ECHO_LEAD = /^\s*you said,?\s*|라고\s*하셨는데,?|고\s*하셨는데,?/giu;
-// Whole-answer patterns for the non-answers the shared detector (`answerDisposition`) reads as answers.
-// Only short answers count, so a long story that says "모르겠는데" on the way is still an answer.
+const ECHO_LEAD = /^\s*you (?:said|mentioned),?\s*|라고\s*하셨는데,?|고\s*하셨는데,?/giu;
+const ECHO_LEAD_ALLOWED: Record<"en" | "ko", RegExp> = { ko: /^$/u, en: /^(?:you (?:said|mentioned),?)?$/iu };
 const DECLINE_ANSWER: Record<"en" | "ko", RegExp> = {
-  ko: /(?:얘기|이야기|말|답)(?:은|는|을|를)?\s*(?:하고\s*싶지\s*않|하기\s*싫|안\s*하고\s*싶|못\s*하겠)|넘어가|건너뛰/u,
-  en: /\b(?:rather not|prefer not|don['’]?t want to (?:talk|say|share|answer|go into)|not comfortable)\b/iu,
+  ko: /^(?:(?:죄송하지만|미안하지만|음+|그건|그거는?|그런|그|지금은|아직은)\s*)*(?:얘기|이야기|말|답|일)(?:은|는|을|를)?\s*(?:(?:지금은|아직은|별로|좀)\s*)*(?:하고\s*싶지\s*않(?:아요|습니다|네요)|하기\s*싫(?:어요|습니다|네요)|안\s*하고\s*싶(?:어요|습니다)|못\s*하겠(?:어요|습니다))\s*[.!。~]*$/u,
+  en: /^\s*(?:sorry,?\s*)?(?:i'?d\s+|i would\s+)?(?:rather not|prefer not)\b[^.!?]*[.!?]*\s*$/iu,
 };
 const UNSURE_ANSWER: Record<"en" | "ko", RegExp> = {
-  ko: /모르겠|기억(?:이|은)?\s*(?:잘\s*)?안\s*나|글쎄/u,
-  en: /\b(?:don['’]?t (?:really )?know|not sure|no idea|can['’]?t remember|don['’]?t remember)\b/iu,
+  ko: /^(?:음+\s*)?(?:(?:잘|정말|그건|그거는?)\s*)*(?:모르겠(?:어요|습니다|네요|어)?|기억(?:이|은)?\s*(?:잘\s*)?안\s*나(?:요|네요)?|글쎄요?)\s*[.!?。…~]*$/u,
+  en: /^\s*(?:hmm,?\s*)?(?:i\s+)?(?:really\s+)?(?:don['’]?t (?:really )?know|not sure|no idea|can['’]?t remember|don['’]?t remember)\s*[.!?…]*\s*$/iu,
 };
-const SHORT_ANSWER_MAX: Record<"en" | "ko", number> = { ko: 16, en: 40 };
 // Rule 4's closing line, the same words the system prompt gives the model.
 const CLOSING_LINE: Record<"en" | "ko", string> = { ko: "여기서 멈춰도 좋아요.", en: "It's okay to pause here." };
+const ECHO_PHRASE_MAX: Record<"en" | "ko", number> = { ko: 24, en: 36 };
+const KO_POLITE_END = /요\s*[?？.!。]*\s*$/u;
 
-type AnswerKind = "none" | "stop" | "decline" | "unsure" | "answer";
+type AnswerKind = "none" | "stop" | "decline" | "unsure" | "skip" | "answer";
 
-function lastUserAnswer(history: readonly InterviewTurn[]): string {
-  return [...history].reverse().find((turn) => turn.role === "user")?.text ?? "";
+function lastUserAnswer(turns: readonly InterviewTurn[]): string {
+  return [...turns].reverse().find((turn) => turn.role === "user")?.text ?? "";
 }
 
 function answerKind(last: string, locale: "en" | "ko"): AnswerKind {
   if (!last.trim()) return "none";
   const disposition = answerDisposition(last, locale);
-  if (disposition === "stop" || disposition === "skip") return "stop";
+  if (disposition === "stop") return "stop";
+  if (disposition === "skip") return "skip";
   if (disposition === "uncertain") return "unsure";
-  const short = last.replace(/[\s\p{P}\p{S}]+/gu, "").length <= SHORT_ANSWER_MAX[locale];
-  if (short && DECLINE_ANSWER[locale].test(last)) return "decline";
-  if (short && UNSURE_ANSWER[locale].test(last)) return "unsure";
+  const clean = last.trim();
+  if (DECLINE_ANSWER[locale].test(clean)) return "decline";
+  if (UNSURE_ANSWER[locale].test(clean)) return "unsure";
   return "answer";
-}
-
-function echoQuotes(candidate: string): string[] {
-  return [...candidate.matchAll(ECHO_QUOTE)].map((match) => match[1].trim()).filter(Boolean);
 }
 
 const flatText = (value: string) => value.replace(/\s+/gu, " ").trim().toLowerCase().replace(/[.,!?。！？]+$/u, "");
 
-/** A short phrase of the user's own words: the last few words of the first sentence. */
+/** A short stretch of the user's own words: the last few words of the first sentence, kept as written. */
 function echoPhrase(answer: string, locale: "en" | "ko"): string {
   const sentence = answer.split(/[.!?。！？\n]+/u).map((part) => part.trim()).find(Boolean) ?? "";
-  const words = sentence.replace(/['‘’"“”「」『』?？]/gu, "").split(/\s+/u).filter(Boolean);
-  const take = locale === "ko" ? 3 : 4;
-  let phrase = words.slice(-take).join(" ");
-  if (phrase.length > (locale === "ko" ? 24 : 36)) phrase = words.slice(-Math.max(1, take - 1)).join(" ");
-  return phrase.length <= 40 ? phrase : "";
+  // Korean echoes are wrapped in '…' and English ones in “…”: a word holding the wrapping mark (or any
+  // other quote) is never taken, so the phrase stays a contiguous stretch of the answer.
+  const unsafe = locale === "ko" ? /['‘’"“”「」『』]/u : /["“”「」『』]/u;
+  const words = sentence.split(/\s+/u).filter(Boolean);
+  const tail: string[] = [];
+  for (let i = words.length - 1; i >= 0 && !unsafe.test(words[i]); i--) tail.unshift(words[i]);
+  const max = ECHO_PHRASE_MAX[locale];
+  let take = Math.min(tail.length, locale === "ko" ? 3 : 4);
+  let phrase = tail.slice(tail.length - take).join(" ");
+  while (phrase.length > max && take > 1) phrase = tail.slice(tail.length - --take).join(" ");
+  if (phrase.length > max) phrase = phrase.slice(-max).trim();
+  return phrase.replace(/[,，]+$/u, "").trim();
 }
 
 function withEcho(phrase: string, question: string, locale: "en" | "ko"): string {
-  if (!phrase || !question) return question;
+  if (!phrase || !question) return "";
   const echoed = locale === "ko" ? `'${phrase}'라고 하셨는데, ${question}` : `You said “${phrase}”. ${question}`;
-  return echoed.length <= 320 ? echoed : question;
+  return echoed.length <= 320 ? echoed : "";
 }
 
-/** The question without its echoed quote, for the repeat check only (never shown). */
+/** The question without its echoed quote, for the repeat and register checks only (never shown). */
 function questionCore(candidate: string): string {
   return candidate.replace(ECHO_QUOTE, " ").replace(ECHO_LEAD, " ").replace(/^[\s,，.\-–—:]+/u, "").trim();
+}
+
+/** Korean body: 해요체 ending, and at most one question or request (STYLE.md B안 · rule 1). */
+function koreanBodyOk(body: string): boolean {
+  if (!KO_POLITE_END.test(body)) return false;
+  const sentences = body.split(/(?<=[?？.!。])\s+/u).map((part) => part.trim()).filter(Boolean);
+  const acts = sentences.filter((part) => /[?？]\s*$/u.test(part) || /(?:세요|주세요|줄래요|볼까요)\s*[.!。]*$/u.test(part)).length;
+  return acts <= 1;
 }
 
 export function usableQuestion(
@@ -733,22 +748,30 @@ export function usableQuestion(
       return (2 * overlap) / (candidateGrams.size + previousGrams.size) >= 0.88;
     });
   };
-  const last = lastUserAnswer(history);
+  const echoPath = options.echo === true;
+  // The model only sees the current scene, so only its answer can be taken back.
+  const last = lastUserAnswer(currentScene(history));
   const kind = answerKind(last, locale);
-  const quotes = echoQuotes(candidate);
-  const source = flatText(last);
-  const quotesTrue = quotes.every((quote) => source.includes(flatText(quote)));
-  const quotesAllowed = quotes.length === 0 || (kind === "answer" && quotesTrue);
+  // Rule 4 wins over everything after a stop.
+  if (echoPath && kind === "stop") return CLOSING_LINE[locale];
+
+  const quotes = [...candidate.matchAll(ECHO_QUOTE)];
   const questionMarks = candidate.match(/[?？]/g)?.length ?? 0;
-  const echoOn = options.echo === true && kind === "answer";
+  const source = flatText(last);
+  const leadingTrueQuote = quotes.length === 1
+    && ECHO_LEAD_ALLOWED[locale].test(candidate.slice(0, quotes[0].index ?? 0).trim())
+    && source.includes(flatText(quotes[0][1]));
+  const quotesAllowed = quotes.length === 0 || (kind === "answer" && leadingTrueQuote);
+  const echoOn = echoPath && kind === "answer";
   const phrase = echoOn ? echoPhrase(last, locale) : "";
+  const bodyOk = !echoPath || locale !== "ko" || koreanBodyOk(questionCore(candidate));
   if (candidate.length > 0 && candidate.length <= 320 && questionMarks <= 1
     && !candidate.startsWith("{") && !candidate.startsWith("```") && !repeated(candidate)
-    && quotesAllowed && !repeated(questionCore(candidate))) {
-    return echoOn && quotes.length === 0 && questionMarks === 1 ? withEcho(phrase, candidate, locale) : candidate;
+    && quotesAllowed && !repeated(questionCore(candidate)) && bodyOk) {
+    if (!echoOn || quotes.length > 0 || questionMarks !== 1) return candidate;
+    const echoed = withEcho(phrase, candidate, locale);
+    if (echoed) return echoed;
   }
-  // After a stop or a decline the model may only close (rule 4). Never ask the same thing again.
-  if (options.echo === true && (kind === "stop" || kind === "decline")) return CLOSING_LINE[locale];
   // 발판일 때 같은 층의 원래 질문을 돌려주면 방금 못 답한 그 질문을 그대로
   // 다시 묻게 된다. 발판은 발판용 문장이 따로 있다.
   const fallbacks = scaffoldStreak > 0
@@ -756,7 +779,7 @@ export function usableQuestion(
     : [LAYER_FALLBACK[locale][layer], scaffoldQuestion(layer, locale, 1), scaffoldQuestion(layer, locale, 2)];
   // An exhausted fallback pool ends this thread instead of asking the same thing again.
   const fallback = fallbacks.find((question) => !repeated(question)) ?? "";
-  return echoOn ? withEcho(phrase, fallback, locale) : fallback;
+  return echoOn ? withEcho(phrase, fallback, locale) || fallback : fallback;
 }
 
 /**
