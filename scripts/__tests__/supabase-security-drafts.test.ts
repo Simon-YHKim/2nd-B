@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import * as ts from "typescript";
 
 const ROOT = resolve(__dirname, "../..");
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8").replace(/\r\n/g, "\n");
@@ -84,6 +85,10 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
+  "UNNUMBERED_interview_atomic_finalize.sql": {
+    runner: "scripts/test-interview-atomic-finalize-sql.mjs",
+    workflowInvocation: 'node scripts/test-interview-atomic-finalize-sql.mjs "$LOCAL_SQL_CONTAINER" t16_finalize_test_ci',
+  },
   "UNNUMBERED_interview_content_authority.sql": {
     runner: "scripts/test-interview-content-authority-sql.mjs",
     workflowInvocation: 'node scripts/test-interview-content-authority-sql.mjs "$LOCAL_SQL_CONTAINER" t16_authority_test_ci',
@@ -203,6 +208,166 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
       expect(existsSync(join(ROOT, draft.runner))).toBe(true);
       expect(read(".github/workflows/supabase-dry-run.yml")).toContain(draft.workflowInvocation);
     }
+  });
+
+  // Review #2618 r1 · r2: the S2b runner imports the real S2a packet module, so that module
+  // and everything it loads must trigger the dry-run lane, not only the runner. The closure is
+  // read from the TypeScript AST (side-effect imports, re-exports, `import = require`, require,
+  // import() and `new URL(..., import.meta.url)`), and any loader whose target is not a string
+  // literal fails the test instead of being skipped.
+  const S2B_PACKET_ROOT = "supabase/functions/_shared/interview-finalize-packet.ts";
+  // Review #2618 r3: each file is parsed with the script kind of its extension and a syntax error
+  // fails the walk; `require` counts only when it is not a binding declared in the file (a checker
+  // over a one-file program without lib resolves local bindings and leaves the global unresolved).
+  function moduleLoads(fileName: string, source: string): { targets: string[]; unresolvable: string[]; syntax: string[] } {
+    const kind = /\.tsx$/.test(fileName) ? ts.ScriptKind.TSX : /\.jsx$/.test(fileName) ? ts.ScriptKind.JSX
+      : /\.[cm]?js$/.test(fileName) ? ts.ScriptKind.JS : ts.ScriptKind.TS;
+    const virtual = `/closure/${fileName}`;
+    const sf = ts.createSourceFile(virtual, source, ts.ScriptTarget.Latest, true, kind);
+    const options: ts.CompilerOptions = { noLib: true, noResolve: true, allowJs: true, jsx: ts.JsxEmit.Preserve, types: [] };
+    const host = ts.createCompilerHost(options);
+    host.getSourceFile = (name) => (name === virtual ? sf : undefined);
+    host.fileExists = (name) => name === virtual;
+    host.readFile = (name) => (name === virtual ? source : undefined);
+    const program = ts.createProgram([virtual], options, host);
+    const checker = program.getTypeChecker();
+    const syntax = program.getSyntacticDiagnostics(sf).map((d) => ts.flattenDiagnosticMessageText(d.messageText, " "));
+    const declaredHere = (id: ts.Identifier) =>
+      (checker.getSymbolAtLocation(id)?.declarations ?? []).some((decl) => decl.getSourceFile() === sf);
+    const targets: string[] = [];
+    const unresolvable: string[] = [];
+    const take = (expr: ts.Node | undefined, node: ts.Node) => {
+      if (expr && ts.isStringLiteralLike(expr)) targets.push(expr.text);
+      else unresolvable.push(node.getText(sf));
+    };
+    const visit = (node: ts.Node): void => {
+      if (ts.isImportDeclaration(node)) take(node.moduleSpecifier, node);
+      else if (ts.isExportDeclaration(node) && node.moduleSpecifier) take(node.moduleSpecifier, node);
+      else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) {
+        take(node.moduleReference.expression, node);
+      } else if (ts.isImportTypeNode(node)) {
+        const arg = node.argument;
+        take(ts.isLiteralTypeNode(arg) ? arg.literal : undefined, node);
+      } else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword
+        || (ts.isIdentifier(node.expression) && node.expression.text === "require" && !declaredHere(node.expression)))) {
+        take(node.arguments[0], node);
+      } else if (ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "URL"
+        && node.arguments?.length === 2 && /import\.meta\.url/.test(node.arguments[1].getText(sf))) {
+        take(node.arguments[0], node);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+    for (const ref of sf.referencedFiles) targets.push(ref.fileName);
+    return { targets, unresolvable, syntax };
+  }
+  // Remote modules must name an exact version: npm:/jsr: need `@x.y.z` (optional prerelease) and
+  // http(s) URLs need a `@x.y.z` or `@vx.y.z` path segment. Only `node:` builtins pass as they are.
+  const EXACT = String.raw`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?`;
+  const pinnedRemote = (target: string) =>
+    new RegExp(`^(?:npm|jsr):(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*@${EXACT}(?:/.*)?$`, "i").test(target)
+    || new RegExp(`^https?://[^\\s]+@v?${EXACT}(?:[/?#].*)?$`, "i").test(target);
+  function localClosure(rootFile: string, readFile: (path: string) => string, exists: (path: string) => boolean) {
+    const closure = new Set<string>();
+    const problems: string[] = [];
+    const todo = [rootFile];
+    while (todo.length > 0) {
+      const file = todo.pop() as string;
+      if (closure.has(file)) continue;
+      closure.add(file);
+      const { targets, unresolvable, syntax } = moduleLoads(file, readFile(file));
+      for (const message of syntax) problems.push(`${file}: syntax error ${message}`);
+      for (const text of unresolvable) problems.push(`${file}: non-literal module load ${text}`);
+      for (const target of targets) {
+        if (/^node:/.test(target)) continue;
+        if (/^(?:npm|jsr|https?):/i.test(target)) {
+          if (!pinnedRemote(target)) problems.push(`${file}: remote import ${target} is not pinned to an exact version`);
+          continue;
+        }
+        if (!target.startsWith(".") && !target.startsWith("@/") && !target.startsWith("/")) {
+          problems.push(`${file}: bare import ${target} is not a pinned remote or local file`);
+          continue;
+        }
+        const base = target.startsWith("@/") ? `src/${target.slice(2)}` : join(file, "..", target).replace(/\\/g, "/");
+        const found = ["", ".ts", ".tsx", ".mts", ".js", ".mjs", "/index.ts"].map((ext) => base + ext).find((path) => exists(path));
+        if (found === undefined) problems.push(`${file}: cannot resolve ${target}`);
+        else todo.push(found);
+      }
+    }
+    return { closure: [...closure].sort(), problems };
+  }
+  const pullRequestPaths = (() => {
+    const lines = workflow.split("\n");
+    const start = lines.findIndex((line) => /^\s{4}paths:\s*$/.test(line));
+    const out: string[] = [];
+    for (const line of lines.slice(start + 1)) {
+      const m = /^\s{6}- "([^"]+)"\s*$/.exec(line);
+      if (m) out.push(m[1]);
+      else if (!/^\s*(#.*)?$/.test(line)) break;
+    }
+    return { start, paths: out };
+  })();
+
+  test("the S2b DB lane re-runs when the real packet module or anything it loads changes", () => {
+    expect(pullRequestPaths.start).toBeGreaterThan(-1);
+    const isFile = (path: string) => existsSync(join(ROOT, path)) && statSync(join(ROOT, path)).isFile();
+    const { closure, problems } = localClosure(S2B_PACKET_ROOT, read, isFile);
+    expect(problems).toEqual([]);
+    expect(closure).toContain(S2B_PACKET_ROOT);
+    for (const file of closure) expect(pullRequestPaths.paths).toContain(file);
+    expect(pullRequestPaths.paths).toContain("scripts/test-interview-atomic-finalize-sql.mjs");
+  });
+
+  test("the S2b closure walk sees every way a module can load another", () => {
+    const files: Record<string, string> = {
+      "a/root.ts": [
+        '/// <reference path="./referenced.d.ts" />',
+        'import "./side-effect.ts";',
+        'import type { T } from "./type-only.ts";',
+        'export * from "./reexport.ts";',
+        'import legacy = require("./import-equals.ts");',
+        'const r = require("./required.ts");',
+        'const d = await import(`./dynamic.ts`);',
+        'type U = import("./import-type.ts").U;',
+        'const w = new URL("./asset.ts", import.meta.url);',
+        'import { z } from "npm:zod@3.23.8";',
+        'import { join } from "jsr:@std/path@1.0.8";',
+        'import { y } from "https://esm.sh/yaml@2.5.1";',
+        'import { V } from "./view.tsx";',
+        'export const own = (require: (name: string) => unknown, name: string) => require(name);',
+      ].join("\n"),
+      "a/view.tsx": 'import "./tsx-dep.ts";\nexport const V = () => <div title="x">{1}</div>;',
+      "a/side-effect.ts": "", "a/type-only.ts": "", "a/reexport.ts": "", "a/import-equals.ts": "",
+      "a/required.ts": "", "a/dynamic.ts": "", "a/import-type.ts": "", "a/asset.ts": "", "a/referenced.d.ts": "",
+      "a/tsx-dep.ts": "",
+    };
+    const walk = (root: string) => localClosure(root, (path) => files[path], (path) => path in files);
+    expect(walk("a/root.ts")).toEqual({ closure: Object.keys(files).sort(), problems: [] });
+    files["a/root.ts"] += [
+      "", 'const name = "./x.ts"; await import(name); require(name);', 'import "zod";',
+      'import "npm:zod";', 'import "npm:zod@3";', 'import "jsr:@std/path";', 'import "https://esm.sh/zod";',
+    ].join("\n");
+    files["a/broken.ts"] = "export const = ;";
+    files["a/root.ts"] += '\nimport "./broken.ts";';
+    const { problems } = walk("a/root.ts");
+    expect(problems).toEqual([
+      "a/root.ts: non-literal module load import(name)",
+      "a/root.ts: non-literal module load require(name)",
+      "a/root.ts: bare import zod is not a pinned remote or local file",
+      "a/root.ts: remote import npm:zod is not pinned to an exact version",
+      "a/root.ts: remote import npm:zod@3 is not pinned to an exact version",
+      "a/root.ts: remote import jsr:@std/path is not pinned to an exact version",
+      "a/root.ts: remote import https://esm.sh/zod is not pinned to an exact version",
+      expect.stringMatching(/^a\/broken\.ts: syntax error /),
+    ]);
+    // A side-effect import added to the real packet module would join the closure, so
+    // the lane test above fails until the new file is listed in the workflow paths.
+    const real = (path: string) => read(path);
+    const withHelper = (path: string) => (path === S2B_PACKET_ROOT ? `import "./new-helper.ts";\n${real(path)}` : real(path));
+    const exists = (path: string) => path === "supabase/functions/_shared/new-helper.ts" || existsSync(join(ROOT, path));
+    const mutated = localClosure(S2B_PACKET_ROOT, (path) => (path.endsWith("new-helper.ts") ? "" : withHelper(path)), exists);
+    expect(mutated.closure).toContain("supabase/functions/_shared/new-helper.ts");
+    expect(pullRequestPaths.paths).not.toContain("supabase/functions/_shared/new-helper.ts");
   });
 
   test("numbered migrations keep the bytes they were promoted with", () => {

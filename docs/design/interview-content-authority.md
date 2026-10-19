@@ -309,3 +309,115 @@ are separate gates. This draft completes none of those activation conditions.
 References checked: [Supabase database functions](https://supabase.com/docs/guides/database/functions),
 [Supabase changelog](https://supabase.com/changelog),
 [PostgreSQL explicit locking](https://www.postgresql.org/docs/current/explicit-locking.html).
+
+## S2b: dormant atomic finalization and erasure draft
+
+`UNNUMBERED_interview_atomic_finalize.sql` requires S1 and is applied only to a
+fresh disposable clone in its CI lane. It does not promote a numbered migration,
+change an account's write protocol, connect a proxy/Edge endpoint, infer old draft
+provenance, or activate a client. The original 236 numbered migrations remain
+unchanged. The shared `commit_core` and `verdict_core` preserve the actual 0225
+logic; a parallel simplified record writer is not used.
+
+The new service-only `finalize_interview_save` facade and its independently
+checked private boundary take verified owner/Auth-session/expiry, the S2a packet,
+and a separate **trusted service artifact**. They do not install an `auth.uid()`
+or JWT claim from caller input. Owner shared, work row, then session key/row locks
+serialize the original intent. Live Auth/session/account status is checked after
+waits and after core writes. The original pre-core activity timestamp is checked
+again against a fresh six-hour clock before success. A late expiration rolls
+back the record, transcript, turns, ledger links, coverage and receipt together.
+No XP or embedding outbox is added: a retry can only observe the one transaction.
+
+The SQL canonicalizer validates the same explicit packet fields and bounds,
+selects through the last user turn, and independently recomputes the typed frames
+and SHA-256. It never substitutes an outer draft CAS revision for the immutable
+intent revision. PostgreSQL JSONB cannot preserve duplicate object keys, so the
+future HTTP caller must use the actual S2a bounded strict decoder **before** JSONB
+transport; SQL parsing is not a replacement for that ingress boundary.
+
+The trusted artifact has exactly these fields:
+
+| Field | Required binding / source |
+|---|---|
+| `v` / `source` | `1` / `server-c9-render-domain-v1` |
+| `ownerId`, `workId`, `requestId`, `contentGeneration` | Exact verified owner and original work/intent tuple |
+| `snapshotDigest`, `ruleSet` | Recomputed packet digest and immutable work rule |
+| `decision` | `clear` or `hold`, derived by the real server safety path |
+| `summary` | Actual S2a renderer with the server's approved period/UI star label; 1..144 code points |
+| `domainTag` | Actual `withDomainTag`/domain detector result, or `domain:growth` when growth origin is true |
+
+The seven permitted domain tags are career, finance, growth, relation, health,
+recreation and collect, each prefixed by `domain:`. A non-growth record is **not**
+silently assigned collect instead of using the actual detector. SQL checks the
+artifact shape, tuple, rule, digest and growth constraint; it does not reproduce
+the renderer, prove classification, or make the source string cryptographic
+proof. A summary string and a client's `safe: false` are not safety evidence.
+Missing or mismatched artifacts fail closed. Tests synthesize artifacts only to
+exercise transaction behavior. **The actual C9/renderer/domain service binding
+remains an activation blocker**, as do real Auth, both verdict-proxy adapters,
+client capture provenance and the endpoint. SQL fixture PASS is not safety PASS.
+
+Committed metadata contains the original save key/revision, record FK and immutable
+receipt: work/request/record/transcript IDs, committed time, hold-at-commit, user
+turns, ledger rows and cells added. Lookup returns the same receipt plus current
+record presence/hold in one snapshot. A late owned RED may raise current hold but
+cannot rewrite hold-at-commit or any receipt field. Existing committed facts stay
+inspectable across six-hour inactivity and content-generation rotation. A changed
+payload under the same intent conflicts; no preexisting generic record is adopted.
+
+Record/head/turn/session deletion, fold, discard, idle sweep, public-profile deletion
+and Auth deletion clear the content-derived snapshot digest and terminalize the
+work before inverse FK paths proceed. Erased NULL is never an available intent
+slot: resend returns erased before digest comparison, and reserve cannot revive it.
+Records may survive a standalone head/turn deletion; lookup reports their actual
+presence without claiming that the record itself was deleted. Content/profile
+paths retain the immutable receipt. Auth BEFORE deletion locks/terminalizes all
+owned works and removes their metadata while its Auth FK still exists, preventing
+later record/profile cascades from re-updating an already parentless work row.
+This removal is in the same transaction and rolls back if account deletion fails.
+
+An inverse DELETE already holds its child row. It uses owner try-lock and work-row
+`NOWAIT`; contention raises `40001` before digest/receipt changes. It never waits
+for work while holding a session/record row. The sweeper takes owner then tries the
+work row before session, skipping busy work. Arbitrary administrator DML/DDL is
+not a supported concurrent application writer; test administrators deliberately
+hold rows to exercise final checks and failure atomicity. No global relation lock
+is added to normal traffic.
+
+A dormant owner protocol transition is one-way legacy → v2-required and requires
+the owner exclusive key. New work pins r1-q5 at INSERT; old work/r0 history stays
+unchanged. Metrics/fold use that immutable rule, including sessions with no verdict;
+preexisting mismatched rules reject draft application instead of being normalized
+with `max(rule_set)`. The r1-q5 local-pass/no-verdict case can credit the asked layer
+while keeping `verdict=no_verdict` and `model_layer=NULL`. It never fabricates a
+model classification. None, other-layer, unasked, error and local failure remain
+uncredited. Before cutover, both real proxies must use the reviewed local-gate
+version: the known-bare exact fact-answer set is blocked locally; digits, emoji,
+single-character and unknown proper-name answers remain model candidates. The
+same/missing Q5 decision and parser/transport-error distinction must be measured
+and reviewed with that version. This SQL does not activate that change.
+
+Legacy authenticated close/discard/commit and known interview record/absolute
+coverage writes are gated once the protocol requires v2; ordinary notes and other
+audits retain their old path. Old late verdicts can still preserve owned RED and
+erase owned audit hashes, but cannot create a new work/session/credit through the
+v2 fence. New service lifecycle methods never manufacture a missing session or
+consume another start. Client reported `judged` alone earns no server credit.
+
+The runner reuses all four original 0225 controls unchanged, loads the actual S2a
+TypeScript leaf for canonical/body parity, and uses two PostgreSQL connections for
+same-key/conflicting saves, lost-response lookup, both wipe orders, Auth expiration
+after owner/work/session/verdict/coverage waits, six-hour expiry, inverse deletion
+and record-key conflicts. SQL regressions use real service/anon/authenticated roles
+and injected receipt failure after the actual core. The CI role stub lacks the
+production service BYPASSRLS attribute and old bootstrap record-table grants:
+metrics data is checked as the fixture administrator; direct client trigger tests
+add owner-RLS DML grants only inside the rolled-back fixture. These are explicit
+test setup limits, not production ACL changes.
+
+Empty S2b down restores the exact S1 request and original 0225 functions/view. Any
+used authority, wipe or work row refuses rollback **before DDL**; used replay keys,
+original receipts and barriers cannot be discarded by this preparation script.
+Operational rollout/rollback, retention, native receipt recovery and final CI /
+independent review remain separate gates.
