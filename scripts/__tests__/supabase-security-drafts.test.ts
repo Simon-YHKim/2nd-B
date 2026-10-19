@@ -40,7 +40,7 @@ const sameBytes = (draft: string, numbered: string) =>
 // not applied yet may be revised before its GO, and its digest moves in the same
 // commit with the reason.
 const promoted = [
-  ["0263", "records_embedding_consent_guard", "687f87e3548fc9ec60c17c4cd051efa27ccf02387c7ddad76aa6ec58d80abd3b"],
+  ["0263", "records_embedding_consent_guard", "da9c1fa83d06115928b318ee00ef07d0ad57493bf488716889a47eac68210a71"],
   ["0261", "reward_ssv_grant_helper_acl", "781b0a218086fed68ec3a89b134998a05fc044f1a9708c4088e49ca25669b039"],
   ["0236", "dashboard_generation", "a86ab9e7c03e335d0eb27b8c90f5e18b345824975e112d5ad51de57a5287d4b3"],
   ["0191", "signup_consent_admob_20260925", "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648"],
@@ -333,6 +333,10 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(runner).toContain("disposable embedding test database required");
     expect(runner).toContain("embed_stale_full_true");
     expect(runner).toContain("embed_stale_cas");
+    expect(runner).toContain("embed_delete_off_to_on");
+    expect(runner).toContain("assert.equal(deleteGuardCalls, count");
+    expect(runner).toContain("DROP TRIGGER zz_records_embedding_delete_guard ON public.records;");
+    expect(runner).toContain("DROP FUNCTION public.guard_record_embedding_delete();");
   });
 
   test("exercises the numbered 0216 peer limiter without replaying its draft", () => {

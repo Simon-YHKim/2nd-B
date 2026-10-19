@@ -68,8 +68,16 @@ export async function savePrivacyPrefs(
     if (typeof previous !== "number" || !Number.isSafeInteger(previous) || previous < 0 || previous >= Number.MAX_SAFE_INTEGER) {
       throw new Error("records_embedding_invalid_revision");
     }
+    // A server repair may restart the numeric revision. Bind this explicit ON
+    // to that repaired generation as well, so old numeric markers cannot recur.
+    const recovery = stored?.records_embedding_recovery;
+    if (recovery !== undefined && (typeof recovery !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(recovery))) {
+      throw new Error("records_embedding_invalid_recovery");
+    }
     const { data, error } = await supabase.from("users").update({
-      privacy_prefs: { ...prefs, records_embedding_enable_revision: previous + 1 },
+      privacy_prefs: { ...prefs, records_embedding_enable_revision: previous + 1,
+        ...(recovery === undefined ? {} : { records_embedding_enable_recovery: recovery }) },
     }).eq("id", userId).select("id, privacy_prefs");
     if (error) throw error;
     // Works before 0263 too: the old DB stores the marker as an unused JSON key.

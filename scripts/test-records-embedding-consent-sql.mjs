@@ -24,9 +24,11 @@ const dropTestObjects = `DO $local$ BEGIN
   END IF;
 END $local$;
 DROP TRIGGER zz_records_embedding_write_guard ON public.records;
+DROP TRIGGER zz_records_embedding_delete_guard ON public.records;
 DROP TRIGGER zz_records_embedding_consent_changed ON public.users;
 DROP TRIGGER zz_records_embedding_consent_cas ON public.users;
 DROP FUNCTION public.guard_record_embedding_write();
+DROP FUNCTION public.guard_record_embedding_delete();
 DROP FUNCTION public.clear_record_embeddings_on_privacy_change();
 DROP FUNCTION public.guard_records_embedding_consent();`;
 const regression = read('db/tests/records_embedding_consent_regression.sql');
@@ -64,7 +66,10 @@ const rid = (n) => `ec026300-0000-4000-8002-${String(n).padStart(12, '0')}`;
 const vec = 'array_fill(0.1::real, ARRAY[768])::public.vector';
 const on = (n) => `UPDATE public.users SET privacy_prefs=privacy_prefs || jsonb_build_object(
   'records_embedding',true,'records_embedding_enable_revision',
-  COALESCE((privacy_prefs->>'records_embedding_revision')::bigint,0)+1) WHERE id='${id(n)}';`;
+  COALESCE((privacy_prefs->>'records_embedding_revision')::bigint,0)+1)
+  || CASE WHEN privacy_prefs ? 'records_embedding_recovery' THEN jsonb_build_object(
+    'records_embedding_enable_recovery',privacy_prefs->'records_embedding_recovery') ELSE '{}'::jsonb END
+  WHERE id='${id(n)}';`;
 const off = (n) => `UPDATE public.users SET privacy_prefs='{"records_embedding":false}' WHERE id='${id(n)}';`;
 const insert = (n, record = n) => `INSERT INTO public.records(id,user_id,kind,body,embedding,embedding_model)
   VALUES('${rid(record)}','${id(n)}','note','fixture',${vec},'model-a');`;
@@ -111,6 +116,7 @@ for (const [tamper, message] of [
   ['ALTER TABLE public.records NO FORCE ROW LEVEL SECURITY;', '0263 unexpected users/records RLS state'],
   ['REVOKE SELECT ON public.users FROM authenticated;', '0263 required owner/client privileges missing'],
   ['GRANT EXECUTE ON FUNCTION public.guard_record_embedding_write() TO supabase_auth_admin;', '0263 unexpected non-owner function ACL'],
+  ['GRANT EXECUTE ON FUNCTION public.guard_record_embedding_delete() TO supabase_auth_admin;', '0263 unexpected non-owner function ACL'],
 ]) {
   const rejected = await start(`BEGIN; ${tamper} ${up} COMMIT;`).done;
   assert.notEqual(rejected.code, 0);
@@ -174,22 +180,56 @@ try {
   pass('observed lock inversion deadlock rolls back one whole transaction; retry converges');
 } finally { writer.finish('ROLLBACK;'); await writer.done; }
 
+await fixture(113);
+await run(`BEGIN; ${off(113)} ALTER TABLE public.records DISABLE TRIGGER zz_records_embedding_write_guard;
+  ${insert(113)} ALTER TABLE public.records ENABLE TRIGGER zz_records_embedding_write_guard; COMMIT;`);
 for (const isolation of ['REPEATABLE READ', 'SERIALIZABLE']) {
   await run(on(105));
-  for (const operation of [off(105), insert(105)]) {
+  for (const operation of [off(105), insert(105),
+    `UPDATE public.records SET embedding=NULL,embedding_model=NULL WHERE user_id='${id(103)}';`,
+    `UPDATE public.records SET embedding=NULL,embedding_model=NULL WHERE user_id='${id(113)}';`]) {
     const result = await start(`BEGIN ISOLATION LEVEL ${isolation}; ${operation} COMMIT;`).done;
     assert.notEqual(result.code, 0);
     assert(result.err.includes('records_embedding_requires_read_committed'), result.err);
   }
-  await run(`BEGIN ISOLATION LEVEL ${isolation}; UPDATE public.records SET embedding=NULL,embedding_model=NULL WHERE user_id='${id(103)}'; COMMIT;`);
 }
-pass('non-READ-COMMITTED writes/withdrawals reject, explicit NULL cleanup remains valid');
-await run(`${off(106)} ${on(106)} ${insert(106)}
-  UPDATE public.records SET embedding=NULL,embedding_model=NULL WHERE id='${rid(106)}';`);
-await empty(106);
+await run(`UPDATE public.records SET embedding=NULL,embedding_model=NULL WHERE user_id='${id(113)}';`);
+await empty(113);
+pass('non-READ-COMMITTED writes/withdrawals/complete-pair deletes reject stale snapshots');
+
+// An old client pauses its whole-user NULL request after OFF. Another session
+// re-enables and rebuilds before it arrives. The server must keep the new pair.
+await run(`${insert(106)} ${off(106)}`);
+const oldClear = start('BEGIN;', { hold: true });
+try {
+  await oldClear.ready;
+  await run(`${on(106)} UPDATE public.records SET embedding=${vec},embedding_model='new-generation'
+    WHERE id='${rid(106)}';`);
+  oldClear.finish(`UPDATE public.records SET embedding=NULL,embedding_model=NULL
+    WHERE user_id='${id(106)}' AND embedding IS NOT NULL; COMMIT;`);
+  assert.equal((await oldClear.done).code, 0);
+} finally { oldClear.finish('ROLLBACK;'); await oldClear.done; }
+assert.equal(await run(`SELECT embedding=${vec} AND embedding_model='new-generation'
+  FROM public.records WHERE id='${rid(106)}';`), 't');
+pass('two-session delayed old whole-user NULL after re-enable preserves the new vector/model');
+// A NULL candidate waits on a user UPDATE, then keeps the pair after ON commits.
+// The OFF-to-ON case below isolates the delete guard's SHARE: the later write
+// guard cannot mask a missing lock by waiting after an already-ON restoration.
+await race(on(106), `UPDATE public.records SET embedding=NULL,embedding_model=NULL
+  WHERE user_id='${id(106)}';`, 'embed_delete_wait');
+assert.equal(await run(`SELECT embedding_model FROM public.records WHERE id='${rid(106)}';`), 'new-generation');
+pass('complete-pair deletion waits for current user with SHARE before preserving ON');
+await fixture(112);
+await run(`BEGIN; ${off(112)} ALTER TABLE public.records DISABLE TRIGGER zz_records_embedding_write_guard;
+  ${insert(112)} ALTER TABLE public.records ENABLE TRIGGER zz_records_embedding_write_guard; COMMIT;`);
+await race(on(112), `UPDATE public.records SET embedding=NULL,embedding_model=NULL
+  WHERE user_id='${id(112)}';`, 'embed_delete_off_to_on');
+assert.equal(await run(`SELECT embedding IS NOT NULL AND embedding_model='model-a'
+  FROM public.records WHERE id='${rid(112)}';`), 't');
+pass('NULL deletion rechecks OFF-to-ON after actual SHARE wait, not the pre-lock snapshot');
 await run(`UPDATE public.records SET embedding=${vec},embedding_model='new' WHERE id='${rid(106)}'; ${off(106)}`);
 await empty(106);
-pass('accepted limitations: old NULL cleanup and old false prefs can erase newly rebuilt vectors');
+pass('explicit false preference still withdraws and clears the pair atomically');
 
 // Seed pre-install leftovers only: disabling the guard is confined to this test
 // transaction. Two users prove that a zero-row locked batch advances the cursor.
@@ -240,7 +280,7 @@ pass('normal ON cleanup clears historical half pair and preserves complete pair'
 
 const otherTriggers = `SELECT tgrelid::regclass::text||':'||tgname||':'||tgfoid::text||':'||tgenabled::text
   FROM pg_trigger WHERE tgrelid IN ('public.users'::regclass,'public.records'::regclass)
-  AND tgname NOT IN ('zz_records_embedding_write_guard','zz_records_embedding_consent_changed','zz_records_embedding_consent_cas') ORDER BY 1;`;
+  AND tgname NOT IN ('zz_records_embedding_write_guard','zz_records_embedding_delete_guard','zz_records_embedding_consent_changed','zz_records_embedding_consent_cas') ORDER BY 1;`;
 const before = await run(otherTriggers);
 const ledger = await run('SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;');
 await run(`BEGIN; ${dropTestObjects}
@@ -272,6 +312,7 @@ for (const count of [0, 1000, 10000, 100000]) {
     SELECT '${id(n)}','note','load fixture',${vec},'load-model' FROM generate_series(1,${count});`, { timeout: 200_000 });
   await run(`ANALYZE public.records;
     SELECT pg_stat_reset_single_function_counters('public.guard_record_embedding_write()'::regprocedure);
+    SELECT pg_stat_reset_single_function_counters('public.guard_record_embedding_delete()'::regprocedure);
     SELECT pg_stat_reset_single_function_counters('public.set_updated_at()'::regprocedure);`);
   const result = await run(`SET track_functions='all'; BEGIN;
     CREATE TEMP TABLE embed_perf_start AS SELECT clock_timestamp() AS at, pg_current_wal_insert_lsn() AS lsn;
@@ -282,10 +323,12 @@ for (const count of [0, 1000, 10000, 100000]) {
   const metrics = json(result);
   const guardCalls = Number(await run("SELECT COALESCE((SELECT calls FROM pg_stat_user_functions WHERE funcid='public.guard_record_embedding_write()'::regprocedure),0);"));
   const updatedAtCalls = Number(await run("SELECT COALESCE((SELECT calls FROM pg_stat_user_functions WHERE funcid='public.set_updated_at()'::regprocedure),0);"));
+  const deleteGuardCalls = Number(await run("SELECT COALESCE((SELECT calls FROM pg_stat_user_functions WHERE funcid='public.guard_record_embedding_delete()'::regprocedure),0);"));
   assert.equal(guardCalls, 0, 'NULL withdrawal must not invoke new write guard per row');
+  assert.equal(deleteGuardCalls, count, 'complete-pair withdrawal checks the current OFF owner');
   assert.equal(updatedAtCalls, count + 1, 'existing record/user updated_at trigger still runs');
   await empty(n);
-  process.stdout.write(`PERF ${JSON.stringify({ ...metrics, write_guard_calls: guardCalls, updated_at_calls: updatedAtCalls })}\n`);
+  process.stdout.write(`PERF ${JSON.stringify({ ...metrics, write_guard_calls: guardCalls, delete_guard_calls: deleteGuardCalls, updated_at_calls: updatedAtCalls })}\n`);
 }
 pass('0/1k/10k/100k real-index withdrawals: zero residuals, zero new write-guard calls');
 process.stdout.write(`PASS ${checks} executed groups; production operations and model calls: 0\n`);

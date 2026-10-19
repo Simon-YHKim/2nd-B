@@ -15,6 +15,8 @@ CREATE FUNCTION pg_temp.enable_embedding(n integer) RETURNS void LANGUAGE sql AS
   UPDATE public.users SET privacy_prefs = privacy_prefs || jsonb_build_object(
     'records_embedding',true,'records_embedding_enable_revision',
     COALESCE((privacy_prefs->>'records_embedding_revision')::bigint,0)+1)
+    || CASE WHEN privacy_prefs ? 'records_embedding_recovery' THEN jsonb_build_object(
+      'records_embedding_enable_recovery',privacy_prefs->'records_embedding_recovery') ELSE '{}'::jsonb END
   WHERE id = pg_temp.embed_user(n)
 $$;
 
@@ -34,11 +36,132 @@ UPDATE public.users SET privacy_prefs = '{"records_embedding":true,"ads":true,"r
 SELECT pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding' = 'true'::jsonb
   AND privacy_prefs->'records_embedding_revision' = '0'::jsonb FROM public.users WHERE id = pg_temp.embed_user(5)),
   'legacy ON without metadata stays ON with server revision');
+-- Largest incrementable safe integer is accepted; the exhausted next revision
+-- recovers on withdrawal rather than making OFF impossible.
+ALTER TABLE public.users DISABLE TRIGGER zz_records_embedding_consent_cas;
+UPDATE public.users SET privacy_prefs = '{"records_embedding":false,"records_embedding_revision":9007199254740990}'
+  WHERE id = pg_temp.embed_user(1);
+ALTER TABLE public.users ENABLE TRIGGER zz_records_embedding_consent_cas;
+SELECT pg_temp.enable_embedding(1);
+SELECT pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding' = 'true'::jsonb
+  AND privacy_prefs->'records_embedding_revision' = '9007199254740991'::jsonb
+  FROM public.users WHERE id = pg_temp.embed_user(1)), 'largest incrementable revision accepted');
 INSERT INTO public.records(id, user_id, kind, body, embedding, embedding_model)
 SELECT pg_temp.embed_user(n + 10), pg_temp.embed_user(n), 'note', 'fixture', pg_temp.embed_vec(), 'model-a'
   FROM generate_series(1, 5) n;
 SELECT pg_temp.check_embedding((SELECT count(*) = 5 FROM public.records WHERE id IN
   (SELECT pg_temp.embed_user(n + 10) FROM generate_series(1,5) n) AND embedding IS NOT NULL), 'adult true writes preserved');
+
+-- A legacy whole-user clear must not erase a new consent generation. Keeping
+-- OLD's pair is a quiet no-op, while unrelated fields in the UPDATE still save.
+UPDATE public.records SET embedding = NULL, embedding_model = NULL, body = 'edited'
+  WHERE id = pg_temp.embed_user(11);
+SELECT pg_temp.check_embedding((SELECT embedding = pg_temp.embed_vec() AND embedding_model = 'model-a'
+  AND body = 'edited' FROM public.records WHERE id = pg_temp.embed_user(11)), 'ON complete pair survives direct NULL');
+
+-- Pre-0263 JSON was client-writable. Every malformed revision must allow an
+-- authenticated withdrawal, including when an attacker supplies an enable marker.
+DO $$ DECLARE bad jsonb; BEGIN
+  FOREACH bad IN ARRAY ARRAY['"bad"'::jsonb, '"7"'::jsonb, '1.5'::jsonb,
+    '9223372036854775808'::jsonb, '9007199254740991'::jsonb, '-1'::jsonb,
+    'null'::jsonb, 'true'::jsonb, '{}'::jsonb, '[]'::jsonb] LOOP
+    ALTER TABLE public.users DISABLE TRIGGER zz_records_embedding_consent_cas;
+    UPDATE public.users SET privacy_prefs = jsonb_build_object('records_embedding',true,
+      'records_embedding_revision',bad) WHERE id = pg_temp.embed_user(1);
+    ALTER TABLE public.users ENABLE TRIGGER zz_records_embedding_consent_cas;
+    UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'malformed'
+      WHERE id = pg_temp.embed_user(11);
+    SET LOCAL ROLE authenticated;
+    PERFORM set_config('request.jwt.claim.role','authenticated',true);
+    PERFORM set_config('request.jwt.claim.sub',pg_temp.embed_user(1)::text,true);
+    UPDATE public.users SET privacy_prefs = '{"records_embedding":false}'
+      WHERE id = pg_temp.embed_user(1);
+    PERFORM pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding' = 'false'::jsonb
+      AND privacy_prefs->'records_embedding_revision' = '1'::jsonb
+      FROM public.users WHERE id = pg_temp.embed_user(1)), 'malformed revision withdrawal normalized: ' || bad::text);
+    PERFORM pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL
+      FROM public.records WHERE id = pg_temp.embed_user(11)), 'malformed revision withdrawal clears pair: ' || bad::text);
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.role','service_role',true);
+
+    ALTER TABLE public.users DISABLE TRIGGER zz_records_embedding_consent_cas;
+    UPDATE public.users SET privacy_prefs = jsonb_build_object('records_embedding',true,
+      'records_embedding_revision',bad) WHERE id = pg_temp.embed_user(1);
+    ALTER TABLE public.users ENABLE TRIGGER zz_records_embedding_consent_cas;
+    UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'recovery'
+      WHERE id = pg_temp.embed_user(11);
+    UPDATE public.users SET privacy_prefs = '{"records_embedding":true,"records_embedding_enable_revision":1}'
+      WHERE id = pg_temp.embed_user(1);
+    PERFORM pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding' = 'false'::jsonb
+      AND privacy_prefs->'records_embedding_revision' = '1'::jsonb
+      AND NOT (privacy_prefs ? 'records_embedding_enable_revision')
+      FROM public.users WHERE id = pg_temp.embed_user(1)), 'recovery cannot enable in same update: ' || bad::text);
+    PERFORM pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL
+      FROM public.records WHERE id = pg_temp.embed_user(11)), 'recovery forces withdrawal: ' || bad::text);
+    BEGIN
+      UPDATE public.users SET privacy_prefs = '{"records_embedding":true,"records_embedding_enable_revision":2}'
+        WHERE id = pg_temp.embed_user(1);
+      RAISE EXCEPTION 'old numeric CAS reused after recovery';
+    EXCEPTION WHEN serialization_failure THEN NULL;
+    END;
+    PERFORM pg_temp.enable_embedding(1);
+    PERFORM pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding' = 'true'::jsonb
+      AND privacy_prefs->'records_embedding_revision' = '2'::jsonb
+      FROM public.users WHERE id = pg_temp.embed_user(1)), 'fresh CAS after recovery enables: ' || bad::text);
+  END LOOP;
+END $$;
+DO $$ DECLARE previous jsonb; BEGIN
+  SELECT privacy_prefs->'records_embedding_recovery' INTO previous FROM public.users WHERE id = pg_temp.embed_user(1);
+  UPDATE public.users SET privacy_prefs = privacy_prefs || '{"records_embedding_recovery":"spoofed"}'
+    WHERE id = pg_temp.embed_user(1);
+  PERFORM pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding_recovery' = previous
+    FROM public.users WHERE id = pg_temp.embed_user(1)), 'client cannot replace recovery generation');
+  ALTER TABLE public.users DISABLE TRIGGER zz_records_embedding_consent_cas;
+  UPDATE public.users SET privacy_prefs = privacy_prefs || '{"records_embedding_revision":"bad"}'
+    WHERE id = pg_temp.embed_user(1);
+  ALTER TABLE public.users ENABLE TRIGGER zz_records_embedding_consent_cas;
+  UPDATE public.users SET privacy_prefs = '{"records_embedding":false}' WHERE id = pg_temp.embed_user(1);
+  PERFORM pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding_recovery' <> previous
+    FROM public.users WHERE id = pg_temp.embed_user(1)), 'each recovery mints a fresh generation');
+  BEGIN
+    UPDATE public.users SET privacy_prefs = jsonb_build_object('records_embedding',true,
+      'records_embedding_enable_revision',2,'records_embedding_enable_recovery',previous)
+      WHERE id = pg_temp.embed_user(1);
+    RAISE EXCEPTION 'old recovery generation reused';
+  EXCEPTION WHEN serialization_failure THEN NULL;
+  END;
+  PERFORM pg_temp.enable_embedding(1);
+END $$;
+-- A BEFORE-trigger recovery can change prefs on a non-prefs UPDATE too.
+DO $$ DECLARE bad jsonb; BEGIN
+  FOREACH bad IN ARRAY ARRAY['null'::jsonb, '7'::jsonb, '"bad"'::jsonb, '{}'::jsonb] LOOP
+    ALTER TABLE public.users DISABLE TRIGGER zz_records_embedding_consent_cas;
+    UPDATE public.users SET privacy_prefs = jsonb_build_object('records_embedding',true,
+      'records_embedding_revision',7,'records_embedding_recovery',bad) WHERE id = pg_temp.embed_user(1);
+    ALTER TABLE public.users ENABLE TRIGGER zz_records_embedding_consent_cas;
+    UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'recovery'
+      WHERE id = pg_temp.embed_user(11);
+    UPDATE public.users SET privacy_prefs = '{"records_embedding":false}' WHERE id = pg_temp.embed_user(1);
+    PERFORM pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding_revision' = '1'::jsonb
+      AND jsonb_typeof(privacy_prefs->'records_embedding_recovery') = 'string'
+      FROM public.users WHERE id = pg_temp.embed_user(1)), 'invalid recovery metadata normalizes');
+    PERFORM pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL
+      FROM public.records WHERE id = pg_temp.embed_user(11)), 'invalid recovery metadata withdrawal clears');
+    PERFORM pg_temp.enable_embedding(1);
+  END LOOP;
+END $$;
+ALTER TABLE public.users DISABLE TRIGGER zz_records_embedding_consent_cas;
+UPDATE public.users SET privacy_prefs = '{"records_embedding":true,"records_embedding_revision":"bad"}'
+  WHERE id = pg_temp.embed_user(1);
+ALTER TABLE public.users ENABLE TRIGGER zz_records_embedding_consent_cas;
+UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'recovery'
+  WHERE id = pg_temp.embed_user(11);
+UPDATE public.users SET display_name = 'revision recovery' WHERE id = pg_temp.embed_user(1);
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL
+  FROM public.records WHERE id = pg_temp.embed_user(11)), 'non-prefs recovery clears pair');
+SELECT pg_temp.enable_embedding(1);
+UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'model-a'
+  WHERE id = pg_temp.embed_user(11);
 
 -- R2-02: omitted model over an existing model is accepted, not guessed/cleared.
 UPDATE public.records SET embedding = array_fill(0.2::real, ARRAY[768])::public.vector WHERE id = pg_temp.embed_user(11);
@@ -51,6 +174,13 @@ SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS 
 UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'model-a' WHERE id = pg_temp.embed_user(11);
 UPDATE public.records SET user_id = pg_temp.embed_user(2) WHERE id = pg_temp.embed_user(11);
 SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records WHERE id = pg_temp.embed_user(11)), 'owner change clears even to consenting adult');
+UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'model-a' WHERE id = pg_temp.embed_user(11);
+UPDATE public.records SET user_id = pg_temp.embed_user(1), embedding = NULL, embedding_model = NULL WHERE id = pg_temp.embed_user(11);
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records WHERE id = pg_temp.embed_user(11)), 'owner change with explicit NULL never restores former vector');
+INSERT INTO public.records(id,user_id,kind,body,embedding,embedding_model)
+  VALUES(pg_temp.embed_user(31),pg_temp.embed_user(1),'note','delete',pg_temp.embed_vec(),'model-a');
+DELETE FROM public.records WHERE id = pg_temp.embed_user(31);
+SELECT pg_temp.check_embedding(NOT EXISTS(SELECT 1 FROM public.records WHERE id = pg_temp.embed_user(31)), 'ON single record DELETE stays valid');
 
 -- All non-boolean states revoke. Seed historical model-only data separately.
 DO $$ DECLARE prefs jsonb; BEGIN
@@ -146,6 +276,10 @@ SELECT pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding' = 'fal
 SELECT pg_temp.enable_embedding(5);
 SELECT pg_temp.check_embedding((SELECT privacy_prefs->'records_embedding' = 'true'::jsonb
   AND NOT (privacy_prefs ? 'records_embedding_enable_revision') FROM public.users WHERE id = pg_temp.embed_user(5)), 'authenticated fresh CAS consumes marker');
+UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'authenticated-new' WHERE id = pg_temp.embed_user(15);
+UPDATE public.records SET embedding = NULL, embedding_model = NULL WHERE user_id = pg_temp.embed_user(5);
+SELECT pg_temp.check_embedding((SELECT embedding = pg_temp.embed_vec() AND embedding_model = 'authenticated-new'
+  FROM public.records WHERE id = pg_temp.embed_user(15)), 'authenticated stale NULL preserves new pair under FORCE RLS');
 DO $$ DECLARE stale bigint; BEGIN
   SELECT (privacy_prefs->>'records_embedding_revision')::bigint INTO stale FROM public.users WHERE id = pg_temp.embed_user(5);
   UPDATE public.users SET privacy_prefs = '{"records_embedding":false}' WHERE id = pg_temp.embed_user(5);
@@ -186,7 +320,7 @@ SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS 
 RESET ROLE;
 SELECT pg_temp.check_embedding(NOT EXISTS(
   SELECT 1 FROM pg_proc p CROSS JOIN (VALUES ('anon'), ('authenticated'), ('service_role')) r(name)
-  WHERE p.oid IN ('public.guard_record_embedding_write()'::regprocedure, 'public.clear_record_embeddings_on_privacy_change()'::regprocedure, 'public.guard_records_embedding_consent()'::regprocedure)
+  WHERE p.oid IN ('public.guard_record_embedding_write()'::regprocedure, 'public.guard_record_embedding_delete()'::regprocedure, 'public.clear_record_embeddings_on_privacy_change()'::regprocedure, 'public.guard_records_embedding_consent()'::regprocedure)
     AND has_function_privilege(r.name, p.oid, 'EXECUTE')), 'no direct execution from public API roles');
 
 -- Ordering changes neither final state nor the old trigger results.

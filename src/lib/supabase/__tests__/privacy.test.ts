@@ -135,6 +135,26 @@ describe("explicit records embedding enable CAS", () => {
     expect(__insert).not.toHaveBeenCalled();
   });
 
+  test("binds a repaired revision to the freshly read server recovery token", async () => {
+    const recovery = "ec026300-0000-4000-8000-000000000001";
+    __maybeSingle.mockResolvedValue({ data: { privacy_prefs: {
+      records_embedding_revision: 1, records_embedding_recovery: recovery,
+    } }, error: null });
+    await savePrivacyPrefs("u1", prefs, options);
+    expect(__update).toHaveBeenCalledWith({ privacy_prefs: {
+      ...prefs, records_embedding_enable_revision: 2, records_embedding_enable_recovery: recovery,
+    } });
+  });
+
+  test.each([null, 7, "bad", {}])("invalid recovery metadata cannot write a grant: %#", async (recovery) => {
+    __maybeSingle.mockResolvedValue({ data: { privacy_prefs: {
+      records_embedding_revision: 1, records_embedding_recovery: recovery,
+    } }, error: null });
+    await expect(savePrivacyPrefs("u1", prefs, options)).rejects.toThrow("records_embedding_invalid_recovery");
+    expect(__update).not.toHaveBeenCalled();
+    expect(__insert).not.toHaveBeenCalled();
+  });
+
   test.each([
     [],
     [{ id: "other", privacy_prefs: prefs }],
