@@ -42,6 +42,14 @@
 4. 운영 실행자는 아래 읽기 확인, 기존 정책·권한의 전후 대조, 사용자 태그 무변경,
    적용 원장을 확인한다. PostgREST가 새 소스 칼럼을 조회할 수 있는지도 확인한다.
    운영의 실제 PostgREST 검증은 로컬 SQL·모의 HTTP 시험과 구분해 기록한다.
+   **앱 머지 전 읽기 전용 PostgREST 확인(QA 계정 토큰 · 쓰기 0)**: records 와 sources 각각에
+   `GET /rest/v1/<표>?select=id&system_tags=eq.{}&limit=1` 과
+   `GET /rest/v1/<표>?select=id&system_tags=eq.{"reasoning:ratified"}&limit=1` 을 보내 둘 다 200 이고
+   22P02 가 없는지 본다. `/rest/v1/` OpenAPI 에 `sources.system_tags` 가 보이는지도 본다(안 보이면
+   `NOTIFY pgrst, 'reload schema'` 뒤 다시). 비준 쓰기(PATCH)는 스키마 캐시로 본문 칼럼을 검사하므로
+   `select=*` 조회 성공만으로는 확인이 되지 않는다.
+   **앱이 0264 보다 먼저 나가면**: 소스 비준이 요청 전에 "Ratification requires a valid system_tags column" 으로
+   멈추고(쓰기 0 · 기록 비준은 0218 칸으로 정상) 화면에 적용 실패가 보인다. 그래서 서버 먼저 · 앱 나중이다.
 5. Relay가 완료 표시를 남기고 코디네이터가 운영 결과를 대조한다. 서버 확인 뒤 앱 PR을
    머지하고 8081·`app:parity`를 확인한다. 구현 담당은 머지·8081 조작을 하지 않는다.
 
