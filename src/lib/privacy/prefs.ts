@@ -25,10 +25,11 @@ export const PRIVACY_PREF_KEYS = [
   // D5 (2026-07-06): opt-in consent to build a semantic (embedding/kNN) index of
   // the user's records. Journal text is the most sensitive corpus, so this is OFF
   // by default, adults-only (hard-blocked for minors: NOT in MINOR_PROMOTABLE_KEYS),
-  // and deliberately NOT in VISIBLE_PRIVACY_KEYS yet — no settings toggle ships
-  // until the enforcer + consent copy land together (D-12 honesty rule). The
-  // enforcer already exists: records-embeddings.ts recordsEmbeddingAllowed reads
-  // this pref and the embedding write primitives fail closed without it.
+  // and uses its own consent control in the privacy screen, outside
+  // VISIBLE_PRIVACY_KEYS. recordsEmbeddingAllowed checks resolved consent before
+  // model calls; storeRecordEmbedding itself does not read consent. Once 0263 is
+  // installed, the database checks current consent and age at the final write
+  // and clears stored vectors/models in the same transaction as withdrawal.
   "records_embedding",
   // 대화 자동 저장 (Simon 2026-08-18). 세컨비와 오간 말을 위키에 자동으로 담는다.
   //
@@ -83,10 +84,11 @@ export function resolvePrivacyPrefs(stored: Record<string, unknown> | null | und
 // may *explicitly* promote it (off by default, opt-in allowed). Adults may
 // toggle every key.
 //
-// This is the UX layer of the protection; the server seeds these same defaults
-// for minors on sign-up (migration 0032). Server-side enforcement of minor
-// *updates* (so a tampered client cannot enable a locked key) is a separate
-// follow-up — this function alone is not a security boundary.
+// This is the UX layer. The server seeds minor defaults (0032), clamps privacy
+// INSERT/UPDATE (0033, extended by 0072 for records_embedding), and rebuilds the
+// prefs on an adult-to-minor birth-date change (0050). Those older triggers do
+// not erase stored vectors. 0263 adds that erasure and checks minor_tier-only
+// changes too; installation status is tracked separately in the ops runbook.
 // ops_push joins the exception list (Simon, 2026-06-11): it hands an event
 // the user just approved on screen to their OWN device calendar/share sheet —
 // a device-local hand-off, not an outward data flow — so a minor may promote

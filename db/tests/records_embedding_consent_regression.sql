@@ -1,0 +1,154 @@
+\set ON_ERROR_STOP on
+-- Full numbered schema only. All fixtures and deliberate anomalies roll back.
+BEGIN;
+SET LOCAL statement_timeout = '15s';
+SET LOCAL request.jwt.claim.role = 'service_role';
+CREATE FUNCTION pg_temp.check_embedding(ok boolean, label text) RETURNS void
+LANGUAGE plpgsql AS $$ BEGIN
+  IF ok IS DISTINCT FROM true THEN RAISE EXCEPTION 'embedding contract: %', label; END IF;
+END $$;
+CREATE FUNCTION pg_temp.embed_vec() RETURNS public.vector
+LANGUAGE sql AS $$ SELECT array_fill(0.1::real, ARRAY[768])::public.vector $$;
+CREATE FUNCTION pg_temp.embed_user(n integer) RETURNS uuid LANGUAGE sql IMMUTABLE
+AS $$ SELECT ('ec026300-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid $$;
+
+INSERT INTO auth.users(id, email)
+SELECT pg_temp.embed_user(n), 'embed-contract-' || n || '@example.invalid' FROM generate_series(1, 5) n;
+INSERT INTO public.users(id, email, birth_date, locale, privacy_prefs)
+SELECT pg_temp.embed_user(n), 'embed-contract-' || n || '@example.invalid', '1990-01-01', 'en',
+       '{"records_embedding":true}'::jsonb FROM generate_series(1, 5) n;
+INSERT INTO public.records(id, user_id, kind, body, embedding, embedding_model)
+SELECT pg_temp.embed_user(n + 10), pg_temp.embed_user(n), 'note', 'fixture', pg_temp.embed_vec(), 'model-a'
+  FROM generate_series(1, 5) n;
+SELECT pg_temp.check_embedding((SELECT count(*) = 5 FROM public.records WHERE id IN
+  (SELECT pg_temp.embed_user(n + 10) FROM generate_series(1,5) n) AND embedding IS NOT NULL), 'adult true writes preserved');
+
+-- R2-02: omitted model over an existing model is accepted, not guessed/cleared.
+UPDATE public.records SET embedding = array_fill(0.2::real, ARRAY[768])::public.vector WHERE id = pg_temp.embed_user(11);
+SELECT pg_temp.check_embedding((SELECT embedding_model = 'model-a' AND embedding = array_fill(0.2::real, ARRAY[768])::public.vector
+  FROM public.records WHERE id = pg_temp.embed_user(11)), 'legacy vector-only update retains existing model');
+UPDATE public.records SET embedding_model = NULL WHERE id = pg_temp.embed_user(11);
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records WHERE id = pg_temp.embed_user(11)), 'vector-only result cleared');
+UPDATE public.records SET embedding_model = 'model-only' WHERE id = pg_temp.embed_user(11);
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records WHERE id = pg_temp.embed_user(11)), 'model-only result cleared');
+UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'model-a' WHERE id = pg_temp.embed_user(11);
+UPDATE public.records SET user_id = pg_temp.embed_user(2) WHERE id = pg_temp.embed_user(11);
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records WHERE id = pg_temp.embed_user(11)), 'owner change clears even to consenting adult');
+
+-- All non-boolean states revoke. Seed historical model-only data separately.
+DO $$ DECLARE prefs jsonb; BEGIN
+  FOREACH prefs IN ARRAY ARRAY['{"records_embedding":false}'::jsonb, '{"records_embedding":"true"}'::jsonb,
+    '{"records_embedding":1}'::jsonb, '{"records_embedding":null}'::jsonb, '{}'::jsonb] LOOP
+    UPDATE public.users SET privacy_prefs = '{"records_embedding":true}' WHERE id = pg_temp.embed_user(1);
+    UPDATE public.records SET user_id = pg_temp.embed_user(1) WHERE id = pg_temp.embed_user(11);
+    UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'model-a' WHERE id = pg_temp.embed_user(11);
+    ALTER TABLE public.records DISABLE TRIGGER zz_records_embedding_write_guard;
+    INSERT INTO public.records(user_id, kind, body, embedding_model) VALUES(pg_temp.embed_user(1), 'note', 'historical half', 'orphan');
+    ALTER TABLE public.records ENABLE TRIGGER zz_records_embedding_write_guard;
+    UPDATE public.users SET privacy_prefs = prefs WHERE id = pg_temp.embed_user(1);
+    PERFORM pg_temp.check_embedding(NOT EXISTS(SELECT 1 FROM public.records WHERE user_id = pg_temp.embed_user(1)
+      AND (embedding IS NOT NULL OR embedding_model IS NOT NULL)), 'revocation includes historical model-only rows: ' || prefs::text);
+    INSERT INTO public.records(id, user_id, kind, body, embedding, embedding_model)
+      VALUES(pg_temp.embed_user(21), pg_temp.embed_user(1), 'note', 'late insert', pg_temp.embed_vec(), 'late')
+      ON CONFLICT (id) DO UPDATE SET embedding = EXCLUDED.embedding, embedding_model = EXCLUDED.embedding_model;
+    UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'late' WHERE id = pg_temp.embed_user(11);
+    PERFORM pg_temp.check_embedding(NOT EXISTS(SELECT 1 FROM public.records WHERE user_id = pg_temp.embed_user(1)
+      AND (embedding IS NOT NULL OR embedding_model IS NOT NULL)), 'late INSERT/UPSERT/UPDATE cleared: ' || prefs::text);
+  END LOOP;
+END $$;
+SELECT pg_temp.check_embedding((SELECT embedding IS NOT NULL AND embedding_model = 'model-a'
+  FROM public.records WHERE id = pg_temp.embed_user(12)), 'other user unaffected');
+
+UPDATE public.users SET birth_date = (CURRENT_DATE - INTERVAL '16 years')::date WHERE id = pg_temp.embed_user(2);
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records
+  WHERE id = pg_temp.embed_user(12)), 'adult to minor DOB transition clears');
+UPDATE public.users SET minor_tier = 'minor_guardian' WHERE id = pg_temp.embed_user(3);
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records
+  WHERE id = pg_temp.embed_user(13)), 'tier-only change clears');
+-- Neither test relies on the old minor privacy clamp. The stored true remains
+-- on tier-only changes, but both the tier and birth date must independently pass.
+UPDATE public.users SET minor_tier = 'adult' WHERE id = pg_temp.embed_user(2);
+ALTER TABLE public.users DISABLE TRIGGER trg_minor_privacy_clamp;
+UPDATE public.users SET privacy_prefs = '{"records_embedding":true}' WHERE id = pg_temp.embed_user(2);
+ALTER TABLE public.users ENABLE TRIGGER trg_minor_privacy_clamp;
+UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'late' WHERE id IN (pg_temp.embed_user(12), pg_temp.embed_user(13));
+INSERT INTO public.records(user_id, kind, body, embedding, embedding_model)
+SELECT pg_temp.embed_user(n), 'note', 'minor late insert', pg_temp.embed_vec(), 'late' FROM generate_series(2,3) n;
+SELECT pg_temp.check_embedding(NOT EXISTS(SELECT 1 FROM public.records WHERE user_id IN (pg_temp.embed_user(2), pg_temp.embed_user(3))
+  AND (embedding IS NOT NULL OR embedding_model IS NOT NULL)), 'DOB and tier each independently reject stale true');
+
+-- Impossible through ordinary signup: model historical unknown age explicitly.
+ALTER TABLE public.users DISABLE TRIGGER trg_enforce_user_age_tier;
+ALTER TABLE public.users ALTER COLUMN birth_date DROP NOT NULL;
+UPDATE public.users SET birth_date = NULL WHERE id = pg_temp.embed_user(4);
+UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'late' WHERE id = pg_temp.embed_user(14);
+INSERT INTO public.records(user_id, kind, body, embedding, embedding_model)
+VALUES(pg_temp.embed_user(4), 'note', 'unknown age insert', pg_temp.embed_vec(), 'late');
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records WHERE id = pg_temp.embed_user(14)), 'unknown DOB fails closed');
+SELECT pg_temp.check_embedding(NOT EXISTS(SELECT 1 FROM public.records WHERE user_id = pg_temp.embed_user(4)
+  AND (embedding IS NOT NULL OR embedding_model IS NOT NULL)), 'unknown DOB INSERT fails closed');
+UPDATE public.users SET birth_date = '1990-01-01' WHERE id = pg_temp.embed_user(4);
+ALTER TABLE public.users ALTER COLUMN birth_date SET NOT NULL;
+ALTER TABLE public.users ENABLE TRIGGER trg_enforce_user_age_tier;
+
+-- Trigger error aborts preference AND earlier record changes in the statement.
+CREATE FUNCTION pg_temp.reject_embed_clear() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+  IF NEW.user_id = pg_temp.embed_user(5) AND NEW.embedding IS NULL THEN
+    RAISE EXCEPTION 'injected_clear_failure';
+  END IF; RETURN NEW;
+END $$;
+CREATE TRIGGER zzz_test_reject_clear BEFORE UPDATE ON public.records FOR EACH ROW EXECUTE FUNCTION pg_temp.reject_embed_clear();
+DO $$ BEGIN
+  BEGIN
+    UPDATE public.users SET privacy_prefs = '{"records_embedding":false}' WHERE id = pg_temp.embed_user(5);
+    RAISE EXCEPTION 'withdrawal_should_fail';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'injected_clear_failure' THEN RAISE; END IF;
+  END;
+  PERFORM pg_temp.check_embedding((SELECT privacy_prefs -> 'records_embedding' = 'true'::jsonb FROM public.users WHERE id = pg_temp.embed_user(5)), 'failed withdrawal keeps ON');
+  PERFORM pg_temp.check_embedding((SELECT embedding IS NOT NULL FROM public.records WHERE id = pg_temp.embed_user(15)), 'failed withdrawal keeps vector');
+END $$;
+DROP TRIGGER zzz_test_reject_clear ON public.records;
+
+-- Actual role switching, not a JWT string pretending to be that role.
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.role = 'authenticated';
+SELECT set_config('request.jwt.claim.sub', pg_temp.embed_user(5)::text, true);
+UPDATE public.users SET privacy_prefs = '{"records_embedding":false}' WHERE id = pg_temp.embed_user(5);
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records WHERE id = pg_temp.embed_user(15)), 'authenticated withdrawal clears under FORCE RLS');
+UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'late-client' WHERE id = pg_temp.embed_user(15);
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records WHERE id = pg_temp.embed_user(15)), 'authenticated late write clears');
+DO $$ DECLARE n integer; BEGIN
+  UPDATE public.users SET privacy_prefs = '{"records_embedding":true}' WHERE id = pg_temp.embed_user(1);
+  GET DIAGNOSTICS n = ROW_COUNT;
+  PERFORM pg_temp.check_embedding(n = 0, 'foreign user update denied by RLS');
+  UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'intruder' WHERE id = pg_temp.embed_user(11);
+  GET DIAGNOSTICS n = ROW_COUNT;
+  PERFORM pg_temp.check_embedding(n = 0, 'foreign record update denied by RLS');
+END $$;
+RESET ROLE;
+
+-- CI's vanilla role has no BYPASSRLS attribute by default. Reproduce the real
+-- service role in this transaction only, then prove it cannot bypass the guard.
+ALTER ROLE service_role BYPASSRLS;
+GRANT SELECT, INSERT, UPDATE ON public.records TO service_role;
+SET LOCAL ROLE service_role;
+SET LOCAL request.jwt.claim.role = 'service_role';
+UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'service' WHERE id = pg_temp.embed_user(15);
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records WHERE id = pg_temp.embed_user(15)), 'service_role cannot bypass consent');
+RESET ROLE;
+SELECT pg_temp.check_embedding(NOT EXISTS(
+  SELECT 1 FROM pg_proc p CROSS JOIN (VALUES ('anon'), ('authenticated'), ('service_role')) r(name)
+  WHERE p.oid IN ('public.guard_record_embedding_write()'::regprocedure, 'public.clear_record_embeddings_on_privacy_change()'::regprocedure)
+    AND has_function_privilege(r.name, p.oid, 'EXECUTE')), 'no direct execution from public API roles');
+
+-- Ordering changes neither final state nor the old trigger results.
+ALTER TRIGGER zz_records_embedding_consent_changed ON public.users RENAME TO aa_test_embedding_consent;
+ALTER TRIGGER zz_records_embedding_write_guard ON public.records RENAME TO aa_test_embedding_write;
+UPDATE public.users SET privacy_prefs = '{"records_embedding":true}' WHERE id = pg_temp.embed_user(5);
+UPDATE public.records SET embedding = pg_temp.embed_vec(), embedding_model = 'reordered' WHERE id = pg_temp.embed_user(15);
+UPDATE public.users SET privacy_prefs = '{"records_embedding":false}' WHERE id = pg_temp.embed_user(5);
+SELECT pg_temp.check_embedding((SELECT embedding IS NULL AND embedding_model IS NULL FROM public.records WHERE id = pg_temp.embed_user(15)), 'reordered triggers still clear');
+ALTER TRIGGER aa_test_embedding_consent ON public.users RENAME TO zz_records_embedding_consent_changed;
+ALTER TRIGGER aa_test_embedding_write ON public.records RENAME TO zz_records_embedding_write_guard;
+ROLLBACK;
