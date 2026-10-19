@@ -848,7 +848,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       changeAngle("skip");
       return;
     }
-    const action = beginAction({ ...frameSnapshot(), draft: override ?? draft });
+    const action = beginAction({ ...frameSnapshot(), draft: override ?? draft,
+      ...(override !== undefined ? { openerSelection: undefined } : {}) });
     if (!action) return;
     const blocked = isLocalNonAnswer(text, pendingLayer);
     const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period,
