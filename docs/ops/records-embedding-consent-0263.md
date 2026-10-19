@@ -103,6 +103,7 @@ OFF 상태의 철회 삭제, OLD 반쪽 정리, 행 자체 DELETE는 계속 허�
 - `0262`(#2624) 및 다른 대기 마이그레이션을 포괄 `db push`로 함께 적용하지 않는다.
   `0263`은 0262의 새 문구 판본에 의존하지 않는다. 설치가 요구하는 선행 스키마·권한은
   설치 내부 검사에서 확인하며, 맞지 않으면 검사 자체를 약화하지 않는다.
+- 설치 검사가 확인하는 `authenticated` 의 열 권한은 아홉 개다(5회차 기준 · `0263` 의 설치 검증 블록): `users.privacy_prefs` SELECT · UPDATE, `users.id` SELECT, `records.id` · `records.user_id` · `records.embedding` · `records.embedding_model` SELECT, `records.embedding` · `records.embedding_model` UPDATE. 하나라도 없으면 설치가 실패하고 롤백된다. 위 「구현 4회차」 표의 넷은 그때의 기록이다.
 - 운영의 `postgres`가 superuser 또는 BYPASSRLS인지, 실제 요청의 `statement_timeout`과
   `lock_timeout`이 얼마인지 확인한다. 이 세션은 운영에 접속하지 않았다.
 - 설치 자체가 철회 동작을 바꾸므로, §2의 읽기 집계를 설치 전에도 실행해 최대 사용자
