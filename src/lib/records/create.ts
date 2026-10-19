@@ -67,6 +67,9 @@ export interface CreateRecordArgs {
    * retried once in the pre-0218 layout (markers in `tags`).
    */
   systemTags?: readonly string[];
+  /** New provenance must stay separate from user tags even on a pre-0218 DB.
+   *  When true, a missing column fails the save instead of using legacy tags. */
+  requireSystemTagsColumn?: boolean;
   /**
    * Domain the capture files under (별 담기: /star/<id> → capture), so the
    * piece lands on the star it was captured from. A permitted UX override —
@@ -353,6 +356,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   // fallback a select naming the column asks Postgres itself (gate ST-01): a table
   // that has the column never gets the pre-0218 layout (writeWithSystemTagsColumn).
   const insertRecord = (columnPresent: boolean) => {
+    if (args.requireSystemTagsColumn && !columnPresent) throw new Error("record_system_tags_required");
     storedTags = columnPresent ? tags : legacyTagLayout(tags, systemTags);
     return withTimeout(
       supabase

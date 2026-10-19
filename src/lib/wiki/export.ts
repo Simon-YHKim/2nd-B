@@ -21,6 +21,9 @@ import { classifyInputAnyLocale } from "../safety/classifier";
 import type { SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import { isAbortError, throwIfAborted } from "../async/abort";
+import { withSystemTagsColumn } from "../records/system-tags";
+import { hasNorthstarAiProvenance } from "../persona/northstar-provenance";
+import { withAiCopyTail } from "../chat/ai-mark";
 
 // P2-2 (persona sim): journal/note records are the user's MOST personal data,
 // and the danger-zone copy points at this export as the pre-delete backup —
@@ -33,9 +36,12 @@ export interface ExportRecordRow {
   body: string;
   created_at: string;
   tags: string[] | null;
+  system_tags?: string[] | null;
 }
 
 export interface ComposeOpts {
+  /** Localized secondb:aiCopyTail for explicitly attributed northstar records. */
+  aiCopyTail?: string;
   /** Header date stamp (defaults to today's ISO date). */
   asOf?: string;
   /** Optional user display name woven into the system prompt header. */
@@ -138,7 +144,7 @@ export function formatSource(s: SourceRow, locale: "en" | "ko"): string {
   return `- [${labelByKind[s.kind][locale]}] ${s.title}${url}${tags}${rel}${ingest}`;
 }
 
-export function formatRecord(r: ExportRecordRow, bodyCharLimit: number | undefined, locale: "en" | "ko"): string {
+export function formatRecord(r: ExportRecordRow, bodyCharLimit: number | undefined, locale: "en" | "ko", aiCopyTail?: string): string {
   const kindLabel: Record<string, { en: string; ko: string }> = {
     journal: { en: "Journal", ko: "일기" },
     note: { en: "Note", ko: "노트" },
@@ -154,6 +160,7 @@ export function formatRecord(r: ExportRecordRow, bodyCharLimit: number | undefin
   if (bodyCharLimit !== undefined && body.length > bodyCharLimit) {
     body = body.slice(0, bodyCharLimit) + STRINGS[locale].truncated(r.body.length);
   }
+  if (aiCopyTail && hasNorthstarAiProvenance(r)) body = withAiCopyTail(body, aiCopyTail);
   const title = r.topic && r.topic.trim().length > 0 ? ` - ${r.topic.trim()}` : "";
   return `### ${date} · ${label}${title}${tags}\n\n${body}`;
 }
@@ -200,7 +207,7 @@ export function composeWikiExport(
     const recordsBlock =
       records.length === 0
         ? strings.noRecords
-        : records.map((r) => formatRecord(r, opts.bodyCharLimit, locale)).join("\n\n");
+        : records.map((r) => formatRecord(r, opts.bodyCharLimit, locale, opts.aiCopyTail)).join("\n\n");
     parts.push(strings.recordsH, "", recordsBlock, "");
   }
 
@@ -234,14 +241,14 @@ export interface ExportUserWikiOpts extends ComposeOpts {
 
 async function listRecordsForExport(userId: string, limit: number): Promise<ExportRecordRow[]> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
+  const { data, error } = await withSystemTagsColumn((columnPresent) => supabase
     .from("records")
-    .select("kind, topic, body, created_at, tags")
+    .select(columnPresent ? "kind, topic, body, created_at, tags, system_tags" : "kind, topic, body, created_at, tags")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(limit));
   if (error) throw error;
-  return (data ?? []) as ExportRecordRow[];
+  return (data ?? []) as unknown as ExportRecordRow[];
 }
 
 export async function exportUserWiki(

@@ -44,7 +44,9 @@ const client = require("../../supabase/client") as { __captures: Record<string, 
 // real export.ts .select(...) so a read-side query change is caught here too.
 function exportRecordFields(): string[] {
   const src = readFileSync(join(__dirname, "../../wiki/export.ts"), "utf8");
-  const selects = [...src.matchAll(/\.select\(\s*"([^"]*)"\s*\)/g)].map((m) => m[1]);
+  // Read the current-column branch; the legacy branch is pinned separately in
+  // records-sources-data-shape.test.ts. Both are literal column lists.
+  const selects = [...src.matchAll(/\.select\(\s*(?:columnPresent\s*\?\s*)?"([^"]*)"/g)].map((m) => m[1]);
   const recordsSelect = selects.find(
     (s) => s.includes("kind") && s.includes("created_at") && s.includes("body"),
   );
@@ -64,6 +66,7 @@ describe("records <-> export field-shape contract", () => {
 
     const fields = exportRecordFields();
     expect(fields).toContain("created_at"); // guards against the select silently losing it
+    expect(fields).toContain("system_tags");
 
     for (const field of fields) {
       if (DB_DEFAULTED.has(field)) {
