@@ -224,7 +224,9 @@ function TrackGatedInterview({
   userId: string;
   age: number | null;
 }) {
-  const { t } = useTranslation("interview");
+  const { t, i18n } = useTranslation("interview");
+  const { isMinor } = useAuth();
+  const ownerSnapshot = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
   const { t: homeT } = useTranslation("home");
   const [entry, setEntry] = useState<StarEntryStatus | null>(null);
 
@@ -256,7 +258,9 @@ function TrackGatedInterview({
       </InterviewFrame>
     );
   }
-  return <InterviewSession period={period} growthOrigin={growthOrigin} />;
+  // A context change replaces every session ref and flow together, including ABA.
+  return <InterviewSession key={JSON.stringify([userId, period, i18n.language, isMinor, growthOrigin, ownerSnapshot])}
+    period={period} growthOrigin={growthOrigin} />;
 }
 
 interface InterviewGuidanceDelivery {
@@ -272,6 +276,8 @@ interface InterviewGuidanceDelivery {
 export interface SceneFrame {
   turns: InterviewTurn[]; coverage: Coverage; pendingLayer: DrillLayer | null; openers: string[];
   abandoned: DrillLayer[]; concreteOnly: boolean; stuckStreak: number; draft: string;
+  /** A completed scene's more question returns after its first safe adjudication. */
+  returnToChoice?: boolean;
 }
 interface FlowStamp {
   owner: AccountOwnerLease; instance: number; context: object; revision: number; epoch: number; history: InterviewTurn[];
@@ -298,6 +304,7 @@ export type SaveReceipt = { phase: "idle" } | ({ intent: SaveIntent; continuatio
 export interface InterviewFlow {
   revision: number; action: OrdinaryAction | null; choice: InterviewChoice | null;
   receipt: SaveReceipt; crisisLatched: boolean; crisisEpoch: number;
+  returnToChoice?: boolean;
 }
 type ViewState = { mode: "inactive" | "crisis-ended" | "legacy-ended" | "choosing" | "active" };
 function projectMode(current: boolean, crisis: boolean, ended: boolean, done: boolean, choice: InterviewChoice | null): ViewState {
@@ -423,7 +430,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     return Boolean(sessionOwner.current?.isCurrent()) && mounted.current && sessionContext.current === contextRef.current;
   }
   function frameSnapshot(): SceneFrame {
-    return { turns, coverage, pendingLayer, openers, abandoned, concreteOnly, stuckStreak, draft };
+    return { turns, coverage, pendingLayer, openers, abandoned, concreteOnly, stuckStreak, draft,
+      returnToChoice: flowRef.current.returnToChoice };
   }
   function stampCurrent(stamp: FlowStamp, revision = stamp.revision) {
     return stamp.owner.isCurrent() && sessionCurrent() && interviewInstance.current === stamp.instance
@@ -459,6 +467,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     action.history = frame.turns;
     turnsOwnerRef.current = frame.turns;
     flowRef.current.choice = nextChoice;
+    flowRef.current.returnToChoice = frame.returnToChoice;
     const current = () => stampCurrent(action, revision) && !ended.current;
     setTurns(previous => current() ? frame.turns : previous);
     setCoverage(previous => current() ? frame.coverage : previous);
@@ -473,7 +482,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   }
   function showChoice(action: OrdinaryAction, frame: SceneFrame,
     decision: { kind: "sceneChoice"; reason: SceneChoiceReason } | { kind: "stuckChoice"; layer: DrillLayer; attempts: 2 }): AskOutcome {
-    const snapshot = { ...frame, pendingLayer: null, openers: [] };
+    const snapshot = { ...frame, pendingLayer: null, openers: [], returnToChoice: false };
     const next: InterviewChoice = { ...decision, generation: {}, snapshot, action: null };
     commitFrame(action, snapshot, next);
     return decision.kind === "sceneChoice" ? "scene-choice" : "stuck-choice";
@@ -612,7 +621,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     setBusy(true);
     setNotice(null);
     const frame: SceneFrame = { ...action.snapshot, turns: history, coverage: cov, abandoned: giveUp,
-      draft: request.kind === "answer" ? "" : action.snapshot.draft };
+      draft: request.kind === "answer" ? "" : action.snapshot.draft,
+      returnToChoice: request.kind === "question-only" ? request.actionKind === "more" : action.snapshot.returnToChoice };
+    const returnAfterMore = (): AskOutcome | null => {
+      if (!frame.returnToChoice) return null;
+      frame.returnToChoice = false;
+      const status = sceneStatus(frame.turns, period, locale, frame.abandoned, frame.concreteOnly);
+      return status.kind === "incomplete" ? null : showChoice(action, frame,
+        { kind: "sceneChoice", reason: status.kind === "noEligible" ? "no-eligible" : status.reason });
+    };
     const local = (target: DrillLayer, candidate?: ProbeResult, localQuestion?: string, scaffoldStreak?: number) =>
       acceptQuestion({ candidate, target,
         eligible: sceneStatus(frame.turns, period, locale, frame.abandoned, frame.concreteOnly).eligible,
@@ -629,6 +646,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         frame.stuckStreak = failedAttempts(history, stuck.layer, locale);
         const failure = failedAttemptMove(stuck.layer, frame.stuckStreak);
         if (failure?.kind === "stuckChoice") return showChoice(action, frame, failure);
+        const completedMore = returnAfterMore();
+        if (completedMore) return completedMore;
         return acceptIntoFrame(action, frame, local(stuck.layer, undefined, scaffoldQuestion(stuck.layer, locale, 1), 1));
       }
       // Question-only never adjudicates an old answer. Concrete more is entirely local.
@@ -665,10 +684,14 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         const setCoverage = (next: Coverage) => { frame.coverage = next; };
         if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));
         if (credited) frame.stuckStreak = failedAttempts(frame.turns, credited, locale);
-        if (credited && otherLayer) return acceptIntoFrame(action, frame, local(credited));
-        if (credited && !confirmed) {
+        if (credited && !otherLayer && !confirmed) {
           const failure = failedAttemptMove(credited, frame.stuckStreak);
           if (failure?.kind === "stuckChoice") return showChoice(action, frame, failure);
+        }
+        const completedMore = returnAfterMore();
+        if (completedMore) return completedMore;
+        if (credited && otherLayer) return acceptIntoFrame(action, frame, local(credited));
+        if (credited && !confirmed) {
           return acceptIntoFrame(action, frame, local(credited, undefined, scaffoldQuestion(credited, locale, 1), 1));
         }
         const status = sceneStatus(frame.turns, period, locale, frame.abandoned, frame.concreteOnly);
@@ -756,9 +779,9 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   // 곧바로 그 말을 보낸다 — 상태 갱신은 다음 렌더에나 반영돼서, 그 사이에 보내면
   // 직전 draft(대개 빈 문자열)가 나간다.
   async function send(override?: string) {
-    if (!userId || !sessionCurrent() || ended.current) return;
+    if (!userId || !sessionCurrent()) return;
     const text = (override ?? draft).trim();
-    const ordinaryLocked = busy || sending.current || !coverageReady || flowRef.current.action || flowRef.current.choice
+    const ordinaryLocked = ended.current || busy || sending.current || !coverageReady || flowRef.current.action || flowRef.current.choice
       || flowRef.current.receipt.phase !== "idle" || turnsOwnerRef.current !== turns;
     if (text.length === 0) {
       if (!ordinaryLocked) setNotice(t("drill.emptyAnswer"));
@@ -770,6 +793,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     // coverage·nextMove·nextProbe는 건드리지 않는다.
     const safety = classifyInputAnyLocale(text, locale, { minor: isMinor === true });
     if (safety.zone === "red") {
+      if (flowRef.current.crisisLatched) return;
       const owner = captureAccountOwnerLease(userId);
       if (!owner) return;
       const route = startInterviewCrisisRouting(
@@ -833,7 +857,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       }
       commitFrame(action, { ...frame, turns: [...frame.turns, { role: "interviewer", text: t("drill.anotherScene"),
         layer: "fact", period, sceneStart: true }], pendingLayer: "fact", concreteOnly: false,
-        abandoned: [], stuckStreak: 0, openers: [], draft: "" });
+        abandoned: [], stuckStreak: 0, openers: [], draft: "", returnToChoice: false });
       const revision = action.revision;
       setDraft(previous => stampCurrent(action, revision) && !ended.current ? "" : previous);
       setNotice(previous => stampCurrent(action, revision) && !ended.current ? null : previous);
@@ -908,7 +932,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     receipt.effectsStarted = true;
     setToast(previous => canContinueSave(intent) ? { tone: "success", message: t("drill.saved") } : previous);
     if (!canContinueSave(intent)) return;
-    if (saveCueAllowed({ crisis: false, recording: isRecordingAudioMode() }) && canContinueSave(intent)) playSaveCue();
+    if (saveCueAllowed({ crisis: false, recording: isRecordingAudioMode() })) playSaveCue();
     if (!canContinueSave(intent)) return;
     void loadSevenLevels(intent.input.userId).then((s) => {
       if (canContinueSave(intent)) return recordSevenTiers(intent.input.userId, s.starLevels);
@@ -1001,6 +1025,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     try {
       if (!canContinueSave(intent)) return;
       const saved = await createRecord(intent.input);
+      // Fence synchronous subscribers before publication; the root store owns the lease check.
+      if (saved?.followup?.zone === "red") latchCrisis();
       const recordId = typeof saved?.id === "string" && saved.id.trim() ? saved.id : null;
       canContinueSave(intent);
       const current = flowRef.current.receipt;
@@ -1008,10 +1034,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       writeReceipt(recordId
         ? { phase: "coveragePending", intent, continuation: current.continuation, recordId, coverage: "ready" }
         : { phase: "recordPending", intent, continuation: current.continuation, record: "unknown" });
-      if (saved?.followup?.zone === "red" && owner.isCurrent()) {
-        latchCrisis();
-        try { publishCrisisNotice(owner, saved.crisisHotline ?? hotlineFor()); }
-        finally { if (owner.isCurrent() && mounted.current && interviewInstance.current === intent.instance) finish(); }
+      if (!saved) { showSaveFailure(intent); return; }
+      if (saved.followup?.zone === "red") {
+        publishCrisisNotice(owner, saved.crisisHotline ?? hotlineFor());
+        if (owner.isCurrent() && mounted.current && interviewInstance.current === intent.instance) finish();
         return;
       }
       if (!canContinueSave(intent)) return;

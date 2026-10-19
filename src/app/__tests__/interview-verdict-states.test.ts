@@ -8,9 +8,11 @@ import { prepareInterviewDraftRestore } from "../../lib/interview/draft-restore"
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as ts from "typescript";
-import { captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../lib/auth/account-epoch";
+import { accountTransitionSnapshot, captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, noteResolvedOwner, subscribeAccountTransition } from "../../lib/auth/account-epoch";
+import { dismissCrisisNotice, getCrisisNotice, publishCrisisNotice } from "../../lib/safety/crisis-notice";
+import { hookHarness } from "../../lib/nav/__tests__/hook-harness";
 import { answerDisposition, canCreditAnswer, confirmedAnswer, currentScene } from "../../lib/interview/continuity";
-import { DRILL_LAYERS, LIFE_PERIODS, emptyCoverage, incrementCoverage, nextMove, nextProbe, seedQuestion, usableQuestion, type Coverage, type DrillLayer, type InterviewTurn } from "../../lib/interview/probe";
+import { DRILL_LAYERS, LIFE_PERIODS, emptyCoverage, incrementCoverage, nextMove, nextProbe, seedQuestion, usableQuestion, type Coverage, type DrillLayer, type InterviewTurn, type ProbeResult } from "../../lib/interview/probe";
 import { storedTurns, storyTitle } from "../../lib/interview/saved-story";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "../../lib/interview/session-end";
 import { isNonAnswer, MAX_SCAFFOLDS_PER_LAYER, scaffoldQuestion, shouldScaffold } from "../../lib/interview/stuck";
@@ -618,6 +620,134 @@ function reply(verdict: string | undefined, question = "What did you do after yo
   return { text: JSON.stringify({ answeredLayer: verdict, question, openers }), safety: { zone: "green" } } as never;
 }
 
+// Run the actual gate/session hook bodies and their effects, with no RN renderer.
+// Only the final session JSX is replaced by an observation of its callbacks/state.
+// The gate's real JSX key drives mount/unmount; no context reset logic is copied.
+function contextHarness() {
+  noteResolvedOwner(null); noteResolvedOwner("A"); clearAccountTransition(currentAccountEpoch());
+  const oldNotice = getCrisisNotice(); if (oldNotice) dismissCrisisNotice(oldNotice.id);
+  const context = { language: "en", userId: "A", isMinor: false, period: "work", growthOrigin: false };
+  const gateHooks = hookHarness();
+  let sessionHooks = hookHarness();
+  const native = { InterviewFrame: "frame", View: "view", PremiumLoadingState: "loading", MdCard: "card", Text: "text",
+    styles: {}, m3TextStyle: () => ({}) };
+  const probe = jest.fn().mockResolvedValue({ zone: "green", layer: "feeling", question: "How did that moment feel?", questionSource: "model", answeredLayer: "fact" });
+  const scope = {
+    ...sceneProbe, ...sceneStuck, ...sceneEnd, ...native, projectMode: callback("projectMode", {}),
+    useTranslation: () => ({ t: (key: string) => key, i18n: { language: context.language } }),
+    useAuth: () => ({ userId: context.userId, isMinor: context.isMinor, age: 30 }),
+    useAppRouter: () => ({ replace: jest.fn() }), useKeyboard: () => 0, useGoHomeStop: () => {},
+    useUiSound: () => jest.fn(), RECORD_SAVE_CUE: { source: 0 },
+    loadCoverage: jest.fn().mockResolvedValue(emptyCoverage()),
+    loadSevenLevels: jest.fn().mockResolvedValue({ starLevels: {} }), starEntryStatus: () => ({ kind: "available" }),
+    livedPeriods: () => ["work"], accountTransitionSnapshot, subscribeAccountTransition, captureAccountOwnerLease,
+    resolveProbeGuidanceCopy, classifyInputAnyLocale, answerDisposition, canCreditAnswer, confirmedAnswer, currentScene,
+    nextProbe: probe, publishCrisisNotice,
+    React: { createElement: (type: unknown, props: Record<string, unknown>) => ({ type, key: props?.key, props }) },
+    InterviewSession: "session",
+  };
+  function compile(name: string, hooks: ReturnType<typeof hookHarness>, observe = false) {
+    const node = source.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === name) as ts.FunctionDeclaration;
+    let text = node.getText(source);
+    if (observe) {
+      const last = node.body!.statements.at(-1)!;
+      if (!ts.isReturnStatement(last)) throw new Error("Session no longer ends with its JSX return");
+      text = text.replace(last.getText(source), "return { send, finish, editDraft, view, turns, coverage, pendingLayer, draft, busy, flowRef, sessionCurrent, contextRef, sessionContext, mounted };");
+    }
+    const bindings = { ...scope, ...hooks.hooks };
+    const js = ts.transpileModule(text, { fileName: "context.tsx", compilerOptions: {
+      target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
+    } }).outputText;
+    return new Function(...Object.keys(bindings), `${js}\nreturn ${name};`)(...Object.values(bindings));
+  }
+  const gate = compile("TrackGatedInterview", gateHooks);
+  let session = compile("InterviewSession", sessionHooks, true);
+  let key: unknown = Symbol("not-mounted");
+  const read = () => sessionHooks.render(() => session(context)) as {
+    send: (text: string) => Promise<unknown>; editDraft: (text: string) => void;
+    view: { mode: string }; turns: InterviewTurn[]; coverage: Coverage; pendingLayer: DrillLayer | null;
+    draft: string; busy: boolean; flowRef: { current: InterviewFlow }; mounted: { current: boolean };
+  };
+  async function render() {
+    const props = { ...context, age: 30 };
+    gateHooks.render(() => gate(props)); await Promise.resolve();
+    const element = gateHooks.render(() => gate(props)) as { key: unknown; type: string };
+    expect(element.type).toBe("session");
+    if (key !== element.key) {
+      sessionHooks.unmount(); sessionHooks = hookHarness();
+      session = compile("InterviewSession", sessionHooks, true); key = element.key;
+    }
+    read(); await Promise.resolve();
+    return read();
+  }
+  return { context, probe, render, read, unmount: () => { sessionHooks.unmount(); gateHooks.unmount(); } };
+}
+
+test("F3 actual context-key rerenders discard old green and leave both new and restored language usable", async () => {
+  const h = contextHarness();
+  try {
+    const first = await h.render();
+    const d = deferred<ProbeResult>(); h.probe.mockImplementationOnce(() => d.promise);
+    const pending = first.send("I left the office after the meeting");
+    h.context.language = "ko";
+    const korean = await h.render();
+    expect(korean.view.mode).toBe("active"); expect(first.mounted.current).toBe(false);
+    expect(korean.flowRef).not.toBe(first.flowRef);
+    d.resolve({ zone: "green", layer: "feeling", question: "OLD GREEN QUESTION?", openers: [], answeredLayer: "fact", questionSource: "model" });
+    await pending;
+    korean.editDraft("새 문맥의 답");
+    expect(h.read().draft).toBe("새 문맥의 답");
+    expect(h.read().coverage).toEqual(emptyCoverage());
+    expect(h.read().turns.some(t => t.text === "OLD GREEN QUESTION?")).toBe(false);
+    await h.read().send("회의를 마치고 집으로 돌아왔어요");
+    expect(h.read().coverage.work.fact).toBe(1); expect(h.read().busy).toBe(false);
+    h.context.language = "en";
+    const restored = await h.render();
+    expect(restored.view.mode).toBe("active"); expect(restored.flowRef).not.toBe(first.flowRef);
+    expect(restored.flowRef).not.toBe(korean.flowRef);
+    expect(restored.coverage).toEqual(emptyCoverage());
+    await restored.send("I left the office after the meeting");
+    expect(h.read().coverage.work.fact).toBe(1); expect(h.read().busy).toBe(false);
+  } finally { h.unmount(); }
+});
+
+test.each(["response", "callback"])("F3 previous context RED %s reaches the root after remount", async source => {
+  const h = contextHarness();
+  try {
+    const first = await h.render(), d = deferred<ProbeResult>(); h.probe.mockImplementationOnce(() => d.promise);
+    const pending = first.send("I left the office after the meeting");
+    h.context.language = "ko";
+    const next = await h.render();
+    if (source === "callback") {
+      const args = h.probe.mock.calls[0] as unknown as Parameters<typeof nextProbe>;
+      args[8]?.("KR_119");
+    }
+    d.resolve(source === "response" ? { zone: "red", hotline: "KR_119", layer: "fact", question: "", openers: [] }
+      : { zone: "green", layer: "feeling", question: "OLD GREEN QUESTION?", openers: [], answeredLayer: "fact", questionSource: "model" });
+    await pending;
+    expect(getCrisisNotice()?.hotline).toBe("KR_119");
+    expect(h.read().flowRef).toBe(next.flowRef);
+    expect(h.read().coverage).toEqual(emptyCoverage());
+    expect(h.read().turns).toHaveLength(1);
+  } finally { h.unmount(); const notice = getCrisisNotice(); if (notice) dismissCrisisNotice(notice.id); }
+});
+
+test.each(["isMinor", "growthOrigin", "userId", "owner-ABA", "language-es"])("F3 session identity also follows %s", async field => {
+  const h = contextHarness();
+  try {
+    const first = await h.render(); first.editDraft("OLD DRAFT");
+    if (field === "isMinor") h.context.isMinor = true;
+    if (field === "growthOrigin") h.context.growthOrigin = true;
+    if (field === "userId") { h.context.userId = "B"; noteResolvedOwner("B"); clearAccountTransition(currentAccountEpoch()); }
+    if (field === "owner-ABA") { noteResolvedOwner("B"); noteResolvedOwner("A"); clearAccountTransition(currentAccountEpoch()); }
+    if (field === "language-es") h.context.language = "es";
+    const next = await h.render();
+    expect(first.mounted.current).toBe(false); expect(next.flowRef).not.toBe(first.flowRef);
+    expect(next.view.mode).toBe("active"); expect(next.draft).toBe("");
+    next.editDraft("NEW DRAFT"); expect(h.read().draft).toBe("NEW DRAFT");
+  } finally { h.unmount(); }
+});
+
 test.each(["fact", "none", "belief", undefined])("S2 question-only more leaves previous verdicts and coverage intact: %s", async verdict => {
   const h = await completed(); const users = h.state.turns.filter(t => t.role === "user"), cov = h.state.coverage;
   const choice = h.state.choice!; llm.mockResolvedValueOnce(reply(verdict));
@@ -629,6 +759,90 @@ test.each(["fact", "none", "belief", undefined])("S2 question-only more leaves p
   await h.submit("fact", 10, "What happened outside?");
   expect(h.state.choice).toMatchObject({ kind: "sceneChoice", reason: "first-pass-handled" });
   expect(h.state.coverage.work.fact).toBe(2); expect(h.state.done).toBe(false);
+});
+
+test.each(["ko", "en"] as const)("F1 finish then queued %s RED still reaches C9; ordinary input stays ended", async locale => {
+  const h = setup(locale);
+  const classify = jest.fn(classifyInputAnyLocale);
+  Object.assign(h.scope, { classifyInputAnyLocale: classify });
+  const queued = h.render().send;
+  h.scope.finish();
+  const before = { ...h.state };
+  await queued(h.text);
+  expect(classify).toHaveBeenCalledTimes(1);
+  expect(h.state).toEqual(before);
+  await queued(locale === "ko" ? "죽고 싶어요" : "I want to die");
+  expect(classify).toHaveBeenCalledTimes(2);
+  expect(h.scope.startInterviewCrisisRouting).toHaveBeenCalledTimes(1);
+  expect(h.scope.publishCrisisNotice).toHaveBeenCalledTimes(1);
+  expect(h.scope.flowRef.current.crisisLatched).toBe(true);
+  expect(h.state.turns).toBe(before.turns);
+  expect(h.state.coverage).toBe(before.coverage);
+  expect(llm).not.toHaveBeenCalled();
+});
+
+test.each([false, true])("F2 more returns after the first safe local/none/other verdict (concrete=%s)", async concrete => {
+  for (const verdict of ["local", "none", "other"] as const) {
+    const h = await completed(concrete);
+    if (!concrete) llm.mockResolvedValueOnce(reply("fact"));
+    await h.render().choose("more", h.state.choice);
+    const before = h.state.turns, cov = h.state.coverage, calls = llm.mock.calls.length;
+    if (verdict !== "local") llm.mockResolvedValueOnce(reply(verdict === "other" ? "belief" : "none"));
+    await h.render().send(verdict === "local" ? "I don't know" : h.text);
+    expect(h.state.choice).toMatchObject({ kind: "sceneChoice", reason: concrete ? "concrete-progress" : "first-pass-handled" });
+    expect(h.state.turns).toHaveLength(before.length + 1);
+    expect(h.state.turns.at(-1)).toMatchObject({ role: "user", answered: verdict === "other" ? null : false });
+    expect(h.state.coverage).toBe(cov);
+    expect(h.state.stuckStreak).toBe(verdict === "other" ? 0 : 1);
+    expect(h.state.pendingLayer).toBeNull();
+    expect(h.state.openers).toEqual([]);
+    expect(llm).toHaveBeenCalledTimes(calls + (verdict === "local" ? 0 : 1));
+    expect(h.state.choice?.snapshot.returnToChoice).toBe(false);
+  }
+});
+
+test.each(["local", "none"])("F2 a second %s failure after another more keeps the two-failure priority", async verdict => {
+  const h = await completed();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    llm.mockResolvedValueOnce(reply("fact", `What happened in moment ${attempt}?`));
+    await h.render().choose("more", h.state.choice);
+    if (verdict === "none") llm.mockResolvedValueOnce(reply("none"));
+    await h.render().send(verdict === "local" ? "I don't know" : h.text);
+  }
+  expect(h.state.choice).toMatchObject({ kind: "stuckChoice", layer: "fact", attempts: 2 });
+  expect(h.state.coverage.work.fact).toBe(1);
+  expect(h.state.choice?.snapshot.returnToChoice).toBe(false);
+});
+
+test.each(["error", "quota", "red", "early-red"])("F2 more answer %s cannot consume a safe verdict or append another question", async outcome => {
+  const h = await completed(); llm.mockResolvedValueOnce(reply("fact"));
+  await h.render().choose("more", h.state.choice);
+  const before = h.state.turns, cov = h.state.coverage;
+  const d = deferred<never>(); llm.mockImplementationOnce(() => d.promise);
+  const pending = h.render().send(h.text);
+  if (outcome === "error") d.reject(new Error("offline"));
+  else if (outcome === "quota") d.reject({ context: new Response(JSON.stringify({ error: "daily_limit_exceeded" }), { status: 429 }) });
+  else {
+    if (outcome === "early-red") llm.mock.calls.at(-1)![0].onCrisisDetected?.("KR_119");
+    d.resolve({ text: "{}", safety: outcome === "red" ? { zone: "red", crisisRouting: { hotline: "KR_119" } } : { zone: "green" } } as never);
+  }
+  await pending;
+  expect(h.state.coverage).toBe(cov);
+  expect(h.state.choice).toBeNull();
+  expect(h.state.turns.filter(t => t.role === "interviewer")).toEqual(before.filter(t => t.role === "interviewer"));
+  if (outcome === "error" || outcome === "quota") {
+    expect(h.state.done).toBe(false);
+    if (outcome === "error") expect(h.state.turns.at(-1)).toMatchObject({ unsettled: true });
+    else expect(h.state.turns).toBe(before);
+    llm.mockResolvedValueOnce(reply("belief"));
+    await h.render().send(h.text);
+    expect(h.state.choice).toMatchObject({ kind: "sceneChoice", reason: "first-pass-handled" });
+    expect(h.state.choice?.snapshot.returnToChoice).toBe(false);
+  } else {
+    expect(h.state.done).toBe(true);
+    expect(h.scope.publishCrisisNotice).toHaveBeenCalledTimes(1);
+    expect(h.scope.flowRef.current.crisisLatched).toBe(true);
+  }
 });
 test("S2 concrete answers and more use local fact questions without model openers", async () => {
   const h = setup("en"); h.render().change("concrete"); expect(llm).not.toHaveBeenCalled();
@@ -794,6 +1008,20 @@ describe("S2 actual save receipts", () => {
     await h.render().save(h.state.choice);
     expect(h.scope.flowRef.current.crisisLatched).toBe(true); expect(h.scope.flowRef.current.receipt).toMatchObject({ recordId: "red-record", continuation: "interrupted" });
     expect(h.scope.createRecord).toHaveBeenCalledTimes(1); expect(h.scope.addCoverage).not.toHaveBeenCalled();
+  });
+  test.each(["unmount", "owner-change"])("save-result RED after %s delegates ownership to the root notice store", async change => {
+    const h = await completed();
+    const publish = jest.fn(publishCrisisNotice); Object.assign(h.scope, { publishCrisisNotice: publish });
+    const d = deferred<never>(); h.scope.createRecord.mockImplementationOnce(() => d.promise);
+    const pending = h.render().save(h.state.choice);
+    if (change === "unmount") h.scope.mounted.current = false;
+    else noteResolvedOwner("B");
+    d.resolve({ id: "late-red", followup: { zone: "red" }, crisisHotline: "KR_119" } as never);
+    await pending;
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(getCrisisNotice()?.hotline).toBe(change === "unmount" ? "KR_119" : undefined);
+    expect(h.scope.addCoverage).not.toHaveBeenCalled(); expect(h.state.toast).toBeNull();
+    const notice = getCrisisNotice(); if (notice) dismissCrisisNotice(notice.id);
   });
   test("RED while tiers load prevents history write and the 700ms return", async () => {
     const h = await completed(); const levels = deferred<{ starLevels: object }>(); h.scope.loadSevenLevels.mockReturnValueOnce(levels.promise);
