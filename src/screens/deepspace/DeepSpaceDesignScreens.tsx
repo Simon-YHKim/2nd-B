@@ -2673,7 +2673,7 @@ export function DeepSpaceFormatsScreen() {
         const r = await exportIden(userId, { locale, minor: isMinor === true, aiCopyTail: t("secondb:aiCopyTail") });
         setResult({ text: r.html, name: r.htmlFilename });
       } else if (format === "markdown") {
-        const r = await exportUserWiki(userId, { locale, includeRecords });
+        const r = await exportUserWiki(userId, { locale, includeRecords, aiCopyTail: t("secondb:aiCopyTail") });
         setResult({ text: r.prompt, name: "polascope-wiki.md" });
       } else {
         const doc = await buildIdenDoc(userId, { locale, minor: isMinor === true });

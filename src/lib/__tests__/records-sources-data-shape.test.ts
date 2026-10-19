@@ -15,8 +15,8 @@ const recordRows: Array<InsertRecordRow & { id: string; created_at: string }> = 
 const sourceRows: SourceRow[] = [];
 const wikiRows: WikiPageRow[] = [];
 const repoRoot = path.resolve(__dirname, "../../..");
-const RECORD_EXPORT_FIELDS = ["kind", "topic", "body", "created_at", "tags"] as const;
-const RECORD_INSERT_PARITY_FIELDS = ["kind", "topic", "body", "tags"] as const;
+const RECORD_EXPORT_FIELDS = ["kind", "topic", "body", "created_at", "tags", "system_tags"] as const;
+const RECORD_INSERT_PARITY_FIELDS = ["kind", "topic", "body", "tags", "system_tags"] as const;
 const RECORD_DB_DEFAULT_FIELDS = ["created_at"] as const;
 
 jest.mock("../llm/boundary", () => ({
@@ -189,9 +189,24 @@ function sourcesCreatedAtViolations(): string[] {
   return violations;
 }
 
-function recordExportSelectFields(): string[] {
+function recordExportSelectFields(columnPresent = true): string[] {
   const source = readFileSync(path.join(repoRoot, "src", "lib", "wiki", "export.ts"), "utf8");
-  const selects = tableQueryBlocks(source, "records").flatMap(selectArgs);
+  const ast = ts.createSourceFile("export.ts", source, ts.ScriptTarget.Latest, true);
+  const selects: string[] = [];
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "select" && expressionContainsFromTable(node.expression.expression, "records")) {
+      const arg = node.arguments[0];
+      if (!arg || !ts.isConditionalExpression(arg) || arg.condition.getText(ast) !== "columnPresent") {
+        throw new Error("Records export must select both 0218 and legacy column layouts");
+      }
+      const selected = columnPresent ? arg.whenTrue : arg.whenFalse;
+      if (!ts.isStringLiteral(selected)) throw new Error("Expected literal records columns");
+      selects.push(selected.text);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
   if (selects.length !== 1) {
     throw new Error(`Expected one records export select, found ${selects.length}`);
   }
@@ -326,6 +341,7 @@ describe("records and sources data-shape contract", () => {
     const insertKeys = createRecordInsertKeys();
 
     expect(exportFields).toEqual([...RECORD_EXPORT_FIELDS]);
+    expect(recordExportSelectFields(false)).toEqual(RECORD_EXPORT_FIELDS.filter((field) => field !== "system_tags"));
     expect(insertKeys).toEqual(expect.arrayContaining([...RECORD_INSERT_PARITY_FIELDS]));
     for (const field of RECORD_DB_DEFAULT_FIELDS) {
       expect(insertKeys).not.toContain(field);

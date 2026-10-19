@@ -48,11 +48,16 @@ export interface BuildIdenExportOpts extends RenderIdenOpts {
   include?: readonly string[];
 }
 
-/** Keep JSON/YAML parseable and HTML escaped by labelling the summary before
- *  serialization. Do not change the stored document or label measured fields. */
+/** Label model summaries and attributed northstar sentences before serialization,
+ *  keeping JSON/YAML parseable and HTML escaped without changing stored text. */
 export function withIdenAiCopyTail(doc: IdenDoc, tail: string | undefined): IdenDoc {
-  if (!tail || !doc.summary?.text.trim() || doc.summary.source.kind !== "ai_summary") return doc;
-  return { ...doc, summary: { ...doc.summary, text: withAiCopyTail(doc.summary.text, tail) } };
+  if (!tail) return doc;
+  const summary = doc.summary?.text.trim() && doc.summary.source.kind === "ai_summary"
+    ? { ...doc.summary, text: withAiCopyTail(doc.summary.text, tail) } : doc.summary;
+  const oneLiner = doc.oneLinerAiSuggested && doc.oneLiner.trim()
+    ? withAiCopyTail(doc.oneLiner, tail) : doc.oneLiner;
+  if (summary === doc.summary && oneLiner === doc.oneLiner) return doc;
+  return { ...doc, oneLiner, ...(summary ? { summary } : {}) };
 }
 
 /** ASCII slug for a filename; empty when nothing survives (e.g. Hangul). Capped

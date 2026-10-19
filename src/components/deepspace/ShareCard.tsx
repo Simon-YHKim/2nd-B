@@ -186,7 +186,7 @@ export function ShareCard({ variant, insight, aiCopyTail, pieceCount, litCount =
         </View>
       )}
       {aiCopyTail ? (
-        <Text style={[styles.footerText, styles.disclosure, inkColor(), { left: 12 * k, right: 12 * k, bottom: 10 * k, fontSize: 11 * k, lineHeight: 14 * k }]}>
+        <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.footerText, styles.disclosure, inkColor(), { left: 12 * k, right: 12 * k, bottom: 10 * k, fontSize: 11 * k, lineHeight: 14 * k }]}>
           {aiCopyTail}
         </Text>
       ) : null}

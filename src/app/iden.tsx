@@ -220,17 +220,17 @@ function IdenExportScreenDeepSpace() {
       return;
     }
     try {
-      const result = buildIdenExport(currentExportDoc(), { locale });
+      const result = buildIdenExport(currentExportDoc(), { locale, aiCopyTail: t("secondb:aiCopyTail") });
       await Share.share({ message: result.iden });
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[iden] export/share failed", (e as Error).message);
     }
-  }, [hasData, locale, currentExportDoc, router]);
+  }, [hasData, locale, currentExportDoc, router, t]);
 
   const handleCopyJson = useCallback(async () => {
     if (!hasData) return;
     try {
-      const result = buildIdenExport(currentExportDoc(), { locale });
+      const result = buildIdenExport(currentExportDoc(), { locale, aiCopyTail: t("secondb:aiCopyTail") });
       await Clipboard.setStringAsync(result.json);
       setNotice(t("ds.jsonCopied"));
     } catch (e) {
@@ -247,7 +247,7 @@ function IdenExportScreenDeepSpace() {
   const handlePreview = useCallback(async () => {
     if (!hasData) return;
     try {
-      const result = buildIdenExport(currentExportDoc(), { locale });
+      const result = buildIdenExport(currentExportDoc(), { locale, aiCopyTail: t("secondb:aiCopyTail") });
       if (Platform.OS === "web") {
         openSheetInNewTab(result.html);
       } else {

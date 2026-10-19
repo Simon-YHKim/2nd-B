@@ -55,3 +55,13 @@ test("the preview and the captured image receive the same disclosure", () => {
   expect(screen.match(/<ShareCard\b[^>]*aiCopyTail=\{aiCopyTail\}/g)).toHaveLength(2);
   expect(screen).toContain('t("secondb:aiCopyTail")');
 });
+
+test.each([1, 1080 / 330])("the disclosure stays one line with the existing 1.3 scale cap (card scale %s)", (k) => {
+  const props = runInNewContext(imageCode, {
+    aiCopyTail: "Contenido generado por IA (PolaScope)", k, Text: "Text", styles: { footerText: { fontFamily: "readable" }, disclosure: {} }, inkColor: () => ({}),
+    React: { createElement: (_type: unknown, attributes: unknown) => attributes },
+  });
+  expect(props.numberOfLines).toBe(1);
+  expect(props.maxFontSizeMultiplier).toBe(1.3);
+  expect(props.style[0]).toEqual({ fontFamily: "readable" });
+});

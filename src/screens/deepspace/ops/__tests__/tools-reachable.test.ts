@@ -415,8 +415,11 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
     // JSON document with `withIdenAiCopyTail`. Only those three lines in this slice changed
     // (slice diff checked: 3 hunks, one line each). The label itself is held by
     // src/lib/iden/__tests__/formats-ai-disclosure.test.ts. The other digest did not change.
+    // T18 review follow-up: Markdown now forwards the same localized tail for
+    // fingerprint-matched northstar rows. Re-pinned from the LF-normalized slice;
+    // the Formats handler execution test holds this extra call-site contract.
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceFormatsScreen()", "export { DeepSpaceRecordsScreen"))).toBe(
-      "11bc42a714c3a5408caeee7bb3e2c6ad7ad7795e13493ab2aec4e42822a80a7d",
+      "76f8b45b808a6b356e40e2c2fe0e2ee1cf556de858e86bf1230834950e9e06cb",
     );
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceDomainsScreen()", "export function DeepSpaceFocusScreen()"))).toBe(
       "07f1e37cb47a85bd6b4b277bfead83688d793a1c64e71fa9633ce5cf99703c6d",

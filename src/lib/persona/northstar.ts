@@ -26,10 +26,9 @@ import { sanitizeUntrusted } from "../llm/untrusted";
 import { containsAnalysisForbidden, containsForbiddenLexicon } from "../safety/classifier";
 import { createRecord, type CreatedRecord } from "../records/create";
 import { withSystemTagsColumn } from "../records/system-tags";
+import { NORTHSTAR_TAG, hasNorthstarAiProvenance, northstarAiTag } from "./northstar-provenance";
 
-export const NORTHSTAR_TAG = "northstar_sentence";
-// Q-261019-42: only an explicitly selected, unedited proposal earns this marker.
-export const NORTHSTAR_AI_TAG = "northstar_sentence:ai";
+export { NORTHSTAR_TAG, NORTHSTAR_AI_TAG } from "./northstar-provenance";
 export const MIN_RECORDS_FOR_PROPOSAL = 5;
 
 // Gemini structured-output schema (uppercase casing like wiki/phase1.ts).
@@ -62,7 +61,7 @@ export async function fetchCurrentNorthstar(userId: string): Promise<NorthstarSt
     sentence: row?.body ?? null,
     savedAt: row?.created_at ?? null,
     // This marker has no pre-0218 history. Never infer it from user tags.
-    aiSuggested: row?.system_tags?.includes(NORTHSTAR_AI_TAG) === true,
+    aiSuggested: hasNorthstarAiProvenance(row),
   };
 }
 
@@ -86,7 +85,7 @@ export async function saveNorthstar(args: {
     minor: args.minor,
     withFollowup: false,
     tags: [NORTHSTAR_TAG],
-    systemTags: aiSuggested ? [NORTHSTAR_AI_TAG] : [],
+    systemTags: aiSuggested ? [northstarAiTag(body)] : [],
     requireSystemTagsColumn: aiSuggested,
   });
 }

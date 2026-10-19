@@ -112,7 +112,7 @@ export default function NorthstarSentence() {
       .then((s) => {
         if (!alive) return;
         if (s.sentence) {
-          selectedSuggestion.current = null;
+          selectedSuggestion.current = s.aiSuggested ? { ownerId: userId, text: s.sentence } : null;
           setDraft(s.sentence);
         }
       })
