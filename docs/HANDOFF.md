@@ -1,5 +1,19 @@
 # 2nd-Brain Handoff
 
+## 2026-10-19 T37 후속: override 한도 복원 (#2652 검토 2회차)
+
+`fix/interview-opener-override-261019`: direct-send override가 있으면 `beginAction` snapshot의
+`openerSelection`을 비운다. 같은 후보 글자를 override로 보낸 뒤 429로 복원해도 다음 일반 답에
+「제안 그대로」가 붙지 않는다. `fromOpener` 주석도 실제 칩 선택과 raw draft 정확 일치로 정정했다.
+KO·EN 실제 콜백 회귀시험 2개는 수정 전 실패, 수정 후 통과했다. 표식 제거 줄을 뺀 변이 **1/1 검출**
+(새 시험 **2/2 실패**, 원본 바이트 복원). 최종 관련 **11 suites / 703 tests PASS**, 실패·skip 0.
+TypeScript·변경 파일 ESLint·금지어(1,801파일)·C7(4,444키·40 namespace·5언어)·긴 줄표(982소스)
+모두 종료코드 0. Jest 직전 가용 메모리 최솟값 3,833,636KB. 원자료: `%TEMP%/2ndb-t37-followup-261019/`.
+UI 문자열·키, #2440 stop/Back/RESET·`answerDisposition`, 인정·coverage 규칙은 변경하지 않았다.
+전체 verify는 PR CI, 독립 검토(Codex daybreak)·머지·8081 확인은 Claude Code 2ndb-4e 담당이다.
+현재 연결된 `dontKnow`는 로컬 처리되므로 이 시험은 429 조합의 계약 회귀이며 실제 앱 LLM 호출은 없다.
+VISION 축: **1 알아가기**.
+
 ## 2026-10-19 T37 말문 후보 출처 (구현 → 코디네이터 검토)
 
 `feat/interview-opener-verbatim-261019`: 그대로 보낸 후보의 출처를 원문·층 판정 history·비준 근거·제안 프롬프트에 보존. 인정 규칙과 #2440·S2 선택/영수증은 유지. 관련 46 suites / 1,717 tests PASS, 변이 10/10 실패 확인. [구현·꼬리표 소비 목록·검증·남긴 것](handoff/t37-opener-verbatim-261019.md). 초안 PR 이후 독립 검토·CI·머지·8081은 Claude Code 2ndb-4e 담당.
