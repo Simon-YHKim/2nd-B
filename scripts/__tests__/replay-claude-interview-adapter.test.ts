@@ -39,7 +39,9 @@ test("keeps one of ten candidate adapters separate from live model quality and f
   expect(ordinary.prompt?.user).toContain('<UNTRUSTED type="interview_transcript">');
   expect(ordinary.prompt?.user).toContain("동료들이 고개를 끄덕였어요");
   expect(ordinary.prompt?.schema).toMatchObject({ type: "OBJECT", required: ["answeredLayer", "question"] });
-  expect(ordinary.screen?.visibleQuestion).toBe(ordinary.parsed?.question);
+  // T33 (Q-261014-15): after a real answer the shown question opens with the user's own words, so the
+  // model's question (which had no quote) follows a phrase taken from the answer.
+  expect(ordinary.screen?.visibleQuestion).toBe(`'동료들이 고개를 끄덕였어요'라고 하셨는데, ${ordinary.parsed?.question}`);
   expect(ordinary.screen?.guidanceIntent).toBeNull();
   expect(ordinary.checks?.verdict).toBe("REQUIRES_SEMANTIC_REVIEW");
 });

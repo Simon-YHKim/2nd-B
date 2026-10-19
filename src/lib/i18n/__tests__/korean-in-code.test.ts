@@ -254,7 +254,10 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/iden/render-html.ts": 8,
   "src/lib/import/proposals.ts": 17,
   // 2026-09-25: two KO/EN paired scene-continuity and voluntary-disclosure prompt rules.
-  "src/lib/interview/probe.ts": 58,
+  // 58 -> 60: 2026-10-19 T33 (Q-261014-15). Rule 4's closing line as a constant (CLOSING_LINE) so the
+  // acceptance check can close after a decline instead of asking again (the same words the prompt gives the
+  // model), and the Korean echo frame 「'…'라고 하셨는데,」 that puts the user's own words in front of a question.
+  "src/lib/interview/probe.ts": 60,
   // Offline-only layer fixtures; all five questions have an explicit English branch.
   "src/lib/interview/mock-probe.ts": 5,
   "src/lib/interview/stuck.ts": 10,

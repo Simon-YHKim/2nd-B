@@ -535,7 +535,7 @@ export async function nextProbe(
     } catch { /* Failed inspection is not evidence of a contact recommendation. */ }
   }
   return {
-    question: usableQuestion(guidance ? "" : cleaned, history, layer, locale, scaffoldStreak),
+    question: usableQuestion(guidance ? "" : cleaned, history, layer, locale, scaffoldStreak, { echo: !guidance && res.safety.zone === "green" }),
     openers: guidance ? [] : readOpeners(parsed),
     zone: res.safety.zone,
     hotline: res.safety.crisisRouting?.hotline,
@@ -635,26 +635,68 @@ function readAnsweredLayer(parsed: ProbeReply | null): DrillLayer | null | undef
  * 여기서는 **이미 물은 것과 사실상 같으면 버린다.** 그 자리에는 그 층을 겨냥한
  * 고정 질문이 들어간다 -- 한 번 더 LLM 을 부르는 것보다 싸고 결과가 예측 가능하다.
  */
-// T33 (Q-261014-15): the question may open by taking back one phrase of the user's last answer.
-// A quote the user never said, a quote of a non-answer, or any quote after a non-answer is refused,
-// so the prepared question is used instead. Quotes are found only where a quote mark is not inside
-// a Latin word (so "What's" is not a quote, and "don't" stays inside one); a Korean particle may follow the closing mark.
+// T33 (Q-261014-15 · independent review r1 · r2): the question opens by taking back one phrase of the
+// user's last answer. The prompt asks for it; this check makes it hold on the model path:
+// - a quote the user never said, or any quote after a non-answer, is refused;
+// - after a real answer a question with no quote gets a phrase taken mechanically from the answer;
+// - after a stop or a decline the only fallback is the rule-4 closing line, never another question;
+// - a line without a question mark (rule-4 closing, rule-5 pivot) is never given an echo.
+// The kind of answer is judged on the whole answer, never on the quoted words, so a true quote that
+// only contains a negative word ("싫어서", "don't want to leave") is kept.
+// Quote marks inside a Latin word ("What's", "don't") are not quote boundaries.
 const ECHO_QUOTE = /(?<![A-Za-z0-9])['‘"“「『]((?:[^'‘’"“”「」『』\n]|(?<=[A-Za-z])['’](?=[A-Za-z])){1,80})['’"”」』](?![A-Za-z])/gu;
-const ECHO_NON_ANSWER = /모르겠|기억\s*(?:이\s*)?안\s*나|하고\s*싶지\s*않|말하고\s*싶지|싫어|그만|don['’]?t\s+(?:really\s+)?know|not\s+sure|no\s+idea|rather\s+not|don['’]?t\s+want\s+to|\bstop\b/iu;
 const ECHO_LEAD = /^\s*you said,?\s*|라고\s*하셨는데,?|고\s*하셨는데,?/giu;
+// Whole-answer patterns for the non-answers the shared detector (`answerDisposition`) reads as answers.
+// Only short answers count, so a long story that says "모르겠는데" on the way is still an answer.
+const DECLINE_ANSWER: Record<"en" | "ko", RegExp> = {
+  ko: /(?:얘기|이야기|말|답)(?:은|는|을|를)?\s*(?:하고\s*싶지\s*않|하기\s*싫|안\s*하고\s*싶|못\s*하겠)|넘어가|건너뛰/u,
+  en: /\b(?:rather not|prefer not|don['’]?t want to (?:talk|say|share|answer|go into)|not comfortable)\b/iu,
+};
+const UNSURE_ANSWER: Record<"en" | "ko", RegExp> = {
+  ko: /모르겠|기억(?:이|은)?\s*(?:잘\s*)?안\s*나|글쎄/u,
+  en: /\b(?:don['’]?t (?:really )?know|not sure|no idea|can['’]?t remember|don['’]?t remember)\b/iu,
+};
+const SHORT_ANSWER_MAX: Record<"en" | "ko", number> = { ko: 16, en: 40 };
+// Rule 4's closing line, the same words the system prompt gives the model.
+const CLOSING_LINE: Record<"en" | "ko", string> = { ko: "여기서 멈춰도 좋아요.", en: "It's okay to pause here." };
+
+type AnswerKind = "none" | "stop" | "decline" | "unsure" | "answer";
+
+function lastUserAnswer(history: readonly InterviewTurn[]): string {
+  return [...history].reverse().find((turn) => turn.role === "user")?.text ?? "";
+}
+
+function answerKind(last: string, locale: "en" | "ko"): AnswerKind {
+  if (!last.trim()) return "none";
+  const disposition = answerDisposition(last, locale);
+  if (disposition === "stop" || disposition === "skip") return "stop";
+  if (disposition === "uncertain") return "unsure";
+  const short = last.replace(/[\s\p{P}\p{S}]+/gu, "").length <= SHORT_ANSWER_MAX[locale];
+  if (short && DECLINE_ANSWER[locale].test(last)) return "decline";
+  if (short && UNSURE_ANSWER[locale].test(last)) return "unsure";
+  return "answer";
+}
 
 function echoQuotes(candidate: string): string[] {
   return [...candidate.matchAll(ECHO_QUOTE)].map((match) => match[1].trim()).filter(Boolean);
 }
 
-function echoProblem(candidate: string, history: readonly InterviewTurn[], locale: "en" | "ko"): boolean {
-  const quotes = echoQuotes(candidate);
-  if (quotes.length === 0) return false;
-  const last = [...history].reverse().find((turn) => turn.role === "user")?.text ?? "";
-  if (!last.trim() || answerDisposition(last, locale) !== "answer") return true;
-  const flat = (value: string) => value.replace(/\s+/gu, " ").trim().toLowerCase().replace(/[.,!?。！？]+$/u, "");
-  const source = flat(last);
-  return quotes.some((quote) => !source.includes(flat(quote)) || ECHO_NON_ANSWER.test(quote));
+const flatText = (value: string) => value.replace(/\s+/gu, " ").trim().toLowerCase().replace(/[.,!?。！？]+$/u, "");
+
+/** A short phrase of the user's own words: the last few words of the first sentence. */
+function echoPhrase(answer: string, locale: "en" | "ko"): string {
+  const sentence = answer.split(/[.!?。！？\n]+/u).map((part) => part.trim()).find(Boolean) ?? "";
+  const words = sentence.replace(/['‘’"“”「」『』?？]/gu, "").split(/\s+/u).filter(Boolean);
+  const take = locale === "ko" ? 3 : 4;
+  let phrase = words.slice(-take).join(" ");
+  if (phrase.length > (locale === "ko" ? 24 : 36)) phrase = words.slice(-Math.max(1, take - 1)).join(" ");
+  return phrase.length <= 40 ? phrase : "";
+}
+
+function withEcho(phrase: string, question: string, locale: "en" | "ko"): string {
+  if (!phrase || !question) return question;
+  const echoed = locale === "ko" ? `'${phrase}'라고 하셨는데, ${question}` : `You said “${phrase}”. ${question}`;
+  return echoed.length <= 320 ? echoed : question;
 }
 
 /** The question without its echoed quote, for the repeat check only (never shown). */
@@ -668,6 +710,8 @@ export function usableQuestion(
   layer: DrillLayer,
   locale: "en" | "ko",
   scaffoldStreak = 0,
+  /** The model path turns this on (no guidance shown, green reply). Other callers keep the old fallback. */
+  options: { echo?: boolean } = {},
 ): string {
   const norm = (v: string) => v.replace(/[\p{P}\p{S}]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
   const asked = new Set(
@@ -676,6 +720,8 @@ export function usableQuestion(
   const repeated = (question: string) => {
     const normalized = norm(question);
     if (asked.has(normalized)) return true;
+    // A new quote or lead-in in front of an earlier question does not make it a new question.
+    if ([...asked].some((previous) => previous.length >= 12 && normalized.includes(previous))) return true;
     // Small wording edits do not make a new question. This detects near copies,
     // not semantic equivalence; the prompt still owns meaning-level repetition.
     const grams = (text: string) => new Set(Array.from({ length: Math.max(0, text.length - 2) }, (_, i) => text.slice(i, i + 3)));
@@ -687,16 +733,30 @@ export function usableQuestion(
       return (2 * overlap) / (candidateGrams.size + previousGrams.size) >= 0.88;
     });
   };
-  if (candidate.length > 0 && candidate.length <= 320 && (candidate.match(/[?？]/g)?.length ?? 0) <= 1
+  const last = lastUserAnswer(history);
+  const kind = answerKind(last, locale);
+  const quotes = echoQuotes(candidate);
+  const source = flatText(last);
+  const quotesTrue = quotes.every((quote) => source.includes(flatText(quote)));
+  const quotesAllowed = quotes.length === 0 || (kind === "answer" && quotesTrue);
+  const questionMarks = candidate.match(/[?？]/g)?.length ?? 0;
+  const echoOn = options.echo === true && kind === "answer";
+  const phrase = echoOn ? echoPhrase(last, locale) : "";
+  if (candidate.length > 0 && candidate.length <= 320 && questionMarks <= 1
     && !candidate.startsWith("{") && !candidate.startsWith("```") && !repeated(candidate)
-    && !echoProblem(candidate, history, locale) && !repeated(questionCore(candidate))) return candidate;
+    && quotesAllowed && !repeated(questionCore(candidate))) {
+    return echoOn && quotes.length === 0 && questionMarks === 1 ? withEcho(phrase, candidate, locale) : candidate;
+  }
+  // After a stop or a decline the model may only close (rule 4). Never ask the same thing again.
+  if (options.echo === true && (kind === "stop" || kind === "decline")) return CLOSING_LINE[locale];
   // 발판일 때 같은 층의 원래 질문을 돌려주면 방금 못 답한 그 질문을 그대로
   // 다시 묻게 된다. 발판은 발판용 문장이 따로 있다.
   const fallbacks = scaffoldStreak > 0
     ? [scaffoldQuestion(layer, locale, scaffoldStreak), LAYER_FALLBACK[locale][layer]]
     : [LAYER_FALLBACK[locale][layer], scaffoldQuestion(layer, locale, 1), scaffoldQuestion(layer, locale, 2)];
   // An exhausted fallback pool ends this thread instead of asking the same thing again.
-  return fallbacks.find((question) => !repeated(question)) ?? "";
+  const fallback = fallbacks.find((question) => !repeated(question)) ?? "";
+  return echoOn ? withEcho(phrase, fallback, locale) : fallback;
 }
 
 /**
