@@ -535,7 +535,7 @@ export async function nextProbe(
     } catch { /* Failed inspection is not evidence of a contact recommendation. */ }
   }
   return {
-    question: usableQuestion(guidance ? "" : cleaned, history, layer, locale, scaffoldStreak, { echo: !guidance && res.safety.zone === "green" }),
+    question: usableQuestion(guidance ? "" : cleaned, history, layer, locale, scaffoldStreak, { path: "model", zone: res.safety.zone, guidance: !!guidance }),
     openers: guidance ? [] : readOpeners(parsed),
     zone: res.safety.zone,
     hotline: res.safety.crisisRouting?.hotline,
@@ -635,24 +635,29 @@ function readAnsweredLayer(parsed: ProbeReply | null): DrillLayer | null | undef
  * 여기서는 **이미 물은 것과 사실상 같으면 버린다.** 그 자리에는 그 층을 겨냥한
  * 고정 질문이 들어간다 -- 한 번 더 LLM 을 부르는 것보다 싸고 결과가 예측 가능하다.
  */
-// T33 (Q-261014-15 · independent review r1 · r2 · r3): the question opens by taking back one phrase of
-// the user's last answer. The prompt asks for it; on the model path (`{ echo: true }`) this check makes it hold:
-// - after a stop (the shared `answerDisposition`) the reply is rule 4's closing line, before anything else;
-// - after a real answer in the current scene, a question opens with exactly one quote that is a stretch of
-//   the user's own words: the model's quote when it is leading, single and true; otherwise a phrase taken
-//   from the answer, in front of the model's question or, when that does not fit, of a prepared one;
+// T33 (Q-261014-15 · independent review r1 ~ r4): the question opens by taking back one phrase of the
+// user's last answer. The prompt asks for it; on the model path this check makes it hold, and the
+// safety state always comes first:
+// - after a stop (the shared `answerDisposition`) the reply is rule 4's closing line, on green and yellow
+//   alike; a red reply or shown contact guidance keeps its own path (the old fallback);
+// - a yellow or red reply, or shown guidance, may not quote the user at all;
+// - on a green reply with no guidance, after a real answer in the current scene, a question opens with
+//   exactly one quote that is a non-empty stretch of the user's own words: the model's when it is leading,
+//   single and true; otherwise a phrase taken from the answer, in front of the model's question or, when
+//   that does not fit, of a prepared one;
 // - after decline · unsure · skip, or with no answer in the current scene, nothing is quoted;
-// - a Korean question body ends in 해요체 and asks or suggests one thing (STYLE.md B안);
-// - a line without a question mark (rule-4 closing, rule-5 pivot) is never given an echo.
-// Decline and unsure are judged on the whole current answer, anchored, so a past refusal told as a story
-// ("하고 싶지 않았어요") or a negative word inside a real answer ("싫어서", "don't want to leave") is an answer.
+// - a Korean line on the model path asks or suggests exactly one thing and ends in 해요체 (STYLE.md B안);
+//   a rule-5 pivot that names a hotline passes as it is, never echoed;
+// - repeats are compared without echoes on both sides.
+// Decline and unsure are judged on the whole current answer, anchored, and decline only covers the
+// conversation itself (talk · say · answer), so a past refusal or a real preference stays an answer.
 // Quote marks inside a Latin word ("What's", "don't") are not quote boundaries.
 const ECHO_QUOTE = /(?<![A-Za-z0-9])['‘"“「『]((?:[^'‘’"“”「」『』\n]|(?<=[A-Za-z])['’](?=[A-Za-z])){1,80})['’"”」』](?![A-Za-z])/gu;
 const ECHO_LEAD = /^\s*you (?:said|mentioned),?\s*|라고\s*하셨는데,?|고\s*하셨는데,?/giu;
 const ECHO_LEAD_ALLOWED: Record<"en" | "ko", RegExp> = { ko: /^$/u, en: /^(?:you (?:said|mentioned),?)?$/iu };
 const DECLINE_ANSWER: Record<"en" | "ko", RegExp> = {
-  ko: /^(?:(?:죄송하지만|미안하지만|음+|그건|그거는?|그런|그|지금은|아직은)\s*)*(?:얘기|이야기|말|답|일)(?:은|는|을|를)?\s*(?:(?:지금은|아직은|별로|좀)\s*)*(?:하고\s*싶지\s*않(?:아요|습니다|네요)|하기\s*싫(?:어요|습니다|네요)|안\s*하고\s*싶(?:어요|습니다)|못\s*하겠(?:어요|습니다))\s*[.!。~]*$/u,
-  en: /^\s*(?:sorry,?\s*)?(?:i'?d\s+|i would\s+)?(?:rather not|prefer not)\b[^.!?]*[.!?]*\s*$/iu,
+  ko: /^(?:(?:죄송하지만|미안하지만|음+|그건|그거는?|그런|그|지금은|아직은)\s*)*(?:얘기|이야기|말|답)(?:은|는|을|를)?\s*(?:(?:지금은|아직은|별로|좀)\s*)*(?:하고\s*싶지\s*않(?:아요|습니다|네요)|하기\s*싫(?:어요|습니다|네요)|안\s*하고\s*싶(?:어요|습니다)|못\s*하겠(?:어요|습니다))\s*[.!。~]*$/u,
+  en: /^\s*(?:sorry,?\s*)?(?:i\s+)?(?:can['’]?t|cannot|won['’]?t)\s+(?:talk about|discuss|answer|go into)\b[^.!?]*[.!?]*\s*$/iu,
 };
 const UNSURE_ANSWER: Record<"en" | "ko", RegExp> = {
   ko: /^(?:음+\s*)?(?:(?:잘|정말|그건|그거는?)\s*)*(?:모르겠(?:어요|습니다|네요|어)?|기억(?:이|은)?\s*(?:잘\s*)?안\s*나(?:요|네요)?|글쎄요?)\s*[.!?。…~]*$/u,
@@ -662,8 +667,18 @@ const UNSURE_ANSWER: Record<"en" | "ko", RegExp> = {
 const CLOSING_LINE: Record<"en" | "ko", string> = { ko: "여기서 멈춰도 좋아요.", en: "It's okay to pause here." };
 const ECHO_PHRASE_MAX: Record<"en" | "ko", number> = { ko: 24, en: 36 };
 const KO_POLITE_END = /요\s*[?？.!。]*\s*$/u;
+const KO_REQUEST = /(?:세요|주세요|줄래요|볼까요)/gu;
+// A rule-5 pivot names a number to call; such a line is guidance, not an interview question.
+const HOTLINE_NUMBER = /(?<!\d)(?:109|1388|112|119|117|1366|988|911)(?!\d)/u;
 
 type AnswerKind = "none" | "stop" | "decline" | "unsure" | "skip" | "answer";
+
+/** Model-path state from `nextProbe`. Absent for other callers, which keep the old fallback. */
+export interface ProbeAcceptance {
+  path: "model";
+  zone: "green" | "yellow" | "red";
+  guidance: boolean;
+}
 
 function lastUserAnswer(turns: readonly InterviewTurn[]): string {
   return [...turns].reverse().find((turn) => turn.role === "user")?.text ?? "";
@@ -682,22 +697,28 @@ function answerKind(last: string, locale: "en" | "ko"): AnswerKind {
 }
 
 const flatText = (value: string) => value.replace(/\s+/gu, " ").trim().toLowerCase().replace(/[.,!?。！？]+$/u, "");
+const hasWords = (value: string) => value.replace(/[\s\p{P}\p{S}]+/gu, "").length > 0;
 
-/** A short stretch of the user's own words: the last few words of the first sentence, kept as written. */
+/** A short stretch of the user's own words from the first sentence, kept as written. */
 function echoPhrase(answer: string, locale: "en" | "ko"): string {
   const sentence = answer.split(/[.!?。！？\n]+/u).map((part) => part.trim()).find(Boolean) ?? "";
   // Korean echoes are wrapped in '…' and English ones in “…”: a word holding the wrapping mark (or any
   // other quote) is never taken, so the phrase stays a contiguous stretch of the answer.
   const unsafe = locale === "ko" ? /['‘’"“”「」『』]/u : /["“”「」『』]/u;
-  const words = sentence.split(/\s+/u).filter(Boolean);
-  const tail: string[] = [];
-  for (let i = words.length - 1; i >= 0 && !unsafe.test(words[i]); i--) tail.unshift(words[i]);
+  const runs: string[][] = [[]];
+  for (const word of sentence.split(/\s+/u).filter(Boolean)) {
+    if (unsafe.test(word)) runs.push([]);
+    else runs[runs.length - 1].push(word);
+  }
+  const usable = runs.filter((run) => run.some(hasWords));
+  const run = [...usable].reverse().find((candidate) => candidate.length >= 2) ?? usable[usable.length - 1] ?? [];
   const max = ECHO_PHRASE_MAX[locale];
-  let take = Math.min(tail.length, locale === "ko" ? 3 : 4);
-  let phrase = tail.slice(tail.length - take).join(" ");
-  while (phrase.length > max && take > 1) phrase = tail.slice(tail.length - --take).join(" ");
+  let take = Math.min(run.length, locale === "ko" ? 3 : 4);
+  let phrase = run.slice(run.length - take).join(" ");
+  while (phrase.length > max && take > 1) phrase = run.slice(run.length - --take).join(" ");
   if (phrase.length > max) phrase = phrase.slice(-max).trim();
-  return phrase.replace(/[,，]+$/u, "").trim();
+  phrase = phrase.replace(/[,，]+$/u, "").trim();
+  return hasWords(phrase) ? phrase : "";
 }
 
 function withEcho(phrase: string, question: string, locale: "en" | "ko"): string {
@@ -711,12 +732,11 @@ function questionCore(candidate: string): string {
   return candidate.replace(ECHO_QUOTE, " ").replace(ECHO_LEAD, " ").replace(/^[\s,，.\-–—:]+/u, "").trim();
 }
 
-/** Korean body: 해요체 ending, and at most one question or request (STYLE.md B안 · rule 1). */
+/** Korean body: 해요체 ending, and exactly one question or request (STYLE.md B안 · rule 1). */
 function koreanBodyOk(body: string): boolean {
   if (!KO_POLITE_END.test(body)) return false;
-  const sentences = body.split(/(?<=[?？.!。])\s+/u).map((part) => part.trim()).filter(Boolean);
-  const acts = sentences.filter((part) => /[?？]\s*$/u.test(part) || /(?:세요|주세요|줄래요|볼까요)\s*[.!。]*$/u.test(part)).length;
-  return acts <= 1;
+  const acts = (body.match(/[?？]/gu)?.length ?? 0) + (body.match(KO_REQUEST)?.length ?? 0);
+  return acts === 1;
 }
 
 export function usableQuestion(
@@ -725,13 +745,13 @@ export function usableQuestion(
   layer: DrillLayer,
   locale: "en" | "ko",
   scaffoldStreak = 0,
-  /** The model path turns this on (no guidance shown, green reply). Other callers keep the old fallback. */
-  options: { echo?: boolean } = {},
+  /** The model path passes its safety state; other callers keep the old fallback. */
+  acceptance?: ProbeAcceptance,
 ): string {
   const norm = (v: string) => v.replace(/[\p{P}\p{S}]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
-  const asked = new Set(
-    history.filter((turn) => turn.role === "interviewer").map((turn) => norm(turn.text)),
-  );
+  const askedTexts = history.filter((turn) => turn.role === "interviewer").map((turn) => turn.text);
+  // Echoes differ from turn to turn, so earlier questions are compared with and without theirs.
+  const asked = new Set([...askedTexts.map(norm), ...askedTexts.map((text) => norm(questionCore(text)))].filter(Boolean));
   const repeated = (question: string) => {
     const normalized = norm(question);
     if (asked.has(normalized)) return true;
@@ -748,27 +768,33 @@ export function usableQuestion(
       return (2 * overlap) / (candidateGrams.size + previousGrams.size) >= 0.88;
     });
   };
-  const echoPath = options.echo === true;
+  const modelPath = acceptance?.path === "model";
+  const calm = modelPath && acceptance.zone === "green" && !acceptance.guidance;
   // The model only sees the current scene, so only its answer can be taken back.
   const last = lastUserAnswer(currentScene(history));
   const kind = answerKind(last, locale);
-  // Rule 4 wins over everything after a stop.
-  if (echoPath && kind === "stop") return CLOSING_LINE[locale];
+  // Rule 4 wins after a stop, whatever the echo; a red reply or shown guidance keeps its own path.
+  if (modelPath && kind === "stop" && acceptance.zone !== "red" && !acceptance.guidance) return CLOSING_LINE[locale];
 
   const quotes = [...candidate.matchAll(ECHO_QUOTE)];
   const questionMarks = candidate.match(/[?？]/g)?.length ?? 0;
   const source = flatText(last);
   const leadingTrueQuote = quotes.length === 1
     && ECHO_LEAD_ALLOWED[locale].test(candidate.slice(0, quotes[0].index ?? 0).trim())
+    && hasWords(quotes[0][1])
     && source.includes(flatText(quotes[0][1]));
-  const quotesAllowed = quotes.length === 0 || (kind === "answer" && leadingTrueQuote);
-  const echoOn = echoPath && kind === "answer";
+  // Off the calm model path no quote is allowed at all; on it only the one leading true quote after an answer.
+  const quotesAllowed = quotes.length === 0 || (calm && kind === "answer" && leadingTrueQuote) || !modelPath;
+  const echoOn = calm && kind === "answer";
   const phrase = echoOn ? echoPhrase(last, locale) : "";
-  const bodyOk = !echoPath || locale !== "ko" || koreanBodyOk(questionCore(candidate));
+  const pivot = modelPath && quotes.length === 0 && HOTLINE_NUMBER.test(candidate);
+  // After a non-answer the model may close with rule 4's exact line instead of asking about what was declined.
+  const closing = kind !== "answer" && quotes.length === 0 && candidate.trim() === CLOSING_LINE[locale];
+  const bodyOk = !modelPath || locale !== "ko" || pivot || closing || koreanBodyOk(questionCore(candidate));
   if (candidate.length > 0 && candidate.length <= 320 && questionMarks <= 1
     && !candidate.startsWith("{") && !candidate.startsWith("```") && !repeated(candidate)
-    && quotesAllowed && !repeated(questionCore(candidate)) && bodyOk) {
-    if (!echoOn || quotes.length > 0 || questionMarks !== 1) return candidate;
+    && (modelPath ? quotesAllowed : true) && !repeated(questionCore(candidate)) && bodyOk) {
+    if (pivot || !echoOn || quotes.length > 0 || questionMarks !== 1) return candidate;
     const echoed = withEcho(phrase, candidate, locale);
     if (echoed) return echoed;
   }

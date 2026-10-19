@@ -31,7 +31,7 @@ const scene = (q: string, a: string, period: InterviewTurn["period"] = "school")
 ];
 const KO = scene("그날 어디에 있었나요?", "방과 후에 도서관 창가 자리에 혼자 앉아 있었어요.");
 const EN = scene("Where were you that day?", "I sat alone by the library window after class.");
-const echo = { echo: true } as const;
+const echo = { path: "model", zone: "green", guidance: false } as const;
 const QUOTE = /(?<![A-Za-z0-9])['‘"“「『]/u;
 const plainKo = usableQuestion("", KO, "feeling", "ko");
 
@@ -126,6 +126,8 @@ describe("after a real answer the question opens with exactly one quote of the u
   test.each([
     ["ko", scene("왜 그 일을 계속했나요?", "비 오는 날이 싫어서 계속 연습했어요."), "'비 오는 날이 싫어서'라고 하셨는데, 그때 어떤 마음이었나요?"],
     ["ko", scene("그때 집에서는 어땠나요?", "그때는 그 이야기를 하고 싶지 않았어요."), "'하고 싶지 않았어요'라고 하셨는데, 그때 무엇이 가장 마음에 걸렸나요?"],
+    ["ko", scene("요즘 일은 어떤가요?", "그 일은 하고 싶지 않아요."), "'그 일은 하고 싶지 않아요'라고 하셨는데, 어떤 점이 가장 걸리나요?"],
+    ["en", scene("What about weekends?", "I won't work weekends anymore."), "You said “won't work weekends anymore”, so what changed?"],
     ["en", scene("What is on your mind at work?", "I don't want to leave my current job."), "You said “don't want to leave my current job”, so what keeps you there?"],
   ] as const)("%s keeps a true quote of an answer that only contains a negative word or a past refusal", (locale, history, question) => {
     expect(usableQuestion(question, history, "feeling", locale, 0, echo)).toBe(question);
@@ -142,15 +144,62 @@ describe("after a real answer the question opens with exactly one quote of the u
     expect(shown).toBe(`'혼자 앉아 있었어요'라고 하셨는데, ${plainKo}`);
   });
 
-  test("a line without a question mark (closing or pivot) gets no echo", () => {
-    expect(usableQuestion("여기서 멈춰도 좋아요.", KO, "feeling", "ko", 0, echo)).toBe("여기서 멈춰도 좋아요.");
+  test("a rule-5 pivot that names a hotline passes as it is, with no echo", () => {
     expect(usableQuestion("Call 109 now.", EN, "feeling", "en", 0, echo)).toBe("Call 109 now.");
+    expect(usableQuestion("지금은 109에 연락해 보세요.", KO, "feeling", "ko", 0, echo)).toBe("지금은 109에 연락해 보세요.");
+  });
+
+  test.each([
+    ["그렇군요.", "질문 · 요청 0"],
+    ["여기서 멈춰도 좋아요.", "실제 답 뒤의 닫는 말"],
+    ["'도서관 창가'라고 하셨는데, 장면을 말해 주세요, 이유도 알려 주세요.", "한 문장 안 요청 둘"],
+  ] as const)("a Korean line after a real answer must ask or suggest exactly one thing: %s (%s)", (question, _why) => {
+    expect(usableQuestion(question, KO, "feeling", "ko", 0, echo)).toBe(`'혼자 앉아 있었어요'라고 하셨는데, ${plainKo}`);
+  });
+
+  test.each([
+    ["ko", scene("그날 어디에 있었나요?", "방과 후 도서관에서 \"혼자\" 있었어요."), "그때 몸은 어떤 느낌이었나요?", "'방과 후 도서관에서'라고 하셨는데, 그때 몸은 어떤 느낌이었나요?"],
+    ["en", scene("Where were you?", "I stayed in the library “alone”."), "What did you notice there?", "You said “stayed in the library”. What did you notice there?"],
+  ] as const)("%s: an answer ending in a quoted word still gives an echo from the words before it", (locale, history, question, expected) => {
+    expect(usableQuestion(question, history, "feeling", locale, 0, echo)).toBe(expected);
+  });
+
+  test.each([
+    ["ko", KO, "'...'라고 하셨는데, 그때 몸은 어떤 느낌이었나요?"],
+    ["en", EN, "You said “…”, so what did you notice?"],
+  ] as const)("%s: a quote of punctuation only is not the user's words", (locale, history, question) => {
+    const shown = usableQuestion(question, history, "feeling", locale, 0, echo);
+    expect(shown).not.toBe(question);
+    expect(shown).toMatch(locale === "ko" ? /^'혼자 앉아 있었어요'라고 하셨는데, / : /^You said “library window after class”\. /u);
   });
 
   test("the model path echoes; a yellow reply and the default (other callers) do not", async () => {
     expect((await probe("ko", KO, "그때 몸은 어떤 느낌이었나요?")).question).toMatch(/^'혼자 앉아 있었어요'라고 하셨는데, /u);
     expect((await probe("ko", KO, "그때 몸은 어떤 느낌이었나요?", "yellow")).question).toBe("그때 몸은 어떤 느낌이었나요?");
     expect(usableQuestion("그때 몸은 어떤 느낌이었나요?", KO, "feeling", "ko")).toBe("그때 몸은 어떤 느낌이었나요?");
+  });
+});
+
+describe("the safety state comes before the echo", () => {
+  const yellow = { path: "model", zone: "yellow", guidance: false } as const;
+  const withGuidance = { path: "model", zone: "green", guidance: true } as const;
+  const red = { path: "model", zone: "red", guidance: false } as const;
+  test("a yellow reply or shown guidance may not quote the user, even truly", async () => {
+    const quoted = "'도서관 창가 자리에 혼자'라고 하셨는데, 그때 몸은 어떤 느낌이었나요?";
+    for (const options of [yellow, withGuidance]) {
+      const shown = usableQuestion(quoted, KO, "feeling", "ko", 0, options);
+      expect(shown).not.toMatch(QUOTE);
+      expect(shown).toBe(plainKo);
+    }
+    expect((await probe("ko", KO, quoted, "yellow")).question).not.toMatch(QUOTE);
+  });
+
+  test("a stop closes on green and yellow alike; red and shown guidance keep their own path", async () => {
+    const stop = scene("요즘 어떤 순간이 기억에 남나요?", "그만할래요.");
+    expect(usableQuestion("다른 이야기를 해 볼까요?", stop, "feeling", "ko", 0, yellow)).toBe("여기서 멈춰도 좋아요.");
+    expect((await probe("ko", stop, "다른 이야기를 해 볼까요?", "yellow")).question).toBe("여기서 멈춰도 좋아요.");
+    expect(usableQuestion("", stop, "feeling", "ko", 0, withGuidance)).toBe(usableQuestion("", stop, "feeling", "ko"));
+    expect(usableQuestion("", stop, "feeling", "ko", 0, red)).toBe(usableQuestion("", stop, "feeling", "ko"));
   });
 });
 
@@ -166,6 +215,12 @@ describe("after a non-answer, or with no answer in this scene, nothing is quoted
     expect(shown).not.toMatch(QUOTE);
     expect(shown).not.toMatch(/멈춰도 좋아요|pause here/u);
     expect(usableQuestion("다른 장면은 어떤가요?", history, layer, locale, 0, echo)).toBe("다른 장면은 어떤가요?");
+  });
+
+  test("after a decline the model may close with rule 4's exact line instead of asking about it again", () => {
+    const decline = scene("그때 집에서는 어땠나요?", "그 얘기는 하고 싶지 않아요.");
+    expect(usableQuestion("여기서 멈춰도 좋아요.", decline, "feeling", "ko", 0, echo)).toBe("여기서 멈춰도 좋아요.");
+    expect(usableQuestion("여기서 멈춰도 좋아요.", KO, "feeling", "ko", 0, echo)).not.toBe("여기서 멈춰도 좋아요.");
   });
 
   test("no answer in the current scene: an earlier scene's answer is never quoted", () => {
@@ -191,5 +246,26 @@ describe("a repeat stays a repeat behind a quote or a lead-in", () => {
     ["en", enRepeat, "You mentioned “told me to redo it”. Right after that, what did you feel in your body?"],
   ] as const)("%s refuses: %s", (locale, history, question) => {
     expect(usableQuestion(question, history, "feeling", locale, 0, echo)).not.toBe(question);
+  });
+
+  test.each([
+    ["ko", [...KO,
+      { role: "interviewer", text: "'혼자 앉아'라고 하셨는데, 그때 몸은 어떤 느낌이었나요?", layer: "feeling", period: "school" },
+      { role: "user", text: "창밖에 비가 오고 있었어요.", layer: "feeling", period: "school" }] as InterviewTurn[],
+      "'비가 오고'라고 하셨는데, 그때 몸은 어떤 느낌이었나요?"],
+    ["en", [...EN,
+      { role: "interviewer", text: "You said “alone”. What did that feel like in your body?", layer: "feeling", period: "school" },
+      { role: "user", text: "It was raining outside the window.", layer: "feeling", period: "school" }] as InterviewTurn[],
+      "You said “raining outside”. What did that feel like in your body?"],
+  ] as const)("%s: an earlier echoed question with a different quote is still the same question", (locale, history, question) => {
+    expect(usableQuestion(question, history, "feeling", locale, 0, echo)).not.toBe(question);
+  });
+
+  test("a prepared question already asked behind an echo is not chosen again", () => {
+    const asked: InterviewTurn[] = [...KO,
+      { role: "interviewer", text: `'혼자 앉아 있었어요'라고 하셨는데, ${plainKo}`, layer: "feeling", period: "school" },
+      { role: "user", text: "창밖에 비가 오고 있었어요.", layer: "feeling", period: "school" }];
+    const shown = usableQuestion("", asked, "feeling", "ko", 0, echo);
+    expect(shown.endsWith(plainKo)).toBe(false);
   });
 });
