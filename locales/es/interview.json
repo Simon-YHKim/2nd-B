@@ -14,6 +14,17 @@
     "setAside": "¿Qué cambiaría si dejaras este pensamiento a un lado durante cinco minutos?"
   },
   "drill": {
+    "sceneChoice": "¿Cómo seguimos?",
+    "continueScene": "Seguir con esta historia",
+    "newScene": "Otro momento",
+    "saveAndFinish": "Guardar y terminar",
+    "changeSceneChoice": "¿Hablamos de otro momento?",
+    "skipLayer": "Saltar esta pregunta",
+    "questionsExhausted": "No hay más preguntas disponibles.",
+    "localPromptsExhausted": "No se pueden añadir más preguntas.",
+    "coverageSaveFailed": "No se pudo guardar el progreso.",
+    "recordSaveUnknown": "No se pudo confirmar si se guardó tu historia.",
+    "coverageSaveUnknown": "No se pudo confirmar si se guardó el progreso.",
     "opening": "¿Por qué etapa de tu vida empezamos? Basta con una escena que te venga a la mente.",
     "placeholder": "Escribe lo que quieras, poco o mucho",
     "processingNotice": "La IA lee tus respuestas para crear la siguiente pregunta. Tus respuestas solo se guardan como registro cuando eliges guardarlas.",

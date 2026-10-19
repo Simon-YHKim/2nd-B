@@ -1,4 +1,5 @@
 import type { DrillLayer, InterviewTurn, LifePeriod } from "./probe";
+import { isUneditedOpener, type OpenerSelection } from "./opener-selection";
 
 export const INTERVIEW_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 // A storage limit, never a conversation length/end rule. Reject, do not truncate.
@@ -26,6 +27,8 @@ export interface InterviewDraftContent {
   phase: "active" | "ended" | "crisis-ended" | "save-pending" | "save-unknown";
   turns: InterviewDraftTurn[];
   draft: string;
+  /** Keep an unsent chip's source across restart; missing means no known selection. */
+  openerSelection?: OpenerSelection;
 }
 
 export interface InterviewDraft extends InterviewDraftContent {
@@ -61,10 +64,11 @@ function keysOnly(value: Record<string, unknown>, keys: readonly string[]): bool
 
 function validTurn(value: unknown): value is InterviewDraftTurn {
   if (!object(value) || !keysOnly(value, [
-    "role", "text", "layer", "period", "sceneStart", "answered", "unsettled",
+    "role", "text", "layer", "period", "sceneStart", "answered", "unsettled", "fromOpener",
   ])) return false;
   return (value.role === "interviewer" || value.role === "user")
     && typeof value.text === "string"
+    && (value.fromOpener === undefined || (value.role === "user" && typeof value.fromOpener === "boolean"))
     && (value.layer === undefined || (typeof value.layer === "string" && Object.hasOwn(layers, value.layer)))
     && (value.period === undefined || (typeof value.period === "string" && Object.hasOwn(periods, value.period)))
     && (value.sceneStart === undefined || typeof value.sceneStart === "boolean")
@@ -72,7 +76,7 @@ function validTurn(value: unknown): value is InterviewDraftTurn {
     && (value.unsettled === undefined || typeof value.unsettled === "boolean");
 }
 
-const contentKeys = ["period", "locale", "growthOrigin", "phase", "turns", "draft"];
+const contentKeys = ["period", "locale", "growthOrigin", "phase", "turns", "draft", "openerSelection"];
 const envelopeKeys = [...contentKeys, "v", "ownerId", "draftId", "revision", "createdAt", "expiresAt"];
 
 function validContent(value: Record<string, unknown>): boolean {
@@ -81,7 +85,8 @@ function validContent(value: Record<string, unknown>): boolean {
     && typeof value.growthOrigin === "boolean"
     && ["active", "ended", "crisis-ended", "save-pending", "save-unknown"].includes(value.phase as string)
     && Array.isArray(value.turns) && value.turns.every(validTurn)
-    && typeof value.draft === "string";
+    && typeof value.draft === "string"
+    && (value.openerSelection === undefined || isUneditedOpener(value.openerSelection, value.draft, value.turns));
 }
 
 /** Detached, strict JSON snapshot: unknown fields (tokens/profile/etc.) are refused. */

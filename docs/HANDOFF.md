@@ -1,5 +1,9 @@
 # 2nd-Brain Handoff
 
+## 2026-10-19 T37 말문 후보 출처 (구현 → 코디네이터 검토)
+
+`feat/interview-opener-verbatim-261019`: 그대로 보낸 후보의 출처를 원문·층 판정 history·비준 근거·제안 프롬프트에 보존. 인정 규칙과 #2440·S2 선택/영수증은 유지. 관련 46 suites / 1,717 tests PASS, 변이 10/10 실패 확인. [구현·꼬리표 소비 목록·검증·남긴 것](handoff/t37-opener-verbatim-261019.md). 초안 PR 이후 독립 검토·CI·머지·8081은 Claude Code 2ndb-4e 담당.
+
 ## 이 로그는 기간으로 쪼개져 있다
 
 단일 파일 100KB 상한(Simon 지침 §2 · §0-1)을 지키려고 **요약이 아니라 기간으로**
@@ -32,6 +36,32 @@
 **⚠ 2026-10-13: `-p2`(75KB)에는 한 번에 옮긴 묶음(45KB)이 들어가지 않아 `HANDOFF-2026-10-p3.md` 를 열었다 — 10 월 블록은 `-p3` 로 간다.**
 **⚠ 2026-10-14: 지금 기준은 활성 창 상한 400KB · 예산 320KB · 보관 부분 하나 360KB 다(`/simon-handoff` Step 2-B). 위에 적힌 100KB 는 옛 값이다. 이번에 2026-10-11 00:02 ~ 2026-10-12 22:30 의 블록 28개를 `HANDOFF-2026-10-p3.md` 맨 위로 옮겼다 - 10 월 블록은 계속 그 파일로 간다(360KB 를 넘으면 `-p4`).**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
+
+## 구현 인수 4회차 마무리 2 · 2026-10-19 / Codex gpt-6-astra → 2ndb-4e · PR #2651
+
+코디네이터 결정: 0263의 판본·복구 세대는 사용자 선택이 아닌 서버 메타데이터다.
+트리거/CAS와 앱 코드는 3b1e54da 그대로 두고 0194 회귀 시험만 정렬했다.
+
+- `llm_service_consent_management_regression.sql`은 저장된 서버 키
+  `records_embedding_revision`·`records_embedding_recovery` 두 개만 이름으로 제외한다.
+  입력에 `records_embedding:false`를 명시해 0263의 기본값 정규화와 혼동하지 않는다.
+  그 선택을 포함한 나머지 JSON 전체를 비교하므로 알려지지 않은 선택과 일회용 표식도
+  빠져나가지 못한다. 영수증 writer가 사용자 선택을 바꾸지 않는 0194의 계약은 유지된다.
+- `git fetch origin` 뒤 `origin/main` c305f6f7을 병합했다. 충돌은 DECISIONS.md 하나였고
+  main 줄 다음에 이 PR 줄을 붙여 CRLF·빈 줄 없음으로 해소했다.
+- 병합 전·후 모두 db/tests SQL 파일 49/49(전용 초기 스키마 포함) 통과.
+  최종 0263 실행 묶음 25개 통과(실제 역할/RLS·CAS·경합·정리·재설치).
+  이번 변경은 시험 정렬이라 성능 측정은 생략했으며 앞 회차 수치를 재측정으로 세지 않는다.
+- Jest 30 suites/432 tests(전체 src/lib/legal·DPIA 앵커 포함), tsc, PR TS/MJS 12개 ESLint,
+  금지어·C7(4,444키/40 namespaces/5언어)·긴 줄표 검사 종료 0.
+  Jest 직전 여유 메모리 4,137,804KB, --maxWorkers=2.
+- 변이 17/17 검출: 서버 키 제외 2개 각각 원복, 사용자 선택 10개 각각 변경,
+  명시 선택 2개 삭제, 알 수 없는 키 1개·일회용 표식 2개 추가. 원본 0194 실패 재현,
+  서버 메타데이터만 바뀐 양성 대조 및 정상 시험 재검증도 통과했다.
+- 원자료·재생 도구·HTML: `E:/Coding Infra/reports/devlab-261010/s2-astra/embed-r4c-verification/`.
+  로컬은 PG16/pgvector psql 재생이다. 고정 Supabase CLI·전체 verify는 PR CI가 판정한다.
+  같은 가지 push·초안 유지. 독립 검토·main 머지·운영 적용·게시·8081 확인은 맡지 않았다.
+  머지 조건: Codex daybreak PASS + 새 medium 0 + CI 초록. #2440 동결 범위 직접 수정 없음.
 
 ## 구현 인수 4회차 · 2026-10-19 / Codex gpt-6-astra → 2ndb-4e · PR #2651
 

@@ -1,6 +1,6 @@
 // Dormant S2a leaf. No endpoint, RPC, storage, activation or provenance inference.
 import { parseStrictJson } from './request-json.ts';
-import { storedTurns, storyTitle } from '../../../src/lib/interview/saved-story.ts';
+import { interviewAnswerLabel, storedTurns, storyTitle } from '../../../src/lib/interview/saved-story.ts';
 
 export const INTERVIEW_FINALIZE_PACKET_MAX_BYTES = 256 * 1024;
 export const INTERVIEW_FINALIZE_MAX_TURNS = 4000;
@@ -204,9 +204,9 @@ export async function digestInterviewFinalizePacket(value: unknown, verifiedOwne
 export function renderInterviewFinalizeRecord(value: unknown, serverStarName: string): Readonly<{ body: string; summary: string }> {
   const packet = parseInterviewFinalizePacket(value);
   const starName = text(serverStarName, 100);
-  const labels = packet.conversationLocale === 'ko' ? ['질문', '답변'] : ['Q', 'A'];
+  const qLabel = packet.conversationLocale === 'ko' ? '질문' : 'Q';
   return Object.freeze({
-    body: packet.turns.map(turn => `${labels[turn.role === 'interviewer' ? 0 : 1]}: ${turn.text}`).join('\n\n'),
+    body: packet.turns.map(turn => `${turn.role === 'interviewer' ? qLabel : interviewAnswerLabel(turn.openerUnedited === true, packet.conversationLocale)}: ${turn.text}`).join('\n\n'),
     summary: storyTitle(starName, packet.turns.filter(turn => turn.role === 'user').map(turn => turn.text)),
   });
 }
