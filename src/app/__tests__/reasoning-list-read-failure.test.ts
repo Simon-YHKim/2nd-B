@@ -396,3 +396,21 @@ test("A -> B -> A with no render in between refuses the old generation's refresh
   const settled = mockDispatches.length; oldRefresh(); tree = await settle();
   expect(mockDispatches.length).toBe(settled); expect(drawn(tree)).toContain(quota(tree, 1));
 });
+
+test("a run press captured at 1/2 stays refused after a later ready (refresh to 2/2, refocus, A -> B -> A)", async () => {
+  const startTask = jest.requireMock("@/lib/tasks/store").startTask as jest.Mock;
+  let tree = await settle(); selectFirst(tree); tree = await settle();
+  const atOneOfTwo = runButtonOf(tree)!; expect(atOneOfTwo.props.disabled).toBe(false);
+  usedFor["owner-a"] = 2; limitSheet(tree).props.onChanged(); tree = await settle();
+  expect(drawn(tree)).toContain("ds.reasoningScreen.depletedTitle"); // the refresh confirmed 2/2
+  atOneOfTwo.props.onPress!(); expect(startTask).not.toHaveBeenCalled();
+  usedFor["owner-a"] = 1; limitSheet(tree).props.onChanged(); tree = await settle();
+  const beforeBlur = runButtonOf(tree)!; expect(beforeBlur.props.disabled).toBe(false);
+  mockFocused = false; await settle(); mockFocused = true; tree = await settle();
+  expect(drawn(tree)).toContain(quota(tree, 1)); // refocus published a new ready
+  beforeBlur.props.onPress!(); expect(startTask).not.toHaveBeenCalled();
+  const beforeSwitch = runButtonOf(tree)!; expect(beforeSwitch.props.disabled).toBe(false);
+  beginAccountOwnerTransition("owner-b"); beginAccountOwnerTransition("owner-a"); tree = await settle();
+  expect(drawn(tree)).toContain(quota(tree, 1)); // the A -> B -> A return published a new ready
+  beforeSwitch.props.onPress!(); expect(startTask).not.toHaveBeenCalled();
+});

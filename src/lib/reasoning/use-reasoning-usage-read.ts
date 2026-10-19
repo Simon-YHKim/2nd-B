@@ -154,10 +154,21 @@ export function useReasoningUsageRead(userId: string | null, enabled: boolean): 
     );
   }, [userId, genOwner, genEpoch]);
 
+  // Bound to the exact ready token this render shows. A press captured in this render stays
+  // valid only while that same token object is still the current one, so a later ready
+  // (a refresh that found the cap spent, a refocus, an A -> B -> A return) cannot
+  // re-authorize a callback from an earlier render.
+  const shownToken = current && held.status === "ready" ? readyRef.current : null;
   const confirmCurrent = useCallback(() => {
-    const token = readyRef.current;
-    return token !== null && mounted.current && token.session === sessionSeq.current && token.lease.isCurrent();
-  }, []);
+    const token = shownToken;
+    return (
+      token !== null &&
+      readyRef.current === token &&
+      mounted.current &&
+      token.session === sessionSeq.current &&
+      token.lease.isCurrent()
+    );
+  }, [shownToken]);
 
   return { view, retry: bump, refresh: bump, confirmCurrent };
 }
