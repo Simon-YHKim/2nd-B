@@ -304,6 +304,7 @@ BEGIN
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.users', 'id', 'SELECT')
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.records', 'id', 'SELECT')
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.records', 'user_id', 'SELECT')
+     OR NOT pg_catalog.has_column_privilege('authenticated', 'public.records', 'embedding', 'SELECT')
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.records', 'embedding', 'UPDATE')
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.records', 'embedding_model', 'UPDATE')
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.records', 'embedding_model', 'SELECT') THEN

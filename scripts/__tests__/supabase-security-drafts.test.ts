@@ -40,7 +40,7 @@ const sameBytes = (draft: string, numbered: string) =>
 // not applied yet may be revised before its GO, and its digest moves in the same
 // commit with the reason.
 const promoted = [
-  ["0263", "records_embedding_consent_guard", "0980977c62e25893eb0addcb1a471cc392db41972d48c0005c8657f79b4be754"],
+  ["0263", "records_embedding_consent_guard", "ec7e9caa3c0652bcf501dfc7e70a8eada4309ebecf3c08eba95c9e9fb58b5b20"],
   ["0261", "reward_ssv_grant_helper_acl", "781b0a218086fed68ec3a89b134998a05fc044f1a9708c4088e49ca25669b039"],
   ["0236", "dashboard_generation", "a86ab9e7c03e335d0eb27b8c90f5e18b345824975e112d5ad51de57a5287d4b3"],
   ["0191", "signup_consent_admob_20260925", "6ba82c9ec8a796e99f1398398c58560b58513147119928d3ad004b31b0781648"],

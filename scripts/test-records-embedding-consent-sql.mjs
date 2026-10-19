@@ -133,6 +133,7 @@ pass('bad FORCE RLS, missing client SELECT and unexpected ACL abort installation
 for (const [table, column, privilege] of [
   ['users', 'privacy_prefs', 'SELECT'],
   ['records', 'user_id', 'SELECT'],
+  ['records', 'embedding', 'SELECT'],
   ['records', 'embedding', 'UPDATE'],
   ['records', 'embedding_model', 'UPDATE'],
 ]) {
