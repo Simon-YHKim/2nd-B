@@ -63,6 +63,7 @@ const PIECES = [
   lift("const litStars = ownedBy("),
   lift("const pieceCount = ownedBy("),
   lift("const sentence = ownedBy("),
+  lift("const aiCopyTail ="),
   lift("const loadFailed ="),
 ];
 
@@ -70,6 +71,7 @@ interface Shown {
   litStars: number | null;
   pieceCount: number | null;
   sentence: string | null;
+  aiCopyTail?: string;
   loadFailed: boolean;
   retry: () => void;
 }
@@ -145,6 +147,7 @@ function runtime() {
 interface Account {
   levels: Record<string, number> | Error;
   sentence: string | null;
+  aiSuggested?: boolean;
   pieces: number | null;
 }
 
@@ -156,20 +159,21 @@ function build(accounts: Record<string, Account>, reads: string[]): Loader {
       "  const { useState, useEffect } = H;",
       "  const { userId } = props;",
       ...PIECES.slice(1),
-      "  return { litStars, pieceCount, sentence, loadFailed, retry: () => setRetryKey((k) => k + 1) };",
+      "  return { litStars, pieceCount, sentence, aiCopyTail, loadFailed, retry: () => setRetryKey((k) => k + 1) };",
       "}",
       "return ShareCardLoads;",
     ].join("\n"),
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } },
   ).outputText;
   const bindings: Record<string, unknown> = {
+    t: (key: string) => key,
     loadDomainLevels: async (owner: string) => {
       reads.push(`levels:${owner}`);
       const levels = accounts[owner].levels;
       if (levels instanceof Error) throw levels;
       return { domainLevels: levels };
     },
-    fetchCurrentNorthstar: async (owner: string) => ({ sentence: accounts[owner].sentence, savedAt: null }),
+    fetchCurrentNorthstar: async (owner: string) => ({ sentence: accounts[owner].sentence, savedAt: null, aiSuggested: accounts[owner].aiSuggested === true }),
     countUserPieces: async (owner: string) => accounts[owner].pieces,
   };
   return new Function(...Object.keys(bindings), js)(...Object.values(bindings)) as Loader;
@@ -179,10 +183,23 @@ const A_SENTENCE = "A's private north-star sentence";
 const FALLBACK = "the bundled default insight line";
 
 describe("/share-card shows only the signed-in account's loads", () => {
+  test("the disclosure follows the same owned record and disappears on account change or an empty sentence", async () => {
+    const accounts: Record<string, Account> = {
+      a: { levels: { career: 2 }, sentence: A_SENTENCE, aiSuggested: true, pieces: 3 },
+      b: { levels: { career: 2 }, sentence: "My own words", pieces: 3 },
+      empty: { levels: { career: 2 }, sentence: "  ", aiSuggested: true, pieces: 3 },
+    };
+    const loader = build(accounts, []), r = runtime();
+    expect((await r.settled(loader, "a")).aiCopyTail).toBe("secondb:aiCopyTail");
+    expect(r.once(loader, "b").aiCopyTail).toBeUndefined();
+    expect((await r.settled(loader, "b")).aiCopyTail).toBeUndefined();
+    expect((await r.settled(loader, "empty")).aiCopyTail).toBeUndefined();
+  });
+
   test("the lifted pieces are the real ones", () => {
     expect(PIECES[0]).toContain("held.ownerId === ownerId");
     expect(PIECES[6].startsWith("useEffect(")).toBe(true);
-    expect(PIECES[6]).toContain("setHeldSentence({ ownerId: owner, value: s.sentence || null })");
+    expect(PIECES[6]).toContain("setHeldSentence({ ownerId: owner, value: s })");
     expect(PIECES[7]).toBe("const litStars = ownedBy(heldLitStars, userId);");
     // The render path below the loads still reads these four names.
     expect(source).toContain("litStars,\n    northStarSentence: sentence,");
