@@ -26,6 +26,7 @@ import { fetchProfileImportedContext, type ProfileImportedContext } from "../sup
 import { downloadRawClipping } from "../wiki/storage";
 import { isProfileContextImportSource } from "../wiki/profile-context-source";
 import { getRecordById } from "./create";
+import { withSystemTagsColumn } from "./system-tags";
 
 export const SOURCE_ID_PREFIX = "src-";
 
@@ -38,6 +39,7 @@ export interface PieceDetail {
   body: string | null;
   ai_followup?: unknown;
   tags: string[] | null;
+  system_tags?: string[];
   created_at: string;
   /** Which table it came from. The detail view hides record-only affordances for sources. */
   origin: "record" | "source";
@@ -222,12 +224,13 @@ export async function getPieceById(
 
   const sourceId = isSourcePieceId(id) ? id.slice(SOURCE_ID_PREFIX.length) : id;
   if (!UUID.test(sourceId)) return null;
-  const { data, error } = await getSupabaseClient()
-    .from("sources")
-    .select("id, kind, title, captured_at, tags, storage_path, frontmatter")
-    .eq("user_id", userId)
-    .eq("id", sourceId)
-    .maybeSingle();
+  const { data, error } = await withSystemTagsColumn((columnPresent) => {
+    const table = getSupabaseClient().from("sources");
+    const query = columnPresent
+      ? table.select("id, kind, title, captured_at, tags, system_tags, storage_path, frontmatter")
+      : table.select("id, kind, title, captured_at, tags, storage_path, frontmatter");
+    return query.eq("user_id", userId).eq("id", sourceId).maybeSingle();
+  });
   if (error) throw error;
   if (!data) return null;
 
@@ -237,6 +240,7 @@ export async function getPieceById(
     title: string | null;
     captured_at: string;
     tags: string[] | null;
+    system_tags?: string[];
     storage_path: string;
     frontmatter: Record<string, unknown> | null;
   };
@@ -257,6 +261,7 @@ export async function getPieceById(
     body,
     ai_followup: null,
     tags: s.tags,
+    ...(s.system_tags === undefined ? {} : { system_tags: s.system_tags }),
     created_at: s.captured_at,
     origin: "source",
     profileImportManaged: managed,

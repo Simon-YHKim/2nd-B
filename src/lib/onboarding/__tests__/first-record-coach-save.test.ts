@@ -32,7 +32,7 @@ const skipCode = compile(skip.initializer.getText(ast));
 
 type CoachStep = FirstRecordCoachStep | null;
 type SaveResult = { id: string; tags: string[]; followup?: { zone: "green" | "red" } };
-const SAVED_RECORD: SaveResult = { id: "saved-record", tags: ["memo"] };
+const SAVED_RECORD: SaveResult = { id: "saved-record", tags: ["domain:collect"] };
 
 function harness(
   initialStep: CoachStep,
@@ -118,7 +118,7 @@ describe("first-record coach follows the real record save", () => {
       await run.save();
 
       expect(run.createRecord).toHaveBeenCalledWith(expect.objectContaining({
-        body: "A first saved note", kind: "note", tags: ["memo"],
+        body: "A first saved note", kind: "note", systemTags: ["memo"],
       }));
       expect(run.state).toEqual({ coachStep: "done", saved: true, error: false, saving: false });
       expect(run.markCoachmarksSeen).toHaveBeenCalledTimes(1);
@@ -174,7 +174,7 @@ describe("first-record coach follows the real record save", () => {
     expect(run.enqueueAutoReasoningRecord).toHaveBeenCalledTimes(1);
     expect(run.enqueueAutoReasoningRecord).toHaveBeenCalledWith({
       userId: "qa-user", locale: "ko", minor: false, tier: "brain",
-      id: "saved-record", body: "A first saved note", title: "A first saved note", tags: ["memo"],
+      id: "saved-record", body: "A first saved note", title: "A first saved note", tags: ["domain:collect"],
     });
   });
 
@@ -207,7 +207,7 @@ describe("글 photos ride on the real record save (2026-09-30)", () => {
 
     expect(run.uploadRecordPhotos).toHaveBeenCalledWith("qa-user", picked);
     expect(run.createRecord).toHaveBeenCalledWith(expect.objectContaining({
-      tags: ["memo"],
+      systemTags: ["memo"],
       structured: { photos: run.uploaded },
     }));
     expect(run.clearPhotos).toHaveBeenCalledTimes(1);
@@ -247,7 +247,7 @@ describe("글 photos ride on the real record save (2026-09-30)", () => {
     await run.save();
 
     expect(run.uploadRecordPhotos).not.toHaveBeenCalled();
-    expect(run.createRecord).toHaveBeenCalledWith(expect.objectContaining({ tags: ["todo"], body: "- first to-do" }));
+    expect(run.createRecord).toHaveBeenCalledWith(expect.objectContaining({ systemTags: ["todo"], body: "- first to-do" }));
     expect(run.createRecord.mock.calls[0]?.[0]).not.toHaveProperty("structured");
   });
 });

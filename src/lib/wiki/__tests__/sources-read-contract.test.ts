@@ -71,10 +71,15 @@ function createSourceWriteFields(): string[] {
 
 // Columns the database manages — index.tsx may read/order these even though
 // createSource never writes them (id is a uuid default, captured_at a timestamp default).
-const DB_MANAGED = new Set(["id", "captured_at", "user_id"]);
+const DB_MANAGED = new Set(["id", "captured_at", "user_id", "system_tags"]);
 
 describe("sources read/write field contract", () => {
   const reads = sourcesReads();
+
+  test("T54 system_tags is actually supplied by migration 0264", () => {
+    expect(readFileSync(join(process.cwd(), "db/migrations/0264_sources_system_tags.sql"), "utf8"))
+      .toContain("ADD COLUMN IF NOT EXISTS system_tags text[] NOT NULL DEFAULT ARRAY[]::text[]");
+  });
 
   test("스캐너가 실제로 질의를 찾았다 - 0건 통과를 막는다", () => {
     // "위반 0건" 과 "아무 질의도 못 봤다" 는 다른 상태다.

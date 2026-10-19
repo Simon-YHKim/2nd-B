@@ -18,6 +18,7 @@
 // window.
 import { getSupabaseClient } from "../supabase/client";
 import { throwIfAborted } from "../async/abort";
+import { withSystemTagsColumn, type SystemTaggedRow } from "./system-tags";
 
 /** Rows asked for at a time. */
 export const WIKI_RECORDS_PAGE = 100;
@@ -67,18 +68,21 @@ function fromCursor<Q extends { lte(column: "created_at", value: string): Q; or(
 }
 
 async function readPage(userId: string, cursor: PageCursor | null, signal?: AbortSignal) {
-  let query = fromCursor(
-    getSupabaseClient().from("records").select("id, kind, body, topic, summary, tags, created_at, audit_period").eq("user_id", userId),
-    cursor,
-  )
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(WIKI_RECORDS_PAGE);
-  if (signal) query = query.abortSignal(signal);
-  const { data, error } = await query;
+  const { data, error } = await withSystemTagsColumn((columnPresent) => {
+    const table = getSupabaseClient().from("records");
+    const selected = columnPresent
+      ? table.select("id, kind, body, topic, summary, tags, system_tags, created_at, audit_period")
+      : table.select("id, kind, body, topic, summary, tags, created_at, audit_period");
+    let query = fromCursor(selected.eq("user_id", userId), cursor)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(WIKI_RECORDS_PAGE);
+    if (signal) query = query.abortSignal(signal);
+    return query;
+  });
   throwIfAborted(signal);
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as (NonNullable<typeof data>[number] & SystemTaggedRow)[];
 }
 
 /**

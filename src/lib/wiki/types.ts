@@ -36,6 +36,8 @@ export interface SourceRow {
   storage_path: string;
   frontmatter: Record<string, unknown>;
   tags: string[];
+  /** Absent only on a pre-0264 server. Ratification requires this column. */
+  system_tags?: string[];
   simon_relevance: number | null;
   ingested: boolean;
   ingested_at: string | null;

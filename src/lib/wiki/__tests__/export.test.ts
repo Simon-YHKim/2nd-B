@@ -47,6 +47,17 @@ function source(over: Partial<SourceRow>): SourceRow {
 }
 
 describe("composeWikiExport", () => {
+  test("T54 exports user and legacy tags verbatim, never system markers", () => {
+    const hidden = composeWikiExport([], [source({ tags: ["memo"], system_tags: ["reasoning:ratified", "voice"] })], {});
+    expect(hidden.prompt).toContain("tags: memo");
+    expect(hidden.prompt).not.toContain("reasoning:ratified");
+    expect(hidden.prompt).not.toContain("voice");
+    const legacy = composeWikiExport([], [source({ tags: ["memo", "reasoning:ratified", "voice"], system_tags: [] })], {});
+    expect(legacy.prompt).toContain("memo");
+    expect(legacy.prompt).toContain("reasoning:ratified");
+    expect(legacy.prompt).toContain("voice");
+  });
+
   test("empty wiki produces a complete document with placeholders", () => {
     const r = composeWikiExport([], [], { asOf: "2026-05-25" });
     expect(r.pageCount).toBe(0);

@@ -110,6 +110,13 @@ const interview = {
 };
 
 describe("createRecord - 0218 system_tags", () => {
+  test.each(["memo", "fourw", "todo", "link", "voice"])("T54 %s marker and a same-word user tag keep separate payloads", async (marker) => {
+    await createRecord({ userId: "owner-a", locale: "ko", kind: "note", body: "My note",
+      withFollowup: false, domainIntent: "growth", tags: [marker, "done", "call_reflection"], systemTags: [marker] });
+    expect(mockStored[0].tags).toEqual(["domain:growth", marker, "done", "call_reflection"]);
+    expect(mockStored[0].system_tags).toEqual([marker]);
+  });
+
   test("the interview's markers go to system_tags, never into the user's tags", async () => {
     const res = await createRecord(interview);
     expect(mockStored).toHaveLength(1);

@@ -94,6 +94,7 @@ describe("generateSourcePage", () => {
       storage_path: "u1/big-five-personality.md",
       frontmatter: { foo: "bar" },
       tags: ["psychology", "personality"],
+      system_tags: ["reasoning:ratified", "voice"],
       simon_relevance: 4,
       ingested: false,
       ingested_at: null,

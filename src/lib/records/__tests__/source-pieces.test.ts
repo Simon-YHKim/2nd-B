@@ -35,7 +35,7 @@ describe("listSourcePieces", () => {
     await listSourcePieces("u1", { excludeProfileImports: true });
     expect(query.is).toHaveBeenCalledWith("frontmatter->profile_context_import_id", null);
     expect(query.eq).toHaveBeenCalledWith("user_id", "u1");
-    expect(query.select).toHaveBeenCalledWith("id, title, captured_at, tags");
+    expect(query.select).toHaveBeenCalledWith("id, title, captured_at, tags, system_tags");
   });
 
   test("ordinary record lists retain profile imports", async () => {
