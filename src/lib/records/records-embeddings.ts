@@ -113,41 +113,22 @@ export async function storeRecordEmbedding(
   if (error) throw error;
 }
 
-// Shared across screen instances, but only for this app process. A restart
-// loses this table; durable withdrawal cleanup still needs a server transaction.
-const recordEmbeddingCleanups = new Map<string, Promise<void>>();
-
 /**
  * D5: forget the user's records semantic index — null out every stored vector.
  * Called when the user turns records embedding OFF (consent revoked) so the
  * toggle's "turning it off deletes the stored vectors" promise is honest. RLS
  * scopes to the user; only rows that actually carry a vector are touched.
  */
-export function clearRecordEmbeddings(userId: string): Promise<void> {
-  const pending = recordEmbeddingCleanups.get(userId);
-  if (pending) return pending;
-  const cleanup = (async () => {
-    const supabase = getSupabaseClient();
-    const { error } = await supabase
-      .from("records")
-      // Clearing the vector clears its provenance too - a model name on a row
-      // with no embedding would make the column lie about what is indexed.
-      .update({ embedding: null, embedding_model: null })
-      .eq("user_id", userId)
-      .not("embedding", "is", null);
-    if (error) throw error;
-  })().finally(() => {
-    recordEmbeddingCleanups.delete(userId);
-  });
-  recordEmbeddingCleanups.set(userId, cleanup);
-  return cleanup;
-}
-
-/** Wait before opt-in so an earlier screen's deletion cannot erase the new index. */
-export async function waitForRecordEmbeddingCleanup(userId: string): Promise<void> {
-  for (let pending = recordEmbeddingCleanups.get(userId); pending; pending = recordEmbeddingCleanups.get(userId)) {
-    await pending;
-  }
+export async function clearRecordEmbeddings(userId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("records")
+    // Clearing the vector clears its provenance too - a model name on a row
+    // with no embedding would make the column lie about what is indexed.
+    .update({ embedding: null, embedding_model: null })
+    .eq("user_id", userId)
+    .not("embedding", "is", null);
+  if (error) throw error;
 }
 
 /**

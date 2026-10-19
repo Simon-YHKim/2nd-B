@@ -4,7 +4,7 @@ import { WeatherPrivacyControl } from "@/components/privacy/WeatherPrivacyContro
 import { AppState, Linking, Platform, Share, StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
-import { Redirect, router, useFocusEffect, useNavigation } from "expo-router";
+import { Redirect, router, useNavigation } from "expo-router";
 import { useAppRouter, useStartAtEndWhen } from "@/lib/nav/phone-embed";
 import { useGoHomeStop } from "@/lib/nav/go-home";
 import { useTranslation } from "react-i18next";
@@ -94,7 +94,6 @@ import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
 import {
   backfillAllRecordEmbeddings,
   clearRecordEmbeddings,
-  waitForRecordEmbeddingCleanup,
   embedVendorLabel,
 } from "@/lib/records/records-embeddings";
 import { recordRecommendationsConsent } from "@/lib/supabase/consent";
@@ -595,8 +594,6 @@ export function DeepSpacePrivacyDesignScreen() {
   const [embedOn, setEmbedOn] = useState<boolean | null>(null);
   const [embedUnderstanding, setEmbedUnderstanding] = useState(false);
   const [embedErr, setEmbedErr] = useState(false);
-  const embeddingEnableRef = useRef(false);
-  const [embeddingCleanupBusy, setEmbeddingCleanupBusy] = useState(false);
   // Right-to-erasure in deep-space (was legacy-only). Terminal + irreversible, so
   // it is gated behind the displayed language's deletion word and the proven cascade.
   const deleteConfirmLanguage = renderedUiLanguage(i18n);
@@ -762,10 +759,9 @@ export function DeepSpacePrivacyDesignScreen() {
     }
   }, [userId]);
 
-  useFocusEffect(useCallback(() => {
+  useEffect(() => {
     if (!userId) return;
     const targetUserId = userId;
-    const prefsAtReadStart = prefsRef.current;
     let cancelled = false;
     setPrefsReadFailed(false);
     void withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs").then(
@@ -773,28 +769,11 @@ export function DeepSpacePrivacyDesignScreen() {
         if (cancelled || activeUserRef.current !== targetUserId) return;
         // A save or a strict read on this screen (the health card) may have landed first;
         // this read is older then and must not become the copy saves start from.
-        if (prefsUserRef.current !== targetUserId || prefsRef.current === prefsAtReadStart) {
+        if (prefsUserRef.current !== targetUserId) {
           prefsRef.current = p;
           prefsUserRef.current = targetUserId;
         }
-        const known = prefsRef.current ?? p;
-        showPrefs(known);
-        // Withdrawal is already stored. Retry once on entry, including focus
-        // on a route that stayed mounted. Clearing only non-null vectors is
-        // idempotent. All screens join the same owner's pending deletion;
-        // a failure stays visible until a later cleanup succeeds.
-        if (known.records_embedding === false && !embeddingEnableRef.current) {
-          setEmbeddingCleanupBusy(true);
-          void clearRecordEmbeddings(targetUserId).then(() => {
-            if (privacyMountedRef.current && activeUserRef.current === targetUserId) setEmbedErr(false);
-          }).catch(() => {
-            if (privacyMountedRef.current && activeUserRef.current === targetUserId) setEmbedErr(true);
-          }).finally(() => {
-            if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
-              setEmbeddingCleanupBusy(false);
-            }
-          });
-        }
+        showPrefs(prefsRef.current ?? p);
       },
       () => {
         if (cancelled || activeUserRef.current !== targetUserId) return;
@@ -807,7 +786,7 @@ export function DeepSpacePrivacyDesignScreen() {
       cancelled = true;
     };
     // showPrefs only calls state setters; a new copy each render changes nothing the read needs.
-  }, [userId, prefsReload]));
+  }, [userId, prefsReload]);
 
   async function toggleExternalPreference(
     key: Extract<PrivacyPrefKey, "external_analytics" | "ads">,
@@ -983,17 +962,14 @@ export function DeepSpacePrivacyDesignScreen() {
   // D5 (J1/J2): records semantic embedding — adult-only opt-in WITH an
   // understanding step (mirrors recommendations). Off deletes the stored vectors.
   async function enableEmbedding() {
-    if (!userId || busy || embeddingEnableRef.current || minorRef.current || prefsUserRef.current !== userId) return;
+    if (!userId || busy || minorRef.current || prefsUserRef.current !== userId) return;
     const targetUserId = userId;
-    embeddingEnableRef.current = true;
     setBusy(true);
+    setEmbedErr(false);
     try {
       // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
       // "everything off" on failure, and the save below would have written that over the other choices.
       const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
-      // The deletion belongs to the owner, not this screen's lifetime. Keep
-      // busy until every preceding cleanup has settled, even after remount.
-      await waitForRecordEmbeddingCleanup(targetUserId);
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
@@ -1043,7 +1019,6 @@ export function DeepSpacePrivacyDesignScreen() {
     } catch {
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) setEmbedErr(true);
     } finally {
-      embeddingEnableRef.current = false;
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
     }
   }
@@ -1052,23 +1027,20 @@ export function DeepSpacePrivacyDesignScreen() {
     if (!userId || busy || prefsUserRef.current !== userId) return;
     const targetUserId = userId;
     setBusy(true);
+    setEmbedErr(false);
     try {
       // Strict: a failed read throws and nothing is saved. The fail-soft read this used returned
       // "everything off" on failure, and the save below would have written that over the other choices.
       const current = await withTimeout(readPrivacyPrefsStrict(targetUserId), PRIVACY_READ_TIMEOUT_MS, "privacy_prefs");
       const prefs = { ...current, records_embedding: false };
       await savePrivacyPrefs(targetUserId, prefs, { before: current });
-      // The stored withdrawal survives a failed deletion. Keep the display
-      // and the next handler's base aligned with it before attempting cleanup.
-      if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
-        prefsRef.current = prefs;
-        prefsUserRef.current = targetUserId;
-        setEmbedOn(false);
-        setEmbedUnderstanding(false);
-      }
       // Consent revoked → forget the index (honest "off deletes vectors").
       await clearRecordEmbeddings(targetUserId);
-      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setEmbedErr(false);
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      prefsRef.current = prefs;
+      prefsUserRef.current = targetUserId;
+      setEmbedOn(false);
+      setEmbedUnderstanding(false);
     } catch {
       if (privacyMountedRef.current && activeUserRef.current === targetUserId) setEmbedErr(true);
     } finally {
@@ -1263,7 +1235,7 @@ export function DeepSpacePrivacyDesignScreen() {
             <Text variant="body" style={styles.lead}>
               {t("privacy.semantic.offBody")}
             </Text>
-            <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(true)} disabled={busy || embeddingCleanupBusy} accessibilityRole="button" accessibilityLabel={t("privacy.semantic.turnOnA11y")}>
+            <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(true)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.semantic.turnOnA11y")}>
               <Text variant="body" style={styles.secondaryText}>{t("privacy.semantic.turnOn")}</Text>
             </Pressable>
           </>
@@ -1282,7 +1254,7 @@ export function DeepSpacePrivacyDesignScreen() {
               <Pressable style={styles.secondary} onPress={() => setEmbedUnderstanding(false)} disabled={busy} accessibilityRole="button" accessibilityLabel={t("common:actions.cancel")}>
                 <Text variant="body" style={styles.secondaryText}>{t("common:actions.cancel")}</Text>
               </Pressable>
-              <Pressable style={styles.primary} onPress={() => void enableEmbedding()} disabled={busy || embeddingCleanupBusy} accessibilityRole="button" accessibilityLabel={t("privacy.understandA11y")}>
+              <Pressable style={styles.primary} onPress={() => void enableEmbedding()} disabled={busy} accessibilityRole="button" accessibilityLabel={t("privacy.understandA11y")}>
                 <Text variant="body" style={styles.primaryText}>{t("privacy.understand")}</Text>
               </Pressable>
             </View>
