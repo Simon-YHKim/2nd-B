@@ -348,14 +348,14 @@ function buildSystemPrompt(
       echo: "울림(L5) — 그 믿음이 지금의 결정/관계/일에 어떻게 작용하는지 묻는 질문",
     };
     return [
-      "사용자가 나누고 싶은 경험을 구체적으로 돌아볼 수 있도록 질문하는 인터뷰어입니다.",
+      "당신은 허슬케이입니다. 사람이 아니라 AI 이며, 사용자가 나누고 싶은 경험을 구체적으로 돌아볼 수 있도록 질문합니다. 사람인 척하거나 자기 경험을 지어내지 않습니다.",
       `시기 초점: ${periodLabel}.`,
       `다음 깊이 단계: ${layerLabel} — ${layerGuide[nextLayer]}.`,
       "규칙:",
       "1) 한 번에 한 가지 질문만 합니다. 짧고, 구체적이고, 부드럽게.",
       "말투는 쉬운 일상어로, 설명은 '~습니다', 질문은 '~나요?'·'~까요?'를 씁니다. 상투적인 칭찬·공감이나 추상적인 비유 없이 바로 묻고, 층·단계 같은 내부 용어를 질문에 드러내지 마세요.",
       "비밀이나 말하기 불편한 일을 요구하지 마세요. 기억나지 않는 내용을 상상해서 채우게 하지 마세요. 직접 기억한 것과 나중에 들은 이야기를 구분하세요. 사용자가 답하지 않겠다고 하면 그 뜻을 존중하는 것이 깊이 단계보다 우선합니다.",
-      "2) 사용자의 마지막 답에 직접 이어붙입니다 — 답의 어느 부분을 더 듣고 싶은지 명확히 합니다.",
+      "2) 사용자의 마지막 답에 직접 이어붙입니다 — 답의 어느 부분을 더 듣고 싶은지 명확히 합니다. 질문 앞에 마지막 답에서 한 구절을 작은따옴표로 짧게 받아 주고, '~라고 하셨는데'처럼 자연스럽게 이어서 한 가지를 묻습니다. 받아 주는 구절은 사용자 말 그대로 몇 단어이고 물음표를 넣지 않으며, 평가 · 칭찬 · 해석을 덧붙이지 않습니다. 아직 답이 없거나, 답하지 않겠다고 했거나, 모르겠다고 했으면 받아 줄 구절 없이 바로 묻습니다. 받아 주기는 말하는 방식일 뿐이라 답이 어느 깊이에 닿았는지의 판정을 바꾸지 않습니다. 그만두겠다는 신호(규칙 4)나 위기 신호(규칙 5)가 있으면 받아 주지도 묻지도 않고 그 규칙만 따릅니다.",
       "같은 장면의 사람·행동·사용자 표현을 이어갑니다. 질문에서 사용자의 '제가·나는' 같은 1인칭을 인터뷰어 자신의 말처럼 재사용하지 않습니다. 사용자 말로 명확히 인용하거나 주어를 생략합니다. 답에 없는 사건이나 속마음을 지어내지 않습니다. 짧아도 구체적인 답이면 충분합니다. 다른 장면으로 넘어가려면 사용자의 선택이 먼저입니다.",
       "감정은 말하고 싶은 범위에서만 묻습니다. 숨겨진 진실·더 솔직한 답을 요구하거나 공개 정도를 칭찬하지 않습니다. 감정 대신 그때 한 행동을 이야기해도 되고, 건너뛰거나 여기서 저장해도 됩니다.",
       "3) 진단·조언·해석은 절대 하지 않습니다. 그저 더 듣는 다음 질문만.",
@@ -401,14 +401,14 @@ function buildSystemPrompt(
     echo: "Echo (L5) — how that belief still shows up in current decisions/relationships/work",
   };
   return [
-    "You are an interviewer helping the user reflect on experiences they choose to share.",
+    "You are HustleK, an AI, not a person, asking questions that help the user reflect on experiences they choose to share. Do not pretend to be human or invent experiences of your own.",
     `Period in focus: ${periodLabel}.`,
     `Next depth layer to probe: ${layerLabel} — ${layerGuide[nextLayer]}.`,
     "Rules:",
     "1) ONE question at a time. Short, specific, gentle.",
     "Use plain, conversational language. Ask directly without canned praise, stock empathy, elaborate metaphors, or internal layer labels.",
     "Do not ask for secrets or uncomfortable disclosures. Do not ask the user to imagine missing memories. Distinguish direct memories from stories heard later. Respecting a choice not to answer takes priority over reaching a depth layer.",
-    "2) Anchor directly on the user's last answer — make clear which part you want to hear more about.",
+    "2) Anchor directly on the user's last answer — make clear which part you want to hear more about. Begin by taking back one short phrase from that answer in quotation marks (their exact words, a few words, no question mark, no praise, evaluation or interpretation) and lead naturally into one question, for example with 'You said ...'. If there is no answer yet, or they chose not to answer, or said they don't know, ask without it. Taking a phrase back is only a way of speaking; it never changes the judgement of which depth the answer reached. If there is a stop signal (rule 4) or crisis signals (rule 5), do not take a phrase back or ask; follow only that rule.",
     "Stay with the same scene, people, actions, and the user's own wording. In questions, do not reuse the user's first-person I/me as the interviewer's voice. Clearly quote it as the user's words, or refer to the user without taking over their first person. Do not invent events or hidden feelings. A short specific answer is sufficient. Change scenes only when the user chooses to.",
     "Invite feelings only if they want to share. Never seek hidden truths, demand greater honesty, or praise disclosure. They may describe a concrete action instead, skip, or stop and save at any time.",
     "3) NEVER diagnose, advise, or interpret. Just the next question that elicits more.",
@@ -535,7 +535,7 @@ export async function nextProbe(
     } catch { /* Failed inspection is not evidence of a contact recommendation. */ }
   }
   return {
-    question: usableQuestion(guidance ? "" : cleaned, history, layer, locale, scaffoldStreak),
+    question: usableQuestion(guidance ? "" : cleaned, history, layer, locale, scaffoldStreak, { path: "model", zone: res.safety.zone, guidance: !!guidance }),
     openers: guidance ? [] : readOpeners(parsed),
     zone: res.safety.zone,
     hotline: res.safety.crisisRouting?.hotline,
@@ -635,20 +635,128 @@ function readAnsweredLayer(parsed: ProbeReply | null): DrillLayer | null | undef
  * 여기서는 **이미 물은 것과 사실상 같으면 버린다.** 그 자리에는 그 층을 겨냥한
  * 고정 질문이 들어간다 -- 한 번 더 LLM 을 부르는 것보다 싸고 결과가 예측 가능하다.
  */
+// T33 (Q-261014-15 · independent review r1 ~ r4): the question opens by taking back one phrase of the
+// user's last answer. The prompt asks for it; on the model path this check makes it hold, and the
+// safety state always comes first:
+// - after a stop (the shared `answerDisposition`) the reply is rule 4's closing line, on green and yellow
+//   alike; a red reply or shown contact guidance keeps its own path (the old fallback);
+// - a yellow or red reply, or shown guidance, may not quote the user at all;
+// - on a green reply with no guidance, after a real answer in the current scene, a question opens with
+//   exactly one quote that is a non-empty stretch of the user's own words: the model's when it is leading,
+//   single and true; otherwise a phrase taken from the answer, in front of the model's question or, when
+//   that does not fit, of a prepared one;
+// - after decline · unsure · skip, or with no answer in the current scene, nothing is quoted;
+// - a Korean line on the model path asks or suggests exactly one thing and ends in 해요체 (STYLE.md B안);
+//   a rule-5 pivot that names a hotline passes as it is, never echoed;
+// - repeats are compared without echoes on both sides.
+// Decline and unsure are judged on the whole current answer, anchored, and decline only covers the
+// conversation itself (talk · say · answer), so a past refusal or a real preference stays an answer.
+// Quote marks inside a Latin word ("What's", "don't") are not quote boundaries.
+const ECHO_QUOTE = /(?<![A-Za-z0-9])['‘"“「『]((?:[^'‘’"“”「」『』\n]|(?<=[A-Za-z])['’](?=[A-Za-z])){1,80})['’"”」』](?![A-Za-z])/gu;
+const ECHO_LEAD = /^\s*you (?:said|mentioned),?\s*|라고\s*하셨는데,?|고\s*하셨는데,?/giu;
+const ECHO_LEAD_ALLOWED: Record<"en" | "ko", RegExp> = { ko: /^$/u, en: /^(?:you (?:said|mentioned),?)?$/iu };
+const DECLINE_ANSWER: Record<"en" | "ko", RegExp> = {
+  ko: /^(?:(?:죄송하지만|미안하지만|음+|그건|그거는?|그런|그|지금은|아직은)\s*)*(?:얘기|이야기|말|답)(?:은|는|을|를)?\s*(?:(?:지금은|아직은|별로|좀)\s*)*(?:하고\s*싶지\s*않(?:아요|습니다|네요)|하기\s*싫(?:어요|습니다|네요)|안\s*하고\s*싶(?:어요|습니다)|못\s*하겠(?:어요|습니다))\s*[.!。~]*$/u,
+  en: /^\s*(?:sorry,?\s*)?(?:i\s+)?(?:can['’]?t|cannot|won['’]?t)\s+(?:talk about|discuss|answer|go into)\b[^.!?]*[.!?]*\s*$/iu,
+};
+const UNSURE_ANSWER: Record<"en" | "ko", RegExp> = {
+  ko: /^(?:음+\s*)?(?:(?:잘|정말|그건|그거는?)\s*)*(?:모르겠(?:어요|습니다|네요|어)?|기억(?:이|은)?\s*(?:잘\s*)?안\s*나(?:요|네요)?|글쎄요?)\s*[.!?。…~]*$/u,
+  en: /^\s*(?:hmm,?\s*)?(?:i\s+)?(?:really\s+)?(?:don['’]?t (?:really )?know|not sure|no idea|can['’]?t remember|don['’]?t remember)\s*[.!?…]*\s*$/iu,
+};
+// Rule 4's closing line, the same words the system prompt gives the model.
+const CLOSING_LINE: Record<"en" | "ko", string> = { ko: "여기서 멈춰도 좋아요.", en: "It's okay to pause here." };
+const ECHO_PHRASE_MAX: Record<"en" | "ko", number> = { ko: 24, en: 36 };
+const KO_POLITE_END = /요\s*[?？.!。]*\s*$/u;
+const KO_REQUEST = /(?:세요|주세요|줄래요|볼까요)/gu;
+// A rule-5 pivot names a number to call; such a line is guidance, not an interview question.
+const HOTLINE_NUMBER = /(?<!\d)(?:109|1388|112|119|117|1366|988|911)(?!\d)/u;
+
+type AnswerKind = "none" | "stop" | "decline" | "unsure" | "skip" | "answer";
+
+/** Model-path state from `nextProbe`. Absent for other callers, which keep the old fallback. */
+export interface ProbeAcceptance {
+  path: "model";
+  zone: "green" | "yellow" | "red";
+  guidance: boolean;
+}
+
+function lastUserAnswer(turns: readonly InterviewTurn[]): string {
+  return [...turns].reverse().find((turn) => turn.role === "user")?.text ?? "";
+}
+
+function answerKind(last: string, locale: "en" | "ko"): AnswerKind {
+  if (!last.trim()) return "none";
+  const disposition = answerDisposition(last, locale);
+  if (disposition === "stop") return "stop";
+  if (disposition === "skip") return "skip";
+  if (disposition === "uncertain") return "unsure";
+  const clean = last.trim();
+  if (DECLINE_ANSWER[locale].test(clean)) return "decline";
+  if (UNSURE_ANSWER[locale].test(clean)) return "unsure";
+  return "answer";
+}
+
+const flatText = (value: string) => value.replace(/\s+/gu, " ").trim().toLowerCase().replace(/[.,!?。！？]+$/u, "");
+const hasWords = (value: string) => value.replace(/[\s\p{P}\p{S}]+/gu, "").length > 0;
+
+/** A short stretch of the user's own words from the first sentence, kept as written. */
+function echoPhrase(answer: string, locale: "en" | "ko"): string {
+  const sentence = answer.split(/[.!?。！？\n]+/u).map((part) => part.trim()).find(Boolean) ?? "";
+  // Korean echoes are wrapped in '…' and English ones in “…”: a word holding the wrapping mark (or any
+  // other quote) is never taken, so the phrase stays a contiguous stretch of the answer.
+  const unsafe = locale === "ko" ? /['‘’"“”「」『』]/u : /["“”「」『』]/u;
+  const runs: string[][] = [[]];
+  for (const word of sentence.split(/\s+/u).filter(Boolean)) {
+    if (unsafe.test(word)) runs.push([]);
+    else runs[runs.length - 1].push(word);
+  }
+  const usable = runs.filter((run) => run.some(hasWords));
+  const run = [...usable].reverse().find((candidate) => candidate.length >= 2) ?? usable[usable.length - 1] ?? [];
+  const max = ECHO_PHRASE_MAX[locale];
+  let take = Math.min(run.length, locale === "ko" ? 3 : 4);
+  let phrase = run.slice(run.length - take).join(" ");
+  while (phrase.length > max && take > 1) phrase = run.slice(run.length - --take).join(" ");
+  if (phrase.length > max) phrase = phrase.slice(-max).trim();
+  phrase = phrase.replace(/[,，]+$/u, "").trim();
+  return hasWords(phrase) ? phrase : "";
+}
+
+function withEcho(phrase: string, question: string, locale: "en" | "ko"): string {
+  if (!phrase || !question) return "";
+  const echoed = locale === "ko" ? `'${phrase}'라고 하셨는데, ${question}` : `You said “${phrase}”. ${question}`;
+  return echoed.length <= 320 ? echoed : "";
+}
+
+/** The question without its echoed quote, for the repeat and register checks only (never shown). */
+function questionCore(candidate: string): string {
+  return candidate.replace(ECHO_QUOTE, " ").replace(ECHO_LEAD, " ").replace(/^[\s,，.\-–—:]+/u, "").trim();
+}
+
+/** Korean body: 해요체 ending, and exactly one question or request (STYLE.md B안 · rule 1). */
+function koreanBodyOk(body: string): boolean {
+  if (!KO_POLITE_END.test(body)) return false;
+  const acts = (body.match(/[?？]/gu)?.length ?? 0) + (body.match(KO_REQUEST)?.length ?? 0);
+  return acts === 1;
+}
+
 export function usableQuestion(
   candidate: string,
   history: readonly InterviewTurn[],
   layer: DrillLayer,
   locale: "en" | "ko",
   scaffoldStreak = 0,
+  /** The model path passes its safety state; other callers keep the old fallback. */
+  acceptance?: ProbeAcceptance,
 ): string {
   const norm = (v: string) => v.replace(/[\p{P}\p{S}]+/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
-  const asked = new Set(
-    history.filter((turn) => turn.role === "interviewer").map((turn) => norm(turn.text)),
-  );
+  const askedTexts = history.filter((turn) => turn.role === "interviewer").map((turn) => turn.text);
+  // Echoes differ from turn to turn, so earlier questions are compared with and without theirs.
+  const asked = new Set([...askedTexts.map(norm), ...askedTexts.map((text) => norm(questionCore(text)))].filter(Boolean));
   const repeated = (question: string) => {
     const normalized = norm(question);
     if (asked.has(normalized)) return true;
+    // A new quote or lead-in in front of an earlier question does not make it a new question.
+    if ([...asked].some((previous) => previous.length >= 12 && normalized.includes(previous))) return true;
     // Small wording edits do not make a new question. This detects near copies,
     // not semantic equivalence; the prompt still owns meaning-level repetition.
     const grams = (text: string) => new Set(Array.from({ length: Math.max(0, text.length - 2) }, (_, i) => text.slice(i, i + 3)));
@@ -660,15 +768,44 @@ export function usableQuestion(
       return (2 * overlap) / (candidateGrams.size + previousGrams.size) >= 0.88;
     });
   };
-  if (candidate.length > 0 && candidate.length <= 320 && (candidate.match(/[?？]/g)?.length ?? 0) <= 1
-    && !candidate.startsWith("{") && !candidate.startsWith("```") && !repeated(candidate)) return candidate;
+  const modelPath = acceptance?.path === "model";
+  const calm = modelPath && acceptance.zone === "green" && !acceptance.guidance;
+  // The model only sees the current scene, so only its answer can be taken back.
+  const last = lastUserAnswer(currentScene(history));
+  const kind = answerKind(last, locale);
+  // Rule 4 wins after a stop, whatever the echo; a red reply or shown guidance keeps its own path.
+  if (modelPath && kind === "stop" && acceptance.zone !== "red" && !acceptance.guidance) return CLOSING_LINE[locale];
+
+  const quotes = [...candidate.matchAll(ECHO_QUOTE)];
+  const questionMarks = candidate.match(/[?？]/g)?.length ?? 0;
+  const source = flatText(last);
+  const leadingTrueQuote = quotes.length === 1
+    && ECHO_LEAD_ALLOWED[locale].test(candidate.slice(0, quotes[0].index ?? 0).trim())
+    && hasWords(quotes[0][1])
+    && source.includes(flatText(quotes[0][1]));
+  // Off the calm model path no quote is allowed at all; on it only the one leading true quote after an answer.
+  const quotesAllowed = quotes.length === 0 || (calm && kind === "answer" && leadingTrueQuote) || !modelPath;
+  const echoOn = calm && kind === "answer";
+  const phrase = echoOn ? echoPhrase(last, locale) : "";
+  const pivot = modelPath && quotes.length === 0 && HOTLINE_NUMBER.test(candidate);
+  // After a non-answer the model may close with rule 4's exact line instead of asking about what was declined.
+  const closing = kind !== "answer" && quotes.length === 0 && candidate.trim() === CLOSING_LINE[locale];
+  const bodyOk = !modelPath || locale !== "ko" || pivot || closing || koreanBodyOk(questionCore(candidate));
+  if (candidate.length > 0 && candidate.length <= 320 && questionMarks <= 1
+    && !candidate.startsWith("{") && !candidate.startsWith("```") && !repeated(candidate)
+    && (modelPath ? quotesAllowed : true) && !repeated(questionCore(candidate)) && bodyOk) {
+    if (pivot || !echoOn || quotes.length > 0 || questionMarks !== 1) return candidate;
+    const echoed = withEcho(phrase, candidate, locale);
+    if (echoed) return echoed;
+  }
   // 발판일 때 같은 층의 원래 질문을 돌려주면 방금 못 답한 그 질문을 그대로
   // 다시 묻게 된다. 발판은 발판용 문장이 따로 있다.
   const fallbacks = scaffoldStreak > 0
     ? [scaffoldQuestion(layer, locale, scaffoldStreak), LAYER_FALLBACK[locale][layer]]
     : [LAYER_FALLBACK[locale][layer], scaffoldQuestion(layer, locale, 1), scaffoldQuestion(layer, locale, 2)];
   // An exhausted fallback pool ends this thread instead of asking the same thing again.
-  return fallbacks.find((question) => !repeated(question)) ?? "";
+  const fallback = fallbacks.find((question) => !repeated(question)) ?? "";
+  return echoOn ? withEcho(phrase, fallback, locale) || fallback : fallback;
 }
 
 /**
