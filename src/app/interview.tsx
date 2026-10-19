@@ -97,6 +97,7 @@ import {
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "@/lib/interview/session-end";
 import { interviewAnswerLabel, storedTurns, storyTitle } from "@/lib/interview/saved-story";
+import { isUneditedOpener, type OpenerSelection } from "@/lib/interview/opener-selection";
 import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
 import { isRecordingAudioMode } from "@/lib/audio/audio-session";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
@@ -276,6 +277,7 @@ interface InterviewGuidanceDelivery {
 export interface SceneFrame {
   turns: InterviewTurn[]; coverage: Coverage; pendingLayer: DrillLayer | null; openers: string[];
   abandoned: DrillLayer[]; concreteOnly: boolean; stuckStreak: number; draft: string;
+  openerSelection?: OpenerSelection;
   /** A completed scene's more question returns after its first safe adjudication. */
   returnToChoice?: boolean;
 }
@@ -350,6 +352,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const coveredPeriods = useMemo(() => livedPeriods(age), [age]);
   const [draft, setDraft] = useState("");
   const draftEditRevision = useRef(0);
+  const openerSelection = useRef<OpenerSelection | undefined>(undefined);
   const sending = useRef(false);
   const [busy, setBusy] = useState(false);
   const [pendingLayer, setPendingLayer] = useState<DrillLayer | null>(null);
@@ -431,6 +434,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   }
   function frameSnapshot(): SceneFrame {
     return { turns, coverage, pendingLayer, openers, abandoned, concreteOnly, stuckStreak, draft,
+      openerSelection: openerSelection.current,
       returnToChoice: flowRef.current.returnToChoice };
   }
   function stampCurrent(stamp: FlowStamp, revision = stamp.revision) {
@@ -469,6 +473,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     flowRef.current.choice = nextChoice;
     flowRef.current.returnToChoice = frame.returnToChoice;
     const current = () => stampCurrent(action, revision) && !ended.current;
+    if (draftEditRevision.current === action.draftRevision) {
+      openerSelection.current = isUneditedOpener(frame.openerSelection, frame.draft, frame.turns, frame.openers)
+        ? frame.openerSelection : undefined;
+    }
     setTurns(previous => current() ? frame.turns : previous);
     setCoverage(previous => current() ? frame.coverage : previous);
     setPendingLayer(previous => current() ? frame.pendingLayer : previous);
@@ -771,8 +779,20 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
 
   function editDraft(value: string) {
     if (flowRef.current.receipt.phase !== "idle" || flowRef.current.choice || ended.current || !sessionCurrent()) return;
+    openerSelection.current = undefined;
     draftEditRevision.current += 1;
     setDraft(value);
+  }
+
+  function selectOpener(index: number) {
+    if (!pendingLayer || busy || sending.current || flowRef.current.action || turnsOwnerRef.current !== turns
+      || flowRef.current.receipt.phase !== "idle" || flowRef.current.choice || ended.current || !sessionCurrent()) return;
+    const text = openers[index];
+    if (typeof text !== "string") return;
+    const selection = { questionIndex: turns.length - 1, questionText: turns.at(-1)?.text ?? "", openerIndex: index, text };
+    if (!isUneditedOpener(selection, text, turns, openers)) return;
+    editDraft(text);
+    openerSelection.current = selection;
   }
 
   // `override` 는 답변 칩이 쓴다. 칩을 누르면 `setDraft` 후 `send()` 를 부르는 대신
@@ -832,9 +852,8 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     if (!action) return;
     const blocked = isLocalNonAnswer(text, pendingLayer);
     const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period,
-      // Match only this question's displayed candidates. trim() is the existing send policy;
-      // inner whitespace, case, punctuation and Unicode composition remain exact.
-      ...(openers.some(opener => opener.trim() === text) ? { fromOpener: true } : {}),
+      // The input must still be the exact selected candidate, before send's trim.
+      ...(override === undefined && isUneditedOpener(openerSelection.current, draft, turns, openers) ? { fromOpener: true } : {}),
       ...(blocked ? { answered: false } : {}) };
     const nextTurns = [...turns, answered];
     const nextCoverage = coverage;
@@ -1207,10 +1226,10 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
                     모델이 쓴 문장이 그대로 기록으로 남으면, 이 제품이 모으려는
                     "그 사람이 실제로 한 말" 이 아니라 "모델이 그럴듯하게 지어낸 말"
                     이 위키에 쌓인다. 고쳐 쓰라고 놓는 첫머리다. */}
-                {openers.map((o) => (
+                {openers.map((o, index) => (
                   <Pressable
                     key={o}
-                    onPress={() => editDraft(o)}
+                    onPress={() => selectOpener(index)}
                     style={styles.answerChip}
                     accessibilityRole="button"
                     accessibilityLabel={o}

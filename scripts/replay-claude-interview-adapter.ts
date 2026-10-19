@@ -18,6 +18,7 @@ const CRISIS_ROUTER = "src/components/safety/CrisisRouter.tsx";
 const GUIDANCE_ROW = "src/components/interview/InterviewGuidanceRow.tsx";
 const COPY_JSON = ["locales/en/safety.json", "locales/ko/safety.json"];
 const PURE_MODULES = [
+  "src/lib/interview/opener-selection.ts",
   "src/lib/interview/saved-story.ts",
   "src/lib/interview/loop-check.ts", "src/lib/interview/stuck.ts", "src/lib/interview/continuity.ts",
   "src/lib/interview/probe-guidance.ts", "src/lib/interview/probe-contact-intent.ts",
@@ -278,6 +279,8 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     const interviewInstance = { current: 1 }, probeRequest = { current: 0 }, turnsOwnerRef = { current: history };
     let guidanceDelivery: unknown = null;
     const scope = {
+      ...load<Record<string, unknown>>("src/lib/interview/opener-selection.ts"),
+      openerSelection: { current: undefined },
       userId: "synthetic-offline", period: sample.period, locale: sample.locale, isMinor: sample.minor,
       concreteOnly: false, ended, mounted, interviewInstance, probeRequest, turnsOwnerRef,
       turns: history, coverage, pendingLayer, openers, abandoned: [], draft: "",

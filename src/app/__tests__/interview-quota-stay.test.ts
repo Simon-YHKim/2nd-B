@@ -1,6 +1,7 @@
 import * as sceneProbe from "../../lib/interview/probe";
 import * as sceneStuck from "../../lib/interview/stuck";
 import * as sceneEnd from "../../lib/interview/session-end";
+import { isUneditedOpener } from "../../lib/interview/opener-selection";
 import type { InterviewFlow, InterviewChoice, SaveReceipt } from "../interview";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -68,6 +69,7 @@ function setup() {
     jest.fn((value: unknown) => { Object.assign(state, { [name]: typeof value === "function" ? value((state as Record<string, unknown>)[name]) : value }); updates.push(name); }),
   ]));
   const scope = {
+    isUneditedOpener, openerSelection: { current: undefined },
     ...sceneProbe, ...sceneStuck, ...sceneEnd,
     sessionContext: { current: null as object | null }, sessionOwner: { current: captureAccountOwnerLease("A") }, contextRef: { current: { key: "initial" } },
     flowRef: { current: { revision: 0, action: null, choice: null, receipt: { phase: "idle" }, crisisLatched: false, crisisEpoch: 0 } as InterviewFlow },
@@ -141,7 +143,7 @@ test("a queued newer edit wins over the rejected request's old draft", async () 
   expect(h.state.pendingLayer).toBe("feeling");
   expect(screen).toContain("editable={!inputLocked}");
   expect(screen).toContain("onChangeText={editDraft}");
-  expect(screen).toContain("onPress={() => editDraft(o)}");
+  expect(screen).toContain("onPress={() => selectOpener(index)}");
 });
 
 test("a same-render second tap cannot consume another request", async () => {
