@@ -203,7 +203,7 @@ export function composeIdenDoc(persona: PersonaCard | null, opts: ComposeIdenOpt
 
   const summary = opts.summary?.trim();
   if (summary) {
-    doc.summary = { text: summary, source: { kind: "ai_summary" } };
+    doc.summary = { text: summary, source: { kind: persona?.patterns.__summary_source === "fixed_safety" ? "derived" : "ai_summary" } };
   }
   return doc;
 }

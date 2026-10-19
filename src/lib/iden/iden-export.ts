@@ -14,6 +14,7 @@ import { renderIdenHtml, type RenderIdenOpts } from "./render-html";
 import { serializeIden } from "./serialize";
 import { buildIdenDoc, type BuildIdenOpts } from "./build-iden";
 import type { IdenDoc } from "./types";
+import { withAiCopyTail } from "../chat/ai-mark";
 
 export interface IdenExport {
   /** The portable `.iden` text (machine block + body + request placeholder). */
@@ -33,6 +34,8 @@ export interface IdenExport {
 }
 
 export interface BuildIdenExportOpts extends RenderIdenOpts {
+  /** Localized secondb:aiCopyTail for model text leaving the app. */
+  aiCopyTail?: string;
   /** Live task appended last in the `.iden` (query-at-end); placeholder if absent. */
   request?: string;
   /** Optional human prose body for the `.iden`. */
@@ -43,6 +46,18 @@ export interface BuildIdenExportOpts extends RenderIdenOpts {
    * leaves the device in any format.
    */
   include?: readonly string[];
+}
+
+/** Label model summaries and attributed northstar sentences before serialization,
+ *  keeping JSON/YAML parseable and HTML escaped without changing stored text. */
+export function withIdenAiCopyTail(doc: IdenDoc, tail: string | undefined): IdenDoc {
+  if (!tail) return doc;
+  const summary = doc.summary?.text.trim() && doc.summary.source.kind === "ai_summary"
+    ? { ...doc.summary, text: withAiCopyTail(doc.summary.text, tail) } : doc.summary;
+  const oneLiner = doc.oneLinerAiSuggested && doc.oneLiner.trim()
+    ? withAiCopyTail(doc.oneLiner, tail) : doc.oneLiner;
+  if (summary === doc.summary && oneLiner === doc.oneLiner) return doc;
+  return { ...doc, oneLiner, ...(summary ? { summary } : {}) };
 }
 
 /** ASCII slug for a filename; empty when nothing survives (e.g. Hangul). Capped
@@ -60,11 +75,12 @@ function slugify(name: string): string {
 /** Bundle an IdenDoc into its shareable artifacts + a download stem. Pure. */
 export function buildIdenExport(doc: IdenDoc, opts: BuildIdenExportOpts = {}): IdenExport {
   const locale = opts.locale ?? "en";
+  const labelled = withIdenAiCopyTail(doc, opts.aiCopyTail);
   // Sovereignty filter first (P5a): every artifact renders from the SAME
   // filtered doc, so an excluded field cannot leak through any format.
   const kept: IdenDoc = opts.include
-    ? { ...doc, fields: doc.fields.filter((f) => opts.include!.includes(f.key)) }
-    : doc;
+    ? { ...labelled, fields: labelled.fields.filter((f) => opts.include!.includes(f.key)) }
+    : labelled;
   const iden = serializeIden(kept, { request: opts.request, body: opts.body });
   const html = renderIdenHtml(kept, { locale });
   const json = JSON.stringify(kept, null, 2);
