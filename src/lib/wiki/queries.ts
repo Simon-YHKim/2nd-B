@@ -11,6 +11,7 @@
 
 import { getSupabaseClient } from "../supabase/client";
 import { diffWikiLinks } from "./link-diff";
+import { prepareSavedDataDeletion } from "./saved-data-changes";
 import { extractWikilinkSlugs } from "./wikilinks";
 import type { RelationType, SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
 
@@ -147,12 +148,14 @@ export async function markSourceIngested(userId: string, sourceId: string): Prom
  */
 export async function deleteSource(userId: string, sourceId: string): Promise<void> {
   const supabase = getSupabaseClient();
+  const notifyDeletion = prepareSavedDataDeletion({ ownerId: userId, kind: "source", ids: [sourceId] });
   const { error } = await supabase
     .from("sources")
     .delete()
     .eq("user_id", userId)
     .eq("id", sourceId);
   if (error) throw error;
+  notifyDeletion("requested");
 }
 
 /** Sources whose Storage upload failed at capture time (frontmatter carries
@@ -309,6 +312,7 @@ export async function markSourceNotIngested(userId: string, sourceId: string): P
  */
 export async function deleteWikiPage(userId: string, pageId: string): Promise<void> {
   const supabase = getSupabaseClient();
+  const notifyDeletion = prepareSavedDataDeletion({ ownerId: userId, kind: "wiki_page", ids: [pageId] });
   // Read the promoted-from source BEFORE deleting, while the FK still exists.
   const { data: page, error: lookupErr } = await supabase
     .from("wiki_pages")
@@ -334,6 +338,7 @@ export async function deleteWikiPage(userId: string, pageId: string): Promise<vo
         console.warn("[wiki] page deleted but source reset failed", (e as Error).message);
     }
   }
+  notifyDeletion("requested");
 }
 
 /** Pages whose body links TO the given page (i.e., wiki_links.to_page = pageId). */

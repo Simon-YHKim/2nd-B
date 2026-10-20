@@ -59,7 +59,7 @@ OFF 상태의 철회 삭제, OLD 반쪽 정리, 행 자체 DELETE는 계속 허�
 | 본문 수정 | `src/lib/records/create.ts:639` | `update(patch)`만 실행. 벡터 비우기·재계산 경로 없음 |
 | 모델 교체 | `db/migrations/0068_reset_wiki_embeddings.sql:29`, `0142_embedding_provenance.sql:81` | 0068은 wiki만 비움. 0142는 records 모델명을 채움. 현재 records의 모델 교체용 NULL 경로 없음 |
 | 화면 철회·백필 종료 | `DeepSpaceDesignScreens.tsx:1038`, `records-embeddings.ts:398` | OFF 저장/조회 뒤 호출. ON에서 쓰는 정상 기능이 아니라 지연되면 문제의 손실을 만드는 경로 |
-| 단건·여러 기록 삭제 | `src/lib/records/create.ts:660`, `src/lib/records/delete-bulk.ts:20`, `:37`, `:53`, `:69` | 행 자체 DELETE. UPDATE 가드와 무관하며 동의 ON에서도 계속 삭제 |
+| 단건·여러 기록 삭제 | `src/lib/records/create.ts:660`, `src/lib/records/delete-bulk.ts:22`, `:39`, `:55`, `:71` | 행 자체 DELETE. UPDATE 가드와 무관하며 동의 ON에서도 계속 삭제 |
 | 서버 함수·정리 SQL | `db/migrations/0263_records_embedding_consent_guard.sql:136`; `db/ops/records_embedding_cleanup_batch.sql:76` | 철회는 현재 OFF에서 삭제. 정리 배치는 OFF 또는 OLD 반쪽만 선택 |
 | Edge 임베딩 | `supabase/functions/openai-proxy/index.ts:567`, `supabase/functions/gemini-proxy/index.ts:636` | 모델 응답을 반환. records의 벡터를 NULL로 갱신하는 Edge 경로 없음 |
 

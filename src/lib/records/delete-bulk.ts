@@ -13,6 +13,7 @@ import {
 } from "../auth/session-mutation";
 import { installAccountLocalDeletionFence } from "../account/local-deletion-fence";
 import { recordPhotoPathsOf, removeRecordPhotoObjects } from "../capture/record-photos";
+import { prepareSavedDataDeletion } from "../wiki/saved-data-changes";
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
   const supabase = getSupabaseClient();
@@ -83,12 +84,14 @@ export async function deleteRecordsByIds(userId: string, ids: string[]): Promise
 export async function deleteSourcesByIds(userId: string, ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
   const supabase = getSupabaseClient();
+  const notifyDeletion = prepareSavedDataDeletion({ ownerId: userId, kind: "source", ids });
   const { count, error } = await supabase
     .from("sources")
     .delete({ count: "exact" })
     .eq("user_id", userId)
     .in("id", ids);
   if (error) throw error;
+  notifyDeletion(count);
   return count ?? 0;
 }
 
@@ -114,11 +117,13 @@ export async function findSurvivingSourceIds(userId: string, ids: string[]): Pro
 
 export async function deleteAllWikiPages(userId: string): Promise<number> {
   const supabase = getSupabaseClient();
+  const notifyDeletion = prepareSavedDataDeletion({ ownerId: userId, kind: "wiki_page", all: true });
   const { count, error } = await supabase
     .from("wiki_pages")
     .delete({ count: "exact" })
     .eq("user_id", userId);
   if (error) throw error;
+  notifyDeletion(count);
   return count ?? 0;
 }
 
@@ -127,12 +132,14 @@ export async function deleteAllWikiPages(userId: string): Promise<number> {
  *  source deletion while a kind='source' page references it). */
 export async function deleteUningestedSources(userId: string): Promise<number> {
   const supabase = getSupabaseClient();
+  const notifyDeletion = prepareSavedDataDeletion({ ownerId: userId, kind: "source", scope: "uningested" });
   const { count, error } = await supabase
     .from("sources")
     .delete({ count: "exact" })
     .eq("user_id", userId)
     .eq("ingested", false);
   if (error) throw error;
+  notifyDeletion(count);
   return count ?? 0;
 }
 
@@ -140,11 +147,13 @@ export async function deleteUningestedSources(userId: string): Promise<number> {
  *  call deleteAllWikiPages first when you want a full wipe. */
 export async function deleteAllSources(userId: string): Promise<number> {
   const supabase = getSupabaseClient();
+  const notifyDeletion = prepareSavedDataDeletion({ ownerId: userId, kind: "source", all: true });
   const { count, error } = await supabase
     .from("sources")
     .delete({ count: "exact" })
     .eq("user_id", userId);
   if (error) throw error;
+  notifyDeletion(count);
   return count ?? 0;
 }
 
