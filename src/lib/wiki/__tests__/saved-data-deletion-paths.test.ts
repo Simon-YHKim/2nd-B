@@ -1,4 +1,4 @@
-import { deleteAllSources, deleteAllWikiPages, deleteSourcesByIds } from "../../records/delete-bulk";
+import { deleteAllSources, deleteAllWikiPages, deleteSourcesByIds, deleteUningestedSources } from "../../records/delete-bulk";
 import { deleteSource, deleteWikiPage } from "../queries";
 import { subscribeSavedDataChanges, type SavedDataChange } from "../saved-data-changes";
 import { __resetAccountEpochForTests, beginAccountOwnerTransition, clearAccountTransition,
@@ -55,6 +55,9 @@ const paths: Path[] = [
   { name: "deleteAllSources", run: deleteAllSources, result: 2, count: 2,
     event: { ownerId: "a", kind: "source", all: true, basis: "affected" },
     queries: [{ table: "sources", steps: [["delete", { count: "exact" }], ["eq", "user_id", "a"]] }] },
+  { name: "deleteUningestedSources", run: deleteUningestedSources, result: 2, count: 2,
+    event: { ownerId: "a", kind: "source", scope: "uningested", basis: "affected" },
+    queries: [{ table: "sources", steps: [["delete", { count: "exact" }], ["eq", "user_id", "a"], ["eq", "ingested", false]] }] },
 ];
 
 beforeEach(() => {
@@ -95,10 +98,8 @@ describe.each(paths)("$name live deletion contract", path => {
   test.each([0, null, undefined])("unknown/zero count %s is never reported as affected", async count => {
     const listener = listen(); mockExecute.mockResolvedValue({ count, error: null });
     await expect(path.run("a")).resolves.toBe(path.single ? undefined : 0);
-    if (path.single) {
-      expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith(path.event);
-    } else expect(listener).not.toHaveBeenCalled();
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({ ...path.event, basis: "requested" });
   });
 
   test("throwing listeners do not change results, queries or later delivery", async () => {
@@ -141,10 +142,11 @@ test("empty bulk selection does no I/O or notification", async () => {
   expect(mockQueries).toEqual([]); expect(listener).not.toHaveBeenCalled();
 });
 
-test("partial bulk deletion preserves count but does not invent deleted IDs", async () => {
+test("partial bulk deletion preserves count and requests requery without affected-row proof", async () => {
   const listener = listen(); mockExecute.mockResolvedValue({ count: 1, error: null });
   await expect(deleteSourcesByIds("a", ["s1", "s2"])).resolves.toBe(1);
-  expect(listener).not.toHaveBeenCalled();
+  expect(listener).toHaveBeenCalledTimes(1);
+  expect(listener).toHaveBeenCalledWith({ ownerId: "a", kind: "source", ids: ["s1", "s2"], basis: "requested" });
 });
 
 test("caller mutation cannot change the event's captured IDs", async () => {

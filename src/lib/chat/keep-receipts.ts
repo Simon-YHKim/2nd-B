@@ -32,7 +32,7 @@ export type KeepSettlement =
   | { readonly state: "unknown" | "failed" };
 
 /** Metadata only. A view unsubscribes on detach; the owning session alone disposes.
- * D2 will call check after deletion events. Events are not deletion proof.
+ * Future deletion-event consumers must requery only known source IDs; events are not deletion proof.
  * D4 must fence issued capture writes separately; these receipts are not its ledger. */
 export function createKeepReceipts(registry: Registry, sourceSession: ChatSessionToken, timeoutMs = 10_000) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("invalid_keep_read_timeout");

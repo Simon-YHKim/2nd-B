@@ -17,7 +17,7 @@ const source: SavedDataDeletionTarget = { ownerId: "a", kind: "source", ids: ["s
 beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("a"); });
 afterEach(() => { cleanups.splice(0).forEach(fn => fn()); });
 
-test("publishes synchronously, only after a confirmed count, and unsubscribes idempotently", () => {
+test("publishes synchronously after acknowledgement and unsubscribes idempotently", () => {
   const { listener, unsubscribe } = listen();
   const notify = prepareSavedDataDeletion(source);
   expect(listener).not.toHaveBeenCalled();
@@ -28,17 +28,28 @@ test("publishes synchronously, only after a confirmed count, and unsubscribes id
   expect(listener).toHaveBeenCalledTimes(1);
 });
 
-test.each([undefined, null, 0, -1, NaN, Infinity, 0.5])("ignores unconfirmed count %s for IDs and all", count => {
+test.each([undefined, null, 0, -1, NaN, Infinity, 0.5])("unconfirmed count %s requests a requery for IDs and all", count => {
   const { listener } = listen();
   prepareSavedDataDeletion(source)(count);
   prepareSavedDataDeletion({ ownerId: "a", kind: "wiki_page", all: true })(count);
-  expect(listener).not.toHaveBeenCalled();
+  expect(listener.mock.calls.map(([event]) => event)).toEqual([
+    { ...source, basis: "requested" },
+    { ownerId: "a", kind: "wiki_page", all: true, basis: "requested" },
+  ]);
 });
 
-test("short/oversized counts and empty IDs cannot identify deleted rows", () => {
+test("short/oversized counts request a requery without claiming affected IDs", () => {
   const { listener } = listen();
   prepareSavedDataDeletion({ ...source, ids: ["s1", "s2"] })(1);
   prepareSavedDataDeletion(source)(2);
+  expect(listener.mock.calls.map(([event]) => event)).toEqual([
+    { ...source, ids: ["s1", "s2"], basis: "requested" },
+    { ...source, basis: "requested" },
+  ]);
+});
+
+test("empty IDs cannot identify a requery target", () => {
+  const { listener } = listen();
   prepareSavedDataDeletion({ ...source, ids: [] })(1);
   prepareSavedDataDeletion({ ...source, ids: [""] })(1);
   expect(listener).not.toHaveBeenCalled();
@@ -60,6 +71,20 @@ test.each(["source", "wiki_page"] as const)("all %s event contains only owner/ki
   const { listener } = listen();
   prepareSavedDataDeletion({ ownerId: "a", kind, all: true })(2);
   expect(listener).toHaveBeenCalledWith({ ownerId: "a", kind, all: true, basis: "affected" });
+});
+
+test.each([2, 0, null, undefined])("uningested scope preserves only filter metadata for count %s", count => {
+  const { listener } = listen();
+  const input = { ownerId: "a", kind: "source" as const, scope: "uningested" as const,
+    body: "never forward", title: "never forward" };
+  const notify = prepareSavedDataDeletion(input);
+  input.ownerId = "b";
+  expect(listener).not.toHaveBeenCalled();
+  notify(count);
+  expect(listener).toHaveBeenCalledTimes(1);
+  const event = listener.mock.calls[0][0];
+  expect(event).toEqual({ ownerId: "a", kind: "source", scope: "uningested", basis: count === 2 ? "affected" : "requested" });
+  expect(Object.isFrozen(event)).toBe(true);
 });
 
 test("an acknowledged request without a row count is explicitly unconfirmed", () => {

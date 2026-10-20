@@ -132,12 +132,14 @@ export async function deleteAllWikiPages(userId: string): Promise<number> {
  *  source deletion while a kind='source' page references it). */
 export async function deleteUningestedSources(userId: string): Promise<number> {
   const supabase = getSupabaseClient();
+  const notifyDeletion = prepareSavedDataDeletion({ ownerId: userId, kind: "source", scope: "uningested" });
   const { count, error } = await supabase
     .from("sources")
     .delete({ count: "exact" })
     .eq("user_id", userId)
     .eq("ingested", false);
   if (error) throw error;
+  notifyDeletion(count);
   return count ?? 0;
 }
 
