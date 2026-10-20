@@ -9,6 +9,7 @@ import { dismissCrisisNotice, getCrisisNotice, subscribeCrisisNotice } from "../
 import * as capture from "../../wiki/capture";
 import type { SessionTurn } from "../session-types";
 import type { CreateSourceInput } from "../../wiki/queries";
+import { prepareSavedDataDeletion } from "../../wiki/saved-data-changes";
 
 type Query = { table: string; columns?: string; filters: Record<string, unknown>; insert?: CreateSourceInput; signal?: AbortSignal };
 const mockAuth = jest.fn(), mockUpload = jest.fn(), mockIO = jest.fn();
@@ -223,13 +224,21 @@ test.each(["admission", "auth"])("M2 autosave OFF after %s admission prevents ca
   expect(mockUpload).not.toHaveBeenCalled(); expect(f.complete).not.toHaveBeenCalled();
 });
 
-test("K03 source deletion reopens manual save, never autosave, through actual capture and ID-only check", async () => {
-  const f = fixture(); await f.manual(); await f.keep.receipts.check();
+test("K03 source event reopens manual save, never autosave, through actual capture and ID-only requery", async () => {
+  const f = fixture(); await f.manual();
+  prepareSavedDataDeletion({ ownerId: "a", kind: "source", ids: ["source1"] })("requested"); await flush();
   expect(f.keep.receipts.get(f.input.exchangeId)?.state).toBe("missing");
+  expect(mockQueries.filter(q => q.columns === "id")).toEqual([
+    expect.objectContaining({ table: "sources", filters: { user_id: "a", id: ["source1"] } }),
+  ]);
   const t = f.ticket();
   expect(await f.keep.keepExchange(f.input, { reason: "autosave", ticket: t.value })).toMatchObject({ status: "rejected", reason: "autosave-blocked" });
   expect(await f.manual()).toMatchObject({ status: "settled", receipt: { state: "present", deletedAfterSave: true, autosaveTombstone: true } });
   expect(mockUpload).toHaveBeenCalledTimes(2);
+  f.keep.dispose();
+  const count = mockQueries.length;
+  prepareSavedDataDeletion({ ownerId: "a", kind: "source", all: true })("requested"); await flush();
+  expect(mockQueries).toHaveLength(count); expect(jest.getTimerCount()).toBe(0);
 });
 
 test.each(["auth", "candidates", "upload", "insert"])("K04 account hold/ABA at %s blocks next I/O and final effects", async stage => {
