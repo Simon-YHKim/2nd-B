@@ -69,10 +69,10 @@ main `11774dc9` 위에서 이 시험 파일 52 PASS · 전체 `tsc --noEmit` 0 �
 독립 검토(세 관점: 비동기 순서 · 안전과 소유권 · 시험 충실도, 지적마다 반박 검증)는 PASS 이고
 확정된 중간 이상 지적은 0 이다. 아래 낮음 지적은 동작 결함이 아니라 **활성화(H) 전에 정할 일**이다.
 
-- 시험 공백 넷: `:78` C3 자체 계정 구독(wipe → registry dispose → hold 순서에서만 홀로 abort),
+- ~~시험 공백 넷~~ **닫힘(2026-10-20 · 후속 2 #2672)**: `:78` C3 자체 계정 구독(wipe → registry dispose → hold 순서에서만 홀로 abort),
   `:132` 진입 때 caller observer 무시, `:123` 정산이 미룬 release 마무리, `:68` release 즉시 차단.
-  지금은 registry 구독 · B 의 retire · B 의 finally release 가 같은 결과를 내서 변이가 살아남는다.
-  검토자가 원 코드 PASS · 변이 FAIL 을 확인한 프로브가 있다. 다음 단계에서 시험으로 옮긴다.
+  당시에는 registry 구독 · B 의 retire · B 의 finally release 가 같은 결과를 내서 변이가 살아남았다.
+  #2672 가 그 가림을 피하는 순서의 시험 넷을 더했고, 독립 검토가 네 줄 각각의 변이를 새 시험이 잡는 것을 확인했다(이 시험 파일 56개).
 - 발행된 quota 를 abort 하면 반출은 취소되지 않고 결과만 unknown 이 되어, 그 owner 의 장부를
   격리한다. owner 가 그대로인 retire 이유(dispose 등)에도 그렇다.
 - wipe 뒤에 온 terminal dispose 는 C3 에 닿지 않는다(위 「종료 retirement 즉시 abort」와 다른 순서).
