@@ -12,6 +12,9 @@ JWT, Promise, AbortController를 추가하지 않는다. 일반 대화 디스크
   C1c 독립 R2는 PASS H0/M0/L0/새 M0이고 R1 BLOCK1 이력은 남는다.
 - 새 `session-operation.ts`, 실제 통합검사, 이 문서의 3파일만 변경한다.
   기존 B 포트와 registry/controller, 공유 ledger, conversation/usage 계약은 수정하지 않는다.
+- 2026-10-20 main `11774dc9` 위로 옮겼다(원 커밋 `c86cec9f`). 위 준비 기반은 그 뒤 #2608 등으로
+  main 에 들어갔고 `06337b92` 자체는 main 의 조상이 아니다. 옮기면서 바꾼 것은 시험 두 줄뿐이다
+  (가짜 감독자의 `retire` 가 `outcome === true` 를 돌려준다. 돌려주는 모든 경로에서 같은 값).
 
 ## 실행 계약
 
@@ -59,3 +62,18 @@ UI 생산 호출은 아직 없다. D3b 실제 삭제, D4 capture writer, F 자�
 H 화면 통합과 앱/폰 검증은 별도다. `chat_autosave` OFF를 수동 대화 전체의 새 동의 철회로
 해석하지 않는다. mutable SDK SELECT의 JWT가 고정됐다고도 주장하지 않는다. 서버 turn reservation,
 무료 재질문, 두 기기·프로세스 종료 복구는 T39의 별도 증거가 필요하다.
+
+## 2026-10-20 main 위 재실행과 독립 검토
+
+main `11774dc9` 위에서 이 시험 파일 52 PASS · 전체 `tsc --noEmit` 0 · eslint 0 · 실행 순환 0.
+독립 검토(세 관점: 비동기 순서 · 안전과 소유권 · 시험 충실도, 지적마다 반박 검증)는 PASS 이고
+확정된 중간 이상 지적은 0 이다. 아래 낮음 지적은 동작 결함이 아니라 **활성화(H) 전에 정할 일**이다.
+
+- 시험 공백 넷: `:78` C3 자체 계정 구독(wipe → registry dispose → hold 순서에서만 홀로 abort),
+  `:132` 진입 때 caller observer 무시, `:123` 정산이 미룬 release 마무리, `:68` release 즉시 차단.
+  지금은 registry 구독 · B 의 retire · B 의 finally release 가 같은 결과를 내서 변이가 살아남는다.
+  검토자가 원 코드 PASS · 변이 FAIL 을 확인한 프로브가 있다. 다음 단계에서 시험으로 옮긴다.
+- 발행된 quota 를 abort 하면 반출은 취소되지 않고 결과만 unknown 이 되어, 그 owner 의 장부를
+  격리한다. owner 가 그대로인 retire 이유(dispose 등)에도 그렇다.
+- wipe 뒤에 온 terminal dispose 는 C3 에 닿지 않는다(위 「종료 retirement 즉시 abort」와 다른 순서).
+- factory 가 registry 의 content boundary 와 ledger 가 같은 인스턴스인지 확인하지 않는다.
