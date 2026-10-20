@@ -41,6 +41,8 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
     contentGeneration: sourceSession.contentGeneration, sessionId: sourceSession.sessionId, sessionGeneration: sourceSession.sessionGeneration });
   const owner = captureAccountOwnerLease(session.ownerId);
   const rows = new Map<string, KeepReceipt>();
+  // null means an unknown source target; IDs are matched only once capture settles.
+  const savingInvalidations = new Map<string, Set<string> | null>();
   const listeners = new Set<() => void>();
   let snapshot: readonly KeepReceipt[] = EMPTY_RECEIPTS;
   let disposed = false, generation = 0;
@@ -59,7 +61,7 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
     if (disposed) return;
     disposed = true; generation += 1;
     for (const read of [...reads]) read.cancel();
-    readGenerations.clear();
+    readGenerations.clear(); savingInvalidations.clear();
     stopAccount(); stopSession(); stopSavedData(); rows.clear(); snapshot = EMPTY_RECEIPTS;
     for (const listener of [...listeners]) {
       try { listener(); } catch { /* Continue clearing other observers. */ }
@@ -71,6 +73,13 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
   stopSession = registry.subscribe(reconcile);
   stopSavedData = subscribeSavedDataChanges(session.ownerId, change => {
     if (!current() || change.ownerId !== session.ownerId || change.kind !== "source") return;
+    for (const row of rows.values()) {
+      if (row.state !== "saving") continue;
+      const pending = savingInvalidations.get(row.exchangeId);
+      if (pending === null) continue;
+      savingInvalidations.set(row.exchangeId, change.ids === undefined ? null
+        : new Set([...(pending ?? []), ...change.ids]));
+    }
     void check(change.ids);
   });
   reconcile();
@@ -184,6 +193,7 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
         replyTurnId: pair.replyTurnId, aiReuse, operationId, reason, state: "saving",
         deletedAfterSave: rows.get(pair.exchangeId)?.deletedAfterSave ?? false, autosaveTombstone: true });
       rows.set(pair.exchangeId, receipt);
+      savingInvalidations.delete(pair.exchangeId);
       readGenerations.delete(pair.exchangeId);
       for (const read of [...reads]) if (!read.hasCurrentCandidate()) read.cancel();
       publish();
@@ -193,8 +203,17 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
       const prior = rows.get(exchangeId);
       if (!current() || !prior || prior.operationId !== operationId || prior.state !== "saving") return null;
       if (result.state === "present" && !result.sourceId) return null;
+      const invalidated = savingInvalidations.get(exchangeId);
+      savingInvalidations.delete(exchangeId);
       const receipt = Object.freeze({ ...prior, ...result });
-      rows.set(exchangeId, receipt); publish();
+      rows.set(exchangeId, receipt);
+      if (result.state === "present" && (invalidated === null || invalidated?.has(result.sourceId))) {
+        // check publishes checking before any listener can consume this late present.
+        void check([result.sourceId]);
+        const checked = rows.get(exchangeId);
+        return current() && checked?.operationId === operationId ? checked : null;
+      }
+      publish();
       return current() && rows.get(exchangeId) === receipt ? receipt : null;
     },
     /** Explicit checks cover all known receipts; events narrow their own target. */

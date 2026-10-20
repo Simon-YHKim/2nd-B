@@ -298,7 +298,7 @@ controller의 `emitRedOnce(operation, hotline)`은 최초 캡처한 AccountOwner
 새 `chat/keep-receipts.ts`는 알려진 source IDs만 owner-scoped로 조회한다. 기존 `findSurvivingSourceIds`의 ID-only 쿼리를 재사용하거나 동일 조건의 좁은 helper를 둔다. 전체 source 본문을 다시 받아 오지 않는다.
 
 - 같은 세션의 **화면 attach/focus**, wiki/source 삭제 성공 이벤트 뒤, 저장 표식을 근거로 행동을 막기 직전에 현재 revision으로 확인한다. 삭제 helper가 `saved-data-changes.ts` 같은 leaf 이벤트에 owner+kind+IDs/전체삭제 여부만 알리도록 연결하면 같은 화면에 떠 있는 observer도 갱신된다. 계정 무효 이벤트는 버린다. 이벤트만 믿지 않고 재조회가 정본이다.
-- source 존재 확인 → `present`; 정확히 사라진 ID → `missing`+deletedAfterSave=true; 조회 오류/timeout → `unknown`. checking/unknown을 ‘저장됨’ 또는 ‘삭제됨’으로 단정하지 않는다. unknown에서 자동/수동 중복 write를 즉시 허용하지 않고 상태 다시 확인을 먼저 제공한다.
+- source 존재 확인 → `present`; 정확히 사라진 ID → `missing`+deletedAfterSave=true; 조회 오류/timeout → `unknown`(확정 `missing`은 유지하며, 새 `present` 증거 뒤 실패하면 `unknown`). checking/unknown을 ‘저장됨’ 또는 ‘삭제됨’으로 단정하지 않는다. unknown에서 자동/수동 중복 write를 즉시 허용하지 않고 상태 다시 확인을 먼저 제공한다.
 - source 삭제를 확인하면 saved badge를 제거하고 **현재 pair의 수동 저장만 다시 허용**한다. autosave attempted/tombstone은 유지해 삭제한 것을 재마운트/설정 ON으로 다시 넣지 않는다.
 - 위키 페이지만 삭제됐는데 source는 남았다면 source 저장 완료 사실은 유지한다. 별도 page link가 있으면 page 확인 후 죽은 링크만 제거한다. 저장 표시는 ‘원본 자료에 저장’ 범위여야 하며 ‘위키 페이지 존재’와 같은 boolean을 공유하지 않는다.
 - 조회 generation/owner/session/receipt operation ID 검사로 늦은 존재 응답이 더 최근 삭제/재저장을 덮지 않게 한다. callback subscription 해제와 read timer cleanup 포함. 외부 기기 삭제의 즉시 실시간 반영은 약속하지 않고 다음 focus/명시 확인에서 반영한다.
@@ -409,7 +409,7 @@ C2의 실제 하위 경로와 파일은 다음과 같다. 작은 단계로 나�
 | K01 | manual keep pending→탭복귀·연속클릭·autosave join: capture 1회, 실제 source receipt·안내 1회 |
 | K02 | capture commit 뒤 응답 오류/storagePending/exact duplicate/실제 실패 각각 표시·중복 조정 |
 | K03 | source 삭제→focus 확인: saved 제거, 수동 재저장 허용·autosave 재생 0; 페이지 삭제만이면 source 존재 유지 |
-| K04 | 생존 조회 timeout/error→unknown, late present가 최신 삭제/재저장을 덮지 않음; account ABA 거절 |
+| K04 | 생존 조회 timeout/error→unknown(확정 missing 유지, 새 present 증거 뒤 실패는 unknown), late present가 최신 삭제/재저장을 덮지 않음; account ABA 거절 |
 | P01 | routine confirm pending/accepted→탭 왕복: busy/result/UUID 보존, 새 row·알림 0 |
 | P02 | 오류 뒤 편집·재확인: 같은 candidate UUID, 다른 reply candidate는 다른 UUID |
 | P03 | native one-off 저장 후 응답 유실→retry: owned row 1개·같은 OS ID. store cap/unknown/deletion fence 회귀 |

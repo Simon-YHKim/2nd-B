@@ -7,6 +7,7 @@ import { CHAT_KEEP_TAG, KEEP_MAX_CHARS, composeExchangeBody } from "../keep-exch
 import { contentHash } from "../../ingest/dedup";
 import { dismissCrisisNotice, getCrisisNotice, subscribeCrisisNotice } from "../../safety/crisis-notice";
 import * as capture from "../../wiki/capture";
+import * as classifier from "../../safety/classifier";
 import type { SessionTurn } from "../session-types";
 import type { CreateSourceInput } from "../../wiki/queries";
 import { prepareSavedDataDeletion } from "../../wiki/saved-data-changes";
@@ -374,4 +375,79 @@ test("construction is dormant and a disposed controller cannot authenticate or c
   const f = fixture(); expect(mockAuth).not.toHaveBeenCalled(); expect(mockQueries).toEqual([]);
   f.keep.dispose(); expect(await f.manual()).toEqual({ status: "rejected", reason: "stale" });
   expect(mockAuth).not.toHaveBeenCalled(); expect(jest.getTimerCount()).toBe(0);
+});
+
+test.each(["clear", "replacement", "dispose"])("D1 registry %s retires keep before admission with zero egress", async change => {
+  const f = fixture(), choice = f.registry.getSnapshot("entry")!.choice;
+  if (change === "dispose") f.registry.dispose();
+  else expect(change === "clear" ? f.registry.clear(choice)
+    : f.registry.chooseNew(choice, { fromNode: null, mode: "analytic", persona: "secondb", seed: "new" })).toBe(true);
+  expect(f.registry.isCurrent(f.session)).toBe(false);
+  expect(await f.manual()).toEqual({ status: "rejected", reason: "stale" });
+  expect(mockAuth).not.toHaveBeenCalled(); expect(capture.captureFromMarkdown).not.toHaveBeenCalled();
+  expect(mockQueries).toEqual([]); expect(mockUpload).not.toHaveBeenCalled(); expect(f.complete).not.toHaveBeenCalled();
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+test.each(["session", "prompt", "reply"])("D1 autosave rejects a ticket bound to another %s despite current consent", async field => {
+  const f = fixture(), t = f.ticket();
+  const ticket = { ...t.value, ...(field === "session" ? { session: { ...t.value.session, sessionId: "other-session" } }
+    : field === "prompt" ? { promptTurnId: "other-prompt" } : { replyTurnId: "other-reply" }) };
+  expect(ticket.isCurrent()).toBe(true); expect(ticket.signal.aborted).toBe(false);
+  expect(await f.keep.keepExchange(f.input, { reason: "autosave", ticket }))
+    .toEqual({ status: "rejected", reason: "consent-stale" });
+  expect(mockAuth).not.toHaveBeenCalled(); expect(capture.captureFromMarkdown).not.toHaveBeenCalled();
+  expect(mockQueries).toEqual([]); expect(mockUpload).not.toHaveBeenCalled();
+  expect(f.keep.receipts.getSnapshot()).toEqual([]);
+});
+
+test("D1 autosave of a red body with an ordinary reply publishes guidance exactly once", async () => {
+  const turns = redPair(); turns[1] = { ...pair()[1], safetyZone: "red" };
+  const f = fixture(turns), t = f.ticket(), pending = deferred<ReturnType<typeof auth>>();
+  mockAuth.mockReturnValue(pending.promise);
+  const notice = jest.fn(); cleanups.push(subscribeCrisisNotice(notice));
+  const work = f.keep.keepExchange(f.input, { reason: "autosave", ticket: t.value });
+  expect(f.manual()).toBe(work);
+  expect(notice).toHaveBeenCalledTimes(1); expect(getCrisisNotice()?.hotline).toBe("GLOBAL_988");
+  pending.resolve(auth());
+  expect(await work).toMatchObject({ status: "settled", receipt: { state: "present", reason: "autosave" } });
+  expect(notice).toHaveBeenCalledTimes(1); expect(capture.captureFromMarkdown).toHaveBeenCalledTimes(1);
+});
+
+test("D1 rejects a returned source owned by another account without publishing saved evidence", async () => {
+  const f = fixture();
+  // Exercise this adapter's result boundary independently of capture's own owner checks.
+  jest.mocked(capture.captureFromMarkdown).mockResolvedValueOnce({
+    source: { ...source(), user_id: "b" } as capture.CaptureResult["source"],
+    storage_path: "b/clip.md", hadFrontmatter: true, suggested_slug: "clip", deduped: null, storagePending: false,
+  });
+  expect(await f.manual()).toMatchObject({ status: "settled", receipt: { state: "unknown" } });
+  expect(f.keep.receipts.get(f.input.exchangeId)?.sourceId).toBeUndefined();
+  expect(f.complete).toHaveBeenCalledWith(expect.objectContaining({ state: "unknown" }));
+  expect(capture.captureFromMarkdown).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  { locale: "ko" as const, minor: true, hotline: "KR_1388" },
+  { locale: "ko" as const, minor: null, hotline: "KR_1388" },
+  { locale: "ko" as const, minor: false, hotline: "KR_109" },
+  { locale: "en" as const, minor: true, hotline: "GLOBAL_988" },
+  { locale: "en" as const, minor: false, hotline: "GLOBAL_988" },
+])("D1 guidance fallback for $locale / minor=$minor uses $hotline", async ({ locale, minor, hotline }) => {
+  const f = fixture();
+  // A classifier-supplied route would hide mutations of the adapter's fallback.
+  jest.spyOn(classifier, "classifyInputAnyLocale").mockReturnValue({ zone: "red", matched: [], categories: ["crisis"] });
+  const notice = jest.fn(); cleanups.push(subscribeCrisisNotice(notice));
+  const work = f.manual({ ...f.input, locale, minor });
+  expect(getCrisisNotice()?.hotline).toBe(hotline); expect(notice).toHaveBeenCalledTimes(1);
+  await work; expect(notice).toHaveBeenCalledTimes(1);
+});
+
+test("D1 exchange title uses the prompt's first line and escapes its quotes in capture markdown", async () => {
+  const turns = pair(); turns[0] = { ...turns[0], text: 'My "weekend" plan\nAdditional details' };
+  const f = fixture(turns);
+  expect(await f.manual()).toMatchObject({ receipt: { state: "present" } });
+  expect(jest.mocked(capture.captureFromMarkdown).mock.calls[0][0].rawMd)
+    .toMatch(/^---\ntitle: "My 'weekend' plan"\n---\n/);
+  expect(mockQueries.find(q => q.table === "sources" && q.insert)?.insert?.title).toBe("My 'weekend' plan");
 });
