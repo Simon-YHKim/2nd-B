@@ -33,47 +33,6 @@
 **⚠ 2026-10-14: 지금 기준은 활성 창 상한 400KB · 예산 320KB · 보관 부분 하나 360KB 다(`/simon-handoff` Step 2-B). 위에 적힌 100KB 는 옛 값이다. 이번에 2026-10-11 00:02 ~ 2026-10-12 22:30 의 블록 28개를 `HANDOFF-2026-10-p3.md` 맨 위로 옮겼다 - 10 월 블록은 계속 그 파일로 간다(360KB 를 넘으면 `-p4`).**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-20 12:59 KST / T38 D4 · capture 쓰기 장부 참여 · 구현 인수
-
-**결정·범위.** Q-261014-05 및 Simon 2026-10-20 「D1→D2→D4 한 단계씩 (추천)」.
-`feat/chat-keep-ledger-d4-261020`, 기준 `76804886`(D2 #2668). D4 준비 코드만이며 H 연결은 하지 않았다.
-
-**바꾼 것.** `wiki/capture.ts`의 선택 인자 `mutationObserver`로 raw-upload / source-insert /
-ingest-drop / raw-cleanup을 원 owner epoch·content generation·operation에 등록, 발행, 정산한다.
-원 인증과 signal을 가진 HTTP 요청에서 상태·본문을 확인한다. abort·timeout·응답 유실·비정상 응답은
-unknown으로 남기며, 늦은 확정은 현재 세션 권한 없이 원 티켓에만 반영한다. 미성년 import 거절은
-HTTP 400 / P0001 / 해당 메시지가 함께 확인된 경우만 definitely-not-committed다.
-observer 미지정 경로는 기존 helper·쿼리·순서·반환·오류를 유지한다. Storage SDK 2.106.1은 upload의
-signal을 전달하지 않고 path를 요청값으로 만들기 때문에, 선택 경로만 원 HTTP 응답의 Id/Key를 확인한다.
-근거: [공식 버전 소스](https://github.com/supabase/supabase-js/blob/v2.106.1/packages/core/storage-js/src/packages/StorageFileApi.ts#L130-L139).
-
-`session-keep.ts`는 `options.ledger`로 registry와 같은 장부를 받는다. 발행 중 wipe는 signal을
-유지하고 다음 쓰기·완료 알림을 닫으며 retire ACK는 false다. 뒤따르는 generic dispose는 drain을
-취소하지 않는다. 동의 OFF·계정 hold는 wipe 이후에도 즉시 abort한다. 모델·read만 있는 단계는
-즉시 abort한다(모델 경로는 기존 C3). 옵션 생략은 D1 호환용이며 H 활성화 근거가 아니다.
-
-**확인한 제한.** 현 A registry와 D3a ledger는 false ACK를 영구 보존하고 이를 다시 확인하는 API가
-없다. 따라서 *keep 발행 중 wipe*는 늦은 확정 뒤에도 삭제 허가가 나오지 않는다. 이 PR은 범위 밖
-registry/ledger를 바꿔 ACK를 자동 해제하지 않는다. 정상 drain 뒤 명시 삭제 허가는 ACK 실패가 없는
-capture 경로에서 검증했고, keep의 ACK 실패 보존도 별도 검증했다. **keep drain 후 삭제 재개는
-미완료이며 H 전에 조정해야 한다.** unknown의 실제 서버 상태를 추정해서 완료로 안내하지 않는다.
-
-**검증.** 관련 jest 28묶음 969건 PASS(신규 deferred 38건, 기존 시험 수정 0). 실제 registry·ledger·
-capture·usage·계정 lease를 사용하고 I/O만 대역으로 바꿨다. W01 기존 C3 회귀, W02 발행 전·업로드·
-source·동기 재진입·auto/manual·동의/hold, W03 source/usage unknown, W09 A→B→A를 포함한다.
-변이 **12/12 검출**, 모두 실행된 assertion 실패이며 원본 바이트 복원 확인: 정산 누락, 무조건 ACK,
-unknown→noncommit, wipe 일괄 abort, keep observer 누락, legacy fallback 변경, 비정상 응답 확정,
-abort 정산 누락, generic dispose 재취소, legacy callback 조기 접근, signal 누락, Storage Id 확인 누락.
-`tsc --noEmit`, 변경 파일 eslint, cycles(0), 금지어, i18n(5언어·4,444키), emdash, constraints,
-legal-review 모두 0. capture 줄 인용을 갱신하고 법무 anchor 시험도 통과했다.
-로컬 원자료: 이 워크트리의 `reports/t38-d4/`(gitignored). 전체 verify는 지시대로 PR CI에 맡긴다.
-
-**남긴 것.** receipts↔D2 이벤트·late read·prepareKeptExchange 키 정렬·durable AI reuse hold·H,
-운영 gateway 계약, runtime 밖/다른 기기/재시작 후 장벽. controller/usage/registry/장부 코드는 수정하지
-않았다. 서버·마이그레이션·번역·화면·#2440 동결 영역·운영 호출·8081 조작은 0.
-코디네이터가 독립 검토(다른 벤더 Claude) PASS + 새 medium 0 + CI 초록을 확인하기 전에는 머지하지 않는다.
-VISION: 알아가기와 개인 비서 기반의 원본 저장·삭제 순서.
-
 ## Latest — 2026-10-19 22:36 KST / 2ndb-4e · 인수 10차: #2651(0263) 머지 · T56 · T17 · T05 8081 확인 · 남은 것은 외부 조건 대기
 
 **목적.** 대표님 /goal(10-19 01:42) 「모두 완료될때 까지 진행해. 모두 권장안으로 하면 돼.」로 Codex 10-16 장부 76개를 이어 간다. 완료 = 머지 + 8081 확인 + `app:parity` 같음. 장부: `docs/handoff/CODEX-EXECUTION-261015.md` · `docs/handoff/CODEX-TASK-LEDGER-261016.json`.
