@@ -1,5 +1,4 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import * as savedDataChanges from "../../wiki/saved-data-changes";
 import { createKeepReceipts, type KeepAiReuseRequirement, type KeepPair } from "../keep-receipts";
 import { createChatSessionRegistry } from "../session-registry";
 import { createContentWipeLedger } from "../../account/content-wipe";
@@ -56,7 +55,7 @@ beforeEach(() => {
   mockRead.mockReset().mockResolvedValue({ data: [{ id: "source1" }], error: null });
   jest.useFakeTimers();
 });
-afterEach(() => { cleanups.splice(0).reverse().forEach(fn => fn()); jest.useRealTimers(); });
+afterEach(() => { cleanups.splice(0).reverse().forEach(fn => fn()); jest.restoreAllMocks(); jest.useRealTimers(); });
 
 test("K03 queries only known source IDs for the captured owner; page-only deletion keeps source receipt", async () => {
   const f = fixture();
@@ -340,12 +339,79 @@ test.each(["dispose", "wipe", "account-ABA"])("K04 %s cancels all reads/timers, 
   }
 });
 
-test("saved-data subscription is released by disposal, beyond the event bus's silent epoch filtering", () => {
-  // A retained stale callback has no observable I/O, so the ownership contract
-  // also checks actual unsubscription rather than equating silence with cleanup.
-  const source = readFileSync(resolve(__dirname, "../keep-receipts.ts"), "utf8");
-  const cleanup = source.slice(source.indexOf("function dispose()"), source.indexOf("const reconcile ="));
-  const assignment = source.match(/(\w+) = subscribeSavedDataChanges\(session\.ownerId,/);
-  expect(assignment).not.toBeNull();
-  expect(cleanup).toContain(`${assignment![1]}();`);
+test("saved-data disposal unsubscribes the actual callback while the same account epoch remains live", async () => {
+  const subscribe = savedDataChanges.subscribeSavedDataChanges;
+  const delivered = jest.fn();
+  const stop = jest.fn();
+  jest.spyOn(savedDataChanges, "subscribeSavedDataChanges").mockImplementation((ownerId, listener) => {
+    const unsubscribe = subscribe(ownerId, change => { delivered(change); listener(change); });
+    return () => { stop(); unsubscribe(); };
+  });
+  const f = fixture(); f.saved();
+  deleted({ ownerId: "a", kind: "wiki_page", all: true });
+  expect(delivered).toHaveBeenCalledTimes(1); expect(stop).not.toHaveBeenCalled();
+  delivered.mockClear();
+  f.store.dispose(); f.store.dispose();
+  expect(stop).toHaveBeenCalledTimes(1);
+  const live = jest.fn(), unsubscribe = subscribe("a", live); cleanups.push(unsubscribe);
+  deleted(); await flush();
+  expect(live).toHaveBeenCalledTimes(1);
+  expect(delivered).not.toHaveBeenCalled(); expect(mockQueries).toEqual([]);
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+test.each([{ all: true as const }, { scope: "uningested" as const }, { ids: ["source1"] }])(
+  "W08 saving remembers source target %j until settlement and rechecks once before manual resave", async target => {
+    const f = fixture(), pending = deferred<unknown>(); mockRead.mockReturnValueOnce(pending.promise);
+    const states: string[] = [];
+    f.store.subscribe(() => { const row = f.store.get(pair.exchangeId); if (row) states.push(row.state); });
+    expect(f.store.begin(pair, "op1", "manual")).not.toBeNull();
+    deleted({ ownerId: "a", kind: "source", ...target });
+    deleted({ ownerId: "a", kind: "source", ...target }, 1);
+    deleted({ ownerId: "a", kind: "source", ids: ["unrelated"] });
+    await flush();
+    expect(mockQueries).toEqual([]); expect(f.store.get(pair.exchangeId)?.state).toBe("saving");
+    expect(f.store.settle(pair.exchangeId, "op1", { state: "present", sourceId: "source1", deduped: null, storagePending: false }))
+      .toMatchObject({ state: "checking", sourceId: "source1", deletedAfterSave: false });
+    expect(states).toEqual(["saving", "checking"]);
+    await flush();
+    expect(mockQueries).toHaveLength(1);
+    expect(mockQueries[0]).toMatchObject({ table: "sources", columns: "id", owner: "a", ids: ["source1"] });
+    expect(f.store.permission(pair, "manual")).toBe("check-required");
+    pending.resolve({ data: [], error: null }); await flush();
+    expect(f.store.get(pair.exchangeId)).toMatchObject({ state: "missing", deletedAfterSave: true });
+    expect(f.store.permission(pair, "manual")).toBeNull();
+    expect(f.store.permission(pair, "autosave")).toBe("autosave-blocked");
+    expect(f.saved("op2", "source2")).toMatchObject({ state: "present", sourceId: "source2" });
+    await flush(); expect(mockQueries).toHaveLength(1); expect(jest.getTimerCount()).toBe(0);
+  });
+
+test.each([
+  { ownerId: "a", kind: "source", ids: ["unrelated"] },
+  { ownerId: "a", kind: "wiki_page", all: true },
+  { ownerId: "b", kind: "source", all: true },
+] satisfies SavedDataDeletionTarget[])("W08 saving ignores nonmatching notification %j", async target => {
+  const f = fixture(); f.store.begin(pair, "op1", "manual");
+  deleted(target);
+  expect(f.store.settle(pair.exchangeId, "op1", { state: "present", sourceId: "source1", deduped: null, storagePending: false }))
+    .toMatchObject({ state: "present" });
+  await flush(); expect(mockQueries).toEqual([]); expect(jest.getTimerCount()).toBe(0);
+});
+
+test("W08 saving accumulates distinct source IDs and consumes notifications on an uncertain settlement", async () => {
+  const f = fixture(); f.store.begin(pair, "op1", "manual");
+  deleted({ ownerId: "a", kind: "source", ids: ["source1"] });
+  deleted({ ownerId: "a", kind: "source", ids: ["source2"] });
+  mockRead.mockResolvedValue({ data: [{ id: "source1" }], error: null });
+  f.store.settle(pair.exchangeId, "op1", { state: "present", sourceId: "source1", deduped: null, storagePending: false });
+  await flush(); expect(mockQueries).toHaveLength(1);
+  expect(f.store.get(pair.exchangeId)?.state).toBe("present");
+  const other = { ...pair, exchangeId: "other" };
+  f.store.begin(other, "other-op", "manual"); deleted({ ownerId: "a", kind: "source", all: true });
+  f.store.settle(other.exchangeId, "other-op", { state: "unknown" });
+  await flush(); const reads = mockQueries.length;
+  f.store.begin(other, "retry", "manual", true);
+  expect(f.store.settle(other.exchangeId, "retry", { state: "present", sourceId: "source2", deduped: null, storagePending: false }))
+    .toMatchObject({ state: "present" });
+  await flush(); expect(mockQueries).toHaveLength(reads);
 });

@@ -412,3 +412,64 @@ test.each(["clear", "replacement"])("direct factory observes a real registry %s 
   pending.resolve(defaultRead({ table: "chat_usage", columns: "", filters: {} })); await rejected;
   expect(calls("quota")).toHaveLength(0); expect(calls("embed")).toHaveLength(0); expect(f.registry.getSnapshot("entry")!.session!.turns).toEqual([]);
 });
+
+test("C3 account subscription alone aborts issued quota after wipe and registry disposal, before owner resolution", async () => {
+  const f = fixture(), d = await direct(f), pending = deferred<Response>(), entered = deferred<void>();
+  fetchMock.mockImplementation((url, init) => {
+    if (url.endsWith("/bump_chat_usage_if_under_cap")) { entered.resolve(); return pending.promise; }
+    return defaultFetch(url, init);
+  });
+  const work = d.op.send(d.input), rejected = expect(work).rejects.toMatchObject({ name: "AbortError" });
+  await entered.promise;
+  f.wipe(); f.registry.dispose();
+  expect(d.input.signal.aborted).toBe(false); expect(d.released).not.toHaveBeenCalled();
+  // No B work/finally, registry listener or resolved-owner notification can supply this abort.
+  beginAccountOwnerTransition("b");
+  expect(d.input.signal.aborted).toBe(true);
+  pending.resolve(response(1)); await rejected; owner("a");
+  expect(f.facts()).toMatchObject([{ ownerEpoch: f.current.epoch, outcome: "committed" }]);
+  expect(calls("secondb_chat")).toHaveLength(0);
+});
+
+test("C3 ignores a caller mutation observer already present at admission", async () => {
+  const f = fixture(), d = await direct(f), alternate = createContentWipeLedger();
+  Object.assign(d.input, { mutationObserver: { owner: f.current, generation: 0,
+    operationId: "caller-operation", stepId: "quota", ledger: alternate } });
+  await expect(d.op.send(d.input)).resolves.toMatchObject({ status: "ok" });
+  expect(f.facts()).toMatchObject([{ operationId: "direct", stepId: "quota", outcome: "committed" }]);
+  expect(alternate.inspect(f.current).tickets).toEqual([]);
+  expect(calls("quota")).toHaveLength(1); expect(calls("secondb_chat")).toHaveLength(1);
+});
+
+test("C3 settlement finishes deferred release without B finally or a second release call", async () => {
+  const f = fixture(), d = await direct(f), pending = deferred<Response>(), entered = deferred<void>();
+  fetchMock.mockImplementation((url, init) => {
+    if (url.endsWith("/bump_chat_usage_if_under_cap")) { entered.resolve(); return pending.promise; }
+    return defaultFetch(url, init);
+  });
+  const work = d.op.send(d.input), rejected = expect(work).rejects.toMatchObject({ name: "AbortError" });
+  await entered.promise; d.op.release();
+  expect(d.released).not.toHaveBeenCalled(); expect(d.input.signal.aborted).toBe(false);
+  pending.resolve(response(1)); await rejected;
+  expect(d.released).toHaveBeenCalledTimes(1); expect(d.input.signal.aborted).toBe(true);
+  expect(f.facts()).toMatchObject([{ outcome: "committed" }]);
+  expect(calls("secondb_chat")).toHaveLength(0);
+});
+
+test("C3 release immediately closes body and token access while the original quota still drains", async () => {
+  const f = fixture(), d = await direct(f), pending = deferred<Response>(), entered = deferred<void>();
+  fetchMock.mockImplementation((url, init) => {
+    if (url.endsWith("/bump_chat_usage_if_under_cap")) { entered.resolve(); return pending.promise; }
+    return defaultFetch(url, init);
+  });
+  const work = d.op.send(d.input), rejected = expect(work).rejects.toMatchObject({ name: "AbortError" });
+  await entered.promise;
+  expect(f.registry.isCurrent(f.token)).toBe(true); expect(f.ledger.read(f.current).phase).toBe("open");
+  d.op.release();
+  expect(d.released).not.toHaveBeenCalled(); expect(d.input.signal.aborted).toBe(false);
+  expect(() => d.op.lease.assertCurrent()).toThrow();
+  expect(() => d.input.session.assertCurrent()).toThrow();
+  expect(() => d.input.session.accessToken).toThrow();
+  pending.resolve(response(1)); await rejected;
+  expect(calls("secondb_chat")).toHaveLength(0);
+});
