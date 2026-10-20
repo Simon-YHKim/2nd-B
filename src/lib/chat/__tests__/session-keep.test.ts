@@ -6,6 +6,7 @@ import { __resetAccountEpochForTests, beginAccountOwnerTransition, clearAccountT
 import { CHAT_KEEP_TAG, KEEP_MAX_CHARS, composeExchangeBody } from "../keep-exchange";
 import { contentHash } from "../../ingest/dedup";
 import { dismissCrisisNotice, getCrisisNotice, subscribeCrisisNotice } from "../../safety/crisis-notice";
+import * as capture from "../../wiki/capture";
 import type { SessionTurn } from "../session-types";
 import type { CreateSourceInput } from "../../wiki/queries";
 
@@ -40,6 +41,10 @@ const pair = (exchangeId = "exchange", sequence = 1): SessionTurn[] => [
   { id: `${exchangeId}-prompt`, exchangeId, sequence, role: "user", text: "My weekend plan" },
   { id: `${exchangeId}-reply`, exchangeId, sequence: sequence + 1, role: "secondb", text: "You could take a walk." },
 ];
+const redPair = (): SessionTurn[] => [
+  { ...pair()[0], text: "I want to kill myself", safetyZone: "red" },
+  { ...pair()[1], text: "Call 988 now.", safetyZone: "red", crisisNotice: true },
+];
 const auth = () => ({ data: { session: { user: { id: "a" }, access_token: "fixture-only" } }, error: null });
 const source = (input: Partial<CreateSourceInput> = {}) => ({ ...input, id: "source1", user_id: "a", storage_path: "a/clip.md" });
 const defaultIO = (q: Query) => ({ data: q.insert ? source(q.insert) : [], error: null });
@@ -65,6 +70,7 @@ beforeEach(() => {
   __resetAccountEpochForTests(); noteResolvedOwner("a"); mockQueries.length = 0;
   mockAuth.mockReset().mockImplementation(async () => auth());
   mockUpload.mockReset().mockResolvedValue({ error: null }); mockIO.mockReset().mockImplementation(defaultIO);
+  jest.spyOn(capture, "captureFromMarkdown");
   jest.useFakeTimers();
 });
 afterEach(() => {
@@ -183,6 +189,40 @@ test("K01 manual join does not promote cancelled auto capture; only a later expl
   expect(mockUpload).toHaveBeenCalledTimes(2);
 });
 
+test.each(["revoked", "superseded", "other-exchange"])("M2 autosave rejects a %s ticket before capture or source writes", async kind => {
+  const f = fixture([...pair(), ...pair("other", 3)]);
+  const t = f.ticket(kind === "other-exchange" ? f.snapshot("other") : f.input);
+  let revision = t.value.revision;
+  const ticket = { ...t.value, isCurrent: () => !t.controller.signal.aborted && t.value.revision === revision };
+  if (kind === "revoked") t.controller.abort();
+  if (kind === "superseded") revision += 1;
+  expect(await f.keep.keepExchange(f.input, { reason: "autosave", ticket })).toEqual({ status: "rejected", reason: "consent-stale" });
+  expect(capture.captureFromMarkdown).not.toHaveBeenCalled();
+  expect(mockQueries.filter(q => q.table === "sources" && q.insert)).toHaveLength(0);
+  expect(mockUpload).not.toHaveBeenCalled(); expect(mockAuth).not.toHaveBeenCalled();
+  expect(f.keep.receipts.getSnapshot()).toEqual([]);
+});
+
+test.each(["admission", "auth"])("M2 autosave OFF after %s admission prevents capture even before the ticket signal aborts", async stage => {
+  const f = fixture(), t = f.ticket(), pending = deferred<ReturnType<typeof auth>>();
+  let consent = true;
+  const ticket = { ...t.value, isCurrent: () => consent };
+  if (stage === "admission") f.keep.receipts.subscribe(() => {
+    if (f.keep.receipts.get(f.input.exchangeId)?.state === "saving") consent = false;
+  });
+  else mockAuth.mockReturnValue(pending.promise);
+  const first = f.keep.keepExchange(f.input, { reason: "autosave", ticket });
+  if (stage === "auth") {
+    expect(mockAuth).toHaveBeenCalledTimes(1); expect(capture.captureFromMarkdown).not.toHaveBeenCalled();
+    consent = false; pending.resolve(auth());
+  }
+  expect(await first).toMatchObject({ status: "settled", receipt: { state: "failed", reason: "autosave" } });
+  expect(ticket.signal.aborted).toBe(false);
+  expect(capture.captureFromMarkdown).not.toHaveBeenCalled();
+  expect(mockQueries.filter(q => q.table === "sources" && q.insert)).toHaveLength(0);
+  expect(mockUpload).not.toHaveBeenCalled(); expect(f.complete).not.toHaveBeenCalled();
+});
+
 test("K03 source deletion reopens manual save, never autosave, through actual capture and ID-only check", async () => {
   const f = fixture(); await f.manual(); await f.keep.receipts.check();
   expect(f.keep.receipts.get(f.input.exchangeId)?.state).toBe("missing");
@@ -232,6 +272,63 @@ test("K01 root guidance is emitted once before delayed storage, including after 
   upload.resolve({ error: null }); await first; expect(notice).toHaveBeenCalledTimes(1);
 });
 
+test.each(["resolve", "reject"])("M1 guidance is synchronous while auth is pending and remains after auth %s", async outcome => {
+  const turns = pair(); turns[0] = { ...turns[0], text: "I want to kill myself" };
+  const f = fixture(turns), pending = deferred<ReturnType<typeof auth>>(); mockAuth.mockReturnValue(pending.promise);
+  const notice = jest.fn(); cleanups.push(subscribeCrisisNotice(notice));
+  const first = f.manual();
+  expect(getCrisisNotice()?.hotline).toBe("GLOBAL_988"); expect(notice).toHaveBeenCalledTimes(1);
+  expect(capture.captureFromMarkdown).not.toHaveBeenCalled(); expect(mockQueries).toEqual([]);
+  const shown = getCrisisNotice();
+  if (outcome === "reject") pending.reject(new Error("auth unavailable")); else pending.resolve(auth());
+  expect(await first).toMatchObject({ status: "settled", receipt: { state: outcome === "reject" ? "failed" : "present" } });
+  expect(getCrisisNotice()).toBe(shown); expect(notice).toHaveBeenCalledTimes(1);
+  expect(capture.captureFromMarkdown).toHaveBeenCalledTimes(outcome === "reject" ? 0 : 1);
+  expect(mockQueries.filter(q => q.table === "sources" && q.insert)).toHaveLength(outcome === "reject" ? 0 : 1);
+});
+
+test("M1 manual twice plus autosave join publishes one guidance for the same red operation", async () => {
+  const f = fixture(redPair()), pending = deferred<ReturnType<typeof auth>>(); mockAuth.mockReturnValue(pending.promise);
+  const notice = jest.fn(); cleanups.push(subscribeCrisisNotice(notice));
+  const first = f.manual(), t = f.ticket();
+  expect(f.manual()).toBe(first);
+  expect(f.keep.keepExchange(f.input, { reason: "autosave", ticket: t.value })).toBe(first);
+  expect(notice).toHaveBeenCalledTimes(1); expect(getCrisisNotice()?.hotline).toBe("GLOBAL_988");
+  pending.resolve(auth()); await first;
+  expect(notice).toHaveBeenCalledTimes(1); expect(capture.captureFromMarkdown).toHaveBeenCalledTimes(1);
+});
+
+test("M3 autosave retains a red input and fixed guidance with both hold evidence items, without another notice", async () => {
+  const f = fixture(redPair());
+  const expected = { state: "hold-required", evidence: [
+    { kind: "turn-zone-red", turnId: "exchange-prompt" }, { kind: "turn-zone-red", turnId: "exchange-reply" },
+  ] };
+  expect(f.input).not.toBeNull(); expect(f.input).toMatchObject({ aiReuse: expected });
+  const notice = jest.fn(); cleanups.push(subscribeCrisisNotice(notice));
+  const t = f.ticket(), first = f.keep.keepExchange(f.input, { reason: "autosave", ticket: t.value });
+  expect(notice).not.toHaveBeenCalled();
+  expect(await first).toMatchObject({ status: "settled", receipt: { state: "present", aiReuse: expected } });
+  expect(capture.captureFromMarkdown).toHaveBeenCalledTimes(1);
+  expect(mockQueries.filter(q => q.table === "sources" && q.insert)).toHaveLength(1);
+  expect(mockUpload.mock.calls[0][1]).toContain("I want to kill myself");
+  expect(mockUpload.mock.calls[0][1]).toContain("Call 988 now.");
+  expect(notice).not.toHaveBeenCalled(); expect(getCrisisNotice()).toBeNull();
+});
+
+test.each(["prompt", "reply"])("M3 snapshot and receipt retain the %s red verdict even beyond the clipped body", async side => {
+  const turns = pair(), index = side === "prompt" ? 0 : 1;
+  turns[index] = { ...turns[index], text: "x".repeat(KEEP_MAX_CHARS + 20), safetyZone: "red" };
+  const f = fixture(turns), expected = { state: "hold-required", evidence: [{ kind: "turn-zone-red", turnId: turns[index].id }] };
+  expect(f.input).toMatchObject({ aiReuse: expected });
+  expect(await f.manual()).toMatchObject({ receipt: { state: "present", aiReuse: expected } });
+});
+
+test("M3 a fixed guidance turn without a red verdict remains keepable without granting AI reuse", async () => {
+  const turns = pair(); turns[1] = { ...turns[1], crisisNotice: true };
+  const f = fixture(turns); expect(f.input).toMatchObject({ aiReuse: { state: "unconfirmed" } });
+  expect(await f.manual()).toMatchObject({ receipt: { aiReuse: { state: "unconfirmed" } } });
+});
+
 test("validated IDs and text reject stale/tampered pairs without finding a different turn by index", async () => {
   const f = fixture();
   expect(await f.manual({ ...f.input, prompt: { ...f.input.prompt, text: "different private text" } })).toMatchObject({ status: "rejected", reason: "pair-changed" });
@@ -240,11 +337,18 @@ test("validated IDs and text reject stale/tampered pairs without finding a diffe
   expect(mockAuth).not.toHaveBeenCalled(); expect(mockUpload).not.toHaveBeenCalled();
 });
 
-test.each([{ synthetic: true }, { crisisNotice: true as const }, { safetyZone: "red" as const }, { retryText: "retry" }, { text: " " }])(
+test.each([{ synthetic: true }, { consentError: "consent_required" as const }, { retryText: "retry" }, { text: " " }])(
   "snapshot rejects non-keepable reply %p", fields => {
     const f = fixture(); const snapshot = f.registry.getSessionSnapshot(f.session)!;
     expect(snapshotKeepExchange({ ...snapshot, turns: [snapshot.turns[0], { ...snapshot.turns[1], ...fields }] }, "exchange", f.input)).toBeNull();
   });
+
+test.each(["user", "secondb"] as const)("M3 an intervening %s turn prevents binding an older prompt to the reply", role => {
+  const f = fixture(), snapshot = f.registry.getSessionSnapshot(f.session)!;
+  const turns = [snapshot.turns[0], { id: "intervening", exchangeId: "other", sequence: 2, role, text: "Another turn" },
+    { ...snapshot.turns[1], sequence: 3 }];
+  expect(snapshotKeepExchange({ ...snapshot, turns }, "exchange", f.input)).toBeNull();
+});
 
 test("capture body reuses speaker attribution, CHAT_KEEP_TAG and per-side KEEP_MAX_CHARS", async () => {
   const turns = pair(); turns[0] = { ...turns[0], text: "p".repeat(KEEP_MAX_CHARS + 20) };

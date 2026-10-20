@@ -4,13 +4,14 @@ import { abortError } from "../async/abort";
 import { classifyInputAnyLocale } from "../safety/classifier";
 import { publishCrisisNotice } from "../safety/crisis-notice";
 import { captureFromMarkdown } from "../wiki/capture";
-import { CHAT_KEEP_TAG, composeExchangeBody, exchangeMarkdown, exchangeTopic, isKeepable } from "./keep-exchange";
-import { createKeepReceipts, type KeepPair, type KeepReceipt, type KeepReason } from "./keep-receipts";
+import { CHAT_KEEP_TAG, composeExchangeBody, exchangeMarkdown, exchangeTopic, findPromptIndex, isKeepable } from "./keep-exchange";
+import { createKeepReceipts, type KeepAiReuseRequirement, type KeepPair, type KeepReceipt, type KeepReason } from "./keep-receipts";
 import type { createChatSessionRegistry } from "./session-registry";
 import type { ChatSessionSnapshot, ChatSessionToken, SessionTurn } from "./session-types";
 
 type Registry = ReturnType<typeof createChatSessionRegistry>;
 export interface KeepExchangeSnapshot extends KeepPair {
+  readonly aiReuse: KeepAiReuseRequirement;
   readonly session: ChatSessionToken;
   readonly prompt: SessionTurn;
   readonly reply: SessionTurn;
@@ -35,8 +36,7 @@ const tokenOf = (s: ChatSessionToken): ChatSessionToken => Object.freeze({ owner
   contentGeneration: s.contentGeneration, sessionId: s.sessionId, sessionGeneration: s.sessionGeneration });
 const sameSession = (a: ChatSessionToken, b: ChatSessionToken) => a.ownerId === b.ownerId && a.ownerEpoch === b.ownerEpoch
   && a.contentGeneration === b.contentGeneration && a.sessionId === b.sessionId && a.sessionGeneration === b.sessionGeneration;
-const meaningful = (turn: SessionTurn) => !turn.synthetic && !turn.crisisNotice && !turn.consentError && !turn.retryText
-  && turn.safetyZone !== "red" && !!turn.text.trim();
+const meaningful = (turn: SessionTurn) => !turn.synthetic && !turn.consentError && !turn.retryText && !!turn.text.trim();
 const sameTurn = (a: SessionTurn | undefined, b: SessionTurn) => a?.id === b.id && a.exchangeId === b.exchangeId
   && a.sequence === b.sequence && a.role === b.role && a.text === b.text && a.synthetic === b.synthetic
   && a.crisisNotice === b.crisisNotice && a.consentError === b.consentError && a.retryText === b.retryText && a.safetyZone === b.safetyZone;
@@ -50,15 +50,24 @@ export function snapshotKeepExchange(
   if (pair.length !== 2) return null;
   const [prompt, reply] = pair;
   if (prompt.role !== "user" || !meaningful(prompt) || !isKeepable(reply) || !meaningful(reply)
-    || prompt.sequence >= reply.sequence || !presentation.speaker.trim()) return null;
+    || prompt.sequence >= reply.sequence || !presentation.speaker.trim()
+    || findPromptIndex(session.turns, session.turns.indexOf(reply)) !== session.turns.indexOf(prompt)) return null;
+  // Keep the full turns' verdicts, even if formatting clips away the relevant text.
+  // D4/H must carry this requirement to a durable hold before any AI reuse.
+  const evidence = pair.filter(turn => turn.safetyZone === "red")
+    .map(turn => Object.freeze({ kind: "turn-zone-red" as const, turnId: turn.id }));
+  const aiReuse: KeepAiReuseRequirement = evidence.length
+    ? Object.freeze({ state: "hold-required", evidence: Object.freeze(evidence) })
+    : Object.freeze({ state: "unconfirmed" });
   return Object.freeze({ session: tokenOf(session), exchangeId, promptTurnId: prompt.id, replyTurnId: reply.id,
-    prompt: Object.freeze({ ...prompt }), reply: Object.freeze({ ...reply }),
+    prompt: Object.freeze({ ...prompt }), reply: Object.freeze({ ...reply }), aiReuse,
     speaker: presentation.speaker, locale: presentation.locale, minor: presentation.minor });
 }
 
 /** Dormant session owner. H must not wire this before the gateway/D4 contracts land.
  * capture's transport is unchanged here. D4 will register/issue/settle each actual
- * mutation; abort or a settled UI Promise is never proof that a server write stopped. */
+ * mutation; abort or a settled UI Promise is never proof that a server write stopped.
+ * F must abort ticket.signal on consent revocation; isCurrent() alone cannot stop an issued capture. */
 export function createChatSessionKeep(registry: Registry, sourceSession: ChatSessionToken,
   options: { timeoutMs?: number; readTimeoutMs?: number } = {}) {
   const session = tokenOf(sourceSession), owner = captureAccountOwnerLease(session.ownerId);
@@ -152,16 +161,17 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
         const lease = beginAccountSessionLease(session.ownerId, controller.signal);
         try {
           assertCurrent();
-          await lease.authenticate();
-          assertCurrent(); lease.assertCurrent();
           const body = composeExchangeBody({ prompt: checked.prompt.text, reply: checked.reply.text, speaker: checked.speaker }, checked.locale);
           // composeExchangeBody clips each side to KEEP_MAX_CHARS, not a whole-conversation cache.
           const safety = classifyInputAnyLocale(body, checked.locale, { minor: checked.minor !== false });
           assertCurrent();
-          if (safety.zone === "red") {
+          if (safety.zone === "red" && !(reason === "autosave" && checked.reply.crisisNotice)) {
             publishCrisisNotice(owner, safety.crisisRouting?.hotline ?? (checked.locale === "ko"
               ? checked.minor !== false ? "KR_1388" : "KR_109" : "GLOBAL_988"));
           }
+          // Guidance only needs the current owner, so authentication cannot delay it.
+          assertCurrent();
+          await lease.authenticate();
           assertCurrent(); lease.assertCurrent();
           captureStarted = true;
           const result = await captureFromMarkdown({ userId: session.ownerId, signal: controller.signal,

@@ -1,18 +1,22 @@
 import { captureAccountOwnerLease, subscribeAccountTransition } from "../auth/account-epoch";
 import { getSupabaseClient } from "../supabase/client";
 import type { CaptureResult } from "../wiki/capture";
+import type { KeptExchangePreparation } from "./prepare-kept-exchange";
 import type { createChatSessionRegistry } from "./session-registry";
 import type { ChatSessionToken } from "./session-types";
 
 type Registry = Pick<ReturnType<typeof createChatSessionRegistry>, "isCurrent" | "subscribe">;
 const EMPTY_RECEIPTS: readonly KeepReceipt[] = Object.freeze([]);
 export type KeepReason = "manual" | "autosave";
+export type KeepAiReuseRequirement = Extract<KeptExchangePreparation, { status: "prepared" }>["aiReuse"];
 export interface KeepPair {
   readonly exchangeId: string;
   readonly promptTurnId: string;
   readonly replyTurnId: string;
 }
 export interface KeepReceipt extends KeepPair {
+  /** A requirement for D4/H, never evidence that a durable hold has been applied. */
+  readonly aiReuse: KeepAiReuseRequirement;
   readonly operationId: string;
   readonly reason: KeepReason;
   readonly state: "saving" | "present" | "checking" | "missing" | "unknown" | "failed";
@@ -84,10 +88,14 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
       listeners.add(listener); return () => { listeners.delete(listener); };
     },
     permission,
-    begin(pair: KeepPair, operationId: string, reason: KeepReason, retryUnknown = false): KeepReceipt | null {
+    begin(pair: KeepPair & { readonly aiReuse: KeepAiReuseRequirement }, operationId: string, reason: KeepReason, retryUnknown = false): KeepReceipt | null {
       if (permission(pair, reason, retryUnknown) || !operationId || !pair.exchangeId || !pair.promptTurnId || !pair.replyTurnId) return null;
+      const aiReuse: KeepAiReuseRequirement = pair.aiReuse.state === "hold-required"
+        ? Object.freeze({ state: "hold-required", evidence: Object.freeze(pair.aiReuse.evidence.map(item =>
+          Object.freeze({ kind: item.kind, turnId: item.turnId }))) })
+        : Object.freeze({ state: "unconfirmed" });
       const receipt: KeepReceipt = Object.freeze({ exchangeId: pair.exchangeId, promptTurnId: pair.promptTurnId,
-        replyTurnId: pair.replyTurnId, operationId, reason, state: "saving",
+        replyTurnId: pair.replyTurnId, aiReuse, operationId, reason, state: "saving",
         deletedAfterSave: rows.get(pair.exchangeId)?.deletedAfterSave ?? false, autosaveTombstone: true });
       rows.set(pair.exchangeId, receipt); publish();
       return current() && rows.get(pair.exchangeId) === receipt ? receipt : null;

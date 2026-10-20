@@ -1,4 +1,4 @@
-import { createKeepReceipts, type KeepPair } from "../keep-receipts";
+import { createKeepReceipts, type KeepAiReuseRequirement, type KeepPair } from "../keep-receipts";
 import { createChatSessionRegistry } from "../session-registry";
 import { createContentWipeLedger } from "../../account/content-wipe";
 import { __resetAccountEpochForTests, beginAccountOwnerTransition, clearAccountTransition,
@@ -26,7 +26,9 @@ const deferred = <T,>() => {
 };
 const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
 const cleanups: (() => void)[] = [];
-const pair: KeepPair = { exchangeId: "exchange", promptTurnId: "prompt", replyTurnId: "reply" };
+const pair: KeepPair & { aiReuse: KeepAiReuseRequirement } = {
+  exchangeId: "exchange", promptTurnId: "prompt", replyTurnId: "reply", aiReuse: { state: "unconfirmed" },
+};
 function fixture() {
   const registry = createChatSessionRegistry(createContentWipeLedger());
   const view = registry.attachView("a", "entry")!, session = view.snapshot.session!;
@@ -55,6 +57,29 @@ test("K03 queries only known source IDs for the captured owner; page-only deleti
   expect(f.store.get(pair.exchangeId)).toMatchObject({ state: "present", sourceId: "source1", deletedAfterSave: false });
   expect(f.store.permission(pair, "manual")).toBe("already-saved");
   expect(jest.getTimerCount()).toBe(0);
+});
+
+test("M3 red hold evidence is immutable metadata across settlement, deletion checks and manual resave", async () => {
+  const f = fixture(), item = { kind: "turn-zone-red" as const, turnId: "prompt" };
+  const evidence = [item];
+  const heldPair = { ...pair, aiReuse: { state: "hold-required" as const, evidence } };
+  const expected = { state: "hold-required", evidence: [{ kind: "turn-zone-red", turnId: "prompt" }] };
+  const started = f.store.begin(heldPair, "op1", "manual")!;
+  expect(started.aiReuse).toEqual(expected);
+  expect(Object.isFrozen(started.aiReuse)).toBe(true);
+  if (started.aiReuse.state !== "hold-required") throw new Error("missing hold evidence");
+  expect(Object.isFrozen(started.aiReuse.evidence)).toBe(true);
+  expect(Object.isFrozen(started.aiReuse.evidence[0])).toBe(true);
+  item.turnId = "changed"; evidence.length = 0;
+  expect(started.aiReuse).toEqual(expected);
+  expect(f.store.settle(pair.exchangeId, "op1", { state: "present", sourceId: "source1", deduped: null, storagePending: false }))
+    .toMatchObject({ aiReuse: expected });
+  await f.store.check(); expect(f.store.get(pair.exchangeId)).toMatchObject({ state: "present", aiReuse: expected });
+  mockRead.mockResolvedValue({ data: [], error: null }); await f.store.check();
+  expect(f.store.get(pair.exchangeId)).toMatchObject({ state: "missing", aiReuse: expected });
+  expect(f.store.begin({ ...pair, aiReuse: started.aiReuse }, "op2", "manual"))
+    .toMatchObject({ state: "saving", aiReuse: expected, deletedAfterSave: true });
+  expect(f.store.settle(pair.exchangeId, "op2", { state: "unknown" })).toMatchObject({ state: "unknown", aiReuse: expected });
 });
 
 test("K03 confirmed deletion allows only the same pair's manual resave and retains autosave tombstone", async () => {
