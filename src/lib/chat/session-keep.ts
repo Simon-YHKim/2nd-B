@@ -3,11 +3,12 @@ import { beginAccountSessionLease } from "../auth/account-session-lease";
 import { abortError } from "../async/abort";
 import { classifyInputAnyLocale } from "../safety/classifier";
 import { publishCrisisNotice } from "../safety/crisis-notice";
-import { captureFromMarkdown } from "../wiki/capture";
+import { captureFromMarkdown, type CaptureMutationObserver } from "../wiki/capture";
+import type { ContentMutationTicket, createContentWipeLedger } from "../account/content-wipe";
 import { CHAT_KEEP_TAG, composeExchangeBody, exchangeMarkdown, exchangeTopic, findPromptIndex, isKeepable } from "./keep-exchange";
 import { createKeepReceipts, type KeepAiReuseRequirement, type KeepPair, type KeepReceipt, type KeepReason } from "./keep-receipts";
 import type { createChatSessionRegistry } from "./session-registry";
-import type { ChatSessionSnapshot, ChatSessionToken, SessionTurn } from "./session-types";
+import type { ChatRetirementReason, ChatSessionSnapshot, ChatSessionToken, SessionTurn } from "./session-types";
 
 type Registry = ReturnType<typeof createChatSessionRegistry>;
 export interface KeepExchangeSnapshot extends KeepPair {
@@ -64,26 +65,37 @@ export function snapshotKeepExchange(
     speaker: presentation.speaker, locale: presentation.locale, minor: presentation.minor });
 }
 
-/** Dormant session owner. H must not wire this before the gateway/D4 contracts land.
- * capture's transport is unchanged here. D4 will register/issue/settle each actual
- * mutation; abort or a settled UI Promise is never proof that a server write stopped.
+/** Dormant session owner. H must supply the registry's shared ledger before wiring.
+ * Omission retains D1 compatibility, not a content-wipe guarantee.
+ * Receipt invalidation/D2 and the prepareKeptExchange key contract remain separate.
  * F must abort ticket.signal on consent revocation; isCurrent() alone cannot stop an issued capture. */
 export function createChatSessionKeep(registry: Registry, sourceSession: ChatSessionToken,
-  options: { timeoutMs?: number; readTimeoutMs?: number } = {}) {
+  options: { timeoutMs?: number; readTimeoutMs?: number; ledger?: ReturnType<typeof createContentWipeLedger> } = {}) {
   const session = tokenOf(sourceSession), owner = captureAccountOwnerLease(session.ownerId);
   const timeoutMs = options.timeoutMs ?? 30_000;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("invalid_keep_timeout");
   const receipts = createKeepReceipts(registry, session, options.readTimeoutMs);
   const completions = new Set<(receipt: KeepReceipt) => void>();
   let disposed = false;
-  let flight: { pair: KeepPair; promise: Promise<KeepResult>; abort: () => void } | null = null;
+  let flight: { pair: KeepPair; promise: Promise<KeepResult>; retire: (reason: ChatRetirementReason) => boolean } | null = null;
   let stopAccount = () => {}, stopSession = () => {};
   const current = () => !disposed && owner?.epoch === session.ownerEpoch && owner.isCurrent() && registry.isCurrent(session);
-  function dispose() {
-    if (disposed) return;
-    disposed = true; flight?.abort(); stopAccount(); stopSession(); receipts.dispose(); completions.clear();
+  function retire(reason: ChatRetirementReason): boolean {
+    disposed = true;
+    const acknowledged = flight?.retire(reason) ?? true;
+    // Keep the account listener until the original promise settles: hold/ABA
+    // must still abort a transport retained by an earlier content wipe.
+    if (!flight) stopAccount();
+    stopSession(); receipts.dispose(); completions.clear();
+    return acknowledged;
   }
-  const reconcile = () => { if (!current()) dispose(); };
+  // Repeated generic cleanup must not undo a wipe's phase-aware drain. Account
+  // and consent cancellation have their own listeners and still abort immediately.
+  const dispose = () => { if (!disposed) retire("disposed"); };
+  const reconcile = () => {
+    if (!owner?.isCurrent()) retire("account");
+    else if (!current() && !disposed) dispose();
+  };
   stopAccount = subscribeAccountTransition(reconcile);
   stopSession = registry.subscribe(reconcile);
   reconcile();
@@ -97,6 +109,11 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
     },
     keepExchange(input: KeepExchangeSnapshot, authorization: KeepAuthorization): Promise<KeepResult> {
       if (!current() || !sameSession(input.session, session)) return Promise.resolve(rejected("stale"));
+      if (options.ledger && owner) {
+        const content = options.ledger.inspect(owner);
+        if (content.phase !== "open" || content.generation !== session.contentGeneration || content.integrityBlocked
+          || content.tickets.some(t => t.outcome === "unknown")) return Promise.resolve(rejected("content-blocked"));
+      }
       const live = registry.getSessionSnapshot(session);
       const checked = live && snapshotKeepExchange(live, input.exchangeId, input);
       if (!checked || input.promptTurnId !== checked.promptTurnId || input.replyTurnId !== checked.replyTurnId
@@ -122,25 +139,57 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
       const controller = new AbortController();
       let resolve!: (result: KeepResult) => void;
       const promise = new Promise<KeepResult>(done => { resolve = done; });
+      const pending = new Set<ContentMutationTicket>();
+      let finishRetired = () => {};
       const active = { pair: { exchangeId: checked.exchangeId, promptTurnId: checked.promptTurnId, replyTurnId: checked.replyTurnId },
-        promise, abort: () => controller.abort() };
+        promise, retire: (why: ChatRetirementReason) => {
+          const draining = pending.size > 0;
+          if (why !== "content-wipe" || !draining || !owner?.isCurrent()) controller.abort();
+          finishRetired();
+          // Registry/ledger latch a failed ACK. D4 does not invent an automatic
+          // ACK reset/retry after drain; a pending write is not cleanup success.
+          return !draining;
+        } };
       flight = active;
-      const work = registry.claimWork(session, "keep", "capture", () => { dispose(); return true; });
+      const work = registry.claimWork(session, "keep", "capture", retire);
       if (!work) { flight = null; resolve(rejected("busy")); return promise; }
       let finished = false, captureStarted = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
-      const canEffect = () => current() && !controller.signal.aborted && consentCurrent();
+      const canEffect = () => current() && !controller.signal.aborted && consentCurrent()
+        && (!options.ledger || !!owner && options.ledger.read(owner).phase === "open"
+          && options.ledger.read(owner).generation === session.contentGeneration);
       const assertCurrent = () => { if (!canEffect()) throw abortError(); };
       const finish = (result: KeepResult) => {
         if (finished) return;
         finished = true;
         if (timer !== undefined) clearTimeout(timer);
-        if (result.status === "settled" && canEffect()) for (const listener of [...completions]) {
+        if (result.status === "settled" && (!options.ledger || result.receipt.state === "present") && canEffect()) for (const listener of [...completions]) {
           if (!canEffect()) break;
           try { listener(result.receipt); } catch { /* The write outcome cannot become a retry on observer failure. */ }
         }
         resolve(current() ? result : rejected("stale"));
       };
+      finishRetired = () => finish(rejected("stale"));
+      const ledger = options.ledger;
+      const mutationObserver: Omit<CaptureMutationObserver, "session"> | undefined = ledger && owner ? {
+        owner, generation: session.contentGeneration, operationId: work.operationId, assertCurrent,
+        ledger: {
+          read: ledger.read,
+          acquireMutation: ledger.acquireMutation,
+          issueMutation(account, mutation, dispatch, gate) {
+            return ledger.issueMutation(account, mutation, () => {
+              pending.add(mutation); // Before dispatch can synchronously retire the session.
+              return dispatch();
+            }, gate);
+          },
+          settleMutation(mutation, proof) {
+            // No current-session check: a late fact belongs to its original ticket.
+            const settled = ledger.settleMutation(mutation, proof);
+            if (settled && proof.outcome !== "unknown") pending.delete(mutation);
+            return settled;
+          },
+        },
+      } : undefined;
       const fail = () => {
         if (finished) return;
         const receipt = receipts.settle(checked.exchangeId, work.operationId, { state: captureStarted ? "unknown" : "failed" });
@@ -171,12 +220,13 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
           }
           // Guidance only needs the current owner, so authentication cannot delay it.
           assertCurrent();
-          await lease.authenticate();
+          const authenticated = await lease.authenticate();
           assertCurrent(); lease.assertCurrent();
           captureStarted = true;
-          const result = await captureFromMarkdown({ userId: session.ownerId, signal: controller.signal,
+          const result = await captureFromMarkdown({ userId: session.ownerId, signal: mutationObserver ? authenticated.signal : controller.signal,
             rawMd: exchangeMarkdown(exchangeTopic(checked.prompt.text, checked.reply.text), body),
-            kindOverride: "self_knowledge", userTags: [CHAT_KEEP_TAG] });
+            kindOverride: "self_knowledge", userTags: [CHAT_KEEP_TAG],
+            ...(mutationObserver ? { mutationObserver: { ...mutationObserver, session: authenticated } } : {}) });
           assertCurrent(); lease.assertCurrent();
           if (finished) return;
           if (!result.source?.id || result.source.user_id !== session.ownerId) throw new Error("invalid_keep_source");
@@ -190,6 +240,7 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
           controller.signal.removeEventListener("abort", fail); consentSignal?.removeEventListener("abort", cancelConsent);
           lease.release(); registry.settleWork(work);
           if (flight === active) flight = null;
+          if (disposed) stopAccount();
         }
       })();
       return promise;
