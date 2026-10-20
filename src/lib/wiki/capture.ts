@@ -285,7 +285,11 @@ function observedCapture(input: CaptureInput, observer: CaptureMutationObserver)
       const valid = object(reply);
       const rejected = kind === "source-insert" && valid && reply.status === 400 && reply.data === null
         && object(reply.error) && reply.error.code === "P0001" && isMinorImportLocked(reply.error);
-      const outcome: ContentSettlement["outcome"] = rejected ? "definitely-not-committed"
+      // x-upsert:false rejects an existing object before writing. Require the
+      // Storage Duplicate body as well as its 400/409 status; other failures stay unknown.
+      const duplicate = kind === "raw-upload" && valid && (reply.status === 409 || reply.status === 400)
+        && reply.data === null && object(reply.error) && (reply.error.statusCode === "409" || reply.error.error === "Duplicate");
+      const outcome: ContentSettlement["outcome"] = rejected || duplicate ? "definitely-not-committed"
         : valid && reply.error === null && confirmed(reply) ? "committed" : "unknown";
       const settled = ledger.settleMutation(ticket, { outcome });
       if (!settled) throw new Error("capture_settlement_rejected");

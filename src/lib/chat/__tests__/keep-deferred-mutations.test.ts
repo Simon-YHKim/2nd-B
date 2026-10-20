@@ -4,6 +4,8 @@ import { createChatSessionKeep, snapshotKeepExchange, type ChatAutosaveTicket } 
 import { createChatSessionRegistry } from "../session-registry";
 import { createContentWipeLedger } from "../../account/content-wipe";
 import { beginAccountSessionLease, type AuthenticatedAccountSessionLease } from "../../auth/account-session-lease";
+import * as accountSessionLease from "../../auth/account-session-lease";
+import { deleteSource } from "../../wiki/queries";
 import { __resetAccountEpochForTests, beginAccountOwnerTransition, captureAccountOwnerLease,
   clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../auth/account-epoch";
 import { __resetAccountLocalDeletionFencesForTests } from "../../account/local-deletion-fence";
@@ -12,7 +14,7 @@ import { buildSourcePayload } from "../../wiki/ingest-helpers";
 import { contentHash } from "../../ingest/dedup";
 import type { SessionTurn } from "../session-types";
 
-type Query = { table: string; columns?: string; insert?: Record<string, unknown>; signal?: AbortSignal };
+type Query = { table: string; columns?: string; insert?: Record<string, unknown>; deleting?: boolean; signal?: AbortSignal };
 const mockAuth = jest.fn(), mockIO = jest.fn(), mockUpload = jest.fn(), mockRemove = jest.fn();
 const mockQueries: Query[] = [], mockEvents: string[] = [];
 jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({
@@ -24,6 +26,7 @@ jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({
     const builder = {
       select(columns?: string) { query.columns = columns; return builder; },
       insert(row: Record<string, unknown>) { query.insert = row; return builder; },
+      delete() { query.deleting = true; return builder; },
       eq() { return builder; }, overlaps() { return builder; }, in() { return builder; }, limit() { return builder; },
       abortSignal(signal: AbortSignal) { query.signal = signal; return builder; },
       single: run, maybeSingle: run,
@@ -53,7 +56,7 @@ async function transport(url: string, init: RequestInit) {
   if (url.includes("/storage/v1/object/raw-clippings/")) {
     const path = decodeURIComponent(url.split("/raw-clippings/")[1]);
     const uploaded = await mockUpload(path, init.body, { contentType: "text/markdown; charset=utf-8", upsert: false, signal: init.signal });
-    reply = { ...uploaded, data: uploaded.data ? { Id: "storage-id", Key: `raw-clippings/${uploaded.data.path}` } : null, status: 200 };
+    reply = { ...uploaded, data: uploaded.data ? { Id: "storage-id", Key: `raw-clippings/${uploaded.data.path}` } : null, status: uploaded.status ?? 200 };
   } else if (url.endsWith("/storage/v1/object/raw-clippings")) {
     reply = { ...await mockRemove(JSON.parse(init.body as string).prefixes), status: 200 };
   } else {
@@ -146,6 +149,106 @@ test("each normal write is registered and issued before I/O, then committed to i
   expect(mockFetch.mock.calls[1][1].headers).toMatchObject({ Prefer: "return=representation", Accept: "application/vnd.pgrst.object+json" });
 });
 
+test("keep refuses a different ledger instance before installing listeners or issuing writes", () => {
+  const f = fixture(), subscribe = jest.spyOn(f.registry, "subscribe");
+  expect(() => {
+    const keep = createChatSessionKeep(f.registry, f.session, { ledger: createContentWipeLedger() });
+    cleanups.push(keep.dispose);
+  }).toThrow("keep_content_boundary_mismatch");
+  expect(subscribe).not.toHaveBeenCalled(); expect(f.facts()).toEqual([]);
+  expect(mockFetch).not.toHaveBeenCalled();
+});
+
+test.each([false, true])("K01 ledger keep (auto %s) joins one pending write and publishes one confirmed receipt", async auto => {
+  const f = keepFixture(), pending = deferred<unknown>();
+  mockIO.mockImplementation(q => q.insert ? pending.promise : defaultIO(q));
+  const result = f.startKeep(auto); await flush();
+  expect(f.startKeep()).toBe(result); expect(f.startKeep(true)).toBe(result);
+  expect(f.keep.receipts.get("exchange")?.state).toBe("saving");
+  expect(f.complete).not.toHaveBeenCalled();
+  pending.resolve(sourceReply());
+  expect(await result).toMatchObject({ status: "settled", receipt: { state: "present", sourceId: "source-a", storagePending: false } });
+  await flush();
+  expect(f.facts().map(t => [t.kind, t.outcome])).toEqual([["raw-upload", "committed"], ["source-insert", "committed"]]);
+  expect(mockUpload).toHaveBeenCalledTimes(1); expect(mockQueries.filter(q => q.insert)).toHaveLength(1);
+  expect(f.complete).toHaveBeenCalledTimes(1);
+  expect(await f.startKeep()).toMatchObject({ reason: "already-saved" });
+  expect(await f.startKeep(true)).toMatchObject({ reason: "autosave-blocked" });
+});
+
+test("K02 ledger keep returns the existing source after a confirmed exact-duplicate drop", async () => {
+  const f = keepFixture();
+  const seed = await f.startKeep(); expect(seed).toHaveProperty("receipt.state", "present"); await flush();
+  const source = sourceReply().data;
+  f.keep.dispose();
+  const keep = createChatSessionKeep(f.registry, f.session, { ledger: f.ledger }); cleanups.push(keep.dispose);
+  const complete = jest.fn(); keep.subscribeCompletion(complete);
+  mockIO.mockImplementation(q => q.insert ? defaultIO(q) : q.columns === "*"
+    ? { data: source, error: null } : { data: [source], error: null });
+  expect(await keep.keepExchange(f.input, { reason: "manual" })).toMatchObject({
+    status: "settled", receipt: { state: "present", sourceId: "source-a", deduped: "exact_duplicate", storagePending: false },
+  });
+  expect(f.facts().at(-1)).toMatchObject({ kind: "ingest-drop", outcome: "committed" });
+  expect(mockUpload).toHaveBeenCalledTimes(1); expect(mockQueries.filter(q => q.insert && q.table === "sources")).toHaveLength(1);
+  expect(complete).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  [409, { error: "Duplicate" }], [409, { statusCode: "409" }],
+  [400, { error: "Duplicate" }], [400, { statusCode: "409" }],
+])("K02 verified upload Duplicate %i %j permits inline fallback and a subsequent keep", async (status, error) => {
+  const f = keepFixture(); mockUpload.mockResolvedValue({ data: null, status, error });
+  expect(await f.startKeep()).toMatchObject({ status: "settled", receipt: { state: "present", storagePending: true } }); await flush();
+  expect(mockQueries.find(q => q.insert)?.insert?.frontmatter).toMatchObject({ _storage_pending: true, _body_fallback: expect.any(String) });
+  expect(f.facts().map(t => [t.kind, t.outcome])).toEqual([["raw-upload", "definitely-not-committed"], ["source-insert", "committed"]]);
+  expect(f.ledger.inspect(f.owner)).toMatchObject({ phase: "open", integrityBlocked: false });
+  const prompt = { ...f.input.prompt, id: "prompt-2", exchangeId: "exchange-2", sequence: 3, text: "Another weekend plan" };
+  const reply = { ...f.input.reply, id: "reply-2", exchangeId: "exchange-2", sequence: 4 };
+  expect(f.registry.replaceTurns(f.session, [f.input.prompt, f.input.reply, prompt, reply])).toBe(true);
+  const next = snapshotKeepExchange(f.registry.getSessionSnapshot(f.session)!, "exchange-2", f.input)!;
+  expect(await f.keep.keepExchange(next, { reason: "manual" })).toHaveProperty("receipt.state", "present");
+  expect(f.facts().map(t => t.outcome)).toEqual(["definitely-not-committed", "committed", "definitely-not-committed", "committed"]);
+  expect(f.complete).toHaveBeenCalledTimes(2);
+});
+
+test("K03 deleteSource then check permits manual resave at the same raw path without unlocking autosave", async () => {
+  const f = keepFixture(), paths = new Set<string>(); let stored: Record<string, unknown> | null = null;
+  mockUpload.mockImplementation(async (path: string) => {
+    if (paths.has(path)) return { data: null, error: { statusCode: "409", error: "Duplicate" }, status: 400 };
+    paths.add(path); return { data: { path }, error: null };
+  });
+  mockIO.mockImplementation(q => {
+    if (q.deleting) { stored = null; return { data: null, error: null }; }
+    if (q.insert) { const reply = sourceReply(q); stored = reply.data; return reply; }
+    return { data: stored ? [stored] : [], error: null };
+  });
+  expect(await f.startKeep()).toHaveProperty("receipt.storagePending", false); await flush();
+  await deleteSource("a", "source-a");
+  expect(mockQueries.filter(q => q.deleting)).toHaveLength(1); expect(paths.size).toBe(1);
+  // D2 event wiring remains out of scope; exercise the existing explicit check.
+  await f.keep.receipts.check();
+  expect(f.keep.receipts.get("exchange")).toMatchObject({ state: "missing", deletedAfterSave: true });
+  expect(await f.startKeep(true)).toMatchObject({ reason: "autosave-blocked" });
+  expect(mockUpload).toHaveBeenCalledTimes(1);
+  expect(await f.startKeep()).toMatchObject({ receipt: { state: "present", storagePending: true, deletedAfterSave: true } });
+  expect(mockUpload).toHaveBeenCalledTimes(2); expect(mockUpload.mock.calls[1][0]).toBe(mockUpload.mock.calls[0][0]);
+  expect(f.facts().map(t => t.outcome)).toEqual(["committed", "committed", "definitely-not-committed", "committed"]);
+  expect(mockQueries.filter(q => q.insert)).toHaveLength(2); expect(f.complete).toHaveBeenCalledTimes(2);
+});
+
+test.each([
+  [400, { error: "Bad Request" }], [403, { error: "Duplicate" }], [404, { statusCode: "409" }],
+  [409, { error: "Conflict" }], [400, { message: "Duplicate" }], [400, { statusCode: 409 }],
+  [500, { error: "Duplicate", statusCode: "409" }], [400, null], [409, []],
+])("unverified upload refusal %i %j remains unknown and blocks subsequent saves", async (status, error) => {
+  const f = keepFixture(); mockUpload.mockResolvedValue({ data: null, error, status });
+  expect(await f.startKeep()).toHaveProperty("receipt.state", "unknown"); await flush();
+  expect(f.facts().map(t => [t.kind, t.outcome])).toEqual([["raw-upload", "unknown"]]);
+  expect(await f.keep.keepExchange(f.input, { reason: "manual", retryUnknown: true })).toMatchObject({ reason: "content-blocked" });
+  expect(mockQueries.filter(q => q.insert)).toHaveLength(0); expect(f.complete).not.toHaveBeenCalled();
+  f.wipe(); expect(await f.deleteFirst()).toBeNull();
+});
+
 test.each(["read", "registered", "upload", "source"])("W02 wipe during %s blocks next write; only confirmed drain permits explicit deletion", async stage => {
   const f = fixture(), pending = deferred<unknown>();
   if (stage === "read") mockIO.mockReturnValue(pending.promise);
@@ -168,34 +271,36 @@ test.each(["read", "registered", "upload", "source"])("W02 wipe during %s blocks
   expect(await f.deleteFirst()).not.toBeNull(); expect(f.deletionIO).toHaveBeenCalledTimes(1);
 });
 
-test.each([["upload", false], ["source", false], ["upload", true], ["source", true]] as const)("W02 keep %s (auto %s) retire ACK is false; wipe retains the issued signal, suppresses completion and latches ACK failure", async (stage, auto) => {
+test.each([["upload", false], ["source", false], ["upload", true], ["source", true]] as const)("W02 keep %s (auto %s) acknowledges the fence; only confirmed drain permits deletion", async (stage, auto) => {
+  expect.assertions(13); // Keep the post-settlement deletion-permit assertion mandatory.
   const f = keepFixture(), pending = deferred<unknown>();
   if (stage === "upload") mockUpload.mockReturnValue(pending.promise);
   else mockIO.mockImplementation(q => q.insert ? pending.promise : defaultIO(q));
   const result = f.startKeep(auto); await flush();
   const signal: AbortSignal = stage === "upload" ? mockUpload.mock.calls[0][2].signal : mockQueries.find(q => q.insert)!.signal!;
   const barrier = f.wipe();
-  expect(barrier.ackConfirmed).toBe(false); expect(f.retire()("content-wipe")).toBe(false);
+  expect(barrier.ackConfirmed).toBe(true); expect(f.retire()("content-wipe")).toBe(true);
   f.keep.dispose(); // Generic follow-up cleanup cannot cancel the retained write.
   expect(signal.aborted).toBe(false); expect(await result).toMatchObject({ status: "rejected" });
   expect(await f.deleteFirst()).toBeNull();
+  expect(f.deletionIO).not.toHaveBeenCalled();
   pending.resolve(stage === "upload" ? { data: { path: mockUpload.mock.calls[0][0] }, error: null } : sourceReply()); await flush();
   expect(f.facts().every(t => t.outcome === "committed")).toBe(true);
   expect(f.complete).not.toHaveBeenCalled(); expect(f.keep.receipts.getSnapshot()).toEqual([]);
   expect(mockQueries.filter(q => q.insert)).toHaveLength(stage === "source" ? 1 : 0);
-  // D3a/A have no ACK reset API. Do not claim that settlement resets a failed handoff.
-  expect(await f.deleteFirst()).toBeNull(); expect(f.deletionIO).not.toHaveBeenCalled();
+  expect(f.deletionIO).not.toHaveBeenCalled(); // Settlement does not start deletion by itself.
+  expect(await f.deleteFirst()).not.toBeNull(); expect(f.deletionIO).toHaveBeenCalledTimes(1);
 });
 
 test.each(["upload", "source"])("synchronous wipe inside %s dispatch sees a pending ticket and retains its signal", async stage => {
   const f = keepFixture(); let retained = false;
   if (stage === "upload") mockUpload.mockImplementation(async (path, _body, opts) => {
     expect(f.facts().at(-1)?.outcome).toBe("issued-pending");
-    expect(f.wipe().ackConfirmed).toBe(false); retained = !opts.signal.aborted;
+    expect(f.wipe().ackConfirmed).toBe(true); retained = !opts.signal.aborted;
     return { data: { path }, error: null };
   });
   else mockIO.mockImplementation(q => {
-    if (q.insert) { expect(f.wipe().ackConfirmed).toBe(false); retained = !q.signal!.aborted; }
+    if (q.insert) { expect(f.wipe().ackConfirmed).toBe(true); retained = !q.signal!.aborted; }
     return defaultIO(q);
   });
   expect(await f.startKeep()).toMatchObject({ status: "rejected" }); await flush();
@@ -205,11 +310,14 @@ test.each(["upload", "source"])("synchronous wipe inside %s dispatch sees a pend
 
 test.each(["auth", "read"])("W02 keep wipe before issue at %s aborts immediately and acknowledges cleanup", async stage => {
   const f = keepFixture(), pending = deferred<unknown>();
+  const leases = jest.spyOn(accountSessionLease, "beginAccountSessionLease");
   if (stage === "auth") mockAuth.mockReturnValue(pending.promise); else mockIO.mockReturnValue(pending.promise);
   const result = f.startKeep(); await flush();
-  const signal = mockQueries[0]?.signal;
+  const signal: AbortSignal = leases.mock.results[0].value.signal;
+  expect(signal.aborted).toBe(false);
+  if (stage === "read") expect(mockQueries[0].signal).toBe(signal);
   expect(f.wipe().ackConfirmed).toBe(true);
-  if (signal) expect(signal.aborted).toBe(true);
+  expect(signal.aborted).toBe(true);
   pending.resolve({ data: [], error: null });
   expect(await result).toMatchObject({ status: "rejected" }); await flush();
   expect(f.facts()).toEqual([]); expect(mockUpload).not.toHaveBeenCalled();
@@ -246,13 +354,33 @@ test("W03 source loss blocks deletion, completion and new saves; late proof alon
   expect(await f.deleteFirst()).not.toBeNull(); expect(mockQueries.filter(q => q.insert)).toHaveLength(1);
 });
 
+test("W03 pending keep acknowledges wipe but a lost source response still blocks deletion", async () => {
+  const f = keepFixture(), pending = deferred<unknown>(), acquired = jest.spyOn(f.ledger, "acquireMutation");
+  mockIO.mockImplementation(q => q.insert ? pending.promise : defaultIO(q));
+  const result = f.startKeep(); await flush();
+  expect(f.wipe().ackConfirmed).toBe(true); expect(await result).toHaveProperty("status", "rejected");
+  pending.reject(new Error("lost source receipt")); await flush();
+  expect(f.facts().at(-1)?.outcome).toBe("unknown"); expect(await f.deleteFirst()).toBeNull();
+  expect(f.deletionIO).not.toHaveBeenCalled(); expect(f.complete).not.toHaveBeenCalled();
+  expect(await f.startKeep()).toHaveProperty("status", "rejected");
+  expect(f.ledger.settleMutation(acquired.mock.results.at(-1)!.value, { outcome: "committed" })).toBe(true);
+  await flush(); expect(f.deletionIO).not.toHaveBeenCalled(); expect(f.complete).not.toHaveBeenCalled();
+  expect(await f.deleteFirst()).not.toBeNull(); expect(f.deletionIO).toHaveBeenCalledTimes(1);
+});
+
 test("W03 usage loss shares the barrier with capture; late receipt permits only explicit retry", async () => {
-  const f = fixture(), lease = beginAccountSessionLease("a"); cleanups.push(lease.release);
+  const f = keepFixture(), lease = beginAccountSessionLease("a"); cleanups.push(lease.release);
   const session = await lease.authenticate(), acquired = jest.spyOn(f.ledger, "acquireMutation");
   const fetch = jest.fn().mockRejectedValue(new Error("lost quota receipt")); globalThis.fetch = fetch;
   await expect(bumpChatUsageIfUnderCap("a", 5, "2026-10-20", { session, observer: { ...f.observer, stepId: "quota" } })).rejects.toThrow();
-  expect(f.facts()[0].outcome).toBe("unknown"); f.wipe();
+  expect(f.facts()[0].outcome).toBe("unknown");
+  expect(f.ledger.read(f.owner).phase).toBe("open");
+  // Admission must fail because of the usage ticket, before any wipe exists.
+  expect(await f.startKeep()).toMatchObject({ status: "rejected", reason: "content-blocked" });
+  expect(await f.keep.keepExchange(f.input, { reason: "manual", retryUnknown: true })).toMatchObject({ reason: "content-blocked" });
   expect(await f.start()).toHaveProperty("error"); expect(mockUpload).not.toHaveBeenCalled();
+  expect(mockQueries.filter(q => q.insert)).toHaveLength(0); expect(f.complete).not.toHaveBeenCalled();
+  expect(f.facts()).toHaveLength(1); f.wipe();
   expect(await f.deleteFirst()).toBeNull();
   f.ledger.settleMutation(acquired.mock.results[0].value, { outcome: "committed", count: 1 });
   await flush(); expect(f.deletionIO).not.toHaveBeenCalled();

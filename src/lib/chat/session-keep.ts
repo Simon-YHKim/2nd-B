@@ -71,6 +71,7 @@ export function snapshotKeepExchange(
  * F must abort ticket.signal on consent revocation; isCurrent() alone cannot stop an issued capture. */
 export function createChatSessionKeep(registry: Registry, sourceSession: ChatSessionToken,
   options: { timeoutMs?: number; readTimeoutMs?: number; ledger?: ReturnType<typeof createContentWipeLedger> } = {}) {
+  if (options.ledger && !registry.usesContentBoundary(options.ledger)) throw new Error("keep_content_boundary_mismatch");
   const session = tokenOf(sourceSession), owner = captureAccountOwnerLease(session.ownerId);
   const timeoutMs = options.timeoutMs ?? 30_000;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("invalid_keep_timeout");
@@ -146,9 +147,9 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
           const draining = pending.size > 0;
           if (why !== "content-wipe" || !draining || !owner?.isCurrent()) controller.abort();
           finishRetired();
-          // Registry/ledger latch a failed ACK. D4 does not invent an automatic
-          // ACK reset/retry after drain; a pending write is not cleanup success.
-          return !draining;
+          // ACK confirms the fence, not settlement. The shared ledger alone
+          // permits deletion once all issued mutations have confirmed outcomes.
+          return true;
         } };
       flight = active;
       const work = registry.claimWork(session, "keep", "capture", retire);
