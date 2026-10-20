@@ -67,7 +67,7 @@ export function snapshotKeepExchange(
 
 /** Dormant session owner. H must supply the registry's shared ledger before wiring.
  * Omission retains D1 compatibility, not a content-wipe guarantee.
- * Receipt invalidation/D2 and the prepareKeptExchange key contract remain separate.
+ * Receipts own D2 invalidation for this session; prepareKeptExchange's key contract remains separate.
  * F must abort ticket.signal on consent revocation; isCurrent() alone cannot stop an issued capture. */
 export function createChatSessionKeep(registry: Registry, sourceSession: ChatSessionToken,
   options: { timeoutMs?: number; readTimeoutMs?: number; ledger?: ReturnType<typeof createContentWipeLedger> } = {}) {

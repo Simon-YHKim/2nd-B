@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { createKeepReceipts, type KeepAiReuseRequirement, type KeepPair } from "../keep-receipts";
 import { createChatSessionRegistry } from "../session-registry";
 import { createContentWipeLedger } from "../../account/content-wipe";
-import { __resetAccountEpochForTests, beginAccountOwnerTransition, clearAccountTransition,
+import { __resetAccountEpochForTests, beginAccountOwnerTransition, captureAccountOwnerLease, clearAccountTransition,
   currentAccountEpoch, noteResolvedOwner } from "../../auth/account-epoch";
+import { prepareSavedDataDeletion, type SavedDataDeletionTarget } from "../../wiki/saved-data-changes";
 
 type Query = { table: string; columns?: string; owner?: string; ids?: string[]; signal?: AbortSignal };
 const mockRead = jest.fn();
@@ -30,7 +33,7 @@ const pair: KeepPair & { aiReuse: KeepAiReuseRequirement } = {
   exchangeId: "exchange", promptTurnId: "prompt", replyTurnId: "reply", aiReuse: { state: "unconfirmed" },
 };
 function fixture() {
-  const registry = createChatSessionRegistry(createContentWipeLedger());
+  const ledger = createContentWipeLedger(), registry = createChatSessionRegistry(ledger);
   const view = registry.attachView("a", "entry")!, session = view.snapshot.session!;
   const store = createKeepReceipts(registry, session, 100);
   cleanups.push(() => { store.dispose(); registry.dispose(); });
@@ -38,7 +41,15 @@ function fixture() {
     expect(store.begin(pair, operationId, "manual")).not.toBeNull();
     return store.settle(pair.exchangeId, operationId, { state: "present", sourceId, deduped: null, storagePending: false });
   };
-  return { registry, view, session, store, saved };
+  return { registry, view, session, store, saved, ledger };
+}
+const deleted = (target: SavedDataDeletionTarget = { ownerId: "a", kind: "source", ids: ["source1"] },
+  outcome: "requested" | number = "requested") => prepareSavedDataDeletion(target)(outcome);
+function saveOther(store: ReturnType<typeof createKeepReceipts>, sourceId = "source2") {
+  const other = { ...pair, exchangeId: "other", promptTurnId: "other-prompt", replyTurnId: "other-reply" };
+  expect(store.begin(other, "other-op", "manual")).not.toBeNull();
+  store.settle(other.exchangeId, "other-op", { state: "present", sourceId, storagePending: false, deduped: null });
+  return other;
 }
 beforeEach(() => {
   __resetAccountEpochForTests(); noteResolvedOwner("a"); mockQueries.length = 0;
@@ -167,4 +178,174 @@ test("a checking subscriber can retire the owner before any query I/O", async ()
   const f = fixture(); f.saved();
   f.store.subscribe(() => { if (f.store.get(pair.exchangeId)?.state === "checking") beginAccountOwnerTransition("b"); });
   await f.store.check(); expect(mockQueries).toEqual([]); expect(jest.getTimerCount()).toBe(0);
+});
+
+test.each(["requested", 2] as const)("W08 ID event (%s) rechecks only matching receipts, without resetting the session or other work", async outcome => {
+  const f = fixture(); f.saved(); const other = saveOther(f.store), unchanged = f.store.get(other.exchangeId);
+  const retire = jest.fn(), work = f.registry.claimWork(f.session, "send", "other-task", retire)!;
+  const sessionBefore = f.registry.getSessionSnapshot(f.session);
+  const pending = deferred<unknown>(); mockRead.mockReturnValue(pending.promise);
+  deleted({ ownerId: "a", kind: "source", ids: ["source1", "not-a-receipt"] }, outcome);
+  await flush();
+  expect(mockQueries).toHaveLength(1);
+  expect(mockQueries[0]).toMatchObject({ table: "sources", columns: "id", owner: "a", ids: ["source1"] });
+  expect(f.store.get(pair.exchangeId)).toMatchObject({ state: "checking", deletedAfterSave: false });
+  expect(f.store.permission(pair, "manual")).toBe("check-required");
+  expect(f.store.get(other.exchangeId)).toBe(unchanged);
+  pending.resolve({ data: [], error: null }); await flush();
+  expect(f.store.get(pair.exchangeId)?.state).toBe("missing");
+  expect(f.store.get(other.exchangeId)).toBe(unchanged);
+  expect(f.registry.getSessionSnapshot(f.session)).toBe(sessionBefore);
+  expect(retire).not.toHaveBeenCalled();
+  expect(f.registry.settleWork(work)).toBe(true);
+});
+
+test("W08 unrecognized IDs leave an ongoing check and receipt snapshot untouched", async () => {
+  const f = fixture(); f.saved(); const pending = deferred<unknown>(); mockRead.mockReturnValue(pending.promise);
+  const check = f.store.check(); await flush(); const snapshot = f.store.getSnapshot();
+  deleted({ ownerId: "a", kind: "source", ids: ["unrelated"] }); await flush();
+  expect(mockQueries).toHaveLength(1); expect(mockQueries[0].signal?.aborted).toBe(false);
+  expect(f.store.getSnapshot()).toBe(snapshot);
+  pending.resolve({ data: [{ id: "source1" }], error: null }); await check;
+  expect(f.store.get(pair.exchangeId)?.state).toBe("present");
+});
+
+test.each([{ all: true as const }, { scope: "uningested" as const }])("W08 unknown source target %j rechecks all known IDs without treating the event as proof", async target => {
+  const f = fixture(); f.saved(); const other = saveOther(f.store);
+  // Both requested and affected notifications still require the ID-only read.
+  mockRead.mockResolvedValue({ data: [{ id: "source2" }], error: null });
+  deleted({ ownerId: "a", kind: "source", ...target }, 2); await flush();
+  expect(mockQueries).toHaveLength(1);
+  expect(mockQueries[0]).toMatchObject({ columns: "id", owner: "a", ids: ["source1", "source2"] });
+  expect(f.store.get(pair.exchangeId)?.state).toBe("missing");
+  expect(f.store.get(other.exchangeId)?.state).toBe("present");
+});
+
+test("W08 multiple receipts for one source share an ID-only query", async () => {
+  const f = fixture(); f.saved(); const other = saveOther(f.store, "source1");
+  mockRead.mockResolvedValue({ data: [], error: null }); deleted(); await flush();
+  expect(mockQueries).toHaveLength(1); expect(mockQueries[0].ids).toEqual(["source1"]);
+  expect(f.store.get(pair.exchangeId)?.state).toBe("missing");
+  expect(f.store.get(other.exchangeId)?.state).toBe("missing");
+});
+
+test.each([{ ids: ["source1"] }, { all: true as const }])("W08 wiki_page %j leaves source facts and reads alone", async target => {
+  const f = fixture(); f.saved(); const before = f.store.getSnapshot();
+  const listener = jest.fn(); f.store.subscribe(listener);
+  deleted({ ownerId: "a", kind: "wiki_page", ...target }, 1); await flush();
+  expect(mockQueries).toEqual([]); expect(f.store.getSnapshot()).toBe(before);
+  expect(listener).not.toHaveBeenCalled(); expect(jest.getTimerCount()).toBe(0);
+});
+
+test("W08 another owner's notification cannot query or change this receipt", async () => {
+  const f = fixture(); f.saved(); const before = f.store.getSnapshot();
+  deleted({ ownerId: "b", kind: "source", all: true }); await flush();
+  expect(mockQueries).toEqual([]); expect(f.store.getSnapshot()).toBe(before);
+});
+
+test("K04 a late mixed focus read cannot overwrite an event's missing result, while its unrelated receipt completes", async () => {
+  const f = fixture(); f.saved(); const other = saveOther(f.store);
+  const old = deferred<unknown>(); mockRead.mockReturnValueOnce(old.promise);
+  const focus = f.store.check(); await flush();
+  mockRead.mockResolvedValue({ data: [], error: null }); deleted(); await flush();
+  expect(f.store.get(pair.exchangeId)?.state).toBe("missing");
+  expect(f.store.get(other.exchangeId)?.state).toBe("checking");
+  expect(mockQueries[0].signal?.aborted).toBe(false);
+  old.resolve({ data: [{ id: "source1" }, { id: "source2" }], error: null }); await focus;
+  expect(f.store.get(pair.exchangeId)?.state).toBe("missing");
+  expect(f.store.get(other.exchangeId)?.state).toBe("present");
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+test("K04 disjoint source events settle independently in reverse order", async () => {
+  const f = fixture(); f.saved(); const other = saveOther(f.store), first = deferred<unknown>(), second = deferred<unknown>();
+  mockRead.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+  deleted(); await flush(); deleted({ ownerId: "a", kind: "source", ids: ["source2"] }); await flush();
+  second.resolve({ data: [], error: null }); await flush();
+  first.resolve({ data: [{ id: "source1" }], error: null }); await flush();
+  expect(f.store.get(pair.exchangeId)?.state).toBe("present");
+  expect(f.store.get(other.exchangeId)?.state).toBe("missing");
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+test.each(["present", "missing", "error"])("K04 event read returning %s cannot overwrite a later manual resave", async result => {
+  const f = fixture(); f.saved(); mockRead.mockResolvedValue({ data: [], error: null });
+  deleted(); await flush(); const other = saveOther(f.store);
+  const old = deferred<unknown>(); mockRead.mockReturnValueOnce(old.promise);
+  deleted({ ownerId: "a", kind: "source", all: true }); await flush();
+  expect(f.store.get(pair.exchangeId)?.state).toBe("missing");
+  f.saved("new-operation", "new-source");
+  const saved = f.store.get(pair.exchangeId);
+  old.resolve({ data: result === "present" ? [{ id: "source1" }, { id: "source2" }] : [],
+    error: result === "error" ? new Error("offline") : null }); await flush();
+  expect(f.store.get(pair.exchangeId)).toBe(saved);
+  expect(f.store.get(pair.exchangeId)).toMatchObject({ state: "present", sourceId: "new-source", autosaveTombstone: true });
+  expect(f.store.get(other.exchangeId)?.state).not.toBe("checking");
+  expect(f.store.permission(pair, "autosave")).toBe("autosave-blocked");
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+test.each(["error", "throw", "null", "malformed", "foreign-id", "timeout"])("K03 confirmed missing survives a %s recheck and stays manually saveable", async kind => {
+  const f = fixture(); f.saved(); mockRead.mockResolvedValue({ data: [], error: null });
+  deleted(); await flush(); const missing = f.store.get(pair.exchangeId), listener = jest.fn();
+  f.store.subscribe(listener);
+  if (kind === "throw") mockRead.mockRejectedValue(new Error("offline"));
+  else if (kind === "timeout") mockRead.mockReturnValue(new Promise(() => {}));
+  else mockRead.mockResolvedValue({ data: kind === "null" ? null : kind === "malformed" ? [{}]
+    : kind === "foreign-id" ? [{ id: "foreign" }] : [], error: kind === "error" ? new Error("offline") : null });
+  deleted();
+  expect(f.store.get(pair.exchangeId)).toBe(missing);
+  expect(f.store.permission(pair, "manual")).toBeNull();
+  await flush();
+  if (kind === "timeout") await jest.advanceTimersByTimeAsync(100);
+  expect(f.store.get(pair.exchangeId)).toBe(missing);
+  expect(listener).not.toHaveBeenCalled();
+  expect(f.store.permission(pair, "manual")).toBeNull();
+  expect(f.store.permission(pair, "autosave")).toBe("autosave-blocked");
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+test("K03 new present evidence may replace missing, while a later failed read is uncertain", async () => {
+  const f = fixture(); f.saved(); mockRead.mockResolvedValue({ data: [], error: null }); deleted(); await flush();
+  mockRead.mockResolvedValue({ data: [{ id: "source1" }], error: null }); deleted(); await flush();
+  expect(f.store.get(pair.exchangeId)).toMatchObject({ state: "present", deletedAfterSave: true });
+  mockRead.mockResolvedValue({ data: null, error: new Error("offline") }); deleted(); await flush();
+  expect(f.store.get(pair.exchangeId)?.state).toBe("unknown");
+  expect(f.store.permission(pair, "manual")).toBe("check-required");
+});
+
+test.each(["dispose", "wipe", "account-ABA"])("K04 %s cancels all reads/timers, rejects old events and never revives the old owner", async cause => {
+  const f = fixture(); f.saved(); const old = deferred<unknown>(); mockRead.mockReturnValue(old.promise);
+  const oldEvent = prepareSavedDataDeletion({ ownerId: "a", kind: "source", all: true });
+  deleted(); await flush();
+  if (cause === "dispose") f.store.dispose();
+  else if (cause === "wipe") expect(f.ledger.beginWipe(captureAccountOwnerLease("a")!, 0, "wipe")?.ackConfirmed).toBe(true);
+  else {
+    beginAccountOwnerTransition("b"); noteResolvedOwner("b"); clearAccountTransition(currentAccountEpoch());
+    deleted({ ownerId: "b", kind: "source", all: true });
+    noteResolvedOwner("a"); clearAccountTransition(currentAccountEpoch());
+  }
+  expect(f.store.getSnapshot()).toEqual([]);
+  expect(mockQueries[0].signal?.aborted).toBe(true); expect(jest.getTimerCount()).toBe(0);
+  oldEvent("requested"); deleted(); await flush();
+  expect(mockQueries).toHaveLength(1);
+  old.resolve({ data: [{ id: "source1" }], error: null }); await flush();
+  expect(f.store.getSnapshot()).toEqual([]);
+  if (cause === "account-ABA") {
+    const fresh = fixture(); fresh.saved();
+    mockRead.mockResolvedValue({ data: [], error: null }); oldEvent("requested"); await flush();
+    expect(mockQueries).toHaveLength(1);
+    deleted(); await flush();
+    expect(mockQueries).toHaveLength(2); expect(fresh.store.get(pair.exchangeId)?.state).toBe("missing");
+  }
+});
+
+test("saved-data subscription is released by disposal, beyond the event bus's silent epoch filtering", () => {
+  // A retained stale callback has no observable I/O, so the ownership contract
+  // also checks actual unsubscription rather than equating silence with cleanup.
+  const source = readFileSync(resolve(__dirname, "../keep-receipts.ts"), "utf8");
+  const cleanup = source.slice(source.indexOf("function dispose()"), source.indexOf("const reconcile ="));
+  const assignment = source.match(/(\w+) = subscribeSavedDataChanges\(session\.ownerId,/);
+  expect(assignment).not.toBeNull();
+  expect(cleanup).toContain(`${assignment![1]}();`);
 });

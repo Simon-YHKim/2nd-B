@@ -1,6 +1,7 @@
 import { captureAccountOwnerLease, subscribeAccountTransition } from "../auth/account-epoch";
 import { getSupabaseClient } from "../supabase/client";
 import type { CaptureResult } from "../wiki/capture";
+import { subscribeSavedDataChanges } from "../wiki/saved-data-changes";
 import type { KeptExchangePreparation } from "./prepare-kept-exchange";
 import type { createChatSessionRegistry } from "./session-registry";
 import type { ChatSessionToken } from "./session-types";
@@ -32,7 +33,7 @@ export type KeepSettlement =
   | { readonly state: "unknown" | "failed" };
 
 /** Metadata only. A view unsubscribes on detach; the owning session alone disposes.
- * Future deletion-event consumers must requery only known source IDs; events are not deletion proof.
+ * Deletion events requery only known source IDs; events are not deletion proof.
  * D4 must fence issued capture writes separately; these receipts are not its ledger. */
 export function createKeepReceipts(registry: Registry, sourceSession: ChatSessionToken, timeoutMs = 10_000) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("invalid_keep_read_timeout");
@@ -43,8 +44,9 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
   const listeners = new Set<() => void>();
   let snapshot: readonly KeepReceipt[] = EMPTY_RECEIPTS;
   let disposed = false, generation = 0;
-  let cancelRead: (() => void) | null = null;
-  let stopAccount = () => {}, stopSession = () => {};
+  const readGenerations = new Map<string, number>();
+  const reads = new Set<{ cancel: () => void; hasCurrentCandidate: () => boolean }>();
+  let stopAccount = () => {}, stopSession = () => {}, stopSavedData = () => {};
   const current = () => !disposed && owner?.epoch === session.ownerEpoch && owner.isCurrent() && registry.isCurrent(session);
   function publish() {
     snapshot = Object.freeze([...rows.values()]);
@@ -56,8 +58,9 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
   function dispose() {
     if (disposed) return;
     disposed = true; generation += 1;
-    cancelRead?.(); cancelRead = null;
-    stopAccount(); stopSession(); rows.clear(); snapshot = EMPTY_RECEIPTS;
+    for (const read of [...reads]) read.cancel();
+    readGenerations.clear();
+    stopAccount(); stopSession(); stopSavedData(); rows.clear(); snapshot = EMPTY_RECEIPTS;
     for (const listener of [...listeners]) {
       try { listener(); } catch { /* Continue clearing other observers. */ }
     }
@@ -66,6 +69,10 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
   const reconcile = () => { if (!current()) dispose(); };
   stopAccount = subscribeAccountTransition(reconcile);
   stopSession = registry.subscribe(reconcile);
+  stopSavedData = subscribeSavedDataChanges(session.ownerId, change => {
+    if (!current() || change.ownerId !== session.ownerId || change.kind !== "source") return;
+    void check(change.ids);
+  });
   reconcile();
 
   function permission(pair: KeepPair, reason: KeepReason, retryUnknown = false): string | null {
@@ -78,6 +85,85 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
     if (prior.state === "unknown" && !retryUnknown) return "retry-required";
     if (prior.state === "missing" || prior.state === "failed" || (prior.state === "unknown" && retryUnknown)) return null;
     return prior.state === "saving" ? "busy" : "already-saved";
+  }
+
+  /** Focus/attach or deletion invalidation; no body or wiki-page query. */
+  function check(sourceIds?: readonly string[]): Promise<void> {
+    if (!current()) return Promise.resolve();
+    const candidates = [...rows.values()].filter(row => row.sourceId && row.state !== "saving"
+      && (sourceIds === undefined || sourceIds.includes(row.sourceId)));
+    if (!candidates.length) return Promise.resolve();
+    const observed = ++generation;
+    const ids = [...new Set(candidates.map(row => row.sourceId!))];
+    const controller = new AbortController();
+    let resolve!: () => void;
+    const promise = new Promise<void>(done => { resolve = done; });
+    let finished = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const isLatest = (row: KeepReceipt) => {
+      const latest = rows.get(row.exchangeId);
+      return readGenerations.get(row.exchangeId) === observed
+        && latest?.operationId === row.operationId && latest.sourceId === row.sourceId;
+    };
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (timer !== undefined) clearTimeout(timer);
+      controller.abort();
+      reads.delete(read);
+      for (const row of candidates) {
+        if (readGenerations.get(row.exchangeId) === observed) readGenerations.delete(row.exchangeId);
+      }
+      resolve();
+    };
+    const read = { cancel: finish, hasCurrentCandidate: () => candidates.some(isLatest) };
+    for (const row of candidates) readGenerations.set(row.exchangeId, observed);
+    reads.add(read);
+    // A partial invalidation must not cancel the unaffected portion of a focus read.
+    for (const pending of [...reads]) if (!pending.hasCurrentCandidate()) pending.cancel();
+    const apply = (surviving: ReadonlySet<string> | null) => {
+      if (!finished && current()) {
+        let changed = false;
+        for (const row of candidates) {
+          if (!isLatest(row)) continue;
+          const latest = rows.get(row.exchangeId)!;
+          const state = surviving === null ? row.state === "missing" ? "missing" : "unknown"
+            : surviving.has(row.sourceId!) ? "present" : "missing";
+          if (latest.state === state) continue;
+          rows.set(row.exchangeId, Object.freeze({ ...latest, state,
+            deletedAfterSave: latest.deletedAfterSave || state === "missing" }));
+          changed = true;
+        }
+        if (changed) publish();
+      }
+      finish();
+    };
+    let changed = false;
+    for (const row of candidates) {
+      // Confirmed absence remains usable for manual resave until new evidence.
+      if (row.state === "missing" || row.state === "checking") continue;
+      rows.set(row.exchangeId, Object.freeze({ ...row, state: "checking" }));
+      changed = true;
+    }
+    if (changed) publish();
+    if (!current() || finished || !read.hasCurrentCandidate()) { finish(); return promise; }
+    timer = setTimeout(() => apply(null), timeoutMs);
+    void (async () => {
+      try {
+        if (!current() || finished || !read.hasCurrentCandidate()) return;
+        // Same owner + known-ID scope as findSurvivingSourceIds, with cancellation
+        // and strict response validation: null/malformed is not proof of deletion.
+        const { data, error } = await getSupabaseClient().from("sources").select("id")
+          .eq("user_id", session.ownerId).in("id", ids).abortSignal(controller.signal);
+        if (!current() || finished || !read.hasCurrentCandidate()) return;
+        if (error || !Array.isArray(data) || data.some(row => !row || typeof row.id !== "string" || !ids.includes(row.id))) {
+          apply(null); return;
+        }
+        apply(new Set(data.map(row => row.id as string)));
+      } catch { apply(null); }
+      finally { finish(); }
+    })();
+    return promise;
   }
 
   return {
@@ -97,7 +183,10 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
       const receipt: KeepReceipt = Object.freeze({ exchangeId: pair.exchangeId, promptTurnId: pair.promptTurnId,
         replyTurnId: pair.replyTurnId, aiReuse, operationId, reason, state: "saving",
         deletedAfterSave: rows.get(pair.exchangeId)?.deletedAfterSave ?? false, autosaveTombstone: true });
-      rows.set(pair.exchangeId, receipt); publish();
+      rows.set(pair.exchangeId, receipt);
+      readGenerations.delete(pair.exchangeId);
+      for (const read of [...reads]) if (!read.hasCurrentCandidate()) read.cancel();
+      publish();
       return current() && rows.get(pair.exchangeId) === receipt ? receipt : null;
     },
     settle(exchangeId: string, operationId: string, result: KeepSettlement): KeepReceipt | null {
@@ -108,62 +197,8 @@ export function createKeepReceipts(registry: Registry, sourceSession: ChatSessio
       rows.set(exchangeId, receipt); publish();
       return current() && rows.get(exchangeId) === receipt ? receipt : null;
     },
-    /** Focus/attach or explicit status check; no body or wiki-page query. */
-    check(): Promise<void> {
-      if (!current()) return Promise.resolve();
-      cancelRead?.();
-      const observed = ++generation;
-      const candidates = [...rows.values()].filter(row => row.sourceId && row.state !== "saving");
-      if (!candidates.length) return Promise.resolve();
-      const ids = [...new Set(candidates.map(row => row.sourceId!))];
-      const controller = new AbortController();
-      let resolve!: () => void;
-      const promise = new Promise<void>(done => { resolve = done; });
-      let finished = false;
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const finish = () => {
-        if (finished) return;
-        finished = true;
-        if (timer !== undefined) clearTimeout(timer);
-        controller.abort();
-        if (cancelRead === finish) cancelRead = null;
-        resolve();
-      };
-      cancelRead = finish;
-      const apply = (surviving: ReadonlySet<string> | null) => {
-        if (!finished && current() && observed === generation) {
-          for (const row of candidates) {
-            const latest = rows.get(row.exchangeId);
-            if (latest?.operationId !== row.operationId || latest.sourceId !== row.sourceId || latest.state !== "checking") continue;
-            const state = surviving === null ? "unknown" : surviving.has(row.sourceId!) ? "present" : "missing";
-            rows.set(row.exchangeId, Object.freeze({ ...latest, state,
-              deletedAfterSave: latest.deletedAfterSave || state === "missing" }));
-          }
-          publish();
-        }
-        finish();
-      };
-      for (const row of candidates) rows.set(row.exchangeId, Object.freeze({ ...row, state: "checking" }));
-      publish();
-      if (!current() || finished || observed !== generation) { finish(); return promise; }
-      timer = setTimeout(() => apply(null), timeoutMs);
-      void (async () => {
-        try {
-          if (!current() || finished || observed !== generation) return;
-          // Same owner + known-ID scope as findSurvivingSourceIds, with cancellation
-          // and strict response validation: null/malformed is not proof of deletion.
-          const { data, error } = await getSupabaseClient().from("sources").select("id")
-            .eq("user_id", session.ownerId).in("id", ids).abortSignal(controller.signal);
-          if (!current() || finished || observed !== generation) return;
-          if (error || !Array.isArray(data) || data.some(row => !row || typeof row.id !== "string" || !ids.includes(row.id))) {
-            apply(null); return;
-          }
-          apply(new Set(data.map(row => row.id as string)));
-        } catch { apply(null); }
-        finally { finish(); }
-      })();
-      return promise;
-    },
+    /** Explicit checks cover all known receipts; events narrow their own target. */
+    check: () => check(),
     dispose,
   };
 }
