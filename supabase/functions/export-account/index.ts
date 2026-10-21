@@ -377,7 +377,7 @@ const EXCLUDED: Readonly<Record<string, string>> = Object.freeze({
   llm_proxy_capacity_reservations: 'operational capacity accounting',
   llm_proxy_purpose_daily: 'operational purpose quota accounting',
   // Like purpose/capacity accounting, not daily chat_usage: no content; keep internal audit links out.
-  chat_turn_reservations: 'chat quota/refund bookkeeping with internal audit links; rows older than two days are removed at your next chat turn, otherwise kept until account deletion',
+  chat_turn_reservations: 'chat quota/refund bookkeeping with internal audit links; rows older than two days may be removed when chatting through the reservation path, otherwise kept until account deletion',
   reward_ssv_tickets: 'short-lived hashed ad callback binding',
   reward_ssv_issue_rate_limits: 'operational ad-ticket anti-abuse accounting',
   rewarded_ssv_txns: 'internal ad reward accounting',
@@ -396,6 +396,28 @@ const EXCLUDED: Readonly<Record<string, string>> = Object.freeze({
   guardian_consents: 'contains a guardian third-party identity',
   peer_observations: 'contains informant third-party input',
   informant_consents: 'informant consent record',
+  interview_session_starts: 'operational interview-session creation quota counter',
+  polaris_generations: 'internal retry, credit settlement and evidence-hash ledger',
+  ai_audit_context_blocks: 'internal context links for the excluded AI audit ledger',
+  dashboard_generation_runs: 'temporary generated-output cache and execution ledger; 법무 확인 중 (legal review pending)',
+  chat_turn_refunds: 'internal refund deduplication and audit-link ledger',
+  interview_session_audit_ids: 'internal interview-session links for the excluded AI audit ledger',
+  reward_dispute_holds: 'internal dispute case and staff records; 법무 확인 중 (legal review pending)',
+  reward_dispute_hold_events: 'internal dispute staff and approval audit history; 법무 확인 중 (legal review pending)',
+});
+
+// Q-261021-06: prepare now; Relay applies prerequisites before a separate PR
+// moves these physical tables into EXPORT_TABLES. No pending table is queried.
+// These are preparation gaps, not permanent exclusions or access-right exceptions.
+const PENDING_EXPORT: Readonly<Record<string, string>> = Object.freeze({
+  interview_transcript_turns: '준비 중 (export preparation pending): migration 0225 not applied',
+  interview_transcripts: '준비 중 (export preparation pending): migration 0225 not applied',
+  interview_sessions: '준비 중 (export preparation pending): migration 0225 not applied; crisis-related fields under legal review',
+  interview_probe_verdicts: '준비 중 (export preparation pending): migration 0225 not applied; selected judgement columns and held rows under legal review',
+  llm_consent_receipts: '준비 중 (export preparation pending): service_role column-read migration not applied; consent evidence under legal review',
+  weather_consent_state: '준비 중 (export preparation pending): service_role column-read migration not applied',
+  weather_access_events: '준비 중 (export preparation pending): service_role column-read migration not applied; consent and usage history under legal review',
+  dashboard_generation_settings: '준비 중 (export preparation pending): service_role column-read migration not applied',
 });
 
 interface ExportBudget {
@@ -707,7 +729,7 @@ Deno.serve(async (req: Request) => {
       tables,
       storage,
       record_photos: recordPhotos,
-      excluded: EXCLUDED,
+      excluded: { ...EXCLUDED, ...PENDING_EXPORT },
       errors: {},
     }, 200, MAX_EXPORT_RESPONSE_BYTES, {
       'content-disposition': 'attachment; filename="polascope-account-export.json"',

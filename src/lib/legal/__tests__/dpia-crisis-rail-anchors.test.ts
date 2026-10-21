@@ -156,10 +156,14 @@ const ANCHORS: Anchor[] = [
     why: "flat listV2 페이지 실패를 닫힌 상태로 처리하는 자리 - Art.17 삭제 주장의 실제 근거." },
   { cite: `${X}:304-364`, symbol: "consent_records",
     why: "Art.20 이식성이 실제로 무엇을 담아 오는가. 6.1.3 이 '빠져 있다'고 나열하던 여덟 범주가 바로 이 목록이다." },
-  { cite: `${X}:366-398`, symbol: "gemini_spend_daily",
+  { cite: `${X}:366-407`, symbol: "gemini_spend_daily",
     why: "일부러 뺀 저장소 목록. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제이고, 실제 제외 매니페스트가 근거다." },
   { cite: `${X}:379-380`, symbol: "chat_turn_reservations",
-    why: "T22: 단기 예약과 내부 감사 연결은 제외 사유만 반환한다. 법정 열람 범위 판단과 구분한다." },
+    why: "T22: 예약 경로로 대화할 때 이틀 지난 행이 지워질 수 있고 그렇지 않으면 계정 삭제까지 남는 예약·내부 감사 연결은 제외 사유만 반환한다. 법정 열람 범위 판단과 구분한다." },
+  { cite: `${X}:409-421`, symbol: "PENDING_EXPORT",
+    why: "선행 스키마·열 권한 적용을 기다리는 표를 영구 제외와 구분한다." },
+  { cite: `${X}:724-735`, symbol: "...PENDING_EXPORT",
+    why: "준비 중인 사유도 기존 excluded 응답에 들어간다." },
   { cite: `${W}:279`, symbol: "includeRecords",
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
   { cite: `${AT}:96-131`, symbol: "remain inert",
@@ -275,6 +279,21 @@ function slice(cite: string): { file: string; text: string; lines: number } {
   const hi = Math.max(...numbers);
   return { file, text: lines.slice(Math.max(0, lo - 1), hi).join("\n"), lines: lines.length };
 }
+
+test("예약 보관 설명은 예약 경로의 정리 조건을 말하고 단기 보관을 약속하지 않는다", () => {
+  const anchor = ANCHORS.find(a => a.symbol === "chat_turn_reservations")!;
+  expect(anchor.why).toContain("예약 경로로 대화할 때 이틀 지난 행이 지워질 수 있고 그렇지 않으면 계정 삭제까지");
+  expect(anchor.why).not.toMatch(/단기|short-lived/i);
+  expect(doc).toContain("rows older than two days may be removed when that user chats through the reservation path, otherwise they stay until account deletion");
+});
+
+test("내보내기 범위는 준비 중인 8개와 법무 확인 중인 제외 셋을 명시한다", () => {
+  expect(doc).toContain("45 are exported, 36 excluded and 8 pending");
+  expect(doc).toContain("법무 확인 중 / legal review pending");
+  expect(doc).toContain("The dashboard cache includes generated text that may not exist elsewhere");
+  expect(doc).toContain("Automatic JSON exclusion is not a statutory access exemption");
+  expect(doc).toContain("These tables are not queried");
+});
 
 test("표가 실제로 채워져 있다 - 0건 통과를 막는다", () => {
   expect(ANCHORS.length).toBeGreaterThanOrEqual(10);
