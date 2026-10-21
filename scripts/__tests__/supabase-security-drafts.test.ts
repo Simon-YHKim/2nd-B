@@ -205,7 +205,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(listDrafts()).toEqual([...retainedDrafts, ...Object.keys(pendingDrafts)].sort());
     for (const draft of Object.values(pendingDrafts)) {
       expect(existsSync(join(ROOT, draft.runner))).toBe(true);
-      expect(read(".github/workflows/supabase-dry-run.yml")).toContain(draft.workflowInvocation);
+      expect(workflow.split("\n").some((line) => line.trim() === draft.workflowInvocation)).toBe(true);
     }
   });
 

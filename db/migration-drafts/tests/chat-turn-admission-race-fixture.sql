@@ -72,21 +72,21 @@ SELECT (clock_timestamp() AT TIME ZONE 'Asia/Seoul')::date AS day;
 BEGIN;
 SET LOCAL session_replication_role = replica;
 INSERT INTO auth.users(id,email)
-SELECT t39_race.id(n), 't39-race-' || n || '@example.invalid' FROM generate_series(1,6) n;
+SELECT t39_race.id(n), 't39-race-' || n || '@example.invalid' FROM generate_series(1,9) n;
 SET LOCAL session_replication_role = origin;
 INSERT INTO public.users(id,email,birth_date,locale)
 SELECT t39_race.id(n), 't39-race-' || n || '@example.invalid', DATE '1990-01-01', 'en'
-FROM generate_series(1,6) n;
+FROM generate_series(1,9) n;
 INSERT INTO public.chat_usage(user_id,day,count)
 SELECT t39_race.id(n), day + offset_day, 1
-FROM generate_series(1,6) n CROSS JOIN t39_race.clock CROSS JOIN generate_series(0,1) offset_day;
+FROM generate_series(1,9) n CROSS JOIN t39_race.clock CROSS JOIN generate_series(0,1) offset_day;
 INSERT INTO public.chat_turn_reservations(turn_id,user_id,counted_day,issued_at,
   attempts,attempt1_audit_id,attempted_at)
 SELECT t39_race.id(n,2), t39_race.id(n), day, clock_timestamp() - interval '1 second',
   CASE WHEN n IN (2,5,6) THEN 1 ELSE 0 END,
   CASE WHEN n IN (2,5,6) THEN t39_race.id(n,3) END,
   CASE WHEN n IN (2,5,6) THEN clock_timestamp() - interval '1 second' END
-FROM generate_series(1,6) n CROSS JOIN t39_race.clock;
+FROM generate_series(1,9) n CROSS JOIN t39_race.clock;
 INSERT INTO public.llm_proxy_purpose_daily(user_id,kst_day,purpose,count)
 SELECT t39_race.id(n), day + offset_day, 'secondb_chat', CASE WHEN n IN (3,4) THEN 4 ELSE 1 END
 FROM generate_series(2,6) n CROSS JOIN t39_race.clock CROSS JOIN generate_series(0,1) offset_day;

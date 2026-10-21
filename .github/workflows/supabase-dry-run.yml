@@ -430,6 +430,7 @@ jobs:
             -c 'CREATE DATABASE t16_authority_test_ci TEMPLATE postgres'
           node scripts/test-interview-content-authority-sql.mjs "$LOCAL_SQL_CONTAINER" t16_authority_test_ci
       - name: Exercise dormant T39 admission on full schema clone
+        timeout-minutes: 10
         env:
           PGPASSWORD: postgres
         run: |

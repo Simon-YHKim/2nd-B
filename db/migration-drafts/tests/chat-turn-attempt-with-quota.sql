@@ -5,9 +5,11 @@
 -- 0/reask+reask => first,reask; 0/first+first => first,rejected;
 -- 1/reask+reask => reask,rejected; mixed 0 => order-dependent late-first rejection.
 -- Also race a new bump, refund and claim against admission under real connections.
--- CI: scripts/test-chat-turn-admission-races.sh covers first/first, reask/reask,
--- last-slot quota and bump/reask in both orders, plus the user-lock mutant.
--- The broader refund/claim schedules remain in the external review harness.
+-- CI: scripts/test-chat-turn-admission-races.sh covers attempts=0 first/first,
+-- reask/reask and both mixed orders (each also rejects the user-lock mutant),
+-- attempts=1 reask/reask, last-slot quota and bump/reask in both orders.
+-- Refund/claim races, account-deletion lock ordering and the sequential suite's
+-- KST midnight boundary are not covered by this CI race runner.
 BEGIN;
 
 CREATE FUNCTION pg_temp.t39_id(n integer, kind integer DEFAULT 1) RETURNS uuid
