@@ -152,6 +152,19 @@ test.each(["consent", "limit"] as const)("T16 a late %s cannot coexist with a se
   expect(state.terminal).toBeNull();
 });
 
+test.each(["consent", "limit"] as const)("R4 %s cannot be cleared by an undispatched original", reason => {
+  let { state, ticket } = pending();
+  state = receiveTurnReceipt(state, ticket, receipt);
+  state = endTurnWait(state, ticket);
+  state = beginTurnAttempt(state, day, route);
+  const retry = state.attempts[1].ticket;
+  state = finishTurnFailure(state, retry, reason);
+  expect(state.attempts[0]).toMatchObject({ dispatched: false, settled: false });
+  expect(selectTurnResult(state, ticket, "unsent answer")).toBe(state);
+  expect(state.terminal).toBe(reason);
+  expect(turnHistoryValue(state)).toBeNull();
+});
+
 test.each(["consent", "limit", "ineligible"] as const)("T15 old-generation %s cannot terminate a new reservation", reason => {
   let { state, ticket } = sent();
   state = receiveTurnAdmission(state, ticket, { ...first, kind: "reask", attempt: 2, quotaCharged: false, reaskAvailable: false });

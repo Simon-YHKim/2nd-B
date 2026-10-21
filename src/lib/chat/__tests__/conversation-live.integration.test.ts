@@ -113,6 +113,104 @@ beforeEach(async () => {
 afterEach(() => { jest.restoreAllMocks(); });
 afterAll(() => { for (const key of envKeys) { if (savedEnv[key] === undefined) delete process.env[key]; else process.env[key] = savedEnv[key]; } });
 
+test.each(["semantic", "lexical"].flatMap(path => ["none", "switch", "return"].map(change => [path, change])))(
+  "R4 %s input RED fences crisis writes after audit (owner: %s)", async (path, change) => {
+    const message = path === "semantic" ? "I want.to die." : "I want to kill myself.";
+    const turn = makeTurn(message), audit = deferred<unknown>();
+    semantic = () => ({ data: { text: '{"zone":"red","triggers":["active_ideation_no_method"],"confidence":0.9}' }, error: null });
+    const transport = mockRpc.getMockImplementation()!;
+    mockRpc.mockImplementation((name, args) => name.startsWith("log_ai_audit") && args.p_purpose === "secondb_chat"
+      ? audit.promise : transport(name, args));
+    // The live entry's device gate handles lexical RED first. Exercise callLlm's
+    // defensive lexical branch directly with the same owner lease instead.
+    const owner = captureAccountOwnerLease(input.userId)!;
+    const pending = (path === "semantic" ? sendLiveChatMessage({ ...input, message }, turn) : callLlm({
+      userId: input.userId, locale: input.locale, purpose: "secondb_chat", user: message,
+      onCrisisDetected: notify,
+      chatTurn: { route: { vendor: "openai", reservationSupported: true },
+        assertCurrent: () => { if (!owner.isCurrent()) throw Object.assign(new Error("stale_owner"), { name: "AbortError" }); } },
+    })).catch(error => error);
+    await until(() => audits().length === 1);
+    const noticesBeforeAudit = notify.mock.calls.length;
+    const terminalBeforeAudit = turn.read().terminal;
+    if (change !== "none") noteResolvedOwner(change === "return" ? null : "owner-b");
+    if (change === "return") noteResolvedOwner(input.userId);
+    audit.resolve({ data: null, error: null });
+    expect(await pending).toMatchObject(change === "none"
+      ? path === "semantic" ? { status: "crisis" } : { safety: { zone: "red" } }
+      : { name: "AbortError" });
+    expect(noticesBeforeAudit).toBe(1);
+    if (path === "semantic") {
+      expect(calls("safety_classify")).toHaveLength(1);
+      expect(terminalBeforeAudit).toBe("crisis");
+    }
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(calls("secondb_chat")).toHaveLength(0);
+    const rows = mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"));
+    expect(rows).toHaveLength(change === "none" ? 1 : 0);
+    if (change === "none") expect(rows[0][1].p_trigger_categories).toContain(path === "semantic" ? "input_semantic_red" : "input_red");
+  },
+);
+
+test.each(["semantic", "lexical"])("R4 legacy %s input RED still writes once after an owner switch", async path => {
+  const message = path === "semantic" ? "I want.to die." : "I want to kill myself.";
+  semantic = () => ({ data: { text: '{"zone":"red","triggers":["active_ideation_no_method"],"confidence":0.9}' }, error: null });
+  const audit = deferred<unknown>(), transport = mockRpc.getMockImplementation()!;
+  mockRpc.mockImplementation((name, args) => name.startsWith("log_ai_audit") ? audit.promise : transport(name, args));
+  const pending = sendChatMessage({ ...input, message });
+  await until(() => mockRpc.mock.calls.some(([name]) => name.startsWith("log_ai_audit")));
+  noteResolvedOwner("owner-b");
+  audit.resolve({ data: null, error: null });
+  expect(await pending).toMatchObject({ status: "ok", reply: { safety: { zone: "red" } } });
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(1);
+});
+
+test.each(["usage", "loader"].flatMap(stage => ["switch", "return"].map(change => [stage, change])))(
+  "R4 prepare checks the owner after %s before further work (%s)", async (stage, change) => {
+    const turn = makeTurn(), held = deferred<unknown>(), query = mockQuery.getMockImplementation()!;
+    let waiting = false;
+    mockQuery.mockImplementation((table, columns) => {
+      if (table === (stage === "usage" ? "chat_usage" : "wiki_pages")) { waiting = true; return held.promise; }
+      return query(table, columns);
+    });
+    const pending = sendLiveChatMessage(input, turn).catch(error => error);
+    await until(() => waiting);
+    const reads = mockQuery.mock.calls.length, embeds = calls("embed_index").length;
+    noteResolvedOwner(change === "return" ? null : "owner-b");
+    if (change === "return") noteResolvedOwner(input.userId);
+    held.resolve({ data: stage === "usage" ? { count, ad_bonus: 0 } : [], error: null });
+    expect(await pending).toMatchObject({ name: "AbortError" });
+    expect(bumps()).toHaveLength(0);
+    expect(calls("secondb_chat")).toHaveLength(0);
+    expect(calls("embed_index")).toHaveLength(embeds);
+    if (stage === "usage") expect(mockQuery).toHaveBeenCalledTimes(reads);
+    expect(receipts).not.toHaveBeenCalled();
+    expect(audits()).toHaveLength(0);
+  },
+);
+
+test.each(["answer", "crisis"])("R4 limit recheck ignores a retry when the original becomes %s during usage reload", async outcome => {
+  process.env.EXPO_PUBLIC_CHAT_VENDOR = "xai"; count = 0;
+  const turn = makeTurn(), original = deferred<unknown>(), usage = deferred<unknown>();
+  primary = () => original.promise;
+  const p1 = sendLiveChatMessage(input, turn);
+  await until(() => calls("secondb_chat").length === 1); expireWait(turn);
+  const transport = mockRpc.getMockImplementation()!, query = mockQuery.getMockImplementation()!;
+  mockRpc.mockImplementation((name, args) => name === "bump_chat_usage_if_under_cap"
+    ? { data: null, error: { message: "chat_limit_exceeded", code: "P0001" } } : transport(name, args));
+  let usageReads = 0;
+  mockQuery.mockImplementation((table, columns) => table === "chat_usage" && ++usageReads === 2 ? usage.promise : query(table, columns));
+  const retry = sendLiveChatMessage(input, turn);
+  await until(() => usageReads === 2);
+  original.resolve(outcome === "answer" ? success("original during usage reload") : failure(422, "safety_red_zone"));
+  expect((await p1).status).toBe(outcome === "answer" ? "selected" : "crisis");
+  usage.resolve({ data: { count: 5, ad_bonus: 0 }, error: null });
+  expect((await retry).status).toBe("ignored");
+  expect(turn.historyValue()?.reply.text ?? null).toBe(outcome === "answer" ? "original during usage reload" : null);
+  expect(turn.read().terminal).toBe(outcome === "answer" ? null : "crisis");
+  expect(bumps()).toHaveLength(2); expect(calls("secondb_chat")).toHaveLength(1);
+});
+
 test.each(["consent_check_unavailable", "chat_admission_unavailable", "key_missing"])("T14 two pre-admission %s failures then success: one bump, same ID, full repeated context", async code => {
   const turn = makeTurn();
   let attempts = 0;

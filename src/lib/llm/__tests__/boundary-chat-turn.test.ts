@@ -337,6 +337,22 @@ describe("T13: authoritative admission across successful and failed responses", 
 });
 
 describe("C1/C3/C9 and byte-compatible calls without reservation options", () => {
+  test("R4 shared crisisObserver retains main's one-shot source contract", () => {
+    const source = fs.readFileSync(path.join(process.cwd(), "src/lib/llm/boundary.ts"), "utf8").replace(/\r\n/g, "\n");
+    const observer = source.slice(source.indexOf("function crisisObserver("), source.indexOf("\n// Web Crypto"));
+    expect(observer).toBe(`function crisisObserver(observer: CrisisObserver | undefined, fence: () => void): CrisisObserver | undefined {
+  if (!observer) return undefined;
+  let notified = false;
+  return (hotline) => {
+    fence();
+    if (notified) return;
+    notified = true;
+    try { observer(hotline); } catch { /* The audited result still follows. */ }
+  };
+}
+`);
+  });
+
   test("consent errors without admission keep their original own properties", () => {
     expect(Object.keys(new LlmConsentError("consent_required"))).toEqual(["code", "name"]);
   });

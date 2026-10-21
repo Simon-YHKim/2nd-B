@@ -46,19 +46,16 @@ import {
   type ChatTurnRoute, type ChatTurnRejectionCode, type TurnAdmission,
 } from "./types";
 
-// Optional UI guidance runs once per emergency lane, after the same ownership/cancellation fence
+// Optional UI guidance runs once, after the same ownership/cancellation fence
 // as the result. Only routing metadata crosses this callback; UI exceptions
 // cannot skip the audit path or change the standard result.
 function crisisObserver(observer: CrisisObserver | undefined, fence: () => void): CrisisObserver | undefined {
   if (!observer) return undefined;
   let notified = false;
-  const emergencyNotices = new Set<string>();
   return (hotline) => {
     fence();
-    const emergency = hotline === "KR_119" || hotline === "KR_112";
-    if (notified && (!emergency || emergencyNotices.has(hotline))) return;
+    if (notified) return;
     notified = true;
-    if (emergency) emergencyNotices.add(hotline);
     try { observer(hotline); } catch { /* The audited result still follows. */ }
   };
 }
@@ -646,6 +643,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       input.minor,
       "input_red",
       { purpose: input.purpose, session: input.session },
+      input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
     )) as unknown as LlmResult<T>;
   }
 
@@ -671,6 +669,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         input.minor,
         "input_semantic_red",
         { purpose: input.purpose, session: input.session, classifierConfidence: semanticInput.confidence },
+        input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
       )) as unknown as LlmResult<T>;
     }
     if (semanticInput === null) {
