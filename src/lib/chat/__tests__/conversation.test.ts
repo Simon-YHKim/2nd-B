@@ -549,15 +549,24 @@ describe("sendChatMessage", () => {
       for (const later of [
         "readChatUsageDetail(", "checkChatLimit(",
         "if (!precheck.allowed)",
-        "loadStructuredContext(",
-        "loadProfileContext(",
-        "retrieveChatContext(",
-        "exportUserWiki(",
+        "loadChatContext(",
         "bumpChatUsageIfUnderCap(",
         "callLlm(",
       ]) {
         expect([later, at(later) > cut]).toEqual([later, true]);
       }
+      const context = fnBody("export async function loadChatContext(");
+      let previous = -1;
+      for (const reader of ["loadStructuredContext(", "loadProfileContext(", "retrieveChatContext(", "exportUserWiki("]) {
+        const index = context.indexOf(reader);
+        expect([reader, index > previous]).toEqual([reader, true]);
+        expect(send).not.toContain(reader);
+        previous = index;
+      }
+      expect(send.split("loadChatContext(")).toHaveLength(2);
+      expect(at("bumpChatUsageIfUnderCap(")).toBeGreaterThan(at("loadChatContext("));
+      expect(at("assembleChatSystemPrompt(")).toBeGreaterThan(at("bumpChatUsageIfUnderCap("));
+      expect(at("callLlm(")).toBeGreaterThan(at("assembleChatSystemPrompt("));
     });
 
     test("the engine makes no verdict of its own: one boundary call, and the helper cannot reach the model", () => {
@@ -573,10 +582,10 @@ describe("sendChatMessage", () => {
 
     test("the lines the legal documents cite still hold what they are cited for", () => {
       const line = (n: number): string => SRC.split("\n")[n - 1] ?? "";
-      expect(line(267)).toContain("exportUserWiki(");
-      expect(line(272)).toContain("includeSavedConversations: true");
-      expect(line(273)).toContain("includeSavedConversations: true");
-      // :325 and :367 are held by dpia-crisis-rail-anchors.test.ts (wiki_snapshot, SYSTEM_PROMPT_HEADER).
+      expect(line(258)).toContain("exportUserWiki(");
+      expect(line(263)).toContain("includeSavedConversations: true");
+      expect(line(264)).toContain("includeSavedConversations: true");
+      // :287 and :329 are held by dpia-crisis-rail-anchors.test.ts (wiki_snapshot, SYSTEM_PROMPT_HEADER).
     });
 
     // The tests above read strings, and the unit tests further up mock the boundary call. So a
