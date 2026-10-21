@@ -43,6 +43,7 @@ import {
   type PromptPurpose,
   type CrisisObserver,
   type ReasoningEffort,
+  type ChatTurnRoute, type ChatTurnRejectionCode, type TurnAdmission,
 } from "./types";
 
 // Optional UI guidance runs once, after the same ownership/cancellation fence
@@ -366,6 +367,7 @@ export type LlmConsentErrorCode = "consent_required" | "consent_check_unavailabl
 
 /** A server consent refusal is terminal across providers, including collect mode. */
 export class LlmConsentError extends Error {
+  declare readonly turnAdmission?: TurnAdmission;
   constructor(readonly code: LlmConsentErrorCode) {
     super(code);
     this.name = "LlmConsentError";
@@ -681,9 +683,12 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // (pro) tier the legacy EXPO_PUBLIC_REASONING_PROVIDER seam gets the last
   // word when the axis resolves gemini (routing.ts, opts.reasoningTier).
   // Polaris reservations are currently settled only by openai-proxy.
-  const vendorSeat = input.purpose === "persona_synthesis" ? "openai" : resolveVendorForPurpose(input.purpose, input.image != null, {
+  const vendorSeat = input.purpose === "persona_synthesis" ? "openai" :
+    (input.purpose === "secondb_chat" ? input.chatTurnRoute?.vendor : undefined) ?? resolveVendorForPurpose(input.purpose, input.image != null, {
     reasoningTier: tier === "pro",
   });
+  const chatTurnRequest = input.purpose === "secondb_chat" && supportsChatTurnReservation(vendorSeat)
+    && (input.chatTurnId !== undefined || input.chatAttemptIntent !== undefined);
   // effort applies on the reasoning (pro) tier, and on non-Gemini vendor seats
   // (the proxy maps it to the vendor's native reasoning ladder). On Gemini
   // lite/flash it stays undefined so the audit row doesn't imply a reasoning
@@ -758,6 +763,9 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // When the proxy writes the audit row itself (C3 server-authoritative), it
   // returns audited:true and we skip the client insert to avoid double-logging.
   let proxyAudited = false;
+  let turnAdmission: TurnAdmission | undefined;
+  let turnBound: boolean | undefined;
+  let chatTurnFailure: LlmChatTurnError | null = null;
 
   // Route through an edge function when configured, OR whenever the vendor is
   // non-Gemini (Claude/OpenAI have no client-side path — the keys live only in
@@ -777,6 +785,10 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // and gives server logs call attribution. Labels are self-reported, so
       // the proxy's tier-aware cap + effort clamp are the hard ceilings.
       purpose: input.purpose,
+      ...(chatTurnRequest ? {
+        ...(input.chatTurnId !== undefined ? { chatTurnId: input.chatTurnId } : {}),
+        ...(input.chatAttemptIntent !== undefined ? { chatAttemptIntent: input.chatAttemptIntent } : {}),
+      } : {}),
       // The server claims each reasoning slot against its existing reservation.
       ...(input.purpose === "reasoning_connect" ? {
         reasoningRunId: input.reasoningRunId,
@@ -816,9 +828,14 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           });
       fence();
       if (result.error) {
+        if (chatTurnRequest) {
+          chatTurnFailure = await inspectProxyChatTurnFailure(result.error);
+          fence();
+          turnAdmission = chatTurnFailure?.turnAdmission;
+        }
         const consentError = await inspectProxyConsentRejection(result.error);
         fence();
-        if (consentError) throw consentError;
+        if (consentError) throw turnAdmission ? Object.assign(consentError, { turnAdmission }) : consentError;
       }
       return result;
     };
@@ -837,7 +854,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     const failoverTarget = failoverVendor();
     const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
     // Reservation-backed calls cannot reuse a claimed slot on another provider.
-    if (error && input.purpose !== "persona_synthesis" && input.purpose !== "reasoning_connect" && failoverFn && failoverFn !== primaryFn) {
+    if (error && !chatTurnRequest && input.purpose !== "persona_synthesis" && input.purpose !== "reasoning_connect" && failoverFn && failoverFn !== primaryFn) {
       const vendorCrisis = await inspectProxyCrisisRejection(error);
       fence();
       if (vendorCrisis.route) {
@@ -878,7 +895,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       fence();
       if (proxyCrisis.route) {
         notifyCrisis?.(proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane).crisisRouting?.hotline);
-        return (await routeCrisis(
+        const crisisResult = (await routeCrisis(
           proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane),
           input.locale,
           input.userId,
@@ -891,10 +908,15 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
             session: input.session,
           },
         )) as unknown as LlmResult<T>;
+        return turnAdmission ? { ...crisisResult, turnAdmission } : crisisResult;
       }
-      throw error;
+      throw chatTurnFailure ?? error;
     }
-    const payload = data as { text?: string; modelUsed?: string; audited?: boolean } | null;
+    const payload = data as { text?: string; modelUsed?: string; audited?: boolean; turnBound?: unknown } | null;
+    if (chatTurnRequest) {
+      turnAdmission = readTurnAdmission(data);
+      if (typeof payload?.turnBound === "boolean") turnBound = payload.turnBound;
+    }
     text = payload?.text ?? "";
     modelUsedForAudit = payload?.modelUsed ?? model;
     vertexBackend = false;
@@ -1018,6 +1040,8 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       text: fixed.text as unknown as T,
       safety: outputSafety,
       audit: swapAudit,
+      ...(turnAdmission ? { turnAdmission } : {}),
+      ...(turnBound !== undefined ? { turnBound } : {}),
     };
   }
 
@@ -1051,6 +1075,8 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     text: text as unknown as T,
     safety: outputSafety,
     audit,
+    ...(turnAdmission ? { turnAdmission } : {}),
+    ...(turnBound !== undefined ? { turnBound } : {}),
   };
 }
 
@@ -1848,6 +1874,71 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     })),
     audit,
   };
+}
+
+// T39 A1-P: dormant until A2 connects the pre-bump selection to callLlm.
+function supportsChatTurnReservation(vendor: LlmVendor): boolean {
+  return vendor === "openai";
+}
+
+/** Select using the eventual call's image/model options, BEFORE any usage bump. */
+export function selectChatTurnRoute(input: Pick<PromptInput, "image" | "model"> = {}): ChatTurnRoute {
+  const vendor = resolveVendorForPurpose("secondb_chat", input.image != null, {
+    reasoningTier: resolveTier({ ...input, purpose: "secondb_chat" }) === "pro",
+  });
+  return Object.freeze({ vendor, reservationSupported: supportsChatTurnReservation(vendor) });
+}
+
+/** The four terminal/unknown admission codes stay distinct from transport errors. */
+export class LlmChatTurnError extends Error {
+  constructor(
+    readonly code: ChatTurnRejectionCode | null,
+    readonly turnAdmission: TurnAdmission | undefined,
+    readonly cause: unknown,
+  ) {
+    super(code ?? (cause instanceof Error ? cause.message : "chat_proxy_failed"));
+    this.name = "LlmChatTurnError";
+  }
+}
+
+function isTurnRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readTurnAdmission(body: unknown): TurnAdmission | undefined {
+  if (!isTurnRecord(body) || !isTurnRecord(body.turnAdmission)) return undefined;
+  const a = body.turnAdmission;
+  const nullableBoolean = (value: unknown): value is boolean | null => value === null || typeof value === "boolean";
+  if ((a.mode !== "legacy" && a.mode !== "enforce")
+    || !nullableBoolean(a.allowed)
+    || (a.kind !== null && a.kind !== "first" && a.kind !== "reask" && a.kind !== "unbound" && a.kind !== "rejected")
+    || (a.attempt !== null && a.attempt !== 1 && a.attempt !== 2)
+    || !nullableBoolean(a.quotaCharged) || !nullableBoolean(a.bindingEligible)
+    || !nullableBoolean(a.reaskAvailable)) return undefined;
+  return {
+    mode: a.mode, allowed: a.allowed, kind: a.kind, attempt: a.attempt,
+    quotaCharged: a.quotaCharged, bindingEligible: a.bindingEligible, reaskAvailable: a.reaskAvailable,
+  };
+}
+
+async function inspectProxyChatTurnFailure(error: unknown): Promise<LlmChatTurnError | null> {
+  if (!isTurnRecord(error) || !isTurnRecord(error.context)) return null;
+  const ctx = error.context;
+  try {
+    // Clone only: consent/crisis handling and the caller retain the original body.
+    if (typeof ctx.clone !== "function") return null;
+    const body: unknown = await ctx.clone().json();
+    if (!isTurnRecord(body)) return null;
+    const code: ChatTurnRejectionCode | null =
+      ctx.status === 409 && (body.error === "reask_ineligible" || body.error === "first_already_registered") ? body.error :
+      ctx.status === 429 && body.error === "purpose_limit_exceeded" ? body.error :
+      ctx.status === 503 && body.error === "chat_admission_unavailable" ? body.error : null;
+    const admission = readTurnAdmission(body);
+    return code || admission ? new LlmChatTurnError(code, admission, error) : null;
+  } catch {
+    // An unreadable envelope proves neither admission nor a fresh quota charge.
+    return null;
+  }
 }
 
 // Chat turns are classified by the conversation engine before it reads any

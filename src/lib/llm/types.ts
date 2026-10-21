@@ -111,6 +111,10 @@ export interface PromptInput {
   /** Server reservation for the two independently claimable reasoning batches. */
   reasoningRunId?: string;
   reasoningSlot?: "records" | "sources";
+  /** T39 dormant: select before the usage bump and reuse for this reservation. */
+  chatTurnRoute?: ChatTurnRoute;
+  chatTurnId?: string;
+  chatAttemptIntent?: "first" | "reask";
   // Reasoning effort. Only honored on the pro (reasoning) tier — when this call
   // resolves to pro (explicit model:"pro" or a pro-tier purpose). Defaults to
   // "high". Ignored on lite/flash tiers. Purpose-keyed only, never
@@ -153,6 +157,10 @@ export interface LlmResult<T = string> {
   text: T;
   safety: SafetyResult;
   audit: AuditMeta;
+  /** Server facts only; absent for non-reservation calls and unknown envelopes. */
+  turnAdmission?: TurnAdmission;
+  /** Actual server claim result, independent of admission/binding eligibility. */
+  turnBound?: boolean;
 }
 
 // 3-tier model ids. ENV-overridable so the owner can bump generations later
@@ -222,3 +230,26 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   // explicitly since #1063; this row makes the table agree with them).
   reasoning_connect: "pro",
 };
+
+/** Selected by the boundary before bump; production callers remain dormant. */
+export type ChatTurnRoute = Readonly<{
+  vendor: NonNullable<AuditMeta["reasoningProvider"]>;
+  reservationSupported: boolean;
+}>;
+
+/** t39-wire-contract.md: never derive these fields from the request intent. */
+export type TurnAdmission = {
+  mode: "legacy" | "enforce";
+  allowed: boolean | null;
+  kind: "first" | "reask" | "unbound" | "rejected" | null;
+  attempt: 1 | 2 | null;
+  quotaCharged: boolean | null;
+  bindingEligible: boolean | null;
+  reaskAvailable: boolean | null;
+};
+
+export type ChatTurnRejectionCode =
+  | "reask_ineligible"
+  | "first_already_registered"
+  | "purpose_limit_exceeded"
+  | "chat_admission_unavailable";
