@@ -31,6 +31,25 @@
 서버 쪽이 콘솔 소유이고 클라이언트 쪽이 코딩 세션 소유이므로, 이 순서는
 **두 세션 사이의 순서**다. 클라이언트를 머지하는 쪽이 서버 배포가 끝났는지 확인한다.
 
+#### T39 대화 허가 모드: 서버 확인 뒤 enforce
+
+Q-261021-04(8판)의 E1-Ec는 env 레버와 적용 절차를 준비하며 워크플로 실행은 0회다.
+코디네이터(Claude Code 2ndb-4e)는 S0a 양성 기록과 E1-Ea·Ec의 독립 검토 PASS ·
+새 medium 0 · CI 초록을 확인해 Relay 적용일 전에 머지한다. 운영 적용 담당 Relay는
+E1-S의 적용·함수 서명·service_role 전용 권한을 확인하고, OpenAI Edge 배포와
+legacy 동작 확인을 마친 뒤에만 main의 `.github/workflows/edge-flag-set.yml`에서
+`flag=CHAT_TURN_ADMISSION_MODE`, `value=enforce`, 적용 사유 `reason`을 지정한다.
+Production 승인과 `supabase-production-mutations` 직렬 실행, 최신 main 확인 및 적용 직전
+재확인을 거쳐 Production의 `PRODUCTION_SUPABASE_PROJECT_REF`가 가리키는 Supabase
+프로젝트의 Edge secret/env를 바꾼다. GitHub 저장소 Variable이나 앱 빌드 설정을 바꾸는
+절차가 아니다. 입력 UI의 값 목록은 공통이지만 실행 시 Paddle 두 플래그는 `0|1`,
+대화 허가 모드는 `legacy|enforce`만 허용하며 적용 후 선택한 플래그의 digest를 확인한다.
+이후 코디네이터가 제한 하네스로 대화·목적 두 카운터, 오류, 혼합 버전을 확인해야 B1을
+활성화하고, B2는 별도 검증 뒤 활성화한다. 되돌림은 Relay가 같은 워크플로에서
+`CHAT_TURN_ADMISSION_MODE=legacy`로 설정하고 digest와 legacy 동작을 확인한다.
+미설정·알 수 없는 값의 legacy 폴백은 E1-Ea의 서버 계약이며, 이 워크플로는 그런 값을
+설정하지 않는다. 되돌림 창의 재차감 가능성은 8판의 수용 잔여이고 자동 보상은 없다.
+
 #### Paddle 환불 무결성 draft: 웹훅을 끈 상태에서만 교체
 
 `db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql`은 DB 함수와

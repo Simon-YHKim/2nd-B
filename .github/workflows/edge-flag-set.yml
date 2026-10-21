@@ -1,6 +1,6 @@
 name: Set an edge-function flag
 
-# Only the two non-secret billing switches below can be changed. Production
+# Only the allowlisted non-secret switches below can be changed. Production
 # must own the PRODUCTION_SUPABASE_* secrets; approval and a shared mutation
 # lane serialize this with deploys.
 
@@ -14,13 +14,16 @@ on:
         options:
           - PADDLE_SELF_SERVICE_ENABLED
           - PADDLE_SELF_SERVICE_DRYRUN
+          - CHAT_TURN_ADMISSION_MODE
       value:
-        description: 1 = on, 0 = off
+        description: "Paddle: 1 = on, 0 = off; chat admission: legacy or enforce"
         required: true
         type: choice
         options:
           - "1"
           - "0"
+          - legacy
+          - enforce
       reason:
         description: One line, for the run log. Why now?
         required: true
@@ -93,17 +96,28 @@ jobs:
           REASON: ${{ inputs.reason }}
         run: |
           set -euo pipefail
+          # The choice input is static; validate the flag/value pair here.
           case "$FLAG" in
-            PADDLE_SELF_SERVICE_ENABLED|PADDLE_SELF_SERVICE_DRYRUN) ;;
+            PADDLE_SELF_SERVICE_ENABLED|PADDLE_SELF_SERVICE_DRYRUN)
+              case "$VALUE" in
+                0|1) ;;
+                *)
+                  echo "::error title=Edge flag gate::value-must-be-zero-or-one"
+                  exit 1
+                  ;;
+              esac
+              ;;
+            CHAT_TURN_ADMISSION_MODE)
+              case "$VALUE" in
+                legacy|enforce) ;;
+                *)
+                  echo "::error title=Edge flag gate::value-must-be-legacy-or-enforce"
+                  exit 1
+                  ;;
+              esac
+              ;;
             *)
               echo "::error title=Edge flag gate::flag-not-allowlisted"
-              exit 1
-              ;;
-          esac
-          case "$VALUE" in
-            0|1) ;;
-            *)
-              echo "::error title=Edge flag gate::value-must-be-zero-or-one"
               exit 1
               ;;
           esac
