@@ -8,7 +8,7 @@
 
 | 덮는 기간 | 파일 | 블록 | 크기 |
 |---|---|---|---|
-| 2026-10-07 ~ 2026-10-13 07:52(10-13 의 나머지 블록은 활성 창) | [handoff/HANDOFF-2026-10-p3.md](handoff/HANDOFF-2026-10-p3.md) | 72 | 214KB |
+| 2026-10-07 ~ 2026-10-13 12:27(10-13 의 나머지 블록은 활성 창) | [handoff/HANDOFF-2026-10-p3.md](handoff/HANDOFF-2026-10-p3.md) | 74 | 220KB |
 | 2026-10-05 12:00 ~ 2026-10-07 15:16 | [handoff/HANDOFF-2026-10-p2.md](handoff/HANDOFF-2026-10-p2.md) | 25 | 75KB |
 | 2026-10-01 01:07 ~ 2026-10-05 05:40 | [handoff/HANDOFF-2026-10.md](handoff/HANDOFF-2026-10.md) | 43 | 97KB |
 | 2026-09-28 01:2x ~ 2026-09-30 23:57 | [handoff/HANDOFF-2026-09-p4.md](handoff/HANDOFF-2026-09-p4.md) | 24 | 66KB |
@@ -33,7 +33,33 @@
 **⚠ 2026-10-14: 지금 기준은 활성 창 상한 400KB · 예산 320KB · 보관 부분 하나 360KB 다(`/simon-handoff` Step 2-B). 위에 적힌 100KB 는 옛 값이다. 이번에 2026-10-11 00:02 ~ 2026-10-12 22:30 의 블록 28개를 `HANDOFF-2026-10-p3.md` 맨 위로 옮겼다 - 10 월 블록은 계속 그 파일로 간다(360KB 를 넘으면 `-p4`).**
 절차는 `/simon-handoff` 가 갖는다. **요약은 어느 단계에서도 하지 않는다.**
 
-## Latest — 2026-10-20 14:57 KST / 2ndb-4e · 인수 12차: T38 후속 준비 둘 머지(#2671 · #2672) · 남은 것은 외부 조건
+## Latest — 2026-10-21 23:01 KST / 2ndb-4e · 인수 13차: T39 서버 길 확정(8판 새 서버 함수) · 휴면 준비 여섯 머지 · E1-Ea 는 Relay 적용 날 머지
+
+**목적.** 대표님 /goal(10-19 01:42) 「모두 완료될때 까지 진행해. 모두 권장안으로 하면 돼.」로 Codex 10-16 장부 76개를 이어 간다. 완료 = 머지 + 8081 확인 + `app:parity` 같음. 장부: `docs/handoff/CODEX-EXECUTION-261015.md` · `docs/handoff/CODEX-TASK-LEDGER-261016.json`.
+
+**최종 갱신.** 2026-10-21 23:01 KST · Claude Code 2ndb-4e. 분담: 구현 Codex gpt-6-astra @xhigh(`codex exec` · 발주서 `E:/Coding Infra/reports/devlab-261010/s2-astra/t39-*-task.md` · 실행 기록 `runs.log`) · 독립 검토 = Claude 하위 검토자 세 관점 + 반박 검증(Workflow). **10-21 22:3x 부터 Claude 하위 에이전트가 「Login expired · Please run /login」 으로 실패** → 그 뒤 검토는 원래 기본 검토자 Codex daybreak(`gpt-daybreak-blue-latest` xhigh · 읽기 전용 · 한계: jest 직접 실행 불가). 확인 · 머지 · 8081 · 기록은 Claude.
+
+**지금까지(10-20 14:57 이후).**
+- **T39 설계(잃은 대화 답 한 번 무료 재질문)**: 4 · 5회차 BLOCK → Q-261020-01/02 → 6 · 7회차 BLOCK → Q-261021-01/02 → **8회차 PASS**(새 서버 함수가 시도 등록과 목적 차감을 한 번에). 엣지만으로 하는 길은 로컬 PostgreSQL 실측에서 동시 위조에 무료가 두 번(130/130) → 대표님 Q-261021-03 「엣지 길 (조건 수용)」 → 9판 9회차 BLOCK(대화 날짜를 앱이 정해 실제 상한이 하루 약 200회) → **Q-261021-04 「8판 새 서버 함수로」**. 보고서 `t39-edge-probe/report.md`.
+- **S0a-core 양성**(10-21 20:22 · 8081 · QA 계정 · 실모델 4회 · 운영 쓰기 0): 브라우저를 닫은 뒤 1.77초에 서버가 모델 호출과 감사 줄을 끝냄 · 끊긴 턴도 대화 · 목적이 차감됨(T39 의 문제 재현). `t39-s0a/report.md`.
+- **구현 정본** `t39-impl-spec.md`(5 ~ 8판 합본) · **응답 계약** `t39-wire-contract.md`(코디네이터 고정 · 끝에 「보충」).
+- **머지(휴면 · 화면 변화 0)**: A1-U #2681(`8df16406` 예약 발급 래퍼) · E1-S #2683(`be1b9e90` 번호 없는 마이그레이션 초안 `db/migration-drafts/UNNUMBERED_chat_turn_attempt_with_quota.sql` + CI 격리 레인) · E1-Ec #2685(`8649ce96` env 레버 `CHAT_TURN_ADMISSION_MODE` legacy|enforce · 절차 `docs/SESSION-OWNERSHIP.md`) · A1-T #2684(`f54e395e` 포그라운드 기한 시계 · 2회차 PASS) · A2-D #2687(`733ec44b` 예약 표를 내보내기 제외로 · 2회차 PASS) · A1-P #2686(`225e2514` boundary 예약 인자 · 2회차 daybreak PASS). 8081 · parity 같음(`733ec44b` 에서 확인).
+- **대표님 결정 Q-261021-05(GPS)**: 위치기반서비스 사업자 신고는 지금 하지 않고 기능 테스트 먼저 · 개인 테스트 QA APK 는 날씨 약관 빈칸 없이(APK 는 요청 때만). 공개 출시 전 조건(약관 빈칸 · 개시 후 1개월 안 신고)은 남음.
+- **새로 드러난 빈칸(T39 밖)**: 계정 내보내기 어느 목록에도 없는 사용자 표 16개(`interview_transcript_turns` 원문 포함). 설계안 `E:/Coding Infra/reports/devlab-261010/s2-astra/export-gap-design.md`(내보냄 8 · 제외 8 · 열 권한 마이그레이션 4 · 래칫 검사). **착수 전 대표님 판단 필요**(장부 밖 새 일).
+
+**진행 중.** E1-Ea #2688(openai-proxy 허가 연결 · draft · **Relay 가 E1-S 를 적용한 날에만 머지** · 배포 스키마 게이트 때문) · 1회차 BLOCK(legacy 키 누락 차감 · 위기 순서 시험) → 2회차 수정 `e8bd33fd` · daybreak 2회차 검토 중. A2(`feat/t39-turn-result-a2-261021` · Codex 23:00 착수 · conversation 통합 · 휴면).
+
+**다음 1개.** A2 결과 → 독립 검토(daybreak, 또는 /login 뒤 Claude 세 관점) → 머지 → 8081 · parity. 그다음 B1 은 Relay 적용(E1-S 번호 부여 · 적용 · openai-proxy 배포 · enforce · 두 카운터 확인) 뒤.
+
+**막힌 것.** Relay(Grok 사용량 · 대표님이 알려 줄 때만 우편함을 한 번 읽음): 0225 · 0226 · 0262 · 0263 · 0264 · T54 #2658 · **T39 E1-S 적용**. Claude 로그인(하위 검토 에이전트) · 법무 답(T09 #2648) · 대표님 답(Q-261019-41 · 43) · 웹 게시 허락(0263) · #2440 동결(T16 · T20 · T35) · T38 E · G · H · 서버 선행(T28 · T40 · T44) · 콘솔 확인(T08) · 폰 확인(APK 요청 때).
+
+**TODO.** ① A2 머지 ② Relay 복귀 → E1-S 번호 붙인 적용 PR(검토가 요구: 두 연결 경합 시험과 잠금 변이를 CI 로 먼저) → 적용 → #2688 머지 · openai-proxy 배포(`_sync/TO-CLI.md` 「배포 중」) → enforce(`edge-flag-set.yml`) → 두 카운터 → B1 → B2 ③ 내보내기 빈칸 16개(대표님 판단 뒤) ④ 낮음 모음: E1-S 22023 공유(E1-Ea 에서 처리됨) · A1-T 설치 실패 신호(B2) · A1-U captured 경로 티켓(T38 H) · A2-D 문구 · 래칫.
+
+**미해결 질문.** Q-261019-41(T22) · Q-261019-43(T33) · 내보내기 빈칸 착수 여부(다음 보고서에서). 보고서: <https://claude.ai/artifact/4pP4UwP1o3W1FwtRp96QyJ>.
+
+**요청.** REQ-261021-01 대표님: 이 터미널에서 `/login`(Claude 하위 검토 에이전트가 로그인 만료로 못 뜬다 · 그동안 daybreak 로 대신 검토).
+
+## 2026-10-20 14:57 KST / 2ndb-4e · 인수 12차: T38 후속 준비 둘 머지(#2671 · #2672) · 남은 것은 외부 조건
 
 **목적.** 대표님 /goal(10-19 01:42) 「모두 완료될때 까지 진행해. 모두 권장안으로 하면 돼.」로 Codex 10-16 장부 76개를 이어 간다. 완료 = 머지 + 8081 확인 + `app:parity` 같음.
 
@@ -1570,23 +1596,3 @@ npm run app:parity
 - **Simon 이 고르면 이 세션이 넣을 화면**: 2ndb-53 넷째 시안의 Q-261013-51(이야기 제목) · 52(저장 화면) — `interview.tsx`. Z63(저장본 끝의 답 없는 질문)도 같은 파일이다.
 - **운영에 남은 것**: 확인 안 된 시험 계정 1개(Q-261013-36 · 지우지 않았다) · QA 계정의 대상 없는 리즈닝 제안 4줄(Q-261013-35).
 - **멈춘 것 그대로**: #2341 · #2318 · 구현 레인과 8082 확인 서버(Q-261013-30).
-## 2026-10-13 12:27 / 2ndb-e7: Z66 서버 쪽 0251 머지(#2366) · 운영 적용은 Simon 의 SQL 편집기 실행 대기 - 다음은 실행 뒤 운영 읽기 확인
-
-- **지금까지**: Simon 10:36 「Q-34·Q-35 둘 다 추천대로 진행해」에 따라 Z66 서버 쪽을 만들었다. 마이그레이션 0251 = `records` · `sources` 의 AFTER DELETE 트리거(같은 소유자 · 같은 종류 · 같은 id 의 제안 줄을 상태와 무관하게 지움 · proposed 줄이 안 남으면 실행을 `ratified` 로 닫음 · `reasoning_runs` 행은 안 지움) + 한 번 정리(대상 없는 줄 삭제 · 남은 줄의 `title` 제거). 독립 검토 1회차 BLOCK(인덱스 · id 글자 비교 · 잠금 순서 · 회귀 빈틈) → 고침 → 2회차 PASS WITH CONCERNS. #2366 머지 12:24 · main `c9fe3485` · CI 넷 통과 · `app:parity` 같음(12:26). **운영은 바꾸지 않았다**(원장 217행 · 0251 없음 · 12:25 읽기).
-- **다음 1개**: Simon 이 안내 페이지 <https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg> 의 블록 둘을 실행했다고 알려 오면, 운영을 읽어 확인한다 — 원장에 `0251_reasoning_proposals_purge` 한 줄 · 트리거 `purge_reasoning_proposals` 둘(`records` · `sources`) · 함수 `purge_reasoning_proposals_of_erased` 의 ACL 에 API 역할 없음 · 제안 11줄 · 대상 없는 줄 0 · 제목 0 · 실행 11개 그대로(검토 대기 0) · 시험 계정 `rufus.z2test` 0행. 그다음 `_sync/TO-CLI.md` 의 12:26 알림을 "완료"로 내리고, 2ndb-79 에 적용 시각을 알린다(Rufus 의 Z66 재점검용).
-- **REQ-261013-01 (CLI → GUI · Simon)**: 목적 = 지운 기록의 제안 줄 4개와 그 제목을 운영에서 지우고, 앞으로 지우는 기록이 같은 흔적을 남기지 않게 한다(안 하면 그대로 남는다). 화면 · 행동 · 복사 버튼 · 성공 신호는 위 안내 페이지 요약 탭의 카드 ① ~ ③ 에 있다(편집기 그림은 기억으로 그린 배치 · ⚠ 미확인). 성공 신호: 첫째 블록 = 결과 표의 `ledger_0251 = 1` · `triggers = 2` · `rows_without_target = 0` / 둘째 블록 = `q36_remaining = 0`.
-- **막힌 것**: 없음(실행 대기).
-- **열린 질문**: Q-261013-42(0252 의 운영 적용 방식 · 추천 = 검토 통과 뒤 바로 올리고 보고) · Q-261013-40 · 41(이월 1회 · 최초 05:20). 2ndb-79 의 Q-261013-38(화면 PR #2365 를 어떻게 할지)이 "서버에 맡김"으로 나오면 `complete_reasoning_run` 이 대상 없는 제안을 넣지 않게 하는 서버 조각이 따로 필요하다(0251 은 실행이 도는 사이의 삭제를 닫지 않는다).
-- **그다음(0251 적용 뒤)**: 0252 = `refund_chat_turn_after_output_swap(p_day date)`(SECURITY DEFINER · `auth.uid()` 소유 · 근거는 프록시가 쓴 `ai_audit_log` 의 `server_verified` · `secondb_chat` · `red` · 최근 10분 줄 · 새 표 `chat_turn_refunds(audit_id PK)` 로 한 번만 · `count > 0` 일 때 1 내림 · 새 `count` 반환). 2ndb-79 와 모양을 맞췄고 화면은 2ndb-79 가 한다. 범위는 "답이 바뀐 턴"뿐이다(입력이 걸린 턴은 2ndb-79 가 Q-261013-37 로 따로 여쭘).
-- **알아 둘 사실**: 운영 서버는 PostgreSQL 17.6 · `postgres` 역할은 superuser 가 아니고 BYPASSRLS(11:34 읽기). `records` 는 FORCE RLS 라서 BYPASSRLS 가 없는 소유자 역할은 기록을 0행으로 본다 — 운영 데이터를 조건으로 지우는 블록은 `row_security_active` 가드를 둘 것. `refId` 같은 payload 칸은 클라이언트가 쓰는 길이 제한 없는 글이다(인덱스 · 맨 형 변환 금지).
-- **도구 메모**: 로컬 재생 하네스 `<scratchpad>/z66pg/`(`replay.sh` = CI sql job 의 시드 → 0001 ~ 0146 → 0147+ 를 PG18 임시 클러스터 포트 54411 에 올림 · `mutations_r2.py` · `deadlock_probe.sh` · `lanes.sh`). 적용 블록 생성기 `E:/Coding Infra/reports/codex-audit-261010/build_apply_0251.py <ref> <out>`. 안내 페이지 원본 `…/ui/z66-apply.fragment.html` + `dyn_z66.py` → `state_z66.py` → `vars_z66.py` → `build_result.py z66-apply z66-apply …` → `check_z66.cjs` → 같은 경로(`z66-apply.body.html`)로 다시 게시. 독립 검토 자료 `…/gates/z66srv-daybreak-r{1,2}.{md,txt,meta.json}`.
-- **이 세션이 들고 있는 것**: 워크트리 `z66-proposals-purge-261013`(브랜치 머지됨 · node_modules 정션 있음 — 지울 때 정션부터 풀 것) · `systags-next-261013`(머지됨 · 정션 없음). 로컬 PG18 임시 클러스터(포트 54411)는 세션을 끝낼 때 내린다.
-
-## 2026-10-13 10:54 / 2ndb-79: 실사용 점검 95건 · 새 빌드 폰 확인 여섯 통과 · QA 계정은 유료 요금제 · 결정 여덟(Q-261013-28 ~ 35) 대기 - 다음은 Simon 의 답
-
-- **지금까지(07:52 블록에 더해)**: 병렬 6회차(Z88 ~ Z93) → 2ndb-53. 빌드 메모 둘(08:41 `233004cd` · 10:53 `6d3d5384` — 둘 다 자동 빌드 결과물 · 새로 빌드하지 않음 · QA 릴리스 없음). 폰 확인 통과: Z37 · Z79 · Z71 · Z25 · Z26 · Z38 앞쪽. Z89 · Z90 닫음. 새 관찰 Z94 · Z95. 보고서 12판.
-- **다음 1개**: Simon 의 답(Relay 가 08:55 에 승인 대기 한 장으로 올림 · 1 · 2번이 Q-261013-34 · 35). 07:20 블록의 "답이 오면 할 일"이 그대로다.
-- **알아 둘 사실**: QA 계정은 `subscription_tier = brain`(하루 250번)이다 — `CLAUDE.md` 의 "free tier" 와 다르고 고치지 않았다. 공개 웹은 10-07 게시분이다(AI 표시 #2316 과 허슬케이 이름이 없다). Z66 의 대상 없는 줄은 4(전부 QA 계정)이고 시험 메모를 만들고 지울 때마다 늘어난다.
-- **폰 점검 방법**: 로그아웃 상태가 필요한 항목은 앱 안 [로그아웃]이 아니라 앱 데이터 지우기로 그 폰만 비우고 시험 계정으로 본다(QA 계정의 앱 안 로그아웃은 모든 기기 세션을 끊는다). 아직 폰에서 못 본 것: Z2 · Z3 · Z4 · Z7 · Z9 · Z18 · Z22 · 실제 로그아웃 · Z85 · Z91.
-- **멈춘 것 그대로**: #2341(3회차 BLOCK · Q-261013-33) · #2318(Q-261013-29) · 구현 레인과 8082 확인 서버(메모리 · Q-261013-30).
-
