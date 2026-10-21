@@ -138,6 +138,8 @@ export function createOfflineInterviewRuntime(sources: Record<string, string>) {
     async function replayOutput(text, input, effect) {
       const promptHash = 'offline'; const latencyMs = 0; const modelUsedForAudit = 'offline-recorded';
       const vertexBackend = false; const effort = undefined; const servedByProvider = undefined;
+      // Interview calls do not request chat reservations; preserve the absent metadata.
+      const turnAdmission = undefined; const turnBound = undefined;
       const proxyAudited = true; const fence = () => {};
       const writeAiAuditLog = async () => { countAudit(); effect('audit'); };
       const writeCrisisEvent = async () => { countAudit(); effect('crisis-event'); };
