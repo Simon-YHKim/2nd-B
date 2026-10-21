@@ -1,6 +1,6 @@
 import {
   admitChatTurn, CHAT_TURN_ADMISSION_FN, CHAT_TURN_ADMISSION_TIMEOUT_MS,
-  legacyTurnAdmission, readChatAttemptIntent, resolveChatTurnAdmissionMode,
+  legacyTurnAdmission, readChatAttemptIntent, rejectedTurnAdmission, resolveChatTurnAdmissionMode,
 } from '../chat-turn-admission';
 
 const ids = { userId: 'user', auditId: 'audit', turnId: 'turn' };
@@ -36,6 +36,12 @@ describe('대화 허가 결과', () => {
     expect(legacyTurnAdmission(true, true)).toEqual({
       mode: 'legacy', allowed: true, kind: null, attempt: null, quotaCharged: true,
       bindingEligible: null, reaskAvailable: null,
+    });
+  });
+  it.each(['legacy', 'enforce'] as const)('명시적 거절 봉투 %s', (mode) => {
+    expect(rejectedTurnAdmission(mode)).toEqual({
+      mode, allowed: false, kind: 'rejected', attempt: null, quotaCharged: false,
+      bindingEligible: false, reaskAvailable: false,
     });
   });
   it.each([first, reask, unbound])('서버가 반환한 $kind', async (row) => {

@@ -47,7 +47,7 @@ export function legacyTurnAdmission(allowed: boolean, quotaCharged: boolean | nu
 }
 
 export function rejectedTurnAdmission(mode: ChatTurnAdmissionMode): TurnAdmission {
-  return mode === 'legacy' ? legacyTurnAdmission(false, false) : {
+  return {
     mode, allowed: false, kind: 'rejected', attempt: null, quotaCharged: false,
     bindingEligible: false, reaskAvailable: false,
   };

@@ -46,8 +46,8 @@
 
 | 정보 | 지금 남나 | 근거 |
 |---|---|---|
-| 호출이 있었다는 사실 | 예. `ai_audit_log` 1행/호출(사용자 · 해시 · 지연 · 토큰) | `openai-proxy/index.ts:1129-1148` |
-| 모델의 층 판정(`answeredLayer`) | **아니오.** 화면이 비교에 쓰고 버립니다. 감사 행에는 출력 해시뿐 | `interview.tsx:431-433` · `openai-proxy/index.ts:1134` |
+| 호출이 있었다는 사실 | 예. `ai_audit_log` 1행/호출(사용자 · 해시 · 지연 · 토큰) | `openai-proxy/index.ts:1133-1152` |
+| 모델의 층 판정(`answeredLayer`) | **아니오.** 화면이 비교에 쓰고 버립니다. 감사 행에는 출력 해시뿐 | `interview.tsx:431-433` · `openai-proxy/index.ts:1138` |
 | 각 턴의 층 · 인정 여부 · 장면 시작 | **아니오.** 메모리에만 있고 저장 원문은 `질문: / 답변:` 텍스트뿐 | `interview.tsx:628-630` |
 | 종료 사유 | **아니오.** `finish()` 는 사유 인자가 없고 8곳 이상에서 불립니다 | `interview.tsx:302-308` · R2F-02 검증 (3) |
 | (시기 × 층) 누적 칸 | 예, 단 '담기'를 눌렀을 때만 | `interview.tsx:656-665` |
@@ -134,7 +134,7 @@
 
 | 열 | 형 | 뜻 · 쓰는 쪽 |
 |---|---|---|
-| `id` | uuid PK | = 그 호출의 `ai_audit_log.id` (`openai-proxy/index.ts:778` 의 `consentAuditId`) |
+| `id` | uuid PK | = 그 호출의 `ai_audit_log.id` (`openai-proxy/index.ts:782` 의 `consentAuditId`) |
 | `session_id` | uuid | 클라이언트가 보냄(세션 행이 없으면 프록시가 만듦) |
 | `scene_seq` | int | 장면 번호. 장면 시작 턴마다 +1 (클라이언트, 서버는 단조 증가만 검사) |
 | `turn_seq` | int | 장면 안 순번 |
@@ -252,7 +252,7 @@
  4단계 (선택)  판정 좌석 평가 (유료, 승인 뒤) · 밝기에 폭 반영 결정 (결정 7 관련)
 ```
 
-- 1단계의 프록시 변경은 `purpose === 'interview_probe'` 일 때만 동작하고, 원장 쓰기가 실패해도 응답을 막지 않습니다(감사 행과 같은 방식, `openai-proxy/index.ts:1129-1148`).
+- 1단계의 프록시 변경은 `purpose === 'interview_probe'` 일 때만 동작하고, 원장 쓰기가 실패해도 응답을 막지 않습니다(감사 행과 같은 방식, `openai-proxy/index.ts:1133-1152`).
 - `gemini-proxy` 는 손대지 않습니다. 인터뷰 좌석의 실호출은 openai 로만 나갑니다(감사 행 집계, 마지막 gemini 08-24).
 - 범위 밖이지만 같이 보면 좋은 것: 되묻기(loopCheck)가 #1865 이후 화면에서 닿지 않음(R2F-08, 복원 · 은퇴 결정 필요), es · pt · id 사용자가 영어 인터뷰를 받음(R2F-11), `star_tier_history` 직접 쓰기(1.3).
 

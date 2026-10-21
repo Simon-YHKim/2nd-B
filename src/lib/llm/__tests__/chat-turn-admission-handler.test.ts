@@ -176,6 +176,19 @@ describe('OpenAI 대화 허가', () => {
     expect(crisis.count(admissionFn)).toBe(0); expectNoDispatch(crisis);
   });
   it.each([
+    ['legacy', turnId], ['legacy', undefined], ['legacy', 'bad-id'],
+    ['enforce', undefined], ['enforce', 'bad-id'],
+  ])('명시적 재질문보다 위기 안내 우선 %s %s', async (mode, id) => {
+    const h = host(mode);
+    const response = await h.run({ user: '죽고 싶어', chatAttemptIntent: 'reask', chatTurnId: id });
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body).toMatchObject({ error: 'safety_red_zone', reason: 'crisis_term_detected' });
+    // The self-harm response keeps the default guidance lane (no 112/119 override).
+    expect(body).not.toHaveProperty('crisis_lane');
+    expect(h.count(admissionFn)).toBe(0); expectNoDispatch(h);
+  });
+  it.each([
     ['legacy', turnId], ['legacy', undefined], ['enforce', undefined], ['enforce', 'bad-id'],
   ])('재질문 불가 %s %s', async (mode, id) => {
     const h = host(mode);
@@ -183,11 +196,50 @@ describe('OpenAI 대화 허가', () => {
     const body = await response.json();
     expect(response.status).toBe(409); expect(body.error).toBe('reask_ineligible');
     if (id === undefined) expect(body).toEqual({ error: 'reask_ineligible' });
-    else expect(body.turnAdmission).toEqual(mode === 'legacy'
-      ? { mode, allowed: false, kind: null, attempt: null, quotaCharged: false, bindingEligible: null, reaskAvailable: null }
-      : { mode, ...Object.fromEntries(Object.entries(rejected).filter(([key]) => key !== 'error')) });
+    else expect(body.turnAdmission).toEqual({
+      mode, allowed: false, kind: 'rejected', attempt: null,
+      quotaCharged: false, bindingEligible: false, reaskAvailable: false,
+    });
     expect(h.count(admissionFn)).toBe(0); expectNoDispatch(h);
   });
+  it.each([
+    ['turn', {}],
+    ['intent only', { chatTurnId: undefined, chatAttemptIntent: 'first' }],
+    ['reask only', { chatTurnId: undefined, chatAttemptIntent: 'reask' }],
+    ['turn and reask', { chatAttemptIntent: 'reask' }],
+    ['neither', { chatTurnId: undefined }],
+  ] as [string, Record<string, unknown>][])('legacy 키 누락은 main과 같은 무차감 500 %s', async (_name, patch) => {
+    for (const mode of [undefined, 'legacy']) {
+      const h = host();
+      h.envValues.set('CHAT_TURN_ADMISSION_MODE', mode);
+      h.envValues.delete('OPENAI_API_KEY');
+      const response = await h.run(patch);
+      expect(response.status).toBe(500);
+      // Keep main's early error bytes, including the absence of an envelope.
+      expect(await response.text()).toBe('{"error":"server_misconfigured_missing_OPENAI_API_KEY"}');
+      expect(h.rpc).not.toHaveBeenCalled();
+      expect(h.audit).not.toHaveBeenCalled();
+      expectNoDispatch(h);
+    }
+  });
+  it.each(['tier', 'consent_unavailable', 'consent_denied', 'input', 'crisis'])(
+    '허가 전 실패 봉투는 미확정 %s', async (gate) => {
+      const h = host();
+      if (gate === 'tier') h.overrides.set('effective_subscription_tier', () => ({ error: {} }));
+      if (gate === 'consent_unavailable') h.overrides.set('effective_llm_consent_snapshot_v2', () => ({ error: {} }));
+      if (gate === 'consent_denied') h.overrides.set('effective_llm_consent_snapshot_v2', () => ({ data: { allowed: false, token: null } }));
+      const response = await h.run({
+        chatAttemptIntent: 'reask',
+        ...(gate === 'input' ? { user: '' } : gate === 'crisis' ? { user: '죽고 싶어' } : {}),
+      });
+      expect(response.status).toBe(gate === 'input' ? 400 : gate === 'crisis' ? 422 : gate === 'consent_denied' ? 403 : 503);
+      expect((await response.json()).turnAdmission).toEqual({
+        mode: 'enforce', allowed: null, kind: null, attempt: null,
+        quotaCharged: false, bindingEligible: null, reaskAvailable: null,
+      });
+      expect(h.count(admissionFn)).toBe(0); expectNoDispatch(h);
+    },
+  );
   it.each([first, second, unbound])('요청 의도와 실제 $kind', async (row) => {
     const h = host(); h.overrides.set(admissionFn, () => ({ data: row }));
     const response = await h.run({ chatAttemptIntent: 'reask' });

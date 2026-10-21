@@ -327,7 +327,10 @@ async function handleOpenAi(
   const hasChatTurn = requestBody?.purpose === 'secondb_chat'
     && Object.prototype.hasOwnProperty.call(requestBody, 'chatTurnId');
   let turnAdmission: TurnAdmission | undefined = hasChatTurn
-    ? { ...rejectedTurnAdmission(admissionMode), reaskAvailable: null } : undefined;
+    ? {
+      mode: admissionMode, allowed: null, kind: null, attempt: null,
+      quotaCharged: false, bindingEligible: null, reaskAvailable: null,
+    } : undefined;
   const jsonResponse = (request: Request, payload: unknown, status = 200): Response => {
     if (!turnAdmission) return baseJsonResponse(request, payload, status);
     const admission = turnAdmission.mode === 'legacy'
@@ -349,10 +352,11 @@ async function handleOpenAi(
   // newline in a header value makes `fetch` THROW rather than warn. See
   // ../_shared/axis-key-name.ts:pickApiKey for the outage this caused.
   const apiKey = (Deno.env.get('OPENAI_API_KEY') ?? '').trim();
-  const chatAdmissionRequest = requestBody?.purpose === 'secondb_chat'
+  const chatAdmissionRequest = admissionMode === 'enforce' && requestBody?.purpose === 'secondb_chat'
     && (hasChatTurn || requestBody.chatAttemptIntent !== undefined);
   if ((!apiKey || apiKey.length === 0) && !chatAdmissionRequest) {
-    return jsonResponse(req, { error: 'server_misconfigured_missing_OPENAI_API_KEY' }, 500);
+    // Legacy keeps main's early, RPC-free response bytes even with turn fields.
+    return baseJsonResponse(req, { error: 'server_misconfigured_missing_OPENAI_API_KEY' }, 500);
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
