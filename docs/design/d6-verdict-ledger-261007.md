@@ -96,7 +96,7 @@
 | 답 보냄 | 위기 분류 → red 면 위기 경로로 가고 **답은 대화에서 빠짐** | 위기 원장(경계 모듈) | `interview.tsx:552-566` |
 | 그만 · 건너뛰기 | `answerDisposition` 이 그만이면 대화 종료, 건너뛰기면 질문만 붙임(답 턴 없음) | 없음 | `interview.tsx:568-578`, `src/lib/interview/continuity.ts:7-20` |
 | 로컬 막힘 | 모르겠다 · 짧은 답(ko 8 · en 14자 미만, 감정층 제외)은 모델에 안 보내고 발판 | 없음 | `interview.tsx:340-344,593-612`, `continuity.ts:24-31` |
-| 판정 호출 | `nextProbe` → `callLlm(purpose: interview_probe)` | `ai_audit_log` 1행(사용자 · 프롬프트 djb2 · 출력 djb2 · 지연 · 토큰) | `probe.ts:477-519`, `supabase/functions/openai-proxy/index.ts:1095-1119`(해시 `:1102-1103`) |
+| 판정 호출 | `nextProbe` → `callLlm(purpose: interview_probe)` | `ai_audit_log` 1행(사용자 · 프롬프트 djb2 · 출력 djb2 · 지연 · 토큰) | `probe.ts:477-519`, `supabase/functions/openai-proxy/index.ts:1129-1148`(해시 `:1133-1134`) |
 | 모델 판정 | 출력 JSON 의 `answeredLayer` 를 **화면이** 읽어 비교하고 버림. 인정 여부는 메모리의 `answered` | 없음 | `probe.ts:509,592-597`, `interview.tsx:434-443`, `continuity.ts:41-45` |
 | 같은 층 세 번 실패 | 발판 2번 뒤 대화 전체 종료 | 없음 | `interview.tsx:452-467`, `src/lib/interview/stuck.ts:30` |
 | 대화 끝 | `finish()` 는 사유 인자가 없고 8곳에서 불림 | 없음 | `interview.tsx:306-312` · 호출 `:386,449,466,471,484,572,621,848` |
