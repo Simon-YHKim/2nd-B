@@ -3,7 +3,7 @@ import { abortError } from "../async/abort";
 import type { AccountOwnerLease } from "../auth/account-epoch";
 import { tLocale } from "../i18n/text";
 import { callLlm, classifyLiveChatTextForCrisis, LlmChatTurnError, LlmConsentError, selectChatTurnRoute } from "../llm/boundary";
-import type { CrisisObserver } from "../llm/types";
+import type { CrisisObserver, LlmResult } from "../llm/types";
 import { assembleChatSystemPrompt, loadChatContext, type SendMessageInput, type SendMessageOk, type SendMessageBlocked } from "./conversation";
 import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
 import { bumpChatUsageForTurn, bumpChatUsageIfUnderCap, ChatLimitExceededError, readChatUsageDetail } from "./usage";
@@ -16,6 +16,7 @@ import { beginTurnAttempt, canPrepareTurn, createTurnResultState, endTurnWait, f
 export type LiveChatTurnResult =
   | { status: "selected"; result: SendMessageOk }
   | { status: "blocked"; result: SendMessageBlocked }
+  | { status: "crisis"; result: LlmResult<string> }
   | { status: "ignored" };
 
 export interface LiveChatTurn {
@@ -31,6 +32,7 @@ interface TurnRuntime {
   state: TurnResultState<SendMessageOk>;
   assertOwner: () => void;
   notify: CrisisObserver;
+  emergencyNotices: Set<string>;
   onReceipt?: (receipt: ChatTurnUsage) => void;
   adBonus: number;
 }
@@ -47,7 +49,7 @@ export function createLiveChatTurn(input: {
   assertOwner();
   const runtime: TurnRuntime = {
     state: createTurnResultState({ ownerId, ownerEpoch: epoch, conversationId: input.conversationId, pairId: input.pairId }, input.message),
-    assertOwner, notify: input.onCrisisDetected, onReceipt: input.onReceipt, adBonus: 0,
+    assertOwner, notify: input.onCrisisDetected, emergencyNotices: new Set(), onReceipt: input.onReceipt, adBonus: 0,
   };
   const turn: LiveChatTurn = Object.freeze({
     read: () => { assertOwner(); return runtime.state; },
@@ -59,7 +61,7 @@ export function createLiveChatTurn(input: {
   return turn;
 }
 
-/** Only a selected result authorizes display/history/sound/save/post-processing. */
+/** Only selected authorizes answer effects; crisis carries fixed guidance only. */
 export async function sendLiveChatMessage(source: SendMessageInput, turn: LiveChatTurn): Promise<LiveChatTurnResult> {
   // T38 H must port the reservation AND fallback under the same captured ticket.
   // Callback-only or partial captured bundles must not opt into this live path.
@@ -83,11 +85,15 @@ export async function sendLiveChatMessage(source: SendMessageInput, turn: LiveCh
     assertOwner();
     if (!canPrepareTurn(runtime.state, ticket)) throw abortError();
   };
-  const notify: CrisisObserver = hotline => {
+  const notify: CrisisObserver = (hotline, phase) => {
     assertOwner();
     const alreadyNotified = runtime.state.crisisNotified;
-    runtime.state = receiveTurnCrisis(runtime.state, ticket);
-    if (!alreadyNotified) {
+    // A readable non-crisis 422 must remain a failure, not a terminal verdict.
+    runtime.state = phase === "pending" ? { ...runtime.state, crisisNotified: true }
+      : receiveTurnCrisis(runtime.state, ticket);
+    const emergency = hotline === "KR_119" || hotline === "KR_112";
+    if (!alreadyNotified || (emergency && !runtime.emergencyNotices.has(hotline))) {
+      if (emergency) runtime.emergencyNotices.add(hotline);
       try { runtime.notify(hotline); } catch { /* Guidance cannot skip C3. */ }
     }
   };
@@ -105,7 +111,7 @@ export async function sendLiveChatMessage(source: SendMessageInput, turn: LiveCh
     const cut = await classifyLiveChatTextForCrisis(input.message, input.locale, input.userId, input.minor,
       { assertCurrent: assertOwner, onCrisisDetected: notify });
     assertOwner();
-    if (cut) return { status: "ignored" };
+    if (cut) return { status: "crisis", result: cut };
     prepare();
     if (action === "charge") {
       const detail = await readChatUsageDetail(input.userId, ticket.day);
@@ -147,7 +153,7 @@ export async function sendLiveChatMessage(source: SendMessageInput, turn: LiveCh
     });
     assertOwner();
     runtime.state = receiveTurnAdmission(runtime.state, ticket, reply.turnAdmission);
-    if (reply.safety.zone === "red") { notify(reply.safety.crisisRouting?.hotline); return { status: "ignored" }; }
+    if (reply.safety.zone === "red") { notify(reply.safety.crisisRouting?.hotline); return { status: "crisis", result: reply }; }
     const result: SendMessageOk = { status: "ok", reply, used: receipt.count, limit,
       remaining: checkChatLimit(input.tier, receipt.count, runtime.adBonus).remaining };
     const before = runtime.state.selected;

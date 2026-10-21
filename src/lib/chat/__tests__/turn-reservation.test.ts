@@ -195,8 +195,11 @@ test("A1-U reservation consumers are dormant transitively across all production 
   };
   visit(path.join(process.cwd(), "src"));
   const consumers = [...sources].filter(([file, source]) => file !== "src/lib/chat/usage.ts"
-    && /\bbumpChatUsageForTurn\b|["']bump_chat_usage_for_turn["']/.test(source)).map(([file]) => file);
+    && /\bbumpChatUsageForTurn\b|["'`]bump_chat_usage_for_turn["'`]/.test(source)).map(([file]) => file);
   expect(consumers).toEqual(["src/lib/chat/conversation-turn.ts"]);
+  const receiptImports = [...sources].filter(([file, source]) => file !== "src/lib/chat/usage.ts"
+    && /turn-reservation/.test(source)).map(([file]) => file);
+  expect(receiptImports).toEqual(["src/lib/chat/conversation-turn.ts", "src/lib/chat/turn-result-state.ts"]);
   // Import aliases, namespace imports and re-exports still name this module.
   // Check all src, including helpers outside screens, before accepting dormancy.
   for (const [file, source] of sources) {

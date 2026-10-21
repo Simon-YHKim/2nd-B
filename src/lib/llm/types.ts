@@ -75,8 +75,8 @@ export interface AdvisorResult {
   audit: AuditMeta;
 }
 
-/** Routing metadata only; synchronous notification after a confirmed RED fence. */
-export type CrisisObserver = (hotline: HotlineId | undefined) => void;
+/** Routing metadata only. Pending 422 guidance precedes body reading, not a verdict. */
+export type CrisisObserver = (hotline: HotlineId | undefined, phase?: "pending") => void;
 
 export interface PromptInput {
   userId: string;

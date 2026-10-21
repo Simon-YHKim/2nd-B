@@ -83,7 +83,7 @@ beforeEach(async () => {
   process.env.EXPO_PUBLIC_SAFETY_VENDOR = "openai";
   process.env.EXPO_PUBLIC_SERVER_SAFETY = "true";
   process.env.EXPO_PUBLIC_FAILOVER_VENDOR = "none";
-  process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY = "false";
+  process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY = "true";
   process.env.GOOGLE_API_KEY = "";
   jest.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network_forbidden"));
   count = 4; purposeCount = 0; events.length = 0; notify = jest.fn(); receipts = jest.fn();
@@ -252,7 +252,7 @@ test("T17 duplicate late crises notify once but preserve both C3 audits", async 
   const p2 = sendLiveChatMessage(input, turn);
   await until(() => calls("secondb_chat").length === 2);
   a.resolve(failure(422, "safety_red_zone", unknown)); b.resolve(failure(422, "safety_red_zone", unknown));
-  expect((await Promise.all([p1, p2])).map(result => result.status)).toEqual(["ignored", "ignored"]);
+  expect((await Promise.all([p1, p2])).map(result => result.status)).toEqual(["crisis", "crisis"]);
   expect(notify).toHaveBeenCalledTimes(1); expect(audits()).toHaveLength(2);
   expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(2);
   expect(nextTurnAction(turn.read())).toBe("closed"); expect(turn.historyValue()).toBeNull();
@@ -263,9 +263,10 @@ test("T17 422 guidance precedes stalled body parsing and per-attempt audit", asy
   primary = () => ({ data: null, error: { context: { status: 422, clone: () => ({ json: () => body.promise }) } } });
   const pending = sendLiveChatMessage(input, turn);
   await until(() => notify.mock.calls.length === 1);
-  expect(audits()).toHaveLength(0); expect(nextTurnAction(turn.read())).toBe("closed");
+  expect(audits()).toHaveLength(0); expect(nextTurnAction(turn.read())).toBe("wait");
+  expect(turn.read().terminal).toBeNull();
   body.resolve({ error: "safety_red_zone", turnAdmission: unknown });
-  expect((await pending).status).toBe("ignored"); expect(audits()).toHaveLength(1);
+  expect((await pending).status).toBe("crisis"); expect(audits()).toHaveLength(1);
 });
 
 test.each(["receipt", "response", "crisis"])("T17 account switch while awaiting %s prevents cross-owner delivery", async phase => {
@@ -289,7 +290,7 @@ test("C9 device RED at 5/5 guides immediately without context, quota, or models"
   expect(notify).toHaveBeenCalledTimes(1);
   expect(mockQuery).not.toHaveBeenCalled(); expect(mockInvoke).not.toHaveBeenCalled(); expect(bumps()).toHaveLength(0);
   audit.resolve({ data: null, error: null });
-  expect((await pending).status).toBe("ignored"); expect(audits()).toHaveLength(1);
+  expect((await pending).status).toBe("crisis"); expect(audits()).toHaveLength(1);
 });
 
 test("reask repeats input/output and minor routing; crisis output waits for no ancillary classifier", async () => {
@@ -363,7 +364,7 @@ test("C9 device guidance reentry cannot borrow the live observer for an ordinary
 test("C9 a throwing guidance observer cannot skip its audit", async () => {
   const message = "죽고 싶어요";
   notify.mockImplementation(() => { throw new Error("observer_failed"); });
-  expect((await sendLiveChatMessage({ ...input, message }, makeTurn(message))).status).toBe("ignored");
+  expect((await sendLiveChatMessage({ ...input, message }, makeTurn(message))).status).toBe("crisis");
   expect(audits()).toHaveLength(1); expect(mockInvoke).not.toHaveBeenCalled();
 });
 
@@ -387,7 +388,7 @@ test.each([false, true])("T17 a late crisis closes retries and history (original
   const p2 = sendLiveChatMessage(input, turn);
   await until(() => calls("secondb_chat").length === 2);
   if (selected) { original.resolve(success()); expect((await p1).status).toBe("selected"); }
-  retry.resolve(failure(422, "safety_red_zone", unknown)); expect((await p2).status).toBe("ignored");
+  retry.resolve(failure(422, "safety_red_zone", unknown)); expect((await p2).status).toBe("crisis");
   if (!selected) { original.resolve(success()); expect((await p1).status).toBe("ignored"); }
   expect(turn.historyValue()).toBeNull(); expect(notify).toHaveBeenCalledTimes(1);
   expect((await sendLiveChatMessage(input, turn)).status).toBe("ignored");
@@ -422,4 +423,210 @@ test.each(["chatTurnRoute", "chatTurnId", "chatAttemptIntent", "session", "signa
     [field]: field === "chatTurnId" ? ID : {},
   })).rejects.toThrow("chat_turn_execution_mismatch");
   expect(mockInvoke).not.toHaveBeenCalled(); expect(mockRpc).not.toHaveBeenCalled();
+});
+
+test.each([
+  ["medical_emergency", "KR_119"], ["immediate_threat", "KR_112"],
+] as const)("T17 early 422 guidance upgrades once to %s and returns the existing fixed result", async (lane, hotline) => {
+  const crisis = () => ({ data: null, error: { context: new Response(JSON.stringify({ error: "safety_red_zone", crisis_lane: lane }), { status: 422 }) } });
+  primary = crisis;
+  const legacyNotice = jest.fn();
+  const legacy = await callLlm<string>({ userId: input.userId, locale: "ko", purpose: "secondb_chat", user: input.message, onCrisisDetected: legacyNotice });
+  expect(legacyNotice).toHaveBeenCalledWith(hotline);
+  const turn = makeTurn(), a = deferred<unknown>(), b = deferred<unknown>();
+  primary = body => body.chatAttemptIntent === "first" ? a.promise : b.promise;
+  const p1 = sendLiveChatMessage({ ...input, locale: "ko" }, turn);
+  await until(() => calls("secondb_chat").length === 2); expireWait(turn);
+  const p2 = sendLiveChatMessage({ ...input, locale: "ko" }, turn);
+  await until(() => calls("secondb_chat").length === 3);
+  const audit = deferred<unknown>(), transport = mockRpc.getMockImplementation()!;
+  mockRpc.mockImplementation((name, args) => name.startsWith("log_ai_audit") ? audit.promise : transport(name, args));
+  a.resolve(crisis()); b.resolve(crisis());
+  let beforeAudit: unknown[][] = [];
+  try {
+    // The audit outbox serializes writes; the first live row must stay pending.
+    await until(() => audits().length === 2);
+    beforeAudit = [...notify.mock.calls];
+  } finally { audit.resolve({ data: null, error: null }); }
+  for (const result of await Promise.all([p1, p2])) {
+    expect(result.status).toBe("crisis");
+    if (result.status !== "crisis") throw new Error("expected_crisis_result");
+    expect(result.result.text).toBe(legacy.text);
+    expect(result.result.safety.crisisRouting).toEqual(legacy.safety.crisisRouting);
+  }
+  expect(beforeAudit).toEqual([[undefined], [hotline]]);
+  expect(notify.mock.calls).toEqual([[undefined], [hotline]]);
+  expect(audits()).toHaveLength(3); // legacy + both live attempts
+  expect(turn.historyValue()).toBeNull(); expect(nextTurnAction(turn.read())).toBe("closed");
+});
+
+test("T17 a lane-less 422 returns the default fixed guidance and notifies once", async () => {
+  primary = () => failure(422, "safety_red_zone", unknown);
+  const turn = makeTurn();
+  const result = await sendLiveChatMessage({ ...input, locale: "ko", minor: true }, turn);
+  expect(result).toMatchObject({ status: "crisis", result: { text: expect.stringContaining("1388"), safety: { crisisRouting: { hotline: "KR_1388" } } } });
+  expect(notify).toHaveBeenCalledTimes(1); expect(audits()).toHaveLength(1);
+  expect(turn.read().terminal).toBe("crisis");
+});
+
+test("a readable non-crisis 422 keeps the retry candidate and never records a crisis verdict", async () => {
+  const turn = makeTurn(); primary = () => failure(422, "invalid_request");
+  await expect(sendLiveChatMessage(input, turn)).rejects.toThrow("invalid_request");
+  expect(turn.read().terminal).toBeNull(); expect(nextTurnAction(turn.read())).toBe("reask");
+  expect(audits()).toHaveLength(0);
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(0);
+  primary = () => success();
+  expect((await sendLiveChatMessage(input, turn)).status).toBe("selected");
+  expect(bumps()).toHaveLength(1);
+});
+
+test("an unreadable 422 returns fixed guidance with C3 but no confirmed restricted event", async () => {
+  primary = () => ({ data: null, error: { context: { status: 422, clone: () => ({ json: async () => { throw new Error("unreadable"); } }) } } });
+  const turn = makeTurn();
+  expect((await sendLiveChatMessage(input, turn)).status).toBe("crisis");
+  expect(notify).toHaveBeenCalledTimes(1); expect(audits()).toHaveLength(1);
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(0);
+});
+
+test.each(["no-envelope", "transport", "undetermined"])("B1 %s after dispatch retries the same reservation with no automatic call", async kind => {
+  const turn = makeTurn();
+  primary = () => kind === "transport" ? { data: null, error: new Error("fetch_failed") }
+    : failure(503, "chat_admission_unavailable", kind === "undetermined" ? { ...unknown, quotaCharged: null } : undefined);
+  await expect(sendLiveChatMessage(input, turn)).rejects.toThrow();
+  expect(turn.read().attempts[0].dispatched).toBe(true);
+  expect(nextTurnAction(turn.read())).toBe("reask");
+  expect(calls("secondb_chat")).toHaveLength(1); expect(bumps()).toHaveLength(1);
+  primary = () => { purposeCount++; return success(); };
+  expect((await sendLiveChatMessage(input, turn)).status).toBe("selected");
+  expect(calls("secondb_chat").map(([, x]) => [x.body.chatTurnId, x.body.chatAttemptIntent])).toEqual([[ID, "first"], [ID, "reask"]]);
+  expect(bumps()).toHaveLength(1); expect(count).toBe(5); expect(purposeCount).toBe(1);
+});
+
+test("T15 a replaced original's late 409 cannot close generation two's free reask", async () => {
+  count = 0;
+  const turn = makeTurn(), original = deferred<unknown>(), fresh = deferred<unknown>();
+  primary = () => original.promise;
+  const p1 = sendLiveChatMessage(input, turn).catch(error => error);
+  await until(() => calls("secondb_chat").length === 1); expireWait(turn);
+  // The reask arrives first on the server, registers attempt 1, then attempt 2.
+  for (const admission of [first, second]) {
+    primary = () => failure(500, "generation_failed", admission);
+    await expect(sendLiveChatMessage(input, turn)).rejects.toThrow();
+  }
+  expect(nextTurnAction(turn.read())).toBe("charge");
+  bump = () => ({ data: { count: ++count, turnId: NEXT_ID }, error: null, status: 200 });
+  primary = () => fresh.promise;
+  const p2 = sendLiveChatMessage(input, turn).catch(error => error);
+  await until(() => calls("secondb_chat").length === 4);
+  original.resolve(failure(409, "first_already_registered", rejected)); await p1;
+  expect(turn.read()).toMatchObject({ generation: 2, reaskAvailable: null, reservation: "ready", terminal: null });
+  fresh.resolve(failure(503, "chat_admission_unavailable", unknown)); await p2;
+  expect(nextTurnAction(turn.read())).toBe("reask");
+  primary = () => success();
+  expect((await sendLiveChatMessage(input, turn)).status).toBe("selected");
+  expect(calls("secondb_chat").at(-1)![1].body).toMatchObject({ chatTurnId: NEXT_ID, chatAttemptIntent: "reask" });
+  expect(bumps()).toHaveLength(2);
+});
+
+test.each([false, true])("C9 device crisis owner fence before the restricted write (switch: %s)", async switchOwner => {
+  const message = "죽고 싶어요", audit = deferred<unknown>();
+  mockRpc.mockImplementationOnce(() => audit.promise);
+  const pending = sendLiveChatMessage({ ...input, message }, makeTurn(message));
+  const result = pending.catch(error => error);
+  await until(() => audits().length === 1);
+  expect(notify).toHaveBeenCalledTimes(1);
+  if (switchOwner) noteResolvedOwner("owner-b");
+  audit.resolve({ data: null, error: null });
+  expect(await result).toMatchObject(switchOwner ? { name: "AbortError" } : { status: "crisis" });
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(switchOwner ? 0 : 1);
+  expect(mockInvoke).not.toHaveBeenCalled();
+});
+
+test("C9 raw observer reentry consumes the live slot before invoking the observer", async () => {
+  const message = "죽고 싶어요";
+  let ordinary: ReturnType<typeof classifyChatTextForCrisis> | undefined;
+  const raw = jest.fn(() => {
+    // Bound a broken implementation's recursion without hiding the second call.
+    if (raw.mock.calls.length === 1) ordinary = classifyChatTextForCrisis(message, "ko", input.userId);
+  });
+  await classifyLiveChatTextForCrisis(message, "ko", input.userId, false, { assertCurrent: () => undefined, onCrisisDetected: raw });
+  await ordinary;
+  expect(raw).toHaveBeenCalledTimes(1); expect(audits()).toHaveLength(2);
+});
+
+test("C9 GREEN restores the live slot before a later ordinary RED with a stale live owner", async () => {
+  let stale = false;
+  await classifyLiveChatTextForCrisis(input.message, "ko", input.userId, false, {
+    assertCurrent: () => { if (stale) throw new Error("stale_turn"); }, onCrisisDetected: notify,
+  });
+  stale = true;
+  await expect(classifyChatTextForCrisis("죽고 싶어요", "ko", input.userId)).resolves.toMatchObject({ safety: { zone: "red" } });
+  expect(notify).not.toHaveBeenCalled(); expect(audits()).toHaveLength(1);
+});
+
+test.each(["userId", "message"])("pair mismatch %s rejects before quota/context/model I/O", async field => {
+  await expect(sendLiveChatMessage({ ...input, [field]: "different" }, makeTurn())).rejects.toThrow("chat_live_pair_mismatch");
+  expect(mockQuery).not.toHaveBeenCalled(); expect(mockRpc).not.toHaveBeenCalled(); expect(mockInvoke).not.toHaveBeenCalled();
+});
+
+test("B1 confirmed legacy failure closes the candidate; the next click charges normally", async () => {
+  count = 0;
+  primary = () => failure(500, "generation_failed", { ...unknown, mode: "legacy", allowed: true, quotaCharged: true });
+  const turn = makeTurn();
+  await expect(sendLiveChatMessage(input, turn)).rejects.toThrow();
+  expect(nextTurnAction(turn.read())).toBe("charge"); expect(bumps()).toHaveLength(1);
+  bump = () => ({ data: { count: ++count, turnId: NEXT_ID }, error: null, status: 200 });
+  primary = () => success();
+  expect((await sendLiveChatMessage(input, turn)).status).toBe("selected");
+  expect(bumps()).toHaveLength(2);
+  expect(calls("secondb_chat")[1][1].body).toMatchObject({ chatTurnId: NEXT_ID, chatAttemptIntent: "first" });
+});
+
+test.each(["precheck", "bump"])("live limit_reached at %s closes new sends without a model", async phase => {
+  if (phase === "precheck") count = 5;
+  else bump = () => { count = 5; return { data: null, error: { code: "P0001", message: "chat_limit_exceeded" }, status: 400 }; };
+  const turn = makeTurn();
+  expect(await sendLiveChatMessage(input, turn)).toMatchObject({ status: "blocked", result: { reason: "limit_reached", used: 5, limit: 5 } });
+  expect(turn.read().terminal).toBe("limit"); expect(nextTurnAction(turn.read())).toBe("closed");
+  expect(calls("secondb_chat")).toHaveLength(0); expect(bumps()).toHaveLength(phase === "precheck" ? 0 : 1);
+  expect((await sendLiveChatMessage(input, turn)).status).toBe("ignored");
+});
+
+test("T16 a charged legacy original survives a new generation's limit block", async () => {
+  process.env.EXPO_PUBLIC_CHAT_VENDOR = "xai";
+  const turn = makeTurn(), original = deferred<unknown>(); primary = () => original.promise;
+  const p1 = sendLiveChatMessage(input, turn);
+  await until(() => calls("secondb_chat").length === 1); expireWait(turn);
+  expect((await sendLiveChatMessage(input, turn)).status).toBe("blocked");
+  original.resolve(success("paid original"));
+  expect((await p1).status).toBe("selected"); expect(turn.historyValue()?.reply.text).toBe("paid original");
+  expect(turn.read().terminal).toBeNull(); expect(bumps()).toHaveLength(1);
+});
+
+test("T16 production obfuscation gate rechecks the winner immediately before reask dispatch", async () => {
+  const message = "I want.to die.", turn = makeTurn(message), original = deferred<unknown>(), check = deferred<unknown>();
+  primary = () => original.promise;
+  const p1 = sendLiveChatMessage({ ...input, message }, turn);
+  await until(() => calls("secondb_chat").length === 1); expireWait(turn);
+  semantic = body => String(body.user).includes(message) ? check.promise
+    : { data: { text: '{"zone":"green","triggers":[],"confidence":0.1}' }, error: null };
+  const p2 = sendLiveChatMessage({ ...input, message }, turn);
+  await until(() => calls("safety_classify").filter(([, x]) => String(x.body.user).includes(message)).length === 2);
+  original.resolve(success("original")); expect((await p1).status).toBe("selected");
+  check.resolve({ data: { text: '{"zone":"green","triggers":[],"confidence":0.1}' }, error: null });
+  expect((await p2).status).toBe("ignored");
+  expect(calls("secondb_chat")).toHaveLength(1); expect(bumps()).toHaveLength(1);
+  expect(turn.read().attempts[1].dispatched).toBe(false);
+});
+
+test("T17 production obfuscation gate runs again on reask and semantic RED returns fixed guidance", async () => {
+  const message = "I want.to die.", turn = makeTurn(message);
+  primary = () => failure(503, "chat_admission_unavailable", unknown);
+  await expect(sendLiveChatMessage({ ...input, message }, turn)).rejects.toThrow();
+  semantic = () => ({ data: { text: '{"zone":"red","triggers":["active_ideation_no_method"],"confidence":0.9}' }, error: null });
+  const result = await sendLiveChatMessage({ ...input, message }, turn);
+  expect(result).toMatchObject({ status: "crisis", result: { text: expect.stringContaining("988"), safety: { zone: "red" } } });
+  expect(calls("safety_classify")).toHaveLength(2); expect(calls("secondb_chat")).toHaveLength(1);
+  expect(notify).toHaveBeenCalledTimes(1); expect(audits()).toHaveLength(1); expect(bumps()).toHaveLength(1);
+  expect(turn.read().terminal).toBe("crisis");
 });

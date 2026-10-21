@@ -127,3 +127,54 @@ test.each(["consent", "limit"] as const)("T17 late %s failure cannot reopen cris
   expect(turnHistoryValue(state)).toBeNull();
   expect(nextTurnAction(state)).toBe("closed");
 });
+
+test.each(["consent", "limit"] as const)("T16 %s closes new attempts but cannot discard an issued original", reason => {
+  let { state, ticket } = sent();
+  state = endTurnWait(state, ticket);
+  state = beginTurnAttempt(state, day, route);
+  const retry = state.attempts[1].ticket;
+  state = finishTurnFailure(state, retry, reason);
+  expect(nextTurnAction(state)).toBe("closed");
+  expect(canPrepareTurn(state, retry)).toBe(false);
+  state = selectTurnResult(state, ticket, "paid original");
+  expect(state.selected?.value).toBe("paid original");
+  expect(state.terminal).toBeNull();
+});
+
+test.each(["consent", "limit"] as const)("T16 a late %s cannot coexist with a selected answer", reason => {
+  let { state, ticket } = sent();
+  state = endTurnWait(state, ticket);
+  state = beginTurnAttempt(state, day, route);
+  const retry = state.attempts[1].ticket;
+  state = selectTurnResult(state, ticket, "original");
+  state = finishTurnFailure(state, retry, reason);
+  expect(state.selected?.value).toBe("original");
+  expect(state.terminal).toBeNull();
+});
+
+test.each(["consent", "limit", "ineligible"] as const)("T15 old-generation %s cannot terminate a new reservation", reason => {
+  let { state, ticket } = sent();
+  state = receiveTurnAdmission(state, ticket, { ...first, kind: "reask", attempt: 2, quotaCharged: false, reaskAvailable: false });
+  state = endTurnWait(state, ticket);
+  state = beginTurnAttempt(state, day, route);
+  const current = state.attempts[1].ticket;
+  state = startTurnReservation(state, current);
+  state = finishTurnFailure(state, ticket, reason);
+  expect(state).toMatchObject({ generation: 2, terminal: null, reservation: "pending", waiting: current.attemptId, reaskAvailable: null });
+  state = receiveTurnReceipt(state, current, receipt);
+  state = markTurnDispatched(state, current);
+  state = finishTurnFailure(state, current);
+  expect(nextTurnAction(state)).toBe("reask");
+});
+
+test("T15 old-generation admission cannot close a fresh free candidate", () => {
+  let { state, ticket } = sent();
+  state = finishTurnFailure(state, ticket, "ineligible");
+  state = beginTurnAttempt(state, day, route);
+  const current = state.attempts[1].ticket;
+  state = receiveTurnReceipt(startTurnReservation(state, current), current, receipt);
+  const late = { ...unknown, allowed: false, kind: "rejected", bindingEligible: false, reaskAvailable: false } as const;
+  expect(receiveTurnAdmission(state, ticket, late)).toBe(state);
+  state = markTurnDispatched(state, current);
+  expect(nextTurnAction(finishTurnFailure(state, current))).toBe("reask");
+});

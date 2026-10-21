@@ -46,17 +46,22 @@ import {
   type ChatTurnRoute, type ChatTurnRejectionCode, type TurnAdmission,
 } from "./types";
 
-// Optional UI guidance runs once, after the same ownership/cancellation fence
+// Optional UI guidance runs once per emergency lane, after the same ownership/cancellation fence
 // as the result. Only routing metadata crosses this callback; UI exceptions
 // cannot skip the audit path or change the standard result.
 function crisisObserver(observer: CrisisObserver | undefined, fence: () => void): CrisisObserver | undefined {
   if (!observer) return undefined;
   let notified = false;
-  return (hotline) => {
+  const emergencyNotices = new Set<string>();
+  return (hotline, phase) => {
     fence();
-    if (notified) return;
+    const emergency = hotline === "KR_119" || hotline === "KR_112";
+    if (notified && (!emergency || emergencyNotices.has(hotline))) return;
     notified = true;
-    try { observer(hotline); } catch { /* The audited result still follows. */ }
+    if (emergency) emergencyNotices.add(hotline);
+    try {
+      if (phase) observer(hotline, phase); else observer(hotline);
+    } catch { /* The audited result still follows. */ }
   };
 }
 
@@ -836,7 +841,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       if (result.error) {
         if (chatTurnRequest) {
           // Notify before body parsing; the later lane/audit work remains per attempt.
-          if (input.chatTurn && (result.error as { context?: { status?: number } }).context?.status === 422) notifyCrisis?.(undefined);
+          if (input.chatTurn && (result.error as { context?: { status?: number } }).context?.status === 422) notifyCrisis?.(undefined, "pending");
           chatTurnFailure = await inspectProxyChatTurnFailure(result.error);
           fence();
           turnAdmission = chatTurnFailure?.turnAdmission;

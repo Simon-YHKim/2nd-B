@@ -119,15 +119,16 @@ export function finishTurnFailure<T>(state: TurnResultState<T>, ticket: TurnTick
   return { ...endTurnWait(state, ticket),
     ...(current && state.reservation === "pending" ? { reservation: "unknown" as const } : {}),
     ...(current && reason === "ineligible" ? { reaskAvailable: false } : {}),
-    ...(state.terminal !== "crisis" && (reason === "consent" || reason === "limit") ? { terminal: reason } : {}),
+    ...(current && !state.selected && state.terminal !== "crisis" && (reason === "consent" || reason === "limit") ? { terminal: reason } : {}),
     attempts: state.attempts.map(a => a.ticket.attemptId === ticket.attemptId ? { ...a, settled: true } : a) };
 }
 
 /** An already-dispatched original remains eligible even after a reask/new send. */
 export function selectTurnResult<T>(state: TurnResultState<T>, ticket: TurnTicket, value: T): TurnResultState<T> {
   const attempt = attemptFor(state, ticket);
-  if (!attempt || attempt.settled || state.selected || state.terminal) return state;
-  return { ...endTurnWait(state, ticket), selected: { attemptId: ticket.attemptId, value },
+  if (!attempt || attempt.settled || state.selected || state.terminal === "crisis"
+    || (state.terminal && !attempt.dispatched)) return state;
+  return { ...endTurnWait(state, ticket), terminal: null, selected: { attemptId: ticket.attemptId, value },
     attempts: state.attempts.map(a => a.ticket.attemptId === ticket.attemptId ? { ...a, settled: true } : a) };
 }
 
