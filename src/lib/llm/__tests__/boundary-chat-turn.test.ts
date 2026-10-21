@@ -188,22 +188,32 @@ describe("T03: pre-bump vendor selection and dormant reservation dispatch", () =
     expect(result).not.toHaveProperty("turnAdmission");
   });
 
-  test("production src has zero new contract callers outside the boundary and types", () => {
-    const callers: string[] = [];
+  test("A1-P reservation consumers are dormant transitively across all production src", () => {
+    const sources = new Map<string, string>();
     const visit = (directory: string): void => {
       for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
         if (entry.name === "__tests__") continue;
         const file = path.join(directory, entry.name);
         if (entry.isDirectory()) visit(file);
-        else if (/\.tsx?$/.test(entry.name)) {
+        else if (/\.[cm]?[jt]sx?$/.test(entry.name)) {
           const relative = path.relative(process.cwd(), file).replace(/\\/g, "/");
-          if (["src/lib/llm/boundary.ts", "src/lib/llm/types.ts"].includes(relative)) continue;
-          if (/\b(selectChatTurnRoute|chatTurnRoute|chatAttemptIntent|chatTurnId)\b/.test(fs.readFileSync(file, "utf8"))) callers.push(relative);
+          sources.set(relative, fs.readFileSync(file, "utf8"));
         }
       }
     };
     visit(path.join(process.cwd(), "src"));
-    expect(callers).toEqual([]);
+    const consumers = [...sources].filter(([file, source]) =>
+      !["src/lib/llm/boundary.ts", "src/lib/llm/types.ts"].includes(file)
+      && /\b(selectChatTurnRoute|chatTurnRoute|chatAttemptIntent|chatTurnId|chatTurn|classifyLiveChatTextForCrisis)\b/.test(source))
+      .map(([file]) => file);
+    expect(consumers).toEqual(["src/lib/chat/conversation-turn.ts"]);
+    // No production import/re-export of the sole consumer means no transitive
+    // entry either, including aliases or helpers outside the screen directory.
+    for (const [file, source] of sources) {
+      if (file === "src/lib/chat/conversation-turn.ts") continue;
+      expect({ file, callsDormantEntry: /conversation-turn|\b(createLiveChatTurn|sendLiveChatMessage)\b/.test(source) })
+        .toEqual({ file, callsDormantEntry: false });
+    }
   });
 });
 

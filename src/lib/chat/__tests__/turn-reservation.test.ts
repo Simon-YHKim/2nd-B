@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { bumpChatUsageForTurn, ChatLimitExceededError } from "../usage";
 import { kstDateToday } from "../limits";
@@ -181,10 +181,28 @@ test("legacy transport failure is not retried", async () => {
   expect(mockRpc).toHaveBeenCalledTimes(2);
 });
 
-test("A1-U stays dormant in the current conversation and screen paths", () => {
-  for (const file of ["../conversation.ts", "../../../app/secondb.tsx"]) {
-    const source = readFileSync(path.resolve(__dirname, file), "utf8");
-    expect(/bumpChatUsageForTurn|bump_chat_usage_for_turn|turn-reservation/.test(source)).toBe(false);
+test("A1-U reservation consumers are dormant transitively across all production src", () => {
+  const sources = new Map<string, string>();
+  const visit = (directory: string): void => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name === "__tests__") continue;
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) visit(file);
+      else if (/\.[cm]?[jt]sx?$/.test(entry.name)) {
+        sources.set(path.relative(process.cwd(), file).replace(/\\/g, "/"), readFileSync(file, "utf8"));
+      }
+    }
+  };
+  visit(path.join(process.cwd(), "src"));
+  const consumers = [...sources].filter(([file, source]) => file !== "src/lib/chat/usage.ts"
+    && /\bbumpChatUsageForTurn\b|["']bump_chat_usage_for_turn["']/.test(source)).map(([file]) => file);
+  expect(consumers).toEqual(["src/lib/chat/conversation-turn.ts"]);
+  // Import aliases, namespace imports and re-exports still name this module.
+  // Check all src, including helpers outside screens, before accepting dormancy.
+  for (const [file, source] of sources) {
+    if (file === "src/lib/chat/conversation-turn.ts") continue;
+    expect({ file, callsDormantEntry: /conversation-turn|\b(createLiveChatTurn|sendLiveChatMessage)\b/.test(source) })
+      .toEqual({ file, callsDormantEntry: false });
   }
   const conversation = readFileSync(path.resolve(__dirname, "../conversation.ts"), "utf8");
   expect(conversation.includes("bumpChatUsageIfUnderCap")).toBe(true);

@@ -115,6 +115,15 @@ export interface PromptInput {
   chatTurnRoute?: ChatTurnRoute;
   chatTurnId?: string;
   chatAttemptIntent?: "first" | "reask";
+  /** A2 live entry bundles its route with the reservation; A1 stays compatible. */
+  chatTurn?: Readonly<{
+    route: ChatTurnRoute;
+    turnId?: string;
+    intent?: "first" | "reask";
+    /** Synchronous final fence and dispatch record, immediately before invoke. */
+    beforeDispatch?: () => void;
+    assertCurrent?: () => void;
+  }>;
   // Reasoning effort. Only honored on the pro (reasoning) tier — when this call
   // resolves to pro (explicit model:"pro" or a pro-tier purpose). Defaults to
   // "high". Ignored on lite/flash tiers. Purpose-keyed only, never
