@@ -366,8 +366,8 @@ type ProxyCrisisDecision = {
 export type LlmConsentErrorCode = "consent_required" | "consent_check_unavailable";
 
 /** A server consent refusal is terminal across providers, including collect mode. */
+export interface LlmConsentError { readonly turnAdmission?: TurnAdmission }
 export class LlmConsentError extends Error {
-  declare readonly turnAdmission?: TurnAdmission;
   constructor(readonly code: LlmConsentErrorCode) {
     super(code);
     this.name = "LlmConsentError";

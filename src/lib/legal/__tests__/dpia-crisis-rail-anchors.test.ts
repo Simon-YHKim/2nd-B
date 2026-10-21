@@ -80,6 +80,8 @@ const AT = "src/lib/analytics/__tests__/analytics.test.ts";
 const LR = "scripts/check-legal-review.ts";
 
 const ANCHORS: Anchor[] = [
+  { cite: "src/lib/llm/boundary.ts:441-457", symbol: "classifyRecordTextForCrisis",
+    why: "기록 저장의 위기 분류 인용이 다른 함수나 주석을 가리키지 않는다." },
   { cite: "src/lib/llm/boundary.ts:609-641", symbol: "classifyInputAnyLocale",
     why: "T39 선택 인자 추가 뒤에도 C9 입력 분류 인용이 실제 호출을 가리킨다." },
   { cite: "src/lib/llm/boundary.ts:975-1047", symbol: "fixedCrisisResponse",

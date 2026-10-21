@@ -208,6 +208,15 @@ describe("T03: pre-bump vendor selection and dormant reservation dispatch", () =
 });
 
 describe("T13: authoritative admission across successful and failed responses", () => {
+  test("first intent preserves the server's unbound admission", async () => {
+    const admission: TurnAdmission = { ...FIRST, kind: "unbound", attempt: null, bindingEligible: false, reaskAvailable: false };
+    mockInvoke.mockResolvedValueOnce({ data: { text: "One small task.", audited: true, turnAdmission: admission }, error: null });
+    const result = await callLlm(reservationInput({ chatAttemptIntent: "first" }));
+    expect(result.turnAdmission).toEqual(admission);
+    expect(result).not.toHaveProperty("turnBound");
+    expect(mockInvoke.mock.calls[0][1].body.chatAttemptIntent).toBe("first");
+  });
+
   test.each([FIRST, SECOND, LEGACY, { ...FIRST, kind: "unbound" as const, attempt: null, bindingEligible: false, reaskAvailable: false }])(
     "success preserves every field, including kind=$kind", async admission => {
       mockInvoke.mockResolvedValueOnce({ data: { text: "One small task.", audited: true, turnAdmission: admission, turnBound: false }, error: null });
@@ -218,18 +227,19 @@ describe("T13: authoritative admission across successful and failed responses", 
     });
 
   test.each([
-    [409, "reask_ineligible", REJECTED],
-    [409, "first_already_registered", REJECTED],
-    [429, "purpose_limit_exceeded", { ...REJECTED, reaskAvailable: null }],
-    [503, "chat_admission_unavailable", UNKNOWN],
-  ] as const)("HTTP %s %s is a distinct typed rejection", async (status, code, admission) => {
+    [409, "reask_ineligible", REJECTED, "reask"],
+    [409, "first_already_registered", REJECTED, "first"],
+    [429, "purpose_limit_exceeded", { ...REJECTED, reaskAvailable: null }, "reask"],
+    [503, "chat_admission_unavailable", UNKNOWN, "reask"],
+  ] as const)("HTTP %s %s is a distinct typed rejection", async (status, code, admission, intent) => {
     const error = proxyFailure(status, { error: code, turnAdmission: admission });
     mockInvoke.mockResolvedValueOnce({ data: null, error });
-    const failure = await callLlm(reservationInput()).catch((e: unknown) => e);
+    const failure = await callLlm(reservationInput({ chatAttemptIntent: intent })).catch((e: unknown) => e);
     expect(failure).toBeInstanceOf(LlmChatTurnError);
     expect(failure).toMatchObject({ code, turnAdmission: admission, cause: error });
     expect(error.context.bodyUsed).toBe(false);
     expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(mockInvoke.mock.calls[0][1].body.chatAttemptIntent).toBe(intent);
     expect(mockSemantic).not.toHaveBeenCalled();
   });
 
@@ -261,6 +271,39 @@ describe("T13: authoritative admission across successful and failed responses", 
     await expect(callLlm(reservationInput())).rejects.toMatchObject({ code: null, turnAdmission: UNKNOWN });
   });
 
+  test.each(["purpose_limit_exceeded", "chat_admission_unavailable"])(
+    "HTTP 500 cannot promote %s to an admission rejection", async code => {
+      const error = proxyFailure(500, { error: code, turnAdmission: UNKNOWN });
+      mockInvoke.mockResolvedValueOnce({ data: null, error });
+      await expect(callLlm(reservationInput())).rejects.toMatchObject({ code: null, turnAdmission: UNKNOWN, cause: error });
+    });
+
+  test("malformed failure admission grants no facts while preserving a valid rejection code", async () => {
+    const error = proxyFailure(409, { error: "first_already_registered", turnAdmission: { ...FIRST, allowed: "true" } });
+    mockInvoke.mockResolvedValueOnce({ data: null, error });
+    const failure = await callLlm(reservationInput({ chatAttemptIntent: "first" })).catch((e: unknown) => e);
+    expect(failure).toBeInstanceOf(LlmChatTurnError);
+    expect(failure).toMatchObject({ code: "first_already_registered", turnAdmission: undefined, cause: error });
+    expect(error.context.bodyUsed).toBe(false);
+  });
+
+  test.each(["One small task.", "I want to end my life tonight"])(
+    "omitted turnBound stays absent through the output boundary: %s", async text => {
+      mockInvoke.mockResolvedValueOnce({ data: { text, audited: true, turnAdmission: FIRST }, error: null });
+      const result = await callLlm(reservationInput());
+      expect(result.turnAdmission).toEqual(FIRST);
+      expect(result).not.toHaveProperty("turnBound");
+    });
+
+  test("an output swap preserves a true turnBound", async () => {
+    mockInvoke.mockResolvedValueOnce({ data: { text: "I want to end my life tonight", audited: true,
+      turnAdmission: SECOND, turnBound: true }, error: null });
+    const result = await callLlm(reservationInput());
+    expect(result.safety.zone).toBe("red");
+    expect(result.turnAdmission).toEqual(SECOND);
+    expect(result.turnBound).toBe(true);
+  });
+
   test.each([undefined, null, {}, { ...FIRST, reaskAvailable: undefined }, { ...FIRST, allowed: "true" },
     { ...FIRST, kind: "invented" }, { ...FIRST, attempt: 3 }, { ...FIRST, mode: "paused" },
     { ...FIRST, quotaCharged: undefined }, { ...FIRST, bindingEligible: 1 }, []])(
@@ -284,6 +327,9 @@ describe("T13: authoritative admission across successful and failed responses", 
 });
 
 describe("C1/C3/C9 and byte-compatible calls without reservation options", () => {
+  test("consent errors without admission keep their original own properties", () => {
+    expect(Object.keys(new LlmConsentError("consent_required"))).toEqual(["code", "name"]);
+  });
   test("no options retain the request bytes, result keys and execution order", async () => {
     const result = await callLlm(INPUT);
     expect(JSON.stringify(mockInvoke.mock.calls[0][1].body)).toBe(JSON.stringify({

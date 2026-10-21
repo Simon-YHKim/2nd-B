@@ -175,7 +175,7 @@ Explicitly **excluded** purposes for all users (privacy-by-design defaults OFF):
 > AI 답 원문과 이용자 입력은 기록하지 않으며, 이용자 입력이 걸린 경우에는 코드를
 > 남기지 않는다. 보존기간은 기존 위기 기록과 같다.」
 
-Note on #1: journal text is **not** sent to the chat/recommendation LLM by default — see 3.2. The crisis classifier, however, *does* read raw record text locally to triage it (`src/lib/llm/boundary.ts:426-436` `classifyRecordTextForCrisis`).
+Note on #1: journal text is **not** sent to the chat/recommendation LLM by default — see 3.2. The crisis classifier, however, *does* read raw record text locally to triage it (`src/lib/llm/boundary.ts:441-457` `classifyRecordTextForCrisis`).
 
 ### 2.7 Recipients / third parties (sub-processors)
 
@@ -565,7 +565,7 @@ Together (named character + first-person address + persistent memory + idle/wake
 - **Input never reaches the LLM on RED**: `callLlm` short-circuits before any network call `src/lib/llm/boundary.ts:609-641`; `callAdvisor` the same at `src/lib/llm/boundary.ts:1585-1626`.
 - **Output re-classification + verbatim template swap**: model output is re-scanned and, on RED, the generated text is discarded and replaced with the fixed human-written template `src/lib/llm/boundary.ts:975-1047`, `callAdvisor` `src/lib/llm/boundary.ts:1803-1845`. Templates are **deterministic, human-authored, never LLM-generated** (`fixedCrisisResponse` `src/lib/llm/safety.ts:547-577`).
 - **Minor-specific routing**: `red-ko-minor-v2` surfaces **1388 청소년전화** first, then 109 (`src/lib/safety/classifier.ts:76-78`; `src/lib/llm/safety.ts:551-563`).
-- **Free-tier / non-LLM saves covered**: `classifyRecordTextForCrisis()` runs the same audited routing for plain journal saves `src/lib/llm/boundary.ts:426-436`.
+- **Free-tier / non-LLM saves covered**: `classifyRecordTextForCrisis()` runs the same audited routing for plain journal saves `src/lib/llm/boundary.ts:441-457`.
 - **Auditable**: every interception writes `ai_audit_log` + categorical `crisis_events` `src/lib/llm/boundary.ts:513-590`.
 
 **Residual risk.** (a) On the **keyless public web build and on live non-Vertex builds**, the Flash semantic layer is deliberately disabled to avoid uncapped egress (`getFlashClient` returns null `src/lib/llm/safety.ts:110`), degrading crisis detection to **lexicon-only** — novel phrasings without a lexicon term are a false-negative exposure. (b) Lexicon coverage is KO/EN only; other languages fall through. (c) Crisis routing is **information/handoff, not active intervention** — no human is actually contacted; the app steps back (`src/lib/llm/safety.ts:551-574`). **[COUNSEL TO CONFIRM]** whether passive hotline display satisfies duty-of-care / Raine v. OpenAI-class expectations for a minor mental-health product.
