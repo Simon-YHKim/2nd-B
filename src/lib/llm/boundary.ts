@@ -697,6 +697,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   });
   const chatTurnRequest = input.purpose === "secondb_chat" && supportsChatTurnReservation(vendorSeat)
     && (input.chatTurn?.turnId !== undefined || input.chatTurn?.intent !== undefined || input.chatTurnId !== undefined || input.chatAttemptIntent !== undefined);
+  const requestedTurnId = input.chatTurn?.turnId ?? input.chatTurnId;
   // effort applies on the reasoning (pro) tier, and on non-Gemini vendor seats
   // (the proxy maps it to the vendor's native reasoning ladder). On Gemini
   // lite/flash it stays undefined so the audit row doesn't imply a reasoning
@@ -773,6 +774,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   let proxyAudited = false;
   let turnAdmission: TurnAdmission | undefined;
   let turnBound: boolean | undefined;
+  let swapReceipt: LlmResult["outputSwap"];
   let chatTurnFailure: LlmChatTurnError | null = null;
 
   // Route through an edge function when configured, OR whenever the vendor is
@@ -924,10 +926,16 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       }
       throw chatTurnFailure ?? error;
     }
-    const payload = data as { text?: string; modelUsed?: string; audited?: boolean; turnBound?: unknown } | null;
+    const payload = data as { text?: string; modelUsed?: string; audited?: boolean; turnBound?: unknown; auditId?: unknown } | null;
     if (chatTurnRequest) {
       turnAdmission = readTurnAdmission(data);
       if (typeof payload?.turnBound === "boolean") turnBound = payload.turnBound;
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      // Invocation-local only. The client C3 row is never refund evidence.
+      if (payload?.audited === true && typeof payload.auditId === "string" && uuid.test(payload.auditId)
+        && typeof requestedTurnId === "string" && uuid.test(requestedTurnId)) {
+        swapReceipt = { auditId: payload.auditId, reservationId: requestedTurnId };
+      }
     }
     text = payload?.text ?? "";
     modelUsedForAudit = payload?.modelUsed ?? model;
@@ -1055,6 +1063,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       audit: swapAudit,
       ...(turnAdmission ? { turnAdmission } : {}),
       ...(turnBound !== undefined ? { turnBound } : {}),
+      ...(swapReceipt ? { outputSwap: swapReceipt } : {}),
     };
   }
 

@@ -8,6 +8,8 @@ import { assembleChatSystemPrompt, loadChatContext, type SendMessageInput, type 
 import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
 import { bumpChatUsageForTurn, bumpChatUsageIfUnderCap, ChatLimitExceededError, readChatUsageDetail } from "./usage";
 import type { ChatTurnUsage } from "./turn-reservation";
+import { createSwapCandidate } from "./output-swap-state";
+import { createSwapSettlement } from "./output-swap-settlement";
 import { beginTurnAttempt, canPrepareTurn, createTurnResultState, endTurnWait, finishTurnFailure,
   markTurnDispatched, nextTurnAction, receiveTurnAdmission, receiveTurnCrisis, receiveTurnReceipt,
   retireTurnRetry, selectTurnResult, startTurnReservation, turnHistoryValue,
@@ -35,6 +37,7 @@ interface TurnRuntime {
   emergencyNotices: Set<string>;
   onReceipt?: (receipt: ChatTurnUsage) => void;
   adBonus: number;
+  settlement: ReturnType<typeof createSwapSettlement>;
 }
 const runtimes = new WeakMap<LiveChatTurn, TurnRuntime>();
 
@@ -50,6 +53,7 @@ export function createLiveChatTurn(input: {
   const runtime: TurnRuntime = {
     state: createTurnResultState({ ownerId, ownerEpoch: epoch, conversationId: input.conversationId, pairId: input.pairId }, input.message),
     assertOwner, notify: input.onCrisisDetected, emergencyNotices: new Set(), onReceipt: input.onReceipt, adBonus: 0,
+    settlement: createSwapSettlement(input.owner),
   };
   const turn: LiveChatTurn = Object.freeze({
     read: () => { assertOwner(); return runtime.state; },
@@ -153,7 +157,12 @@ export async function sendLiveChatMessage(source: SendMessageInput, turn: LiveCh
     });
     assertOwner();
     runtime.state = receiveTurnAdmission(runtime.state, ticket, reply.turnAdmission);
-    if (reply.safety.zone === "red") { notify(reply.safety.crisisRouting?.hotline); return { status: "crisis", result: reply }; }
+    if (reply.safety.zone === "red") {
+      notify(reply.safety.crisisRouting?.hotline);
+      const candidate = createSwapCandidate(ticket, receipt, reply);
+      if (candidate) void runtime.settlement.start(candidate);
+      return { status: "crisis", result: reply };
+    }
     const result: SendMessageOk = { status: "ok", reply, used: receipt.count, limit,
       remaining: checkChatLimit(input.tier, receipt.count, runtime.adBonus).remaining };
     const before = runtime.state.selected;
