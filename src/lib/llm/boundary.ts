@@ -53,15 +53,13 @@ function crisisObserver(observer: CrisisObserver | undefined, fence: () => void)
   if (!observer) return undefined;
   let notified = false;
   const emergencyNotices = new Set<string>();
-  return (hotline, phase) => {
+  return (hotline) => {
     fence();
     const emergency = hotline === "KR_119" || hotline === "KR_112";
     if (notified && (!emergency || emergencyNotices.has(hotline))) return;
     notified = true;
     if (emergency) emergencyNotices.add(hotline);
-    try {
-      if (phase) observer(hotline, phase); else observer(hotline);
-    } catch { /* The audited result still follows. */ }
+    try { observer(hotline); } catch { /* The audited result still follows. */ }
   };
 }
 
@@ -527,9 +525,10 @@ async function routeCrisis(
     purpose?: string;
     session?: AuthenticatedAccountSessionLease;
     classifierConfidence?: number;
+    liveFence?: () => void;
   } = {},
 ): Promise<LlmResult<string>> {
-  const liveFence = takeLiveChatDeviceScope(userId, sourceTag, opts, result);
+  const liveFence = opts.liveFence ?? takeLiveChatDeviceScope(userId, sourceTag, opts, result);
   if (opts.session?.userId !== undefined && opts.session.userId !== userId) {
     throw new Error("llm_session_owner_mismatch");
   }
@@ -840,8 +839,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       fence();
       if (result.error) {
         if (chatTurnRequest) {
-          // Notify before body parsing; the later lane/audit work remains per attempt.
-          if (input.chatTurn && (result.error as { context?: { status?: number } }).context?.status === 422) notifyCrisis?.(undefined, "pending");
+          // A readable non-crisis 422 must not publish or consume a crisis notice.
           chatTurnFailure = await inspectProxyChatTurnFailure(result.error);
           fence();
           turnAdmission = chatTurnFailure?.turnAdmission;
@@ -883,6 +881,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
             recordCrisisEvent: vendorCrisis.confirmedMarker,
             purpose: input.purpose,
             session: input.session,
+            ...(input.chatTurn && input.purpose === "secondb_chat" ? { liveFence: fence } : {}),
           },
         )) as unknown as LlmResult<T>;
       }
@@ -919,6 +918,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
             recordCrisisEvent: proxyCrisis.confirmedMarker,
             purpose: input.purpose,
             session: input.session,
+            ...(input.chatTurn && input.purpose === "secondb_chat" ? { liveFence: fence } : {}),
           },
         )) as unknown as LlmResult<T>;
         return turnAdmission ? { ...crisisResult, turnAdmission } : crisisResult;
@@ -1034,6 +1034,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       "[ai_audit_log] output-swap insert failed",
       input.session,
     );
+    if (input.chatTurn && input.purpose === "secondb_chat") fence();
     await writeCrisisEvent(
       input.userId,
       {

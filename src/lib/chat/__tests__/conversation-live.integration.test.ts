@@ -258,15 +258,18 @@ test("T17 duplicate late crises notify once but preserve both C3 audits", async 
   expect(nextTurnAction(turn.read())).toBe("closed"); expect(turn.historyValue()).toBeNull();
 });
 
-test("T17 422 guidance precedes stalled body parsing and per-attempt audit", async () => {
+test("T17 422 guidance follows the verdict without waiting for its audit", async () => {
   const body = deferred<unknown>(), turn = makeTurn();
-  primary = () => ({ data: null, error: { context: { status: 422, clone: () => ({ json: () => body.promise }) } } });
+  const readBody = jest.fn(() => body.promise);
+  primary = () => ({ data: null, error: { context: { status: 422, clone: () => ({ json: readBody }) } } });
   const pending = sendLiveChatMessage(input, turn);
-  await until(() => notify.mock.calls.length === 1);
+  await until(() => readBody.mock.calls.length > 0);
+  const prematureNotices = notify.mock.calls.length, prematureState = turn.read();
   expect(audits()).toHaveLength(0); expect(nextTurnAction(turn.read())).toBe("wait");
   expect(turn.read().terminal).toBeNull();
   body.resolve({ error: "safety_red_zone", turnAdmission: unknown });
   expect((await pending).status).toBe("crisis"); expect(audits()).toHaveLength(1);
+  expect(prematureNotices).toBe(0); expect(prematureState.crisisNotified).toBe(false);
 });
 
 test.each(["receipt", "response", "crisis"])("T17 account switch while awaiting %s prevents cross-owner delivery", async phase => {
@@ -427,7 +430,7 @@ test.each(["chatTurnRoute", "chatTurnId", "chatAttemptIntent", "session", "signa
 
 test.each([
   ["medical_emergency", "KR_119"], ["immediate_threat", "KR_112"],
-] as const)("T17 early 422 guidance upgrades once to %s and returns the existing fixed result", async (lane, hotline) => {
+] as const)("T17 confirmed 422 guidance uses %s before audit and returns the existing fixed result", async (lane, hotline) => {
   const crisis = () => ({ data: null, error: { context: new Response(JSON.stringify({ error: "safety_red_zone", crisis_lane: lane }), { status: 422 }) } });
   primary = crisis;
   const legacyNotice = jest.fn();
@@ -454,8 +457,8 @@ test.each([
     expect(result.result.text).toBe(legacy.text);
     expect(result.result.safety.crisisRouting).toEqual(legacy.safety.crisisRouting);
   }
-  expect(beforeAudit).toEqual([[undefined], [hotline]]);
-  expect(notify.mock.calls).toEqual([[undefined], [hotline]]);
+  expect(beforeAudit).toEqual([[hotline]]);
+  expect(notify.mock.calls).toEqual([[hotline]]);
   expect(audits()).toHaveLength(3); // legacy + both live attempts
   expect(turn.historyValue()).toBeNull(); expect(nextTurnAction(turn.read())).toBe("closed");
 });
@@ -629,4 +632,133 @@ test("T17 production obfuscation gate runs again on reask and semantic RED retur
   expect(calls("safety_classify")).toHaveLength(2); expect(calls("secondb_chat")).toHaveLength(1);
   expect(notify).toHaveBeenCalledTimes(1); expect(audits()).toHaveLength(1); expect(bumps()).toHaveLength(1);
   expect(turn.read().terminal).toBe("crisis");
+});
+
+test.each(["xai", "openai"])("R3 post-loader adoption prevents a charged %s retry bump and model call", async vendor => {
+  process.env.EXPO_PUBLIC_CHAT_VENDOR = vendor; count = 0;
+  const turn = makeTurn(), original = deferred<unknown>(), context = deferred<unknown>();
+  primary = () => original.promise;
+  const p1 = sendLiveChatMessage(input, turn);
+  await until(() => calls("secondb_chat").length === 1); expireWait(turn);
+  if (vendor === "openai") {
+    primary = () => failure(409, "reask_ineligible", rejected);
+    await expect(sendLiveChatMessage(input, turn)).rejects.toThrow("reask_ineligible");
+  }
+  expect(nextTurnAction(turn.read())).toBe("charge");
+  const beforeCalls = calls("secondb_chat").length, beforeCount = count;
+  const query = mockQuery.getMockImplementation()!;
+  let loading = false;
+  mockQuery.mockImplementation((table, columns) => {
+    if (table === "wiki_pages") { loading = true; return context.promise; }
+    return query(table, columns);
+  });
+  const retry = sendLiveChatMessage(input, turn);
+  await until(() => loading);
+  original.resolve(success("original during context"));
+  expect((await p1).status).toBe("selected");
+  context.resolve({ data: [], error: null });
+  expect((await retry).status).toBe("ignored");
+  expect(count).toBe(beforeCount); expect(bumps()).toHaveLength(1);
+  expect(calls("secondb_chat")).toHaveLength(beforeCalls);
+  expect(turn.historyValue()?.reply.text).toBe("original during context");
+});
+
+test.each(["server", "failover", "output"].flatMap(path => ["none", "switch", "return"].map(ownerChange => [path, ownerChange])))(
+  "R3 %s crisis fences the restricted write after audit (owner: %s)", async (path, ownerChange) => {
+    const turn = makeTurn(input.message, `pair-${ownerChange}`), audit = deferred<unknown>();
+    count = 0;
+    process.env.EXPO_PUBLIC_CHAT_VENDOR = path === "failover" ? "xai" : "openai";
+    process.env.EXPO_PUBLIC_FAILOVER_VENDOR = path === "failover" ? "openai" : "none";
+    primary = () => path === "output" ? success("I want to kill myself.") : failure(422, "safety_red_zone", unknown);
+    const transport = mockRpc.getMockImplementation()!;
+    mockRpc.mockImplementation((name, args) => name.startsWith("log_ai_audit") && args.p_purpose === "secondb_chat"
+      ? audit.promise : transport(name, args));
+    const notices = notify.mock.calls.length, rows = mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event")).length;
+    const beforeAudit = audits().length;
+    const pending = sendLiveChatMessage(input, turn).catch(error => error);
+    await until(() => audits().length === beforeAudit + 1);
+    const earlyNotices = notify.mock.calls.length, earlyTerminal = turn.read().terminal;
+    if (ownerChange !== "none") noteResolvedOwner(ownerChange === "return" ? null : "owner-b");
+    if (ownerChange === "return") noteResolvedOwner(input.userId);
+    audit.resolve({ data: null, error: null });
+    expect(await pending).toMatchObject(ownerChange === "none" ? { status: "crisis" } : { name: "AbortError" });
+    expect(earlyNotices).toBe(notices + 1);
+    expect(earlyTerminal).toBe("crisis");
+    expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(rows + (ownerChange === "none" ? 1 : 0));
+    mockRpc.mockImplementation(transport);
+});
+
+test.each(["server", "output"])("R3 legacy %s crisis keeps its existing unfenced audit behavior", async path => {
+  primary = () => path === "output" ? success("I want to kill myself.") : failure(422, "safety_red_zone");
+  const audit = deferred<unknown>(), transport = mockRpc.getMockImplementation()!;
+  mockRpc.mockImplementation((name, args) => name.startsWith("log_ai_audit") && args.p_purpose === "secondb_chat"
+    ? audit.promise : transport(name, args));
+  const pending = sendChatMessage(input);
+  await until(() => audits().length === 1);
+  noteResolvedOwner("owner-b");
+  audit.resolve({ data: null, error: null });
+  expect(await pending).toMatchObject({ status: "ok", reply: { safety: { zone: "red" } } });
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(1);
+});
+
+test("R3 non-crisis 422 publishes no notice and cannot consume the next real notice", async () => {
+  const turn = makeTurn(); primary = () => failure(422, "invalid_request");
+  await expect(sendLiveChatMessage(input, turn)).rejects.toThrow("invalid_request");
+  expect(notify).not.toHaveBeenCalled();
+  expect(turn.read()).toMatchObject({ terminal: null, crisisNotified: false });
+  primary = () => failure(422, "safety_red_zone", unknown);
+  expect((await sendLiveChatMessage(input, turn)).status).toBe("crisis");
+  expect(notify).toHaveBeenCalledTimes(1); expect(audits()).toHaveLength(1);
+});
+
+test("R3 confirmed lane-less 422 closes the pair before its audit and a late original", async () => {
+  const turn = makeTurn(), original = deferred<unknown>(), audit = deferred<unknown>();
+  primary = () => original.promise;
+  const p1 = sendLiveChatMessage(input, turn);
+  await until(() => calls("secondb_chat").length === 1); expireWait(turn);
+  primary = () => failure(422, "safety_red_zone", unknown);
+  const transport = mockRpc.getMockImplementation()!;
+  mockRpc.mockImplementation((name, args) => name.startsWith("log_ai_audit") && args.p_purpose === "secondb_chat"
+    ? audit.promise : transport(name, args));
+  const p2 = sendLiveChatMessage(input, turn);
+  await until(() => audits().length === 1);
+  const beforeAudit = turn.read();
+  const late = success("late original"); late.data.audited = true;
+  original.resolve(late);
+  const originalResult = await p1;
+  audit.resolve({ data: null, error: null });
+  expect((await p2).status).toBe("crisis");
+  expect(beforeAudit.terminal).toBe("crisis"); expect(beforeAudit.waiting).toBeNull();
+  expect(originalResult.status).toBe("ignored"); expect(turn.historyValue()).toBeNull();
+  expect(notify).toHaveBeenCalledTimes(1);
+});
+
+test.each(["KR_119", "KR_112"])("R3 shared crisisObserver emits the same %s lane once across output checks", async hotline => {
+  const text = hotline === "KR_119" ? "지금 숨을 못 쉬고 있어" : "지금 누군가 나를 칼로 위협하고 있어";
+  primary = () => success(text);
+  const result = await callLlm({ userId: input.userId, locale: "ko", purpose: "secondb_chat", user: input.message, onCrisisDetected: notify });
+  expect(result.safety).toMatchObject({ zone: "red", crisisRouting: { hotline } });
+  expect(notify.mock.calls).toEqual([[hotline]]);
+  expect(audits()).toHaveLength(1);
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(1);
+});
+
+test.each(["medical_emergency", "immediate_threat"])("R3 a later %s upgrades the pair notice without a subsequent downgrade", async lane => {
+  const turn = makeTurn(), original = deferred<unknown>(), retry = deferred<unknown>(), tail = deferred<unknown>();
+  primary = body => body.chatAttemptIntent === "first" ? original.promise : retry.promise;
+  const p1 = sendLiveChatMessage(input, turn);
+  await until(() => calls("secondb_chat").length === 1); expireWait(turn);
+  const p2 = sendLiveChatMessage(input, turn);
+  await until(() => calls("secondb_chat").length === 2);
+  expireWait(turn); primary = () => tail.promise;
+  const p3 = sendLiveChatMessage(input, turn);
+  await until(() => calls("secondb_chat").length === 3);
+  original.resolve(failure(422, "safety_red_zone", unknown));
+  expect((await p1).status).toBe("crisis");
+  retry.resolve({ data: null, error: { context: new Response(JSON.stringify({ error: "safety_red_zone", crisis_lane: lane }), { status: 422 }) } });
+  expect((await p2).status).toBe("crisis");
+  tail.resolve(failure(422, "safety_red_zone", unknown));
+  expect((await p3).status).toBe("crisis");
+  expect(notify.mock.calls).toEqual([["GLOBAL_988"], [lane === "medical_emergency" ? "KR_119" : "KR_112"]]);
+  expect(audits()).toHaveLength(3);
 });

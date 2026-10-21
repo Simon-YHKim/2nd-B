@@ -75,8 +75,8 @@ export interface AdvisorResult {
   audit: AuditMeta;
 }
 
-/** Routing metadata only. Pending 422 guidance precedes body reading, not a verdict. */
-export type CrisisObserver = (hotline: HotlineId | undefined, phase?: "pending") => void;
+/** Routing metadata only, after a crisis verdict and before its audit. */
+export type CrisisObserver = (hotline: HotlineId | undefined) => void;
 
 export interface PromptInput {
   userId: string;

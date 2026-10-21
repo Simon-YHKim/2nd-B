@@ -61,7 +61,8 @@ export function createLiveChatTurn(input: {
   return turn;
 }
 
-/** Only selected authorizes answer effects; crisis carries fixed guidance only. */
+/** Only selected authorizes answer effects. Crisis is per-attempt completion,
+ * even after selection; B1 publishes guidance only via onCrisisDetected's one slot. */
 export async function sendLiveChatMessage(source: SendMessageInput, turn: LiveChatTurn): Promise<LiveChatTurnResult> {
   // T38 H must port the reservation AND fallback under the same captured ticket.
   // Callback-only or partial captured bundles must not opt into this live path.
@@ -85,12 +86,11 @@ export async function sendLiveChatMessage(source: SendMessageInput, turn: LiveCh
     assertOwner();
     if (!canPrepareTurn(runtime.state, ticket)) throw abortError();
   };
-  const notify: CrisisObserver = (hotline, phase) => {
+  const notify: CrisisObserver = (hotline) => {
     assertOwner();
     const alreadyNotified = runtime.state.crisisNotified;
-    // A readable non-crisis 422 must remain a failure, not a terminal verdict.
-    runtime.state = phase === "pending" ? { ...runtime.state, crisisNotified: true }
-      : receiveTurnCrisis(runtime.state, ticket);
+    // Close the pair on the verdict, before any audit can wait on the network.
+    runtime.state = receiveTurnCrisis(runtime.state, ticket);
     const emergency = hotline === "KR_119" || hotline === "KR_112";
     if (!alreadyNotified || (emergency && !runtime.emergencyNotices.has(hotline))) {
       if (emergency) runtime.emergencyNotices.add(hotline);
