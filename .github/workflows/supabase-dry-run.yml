@@ -22,6 +22,10 @@ on:
       - "scripts/test-records-embedding-consent-sql.mjs"
       - "scripts/test-interview-content-authority-sql.mjs"
       - "scripts/test-chat-turn-admission-races.sh"
+      - "scripts/check-account-export-inventory.ts"
+      - "scripts/generate-erasure-registry.ts"
+      - "db/erasure-registry.json"
+      - "supabase/functions/export-account/**"
       - ".github/workflows/supabase-dry-run.yml"
 
 # Least privilege: this workflow only reads the repo (checkout + local tooling).
@@ -1730,6 +1734,14 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/erasure_registry_regression.sql
+      - name: Compare account-export inventory with the public FK catalog
+        env:
+          PGPASSWORD: postgres
+        run: |
+          npx tsx scripts/check-account-export-inventory.ts --catalog-sql "$RUNNER_TEMP/account-export-inventory.sql"
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 \
+            -f "$RUNNER_TEMP/account-export-inventory.sql" \
+            -f db/tests/account_export_inventory_regression.sql
       # 0253: a record or source deleted while its reasoning run was still
       # working. complete_reasoning_run must not store a proposal whose target is
       # gone for that owner, and must store everything it cannot judge.
