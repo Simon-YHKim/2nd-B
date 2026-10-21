@@ -1,12 +1,13 @@
 // docs/legal/DPIA-2ndB-minors-draft.md cites src/lib/chat/conversation.ts by line number:
-// :137-171 (SYSTEM_PROMPT_HEADER), :158-163, :267, :272-273 (the 600-character snapshot cap), :325
-// (the untrusted-data fence) and :367 (the prompt assembly). A line inserted above any of them moves
+// :137-171 (SYSTEM_PROMPT_HEADER), :158-163, :258, :263-264 (the 600-character snapshot cap), :287
+// (the untrusted-data fence) and :329 (the prompt assembly; T39 A2-S moved the context load and the
+// assembly into their own functions, so these four moved up with the text unchanged). A line inserted above any of them moves
 // the code away from the citation while every behaviour test still passes (review r1 on #2497,
 // 2026-10-14). So the cited lines are held here word for word.
 //
-// dpia-crisis-rail-anchors.test.ts already checks that :325 and :367 contain their symbols; this file
+// dpia-crisis-rail-anchors.test.ts already checks that :287 and :329 contain their symbols; this file
 // holds the exact text of every cited line and the file's length. Moving a cited line means updating
-// the DPIA citation in the same change. A change that only adds lines below :367 updates the length
+// the DPIA citation in the same change. A change that only adds lines below :329 updates the length
 // here and nothing else.
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -23,18 +24,18 @@ const CITED: readonly (readonly [number, string])[] = [
   [162, "    // 이 줄과 무관하다. identity-prompt.test.ts 가 이 줄을 지킨다."],
   [163, "    \"말투는 편한 반말을 씁니다. 인사나 할 일 정리처럼 가볍고 편한 대화에서는 '오우, 브로'·'좋아, 브로' 같은 호칭을 가끔 섞되, 매번 붙이지는 마세요. 사용자가 존댓말이나 다른 호칭을 원하거나 호칭을 싫어하면 바로 따르세요. 사용자가 많이 힘들거나 아프거나 위험한 이야기를 하면 농담과 호칭을 빼고 차분하게 말하세요.\","],
   [171, "};"],
-  [267, "  const snapshot = await stage(() => exportUserWiki("],
-  [272, "        { locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40, includeSavedConversations: true }"],
-  [273, "      : { locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100, includeSavedConversations: true },"],
-  [325, "  const fencedSnapshot = `<UNTRUSTED type=\"wiki_snapshot\">\\n${sanitizeUntrusted(snapshot.prompt)}\\n</UNTRUSTED>`;"],
-  [367, "  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\\n\\n${crisisNumberRule(input.locale, input.minor)}\\n\\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;"],
+  [258, "  const snapshot = await stage(() => exportUserWiki("],
+  [263, "        { locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40, includeSavedConversations: true }"],
+  [264, "      : { locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100, includeSavedConversations: true },"],
+  [287, "  const fencedSnapshot = `<UNTRUSTED type=\"wiki_snapshot\">\\n${sanitizeUntrusted(snapshot.prompt)}\\n</UNTRUSTED>`;"],
+  [329, "  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\\n\\n${crisisNumberRule(input.locale, input.minor)}\\n\\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;"],
 ];
 
 test("conversation.ts keeps every line the DPIA cites, word for word, at its number", () => {
   expect(CITED.map(([n]) => [n, lines[n - 1]])).toEqual(CITED.map(([n, text]) => [n, text]));
 });
 
-test("conversation.ts is 497 lines long", () => {
+test("conversation.ts is 521 lines long", () => {
   // The split leaves one empty string after the final newline.
-  expect(lines.length - 1).toBe(497);
+  expect(lines.length - 1).toBe(521);
 });
