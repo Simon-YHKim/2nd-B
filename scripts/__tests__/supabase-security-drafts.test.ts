@@ -85,8 +85,8 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
   "UNNUMBERED_chat_turn_attempt_with_quota.sql": {
-    runner: "db/migration-drafts/tests/chat-turn-attempt-with-quota.sql",
-    workflowInvocation: "-f db/migration-drafts/tests/chat-turn-attempt-with-quota.sql",
+    runner: "scripts/test-chat-turn-admission-races.sh",
+    workflowInvocation: "bash scripts/test-chat-turn-admission-races.sh",
   },
   "UNNUMBERED_interview_content_authority.sql": {
     runner: "scripts/test-interview-content-authority-sql.mjs",
@@ -205,7 +205,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(listDrafts()).toEqual([...retainedDrafts, ...Object.keys(pendingDrafts)].sort());
     for (const draft of Object.values(pendingDrafts)) {
       expect(existsSync(join(ROOT, draft.runner))).toBe(true);
-      expect(read(".github/workflows/supabase-dry-run.yml")).toContain(draft.workflowInvocation);
+      expect(workflow.split("\n").some((line) => line.trim() === draft.workflowInvocation)).toBe(true);
     }
   });
 
