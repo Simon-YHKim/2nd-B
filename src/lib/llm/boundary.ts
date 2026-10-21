@@ -1063,7 +1063,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       audit: swapAudit,
       ...(turnAdmission ? { turnAdmission } : {}),
       ...(turnBound !== undefined ? { turnBound } : {}),
-      ...(swapReceipt ? { outputSwap: swapReceipt } : {}),
+      ...(input.purpose === "secondb_chat" && swapReceipt ? { outputSwap: swapReceipt } : {}),
     };
   }
 
