@@ -10,6 +10,9 @@ const body = sql.slice(sql.indexOf('AS $$'), sql.indexOf('\n$$;'));
 const regression = read(`${draft}tests/chat-turn-attempt-with-quota.sql`);
 const down = read(`${draft}rollback/UNNUMBERED_chat_turn_attempt_with_quota_down.sql`).replace(/--.*$/gm, '').trim();
 const signature = 'public.begin_chat_turn_attempt_with_quota(uuid, uuid, uuid, text, text)';
+const raceInvocation = 'bash scripts/test-chat-turn-admission-races.sh';
+const hasRaceInvocation = (source: string) => source.split('\n').some((line) => line.trim() === raceInvocation);
+const clusterStatements = /\b(?:CREATE|ALTER|DROP)\s+(?:ROLE|USER|GROUP|TABLESPACE)\b|\bALTER\s+SYSTEM\b/i;
 
 describe('T39 E1-S inactive atomic chat admission draft', () => {
   it('keeps one new service-only volatile definer, under the runner transaction', () => {
@@ -126,6 +129,109 @@ describe('T39 E1-S inactive atomic chat admission draft', () => {
     expect(lane).toContain('--single-transaction -f db/migration-drafts/rollback/UNNUMBERED_chat_turn_attempt_with_quota_down.sql');
     expect(lane.match(/-f db\/migration-drafts\/tests\/chat-turn-attempt-with-quota\.sql/g)).toHaveLength(2);
     expect(lane).toContain('T39 rollback must remove only the new entrypoint');
+    expect(lane).toContain('set -euo pipefail');
+    expect(hasRaceInvocation(lane)).toBe(true);
+    expect(lane).toMatch(/^        timeout-minutes: 10$/m);
     expect(lane.replace(/^\s*#.*$/gm, '')).not.toMatch(/SUPABASE|DATABASE_URL|secrets\.|ALTER ROLE|pg_ctl/);
+  });
+
+  it('rejects a commented, missing or failure-masked CI race invocation', () => {
+    const source = read('.github/workflows/supabase-dry-run.yml');
+    expect(hasRaceInvocation(source)).toBe(true);
+    for (const replacement of ['', `# ${raceInvocation}`, `${raceInvocation} || true`]) {
+      expect(hasRaceInvocation(source.replace(raceInvocation, replacement))).toBe(false);
+    }
+  });
+
+  it('dumps failure evidence before teardown, closes every pipe writer and bounds client reaping', () => {
+    const runner = read('scripts/test-chat-turn-admission-races.sh');
+    const cleanup = runner.slice(runner.indexOf('cleanup() {'), runner.indexOf('trap cleanup EXIT'));
+    expect(cleanup.indexOf('cat "$file" >&2')).toBeGreaterThan(-1);
+    expect(cleanup).toContain('echo "T39 log: $file" >&2');
+    expect(cleanup).toContain('echo "T39 race logs: $work"');
+    expect(cleanup.indexOf('cat "$file" >&2')).toBeLessThan(cleanup.indexOf('close_leader_pipes'));
+    expect(cleanup.indexOf('echo "T39 race logs: $work"')).toBeLessThan(cleanup.indexOf('pg_terminate_backend'));
+    expect(cleanup.indexOf('close_leader_pipes')).toBeLessThan(cleanup.indexOf('reap_client "$leader_pid"'));
+    expect(cleanup).toContain('reap_client "$follower_pid"');
+    expect(cleanup).not.toContain('wait "$leader_pid"');
+    expect(runner).toContain('exec {leader_in}>&-');
+    expect(runner).toContain('exec {coproc_in}>&- {coproc_out}<&-');
+    expect(runner).toContain('coproc LEADER { exec "${psql[@]}"');
+    expect(runner).toContain('for signal in TERM KILL; do');
+    expect(runner).toContain('deadline=$((SECONDS + 2))');
+    expect(runner).toContain('while kill -0 "$pid" 2>/dev/null && (( SECONDS < deadline ))');
+    expect(runner).toContain('kill -"$signal" "$pid"');
+  });
+
+  it('keeps runner and fixture free of cluster-wide mutations', () => {
+    for (const source of [read('scripts/test-chat-turn-admission-races.sh'),
+      read(`${draft}tests/chat-turn-admission-race-fixture.sql`)]) {
+      expect(source.replace(/^\s*(?:#|--).*$/gm, '')).not.toMatch(clusterStatements);
+    }
+    for (const statement of ['ALTER ROLE service_role BYPASSRLS;', 'CREATE USER fixture;',
+      'DROP ROLE fixture;', 'ALTER\nSYSTEM SET max_connections = 99;']) {
+      expect(statement).toMatch(clusterStatements);
+    }
+  });
+
+  it('runs real blocked sessions and requires the isolated lock mutant to fail for the expected reason', () => {
+    const runner = read('scripts/test-chat-turn-admission-races.sh');
+    const executable = runner.replace(/^\s*#.*$/gm, '');
+    expect(runner).toContain('set -euo pipefail');
+    expect(runner).toContain('-v ON_ERROR_STOP=1');
+    expect(runner).toContain('wait "$follower_pid"');
+    expect(runner).toContain('trap cleanup EXIT');
+    expect(runner).toContain('pg_terminate_backend(pid)');
+    expect(runner).toContain('b.pid = ANY(pg_blocking_pids(a.pid))');
+    expect(runner).toContain("a.wait_event_type = 'Lock' AND a.wait_event = '$event'");
+    expect(runner.match(/^\s*observe_wait advisory$/gm)).toHaveLength(4);
+    expect(runner.match(/^\s*observe_wait transactionid$/gm)).toHaveLength(2);
+    expect(runner).toContain('zero_schedules=(zero-first-first zero-reask-reask zero-first-reask zero-reask-first)');
+    expect(runner).toContain('for schedule in "${zero_schedules[@]}"; do zero_attempt_race "$schedule"; done');
+    expect(runner).toContain('zero_attempt_race "$2"');
+    for (const schedule of ['one-reask-reask', 'consume-before-admission',
+      'admission-before-consume', 'bump-before-reask', 'reask-before-bump']) {
+      expect(runner).toContain(`case_name=${schedule}`);
+    }
+    expect(runner).toContain('CREATE DATABASE t39_admission_mutant_test_ci TEMPLATE t39_admission_test_ci');
+    expect(runner).toContain('source.split(lock).length !== 2');
+    expect(runner).toContain("source.replace(lock, '')");
+    expect(runner).toContain('-d t39_admission_mutant_test_ci --single-transaction -f "$work/no-user-lock.sql"');
+    expect(runner).toContain('bash scripts/test-chat-turn-admission-races.sh --mutant');
+    expect(runner).toContain('[[ "$mutation_status" = 3 ]]');
+    expect(runner).toContain('grep -q "T39 WAIT $schedule: Lock/advisory"');
+    expect(runner).toContain("grep -q 'ERROR:  *55000: chat_admission_invalid_state'");
+    expect(executable).not.toMatch(/SUPABASE|DATABASE_URL|secrets\.|pg_ctl|ON_ERROR_STOP=0/);
+    const workflow = read('.github/workflows/supabase-dry-run.yml');
+    expect(workflow.split('permissions:')[0]).toContain('"scripts/test-chat-turn-admission-races.sh"');
+  });
+
+  it('pins all zero-attempt orders to exact outcomes and one purpose charge', () => {
+    const runner = read('scripts/test-chat-turn-admission-races.sh');
+    expect(runner).toContain('zero-first-first) n=1; first_intent=first; next_intent=first; next_kind=rejected; next_reason="\'first_already_registered\'"; attempts=1');
+    expect(runner).toContain('zero-reask-reask) n=7; first_intent=reask; next_intent=reask; next_kind=reask');
+    expect(runner).toContain('zero-first-reask) n=8; first_intent=first; next_intent=reask; next_kind=reask');
+    expect(runner).toContain('zero-reask-first) n=9; first_intent=reask; next_intent=first; next_kind=rejected; next_reason="\'first_already_registered\'"; attempts=1');
+    expect(runner).toContain('next_reason=NULL attempts=2');
+    expect(runner).toContain('SELECT t39_race.state($n,$attempts,1);');
+    const fixture = read(`${draft}tests/chat-turn-admission-race-fixture.sql`);
+    expect(fixture.match(/generate_series\(1,9\)/g)).toHaveLength(4);
+    expect(fixture).toContain('FROM generate_series(2,6) n CROSS JOIN t39_race.clock');
+  });
+
+  it('checks persisted counters, exact response fields and T3901 rollback with actual SQL roles', () => {
+    const fixture = read(`${draft}tests/chat-turn-admission-race-fixture.sql`);
+    const runner = read('scripts/test-chat-turn-admission-races.sh');
+    expect(fixture).toMatch(/^\\set ON_ERROR_STOP on/m);
+    expect(fixture).toContain("EXCEPTION WHEN SQLSTATE 'T3901' THEN RETURN true;");
+    expect(fixture).not.toContain('WHEN OTHERS');
+    expect(fixture).toContain('attempt1_audit_id IS NOT DISTINCT FROM');
+    expect(fixture).toContain('attempt2_audit_id IS NOT DISTINCT FROM');
+    expect(fixture).toContain('(attempted_at IS NULL) = (attempts_want = 0)');
+    expect(fixture).toContain('sum(count) = quota_sum');
+    expect(fixture).toContain("'bump retired prior reservation '");
+    expect(runner).toContain('SET LOCAL ROLE service_role;');
+    expect(runner).toContain('SET LOCAL ROLE authenticated;');
+    expect(runner).toContain('SELECT t39_race.state(3,0,9);');
   });
 });
