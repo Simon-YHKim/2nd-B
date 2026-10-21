@@ -525,10 +525,10 @@ async function routeCrisis(
     purpose?: string;
     session?: AuthenticatedAccountSessionLease;
     classifierConfidence?: number;
-    liveFence?: () => void;
   } = {},
+  liveCrisisFence?: () => void,
 ): Promise<LlmResult<string>> {
-  const liveFence = opts.liveFence ?? takeLiveChatDeviceScope(userId, sourceTag, opts, result);
+  const liveFence = liveCrisisFence ?? takeLiveChatDeviceScope(userId, sourceTag, opts, result);
   if (opts.session?.userId !== undefined && opts.session.userId !== userId) {
     throw new Error("llm_session_owner_mismatch");
   }
@@ -881,8 +881,8 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
             recordCrisisEvent: vendorCrisis.confirmedMarker,
             purpose: input.purpose,
             session: input.session,
-            ...(input.chatTurn && input.purpose === "secondb_chat" ? { liveFence: fence } : {}),
           },
+          input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
         )) as unknown as LlmResult<T>;
       }
       if (typeof console !== "undefined") {
@@ -918,8 +918,8 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
             recordCrisisEvent: proxyCrisis.confirmedMarker,
             purpose: input.purpose,
             session: input.session,
-            ...(input.chatTurn && input.purpose === "secondb_chat" ? { liveFence: fence } : {}),
           },
+          input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
         )) as unknown as LlmResult<T>;
         return turnAdmission ? { ...crisisResult, turnAdmission } : crisisResult;
       }
