@@ -80,6 +80,20 @@ test("records the actual red output swap and screen modal intent without calling
   expect(adult.checks).toMatchObject({ lostNumbers: ["119"], safetyGuidanceLoss: false });
 });
 
+test.each(["t23-N1-baseline", "t23-K1-baseline"])("optional turn metadata keeps legacy replay bytes: %s", async id => {
+  const sources = loadInterviewAdapterSources(root);
+  const boundaryPath = "src/lib/llm/boundary.ts";
+  const legacyBoundary = sources[boundaryPath].replace(/^[ \t]*\.\.\.\(turn(?:Admission|Bound)[^\r\n]*\r?\n/gm, "");
+  expect(legacyBoundary).not.toBe(sources[boundaryPath]);
+  const sample = corpus.cases.find((entry: { id: string }) => entry.id === id);
+  const legacy = await createOfflineInterviewRuntime({ ...sources, [boundaryPath]: legacyBoundary }).replay(sample);
+  const current = row(id);
+  expect(JSON.stringify(current.boundary)).toBe(JSON.stringify(legacy.boundary));
+  expect(JSON.stringify(current.screen)).toBe(JSON.stringify(legacy.screen));
+  expect(current.boundary).not.toHaveProperty("turnAdmission");
+  expect(current.boundary).not.toHaveProperty("turnBound");
+});
+
 test("runs the current request refs and real finish, publishing once before the boundary audit", () => {
   const replayed = result.rows.filter(sample => sample.status === "REPLAYED_CURRENT_CODE");
   expect(replayed).toHaveLength(30);
