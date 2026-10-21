@@ -523,7 +523,9 @@ async function routeCrisis(
     session?: AuthenticatedAccountSessionLease;
     classifierConfidence?: number;
   } = {},
+  liveCrisisFence?: () => void,
 ): Promise<LlmResult<string>> {
+  const liveFence = liveCrisisFence ?? takeLiveChatDeviceScope(userId, sourceTag, opts, result);
   if (opts.session?.userId !== undefined && opts.session.userId !== userId) {
     throw new Error("llm_session_owner_mismatch");
   }
@@ -572,6 +574,7 @@ async function routeCrisis(
       : result.matched.length > 0
         ? ["lexicon_match"]
         : [];
+  liveFence?.();
   if (opts.recordCrisisEvent !== false) {
     await writeCrisisEvent(
       userId,
@@ -586,6 +589,7 @@ async function routeCrisis(
     );
   }
   opts.session?.assertCurrent();
+  liveFence?.();
   return { text, safety: result, audit };
 }
 
@@ -607,6 +611,7 @@ export function assertRootObjectSchema(schema: Record<string, unknown> | undefin
 }
 
 export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult<T>> {
+  if (input.chatTurn && (input.chatTurnRoute || input.chatTurnId !== undefined || input.chatAttemptIntent !== undefined || input.session || input.signal)) throw new Error("chat_turn_execution_mismatch");
   if (input.session && input.session.userId !== input.userId) {
     throw new Error("llm_session_owner_mismatch");
   }
@@ -617,6 +622,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   const fence = (): void => {
     throwIfAborted(signal);
     input.session?.assertCurrent();
+    if (input.purpose === "secondb_chat") input.chatTurn?.assertCurrent?.();
   };
   fence();
   const notifyCrisis = crisisObserver(input.onCrisisDetected, fence);
@@ -637,6 +643,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       input.minor,
       "input_red",
       { purpose: input.purpose, session: input.session },
+      input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
     )) as unknown as LlmResult<T>;
   }
 
@@ -662,6 +669,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         input.minor,
         "input_semantic_red",
         { purpose: input.purpose, session: input.session, classifierConfidence: semanticInput.confidence },
+        input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
       )) as unknown as LlmResult<T>;
     }
     if (semanticInput === null) {
@@ -684,11 +692,11 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // word when the axis resolves gemini (routing.ts, opts.reasoningTier).
   // Polaris reservations are currently settled only by openai-proxy.
   const vendorSeat = input.purpose === "persona_synthesis" ? "openai" :
-    (input.purpose === "secondb_chat" ? input.chatTurnRoute?.vendor : undefined) ?? resolveVendorForPurpose(input.purpose, input.image != null, {
+    (input.purpose === "secondb_chat" ? (input.chatTurn?.route ?? input.chatTurnRoute)?.vendor : undefined) ?? resolveVendorForPurpose(input.purpose, input.image != null, {
     reasoningTier: tier === "pro",
   });
   const chatTurnRequest = input.purpose === "secondb_chat" && supportsChatTurnReservation(vendorSeat)
-    && (input.chatTurnId !== undefined || input.chatAttemptIntent !== undefined);
+    && (input.chatTurn?.turnId !== undefined || input.chatTurn?.intent !== undefined || input.chatTurnId !== undefined || input.chatAttemptIntent !== undefined);
   // effort applies on the reasoning (pro) tier, and on non-Gemini vendor seats
   // (the proxy maps it to the vendor's native reasoning ladder). On Gemini
   // lite/flash it stays undefined so the audit row doesn't imply a reasoning
@@ -786,8 +794,8 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // the proxy's tier-aware cap + effort clamp are the hard ceilings.
       purpose: input.purpose,
       ...(chatTurnRequest ? {
-        ...(input.chatTurnId !== undefined ? { chatTurnId: input.chatTurnId } : {}),
-        ...(input.chatAttemptIntent !== undefined ? { chatAttemptIntent: input.chatAttemptIntent } : {}),
+        ...((input.chatTurn?.turnId ?? input.chatTurnId) !== undefined ? { chatTurnId: input.chatTurn?.turnId ?? input.chatTurnId } : {}),
+        ...((input.chatTurn?.intent ?? input.chatAttemptIntent) !== undefined ? { chatAttemptIntent: input.chatTurn?.intent ?? input.chatAttemptIntent } : {}),
       } : {}),
       // The server claims each reasoning slot against its existing reservation.
       ...(input.purpose === "reasoning_connect" ? {
@@ -816,6 +824,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     const primaryFn = proxyFnForVendor(vendorSeat);
     const invokeProxy = async (functionName: string) => {
       fence();
+      if (input.purpose === "secondb_chat") input.chatTurn?.beforeDispatch?.();
       const result = input.session
         ? await invokeFunctionWithCapturedSession(
             functionName,
@@ -829,6 +838,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       fence();
       if (result.error) {
         if (chatTurnRequest) {
+          // A readable non-crisis 422 must not publish or consume a crisis notice.
           chatTurnFailure = await inspectProxyChatTurnFailure(result.error);
           fence();
           turnAdmission = chatTurnFailure?.turnAdmission;
@@ -871,6 +881,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
             purpose: input.purpose,
             session: input.session,
           },
+          input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
         )) as unknown as LlmResult<T>;
       }
       if (typeof console !== "undefined") {
@@ -907,6 +918,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
             purpose: input.purpose,
             session: input.session,
           },
+          input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
         )) as unknown as LlmResult<T>;
         return turnAdmission ? { ...crisisResult, turnAdmission } : crisisResult;
       }
@@ -1021,6 +1033,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       "[ai_audit_log] output-swap insert failed",
       input.session,
     );
+    if (input.chatTurn && input.purpose === "secondb_chat") fence();
     await writeCrisisEvent(
       input.userId,
       {
@@ -1938,6 +1951,55 @@ async function inspectProxyChatTurnFailure(error: unknown): Promise<LlmChatTurnE
   } catch {
     // An unreadable envelope proves neither admission nor a fresh quota charge.
     return null;
+  }
+}
+
+type LiveChatDeviceScope = Readonly<{
+  userId: string;
+  assertCurrent: () => void;
+  onCrisisDetected: CrisisObserver;
+}>;
+// Only the synchronous call stack owns this slot. routeCrisis consumes it before
+// notifying (including observer reentry); no slot survives an await. The legacy
+// classifier stays the single verdict and lane/locale/minor implementation.
+let liveChatDeviceScope: LiveChatDeviceScope | null = null;
+
+function takeLiveChatDeviceScope(
+  userId: string, source: string,
+  options: { purpose?: string; session?: AuthenticatedAccountSessionLease },
+  safety: SafetyResult,
+): (() => void) | undefined {
+  const scope = liveChatDeviceScope;
+  liveChatDeviceScope = null;
+  if (!scope || scope.userId !== userId || source !== "input_red" || options.purpose !== "secondb_chat" || options.session) return undefined;
+  scope.assertCurrent();
+  crisisObserver(scope.onCrisisDetected, scope.assertCurrent)?.(safety.crisisRouting?.hotline);
+  scope.assertCurrent();
+  return scope.assertCurrent;
+}
+
+/** Dormant live adapter: no captured credentials and no second classifier. */
+export async function classifyLiveChatTextForCrisis(
+  text: string, locale: "en" | "ko", userId: string, minor: boolean | undefined,
+  hooks: { assertCurrent: () => void; onCrisisDetected: CrisisObserver },
+): Promise<LlmResult<string> | null> {
+  const { assertCurrent, onCrisisDetected } = hooks;
+  assertCurrent();
+  const previous = liveChatDeviceScope;
+  let pending: Promise<LlmResult<string> | null>;
+  try {
+    liveChatDeviceScope = { userId, assertCurrent, onCrisisDetected };
+    pending = classifyChatTextForCrisis(text, locale, userId, minor);
+  } finally {
+    liveChatDeviceScope = previous;
+  }
+  try {
+    const result = await pending;
+    assertCurrent();
+    return result;
+  } catch (error) {
+    assertCurrent();
+    throw error;
   }
 }
 
