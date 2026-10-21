@@ -353,9 +353,9 @@ async function handleOpenAi(
   // ../_shared/axis-key-name.ts:pickApiKey for the outage this caused.
   const apiKey = (Deno.env.get('OPENAI_API_KEY') ?? '').trim();
   const chatAdmissionRequest = admissionMode === 'enforce' && requestBody?.purpose === 'secondb_chat'
-    && (hasChatTurn || requestBody.chatAttemptIntent !== undefined);
+    && readChatTurnId('secondb_chat', requestBody.chatTurnId) !== null;
   if ((!apiKey || apiKey.length === 0) && !chatAdmissionRequest) {
-    // Legacy keeps main's early, RPC-free response bytes even with turn fields.
+    // Only the usesChatAdmission path below may defer this RPC-free key failure.
     return baseJsonResponse(req, { error: 'server_misconfigured_missing_OPENAI_API_KEY' }, 500);
   }
 

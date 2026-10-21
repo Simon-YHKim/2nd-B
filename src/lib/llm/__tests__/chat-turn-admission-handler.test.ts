@@ -222,6 +222,135 @@ describe('OpenAI 대화 허가', () => {
       expectNoDispatch(h);
     }
   });
+  describe.each(['legacy', 'enforce'])('새 허가 없는 키 누락 %s', (mode) => {
+    it.each([undefined, null, '', 'bad-id', 7, { id: turnId }, `${turnId} `])(
+      '유효하지 않은 턴 %#는 의도와 무관하게 RPC 0', async (id) => {
+        for (const intent of [undefined, 'first', 'reask', 'invalid']) {
+          const h = host(mode);
+          h.envValues.delete('OPENAI_API_KEY');
+          const response = await h.run({ chatTurnId: id, chatAttemptIntent: intent });
+          expect(response.status).toBe(500);
+          expect(await response.text()).toBe('{"error":"server_misconfigured_missing_OPENAI_API_KEY"}');
+          expect(h.rpc).not.toHaveBeenCalled();
+          expect(h.audit).not.toHaveBeenCalled();
+          expectNoDispatch(h);
+        }
+      },
+    );
+  });
+
+  // Fixed stage expectations also run against the pinned main source in the
+  // local differential probe. Only enforce + valid turn changes the quota path.
+  describe.each(['legacy', 'enforce'])('분기 행렬 %s', (mode) => {
+    describe.each([
+      ['valid turn', { chatTurnId: turnId, chatAttemptIntent: 'first' }, true],
+      ['no turn', { chatTurnId: undefined }, false],
+      ['intent only', { chatTurnId: undefined, chatAttemptIntent: 'first' }, false],
+      ['invalid turn', { chatTurnId: 'bad-id', chatAttemptIntent: 'first' }, false],
+    ] as [string, Record<string, unknown>, boolean][])('%s', (_shape, patch, validTurn) => {
+      it.each([
+        // failure, HTTP, error, reached quota, spend, capacity, model
+        ['success', 200, undefined, 1, 1, 1, 1],
+        ['missing_key', 500, 'server_misconfigured_missing_OPENAI_API_KEY', 0, 0, 0, 0],
+        ['bad_key', 500, 'server_misconfigured_malformed_api_key', 1, 1, 0, 0],
+        ['consent_denied', 403, 'consent_required', 0, 0, 0, 0],
+        ['consent_error', 503, 'consent_check_unavailable', 0, 0, 0, 0],
+        ['tier_error', 503, 'entitlement_check_unavailable', 0, 0, 0, 0],
+        ['crisis', 422, 'safety_red_zone', 0, 0, 0, 0],
+        ['purpose_limit', 429, 'purpose_limit_exceeded', 1, 0, 0, 0],
+        ['purpose_error', 503, 'purpose_limit_unavailable', 1, 0, 0, 0],
+        ['spend_limit', 429, 'daily_limit_exceeded', 1, 1, 0, 0],
+        ['spend_error', 503, 'spend_check_unavailable', 1, 1, 0, 0],
+        ['spend_throw', 503, 'spend_check_unavailable', 1, 1, 0, 0],
+        ['capacity_limit', 429, 'llm_capacity_exceeded', 1, 1, 1, 0],
+        ['capacity_error', 503, 'llm_capacity_unavailable', 1, 1, 1, 0],
+        ['model_error', 502, 'upstream_error', 1, 1, 1, 1],
+        ['model_throw', 502, 'upstream_unreachable', 1, 1, 1, 1],
+        ['bad_payload', 502, 'upstream_bad_payload', 1, 1, 1, 1],
+        ['refusal', 502, 'upstream_refusal', 1, 1, 1, 1],
+        ['truncated', 502, 'upstream_truncated', 1, 1, 1, 1],
+      ] as [string, number, string | undefined, number, number, number, number][])(
+        '%s', async (failure, status, error, quota, spend, capacity, model) => {
+          jest.useFakeTimers();
+          const h = host(mode);
+          const admission = mode === 'enforce' && validTurn;
+          if (failure === 'missing_key') {
+            h.envValues.delete('OPENAI_API_KEY');
+            if (admission) { quota = 1; spend = 1; }
+          }
+          if (failure === 'bad_key') h.envValues.set('OPENAI_API_KEY', 'fixture\nkey');
+          if (failure.startsWith('consent_')) h.overrides.set('effective_llm_consent_snapshot_v2', () =>
+            failure === 'consent_denied' ? { data: { allowed: false, token: null } } : { error: {} });
+          if (failure === 'tier_error') h.overrides.set('effective_subscription_tier', () => ({ error: {} }));
+          if (failure.startsWith('purpose_')) {
+            h.overrides.set('consume_llm_proxy_purpose_quota', () => failure === 'purpose_limit'
+              ? { data: [{ allowed: false, used: 5, quota_limit: 5 }] } : { error: {} });
+            h.overrides.set(admissionFn, () => ({ error: { code: failure === 'purpose_limit' ? 'T3901' : 'P0001' } }));
+            if (admission && failure === 'purpose_error') error = 'chat_admission_unavailable';
+          }
+          if (failure.startsWith('spend_')) h.overrides.set('bump_gemini_spend', () => {
+            if (failure === 'spend_throw') throw new Error('fixture');
+            return { error: { message: failure === 'spend_limit' ? 'gemini_spend_exceeded' : 'unavailable' } };
+          });
+          if (failure.startsWith('capacity_')) h.overrides.set('reserve_llm_proxy_capacity', () => ({
+            error: { message: failure === 'capacity_limit' ? 'llm_capacity_exceeded' : 'unavailable' },
+          }));
+          if (failure === 'model_error') h.fetch.mockResolvedValue(Response.json({ error: 'fixture' }, { status: 500 }));
+          if (failure === 'model_throw') h.fetch.mockRejectedValue(new Error('fixture'));
+          if (failure === 'bad_payload') h.fetch.mockResolvedValue(Response.json({ invalid: true }));
+          if (failure === 'refusal' || failure === 'truncated') h.fetch.mockResolvedValue(Response.json({
+            choices: [{ message: { content: 'Fixture', ...(failure === 'refusal' ? { refusal: 'no' } : {}) },
+              finish_reason: failure === 'truncated' ? 'length' : 'stop' }],
+          }));
+          if (['model_error', 'model_throw', 'bad_payload', 'refusal', 'truncated'].includes(failure)) {
+            const transport = h.fetch.getMockImplementation()!;
+            h.fetch.mockImplementation(async () => { h.events.push('model'); return transport(); });
+          }
+          const response = await h.run({ ...patch, ...(failure === 'crisis' ? { user: '죽고 싶어' } : {}) });
+          const body = await response.json();
+          expect(response.status).toBe(status);
+          expect(body.error).toBe(error);
+          if (failure === 'missing_key' && !admission) {
+            expect(body).toEqual({ error });
+            expect(h.rpc).not.toHaveBeenCalled();
+          }
+          if (patch.chatTurnId === undefined) expect(body).not.toHaveProperty('turnAdmission');
+          const quotaFn = admission ? admissionFn : 'consume_llm_proxy_purpose_quota';
+          expect(h.count(quotaFn)).toBe(quota);
+          expect(h.count(admission ? 'consume_llm_proxy_purpose_quota' : admissionFn)).toBe(0);
+          expect(h.count('bump_gemini_spend')).toBe(spend);
+          expect(h.count('refund_gemini_spend')).toBe(
+            failure === 'bad_key' || failure.startsWith('capacity_') || (failure === 'missing_key' && admission) ? 1 : 0,
+          );
+          expect(h.count('reserve_llm_proxy_capacity')).toBe(capacity);
+          expect(h.count('settle_llm_proxy_capacity')).toBe(model);
+          expect(h.count('release_llm_proxy_capacity')).toBe(0);
+          expect(h.count('begin_chat_turn_attempt')).toBe(!admission && validTurn ? model : 0);
+          expect(h.count('claim_chat_turn_for_audit')).toBe(validTurn && failure === 'success' ? 1 : 0);
+          expect(h.fetch).toHaveBeenCalledTimes(model);
+          expect(h.audit).toHaveBeenCalledTimes(model);
+          // This full event list pins early gate order as well as all side effects.
+          const events = failure === 'missing_key' && !admission ? []
+            : ['effective_llm_consent_snapshot_v2',
+              ...(!failure.startsWith('consent_') && failure !== 'crisis' ? ['effective_subscription_tier'] : [])];
+          if (quota) events.push(quotaFn);
+          if (spend) events.push('bump_gemini_spend');
+          if (capacity) events.push('reserve_llm_proxy_capacity');
+          if (failure === 'bad_key' || failure.startsWith('capacity_') || (failure === 'missing_key' && admission)) events.push('refund_gemini_spend');
+          if (model) {
+            if (!admission && validTurn) events.push('begin_chat_turn_attempt');
+            events.push('model', 'settle_llm_proxy_capacity', 'audit');
+            if (failure === 'success') {
+              events.push('effective_llm_consent_snapshot_v2');
+              if (validTurn) events.push('claim_chat_turn_for_audit');
+            }
+          }
+          expect(h.events).toEqual([...events, 'response']);
+        },
+      );
+    });
+  });
+
   it.each(['tier', 'consent_unavailable', 'consent_denied', 'input', 'crisis'])(
     '허가 전 실패 봉투는 미확정 %s', async (gate) => {
       const h = host();
