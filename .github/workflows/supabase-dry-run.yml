@@ -428,6 +428,38 @@ jobs:
           psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
             -c 'CREATE DATABASE t16_authority_test_ci TEMPLATE postgres'
           node scripts/test-interview-content-authority-sql.mjs "$LOCAL_SQL_CONTAINER" t16_authority_test_ci
+      - name: Exercise dormant T39 admission on full schema clone
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Keep the unnumbered function out of the numbered replay database.
+          # Only this job's fresh local schema is cloned; no remote URL or secrets.
+          psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE t39_admission_test_ci TEMPLATE postgres'
+          for pass in 1 2; do
+            psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
+              --single-transaction -f db/migration-drafts/UNNUMBERED_chat_turn_attempt_with_quota.sql
+          done
+          psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
+            -f db/migration-drafts/tests/chat-turn-attempt-with-quota.sql
+          psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
+            --single-transaction -f db/migration-drafts/rollback/UNNUMBERED_chat_turn_attempt_with_quota_down.sql
+          psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 <<'SQL'
+          DO $t39_down$
+          BEGIN
+            IF to_regprocedure('public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)') IS NOT NULL
+               OR to_regprocedure('public.begin_chat_turn_attempt(uuid,uuid,uuid)') IS NULL
+               OR to_regprocedure('public.consume_llm_proxy_purpose_quota(uuid,text,text)') IS NULL THEN
+              RAISE EXCEPTION 'T39 rollback must remove only the new entrypoint';
+            END IF;
+          END
+          $t39_down$;
+          SQL
+          psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
+            --single-transaction -f db/migration-drafts/UNNUMBERED_chat_turn_attempt_with_quota.sql
+          psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
+            -f db/migration-drafts/tests/chat-turn-attempt-with-quota.sql
       - name: Verify promoted server-first contracts after numbered scratch replay
         env:
           PGPASSWORD: postgres

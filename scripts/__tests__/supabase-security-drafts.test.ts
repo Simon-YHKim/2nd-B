@@ -84,6 +84,10 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
+  "UNNUMBERED_chat_turn_attempt_with_quota.sql": {
+    runner: "db/migration-drafts/tests/chat-turn-attempt-with-quota.sql",
+    workflowInvocation: "-f db/migration-drafts/tests/chat-turn-attempt-with-quota.sql",
+  },
   "UNNUMBERED_interview_content_authority.sql": {
     runner: "scripts/test-interview-content-authority-sql.mjs",
     workflowInvocation: 'node scripts/test-interview-content-authority-sql.mjs "$LOCAL_SQL_CONTAINER" t16_authority_test_ci',
