@@ -34,10 +34,14 @@
 #### T39 대화 허가 모드: 서버 확인 뒤 enforce
 
 Q-261021-04(8판)의 E1-Ec는 env 레버와 적용 절차를 준비하며 워크플로 실행은 0회다.
-코디네이터(Claude Code 2ndb-4e)는 S0a 양성 기록과 E1-Ea·Ec의 독립 검토 PASS ·
-새 medium 0 · CI 초록을 확인해 Relay 적용일 전에 머지한다. 운영 적용 담당 Relay는
-E1-S의 적용·함수 서명·service_role 전용 권한을 확인하고, OpenAI Edge 배포와
-legacy 동작 확인을 마친 뒤에만 main의 `.github/workflows/edge-flag-set.yml`에서
+코디네이터(Claude Code 2ndb-4e)는 S0a 양성 기록과 독립 검토 PASS · 새 medium 0 ·
+CI 초록을 확인해 E1-Ec는 Relay 적용일 전에, E1-Ea는 Relay가 E1-S를 적용한 날에
+머지한다(openai-proxy가 새 함수를 부르므로 `deploy-edge-function.yml`의 스키마 게이트가
+운영에 그 함수가 있을 때만 배포를 통과시킨다. 먼저 머지하면 그때까지 openai-proxy의 다른
+배포도 막힌다). 운영 적용 · 배포 · 레버 실행을 시작하기 전에 코디네이터가
+`_sync/TO-CLI.md`에 "적용 중"(또는 "배포 중")을 올리고 끝나면 "완료"로 내린다. 운영 적용
+담당 Relay는 E1-S의 적용·함수 서명·service_role 전용 권한을 확인하고, OpenAI Edge 배포와
+legacy 동작 확인(코디네이터가 QA 계정으로 실모델 2회 이내)을 마친 뒤에만 main의 `.github/workflows/edge-flag-set.yml`에서
 `flag=CHAT_TURN_ADMISSION_MODE`, `value=enforce`, 적용 사유 `reason`을 지정한다.
 Production 승인과 `supabase-production-mutations` 직렬 실행, 최신 main 확인 및 적용 직전
 재확인을 거쳐 Production의 `PRODUCTION_SUPABASE_PROJECT_REF`가 가리키는 Supabase
@@ -49,6 +53,10 @@ Production 승인과 `supabase-production-mutations` 직렬 실행, 최신 main 
 `CHAT_TURN_ADMISSION_MODE=legacy`로 설정하고 digest와 legacy 동작을 확인한다.
 미설정·알 수 없는 값의 legacy 폴백은 E1-Ea의 서버 계약이며, 이 워크플로는 그런 값을
 설정하지 않는다. 되돌림 창의 재차감 가능성은 8판의 수용 잔여이고 자동 보상은 없다.
+되돌림 뒤에도 남는 것: enforce 동안 커밋된 시도 등록과 목적 차감은 그대로이고, B1이 켜진
+상태의 legacy에서는 명시적 재질문이 409가 되어 다음 클릭에 일반 차감 재시도로 넘어간다.
+E1-S를 down 마이그레이션으로 지우지 않는다(지우면 스키마 게이트 때문에 openai-proxy를
+다시 배포할 수 없다).
 
 #### Paddle 환불 무결성 draft: 웹훅을 끈 상태에서만 교체
 
