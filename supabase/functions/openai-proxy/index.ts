@@ -767,9 +767,9 @@ async function handleOpenAi(
       return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
     }
   }
-
+  // Validate intent only for valid turns; unbound reasks still fail without charging.
   const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
-  const intent = purpose === 'secondb_chat' ? readChatAttemptIntent(body.chatAttemptIntent) : 'first';
+  const intent = chatTurnId || (purpose === 'secondb_chat' && body.chatAttemptIntent === 'reask') ? readChatAttemptIntent(body.chatAttemptIntent) : 'first';
   if (intent === null) {
     turnAdmission = undefined; // The invalid-intent 400 has no admission envelope.
     return jsonResponse(req, { error: 'invalid_chat_attempt_intent' }, 400);

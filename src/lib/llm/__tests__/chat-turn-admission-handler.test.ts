@@ -122,6 +122,80 @@ describe('OpenAI 대화 허가', () => {
   });
   afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
 
+  // Wire contract supplement 2: columns are absent/valid/malformed turn,
+  // each with legacy then enforce. Expectations are independent of parsing.
+  describe.each([
+    ['absent', undefined, 'legacy', 0], ['absent', undefined, 'enforce', 1],
+    ['valid', turnId, 'legacy', 2], ['valid', turnId, 'enforce', 3],
+    ['malformed', 'bad-id', 'legacy', 4], ['malformed', 'bad-id', 'enforce', 5],
+  ] as [string, unknown, string, number][])('보충 2 %s %s %s', (shape, id, mode, column) => {
+    describe.each([
+      ['absent', undefined, [200, 200, 200, 200, 200, 200]],
+      ['first', 'first', [200, 200, 200, 200, 200, 200]],
+      ['reask', 'reask', [409, 409, 409, 200, 409, 409]],
+      ['unknown string', 'invalid', [200, 200, 400, 400, 200, 200]],
+      ['number', 7, [200, 200, 400, 400, 200, 200]],
+      ['null', null, [200, 200, 400, 400, 200, 200]],
+      ['object', { intent: 'first' }, [200, 200, 400, 400, 200, 200]],
+    ] as [string, unknown, number[]][])('%s', (_name, intent, statuses) => {
+      it('응답과 전체 호출 순서', async () => {
+        const h = host(mode);
+        const row = intent === 'reask' ? second : first;
+        h.overrides.set(admissionFn, () => ({ data: row }));
+        const response = await h.run({ chatTurnId: id, chatAttemptIntent: intent });
+        const body = await response.json();
+        const status = statuses[column];
+        expect(response.status).toBe(status);
+        const events = ['effective_llm_consent_snapshot_v2', 'effective_subscription_tier'];
+        if (status !== 200) {
+          const error = status === 400 ? 'invalid_chat_attempt_intent' : 'reask_ineligible';
+          expect(body).toEqual({ error, ...(status === 409 && shape !== 'absent' ? {
+            turnAdmission: { mode, allowed: false, kind: 'rejected', attempt: null,
+              quotaCharged: false, bindingEligible: false, reaskAvailable: false },
+          } : {}) });
+          expect(h.count(admissionFn)).toBe(0); expectNoDispatch(h);
+          expect(h.audit).not.toHaveBeenCalled();
+        } else {
+          const admitted = column === 3;
+          expect(body.error).toBeUndefined();
+          expect(h.count(admissionFn)).toBe(admitted ? 1 : 0);
+          expect(h.count('consume_llm_proxy_purpose_quota')).toBe(admitted ? 0 : 1);
+          if (admitted) {
+            expect(h.rpc.mock.calls.find(([name]) => name === admissionFn)).toEqual([admissionFn, {
+              p_user_id: userId, p_audit_id: auditId, p_turn_id: turnId,
+              p_provider: 'openai', p_attempt_intent: intent ?? 'first',
+            }]);
+            expect(body.turnAdmission).toEqual(wire(row));
+          } else if (shape === 'absent') expect(body).not.toHaveProperty('turnAdmission');
+          else expect(body.turnAdmission).toEqual(mode === 'legacy'
+            ? { mode, allowed: true, kind: null, attempt: null, quotaCharged: true,
+              bindingEligible: null, reaskAvailable: null }
+            : { mode, allowed: true, kind: 'unbound', attempt: null, quotaCharged: true,
+              bindingEligible: false, reaskAvailable: false });
+          if (shape === 'valid') expect(body.turnBound).toBe(true);
+          else expect(body).not.toHaveProperty('turnBound');
+          expect(h.fetch).toHaveBeenCalledTimes(1);
+          expect(h.audit).toHaveBeenCalledTimes(1);
+          events.push(admitted ? admissionFn : 'consume_llm_proxy_purpose_quota',
+            'bump_gemini_spend', 'reserve_llm_proxy_capacity');
+          if (column === 2) events.push('begin_chat_turn_attempt');
+          events.push('model', 'settle_llm_proxy_capacity', 'audit', 'effective_llm_consent_snapshot_v2');
+          if (shape === 'valid') events.push('claim_chat_turn_for_audit');
+        }
+        expect(h.events).toEqual([...events, 'response']);
+      });
+      it('위기 응답 우선', async () => {
+        const h = host(mode);
+        const response = await h.run({ chatTurnId: id, chatAttemptIntent: intent, user: '죽고 싶어' });
+        expect(response.status).toBe(422);
+        expect(await response.json()).toMatchObject({ error: 'safety_red_zone', reason: 'crisis_term_detected' });
+        expect(h.count(admissionFn)).toBe(0); expectNoDispatch(h);
+        expect(h.audit).not.toHaveBeenCalled();
+        expect(h.events).toEqual(['effective_llm_consent_snapshot_v2', 'response']);
+      });
+    });
+  });
+
   it.each([
     [{ data: rejected }, 409, 'reask_ineligible'],
     [{ data: { ...rejected, error: 'first_already_registered' } }, 409, 'first_already_registered'],
@@ -247,6 +321,14 @@ describe('OpenAI 대화 허가', () => {
       ['no turn', { chatTurnId: undefined }, false],
       ['intent only', { chatTurnId: undefined, chatAttemptIntent: 'first' }, false],
       ['invalid turn', { chatTurnId: 'bad-id', chatAttemptIntent: 'first' }, false],
+      ...[
+        ['unknown string', 'invalid'], ['number', 7], ['null', null], ['object', { intent: 'first' }],
+      ].map(([name, intent]): [string, Record<string, unknown>, boolean] =>
+        [`no turn ${name}`, { chatTurnId: undefined, chatAttemptIntent: intent }, false]),
+      ...[
+        ['absent', undefined], ['unknown string', 'invalid'], ['number', 7], ['null', null], ['object', { intent: 'first' }],
+      ].map(([name, intent]): [string, Record<string, unknown>, boolean] =>
+        [`invalid turn ${name}`, { chatTurnId: 'bad-id', chatAttemptIntent: intent }, false]),
     ] as [string, Record<string, unknown>, boolean][])('%s', (_shape, patch, validTurn) => {
       it.each([
         // failure, HTTP, error, reached quota, spend, capacity, model
