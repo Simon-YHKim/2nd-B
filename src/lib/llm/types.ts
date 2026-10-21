@@ -170,6 +170,10 @@ export interface LlmResult<T = string> {
   turnAdmission?: TurnAdmission;
   /** Actual server claim result, independent of admission/binding eligibility. */
   turnBound?: boolean;
+  /** T40: this response replaced model output, with its proxy audit receipt.
+   * Absent for input blocks, ordinary replies and non-reservation requests.
+   * The server alone decides whether this audit qualifies for a refund. */
+  outputSwap?: Readonly<{ auditId: string; reservationId: string }>;
 }
 
 // 3-tier model ids. ENV-overridable so the owner can bump generations later
