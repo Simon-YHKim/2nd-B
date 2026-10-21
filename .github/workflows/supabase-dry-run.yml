@@ -21,6 +21,7 @@ on:
       - "scripts/test-deletion-receipt-sql.mjs"
       - "scripts/test-records-embedding-consent-sql.mjs"
       - "scripts/test-interview-content-authority-sql.mjs"
+      - "scripts/test-chat-turn-admission-races.sh"
       - ".github/workflows/supabase-dry-run.yml"
 
 # Least privilege: this workflow only reads the repo (checkout + local tooling).
@@ -460,6 +461,7 @@ jobs:
             --single-transaction -f db/migration-drafts/UNNUMBERED_chat_turn_attempt_with_quota.sql
           psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
             -f db/migration-drafts/tests/chat-turn-attempt-with-quota.sql
+          bash scripts/test-chat-turn-admission-races.sh
       - name: Verify promoted server-first contracts after numbered scratch replay
         env:
           PGPASSWORD: postgres
