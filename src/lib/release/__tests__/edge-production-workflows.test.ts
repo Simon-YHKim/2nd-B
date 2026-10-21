@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
@@ -7,6 +8,7 @@ const CHECKOUT_SHA = "11d5960a326750d5838078e36cf38b85af677262";
 const SETUP_CLI_SHA = "ab058987d8d6c725971f6cf9d0b5c98467e30bd1";
 
 interface Step {
+  id?: string;
   name?: string;
   uses?: string;
   run?: string;
@@ -147,7 +149,128 @@ describe("deploy-edge-function input and config contract", () => {
 });
 
 describe("edge-flag-set mutation contract", () => {
-  const { raw, job } = load("edge-flag-set.yml");
+  const { raw, workflow, job } = load("edge-flag-set.yml");
+  const flags = [
+    "PADDLE_SELF_SERVICE_ENABLED",
+    "PADDLE_SELF_SERVICE_DRYRUN",
+    "CHAT_TURN_ADMISSION_MODE",
+  ];
+  const values = ["1", "0", "legacy", "enforce"];
+
+  // Execute only the input gate with synthetic inputs and a local output file.
+  // No production credentials, git commands, or Supabase calls run here.
+  function runInputGate(flag: string, value: string, reason = "T21 local contract") {
+    const gate = job.steps.find((step) => step.id === "input_gate");
+    if (!gate?.run) throw new Error("edge flag input gate required");
+    const temp = fs.mkdtempSync(path.join(root, ".verify-edge-flag-"));
+    const output = path.join(temp, "output");
+    fs.writeFileSync(output, "");
+    try {
+      const result = spawnSync("bash", ["--noprofile", "--norc", "-s"], {
+        cwd: root,
+        input: gate.run,
+        encoding: "utf8",
+        timeout: 5000,
+        env: {
+          NODE_ENV: "test",
+          PATH: process.env.PATH,
+          SystemRoot: process.env.SystemRoot,
+          FLAG: flag,
+          VALUE: value,
+          REASON: reason,
+          GITHUB_OUTPUT: path.relative(root, output).replace(/\\/g, "/"),
+        },
+      });
+      return { ...result, outputs: fs.readFileSync(output, "utf8") };
+    } finally {
+      fs.unlinkSync(output);
+      fs.rmdirSync(temp);
+    }
+  }
+
+  test("T21 exposes static value choices and retains the existing inputs", () => {
+    expect(workflow.on.workflow_dispatch.inputs).toEqual({
+      flag: {
+        description: expect.any(String),
+        required: true,
+        type: "choice",
+        options: flags,
+      },
+      value: {
+        description: expect.any(String),
+        required: true,
+        type: "choice",
+        options: values,
+      },
+      reason: {
+        description: "One line, for the run log. Why now?",
+        required: true,
+        type: "string",
+      },
+    });
+    const gate = job.steps.find((step) => step.id === "input_gate");
+    expect(gate?.env).toEqual({
+      FLAG: "${{ inputs.flag }}",
+      VALUE: "${{ inputs.value }}",
+      REASON: "${{ inputs.reason }}",
+    });
+    expect(job.steps.indexOf(gate!)).toBeLessThan(
+      job.steps.indexOf(mutationStep(job, "supabase secrets set")),
+    );
+  });
+
+  test.each(flags.flatMap((flag) => values.map((value) => [flag, value])))(
+    "T21 validates the %s=%s pair before emitting mutation inputs",
+    (flag, value) => {
+      const allowed =
+        flag === "CHAT_TURN_ADMISSION_MODE"
+          ? ["legacy", "enforce"].includes(value)
+          : ["0", "1"].includes(value);
+      const result = runInputGate(flag, value);
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(allowed ? 0 : 1);
+      if (allowed) {
+        expect(result.outputs.replace(/\r\n/g, "\n")).toBe(`flag=${flag}\nvalue=${value}\n`);
+      } else {
+        expect(result.stdout).toContain("::error title=Edge flag gate::");
+        expect(result.outputs).toBe("");
+      }
+    },
+  );
+
+  test.each(["", "UNLISTED_FLAG", "CHAT_TURN_ADMISSION_MODE_EXTRA"])(
+    "T21 rejects the unlisted flag %j",
+    (flag) => {
+      const result = runInputGate(flag, "legacy");
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("flag-not-allowlisted");
+      expect(result.outputs).toBe("");
+    },
+  );
+
+  test.each(["", "paused", "ENFORCE", "true", "2", "legacy\nvalue=enforce"])(
+    "T21 rejects unsupported values %j for every flag",
+    (value) => {
+      for (const flag of flags) {
+        const result = runInputGate(flag, value);
+        expect(result.error).toBeUndefined();
+        expect(result.status).toBe(1);
+        expect(result.outputs).toBe("");
+      }
+    },
+  );
+
+  test.each(["", "x".repeat(201), "two\nlines", "carriage\rreturn", "tab\there"])(
+    "retains bounded single-line reason validation for %j",
+    (reason) => {
+      const result = runInputGate("PADDLE_SELF_SERVICE_ENABLED", "1", reason);
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("reason-must-be-one-bounded-line");
+      expect(result.outputs).toBe("");
+    },
+  );
 
   // The repository is public. `supabase secrets list` returns every production
   // secret name with its SHA256 digest, so that catalog must never reach the
@@ -192,6 +315,16 @@ describe("edge-flag-set mutation contract", () => {
     expect(fetch).toBeGreaterThanOrEqual(0);
     expect(comparison).toBeGreaterThan(fetch);
     expect(mutation).toBeGreaterThan(comparison);
+    expect(script).toContain('[ "$(git rev-parse HEAD)" != "$MAIN_SHA" ]');
+    expect(script).toContain('[ "$(git rev-parse refs/remotes/origin/main)" != "$MAIN_SHA" ]');
+    expect(script.slice(comparison, mutation)).toMatch(
+      /main-advanced-before-mutation[\s\S]*exit 1/,
+    );
+    expect(step.env?.MAIN_SHA).toBe("${{ steps.main_gate.outputs.main_sha }}");
+    expect(step.env?.FLAG).toBe("${{ steps.input_gate.outputs.flag }}");
+    expect(step.env?.VALUE).toBe("${{ steps.input_gate.outputs.value }}");
+    expect(step.env?.PROJECT_REF).toBe("${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}");
+    expect(script).toContain('--project-ref "$PROJECT_REF"');
   });
 });
 
