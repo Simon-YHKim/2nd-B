@@ -7,7 +7,7 @@ import type { AccountOwnerLease } from "../auth/account-epoch";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import type { createContentWipeLedger } from "../account/content-wipe";
 import { kstDateToday } from "./limits";
-
+import { classifyChatTurnError, parseChatTurnReservation, parseChatUsageCount, type ChatTurnUsage } from "./turn-reservation";
 type UsageReadExecution = Pick<AuthenticatedAccountSessionLease, "userId" | "signal" | "assertCurrent">;
 export type CapturedChatUsageExecution = Readonly<{
   session: AuthenticatedAccountSessionLease;
@@ -250,4 +250,38 @@ export async function bumpChatUsageIfUnderCap(
   // hand out a fresh quota and let the daily cap be bypassed).
   if (typeof data !== "number") throw new Error("invalid_chat_usage_response");
   return data;
+}
+
+/**
+ * T39 A1-U, dormant: no production caller until the server admission gate is ready.
+ * A failed/ambiguous reservation may already have bumped usage. Only a confirmed
+ * missing 0255 RPC permits one legacy bump, which carries no turn receipt.
+ * Existing live and captured callers keep bumpChatUsageIfUnderCap unchanged.
+ */
+export async function bumpChatUsageForTurn(
+  userId: string,
+  cap: number,
+  day: string = kstDateToday(),
+): Promise<ChatTurnUsage> {
+  const supabase = getSupabaseClient();
+  const result = await supabase.rpc("bump_chat_usage_for_turn", { p_user_id: userId, p_day: day });
+  if (result.error) {
+    const reason = classifyChatTurnError(result.error, result.status);
+    if (reason === "limit") throw new ChatLimitExceededError();
+    if (reason !== "missing") throw result.error;
+
+    // Keep raw status/error here: the older wrapper's substring cap check cannot
+    // establish a confirmed rejection for this new protocol.
+    const legacy = await supabase.rpc("bump_chat_usage_if_under_cap", {
+      p_user_id: userId, p_day: day, p_cap: cap,
+    });
+    if (legacy.error) {
+      if (classifyChatTurnError(legacy.error, legacy.status) === "limit") throw new ChatLimitExceededError();
+      throw legacy.error;
+    }
+    const count: unknown = legacy.data;
+    return { count: parseChatUsageCount(count), turnId: null };
+  }
+  const receipt: unknown = result.data;
+  return parseChatTurnReservation(receipt);
 }
