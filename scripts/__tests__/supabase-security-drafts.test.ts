@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const ROOT = resolve(__dirname, "../..");
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8").replace(/\r\n/g, "\n");
@@ -84,6 +84,10 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
+  "UNNUMBERED_account_export_read_grants.sql": {
+    runner: "db/migration-drafts/tests/account-export-read-grants.sql",
+    workflowInvocation: "psql -X -h 127.0.0.1 -U postgres -d account_export_grants_test_ci -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/account-export-read-grants.sql",
+  },
   "UNNUMBERED_chat_turn_attempt_with_quota.sql": {
     runner: "scripts/test-chat-turn-admission-races.sh",
     workflowInvocation: "bash scripts/test-chat-turn-admission-races.sh",
@@ -175,6 +179,44 @@ const behaviorLanes = {
 } as const;
 
 describe("migration drafts: one copy per migration, and scratch PostgreSQL coverage", () => {
+  test("account export grants stay on their isolated full-schema lane with rollback coverage", () => {
+    const regression = read("db/migration-drafts/tests/account-export-read-grants.sql");
+    const lane = workflow.slice(
+      workflow.indexOf("- name: Exercise account export column grants on full schema clone"),
+      workflow.indexOf("- name: Exercise records embedding consent on full schema clone"),
+    );
+    expect(lane).toContain("CREATE DATABASE account_export_grants_test_ci TEMPLATE postgres");
+    expect(lane).toContain(pendingDrafts["UNNUMBERED_account_export_read_grants.sql"].workflowInvocation);
+    expect(lane).toContain("DROP DATABASE IF EXISTS account_export_grants_test_ci");
+    expect(regression).toContain("\\ir ../UNNUMBERED_account_export_read_grants.sql");
+    expect(regression).toContain("\\ir ../rollback/UNNUMBERED_account_export_read_grants_down.sql");
+    expect(regression).toContain("SET LOCAL ROLE service_role;");
+    expect(regression).toContain("SET LOCAL ROLE authenticated;");
+    expect(regression).toContain("SET LOCAL ROLE anon;");
+    expect(regression).toContain("WHEN insufficient_privilege THEN RETURN");
+    expect(regression).toContain("SELECT pg_temp.assert_export_acl(false);");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("account export forward and rollback touch only the approved 20 service SELECT columns", () => {
+    const grants = [
+      ["llm_consent_receipts", "consent_record_id, user_id, contract_revision, service_action, recorded_at"],
+      ["weather_consent_state", "user_id, enabled, contract, locale, updated_at"],
+      ["weather_access_events", "id, user_id, event, recipient, contract, created_at"],
+      ["dashboard_generation_settings", "user_id, timezone, locale, last_active_at"],
+    ];
+    const statements = (sql: string) => sql.replace(/^--.*$/gm, "").replace(/\s+/g, " ").trim();
+    for (const [file, verb, preposition] of [
+      ["UNNUMBERED_account_export_read_grants.sql", "GRANT", "TO"],
+      ["rollback/UNNUMBERED_account_export_read_grants_down.sql", "REVOKE", "FROM"],
+    ]) {
+      const expected = "SET LOCAL lock_timeout = '10s'; " + grants.map(([table, columns]) =>
+        `${verb} SELECT (${columns}) ON public.${table} ${preposition} service_role;`,
+      ).join(" ");
+      expect(statements(read(`${DRAFT_DIR}/${file}`))).toBe(expected);
+    }
+  });
+
   test("no promoted draft sits beside its numbered migration (Q-261005-07)", () => {
     expect(draftCopyViolations(listDrafts(), listNumbered(), RETAINED_UNTIL_APPLIED, sameBytes))
       .toEqual([]);
@@ -247,10 +289,15 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
       ...readdirSync(join(ROOT, DRAFT_DIR, "tests")).map((name) => `${DRAFT_DIR}/tests/${name}`),
     ].filter((path) => path.endsWith(".sql"));
     const retainedDrafts = RETAINED_UNTIL_APPLIED.map((key) => `UNNUMBERED_${key.slice(5)}.sql`);
+    const registered = [...retainedDrafts, ...Object.keys(pendingDrafts)];
+    const allowedFiles = new Set(registered.flatMap((draft) => [
+      resolve(ROOT, DRAFT_DIR, draft),
+      resolve(ROOT, DRAFT_DIR, "rollback", draft.replace(/\.sql$/, "_down.sql")),
+    ]).filter(existsSync));
     const offenders = fixtures.flatMap((path) =>
-      [...read(path).matchAll(/^\\i(?:r)?\s+[^\n]*?(UNNUMBERED_[a-z0-9_]+\.sql)/gm)]
-        .filter((hit) => !retainedDrafts.includes(hit[1]) && !Object.hasOwn(pendingDrafts, hit[1]))
-        .map((hit) => `${path}: ${hit[1]}`),
+      [...read(path).matchAll(/^\\(ir|i)\s+([^\n]*?UNNUMBERED_[a-z0-9_]+\.sql)/gm)]
+        .filter((hit) => !allowedFiles.has(resolve(ROOT, hit[1] === "ir" ? dirname(path) : ".", hit[2])))
+        .map((hit) => `${path}: ${hit[2]}`),
     );
     expect(fixtures.length).toBeGreaterThan(10);
     expect(offenders).toEqual([]);
