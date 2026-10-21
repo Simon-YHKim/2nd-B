@@ -79,6 +79,16 @@ test("T19 excludes inactive time and preserves a remaining budget longer than th
   f.clock.advance(1); expect(f.onExpire).toHaveBeenCalledTimes(1);
 });
 
+test("T19 two long hidden intervals preserve the full remaining transport budget", () => {
+  const f = fixture("transport"); f.start();
+  f.clock.advance(10_000); f.state.set(false); f.clock.advance(600_000); f.state.set(true);
+  f.clock.advance(50_000); f.state.set(false); f.clock.advance(600_000); f.state.set(true);
+  // 60 seconds of active time remain, well above the 15-second return grace.
+  f.clock.advance(59_999); expect(f.onExpire).not.toHaveBeenCalled();
+  f.clock.advance(1); expect(f.onExpire).toHaveBeenCalledTimes(1);
+  f.clock.advance(120_000); expect(f.onExpire).toHaveBeenCalledTimes(1);
+});
+
 test.each(["reservation", "transport"] as const)("T19 %s gets a full 15 seconds on every return", kind => {
   const f = fixture(kind); f.start(); f.clock.advance(FOREGROUND_DEADLINE_MS[kind] - 1_000);
   f.state.set(false); f.clock.advance(600_000); f.state.set(true);
@@ -141,10 +151,47 @@ test("T19 disposal during the callback state read cannot publish expiry", () => 
   expect(f.clock.pending).toHaveLength(0); expect(f.state.listeners.size).toBe(0);
 });
 
+test("T19 disposal during the listener state read cannot install a new timer", () => {
+  const f = fixture("reservation", false), deadline = f.start();
+  jest.mocked(f.state.foreground.isActive).mockImplementationOnce(() => { deadline.stop(); return true; });
+  f.state.set(true);
+  expect(f.clock.timers).toHaveLength(0); expect(f.state.listeners.size).toBe(0);
+  f.clock.advance(20_000); expect(f.onExpire).not.toHaveBeenCalled();
+});
+
 test("T19 an early timer callback reschedules only the actual remaining time", () => {
   const f = fixture(); f.start(); f.clock.elapse(2_000); f.clock.fire(f.clock.latest);
   expect(f.clock.latest.due).toBe(20_000); expect(f.onExpire).not.toHaveBeenCalled();
   f.clock.advance(18_000); expect(f.onExpire).toHaveBeenCalledTimes(1);
+});
+
+test("T19 an early callback followed by a pause never charges active time twice", () => {
+  const f = fixture("transport"); f.start();
+  f.clock.elapse(2_000); f.clock.fire(f.clock.latest);
+  f.clock.advance(58_000); f.state.set(false); f.clock.advance(600_000); f.state.set(true);
+  f.clock.advance(59_999); expect(f.onExpire).not.toHaveBeenCalled();
+  f.clock.advance(1); expect(f.onExpire).toHaveBeenCalledTimes(1);
+});
+
+test("T19 a callback one millisecond early must rearm without expiring", () => {
+  const f = fixture(); f.start(); f.clock.elapse(19_999); f.clock.fire(f.clock.latest);
+  expect(f.onExpire).not.toHaveBeenCalled(); expect(f.clock.pending).toHaveLength(1);
+  expect(f.clock.latest.due).toBe(20_000);
+  f.clock.advance(1); expect(f.onExpire).toHaveBeenCalledTimes(1);
+});
+
+test("T19 timers and listeners are removed before a throwing expiry callback", () => {
+  const f = fixture(), atExpiry = jest.fn(), error = new Error("screen expiry");
+  f.onExpire.mockImplementation(() => {
+    atExpiry(f.clock.pending.length, f.state.listeners.size);
+    throw error;
+  });
+  f.start(); const timer = f.clock.latest;
+  expect(() => f.clock.advance(20_000)).toThrow(error);
+  expect(atExpiry).toHaveBeenCalledWith(0, 0);
+  expect(f.clock.pending).toHaveLength(0); expect(f.state.listeners.size).toBe(0);
+  f.clock.fire(timer); f.state.set(false); f.state.set(true); f.clock.advance(20_000);
+  expect(f.onExpire).toHaveBeenCalledTimes(1);
 });
 
 test("T19 retiring one request does not stop a newer request", () => {
@@ -285,26 +332,67 @@ test.each(["resolve", "reject"] as const)("T19 early %s stops the deadline and p
   expect(f.onExpire).not.toHaveBeenCalled(); expect(f.state.listeners.size).toBe(0);
 });
 
+test.each(["resolve", "reject"] as const)("T19 owner disposal still observes a late %s", async mode => {
+  const f = fixture(), result = deferred<object>(), value = {}, settled = jest.fn();
+  const observed = observeForegroundDeadline(result.promise, f.options), old = f.clock.latest;
+  void observed.then(settled, settled);
+  expect(f.state.listeners.size).toBe(1);
+  observed.stop(); observed.stop();
+  expect(f.state.listeners.size).toBe(0); expect(f.clock.pending).toHaveLength(0);
+  f.state.set(false); f.state.set(true); f.clock.advance(600_000); f.clock.fire(old);
+  await Promise.resolve();
+  expect(f.onExpire).not.toHaveBeenCalled(); expect(f.clock.timers).toHaveLength(1);
+  expect(settled).not.toHaveBeenCalled();
+  if (mode === "resolve") { result.resolve(value); await expect(observed).resolves.toBe(value); }
+  else { result.reject(value); await expect(observed).rejects.toBe(value); }
+  expect(settled).toHaveBeenCalledTimes(1); expect(settled).toHaveBeenCalledWith(value);
+});
+
+describe.each(["subscribe", "isActive", "now", "schedule"] as const)("T19 failed %s setup", stage => {
+  test.each(["resolve", "reject"] as const)("keeps observing the original %s without leaking resources", async mode => {
+    const f = fixture(), result = deferred<object>(), value = {}, settled = jest.fn();
+    const fail = () => { throw new Error("deadline unavailable"); };
+    if (stage === "subscribe") jest.spyOn(f.state.foreground, "subscribe").mockImplementationOnce(fail);
+    else if (stage === "isActive") jest.mocked(f.state.foreground.isActive).mockImplementationOnce(fail);
+    else jest.spyOn(f.clock, stage).mockImplementationOnce(fail);
+    const observed = observeForegroundDeadline(result.promise, f.options);
+    void observed.then(settled, settled);
+    expect(f.state.listeners.size).toBe(0); expect(f.clock.pending).toHaveLength(0);
+    // A stale subscription must not restart the clock after installation failed.
+    f.state.set(false); f.state.set(true); f.clock.advance(600_000);
+    observed.stop(); observed.stop(); await Promise.resolve();
+    expect(f.onExpire).not.toHaveBeenCalled(); expect(f.clock.timers).toHaveLength(0);
+    expect(settled).not.toHaveBeenCalled();
+    if (mode === "resolve") { result.resolve(value); await expect(observed).resolves.toBe(value); }
+    else { result.reject(value); await expect(observed).rejects.toBe(value); }
+    expect(settled).toHaveBeenCalledTimes(1); expect(settled).toHaveBeenCalledWith(value);
+  });
+});
+
 test.each([200, 422])("T19 HTTP %i stops before response parsing and audit waits", async status => {
   const f = fixture("transport"), raw = deferred<{ status: number }>(), audit = deferred<void>();
+  const atParse = jest.fn();
   const parse = jest.fn(async (response: { status: number }) => {
-    expect(f.clock.pending).toHaveLength(0); await audit.promise; return response;
+    atParse(f.clock.pending.length, f.state.listeners.size);
+    await audit.promise; return response;
   });
   const processed = observeForegroundDeadline(raw.promise, f.options).then(parse);
   f.clock.advance(119_999); const response = { status }; raw.resolve(response);
   await Promise.resolve(); await Promise.resolve(); expect(parse).toHaveBeenCalledTimes(1);
+  expect(atParse).toHaveBeenCalledWith(0, 0);
   f.clock.advance(600_000); expect(f.onExpire).not.toHaveBeenCalled();
   audit.resolve(); await expect(processed).resolves.toBe(response);
 });
 
 test("T19 a rejected 422 response is preserved while downstream interpretation waits", async () => {
   const f = fixture("transport"), raw = deferred<never>(), audit = deferred<void>();
-  const error = { status: 422 }, interpreted = jest.fn();
+  const error = { status: 422 }, interpreted = jest.fn(), atInterpretation = jest.fn();
   const processed = observeForegroundDeadline(raw.promise, f.options).catch(async received => {
-    expect(received).toBe(error); expect(f.clock.pending).toHaveLength(0);
+    atInterpretation(received, f.clock.pending.length, f.state.listeners.size);
     await audit.promise; interpreted(received);
   });
   raw.reject(error); await Promise.resolve(); await Promise.resolve();
+  expect(atInterpretation).toHaveBeenCalledWith(error, 0, 0);
   f.clock.advance(600_000); expect(f.onExpire).not.toHaveBeenCalled();
   audit.resolve(); await processed; expect(interpreted).toHaveBeenCalledWith(error);
 });

@@ -131,24 +131,39 @@ export function startForegroundDeadline(options: ForegroundDeadlineOptions): For
   }
 
   // Install first, then re-read currentState/visibilityState to close the setup gap.
-  unsubscribe = foreground.subscribe(updateActivity);
-  subscribed = true;
-  updateActivity();
+  try {
+    unsubscribe = foreground.subscribe(updateActivity);
+    subscribed = true;
+    updateActivity();
+  } catch (error) {
+    stop();
+    throw error;
+  }
   return { stop };
 }
 
 /** Observe the raw reservation/transport promise, not the whole conversation.
  * The returned promise still settles with the original result/error, even late.
+ * Call its stop() on owner disposal; this only stops the screen deadline.
+ * Failed deadline setup also leaves the original outcome observable.
  * In B2, attach 422 interpretation, consent/crisis handling and audit AFTER this
  * observer: receiving any response stops the clock before those awaits begin.
  * A permanently unknown foreground state cannot guarantee a finite screen wait.
  */
 export function observeForegroundDeadline<T>(
   response: Promise<T>, options: ForegroundDeadlineOptions,
-): Promise<T> {
-  const deadline = startForegroundDeadline(options);
-  return response.then(
-    value => { deadline.stop(); return value; },
-    error => { deadline.stop(); throw error; },
+): Promise<T> & ForegroundDeadline {
+  let deadline: ForegroundDeadline | undefined;
+  const stop = () => { deadline?.stop(); };
+  // Observe first: an unavailable lifecycle source must not lose a late rejection.
+  const observed = response.then(
+    value => { stop(); return value; },
+    error => { stop(); throw error; },
   );
+  try {
+    deadline = startForegroundDeadline(options);
+  } catch {
+    // startForegroundDeadline cleans up partial setup. Only the timer is lost.
+  }
+  return Object.assign(observed, { stop });
 }
