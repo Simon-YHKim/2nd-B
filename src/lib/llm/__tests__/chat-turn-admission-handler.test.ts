@@ -25,6 +25,10 @@ const wire = (row: typeof first | typeof unbound = first) => {
   const { error: _error, ...fields } = row;
   return { mode: 'enforce', ...fields };
 };
+const beforeAdmissionWire = (mode: string) => ({
+  mode, allowed: null, kind: null, attempt: null,
+  quotaCharged: false, bindingEligible: null, reaskAvailable: null,
+});
 
 function host(mode: string | undefined = 'enforce') {
   let handler!: (req: Request) => Promise<Response>;
@@ -122,22 +126,23 @@ describe('OpenAI 대화 허가', () => {
   });
   afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
 
-  // Wire contract supplement 2: columns are absent/valid/malformed turn,
-  // each with legacy then enforce. Expectations are independent of parsing.
+  // Supplements 3 then 2: an outage must not end a free reask candidate.
+  // Columns are absent/valid/malformed turn, each with legacy then enforce.
+  // Both key states have fixed expectations independent of production parsing.
   describe.each([
     ['absent', undefined, 'legacy', 0], ['absent', undefined, 'enforce', 1],
     ['valid', turnId, 'legacy', 2], ['valid', turnId, 'enforce', 3],
     ['malformed', 'bad-id', 'legacy', 4], ['malformed', 'bad-id', 'enforce', 5],
-  ] as [string, unknown, string, number][])('보충 2 %s %s %s', (shape, id, mode, column) => {
+  ] as [string, unknown, string, number][])('보충 2·3 %s %s %s', (shape, id, mode, column) => {
     describe.each([
-      ['absent', undefined, [200, 200, 200, 200, 200, 200]],
-      ['first', 'first', [200, 200, 200, 200, 200, 200]],
-      ['reask', 'reask', [409, 409, 409, 200, 409, 409]],
-      ['unknown string', 'invalid', [200, 200, 400, 400, 200, 200]],
-      ['number', 7, [200, 200, 400, 400, 200, 200]],
-      ['null', null, [200, 200, 400, 400, 200, 200]],
-      ['object', { intent: 'first' }, [200, 200, 400, 400, 200, 200]],
-    ] as [string, unknown, number[]][])('%s', (_name, intent, statuses) => {
+      ['absent', undefined, [200, 200, 200, 200, 200, 200], [500, 500, 500, 500, 500, 500]],
+      ['first', 'first', [200, 200, 200, 200, 200, 200], [500, 500, 500, 500, 500, 500]],
+      ['reask', 'reask', [409, 409, 409, 200, 409, 409], [500, 500, 500, 500, 500, 500]],
+      ['unknown string', 'invalid', [200, 200, 400, 400, 200, 200], [500, 500, 500, 400, 500, 500]],
+      ['number', 7, [200, 200, 400, 400, 200, 200], [500, 500, 500, 400, 500, 500]],
+      ['null', null, [200, 200, 400, 400, 200, 200], [500, 500, 500, 400, 500, 500]],
+      ['object', { intent: 'first' }, [200, 200, 400, 400, 200, 200], [500, 500, 500, 400, 500, 500]],
+    ] as [string, unknown, number[], number[]][])('%s', (_name, intent, statuses, missingKeyStatuses) => {
       it('응답과 전체 호출 순서', async () => {
         const h = host(mode);
         const row = intent === 'reask' ? second : first;
@@ -183,6 +188,41 @@ describe('OpenAI 대화 허가', () => {
           if (shape === 'valid') events.push('claim_chat_turn_for_audit');
         }
         expect(h.events).toEqual([...events, 'response']);
+      });
+      it('키 누락 장애가 무료 후보를 없애지 않음', async () => {
+        const h = host(mode);
+        h.envValues.delete('OPENAI_API_KEY');
+        const row = intent === 'reask' ? second : first;
+        h.overrides.set(admissionFn, () => ({ data: row }));
+        const response = await h.run({ chatTurnId: id, chatAttemptIntent: intent });
+        const status = missingKeyStatuses[column];
+        expect(response.status).toBe(status);
+        const error = status === 400 ? 'invalid_chat_attempt_intent'
+          : 'server_misconfigured_missing_OPENAI_API_KEY';
+        const admitted = column === 3 && status === 500;
+        const text = await response.text();
+        expect(JSON.parse(text)).toEqual({ error, ...(shape === 'absent' || status === 400 ? {} : {
+          turnAdmission: admitted ? wire(row) : beforeAdmissionWire(mode),
+        }) });
+        if (shape === 'absent') expect(text).toBe('{"error":"server_misconfigured_missing_OPENAI_API_KEY"}');
+        if (column !== 3) {
+          expect(h.rpc).not.toHaveBeenCalled();
+          expectNoDispatch(h);
+          expect(h.events).toEqual(['response']);
+        } else {
+          const events = ['effective_llm_consent_snapshot_v2', 'effective_subscription_tier'];
+          if (admitted) {
+            events.push(admissionFn, 'bump_gemini_spend', 'refund_gemini_spend');
+            expect(h.rpc.mock.calls.find(([name]) => name === admissionFn)).toEqual([admissionFn, {
+              p_user_id: userId, p_audit_id: auditId, p_turn_id: turnId,
+              p_provider: 'openai', p_attempt_intent: intent ?? 'first',
+            }]);
+          } else expectNoDispatch(h);
+          expect(h.events).toEqual([...events, 'response']);
+        }
+        expect(h.count(admissionFn)).toBe(admitted ? 1 : 0);
+        expect(h.fetch).not.toHaveBeenCalled();
+        expect(h.audit).not.toHaveBeenCalled();
       });
       it('위기 응답 우선', async () => {
         const h = host(mode);
@@ -282,15 +322,18 @@ describe('OpenAI 대화 허가', () => {
     ['reask only', { chatTurnId: undefined, chatAttemptIntent: 'reask' }],
     ['turn and reask', { chatAttemptIntent: 'reask' }],
     ['neither', { chatTurnId: undefined }],
-  ] as [string, Record<string, unknown>][])('legacy 키 누락은 main과 같은 무차감 500 %s', async (_name, patch) => {
+  ] as [string, Record<string, unknown>][])('legacy 키 누락 장애가 무료 후보를 없애지 않음 %s', async (_name, patch) => {
     for (const mode of [undefined, 'legacy']) {
       const h = host();
       h.envValues.set('CHAT_TURN_ADMISSION_MODE', mode);
       h.envValues.delete('OPENAI_API_KEY');
       const response = await h.run(patch);
       expect(response.status).toBe(500);
-      // Keep main's early error bytes, including the absence of an envelope.
-      expect(await response.text()).toBe('{"error":"server_misconfigured_missing_OPENAI_API_KEY"}');
+      const text = await response.text();
+      if ('chatTurnId' in patch) expect(text).toBe('{"error":"server_misconfigured_missing_OPENAI_API_KEY"}');
+      else expect(JSON.parse(text)).toEqual({
+        error: 'server_misconfigured_missing_OPENAI_API_KEY', turnAdmission: beforeAdmissionWire('legacy'),
+      });
       expect(h.rpc).not.toHaveBeenCalled();
       expect(h.audit).not.toHaveBeenCalled();
       expectNoDispatch(h);
@@ -298,13 +341,17 @@ describe('OpenAI 대화 허가', () => {
   });
   describe.each(['legacy', 'enforce'])('새 허가 없는 키 누락 %s', (mode) => {
     it.each([undefined, null, '', 'bad-id', 7, { id: turnId }, `${turnId} `])(
-      '유효하지 않은 턴 %#는 의도와 무관하게 RPC 0', async (id) => {
-        for (const intent of [undefined, 'first', 'reask', 'invalid']) {
+      '키 누락 장애가 무료 후보를 없애지 않음: 턴 경계 %#, RPC 0', async (id) => {
+        for (const intent of [undefined, 'first', 'reask', 'invalid', 7, null, { intent: 'first' }]) {
           const h = host(mode);
           h.envValues.delete('OPENAI_API_KEY');
           const response = await h.run({ chatTurnId: id, chatAttemptIntent: intent });
           expect(response.status).toBe(500);
-          expect(await response.text()).toBe('{"error":"server_misconfigured_missing_OPENAI_API_KEY"}');
+          const text = await response.text();
+          if (id === undefined) expect(text).toBe('{"error":"server_misconfigured_missing_OPENAI_API_KEY"}');
+          else expect(JSON.parse(text)).toEqual({
+            error: 'server_misconfigured_missing_OPENAI_API_KEY', turnAdmission: beforeAdmissionWire(mode),
+          });
           expect(h.rpc).not.toHaveBeenCalled();
           expect(h.audit).not.toHaveBeenCalled();
           expectNoDispatch(h);
@@ -393,7 +440,9 @@ describe('OpenAI 대화 허가', () => {
           expect(response.status).toBe(status);
           expect(body.error).toBe(error);
           if (failure === 'missing_key' && !admission) {
-            expect(body).toEqual({ error });
+            expect(body).toEqual({ error, ...(patch.chatTurnId === undefined ? {} : {
+              turnAdmission: beforeAdmissionWire(mode),
+            }) });
             expect(h.rpc).not.toHaveBeenCalled();
           }
           if (patch.chatTurnId === undefined) expect(body).not.toHaveProperty('turnAdmission');

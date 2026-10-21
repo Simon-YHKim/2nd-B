@@ -355,8 +355,8 @@ async function handleOpenAi(
   const chatAdmissionRequest = admissionMode === 'enforce' && requestBody?.purpose === 'secondb_chat'
     && readChatTurnId('secondb_chat', requestBody.chatTurnId) !== null;
   if ((!apiKey || apiKey.length === 0) && !chatAdmissionRequest) {
-    // Only the usesChatAdmission path below may defer this RPC-free key failure.
-    return baseJsonResponse(req, { error: 'server_misconfigured_missing_OPENAI_API_KEY' }, 500);
+    // Supplement 3: outages preserve free candidates; only admission may defer this RPC-free failure.
+    return baseJsonResponse(req, { error: 'server_misconfigured_missing_OPENAI_API_KEY', ...(turnAdmission ? { turnAdmission } : {}) }, 500);
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
