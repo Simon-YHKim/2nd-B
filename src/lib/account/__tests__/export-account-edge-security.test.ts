@@ -793,7 +793,28 @@ describe("export-account bounded owned readers", () => {
     expect(source).not.toMatch(/errors\[[^\]]+\]\s*=/);
   });
 
-  test("discloses every newer account-scoped operational and security table as excluded", () => {
+  test("T22 classifies registered chat turn reservations exactly once", () => {
+    const registry = JSON.parse(readFileSync(join(__dirname, "../../../../db/erasure-registry.json"), "utf8"));
+    const table = "chat_turn_reservations";
+    expect(registry.tables[table]).toMatchObject({ owner: "user_id" });
+    const exportedCount = edge.EXPORT_TABLES!.filter((entry) => entry.table === table).length;
+    const excludedCount = Number(Object.prototype.hasOwnProperty.call(edge.EXCLUDED, table));
+    expect({ table, classifications: exportedCount + excludedCount }).toEqual({ table, classifications: 1 });
+  });
+
+  test("T22 discloses the reservation exclusion without reading rows or internal audit links", async () => {
+    const setup = successfulAdmin();
+    createClientMock.mockReturnValue(setup.admin);
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(200);
+    const body = await response.json() as { tables: Record<string, unknown>; excluded: Record<string, string> };
+    expect(body.excluded.chat_turn_reservations).toMatch(/quota.*audit/i);
+    expect(body.tables).not.toHaveProperty("chat_turn_reservations");
+    expect(setup.from).not.toHaveBeenCalledWith("chat_turn_reservations");
+    expect(body.tables).toHaveProperty("chat_usage");
+  });
+
+  test("discloses the known account-scoped operational and security exclusions", () => {
     expect(edge.EXCLUDED).toMatchObject({
       public_data_quota_daily: expect.any(String),
       oauth_naver_identities: expect.any(String),

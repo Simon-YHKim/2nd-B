@@ -376,6 +376,8 @@ const EXCLUDED: Readonly<Record<string, string>> = Object.freeze({
   public_data_quota_daily: 'operational provider quota accounting',
   llm_proxy_capacity_reservations: 'operational capacity accounting',
   llm_proxy_purpose_daily: 'operational purpose quota accounting',
+  // Like purpose/capacity accounting, not daily chat_usage: no content; keep internal audit links out.
+  chat_turn_reservations: 'short-lived chat quota/refund bookkeeping with internal audit links',
   reward_ssv_tickets: 'short-lived hashed ad callback binding',
   reward_ssv_issue_rate_limits: 'operational ad-ticket anti-abuse accounting',
   rewarded_ssv_txns: 'internal ad reward accounting',
