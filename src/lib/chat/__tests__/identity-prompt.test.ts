@@ -62,11 +62,16 @@ describe("세컨비 정체성 프롬프트", () => {
     expect(h).toMatch(/Never claim to know them better than they know themselves/i);
   });
 
-  it("한국어 말투가 앱과 같다", () => {
-    // 사실·안내는 ~습니다, 질문·제안은 ~나요? (Simon 결정 2026-10-02, B안).
-    // 화면 문구와 같은 규칙이라 한 화면 안에서 두 말투가 섞이지 않는다.
-    expect(header()).toContain("'~습니다'");
-    expect(header()).toContain("'~나요?'");
+  it("한국어 대화 답은 편한 반말 + 브로이고, 사용자가 원하면 바꾸고, 힘든 순간엔 농담을 뺀다", () => {
+    // Simon 결정 2026-10-18 Q-261018-55 다: 대화 답에서만 10-02 B안을 뒤집는다(화면 문구는 B안 그대로).
+    const h = header();
+    expect(h).toContain("말투는 편한 반말을 씁니다");
+    expect(h).toContain("'오우, 브로'");
+    expect(h).toContain("가끔 섞되, 매번 붙이지는 마세요");
+    expect(h).toContain("존댓말이나 다른 호칭을 원하거나 호칭을 싫어하면 바로 따르세요");
+    expect(h).toContain("농담과 호칭을 빼고 차분하게 말하세요");
+    expect(h).not.toContain("'~습니다'");
+    expect(h).not.toContain("'~나요?'");
   });
 
   it("금지 어휘를 프롬프트에 쓰지 않는다", () => {

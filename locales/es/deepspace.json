@@ -256,7 +256,6 @@
     "reportBug": "Reportar un error",
     "footer": "PolaScope v{{version}} · 2 días hábiles KST",
     "faqTitle": "Preguntas frecuentes",
-    "noticesTitle": "Avisos",
     "faqs": {
       "brightness": {
         "q": "¿Qué significa el brillo de las estrellas?",
@@ -266,23 +265,9 @@
         "q": "¿Un plan de pago lo hace más inteligente?",
         "a": "No. La calidad de las respuestas es la misma en todos los planes. Solo cambian los límites de cantidad, conservación y exportación."
       },
-      "call": {
-        "q": "¿Es segura la grabación de llamadas?",
-        "a": "Las grabaciones se transcriben en el servidor de IA mediante una conexión cifrada, y el audio original se borra de tu dispositivo justo después. Solo se guardan, cifrados, el texto y las señales."
-      }
-    },
-    "notices": {
-      "modes": {
-        "t": "Llegan los tres modos de HustleK",
-        "tag": "Nuevo"
-      },
-      "museum": {
-        "t": "Museo de la IA: ya hay 8 colecciones abiertas",
-        "tag": "Contenido"
-      },
       "voice": {
-        "t": "Mejoras en la transcripción de voz",
-        "tag": "Mejora"
+        "q": "¿Es segura la transcripción de voz?",
+        "a": "La voz se transcribe en el servidor de IA mediante una conexión cifrada, y el audio original se borra de tu dispositivo justo después. Solo se guardan, cifrados, el texto y las señales."
       }
     }
   },

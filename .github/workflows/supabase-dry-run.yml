@@ -19,6 +19,7 @@ on:
       - "supabase/functions/dashboard-generate/**"
       - "scripts/test-profile-import-sql.mjs"
       - "scripts/test-deletion-receipt-sql.mjs"
+      - "scripts/test-records-embedding-consent-sql.mjs"
       - "scripts/test-interview-content-authority-sql.mjs"
       - ".github/workflows/supabase-dry-run.yml"
 
@@ -264,6 +265,11 @@ jobs:
           -- production ACL so 0179's own postcondition tests the repair.
           GRANT ALL ON TABLE public.ai_audit_log, public.crisis_events
             TO anon, authenticated, service_role;
+          -- Vanilla PG has no Supabase public-table grant floor. 0140 narrows
+          -- users UPDATE but deliberately preserves SELECT; 0263 checks that
+          -- real clients can read their own RETURNING row (RLS still applies).
+          GRANT SELECT ON public.users TO authenticated;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON public.records TO authenticated;
           DO $precondition$
           BEGIN
             IF NOT has_table_privilege('anon', 'public.ai_audit_log', 'TRUNCATE')
@@ -389,6 +395,15 @@ jobs:
             END IF;
           END $$;
           SQL
+      - name: Exercise records embedding consent on full schema clone
+        env:
+          PGPASSWORD: postgres
+          LOCAL_SQL_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE embed_consent_test_ci TEMPLATE postgres'
+          node scripts/test-records-embedding-consent-sql.mjs "$LOCAL_SQL_CONTAINER" embed_consent_test_ci
       - name: Exercise dormant deletion-receipt contract on full schema clone
         env:
           PGPASSWORD: postgres

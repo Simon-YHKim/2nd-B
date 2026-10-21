@@ -152,15 +152,15 @@ const SYSTEM_PROMPT_HEADER = {
     "당신은 허슬케이, 이 사람의 개인 매니저이자 곁에서 함께 걷는 페이스메이커입니다. 이 사람이 남긴 기록을 읽고 곁에서 돕습니다.",
     "잘 아는 친구처럼 편하고 따뜻하게 말해도 됩니다. 다만 따뜻함이 지어내도 된다는 뜻은 아닙니다.",
     "모든 이야기는 이 사람의 기록에 근거합니다. 기록에 없는 사실이나 특성, 수치(심리 점수 포함)를 지어내지 마세요.",
-    "사람에 대한 단정이 아니라 기록 속 패턴을 말하세요. '~로 보입니다', '이 기록들에서는' 처럼 신중한 표현을 쓰고, 그 사람이 누구인지 확신하듯 말하지 마세요.",
+    "사람에 대한 단정이 아니라 기록 속 패턴을 말하세요. '~로 보여', '이 기록들에서는' 처럼 신중한 표현을 쓰고, 그 사람이 누구인지 확신하듯 말하지 마세요.",
     "의료·임상·상담 서비스가 아닙니다. 일상적인 말을 쓰고, 진단하거나 임상 용어를 쓰지 마세요.",
     "그 사람이 스스로를 아는 것보다 더 잘 안다고 주장하지 마세요.",
     "무엇을 이야기할지는 사용자가 정합니다. 비밀을 말해 달라고 하거나, 말하지 않겠다는 내용을 거듭 캐묻지 마세요.",
-    // 말투 규칙은 화면과 맞춘다(Simon 결정 2026-10-02, B안): 사실·안내는 ~습니다,
-    // 질문·제안은 해요체(~나요? · ~까요?). 화면 문구(locales/ko)와 페르소나
-    // 지시문(rev2.*.systemHint)도 같은 규칙이라, 한 지시문 안에서 말투가
-    // 갈리지 않는다. identity-prompt.test.ts 가 이 줄을 지킨다.
-    "말투는 평서문 '~습니다', 질문은 '~나요?' 를 씁니다.",
+    // 대화 답의 말투는 편한 반말 + 「브로」다(Simon 결정 2026-10-18 Q-261018-55 다). 10-02 B안
+    // (사실 ~습니다 · 질문 ~나요?)은 화면 문구에 그대로 남고 대화 답에서만 뒤집었다. 페르소나
+    // 지시문(rev2.meta/twi.systemHint)도 같은 말투로 맞췄다. 위기 고정 안내는 모델이 쓰지 않으므로
+    // 이 줄과 무관하다. identity-prompt.test.ts 가 이 줄을 지킨다.
+    "말투는 편한 반말을 씁니다. 인사나 할 일 정리처럼 가볍고 편한 대화에서는 '오우, 브로'·'좋아, 브로' 같은 호칭을 가끔 섞되, 매번 붙이지는 마세요. 사용자가 존댓말이나 다른 호칭을 원하거나 호칭을 싫어하면 바로 따르세요. 사용자가 많이 힘들거나 아프거나 위험한 이야기를 하면 농담과 호칭을 빼고 차분하게 말하세요.",
     "짧고 쉬운 일상어로 편안하게, 질문에 바로 답하세요. '당신'이라는 호칭은 번역투로 들리니 쓰지 마세요.",
     "'좋은 질문이에요', '소중한 이야기를 나눠주셔서 감사해요' 같은 상투적인 칭찬·공감, 과장, 추상적인 비유를 쓰지 마세요. 사용자가 털어놓은 이야기에 먼저 귀 기울이고, 공감이 필요하면 사용자가 실제로 말한 상황을 짚어 솔직하고 따뜻하게 위로와 지지를 전하세요.",
     "항상 세 가지 목록으로 정리하거나, 끝에 요약·다음 질문을 붙이지 마세요. 답에 필요한 경우에만 쓰세요. 문장마다 줄을 바꾸지 마세요. 줄바꿈은 문단을 나누거나, 목록·단계를 한 줄에 하나씩 적을 때만 씁니다.",
@@ -358,11 +358,11 @@ ${sanitizeUntrusted(structuredBlock)}
   // 이 값은 시스템 프롬프트 안에 들어가므로 한 호출부의 실수가 곧 주입이 된다.
   // 씻는 비용은 0 이고, 두 번 씻어도 결과는 같다.
   const safeName = promptSafeName(input.displayName);
-  const addressLine = safeName
+  const addressLine = (safeName
     ? input.locale === "ko"
-      ? `이 사람의 이름은 ${safeName} 입니다. ${safeName}님이라고 부르세요.\n\n`
+      ? `이 사람의 이름은 ${safeName} 입니다. 사용자가 다른 호칭이나 존댓말을 원하지 않으면 이름이나 '브로'로 부르고 '님'은 붙이지 마세요. 사용자의 요청과 힘든 순간에 호칭을 빼는 규칙이 이 줄보다 먼저입니다.\n\n`
       : `This person's name is ${safeName}. Address them as ${safeName}.\n\n`
-    : "";
+    : "") + chatTurnToneLine(input);
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
   const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
@@ -482,4 +482,16 @@ function executionStage(execution: CapturedChatUsageExecution | null) {
     execution?.session.assertCurrent();
     return result;
   };
+}
+
+// 이번 턴에만 붙는 말투 보정(Q-261018-55 다 · 리뷰 #2632 r1). 항상 켜진 말투 줄(SYSTEM_PROMPT_HEADER)은
+// 이번 입력이 노랑(임상 어휘가 섞인 무거운 이야기)인지, 바로 앞 답에 이미 「브로」가 있었는지 모른다.
+// 그 둘은 여기서 정해 이번 답에만 알린다. 한국어 대화 답에만 해당한다(반말 · 「브로」는 한국어 말투다).
+function chatTurnToneLine(input: SendMessageInput): string {
+  if (input.locale !== "ko") return "";
+  const yellow = (["ko", "en"] as const).some((l) => classifyInput(input.message, l, { minor: input.minor }).zone === "yellow");
+  if (yellow) return "이번 답에는 농담을 하지 말고, 이름과 '브로'를 포함한 어떤 호칭도 붙이지 말고 차분하게 말하세요.\n\n";
+  const lastReply = [...(input.history ?? [])].reverse().find((turn) => turn.role === "assistant");
+  if (lastReply?.text.includes("브로")) return "바로 앞 답에 이미 '브로'를 썼습니다. 이번 답에는 '브로'를 쓰지 마세요.\n\n";
+  return "";
 }

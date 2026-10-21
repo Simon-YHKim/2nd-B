@@ -218,6 +218,7 @@ export function createChatSessionRegistry(content: ChatContentBoundary, newId = 
   }
 
   return {
+    usesContentBoundary: (candidate: ChatContentBoundary): boolean => candidate === content,
     subscribe(listener: Listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     subscribeDraft(listener: Listener) { draftListeners.add(listener); return () => { draftListeners.delete(listener); }; },
     getSnapshot: snapshot,

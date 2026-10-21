@@ -63,7 +63,7 @@ import { useAppRouter, useScreenParams } from "@/lib/nav/phone-embed";
 import { useGoHomeStop } from "@/lib/nav/go-home";
 import { livedPeriods, resolveInterviewRoutePeriod } from "@/lib/interview/periods";
 import { DrillProgress } from "@/components/ui/DrillProgress";
-import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
+import { isNonAnswer, scaffoldQuestion, failedAttemptMove } from "@/lib/interview/stuck";
 import { answerDisposition, canCreditAnswer, confirmedAnswer, currentScene } from "@/lib/interview/continuity";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
@@ -82,7 +82,12 @@ import {
   incrementCoverage,
   nextMove,
   nextProbe,
-  usableQuestion,
+  sceneStatus,
+  failedAttempts,
+  acceptQuestion,
+  choiceAvailability,
+  type SceneChoiceReason,
+  type AcceptedQuestion,
   type Coverage,
   type DrillLayer,
   type InterviewTurn,
@@ -91,7 +96,8 @@ import {
 } from "@/lib/interview/probe";
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
 import { INTERVIEW_PURPOSE, localPromptsExhausted, readDayLimitRefusal } from "@/lib/interview/session-end";
-import { storedTurns, storyTitle } from "@/lib/interview/saved-story";
+import { interviewAnswerLabel, storedTurns, storyTitle } from "@/lib/interview/saved-story";
+import { isUneditedOpener, type OpenerSelection } from "@/lib/interview/opener-selection";
 import { RECORD_SAVE_CUE, saveCueAllowed } from "@/lib/audio/app-cues";
 import { isRecordingAudioMode } from "@/lib/audio/audio-session";
 import { useUiSound } from "@/lib/audio/use-ui-sound";
@@ -219,7 +225,9 @@ function TrackGatedInterview({
   userId: string;
   age: number | null;
 }) {
-  const { t } = useTranslation("interview");
+  const { t, i18n } = useTranslation("interview");
+  const { isMinor } = useAuth();
+  const ownerSnapshot = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
   const { t: homeT } = useTranslation("home");
   const [entry, setEntry] = useState<StarEntryStatus | null>(null);
 
@@ -251,7 +259,9 @@ function TrackGatedInterview({
       </InterviewFrame>
     );
   }
-  return <InterviewSession period={period} growthOrigin={growthOrigin} />;
+  // A context change replaces every session ref and flow together, including ABA.
+  return <InterviewSession key={JSON.stringify([userId, period, i18n.language, isMinor, growthOrigin, ownerSnapshot])}
+    period={period} growthOrigin={growthOrigin} />;
 }
 
 interface InterviewGuidanceDelivery {
@@ -262,6 +272,48 @@ interface InterviewGuidanceDelivery {
   readonly locale: string;
   readonly token: object;
   readonly ready: boolean;
+}
+
+export interface SceneFrame {
+  turns: InterviewTurn[]; coverage: Coverage; pendingLayer: DrillLayer | null; openers: string[];
+  abandoned: DrillLayer[]; concreteOnly: boolean; stuckStreak: number; draft: string;
+  openerSelection?: OpenerSelection;
+  /** A completed scene's more question returns after its first safe adjudication. */
+  returnToChoice?: boolean;
+}
+interface FlowStamp {
+  owner: AccountOwnerLease; instance: number; context: object; revision: number; epoch: number; history: InterviewTurn[];
+}
+interface OrdinaryAction extends FlowStamp {
+  token: object; snapshot: SceneFrame; draftRevision: number;
+}
+export type InterviewChoice = ({ kind: "sceneChoice"; reason: SceneChoiceReason }
+  | { kind: "stuckChoice"; layer: DrillLayer; attempts: 2 }) & {
+  generation: object; snapshot: SceneFrame; action: OrdinaryAction | null;
+};
+type AskOutcome = "question" | "scene-choice" | "stuck-choice" | "limited" | "failed" | "stale" | "crisis" | "finished";
+type AskRequest = { kind: "answer"; index: number; layer: DrillLayer | null }
+  | { kind: "question-only"; actionKind: "more" | "skip-layer"; choice: InterviewChoice; target: DrillLayer; proposedAbandoned: DrillLayer[] };
+interface SaveIntent extends FlowStamp {
+  token: object; frame: SceneFrame; delta: Coverage; endedAtStart: boolean;
+  input: Parameters<typeof createRecord>[0]; period: LifePeriod; growthOrigin: boolean;
+}
+export type SaveReceipt = { phase: "idle" } | ({ intent: SaveIntent; continuation: "live" | "interrupted" } & (
+  | { phase: "recordPending"; record: "inFlight" | "unknown" }
+  | { phase: "coveragePending"; recordId: string; coverage: "ready" | "inFlight" | "retryable" | "unknown"; attemptToken?: object }
+  | { phase: "committed"; recordId: string; coverage: "upsert" | "zero-delta"; effectsStarted: boolean }
+));
+export interface InterviewFlow {
+  revision: number; action: OrdinaryAction | null; choice: InterviewChoice | null;
+  receipt: SaveReceipt; crisisLatched: boolean; crisisEpoch: number;
+  returnToChoice?: boolean;
+}
+type ViewState = { mode: "inactive" | "crisis-ended" | "legacy-ended" | "choosing" | "active" };
+function projectMode(current: boolean, crisis: boolean, ended: boolean, done: boolean, choice: InterviewChoice | null): ViewState {
+  if (!current) return { mode: "inactive" };
+  if (crisis) return { mode: "crisis-ended" };
+  if (ended || done) return { mode: "legacy-ended" };
+  return { mode: choice ? "choosing" : "active" };
 }
 
 function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growthOrigin: boolean }) {
@@ -290,7 +342,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const baseCoverage = useRef<Coverage>(emptyCoverage());
   /** 현재 층에서 연속으로 못 답한 횟수. 답하면 0 으로 돌아간다. */
   const [stuckStreak, setStuckStreak] = useState(0);
-  /** 발판을 두 번 줘도 막혀서 이번 대화에서는 더 묻지 않기로 한 층들.
+  /** 두 번 시도한 뒤 사용자가 건너뛰기로 골라, 이 장면에서 더 묻지 않을 층들.
    *
    *  칸을 안 채우는 것만으로는 부족했다(실측) -- "가장 먼저 비어 있는 칸" 규칙이
    *  바로 그 칸을 다시 집어서 같은 질문이 계속 나갔다. 밝기는 정직하게 비워두고,
@@ -300,23 +352,30 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const coveredPeriods = useMemo(() => livedPeriods(age), [age]);
   const [draft, setDraft] = useState("");
   const draftEditRevision = useRef(0);
+  const openerSelection = useRef<OpenerSelection | undefined>(undefined);
   const sending = useRef(false);
   const [busy, setBusy] = useState(false);
   const [pendingLayer, setPendingLayer] = useState<DrillLayer | null>(null);
   /** 이번 질문에 딸린 **말문 후보**. 누르면 보내지 않고 입력창을 채운다. */
   const [openers, setOpeners] = useState<string[]>([]);
-  const [done, setDone] = useState(false);
+  const [doneState, setDone] = useState(false);
   const ended = useRef(false);
   const mounted = useRef(true);
   const interviewInstance = useRef(0);
   const probeRequest = useRef(0);
+  const sessionOwner = useRef(userId ? captureAccountOwnerLease(userId) : null);
+  const contextKey = JSON.stringify([userId, period, locale, i18n.language, isMinor, growthOrigin]);
+  const contextRef = useRef({ key: contextKey });
+  if (contextRef.current.key !== contextKey) contextRef.current = { key: contextKey };
+  const sessionContext = useRef(contextRef.current);
   const [guidanceDelivery, setGuidanceDelivery] = useState<InterviewGuidanceDelivery | null>(null);
   const guidanceRef = useRef<InterviewGuidanceDelivery | null>(null);
   const lastGuidanceRequest = useRef(0);
   const guidanceScroll = useRef<{ pending: object | null; accepted: object | null }>({ pending: null, accepted: null });
   const ownerSnapshot = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
   const isGuidanceCurrent = useCallback((delivery: InterviewGuidanceDelivery) => delivery.owner.isCurrent()
-    && mounted.current && interviewInstance.current === delivery.instance && guidanceRef.current?.token === delivery.token, []);
+    && mounted.current && interviewInstance.current === delivery.instance && guidanceRef.current?.token === delivery.token
+    && sessionContext.current === contextRef.current, []);
   const guidanceDisplay = (() => {
     if (!guidanceDelivery || !isGuidanceCurrent(guidanceDelivery)) return null;
     try {
@@ -364,6 +423,104 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const [tableOpen, setTableOpen] = useState(false);
   const crisisRouting = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  const flowRef = useRef<InterviewFlow>({ revision: 0, action: null, choice: null,
+    receipt: { phase: "idle" }, crisisLatched: false, crisisEpoch: 0 });
+  const [choice, setChoice] = useState<InterviewChoice | null>(null);
+  const [saveReceipt, setSaveReceipt] = useState<SaveReceipt>({ phase: "idle" });
+
+  function sessionCurrent() {
+    return Boolean(sessionOwner.current?.isCurrent()) && mounted.current && sessionContext.current === contextRef.current;
+  }
+  function frameSnapshot(): SceneFrame {
+    return { turns, coverage, pendingLayer, openers, abandoned, concreteOnly, stuckStreak, draft,
+      openerSelection: openerSelection.current,
+      returnToChoice: flowRef.current.returnToChoice };
+  }
+  function stampCurrent(stamp: FlowStamp, revision = stamp.revision) {
+    return stamp.owner.isCurrent() && sessionCurrent() && interviewInstance.current === stamp.instance
+      && contextRef.current === stamp.context && flowRef.current.revision === revision
+      && turnsOwnerRef.current === stamp.history
+      && flowRef.current.crisisEpoch === stamp.epoch && !flowRef.current.crisisLatched;
+  }
+  function actionCurrent(action: OrdinaryAction) {
+    return stampCurrent(action) && flowRef.current.action?.token === action.token && !ended.current;
+  }
+  function beginAction(snapshot = frameSnapshot()): OrdinaryAction | null {
+    const flow = flowRef.current;
+    if (!sessionCurrent() || ended.current || flow.crisisLatched || flow.action || flow.receipt.phase !== "idle"
+      || turnsOwnerRef.current !== turns) return null;
+    const owner = userId ? captureAccountOwnerLease(userId) : null;
+    if (!owner) return null;
+    const action: OrdinaryAction = { owner, instance: interviewInstance.current, context: contextRef.current,
+      revision: ++flow.revision, epoch: flow.crisisEpoch, history: snapshot.turns, token: {}, snapshot, draftRevision: draftEditRevision.current };
+    flow.action = action;
+    return action;
+  }
+  function releaseAction(action: OrdinaryAction) {
+    if (!actionCurrent(action)) return;
+    flowRef.current.action = null;
+    sending.current = false;
+    const revision = action.revision;
+    setBusy(previous => stampCurrent(action, revision) && !ended.current ? false : previous);
+  }
+  function commitFrame(action: OrdinaryAction, frame: SceneFrame, nextChoice: InterviewChoice | null = null) {
+    if (!actionCurrent(action)) return false;
+    const revision = ++flowRef.current.revision;
+    action.revision = revision;
+    action.history = frame.turns;
+    turnsOwnerRef.current = frame.turns;
+    flowRef.current.choice = nextChoice;
+    flowRef.current.returnToChoice = frame.returnToChoice;
+    const current = () => stampCurrent(action, revision) && !ended.current;
+    if (draftEditRevision.current === action.draftRevision) {
+      openerSelection.current = isUneditedOpener(frame.openerSelection, frame.draft, frame.turns, frame.openers)
+        ? frame.openerSelection : undefined;
+    }
+    setTurns(previous => current() ? frame.turns : previous);
+    setCoverage(previous => current() ? frame.coverage : previous);
+    setPendingLayer(previous => current() ? frame.pendingLayer : previous);
+    setOpeners(previous => current() ? frame.openers : previous);
+    setAbandoned(previous => current() ? frame.abandoned : previous);
+    setConcreteOnly(previous => current() ? frame.concreteOnly : previous);
+    setStuckStreak(previous => current() ? frame.stuckStreak : previous);
+    setChoice(previous => current() ? nextChoice : previous);
+    setDraft(previous => current() && draftEditRevision.current === action.draftRevision ? frame.draft : previous);
+    return true;
+  }
+  function showChoice(action: OrdinaryAction, frame: SceneFrame,
+    decision: { kind: "sceneChoice"; reason: SceneChoiceReason } | { kind: "stuckChoice"; layer: DrillLayer; attempts: 2 }): AskOutcome {
+    const snapshot = { ...frame, pendingLayer: null, openers: [], returnToChoice: false };
+    const next: InterviewChoice = { ...decision, generation: {}, snapshot, action: null };
+    commitFrame(action, snapshot, next);
+    return decision.kind === "sceneChoice" ? "scene-choice" : "stuck-choice";
+  }
+  function acceptIntoFrame(action: OrdinaryAction, frame: SceneFrame, accepted: AcceptedQuestion): AskOutcome {
+    if (accepted.kind !== "question") return showChoice(action, frame, { kind: "sceneChoice", reason:
+      accepted.kind === "noEligible" ? "no-eligible" : accepted.kind === "questionExhausted" ? "question-exhausted" : "local-prompts-exhausted" });
+    commitFrame(action, { ...frame, turns: [...frame.turns, { role: "interviewer", text: accepted.question,
+      layer: accepted.pendingLayer, period }], pendingLayer: accepted.pendingLayer, openers: accepted.openers,
+      stuckStreak: failedAttempts(frame.turns, accepted.pendingLayer, locale) });
+    return "question";
+  }
+  function latchCrisis() {
+    flowRef.current.crisisLatched = true;
+    flowRef.current.crisisEpoch += 1;
+    const receipt = flowRef.current.receipt;
+    if (receipt.phase !== "idle") receipt.continuation = "interrupted";
+  }
+  function availableChoices(selected = flowRef.current.choice) {
+    return choiceAvailability({ kind: selected?.kind ?? "sceneChoice",
+      reason: selected?.kind === "sceneChoice" ? selected.reason : undefined,
+      eligible: selected ? sceneStatus(selected.snapshot.turns, period, locale, selected.snapshot.abandoned, selected.snapshot.concreteOnly).eligible : [],
+      hasUserTurns: Boolean(selected?.snapshot.turns.some(turn => turn.role === "user")),
+      locked: !sessionCurrent() || ended.current || flowRef.current.crisisLatched || Boolean(flowRef.current.action)
+        || flowRef.current.receipt.phase !== "idle" });
+  }
+  const view = projectMode(sessionCurrent(), flowRef.current.crisisLatched, ended.current, doneState, choice);
+  const done = view.mode === "legacy-ended";
+  const choices = availableChoices(choice);
+  const inputLocked = view.mode !== "active" || busy || saving || saveReceipt.phase !== "idle" || !coverageReady;
 
   // 위 칸의 홈 이동(RedirectHome · 탭 루트 하드웨어 뒤로)은 걷히면 잃는 것이 있는
   // 동안 여기서 멈춘다(게이트 NAV-S7-01). 대화(turns)와 쓰던 답(draft)은 이 화면의
@@ -440,203 +597,140 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     [period, isBlockedAnswer],
   );
 
-  const ask = useCallback(
-    async (
-      history: InterviewTurn[],
-      cov: Coverage,
-      /** 직전 턴에서 못 답한 층과 그 층에서의 연속 횟수. */
-      stuck: { layer: DrillLayer; streak: number } | null = null,
-      giveUp: DrillLayer[] = [],
-      /** Local sufficiency passed; credit waits for a successful, safe response. */
-      credited: DrillLayer | null = null,
-    ) => {
-      if (!userId || ended.current) return;
-      const owner = captureAccountOwnerLease(userId);
-      if (!owner) return;
-      // A new ordinary ask releases the preceding acceptance commit, but a
-      // hidden row still waiting for its first reveal keeps scroll priority.
-      guidanceScroll.current.accepted = null;
-      const instance = interviewInstance.current;
-      const questionGeneration = turnsOwnerRef.current;
-      let requestId: number | undefined;
-      let redSeen = false;
-      let redPublicationAttempted = false;
-      let settled = false;
-      const isCurrentRequest = () => interviewInstance.current === instance
-        && (requestId === undefined || probeRequest.current === requestId)
-        && turnsOwnerRef.current === questionGeneration;
-      const canAcceptGuidance = () => owner.isCurrent() && mounted.current && isCurrentRequest()
-        && !ended.current && !redSeen && !settled;
-      const deliverRed = (hotline: HotlineId | undefined) => {
-        if (settled || !owner.isCurrent()) return;
-        // Claim before synchronous subscribers can re-enter or switch owners.
-        redSeen = true;
-        if (redPublicationAttempted) return;
-        redPublicationAttempted = true;
-        try {
-          if (!publishCrisisNotice(owner, hotline ?? hotlineFor())) return;
-        } catch {
-          // A broken notice subscriber must not undo RED or interrupt the audit.
-        }
-        if (owner.isCurrent() && mounted.current && interviewInstance.current === instance && !ended.current) finish();
-      };
-      setBusy(true);
-      setNotice(null);
-      try {
-        const move = nextMove(cov, period, entriesOf(history), new Date(), stuck, giveUp, {
-          history, locale, concreteOnly,
-        });
-        if (move.kind === "finish" && !credited) {
-          finish();
-          return;
-        }
-        if (move.kind === "loopCheck") {
-          // LLM 을 부르지 않는다. 질문이 이미 정해져 있고(리서치 원문), 여기서
-          // 더 캐묻는 것이 문제이므로 방향을 바꾸는 것 자체가 답이다.
-          const key = move.questionKey;
-          setTurns([
-            ...history,
-            { role: "interviewer", text: t(`loopCheck.${key}`), period },
-          ]);
-          setPendingLayer(null);
-          // 되묻기에는 말문 후보를 달지 않는다 — 그건 새 질문이 아니라 확인이다.
-          setOpeners([]);
-          setNotice(t("drill.loopNote"));
-          return;
-        }
-        // 발판은 이미 결정된 고정 문장이다. `nextProbe` 로 보내면 같은 한 번의 탭이
-        // LLM·audit·network 를 만들고, 모델의 문장이 고정 발판을 덮을 수 있다.
-        // 못 답한 칸은 그대로 비운 채 같은 층의 발판을 즉시 보여준다.
-        if (move.kind === "scaffold") {
-          setTurns([
-            ...history,
-            {
-              role: "interviewer",
-              text: scaffoldQuestion(move.layer, locale, stuck?.streak ?? 1),
-              layer: move.layer,
-              period,
-            },
-          ]);
-          setPendingLayer(move.layer);
-          setOpeners([]);
-          setNotice(t("drill.scaffoldNote"));
-          return;
-        }
-        // ⚠ 층은 **언제나** `move.layer` 를 넘긴다. `nextMove` 가 포기 목록까지 보고
-        // 고른 층을 후속 질문 경계가 다시 고르면 방금 포기한 칸으로 되돌아갈 수 있다.
-        requestId = ++probeRequest.current;
-        const probe = await nextProbe(
-          userId, locale, period, history, cov, isMinor === true,
-          0, move.kind === "finish" ? credited : move.layer, deliverRed,
-          { isMinor, isCurrent: canAcceptGuidance },
-        );
-        if (!owner.isCurrent()) return;
-        // Safety still reaches the app after stop or route removal. Ordinary
-        // answers must not reopen a finished interview or change its coverage.
-        if (probe.zone === "red") {
-          deliverRed(probe.hotline);
-          return;
-        }
-        if (redSeen || !mounted.current || !isCurrentRequest() || ended.current) return;
-        if (probe.guidance && canAcceptGuidance() && lastGuidanceRequest.current !== requestId) {
-          let ready = false;
-          try { ready = resolveProbeGuidanceCopy(probe.guidance, locale).kind === "ready"; } catch { /* No raw fallback. */ }
-          if (ready && canAcceptGuidance()) {
-            const delivery: InterviewGuidanceDelivery = { requestId, guidance: probe.guidance, owner,
-              instance, locale, token: {}, ready: false };
-            lastGuidanceRequest.current = requestId;
-            guidanceRef.current = delivery;
-            guidanceScroll.current = { pending: delivery.token, accepted: delivery.token };
-            setGuidanceDelivery(previous => isGuidanceCurrent(delivery) ? delivery : previous);
-          }
-        }
-        if (!canAcceptGuidance()) return;
-        const lastAnswer = history[history.length - 1];
-        const confirmed = credited && lastAnswer
-          ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer)
-          : false;
-        const otherLayer = credited && probe.answeredLayer != null && probe.answeredLayer !== credited;
-        const assessed = history.map((turn, index) => index === history.length - 1 && turn.role === "user"
-          ? { ...turn, answered: otherLayer ? null : Boolean(confirmed) }
-          : turn);
-        // Missing verdicts in successful responses follow the local gate (Q5).
-        // Sparse answers, explicit none, other layers, errors and stops add nothing.
-        // The model cannot award another layer or override the local gate.
-        if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));
-        if (credited && otherLayer) {
-          // The model drafted for an optimistic next layer in the same request.
-          // Discard that question/openers. Stay on the asked layer without a miss
-          // or another model call. Exhausted local alternatives retain the current
-          // question instead of turning this neutral verdict into an automatic end.
-          const question = usableQuestion("", assessed, credited, locale);
-          setTurns(question
-            ? [...assessed, { role: "interviewer", text: question, layer: credited, period }]
-            : assessed);
-          setPendingLayer(credited);
-          setStuckStreak(stuckStreak);
-          setOpeners([]);
-          return;
-        }
-        // 장면 완료(`finish`)는 `nextMove` 가 판정을 기다리는 이 답을 인정된다고 보고 낸 수다.
-        // 그래서 판정이 인정일 때만 끝낸다(게이트 LAST-01). 인정 못 받았으면 아래 갈래가 같은 층에
-        // 발판을 놓거나, 그 층에서 세 번째면 대화를 끝낸다. 마지막 층도 다른 층과 같다.
-        if (move.kind === "finish" && confirmed) {
-          setTurns(assessed);
-          finish();
-          return;
-        }
-        if (credited && !confirmed) {
-          const streak = currentScene(history).filter((turn) => turn.role === "user"
-            && turn.layer === credited && turn.answered === false).length + 1;
-          setStuckStreak(streak);
-          if (shouldScaffold(streak)) {
-            setTurns([
-              ...assessed,
-              { role: "interviewer", text: scaffoldQuestion(credited, locale, streak), layer: credited, period },
-            ]);
-            setPendingLayer(credited);
-            setNotice(t("drill.scaffoldNote"));
-            return;
-          }
-          setTurns(assessed);
-          finish();
-          return;
-        }
-        if (!probe.question) {
-          setTurns(assessed);
-          finish();
-          return;
-        }
-        setTurns([...assessed, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
-        setPendingLayer(probe.layer);
-        setOpeners(probe.openers);
-      } catch (error) {
-        if (redSeen || !owner.isCurrent() || !mounted.current || !isCurrentRequest() || ended.current) return;
-        // Q-261014-17: a quota refusal keeps the current question and draft.
-        // The caller restores only this request's input; no answer is credited.
-        if (await readDayLimitRefusal(error, INTERVIEW_PURPOSE)) {
-          if (!redSeen && owner.isCurrent() && mounted.current && isCurrentRequest() && !ended.current) {
-            setNotice(t("drill.dayLimit"));
-            return "limited" as const;
-          }
-          return;
-        }
-        // 판정을 못 받은 답이다(게이트 LAST-02). 진전으로도, 그 층의 실패로도 세지 않게 표시하고
-        // 겨냥하던 층을 되돌린다 -- "다시 시도해 주세요"로 다시 보낸 답이 같은 층에서 판정받게.
-        if (!redSeen && owner.isCurrent() && mounted.current && isCurrentRequest() && !ended.current) {
-          setTurns(history.map((turn, index) => index === history.length - 1 && turn.role === "user"
-            ? { ...turn, unsettled: true }
-            : turn));
-          setPendingLayer(credited);
-          setNotice(t("drill.failed"));
-        }
-      } finally {
-        settled = true;
-        if (!redSeen && owner.isCurrent() && mounted.current && isCurrentRequest()) setBusy(false);
+  async function ask(
+    history: InterviewTurn[], cov: Coverage,
+    stuck: { layer: DrillLayer; streak: number } | null = null,
+    giveUp: DrillLayer[] = [], credited: DrillLayer | null = null,
+    suppliedAction?: OrdinaryAction, suppliedRequest?: AskRequest,
+  ): Promise<AskOutcome> {
+    const action = suppliedAction ?? beginAction();
+    if (!action) return "stale";
+    const request: AskRequest = suppliedRequest ?? { kind: "answer", index: history.length - 1, layer: credited };
+    const owner = action.owner;
+    const instance = action.instance;
+    guidanceScroll.current.accepted = null;
+    let requestId: number | undefined;
+    let redSeen = false;
+    let redPublicationAttempted = false;
+    let settled = false;
+    const isCurrentRequest = () => actionCurrent(action)
+      && (requestId === undefined || probeRequest.current === requestId);
+    const canAcceptGuidance = () => isCurrentRequest() && !redSeen && !settled;
+    const deliverRed = (hotline: HotlineId | undefined) => {
+      if (settled || !owner.isCurrent()) return;
+      redSeen = true;
+      if (redPublicationAttempted) return;
+      redPublicationAttempted = true;
+      latchCrisis();
+      try { if (!publishCrisisNotice(owner, hotline ?? hotlineFor())) return; }
+      catch { /* Notice subscribers cannot reopen the ordinary continuation. */ }
+      if (owner.isCurrent() && mounted.current && interviewInstance.current === instance && !ended.current) finish();
+    };
+    setBusy(true);
+    setNotice(null);
+    const frame: SceneFrame = { ...action.snapshot, turns: history, coverage: cov, abandoned: giveUp,
+      draft: request.kind === "answer" ? "" : action.snapshot.draft,
+      returnToChoice: request.kind === "question-only" ? request.actionKind === "more" : action.snapshot.returnToChoice };
+    const returnAfterMore = (): AskOutcome | null => {
+      if (!frame.returnToChoice) return null;
+      frame.returnToChoice = false;
+      const status = sceneStatus(frame.turns, period, locale, frame.abandoned, frame.concreteOnly);
+      return status.kind === "incomplete" ? null : showChoice(action, frame,
+        { kind: "sceneChoice", reason: status.kind === "noEligible" ? "no-eligible" : status.reason });
+    };
+    const local = (target: DrillLayer, candidate?: ProbeResult, localQuestion?: string, scaffoldStreak?: number) =>
+      acceptQuestion({ candidate, target,
+        eligible: sceneStatus(frame.turns, period, locale, frame.abandoned, frame.concreteOnly).eligible,
+        policy: frame.concreteOnly ? "local-fact" : "assigned-target", history: frame.turns, locale,
+        localGuard: localPromptsExhausted(frame.turns, turn => isLocalNonAnswer(turn.text, turn.layer)),
+        localQuestion, scaffoldStreak });
+    try {
+      if (!isCurrentRequest()) return "stale";
+      const move = nextMove(cov, period, entriesOf(history), new Date(), stuck, giveUp, {
+        history, locale, concreteOnly: frame.concreteOnly,
+        bypassCompletionOnce: request.kind === "question-only" && request.actionKind === "more",
+      });
+      if (request.kind === "answer" && stuck) {
+        frame.stuckStreak = failedAttempts(history, stuck.layer, locale);
+        const failure = failedAttemptMove(stuck.layer, frame.stuckStreak);
+        if (failure?.kind === "stuckChoice") return showChoice(action, frame, failure);
+        const completedMore = returnAfterMore();
+        if (completedMore) return completedMore;
+        return acceptIntoFrame(action, frame, local(stuck.layer, undefined, scaffoldQuestion(stuck.layer, locale, 1), 1));
       }
-    },
-    [userId, period, locale, isMinor, entriesOf, hotlineFor, t, concreteOnly, finish, stuckStreak, isGuidanceCurrent],
-  );
+      // Question-only never adjudicates an old answer. Concrete more is entirely local.
+      const target = request.kind === "question-only" ? request.target
+        : move.kind === "drill" || move.kind === "scaffold" ? move.layer : credited ?? "fact";
+      if (request.kind === "question-only" && frame.concreteOnly) return acceptIntoFrame(action, frame, local("fact"));
+      requestId = ++probeRequest.current;
+      const probe = await nextProbe(userId!, locale, period, history, cov, isMinor === true,
+        0, target, deliverRed, { isMinor, isCurrent: canAcceptGuidance }, { includeQuestionSource: true });
+      if (!owner.isCurrent()) return "stale";
+      if (probe.zone === "red") { deliverRed(probe.hotline); return "crisis"; }
+      if (redSeen || flowRef.current.crisisLatched) return "crisis";
+      if (!isCurrentRequest()) return ended.current ? "finished" : "stale";
+      if (probe.guidance && canAcceptGuidance() && lastGuidanceRequest.current !== requestId) {
+        let ready = false;
+        try { ready = resolveProbeGuidanceCopy(probe.guidance, locale).kind === "ready"; } catch { /* No raw fallback. */ }
+        if (ready && canAcceptGuidance()) {
+          const delivery: InterviewGuidanceDelivery = { requestId, guidance: probe.guidance, owner,
+            instance, locale, token: {}, ready: false };
+          lastGuidanceRequest.current = requestId;
+          guidanceRef.current = delivery;
+          guidanceScroll.current = { pending: delivery.token, accepted: delivery.token };
+          setGuidanceDelivery(previous => isGuidanceCurrent(delivery) ? delivery : previous);
+        }
+      }
+      if (!canAcceptGuidance()) return "stale";
+      if (request.kind === "answer") {
+        const lastAnswer = history[request.index];
+        const confirmed = credited && lastAnswer ? confirmedAnswer(lastAnswer.text, credited, locale, probe.answeredLayer) : false;
+        const otherLayer = credited && probe.answeredLayer != null && probe.answeredLayer !== credited;
+        frame.turns = history.map((turn, index) => index === request.index && turn.role === "user"
+          ? { ...turn, answered: otherLayer ? null : Boolean(confirmed) } : turn);
+        // Stage credit with this frame; commitFrame applies it behind the same revision fence.
+        const setCoverage = (next: Coverage) => { frame.coverage = next; };
+        if (credited && confirmed) setCoverage(incrementCoverage(cov, period, credited));
+        if (credited) frame.stuckStreak = failedAttempts(frame.turns, credited, locale);
+        if (credited && !otherLayer && !confirmed) {
+          const failure = failedAttemptMove(credited, frame.stuckStreak);
+          if (failure?.kind === "stuckChoice") return showChoice(action, frame, failure);
+        }
+        const completedMore = returnAfterMore();
+        if (completedMore) return completedMore;
+        if (credited && otherLayer) return acceptIntoFrame(action, frame, local(credited));
+        if (credited && !confirmed) {
+          return acceptIntoFrame(action, frame, local(credited, undefined, scaffoldQuestion(credited, locale, 1), 1));
+        }
+        const status = sceneStatus(frame.turns, period, locale, frame.abandoned, frame.concreteOnly);
+        if (status.kind === "noEligible") return showChoice(action, frame, { kind: "sceneChoice", reason: "no-eligible" });
+        if (status.kind === "complete") return showChoice(action, frame, { kind: "sceneChoice", reason: status.reason });
+        return acceptIntoFrame(action, frame, local(status.target, probe));
+      }
+      return acceptIntoFrame(action, frame, local(request.target, probe));
+    } catch (error) {
+      if (!isCurrentRequest() || redSeen) return ended.current ? "finished" : "stale";
+      const limited = await readDayLimitRefusal(error, INTERVIEW_PURPOSE);
+      if (!isCurrentRequest() || redSeen) return ended.current ? "finished" : "stale";
+      if (request.kind === "question-only") {
+        commitFrame(action, request.choice.snapshot, { ...request.choice, action: null });
+      } else if (limited) {
+        commitFrame(action, action.snapshot);
+        const revision = action.revision;
+        setDraft(previous => stampCurrent(action, revision) && !ended.current
+          && draftEditRevision.current === action.draftRevision ? action.snapshot.draft : previous);
+      } else {
+        commitFrame(action, { ...frame, turns: history.map((turn, index) => index === request.index && turn.role === "user"
+          ? { ...turn, answered: undefined, unsettled: true } : turn), pendingLayer: credited });
+      }
+      const revision = action.revision;
+      setNotice(previous => stampCurrent(action, revision) && !ended.current ? t(limited ? "drill.dayLimit" : "drill.failed") : previous);
+      return limited ? "limited" : "failed";
+    } finally {
+      settled = true;
+      releaseAction(action);
+    }
+  }
 
   // 첫 질문은 **LLM 을 부르지 않는다.**
   //
@@ -655,14 +749,22 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     // 0건이었다. 예전 일반 문구(`drill.opening`)는 "어느 시기를 해볼까요?" 라고
     // 되묻는 것이었는데, 시기는 이제 `/audit` 에서 고르고 오므로 질문이 중복된다.
     // 여전히 **모델을 부르지 않는다** -- 고정 표에서 꺼낸다.
-    setTurns([{ role: "interviewer", text: seedQuestion(period, locale), layer: "fact", period, sceneStart: true }]);
+    const initialTurns: InterviewTurn[] = [{ role: "interviewer", text: seedQuestion(period, locale), layer: "fact", period, sceneStart: true }];
+    turnsOwnerRef.current = initialTurns;
+    setTurns(initialTurns);
     setPendingLayer("fact");
     // 지난 세션까지 판 자리를 이어받는다. 안 그러면 매번 처음부터 다시 파고,
     // 등급은 한 세션 안에서만 오르내린다(그게 지금까지의 상태였다).
+    const owner = captureAccountOwnerLease(userId);
+    const instance = interviewInstance.current;
+    const context = contextRef.current;
+    const current = () => Boolean(owner?.isCurrent()) && mounted.current && interviewInstance.current === instance
+      && contextRef.current === context && !flowRef.current.crisisLatched;
     void loadCoverage(userId).then((stored) => {
+      if (!current()) return;
       baseCoverage.current = stored;
-      setCoverage(stored);
-      setCoverageReady(true);
+      setCoverage(previous => current() ? stored : previous);
+      setCoverageReady(previous => current() ? true : previous);
     });
   }, [userId, period, locale]);
 
@@ -676,18 +778,33 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
   const userTurns = turns.filter((turn) => turn.role === "user").length;
 
   function editDraft(value: string) {
+    if (flowRef.current.receipt.phase !== "idle" || flowRef.current.choice || ended.current || !sessionCurrent()) return;
+    openerSelection.current = undefined;
     draftEditRevision.current += 1;
     setDraft(value);
+  }
+
+  function selectOpener(index: number) {
+    if (!pendingLayer || busy || sending.current || flowRef.current.action || turnsOwnerRef.current !== turns
+      || flowRef.current.receipt.phase !== "idle" || flowRef.current.choice || ended.current || !sessionCurrent()) return;
+    const text = openers[index];
+    if (typeof text !== "string") return;
+    const selection = { questionIndex: turns.length - 1, questionText: turns.at(-1)?.text ?? "", openerIndex: index, text };
+    if (!isUneditedOpener(selection, text, turns, openers)) return;
+    editDraft(text);
+    openerSelection.current = selection;
   }
 
   // `override` 는 답변 칩이 쓴다. 칩을 누르면 `setDraft` 후 `send()` 를 부르는 대신
   // 곧바로 그 말을 보낸다 — 상태 갱신은 다음 렌더에나 반영돼서, 그 사이에 보내면
   // 직전 draft(대개 빈 문자열)가 나간다.
   async function send(override?: string) {
-    if (!userId || busy || ended.current || !coverageReady) return;
+    if (!userId || !sessionCurrent()) return;
     const text = (override ?? draft).trim();
+    const ordinaryLocked = ended.current || busy || sending.current || !coverageReady || flowRef.current.action || flowRef.current.choice
+      || flowRef.current.receipt.phase !== "idle" || turnsOwnerRef.current !== turns;
     if (text.length === 0) {
-      setNotice(t("drill.emptyAnswer"));
+      if (!ordinaryLocked) setNotice(t("drill.emptyAnswer"));
       return;
     }
     // C9: `isNonAnswer`보다 먼저 양쪽 언어를 분류한다. "죽고 싶어요. 모르겠어요"
@@ -696,6 +813,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
     // coverage·nextMove·nextProbe는 건드리지 않는다.
     const safety = classifyInputAnyLocale(text, locale, { minor: isMinor === true });
     if (safety.zone === "red") {
+      if (flowRef.current.crisisLatched) return;
       const owner = captureAccountOwnerLease(userId);
       if (!owner) return;
       const route = startInterviewCrisisRouting(
@@ -704,6 +822,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         () => {
           // The answer stays outside the saved transcript until the separate
           // crisis-save AI hold is wired; this route must not add AI egress.
+          latchCrisis();
           finish();
           publishCrisisNotice(owner, safety.crisisRouting?.hotline ?? hotlineFor());
         },
@@ -717,6 +836,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       }
       return;
     }
+    if (ordinaryLocked) return;
     const disposition = answerDisposition(text, locale);
     if (disposition === "stop") {
       setTurns([...turns, { role: "user", text, period, answered: false }]);
@@ -728,103 +848,172 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       changeAngle("skip");
       return;
     }
-    // A same-render double tap must not submit two answers before busy paints.
-    if (sending.current || turnsOwnerRef.current !== turns) return;
-    const owner = captureAccountOwnerLease(userId);
-    if (!owner) return;
-    const editRevision = draftEditRevision.current;
-    // 답변이 붙는 층은 **직전 질문이 겨냥한 층**이다. 되묻기였다면 층이 없다 --
-    // 그건 깊이를 판 것이 아니라 방향을 바꾼 것이므로 coverage 를 올리지 않는다.
-    const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period };
-    const nextTurns = [...turns, answered];
-
-    // ⚠ **"모르겠다"는 칸을 채우지 않는다** (Simon 실측, 2026-08-24).
-    //
-    // 예전에는 비어 있지 않은 답이면 무조건 `incrementCoverage` 를 불렀다. 그래서
-    // "잘 모르겠는데" 가 의미(L3) 칸을 채우고, 채워졌으니 믿음(L4)으로 내려갔다.
-    // **못 판 것을 판 것으로 셌다.** 그 칸 수가 그대로 `narrativeStarLevel` 의
-    // 입력이라 등급까지 오염됐다 -- 7렌즈 감사에서 걸린 바로 그 병이다.
-    //
-    // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
-    // 말했을 때만 안 셌다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
+    const action = beginAction({ ...frameSnapshot(), draft: override ?? draft,
+      ...(override !== undefined ? { openerSelection: undefined } : {}) });
+    if (!action) return;
     const blocked = isLocalNonAnswer(text, pendingLayer);
+    const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period,
+      // The input must still be the exact selected candidate, before send's trim.
+      ...(override === undefined && isUneditedOpener(openerSelection.current, draft, turns, openers) ? { fromOpener: true } : {}),
+      ...(blocked ? { answered: false } : {}) };
+    const nextTurns = [...turns, answered];
     const nextCoverage = coverage;
-    const nextStreak = blocked ? stuckStreak + 1 : 0;
-    const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;
-    // 발판을 두 번 줘도 막혔다. 이 층은 이번 대화에서 더 묻지 않는다 -- 칸은
-    // 비운 채로. 안 그러면 비어 있다는 이유로 같은 층이 계속 다시 골라진다.
-    const nextAbandoned =
-      pendingLayer && nextStreak > MAX_SCAFFOLDS_PER_LAYER && !abandoned.includes(pendingLayer)
-        ? [...abandoned, pendingLayer]
-        : abandoned;
-
-    turnsOwnerRef.current = nextTurns;
-    setTurns(nextTurns);
-    setCoverage(nextCoverage);
-    // 포기했으면 연속 카운터도 초기화한다 -- 다음 층은 새로 시작하는 것이 맞다.
-    setStuckStreak(nextAbandoned !== abandoned ? 0 : nextStreak);
-    setAbandoned(nextAbandoned);
-    setDraft("");
-    setOpeners([]);
-    setPendingLayer(null);
+    const streak = pendingLayer ? failedAttempts(nextTurns, pendingLayer, locale) : 0;
+    commitFrame(action, { ...action.snapshot, turns: nextTurns, pendingLayer: null, openers: [], draft: "" });
+    const revision = action.revision;
+    setDraft(previous => stampCurrent(action, revision) && !ended.current
+      && draftEditRevision.current === action.draftRevision ? "" : previous);
     sending.current = true;
+    await ask(nextTurns, nextCoverage, blocked && pendingLayer ? { layer: pendingLayer, streak } : null,
+      abandoned, blocked ? null : pendingLayer, action, { kind: "answer", index: nextTurns.length - 1, layer: pendingLayer });
+  }
+
+  function startNewScene(selected?: InterviewChoice) {
+    if (selected && (flowRef.current.choice?.generation !== selected.generation || !availableChoices(selected).newScene)) return;
+    if (!selected && flowRef.current.choice) return;
+    const action = beginAction(selected?.snapshot);
+    if (!action) return;
     try {
-      const outcome = await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);
-      if (outcome === "limited" && owner.isCurrent() && mounted.current && !ended.current) {
-        turnsOwnerRef.current = turns;
-        setTurns(turns);
-        setPendingLayer(pendingLayer);
-        setOpeners(openers);
-        setStuckStreak(stuckStreak);
-        setAbandoned(abandoned);
-        // The field is disabled while busy, but a queued native edit or a
-        // newer user action still owns its text. Never overwrite that edit.
-        if (draftEditRevision.current === editRevision) setDraft(override ?? draft);
+      const frame = action.snapshot;
+      if (localPromptsExhausted(frame.turns, turn => isLocalNonAnswer(turn.text, turn.layer))) {
+        showChoice(action, frame, { kind: "sceneChoice", reason: "local-prompts-exhausted" }); return;
       }
-    } finally {
-      sending.current = false;
-    }
+      commitFrame(action, { ...frame, turns: [...frame.turns, { role: "interviewer", text: t("drill.anotherScene"),
+        layer: "fact", period, sceneStart: true }], pendingLayer: "fact", concreteOnly: false,
+        abandoned: [], stuckStreak: 0, openers: [], draft: "", returnToChoice: false });
+      const revision = action.revision;
+      setDraft(previous => stampCurrent(action, revision) && !ended.current ? "" : previous);
+      setNotice(previous => stampCurrent(action, revision) && !ended.current ? null : previous);
+    } finally { releaseAction(action); }
   }
 
   function changeAngle(choice: "skip" | "concrete") {
-    if (busy || sending.current || turnsOwnerRef.current !== turns || ended.current) return;
-    // 모델을 부르지 않는 길이라 서버 한도에 안 닿는다. 답 없이 연달아 붙은 질문만
-    // 세서 막는다 -- 건너뛰기를 계속 눌러도 끝없이 길어지지 않게(session-end.ts).
-    // "모르겠어요"처럼 발판으로 받은 답은 답으로 세지 않는다 -- send() 와 같은 판정.
-    if (localPromptsExhausted(turns, (turn) => isLocalNonAnswer(turn.text, turn.layer))) {
-      finish();
-      return;
-    }
-    const text = t(choice === "skip" ? "drill.anotherScene" : "drill.concreteQuestion");
-    if (choice === "concrete" && currentScene(turns).some((turn) => turn.text === text)) return;
-    const nextTurns: InterviewTurn[] = [...turns, { role: "interviewer", text, layer: "fact", period, sceneStart: choice === "skip" }];
-    turnsOwnerRef.current = nextTurns;
-    setTurns(nextTurns);
-    setConcreteOnly(choice === "concrete");
-    setPendingLayer("fact");
-    setStuckStreak(0);
-    setAbandoned([]);
-    setDraft("");
-    setOpeners([]);
-    setNotice(null);
+    if (choice === "skip") { startNewScene(); return; }
+    if (flowRef.current.choice) return;
+    const action = beginAction();
+    if (!action) return;
+    try {
+      const frame = { ...action.snapshot, concreteOnly: true };
+      const status = sceneStatus(frame.turns, period, locale, frame.abandoned, true);
+      if (status.kind === "noEligible") { showChoice(action, frame, { kind: "sceneChoice", reason: "no-eligible" }); return; }
+      if (status.kind === "complete") { showChoice(action, frame, { kind: "sceneChoice", reason: status.reason }); return; }
+      const text = t("drill.concreteQuestion");
+      if (frame.pendingLayer === "fact" && currentScene(frame.turns).some(turn => turn.role === "interviewer" && turn.text === text)) {
+        commitFrame(action, frame); return;
+      }
+      acceptIntoFrame(action, frame, acceptQuestion({ target: "fact", eligible: status.eligible, policy: "local-fact",
+        history: frame.turns, locale, localQuestion: text,
+        localGuard: localPromptsExhausted(frame.turns, turn => isLocalNonAnswer(turn.text, turn.layer)) }));
+    } finally { releaseAction(action); }
   }
 
-  async function keepIt() {
-    if (!userId || saving) return;
+  async function chooseNext(kind: "more" | "skip-layer", selected: InterviewChoice) {
+    if (flowRef.current.choice?.generation !== selected.generation) return;
+    const available = availableChoices(selected);
+    if (kind === "more" ? !available.more : !available.skipLayer) return;
+    const action = beginAction(selected.snapshot);
+    if (!action) return;
+    const proposedAbandoned = kind === "skip-layer" && selected.kind === "stuckChoice"
+      ? [...new Set([...selected.snapshot.abandoned, selected.layer])] : selected.snapshot.abandoned;
+    const frame = { ...selected.snapshot, abandoned: proposedAbandoned };
+    const status = sceneStatus(frame.turns, period, locale, proposedAbandoned, frame.concreteOnly);
+    if (status.kind === "noEligible" || (status.kind === "complete" && kind !== "more")) {
+      showChoice(action, frame, { kind: "sceneChoice", reason: status.kind === "noEligible" ? "no-eligible" : status.reason });
+      releaseAction(action); return;
+    }
+    const running = { ...selected, action };
+    flowRef.current.choice = running;
+    const revision = action.revision;
+    setChoice(previous => stampCurrent(action, revision) && !ended.current ? running : previous);
+    await ask(frame.turns, frame.coverage, null, proposedAbandoned, null, action,
+      { kind: "question-only", actionKind: kind, choice: selected, target: status.target, proposedAbandoned });
+  }
+
+  function canContinueSave(intent: SaveIntent): boolean {
+    const receipt = flowRef.current.receipt;
+    if (receipt.phase === "idle" || receipt.intent.token !== intent.token || receipt.continuation === "interrupted") return false;
+    if (!stampCurrent(intent) || (!intent.endedAtStart && ended.current)) {
+      receipt.continuation = "interrupted";
+      return false;
+    }
+    return true;
+  }
+  // Late ACKs are facts about this intent, even after it loses UI authority.
+  function writeReceipt(receipt: SaveReceipt) {
+    flowRef.current.receipt = receipt;
+    if (receipt.phase === "idle" || !canContinueSave(receipt.intent)) return;
+    setSaveReceipt(previous => flowRef.current.receipt === receipt && canContinueSave(receipt.intent) ? receipt : previous);
+  }
+  function showSaveFailure(intent: SaveIntent) {
+    if (!canContinueSave(intent)) return;
+    setSaving(previous => canContinueSave(intent) ? false : previous);
+    setFailModal(previous => canContinueSave(intent) ? true : previous);
+  }
+  function completeSave(intent: SaveIntent) {
+    const receipt = flowRef.current.receipt;
+    if (receipt.phase !== "committed" || receipt.effectsStarted || !canContinueSave(intent)) return;
+    receipt.effectsStarted = true;
+    setToast(previous => canContinueSave(intent) ? { tone: "success", message: t("drill.saved") } : previous);
+    if (!canContinueSave(intent)) return;
+    if (saveCueAllowed({ crisis: false, recording: isRecordingAudioMode() })) playSaveCue();
+    if (!canContinueSave(intent)) return;
+    void loadSevenLevels(intent.input.userId).then((s) => {
+      if (canContinueSave(intent)) return recordSevenTiers(intent.input.userId, s.starLevels);
+    }).catch(() => {});
+    if (!canContinueSave(intent)) return;
+    setTimeout(() => {
+      if (!canContinueSave(intent)) return;
+      const { period, growthOrigin } = intent;
+      if (growthOrigin) router.replace("/star/growth");
+      else router.replace(`/me/${period}`);
+    }, 700);
+  }
+  async function saveCoverage(intent: SaveIntent) {
+    const receipt = flowRef.current.receipt;
+    if (receipt.phase !== "coveragePending" || !["ready", "retryable"].includes(receipt.coverage) || !canContinueSave(intent)) return;
+    const attemptToken = {};
+    const pending: SaveReceipt = { ...receipt, coverage: "inFlight", attemptToken };
+    writeReceipt(pending);
+    if (!canContinueSave(intent)) return;
+    setSaving(previous => canContinueSave(intent) ? true : previous);
+    if (!canContinueSave(intent)) return;
+    const result = await addCoverage(intent.input.userId, intent.delta, () => canContinueSave(intent));
+    const current = flowRef.current.receipt;
+    if (current.phase !== "coveragePending" || current.intent.token !== intent.token || current.attemptToken !== attemptToken) return;
+    canContinueSave(intent);
+    if (result.kind === "acknowledged") {
+      writeReceipt({ phase: "committed", intent, continuation: current.continuation,
+        recordId: current.recordId, coverage: result.receipt, effectsStarted: false });
+      completeSave(intent);
+    } else if (result.kind === "stale") {
+      current.continuation = "interrupted";
+    } else {
+      writeReceipt({ ...current, coverage: result.kind === "notApplied" ? "retryable" : "unknown" });
+      showSaveFailure(intent);
+    }
+  }
+  function retryCoverage() {
+    const receipt = flowRef.current.receipt;
+    if (receipt.phase !== "coveragePending" || receipt.coverage !== "retryable" || !canContinueSave(receipt.intent)) return;
+    setFailModal(false);
+    void saveCoverage(receipt.intent);
+  }
+  async function keepIt(selected?: InterviewChoice) {
+    const flow = flowRef.current;
+    if (flow.receipt.phase !== "idle") { canContinueSave(flow.receipt.intent); return; }
+    if (!userId || !sessionCurrent() || flow.crisisLatched || (flow.action && !ended.current) || flow.receipt.phase !== "idle" || !coverageReady
+      || turnsOwnerRef.current !== turns || !turns.some(turn => turn.role === "user")) return;
+    if (!ended.current && (!selected || flow.choice?.generation !== selected.generation || !availableChoices(selected).save)) return;
     const owner = captureAccountOwnerLease(userId);
     if (!owner) return;
-    setSaving(true);
-    let navigating = false;
-    try {
       const qLabel = locale === "ko" ? "질문" : "Q";
-      const aLabel = locale === "ko" ? "답변" : "A";
       // 마지막 답까지만 담는다 -- "여기까지"로 끝내면 답 없는 질문이 끝에 붙어 있다(Z63).
       const transcript = storedTurns(turns)
-        .map((turn) => `${turn.role === "interviewer" ? qLabel : aLabel}: ${turn.text}`)
+        .map((turn) => `${turn.role === "interviewer" ? qLabel : interviewAnswerLabel(turn.fromOpener, locale)}: ${turn.text}`)
         .join("\n\n");
       // withFollowup:false performs a local C9 check, not a semantic scan.
       // Its red result still needs guidance even after leaving this route.
-      const saved = await createRecord({
+      const input: SaveIntent["input"] = {
         userId,
         locale,
         minor: isMinor === true,
@@ -844,46 +1033,55 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
         auditPeriod,
         domainIntent: growthOrigin ? "growth" : undefined,
         withFollowup: false,
-      });
-      if (!owner.isCurrent()) return;
+      };
+      const delta = emptyCoverage();
+      for (const p of LIFE_PERIODS) for (const l of DRILL_LAYERS) {
+        delta[p][l] = Math.max(0, coverage[p][l] - baseCoverage.current[p][l]);
+      }
+    const intent: SaveIntent = { owner, instance: interviewInstance.current, context: contextRef.current,
+      revision: ++flow.revision, epoch: flow.crisisEpoch, history: turns, token: {}, frame: frameSnapshot(), delta,
+      endedAtStart: ended.current, input, period, growthOrigin };
+    writeReceipt({ phase: "recordPending", intent, record: "inFlight", continuation: "live" });
+    if (!canContinueSave(intent)) return;
+    setSaving(previous => canContinueSave(intent) ? true : previous);
+    try {
+      if (!canContinueSave(intent)) return;
+      const saved = await createRecord(intent.input);
+      // Fence synchronous subscribers before publication; the root store owns the lease check.
+      if (saved?.followup?.zone === "red") latchCrisis();
+      const recordId = typeof saved?.id === "string" && saved.id.trim() ? saved.id : null;
+      canContinueSave(intent);
+      const current = flowRef.current.receipt;
+      if (current.phase === "idle" || current.intent.token !== intent.token) return;
+      writeReceipt(recordId
+        ? { phase: "coveragePending", intent, continuation: current.continuation, recordId, coverage: "ready" }
+        : { phase: "recordPending", intent, continuation: current.continuation, record: "unknown" });
+      if (!saved) { showSaveFailure(intent); return; }
       if (saved.followup?.zone === "red") {
         publishCrisisNotice(owner, saved.crisisHotline ?? hotlineFor());
-        if (mounted.current) finish();
+        if (owner.isCurrent() && mounted.current && interviewInstance.current === intent.instance) finish();
         return;
       }
-      if (!mounted.current) return;
-      // 판 자리를 남긴다. **내용과 같은 동의 경로**다 -- 사용자가 담기로 했을
-      // 때만 쓴다. 칸 수에는 답변 원문이 없지만, 그렇다고 담지 않기로 한 대화가
-      // 별을 밝히는 것은 이 저장소의 규율과 어긋난다.
-      const delta = emptyCoverage();
-      for (const p of LIFE_PERIODS) {
-        for (const l of DRILL_LAYERS) {
-          delta[p][l] = Math.max(0, coverage[p][l] - baseCoverage.current[p][l]);
-        }
-      }
-      await addCoverage(userId, delta);
-      if (!owner.isCurrent() || !mounted.current) return;
-      // 판 만큼 별이 밝아졌다면 그 변화를 원장에 남긴다. 남겨야 8주 그래프에
-      // 선이 생긴다 -- 지금 등급만 있으면 "밝아지고 있다"를 보여줄 수가 없다.
-      // 실패해도 조용하다(recordSevenTiers 가 삼킨다). 저장은 이미 끝났고,
-      // 기록 실패로 성공한 인터뷰를 실패로 보이게 할 이유가 없다.
-      void loadSevenLevels(userId).then((s) => recordSevenTiers(userId, s.starLevels));
-      setToast({ tone: "success", message: t("drill.saved") });
-      // 저장 소리(Q-261006-03). 위기 판정은 위에서 먼저 돌아가므로 여기까지 오면 위기가 아니다.
-      // 대화 도중 층이 채워지는 순간은 여전히 무음이다(채점처럼 들리지 않게).
-      if (saveCueAllowed({ crisis: false, recording: isRecordingAudioMode() })) playSaveCue();
-      navigating = true;
-      setTimeout(() => {
-        if (!owner.isCurrent() || !mounted.current) return;
-        if (growthOrigin) router.replace("/star/growth");
-        else router.replace(`/me/${period}`);
-      }, 700);
+      if (!canContinueSave(intent)) return;
+      if (!recordId) { showSaveFailure(intent); return; }
+      await saveCoverage(intent);
     } catch {
-      if (owner.isCurrent() && mounted.current) setFailModal(true);
-    } finally {
-      if (!navigating && owner.isCurrent() && mounted.current) setSaving(false);
+      const current = flowRef.current.receipt;
+      if (current.phase === "recordPending" && current.intent.token === intent.token) {
+        canContinueSave(intent);
+        writeReceipt({ ...current, record: "unknown" });
+        showSaveFailure(intent);
+      }
     }
   }
+
+  const receipt = flowRef.current.receipt;
+  const saveLive = receipt.phase !== "idle" && canContinueSave(receipt.intent);
+  const saveBusy = saveLive && (receipt.phase === "recordPending" && receipt.record === "inFlight"
+    || receipt.phase === "coveragePending" && receipt.coverage === "inFlight");
+  const retryable = saveLive && receipt.phase === "coveragePending" && receipt.coverage === "retryable";
+  const saveFailureKey = receipt.phase === "recordPending" ? "drill.recordSaveUnknown"
+    : retryable ? "drill.coverageSaveFailed" : "drill.coverageSaveUnknown";
 
   return (
     <InterviewFrame>
@@ -943,15 +1141,15 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               <MdButton
                 label={t("approve")}
                 variant="filled"
-                loading={saving}
-                disabled={busy || userTurns === 0}
+                loading={saveBusy}
+                disabled={busy || userTurns === 0 || receipt.phase !== "idle"}
                 onPress={() => void keepIt()}
                 icon={<Glyph name="check" color={m3.color.onPrimary} size={18} />}
                 style={styles.actionButton}
               />
             </View>
           </>
-        ) : (
+        ) : (view.mode === "active" || view.mode === "choosing" ? (
           <>
             {/* 세션 01 실증: 시작 규칙을 먼저 선언하면 답을 꾸미려는 압력이
                 줄어든다. "모르겠다도 데이터" -- isNonAnswer 가 처리만 하고
@@ -979,6 +1177,36 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               <Text style={[m3TextStyle("bodySmall"), styles.notice]}>{notice}</Text>
             ) : null}
 
+            {view.mode === "choosing" && choice ? (
+              <View style={styles.choicePanel}>
+                <Text style={[m3TextStyle("titleMedium"), styles.saveTitle]}>{t(choice.kind === "stuckChoice"
+                  ? "drill.changeSceneChoice" : choice.reason === "local-prompts-exhausted" ? "drill.localPromptsExhausted"
+                    : choice.reason === "no-eligible" || choice.reason === "question-exhausted" ? "drill.questionsExhausted" : "drill.sceneChoice")}</Text>
+                {choice.kind === "sceneChoice" ? (
+                  <Pressable accessibilityRole="button" accessibilityState={{ disabled: !choices.more }} disabled={!choices.more}
+                    style={styles.answerChip} onPress={() => void chooseNext("more", choice)}>
+                    <Text style={[m3TextStyle("labelLarge"), styles.answerChipText]}>{t("drill.continueScene")}</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable accessibilityRole="button" accessibilityState={{ disabled: !choices.newScene }} disabled={!choices.newScene}
+                  style={styles.answerChip} onPress={() => startNewScene(choice)}>
+                  <Text style={[m3TextStyle("labelLarge"), styles.answerChipText]}>{t("drill.newScene")}</Text>
+                </Pressable>
+                {choice.kind === "sceneChoice" ? (
+                  <Pressable accessibilityRole="button" accessibilityState={{ disabled: !choices.save }} disabled={!choices.save}
+                    style={styles.answerChip} onPress={() => void keepIt(choice)}>
+                    <Text style={[m3TextStyle("labelLarge"), styles.answerChipText]}>{t("drill.saveAndFinish")}</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable accessibilityRole="button" accessibilityState={{ disabled: !choices.skipLayer }} disabled={!choices.skipLayer}
+                    style={styles.answerChip} onPress={() => void chooseNext("skip-layer", choice)}>
+                    <Text style={[m3TextStyle("labelLarge"), styles.answerChipText]}>{t("drill.skipLayer")}</Text>
+                  </Pressable>
+                )}
+                {saveBusy ? <PremiumLoadingState message={t("loading")} /> : null}
+              </View>
+            ) : null}
+
             {pendingLayer ? (
               <Text style={[m3TextStyle("labelMedium"), styles.turnLabel]}>
                 {t("drill.turnLabel", {
@@ -993,16 +1221,16 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
                 누르면 그대로 보내고 `isNonAnswer` 가 받는다 — 칸은 안 채우고 같은
                 층에서 발판을 놓는다(#1357/#1358). 밝기는 정직하게 유지된다.
                 ⚠ 알약(pill)이 아니라 사각이다. PIXEL-CLAY 는 라운드 0 이다. */}
-            {pendingLayer && !busy ? (
+            {pendingLayer && !inputLocked ? (
               <View style={styles.answerChips}>
                 {/* ⚠ 말문 후보는 **보내지 않고 입력창을 채운다.**
                     모델이 쓴 문장이 그대로 기록으로 남으면, 이 제품이 모으려는
                     "그 사람이 실제로 한 말" 이 아니라 "모델이 그럴듯하게 지어낸 말"
                     이 위키에 쌓인다. 고쳐 쓰라고 놓는 첫머리다. */}
-                {openers.map((o) => (
+                {openers.map((o, index) => (
                   <Pressable
                     key={o}
-                    onPress={() => editDraft(o)}
+                    onPress={() => selectOpener(index)}
                     style={styles.answerChip}
                     accessibilityRole="button"
                     accessibilityLabel={o}
@@ -1043,7 +1271,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               placeholder={t("drill.placeholder")}
               placeholderTextColor={m3.color.onSurfaceVariant}
               multiline
-              editable={!busy && coverageReady}
+              editable={!inputLocked}
               style={[m3TextStyle("bodyMedium"), styles.input]}
               accessibilityLabel={t("drill.placeholder")}
             />
@@ -1052,7 +1280,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               <MdButton
                 label={t("drill.send")}
                 variant="filled"
-                disabled={busy || !coverageReady}
+                disabled={inputLocked}
                 onPress={() => void send()}
                 icon={<Glyph name="send" color={m3.color.onPrimary} size={18} />}
                 style={styles.actionButton}
@@ -1073,7 +1301,7 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
               ) : null}
             </View>
           </>
-        )}
+        ) : null)}
       </ScrollView>
 
       {toast ? (
@@ -1083,25 +1311,22 @@ function InterviewSession({ period, growthOrigin }: { period: LifePeriod; growth
       ) : null}
 
       <PremiumModal
-        visible={failModal}
+        visible={failModal && saveLive}
         onClose={() => setFailModal(false)}
         accessibilityLabel={t("notice")}
       >
         <Text style={[m3TextStyle("titleMedium"), styles.saveTitle]}>{t("reflectError")}</Text>
-        <Text style={[m3TextStyle("bodyMedium"), styles.saveBody]}>{t("reflectErrorBody")}</Text>
+        <Text style={[m3TextStyle("bodyMedium"), styles.saveBody]}>{t(saveFailureKey)}</Text>
         {/* 다시 누르면 무엇이 일어나는지 먼저 말한다 -- 실패 뒤에 버튼만 있으면
             사용자는 대화가 날아갔는지 아닌지를 모른다. */}
-        <Text style={[m3TextStyle("bodySmall"), styles.note]}>{t("retryHint")}</Text>
+        {retryable ? <Text style={[m3TextStyle("bodySmall"), styles.note]}>{t("retryHint")}</Text> : null}
         <View style={styles.actions}>
           <MdButton label={t("dismiss")} variant="outlined" onPress={() => setFailModal(false)} />
-          <MdButton
+          {retryable ? <MdButton
             label={t("tryAgain")}
             variant="filled"
-            onPress={() => {
-              setFailModal(false);
-              void keepIt();
-            }}
-          />
+            onPress={retryCoverage}
+          /> : null}
         </View>
       </PremiumModal>
 
@@ -1115,6 +1340,7 @@ const _loopKeys: readonly string[] = LOOP_CHECK_KEYS;
 void _loopKeys;
 
 const styles = StyleSheet.create({
+  choicePanel: { gap: spacing.sm },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   routeState: { padding: spacing.md },
   lockedCard: { width: "100%", maxWidth: 480, padding: spacing.md, gap: spacing.xs },

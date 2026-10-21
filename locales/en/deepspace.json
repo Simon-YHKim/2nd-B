@@ -256,7 +256,6 @@
     "reportBug": "Report a bug",
     "footer": "PolaScope v{{version}} · 2 business days KST",
     "faqTitle": "FAQ",
-    "noticesTitle": "Notices",
     "faqs": {
       "brightness": {
         "q": "What does star brightness mean?",
@@ -266,23 +265,9 @@
         "q": "Does a paid plan make it smarter?",
         "a": "No. Answer quality is the same on every plan. Only the limits on counts, retention, and export differ."
       },
-      "call": {
-        "q": "Is call recording safe?",
-        "a": "Recordings are transcribed over an encrypted connection on the AI server, and the original audio is deleted from your device right after. Only the text and signals are kept, encrypted."
-      }
-    },
-    "notices": {
-      "modes": {
-        "t": "HustleK three modes launched",
-        "tag": "New"
-      },
-      "museum": {
-        "t": "AI Museum: 8 collections now open",
-        "tag": "Content"
-      },
       "voice": {
-        "t": "Voice transcription improved",
-        "tag": "Improved"
+        "q": "Is voice transcription safe?",
+        "a": "Voice is transcribed on the AI server over an encrypted connection, and the original audio is deleted from your device right after. Only the text and signals are kept, encrypted."
       }
     }
   },

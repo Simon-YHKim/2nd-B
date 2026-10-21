@@ -49,6 +49,11 @@ describe("consent copy covers existing records (both locales)", () => {
 });
 
 describe("the backfill is wired to the consent flip", () => {
+  test("only explicit enable requests a fresh server CAS marker", () => {
+    expect(fnSlice("enableEmbedding")).toContain("{ before: current, enableRecordsEmbedding: true }");
+    expect(fnSlice("disableEmbedding")).not.toContain("enableRecordsEmbedding: true");
+    expect(SRC.match(/enableRecordsEmbedding: true/g)).toHaveLength(1);
+  });
   test("enableEmbedding kicks backfillAllRecordEmbeddings detached, with the live-pref probe", () => {
     const fn = fnSlice("enableEmbedding");
     expect(fn).toMatch(/void backfillAllRecordEmbeddings\(targetUserId, \{/);
@@ -64,7 +69,7 @@ describe("the backfill is wired to the consent flip", () => {
 
   test("the backfill call sits AFTER the consent save, inside the success path", () => {
     const fn = fnSlice("enableEmbedding");
-    const save = fn.indexOf("savePrivacyPrefs(targetUserId, prefs, { before: current })");
+    const save = fn.indexOf("savePrivacyPrefs(targetUserId, prefs, { before: current, enableRecordsEmbedding: true })");
     const backfill = fn.indexOf("backfillAllRecordEmbeddings");
     expect(save).toBeGreaterThan(-1);
     expect(backfill).toBeGreaterThan(save);

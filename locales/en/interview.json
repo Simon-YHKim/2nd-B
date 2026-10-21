@@ -14,6 +14,17 @@
     "setAside": "What would change if you set this thought aside for five minutes?"
   },
   "drill": {
+    "sceneChoice": "What next?",
+    "continueScene": "More on this story",
+    "newScene": "Another moment",
+    "saveAndFinish": "Save and finish",
+    "changeSceneChoice": "Talk about another moment?",
+    "skipLayer": "Skip this question",
+    "questionsExhausted": "No further questions are available.",
+    "localPromptsExhausted": "No more questions can be added.",
+    "coverageSaveFailed": "Progress could not be saved.",
+    "recordSaveUnknown": "Could not confirm that your story was saved.",
+    "coverageSaveUnknown": "Could not confirm that progress was saved.",
     "opening": "Which time in your life would you like to talk about? Start with a scene you remember.",
     "placeholder": "Write as much or as little as you like",
     "processingNotice": "AI reads your answers to create the next question. Your answers become a saved record only when you choose to save.",

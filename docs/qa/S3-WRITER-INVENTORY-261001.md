@@ -20,8 +20,8 @@ SQL·ACL·앱 동작·운영 데이터는 변경하지 않았다. #1814·#1839�
 
 | 경로 | 현재 위치 | 삭제 계약에서 함께 확인할 것 |
 |---|---|---|
-| raw-clippings 직접 업로드 | `src/lib/wiki/storage.ts:37`; 호출 `src/lib/wiki/capture.ts:146`, `src/lib/wiki/promote-pending.ts:48` | promote는 `overwrite:true`다. 계정 tombstone과 별개로 콘텐츠 epoch·경로 예약·늦은 완료를 다뤄야 한다. |
-| Storage 거부 시 sources fallback | `src/lib/wiki/capture.ts:163,168` → `src/lib/wiki/queries.ts:38` | `_body_fallback`에 본문을 담아 DB INSERT한다. Storage만 차단해서는 원문 재작성을 막지 못한다. |
+| raw-clippings 직접 업로드 | `src/lib/wiki/storage.ts:37`; 호출 `src/lib/wiki/capture.ts:171`, `src/lib/wiki/promote-pending.ts:48` | promote는 `overwrite:true`다. 계정 tombstone과 별개로 콘텐츠 epoch·경로 예약·늦은 완료를 다뤄야 한다. |
+| Storage 거부 시 sources fallback | `src/lib/wiki/capture.ts:190,195` → `src/lib/wiki/queries.ts:38` | `_body_fallback`에 본문을 담아 DB INSERT한다. Storage만 차단해서는 원문 재작성을 막지 못한다. |
 | record-photos 업로드 뒤 records 연결 | `src/lib/capture/record-photos.ts:208`; `src/components/deep-space/DeepSpaceViews.tsx:674,690`; `src/lib/records/create.ts:358` | 업로드·행 생성은 별도 요청이고 저장 실패 정리는 fire-and-forget이다. `removeRecordPhotoObjects`의 최선 노력 정리는 삭제 완료 증빙이 아니다. |
 | 위키 본문·연결·embedding | 아래 `wiki_pages`·`wiki_links`·`sources` writer 행 | 원문 삭제 뒤의 phase1/phase2/materialize·embedding 쓰기도 콘텐츠 fence 범위에 포함해야 한다. |
 | 계정 삭제 fence | `db/migrations/0192_account_deletion_completion_fence.sql:24,129,291`; `0209_record_photos_storage.sql:43,195` | 계정 tombstone·raw/사진 트리거가 콘텐츠·개별 자료 삭제 epoch를 대신하지 않는다. |

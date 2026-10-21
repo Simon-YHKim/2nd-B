@@ -47,6 +47,7 @@ export interface ShareCardProps {
   variant: "A" | "B";
   /** The 북극성 sentence — dynamic, supplied by the caller (core-brain). */
   insight: string;
+  aiCopyTail?: string;
   /** Total captured pieces (별가루) for the signature line. null/undefined = hide the count. */
   pieceCount?: number | null;
   /** How many of the 7 domain stars are lit (0..7). Default 4. */
@@ -84,7 +85,7 @@ const CARD_STARS = [
   { x: 22, y: 26 },
 ] as const;
 
-export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = BASE }: ShareCardProps) {
+export function ShareCard({ variant, insight, aiCopyTail, pieceCount, litCount = 4, size = BASE }: ShareCardProps) {
   const { t } = useTranslation("deepspace");
   const k = size / BASE;
   const portrait = hustlekPortraitLayout(34 * k, "A02");
@@ -116,7 +117,7 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
       </Svg>
 
       {variant === "A" ? (
-        <View style={[styles.inner, { padding: 30 * k }]}>
+        <View style={[styles.inner, { padding: 30 * k, bottom: aiCopyTail ? 28 * k : 0 }]}>
           <Text style={[styles.eyebrow, eyebrowColor(), { fontSize: 11 * k, letterSpacing: 11 * k * 0.18 }]}>
             {t("deepspace:shareCardImg.eyebrowWeek")}
           </Text>
@@ -134,11 +135,11 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
           </View>
         </View>
       ) : (
-        <View style={[styles.inner, { padding: 26 * k }]}>
+        <View style={[styles.inner, { padding: 26 * k, bottom: aiCopyTail ? 28 * k : 0 }]}>
           <Text style={[styles.eyebrow, styles.center, eyebrowColor(), { fontSize: 11 * k, letterSpacing: 11 * k * 0.18 }]}>
             {t("deepspace:shareCardImg.eyebrowConstellation")}
           </Text>
-          <View style={{ height: 220 * k, marginTop: 6 * k }}>
+          <View style={{ height: (aiCopyTail ? 192 : 220) * k, marginTop: 6 * k }}>
             <Svg width="100%" height="100%" viewBox="0 0 330 220">
               <Defs>
                 <RadialGradient id="share-lit" cx="50%" cy="50%" r="50%">
@@ -184,11 +185,17 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
           </View>
         </View>
       )}
+      {aiCopyTail ? (
+        <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.footerText, styles.disclosure, inkColor(), { left: 12 * k, right: 12 * k, bottom: 10 * k, fontSize: 11 * k, lineHeight: 14 * k }]}>
+          {aiCopyTail}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  disclosure: { position: "absolute", textAlign: "center" },
   card: {
     overflow: "hidden",
     borderWidth: 1,

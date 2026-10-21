@@ -256,7 +256,6 @@
     "reportBug": "Relatar um erro",
     "footer": "PolaScope v{{version}} · 2 dias úteis KST",
     "faqTitle": "Perguntas frequentes",
-    "noticesTitle": "Avisos",
     "faqs": {
       "brightness": {
         "q": "O que significa o brilho das estrelas?",
@@ -266,23 +265,9 @@
         "q": "Um plano pago deixa o app mais inteligente?",
         "a": "Não. A qualidade das respostas é a mesma em todos os planos. Só mudam os limites de quantidade, retenção e exportação."
       },
-      "call": {
-        "q": "A gravação de chamadas é segura?",
-        "a": "As gravações são transcritas no servidor de IA por uma conexão criptografada, e o áudio original é apagado do seu dispositivo logo depois. Só o texto e os sinais ficam guardados, criptografados."
-      }
-    },
-    "notices": {
-      "modes": {
-        "t": "Chegaram os três modos do HustleK",
-        "tag": "Novo"
-      },
-      "museum": {
-        "t": "Museu da IA: 8 coleções já abertas",
-        "tag": "Conteúdo"
-      },
       "voice": {
-        "t": "Transcrição de voz aprimorada",
-        "tag": "Melhoria"
+        "q": "A transcrição de voz é segura?",
+        "a": "A voz é transcrita no servidor de IA por uma conexão criptografada, e o áudio original é apagado do seu dispositivo logo depois. Só o texto e os sinais ficam guardados, criptografados."
       }
     }
   },

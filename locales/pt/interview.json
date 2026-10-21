@@ -14,6 +14,17 @@
     "setAside": "O que mudaria se você deixasse esse pensamento de lado por cinco minutos?"
   },
   "drill": {
+    "sceneChoice": "Como seguimos?",
+    "continueScene": "Continuar esta história",
+    "newScene": "Outro momento",
+    "saveAndFinish": "Salvar e encerrar",
+    "changeSceneChoice": "Vamos falar de outro momento?",
+    "skipLayer": "Pular esta pergunta",
+    "questionsExhausted": "Não há mais perguntas disponíveis.",
+    "localPromptsExhausted": "Não é possível adicionar mais perguntas.",
+    "coverageSaveFailed": "Não foi possível salvar o progresso.",
+    "recordSaveUnknown": "Não foi possível confirmar se sua história foi salva.",
+    "coverageSaveUnknown": "Não foi possível confirmar se o progresso foi salvo.",
     "opening": "Por qual fase da sua vida começamos? Uma cena que venha à mente já basta.",
     "placeholder": "Escreva o quanto quiser",
     "processingNotice": "A IA lê suas respostas para criar a próxima pergunta. Suas respostas só ficam salvas como registro quando você escolhe salvar.",

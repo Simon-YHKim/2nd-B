@@ -215,7 +215,7 @@ function CompleteProfileBody() {
         // saveNorthstar's own contract: createRecord runs the C9 classifier on
         // every save and reports a red zone via followup, and "the screen must
         // surface the hotline modal instead of navigating away"
-        // (src/lib/persona/northstar.ts:66-68). This screen discarded it and
+        // (src/lib/persona/northstar.ts:75-77). This screen discarded it and
         // replaced straight to "/" - the sentence is typed during sign-up, so a
         // 14-17 user in a red zone was pushed into the app with nothing shown.
         let northstarRedZone = false;

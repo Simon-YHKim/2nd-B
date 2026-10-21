@@ -4,9 +4,8 @@
 // `narrative-level.ts` 가 그걸 등급으로 옮기는데, 행렬이 **화면 상태로만** 살아서
 // 나갔다 들어오면 0으로 돌아갔다. 남길 데가 없으니 매길 것도 없었다.
 //
-// ⚠ 두 함수 다 **fail-soft** 다. 저장이 실패해도 대화는 끝나야 하고, 읽기가
-// 실패하면 등급은 그냥 낮게 나온다 -- 어느 쪽도 사용자를 막지 않는다. 밝기는
-// 부풀면 거짓말이고 덜 차면 그냥 덜 찬 것이다(같은 원칙이 여기서도 방향을 정한다).
+// Initial display reads remain fail-soft. Save receipts distinguish unsent failures
+// from writes whose acknowledgement is unknown.
 
 import { getSupabaseClient } from "../supabase/client";
 import {
@@ -62,23 +61,36 @@ export async function loadCoverage(userId: string): Promise<Coverage> {
  *
  * 0 인 칸은 보내지 않는다. 빈 행을 만들 이유가 없고, 그 편이 payload 도 작다.
  */
-export async function addCoverage(userId: string, delta: Coverage): Promise<void> {
-  if (!userId) return;
-  const rows: { user_id: string; period: string; layer: string; answers: number }[] = [];
-  const stored = await loadCoverage(userId);
-  for (const p of LIFE_PERIODS) {
-    for (const l of DRILL_LAYERS) {
-      const add = delta[p][l];
-      if (!Number.isFinite(add) || add <= 0) continue;
-      rows.push({ user_id: userId, period: p, layer: l, answers: stored[p][l] + add });
-    }
-  }
-  if (rows.length === 0) return;
+export type CoverageWriteOutcome =
+  | { kind: "acknowledged"; receipt: "upsert" | "zero-delta" }
+  | { kind: "notApplied" | "unknown" | "stale" };
+
+export async function addCoverage(userId: string, delta: Coverage,
+  canContinue: () => boolean = () => true): Promise<CoverageWriteOutcome> {
+  if (!canContinue()) return { kind: "stale" };
+  if (!userId) return { kind: "notApplied" };
+  const positive = LIFE_PERIODS.some(p => DRILL_LAYERS.some(l => Number.isFinite(delta[p][l]) && delta[p][l] > 0));
+  if (!positive) return { kind: "acknowledged", receipt: "zero-delta" };
+  const stored = emptyCoverage();
   try {
-    await getSupabaseClient()
-      .from(TABLE)
-      .upsert(rows, { onConflict: "user_id,period,layer" });
-  } catch {
-    // 저장이 안 돼도 대화는 끝나야 한다. 다음 세션이 다시 더할 뿐이다.
+    if (!canContinue()) return { kind: "stale" };
+    const { data, error } = await getSupabaseClient().from(TABLE).select("period, layer, answers").eq("user_id", userId);
+    if (!canContinue()) return { kind: "stale" };
+    if (error || !Array.isArray(data)) return { kind: "notApplied" };
+    for (const row of data as { period: string; layer: string; answers: number }[]) {
+      if (!isPeriod(row.period) || !isLayer(row.layer)) continue;
+      const n = Number(row.answers);
+      if (Number.isFinite(n) && n > 0) stored[row.period][row.layer] = n;
+    }
+  } catch { return { kind: canContinue() ? "notApplied" : "stale" }; }
+  const rows: { user_id: string; period: string; layer: string; answers: number }[] = [];
+  for (const p of LIFE_PERIODS) for (const l of DRILL_LAYERS) {
+    const add = delta[p][l];
+    if (Number.isFinite(add) && add > 0) rows.push({ user_id: userId, period: p, layer: l, answers: stored[p][l] + add });
   }
+  if (!canContinue()) return { kind: "stale" };
+  try {
+    const result = await getSupabaseClient().from(TABLE).upsert(rows, { onConflict: "user_id,period,layer" });
+    return result && result.error === null ? { kind: "acknowledged", receipt: "upsert" } : { kind: "unknown" };
+  } catch { return { kind: "unknown" }; }
 }

@@ -3,7 +3,7 @@
 // Z61: every story was stored under the same line (the answer count and "recall interview"),
 // so the wiki list showed a column of identical titles and each one had to be opened to tell
 // them apart. Simon's choice (Q-261013-51): the star's name and how the first answer begins.
-// The words are the user's own, so no model is called to make a title.
+// The title uses the submitted text, so no model is called to make a title.
 //
 // Z63: a conversation ended with the button stops on a question nobody answered, and that
 // question was the last line of the stored story.
@@ -17,6 +17,13 @@ export const STORY_TITLE_ANSWER_LENGTH = 40;
 interface StoryTurn {
   role: "interviewer" | "user";
   text: string;
+}
+
+/** Provenance only: Q7 defers any change to credit/coverage until M6. */
+export function interviewAnswerLabel(fromOpener: boolean | undefined, locale: "ko" | "en"): string {
+  return locale === "ko"
+    ? fromOpener ? "답변(제안 그대로)" : "답변"
+    : fromOpener ? "A (suggested, sent as is)" : "A";
 }
 
 /**
