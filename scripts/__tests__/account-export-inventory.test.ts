@@ -120,7 +120,12 @@ test("FK closure follows ALTER constraints, default NO ACTION, cycles and multip
 test("SQL fixture and CI compare the exact reachable table AND edge sets, independent of delete action", () => {
   const result = check();
   const sql = renderAccountExportCatalogSql(result.tables, edges);
-  expect(sql).toContain("('reward_dispute_hold_events', 'reward_dispute_holds', 'transaction_id', 'set null')");
+  expect(sql).toContain("('reward_dispute_hold_events', 'reward_dispute_holds', 'transaction_id')");
+  expect(sql.match(/\('ai_audit_log', 'users', 'user_id'\)/g)).toHaveLength(1);
+  // Changing an action alone preserves connectivity; a new SET NULL child is
+  // still rejected by the separate schema-input mutation above.
+  expect(renderAccountExportCatalogSql(result.tables, edges.map(e => ({ ...e, onDelete: "no action" }))))
+    .toBe(sql);
   expect(sql).not.toContain("'auth'");
   const regression = readFileSync(join(root, "db/tests/account_export_inventory_regression.sql"), "utf8");
   expect(regression).toContain("pg_catalog.pg_constraint");

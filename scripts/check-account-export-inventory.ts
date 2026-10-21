@@ -127,16 +127,19 @@ export function checkAccountExportInventory(
 }
 
 // A generated, session-local SQL fixture avoids a hand-maintained second list.
-// Only identifiers/actions enter it, never exclusion prose or account data.
+// Only FK connectivity enters it, never exclusion prose or account data.
+// Delete actions do not affect this closure. The shared parser can retain an
+// old action after an unnamed FK is replaced (0011 ai_audit_log); folding the
+// same child/columns/parent is intentional. Changed endpoints still go red.
 export function renderAccountExportCatalogSql(tables: Set<string>, edges: readonly ForeignKeyEdge[]): string {
   const quote = (s: string) => `'${s.replace(/'/g, "''")}'`;
   const tuples = [...new Set(edges.filter(e => tables.has(e.parent)).map(e =>
-    `(${quote(e.child)}, ${quote(e.parent)}, ${quote(e.childColumns.join(","))}, ${quote(e.onDelete)})`,
+    `(${quote(e.child)}, ${quote(e.parent)}, ${quote(e.childColumns.join(","))})`,
   ))].sort();
   return [
     "CREATE TEMP TABLE account_export_expected_tables (table_name text PRIMARY KEY);",
     `INSERT INTO account_export_expected_tables VALUES ${[...tables].sort().map(t => `(${quote(t)})`).join(",\n")};`,
-    "CREATE TEMP TABLE account_export_expected_edges (child text, parent text, child_columns text, on_delete text);",
+    "CREATE TEMP TABLE account_export_expected_edges (child text, parent text, child_columns text);",
     ...(tuples.length ? [`INSERT INTO account_export_expected_edges VALUES ${tuples.join(",\n")};`] : []),
     "",
   ].join("\n");

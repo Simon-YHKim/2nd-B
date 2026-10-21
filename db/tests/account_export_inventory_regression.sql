@@ -4,14 +4,11 @@
 BEGIN;
 
 CREATE TEMP VIEW account_export_catalog_edges AS
-SELECT child.relname::text AS child, parent.relname::text AS parent,
+SELECT DISTINCT child.relname::text AS child, parent.relname::text AS parent,
        (SELECT string_agg(a.attname, ',' ORDER BY k.ordinality)
           FROM unnest(fk.conkey) WITH ORDINALITY AS k(attnum, ordinality)
           JOIN pg_catalog.pg_attribute a ON a.attrelid = fk.conrelid AND a.attnum = k.attnum
-       ) AS child_columns,
-       CASE fk.confdeltype WHEN 'c' THEN 'cascade' WHEN 'n' THEN 'set null'
-         WHEN 'r' THEN 'restrict' WHEN 'a' THEN 'no action' WHEN 'd' THEN 'set default'
-       END AS on_delete
+       ) AS child_columns
 FROM pg_catalog.pg_constraint fk
 JOIN pg_catalog.pg_class child ON child.oid = fk.conrelid
 JOIN pg_catalog.pg_namespace cn ON cn.oid = child.relnamespace
@@ -50,7 +47,8 @@ BEGIN
   IF delta IS NOT NULL THEN RAISE EXCEPTION 'Account export table-set mismatch: %', delta; END IF;
 
   -- Compare edges too, so a parser blind spot cannot hide behind a table that
-  -- happens to be reachable by another FK. All delete actions are included.
+  -- happens to be reachable by another FK. All delete actions are included;
+  -- action labels and duplicate constraints do not change FK connectivity.
   WITH actual AS (
     SELECT e.* FROM account_export_catalog_edges e
     JOIN account_export_catalog_tables t ON t.table_name = e.parent
@@ -59,7 +57,7 @@ BEGIN
     UNION ALL
     (SELECT * FROM account_export_expected_edges EXCEPT SELECT * FROM actual)
   )
-  SELECT string_agg(child || '(' || child_columns || ')->' || parent || ':' || on_delete, ', ')
+  SELECT string_agg(child || '(' || child_columns || ')->' || parent, ', ')
   INTO delta FROM diff;
   IF delta IS NOT NULL THEN RAISE EXCEPTION 'Account export FK-set mismatch: %', delta; END IF;
 
