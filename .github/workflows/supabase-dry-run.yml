@@ -22,6 +22,7 @@ on:
       - "scripts/test-records-embedding-consent-sql.mjs"
       - "scripts/test-interview-content-authority-sql.mjs"
       - "scripts/test-chat-turn-admission-races.sh"
+      - "scripts/test-chat-turn-refund-evidence.py"
       - "scripts/check-account-export-inventory.ts"
       - "scripts/generate-erasure-registry.ts"
       - "db/erasure-registry.json"
@@ -477,6 +478,16 @@ jobs:
           psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
             -f db/migration-drafts/tests/chat-turn-attempt-with-quota.sql
           bash scripts/test-chat-turn-admission-races.sh
+      - name: Exercise dormant T40 S evidence on full schema clone
+        timeout-minutes: 10
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Fixed loopback clones only. E1-S then S, exact down/reapply, all nine
+          # admission schedules plus claim/refund/delete races and killed mutants.
+          # The historical numbered replay and T39 lane keep their own contracts.
+          python3 scripts/test-chat-turn-refund-evidence.py
       - name: Verify promoted server-first contracts after numbered scratch replay
         env:
           PGPASSWORD: postgres
