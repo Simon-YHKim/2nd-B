@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "forwardMigration": "UNNUMBERED: promote as a separate reason-only forwardRevisions migration after S with F",
+  "forwardMigration": "db/migrations/0269_chat_turn_purpose_restore_erasure_registry_reason.sql",
   "tables": {
     "chat_turn_reservations": {
       "owner": "user_id",
@@ -10,8 +10,9 @@
     }
   },
   "promotion": [
-    "Draft candidate only. S reason revision must precede this F reason revision; verify previousReason at promotion.",
-    "Add a separate reason-only migration, db/erasure-registry.json forwardRevisions and the 0189_down c_names entry. Do not rewrite 0258 or the S candidate.",
-    "No change to owner, class, account cascade or export exclusion. F adds date fields and server-day retention of cap markers, including through F rollback."
+    "Numbered reason-only registry revision; production application remains pending.",
+    "Apply 0265, 0266, 0267, 0268, then 0269 in separate transactions. The S table extension (0266) precedes 0268; the F extension (0267) and S reason (0268) precede 0269.",
+    "Owner, class, account cascade and export exclusion remain unchanged. Preserve 0258 and the previousReason chain; rollback/0189_down.sql replays both revisions.",
+    "F retains current or later server KST day markers, including through F rollback."
   ]
 }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "forwardMigration": "UNNUMBERED: promote as a separate reason-only forwardRevisions migration with S",
+  "forwardMigration": "db/migrations/0268_chat_turn_refund_evidence_erasure_registry_reason.sql",
   "tables": {
     "chat_turn_reservations": {
       "owner": "user_id",
@@ -10,8 +10,9 @@
     }
   },
   "promotion": [
-    "Draft candidate only: do not change the active numbered registry or 0258 historical source pin during S draft testing.",
-    "At promotion add a separate reason-only migration, db/erasure-registry.json forwardRevisions, its previousReason and the 0189_down c_names entry, following db/README.md.",
-    "No change to owner, class, cascade, export exclusion or retention trigger. No F date fields or same-day retention exception."
+    "Numbered reason-only registry revision; production application remains pending.",
+    "Apply 0265, 0266, 0267, 0268, then 0269 in separate transactions. The S table extension (0266) precedes 0268; the F extension (0267) and S reason (0268) precede 0269.",
+    "Owner, class, account cascade and export exclusion remain unchanged. Preserve 0258 and the previousReason chain; rollback/0189_down.sql replays both revisions.",
+    "S preserves late-return evidence without reopening binding; ordinary next-bump cleanup remains unchanged."
   ]
 }

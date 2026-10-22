@@ -3,12 +3,12 @@ import { join } from 'node:path';
 
 const root = join(__dirname, '..', '..', '..', '..');
 const read = (file: string) => readFileSync(join(root, file), 'utf8').replace(/\r\n/g, '\n');
-const draft = 'db/migration-drafts/';
-const raw = read(`${draft}UNNUMBERED_chat_turn_attempt_with_quota.sql`);
+const draft = 'db/migrations/';
+const raw = read(`${draft}0265_chat_turn_attempt_with_quota.sql`);
 const sql = raw.replace(/--.*$/gm, '');
 const body = sql.slice(sql.indexOf('AS $$'), sql.indexOf('\n$$;'));
-const regression = read(`${draft}tests/chat-turn-attempt-with-quota.sql`);
-const down = read(`${draft}rollback/UNNUMBERED_chat_turn_attempt_with_quota_down.sql`).replace(/--.*$/gm, '').trim();
+const regression = read(`db/tests/chat-turn-attempt-with-quota.sql`);
+const down = read(`${draft}rollback/0265_down.sql`).replace(/--.*$/gm, '').trim();
 const signature = 'public.begin_chat_turn_attempt_with_quota(uuid, uuid, uuid, text, text)';
 const raceInvocation = 'bash scripts/test-chat-turn-admission-races.sh';
 const hasRaceInvocation = (source: string) => source.split('\n').some((line) => line.trim() === raceInvocation);
@@ -124,10 +124,10 @@ describe('T39 E1-S inactive atomic chat admission draft', () => {
     const start = workflow.indexOf('- name: Exercise dormant T39 admission on full schema clone');
     expect(start).toBeGreaterThan(-1);
     const lane = workflow.slice(start, workflow.indexOf('- name: Verify promoted server-first contracts', start));
-    expect(lane).toContain('CREATE DATABASE t39_admission_test_ci TEMPLATE postgres');
-    expect(lane).toContain('--single-transaction -f db/migration-drafts/UNNUMBERED_chat_turn_attempt_with_quota.sql');
-    expect(lane).toContain('--single-transaction -f db/migration-drafts/rollback/UNNUMBERED_chat_turn_attempt_with_quota_down.sql');
-    expect(lane.match(/-f db\/migration-drafts\/tests\/chat-turn-attempt-with-quota\.sql/g)).toHaveLength(2);
+    expect(lane).toContain('CREATE DATABASE t39_admission_test_ci TEMPLATE t39_t40_before_0266');
+    expect(lane).toContain('--single-transaction -f db/migrations/0265_chat_turn_attempt_with_quota.sql');
+    expect(lane).toContain('--single-transaction -f db/migrations/rollback/0265_down.sql');
+    expect(lane.match(/-f db\/tests\/chat-turn-attempt-with-quota\.sql/g)).toHaveLength(2);
     expect(lane).toContain('T39 rollback must remove only the new entrypoint');
     expect(lane).toContain('set -euo pipefail');
     expect(hasRaceInvocation(lane)).toBe(true);
@@ -165,7 +165,7 @@ describe('T39 E1-S inactive atomic chat admission draft', () => {
 
   it('keeps runner and fixture free of cluster-wide mutations', () => {
     for (const source of [read('scripts/test-chat-turn-admission-races.sh'),
-      read(`${draft}tests/chat-turn-admission-race-fixture.sql`)]) {
+      read(`db/tests/chat-turn-admission-race-fixture.sql`)]) {
       expect(source.replace(/^\s*(?:#|--).*$/gm, '')).not.toMatch(clusterStatements);
     }
     for (const statement of ['ALTER ROLE service_role BYPASSRLS;', 'CREATE USER fixture;',
@@ -214,13 +214,13 @@ describe('T39 E1-S inactive atomic chat admission draft', () => {
     expect(runner).toContain('zero-reask-first) n=9; first_intent=reask; next_intent=first; next_kind=rejected; next_reason="\'first_already_registered\'"; attempts=1');
     expect(runner).toContain('next_reason=NULL attempts=2');
     expect(runner).toContain('SELECT t39_race.state($n,$attempts,1);');
-    const fixture = read(`${draft}tests/chat-turn-admission-race-fixture.sql`);
+    const fixture = read(`db/tests/chat-turn-admission-race-fixture.sql`);
     expect(fixture.match(/generate_series\(1,9\)/g)).toHaveLength(4);
     expect(fixture).toContain('FROM generate_series(2,6) n CROSS JOIN t39_race.clock');
   });
 
   it('checks persisted counters, exact response fields and T3901 rollback with actual SQL roles', () => {
-    const fixture = read(`${draft}tests/chat-turn-admission-race-fixture.sql`);
+    const fixture = read(`db/tests/chat-turn-admission-race-fixture.sql`);
     const runner = read('scripts/test-chat-turn-admission-races.sh');
     expect(fixture).toMatch(/^\\set ON_ERROR_STOP on/m);
     expect(fixture).toContain("EXCEPTION WHEN SQLSTATE 'T3901' THEN RETURN true;");
