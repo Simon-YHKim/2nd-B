@@ -6,6 +6,36 @@
 최초 생성 2026-10-13 KST · Claude Code
 
 ---
+> 2026-10-23 07:19 KST KST: 활성 창에서 2026-10-13 12:46 ~ 2026-10-13 13:21 의 블록 2개(6KB)를 원문 그대로 이 파일 맨 위에 얹었다(요약 · 병합 · 재정렬 없음).
+
+## 2026-10-13 13:21 / 2ndb-79: Simon 의 답 13건 받음 · 상충 넷을 읽은 방식과 우선순위 · Z57 머지 - 다음은 #2365 4회차
+
+- **지금까지**: Simon 이 13:17 에 보고서 결정 탭의 답 13건을 직접 보냈다(원문은 DECISIONS 같은 시각 첫 줄). 상충 넷을 먼저 알리고 읽은 방식을 적었다(둘째 줄 ①). #2373(Z57) 13:18 머지(main `70b8b8ce`) · #2369(Z45 부품) 12:59 머지.
+- **다음 1개 = Q-38**: #2365(워크트리 `E:/2ndB/.worktrees/z1-signup-reject-261013` 에서 브랜치 `fix/reasoning-review-live-targets` 로 되돌아가서)의 4회차. 3회차가 남긴 셋: ① 실행의 catch 경로에 컨트롤러 소유 확인 ② `userIdRef` 를 `useEffect` 가 아니라 동기적으로(`useLayoutEffect` 또는 계정 세대) 갱신 + 계정이 바뀌면 상태 초기화 ③ 낡은 계정 경로가 `phase` · `applying` 을 남김. 회귀 테스트 → CI → `gate_generic.py z66s 4 2365 …` → PASS 면 머지, BLOCK 이면 멈춤.
+- **그다음(순서대로)**:
+  - Q-39 · Q-34 · Q-37 = 위기 안내 연결 PR. 후보인 답(`checkModelReplyOverlaps` 의 `candidate`)에만 서버의 뜻 분류 한 번 · "위기 아님"일 때만 그대로 · 성인 경로만 · 최근 세 턴에 위기 신호가 있던 대화 제외 · 답이 바뀐 경우에만 `crisis_term:<n>` 기록 · 0252 환불 RPC 호출 뒤 `readChatUsageDetail` 로 다시 읽기 · 사용자 글이 걸린 턴도 차감하지 않기(Q-37) · DPIA 한 줄(`.bots/legal/outbox/coding-legal-z45-dpia-line.note.md`). 뜻 분류의 실제 모델 확인은 운영 프록시를 QA 계정으로 직접 불러서(8082 는 띄우지 않는다). 읽을 곳: `src/lib/llm/boundary.ts` 약 933 ~ 998행 · `src/lib/llm/safety.ts` 233 ~ 260행 · `src/lib/chat/conversation.ts` 약 269 ~ 274행.
+  - Q-29 = 계정이 바뀌면 앱이 스스로 다시 시작. #2318(초안 · 16개 파일)의 방식은 접고 새 PR 로. 폰에서 되는지 먼저(Device Lab) · 둘째 계정이 필요하면 하나 만들고 앱에서 삭제 → 운영 0행 확인.
+  - Q-60 = 잠금이 풀려 있을 때만 할 일 표시. 기기 확인 먼저(안드로이드 채널의 잠금 화면 표시 값 · 채널 설정은 만든 뒤 못 바꾸므로 새 채널 id 가 필요할 수 있다 · iOS 는 미확인). 잠금 화면에 새면 지금처럼 숨긴다. 독립 검토 필수.
+  - Q-28 = 문구 시안(2ndb-53 · 소개 문장과 예시 질문을 지금 사실에 맞게) → 법무 의견(성인 · 14~17세) → 영향평가서의 "기록 본문은 프롬프트에 넣지 않는다" 문장 개정 → 구현(기록 전체에서 관련된 것 찾아 읽기 · 처음 한 번 묻기 · 설정에서 끄기). 법무 앞에는 코드가 기록 본문을 보내지 않는다.
+  - Q-31 = Z1(가입 거절 안내): 서버 변경(2ndb-e7 에 물을 것)과 새 문구 시안부터.
+  - Q-32 = #2132 이어 가기: 서버 2ndb-e7 · 화면 2ndb-53 에 제안함(받겠다는 답이 오기 전에는 배정이 아니다).
+  - 작은 것: `auth-password-reset.test.ts` 의 네 검사에 `fetch` 대역(실제 HIBP 호출이 CI 에서 흔들림).
+- **Simon 실행 대기**: 0251 적용 블록 · 시험 계정 삭제 블록(Q-36) — <https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>.
+- **막힌 것**: 없음. 8082 확인 서버와 구현 레인은 Q-30 의 허용 범위 밖이라 띄우지 않는다.
+- **폰**: Rufus 가 13:10 부터 `c8ac34e4` 빌드로 점검 중(결과 `device-lab/outbox/vb-devlab-bc8ac34e-1013.result.md`). Z57 은 `70b8b8ce` 이후 빌드에서.
+
+## 2026-10-13 12:46 / 2ndb-79: 위기 안내 오탐(Z45)의 준비 조각이 3회차 검토 통과 · 실제 적용 방식은 Q-261013-39 대기 · 폰 빌드 c8ac34e4 메모 발행
+
+- **지금까지**: PR #2369(브랜치 `fix/output-overlap-exceptions` · 워크트리 `E:/2ndB/.worktrees/o2-reminder-reply-261013`) = `src/lib/safety/model-reply-scan.ts` 신설 + `crisis-context.ts` 끝에 `hasCrisisRiskContext` + 테스트 64. 부품만 · 연결 없음 · 앱 동작 변화 없음. 독립 검토 1 · 2회차 BLOCK → 3회차 PASS(12:40 · `E:/Coding Infra/reports/devlab-261010/gates/z45a-daybreak-r3.txt`). 왜 줄였는지는 DECISIONS 같은 시각 줄.
+- **다음 1개**: Q-261013-39 의 답. "가"면 연결 PR — 후보인 답에만 서버의 뜻 분류를 한 번 더(전체 스위치 `EXPO_PUBLIC_SERVER_SAFETY` 는 그대로 꺼 둠) · 성인 경로만 · 최근 세 턴에 위기 신호가 있던 대화 제외 · 답이 바뀐 경우에만 `crisis_term:<n>` 기록 · DPIA 한 줄(`.bots/legal/outbox/coding-legal-z45-dpia-line.note.md`) · 0252 환불 RPC 호출(`refund_chat_turn_after_output_swap` · 2ndb-e7 의 #2372 가 운영에 적용된 뒤) · 독립 검토 통과 뒤에만 머지 · 적용 뒤 2주 집계.
+- **연결 PR 을 쓰기 전에 읽을 것**: `src/lib/llm/boundary.ts` 의 답 교체(약 933 ~ 998행) · `src/lib/llm/safety.ts` 의 `classifyViaProxy`(약 233 ~ 260행) · `supabase/functions/openai-proxy/index.ts:1073`(프록시의 답 쪽 `hasCrisisTerm` — 여기도 같은 목록을 쓸지는 그때 정한다 · Edge 재배포가 따른다) · `EXPO_PUBLIC_OBFUSCATION_SAFETY`(워크플로 주석에 나오는 다른 스위치 · 아직 읽지 않음).
+- **막힌 것**: 없음(답 대기). 띄어쓰기 변형(「더이상 살」 · 「짐 이 되」)은 지금의 위기 낱말 목록이 원래 못 잡는다 — 이번 변경과 무관하고, 넓히려면 사용자 입력 검사까지 바뀌므로 법무에 따로 알렸다(`.bots/relay/inbox/coding-z45-design-change-q39-1241.note.md`).
+- **폰 빌드**: `c8ac34e4` 빌드 메모 발행(12:43 · `.bots/device-lab/outbox/build-memo-c8ac34e4-1013.md`). 로그인 실패 안내(#2341)의 폰 확인이 이 빌드의 핵심이다. Rufus 의 결과는 `device-lab/outbox/vb-devlab-bc8ac34e-1013.result.md` 로 온다.
+- **Simon 실행 대기**: 0251 적용 블록 · 시험 계정 삭제 블록(Q-36) — 2ndb-e7 의 안내 페이지 <https://claude.ai/artifact/KUnLE7WTcdeWdD6SM6Ludg>. 0251 이 적용되면 Rufus 에게 「결과 검토」 재확인을 부탁한다(그 전까지 그 줄을 누르지 않기로 했다).
+- **남은 답**: Q-261013-28 · 29 · 30 · 31 · 32 · 37 · 38 · 39. 보고서 18판 <https://claude.ai/artifact/UtELW66iaCBWxwrrwVjLd4>(101건 · 결정 대기 6).
+- **멈춘 것 그대로**: #2365(Q-261013-38) · #2318(Q-261013-29) · 구현 레인과 8082 확인 서버(Q-261013-30).
+
+
 > 2026-10-22 05:06 KST KST: 활성 창에서 2026-10-13 12:13 ~ 2026-10-13 12:13 의 블록 1개(4KB)를 원문 그대로 이 파일 맨 위에 얹었다(요약 · 병합 · 재정렬 없음).
 
 ## 2026-10-13 12:13 / 2ndb-79: 로그인 실패 안내 머지 · 8081 확인 · 지운 글 화면 수정은 3회차에서 멈춤 · Simon 답 셋 반영 - 다음은 Z45 구현
