@@ -51,7 +51,7 @@ describe('T40 F purpose restoration draft', () => {
     expect(parentLock).toBeGreaterThanOrEqual(0);
     expect(parentLock).toBeGreaterThan(fn.indexOf("'first_already_registered'"));
     expect(parentLock).toBeLessThan(fn.indexOf('v_registered := public.begin_chat_turn_attempt'));
-    expect(fn).toContain("IF p_attempt_intent = 'first' OR v_before = 0 THEN");
+    expect(fn).toContain('IF v_before = 0 THEN');
     expect(fn.match(/FROM public\.consume_llm_proxy_purpose_quota/g)).toHaveLength(1);
   });
 
@@ -88,7 +88,7 @@ describe('T40 F purpose restoration draft', () => {
   it('locks only the reservation and refund tables during apply and down', () => {
     for (const source of [up, down]) {
       expect(source.match(/LOCK TABLE [^;]+;/g)).toEqual([
-        'LOCK TABLE public.chat_turn_reservations, public.chat_turn_refunds IN ACCESS EXCLUSIVE MODE;',
+        'LOCK TABLE public.chat_turn_refunds, public.chat_turn_reservations IN ACCESS EXCLUSIVE MODE;',
       ]);
     }
   });
@@ -107,7 +107,10 @@ describe('T40 F purpose restoration draft', () => {
       'def down_checks(', 'down_checks(DOWN, 5101)', 'down_checks(mutant_down, 7100',
       'mutant_down.write_text(DOWN_SOURCE+', 'M34_parent_key_share',
       'def cascade_orders()', 'F actual FK trigger order', 'withdraw_profile_import_internal',
-      'apply_races()', 'parent_lock_races()',
+      'apply_races()', 'parent_lock_races()', 'warm_refund_races()',
+      'F warm refund survives ', 'actual 40P01 reproduced', 'refund.lines.get(timeout=20)',
+      "('up', 'down')", '(1000, 200)', 'nowait_admissions(mutant=True)',
+      "('unbound_first', None, 'first', 3, False)", 'F mutation killed unbound_parent_lock',
       'F down reapply never resets cap', 'F down exact S baseline']) expect(runner).toContain(marker);
     const transport = read('scripts/test-chat-turn-refund-evidence.py');
     for (const guard of ['pg_blocking_pids(f.pid)', 'timeout=35', 'statement_timeout=15000', "'-h', '127.0.0.1'", 'refusing non-test database']) expect(transport).toContain(guard);

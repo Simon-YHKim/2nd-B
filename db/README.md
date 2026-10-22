@@ -138,7 +138,7 @@ number or active caller. The E1-S/S draft sources, 0185/0259 and the shared
 consume function stay unchanged. No proxy/app/production activation is included.
 
 F adds nullable `quota_day` and `purpose_restored_day`. Its E1-S replacement
-takes the parent KEY SHARE before child writes only on a possible first debit,
+takes the parent KEY SHARE before child writes only for an own attempt-zero reservation,
 and brackets the unchanged consume
 with `pg_catalog.clock_timestamp()` KST dates. A successful first debit records
 its day; an admitted debit spanning midnight raises 55000 and rolls back. Second
@@ -147,15 +147,23 @@ legacy reservations are never backfilled. Ordinary quota rejection stays T3901.
 The midnight refusal intentionally includes unbound first admissions: the whole
 charge rolls back, without a receipt, and the caller can retry.
 
-Duplicate first calls and second/rejected reasks do not take this parent lock.
-First debits (including attempt-zero reasks) still hold it even with an existing
+Unbound first calls, duplicate first calls and second/rejected reasks do not take
+this parent lock. Registered first debits (including attempt-zero reasks) hold it even with an existing
 purpose row: account deletion can lock purpose before reservation while admission
 writes reservation before purpose. Restricting it to new purpose rows leaves that
 deadlock. This accepts 0242 withdrawal's 55P03/retry on these first debits, beyond
-original E1-S's new-purpose-row conflict. The runner measures both definitions
-against the actual `withdraw_profile_import_internal(..., false)` routine.
-F apply/down lock only reservations and refunds, avoiding the inverse usage-table
-lock order of in-flight E1-S. Four apply/down schedules exercise this boundary.
+original E1-S's new-purpose-row conflict. Unbound first only writes purpose, so
+it does not create that two-child cycle or need an extra parent lock. With an
+existing purpose row, it leaves 0242 withdrawal available, as E1-S does. The runner
+measures both definitions against the actual `withdraw_profile_import_internal(..., false)` routine.
+F apply/down lock only **refunds, then reservations**, matching warm refund reads
+and keeping usage tables out of the in-flight E1-S lock cycle. Four admission and
+four warm-refund apply/down schedules exercise this boundary. Refund sessions run
+the real function once and roll back before reusing the same backend during DDL;
+fresh connections would hide the inversion while compiling the reservation row type.
+Both 1s and 200ms deadlock timeouts run in both directions. Four old-order SQL
+mutants must reproduce 40P01 and fail the same named assertion; SQLSTATEs and the
+final refund state, chat count and ledger are checked, not just migration success.
 
 S chat settlement and the `{ p_audit_id }` integer/NULL RPC contract are retained.
 Purpose restoration requires a successful chat refund, today's recorded debit,
@@ -208,8 +216,12 @@ run against the installed F definitions, and after F rollback.
 The sequential assertion count is exactly 53. F function writers, dynamic SQL and
 public function calls have separate allowlists. The down-cap mutant changes a copy
 of the down file and uses the same snapshot/cleanup checks as the real down.
-Parent-lock races use two measured FK DELETE-trigger orders; M34 removes KEY SHARE
-and must reproduce the existing-purpose-row deadlock and fail the same assertion.
+Parent-lock races use three measured FK DELETE-trigger orders across registered
+first, attempt-zero reask, unbound first and rejected reask (12 schedules). M34 removes
+KEY SHARE and must reproduce the existing-purpose-row deadlock and fail the same assertion.
+The broad-parent-lock mutant must fail the unbound-first 0242 success assertion
+with a measured 55P03. Source pins separately reject old up/down lock order and
+the broad parent-lock condition.
 
 Midnight coverage consists of actual server-today receipt tests, previous/next-day
 fixtures, source-order/clock pins and **injected wrapper date samples** causing a

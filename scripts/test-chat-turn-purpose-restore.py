@@ -42,6 +42,7 @@ REFUND = 'refund_chat_turn_after_output_swap'
 STATIC_MUTANTS = []
 SQL_MUTANTS = []
 APPLY_SCHEDULES = []
+WARM_REFUND_SCHEDULES = []
 FK_ORDERS = []
 NOWAIT_CHECKS = []
 
@@ -92,11 +93,11 @@ def source_contract(source=SOURCE, down=DOWN_SOURCE):
         raise ValueError('F CLOCK CONTRACT')
     lock = fn.find('FOR KEY SHARE')
     registration = fn.find('v_registered := public.begin_chat_turn_attempt')
-    if not 0 <= lock < registration or "IF p_attempt_intent = 'first' OR v_before = 0 THEN" not in fn:
+    if not 0 <= lock < registration or 'IF v_before = 0 THEN' not in fn:
         raise ValueError('F PARENT LOCK CONTRACT')
     for text in (source, down):
         locks = re.findall(r'LOCK TABLE ([^;]+);', re.sub(r'--[^\n]*', '', text))
-        if locks != ['public.chat_turn_reservations, public.chat_turn_refunds IN ACCESS EXCLUSIVE MODE']:
+        if locks != ['public.chat_turn_refunds, public.chat_turn_reservations IN ACCESS EXCLUSIVE MODE']:
             raise ValueError('F MIGRATION LOCK CONTRACT')
 
 
@@ -225,19 +226,91 @@ def apply_races():
     pg.run(file=UP, transaction=True)
 
 
-def nowait_admissions():
+def warm_refund_race(direction, timeout, n, mutant=False):
+    # A new backend compiles reservations%ROWTYPE before reading refunds and
+    # masks the inversion. Prime the REAL refund on this same backend, rollback
+    # its changes, then keep the backend alive across the migration lock wait.
+    pg.run(file=UP, transaction=True)
+    pg.run(f'SELECT t40f.setup({n});')
+    if direction == 'up':
+        pg.run(file=DOWN, transaction=True)
+    source = SOURCE if direction == 'up' else DOWN_SOURCE
+    if mutant:
+        source = source.replace(
+            'LOCK TABLE public.chat_turn_refunds, public.chat_turn_reservations',
+            'LOCK TABLE public.chat_turn_reservations, public.chat_turn_refunds')
+    label = f'F_warm_refund_{direction}_{timeout}_mutant_{mutant}'
+    holder = pg.Session(label+'_holder')
+    refund = pg.Session(label+'_refund')
+    clients = []
+    try:
+        refund.send(f"SET deadlock_timeout='{timeout}ms'; BEGIN; SELECT t40.refund({n}); ROLLBACK;")
+        refund.ready()
+        holder.send('BEGIN; LOCK TABLE public.chat_turn_reservations IN ACCESS SHARE MODE;')
+        holder.ready()
+        mname, migration = start_client(label, f"SET deadlock_timeout='{timeout}ms'; BEGIN;\n"+source+'\nCOMMIT;')
+        clients.append(migration)
+        wait_for_lock(mname, [holder.name], migration)
+        refund.send(f"SELECT COALESCE(t40.error('SELECT t40.refund({n})'), 'OK');")
+        wait_for_lock(refund.name, [mname], refund.process)
+        holder.send('COMMIT;')
+        holder.ready()
+        status = refund.lines.get(timeout=20)
+        refund.ready()
+        out, err = migration.communicate(timeout=20)
+        (pg.LOG/(label+'.log')).write_text('refund='+status+'\n'+out+err, encoding='utf8')
+        pg.expect(status in ('OK', '40P01') and
+                  (migration.returncode == 0 or '40P01:' in err), label+' bounded SQLSTATEs')
+        ok = status == 'OK' and migration.returncode == 0
+        assertion = 'F warm refund survives '+direction
+        result = pg.run(f"SELECT t40.check({str(ok).lower()},'{assertion}');", check=not mutant)
+        if mutant:
+            pg.expect(status == '40P01' or '40P01:' in err, label+' actual 40P01 reproduced')
+            pg.expect(result.returncode != 0 and 'P0040: T40 FAIL: '+assertion in result.stderr,
+                      'F mutation killed '+label)
+            SQL_MUTANTS.append(label)
+        else:
+            pg.check(f"(SELECT state='refunded' FROM public.chat_turn_reservations WHERE turn_id=t40.id({n},2)) "
+                     f"AND (SELECT count=1 FROM public.chat_usage WHERE user_id=t40.id({n})) "
+                     f"AND (SELECT count(*)=1 FROM public.chat_turn_refunds WHERE audit_id=t40.id({n},3))",
+                     label+' commits refund and ledger exactly once')
+            WARM_REFUND_SCHEDULES.append(label)
+    finally:
+        close_clients([holder, refund], clients)
+
+
+def warm_refund_races():
+    original_db = pg.DB
+    try:
+        for mutant in (False, True):
+            pg.DB = pg.MUTANT if mutant else original_db
+            for i, direction in enumerate(('up', 'down')):
+                for j, timeout in enumerate((1000, 200)):
+                    warm_refund_race(direction, timeout, 6500+i*2+j, mutant)
+            pg.run(file=UP, transaction=True)
+    finally:
+        pg.DB = original_db
+
+
+def nowait_admissions(mutant=False):
     # The actual 0242 routine, not merely a synthetic parent SELECT.
-    for version, source in [('E1-S', E1), ('F', SOURCE)]:
+    versions = [('F', SOURCE.replace('IF v_before = 0 THEN', "IF p_attempt_intent = 'first' OR v_before = 0 THEN"))] if mutant else [('E1-S', E1), ('F', SOURCE)]
+    for version, source in versions:
         pg.run(pg.definition(source, ADMIT))
         for i, (label, attempts, intent, slot, missing) in enumerate([
             ('first_existing', 0, 'first', 3, False), ('first_new', 0, 'first', 3, True),
             ('second', 1, 'reask', 4, False), ('duplicate_first', 1, 'first', 4, False),
             ('rejected_reask', 2, 'reask', 5, False), ('attempt_zero_reask', 0, 'reask', 3, False),
+            ('unbound_first', None, 'first', 3, False),
         ]):
+            if mutant and label != 'unbound_first':
+                continue
             n = 6300+(0 if version == 'E1-S' else 10)+i
-            pg.run(f"""SELECT t40.setup({n},{attempts});
+            pg.run(f"""SELECT t40.setup({n},{attempts or 0});
 INSERT INTO public.profile_context_imports(id,user_id,request_id,request_digest,item_count,profile_change_count,document)
 VALUES(t40.id({n},8),t40.id({n}),t40.id({n},9),'fixture',1,0,'{{}}');""")
+            if attempts is None:
+                pg.run(f'DELETE FROM public.chat_turn_reservations WHERE user_id=t40.id({n});')
             if missing:
                 pg.run(f'DELETE FROM public.llm_proxy_purpose_daily WHERE user_id=t40.id({n});')
             holder = pg.Session('nowait_'+version+'_'+label)
@@ -246,9 +319,16 @@ VALUES(t40.id({n},8),t40.id({n}),t40.id({n},9),'fixture',1,0,'{{}}');""")
                 holder.ready()
                 conflict = missing or (version == 'F' and attempts == 0)
                 predicate = "='55P03'" if conflict else ' IS NULL'
-                pg.check(f"t40.error('SELECT public.withdraw_profile_import_internal(t40.id({n},8),false)'){predicate}",
-                         f'F 0242 {version} {label} '+('55P03' if conflict else 'success'))
-                NOWAIT_CHECKS.append({'version': version, 'path': label, 'result': '55P03' if conflict else 'success'})
+                assertion = f'F 0242 {version} {label} '+('55P03' if conflict else 'success')
+                result = pg.run(f"SELECT t40.check(t40.error('SELECT public.withdraw_profile_import_internal(t40.id({n},8),false)'){predicate},'{assertion}');", check=not mutant)
+                if mutant:
+                    pg.expect(result.returncode != 0 and 'P0040: T40 FAIL: '+assertion in result.stderr,
+                              'F mutation killed unbound_parent_lock')
+                    pg.check(f"t40.error('SELECT public.withdraw_profile_import_internal(t40.id({n},8),false)')='55P03'", 'F mutant actual 0242 conflict')
+                    SQL_MUTANTS.append('unbound_parent_lock')
+                else:
+                    pg.expect(True, assertion)
+                    NOWAIT_CHECKS.append({'version': version, 'path': label, 'result': '55P03' if conflict else 'success'})
             finally:
                 holder.send('ROLLBACK;')
                 holder.ready()
@@ -257,13 +337,14 @@ VALUES(t40.id({n},8),t40.id({n}),t40.id({n},9),'fixture',1,0,'{{}}');""")
 
 
 def cascade_orders():
-    # Recreate the three real FK constraints in two orders; PostgreSQL orders
+    # Recreate the three real FK constraints in three orders; PostgreSQL orders
     # their DELETE triggers by name. Preserve every constraint definition.
     constraints = json.loads(pg.value("""SELECT json_agg(json_build_array(conrelid::regclass::text,conname,pg_get_constraintdef(oid)))
 FROM pg_constraint WHERE contype='f' AND confrelid='public.users'::regclass
 AND conrelid IN ('public.chat_usage'::regclass,'public.llm_proxy_purpose_daily'::regclass,'public.chat_turn_reservations'::regclass);"""))
     pg.expect(len(constraints) == 3, 'F three real cascade constraints')
     for order in [('chat_usage', 'llm_proxy_purpose_daily', 'chat_turn_reservations'),
+                  ('llm_proxy_purpose_daily', 'chat_turn_reservations', 'chat_usage'),
                   ('chat_turn_reservations', 'chat_usage', 'llm_proxy_purpose_daily')]:
         for table in order:
             relation, name, definition = next(c for c in constraints if c[0].split('.')[-1] == table)
@@ -277,11 +358,16 @@ AND c.conrelid IN ('public.chat_usage'::regclass,'public.llm_proxy_purpose_daily
         yield order
 
 
-def cascade_admission(order, n, mutant=False):
+def cascade_admission(order, n, mutant=False, path='first'):
     # Existing purpose row is intentional: restricting parent locking to INSERT
     # cannot prevent this reservation/purpose inversion with account deletion.
-    pg.run(f'SELECT t40.setup({n},0);')
+    pg.run(f'SELECT t40.setup({n},{2 if path == "rejected_reask" else 0});')
+    if path == 'unbound_first':
+        pg.run(f'DELETE FROM public.chat_turn_reservations WHERE user_id=t40.id({n});')
+    intent = 'reask' if path in ('attempt_zero_reask', 'rejected_reask') else 'first'
     first = 'chat_turn_reservations' if order[0] == 'chat_turn_reservations' else 'llm_proxy_purpose_daily'
+    if path == 'unbound_first':
+        first = 'llm_proxy_purpose_daily'
     holder = pg.Session('cascade_holder_'+str(n))
     clients = []
     try:
@@ -290,16 +376,22 @@ def cascade_admission(order, n, mutant=False):
         dname, delete = start_client('cascade_delete_'+str(n), f"SELECT t40.error('DELETE FROM public.users WHERE id=t40.id({n})');")
         clients.append(delete)
         wait_for_lock(dname, [holder.name], delete)
-        aname, admit = start_client('cascade_admit_'+str(n), f"SELECT t40.error('SELECT t40.admit({n},''first'',3)');")
+        aname, admit = start_client('cascade_admit_'+str(n), f"SELECT t40.error('SELECT t40.admit({n},''{intent}'',3)');")
         clients.append(admit)
-        wait_for_lock(aname, [dname, holder.name], admit)
+        admitted = None
+        if path != 'rejected_reask':
+            wait_for_lock(aname, [dname, holder.name], admit)
+        else:
+            admitted = finish_client(aname, admit)
+            pg.expect(admitted == '', 'F rejected reask needs no child write')
         holder.send('COMMIT;')
         holder.ready()
         deleted = finish_client(dname, delete)
-        admitted = finish_client(aname, admit)
+        if admitted is None:
+            admitted = finish_client(aname, admit)
         # Infrastructure errors never count as a killed mutation.
         pg.expect(deleted in ('', '40P01') and admitted in ('', '23503', '40P01'), 'F cascade SQLSTATEs bounded')
-        ok = deleted == '' and admitted == '23503'
+        ok = deleted == '' and admitted == ('' if path == 'rejected_reask' else '23503')
         result = pg.run(f"SELECT t40.check({str(ok).lower()},'F parent lock prevents cascade deadlock');", check=not mutant)
         if mutant:
             pg.expect('40P01' in (deleted, admitted), 'F M34 actual deadlock reproduced with existing quota')
@@ -307,14 +399,15 @@ def cascade_admission(order, n, mutant=False):
             SQL_MUTANTS.append('M34_parent_key_share')
         else:
             pg.check(f'NOT EXISTS(SELECT 1 FROM public.users WHERE id=t40.id({n})) AND NOT EXISTS(SELECT 1 FROM public.chat_turn_reservations WHERE user_id=t40.id({n})) AND t40f.quota({n})=0', 'F cascade removes all children '+str(n))
-            pg.RACE_SCHEDULES.append('F_cascade_'+','.join(order))
+            pg.RACE_SCHEDULES.append('F_cascade_'+path+'_'+','.join(order))
     finally:
         close_clients([holder], clients)
 
 
 def parent_lock_races():
     for i, order in enumerate(cascade_orders()):
-        cascade_admission(order, 6400+i)
+        for j, path in enumerate(('first', 'attempt_zero_reask', 'unbound_first', 'rejected_reask')):
+            cascade_admission(order, 6400+i*4+j, path=path)
     # First order produces the inverse two-child acquisition without the parent.
     # Exercise the changed function in the mutant clone, not a toy lock model.
     original_db = pg.DB
@@ -325,7 +418,7 @@ def parent_lock_races():
             pg.run(fn.replace('PERFORM 1 FROM public.users WHERE id = p_user_id FOR KEY SHARE;',
                               'PERFORM 1 FROM public.users WHERE id = p_user_id;'))
             try:
-                cascade_admission(order, 6410, mutant=True)
+                cascade_admission(order, 6450, mutant=True)
             finally:
                 pg.run(fn)
             break
@@ -398,8 +491,9 @@ def main():
         ('refund_execute', SOURCE.replace('    v_restore_day :=', "    EXECUTE 'SELECT 1';\n    v_restore_day :="), DOWN_SOURCE),
         ('refund_call', SOURCE.replace('    v_restore_day :=', '    CALL public.unexpected();\n    v_restore_day :='), DOWN_SOURCE),
         ('refund_consume', SOURCE.replace('    v_restore_day :=', "    PERFORM public.consume_llm_proxy_purpose_quota(v_user,'openai','secondb_chat');\n    v_restore_day :="), DOWN_SOURCE),
-        ('apply_lock_order', SOURCE.replace('LOCK TABLE public.chat_turn_reservations,', 'LOCK TABLE public.chat_usage, public.chat_turn_reservations,'), DOWN_SOURCE),
-        ('down_lock_order', SOURCE, DOWN_SOURCE.replace('LOCK TABLE public.chat_turn_reservations,', 'LOCK TABLE public.chat_usage, public.chat_turn_reservations,')),
+        ('apply_lock_order', SOURCE.replace('LOCK TABLE public.chat_turn_refunds, public.chat_turn_reservations', 'LOCK TABLE public.chat_turn_reservations, public.chat_turn_refunds'), DOWN_SOURCE),
+        ('down_lock_order', SOURCE, DOWN_SOURCE.replace('LOCK TABLE public.chat_turn_refunds, public.chat_turn_reservations', 'LOCK TABLE public.chat_turn_reservations, public.chat_turn_refunds')),
+        ('parent_lock_unbound', SOURCE.replace('IF v_before = 0 THEN', "IF p_attempt_intent = 'first' OR v_before = 0 THEN"), DOWN_SOURCE),
     ]:
         try:
             source_contract(source,down)
@@ -489,13 +583,21 @@ def main():
     clock_boundary(remove_guard=True)
     races()
     nowait_admissions()
+    original_db = pg.DB
+    try:
+        pg.DB = pg.MUTANT
+        nowait_admissions(mutant=True)
+    finally:
+        pg.DB = original_db
     apply_races()
+    warm_refund_races()
     parent_lock_races()
     summary={'runner_assertions':len(pg.CHECKS),'sequential_assertions':count,
              'sql_mutants_killed':len(SQL_MUTANTS),'sql_mutants':SQL_MUTANTS,
              'static_mutants_killed':len(STATIC_MUTANTS),'static_mutants':STATIC_MUTANTS,
              'race_schedules':len(pg.RACE_SCHEDULES),'races':pg.RACE_SCHEDULES,
              'apply_schedules':len(APPLY_SCHEDULES),'apply_races':APPLY_SCHEDULES,
+             'warm_refund_schedules':len(WARM_REFUND_SCHEDULES),'warm_refund_races':WARM_REFUND_SCHEDULES,
              'fk_trigger_orders':FK_ORDERS,
              'withdrawal_nowait_checks':NOWAIT_CHECKS,
              'midnight':'injected wrapper date samples + real PG atomic rollback; wall-clock midnight not observed',

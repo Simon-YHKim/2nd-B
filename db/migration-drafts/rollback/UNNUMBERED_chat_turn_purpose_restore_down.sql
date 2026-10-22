@@ -6,13 +6,14 @@
 -- pre-F catalog rollback. Do not apply S down until this extension is retired.
 
 -- Match F apply: never queue on usage before an in-flight admission's reservation.
-LOCK TABLE public.chat_turn_reservations, public.chat_turn_refunds IN ACCESS EXCLUSIVE MODE;
+-- Warm refund calls read refunds first, then reservations. Preserve that order.
+LOCK TABLE public.chat_turn_refunds, public.chat_turn_reservations IN ACCESS EXCLUSIVE MODE;
 
 DO $source_guard$
 DECLARE v record;
 BEGIN
   FOR v IN SELECT * FROM (VALUES
-    ('public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)', ARRAY['9d8ecd755cf436aa3882b2d2854a46c9','a96ea5a993b0720c4a3db8cbe67d3efe']),
+    ('public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)', ARRAY['9d8ecd755cf436aa3882b2d2854a46c9','c1e52023a2fb2d818a227012e480296a']),
     ('public.bump_chat_usage_for_turn(uuid,date)', ARRAY['e48d46f5920a2a09a0c87be6ffe04ce7','551d2c3b26384e4da2ed9c59c23d7ae7']),
     ('public.refund_chat_turn_after_output_swap(uuid)', ARRAY['3397e5362b6faa62f416cd1ef5e9a81d','88929c121d343a16ee108e9a7b5e21d3']),
     ('public.begin_chat_turn_attempt(uuid,uuid,uuid)', ARRAY['f8720564d8ec971a208f7e4957ecf484']),
