@@ -138,18 +138,31 @@ number or active caller. The E1-S/S draft sources, 0185/0259 and the shared
 consume function stay unchanged. No proxy/app/production activation is included.
 
 F adds nullable `quota_day` and `purpose_restored_day`. Its E1-S replacement
-takes the parent KEY SHARE before child locks and brackets the unchanged consume
+takes the parent KEY SHARE before child writes only on a possible first debit,
+and brackets the unchanged consume
 with `pg_catalog.clock_timestamp()` KST dates. A successful first debit records
 its day; an admitted debit spanning midnight raises 55000 and rolls back. Second
 attempts keep their receipt, unbound first attempts have none, and existing or
 legacy reservations are never backfilled. Ordinary quota rejection stays T3901.
+The midnight refusal intentionally includes unbound first admissions: the whole
+charge rolls back, without a receipt, and the caller can retry.
+
+Duplicate first calls and second/rejected reasks do not take this parent lock.
+First debits (including attempt-zero reasks) still hold it even with an existing
+purpose row: account deletion can lock purpose before reservation while admission
+writes reservation before purpose. Restricting it to new purpose rows leaves that
+deadlock. This accepts 0242 withdrawal's 55P03/retry on these first debits, beyond
+original E1-S's new-purpose-row conflict. The runner measures both definitions
+against the actual `withdraw_profile_import_internal(..., false)` routine.
+F apply/down lock only reservations and refunds, avoiding the inverse usage-table
+lock order of in-flight E1-S. Four apply/down schedules exercise this boundary.
 
 S chat settlement and the `{ p_audit_id }` integer/NULL RPC contract are retained.
 Purpose restoration requires a successful chat refund, today's recorded debit,
-every registered attempt delivered with valid server non-green evidence, an
+every registered attempt delivered with valid server red evidence, an
 existing purpose row and an unused user-wide processing-day cap. Pending,
 missing, foreign, client-written or future evidence refuses purpose restoration.
-A delivered green in either slot refuses it too. Count 1 is deleted; higher
+A delivered green or yellow in either slot refuses it too. Count 1 is deleted; higher
 counts decrease by one. Missing purpose rows still permit chat refund. Completed
 chat refunds cannot later be settled again for purpose alone.
 
@@ -174,10 +187,12 @@ S begin/claim unchanged. It deliberately keeps both dates, the cap index and F's
 bump retention exception. This is S settlement behavior with dormant F cap
 bookkeeping, **not an identical pre-F catalog**: removing that bookkeeping would
 reopen the same day's cap on reapply. The runner compares the remaining fields in
-its catalog snapshot and all settled fixture data. Do not run the historical S down while this extension
+its catalog snapshot and the settled rollback fixture (user 5101). Do not run the historical S down while this extension
 remains; its definition guard refuses F's bump. Apply/down refuse unknown source
 digests rather than overwrite newer E1-S/S/0259 changes. Source pins also strip
 the explicit additive F blocks and compare the remaining E1-S/S bytes exactly.
+There is currently no F-down → S-down artifact: full retirement needs a separately
+reviewed migration that preserves the current day's cap before removing this extension.
 
 CI runs `python3 scripts/test-chat-turn-purpose-restore.py` after numbered replay.
 It uses fresh fixed loopback `t40_purpose_test_ci` and `t40_purpose_mutant_test_ci`
@@ -190,6 +205,11 @@ or timeout errors. Tests include the F eligibility table, both directions of
 last-slot/count-one consume contention, same-user dual refunds, bump/late refund,
 green claim/registration and account deletion. S and E1-S behavioral tests also
 run against the installed F definitions, and after F rollback.
+The sequential assertion count is exactly 53. F function writers, dynamic SQL and
+public function calls have separate allowlists. The down-cap mutant changes a copy
+of the down file and uses the same snapshot/cleanup checks as the real down.
+Parent-lock races use two measured FK DELETE-trigger orders; M34 removes KEY SHARE
+and must reproduce the existing-purpose-row deadlock and fail the same assertion.
 
 Midnight coverage consists of actual server-today receipt tests, previous/next-day
 fixtures, source-order/clock pins and **injected wrapper date samples** causing a

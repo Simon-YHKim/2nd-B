@@ -20,6 +20,12 @@ SELECT t40.check(t40f.quota(5003)=1 AND t40f.markers(5003)=0, 'F green first pre
 SELECT t40f.setup(5004,2,'red','green');
 SELECT t40.check(t40.refund(5004,3)=1, 'F green second chat still refunds');
 SELECT t40.check(t40f.quota(5004)=1 AND t40f.markers(5004)=0, 'F green second prevents purpose restore');
+SELECT t40f.setup(5031,2,'yellow','red');
+SELECT t40.check(t40.refund(5031,4)=1, 'F yellow first chat still refunds');
+SELECT t40.check(t40f.quota(5031)=1 AND t40f.markers(5031)=0, 'F yellow first prevents purpose restore');
+SELECT t40f.setup(5032,2,'red','yellow');
+SELECT t40.check(t40.refund(5032,3)=1, 'F yellow second chat still refunds');
+SELECT t40.check(t40f.quota(5032)=1 AND t40f.markers(5032)=0, 'F yellow second prevents purpose restore');
 SELECT t40f.setup(5005);
 SELECT t40.admit(5005,'reask',4);
 SELECT t40.check(t40.refund(5005)=1 AND t40f.quota(5005)=1 AND t40f.markers(5005)=0, 'F pending second prevents purpose restore');

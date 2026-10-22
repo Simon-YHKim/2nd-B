@@ -7,17 +7,16 @@
 -- Down stops purpose restoration and restores exact E1-S/S refund bodies/ACL.
 -- The two dates, unique cap index and bump retention exception MUST survive down.
 
-LOCK TABLE public.users IN SHARE ROW EXCLUSIVE MODE;
-LOCK TABLE public.chat_usage, public.llm_proxy_purpose_daily,
-  public.chat_turn_reservations, public.chat_turn_refunds IN ACCESS EXCLUSIVE MODE;
+-- Do not queue on usage/parent tables before an in-flight admission's reservation.
+LOCK TABLE public.chat_turn_reservations, public.chat_turn_refunds IN ACCESS EXCLUSIVE MODE;
 
 DO $source_guard$
 DECLARE v record;
 BEGIN
   FOR v IN SELECT * FROM (VALUES
-    ('public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)', ARRAY['9d8ecd755cf436aa3882b2d2854a46c9','c652bc6687d23bb00d5662cfc68968ac']),
+    ('public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)', ARRAY['9d8ecd755cf436aa3882b2d2854a46c9','a96ea5a993b0720c4a3db8cbe67d3efe']),
     ('public.bump_chat_usage_for_turn(uuid,date)', ARRAY['e48d46f5920a2a09a0c87be6ffe04ce7','551d2c3b26384e4da2ed9c59c23d7ae7']),
-    ('public.refund_chat_turn_after_output_swap(uuid)', ARRAY['3397e5362b6faa62f416cd1ef5e9a81d','7486a59a6c655900ec21753cf069bebd']),
+    ('public.refund_chat_turn_after_output_swap(uuid)', ARRAY['3397e5362b6faa62f416cd1ef5e9a81d','88929c121d343a16ee108e9a7b5e21d3']),
     ('public.begin_chat_turn_attempt(uuid,uuid,uuid)', ARRAY['f8720564d8ec971a208f7e4957ecf484']),
     ('public.claim_chat_turn_for_audit(uuid,uuid,uuid)', ARRAY['e2cf42ca697af45301640e7c06eb5df0']),
     ('public.consume_llm_proxy_purpose_quota(uuid,text,text)', ARRAY['9f289b5b3b82757f62166167eb67ed73'])
@@ -108,13 +107,6 @@ BEGIN
   -- The nested begin lock alone cannot protect the pre-registration first check.
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('chat_turn_bump:' || p_user_id::text, 0));
--- F-BEGIN
-  -- Before registration and quota child locks, including account deletion.
-  PERFORM 1 FROM public.users WHERE id = p_user_id FOR KEY SHARE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'chat turn owner missing' USING ERRCODE = '23503';
-  END IF;
--- F-END
 
   SELECT r.attempts INTO v_before
     FROM public.chat_turn_reservations AS r
@@ -131,6 +123,17 @@ BEGIN
 
   -- Exactly one registration call. Eligibility remains owned by 0255, including
   -- attempts=0 reask, latest-turn checks, distinct audit ids and clock conditions.
+-- F-BEGIN
+  -- Only paths that may debit quota need the parent before BOTH child writers.
+  -- An existing quota row still participates in the deletion-cascade inversion.
+  -- A second/rejected reask and duplicate first never need this parent lock.
+  IF p_attempt_intent = 'first' OR v_before = 0 THEN
+    PERFORM 1 FROM public.users WHERE id = p_user_id FOR KEY SHARE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'chat turn owner missing' USING ERRCODE = '23503';
+    END IF;
+  END IF;
+-- F-END
   v_registered := public.begin_chat_turn_attempt(p_user_id, p_audit_id, p_turn_id);
   IF v_registered IS NULL THEN
     RAISE EXCEPTION 'chat_admission_invalid_state' USING ERRCODE = '55000';
@@ -333,7 +336,7 @@ BEGIN
        AND v_row.purpose_restored_day IS NULL
        AND NOT EXISTS (SELECT 1 FROM public.chat_turn_reservations
                         WHERE user_id = v_user AND purpose_restored_day = v_restore_day)
-       -- Every registered attempt must be delivered with trustworthy non-green
+       -- Every registered attempt must be delivered with trustworthy red
        -- evidence. Missing/foreign/future/client evidence and pending attempts
        -- fail closed. The ten-minute refund window above stays S's contract.
        AND v_row.attempts IN (1, 2)
@@ -346,7 +349,7 @@ BEGIN
          WHERE attempt.number <= v_row.attempts
            AND (attempt.delivered AND a.user_id = v_user
                 AND a.event_source = 'server_verified' AND a.purpose = 'secondb_chat'
-                AND a.safety_zone IN ('red', 'yellow') AND a.created_at <= v_now) IS NOT TRUE
+                AND a.safety_zone = 'red' AND a.created_at <= v_now) IS NOT TRUE
        ) THEN
       BEGIN
         IF v_purpose_count = 1 THEN

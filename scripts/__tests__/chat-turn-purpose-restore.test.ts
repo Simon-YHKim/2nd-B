@@ -47,7 +47,11 @@ describe('T40 F purpose restoration draft', () => {
     expect(fn).toContain('IF v_quota_before IS DISTINCT FROM v_quota_after THEN');
     expect(fn).toContain("RAISE EXCEPTION 'chat quota day changed' USING ERRCODE = '55000'");
     expect(fn).toContain('IF v_registered THEN\n    UPDATE public.chat_turn_reservations SET quota_day = v_quota_before');
-    expect(fn.indexOf('FOR KEY SHARE')).toBeLessThan(fn.indexOf('v_registered := public.begin_chat_turn_attempt'));
+    const parentLock = fn.indexOf('FOR KEY SHARE');
+    expect(parentLock).toBeGreaterThanOrEqual(0);
+    expect(parentLock).toBeGreaterThan(fn.indexOf("'first_already_registered'"));
+    expect(parentLock).toBeLessThan(fn.indexOf('v_registered := public.begin_chat_turn_attempt'));
+    expect(fn).toContain("IF p_attempt_intent = 'first' OR v_before = 0 THEN");
     expect(fn.match(/FROM public\.consume_llm_proxy_purpose_quota/g)).toHaveLength(1);
   });
 
@@ -63,13 +67,13 @@ describe('T40 F purpose restoration draft', () => {
     expect(down.replace(/--[^\n]*/g, '')).not.toMatch(/DROP (?:COLUMN|INDEX|FUNCTION)|SET purpose_restored_day\s*=/);
   });
 
-  it('requires all registered deliveries with valid non-green evidence and a current-day debit', () => {
+  it('requires all registered deliveries with valid red evidence and a current-day debit', () => {
     const fn = body(up, names[2]);
     for (const pin of ['v_row.quota_day = v_restore_day AND v_purpose_count > 0',
       'user_id = v_user AND purpose_restored_day = v_restore_day',
       'attempt.number <= v_row.attempts', 'attempt.delivered AND a.user_id = v_user',
       "a.event_source = 'server_verified' AND a.purpose = 'secondb_chat'",
-      "a.safety_zone IN ('red', 'yellow') AND a.created_at <= v_now) IS NOT TRUE",
+      "a.safety_zone = 'red' AND a.created_at <= v_now) IS NOT TRUE",
       'IF v_purpose_count = 1 THEN\n          DELETE FROM public.llm_proxy_purpose_daily',
       'UPDATE public.llm_proxy_purpose_daily SET count = count - 1',
       "IF v_hit IS DISTINCT FROM 'chat_turn_reservations_purpose_restore_day_key' THEN RAISE; END IF;"])
@@ -81,22 +85,38 @@ describe('T40 F purpose restoration draft', () => {
     expect(fn).not.toMatch(/WHEN OTHERS|SET count = 0/);
   });
 
+  it('locks only the reservation and refund tables during apply and down', () => {
+    for (const source of [up, down]) {
+      expect(source.match(/LOCK TABLE [^;]+;/g)).toEqual([
+        'LOCK TABLE public.chat_turn_reservations, public.chat_turn_refunds IN ACCESS EXCLUSIVE MODE;',
+      ]);
+    }
+  });
+
   it('runs E1-S then S then F in isolated clones with real races, assertion-only mutations and bounded waits', () => {
     expect(runner).toContain("pg.DB = 't40_purpose_test_ci'");
     expect(runner).toContain("pg.MUTANT = 't40_purpose_mutant_test_ci'");
-    expect(runner.indexOf("file=DRAFT/'UNNUMBERED_chat_turn_attempt_with_quota.sql'")).toBeLessThan(runner.indexOf("file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql'"));
-    expect(runner.indexOf("file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql'")).toBeLessThan(runner.indexOf('file=UP'));
+    const main = runner.split('def main():')[1];
+    expect(main.indexOf("file=DRAFT/'UNNUMBERED_chat_turn_attempt_with_quota.sql'")).toBeLessThan(main.indexOf("file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql'"));
+    expect(main.indexOf("file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql'")).toBeLessThan(main.indexOf('file=UP'));
     for (const marker of ['F_two_reservations_same_day', 'F_last_slot_', 'F_count_one_', 'F_bump_late_refund_',
       'F_green_claim_refund_', 'F_begin_refund_', 'F_delete_refund_', 'F_delete_admission_',
       "sql_mutant('daily_cap'", "sql_mutant('green'", "sql_mutant('old_day_cap'", "sql_mutant('p_day_cleanup'",
       "('e1_copy_drift'", 'P0040: T40 FAIL: ', 'clock_boundary(remove_guard=True)', 'source_contract()',
+      'static_check(source)', 'static_check(down)', 'count == 53', "sql_mutant('yellow'",
+      'def down_checks(', 'down_checks(DOWN, 5101)', 'down_checks(mutant_down, 7100',
+      'mutant_down.write_text(DOWN_SOURCE+', 'M34_parent_key_share',
+      'def cascade_orders()', 'F actual FK trigger order', 'withdraw_profile_import_internal',
+      'apply_races()', 'parent_lock_races()',
       'F down reapply never resets cap', 'F down exact S baseline']) expect(runner).toContain(marker);
     const transport = read('scripts/test-chat-turn-refund-evidence.py');
     for (const guard of ['pg_blocking_pids(f.pid)', 'timeout=35', 'statement_timeout=15000', "'-h', '127.0.0.1'", 'refusing non-test database']) expect(transport).toContain(guard);
     for (const label of ['F green first prevents purpose restore', 'F green second prevents purpose restore',
+      'F yellow first prevents purpose restore', 'F yellow second prevents purpose restore',
       'F pending second prevents purpose restore', 'F previous-day refund does not spend today cap',
       'F malicious p_day cannot erase today marker', 'F unexpected unique error rolls back whole refund',
       'F absent purpose row keeps chat refund']) expect(tests).toContain(label);
+    expect(tests.match(/SELECT t40\.check\(/g)).toHaveLength(53);
     const workflow = read('.github/workflows/supabase-dry-run.yml');
     const lane = workflow.split('- name: Exercise dormant T40 F purpose restore on full schema clone')[1].split('- name:')[0];
     for (const pin of ['timeout-minutes: 10', 'set -euo pipefail', 'python3 scripts/test-chat-turn-purpose-restore.py']) expect(lane).toContain(pin);

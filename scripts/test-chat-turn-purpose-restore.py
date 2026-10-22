@@ -6,9 +6,12 @@ No dotenv, remote URL, database drop, package install or production connection.
 """
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
+import subprocess
 import sys
+import time
 
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parent.parent
@@ -38,10 +41,37 @@ BUMP = 'bump_chat_usage_for_turn'
 REFUND = 'refund_chat_turn_after_output_swap'
 STATIC_MUTANTS = []
 SQL_MUTANTS = []
+APPLY_SCHEDULES = []
+FK_ORDERS = []
+NOWAIT_CHECKS = []
+
+
+def static_check(source):
+    """F widens S's writers only for the purpose decrement, never dynamic SQL."""
+    writers = {
+        ADMIT: {'chat_turn_reservations'}, BUMP: {'chat_turn_reservations'},
+        REFUND: {'chat_turn_reservations', 'chat_turn_refunds', 'chat_usage', 'llm_proxy_purpose_daily'},
+    }
+    calls = {ADMIT: ['billing_request_role', 'begin_chat_turn_attempt', 'consume_llm_proxy_purpose_quota'],
+             BUMP: ['bump_chat_usage_if_under_cap'], REFUND: []}
+    for name in writers:
+        body = pg.definition(source, name).split('AS $$', 1)[1]
+        body = re.sub(r'--[^\n]*', '', body)
+        targets = re.findall(r'\b(?:UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+public\.(\w+)', body, re.I)
+        if set(targets) - writers[name]:
+            raise ValueError('F STATIC: unexpected write target '+name)
+        if re.search(r'\b(?:EXECUTE|CALL)\b', body, re.I):
+            raise ValueError('F STATIC: dynamic write path '+name)
+        # Remove table insertion syntax before finding calls, including calls in IF/SELECT.
+        expressions = re.sub(r'INSERT\s+INTO\s+public\.\w+\s*\(', '(', body, flags=re.I)
+        if re.findall(r'\bpublic\.(\w+)\s*\(', expressions) != calls[name]:
+            raise ValueError('F STATIC: unexpected function call '+name)
 
 
 def source_contract(source=SOURCE, down=DOWN_SOURCE):
     """Removing explicitly marked additive F blocks must recover reviewed bytes."""
+    static_check(source)
+    static_check(down)
     for name, baseline in [(ADMIT, E1), (BUMP, S), (REFUND, S)]:
         actual = pg.definition(source, name)
         recovered = re.sub(r'^-- F-BEGIN\n[\s\S]*?^-- F-END\n', '', actual, flags=re.M)
@@ -60,6 +90,27 @@ def source_contract(source=SOURCE, down=DOWN_SOURCE):
     positions = [fn.find(anchor) for anchor in anchors]
     if -1 in positions or positions != sorted(positions):
         raise ValueError('F CLOCK CONTRACT')
+    lock = fn.find('FOR KEY SHARE')
+    registration = fn.find('v_registered := public.begin_chat_turn_attempt')
+    if not 0 <= lock < registration or "IF p_attempt_intent = 'first' OR v_before = 0 THEN" not in fn:
+        raise ValueError('F PARENT LOCK CONTRACT')
+    for text in (source, down):
+        locks = re.findall(r'LOCK TABLE ([^;]+);', re.sub(r'--[^\n]*', '', text))
+        if locks != ['public.chat_turn_reservations, public.chat_turn_refunds IN ACCESS EXCLUSIVE MODE']:
+            raise ValueError('F MIGRATION LOCK CONTRACT')
+
+
+def down_checks(file, n, db=None, check=True):
+    """The real down file and its mutated copy share exactly the same oracle."""
+    db = pg.DB if db is None else db
+    before = pg.value(f'SELECT t40.snapshot({n});', db=db)
+    pg.run(file=file, transaction=True, db=db)
+    return pg.run(f"""
+SELECT t40.check(t40.snapshot({n})=$snapshot${before}$snapshot$::jsonb, 'F down preserves settled rollback fixture');
+UPDATE public.chat_turn_reservations SET issued_at=clock_timestamp()-interval '3 days' WHERE turn_id=t40.id({n},2);
+SELECT t40.bump({n},t40f.today()+1);
+SELECT t40.check(t40f.markers({n})=1, 'F down bump retains cap');
+""", db=db, check=check)
 
 
 def sql_mutant(label, name, old, new, assertion, prefix=''):
@@ -98,6 +149,188 @@ ROLLBACK;
         SQL_MUTANTS.append('midnight_guard')
     else:
         pg.expect(True, 'F instrumented midnight mismatch: real PG rollback, not real wall-clock midnight')
+
+
+def start_client(label, sql):
+    name = f't40_{os.getpid()}_{label}'
+    # Windows argv uses the local codepage; UTF-8 files preserve migration comments.
+    file = pg.LOG/(label+'.sql')
+    file.write_text(sql, encoding='utf8')
+    process = subprocess.Popen(pg.args()+['-f', str(file)], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               text=True, encoding='utf8', env={**pg.ENV, 'PGAPPNAME': name})
+    return name, process
+
+
+def wait_for_lock(name, blockers, process):
+    deadline = time.monotonic()+8
+    while time.monotonic() < deadline:
+        names = ','.join("'"+x+"'" for x in blockers)
+        if pg.value(f"""SELECT EXISTS(SELECT 1 FROM pg_stat_activity f JOIN pg_stat_activity l
+          ON l.pid=ANY(pg_blocking_pids(f.pid)) WHERE f.application_name='{name}'
+          AND l.application_name IN ({names}) AND f.wait_event_type='Lock');""") == 't':
+            pg.expect(True, name+' observed real lock wait')
+            return
+        if process.poll() is not None:
+            out, err = process.communicate(timeout=3)
+            (pg.LOG/(name+'.failed.log')).write_text(out+err, encoding='utf8')
+            raise AssertionError('client exited before lock wait: '+name+' '+err[-1000:])
+        time.sleep(.04)
+    raise AssertionError('lock wait not observed: '+name)
+
+
+def finish_client(label, process):
+    out, err = process.communicate(timeout=20)
+    (pg.LOG/(label+'.log')).write_text(out+err, encoding='utf8')
+    pg.expect(process.returncode == 0, label+' completed without SQL/connection/timeout error: '+err[-300:])
+    return out.strip()
+
+
+def close_clients(sessions, clients):
+    pg.run(f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='{pg.DB}' AND application_name LIKE 't40_{os.getpid()}_%';", check=False)
+    for process in clients:
+        if process.poll() is None:
+            process.kill()
+        process.communicate(timeout=3)
+    for session in sessions:
+        session.close()
+
+
+def apply_races():
+    # Pause at the reservation boundary of a live admission, then execute the
+    # ENTIRE unmodified migration file. Its lock wait must not block consume.
+    for i, (direction, file) in enumerate([('up', UP), ('down', DOWN)]):
+        for missing in (False, True):
+            n = 6200+i*2+int(missing)
+            pg.run(file=UP, transaction=True)
+            if direction == 'up':
+                pg.run(file=DOWN, transaction=True)
+            pg.run(f'SELECT t40.setup({n},0);')
+            if missing:
+                pg.run(f'DELETE FROM public.llm_proxy_purpose_daily WHERE user_id=t40.id({n});')
+            label = f'F_apply_{direction}_missing_{missing}'
+            leader = pg.Session(label+'_admission')
+            migration = None
+            try:
+                leader.send(f'BEGIN; SELECT turn_id FROM public.chat_turn_reservations WHERE turn_id=t40.id({n},2) FOR UPDATE;')
+                leader.ready()
+                name, migration = start_client(label, 'BEGIN;\n'+file.read_text(encoding='utf8')+'\nCOMMIT;')
+                wait_for_lock(name, [leader.name], migration)
+                leader.send(f"SELECT t40.check((t40.admit({n},'first',3)->>'allowed')::boolean,'F apply live admission succeeds'); COMMIT;")
+                leader.ready()
+                finish_client(label, migration)
+                pg.check(f"t40f.quota({n})={1 if missing else 4} AND (SELECT attempts=1 FROM public.chat_turn_reservations WHERE turn_id=t40.id({n},2))", label+' preserves admission')
+                APPLY_SCHEDULES.append(label)
+            finally:
+                close_clients([leader], [] if migration is None else [migration])
+    pg.run(file=UP, transaction=True)
+
+
+def nowait_admissions():
+    # The actual 0242 routine, not merely a synthetic parent SELECT.
+    for version, source in [('E1-S', E1), ('F', SOURCE)]:
+        pg.run(pg.definition(source, ADMIT))
+        for i, (label, attempts, intent, slot, missing) in enumerate([
+            ('first_existing', 0, 'first', 3, False), ('first_new', 0, 'first', 3, True),
+            ('second', 1, 'reask', 4, False), ('duplicate_first', 1, 'first', 4, False),
+            ('rejected_reask', 2, 'reask', 5, False), ('attempt_zero_reask', 0, 'reask', 3, False),
+        ]):
+            n = 6300+(0 if version == 'E1-S' else 10)+i
+            pg.run(f"""SELECT t40.setup({n},{attempts});
+INSERT INTO public.profile_context_imports(id,user_id,request_id,request_digest,item_count,profile_change_count,document)
+VALUES(t40.id({n},8),t40.id({n}),t40.id({n},9),'fixture',1,0,'{{}}');""")
+            if missing:
+                pg.run(f'DELETE FROM public.llm_proxy_purpose_daily WHERE user_id=t40.id({n});')
+            holder = pg.Session('nowait_'+version+'_'+label)
+            try:
+                holder.send(f"BEGIN; SELECT t40.admit({n},'{intent}',{slot});")
+                holder.ready()
+                conflict = missing or (version == 'F' and attempts == 0)
+                predicate = "='55P03'" if conflict else ' IS NULL'
+                pg.check(f"t40.error('SELECT public.withdraw_profile_import_internal(t40.id({n},8),false)'){predicate}",
+                         f'F 0242 {version} {label} '+('55P03' if conflict else 'success'))
+                NOWAIT_CHECKS.append({'version': version, 'path': label, 'result': '55P03' if conflict else 'success'})
+            finally:
+                holder.send('ROLLBACK;')
+                holder.ready()
+                holder.close()
+    pg.run(pg.definition(SOURCE, ADMIT))
+
+
+def cascade_orders():
+    # Recreate the three real FK constraints in two orders; PostgreSQL orders
+    # their DELETE triggers by name. Preserve every constraint definition.
+    constraints = json.loads(pg.value("""SELECT json_agg(json_build_array(conrelid::regclass::text,conname,pg_get_constraintdef(oid)))
+FROM pg_constraint WHERE contype='f' AND confrelid='public.users'::regclass
+AND conrelid IN ('public.chat_usage'::regclass,'public.llm_proxy_purpose_daily'::regclass,'public.chat_turn_reservations'::regclass);"""))
+    pg.expect(len(constraints) == 3, 'F three real cascade constraints')
+    for order in [('chat_usage', 'llm_proxy_purpose_daily', 'chat_turn_reservations'),
+                  ('chat_turn_reservations', 'chat_usage', 'llm_proxy_purpose_daily')]:
+        for table in order:
+            relation, name, definition = next(c for c in constraints if c[0].split('.')[-1] == table)
+            pg.run(f'ALTER TABLE {relation} DROP CONSTRAINT {name}; ALTER TABLE {relation} ADD CONSTRAINT {name} {definition};', transaction=True)
+        actual = json.loads(pg.value("""SELECT json_agg(c.conrelid::regclass::text ORDER BY t.tgname)
+FROM pg_trigger t JOIN pg_constraint c ON c.oid=t.tgconstraint
+WHERE t.tgrelid='public.users'::regclass AND t.tgfoid='pg_catalog."RI_FKey_cascade_del"()'::regprocedure
+AND c.conrelid IN ('public.chat_usage'::regclass,'public.llm_proxy_purpose_daily'::regclass,'public.chat_turn_reservations'::regclass);"""))
+        pg.expect([t.split('.')[-1] for t in actual] == list(order), 'F actual FK trigger order '+','.join(order))
+        FK_ORDERS.append({'database': pg.DB, 'order': actual})
+        yield order
+
+
+def cascade_admission(order, n, mutant=False):
+    # Existing purpose row is intentional: restricting parent locking to INSERT
+    # cannot prevent this reservation/purpose inversion with account deletion.
+    pg.run(f'SELECT t40.setup({n},0);')
+    first = 'chat_turn_reservations' if order[0] == 'chat_turn_reservations' else 'llm_proxy_purpose_daily'
+    holder = pg.Session('cascade_holder_'+str(n))
+    clients = []
+    try:
+        holder.send(f'BEGIN; SELECT user_id FROM public.{first} WHERE user_id=t40.id({n}) FOR UPDATE;')
+        holder.ready()
+        dname, delete = start_client('cascade_delete_'+str(n), f"SELECT t40.error('DELETE FROM public.users WHERE id=t40.id({n})');")
+        clients.append(delete)
+        wait_for_lock(dname, [holder.name], delete)
+        aname, admit = start_client('cascade_admit_'+str(n), f"SELECT t40.error('SELECT t40.admit({n},''first'',3)');")
+        clients.append(admit)
+        wait_for_lock(aname, [dname, holder.name], admit)
+        holder.send('COMMIT;')
+        holder.ready()
+        deleted = finish_client(dname, delete)
+        admitted = finish_client(aname, admit)
+        # Infrastructure errors never count as a killed mutation.
+        pg.expect(deleted in ('', '40P01') and admitted in ('', '23503', '40P01'), 'F cascade SQLSTATEs bounded')
+        ok = deleted == '' and admitted == '23503'
+        result = pg.run(f"SELECT t40.check({str(ok).lower()},'F parent lock prevents cascade deadlock');", check=not mutant)
+        if mutant:
+            pg.expect('40P01' in (deleted, admitted), 'F M34 actual deadlock reproduced with existing quota')
+            pg.expect(result.returncode != 0 and 'P0040: T40 FAIL: F parent lock prevents cascade deadlock' in result.stderr, 'F mutation killed M34_parent_key_share')
+            SQL_MUTANTS.append('M34_parent_key_share')
+        else:
+            pg.check(f'NOT EXISTS(SELECT 1 FROM public.users WHERE id=t40.id({n})) AND NOT EXISTS(SELECT 1 FROM public.chat_turn_reservations WHERE user_id=t40.id({n})) AND t40f.quota({n})=0', 'F cascade removes all children '+str(n))
+            pg.RACE_SCHEDULES.append('F_cascade_'+','.join(order))
+    finally:
+        close_clients([holder], clients)
+
+
+def parent_lock_races():
+    for i, order in enumerate(cascade_orders()):
+        cascade_admission(order, 6400+i)
+    # First order produces the inverse two-child acquisition without the parent.
+    # Exercise the changed function in the mutant clone, not a toy lock model.
+    original_db = pg.DB
+    pg.DB = pg.MUTANT
+    try:
+        for order in cascade_orders():
+            fn = pg.definition(SOURCE, ADMIT)
+            pg.run(fn.replace('PERFORM 1 FROM public.users WHERE id = p_user_id FOR KEY SHARE;',
+                              'PERFORM 1 FROM public.users WHERE id = p_user_id;'))
+            try:
+                cascade_admission(order, 6410, mutant=True)
+            finally:
+                pg.run(fn)
+            break
+    finally:
+        pg.DB = original_db
 
 
 def races():
@@ -160,6 +393,13 @@ def main():
         ('e1_down_drift', SOURCE, DOWN_SOURCE.replace("'first_already_registered'", "'silently_changed'")),
         ('clock_now', SOURCE.replace('v_quota_before := (pg_catalog.clock_timestamp()', 'v_quota_before := (pg_catalog.now()'), DOWN_SOURCE),
         ('clock_statement', SOURCE.replace('v_quota_after := (pg_catalog.clock_timestamp()', 'v_quota_after := (pg_catalog.statement_timestamp()'), DOWN_SOURCE),
+        ('parent_key_share_missing', SOURCE.replace('FOR KEY SHARE;', ';', 1), DOWN_SOURCE),
+        ('refund_other_writer', SOURCE.replace('    v_restore_day :=', '    UPDATE public.users SET locale=locale;\n    v_restore_day :='), DOWN_SOURCE),
+        ('refund_execute', SOURCE.replace('    v_restore_day :=', "    EXECUTE 'SELECT 1';\n    v_restore_day :="), DOWN_SOURCE),
+        ('refund_call', SOURCE.replace('    v_restore_day :=', '    CALL public.unexpected();\n    v_restore_day :='), DOWN_SOURCE),
+        ('refund_consume', SOURCE.replace('    v_restore_day :=', "    PERFORM public.consume_llm_proxy_purpose_quota(v_user,'openai','secondb_chat');\n    v_restore_day :="), DOWN_SOURCE),
+        ('apply_lock_order', SOURCE.replace('LOCK TABLE public.chat_turn_reservations,', 'LOCK TABLE public.chat_usage, public.chat_turn_reservations,'), DOWN_SOURCE),
+        ('down_lock_order', SOURCE, DOWN_SOURCE.replace('LOCK TABLE public.chat_turn_reservations,', 'LOCK TABLE public.chat_usage, public.chat_turn_reservations,')),
     ]:
         try:
             source_contract(source,down)
@@ -179,14 +419,13 @@ def main():
     pg.run('CREATE DATABASE '+pg.MUTANT+' TEMPLATE '+pg.DB+';',db='template1')
     result=pg.run(file=TESTS)
     count=result.stderr.count('T40 PASS:')
-    pg.expect(count >= 45, 'F sequential assertions: '+str(count))
+    pg.expect(count == 53, 'F sequential assertions: '+str(count))
     # S behavior and E1-S remain valid on the actual final installed F functions.
     pg.run(file=DRAFT/'tests/chat-turn-refund-evidence.sql')
     pg.run(file=DRAFT/'tests/chat-turn-attempt-with-quota.sql')
     # Exact S/E1 function/ACL restoration, with the explicitly retained cap state.
     pg.run('SELECT t40f.pair(5101); SELECT t40.refund(5101);')
-    before=pg.value('SELECT t40.snapshot(5101);')
-    pg.run(file=DOWN,transaction=True)
+    down_checks(DOWN, 5101)
     after=pg.schema_snapshot()
     for key in ('functions','columns','indexes'):
         expected=baseline[key]
@@ -205,11 +444,13 @@ def main():
         pg.expect(after[key]==baseline[key], 'F down unchanged S '+key)
     pg.expect(after['rls'][:2]==baseline['rls'][:2] and 'F rollback retains these markers' in after['rls'][2],
               'F down unchanged S RLS and ACL; retained extension comment remains accurate')
-    pg.expect(pg.value('SELECT t40.snapshot(5101);')==before,'F down preserves every settled data value')
+    refused = pg.run(file=DRAFT/'rollback/UNNUMBERED_chat_turn_refund_evidence_down.sql', transaction=True, check=False)
+    pg.expect(refused.returncode != 0 and '55000:' in refused.stderr
+              and 'unexpected installed definition public.bump_chat_usage_for_turn' in refused.stderr,
+              'F down then historical S down refuses retained bump')
+    pg.expect(pg.schema_snapshot() == after, 'F refused S down leaves catalog unchanged')
     pg.run(file=DRAFT/'tests/chat-turn-attempt-with-quota.sql')
     pg.run(file=DRAFT/'tests/chat-turn-refund-evidence.sql')
-    pg.run("UPDATE public.chat_turn_reservations SET issued_at=clock_timestamp()-interval '3 days' WHERE turn_id=t40.id(5101,2); SELECT t40.bump(5101,t40f.today()+1);")
-    pg.check('t40f.markers(5101)=1','F down bump retains cap')
     pg.run(file=UP,transaction=True)
     pg.run('SELECT t40.refund(5101,5);')
     pg.check('t40f.quota(5101)=3 AND t40f.markers(5101)=1','F down reapply never resets cap')
@@ -226,7 +467,8 @@ def main():
                'AND NOT EXISTS (SELECT 1 FROM public.chat_turn_reservations\n                        WHERE user_id = v_user AND purpose_restored_day = v_restore_day)',
                'AND true','F user daily cap across reservations',
                'DROP INDEX public.chat_turn_reservations_purpose_restore_day_key;\n')
-    sql_mutant('green',REFUND,"a.safety_zone IN ('red', 'yellow')","a.safety_zone IN ('red', 'yellow', 'green')",'F green first prevents purpose restore')
+    sql_mutant('green',REFUND,"a.safety_zone = 'red' AND a.created_at <= v_now)","a.safety_zone IN ('red', 'green') AND a.created_at <= v_now)",'F green first prevents purpose restore')
+    sql_mutant('yellow',REFUND,"a.safety_zone = 'red' AND a.created_at <= v_now)","a.safety_zone IN ('red', 'yellow') AND a.created_at <= v_now)",'F yellow first prevents purpose restore')
     sql_mutant('pending_delivery',REFUND,'attempt.delivered AND a.user_id = v_user','true AND a.user_id = v_user','F audited but undelivered second prevents restore')
     sql_mutant('old_day_cap',REFUND,'v_row.quota_day = v_restore_day','v_row.quota_day IS NOT NULL','F previous-day refund does not spend today cap')
     sql_mutant('p_day_cleanup',BUMP,"(pg_catalog.clock_timestamp() AT TIME ZONE 'Asia/Seoul')::date",'p_day','F malicious p_day cannot erase today marker')
@@ -235,20 +477,27 @@ def main():
     sql_mutant('missing_receipt',ADMIT,'IF v_registered THEN\n    UPDATE public.chat_turn_reservations SET quota_day', 'IF false THEN\n    UPDATE public.chat_turn_reservations SET quota_day','F first receipt is server today')
     sql_mutant('cap_collision_handler',REFUND,"IF v_hit IS DISTINCT FROM 'chat_turn_reservations_purpose_restore_day_key' THEN RAISE; END IF;",
                'RAISE;', 'F daily index conflict keeps chat transaction')
-    result=pg.run('BEGIN; SELECT t40f.pair(7100); SELECT t40.refund(7100);\n'+DOWN_SOURCE+
-                  "\nUPDATE public.chat_turn_reservations SET purpose_restored_day=NULL;\n"
-                  "SELECT t40.check(t40f.markers(7100)=1,'F down must preserve cap marker'); ROLLBACK;",
-                  db=pg.MUTANT,check=False)
-    pg.expect(result.returncode!=0 and 'P0040: T40 FAIL: F down must preserve cap marker' in result.stderr,
+    mutant_down = pg.LOG/'UNNUMBERED_chat_turn_purpose_restore_down_cap_reset.sql'
+    mutant_down.write_text(DOWN_SOURCE+"\nUPDATE public.chat_turn_reservations SET purpose_restored_day=NULL;\n", encoding='utf8')
+    pg.run('SELECT t40f.pair(7100); SELECT t40.refund(7100);', db=pg.MUTANT)
+    result = down_checks(mutant_down, 7100, db=pg.MUTANT, check=False)
+    pg.expect(result.returncode!=0 and 'P0040: T40 FAIL: F down preserves settled rollback fixture' in result.stderr,
               'F mutation killed down_cap_reset')
     SQL_MUTANTS.append('down_cap_reset')
+    pg.run(file=UP, transaction=True, db=pg.MUTANT)
     clock_boundary()
     clock_boundary(remove_guard=True)
     races()
+    nowait_admissions()
+    apply_races()
+    parent_lock_races()
     summary={'runner_assertions':len(pg.CHECKS),'sequential_assertions':count,
              'sql_mutants_killed':len(SQL_MUTANTS),'sql_mutants':SQL_MUTANTS,
              'static_mutants_killed':len(STATIC_MUTANTS),'static_mutants':STATIC_MUTANTS,
              'race_schedules':len(pg.RACE_SCHEDULES),'races':pg.RACE_SCHEDULES,
+             'apply_schedules':len(APPLY_SCHEDULES),'apply_races':APPLY_SCHEDULES,
+             'fk_trigger_orders':FK_ORDERS,
+             'withdrawal_nowait_checks':NOWAIT_CHECKS,
              'midnight':'injected wrapper date samples + real PG atomic rollback; wall-clock midnight not observed',
              'logs':str(pg.LOG)}
     (pg.LOG/'result.json').write_text(json.dumps(summary,indent=2),encoding='utf8')
