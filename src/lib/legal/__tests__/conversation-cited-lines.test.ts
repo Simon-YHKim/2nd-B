@@ -1,5 +1,5 @@
 // docs/legal/DPIA-2ndB-minors-draft.md cites src/lib/chat/conversation.ts by line number:
-// :137-171 (SYSTEM_PROMPT_HEADER), :158-163, :258, :263-264 (the 600-character snapshot cap), :288
+// :138-172 (SYSTEM_PROMPT_HEADER), :159-164, :259, :264-265 (the 600-character snapshot cap), :288
 // (the untrusted-data fence) and :330 (the prompt assembly; T39 A2-S moved the context load and the
 // assembly into their own functions, so these four moved up with the text unchanged). A line inserted above any of them moves
 // the code away from the citation while every behaviour test still passes (review r1 on #2497,
@@ -44,4 +44,13 @@ test("DPIA's instruction citation agrees with the pinned conversation lines", ()
   const doc = readFileSync(path.resolve(__dirname, "../../../../docs/legal/DPIA-2ndB-minors-draft.md"), "utf8");
   expect(doc.includes("conversation.ts:159-164")).toBe(true);
   expect(doc.includes("conversation.ts:158-163")).toBe(false);
+});
+
+test("DPIA's export prompt citation agrees with its exact source range", () => {
+  const root = path.resolve(__dirname, "../../../..");
+  const doc = readFileSync(path.join(root, "docs/legal/DPIA-2ndB-minors-draft.md"), "utf8");
+  const source = readFileSync(path.join(root, "src/lib/wiki/export.ts"), "utf8").replace(/\r\n/g, "\n").split("\n");
+  expect(doc.includes("export.ts:214-216")).toBe(true);
+  expect(doc.includes("export.ts:213-215")).toBe(false);
+  expect(source.slice(213, 216)).toEqual(["", '  const prompt = parts.join("\\n");', ""]);
 });

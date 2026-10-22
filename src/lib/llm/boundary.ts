@@ -917,7 +917,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           },
           input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
         )) as unknown as LlmResult<T>;
-        fence();
+        if (liveOwner) fence();
         return crisisResult;
       }
       fence();
@@ -957,7 +957,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           },
           input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
         )) as unknown as LlmResult<T>;
-        fence();
+        if (liveOwner) fence();
         return turnAdmission ? { ...crisisResult, turnAdmission } : crisisResult;
       }
       fence();
@@ -1012,7 +1012,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           ],
         },
       ],
-      config: requestSignal ? { ...config, abortSignal: requestSignal } : Object.keys(config).length > 0 ? config : undefined,
+      config: requestSignal ? { ...config, abortSignal: beforeOwnerDispatch(requestSignal) } : Object.keys(config).length > 0 ? config : undefined,
     }));
     if (!(input.purpose === "secondb_chat" && !input.session && !input.chatTurn)) fence();
     latencyMs = Date.now() - t0;

@@ -245,7 +245,7 @@ connected**, and a privacy document should not report a credential as a data flo
         ┌────────────────────────────────────────────────────────────────────────┐
         │ exportUserWiki()  ──► snapshot = pages + sources (body ≤600 chars).       │
         │   includeRecords DEFAULTS FALSE → journal text NOT in chat/recommend       │
-        │   prompts (export.ts:213-215; conversation.ts:159-164; recommend.ts:5-7)   │
+        │   prompts (export.ts:214-216; conversation.ts:159-164; recommend.ts:5-7)   │
         │ snapshot fenced as <UNTRUSTED> (injection guard)                           │
         │   ──► callGemini()  (C9 in-classify ▸ C3 audit ▸ C1 single egress)         │
         │        ├─ live: gemini-proxy edge fn (key server-side, spend-capped) ──┐   │

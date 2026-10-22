@@ -1,5 +1,5 @@
 {
-  "baseline": "7997ee53e80d6f5ac422918ced95e207539ddea7",
+  "baseline": "2e7fd54c51f9eb566476c06668eefb9e71c44aaa",
   "clock": 1792699200000,
   "sha256": {
     "green": "0711816279ab3384451b85986f196df125ab93945de3783c081b220ff3e071fd",
@@ -24,6 +24,12 @@
     "gemini": "5479196f0ac3f0dac378c3b2c200f208c932c7a62aefb54745876a66a030f8cf",
     "minor-ko": "b9ab8e20698102b7b42c2d1dabb60184d9ea08a0e8912d07508cf59006ccbef3",
     "history": "b1fa5244ac7083e79915d7ca649b99662303898859c620f65f8f2adaea70a66a",
-    "rag-hit": "0d229e0d85986534eaf10fe095aea786eeaa0d70893e077fad19b5492e0b1514"
+    "rag-hit": "0d229e0d85986534eaf10fe095aea786eeaa0d70893e077fad19b5492e0b1514",
+    "direct-green": "9d59339c8c950888b3b1ebbb584b58698b5374279fdc6c836318bdc27c990d43",
+    "direct-audit-failure": "cb317cdddb36147984ee156ac21683d0e7c1bca0f72cb54af260ab9e4b2d80b1",
+    "zz-r3-cancel-reasoning": "9075db62ffb9ab4e1877209a0f727baca8bde0b9d181fee8217d663126075d92",
+    "zz-r3-cancel-clipper": "7bf5096b3fcd808b9116bb944d0b7c32cd9bd0e7b74d706c27126bf0c0f0c3d8",
+    "zz-r3-cancel-clipper-failover": "7bf5096b3fcd808b9116bb944d0b7c32cd9bd0e7b74d706c27126bf0c0f0c3d8",
+    "zz-r3-cancel-clipper-retry": "b783fd90cab8918445e9dcd1b9d94b07bb69991312e2ec368f65237bea92861c"
   }
 }

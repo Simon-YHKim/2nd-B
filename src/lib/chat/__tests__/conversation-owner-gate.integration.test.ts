@@ -4,6 +4,7 @@ const mockRpc = jest.fn();
 const mockInvoke = jest.fn();
 const mockQuery = jest.fn();
 const mockDownload = jest.fn();
+const mockGenerate = jest.fn();
 let mockBeforeDownload: (() => Promise<void>) | undefined;
 let mockBeforeQueryDispatch: ((table: string, columns: string) => Promise<void> | undefined) | undefined;
 let mockBeforeRpcDispatch: ((args: unknown[]) => Promise<void> | undefined) | undefined;
@@ -23,7 +24,7 @@ async function mockSend(signal: AbortSignal | undefined, send: () => unknown) {
   try { return await Promise.race([Promise.resolve(send()), cancelled]); }
   finally { dispatched?.removeEventListener("abort", onAbort); }
 }
-jest.mock("@google/genai", () => ({ GoogleGenAI: jest.fn(() => { throw new Error("direct_network_forbidden"); }) }));
+jest.mock("@google/genai", () => ({ GoogleGenAI: jest.fn(() => ({ models: { generateContent: mockGenerate } })) }));
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
     rpc: (...args: unknown[]) => {
@@ -80,7 +81,7 @@ const ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const input: SendMessageInput = { userId: "owner-a", message: "Help me plan my week.", locale: "en", tier: "free" };
 const first: TurnAdmission = { mode: "enforce", allowed: true, kind: "first", attempt: 1, quotaCharged: true, bindingEligible: true, reaskAvailable: true };
 const envKeys = ["EXPO_PUBLIC_LLM_MODE", "EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION", "EXPO_PUBLIC_USE_VERTEX", "EXPO_PUBLIC_CHAT_VENDOR",
-  "EXPO_PUBLIC_FAILOVER_VENDOR", "EXPO_PUBLIC_EMBED_VENDOR", "EXPO_PUBLIC_SERVER_SAFETY", "EXPO_PUBLIC_SAFETY_VENDOR", "EXPO_PUBLIC_OBFUSCATION_SAFETY", "GOOGLE_API_KEY"];
+  "EXPO_PUBLIC_FAILOVER_VENDOR", "EXPO_PUBLIC_EMBED_VENDOR", "EXPO_PUBLIC_SERVER_SAFETY", "EXPO_PUBLIC_SAFETY_VENDOR", "EXPO_PUBLIC_OBFUSCATION_SAFETY", "GOOGLE_API_KEY", "GOOGLE_CLOUD_PROJECT"];
 const savedEnv = Object.fromEntries(envKeys.map(key => [key, process.env[key]]));
 let count: number, purposeCount: number, notify: jest.Mock, receipts: jest.Mock;
 let primary: (body: Record<string, unknown>) => unknown;
@@ -132,6 +133,7 @@ beforeEach(async () => {
   count = 4; purposeCount = 0; events.length = 0; notify = jest.fn(); receipts = jest.fn();
   mockBeforeRpcDispatch = undefined; mockBeforeQueryDispatch = undefined; mockBeforeDownload = undefined;
   mockBeforeInvokeDispatch = undefined;
+  mockGenerate.mockImplementation(() => { throw new Error("direct_network_forbidden"); });
   bump = () => ({ data: { count: ++count, turnId: ID }, error: null, status: 200 });
   primary = () => { purposeCount++; return success(); };
   semantic = () => ({ data: { text: JSON.stringify({ zone: "green", triggers: [], confidence: 0.1 }) }, error: null });
@@ -459,7 +461,8 @@ test.each(["semantic", "server", "output"])("%s RED retains evidence without a s
 
 const parityCases = ["green", "yellow", "limit", "bonus", "quota-race", "device-red", "semantic-red", "semantic-unavailable",
   "output-red", "server-red", "server-unconfirmed", "server-error", "failover", "embed-error", "embed-abort", "health",
-  "mock", "claude", "xai", "gemini", "minor-ko", "history", "rag-hit"];
+  "mock", "claude", "xai", "gemini", "minor-ko", "history", "rag-hit", "direct-green", "direct-audit-failure",
+  "zz-r3-cancel-reasoning", "zz-r3-cancel-clipper", "zz-r3-cancel-clipper-failover", "zz-r3-cancel-clipper-retry"];
 
 // Digests were measured against the main commit named in the fixture, with a
 // fixed clock. CI compares result, notification, order and full request bodies;
@@ -515,9 +518,55 @@ test.each(parityCases)("differential no-switch %s", async scenario => {
   const account = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
   account.noteResolvedOwner(input.userId);
   const conversation = require("../conversation") as typeof import("../conversation");
-  const result = await conversation.sendChatMessage(options).catch(error => ({ error: error.name, message: error.message, code: error.code }));
+  const cancelProbe = scenario.startsWith("zz-r3-cancel");
+  const directProbe = scenario.startsWith("direct-");
+  if (directProbe) {
+    enableDirectChat();
+    mockGenerate.mockImplementation(request => {
+      const classifier = request.config?.responseMimeType === "application/json";
+      events.push(classifier ? "direct:safety_classify" : "direct:secondb_chat");
+      if (!classifier) purposeCount++;
+      return Promise.resolve({ text: classifier ? '{"zone":"green","triggers":[],"confidence":0.1}' : "Start with one small task." });
+    });
+    if (scenario === "direct-audit-failure") {
+      const rpc = mockRpc.getMockImplementation()!;
+      mockRpc.mockImplementation((name, args) => {
+        const result = rpc(name, args);
+        return args.p_purpose === "safety_classify" ? { data: null, error: new Error("classifier_audit_unavailable") } : result;
+      });
+    }
+  }
+  const boundary = require("../../llm/boundary") as typeof import("../../llm/boundary");
+  const outbox = require("../../llm/audit-write-outbox") as typeof import("../../llm/audit-write-outbox");
+  let operation: Promise<unknown>;
+  if (cancelProbe) {
+    const controller = new AbortController(), hold = deferred<unknown>(), rpc = mockRpc.getMockImplementation()!;
+    mockRpc.mockImplementation((name, args) => {
+      const result = rpc(name, args);
+      return name === "log_ai_audit_once" ? hold.promise : result;
+    });
+    if (scenario.endsWith("failover") || scenario.endsWith("retry")) process.env.EXPO_PUBLIC_FAILOVER_VENDOR = "claude";
+    let attempts = 0;
+    mockInvoke.mockImplementation((_fn, { body }) => {
+      events.push(body.purpose);
+      return scenario.endsWith("retry") && ++attempts === 1 ? failure(503, "upstream") : failure(422, "safety_red_zone");
+    });
+    operation = boundary.callLlm({ userId: input.userId, locale: input.locale, user: input.message,
+      purpose: scenario.endsWith("reasoning") ? "reasoning_connect" : "clipper_classify", signal: controller.signal });
+    await until(() => mockRpc.mock.calls.some(([name]) => name === "log_ai_audit_once"));
+    controller.abort(); hold.resolve({ data: null, error: null });
+  } else operation = directProbe
+    ? boundary.callLlm({ userId: input.userId, locale: input.locale, user: input.message, purpose: "secondb_chat" })
+    : conversation.sendChatMessage(options);
+  const result = await operation.catch(error => ({ error: error.name, message: error.message, code: error.code }));
   const trace = { result, events: [...events], notifications: notify.mock.calls, purposeCount,
-    rpc: mockRpc.mock.calls, invoke: mockInvoke.mock.calls.map(([fn, request]) => [fn, request.body]), query: mockQuery.mock.calls };
+    rpc: mockRpc.mock.calls, invoke: mockInvoke.mock.calls.map(([fn, request]) => [fn, request.body]), query: mockQuery.mock.calls,
+    ...(directProbe ? { rpcErrors: mockRpc.mock.results.map(({ value }) => value?.error?.message ?? null),
+      generate: mockGenerate.mock.calls.map(([request]) => {
+      const config = { ...request.config }; delete config.abortSignal;
+      return { ...request, config: Object.keys(config).length ? config : undefined };
+    }) } : {}),
+    ...(directProbe || cancelProbe ? { queued: await outbox.getAuditWriteOutboxForTests() } : {}) };
   expect(JSON.stringify(trace)).not.toContain("access_token");
   if (scenario === "health") expect(mockRpc.mock.calls.filter(([, row]) => row.p_model_used === "lexicon-only")).toHaveLength(1);
   if (scenario === "mock") {
@@ -529,11 +578,96 @@ test.each(parityCases)("differential no-switch %s", async scenario => {
     const { appendFileSync } = require("node:fs") as typeof import("node:fs");
     appendFileSync(process.env.OWNER_GATE_TRACE, `${JSON.stringify({ scenario, trace })}\n`);
   }
+  if (cancelProbe) {
+    expect(result).toMatchObject({ audit: { modelUsed: "none-crisis-routed" }, safety: { zone: "red" } });
+    expect(mockRpc.mock.calls.map(([name]) => name)).toEqual(["log_ai_audit_once", "log_crisis_event_once"]);
+    expect(trace.queued).toEqual([]);
+  }
+  if (directProbe) {
+    expect(result).toMatchObject({ safety: { zone: "green" } });
+    expect(mockRpc.mock.calls.map(([name, args]) => [name, args.p_purpose])).toEqual([
+      ["log_ai_audit", "safety_classify"], ["log_ai_audit_once", "secondb_chat"],
+    ]);
+    expect(trace.queued).toEqual([]);
+    expect(trace.rpcErrors).toEqual([scenario === "direct-audit-failure" ? "classifier_audit_unavailable" : null, null]);
+  }
   expect(createHash("sha256").update(JSON.stringify(trace)).digest("hex"))
     .toBe(noSwitchBaseline.sha256[scenario as keyof typeof noSwitchBaseline.sha256]);
   if (["green", "yellow", "bonus", "failover", "embed-error", "embed-abort", "mock", "claude", "xai", "gemini", "history", "rag-hit"].includes(scenario)) {
     expect(result).toMatchObject({ status: "ok" });
   }
+  });
+});
+
+function enableDirectChat() {
+  process.env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION = "false";
+  process.env.EXPO_PUBLIC_USE_VERTEX = "true";
+  process.env.EXPO_PUBLIC_CHAT_VENDOR = "gemini";
+  process.env.GOOGLE_CLOUD_PROJECT = "test-project";
+}
+
+test.each(["primary", "failover", "retry"].flatMap(path => ["cancel", "switch"].map(change => [path, change])))(
+  "legacy post-crisis fence still blocks %s after %s during audit", async (path, change) => {
+    const controller = new AbortController(), hold = deferred<unknown>(), rpc = mockRpc.getMockImplementation()!;
+    let attempts = 0;
+    if (path !== "primary") process.env.EXPO_PUBLIC_FAILOVER_VENDOR = "claude";
+    primary = () => path === "retry" && ++attempts === 1 ? failure(503, "upstream") : failure(422, "safety_red_zone");
+    mockRpc.mockImplementation((name, args) => name === "log_ai_audit_once" ? hold.promise : rpc(name, args));
+    const pending = callLlm({ userId: input.userId, locale: input.locale, user: input.message,
+      purpose: "secondb_chat", signal: controller.signal }).catch(error => error);
+    await until(() => mockRpc.mock.calls.some(([name]) => name === "log_ai_audit_once"));
+    if (change === "cancel") controller.abort(); else switchOwner("owner-b");
+    hold.resolve({ data: null, error: null });
+    expect(await pending).toMatchObject({ name: "AbortError" });
+    if (change === "switch") {
+      expect(await getAuditWriteOutboxForTests()).toEqual([expect.objectContaining({ kind: "crisis_event", ownerUserId: input.userId })]);
+      expect(mockRpc.mock.calls.filter(([name]) => name === "log_crisis_event_once")).toEqual([]);
+    } else expect(mockRpc.mock.calls.filter(([name]) => name === "log_crisis_event_once")).toHaveLength(1);
+  },
+);
+
+test.each(["logout", "switch", "return", "cancel"])("direct chat across %s preserves only owner cancellation semantics", async change => {
+  await jest.isolateModulesAsync(async () => {
+  const { callLlm } = require("../../llm/boundary") as typeof import("../../llm/boundary");
+  const { getAuditWriteOutboxForTests, flushAuditWriteOutbox } = require("../../llm/audit-write-outbox") as typeof import("../../llm/audit-write-outbox");
+  const account = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
+  const switchOwner = (next: string | null) => {
+    account.beginAccountOwnerTransition(next); account.noteResolvedOwner(next); account.clearAccountTransition(account.currentAccountEpoch());
+  };
+  account.noteResolvedOwner(input.userId);
+  enableDirectChat();
+  const controller = new AbortController(), hold = deferred<{ text: string }>();
+  let sentSignal: AbortSignal | undefined;
+  mockGenerate.mockImplementation(request => {
+    sentSignal = request.config?.abortSignal;
+    return new Promise((resolve, reject) => {
+      const abort = () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+      sentSignal?.addEventListener("abort", abort, { once: true });
+      if (sentSignal?.aborted) abort();
+      hold.promise.then(resolve, reject).finally(() => sentSignal?.removeEventListener("abort", abort));
+    });
+  });
+  const pending = callLlm({ userId: input.userId, locale: input.locale, user: input.message,
+    purpose: "secondb_chat", signal: controller.signal }).catch(error => error);
+  await until(() => mockGenerate.mock.calls.length === 1);
+  if (change === "cancel") controller.abort();
+  else { switchOwner(change === "logout" ? null : "owner-b"); if (change === "return") switchOwner(input.userId); }
+  expect(sentSignal?.aborted).toBe(change === "cancel");
+  // Hold the return case's audit in the outbox as well, to inspect attribution.
+  mockRpc.mockImplementation(() => ({ data: null, error: new Error("offline") }));
+  hold.resolve({ text: "Start with one small task." });
+  expect(await pending).toMatchObject({ name: "AbortError" });
+  expect(mockGenerate).toHaveBeenCalledTimes(1);
+  expect(await getAuditWriteOutboxForTests()).toEqual(change === "cancel" ? [] : [expect.objectContaining({
+    kind: "ai_audit_log", ownerUserId: input.userId, payload: expect.objectContaining({ purpose: "secondb_chat", userId: input.userId }),
+  })]);
+  if (change !== "return") expect(mockRpc).not.toHaveBeenCalled();
+  switchOwner("owner-b"); mockRpc.mockClear();
+  await flushAuditWriteOutbox(input.userId); expect(mockRpc).not.toHaveBeenCalled();
+  switchOwner(input.userId); mockRpc.mockResolvedValue({ data: null, error: null });
+  await flushAuditWriteOutbox(input.userId); await flushAuditWriteOutbox(input.userId);
+  expect(audits()).toHaveLength(change === "cancel" ? 0 : 1);
+  expect(await getAuditWriteOutboxForTests()).toEqual([]);
   });
 });
 

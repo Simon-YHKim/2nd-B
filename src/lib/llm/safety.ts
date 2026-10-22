@@ -566,8 +566,8 @@ export async function classifySafety(
           signal => insertAiAuditLog(row, opts.capturedSession?.accessToken, signal));
         opts.capturedSession?.assertCurrent();
       } catch {
-        // A completed direct classifier also owns C3 when its audit cannot start.
-        if (opts.retainResult && !opts.capturedSession && !opts.signal?.aborted) {
+        // Retain C3 after an owner change; ordinary audit failures stay best-effort.
+        if (opts.retainResult && !opts.capturedSession && !opts.signal?.aborted && liveOwner?.signal.aborted) {
           await enqueueAuditWrite({ kind: "ai_audit_log", ownerUserId: opts.userId, payload: row, warnLabel: "[safety] classifier audit failed" });
         }
         if (typeof console !== "undefined") console.warn("[safety] classifier audit failed");
