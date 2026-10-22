@@ -153,8 +153,12 @@ purpose row: account deletion can lock purpose before reservation while admissio
 writes reservation before purpose. Restricting it to new purpose rows leaves that
 deadlock. This accepts 0242 withdrawal's 55P03/retry on these first debits, beyond
 original E1-S's new-purpose-row conflict. Unbound first only writes purpose, so
-it does not create that two-child cycle or need an extra parent lock. With an
-existing purpose row, it leaves 0242 withdrawal available, as E1-S does. The runner
+it does not create that two-child cycle. It can still deadlock (40P01) with account
+deletion when the unchanged consume first deletes a purpose row older than 45 days
+and then inserts today's row; E1-S and the standalone 0259 consume behave the same
+way, so this is an accepted residual of consume, not something F adds. One side
+aborts with no data loss (the turn is not charged, or the deletion is retried). With
+an existing purpose row, it leaves 0242 withdrawal available, as E1-S does. The runner
 measures both definitions against the actual `withdraw_profile_import_internal(..., false)` routine.
 F apply/down lock only **refunds, then reservations**, matching warm refund reads
 and keeping usage tables out of the in-flight E1-S lock cycle. Four admission and
