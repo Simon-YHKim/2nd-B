@@ -39,3 +39,9 @@ test("conversation.ts is 523 lines long", () => {
   // The split leaves one empty string after the final newline.
   expect(lines.length - 1).toBe(523);
 });
+
+test("DPIA's instruction citation agrees with the pinned conversation lines", () => {
+  const doc = readFileSync(path.resolve(__dirname, "../../../../docs/legal/DPIA-2ndB-minors-draft.md"), "utf8");
+  expect(doc.includes("conversation.ts:159-164")).toBe(true);
+  expect(doc.includes("conversation.ts:158-163")).toBe(false);
+});

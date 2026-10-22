@@ -84,7 +84,7 @@ const ANCHORS: Anchor[] = [
     why: "기록 저장의 위기 분류 인용이 다른 함수나 주석을 가리키지 않는다." },
   { cite: "src/lib/llm/boundary.ts:623-662", symbol: "classifyInputAnyLocale",
     why: "T39 선택 인자 추가 뒤에도 C9 입력 분류 인용이 실제 호출을 가리킨다." },
-  { cite: "src/lib/llm/boundary.ts:1032-1113", symbol: "fixedCrisisResponse",
+  { cite: "src/lib/llm/boundary.ts:1032-1114", symbol: "fixedCrisisResponse",
     why: "예약 응답 전달로 밀린 출력 교체 인용이 고정 안내와 감사를 계속 포함한다." },
   { cite: "src/lib/llm/boundary.ts:853-885", symbol: "invokeFunctionWithCapturedSession",
     why: "단일 경계의 실제 프록시 전송 위치를 인용한다." },
@@ -96,9 +96,9 @@ const ANCHORS: Anchor[] = [
     why: "서버 위기 응답 검사와 안내 변환을 함께 인용한다." },
   { cite: "src/lib/llm/boundary.ts:514-595", symbol: "writeCrisisEvent",
     why: "위기 경로의 두 감사 기록 중 제한된 기록도 실제 범위에 남는다." },
-  { cite: "src/lib/llm/boundary.ts:1652-1690", symbol: "fixedCrisisResponse",
+  { cite: "src/lib/llm/boundary.ts:1657-1695", symbol: "fixedCrisisResponse",
     why: "Advisor 입력 위기 안내의 이동한 위치를 고정한다." },
-  { cite: "src/lib/llm/boundary.ts:1870-1911", symbol: "fixedCrisisResponse",
+  { cite: "src/lib/llm/boundary.ts:1875-1916", symbol: "fixedCrisisResponse",
     why: "Advisor 출력 위기 안내의 이동한 위치를 고정한다." },
   { cite: "src/lib/llm/types.ts:58-65", symbol: "minor?: boolean",
     why: "미성년 안내 선택 인자의 인용이 실제 타입을 가리킨다." },
@@ -106,19 +106,19 @@ const ANCHORS: Anchor[] = [
     why: "일반 프롬프트의 미성년 안내 선택 인자도 실제 타입을 인용한다." },
   { cite: "src/lib/analytics/auth-conversions.ts:47", symbol: "requiresGuardianConsent(age, resolveJurisdiction())",
     why: "분석 동의의 관할별 연령 게이트를 실제로 적용하는 자리. AuthContext 연동 추출 후 이전 layout 좌표를 재사용하지 않는다." },
-  { cite: `${S}:580-610`, symbol: "fixedCrisisResponse",
+  { cite: `${S}:590-620`, symbol: "fixedCrisisResponse",
     why: "위기 응답이 사람이 쓴 고정 템플릿이라는 주장의 근거. 어긋나면 의미 분류기 프롬프트를 읽게 된다." },
-  { cite: `${S}:442-561`, symbol: "classifySafety",
+  { cite: `${S}:443-567`, symbol: "classifySafety",
     why: "3층 방어 중 둘째 층(의미 분류기)." },
-  { cite: `${S}:204-226`, symbol: "mergeResults",
+  { cite: `${S}:205-227`, symbol: "mergeResults",
     why: "RED-wins 병합. 이게 아니면 '보수적으로 합친다'는 주장에 근거가 없다." },
-  { cite: `${S}:207-219`, symbol: "indexOf",
+  { cite: `${S}:208-220`, symbol: "indexOf",
     why: "모르는 zone 을 RED 로 취급하는 fail-closed 순위. 위기에서 열리지 않는다는 주장." },
-  { cite: `${S}:73-85`, symbol: "Suicide CARE",
+  { cite: `${S}:74-86`, symbol: "Suicide CARE",
     why: "KO/EN 마커 목록. 어느 임상 근거를 쓰는지가 여기서 확인된다." },
-  { cite: `${S}:111`, symbol: "EXPO_PUBLIC_USE_VERTEX",
+  { cite: `${S}:112`, symbol: "EXPO_PUBLIC_USE_VERTEX",
     why: "키 없는 웹 빌드에서 의미 층이 꺼진다는 잔여위험 서술의 근거." },
-  { cite: `${S}:584-596`, symbol: "crisisHotlines",
+  { cite: `${S}:594-606`, symbol: "crisisHotlines",
     why: "미성년 라우팅이 실제로 핫라인 목록을 부르는 자리." },
   { cite: `${C}:71-80`, symbol: "crisisHotlines",
     why: "(locale, minor) → 핫라인 표시 순서." },
@@ -544,14 +544,14 @@ describe("검사기 자신의 대조군", () => {
   });
 
   test("음성 대조 - 범위 안 심볼은 통과한다", () => {
-    expect(slice(`${S}:580-610`).text.includes("fixedCrisisResponse")).toBe(true);
+    expect(slice(`${S}:590-620`).text.includes("fixedCrisisResponse")).toBe(true);
   });
 
   test("쉼표와 하이픈을 둘 다 읽는다", () => {
     // `:452,464` 는 두 줄이지 452~464 범위가 아니지만, 검사는 최소~최대로
     // 넓게 잡는다. 넓게 잡는 쪽이 거짓양성이 아니라 **거짓음성**으로 기울므로
     // 여기서 그 성질을 드러내 둔다 - 다음 사람이 정확도를 오해하지 않게.
-    const wide = slice(`${S}:472,484`);
+    const wide = slice(`${S}:476,488`);
     expect(wide.text.split("\n")).toHaveLength(13);
   });
 

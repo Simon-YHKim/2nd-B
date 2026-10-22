@@ -12,7 +12,7 @@ import { GoogleGenAI } from "@google/genai";
 
 import { isAbortError, throwIfAborted } from "../async/abort";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
-import { captureLiveOwnerCheck, observeLiveOwner, withLiveOwnerSignal } from "../auth/live-owner-guard";
+import { beforeOwnerDispatch, captureLiveOwnerCheck, observeLiveOwner, requestCancellationSignal, withLiveOwnerSignal } from "../auth/live-owner-guard";
 import { getEnv } from "../env";
 import {
   embedVendor,
@@ -1033,18 +1033,19 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   if (lexical.zone === "red") notifyCrisis?.(lexical.crisisRouting?.hotline);
   const semantic = await (input.purpose === "secondb_chat" && !input.session
     ? classifySafety(text, input.locale, {
-        userId: input.userId, assertCurrent: fence, signal,
+        userId: input.userId, assertCurrent: fence, signal, retainResult: !input.chatTurn,
         ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
       }).catch(error => {
-        if (input.chatTurn || lexical.zone !== "red" || !isAbortError(error)) throw error;
-        // Lexical RED was known before the optional semantic request was cancelled.
-        return { zone: "red" as const, confidence: 0.95, triggers: lexical.categories.length ? lexical.categories : ["lexicon_match"] };
+        if (input.chatTurn || signal?.aborted || !isAbortError(error)) throw error;
+        // The chat completed before this optional classification could be sent.
+        // Preserve its C3 row (or known lexical swap) for its original owner.
+        return { zone: lexical.zone, confidence: 0.95, triggers: lexical.categories.length ? lexical.categories : ["lexicon_match"] };
       })
     : classifySafety(text, input.locale, {
         userId: input.userId, capturedSession: input.session,
         ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
       }));
-  if (!(input.purpose === "secondb_chat" && !input.session && !input.chatTurn && (lexical.zone === "red" || semantic.zone === "red"))) fence();
+  if (!(input.purpose === "secondb_chat" && !input.session && !input.chatTurn)) fence();
   const outputZone: "green" | "yellow" | "red" =
     lexical.zone === "red" || semantic.zone === "red"
       ? "red"
@@ -1288,6 +1289,10 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
     throwIfAborted(signal);
     session?.assertCurrent();
   };
+  const resultFence = (): void => {
+    if (!session && requestCancellationSignal(signal) !== signal) throwIfAborted(requestCancellationSignal(signal));
+    else fence();
+  };
   fence();
   // Keep the selected batch and capability stable across proxy/audit awaits.
   const texts = [...input.texts];
@@ -1354,8 +1359,8 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
         const { data, error } = session
           ? await invokeFunctionWithCapturedSession(proxyFnForVendor(embedVendor()), session.accessToken, options)
           : await getSupabaseClient().functions.invoke(proxyFnForVendor(embedVendor()), options);
-        fence();
-        if (error) throw error;
+        if (error) { fence(); throw error; }
+        resultFence();
         const payload = data as { vectors?: number[][]; modelUsed?: string; audited?: boolean } | null;
         embedded = Array.isArray(payload?.vectors) ? payload.vectors : [];
         modelUsedForAudit = payload?.modelUsed ?? EMBED_MODEL;
@@ -1372,9 +1377,9 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
           model: EMBED_MODEL,
           contents: toEmbed,
           // 768-dim MRL slice - keeps the pgvector column shape (0047) unchanged.
-          config: { outputDimensionality: EMBED_DIM, abortSignal: signal },
+          config: { outputDimensionality: EMBED_DIM, abortSignal: beforeOwnerDispatch(signal) },
         });
-        fence();
+        resultFence();
         embedded = (res.embeddings ?? []).map((e) => e.values ?? []);
       }
     }
@@ -1396,7 +1401,7 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
     // green remainder and audits 'green', so the client row is the only honest
     // record that crisis content was withheld from embedding.
     if (!proxyAudited || anyRed) {
-      fence();
+      resultFence();
       await writeAiAuditLog(userId, audit, "[ai_audit_log] embed insert failed", session);
       fence();
     }

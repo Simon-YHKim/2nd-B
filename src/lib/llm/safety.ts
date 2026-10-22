@@ -17,7 +17,8 @@ import { GoogleGenAI } from "@google/genai";
 import { emergencyGuidance, emergencyHotlineForText } from "../safety/emergency-routing";
 import { getEnv } from "../env";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
-import { captureLiveOwnerCheck, observeLiveOwner } from "../auth/live-owner-guard";
+import { beforeOwnerDispatch, captureLiveOwnerCheck, observeLiveOwner, requestCancellationSignal, withLiveOwnerSignal } from "../auth/live-owner-guard";
+import { enqueueAuditWrite } from "./audit-write-outbox";
 import { abortError, throwIfAborted } from "../async/abort";
 import { isTimeoutError, withTimeout } from "../async/with-timeout";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
@@ -274,10 +275,10 @@ export async function classifyObfuscatedInput(
   };
   assertActive();
   if (process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY !== "true") return null;
-  const liveOwner = opts?.assertCurrent ? observeLiveOwner(opts.assertCurrent, opts.signal) : undefined;
   const controller = new AbortController();
+  const liveOwner = opts?.assertCurrent ? observeLiveOwner(opts.assertCurrent, controller.signal) : undefined;
   let timedOut = false;
-  const signals = [liveOwner?.signal ?? opts?.signal, opts?.capturedSession?.signal];
+  const signals = [opts?.signal, opts?.capturedSession?.signal];
   let onAbort!: () => void;
   const cancelled = new Promise<never>((_, reject) => {
     onAbort = () => {
@@ -290,7 +291,7 @@ export async function classifyObfuscatedInput(
     // Bound the wait even if the transport ignores signal. Cancellation also
     // races independently so a stalled proxy cannot delay a user's abort.
     const result = await withTimeout(Promise.race([
-      requestProxyClassification(userMessage, locale, opts?.capturedSession, controller.signal, true, opts?.onRedResult ? result => {
+      requestProxyClassification(userMessage, locale, opts?.capturedSession, liveOwner?.signal ?? controller.signal, true, opts?.onRedResult ? result => {
         // Retain only a validated received verdict, never a timeout guess. This
         // callback records for the original owner; it cannot authorize egress/UI.
         if (!timedOut) opts.onRedResult?.(result);
@@ -403,7 +404,7 @@ async function requestProxyClassification(
     // The live callback may retain an already received RED for its owner, even
     // when delivery has become stale. Captured execution keeps its existing fence.
     capturedSession?.assertCurrent();
-    if (!onRedResult || canRetainRed?.() === false) throwIfAborted(signal);
+    if (!onRedResult || canRetainRed?.() === false) throwIfAborted(requestCancellationSignal(signal));
     if (error || !data) return null;
     const text = String((data as { text?: unknown }).text ?? "").trim();
     if (!text) return null;
@@ -430,11 +431,11 @@ async function requestProxyClassification(
       routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
     };
     if (result.zone === "red") onRedResult?.(result);
-    throwIfAborted(signal);
+    throwIfAborted(requestCancellationSignal(signal));
     return result;
   } catch {
     capturedSession?.assertCurrent();
-    throwIfAborted(signal);
+    throwIfAborted(requestCancellationSignal(signal));
     return null; // the safety path must never throw
   }
 }
@@ -443,16 +444,19 @@ export async function classifySafety(
   userMessage: string,
   locale: "en" | "ko",
   opts?: { userId?: string; capturedSession?: AuthenticatedAccountSessionLease; onRed?: CrisisObserver;
-    assertCurrent?: () => void; signal?: AbortSignal },
+    assertCurrent?: () => void; signal?: AbortSignal; retainResult?: boolean },
 ): Promise<SafetyResult> {
   const fence = () => { opts?.assertCurrent?.(); opts?.capturedSession?.assertCurrent(); if (opts?.signal) throwIfAborted(opts.signal); };
   fence();
+  // A completed live call owns its result even after the screen owner leaves.
+  // Keep the request gate above and on the transport; only defer UI ownership.
+  const resultFence = () => { if (opts?.retainResult && !opts.capturedSession) throwIfAborted(opts.signal); else fence(); };
   const liveOwner = opts?.assertCurrent ? observeLiveOwner(opts.assertCurrent, opts.signal) : undefined;
   const requestSignal = liveOwner?.signal ?? opts?.signal;
   try {
   const notifyRed = (result: SafetyResult): void => {
     if (result.zone !== "red" || !opts?.onRed) return;
-    fence();
+    resultFence();
     try { opts.onRed(result.hotline); } catch { /* Continue the classifier's audit/result. */ }
   };
   // Layer 1: lexicon. Always runs synchronously. Dual-locale: catch a crisis
@@ -470,7 +474,7 @@ export async function classifySafety(
   if (!client) {
     // D4 (flag-gated): try the server-side classifier before degrading to lexicon.
     const viaProxy = await classifyViaProxy(userMessage, locale, opts?.capturedSession, requestSignal);
-    fence();
+    resultFence();
     if (viaProxy) {
       const result = mergeResults(lex, viaProxy);
       notifyRed(result);
@@ -493,7 +497,7 @@ export async function classifySafety(
         { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\nUser message (locale=${locale}):\n"""\n${userMessage}\n"""\n\nClassify now. Output JSON only, no prose.` }] },
       ],
       config: {
-        ...(opts?.capturedSession || requestSignal ? { abortSignal: opts?.capturedSession?.signal ?? requestSignal } : {}),
+        ...(opts?.capturedSession || requestSignal ? { abortSignal: opts?.capturedSession?.signal ?? beforeOwnerDispatch(requestSignal) } : {}),
         responseMimeType: "application/json",
         responseSchema: {
           type: "object",
@@ -506,7 +510,7 @@ export async function classifySafety(
         },
       },
     });
-    fence();
+    resultFence();
     const latencyMs = Date.now() - t0;
     const text = (res.text ?? "").trim();
     let result: SafetyResult = lex;
@@ -545,27 +549,33 @@ export async function classifySafety(
     // client has no key (getFlashClient() === null) so we never reach this; this
     // closes the C3 gap on native/Vertex live builds.
     if (opts?.userId) {
+      const row = {
+        userId: opts.userId,
+        promptHash: djb2(`${SYSTEM_PROMPT}${userMessage}`),
+        outputHash: djb2(text),
+        modelUsed: "gemini-2.5-flash",
+        vertexBackend: getEnv().EXPO_PUBLIC_USE_VERTEX,
+        safetyZone: result.zone,
+        latencyMs,
+        // 0095: the A18 seat name — same label the proxy path self-reports
+        // (classifyViaProxy), so classifier rows aggregate under one purpose.
+        purpose: "safety_classify",
+      };
       try {
-        await insertAiAuditLog({
-          userId: opts.userId,
-          promptHash: djb2(`${SYSTEM_PROMPT}${userMessage}`),
-          outputHash: djb2(text),
-          modelUsed: "gemini-2.5-flash",
-          vertexBackend: getEnv().EXPO_PUBLIC_USE_VERTEX,
-          safetyZone: result.zone,
-          latencyMs,
-          // 0095: the A18 seat name — same label the proxy path self-reports
-          // (classifyViaProxy), so classifier rows aggregate under one purpose.
-          purpose: "safety_classify",
-        }, opts.capturedSession?.accessToken, opts.capturedSession?.signal ?? opts.signal);
+        await withLiveOwnerSignal(opts.capturedSession ? undefined : opts.assertCurrent, opts.capturedSession?.signal ?? opts.signal,
+          signal => insertAiAuditLog(row, opts.capturedSession?.accessToken, signal));
         opts.capturedSession?.assertCurrent();
       } catch {
+        // A completed direct classifier also owns C3 when its audit cannot start.
+        if (opts.retainResult && !opts.capturedSession && !opts.signal?.aborted) {
+          await enqueueAuditWrite({ kind: "ai_audit_log", ownerUserId: opts.userId, payload: row, warnLabel: "[safety] classifier audit failed" });
+        }
         if (typeof console !== "undefined") console.warn("[safety] classifier audit failed");
       }
     }
     return result;
   } catch {
-    fence();
+    resultFence();
     if (typeof console !== "undefined") console.warn("[safety] llm classifier failed, using lexicon");
     return lex;
   }

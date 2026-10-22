@@ -7,6 +7,22 @@ const mockDownload = jest.fn();
 let mockBeforeDownload: (() => Promise<void>) | undefined;
 let mockBeforeQueryDispatch: ((table: string, columns: string) => Promise<void> | undefined) | undefined;
 let mockBeforeRpcDispatch: ((args: unknown[]) => Promise<void> | undefined) | undefined;
+let mockBeforeInvokeDispatch: ((purpose: string) => Promise<void> | undefined) | undefined;
+
+// The SDK has acquired its current session. The production fetch adapter checks
+// the owner here; actual fetch observes only user cancellation, including in flight.
+async function mockSend(signal: AbortSignal | undefined, send: () => unknown) {
+  const { beforeOwnerDispatch } = require("../../auth/live-owner-guard") as typeof import("../../auth/live-owner-guard");
+  const dispatched = beforeOwnerDispatch(signal);
+  let onAbort!: () => void;
+  const cancelled = new Promise<never>((_, reject) => {
+    onAbort = () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+    dispatched?.addEventListener("abort", onAbort, { once: true });
+    if (dispatched?.aborted) onAbort();
+  });
+  try { return await Promise.race([Promise.resolve(send()), cancelled]); }
+  finally { dispatched?.removeEventListener("abort", onAbort); }
+}
 jest.mock("@google/genai", () => ({ GoogleGenAI: jest.fn(() => { throw new Error("direct_network_forbidden"); }) }));
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
@@ -17,16 +33,22 @@ jest.mock("../../supabase/client", () => ({
         then: (yes: (value: unknown) => void, no: (error: unknown) => void) =>
           Promise.resolve().then(async () => {
             await mockBeforeRpcDispatch?.(args);
-            if (signal?.aborted) throw Object.assign(new Error("owner_changed"), { name: "AbortError" });
-            return mockRpc(...args);
+            return mockSend(signal, () => mockRpc(...args));
           }).then(yes, no),
       };
       return query;
-    }, functions: { invoke: mockInvoke },
+    }, functions: { invoke: async (fn: string, request: { body: Record<string, unknown>; signal?: AbortSignal }) => {
+      try {
+        await mockBeforeInvokeDispatch?.(String(request.body.purpose));
+        return await mockSend(request.signal, () => mockInvoke(fn, request));
+      } catch (error) {
+        // functions-js converts a fetch rejection to a FunctionsFetchError.
+        return { data: null, error: Object.assign(new Error("fetch failed"), { name: "FunctionsFetchError", context: error }) };
+      }
+    } },
     storage: { from: () => ({ download: async (path: string, _options: unknown, parameters?: { signal?: AbortSignal }) => {
       await mockBeforeDownload?.();
-      if (parameters?.signal?.aborted) throw Object.assign(new Error("owner_changed"), { name: "AbortError" });
-      return mockDownload(path);
+      return mockSend(parameters?.signal, () => mockDownload(path));
     } }) },
     from: (table: string) => {
       let columns = "";
@@ -38,8 +60,7 @@ jest.mock("../../supabase/client", () => ({
       query.then = (resolve: (value: unknown) => void, reject: (error: unknown) => void) =>
         Promise.resolve().then(async () => {
           await mockBeforeQueryDispatch?.(table, columns);
-          if (signal?.aborted) throw Object.assign(new Error("owner_changed"), { name: "AbortError" });
-          return mockQuery(table, columns);
+          return mockSend(signal, () => mockQuery(table, columns));
         }).then(resolve, reject);
       return query;
     },
@@ -110,6 +131,7 @@ beforeEach(async () => {
   jest.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network_forbidden"));
   count = 4; purposeCount = 0; events.length = 0; notify = jest.fn(); receipts = jest.fn();
   mockBeforeRpcDispatch = undefined; mockBeforeQueryDispatch = undefined; mockBeforeDownload = undefined;
+  mockBeforeInvokeDispatch = undefined;
   bump = () => ({ data: { count: ++count, turnId: ID }, error: null, status: 200 });
   primary = () => { purposeCount++; return success(); };
   semantic = () => ({ data: { text: JSON.stringify({ zone: "green", triggers: [], confidence: 0.1 }) }, error: null });
@@ -176,7 +198,7 @@ test.each(["switch", "return", "hold", "logout"])("loader skips embed after owne
   expect(calls("embed_index")).toHaveLength(0);
 });
 
-test.each(["legacy", "reserved"])("%s output classification failure after switch emits no health or audit row", async path => {
+test.each(["legacy", "reserved"])("%s output classification failure after switch sends no cross-owner health or audit row", async path => {
   await jest.isolateModulesAsync(async () => {
     const account = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
     const conversation = require("../conversation") as typeof import("../conversation");
@@ -191,6 +213,10 @@ test.each(["legacy", "reserved"])("%s output classification failure after switch
     account.noteResolvedOwner("owner-b"); hold.resolve({ data: null, error: new Error("unavailable") });
     expect(await pending).toMatchObject({ name: "AbortError" });
     expect(mockRpc.mock.calls.slice(before)).toEqual([]);
+    if (path === "legacy") {
+      const outbox = require("../../llm/audit-write-outbox") as typeof import("../../llm/audit-write-outbox");
+      expect(await outbox.getAuditWriteOutboxForTests()).toEqual([expect.objectContaining({ kind: "ai_audit_log", ownerUserId: input.userId })]);
+    }
     // A later current-owner turn can still write its health row.
     account.noteResolvedOwner(input.userId); account.clearAccountTransition(account.currentAccountEpoch());
     count = 0;
@@ -235,21 +261,13 @@ test("device RED guidance is synchronous while the audit is stalled", async () =
 });
 
 test.each(["embed_index", "secondb_chat", "safety_classify"])("%s cannot send after the SDK waited for a session", async purpose => {
-  const hold = deferred<void>(), transport = mockInvoke.getMockImplementation()!;
-  const sent: string[] = [];
-  mockInvoke.mockImplementation(async (fn, request) => {
-    if (request.body.purpose === purpose) {
-      await hold.promise;
-      if (request.signal?.aborted) throw Object.assign(new Error("aborted"), { name: "AbortError" });
-      sent.push(purpose);
-    }
-    return transport(fn, request);
-  });
+  const hold = deferred<void>(); let waiting = false;
+  mockBeforeInvokeDispatch = next => { if (next === purpose) { waiting = true; return hold.promise; } };
   const pending = sendChatMessage(input).catch(error => error);
-  await until(() => calls(purpose).length === 1);
+  await until(() => waiting);
   beginAccountOwnerTransition("owner-b"); hold.resolve();
   expect(await pending).toMatchObject({ name: "AbortError" });
-  expect(sent).toEqual([]);
+  expect(calls(purpose)).toEqual([]);
 });
 
 test.each(["crisis_event", "ai_audit_log"] as const)("queued %s also waits if the account switches inside the SDK session wait", async kind => {
@@ -447,6 +465,7 @@ const parityCases = ["green", "yellow", "limit", "bonus", "quota-race", "device-
 // fixed clock. CI compares result, notification, order and full request bodies;
 // only transport AbortSignal objects are excluded. No live network is used.
 test.each(parityCases)("differential no-switch %s", async scenario => {
+  await jest.isolateModulesAsync(async () => {
   jest.useFakeTimers({ now: noSwitchBaseline.clock, doNotFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval",
     "setImmediate", "clearImmediate", "nextTick", "queueMicrotask", "performance", "hrtime"] });
   jest.spyOn(require("expo-crypto") as { randomUUID(): string }, "randomUUID").mockReturnValue(ID);
@@ -493,17 +512,144 @@ test.each(parityCases)("differential no-switch %s", async scenario => {
     mockQuery.mockImplementation((table, columns) => table === "wiki_pages" && String(columns).includes("frontmatter")
       ? { data: [{ id: "w1", slug: "week", title: "Week", body_md: "A grounded plan.", frontmatter: {} }], error: null } : query(table, columns));
   }
-  const result = await sendChatMessage(options).catch(error => ({ error: error.name, message: error.message, code: error.code }));
+  const account = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
+  account.noteResolvedOwner(input.userId);
+  const conversation = require("../conversation") as typeof import("../conversation");
+  const result = await conversation.sendChatMessage(options).catch(error => ({ error: error.name, message: error.message, code: error.code }));
   const trace = { result, events: [...events], notifications: notify.mock.calls, purposeCount,
     rpc: mockRpc.mock.calls, invoke: mockInvoke.mock.calls.map(([fn, request]) => [fn, request.body]), query: mockQuery.mock.calls };
   expect(JSON.stringify(trace)).not.toContain("access_token");
-  expect(createHash("sha256").update(JSON.stringify(trace)).digest("hex"))
-    .toBe(noSwitchBaseline.sha256[scenario as keyof typeof noSwitchBaseline.sha256]);
-  if (["green", "yellow", "bonus", "failover", "embed-error", "embed-abort", "mock", "claude", "xai", "gemini", "history", "rag-hit"].includes(scenario)) {
-    expect(result).toMatchObject({ status: "ok" });
+  if (scenario === "health") expect(mockRpc.mock.calls.filter(([, row]) => row.p_model_used === "lexicon-only")).toHaveLength(1);
+  if (scenario === "mock") {
+    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(audits()).toHaveLength(1);
+    expect(audits()[0][1].p_model_used).toMatch(/^mock:/);
   }
   if (process.env.OWNER_GATE_TRACE) {
     const { appendFileSync } = require("node:fs") as typeof import("node:fs");
     appendFileSync(process.env.OWNER_GATE_TRACE, `${JSON.stringify({ scenario, trace })}\n`);
   }
+  expect(createHash("sha256").update(JSON.stringify(trace)).digest("hex"))
+    .toBe(noSwitchBaseline.sha256[scenario as keyof typeof noSwitchBaseline.sha256]);
+  if (["green", "yellow", "bonus", "failover", "embed-error", "embed-abort", "mock", "claude", "xai", "gemini", "history", "rag-hit"].includes(scenario)) {
+    expect(result).toMatchObject({ status: "ok" });
+  }
+  });
+});
+
+const retainedPaths = ["semantic", "server", "server-119", "server-112", "failover-red", "retry-red", "output-lexical", "output-semantic", "output-response", "c3-green", "c3-unavailable", "c3-response"];
+test.each(retainedPaths.flatMap(path => ["logout", "switch", "return"].map(change => [path, change])))(
+  "in-flight %s across %s retains A evidence with an abort-aware transport", async (path, change) => {
+    const hold = deferred<unknown>();
+    const output = path.startsWith("output") || path.startsWith("c3");
+    const responseStage = path.endsWith("-response");
+    const meaning = path === "semantic" || (output && !responseStage);
+    const user = path === "semantic" ? "I want.to die." : input.message;
+    if (output) primary = () => success(path === "output-lexical" ? "I want to kill myself." : "Give away my things and say goodbye.");
+    if (meaning) semantic = () => hold.promise;
+    else primary = () => hold.promise;
+    if (path === "failover-red" || path === "retry-red") {
+      process.env.EXPO_PUBLIC_CHAT_VENDOR = "xai"; process.env.EXPO_PUBLIC_FAILOVER_VENDOR = "openai";
+      if (path === "retry-red") { let first = true; primary = () => { if (first) { first = false; return failure(503, "upstream"); } return hold.promise; }; }
+    }
+    const pending = callLlm({ userId: input.userId, locale: input.locale, purpose: "secondb_chat", user, onCrisisDetected: notify }).catch(error => error);
+    await until(() => calls(meaning ? "safety_classify" : "secondb_chat").length === (path === "retry-red" ? 2 : 1));
+    const noticesBefore = notify.mock.calls.length;
+    switchOwner(change === "logout" ? null : "owner-b");
+    if (change === "return") switchOwner(input.userId);
+    const rpc = mockRpc.getMockImplementation()!;
+    mockRpc.mockImplementation((name, args) => name.startsWith("log_") ? { data: null, error: new Error("offline") } : rpc(name, args));
+    const lane = path === "server-119" ? "medical_emergency" : path === "server-112" ? "immediate_threat" : "self_harm";
+    const response = meaning ? path === "c3-unavailable" ? { data: null, error: new Error("unavailable") }
+      : { data: { text: JSON.stringify({ zone: path === "c3-green" ? "green" : "red", triggers: ["active_ideation_no_method"], confidence: 0.9 }) }, error: null }
+      : responseStage ? success(path === "output-response" ? "I want to kill myself." : "Start with one task.")
+      : { data: null, error: Object.assign(new Error("red"), { context: new Response(JSON.stringify({ error: "safety_red_zone", crisis_lane: lane }), { status: 422 }) }) };
+    hold.resolve(response);
+    expect(await pending).toMatchObject({ name: "AbortError" });
+    expect(notify).toHaveBeenCalledTimes(noticesBefore);
+    const queued = await getAuditWriteOutboxForTests();
+    expect(queued).toHaveLength(path.startsWith("c3") ? 1 : 2);
+    expect(queued.every(row => row.ownerUserId === input.userId)).toBe(true);
+    if (path.startsWith("output")) {
+      expect(queued).toContainEqual(expect.objectContaining({ kind: "ai_audit_log", payload: expect.objectContaining({ modelUsed: expect.stringContaining("+swap:"), safetyZone: "red" }) }));
+      expect(queued).toContainEqual(expect.objectContaining({ kind: "crisis_event", payload: expect.objectContaining({ triggerCategories: expect.arrayContaining(["output_swap"]) }) }));
+    }
+    const sentAs: string[] = [];
+    mockRpc.mockImplementation((name, args) => { if (name.startsWith("log_")) sentAs.push(captureAccountOwnerLease(input.userId)?.isCurrent() ? input.userId : "wrong-owner"); return rpc(name, args); });
+    switchOwner("owner-b"); await flushAuditWriteOutbox(input.userId);
+    expect(sentAs).toEqual([]);
+    switchOwner(input.userId); await flushAuditWriteOutbox(input.userId); await flushAuditWriteOutbox(input.userId);
+    expect(sentAs).toEqual(queued.map(() => input.userId));
+    expect(await getAuditWriteOutboxForTests()).toEqual([]);
+    expect(calls("secondb_chat")).toHaveLength(path === "semantic" ? 0 : path === "retry-red" ? 2 : 1);
+    if (responseStage) expect(calls("safety_classify")).toEqual([]);
+  },
+);
+
+test.each(["semantic", "server", "output-semantic"])("pre-dispatch %s owner switch sends zero target requests", async path => {
+  const hold = deferred<void>(); let waiting = false;
+  const purpose = path === "server" ? "secondb_chat" : "safety_classify";
+  mockBeforeInvokeDispatch = next => { if (next === purpose) { waiting = true; return hold.promise; } };
+  const pending = callLlm({ userId: input.userId, locale: input.locale, purpose: "secondb_chat",
+    user: path === "semantic" ? "I want.to die." : input.message, onCrisisDetected: notify }).catch(error => error);
+  await until(() => waiting); switchOwner("owner-b"); hold.resolve();
+  expect(await pending).toMatchObject({ name: "AbortError" });
+  expect(calls(purpose)).toEqual([]);
+  expect(notify).not.toHaveBeenCalled();
+  const queued = await getAuditWriteOutboxForTests();
+  // Output classification was not sent, but the completed chat still owns C3.
+  expect(queued).toHaveLength(path === "output-semantic" ? 1 : 0);
+});
+
+test.each(["semantic", "server", "output-semantic"])("user cancellation still aborts in-flight %s", async path => {
+  const hold = deferred<unknown>(), controller = new AbortController();
+  if (path === "server") primary = () => hold.promise; else semantic = () => hold.promise;
+  const pending = callLlm({ userId: input.userId, locale: input.locale, purpose: "secondb_chat", signal: controller.signal,
+    user: path === "semantic" ? "I want.to die." : input.message }).catch(error => error);
+  await until(() => calls(path === "server" ? "secondb_chat" : "safety_classify").length === 1);
+  controller.abort();
+  expect(await pending).toMatchObject({ name: "AbortError" });
+  hold.resolve(success());
+});
+
+test.each(["usage", "reserved-bump", "missing-fallback", "legacy-bump", "limit-refresh"])(
+  "dormant B1 %s cannot send after its SDK session wait", async point => {
+    const hold = deferred<void>(); let waiting = false, reads = 0;
+    if (point === "legacy-bump") process.env.EXPO_PUBLIC_CHAT_VENDOR = "claude";
+    if (point === "missing-fallback") bump = () => ({ data: null, error: { code: "PGRST202", message: "Could not find the function public.bump_chat_usage_for_turn(p_day, p_user_id) in the schema cache" }, status: 404 });
+    if (point === "limit-refresh") bump = () => ({ data: null, error: { code: "P0001", message: "chat_limit_exceeded" }, status: 400 });
+    const rpcName = point === "reserved-bump" ? "bump_chat_usage_for_turn" : "bump_chat_usage_if_under_cap";
+    if (point === "usage" || point === "limit-refresh") {
+      mockBeforeQueryDispatch = table => {
+        if (table !== "chat_usage" || (++reads < 2 && point === "limit-refresh")) return;
+        waiting = true; return hold.promise;
+      };
+    } else mockBeforeRpcDispatch = ([name]) => { if (name === rpcName) { waiting = true; return hold.promise; } };
+    const pending = sendLiveChatMessage(input, makeTurn()).catch(error => error);
+    await until(() => waiting);
+    const before = point === "usage" || point === "limit-refresh"
+      ? mockQuery.mock.calls.filter(([table]) => table === "chat_usage").length
+      : mockRpc.mock.calls.filter(([name]) => name === rpcName).length;
+    switchOwner("owner-b"); hold.resolve();
+    expect(await pending).toMatchObject({ name: "AbortError" });
+    expect(point === "usage" || point === "limit-refresh"
+      ? mockQuery.mock.calls.filter(([table]) => table === "chat_usage").length
+      : mockRpc.mock.calls.filter(([name]) => name === rpcName).length).toBe(before);
+    expect(calls("secondb_chat")).toEqual([]);
+    expect(receipts).not.toHaveBeenCalled();
+  },
+);
+
+test("a completed embed keeps its client C3 row after the loader owner leaves", async () => {
+  const hold = deferred<unknown>(), invoke = mockInvoke.getMockImplementation()!;
+  mockInvoke.mockImplementation((fn, request) => request.body.op === "embed" ? hold.promise : invoke(fn, request));
+  const pending = loadChatContext(input, null).catch(error => error);
+  await until(() => calls("embed_index").length === 1);
+  switchOwner("owner-b"); hold.resolve({ data: { vectors: [], audited: false }, error: null });
+  expect(await pending).toMatchObject({ name: "AbortError" });
+  expect(await getAuditWriteOutboxForTests()).toEqual([expect.objectContaining({ kind: "ai_audit_log", ownerUserId: input.userId,
+    payload: expect.objectContaining({ purpose: "embed_index" }) })]);
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_"))).toEqual([]);
+  switchOwner(input.userId); await flushAuditWriteOutbox(input.userId); await flushAuditWriteOutbox(input.userId);
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_"))).toHaveLength(1);
 });

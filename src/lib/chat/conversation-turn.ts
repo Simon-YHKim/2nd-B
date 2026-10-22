@@ -1,6 +1,7 @@
 // T39 A2-I: dormant live entry. Screens keep sendChatMessage until B1.
 import { abortError } from "../async/abort";
 import type { AccountOwnerLease } from "../auth/account-epoch";
+import { withLiveOwnerSignal } from "../auth/live-owner-guard";
 import { tLocale } from "../i18n/text";
 import { callLlm, classifyLiveChatTextForCrisis, LlmChatTurnError, LlmConsentError, selectChatTurnRoute } from "../llm/boundary";
 import type { CrisisObserver, LlmResult } from "../llm/types";
@@ -118,7 +119,7 @@ export async function sendLiveChatMessage(source: SendMessageInput, turn: LiveCh
     if (cut) return { status: "crisis", result: cut };
     prepare();
     if (action === "charge") {
-      const detail = await readChatUsageDetail(input.userId, ticket.day);
+      const detail = await withLiveOwnerSignal(assertOwner, undefined, signal => readChatUsageDetail(input.userId, ticket.day, undefined, signal));
       prepare();
       runtime.adBonus = detail.adBonus;
       if (!checkChatLimit(input.tier, detail.used, detail.adBonus).allowed) return blocked(detail.used, detail.adBonus);
@@ -131,8 +132,8 @@ export async function sendLiveChatMessage(source: SendMessageInput, turn: LiveCh
     if (action === "charge") {
       runtime.state = startTurnReservation(runtime.state, ticket);
       const receipt = route.reservationSupported
-        ? await bumpChatUsageForTurn(input.userId, limit, ticket.day)
-        : { count: await bumpChatUsageIfUnderCap(input.userId, limit, ticket.day), turnId: null };
+        ? await withLiveOwnerSignal(assertOwner, undefined, signal => bumpChatUsageForTurn(input.userId, limit, ticket.day, signal))
+        : { count: await withLiveOwnerSignal(assertOwner, undefined, signal => bumpChatUsageIfUnderCap(input.userId, limit, ticket.day, undefined, signal)), turnId: null };
       assertOwner();
       const before = runtime.state;
       runtime.state = receiveTurnReceipt(before, ticket, receipt);
@@ -180,7 +181,7 @@ export async function sendLiveChatMessage(source: SendMessageInput, turn: LiveCh
     runtime.state = finishTurnFailure(runtime.state, ticket, reason);
     if (runtime.state.selected || runtime.state.terminal === "crisis" || runtime.state.retryClosed) return { status: "ignored" };
     if (error instanceof ChatLimitExceededError) {
-      const detail = await readChatUsageDetail(input.userId, ticket.day);
+      const detail = await withLiveOwnerSignal(assertOwner, undefined, signal => readChatUsageDetail(input.userId, ticket.day, undefined, signal));
       assertOwner();
       const current = turn.read();
       if (current.selected || current.terminal === "crisis") return { status: "ignored" };

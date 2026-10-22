@@ -4,6 +4,7 @@ import {
   resetAuthStorageRuntime,
 } from "../auth/session-mutation";
 import { getEnv } from "../env";
+import { fetchWithLiveOwnerGate } from "../auth/live-owner-guard";
 
 // Auth persistence is versioned separately from the SDK default. The runtime
 // completes the one-time v1 migration before S can be acquired, then supplies
@@ -19,6 +20,7 @@ export function getSupabaseClient(): SupabaseClient {
   const env = getEnv();
   const authRuntime = getAuthStorageRuntime();
   client = createClient(env.EXPO_PUBLIC_SUPABASE_URL, env.EXPO_PUBLIC_SUPABASE_ANON_KEY, {
+    global: { fetch: fetchWithLiveOwnerGate },
     auth: {
       flowType: "pkce",
       persistSession: true,
