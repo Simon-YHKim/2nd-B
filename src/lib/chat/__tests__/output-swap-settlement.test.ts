@@ -130,7 +130,7 @@ test.each(["before", "authentication", "retry", "read"])("account epoch fences %
   auth.resolve({ data: { session: { user: { id: "owner-a" }, access_token: "fixture-new-session" } }, error: null });
   gate.resolve(json([{ count: 0, ad_bonus: 0 }]));
   await jest.advanceTimersByTimeAsync(250);
-  expect(await pending).toMatchObject({ status: "stale" });
+  expect(await pending).toMatchObject(point === "read" ? { status: "confirmed", refundedCount: 0 } : { status: "stale" });
   expect(rpcCalls()).toHaveLength(point === "read" || point === "retry" ? 1 : 0);
   expect(m.readUsage()).toBeNull();
 });
@@ -142,14 +142,94 @@ test.each(["authenticate", "refund", "read"])("deadline during %s ends the job a
   else jest.mocked(fetch).mockResolvedValueOnce(json(0)).mockReturnValueOnce(gate.promise);
   const pending = m.start(candidate());
   await jest.advanceTimersByTimeAsync(8_000);
-  expect(await pending).toMatchObject({ status: "expired" });
+  expect(await pending).toMatchObject(point === "read" ? { status: "confirmed", refundedCount: 0 } : { status: "expired" });
+  if (point !== "authenticate") {
+    const request = point === "refund" ? rpcCalls()[0] : reads()[0];
+    expect(request[1]?.signal?.aborted).toBe(true);
+  }
   const calls = jest.mocked(fetch).mock.calls.length;
   auth.resolve({ data: { session: { user: { id: "owner-a" }, access_token: "fixture-session-a" } }, error: null });
   gate.resolve(point === "refund" ? json(null) : json([{ count: 0, ad_bonus: 2 }]));
   await jest.advanceTimersByTimeAsync(1_000);
   expect(fetch).toHaveBeenCalledTimes(calls);
   expect(m.readUsage()).toBeNull();
-  expect(m.read()[0].status).toBe("expired");
+  expect(m.read()[0].status).toBe(point === "read" ? "confirmed" : "expired");
+});
+
+test.each(["switch", "return"])("B1 settlement accessors hide completed records and usage after owner %s", async change => {
+  const m = manager();
+  await m.start(candidate());
+  expect(m.read()).toHaveLength(1);
+  expect(m.readUsage()).toMatchObject({ used: 0, adBonus: 2 });
+  noteResolvedOwner("owner-b");
+  if (change === "return") noteResolvedOwner("owner-a");
+  expect(m.read()).toEqual([]);
+  expect(m.readUsage()).toBeNull();
+});
+
+test.each(["ownerId", "ownerEpoch"])("B1 rejects a candidate with a different %s before authentication or I/O", async field => {
+  const m = manager(), c = candidate();
+  const ticket = { ...c.ticket, [field]: field === "ownerId" ? "owner-b" : c.ticket.ownerEpoch + 1 };
+  expect(await m.start({ ...c, ticket })).toMatchObject({ status: "stale", calls: 0 });
+  expect(mockSession).not.toHaveBeenCalled();
+  expect(fetch).not.toHaveBeenCalled();
+  expect(m.readUsage()).toBeNull();
+});
+
+test.each([0, 3].flatMap(count => ["deadline", "switch", "return"].map(stop => ({ count, stop }))))(
+  "B1 records confirmed refund $count before the post-RPC $stop fence", async ({ count, stop }) => {
+    const gate = deferred<Response>(), m = manager();
+    jest.mocked(fetch).mockReturnValueOnce(gate.promise);
+    const pending = m.start(candidate());
+    await flush();
+    expect(rpcCalls()).toHaveLength(1);
+    if (stop === "deadline") jest.setSystemTime(NOW.getTime() + 8_000);
+    else {
+      noteResolvedOwner("owner-b");
+      if (stop === "return") noteResolvedOwner("owner-a");
+    }
+    gate.resolve(json(count));
+    expect(await pending).toMatchObject({ status: "confirmed", refundedCount: count, calls: 1 });
+    expect(reads()).toHaveLength(0);
+    expect(m.readUsage()).toBeNull();
+    if (stop === "deadline") expect(m.read()[0]).toMatchObject({ status: "confirmed", refundedCount: count });
+    else expect(m.read()).toEqual([]);
+  },
+);
+
+test("B1 a confirmed late transport result replaces unknown expiry without publishing usage or retrying", async () => {
+  const gate = deferred<Response>(), m = manager(), c = candidate();
+  jest.mocked(fetch).mockReturnValueOnce(gate.promise);
+  const pending = m.start(c);
+  await jest.advanceTimersByTimeAsync(8_000);
+  expect(await pending).toMatchObject({ status: "expired", calls: 1 });
+  expect(m.read()[0]).not.toHaveProperty("refundedCount");
+  expect(rpcCalls()[0][1]?.signal?.aborted).toBe(true);
+  // Cancellation cannot retract an already committed server result.
+  gate.resolve(json(0));
+  await flush();
+  expect(m.read()[0]).toMatchObject({ status: "confirmed", refundedCount: 0, calls: 1 });
+  expect(m.start(c)).toBe(pending);
+  expect(rpcCalls()).toHaveLength(1);
+  expect(reads()).toHaveLength(0);
+  expect(m.readUsage()).toBeNull();
+});
+
+test("B1 expiry snapshot cannot overwrite a refund confirmation delivered during cancellation", async () => {
+  const body = deferred<number>(), response = json(0), m = manager();
+  jest.spyOn(response, "json").mockReturnValue(body.promise);
+  jest.mocked(fetch).mockImplementationOnce(async (_url, options) => {
+    options?.signal?.addEventListener("abort", () => body.resolve(0), { once: true });
+    return response;
+  });
+  const pending = m.start(candidate());
+  await flush();
+  expect(response.json).toHaveBeenCalledTimes(1);
+  await jest.advanceTimersByTimeAsync(8_000);
+  expect(await pending).toMatchObject({ status: "confirmed", refundedCount: 0, calls: 1 });
+  expect(m.read()[0]).toMatchObject({ status: "confirmed", refundedCount: 0, calls: 1 });
+  expect(reads()).toHaveLength(0);
+  expect(m.readUsage()).toBeNull();
 });
 
 test("wall-clock expiry before retry also stops calls when timers have not fired", async () => {

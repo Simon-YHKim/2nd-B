@@ -252,6 +252,47 @@ test.each(["reask_ineligible", "first_already_registered"])("T18 %s does nothing
   expect(calls("secondb_chat")[1][1].body).toMatchObject({ chatTurnId: NEXT_ID, chatAttemptIntent: "first", user: input.message });
 });
 
+test.each(["reask_ineligible", "first_already_registered"].flatMap(code => ["missing", "malformed"].map(envelope => ({ code, envelope }))))(
+  "B1 409 $code with $envelope admission closes reask and the next click charges once", async ({ code, envelope }) => {
+    count = 0;
+    const turn = makeTurn();
+    primary = () => failure(503, "chat_admission_unavailable", unknown);
+    await expect(sendLiveChatMessage(input, turn)).rejects.toThrow();
+    expect(nextTurnAction(turn.read())).toBe("reask");
+    const malformed = { ...rejected, reaskAvailable: "invalid" } as unknown as TurnAdmission;
+    primary = () => failure(409, code, envelope === "missing" ? undefined : malformed);
+    await expect(sendLiveChatMessage(input, turn)).rejects.toMatchObject({ code, turnAdmission: undefined });
+    expect(nextTurnAction(turn.read())).toBe("charge");
+    expect(bumps()).toHaveLength(1);
+    expect(calls("secondb_chat")).toHaveLength(2);
+    bump = () => ({ data: { count: ++count, turnId: NEXT_ID }, error: null, status: 200 });
+    primary = () => success();
+    expect((await sendLiveChatMessage(input, turn)).status).toBe("selected");
+    expect(bumps()).toHaveLength(2);
+    expect(calls("secondb_chat").map(([, x]) => [x.body.chatTurnId, x.body.chatAttemptIntent])).toEqual([
+      [ID, "first"], [ID, "reask"], [NEXT_ID, "first"],
+    ]);
+    expect(turn.read()).toMatchObject({ owner: { pairId: "pair-1" }, message: input.message, generation: 2 });
+  },
+);
+
+test.each(["switch", "return"])("B1 obfuscation failure fences health writes after owner %s", async change => {
+  const message = "I want.to die.", turn = makeTurn(message), gate = deferred<unknown>();
+  semantic = () => gate.promise;
+  const pending = sendLiveChatMessage({ ...input, message }, turn).catch(error => error);
+  await until(() => calls("safety_classify").length === 1);
+  const writes = mockRpc.mock.calls.length;
+  noteResolvedOwner("owner-b");
+  if (change === "return") noteResolvedOwner(input.userId);
+  gate.resolve(failure(503, "classifier_unavailable"));
+  expect(await pending).toMatchObject({ name: "AbortError" });
+  // The health write is fire-and-forget; drain the real outbox before checking it.
+  await new Promise<void>(resolve => setImmediate(resolve));
+  expect(mockRpc).toHaveBeenCalledTimes(writes);
+  expect(calls("secondb_chat")).toHaveLength(0);
+  expect(notify).not.toHaveBeenCalled();
+});
+
 test("T15 late reservation retains ID/count with zero automatic dispatch", async () => {
   const turn = makeTurn(), receipt = deferred<unknown>(); bump = () => receipt.promise;
   const pending = sendLiveChatMessage(input, turn).catch(error => error);
@@ -388,10 +429,22 @@ test("C9 device RED at 5/5 guides immediately without context, quota, or models"
   const message = "죽고 싶어요", turn = makeTurn(message), audit = deferred<unknown>();
   mockRpc.mockImplementationOnce(() => audit.promise);
   const pending = sendLiveChatMessage({ ...input, message, locale: "ko", minor: true }, turn);
-  expect(notify).toHaveBeenCalledTimes(1);
-  expect(mockQuery).not.toHaveBeenCalled(); expect(mockInvoke).not.toHaveBeenCalled(); expect(bumps()).toHaveLength(0);
-  audit.resolve({ data: null, error: null });
+  try {
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(turn.read()).toMatchObject({ terminal: "crisis", waiting: null });
+    expect(nextTurnAction(turn.read())).toBe("closed");
+    expect(mockQuery).not.toHaveBeenCalled(); expect(mockInvoke).not.toHaveBeenCalled(); expect(bumps()).toHaveLength(0);
+  } finally { audit.resolve({ data: null, error: null }); }
   expect((await pending).status).toBe("crisis"); expect(audits()).toHaveLength(1);
+  expect(turn.read()).toMatchObject({ terminal: "crisis", waiting: null });
+  expect(nextTurnAction(turn.read())).toBe("closed");
+  expect(turn.historyValue()).toBeNull();
+  const writes = mockRpc.mock.calls.length;
+  expect(await sendLiveChatMessage({ ...input, message, locale: "ko", minor: true }, turn)).toEqual({ status: "ignored" });
+  expect(mockRpc).toHaveBeenCalledTimes(writes);
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(1);
+  expect(notify).toHaveBeenCalledTimes(1);
+  expect(mockQuery).not.toHaveBeenCalled(); expect(mockInvoke).not.toHaveBeenCalled();
 });
 
 test("reask repeats input/output and minor routing; crisis output waits for no ancillary classifier", async () => {
