@@ -24,12 +24,45 @@ done
 docker stop 2ndb-pg && docker rm 2ndb-pg
 ```
 
+## T39/T40 numbered promotion (0265, 0266, 0267)
+
+Relay order is **0265 E1-S → 0266 S → 0267 F**, one complete file per
+transaction. Numbering is not production application or app activation. The
+three migration files and their `rollback/0265_down.sql` through
+`rollback/0267_down.sql` are byte-for-byte copies of the reviewed drafts.
+Historical `INACTIVE DRAFT`, numbering and rollback-path comments inside those
+files are preserved for that proof; use the numbered paths in this README.
+No executable self-path or function-source MD5 needs changing.
+
+CI pushes numbered migrations in four batches and preserves
+`t39_t40_before_0265`, `t39_t40_before_0266`, and `t39_t40_before_0267` at the
+three boundaries. The final `postgres` database has all three migrations once.
+Historical 0255 tests use the first snapshot, E1-S and S tests use the second,
+and F uses the third. This avoids overwriting final F functions with an earlier
+installer. Deliberate idempotence and rollback/reapply probes remain in clones.
+SQL fixtures now live in `db/tests/`; the three runners keep their existing
+assertions, real lock waits and mutation checks.
+
+After Relay applies 0265, the coordinator must merge #2688 and deploy
+`openai-proxy` that day, then own the legacy check and enforce transition.
+Relay executes SQL only. Apply 0266 while S app settlement is off, then 0267.
+0267 down retains the daily-cap extension; **0267 down → 0266 down stops with
+55000**. Do not continue to 0265 down or bypass the guard. A pre-F installation
+can run 0266 down → 0265 down after the five-minute S rebind window closes.
+Full retirement after F needs a separately reviewed migration.
+
+The S/F registry candidates require separate reason-only numbered migrations
+and `forwardRevisions` under the rule above. Their existing reason chain is
+retained pending that separate number; 0265–0267 do not rewrite 0258 or silently
+append registry SQL to the reviewed installers. Registry promotion remains an
+explicit rollout follow-up, not a claim that the old reason describes F.
+
 ## Dormant T39 concurrency tests
 
 The dormant T39 lane in `supabase-dry-run.yml` also runs
-`bash scripts/test-chat-turn-admission-races.sh` after the draft's sequential
-tests and rollback/reapply. It needs a disposable, fully migrated local
-`t39_admission_test_ci` database with the draft installed, `psql`, Bash and Node.
+`bash scripts/test-chat-turn-admission-races.sh` after 0265's sequential
+tests and rollback/reapply. It needs a disposable, historical local
+`t39_admission_test_ci` database cloned before 0266 with 0265 installed, `psql`, Bash and Node.
 `PGPORT` can select a private local cluster; the host is fixed to `127.0.0.1`.
 The runner commits synthetic fixtures only in that clone and a second
 `t39_admission_mutant_test_ci` clone. Start with fresh databases for each run.
@@ -40,7 +73,7 @@ attempts=1 reask/reask, both orders of last-slot purpose quota contention
 Before releasing the leader, `pg_stat_activity` must show the follower waiting
 on that leader's advisory or transaction lock. Each of the four attempts=0
 schedules must fail with SQLSTATE 55000 after removing the user lock from a
-draft copy in the mutant clone. Connection errors, timeouts and surviving mutants fail the
+numbered-file copy in the mutant clone. Connection errors, timeouts and surviving mutants fail the
 lane. Logs include the observed backend IDs, schedule totals and mutation result.
 Failure logs print before teardown. Cleanup closes both coprocess pipe writers
 (the original immediately after duplication, the duplicate on exit), terminates
@@ -51,12 +84,12 @@ KST midnight boundary remain outside this race runner.
 
 ## Dormant T40 S evidence tests
 
-`UNNUMBERED_chat_turn_refund_evidence.sql` is an inactive S-only draft. Relay
+`migrations/0266_chat_turn_refund_evidence.sql` is the S-only migration. Relay
 applies the reviewed E1-S first, then S, each in one transaction. It keeps the
 four RPC signatures, argument names, ACL and return types, including
 `refund_chat_turn_after_output_swap(p_audit_id uuid)` and integer zero vs NULL.
 No app/proxy activation, purpose restoration, `quota_day` or daily restoration
-cap is included in S. F is a separate draft below. The commit is not rollout approval.
+cap is included in S. F is migration 0267 below. The commit is not rollout approval.
 Apply while app settlement is still off; an in-flight 0255 refund can deadlock
 with the apply-time table locks (40P01), so retry the failed transaction.
 
@@ -69,7 +102,7 @@ evidence and refund that reservation once. Delivery is not device receipt.
 The CI lane invokes `python3 scripts/test-chat-turn-refund-evidence.py` with
 `psql` on PATH after the full numbered replay. It creates only fixed loopback
 `t40_evidence_test_ci` and `t40_evidence_mutant_test_ci` clones of the scratch
-`postgres` database. `PGPORT` selects a private cluster. It never reads dotenv,
+`t39_t40_before_0266` database. `PGPORT` selects a private cluster. It never reads dotenv,
 accepts a remote URL, or drops databases. Start with fresh clones each run.
 Python standard library only; no package installation. SQL/client waits are
 bounded and the CI step has a ten-minute limit. Assertion failures alone kill
@@ -126,15 +159,15 @@ The candidate is
 `migration-drafts/chat-turn-refund-evidence-erasure-revision.json`; the runner
 checks it against the real registry and schema. Promote it as a separate
 reason-only `forwardRevisions` migration with S (including the rollback list),
-without rewriting 0258. DPIA records this draft boundary. No same-day retention
+without rewriting 0258. DPIA records this pending registry boundary. No same-day retention
 exception from F is included.
 
 ## Dormant T40 F purpose restoration tests
 
 Decision Q-261022-02 (2026-10-22): 「하루 1회 상한으로 복원 (추천)」.
 Relay applies the reviewed **E1-S → S → F**, each complete migration in one
-transaction. `migration-drafts/UNNUMBERED_chat_turn_purpose_restore.sql` has no
-number or active caller. The E1-S/S draft sources, 0185/0259 and the shared
+transaction. `migrations/0267_chat_turn_purpose_restore.sql` has no active caller.
+The reviewed E1-S/S sources, 0185/0259 and the shared
 consume function stay unchanged. No proxy/app/production activation is included.
 
 F adds nullable `quota_day` and `purpose_restored_day`. Its E1-S replacement
@@ -208,7 +241,7 @@ reviewed migration that preserves the current day's cap before removing this ext
 
 CI runs `python3 scripts/test-chat-turn-purpose-restore.py` after numbered replay.
 It uses fresh fixed loopback `t40_purpose_test_ci` and `t40_purpose_mutant_test_ci`
-clones, standard-library Python and S's bounded psql transport/lock observer.
+clones of `t39_t40_before_0267`, standard-library Python and S's bounded psql transport/lock observer.
 No dotenv, remote URLs, database drops or new packages. The step has a ten-minute
 timeout; each SQL client has statement, transaction-idle and process limits.
 Every race requires a real observed lock wait before releasing its leader.

@@ -328,7 +328,6 @@ jobs:
               echo "Top-level transaction wrapper is forbidden in CLI-managed migration: $f" >&2
               exit 1
             fi
-            cp -- "$f" "$staged_project/supabase/migrations/"
           done
 
           # Vanilla CI has no pg_cron; opt out explicitly for this scratch DB only.
@@ -339,12 +338,27 @@ jobs:
           # production bundle must receive separate monotonic timestamp versions
           # before any live db push. This command targets only the job-local DB;
           # it never reads a production URL, project ref, or repository secret.
-          supabase db push \
-            --db-url "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable" \
-            --workdir "$staged_project" \
-            --include-all \
-            --skip-vault \
-            --yes
+          # Keep exact pre-promotion schemas for historical apply/backfill/down tests.
+          # Each numbered file enters the CLI directory once; later pushes see its ledger.
+          for boundary in 0265 0266 0267 final; do
+            for f in "${staged_migrations[@]}"; do
+              base="${f##*/}"
+              version="${base%%_*}"
+              if [[ "$boundary" == final ]] || (( 10#$version < 10#$boundary )); then
+                cp -- "$f" "$staged_project/supabase/migrations/"
+              fi
+            done
+            supabase db push \
+              --db-url "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable" \
+              --workdir "$staged_project" \
+              --include-all \
+              --skip-vault \
+              --yes
+            if [[ "$boundary" != final ]]; then
+              psql -X -h localhost -U postgres -d template1 -v ON_ERROR_STOP=1 \
+                -c "CREATE DATABASE t39_t40_before_${boundary} TEMPLATE postgres"
+            fi
+          done
 
           expected_count="${#staged_migrations[@]}"
           actual_count="$(psql -h localhost -U postgres -Atc \
@@ -451,18 +465,14 @@ jobs:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
-          # Keep the unnumbered function out of the numbered replay database.
+          # 0265 is already installed in this pre-0266 snapshot; do not overwrite F.
           # Only this job's fresh local schema is cloned; no remote URL or secrets.
           psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
-            -c 'CREATE DATABASE t39_admission_test_ci TEMPLATE postgres'
-          for pass in 1 2; do
-            psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
-              --single-transaction -f db/migration-drafts/UNNUMBERED_chat_turn_attempt_with_quota.sql
-          done
+            -c 'CREATE DATABASE t39_admission_test_ci TEMPLATE t39_t40_before_0266'
           psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
-            -f db/migration-drafts/tests/chat-turn-attempt-with-quota.sql
+            -f db/tests/chat-turn-attempt-with-quota.sql
           psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
-            --single-transaction -f db/migration-drafts/rollback/UNNUMBERED_chat_turn_attempt_with_quota_down.sql
+            --single-transaction -f db/migrations/rollback/0265_down.sql
           psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 <<'SQL'
           DO $t39_down$
           BEGIN
@@ -475,9 +485,9 @@ jobs:
           $t39_down$;
           SQL
           psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
-            --single-transaction -f db/migration-drafts/UNNUMBERED_chat_turn_attempt_with_quota.sql
+            --single-transaction -f db/migrations/0265_chat_turn_attempt_with_quota.sql
           psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
-            -f db/migration-drafts/tests/chat-turn-attempt-with-quota.sql
+            -f db/tests/chat-turn-attempt-with-quota.sql
           bash scripts/test-chat-turn-admission-races.sh
       - name: Exercise dormant T40 S evidence on full schema clone
         timeout-minutes: 10
@@ -485,7 +495,7 @@ jobs:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
-          # Fixed loopback clones only. E1-S then S, exact down/reapply, all nine
+          # Fixed pre-0266 loopback clones. Test S apply, exact down/reapply, all nine
           # admission schedules plus claim/refund/delete races and killed mutants.
           # The historical numbered replay and T39 lane keep their own contracts.
           python3 scripts/test-chat-turn-refund-evidence.py
@@ -495,7 +505,7 @@ jobs:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
-          # Own fixed loopback clones: reviewed E1-S -> S -> F, real lock waits,
+          # Fixed pre-0267 loopback clones: test F apply, real lock waits,
           # mutation assertions and cap-preserving rollback/reapply. Fail closed.
           python3 scripts/test-chat-turn-purpose-restore.py
       - name: Verify promoted server-first contracts after numbered scratch replay
@@ -561,7 +571,20 @@ jobs:
                   ('0198', 'service_contract_erasure_registry'),
                   ('0199', 'oauth_naver_rate_limit_completion'),
                   ('0200', 'rss_proxy_quota'),
-                  ('0201', 'rss_proxy_erasure_registry'))) <> 11
+                  ('0201', 'rss_proxy_erasure_registry'),
+                  ('0265', 'chat_turn_attempt_with_quota'),
+                  ('0266', 'chat_turn_refund_evidence'),
+                  ('0267', 'chat_turn_purpose_restore'))) <> 14
+               OR to_regprocedure('public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)') IS NULL
+               OR has_function_privilege('anon','public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)','EXECUTE')
+               OR has_function_privilege('authenticated','public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)','EXECUTE')
+               OR NOT has_function_privilege('service_role','public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)','EXECUTE')
+               OR (SELECT count(*) FROM information_schema.columns
+                   WHERE table_schema='public' AND table_name='chat_turn_reservations'
+                     AND column_name IN ('attempt1_delivered','attempt2_delivered','binding_closed','quota_day','purpose_restored_day')) <> 5
+               OR NOT EXISTS (SELECT 1 FROM pg_index
+                   WHERE indexrelid=to_regclass('public.chat_turn_reservations_purpose_restore_day_key')
+                     AND indisunique AND indisvalid AND indisready AND indimmediate)
                OR (SELECT count(*) FROM public.erasure_registry) <> 82
                OR (SELECT count(*) FROM public.erasure_registry
                    WHERE table_name='profile_context_imports' AND owner_column='user_id'
@@ -601,7 +624,7 @@ jobs:
           $verify$;
           ROLLBACK;
           SQL
-          echo "PASS: eleven numbered migrations executed once by CLI; draft bytes, 82 registry rows, contracts and ACL verified"
+          echo "PASS: fourteen promoted migrations executed once by CLI; source digests, 82 registry rows, contracts and ACL verified"
       # db/migrations/rollback/0189_down.sql is run by hand, mid-incident, and the
       # next `db push` is then trusted to put everything back. Nothing exercised
       # that path, and it was broken. The rollback deleted only its OWN ledger row
@@ -2083,6 +2106,7 @@ jobs:
       - name: Exercise chat turn refund on proxy evidence only
         env:
           PGPASSWORD: postgres
+          PGDATABASE: t39_t40_before_0265
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/chat_turn_refund_regression.sql
       # Two sessions of one user ask at the same moment. Each call names the
       # proxy row of its turn and no day (0255): the day is the row of chat_usage
@@ -2113,6 +2137,7 @@ jobs:
       - name: Race two chat turn refunds over one proxy row
         env:
           PGPASSWORD: postgres
+          PGDATABASE: t39_t40_before_0265
         run: |
           set -euo pipefail
           source_db="${PGDATABASE:-postgres}"

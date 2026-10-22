@@ -3,13 +3,13 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const read = (path: string) => readFileSync(resolve(__dirname, '../..', path), 'utf8').replace(/\r\n/g, '\n');
-const folder = 'db/migration-drafts/';
-const e1 = read(`${folder}UNNUMBERED_chat_turn_attempt_with_quota.sql`);
-const s = read(`${folder}UNNUMBERED_chat_turn_refund_evidence.sql`);
-const up = read(`${folder}UNNUMBERED_chat_turn_purpose_restore.sql`);
-const down = read(`${folder}rollback/UNNUMBERED_chat_turn_purpose_restore_down.sql`);
+const folder = 'db/migrations/';
+const e1 = read(`${folder}0265_chat_turn_attempt_with_quota.sql`);
+const s = read(`${folder}0266_chat_turn_refund_evidence.sql`);
+const up = read(`${folder}0267_chat_turn_purpose_restore.sql`);
+const down = read(`${folder}rollback/0267_down.sql`);
 const runner = read('scripts/test-chat-turn-purpose-restore.py');
-const tests = read(`${folder}tests/chat-turn-purpose-restore.sql`);
+const tests = read(`db/tests/chat-turn-purpose-restore.sql`);
 const names = ['begin_chat_turn_attempt_with_quota', 'bump_chat_usage_for_turn', 'refund_chat_turn_after_output_swap'];
 const statement = (source: string, name: string) => source.match(new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\([\\s\\S]*?\n\\$\\$;`))![0];
 const body = (source: string, name: string) => statement(source, name).split('AS $$')[1].split('$$;')[0];
@@ -97,8 +97,8 @@ describe('T40 F purpose restoration draft', () => {
     expect(runner).toContain("pg.DB = 't40_purpose_test_ci'");
     expect(runner).toContain("pg.MUTANT = 't40_purpose_mutant_test_ci'");
     const main = runner.split('def main():')[1];
-    expect(main.indexOf("file=DRAFT/'UNNUMBERED_chat_turn_attempt_with_quota.sql'")).toBeLessThan(main.indexOf("file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql'"));
-    expect(main.indexOf("file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql'")).toBeLessThan(main.indexOf('file=UP'));
+    expect(main).toContain("TEMPLATE t39_t40_before_0267;");
+    expect(main).not.toMatch(/pg\.run\(file=MIGRATIONS\/'026[56]_/);
     for (const marker of ['F_two_reservations_same_day', 'F_last_slot_', 'F_count_one_', 'F_bump_late_refund_',
       'F_green_claim_refund_', 'F_begin_refund_', 'F_delete_refund_', 'F_delete_admission_',
       "sql_mutant('daily_cap'", "sql_mutant('green'", "sql_mutant('old_day_cap'", "sql_mutant('p_day_cleanup'",
@@ -127,8 +127,8 @@ describe('T40 F purpose restoration draft', () => {
   });
 
   it('chains the F retention reason after S without changing ownership, erasure or export rules', () => {
-    const prior = JSON.parse(read(`${folder}chat-turn-refund-evidence-erasure-revision.json`)).tables.chat_turn_reservations;
-    const next = JSON.parse(read(`${folder}chat-turn-purpose-restore-erasure-revision.json`)).tables.chat_turn_reservations;
+    const prior = JSON.parse(read(`db/migration-drafts/chat-turn-refund-evidence-erasure-revision.json`)).tables.chat_turn_reservations;
+    const next = JSON.parse(read(`db/migration-drafts/chat-turn-purpose-restore-erasure-revision.json`)).tables.chat_turn_reservations;
     expect(next.previousReason).toBe(prior.reason);
     expect(next.owner).toBe(prior.owner);
     expect(next.class).toBe(prior.class);

@@ -28,12 +28,14 @@ pg.args = lambda db=None: _args(pg.DB if db is None else db)
 pg.run = lambda sql=None, **kwargs: _run(sql, **{'db': pg.DB, **kwargs})
 pg.value = lambda sql, db=None: _value(sql, pg.DB if db is None else db)
 pg.check = lambda sql, label, db=None: _check(sql, label, pg.DB if db is None else db)
+MIGRATIONS = pg.MIGRATIONS
+TEST_DIR = pg.TESTS
 DRAFT = pg.DRAFT
-UP = DRAFT/'UNNUMBERED_chat_turn_purpose_restore.sql'
-DOWN = DRAFT/'rollback/UNNUMBERED_chat_turn_purpose_restore_down.sql'
-TESTS = DRAFT/'tests/chat-turn-purpose-restore.sql'
-E1 = (DRAFT/'UNNUMBERED_chat_turn_attempt_with_quota.sql').read_text(encoding='utf8')
-S = (DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql').read_text(encoding='utf8')
+UP = MIGRATIONS/'0267_chat_turn_purpose_restore.sql'
+DOWN = MIGRATIONS/'rollback/0267_down.sql'
+TESTS = TEST_DIR/'chat-turn-purpose-restore.sql'
+E1 = (MIGRATIONS/'0265_chat_turn_attempt_with_quota.sql').read_text(encoding='utf8')
+S = (MIGRATIONS/'0266_chat_turn_refund_evidence.sql').read_text(encoding='utf8')
 SOURCE = UP.read_text(encoding='utf8')
 DOWN_SOURCE = DOWN.read_text(encoding='utf8')
 ADMIT = 'begin_chat_turn_attempt_with_quota'
@@ -501,22 +503,20 @@ def main():
             STATIC_MUTANTS.append(label)
         else:
             raise AssertionError('F static mutant survived: '+label)
-    pg.run('CREATE DATABASE '+pg.DB+' TEMPLATE postgres;', db='template1')
-    pg.run(file=DRAFT/'UNNUMBERED_chat_turn_attempt_with_quota.sql',transaction=True)
-    pg.run(file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql',transaction=True)
+    pg.run('CREATE DATABASE '+pg.DB+' TEMPLATE t39_t40_before_0267;', db='template1')
     baseline=pg.schema_snapshot()
-    pg.run(file=DRAFT/'tests/chat-turn-refund-evidence-fixture.sql')
+    pg.run(file=TEST_DIR/'chat-turn-refund-evidence-fixture.sql')
     pg.run('SELECT t40.setup(5100,1); SELECT t40.audit(5100); SELECT t40.claim(5100);')
     for _ in range(2): pg.run(file=UP,transaction=True)
     pg.check('SELECT quota_day IS NULL AND purpose_restored_day IS NULL FROM public.chat_turn_reservations WHERE turn_id=t40.id(5100,2)', 'F apply never backfills old receipts')
-    pg.run(file=DRAFT/'tests/chat-turn-purpose-restore-fixture.sql')
+    pg.run(file=TEST_DIR/'chat-turn-purpose-restore-fixture.sql')
     pg.run('CREATE DATABASE '+pg.MUTANT+' TEMPLATE '+pg.DB+';',db='template1')
     result=pg.run(file=TESTS)
     count=result.stderr.count('T40 PASS:')
     pg.expect(count == 53, 'F sequential assertions: '+str(count))
     # S behavior and E1-S remain valid on the actual final installed F functions.
-    pg.run(file=DRAFT/'tests/chat-turn-refund-evidence.sql')
-    pg.run(file=DRAFT/'tests/chat-turn-attempt-with-quota.sql')
+    pg.run(file=TEST_DIR/'chat-turn-refund-evidence.sql')
+    pg.run(file=TEST_DIR/'chat-turn-attempt-with-quota.sql')
     # Exact S/E1 function/ACL restoration, with the explicitly retained cap state.
     pg.run('SELECT t40f.pair(5101); SELECT t40.refund(5101);')
     down_checks(DOWN, 5101)
@@ -538,13 +538,13 @@ def main():
         pg.expect(after[key]==baseline[key], 'F down unchanged S '+key)
     pg.expect(after['rls'][:2]==baseline['rls'][:2] and 'F rollback retains these markers' in after['rls'][2],
               'F down unchanged S RLS and ACL; retained extension comment remains accurate')
-    refused = pg.run(file=DRAFT/'rollback/UNNUMBERED_chat_turn_refund_evidence_down.sql', transaction=True, check=False)
+    refused = pg.run(file=MIGRATIONS/'rollback/0266_down.sql', transaction=True, check=False)
     pg.expect(refused.returncode != 0 and '55000:' in refused.stderr
               and 'unexpected installed definition public.bump_chat_usage_for_turn' in refused.stderr,
               'F down then historical S down refuses retained bump')
     pg.expect(pg.schema_snapshot() == after, 'F refused S down leaves catalog unchanged')
-    pg.run(file=DRAFT/'tests/chat-turn-attempt-with-quota.sql')
-    pg.run(file=DRAFT/'tests/chat-turn-refund-evidence.sql')
+    pg.run(file=TEST_DIR/'chat-turn-attempt-with-quota.sql')
+    pg.run(file=TEST_DIR/'chat-turn-refund-evidence.sql')
     pg.run(file=UP,transaction=True)
     pg.run('SELECT t40.refund(5101,5);')
     pg.check('t40f.quota(5101)=3 AND t40f.markers(5101)=1','F down reapply never resets cap')

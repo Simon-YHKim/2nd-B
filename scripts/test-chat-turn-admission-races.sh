@@ -178,7 +178,7 @@ else
   # original draft in this DB or in the numbered replay database.
   "${psql[@]}" -d template1 -c 'CREATE DATABASE t39_admission_mutant_test_ci TEMPLATE t39_admission_test_ci'
 fi
-"${psql[@]}" -f db/migration-drafts/tests/chat-turn-admission-race-fixture.sql
+"${psql[@]}" -f db/tests/chat-turn-admission-race-fixture.sql
 
 for schedule in "${zero_schedules[@]}"; do zero_attempt_race "$schedule"; done
 
@@ -230,13 +230,13 @@ echo 'T39 RACES PASS: 9 schedules, 9 observed lock waits'
 # the source shape changed; do not silently run an unmutated or broad rewrite.
 node --input-type=module - "$work/no-user-lock.sql" <<'JS'
 import { readFileSync, writeFileSync } from 'node:fs';
-const source = readFileSync('db/migration-drafts/UNNUMBERED_chat_turn_attempt_with_quota.sql', 'utf8').replace(/\r\n/g, '\n');
+const source = readFileSync('db/migrations/0265_chat_turn_attempt_with_quota.sql', 'utf8').replace(/\r\n/g, '\n');
 const lock = "  PERFORM pg_catalog.pg_advisory_xact_lock(\n    pg_catalog.hashtextextended('chat_turn_bump:' || p_user_id::text, 0));";
 if (source.split(lock).length !== 2) throw new Error('Expected exactly one T39 user lock');
 writeFileSync(process.argv[2], source.replace(lock, ''));
 JS
 "${psql[@]}" -d t39_admission_mutant_test_ci --single-transaction -f "$work/no-user-lock.sql"
-"${psql[@]}" -d t39_admission_mutant_test_ci -f db/migration-drafts/tests/chat-turn-admission-race-fixture.sql
+"${psql[@]}" -d t39_admission_mutant_test_ci -f db/tests/chat-turn-admission-race-fixture.sql
 for schedule in "${zero_schedules[@]}"; do
   mutation_status=0
   mutation_log="$work/mutant-$schedule.log"

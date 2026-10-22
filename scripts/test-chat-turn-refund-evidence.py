@@ -15,6 +15,8 @@ import threading
 import time
 
 ROOT = Path(__file__).resolve().parent.parent
+MIGRATIONS = ROOT / 'db/migrations'
+TESTS = ROOT / 'db/tests'
 DRAFT = ROOT / 'db/migration-drafts'
 DB = 't40_evidence_test_ci'
 MUTANT = 't40_evidence_mutant_test_ci'
@@ -364,16 +366,15 @@ def races():
 
 
 def main():
-    source=(DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql').read_text(encoding='utf8')
+    source=(MIGRATIONS/'0266_chat_turn_refund_evidence.sql').read_text(encoding='utf8')
     static_check(source)
-    run('CREATE DATABASE '+DB+' TEMPLATE postgres;',db='template1')
-    run(file=DRAFT/'UNNUMBERED_chat_turn_attempt_with_quota.sql',transaction=True)
+    run('CREATE DATABASE '+DB+' TEMPLATE t39_t40_before_0266;',db='template1')
     baseline=schema_snapshot()
-    run(file=DRAFT/'tests/chat-turn-refund-evidence-fixture.sql')
+    run(file=TESTS/'chat-turn-refund-evidence-fixture.sql')
     # Preserve a 0255 + E1-S clone for real apply-time mutation checks.
     run('CREATE DATABASE '+MUTANT+' TEMPLATE '+DB+';',db='template1')
     run(APPLY_FIXTURE)
-    for _ in range(2): run(file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql',transaction=True)
+    for _ in range(2): run(file=MIGRATIONS/'0266_chat_turn_refund_evidence.sql',transaction=True)
     for query, label in APPLY_CHECKS: check(query,label)
     apply_assertions='\n'.join("SELECT t40.check(("+query+"), '"+label+"');" for query,label in APPLY_CHECKS)
     closure=re.search(r'UPDATE public.chat_turn_reservations AS r SET binding_closed = true[\s\S]*?;',source)[0]
@@ -390,22 +391,22 @@ def main():
     actual=json.loads(value("SELECT jsonb_build_object('owner',owner_column,'class',class,'previousReason',reason) FROM public.erasure_registry WHERE table_name='chat_turn_reservations';"))
     expect(all(candidate[k]==v for k,v in actual.items()),'registry revision matches current owner class and previous reason')
     check("EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='public.chat_turn_reservations'::regclass AND confrelid='public.users'::regclass AND contype='f' AND confdeltype='c')",'registry candidate account cascade unchanged')
-    result=run(file=DRAFT/'tests/chat-turn-refund-evidence.sql')
+    result=run(file=TESTS/'chat-turn-refund-evidence.sql')
     count=result.stderr.count('T40 PASS:')
     expect(count==77,'sequential S assertions: '+str(count))
-    run(file=DRAFT/'tests/chat-turn-attempt-with-quota.sql')
+    run(file=TESTS/'chat-turn-attempt-with-quota.sql')
     # Rollback with S-only closed/refunded data, and exact function/ACL/schema comparison.
     setup(305); run('SELECT t40.bump(305); SELECT t40.claim(305); SELECT t40.refund(305);')
     before=value("SELECT (t40.snapshot(305)-'r')::text;")
     setup(306,2); run('SELECT t40.claim(306,3); SELECT t40.bump(306);')
-    down=(DRAFT/'rollback/UNNUMBERED_chat_turn_refund_evidence_down.sql').read_text(encoding='utf8')
+    down=(MIGRATIONS/'rollback/0266_down.sql').read_text(encoding='utf8')
     before_down=schema_snapshot()
     before_rebind=value('SELECT t40.snapshot(306)::text;')
     result=run(down,transaction=True,check=False)
     expect(result.returncode!=0 and '55000: T40 S down: closed attempt 2' in result.stderr,'down refuses active five-minute rebind window')
     expect(schema_snapshot()==before_down and value('SELECT t40.snapshot(306)::text;')==before_rebind,'refused down leaves S catalog and row unchanged')
     guard=re.search(r'DO \$rebind_guard\$[\s\S]*?\$rebind_guard\$;',down)[0]
-    run(file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql',db=MUTANT,transaction=True)
+    run(file=MIGRATIONS/'0266_chat_turn_refund_evidence.sql',db=MUTANT,transaction=True)
     run('SELECT t40.setup(306,2); SELECT t40.audit(306,3); SELECT t40.claim(306,3); SELECT t40.bump(306);',db=MUTANT)
     guard_test="SELECT t40.check(t40.error('"+down.replace(guard,'').replace("'","''")+"')='55000','down refuses active five-minute rebind window');"
     result=run('BEGIN;\n'+guard_test+'\nROLLBACK;',db=MUTANT,check=False)
@@ -413,13 +414,13 @@ def main():
     KILLED_MUTANTS.append('down_rebind_guard')
     # Model elapsed time, without a five-minute CI sleep; closure stays intact.
     run("UPDATE public.chat_turn_reservations SET attempted_at=clock_timestamp()-interval '6 minutes' WHERE binding_closed AND attempts=2;")
-    run(file=DRAFT/'rollback/UNNUMBERED_chat_turn_refund_evidence_down.sql',transaction=True)
+    run(file=MIGRATIONS/'rollback/0266_down.sql',transaction=True)
     expect(schema_snapshot()==baseline,'down restores exact 0255 plus E1-S definitions ACL columns constraints indexes triggers registry RLS')
     expect(value("SELECT (t40.snapshot(305)-'r')::text;")==before,'down preserves settled counters and ledger')
     check('NOT EXISTS(SELECT 1 FROM public.chat_turn_reservations WHERE turn_id=t40.id(305,2))','down removes unrepresentable closed row without synthetic answer')
-    run(file=DRAFT/'tests/chat-turn-attempt-with-quota.sql')
-    run(file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql',transaction=True)
-    run(file=DRAFT/'tests/chat-turn-refund-evidence.sql')
+    run(file=TESTS/'chat-turn-attempt-with-quota.sql')
+    run(file=MIGRATIONS/'0266_chat_turn_refund_evidence.sql',transaction=True)
+    run(file=TESTS/'chat-turn-refund-evidence.sql')
     # Every mutation is installed in the dedicated clone; only P0040 assertion
     # failures kill mutants. Syntax/connectivity/timeout errors NEVER count.
     for change, message in [
@@ -445,7 +446,7 @@ def main():
             except ValueError as exc: expect(str(exc)=='T40 STATIC: unexpected write target','purpose mutation static pin killed')
             else: raise AssertionError('purpose static mutant survived')
         run(mutant,db=MUTANT)
-        result=run(file=DRAFT/'tests/chat-turn-refund-evidence.sql',db=MUTANT,check=False)
+        result=run(file=TESTS/'chat-turn-refund-evidence.sql',db=MUTANT,check=False)
         expect(result.returncode!=0 and 'P0040: T40 FAIL: '+assertion in result.stderr,'mutation killed '+label)
         KILLED_MUTANTS.append(label)
         run(original,db=MUTANT)
