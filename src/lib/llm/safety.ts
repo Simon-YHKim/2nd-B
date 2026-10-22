@@ -180,6 +180,8 @@ function noteSemanticUnavailable(opts?: {
         latencyMs: 0,
         purpose: "safety_classify",
       }, opts.capturedSession?.accessToken, opts.capturedSession?.signal ?? liveOwner?.signal).catch(() => {
+        // A cancelled dispatch did not spend the session's health slot.
+        if ((opts.capturedSession?.signal ?? liveOwner?.signal)?.aborted) _semanticDarkAudited = false;
         // best-effort health signal; never surface
       }).finally(() => liveOwner?.release());
     }
@@ -262,17 +264,20 @@ const OBFUSCATION_TIMEOUT_MS = 5_000;
 export async function classifyObfuscatedInput(
   userMessage: string,
   locale: "en" | "ko",
-  opts?: { capturedSession?: AuthenticatedAccountSessionLease; signal?: AbortSignal },
+  opts?: { capturedSession?: AuthenticatedAccountSessionLease; signal?: AbortSignal; assertCurrent?: () => void; onRedResult?: (result: SafetyResult) => void },
 ): Promise<SafetyResult | null> {
   const assertActive = (): void => {
     opts?.capturedSession?.assertCurrent();
     throwIfAborted(opts?.capturedSession?.signal);
     throwIfAborted(opts?.signal);
+    opts?.assertCurrent?.();
   };
   assertActive();
   if (process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY !== "true") return null;
+  const liveOwner = opts?.assertCurrent ? observeLiveOwner(opts.assertCurrent, opts.signal) : undefined;
   const controller = new AbortController();
-  const signals = [opts?.signal, opts?.capturedSession?.signal];
+  let timedOut = false;
+  const signals = [liveOwner?.signal ?? opts?.signal, opts?.capturedSession?.signal];
   let onAbort!: () => void;
   const cancelled = new Promise<never>((_, reject) => {
     onAbort = () => {
@@ -285,7 +290,11 @@ export async function classifyObfuscatedInput(
     // Bound the wait even if the transport ignores signal. Cancellation also
     // races independently so a stalled proxy cannot delay a user's abort.
     const result = await withTimeout(Promise.race([
-      requestProxyClassification(userMessage, locale, opts?.capturedSession, controller.signal, true),
+      requestProxyClassification(userMessage, locale, opts?.capturedSession, controller.signal, true, opts?.onRedResult ? result => {
+        // Retain only a validated received verdict, never a timeout guess. This
+        // callback records for the original owner; it cannot authorize egress/UI.
+        if (!timedOut) opts.onRedResult?.(result);
+      } : undefined, () => !timedOut),
       cancelled,
     ]), OBFUSCATION_TIMEOUT_MS, "Obfuscated input classification");
     assertActive();
@@ -294,12 +303,13 @@ export async function classifyObfuscatedInput(
     // Abort the transport on timeout; the aborted signal also discards late
     // payloads before parsing. Recheck callers AFTER abort: cancellation wins
     // even when it arrives during the timeout's continuation.
-    if (isTimeoutError(error)) controller.abort();
+    if (isTimeoutError(error)) { timedOut = true; controller.abort(); }
     assertActive();
     if (isTimeoutError(error)) return null;
     throw error;
   } finally {
     for (const signal of signals) signal?.removeEventListener("abort", onAbort);
+    liveOwner?.release();
   }
 }
 
@@ -337,6 +347,8 @@ async function requestProxyClassification(
   capturedSession?: AuthenticatedAccountSessionLease,
   signal?: AbortSignal,
   strictPayload = false,
+  onRedResult?: (result: SafetyResult) => void,
+  canRetainRed?: () => boolean,
 ): Promise<SafetyResult | null> {
   try {
     capturedSession?.assertCurrent();
@@ -388,8 +400,10 @@ async function requestProxyClassification(
           request,
         )
       : await getSupabaseClient().functions.invoke(proxyFnForVendor(vendor), request);
+    // The live callback may retain an already received RED for its owner, even
+    // when delivery has become stale. Captured execution keeps its existing fence.
     capturedSession?.assertCurrent();
-    throwIfAborted(signal);
+    if (!onRedResult || canRetainRed?.() === false) throwIfAborted(signal);
     if (error || !data) return null;
     const text = String((data as { text?: unknown }).text ?? "").trim();
     if (!text) return null;
@@ -405,7 +419,7 @@ async function requestProxyClassification(
       !Array.isArray(parsed.triggers) || !parsed.triggers.every((trigger) => typeof trigger === "string") ||
       typeof parsed.confidence !== "number" || !Number.isFinite(parsed.confidence)
     )) return null;
-    return {
+    const result: SafetyResult = {
       zone: parsed.zone,
       triggers: parsed.triggers ?? [],
       confidence:
@@ -415,6 +429,9 @@ async function requestProxyClassification(
       source: "llm",
       routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
     };
+    if (result.zone === "red") onRedResult?.(result);
+    throwIfAborted(signal);
+    return result;
   } catch {
     capturedSession?.assertCurrent();
     throwIfAborted(signal);
@@ -428,8 +445,11 @@ export async function classifySafety(
   opts?: { userId?: string; capturedSession?: AuthenticatedAccountSessionLease; onRed?: CrisisObserver;
     assertCurrent?: () => void; signal?: AbortSignal },
 ): Promise<SafetyResult> {
-  const fence = () => { opts?.assertCurrent?.(); opts?.capturedSession?.assertCurrent(); throwIfAborted(opts?.signal); };
+  const fence = () => { opts?.assertCurrent?.(); opts?.capturedSession?.assertCurrent(); if (opts?.signal) throwIfAborted(opts.signal); };
   fence();
+  const liveOwner = opts?.assertCurrent ? observeLiveOwner(opts.assertCurrent, opts.signal) : undefined;
+  const requestSignal = liveOwner?.signal ?? opts?.signal;
+  try {
   const notifyRed = (result: SafetyResult): void => {
     if (result.zone !== "red" || !opts?.onRed) return;
     fence();
@@ -449,7 +469,7 @@ export async function classifySafety(
   const client = getFlashClient();
   if (!client) {
     // D4 (flag-gated): try the server-side classifier before degrading to lexicon.
-    const viaProxy = await classifyViaProxy(userMessage, locale, opts?.capturedSession, opts?.signal);
+    const viaProxy = await classifyViaProxy(userMessage, locale, opts?.capturedSession, requestSignal);
     fence();
     if (viaProxy) {
       const result = mergeResults(lex, viaProxy);
@@ -473,7 +493,7 @@ export async function classifySafety(
         { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\nUser message (locale=${locale}):\n"""\n${userMessage}\n"""\n\nClassify now. Output JSON only, no prose.` }] },
       ],
       config: {
-        ...(opts?.capturedSession || opts?.signal ? { abortSignal: opts.capturedSession?.signal ?? opts?.signal } : {}),
+        ...(opts?.capturedSession || requestSignal ? { abortSignal: opts?.capturedSession?.signal ?? requestSignal } : {}),
         responseMimeType: "application/json",
         responseSchema: {
           type: "object",
@@ -549,6 +569,7 @@ export async function classifySafety(
     if (typeof console !== "undefined") console.warn("[safety] llm classifier failed, using lexicon");
     return lex;
   }
+  } finally { liveOwner?.release(); }
 }
 
 // Fixed-string crisis templates per docs/research/batches/crisis-detection.md.

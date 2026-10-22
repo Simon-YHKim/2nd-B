@@ -666,7 +666,7 @@ describe("sendChatMessage", () => {
         "if (cut) return cut;",
         "const day = kstDateToday();",
         "const limit = CHAT_DAILY_LIMIT[input.tier];",
-        "const readUsage = () => execution ? readChatUsageDetail(input.userId, day, execution.session) : readChatUsageDetail(input.userId, day);",
+        "const readUsage = (signal?: AbortSignal) => execution ? readChatUsageDetail(input.userId, day, execution.session) : readChatUsageDetail(input.userId, day, undefined, signal);",
         "const { used: usedBefore, adBonus } = await stage(readUsage);",
         "const precheck = checkChatLimit(input.tier, usedBefore, adBonus);",
         'if (!precheck.allowed) { return { status: "blocked", reason: "limit_reached", limit: precheck.limit, used: precheck.used, upgradeTo: precheck.upgradeTo, hint: BLOCKED_HINT[input.locale](precheck.limit), }; }',

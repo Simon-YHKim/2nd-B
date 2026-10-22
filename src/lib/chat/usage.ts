@@ -62,17 +62,18 @@ export async function readChatUsageDetail(
   userId: string,
   day: string = kstDateToday(),
   execution?: UsageReadExecution,
+  liveSignal?: AbortSignal,
 ): Promise<ChatUsageDetail> {
   assertUsageRead(userId, execution);
   const supabase = getSupabaseClient();
   let data, error;
   try {
-    ({ data, error } = await supabase
+    const query = supabase
       .from("chat_usage")
       .select("count, ad_bonus")
       .eq("user_id", userId)
-      .eq("day", day)
-      .maybeSingle());
+      .eq("day", day);
+    ({ data, error } = await (liveSignal ? query.abortSignal(liveSignal) : query).maybeSingle());
   } catch (failure) {
     assertUsageRead(userId, execution);
     throw failure;
@@ -228,14 +229,16 @@ export async function bumpChatUsageIfUnderCap(
   cap: number,
   day: string = kstDateToday(),
   execution?: CapturedChatUsageExecution,
+  liveSignal?: AbortSignal,
 ): Promise<number> {
   if (execution !== undefined) return bumpCapturedUsage(userId, cap, day, execution);
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.rpc("bump_chat_usage_if_under_cap", {
+  const query = supabase.rpc("bump_chat_usage_if_under_cap", {
     p_user_id: userId,
     p_day: day,
     p_cap: cap,
   });
+  const { data, error } = await (liveSignal ? query.abortSignal(liveSignal) : query);
   if (error) {
     // Postgres raises chat_limit_exceeded with SQLSTATE P0001. Supabase's
     // PostgREST surfaces it via error.message containing the raised text.

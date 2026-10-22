@@ -1,4 +1,4 @@
-import { captureLiveOwnerCheck, observeLiveOwner } from "../live-owner-guard";
+import { captureLiveOwnerCheck, observeLiveOwner, withLiveOwnerSignal } from "../live-owner-guard";
 import { __resetAccountEpochForTests, beginAccountOwnerTransition, clearAccountTransition,
   currentAccountEpoch, noteResolvedOwner } from "../account-epoch";
 
@@ -37,4 +37,17 @@ test.each([false, true])("parent cancellation propagates (already aborted: %s)",
     expect(guard.signal.aborted).toBe(true);
     expect(guard.assertCurrent).toThrow(expect.objectContaining({ name: "AbortError" }));
   } finally { guard.release(); }
+});
+
+test.each([false, true])("scoped transport releases its subscription after settlement (failure: %s)", async fail => {
+  let requestSignal: AbortSignal | undefined;
+  const result = withLiveOwnerSignal(captureLiveOwnerCheck("a"), undefined, async signal => {
+    requestSignal = signal;
+    if (fail) throw new Error("transport_failed");
+    return "received";
+  });
+  if (fail) await expect(result).rejects.toThrow("transport_failed");
+  else await expect(result).resolves.toBe("received");
+  noteResolvedOwner("b");
+  expect(requestSignal?.aborted).toBe(false);
 });

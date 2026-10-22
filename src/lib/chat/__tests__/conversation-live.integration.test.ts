@@ -36,8 +36,8 @@ import { sendChatMessage, type SendMessageInput } from "../conversation";
 import { nextTurnAction } from "../turn-result-state";
 import { classifyChatTextForCrisis, classifyLiveChatTextForCrisis, callLlm } from "../../llm/boundary";
 import type { TurnAdmission } from "../../llm/types";
-import { resetAuditWriteOutboxForTests } from "../../llm/audit-write-outbox";
-import { __resetAccountEpochForTests, captureAccountOwnerLease, noteResolvedOwner } from "../../auth/account-epoch";
+import { flushAuditWriteOutbox, getAuditWriteOutboxForTests, resetAuditWriteOutboxForTests } from "../../llm/audit-write-outbox";
+import { __resetAccountEpochForTests, captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../auth/account-epoch";
 
 const ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const NEXT_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -174,6 +174,17 @@ test.each(["semantic", "lexical"])("legacy %s input RED retains the original own
   audit.resolve({ data: null, error: null });
   expect(await pending).toMatchObject({ name: "AbortError" });
   expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(0);
+  const queued = await getAuditWriteOutboxForTests();
+  expect(queued.filter(row => row.kind === "crisis_event")).toEqual([
+    expect.objectContaining({ ownerUserId: input.userId, payload: expect.objectContaining({ locale: input.locale }) }),
+  ]);
+  await flushAuditWriteOutbox(input.userId);
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(0);
+  noteResolvedOwner(input.userId); clearAccountTransition(currentAccountEpoch());
+  mockRpc.mockImplementation(transport);
+  await flushAuditWriteOutbox(input.userId); await flushAuditWriteOutbox(input.userId);
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(1);
+  expect(await getAuditWriteOutboxForTests()).toEqual([]);
 });
 
 test.each(["usage", "loader"].flatMap(stage => ["switch", "return"].map(change => [stage, change])))(
@@ -808,6 +819,17 @@ test.each(["server", "output"])("legacy %s crisis sends no restricted row as the
   audit.resolve({ data: null, error: null });
   expect(await pending).toMatchObject({ name: "AbortError" });
   expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(0);
+  const queued = await getAuditWriteOutboxForTests();
+  expect(queued.filter(row => row.kind === "crisis_event")).toEqual([
+    expect.objectContaining({ ownerUserId: input.userId, payload: expect.objectContaining({ locale: input.locale }) }),
+  ]);
+  await flushAuditWriteOutbox(input.userId);
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(0);
+  noteResolvedOwner(input.userId); clearAccountTransition(currentAccountEpoch());
+  mockRpc.mockImplementation(transport);
+  await flushAuditWriteOutbox(input.userId); await flushAuditWriteOutbox(input.userId);
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(1);
+  expect(await getAuditWriteOutboxForTests()).toEqual([]);
 });
 
 test("R3 non-crisis 422 publishes no notice and cannot consume the next real notice", async () => {

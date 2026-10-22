@@ -29,7 +29,7 @@ import { formatRagPages, retrieveChatContext } from "./rag";
 import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail, type CapturedChatUsageExecution } from "./usage";
 import { abortError, isAbortError, throwIfAborted } from "../async/abort";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
-import { captureLiveOwnerCheck } from "../auth/live-owner-guard";
+import { captureLiveOwnerCheck, withLiveOwnerSignal } from "../auth/live-owner-guard";
 
 /** One prior exchange line. `assistant` is the model's own earlier reply. */
 export interface ChatHistoryTurn {
@@ -239,9 +239,9 @@ export async function loadChatContext(
   // 0066: newest structured form captures (4W1H, career 3C4P) ride along so
   // the model reads the form data as structure, not prose. Small, fail-soft,
   // sanitized + fenced with the snapshot below.
-  const structuredBlock = await stage(() => execution ? loadStructuredContext(input.userId, 5, execution.session) : loadStructuredContext(input.userId, 5));
+  const structuredBlock = await stage(signal => execution ? loadStructuredContext(input.userId, 5, execution.session) : loadStructuredContext(input.userId, 5, undefined, signal));
   // Q-261007-05 (Simon 2026-10-07): 사용자가 채운 프로필 칸(대화명 제외) + 만 나이. Fail-soft.
-  const profileLines = await stage(() => execution ? loadProfileContext(input.userId, undefined, execution.session) : loadProfileContext(input.userId));
+  const profileLines = await stage(signal => execution ? loadProfileContext(input.userId, undefined, execution.session) : loadProfileContext(input.userId, undefined, undefined, signal));
   let ragBlock: string | null = null;
   try {
     const ragPages = await stage(() => retrieveChatContext(input.userId, input.message, input.locale, {
@@ -263,7 +263,7 @@ export async function loadChatContext(
         // "what did I clip" questions still see the inbox.
         { locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40, includeSavedConversations: true }
       : { locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100, includeSavedConversations: true },
-    ...(execution ? [execution.session] as const : []),
+    execution?.session, execution ? undefined : stage.assertCurrent,
   ));
   return { structuredBlock, profileLines, ragBlock, snapshot };
 }
@@ -340,7 +340,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   const limit = CHAT_DAILY_LIMIT[input.tier];
 
   // 0090: today's allowance includes any rewarded ad bonus.
-  const readUsage = () => execution ? readChatUsageDetail(input.userId, day, execution.session) : readChatUsageDetail(input.userId, day);
+  const readUsage = (signal?: AbortSignal) => execution ? readChatUsageDetail(input.userId, day, execution.session) : readChatUsageDetail(input.userId, day, undefined, signal);
   const { used: usedBefore, adBonus } = await stage(readUsage);
   const precheck = checkChatLimit(input.tier, usedBefore, adBonus);
   if (!precheck.allowed) {
@@ -353,7 +353,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
       hint: BLOCKED_HINT[input.locale](precheck.limit),
     };
   }
-  const context = await loadChatContext(input, execution);
+  const context = await stage(() => loadChatContext(input, execution));
 
   // Atomic check-and-bump (codex R2): the RPC inserts/increments the row
   // ONLY if the existing count is below `limit`. It remains the final gate
@@ -366,7 +366,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // A turn cut later (server gate, meaning check, output swap) is still counted.
   let newCount: number;
   try {
-    newCount = await stage(() => bumpChatUsageIfUnderCap(input.userId, limit, day, ...(execution ? [execution] as const : [])));
+    newCount = await stage(signal => bumpChatUsageIfUnderCap(input.userId, limit, day, execution ?? undefined, signal));
   } catch (e) {
     execution?.session.assertCurrent();
     if (e instanceof ChatLimitExceededError) {
@@ -500,10 +500,10 @@ function capturedConversation(input: SendMessageInput): CapturedConversationExec
 
 function executionStage(execution: CapturedChatUsageExecution | null, ownerId?: string) {
   const assertCurrent = execution ? () => execution.session.assertCurrent() : captureLiveOwnerCheck(ownerId ?? "");
-  return Object.assign(async <T,>(operation: () => Promise<T>): Promise<T> => {
+  return Object.assign(async <T,>(operation: (signal?: AbortSignal) => Promise<T>): Promise<T> => {
     assertCurrent();
     let result: T;
-    try { result = await operation(); }
+    try { result = execution ? await operation() : await withLiveOwnerSignal(assertCurrent, undefined, operation); }
     catch (error) { assertCurrent(); throw error; }
     assertCurrent();
     return result;

@@ -10,9 +10,9 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-import { throwIfAborted } from "../async/abort";
+import { isAbortError, throwIfAborted } from "../async/abort";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
-import { captureLiveOwnerCheck, observeLiveOwner } from "../auth/live-owner-guard";
+import { captureLiveOwnerCheck, observeLiveOwner, withLiveOwnerSignal } from "../auth/live-owner-guard";
 import { getEnv } from "../env";
 import {
   embedVendor,
@@ -611,6 +611,15 @@ export function assertRootObjectSchema(schema: Record<string, unknown> | undefin
   }
 }
 
+// Keep the shared observer contract unchanged. The live legacy path may have
+// a received RED to retain after its screen owner has left.
+function retainedCrisisObserver(observer: CrisisObserver | undefined, fence: () => void): CrisisObserver | undefined {
+  const notify = crisisObserver(observer, fence);
+  return notify ? hotline => {
+    try { notify(hotline); } catch (error) { if (!isAbortError(error)) throw error; }
+  } : undefined;
+}
+
 export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult<T>> {
   if (input.chatTurn && (input.chatTurnRoute || input.chatTurnId !== undefined || input.chatAttemptIntent !== undefined || input.session || input.signal)) throw new Error("chat_turn_execution_mismatch");
   if (input.session && input.session.userId !== input.userId) {
@@ -620,17 +629,17 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     throw new Error("llm_session_signal_mismatch");
   }
   const liveOwner = input.purpose === "secondb_chat" && !input.session
-    ? observeLiveOwner(captureLiveOwnerCheck(input.userId), input.signal) : undefined;
-  try {
-  const signal = input.session?.signal ?? liveOwner?.signal ?? input.signal;
+    ? captureLiveOwnerCheck(input.userId) : undefined;
+  const signal = input.session?.signal ?? input.signal;
   const fence = (): void => {
     throwIfAborted(signal);
     input.session?.assertCurrent();
-    liveOwner?.assertCurrent();
+    liveOwner?.();
     if (input.purpose === "secondb_chat") input.chatTurn?.assertCurrent?.();
   };
   fence();
-  const notifyCrisis = crisisObserver(input.onCrisisDetected, fence);
+  const notifyCrisis = input.purpose === "secondb_chat" && !input.session && !input.chatTurn
+    ? retainedCrisisObserver(input.onCrisisDetected, fence) : crisisObserver(input.onCrisisDetected, fence);
   assertRootObjectSchema(input.responseSchema);
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
   // Dual-locale: catch a crisis term written in the other language than the UI
@@ -659,10 +668,22 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY === "true" &&
     hasCrisisObfuscation(input.user)
   ) {
+    let retainedRed: Promise<LlmResult<string>> | undefined;
+    const retainRed = input.session || input.chatTurn ? undefined : (result: { confidence: number }) => {
+      notifyCrisis?.(undefined);
+      retainedRed ??= routeCrisis(
+        { zone: "red", matched: [], categories: ["crisis"] }, input.locale, input.userId,
+        promptHash, input.minor, "input_semantic_red", { purpose: input.purpose, classifierConfidence: result.confidence },
+      );
+      // A cancelled transport may still finish parsing a response it already received.
+      void retainedRed.catch(() => {});
+    };
     const semanticInput = await classifyObfuscatedInput(input.user, input.locale, {
       capturedSession: input.session,
-      signal,
-    });
+      signal, assertCurrent: liveOwner,
+      onRedResult: retainRed,
+    }).catch(async error => { if (retainedRed) await retainedRed; throw error; });
+    if (retainedRed) { const result = await retainedRed; fence(); return result as unknown as LlmResult<T>; }
     fence();
     if (semanticInput?.zone === "red") {
       notifyCrisis?.(undefined);
@@ -832,6 +853,8 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     const invokeProxy = async (functionName: string) => {
       fence();
       if (input.purpose === "secondb_chat") input.chatTurn?.beforeDispatch?.();
+      const liveRequest = liveOwner ? observeLiveOwner(liveOwner, signal) : undefined;
+      try {
       const result = input.session
         ? await invokeFunctionWithCapturedSession(
             functionName,
@@ -840,9 +863,12 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           )
         : await getSupabaseClient().functions.invoke(functionName, {
             body: proxyBody,
-            signal,
+            signal: liveRequest?.signal ?? signal,
           });
-      fence();
+      // A response already received may contain RED evidence. No further request
+      // is allowed until its own fence, but the original owner's rows come first.
+      const retainReceived = input.purpose === "secondb_chat" && !input.session && !input.chatTurn && !chatTurnRequest;
+      if (!retainReceived) fence();
       if (result.error) {
         if (chatTurnRequest) {
           // A readable non-crisis 422 must not publish or consume a crisis notice.
@@ -851,10 +877,11 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           turnAdmission = chatTurnFailure?.turnAdmission;
         }
         const consentError = await inspectProxyConsentRejection(result.error);
-        fence();
+        if (!retainReceived || consentError) fence();
         if (consentError) throw turnAdmission ? Object.assign(consentError, { turnAdmission }) : consentError;
       }
       return result;
+      } finally { liveRequest?.release(); }
     };
     const t0 = Date.now();
     let { data, error } = await invokeProxy(primaryFn);
@@ -873,10 +900,10 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     // Reservation-backed calls cannot reuse a claimed slot on another provider.
     if (error && !chatTurnRequest && input.purpose !== "persona_synthesis" && input.purpose !== "reasoning_connect" && failoverFn && failoverFn !== primaryFn) {
       const vendorCrisis = await inspectProxyCrisisRejection(error);
-      fence();
+      if (!(input.purpose === "secondb_chat" && !input.session && !input.chatTurn && vendorCrisis.route)) fence();
       if (vendorCrisis.route) {
         notifyCrisis?.(proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane).crisisRouting?.hotline);
-        return (await routeCrisis(
+        const crisisResult = (await routeCrisis(
           proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane),
           input.locale,
           input.userId,
@@ -890,7 +917,10 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           },
           input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
         )) as unknown as LlmResult<T>;
+        fence();
+        return crisisResult;
       }
+      fence();
       if (typeof console !== "undefined") {
         console.warn(`[llm] ${primaryFn} failed for ${input.purpose} - falling back to ${failoverFn}`);
       }
@@ -910,7 +940,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // The restricted crisis_events row is added only when the body explicitly
       // carries safety_red_zone; unreadable 422s still show the hotline template.
       const proxyCrisis = await inspectProxyCrisisRejection(error);
-      fence();
+      if (!(input.purpose === "secondb_chat" && !input.session && !input.chatTurn && proxyCrisis.route)) fence();
       if (proxyCrisis.route) {
         notifyCrisis?.(proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane).crisisRouting?.hotline);
         const crisisResult = (await routeCrisis(
@@ -927,8 +957,10 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           },
           input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
         )) as unknown as LlmResult<T>;
+        fence();
         return turnAdmission ? { ...crisisResult, turnAdmission } : crisisResult;
       }
+      fence();
       throw chatTurnFailure ?? error;
     }
     const payload = data as { text?: string; modelUsed?: string; audited?: boolean; turnBound?: unknown; auditId?: unknown } | null;
@@ -963,7 +995,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         ? { thinkingConfig: { thinkingBudget: 0 } }
         : {}),
     };
-    const res = await client.models.generateContent({
+    const res = await withLiveOwnerSignal(liveOwner, signal, requestSignal => client.models.generateContent({
       model,
       contents: [
         ...(input.system ? [{ role: "user", parts: [{ text: `[SYSTEM]\n${input.system}` }] }] : []),
@@ -980,9 +1012,9 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           ],
         },
       ],
-      config: Object.keys(config).length > 0 ? config : undefined,
-    });
-    fence();
+      config: requestSignal ? { ...config, abortSignal: requestSignal } : Object.keys(config).length > 0 ? config : undefined,
+    }));
+    if (!(input.purpose === "secondb_chat" && !input.session && !input.chatTurn)) fence();
     latencyMs = Date.now() - t0;
     text = res.text ?? "";
     modelUsedForAudit = model;
@@ -999,13 +1031,20 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // semantic (worst-case-merged) result.
   const lexical = classifyInput(text, input.locale, { minor: input.minor });
   if (lexical.zone === "red") notifyCrisis?.(lexical.crisisRouting?.hotline);
-  const semantic = await classifySafety(text, input.locale, {
-    userId: input.userId,
-    capturedSession: input.session,
-    ...(liveOwner ? { assertCurrent: fence, signal } : {}),
-    ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
-  });
-  fence();
+  const semantic = await (input.purpose === "secondb_chat" && !input.session
+    ? classifySafety(text, input.locale, {
+        userId: input.userId, assertCurrent: fence, signal,
+        ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
+      }).catch(error => {
+        if (input.chatTurn || lexical.zone !== "red" || !isAbortError(error)) throw error;
+        // Lexical RED was known before the optional semantic request was cancelled.
+        return { zone: "red" as const, confidence: 0.95, triggers: lexical.categories.length ? lexical.categories : ["lexicon_match"] };
+      })
+    : classifySafety(text, input.locale, {
+        userId: input.userId, capturedSession: input.session,
+        ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
+      }));
+  if (!(input.purpose === "secondb_chat" && !input.session && !input.chatTurn && (lexical.zone === "red" || semantic.zone === "red"))) fence();
   const outputZone: "green" | "yellow" | "red" =
     lexical.zone === "red" || semantic.zone === "red"
       ? "red"
@@ -1106,7 +1145,6 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     ...(turnAdmission ? { turnAdmission } : {}),
     ...(turnBound !== undefined ? { turnBound } : {}),
   };
-  } finally { liveOwner?.release(); }
 }
 
 // callAdvisor — Engine 4 entry. Layered safety + Path A RAG retrieval.
