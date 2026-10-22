@@ -102,13 +102,13 @@ export interface ListSourcesOpts {
   limit?: number;
 }
 
-export async function listSources(userId: string, opts: ListSourcesOpts = {}): Promise<SourceRow[]> {
+export async function listSources(userId: string, opts: ListSourcesOpts = {}, signal?: AbortSignal): Promise<SourceRow[]> {
   const supabase = getSupabaseClient();
   let q = supabase.from("sources").select("*").eq("user_id", userId).order("captured_at", { ascending: false });
   if (opts.ingested !== undefined) q = q.eq("ingested", opts.ingested);
   if (opts.kinds && opts.kinds.length > 0) q = q.in("kind", opts.kinds);
   if (opts.limit !== undefined) q = q.limit(opts.limit);
-  const { data, error } = await q;
+  const { data, error } = await (signal ? q.abortSignal(signal) : q);
   if (error) throw error;
   return (data ?? []) as SourceRow[];
 }
@@ -275,13 +275,13 @@ export interface ListWikiPagesOpts {
   limit?: number;
 }
 
-export async function listWikiPages(userId: string, opts: ListWikiPagesOpts = {}): Promise<WikiPageRow[]> {
+export async function listWikiPages(userId: string, opts: ListWikiPagesOpts = {}, signal?: AbortSignal): Promise<WikiPageRow[]> {
   const supabase = getSupabaseClient();
   let q = supabase.from("wiki_pages").select("*").eq("user_id", userId).order("updated_at", { ascending: false });
   if (opts.kinds && opts.kinds.length > 0) q = q.in("kind", opts.kinds);
   if (opts.anyOfTags && opts.anyOfTags.length > 0) q = q.overlaps("tags", opts.anyOfTags);
   if (opts.limit !== undefined) q = q.limit(opts.limit);
-  const { data, error } = await q;
+  const { data, error } = await (signal ? q.abortSignal(signal) : q);
   if (error) throw error;
   return (data ?? []) as WikiPageRow[];
 }

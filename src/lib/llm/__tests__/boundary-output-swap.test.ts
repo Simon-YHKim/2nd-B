@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 // Regression test for re-audit finding A5 + round-4 H1:
 // callLlm (the non-advisor entry used by the interview probe, wiki/inbox
 // phase1, import echo, and persona summary) must re-classify the model's TEXT

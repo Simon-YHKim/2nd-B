@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 // D-26 Phase 2 — LIVE edge-path wiring for purpose-keyed vendor routing.
 //
 // vendor-routing.test.ts covers the pure routing module; this suite pins the
