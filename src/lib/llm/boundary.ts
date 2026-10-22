@@ -12,6 +12,7 @@ import { GoogleGenAI } from "@google/genai";
 
 import { throwIfAborted } from "../async/abort";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { captureLiveOwnerCheck, observeLiveOwner } from "../auth/live-owner-guard";
 import { getEnv } from "../env";
 import {
   embedVendor,
@@ -618,10 +619,14 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   if (input.session && input.signal && input.signal !== input.session.signal) {
     throw new Error("llm_session_signal_mismatch");
   }
-  const signal = input.session?.signal ?? input.signal;
+  const liveOwner = input.purpose === "secondb_chat" && !input.session
+    ? observeLiveOwner(captureLiveOwnerCheck(input.userId), input.signal) : undefined;
+  try {
+  const signal = input.session?.signal ?? liveOwner?.signal ?? input.signal;
   const fence = (): void => {
     throwIfAborted(signal);
     input.session?.assertCurrent();
+    liveOwner?.assertCurrent();
     if (input.purpose === "secondb_chat") input.chatTurn?.assertCurrent?.();
   };
   fence();
@@ -997,6 +1002,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   const semantic = await classifySafety(text, input.locale, {
     userId: input.userId,
     capturedSession: input.session,
+    ...(liveOwner ? { assertCurrent: fence, signal } : {}),
     ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
   });
   fence();
@@ -1100,6 +1106,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     ...(turnAdmission ? { turnAdmission } : {}),
     ...(turnBound !== undefined ? { turnBound } : {}),
   };
+  } finally { liveOwner?.release(); }
 }
 
 // callAdvisor — Engine 4 entry. Layered safety + Path A RAG retrieval.

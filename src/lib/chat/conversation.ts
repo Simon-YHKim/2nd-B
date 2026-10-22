@@ -29,6 +29,7 @@ import { formatRagPages, retrieveChatContext } from "./rag";
 import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail, type CapturedChatUsageExecution } from "./usage";
 import { abortError, isAbortError, throwIfAborted } from "../async/abort";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { captureLiveOwnerCheck } from "../auth/live-owner-guard";
 
 /** One prior exchange line. `assistant` is the model's own earlier reply. */
 export interface ChatHistoryTurn {
@@ -229,7 +230,7 @@ export async function loadChatContext(
   input: SendMessageInput,
   execution: CapturedChatUsageExecution | null,
 ): Promise<ChatContext> {
-  const stage = executionStage(execution);
+  const stage = executionStage(execution, input.userId);
   // Context assembly (D-26 A1): try query-relevant retrieval first — embed the
   // message and pull the top-8 semantically relevant pages (RAG). On a hit the
   // prompt carries ONLY those pages plus a slim recent-sources list (~10x smaller
@@ -251,7 +252,7 @@ export async function loadChatContext(
     }));
     if (ragPages.length > 0) ragBlock = formatRagPages(ragPages, input.locale);
   } catch (error) {
-    execution?.session.assertCurrent();
+    stage.assertCurrent();
     if (execution && isAbortError(error)) throw error;
     // fail-soft: RAG must never take chat down — fall back to the snapshot.
   }
@@ -332,7 +333,7 @@ ${sanitizeUntrusted(structuredBlock)}
 
 export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
   const execution = capturedConversation(input);
-  const stage = executionStage(execution);
+  const stage = executionStage(execution, input.userId);
   const cut = await stage(() => answerDeviceRed(input, execution));
   if (cut) return cut;
   const day = kstDateToday();
@@ -497,15 +498,16 @@ function capturedConversation(input: SendMessageInput): CapturedConversationExec
   return Object.freeze({ session, observer, onCrisisDetected });
 }
 
-function executionStage(execution: CapturedChatUsageExecution | null) {
-  return async <T,>(operation: () => Promise<T>): Promise<T> => {
-    execution?.session.assertCurrent();
+function executionStage(execution: CapturedChatUsageExecution | null, ownerId?: string) {
+  const assertCurrent = execution ? () => execution.session.assertCurrent() : captureLiveOwnerCheck(ownerId ?? "");
+  return Object.assign(async <T,>(operation: () => Promise<T>): Promise<T> => {
+    assertCurrent();
     let result: T;
     try { result = await operation(); }
-    catch (error) { execution?.session.assertCurrent(); throw error; }
-    execution?.session.assertCurrent();
+    catch (error) { assertCurrent(); throw error; }
+    assertCurrent();
     return result;
-  };
+  }, { assertCurrent });
 }
 
 // 이번 턴에만 붙는 말투 보정(Q-261018-55 다 · 리뷰 #2632 r1). 항상 켜진 말투 줄(SYSTEM_PROMPT_HEADER)은

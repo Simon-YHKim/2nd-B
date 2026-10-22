@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 // Orchestration tests for sendChatMessage. Verifies the call sequence,
 // the atomic quota accounting, and the blocked-tier path that returns a
 // localized hint.
@@ -422,11 +425,13 @@ describe("sendChatMessage", () => {
     test("the verdict gets the message as typed, the locale, the user and the minor flag", async () => {
       fixtures.deviceRed = FIXED;
       const typed = `  ${RED}\n `;
+      __resetAccountEpochForTests(); noteResolvedOwner("u7");
       await sendChatMessage({ userId: "u7", message: typed, locale: "ko", tier: "soma", minor: true });
       expect(classifyChatTextForCrisis).toHaveBeenCalledTimes(1);
       expect(classifyChatTextForCrisis).toHaveBeenLastCalledWith(typed, "ko", "u7", true);
 
       // An unknown age stays unknown on the way in: no adult default is written here.
+      __resetAccountEpochForTests(); noteResolvedOwner("u1");
       await sendChatMessage({ userId: "u1", message: RED, locale: "en", tier: "soma" });
       expect(classifyChatTextForCrisis).toHaveBeenCalledTimes(2);
       expect(classifyChatTextForCrisis).toHaveBeenLastCalledWith(RED, "en", "u1", undefined);
@@ -582,10 +587,10 @@ describe("sendChatMessage", () => {
 
     test("the lines the legal documents cite still hold what they are cited for", () => {
       const line = (n: number): string => SRC.split("\n")[n - 1] ?? "";
-      expect(line(258)).toContain("exportUserWiki(");
-      expect(line(263)).toContain("includeSavedConversations: true");
+      expect(line(259)).toContain("exportUserWiki(");
       expect(line(264)).toContain("includeSavedConversations: true");
-      // :287 and :329 are held by dpia-crisis-rail-anchors.test.ts (wiki_snapshot, SYSTEM_PROMPT_HEADER).
+      expect(line(265)).toContain("includeSavedConversations: true");
+      // :288 and :330 are held by dpia-crisis-rail-anchors.test.ts (wiki_snapshot, SYSTEM_PROMPT_HEADER).
     });
 
     // The tests above read strings, and the unit tests further up mock the boundary call. So a
@@ -656,7 +661,7 @@ describe("sendChatMessage", () => {
       if (!body) throw new Error("sendChatMessage has no body");
       expect(texts(body.statements.slice(0, 10))).toEqual([
         "const execution = capturedConversation(input);",
-        "const stage = executionStage(execution);",
+        "const stage = executionStage(execution, input.userId);",
         "const cut = await stage(() => answerDeviceRed(input, execution));",
         "if (cut) return cut;",
         "const day = kstDateToday();",

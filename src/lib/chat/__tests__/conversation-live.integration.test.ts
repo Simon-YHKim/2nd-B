@@ -6,11 +6,22 @@ const mockQuery = jest.fn();
 jest.mock("@google/genai", () => ({ GoogleGenAI: jest.fn(() => { throw new Error("direct_network_forbidden"); }) }));
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
-    rpc: mockRpc, functions: { invoke: mockInvoke },
+    rpc: (...args: unknown[]) => {
+      let signal: AbortSignal | undefined;
+      const query = {
+        abortSignal: (next: AbortSignal) => { signal = next; return query; },
+        then: (yes: (value: unknown) => void, no: (error: unknown) => void) =>
+          Promise.resolve().then(() => {
+            if (signal?.aborted) throw Object.assign(new Error("owner_changed"), { name: "AbortError" });
+            return mockRpc(...args);
+          }).then(yes, no),
+      };
+      return query;
+    }, functions: { invoke: mockInvoke },
     from: (table: string) => {
       let columns = "";
       const query: Record<string, unknown> = {};
-      for (const method of ["select", "eq", "not", "order", "limit", "in", "contains", "range", "is", "maybeSingle"]) {
+      for (const method of ["select", "eq", "not", "order", "limit", "in", "contains", "range", "is", "maybeSingle", "abortSignal"]) {
         query[method] = (...args: unknown[]) => { if (method === "select") columns = String(args[0]); return query; };
       }
       query.then = (resolve: (value: unknown) => void, reject: (error: unknown) => void) =>
@@ -152,17 +163,17 @@ test.each(["semantic", "lexical"].flatMap(path => ["none", "switch", "return"].m
   },
 );
 
-test.each(["semantic", "lexical"])("R4 legacy %s input RED still writes once after an owner switch", async path => {
+test.each(["semantic", "lexical"])("legacy %s input RED retains the original owner's crisis instead of sending as the next account", async path => {
   const message = path === "semantic" ? "I want.to die." : "I want to kill myself.";
   semantic = () => ({ data: { text: '{"zone":"red","triggers":["active_ideation_no_method"],"confidence":0.9}' }, error: null });
   const audit = deferred<unknown>(), transport = mockRpc.getMockImplementation()!;
   mockRpc.mockImplementation((name, args) => name.startsWith("log_ai_audit") ? audit.promise : transport(name, args));
-  const pending = sendChatMessage({ ...input, message });
+  const pending = sendChatMessage({ ...input, message }).catch(error => error);
   await until(() => mockRpc.mock.calls.some(([name]) => name.startsWith("log_ai_audit")));
   noteResolvedOwner("owner-b");
   audit.resolve({ data: null, error: null });
-  expect(await pending).toMatchObject({ status: "ok", reply: { safety: { zone: "red" } } });
-  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(1);
+  expect(await pending).toMatchObject({ name: "AbortError" });
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(0);
 });
 
 test.each(["usage", "loader"].flatMap(stage => ["switch", "return"].map(change => [stage, change])))(
@@ -786,17 +797,17 @@ test.each(["server", "failover", "output"].flatMap(path => ["none", "switch", "r
     mockRpc.mockImplementation(transport);
 });
 
-test.each(["server", "output"])("R3 legacy %s crisis keeps its existing unfenced audit behavior", async path => {
+test.each(["server", "output"])("legacy %s crisis sends no restricted row as the next account", async path => {
   primary = () => path === "output" ? success("I want to kill myself.") : failure(422, "safety_red_zone");
   const audit = deferred<unknown>(), transport = mockRpc.getMockImplementation()!;
   mockRpc.mockImplementation((name, args) => name.startsWith("log_ai_audit") && args.p_purpose === "secondb_chat"
     ? audit.promise : transport(name, args));
-  const pending = sendChatMessage(input);
+  const pending = sendChatMessage(input).catch(error => error);
   await until(() => audits().length === 1);
   noteResolvedOwner("owner-b");
   audit.resolve({ data: null, error: null });
-  expect(await pending).toMatchObject({ status: "ok", reply: { safety: { zone: "red" } } });
-  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(1);
+  expect(await pending).toMatchObject({ name: "AbortError" });
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith("log_crisis_event"))).toHaveLength(0);
 });
 
 test("R3 non-crisis 422 publishes no notice and cannot consume the next real notice", async () => {

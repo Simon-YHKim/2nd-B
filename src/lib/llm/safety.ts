@@ -17,6 +17,7 @@ import { GoogleGenAI } from "@google/genai";
 import { emergencyGuidance, emergencyHotlineForText } from "../safety/emergency-routing";
 import { getEnv } from "../env";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { captureLiveOwnerCheck, observeLiveOwner } from "../auth/live-owner-guard";
 import { abortError, throwIfAborted } from "../async/abort";
 import { isTimeoutError, withTimeout } from "../async/with-timeout";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
@@ -137,6 +138,7 @@ function noteSemanticUnavailable(opts?: {
   userId?: string;
   lexiconZone?: SafetyZone;
   capturedSession?: AuthenticatedAccountSessionLease;
+  assertCurrent?: () => void;
 }): void {
   // Fast exit only when BOTH signals are already emitted this session.
   if (_semanticDarkWarned && _semanticDarkAudited) return;
@@ -165,6 +167,8 @@ function noteSemanticUnavailable(opts?: {
     // an anon first-hit doesn't consume the once-per-session audit slot. Never
     // throws -- the safety path must not break on a telemetry failure.
     if (!_semanticDarkAudited && opts?.userId) {
+      opts.assertCurrent?.();
+      const liveOwner = opts.assertCurrent ? observeLiveOwner(opts.assertCurrent) : undefined;
       _semanticDarkAudited = true;
       void insertAiAuditLog({
         userId: opts.userId,
@@ -175,9 +179,9 @@ function noteSemanticUnavailable(opts?: {
         safetyZone: opts.lexiconZone ?? "green",
         latencyMs: 0,
         purpose: "safety_classify",
-      }, opts.capturedSession?.accessToken, opts.capturedSession?.signal).catch(() => {
+      }, opts.capturedSession?.accessToken, opts.capturedSession?.signal ?? liveOwner?.signal).catch(() => {
         // best-effort health signal; never surface
-      });
+      }).finally(() => liveOwner?.release());
     }
   } catch {
     // The safety path must never throw.
@@ -241,11 +245,12 @@ async function classifyViaProxy(
   userMessage: string,
   locale: "en" | "ko",
   capturedSession?: AuthenticatedAccountSessionLease,
+  signal?: AbortSignal,
 ): Promise<SafetyResult | null> {
   capturedSession?.assertCurrent();
   // Direct read: babel-preset-expo inlines this independent, default-off flag.
   if (process.env.EXPO_PUBLIC_SERVER_SAFETY !== "true") return null;
-  return requestProxyClassification(userMessage, locale, capturedSession);
+  return requestProxyClassification(userMessage, locale, capturedSession, signal);
 }
 
 // R1: 449 production-seat round trips on 2026-10-11 measured median 1.5s,
@@ -306,7 +311,9 @@ export function noteObfuscationUnavailable(
   capturedSession?: AuthenticatedAccountSessionLease,
   signal?: AbortSignal,
 ): void {
+  const liveOwner = capturedSession ? undefined : observeLiveOwner(captureLiveOwnerCheck(userId), signal);
   try {
+    liveOwner?.assertCurrent();
     void insertAiAuditLog({
       userId,
       promptHash: "",
@@ -316,8 +323,10 @@ export function noteObfuscationUnavailable(
       safetyZone: lexiconZone,
       latencyMs: 0,
       purpose: "safety_classify",
-    }, capturedSession?.accessToken, capturedSession?.signal ?? signal).catch(() => {});
+    }, capturedSession?.accessToken, capturedSession?.signal ?? liveOwner?.signal ?? signal)
+      .catch(() => {}).finally(() => liveOwner?.release());
   } catch {
+    liveOwner?.release();
     // Best effort, like noteSemanticUnavailable; generation must remain available.
   }
 }
@@ -416,12 +425,14 @@ async function requestProxyClassification(
 export async function classifySafety(
   userMessage: string,
   locale: "en" | "ko",
-  opts?: { userId?: string; capturedSession?: AuthenticatedAccountSessionLease; onRed?: CrisisObserver },
+  opts?: { userId?: string; capturedSession?: AuthenticatedAccountSessionLease; onRed?: CrisisObserver;
+    assertCurrent?: () => void; signal?: AbortSignal },
 ): Promise<SafetyResult> {
-  opts?.capturedSession?.assertCurrent();
+  const fence = () => { opts?.assertCurrent?.(); opts?.capturedSession?.assertCurrent(); throwIfAborted(opts?.signal); };
+  fence();
   const notifyRed = (result: SafetyResult): void => {
     if (result.zone !== "red" || !opts?.onRed) return;
-    opts.capturedSession?.assertCurrent();
+    fence();
     try { opts.onRed(result.hotline); } catch { /* Continue the classifier's audit/result. */ }
   };
   // Layer 1: lexicon. Always runs synchronously. Dual-locale: catch a crisis
@@ -438,8 +449,8 @@ export async function classifySafety(
   const client = getFlashClient();
   if (!client) {
     // D4 (flag-gated): try the server-side classifier before degrading to lexicon.
-    const viaProxy = await classifyViaProxy(userMessage, locale, opts?.capturedSession);
-    opts?.capturedSession?.assertCurrent();
+    const viaProxy = await classifyViaProxy(userMessage, locale, opts?.capturedSession, opts?.signal);
+    fence();
     if (viaProxy) {
       const result = mergeResults(lex, viaProxy);
       notifyRed(result);
@@ -449,6 +460,7 @@ export async function classifySafety(
       userId: opts?.userId,
       lexiconZone: lex.zone,
       capturedSession: opts?.capturedSession,
+      assertCurrent: opts?.assertCurrent,
     });
     return lex;
   }
@@ -461,7 +473,7 @@ export async function classifySafety(
         { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\nUser message (locale=${locale}):\n"""\n${userMessage}\n"""\n\nClassify now. Output JSON only, no prose.` }] },
       ],
       config: {
-        ...(opts?.capturedSession ? { abortSignal: opts.capturedSession.signal } : {}),
+        ...(opts?.capturedSession || opts?.signal ? { abortSignal: opts.capturedSession?.signal ?? opts?.signal } : {}),
         responseMimeType: "application/json",
         responseSchema: {
           type: "object",
@@ -474,7 +486,7 @@ export async function classifySafety(
         },
       },
     });
-    opts?.capturedSession?.assertCurrent();
+    fence();
     const latencyMs = Date.now() - t0;
     const text = (res.text ?? "").trim();
     let result: SafetyResult = lex;
@@ -525,7 +537,7 @@ export async function classifySafety(
           // 0095: the A18 seat name — same label the proxy path self-reports
           // (classifyViaProxy), so classifier rows aggregate under one purpose.
           purpose: "safety_classify",
-        }, opts.capturedSession?.accessToken, opts.capturedSession?.signal);
+        }, opts.capturedSession?.accessToken, opts.capturedSession?.signal ?? opts.signal);
         opts.capturedSession?.assertCurrent();
       } catch {
         if (typeof console !== "undefined") console.warn("[safety] classifier audit failed");
@@ -533,7 +545,7 @@ export async function classifySafety(
     }
     return result;
   } catch {
-    opts?.capturedSession?.assertCurrent();
+    fence();
     if (typeof console !== "undefined") console.warn("[safety] llm classifier failed, using lexicon");
     return lex;
   }

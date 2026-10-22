@@ -70,8 +70,12 @@ export async function insertCrisisEvent(
   };
   const name = outboxEventId === undefined ? "log_crisis_event" : "log_crisis_event_once";
   const body = outboxEventId === undefined ? args : { p_outbox_event_id: outboxEventId, ...args };
+  const liveRequest = () => {
+    const query = getSupabaseClient().rpc(name, body);
+    return signal ? query.abortSignal(signal) : query;
+  };
   const { error } = accessToken
     ? await rpcWithCapturedSession(name, body, accessToken, signal)
-    : await getSupabaseClient().rpc(name, body);
+    : await liveRequest();
   if (error) throw error;
 }

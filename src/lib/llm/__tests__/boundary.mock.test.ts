@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 // C9 + C3 invariants in mock mode. Mirrors gemini.test.ts but flips
 // EXPO_PUBLIC_LLM_MODE to "mock" so callLlm takes the templated-response
 // branch. Same safety contract applies: red zone short-circuits, every call

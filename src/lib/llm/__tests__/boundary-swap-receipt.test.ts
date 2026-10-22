@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("owner-a"); });
+
 const mockInvoke = jest.fn();
 const mockSemantic = jest.fn();
 jest.mock("@google/genai", () => ({ GoogleGenAI: jest.fn() }));
