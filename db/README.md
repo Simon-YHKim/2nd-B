@@ -57,6 +57,8 @@ four RPC signatures, argument names, ACL and return types, including
 `refund_chat_turn_after_output_swap(p_audit_id uuid)` and integer zero vs NULL.
 No app/proxy activation, purpose restoration, `quota_day` or daily restoration
 cap is included. F awaits Simon's answer. The commit is not rollout approval.
+Apply while app settlement is still off; an in-flight 0255 refund can deadlock
+with the apply-time table locks (40P01), so retry the failed transaction.
 
 Simon 2026-10-14 14:12:02: 「앞선 답 없는 예약을 닫아 가장 최근 하나만 묶이게」.
 S changes deletion into closing binding while retaining evidence. A closed
@@ -89,20 +91,38 @@ and account-deletion races. The observer must see the follower blocked by the
 leader in `pg_stat_activity` before releasing it. Begin/claim are also held open
 while another connection takes `users FOR UPDATE NOWAIT`; neither adds the
 parent KEY SHARE lock. Bump/refund take that lock before their child rows.
+Refund first rejects missing/foreign audit, spent ledger and missing/foreign/
+refunded reservation evidence using reads without row locks. Eligible refunds
+still lock users, usage, then reservation, and recheck eligibility/time after
+waiting; the deletion lock order is unchanged. Global slot counting uses two
+partial audit-ID indexes and UNION ALL (including both slots in one row).
+The user advisory lock cannot justify ignoring another owner's corrupt slot.
+The runner checks the actual count query with EXPLAIN ANALYZE on 30,000 other
+reservations, plus refusal-path users FOR UPDATE NOWAIT compatibility.
 E1-S remains unchanged, including its own account-deletion lock behavior.
 
 The S-specific down restores the exact 0255 function bodies/ACL and reservation
 columns/constraint, while retaining E1-S and settled counters/ledger rows.
 Closed rows without a representative have no 0255 representation and are
 removed; no audit ID is invented. This is schema/behavior rollback, not recovery
-of all S evidence. Stop S traffic before rollback. Do not use `0255_down.sql`,
+of all S evidence. Stop S traffic before rollback. Down refuses with SQLSTATE
+55000 while any closed attempts=2 row has attempted_at within the last five
+minutes: discarding closure then could reopen 0255's answer replacement path.
+Wait for that window to expire and retry; the guard runs under table locks
+before any destructive change. The runner removes the guard in a mutant and
+requires the refusal assertion to fail, then ages synthetic attempts and checks
+successful down, including removal of both S indexes. Do not use `0255_down.sql`,
 which drops E1-S's begin dependency. Source digests refuse to overwrite newer
 definitions; inspect/re-review drift instead of bypassing the guard. The runner
-compares installed catalog snapshots before S and after its down, runs E1-S
-again, reapplies S and reruns the sequential assertions.
+compares installed catalog snapshots before S and after its down, reruns the
+E1-S test file (`tests/chat-turn-attempt-with-quota.sql`), reapplies S and reruns
+the sequential assertions. It does not reapply E1-S in this rollback step.
 
 The three booleans need a retention-description update, but no class/owner or
-retention-period change. The candidate is
+cleanup-threshold change. Previously, attempted unanswered rows disappeared at
+the next bump; S retains them as closed refund evidence until a later bump
+finds them older than two days, or account deletion if no further bump occurs.
+The candidate is
 `migration-drafts/chat-turn-refund-evidence-erasure-revision.json`; the runner
 checks it against the real registry and schema. Promote it as a separate
 reason-only `forwardRevisions` migration with S (including the rollback list),

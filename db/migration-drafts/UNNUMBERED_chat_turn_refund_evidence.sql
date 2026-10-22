@@ -24,10 +24,10 @@ DO $source_guard$
 DECLARE v record;
 BEGIN
   FOR v IN SELECT * FROM (VALUES
-    ('public.bump_chat_usage_for_turn(uuid,date)', ARRAY['de66cf03d34be1bfa94e9a7be264819c','cee3d824f02778716cd236802630f923']),
+    ('public.bump_chat_usage_for_turn(uuid,date)', ARRAY['de66cf03d34be1bfa94e9a7be264819c','e48d46f5920a2a09a0c87be6ffe04ce7']),
     ('public.begin_chat_turn_attempt(uuid,uuid,uuid)', ARRAY['0489a7a5782c2d3f61992b8dcd929c4e','f8720564d8ec971a208f7e4957ecf484']),
     ('public.claim_chat_turn_for_audit(uuid,uuid,uuid)', ARRAY['256e696462ed40c841e8c87be84880eb','e2cf42ca697af45301640e7c06eb5df0']),
-    ('public.refund_chat_turn_after_output_swap(uuid)', ARRAY['4f2ea195a24d23480d105b2efe5b8b8c','1ba16b02236f4dd5acc66a139ed58cb2']),
+    ('public.refund_chat_turn_after_output_swap(uuid)', ARRAY['4f2ea195a24d23480d105b2efe5b8b8c','3397e5362b6faa62f416cd1ef5e9a81d']),
     ('public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)', ARRAY['9d8ecd755cf436aa3882b2d2854a46c9'])
   ) AS expected(signature, hashes) LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_proc
@@ -58,6 +58,12 @@ BEGIN
   END IF;
 END
 $columns$;
+
+-- Keep global duplicate-slot checks selective without changing attribution rules.
+CREATE INDEX IF NOT EXISTS chat_turn_reservations_attempt1_audit_idx
+  ON public.chat_turn_reservations (attempt1_audit_id) WHERE attempt1_audit_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS chat_turn_reservations_attempt2_audit_idx
+  ON public.chat_turn_reservations (attempt2_audit_id) WHERE attempt2_audit_id IS NOT NULL;
 
 -- Only a formerly bound answer proves delivery at the migration boundary.
 -- Reapply never clears evidence. Do not infer delivery for the replaced attempt.
@@ -113,7 +119,7 @@ BEGIN
   END IF;
   v_count := public.bump_chat_usage_if_under_cap(p_user_id, p_day, 0);
   UPDATE public.chat_turn_reservations SET binding_closed = true
-   WHERE user_id = p_user_id AND state <> 'refunded';
+   WHERE user_id = p_user_id AND state <> 'refunded' AND NOT binding_closed;
   DELETE FROM public.chat_turn_reservations AS r
    WHERE r.user_id = p_user_id
      AND ((r.state = 'counted' AND r.attempts = 0)
@@ -235,18 +241,30 @@ BEGIN
   IF p_audit_id IS NULL THEN RETURN NULL; END IF;
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('chat_turn_bump:' || v_user::text, 0));
-  PERFORM 1 FROM public.users WHERE id = v_user FOR KEY SHARE;
-  IF NOT FOUND THEN RETURN NULL; END IF;
+
+  -- Cheap refusal reads take no row locks (0242 FOR UPDATE NOWAIT). Recheck
+  -- eligibility and the clock below after every row-lock wait.
+  IF NOT EXISTS (SELECT 1 FROM public.ai_audit_log WHERE id = p_audit_id AND user_id = v_user)
+     OR EXISTS (SELECT 1 FROM public.chat_turn_refunds WHERE audit_id = p_audit_id) THEN RETURN NULL; END IF;
 
   -- Count ALL slots, including other owners/terminal rows: corrupt attribution
   -- must not pick an arbitrary reservation or ignore a second copy in one row.
-  SELECT count(*) INTO v_matches FROM public.chat_turn_reservations AS r
-    CROSS JOIN LATERAL (VALUES (r.attempt1_audit_id), (r.attempt2_audit_id)) AS a(id)
-   WHERE a.id = p_audit_id;
+  -- UNION ALL counts two equal slots in one row twice; each arm uses its index.
+  -- A user lock does not justify ignoring corrupt slots owned by other users.
+  SELECT count(*) INTO v_matches FROM (
+    SELECT 1 FROM public.chat_turn_reservations WHERE attempt1_audit_id = p_audit_id
+    UNION ALL
+    SELECT 1 FROM public.chat_turn_reservations WHERE attempt2_audit_id = p_audit_id
+  ) AS slots;
   IF v_matches <> 1 THEN RETURN NULL; END IF;
   SELECT turn_id, counted_day INTO v_turn, v_day FROM public.chat_turn_reservations
-   WHERE user_id = v_user AND (attempt1_audit_id = p_audit_id OR attempt2_audit_id = p_audit_id);
+   WHERE user_id = v_user AND state <> 'refunded'
+     AND (attempt1_audit_id = p_audit_id OR attempt2_audit_id = p_audit_id);
   IF v_turn IS NULL THEN RETURN NULL; END IF;
+
+  -- Parent still precedes every child row lock, including FK-cascade deletion.
+  PERFORM 1 FROM public.users WHERE id = v_user FOR KEY SHARE;
+  IF NOT FOUND THEN RETURN NULL; END IF;
 
   -- Consistent child order: usage, then reservation. E1-S is unchanged.
   PERFORM 1 FROM public.chat_usage WHERE user_id = v_user AND day = v_day FOR UPDATE;

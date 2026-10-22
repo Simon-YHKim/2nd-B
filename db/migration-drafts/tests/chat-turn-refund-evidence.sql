@@ -1,6 +1,15 @@
 \set ON_ERROR_STOP on
 -- S-specific expectations in a separate clone. Historical 0255 regression is unchanged.
 BEGIN;
+CREATE TEMP TABLE t40_closure_updates(turn_id uuid);
+CREATE FUNCTION t40.track_closure_update() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.user_id=t40.id(28) THEN INSERT INTO pg_temp.t40_closure_updates VALUES(NEW.turn_id); END IF;
+ RETURN NEW;
+END;
+$$;
+CREATE TRIGGER t40_track_closure AFTER UPDATE OF binding_closed ON public.chat_turn_reservations
+ FOR EACH ROW EXECUTE FUNCTION t40.track_closure_update();
 DO $contracts$
 DECLARE n int; f text; role_name text; expected_role text; b jsonb; before_state jsonb; got text;
 BEGIN
@@ -61,6 +70,12 @@ BEGIN
  PERFORM t40.check(t40.refund(3) IS NULL AND NOT t40.claim(3) AND NOT t40.begin_attempt(3,4)
   AND t40.snapshot(3)=before_state,'ledger FK deletion never reopens refunded reservation');
 
+ -- Registering attempt 2 is not proof that it passed the server return gate.
+ PERFORM t40.setup(26,2); PERFORM t40.audit(26,3); PERFORM t40.audit(26,4); PERFORM t40.claim(26,3);
+ before_state:=t40.snapshot(26);
+ PERFORM t40.check(t40.refund(26,4) IS NULL AND t40.snapshot(26)=before_state,'undelivered attempt two refuses without writes');
+ PERFORM t40.check(t40.claim(26,4) AND t40.refund(26,4)=1,'delivered attempt two refunds');
+
  -- Bump closes attempted reservations; late red records evidence without binding.
  PERFORM t40.setup(4,1); PERFORM t40.audit(4);
  b:=t40.bump(4);
@@ -84,6 +99,11 @@ BEGIN
  b:=t40.bump(7);
  PERFORM t40.check(t40.refund(7) IS NULL AND NOT EXISTS(SELECT 1 FROM public.chat_turn_reservations WHERE turn_id=t40.id(7,2)),'two day cleanup removes refund evidence');
 
+ PERFORM t40.setup(28,1); PERFORM t40.bump(28);
+ DELETE FROM pg_temp.t40_closure_updates;
+ PERFORM t40.bump(28);
+ PERFORM t40.check((SELECT count(*)=1 FROM pg_temp.t40_closure_updates),'bump updates only newly closed row');
+
  -- Exactly one slot globally, not LIMIT 1. Both same-row and cross-row corruption.
  PERFORM t40.setup(8,1); PERFORM t40.audit(8); PERFORM t40.claim(8);
  UPDATE public.chat_turn_reservations SET attempts=2,attempt2_audit_id=attempt1_audit_id WHERE turn_id=t40.id(8,2);
@@ -96,6 +116,22 @@ BEGIN
  PERFORM t40.check(t40.refund(8) IS NULL AND t40.snapshot(8)=before_state,'cross-row duplicate attribution refuses');
  PERFORM t40.check(NOT public.claim_chat_turn_for_audit(t40.id(8),t40.id(8,3),t40.id(8,6))
   AND t40.snapshot(8)=before_state,'representative collision records no delivery');
+
+ -- A closed row never attempts a representative UPDATE, so only the explicit
+ -- collision guard can refuse this evidence-only write.
+ PERFORM t40.setup(27,1); PERFORM t40.audit(27); PERFORM t40.claim(27);
+ INSERT INTO public.chat_turn_reservations(turn_id,user_id,counted_day,attempts,attempt1_audit_id,attempted_at,binding_closed)
+ SELECT t40.id(27,6),user_id,counted_day,1,attempt1_audit_id,attempted_at,true
+ FROM public.chat_turn_reservations WHERE turn_id=t40.id(27,2);
+ before_state:=t40.snapshot(27);
+ PERFORM t40.check(NOT public.claim_chat_turn_for_audit(t40.id(27),t40.id(27,3),t40.id(27,6))
+  AND t40.snapshot(27)=before_state,'evidence-only collision records no delivery');
+
+ PERFORM t40.setup(29,1); PERFORM t40.audit(29); PERFORM t40.claim(29);
+ PERFORM t40.setup(30,1);
+ UPDATE public.chat_turn_reservations SET attempts=2,attempt2_audit_id=t40.id(29,3) WHERE turn_id=t40.id(30,2);
+ before_state:=t40.snapshot(29);
+ PERFORM t40.check(t40.refund(29) IS NULL AND t40.snapshot(29)=before_state,'other-owner duplicate attribution refuses');
 
  -- Green and red may both have returned: S refunds chat only, never purpose.
  PERFORM t40.setup(9,2); PERFORM t40.audit(9,3,'green'); PERFORM t40.audit(9,4);

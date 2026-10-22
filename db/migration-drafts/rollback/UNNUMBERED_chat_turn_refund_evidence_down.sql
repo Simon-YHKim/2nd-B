@@ -2,20 +2,33 @@
 -- Restore the 0255 schema/function contract, not a reversal of settled money/counts.
 -- Closed unbound evidence has no 0255 representation: remove those reservation
 -- rows, keeping the refund ledger and all usage counters. No synthetic answer.
--- Stop new S traffic before rollback; retained answered/refunded rows remain.
+-- Stop new S traffic before rollback; the guard refuses a live rebind window.
 LOCK TABLE public.users IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.chat_usage, public.chat_turn_reservations, public.chat_turn_refunds
   IN ACCESS EXCLUSIVE MODE;
+
+-- 0255 can replace an answered attempt 1 with attempt 2 for five minutes.
+-- Never discard closure while that old binding path could reopen a closed row.
+DO $rebind_guard$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.chat_turn_reservations
+              WHERE binding_closed AND attempts = 2
+                AND attempted_at > pg_catalog.clock_timestamp() - interval '5 minutes') THEN
+    RAISE EXCEPTION 'T40 S down: closed attempt 2 is within the five-minute 0255 rebind window; stop S traffic and retry after it expires'
+      USING ERRCODE = '55000';
+  END IF;
+END
+$rebind_guard$;
 
 -- Refuse to overwrite a newer function. CRLF is normalized for local replay.
 DO $source_guard$
 DECLARE v record;
 BEGIN
   FOR v IN SELECT * FROM (VALUES
-    ('public.bump_chat_usage_for_turn(uuid,date)', ARRAY['cee3d824f02778716cd236802630f923']),
+    ('public.bump_chat_usage_for_turn(uuid,date)', ARRAY['e48d46f5920a2a09a0c87be6ffe04ce7']),
     ('public.begin_chat_turn_attempt(uuid,uuid,uuid)', ARRAY['f8720564d8ec971a208f7e4957ecf484']),
     ('public.claim_chat_turn_for_audit(uuid,uuid,uuid)', ARRAY['e2cf42ca697af45301640e7c06eb5df0']),
-    ('public.refund_chat_turn_after_output_swap(uuid)', ARRAY['1ba16b02236f4dd5acc66a139ed58cb2']),
+    ('public.refund_chat_turn_after_output_swap(uuid)', ARRAY['3397e5362b6faa62f416cd1ef5e9a81d']),
     ('public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)', ARRAY['9d8ecd755cf436aa3882b2d2854a46c9'])
   ) AS expected(signature, hashes) LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_proc
@@ -27,6 +40,9 @@ BEGIN
   END LOOP;
 END
 $source_guard$;
+
+DROP INDEX public.chat_turn_reservations_attempt1_audit_idx;
+DROP INDEX public.chat_turn_reservations_attempt2_audit_idx;
 
 DELETE FROM public.chat_turn_reservations
  WHERE audit_id IS NULL AND (binding_closed OR state = 'refunded');

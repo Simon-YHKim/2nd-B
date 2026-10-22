@@ -28,6 +28,38 @@ ENV.update(PGCONNECT_TIMEOUT='5', PGCLIENTENCODING='UTF8',
 LOG = Path(tempfile.mkdtemp(prefix='t40-evidence-'))
 CHECKS = []
 COUNTER = 0
+RACE_SCHEDULES = []
+KILLED_MUTANTS = []
+
+# All fixtures run before S, including two attempts and strictly ordered rows.
+APPLY_FIXTURE = """
+SELECT t40.setup(n,1) FROM generate_series(301,304) AS n;
+SELECT t40.audit(n,3) FROM generate_series(301,304) AS n;
+SELECT t40.claim(301); SELECT t40.claim(302); SELECT t40.refund(302);
+INSERT INTO public.chat_turn_reservations(turn_id,user_id,counted_day,issued_at,attempts,attempt1_audit_id,attempted_at)
+ SELECT t40.id(303,6),user_id,counted_day,issued_at,1,t40.id(303,5),attempted_at
+ FROM public.chat_turn_reservations WHERE turn_id=t40.id(303,2);
+SELECT t40.setup(n,2) FROM generate_series(401,403) AS n;
+SELECT t40.audit(n,3) FROM generate_series(401,403) AS n;
+SELECT t40.audit(n,4) FROM generate_series(401,403) AS n;
+SELECT t40.claim(401,3); SELECT t40.claim(402,3); SELECT t40.claim(402,4);
+SELECT t40.claim(403,4); SELECT t40.refund(403,4);
+INSERT INTO public.chat_turn_reservations(turn_id,user_id,counted_day,issued_at,attempts,attempt1_audit_id,attempted_at)
+ SELECT t40.id(401,6),user_id,counted_day,issued_at+interval '0.2 seconds',1,t40.id(401,5),attempted_at
+ FROM public.chat_turn_reservations WHERE turn_id=t40.id(401,2);
+INSERT INTO public.chat_turn_reservations(turn_id,user_id,counted_day,issued_at)
+ SELECT t40.id(401,7),user_id,counted_day,issued_at+interval '0.4 seconds'
+ FROM public.chat_turn_reservations WHERE turn_id=t40.id(401,2);
+"""
+APPLY_CHECKS = [
+    ('SELECT bool_and(attempt1_delivered AND NOT attempt2_delivered) FROM public.chat_turn_reservations WHERE user_id IN(t40.id(301),t40.id(302))', 'answered/refunded backfill only representative'),
+    ('SELECT bool_and(binding_closed) FROM public.chat_turn_reservations WHERE user_id=t40.id(303)', 'all newest ties closed'),
+    ('SELECT NOT binding_closed AND NOT attempt1_delivered FROM public.chat_turn_reservations WHERE user_id=t40.id(304)', 'unique newest stays open'),
+    ('SELECT count(*)=2 AND bool_and(binding_closed) FROM public.chat_turn_reservations WHERE turn_id IN(t40.id(401,2),t40.id(401,6))', 'strictly older reservations closed'),
+    ('SELECT NOT binding_closed FROM public.chat_turn_reservations WHERE turn_id=t40.id(401,7)', 'strictly newest reservation stays open'),
+    ('SELECT attempt1_delivered AND NOT attempt2_delivered FROM public.chat_turn_reservations WHERE turn_id=t40.id(401,2)', 'two attempts unclaimed second is not backfilled'),
+    ('SELECT count(*)=2 AND bool_and(NOT attempt1_delivered AND attempt2_delivered) FROM public.chat_turn_reservations WHERE user_id IN(t40.id(402),t40.id(403))', 'two attempts only second representative backfilled'),
+]
 
 
 def args(db=DB):
@@ -103,6 +135,11 @@ def schema_snapshot():
     AND attnum>0 AND NOT attisdropped),
  'constraints',(SELECT jsonb_agg(jsonb_build_array(conname,pg_get_constraintdef(oid)) ORDER BY conname)
     FROM pg_constraint WHERE conrelid IN ('public.chat_turn_reservations'::regclass,'public.chat_turn_refunds'::regclass)),
+ 'indexes',(SELECT jsonb_agg(jsonb_build_array(indexname,indexdef) ORDER BY indexname)
+    FROM pg_indexes WHERE schemaname='public' AND tablename IN ('chat_turn_reservations','chat_turn_refunds')),
+ 'triggers',(SELECT jsonb_agg(pg_get_triggerdef(oid) ORDER BY tgrelid::regclass::text,tgname)
+    FROM pg_trigger WHERE tgrelid IN ('public.chat_turn_reservations'::regclass,'public.chat_turn_refunds'::regclass)),
+ 'registry',(SELECT to_jsonb(r) FROM public.erasure_registry r WHERE table_name='chat_turn_reservations'),
  'rls',(SELECT jsonb_build_array(relrowsecurity,relacl::text,obj_description(oid,'pg_class')) FROM pg_class
     WHERE oid='public.chat_turn_reservations'::regclass));"""))
 
@@ -176,6 +213,7 @@ def race(label, leader_sql, follower_sql, final_sql):
         (LOG / (label + '.log')).write_text(out + err, encoding='utf8')
         expect(follower.returncode == 0, label + ' follower completed: ' + err[-200:])
         check(final_sql, label + ' final state')
+        RACE_SCHEDULES.append(label)
     finally:
         # Only our named sessions, only this disposable clone. Close on every failure.
         run(f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='{DB}' AND application_name LIKE 't40_{os.getpid()}_%';", check=False)
@@ -188,6 +226,32 @@ def race(label, leader_sql, follower_sql, final_sql):
 
 def setup(n, attempts=1):
     run(f'SELECT t40.setup({n},{attempts}); SELECT t40.audit({n},3); SELECT t40.audit({n},4);')
+
+
+def explain_slots(source):
+    # Explain the installed draft's actual query, with unrelated users' rows.
+    query=re.search(r'SELECT count\(\*\) INTO v_matches[\s\S]*?;',definition(source,'refund_chat_turn_after_output_swap'))[0]
+    query=query.replace(' INTO v_matches','').replace('p_audit_id','t40.id(501,3)')
+    fixture="""
+SELECT t40.setup(501,2); SELECT t40.setup(502,0);
+INSERT INTO public.chat_turn_reservations(user_id,counted_day,attempts,attempt1_audit_id,attempt2_audit_id,attempted_at)
+ SELECT t40.id(502),current_date,2,md5('first:'||n)::uuid,md5('second:'||n)::uuid,clock_timestamp()
+ FROM generate_series(1,30000) AS n;
+ANALYZE public.chat_turn_reservations;
+"""
+    result=run('BEGIN;\n'+fixture+'EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) '+query+'\nROLLBACK;')
+    plan=json.loads(result.stdout.strip())
+    (LOG/'slot-count-explain.json').write_text(json.dumps(plan,indent=2),encoding='utf8')
+    def nodes(node):
+        yield node
+        for child in node.get('Plans',[]): yield from nodes(child)
+    scans=list(nodes(plan[0]['Plan']))
+    indexes={node.get('Index Name') for node in scans}
+    expect({'chat_turn_reservations_attempt1_audit_idx','chat_turn_reservations_attempt2_audit_idx'} <= indexes,
+           'slot EXPLAIN uses both partial indexes with 30000 unrelated rows')
+    expect(not any(node.get('Relation Name')=='chat_turn_reservations' and 'Seq Scan' in node['Node Type'] for node in scans),
+           'slot EXPLAIN has no reservation sequential scan')
+    print('T40 slot count EXPLAIN execution ms:',plan[0]['Execution Time'],flush=True)
 
 
 def races():
@@ -254,6 +318,27 @@ def races():
             run(f'BEGIN; SELECT id FROM public.users WHERE id=t40.id({n}) FOR UPDATE NOWAIT; ROLLBACK;')
             expect(True,call+' does not block parent NOWAIT')
         finally: s.close()
+    # Refusal reads must not hold users KEY SHARE; no child row lock precedes
+    # that parent lock on the eligible path. Exercise both refusal locations.
+    for n, prepare in [
+        (120, 'DELETE FROM public.ai_audit_log WHERE id=t40.id(120,3);'),
+        (121, 'UPDATE public.ai_audit_log SET user_id=t40.id(301) WHERE id=t40.id(121,3);'),
+        (122, 'SELECT t40.claim(122); SELECT t40.refund(122);'),
+        (123, 'SELECT t40.claim(123); SELECT t40.refund(123); DELETE FROM public.chat_turn_refunds WHERE audit_id=t40.id(123,3);'),
+        (124, 'UPDATE public.chat_turn_reservations SET user_id=t40.id(301) WHERE turn_id=t40.id(124,2);')]:
+        setup(n); run(prepare)
+        s=Session('refund_nowait_'+str(n))
+        try:
+            s.send(f"BEGIN; SELECT t40.check(t40.refund({n}) IS NULL,'cheap refusal');"); s.ready()
+            run(f'BEGIN; SELECT id FROM public.users WHERE id=t40.id({n}) FOR UPDATE NOWAIT; ROLLBACK;')
+            expect(True,'refund cheap refusal leaves parent NOWAIT available '+str(n))
+        finally: s.close()
+    setup(125); run('SELECT t40.claim(125);')
+    s=Session('eligible_refund_nowait')
+    try:
+        s.send('BEGIN; SELECT t40.refund(125);'); s.ready()
+        check("t40.error('SELECT id FROM public.users WHERE id=t40.id(125) FOR UPDATE NOWAIT')='55P03'", 'eligible refund still holds parent lock')
+    finally: s.close()
     # All nine original T39 schedules, with S's changed bump expectations.
     schedules=[(201,0,'first','first','first','rejected'),(202,0,'reask','reask','first','reask'),
                (203,0,'first','reask','first','reask'),(204,0,'reask','first','first','rejected'),
@@ -285,28 +370,51 @@ def main():
     run(file=DRAFT/'UNNUMBERED_chat_turn_attempt_with_quota.sql',transaction=True)
     baseline=schema_snapshot()
     run(file=DRAFT/'tests/chat-turn-refund-evidence-fixture.sql')
-    # Existing answered/refunded + newest ties, before S is installed.
-    for n in (301,302,303,304): setup(n)
-    run("SELECT t40.claim(301); SELECT t40.claim(302); SELECT t40.refund(302); "
-        "INSERT INTO public.chat_turn_reservations(turn_id,user_id,counted_day,issued_at,attempts,attempt1_audit_id,attempted_at) "
-        "SELECT t40.id(303,6),user_id,counted_day,issued_at,1,t40.id(303,5),attempted_at FROM public.chat_turn_reservations WHERE turn_id=t40.id(303,2);")
+    # Preserve a 0255 + E1-S clone for real apply-time mutation checks.
+    run('CREATE DATABASE '+MUTANT+' TEMPLATE '+DB+';',db='template1')
+    run(APPLY_FIXTURE)
     for _ in range(2): run(file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql',transaction=True)
-    check('SELECT bool_and(attempt1_delivered AND NOT attempt2_delivered) FROM public.chat_turn_reservations WHERE user_id IN(t40.id(301),t40.id(302))','answered/refunded backfill only representative')
-    check('SELECT bool_and(binding_closed) FROM public.chat_turn_reservations WHERE user_id=t40.id(303)','all newest ties closed')
-    check('SELECT NOT binding_closed AND NOT attempt1_delivered FROM public.chat_turn_reservations WHERE user_id=t40.id(304)','unique newest stays open')
+    for query, label in APPLY_CHECKS: check(query,label)
+    apply_assertions='\n'.join("SELECT t40.check(("+query+"), '"+label+"');" for query,label in APPLY_CHECKS)
+    closure=re.search(r'UPDATE public.chat_turn_reservations AS r SET binding_closed = true[\s\S]*?;',source)[0]
+    for label,old,new,assertion in [
+        ('apply_closure',closure,'','all newest ties closed'),
+        ('apply_strictly_older',closure,closure.replace('n.issued_at >= r.issued_at','n.issued_at = r.issued_at'),'strictly older reservations closed'),
+        ('apply_second_unclaimed','audit_id IS NOT NULL AND audit_id IS NOT DISTINCT FROM attempt2_audit_id','attempt2_audit_id IS NOT NULL','two attempts unclaimed second is not backfilled'),
+        ('apply_second_missing',' OR (audit_id IS NOT NULL AND audit_id IS NOT DISTINCT FROM attempt2_audit_id)','','two attempts only second representative backfilled')]:
+        expect(source.count(old)==1,'mutation anchor '+label)
+        result=run('BEGIN;\n'+APPLY_FIXTURE+source.replace(old,new)+'\n'+apply_assertions+'\nROLLBACK;',db=MUTANT,check=False)
+        expect(result.returncode!=0 and 'P0040: T40 FAIL: '+assertion in result.stderr,'mutation killed '+label)
+        KILLED_MUTANTS.append(label)
     candidate=json.loads((DRAFT/'chat-turn-refund-evidence-erasure-revision.json').read_text(encoding='utf8'))['tables']['chat_turn_reservations']
     actual=json.loads(value("SELECT jsonb_build_object('owner',owner_column,'class',class,'previousReason',reason) FROM public.erasure_registry WHERE table_name='chat_turn_reservations';"))
     expect(all(candidate[k]==v for k,v in actual.items()),'registry revision matches current owner class and previous reason')
     check("EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='public.chat_turn_reservations'::regclass AND confrelid='public.users'::regclass AND contype='f' AND confdeltype='c')",'registry candidate account cascade unchanged')
     result=run(file=DRAFT/'tests/chat-turn-refund-evidence.sql')
     count=result.stderr.count('T40 PASS:')
-    expect(count==72,'sequential S assertions: '+str(count))
+    expect(count==77,'sequential S assertions: '+str(count))
     run(file=DRAFT/'tests/chat-turn-attempt-with-quota.sql')
     # Rollback with S-only closed/refunded data, and exact function/ACL/schema comparison.
     setup(305); run('SELECT t40.bump(305); SELECT t40.claim(305); SELECT t40.refund(305);')
     before=value("SELECT (t40.snapshot(305)-'r')::text;")
+    setup(306,2); run('SELECT t40.claim(306,3); SELECT t40.bump(306);')
+    down=(DRAFT/'rollback/UNNUMBERED_chat_turn_refund_evidence_down.sql').read_text(encoding='utf8')
+    before_down=schema_snapshot()
+    before_rebind=value('SELECT t40.snapshot(306)::text;')
+    result=run(down,transaction=True,check=False)
+    expect(result.returncode!=0 and '55000: T40 S down: closed attempt 2' in result.stderr,'down refuses active five-minute rebind window')
+    expect(schema_snapshot()==before_down and value('SELECT t40.snapshot(306)::text;')==before_rebind,'refused down leaves S catalog and row unchanged')
+    guard=re.search(r'DO \$rebind_guard\$[\s\S]*?\$rebind_guard\$;',down)[0]
+    run(file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql',db=MUTANT,transaction=True)
+    run('SELECT t40.setup(306,2); SELECT t40.audit(306,3); SELECT t40.claim(306,3); SELECT t40.bump(306);',db=MUTANT)
+    guard_test="SELECT t40.check(t40.error('"+down.replace(guard,'').replace("'","''")+"')='55000','down refuses active five-minute rebind window');"
+    result=run('BEGIN;\n'+guard_test+'\nROLLBACK;',db=MUTANT,check=False)
+    expect(result.returncode!=0 and 'P0040: T40 FAIL: down refuses active five-minute rebind window' in result.stderr,'mutation killed down_rebind_guard')
+    KILLED_MUTANTS.append('down_rebind_guard')
+    # Model elapsed time, without a five-minute CI sleep; closure stays intact.
+    run("UPDATE public.chat_turn_reservations SET attempted_at=clock_timestamp()-interval '6 minutes' WHERE binding_closed AND attempts=2;")
     run(file=DRAFT/'rollback/UNNUMBERED_chat_turn_refund_evidence_down.sql',transaction=True)
-    expect(schema_snapshot()==baseline,'down restores exact 0255 plus E1-S definitions ACL columns constraints RLS')
+    expect(schema_snapshot()==baseline,'down restores exact 0255 plus E1-S definitions ACL columns constraints indexes triggers registry RLS')
     expect(value("SELECT (t40.snapshot(305)-'r')::text;")==before,'down preserves settled counters and ledger')
     check('NOT EXISTS(SELECT 1 FROM public.chat_turn_reservations WHERE turn_id=t40.id(305,2))','down removes unrepresentable closed row without synthetic answer')
     run(file=DRAFT/'tests/chat-turn-attempt-with-quota.sql')
@@ -314,7 +422,6 @@ def main():
     run(file=DRAFT/'tests/chat-turn-refund-evidence.sql')
     # Every mutation is installed in the dedicated clone; only P0040 assertion
     # failures kill mutants. Syntax/connectivity/timeout errors NEVER count.
-    run('CREATE DATABASE '+MUTANT+' TEMPLATE '+DB+';',db='template1')
     for change, message in [
         (definition(source,'begin_chat_turn_attempt').replace('RETURN v_done IS NOT NULL;', 'RETURN false;'), 'unexpected installed definition'),
         ('DROP FUNCTION public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text);', 'apply E1-S first'),
@@ -323,6 +430,9 @@ def main():
         expect(result.returncode!=0 and '55000: T40 S: '+message in result.stderr,'migration fails closed: '+message)
     mutations=[
         ('delivery', 'refund_chat_turn_after_output_swap', 'AND v_row.attempt1_delivered', 'AND true', 'undelivered answered refuses without writes'),
+        ('delivery_two', 'refund_chat_turn_after_output_swap', 'AND v_row.attempt2_delivered', 'AND true', 'undelivered attempt two refuses without writes'),
+        ('evidence_collision', 'claim_chat_turn_for_audit', "IF EXISTS (SELECT 1 FROM public.chat_turn_reservations\n              WHERE audit_id = p_audit_id AND turn_id <> p_turn_id) THEN RETURN false; END IF;", '', 'evidence-only collision records no delivery'),
+        ('bump_rewrite_closed', 'bump_chat_usage_for_turn', 'AND NOT binding_closed', '', 'bump updates only newly closed row'),
         ('closed', 'begin_chat_turn_attempt', 'AND NOT r.binding_closed', '', 'closed stays closed after newer row disappears'),
         ('bump_delete', 'bump_chat_usage_for_turn', "(r.state = 'counted' AND r.attempts = 0)", "(r.state = 'counted')", 'bump preserves attempted reservation'),
         ('purpose_write', 'refund_chat_turn_after_output_swap', 'RETURN v_count;', "UPDATE public.llm_proxy_purpose_daily SET count=count+1 WHERE user_id=v_user; RETURN v_count;", 'S purpose table unchanged')]
@@ -337,9 +447,12 @@ def main():
         run(mutant,db=MUTANT)
         result=run(file=DRAFT/'tests/chat-turn-refund-evidence.sql',db=MUTANT,check=False)
         expect(result.returncode!=0 and 'P0040: T40 FAIL: '+assertion in result.stderr,'mutation killed '+label)
+        KILLED_MUTANTS.append(label)
         run(original,db=MUTANT)
     races()
-    print(json.dumps({'assertions':len(CHECKS),'sequential_assertions':count,'mutants_killed':4,'race_schedules':23,'logs':str(LOG)}),flush=True)
+    explain_slots(source)
+    print(json.dumps({'assertions':len(CHECKS),'sequential_assertions':count,'mutants_killed':len(KILLED_MUTANTS),
+                      'mutants':KILLED_MUTANTS,'race_schedules':len(RACE_SCHEDULES),'logs':str(LOG)}),flush=True)
 
 
 if __name__ == '__main__':

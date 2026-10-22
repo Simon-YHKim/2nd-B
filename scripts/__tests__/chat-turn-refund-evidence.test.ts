@@ -51,15 +51,23 @@ describe('T40 S dormant evidence contract', () => {
     }
   });
 
-  it('only bump and refund take the parent lock, before children; clocks follow waits', () => {
+  it('only bump and refund take the parent lock, before child row locks; clocks follow waits', () => {
     for (const name of functions) {
       const fn = code(body(sql, name));
       expect(fn).toContain("hashtextextended('chat_turn_bump:'");
       if (['bump_chat_usage_for_turn', 'refund_chat_turn_after_output_swap'].includes(name)) {
         expect(fn).toContain('FOR KEY SHARE');
         expect(fn.indexOf('FOR KEY SHARE')).toBeGreaterThan(fn.indexOf('pg_advisory_xact_lock'));
-        const firstChild = name === 'bump_chat_usage_for_turn' ? fn.indexOf('v_count := public.bump') : fn.indexOf('FROM public.chat_turn_reservations');
+        const firstChild = name === 'bump_chat_usage_for_turn' ? fn.indexOf('v_count := public.bump') : fn.indexOf('FROM public.chat_usage');
         expect(fn.indexOf('FOR KEY SHARE')).toBeLessThan(firstChild);
+        if (name === 'refund_chat_turn_after_output_swap') {
+          expect(fn.indexOf('FOR KEY SHARE')).toBeLessThan(fn.indexOf('FOR UPDATE'));
+          for (const refusal of ['FROM public.ai_audit_log WHERE id = p_audit_id AND user_id = v_user',
+            'FROM public.chat_turn_refunds WHERE audit_id = p_audit_id', 'IF v_turn IS NULL THEN RETURN NULL']) {
+            expect(fn.indexOf(refusal)).toBeGreaterThan(-1);
+            expect(fn.indexOf(refusal)).toBeLessThan(fn.indexOf('FOR KEY SHARE'));
+          }
+        }
       } else {
         expect(fn).not.toMatch(/FOR KEY SHARE|FROM public\.users/);
       }
@@ -71,6 +79,7 @@ describe('T40 S dormant evidence contract', () => {
 
   it('retains attempts, closes binding, and requires exact delivered attribution', () => {
     expect(body(sql, functions[0])).toContain("(r.state = 'counted' AND r.attempts = 0)");
+    expect(body(sql, functions[0])).toContain("state <> 'refunded' AND NOT binding_closed");
     expect(body(sql, functions[1])).toContain('AND NOT r.binding_closed');
     const claim = body(sql, functions[2]);
     expect(claim).toContain('v_bound := COALESCE(NOT v_row.binding_closed');
@@ -87,6 +96,21 @@ describe('T40 S dormant evidence contract', () => {
     expect(refund).toContain('cu.count > 0');
     expect(refund).toContain('RETURN v_count;');
     expect(refund).not.toMatch(/WHEN OTHERS/);
+  });
+
+  it('counts both global slots through partial indexes and refuses down inside the rebind window', () => {
+    for (const slot of [1, 2]) {
+      expect(sql).toContain(`ON public.chat_turn_reservations (attempt${slot}_audit_id) WHERE attempt${slot}_audit_id IS NOT NULL`);
+      expect(down).toContain(`DROP INDEX public.chat_turn_reservations_attempt${slot}_audit_idx;`);
+    }
+    const slots = body(sql, functions[3]).split('SELECT count(*) INTO v_matches')[1].split('IF v_matches')[0];
+    expect(slots).toContain('UNION ALL');
+    expect(slots).not.toContain('user_id');
+    const guard = down.split('DO $rebind_guard$')[1].split('$rebind_guard$;')[0];
+    expect(guard).toContain('binding_closed AND attempts = 2');
+    expect(guard).toContain("attempted_at > pg_catalog.clock_timestamp() - interval '5 minutes'");
+    expect(guard).toContain("ERRCODE = '55000'");
+    expect(down.indexOf('DO $rebind_guard$')).toBeLessThan(down.indexOf('DELETE FROM public.chat_turn_reservations'));
   });
 
   it('down restores the exact original functions and preserves E1-S, with source guards for drift', () => {
@@ -111,6 +135,8 @@ describe('T40 S dormant evidence contract', () => {
       'T2 representative and first ledger', 'bump preserves attempted reservation', 'one open reservation',
       'closed stays closed after newer row disappears', 'no synthetic representative on closed refund',
       'same-row duplicate attribution refuses', 'cross-row duplicate attribution refuses',
+      'other-owner duplicate attribution refuses', 'undelivered attempt two refuses without writes',
+      'evidence-only collision records no delivery', 'bump updates only newly closed row',
       'one to integer zero', 'S purpose table unchanged']) expect(tests).toContain(label);
     expect(runner).toContain("'CREATE DATABASE '+DB+' TEMPLATE postgres;'");
     expect(runner.indexOf("file=DRAFT/'UNNUMBERED_chat_turn_attempt_with_quota.sql'")).toBeLessThan(runner.indexOf("file=DRAFT/'UNNUMBERED_chat_turn_refund_evidence.sql'"));
@@ -125,7 +151,10 @@ describe('T40 S dormant evidence contract', () => {
       'refund_two_attempts', 'bump_before_late_claim', 'closed_refund_before_bump', 'two_answers_one_turn',
       'one_answer_two_turns', 'refund_before_account_delete', 'account_delete_before_refund',
       'bump_before_account_delete', 'last_slot_', 'bump_reask_']) expect(runner).toContain(schedule);
-    for (const mutant of ['delivery', 'closed', 'bump_delete', 'purpose_write']) expect(runner).toContain(`('${mutant}',`);
+    for (const mutant of ['delivery', 'delivery_two', 'evidence_collision', 'bump_rewrite_closed',
+      'closed', 'bump_delete', 'purpose_write', 'apply_closure', 'apply_strictly_older',
+      'apply_second_unclaimed', 'apply_second_missing']) expect(runner).toContain(`('${mutant}',`);
+    expect(runner).toContain("KILLED_MUTANTS.append('down_rebind_guard')");
     const workflow = read('.github/workflows/supabase-dry-run.yml');
     const lane = workflow.split('- name: Exercise dormant T40 S evidence on full schema clone')[1].split('- name:')[0];
     expect(lane).toContain('timeout-minutes: 10');
