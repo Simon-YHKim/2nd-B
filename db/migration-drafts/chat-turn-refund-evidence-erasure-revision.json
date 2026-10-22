@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "forwardMigration": "UNNUMBERED: promote as a separate reason-only forwardRevisions migration with S",
+  "tables": {
+    "chat_turn_reservations": {
+      "owner": "user_id",
+      "class": "account_delete_only",
+      "previousReason": "Per-turn chat count reservations: ids, the counted day and times, no content. No owner policy; only server functions touch it (0255). Rows older than two days are removed by the next bump; account deletion cascades.",
+      "reason": "Per-turn chat count and refund evidence: ids, counted day, times, attempt count, server-return flags and binding closure, no content. No owner policy; only server functions touch it. Closed attempted rows keep eligible late-return evidence without reopening binding. Rows older than two days are removed by the next bump; without another bump they remain until account deletion, which cascades. Content erasure leaves this bookkeeping intact."
+    }
+  },
+  "promotion": [
+    "Draft candidate only: do not change the active numbered registry or 0258 historical source pin during S draft testing.",
+    "At promotion add a separate reason-only migration, db/erasure-registry.json forwardRevisions, its previousReason and the 0189_down c_names entry, following db/README.md.",
+    "No change to owner, class, cascade, export exclusion or retention trigger. No F date fields or same-day retention exception."
+  ]
+}

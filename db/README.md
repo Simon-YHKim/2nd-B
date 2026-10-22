@@ -49,6 +49,86 @@ then two more before KILL. The CI step has a ten-minute timeout as a final bound
 Refund/claim races, account-deletion lock ordering and the sequential suite's
 KST midnight boundary remain outside this race runner.
 
+## Dormant T40 S evidence tests
+
+`UNNUMBERED_chat_turn_refund_evidence.sql` is an inactive S-only draft. Relay
+applies the reviewed E1-S first, then S, each in one transaction. It keeps the
+four RPC signatures, argument names, ACL and return types, including
+`refund_chat_turn_after_output_swap(p_audit_id uuid)` and integer zero vs NULL.
+No app/proxy activation, purpose restoration, `quota_day` or daily restoration
+cap is included. F awaits Simon's answer. The commit is not rollout approval.
+Apply while app settlement is still off; an in-flight 0255 refund can deadlock
+with the apply-time table locks (40P01), so retry the failed transaction.
+
+Simon 2026-10-14 14:12:02: 「앞선 답 없는 예약을 닫아 가장 최근 하나만 묶이게」.
+S changes deletion into closing binding while retaining evidence. A closed
+reservation cannot register an attempt or bind/replace an answer. A response
+from an attempt registered before closure can still record server-return
+evidence and refund that reservation once. Delivery is not device receipt.
+
+The CI lane invokes `python3 scripts/test-chat-turn-refund-evidence.py` with
+`psql` on PATH after the full numbered replay. It creates only fixed loopback
+`t40_evidence_test_ci` and `t40_evidence_mutant_test_ci` clones of the scratch
+`postgres` database. `PGPORT` selects a private cluster. It never reads dotenv,
+accepts a remote URL, or drops databases. Start with fresh clones each run.
+Python standard library only; no package installation. SQL/client waits are
+bounded and the CI step has a ten-minute limit. Assertion failures alone kill
+mutants; connection failures, timeouts and SQL syntax errors fail the lane.
+
+| Historical expectation (kept in the numbered/T39 lanes) | Separate S assertion |
+|---|---|
+| T1 late first false, refund `null,1,null,null` | false and second representative preserved; refund `1,null,null,null`, first evidence in ledger |
+| T2 replaced first refund `null,1,null` | `1,null,null`, first evidence in ledger, second representative preserved |
+| bump deletes all unanswered rows | attempt zero deleted; attempted old row closed; one new open row |
+| admission n=5/6 has one reservation | S schedules 208/209 retain old attempts 1/2 and IDs, plus one open attempts=0; both counters checked |
+| two answers one turn: a=true b=false | same returns/representative, both delivery flags true |
+| one answer two turns, two retries | collision adds no delivery; duplicate attribution refunds NULL; third attempt refused |
+| direct answered fixtures imply refund eligibility | explicit delivery fixture or actual claim required; absent flag must refuse |
+| counted rows disappear at a new day | old attempted rows cannot bind; stored counted day alone selects refund day |
+
+The nine admission schedules are rerun under S in addition to claim/refund/bump
+and account-deletion races. The observer must see the follower blocked by the
+leader in `pg_stat_activity` before releasing it. Begin/claim are also held open
+while another connection takes `users FOR UPDATE NOWAIT`; neither adds the
+parent KEY SHARE lock. Bump/refund take that lock before their child rows.
+Refund first rejects missing/foreign audit, spent ledger and missing/foreign/
+refunded reservation evidence using reads without row locks. Eligible refunds
+still lock users, usage, then reservation, and recheck eligibility/time after
+waiting; the deletion lock order is unchanged. Global slot counting uses two
+partial audit-ID indexes and UNION ALL (including both slots in one row).
+The user advisory lock cannot justify ignoring another owner's corrupt slot.
+The runner checks the actual count query with EXPLAIN ANALYZE on 30,000 other
+reservations, plus refusal-path users FOR UPDATE NOWAIT compatibility.
+E1-S remains unchanged, including its own account-deletion lock behavior.
+
+The S-specific down restores the exact 0255 function bodies/ACL and reservation
+columns/constraint, while retaining E1-S and settled counters/ledger rows.
+Closed rows without a representative have no 0255 representation and are
+removed; no audit ID is invented. This is schema/behavior rollback, not recovery
+of all S evidence. Stop S traffic before rollback. Down refuses with SQLSTATE
+55000 while any closed attempts=2 row has attempted_at within the last five
+minutes: discarding closure then could reopen 0255's answer replacement path.
+Wait for that window to expire and retry; the guard runs under table locks
+before any destructive change. The runner removes the guard in a mutant and
+requires the refusal assertion to fail, then ages synthetic attempts and checks
+successful down, including removal of both S indexes. Do not use `0255_down.sql`,
+which drops E1-S's begin dependency. Source digests refuse to overwrite newer
+definitions; inspect/re-review drift instead of bypassing the guard. The runner
+compares installed catalog snapshots before S and after its down, reruns the
+E1-S test file (`tests/chat-turn-attempt-with-quota.sql`), reapplies S and reruns
+the sequential assertions. It does not reapply E1-S in this rollback step.
+
+The three booleans need a retention-description update, but no class/owner or
+cleanup-threshold change. Previously, attempted unanswered rows disappeared at
+the next bump; S retains them as closed refund evidence until a later bump
+finds them older than two days, or account deletion if no further bump occurs.
+The candidate is
+`migration-drafts/chat-turn-refund-evidence-erasure-revision.json`; the runner
+checks it against the real registry and schema. Promote it as a separate
+reason-only `forwardRevisions` migration with S (including the rollback list),
+without rewriting 0258. DPIA records this draft boundary. No same-day retention
+exception from F is included.
+
 ## Apply to Supabase (Sprint 1+)
 
 After linking the project via `supabase link`, run `supabase db push`.
