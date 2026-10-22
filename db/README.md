@@ -53,6 +53,9 @@ Relay executes SQL only. Apply 0266 while S app settlement is off, then 0267.
 55000**. Do not continue to 0265 down or bypass the guard. A pre-F installation
 can run 0266 down → 0265 down after the five-minute S rebind window closes.
 Full retirement after F needs a separately reviewed migration.
+Run every down file as one transaction (`psql --single-transaction -v ON_ERROR_STOP=1 -f`
+or one execute_sql call): a plain `psql -f` keeps going after the 55000 refusal and
+leaves a mixed S/F state.
 
 The S/F registry revisions are numbered separately: **0268** records S's refund
 evidence and **0269** records F's server-day retention exception. Each file holds
