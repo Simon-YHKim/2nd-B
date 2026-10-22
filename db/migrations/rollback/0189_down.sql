@@ -245,7 +245,9 @@ DECLARE
     'weather_erasure_registry',          -- 0233: 날씨 두 표의 등록부만 다시 채운다(0232 구조는 유지)
     'dashboard_erasure_registry',        -- 0237: W1 등록부만 다시 채운다(0236 구조·시도 원장 유지)
     'profile_context_import_erasure_registry', -- 0240: 가져오기 영수증의 등록부 한 행만 다시 채운다(0239 유지)
-    'chat_turn_reservations_erasure_registry'  -- 0258: 대화 턴 예약 표의 등록부 한 행만 다시 채운다(0255 유지)
+    'chat_turn_reservations_erasure_registry', -- 0258: 대화 턴 예약 표의 등록부 한 행만 다시 채운다(0255 유지)
+    'chat_turn_refund_evidence_erasure_registry_reason', -- 0268: 예약 표의 S 환불 근거 사유를 복원한다(0266 구조 유지)
+    'chat_turn_purpose_restore_erasure_registry_reason' -- 0269: 예약 표의 F 보관 예외 사유를 복원한다(0267 구조 유지)
   ];
   v_found   text;
   v_absent  text;

@@ -24,9 +24,9 @@ done
 docker stop 2ndb-pg && docker rm 2ndb-pg
 ```
 
-## T39/T40 numbered promotion (0265, 0266, 0267)
+## T39/T40 numbered promotion (0265 through 0269)
 
-Relay order is **0265 E1-S → 0266 S → 0267 F**, one complete file per
+Relay order is **0265 E1-S → 0266 S → 0267 F → 0268 S reason → 0269 F reason**, one complete file per
 transaction. Numbering is not production application or app activation. The
 three migration files and their `rollback/0265_down.sql` through
 `rollback/0267_down.sql` are byte-for-byte copies of the reviewed drafts.
@@ -36,7 +36,7 @@ No executable self-path or function-source MD5 needs changing.
 
 CI pushes numbered migrations in four batches and preserves
 `t39_t40_before_0265`, `t39_t40_before_0266`, and `t39_t40_before_0267` at the
-three boundaries. The final `postgres` database has all three migrations once.
+three boundaries. The final `postgres` database has all five migrations once, including both registry revisions.
 CLI 2.116 rejects a top-level `LOCK TABLE` outside an explicit transaction.
 Only its temporary copies of 0266/0267 wrap the unchanged whole SQL in one
 `DO ... EXECUTE` statement, as Relay does; repository files stay byte-identical.
@@ -54,11 +54,18 @@ Relay executes SQL only. Apply 0266 while S app settlement is off, then 0267.
 can run 0266 down → 0265 down after the five-minute S rebind window closes.
 Full retirement after F needs a separately reviewed migration.
 
-The S/F registry candidates require separate reason-only numbered migrations
-and `forwardRevisions` under the rule above. Their existing reason chain is
-retained pending that separate number; 0265–0267 do not rewrite 0258 or silently
-append registry SQL to the reviewed installers. Registry promotion remains an
-explicit rollout follow-up, not a claim that the old reason describes F.
+The S/F registry revisions are numbered separately: **0268** records S's refund
+evidence and **0269** records F's server-day retention exception. Each file holds
+one generated reason-only block, as required by the registry guard. The
+`forwardRevisions` chain is 0258 reason → S reason → F reason; 0258 and the
+reviewed 0265–0267 installers remain unchanged. The sidecars in
+`migration-drafts/chat-turn-*-erasure-revision.json` now point to those numbered
+files. Apply the table extensions first (0266 before 0268, 0267 before 0269),
+and the S reason before the F reason. `rollback/0189_down.sql` clears both
+registry ledger rows so the forward replay restores F's current reason without
+replaying table changes. The registry SQL is replayable at its recorded state;
+Relay wrappers reject a second application by ledger. Registration does not
+claim production application or app activation.
 
 ## Dormant T39 concurrency tests
 

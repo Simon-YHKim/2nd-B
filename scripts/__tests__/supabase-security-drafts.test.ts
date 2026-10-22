@@ -202,7 +202,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     for (const [number, stem] of promoted.filter(([number]) => ["0265", "0266", "0267"].includes(number))) {
       expect(verify).toContain(`('${number}', '${stem}')`);
     }
-    expect(verify).toContain("))) <> 14");
+    expect(verify).toContain("))) <> 16");
     expect(verify).toContain("'attempt1_delivered','attempt2_delivered','binding_closed','quota_day','purpose_restored_day'" );
     expect(verify).toContain("chat_turn_reservations_purpose_restore_day_key");
     expect(verify).toContain("NOT has_function_privilege('service_role','public.begin_chat_turn_attempt_with_quota");
