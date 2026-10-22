@@ -313,9 +313,12 @@ test.each(["midnight", "send", "ad", "new-read"])("%s cannot be overwritten by a
 test("yesterday's count is queried as yesterday and never presented as today's count", async () => {
   const m = manager(), c = candidate();
   const yesterday = { ...c, ticket: { ...c.ticket, day: "2026-10-21" } };
-  await m.start(yesterday);
+  const settled = await m.start(yesterday);
   expect(reads()[0][0]).toContain("day=eq.2026-10-21");
   expect(m.readUsage()).toBeNull();
+  // A refund confirmed for an earlier KST day stays visible to the same owner and epoch.
+  expect(settled).toMatchObject({ status: "confirmed" });
+  expect(m.read()[0]).toMatchObject({ status: "confirmed" });
 });
 
 test("confirmed count is a dated fallback when the usage read fails; NULL supplies no fallback", async () => {
