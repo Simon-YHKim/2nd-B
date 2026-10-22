@@ -193,12 +193,24 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(stage).toContain("CLI wrapper delimiter collision");
     const admission = workflow.split("- name: Exercise dormant T39 admission on full schema clone")[1].split("- name:")[0];
     expect(admission).toContain("TEMPLATE t39_t40_before_0266");
-    expect(admission.match(/-f db\/migrations\/0265_chat_turn_attempt_with_quota.sql/g)).toHaveLength(1);
-    expect(admission.indexOf("rollback/0265_down.sql")).toBeLessThan(admission.indexOf("migrations/0265_chat_turn_attempt_with_quota.sql"));
+    expect(admission.match(/-f db\/migrations\/0265_chat_turn_attempt_with_quota.sql/g)).toHaveLength(2);
+    const reapply = admission.indexOf("migrations/0265_chat_turn_attempt_with_quota.sql");
+    const rollback = admission.indexOf("rollback/0265_down.sql");
+    expect(reapply).toBeLessThan(admission.indexOf("-f db/tests/chat-turn-attempt-with-quota.sql"));
+    expect(reapply).toBeLessThan(rollback);
+    expect(rollback).toBeLessThan(admission.lastIndexOf("migrations/0265_chat_turn_attempt_with_quota.sql"));
+    expect(admission).toContain("--schema=public --schema=supabase_migrations");
+    expect(admission.indexOf('t39_before="$(t39_snapshot)"')).toBeLessThan(reapply);
+    expect(admission.indexOf('t39_after="$(t39_snapshot)"')).toBeGreaterThan(reapply);
+    const compare = 'cmp <(printf \'%s\\n\' "$t39_before") <(printf \'%s\\n\' "$t39_after")';
+    expect(admission).toContain(compare);
+    expect(admission.indexOf(compare)).toBeGreaterThan(reapply);
+    expect(admission.indexOf(compare)).toBeLessThan(rollback);
     for (const lane of ["Exercise chat turn refund on proxy evidence only", "Race two chat turn refunds over one proxy row"]) {
       expect(workflow.split(`- name: ${lane}`)[1].split("- name:")[0]).toContain("PGDATABASE: t39_t40_before_0265");
     }
     const verify = workflow.split("- name: Verify promoted server-first contracts")[1].split("- name:")[0];
+    expect(verify).not.toContain("source digests");
     for (const [number, stem] of promoted.filter(([number]) => ["0265", "0266", "0267"].includes(number))) {
       expect(verify).toContain(`('${number}', '${stem}')`);
     }

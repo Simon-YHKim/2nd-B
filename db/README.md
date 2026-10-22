@@ -165,12 +165,12 @@ The three booleans need a retention-description update, but no class/owner or
 cleanup-threshold change. Previously, attempted unanswered rows disappeared at
 the next bump; S retains them as closed refund evidence until a later bump
 finds them older than two days, or account deletion if no further bump occurs.
-The candidate is
-`migration-drafts/chat-turn-refund-evidence-erasure-revision.json`; the runner
-checks it against the real registry and schema. Promote it as a separate
-reason-only `forwardRevisions` migration with S (including the rollback list),
-without rewriting 0258. DPIA records this pending registry boundary. No same-day retention
-exception from F is included.
+The reason-only revision is promoted as
+`migrations/0268_chat_turn_refund_evidence_erasure_registry_reason.sql` and is
+included in `forwardRevisions` and the registry rollback list without rewriting
+0258. Its sidecar, `migration-drafts/chat-turn-refund-evidence-erasure-revision.json`,
+is checked against the real registry and schema by the runner. DPIA records this
+numbered revision. No same-day retention exception from F is included in 0268.
 
 ## Dormant T40 F purpose restoration tests
 
@@ -233,9 +233,10 @@ usage → purpose usage → reservation, with eligibility clocks after row waits
 Bump retains today's restoration marker even on an old reservation. It compares
 against the **server clock, never app-supplied `p_day`**. Next-day cleanup resumes
 the existing two-day threshold. Audit/ledger deletion and content erasure do not
-remove the marker; account deletion still cascades. The proposed reason-only
-registry revision is `migration-drafts/chat-turn-purpose-restore-erasure-revision.json`.
-Promote it after S's revision without changing the owner/class/export classification.
+remove the marker; account deletion still cascades. The reason-only revision is
+promoted as `migrations/0269_chat_turn_purpose_restore_erasure_registry_reason.sql`,
+after S's 0268 revision, without changing the owner/class/export classification.
+Its sidecar is `migration-drafts/chat-turn-purpose-restore-erasure-revision.json`.
 
 Rollback restores the exact reviewed E1-S and S refund definitions and ACL, with
 S begin/claim unchanged. It deliberately keeps both dates, the cap index and F's
