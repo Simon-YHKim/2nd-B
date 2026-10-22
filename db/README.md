@@ -56,7 +56,7 @@ applies the reviewed E1-S first, then S, each in one transaction. It keeps the
 four RPC signatures, argument names, ACL and return types, including
 `refund_chat_turn_after_output_swap(p_audit_id uuid)` and integer zero vs NULL.
 No app/proxy activation, purpose restoration, `quota_day` or daily restoration
-cap is included. F awaits Simon's answer. The commit is not rollout approval.
+cap is included in S. F is a separate draft below. The commit is not rollout approval.
 Apply while app settlement is still off; an in-flight 0255 refund can deadlock
 with the apply-time table locks (40P01), so retry the failed transaction.
 
@@ -128,6 +128,115 @@ checks it against the real registry and schema. Promote it as a separate
 reason-only `forwardRevisions` migration with S (including the rollback list),
 without rewriting 0258. DPIA records this draft boundary. No same-day retention
 exception from F is included.
+
+## Dormant T40 F purpose restoration tests
+
+Decision Q-261022-02 (2026-10-22): 「하루 1회 상한으로 복원 (추천)」.
+Relay applies the reviewed **E1-S → S → F**, each complete migration in one
+transaction. `migration-drafts/UNNUMBERED_chat_turn_purpose_restore.sql` has no
+number or active caller. The E1-S/S draft sources, 0185/0259 and the shared
+consume function stay unchanged. No proxy/app/production activation is included.
+
+F adds nullable `quota_day` and `purpose_restored_day`. Its E1-S replacement
+takes the parent KEY SHARE before child writes only for an own attempt-zero reservation,
+and brackets the unchanged consume
+with `pg_catalog.clock_timestamp()` KST dates. A successful first debit records
+its day; an admitted debit spanning midnight raises 55000 and rolls back. Second
+attempts keep their receipt, unbound first attempts have none, and existing or
+legacy reservations are never backfilled. Ordinary quota rejection stays T3901.
+The midnight refusal intentionally includes unbound first admissions: the whole
+charge rolls back, without a receipt, and the caller can retry.
+
+Unbound first calls, duplicate first calls and second/rejected reasks do not take
+this parent lock. Registered first debits (including attempt-zero reasks) hold it even with an existing
+purpose row: account deletion can lock purpose before reservation while admission
+writes reservation before purpose. Restricting it to new purpose rows leaves that
+deadlock. This accepts 0242 withdrawal's 55P03/retry on these first debits, beyond
+original E1-S's new-purpose-row conflict. Unbound first only writes purpose, so
+it does not create that two-child cycle. It can still deadlock (40P01) with account
+deletion when the unchanged consume first deletes a purpose row older than 45 days
+and then inserts today's row; E1-S and the standalone 0259 consume behave the same
+way, so this is an accepted residual of consume, not something F adds. One side
+aborts with no data loss (the turn is not charged, or the deletion is retried). With
+an existing purpose row, it leaves 0242 withdrawal available, as E1-S does. The runner
+measures both definitions against the actual `withdraw_profile_import_internal(..., false)` routine.
+F apply/down lock only **refunds, then reservations**, matching warm refund reads
+and keeping usage tables out of the in-flight E1-S lock cycle. Four admission and
+four warm-refund apply/down schedules exercise this boundary. Refund sessions run
+the real function once and roll back before reusing the same backend during DDL;
+fresh connections would hide the inversion while compiling the reservation row type.
+Both 1s and 200ms deadlock timeouts run in both directions. Four old-order SQL
+mutants must reproduce 40P01 and fail the same named assertion; SQLSTATEs and the
+final refund state, chat count and ledger are checked, not just migration success.
+
+S chat settlement and the `{ p_audit_id }` integer/NULL RPC contract are retained.
+Purpose restoration requires a successful chat refund, today's recorded debit,
+every registered attempt delivered with valid server red evidence, an
+existing purpose row and an unused user-wide processing-day cap. Pending,
+missing, foreign, client-written or future evidence refuses purpose restoration.
+A delivered green or yellow in either slot refuses it too. Count 1 is deleted; higher
+counts decrease by one. Missing purpose rows still permit chat refund. Completed
+chat refunds cannot later be settled again for purpose alone.
+
+Only `quota_day = server KST today` is restored. The design-r3 low finding showed
+that restoring an expired day cannot add usable budget but would consume today's
+one restoration. Such refunds therefore leave the old purpose row and today's
+cap untouched. `counted_day` still selects the chat row. The unique partial index
+on `(user_id, purpose_restored_day)` and the shared user lock enforce the cap.
+Only a collision on that index cancels the purpose subtransaction; all other
+errors undo the whole refund. Locks are user advisory → parent KEY SHARE → chat
+usage → purpose usage → reservation, with eligibility clocks after row waits.
+
+Bump retains today's restoration marker even on an old reservation. It compares
+against the **server clock, never app-supplied `p_day`**. Next-day cleanup resumes
+the existing two-day threshold. Audit/ledger deletion and content erasure do not
+remove the marker; account deletion still cascades. The proposed reason-only
+registry revision is `migration-drafts/chat-turn-purpose-restore-erasure-revision.json`.
+Promote it after S's revision without changing the owner/class/export classification.
+
+Rollback restores the exact reviewed E1-S and S refund definitions and ACL, with
+S begin/claim unchanged. It deliberately keeps both dates, the cap index and F's
+bump retention exception. This is S settlement behavior with dormant F cap
+bookkeeping, **not an identical pre-F catalog**: removing that bookkeeping would
+reopen the same day's cap on reapply. The runner compares the remaining fields in
+its catalog snapshot and the settled rollback fixture (user 5101). Do not run the historical S down while this extension
+remains; its definition guard refuses F's bump. Apply/down refuse unknown source
+digests rather than overwrite newer E1-S/S/0259 changes. Source pins also strip
+the explicit additive F blocks and compare the remaining E1-S/S bytes exactly.
+There is currently no F-down → S-down artifact: full retirement needs a separately
+reviewed migration that preserves the current day's cap before removing this extension.
+
+CI runs `python3 scripts/test-chat-turn-purpose-restore.py` after numbered replay.
+It uses fresh fixed loopback `t40_purpose_test_ci` and `t40_purpose_mutant_test_ci`
+clones, standard-library Python and S's bounded psql transport/lock observer.
+No dotenv, remote URLs, database drops or new packages. The step has a ten-minute
+timeout; each SQL client has statement, transaction-idle and process limits.
+Every race requires a real observed lock wait before releasing its leader.
+SQL mutations count only their named P0040 assertion failure, never syntax, connection
+or timeout errors. Tests include the F eligibility table, both directions of
+last-slot/count-one consume contention, same-user dual refunds, bump/late refund,
+green claim/registration and account deletion. S and E1-S behavioral tests also
+run against the installed F definitions, and after F rollback.
+The sequential assertion count is exactly 53. F function writers, dynamic SQL and
+public function calls have separate allowlists. The down-cap mutant changes a copy
+of the down file and uses the same snapshot/cleanup checks as the real down.
+Parent-lock races use three measured FK DELETE-trigger orders across registered
+first, attempt-zero reask, unbound first and rejected reask (12 schedules). M34 removes
+KEY SHARE and must reproduce the existing-purpose-row deadlock and fail the same assertion.
+The broad-parent-lock mutant must fail the unbound-first 0242 success assertion
+with a measured 55P03. Source pins separately reject old up/down lock order and
+the broad parent-lock condition.
+
+Midnight coverage consists of actual server-today receipt tests, previous/next-day
+fixtures, source-order/clock pins and **injected wrapper date samples** causing a
+real PostgreSQL transaction rollback. It is not an observation of wall-clock
+midnight. No production/test clock hook is installed in the draft.
+
+Cost boundary: for first debits on one day, `2C → 2(C+1)` including the free second
+attempt. Free `C=5` is **10 → 12 attempts (2.4 × the base quota)**. This is not a
+bound on all calendar-day calls including legacy traffic and carried-over turns.
+Merge requires independent Codex daybreak PASS, no new medium findings and green
+CI. Numbering, Relay application and app activation remain separate steps.
 
 ## Apply to Supabase (Sprint 1+)
 
