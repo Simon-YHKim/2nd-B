@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "forwardMigration": "UNNUMBERED: promote as a separate reason-only forwardRevisions migration after S with F",
+  "tables": {
+    "chat_turn_reservations": {
+      "owner": "user_id",
+      "class": "account_delete_only",
+      "previousReason": "Per-turn chat count and refund evidence: ids, counted day, times, attempt count, server-return flags and binding closure, no content. No owner policy; only server functions touch it. Closed attempted rows keep eligible late-return evidence without reopening binding. Rows older than two days are removed by the next bump; without another bump they remain until account deletion, which cascades. Content erasure leaves this bookkeeping intact.",
+      "reason": "Per-turn chat count, refund evidence and daily purpose restoration bookkeeping: ids, counted day, times, attempt count, server-return flags, binding closure, first-debit KST day and restoration processing KST day, no content. No owner policy; only server functions touch it. Closed attempted rows keep eligible late-return evidence without reopening binding. The next bump removes rows older than two days except markers for the current or a later server KST day; these resume ordinary cleanup after their recorded day. Without another bump rows remain until account deletion, which cascades. Content erasure and F rollback leave this bookkeeping intact so the daily restoration cap cannot reset."
+    }
+  },
+  "promotion": [
+    "Draft candidate only. S reason revision must precede this F reason revision; verify previousReason at promotion.",
+    "Add a separate reason-only migration, db/erasure-registry.json forwardRevisions and the 0189_down c_names entry. Do not rewrite 0258 or the S candidate.",
+    "No change to owner, class, account cascade or export exclusion. F adds date fields and server-day retention of cap markers, including through F rollback."
+  ]
+}

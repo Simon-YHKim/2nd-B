@@ -23,6 +23,7 @@ on:
       - "scripts/test-interview-content-authority-sql.mjs"
       - "scripts/test-chat-turn-admission-races.sh"
       - "scripts/test-chat-turn-refund-evidence.py"
+      - "scripts/test-chat-turn-purpose-restore.py"
       - "scripts/check-account-export-inventory.ts"
       - "scripts/generate-erasure-registry.ts"
       - "db/erasure-registry.json"
@@ -488,6 +489,15 @@ jobs:
           # admission schedules plus claim/refund/delete races and killed mutants.
           # The historical numbered replay and T39 lane keep their own contracts.
           python3 scripts/test-chat-turn-refund-evidence.py
+      - name: Exercise dormant T40 F purpose restore on full schema clone
+        timeout-minutes: 10
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Own fixed loopback clones: reviewed E1-S -> S -> F, real lock waits,
+          # mutation assertions and cap-preserving rollback/reapply. Fail closed.
+          python3 scripts/test-chat-turn-purpose-restore.py
       - name: Verify promoted server-first contracts after numbered scratch replay
         env:
           PGPASSWORD: postgres

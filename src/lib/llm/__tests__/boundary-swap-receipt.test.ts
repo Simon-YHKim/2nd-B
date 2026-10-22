@@ -78,3 +78,27 @@ test("overlapping attempts retain their own audit IDs when the original finishes
   expect(reask.outputSwap).toEqual({ auditId: SECOND, reservationId: TURN });
   expect((await original).outputSwap).toEqual({ auditId: AUDIT, reservationId: TURN });
 });
+
+test.each(["claude", "xai"] as const)("B1 a valid turn ID on non-reservation %s never acquires a receipt", async vendor => {
+  const reply = await callLlm({ ...input, chatTurn: {
+    ...input.chatTurn!, route: { vendor, reservationSupported: false },
+  } });
+  expect(mockInvoke).toHaveBeenCalledTimes(1);
+  expect(mockInvoke.mock.calls[0][1].body).not.toHaveProperty("chatTurnId");
+  expect(reply.safety.zone).toBe("red");
+  expect(reply).not.toHaveProperty("outputSwap");
+});
+
+test("B1 overlapping payloads keep each audit ID while the original awaits output classification", async () => {
+  let finish!: (value: Awaited<ReturnType<typeof mockSemantic>>) => void;
+  mockSemantic.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  mockInvoke.mockResolvedValueOnce(response(AUDIT)).mockResolvedValueOnce(response(SECOND));
+  const original = callLlm(input);
+  for (let i = 0; i < 100 && mockSemantic.mock.calls.length === 0; i++) await Promise.resolve();
+  expect(mockSemantic).toHaveBeenCalledTimes(1);
+  expect(mockInvoke).toHaveBeenCalledTimes(1);
+  const reask = await callLlm({ ...input, chatTurn: { ...input.chatTurn!, intent: "reask" } });
+  expect(reask.outputSwap).toEqual({ auditId: SECOND, reservationId: TURN });
+  finish({ zone: "red", triggers: [], confidence: 1, cssrsLevel: null, source: "lexicon-fallback" });
+  expect((await original).outputSwap).toEqual({ auditId: AUDIT, reservationId: TURN });
+});
