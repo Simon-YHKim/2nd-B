@@ -348,6 +348,23 @@ jobs:
                 cp -- "$f" "$staged_project/supabase/migrations/"
               fi
             done
+            # CLI 2.116 sends top-level LOCK outside an explicit transaction.
+            # Keep repository bytes untouched; one DO executes each complete S/F
+            # body atomically, like the Relay block. Never split its table locks.
+            python3 - "$staged_project/supabase/migrations" <<'PY'
+          from pathlib import Path
+          import sys
+          root = Path(sys.argv[1])
+          for name in ('0266_chat_turn_refund_evidence.sql', '0267_chat_turn_purpose_restore.sql'):
+              path = root / name
+              if not path.exists():
+                  continue
+              source = path.read_bytes()
+              if b'$cli_body$' in source or b'$cli_transaction$' in source:
+                  raise ValueError('CLI wrapper delimiter collision')
+              path.write_bytes(b'DO $cli_transaction$ BEGIN EXECUTE $cli_body$' + source
+                               + b'$cli_body$; END $cli_transaction$;\n')
+          PY
             supabase db push \
               --db-url "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable" \
               --workdir "$staged_project" \

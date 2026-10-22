@@ -37,6 +37,9 @@ No executable self-path or function-source MD5 needs changing.
 CI pushes numbered migrations in four batches and preserves
 `t39_t40_before_0265`, `t39_t40_before_0266`, and `t39_t40_before_0267` at the
 three boundaries. The final `postgres` database has all three migrations once.
+CLI 2.116 rejects a top-level `LOCK TABLE` outside an explicit transaction.
+Only its temporary copies of 0266/0267 wrap the unchanged whole SQL in one
+`DO ... EXECUTE` statement, as Relay does; repository files stay byte-identical.
 Historical 0255 tests use the first snapshot, E1-S and S tests use the second,
 and F uses the third. This avoids overwriting final F functions with an earlier
 installer. Deliberate idempotence and rollback/reapply probes remain in clones.

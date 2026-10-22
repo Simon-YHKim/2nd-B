@@ -187,6 +187,10 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(stage.indexOf("supabase db push")).toBeLessThan(stage.indexOf("CREATE DATABASE t39_t40_before_${boundary} TEMPLATE postgres"));
     expect(stage).toContain('actual_count="$(psql');
     expect(stage).toContain('expected_count="${#staged_migrations[@]}"');
+    expect(stage).toContain("for name in ('0266_chat_turn_refund_evidence.sql', '0267_chat_turn_purpose_restore.sql'):");
+    expect(stage).toContain("b'DO $cli_transaction$ BEGIN EXECUTE $cli_body$' + source");
+    expect(stage).toContain("b'$cli_body$; END $cli_transaction$;\\n'");
+    expect(stage).toContain("CLI wrapper delimiter collision");
     const admission = workflow.split("- name: Exercise dormant T39 admission on full schema clone")[1].split("- name:")[0];
     expect(admission).toContain("TEMPLATE t39_t40_before_0266");
     expect(admission.match(/-f db\/migrations\/0265_chat_turn_attempt_with_quota.sql/g)).toHaveLength(1);
