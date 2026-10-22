@@ -77,9 +77,10 @@ test("NULL is unresolved, retries only once with the same audit, and cannot cons
   jest.mocked(fetch).mockImplementation(async (url, options) => String(url).includes("/rpc/")
     ? json(JSON.parse(String(options?.body)).p_audit_id === AUDIT ? null : 0) : json([{ count: 0, ad_bonus: 2 }]));
   const m = manager(), first = m.start(candidate());
-  expect(m.start(candidate())).toBe(first);
+  const duplicate = m.start(candidate());
   await jest.advanceTimersByTimeAsync(250);
   expect(await first).toMatchObject({ status: "unresolved", calls: 2 });
+  expect(await duplicate).toEqual(await first);
   expect(await m.start(candidate(SECOND, 2))).toMatchObject({ status: "confirmed", calls: 1 });
   expect(rpcCalls().map(([, args]) => JSON.parse(String(args?.body)))).toEqual([
     { p_audit_id: AUDIT }, { p_audit_id: AUDIT }, { p_audit_id: SECOND },
@@ -130,7 +131,7 @@ test.each(["before", "authentication", "retry", "read"])("account epoch fences %
   auth.resolve({ data: { session: { user: { id: "owner-a" }, access_token: "fixture-new-session" } }, error: null });
   gate.resolve(json([{ count: 0, ad_bonus: 0 }]));
   await jest.advanceTimersByTimeAsync(250);
-  expect(await pending).toMatchObject(point === "read" ? { status: "confirmed", refundedCount: 0 } : { status: "stale" });
+  expect(await pending).toEqual({ status: "stale" });
   expect(rpcCalls()).toHaveLength(point === "read" || point === "retry" ? 1 : 0);
   expect(m.readUsage()).toBeNull();
 });
@@ -157,23 +158,60 @@ test.each(["authenticate", "refund", "read"])("deadline during %s ends the job a
 });
 
 test.each(["switch", "return"])("B1 settlement accessors hide completed records and usage after owner %s", async change => {
-  const m = manager();
-  await m.start(candidate());
+  const m = manager(), c = candidate();
+  await m.start(c);
   expect(m.read()).toHaveLength(1);
   expect(m.readUsage()).toMatchObject({ used: 0, adBonus: 2 });
   noteResolvedOwner("owner-b");
   if (change === "return") noteResolvedOwner("owner-a");
   expect(m.read()).toEqual([]);
   expect(m.readUsage()).toBeNull();
+  expect(await m.start(c)).toEqual({ status: "stale" });
+  expect(rpcCalls()).toHaveLength(1);
 });
 
 test.each(["ownerId", "ownerEpoch"])("B1 rejects a candidate with a different %s before authentication or I/O", async field => {
   const m = manager(), c = candidate();
   const ticket = { ...c.ticket, [field]: field === "ownerId" ? "owner-b" : c.ticket.ownerEpoch + 1 };
-  expect(await m.start({ ...c, ticket })).toMatchObject({ status: "stale", calls: 0 });
+  expect(await m.start({ ...c, ticket })).toEqual({ status: "stale" });
+  expect(m.read()).toEqual([]);
   expect(mockSession).not.toHaveBeenCalled();
   expect(fetch).not.toHaveBeenCalled();
   expect(m.readUsage()).toBeNull();
+  await m.start(c);
+  expect(m.read()).toEqual([expect.objectContaining({ candidate: c, status: "confirmed" })]);
+});
+
+test.each(["refund", "read"])("B1 initial and duplicate promises redact after visibility changes during %s without losing confirmation", async point => {
+  const owner = captureAccountOwnerLease("owner-a")!;
+  let visible = true;
+  const m = createSwapSettlement({ ...owner, isCurrent: () => visible && owner.isCurrent() });
+  const c = candidate(), gate = deferred<Response>();
+  if (point === "read") jest.mocked(fetch).mockResolvedValueOnce(json(3));
+  jest.mocked(fetch).mockReturnValueOnce(gate.promise);
+  const pending = m.start(c), duplicate = m.start(c);
+  await flush();
+  expect(point === "refund" ? rpcCalls() : reads()).toHaveLength(1);
+  visible = false;
+  gate.resolve(point === "refund" ? json(3) : json([{ count: 3, ad_bonus: 2 }]));
+  expect(await pending).toEqual({ status: "stale" });
+  expect(await duplicate).toEqual({ status: "stale" });
+  expect(await m.start(c)).toEqual({ status: "stale" });
+  expect(m.read()).toEqual([]);
+  // Only the same owner AND epoch may see the retained record again.
+  visible = true;
+  expect(m.read()).toEqual([expect.objectContaining({ candidate: c, status: "confirmed", refundedCount: 3, calls: 1 })]);
+  expect(m.readUsage()).toBeNull();
+  expect(rpcCalls()).toHaveLength(1);
+});
+
+test("B1 a duplicate promise rechecks the owner even after the job has already resolved", async () => {
+  const m = manager(), c = candidate();
+  expect(await m.start(c)).toMatchObject({ status: "confirmed", refundedCount: 0 });
+  const duplicate = m.start(c);
+  noteResolvedOwner("owner-b");
+  expect(await duplicate).toEqual({ status: "stale" });
+  expect(rpcCalls()).toHaveLength(1);
 });
 
 test.each([0, 3].flatMap(count => ["deadline", "switch", "return"].map(stop => ({ count, stop }))))(
@@ -189,7 +227,8 @@ test.each([0, 3].flatMap(count => ["deadline", "switch", "return"].map(stop => (
       if (stop === "return") noteResolvedOwner("owner-a");
     }
     gate.resolve(json(count));
-    expect(await pending).toMatchObject({ status: "confirmed", refundedCount: count, calls: 1 });
+    if (stop === "deadline") expect(await pending).toMatchObject({ status: "confirmed", refundedCount: count, calls: 1 });
+    else expect(await pending).toEqual({ status: "stale" });
     expect(reads()).toHaveLength(0);
     expect(m.readUsage()).toBeNull();
     if (stop === "deadline") expect(m.read()[0]).toMatchObject({ status: "confirmed", refundedCount: count });
@@ -209,23 +248,36 @@ test("B1 a confirmed late transport result replaces unknown expiry without publi
   gate.resolve(json(0));
   await flush();
   expect(m.read()[0]).toMatchObject({ status: "confirmed", refundedCount: 0, calls: 1 });
-  expect(m.start(c)).toBe(pending);
+  expect(await m.start(c)).toEqual(await pending);
   expect(rpcCalls()).toHaveLength(1);
   expect(reads()).toHaveLength(0);
   expect(m.readUsage()).toBeNull();
 });
 
-test("B1 expiry snapshot cannot overwrite a refund confirmation delivered during cancellation", async () => {
-  const body = deferred<number>(), response = json(0), m = manager();
-  jest.spyOn(response, "json").mockReturnValue(body.promise);
-  jest.mocked(fetch).mockImplementationOnce(async (_url, options) => {
-    options?.signal?.addEventListener("abort", () => body.resolve(0), { once: true });
-    return response;
+test.each([0, 1, 5])("B1 expiry snapshot cannot overwrite confirmation before publication with %s extra body awaits", async extraAwaits => {
+  const gate = deferred<Response>(), response = json(0), m = manager();
+  const captured = deferred<void>(), runFinished = deferred<void>(), publish = deferred<void>();
+  const race = Promise.race.bind(Promise);
+  // Hold the selected expiry snapshot until the issued RPC is fully recorded.
+  // This fixes the interleaving without depending on transport microtask depth.
+  jest.spyOn(Promise, "race").mockImplementationOnce(<T>(values: Iterable<T | PromiseLike<T>>) => {
+    const racers = [...values];
+    void Promise.resolve(racers[0]).then(() => runFinished.resolve());
+    return race(racers).then(snapshot => { captured.resolve(); return publish.promise.then(() => snapshot); });
   });
+  jest.spyOn(response, "json").mockImplementation(async () => {
+    for (let i = 0; i < extraAwaits; i++) await Promise.resolve();
+    return 0;
+  });
+  jest.mocked(fetch).mockReturnValueOnce(gate.promise);
   const pending = m.start(candidate());
-  await flush();
-  expect(response.json).toHaveBeenCalledTimes(1);
   await jest.advanceTimersByTimeAsync(8_000);
+  await captured.promise;
+  expect(rpcCalls()[0][1]?.signal?.aborted).toBe(true);
+  gate.resolve(response);
+  await runFinished.promise;
+  expect(m.read()[0]).toMatchObject({ status: "confirmed", refundedCount: 0, calls: 1 });
+  publish.resolve();
   expect(await pending).toMatchObject({ status: "confirmed", refundedCount: 0, calls: 1 });
   expect(m.read()[0]).toMatchObject({ status: "confirmed", refundedCount: 0, calls: 1 });
   expect(reads()).toHaveLength(0);

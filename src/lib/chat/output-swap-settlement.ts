@@ -14,6 +14,8 @@ const NULL_RETRIES = 1;
 const MAX_CALLS = 1 + SERIALIZATION_RETRIES + NULL_RETRIES;
 const RETRY_MS = 250;
 
+type PublishedSettlement = SwapSettlement | Readonly<{ status: "stale" }>;
+
 async function serializationFailure(error: { context: Response }): Promise<boolean> {
   if (error.context.status !== 500) return false;
   try {
@@ -39,8 +41,9 @@ async function readUsage(candidate: SwapCandidate, accessToken: string, signal: 
 }
 
 /** One owner-bound manager per live pair. It may outlive the selected answer.
- * A confirmed refund survives expiry/owner changes; only usage publication stops.
- * start() returns a deadline snapshot; read() can later retain a confirmed RPC.
+ * A confirmed refund survives expiry/owner changes internally.
+ * start() returns an owner-gated deadline snapshot; read() can show a later RPC.
+ * Repeated starts share work, but each returned promise rechecks publication.
  * B1 must invalidate usage on sends/ad updates/other reads before consuming it. */
 export function createSwapSettlement(owner: AccountOwnerLease) {
   const ownerId = owner.ownerId, ownerEpoch = owner.epoch;
@@ -49,11 +52,16 @@ export function createSwapSettlement(owner: AccountOwnerLease) {
   let sequence = 0;
   let usage: SwapUsage | null = null;
   const cursor = (): SwapUsageCursor => ({ ownerId, ownerEpoch, day: kstDateToday(), sequence });
+  const canPublish = (candidate: SwapCandidate): boolean => {
+    const current = cursor();
+    return isCurrent() && candidate.ticket.ownerId === current.ownerId && candidate.ticket.ownerEpoch === current.ownerEpoch;
+  };
+  const publish = (state: SwapSettlement): PublishedSettlement => canPublish(state.candidate) ? state : { status: "stale" };
 
-  function start(candidate: SwapCandidate): Promise<SwapSettlement> {
+  function start(candidate: SwapCandidate): Promise<PublishedSettlement> {
     const key = swapCandidateKey(candidate);
     const existing = jobs.get(key);
-    if (existing) return existing.done;
+    if (existing) return existing.done.then(publish);
     const deadline = Date.now() + SETTLEMENT_MS;
     const initial: SwapSettlement = { candidate, status: "pending", calls: 0 };
     const job = { state: initial, done: Promise.resolve(initial) };
@@ -141,12 +149,12 @@ export function createSwapSettlement(owner: AccountOwnerLease) {
       if (job.state.status !== "confirmed") job.state = state;
       return job.state;
     }).finally(() => { active = false; clearTimeout(timer); controller.abort(); session?.release(); });
-    return job.done;
+    return job.done.then(publish);
   }
 
   return {
     start,
-    read: (): readonly SwapSettlement[] => isCurrent() ? [...jobs.values()].map(job => job.state) : [],
+    read: (): readonly SwapSettlement[] => [...jobs.values()].map(job => job.state).filter(state => canPublish(state.candidate)),
     invalidateUsage: (): void => { sequence++; usage = null; },
     readUsage: (): SwapUsage | null => usage && canUseSwapUsage(usage, cursor(), isCurrent(), Date.now()) ? usage : null,
   };
