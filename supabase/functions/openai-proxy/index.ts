@@ -20,6 +20,8 @@
 //                            lower a seat, never promote it above policy.
 //   OPENAI_PURPOSE_MODELS -- optional JSON object { purpose: model-id }
 //                            overriding within each purpose's cost ceiling.
+//   CHAT_TURN_ADMISSION_MODE -- only exact enforce uses the atomic T39 RPC.
+//                            Default/unknown: legacy; apply E1-S before deploy.
 //
 // D-26: MODEL CHOICE IS SERVER-OWNED (client `model` accepted-but-ignored);
 // the purpose label picks the seat. Seats key on purpose, never on
@@ -41,6 +43,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { captureLlmConsent, resolveLlmConsentMode, recheckLlmConsent, markConsentWithheld, type LlmConsentLease } from '../_shared/llm-consent.ts';
 import { beginChatTurnAttempt, claimChatTurn, insertLlmAuditRow, readChatTurnId } from '../_shared/llm-audit-row.ts';
+import { admitChatTurn, legacyTurnAdmission, readChatAttemptIntent, rejectedTurnAdmission, resolveChatTurnAdmissionMode, type TurnAdmission } from '../_shared/chat-turn-admission.ts';
 import { POLARIS_RESPONSE_SCHEMA, runPolarisGeneration } from '../_shared/polaris-generation.ts';
 import {
   BRAIN_RANK,
@@ -59,7 +62,7 @@ import {
   hasCrisisTerm, emergencyLanePayload,
   isLlmJsonObject,
   isUsableHeaderValue,
-  jsonResponse,
+  jsonResponse as baseJsonResponse,
   llmCapacityWeight,
   normalizeResponseSchema,
   readLlmProxyJsonObject,
@@ -316,7 +319,24 @@ function effortToMaxTokens(clampedEffort: string): number {
 async function handleOpenAi(
   req: Request, serverLease?: LlmConsentLease,
   onProviderAudit?: (auditId: string, model: string) => void,
+  requestBody?: Record<string, unknown>,
 ): Promise<Response> {
+  // Snapshot once, including failures before admission. The outer bounded read
+  // supplies only envelope context; all auth/input checks below still run.
+  const admissionMode = resolveChatTurnAdmissionMode((name) => Deno.env.get(name));
+  const hasChatTurn = requestBody?.purpose === 'secondb_chat'
+    && Object.prototype.hasOwnProperty.call(requestBody, 'chatTurnId');
+  let turnAdmission: TurnAdmission | undefined = hasChatTurn
+    ? {
+      mode: admissionMode, allowed: null, kind: null, attempt: null,
+      quotaCharged: false, bindingEligible: null, reaskAvailable: null,
+    } : undefined;
+  const jsonResponse = (request: Request, payload: unknown, status = 200): Response => {
+    if (!turnAdmission) return baseJsonResponse(request, payload, status);
+    const admission = turnAdmission.mode === 'legacy'
+      ? { ...turnAdmission, allowed: status < 400 } : turnAdmission;
+    return baseJsonResponse(request, { ...(payload as Record<string, unknown>), turnAdmission: admission }, status);
+  };
   if (req.method === 'OPTIONS') return corsPreflight(req);
   if (req.method !== 'POST') return jsonResponse(req, { error: 'method_not_allowed' }, 405);
 
@@ -332,8 +352,11 @@ async function handleOpenAi(
   // newline in a header value makes `fetch` THROW rather than warn. See
   // ../_shared/axis-key-name.ts:pickApiKey for the outage this caused.
   const apiKey = (Deno.env.get('OPENAI_API_KEY') ?? '').trim();
-  if (!apiKey || apiKey.length === 0) {
-    return jsonResponse(req, { error: 'server_misconfigured_missing_OPENAI_API_KEY' }, 500);
+  const chatAdmissionRequest = admissionMode === 'enforce' && requestBody?.purpose === 'secondb_chat'
+    && readChatTurnId('secondb_chat', requestBody.chatTurnId) !== null;
+  if ((!apiKey || apiKey.length === 0) && !chatAdmissionRequest) {
+    // Supplement 3: outages preserve free candidates; only admission may defer this RPC-free failure.
+    return baseJsonResponse(req, { error: 'server_misconfigured_missing_OPENAI_API_KEY', ...(turnAdmission ? { turnAdmission } : {}) }, 500);
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -362,6 +385,7 @@ async function handleOpenAi(
     reasoningRunId?: unknown;
     reasoningSlot?: unknown;
     chatTurnId?: unknown;
+    chatAttemptIntent?: unknown;
   };
   try {
     body = await readLlmProxyJsonObject(req) as typeof body;
@@ -743,14 +767,43 @@ async function handleOpenAi(
       return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
     }
   }
+  // Validate intent only for valid turns; unbound reasks still fail without charging.
+  const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
+  const intent = chatTurnId || (purpose === 'secondb_chat' && body.chatAttemptIntent === 'reask') ? readChatAttemptIntent(body.chatAttemptIntent) : 'first';
+  if (intent === null) {
+    turnAdmission = undefined; // The invalid-intent 400 has no admission envelope.
+    return jsonResponse(req, { error: 'invalid_chat_attempt_intent' }, 400);
+  }
+  if (purpose === 'secondb_chat' && intent === 'reask' && (admissionMode === 'legacy' || !chatTurnId)) {
+    if (hasChatTurn) turnAdmission = rejectedTurnAdmission(admissionMode);
+    return jsonResponse(req, { error: 'reask_ineligible' }, 409);
+  }
 
-  const purposeQuota = await consumeLlmPurposeQuota(capacityRpc, userId, 'openai', purpose);
-  if (!purposeQuota.ok) {
-    if (purposeQuota.reason === 'limited') {
-      return jsonResponse(req, { error: 'purpose_limit_exceeded', feature: purpose }, 429);
+  const consentAuditId = crypto.randomUUID();
+  const usesChatAdmission = admissionMode === 'enforce' && chatTurnId !== null;
+  if (usesChatAdmission) {
+    const result = await admitChatTurn(capacityRpc, { userId, auditId: consentAuditId, turnId: chatTurnId }, intent);
+    turnAdmission = result.admission;
+    if (result.denial) {
+      const { error, status } = result.denial;
+      return jsonResponse(req, { error, ...(status === 429 ? { feature: purpose } : {}) }, status);
     }
-    console.error('[openai-proxy] purpose quota unavailable');
-    return jsonResponse(req, { error: 'purpose_limit_unavailable' }, 503);
+  } else {
+    const purposeQuota = await consumeLlmPurposeQuota(capacityRpc, userId, 'openai', purpose);
+    if (!purposeQuota.ok) {
+      if (turnAdmission) turnAdmission.quotaCharged = purposeQuota.reason === 'limited' ? false : null;
+      if (purposeQuota.reason === 'limited') {
+        return jsonResponse(req, { error: 'purpose_limit_exceeded', feature: purpose }, 429);
+      }
+      console.error('[openai-proxy] purpose quota unavailable');
+      return jsonResponse(req, { error: 'purpose_limit_unavailable' }, 503);
+    }
+    if (hasChatTurn) {
+      turnAdmission = admissionMode === 'legacy' ? legacyTurnAdmission(true, true) : {
+        mode: 'enforce', allowed: true, kind: 'unbound', attempt: null,
+        quotaCharged: true, bindingEligible: false, reaskAvailable: false,
+      };
+    }
   }
 
   // Spend cap -- the SAME shared per-user/day counter as gemini/claude proxies.
@@ -786,6 +839,11 @@ async function handleOpenAi(
       console.warn('[openai-proxy] spend refund failed:', String(error).slice(0, UPSTREAM_DETAIL_TRUNCATE));
     }
   };
+
+  if (!apiKey) {
+    await refundBeforeDispatch();
+    return jsonResponse(req, { error: 'server_misconfigured_missing_OPENAI_API_KEY' }, 500);
+  }
 
   const openaiModel = resolveModel(purpose, purposePolicy.modelTier);
   const clampedEffort = clampLlmPurposeEffort(
@@ -923,16 +981,13 @@ async function handleOpenAi(
     }
   }
 
-  // Z46 (0255 round 6): the id this call's audit row will carry is made before the model is asked, with the
-  // turn the app named (chat only · read by shape · never written on the audit row). The server records this
-  // call as that turn's attempt first, numbered in the order the calls reach it (round 8). Only a recorded
-  // attempt can be bound, and a bound answer gives way only to the second attempt's, so an earlier attempt
-  // that ends late cannot take the turn from the re-ask. Bounded: false means this answer is not bound
-  // (no refund for it), never that the answer stops.
-  const consentAuditId = crypto.randomUUID();
-  const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);
-  const turnAttempt = chatTurnId !== null
-    && await beginChatTurnAttempt(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'openai-proxy');
+  // T39 already registered/charged enforce requests before spend. Legacy keeps
+  // the bounded Z46 soft begin here; false permits an unbound answer. Both paths
+  // use the same preallocated audit id for the model, audit and eventual claim.
+  const turnAttempt = usesChatAdmission
+    ? turnAdmission?.bindingEligible === true
+    : chatTurnId !== null
+      && await beginChatTurnAttempt(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'openai-proxy');
 
   const t0 = Date.now();
   let upstream: Response;
@@ -1136,15 +1191,15 @@ Deno.serve(async (req: Request) => {
   let body: Record<string, unknown>;
   try { body = await readLlmProxyJsonObject(req.clone()); }
   catch { return handleOpenAi(req); }
-  if (body.purpose !== 'persona_synthesis') return handleOpenAi(req);
+  if (body.purpose !== 'persona_synthesis') return handleOpenAi(req, undefined, undefined, body);
   const userId = userIdFromJwt(req.headers.get('authorization') ?? '');
   const generationId = body.polarisGenerationId;
   if (!userId || typeof generationId !== 'string' || !/^[0-9a-f-]{36}$/i.test(generationId)) {
-    return jsonResponse(req,{error:'polaris_reservation_required'},403);
+    return baseJsonResponse(req,{error:'polaris_reservation_required'},403);
   }
   const url = Deno.env.get('SUPABASE_URL');
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!url || !key) return jsonResponse(req,{error:'polaris_unavailable'},503);
+  if (!url || !key) return baseJsonResponse(req,{error:'polaris_unavailable'},503);
   const admin = createClient(url,key,{auth:{autoRefreshToken:false,persistSession:false}});
   const consentMode = resolveLlmConsentMode((name) => Deno.env.get(name));
   let providerAudit: { id: string; model: string } | undefined;
@@ -1163,7 +1218,7 @@ Deno.serve(async (req: Request) => {
       },
     });
     // Error responses from the settlement helper need the same CORS envelope.
-    if (!response.ok) return jsonResponse(req,await response.json(),response.status);
+    if (!response.ok) return baseJsonResponse(req,await response.json(),response.status);
     return response;
-  } catch { return jsonResponse(req,{error:'polaris_unavailable'},503); }
+  } catch { return baseJsonResponse(req,{error:'polaris_unavailable'},503); }
 });

@@ -33,7 +33,9 @@ describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 
 
   it.each(PROXIES)('%s: 턴 번호는 감사 줄에 적지 않고, 답을 돌려주는 길에서만 서버에 묻는다', (name) => {
     const src = read(`supabase/functions/${name}/index.ts`);
-    const tail = src.slice(src.lastIndexOf('const consentAuditId = crypto.randomUUID();'));
+    const tail = src.slice(name === 'openai-proxy'
+      ? src.indexOf('const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);')
+      : src.lastIndexOf('const consentAuditId = crypto.randomUUID();'));
     // read by shape for chat only; never written on the row
     expect(tail).toContain('const chatTurnId = readChatTurnId(purpose, body?.chatTurnId);');
     expect(src).not.toMatch(/chat_turn_id/);
@@ -42,11 +44,25 @@ describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 
     // round 6: before the model is asked, the call is recorded as the turn's attempt under the id its audit row
     // will carry; the id is made there, once, and only a recorded attempt is ever bound
     expect(src.match(/beginChatTurnAttempt\(/g)).toHaveLength(1);
-    expect(tail).toMatch(
-      new RegExp(
-        `^const consentAuditId = crypto\\.randomUUID\\(\\);\\n  const chatTurnId = readChatTurnId\\(purpose, body\\?\\.chatTurnId\\);\\n  const turnAttempt = chatTurnId !== null\\n    && await beginChatTurnAttempt\\(supabaseAdmin, \\{ userId, auditId: consentAuditId, turnId: chatTurnId \\}, '${name}'\\);\\n\\n  const t0 = Date\\.now\\(\\);\\n  let upstream: Response;\\n`,
-      ),
-    );
+    if (name === 'openai-proxy') {
+      // T39 registers enforce before spend; legacy alone retains soft begin.
+      expect(tail).toContain("const usesChatAdmission = admissionMode === 'enforce' && chatTurnId !== null;");
+      expect(tail).toContain(
+        "const turnAttempt = usesChatAdmission\n    ? turnAdmission?.bindingEligible === true\n    : chatTurnId !== null\n      && await beginChatTurnAttempt(supabaseAdmin, { userId, auditId: consentAuditId, turnId: chatTurnId }, 'openai-proxy');\n\n  const t0 = Date.now();\n  let upstream: Response;\n",
+      );
+      const admission = tail.indexOf('await admitChatTurn(');
+      const spend = tail.indexOf("'bump_gemini_spend'");
+      const model = tail.indexOf('await fetch(');
+      expect(admission).toBeGreaterThan(tail.indexOf('const consentAuditId = crypto.randomUUID();'));
+      expect(spend).toBeGreaterThan(admission);
+      expect(model).toBeGreaterThan(spend);
+    } else {
+      expect(tail).toMatch(
+        new RegExp(
+          `^const consentAuditId = crypto\\.randomUUID\\(\\);\\n  const chatTurnId = readChatTurnId\\(purpose, body\\?\\.chatTurnId\\);\\n  const turnAttempt = chatTurnId !== null\\n    && await beginChatTurnAttempt\\(supabaseAdmin, \\{ userId, auditId: consentAuditId, turnId: chatTurnId \\}, '${name}'\\);\\n\\n  const t0 = Date\\.now\\(\\);\\n  let upstream: Response;\\n`,
+        ),
+      );
+    }
     expect(tail.match(/const consentAuditId = /g)).toHaveLength(1);
     expect(tail.match(/const chatTurnId = /g)).toHaveLength(1);
     // after the input classifier has had its say: a blocked input records no attempt
@@ -80,7 +96,7 @@ describe('프록시는 답이 나온 턴의 감사 줄 id 를 응답에 싣고, 
 
   it.each(PROXIES)('%s: 다른 응답은 id 를 싣지 않는다(막힌 입력 · 실패 · 동의 철회 · 임베딩)', (name) => {
     const src = read(`supabase/functions/${name}/index.ts`);
-    expect(src.match(/auditId: consentAuditId/g)).toHaveLength(3); // the reply, the claim above it, and the attempt before the model call
+    expect(src.match(/auditId: consentAuditId/g)).toHaveLength(name === 'openai-proxy' ? 4 : 3); // T39 adds atomic admission using the same audit id
     // every response call, read whole (the reply spans lines): exactly one carries the id, and it is the reply
     const calls = [...src.matchAll(/jsonResponse\(req, \{[\s\S]*?\}\s*(?:,[^;]*?)?\);/g)].map((m) => m[0]);
     expect(calls.length).toBeGreaterThan(3);
