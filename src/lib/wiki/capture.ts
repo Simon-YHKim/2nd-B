@@ -6,14 +6,28 @@
 // perspective operation.
 
 import { buildSourcePayload } from "./ingest-helpers";
-import { throwIfAborted } from "../async/abort";
-import { createSource, getSource } from "./queries";
+import { abortError, throwIfAborted } from "../async/abort";
+import { createSource as legacyCreateSource, getSource, type CreateSourceInput } from "./queries";
 import { storageSafeSlug } from "./slug";
-import { deleteRawClipping, rawClippingPath, uploadRawClipping } from "./storage";
+import { deleteRawClipping as legacyDeleteRawClipping, rawClippingPath, uploadRawClipping as legacyUploadRawClipping } from "./storage";
+import { getEnv } from "../env";
+import type { AccountOwnerLease } from "../auth/account-epoch";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import type { ContentMutationKind, ContentSettlement, createContentWipeLedger } from "../account/content-wipe";
 import { contentHash, minhashSignature, lshBandKeys } from "../ingest/dedup";
 import { decideIngest, type GateDeps } from "../ingest/gate";
 import { makeSupabaseGateDeps } from "../ingest/gate-supabase";
 import type { SourceKind, SourceRow } from "./types";
+
+export type CaptureMutationObserver = Readonly<{
+  owner: AccountOwnerLease;
+  generation: number;
+  operationId: string;
+  session: AuthenticatedAccountSessionLease;
+  ledger: Pick<ReturnType<typeof createContentWipeLedger>, "read" | "acquireMutation" | "issueMutation" | "settleMutation">;
+  /** Session/consent admission only. Never called to authorize a late settlement. */
+  assertCurrent(): void;
+}>;
 
 export interface CaptureInput {
   /** The current user's id. Storage path scopes to it; sources.user_id requires it. */
@@ -52,6 +66,8 @@ export interface CaptureInput {
    * inject a fake. Exposed so callers can disable/stub the gate if needed.
    */
   gateDeps?: GateDeps;
+  /** Opt-in D4 writes. Omission preserves the live capture/import path. */
+  mutationObserver?: CaptureMutationObserver;
 }
 
 export interface CaptureResult {
@@ -78,6 +94,11 @@ export interface CaptureResult {
 
 export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureResult> {
   throwIfAborted(input.signal);
+  const observed = input.mutationObserver ? observedCapture(input, input.mutationObserver) : null;
+  const uploadRawClipping = observed?.upload ?? legacyUploadRawClipping;
+  const createSource = observed?.create ?? legacyCreateSource;
+  const deleteRawClipping = observed?.cleanup ?? legacyDeleteRawClipping;
+  observed?.fence();
   const built = buildSourcePayload(input.rawMd, input.fallbackUrl ?? null, input.kindOverride ?? null);
   throwIfAborted(input.signal);
 
@@ -93,6 +114,7 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
   const bands = lshBandKeys(signature);
   const candidates = await gateDeps.findCandidates(bands, hash);
   throwIfAborted(input.signal);
+  observed?.fence();
   const decision = decideIngest({
     text: built.body,
     candidates,
@@ -101,13 +123,16 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
 
   let dedupOf: string | null = null;
   if (!decision.keep && decision.stage === "exact_duplicate" && decision.survivorId) {
-    await gateDeps.recordDrop({
+    const drop = {
       content_hash: hash,
-      stage: "exact_duplicate",
+      stage: "exact_duplicate" as const,
       reason: decision.reason,
       survivor_id: decision.survivorId,
-    });
+    };
+    if (observed) await observed.drop(drop);
+    else await gateDeps.recordDrop(drop);
     throwIfAborted(input.signal);
+    observed?.fence();
     const existing = await getSource(input.userId, decision.survivorId);
     if (existing) {
       return {
@@ -146,10 +171,12 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     await uploadRawClipping(input.userId, storageSlug, built.body);
   } catch (e) {
     throwIfAborted(input.signal);
+    observed?.fence();
     storedToStorage = false;
     if (typeof console !== "undefined") console.warn("[capture] storage upload failed; saving body inline", e);
   }
   throwIfAborted(input.signal);
+  observed?.fence();
 
   // Merge LLM-classifier output (user-final) with whatever the frontmatter
   // already carried. Tags get deduped + lowercased. Track lives in frontmatter
@@ -190,6 +217,7 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     throw e;
   }
   throwIfAborted(input.signal);
+  observed?.fence();
 
   return {
     source,
@@ -198,6 +226,110 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
     suggested_slug: built.suggested_slug,
     storagePending: !storedToStorage,
     deduped: dedupOf ? "near_duplicate" : null,
+  };
+}
+
+/** Read the original response only on the opted-in path: the legacy helpers
+ * discard Storage/drop receipts. No error text or abort is rollback evidence. */
+function observedCapture(input: CaptureInput, observer: CaptureMutationObserver) {
+  const { owner, generation, operationId, ledger, session } = observer;
+  const fence = () => {
+    throwIfAborted(input.signal);
+    observer.assertCurrent();
+    session.assertCurrent();
+    if (owner.ownerId !== input.userId || !owner.isCurrent() || session.userId !== owner.ownerId
+      || session.epoch !== owner.epoch || session.signal !== input.signal) throw abortError();
+    const state = ledger.read(owner);
+    if (state.phase !== "open" || state.generation !== generation) throw abortError();
+  };
+  const object = (value: unknown): value is Record<string, unknown> =>
+    value !== null && typeof value === "object" && !Array.isArray(value);
+  type Reply = { data?: unknown; error?: unknown; status?: number };
+  // storage-js 2.106.1 ignores upload FileOptions.signal and constructs data.path
+  // locally. Opt-in writes use the captured token/signal and original HTTP body.
+  // Do not change the legacy helpers or silently fall back to mutable SDK auth.
+  function request(route: string, init: RequestInit, minimal = false): () => Promise<Reply> {
+    fence();
+    const accessToken = session.accessToken, env = getEnv();
+    const url = env.EXPO_PUBLIC_SUPABASE_URL.replace(/\/+$/, "") + route;
+    const options = { ...init, signal: session.signal, headers: {
+      Authorization: `Bearer ${accessToken}`, apikey: env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      "content-type": "application/json", ...init.headers,
+    } };
+    return async () => {
+      const response = await globalThis.fetch(url, options);
+      // Read/parse loss after HTTP success is still an unknown mutation.
+      const text = await response.text();
+      const mime = response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
+      if (!(minimal && response.ok && text === "") && mime !== "application/json" && mime !== "application/vnd.pgrst.object+json") {
+        throw new Error("capture_response_unconfirmed");
+      }
+      const data: unknown = minimal && response.ok && text === "" ? null : JSON.parse(text);
+      return response.ok ? { data, error: null, status: response.status } : { data: null, error: data, status: response.status };
+    };
+  }
+  async function mutate(kind: Exclude<ContentMutationKind, "usage">, dispatch: () => PromiseLike<Reply>,
+    confirmed: (reply: Reply) => boolean): Promise<unknown> {
+    fence();
+    const ticket = ledger.acquireMutation(owner, generation, { operationId, stepId: kind, kind });
+    if (!ticket) throw abortError();
+    const operation = ledger.issueMutation(owner, ticket, () => Promise.resolve(dispatch()), () => { fence(); return true; });
+    if (!operation) throw abortError();
+    // Cancellation records uncertainty immediately, while the original promise
+    // can still supply a verified late receipt to this exact epoch/generation.
+    const uncertain = () => { ledger.settleMutation(ticket, { outcome: "unknown" }); };
+    input.signal?.addEventListener("abort", uncertain, { once: true });
+    if (input.signal?.aborted) uncertain();
+    try {
+      const reply = await operation;
+      const valid = object(reply);
+      const rejected = kind === "source-insert" && valid && reply.status === 400 && reply.data === null
+        && object(reply.error) && reply.error.code === "P0001" && isMinorImportLocked(reply.error);
+      // x-upsert:false rejects an existing object before writing. Require the
+      // Storage Duplicate body as well as its 400/409 status; other failures stay unknown.
+      const duplicate = kind === "raw-upload" && valid && (reply.status === 409 || reply.status === 400)
+        && reply.data === null && object(reply.error) && (reply.error.statusCode === "409" || reply.error.error === "Duplicate");
+      const outcome: ContentSettlement["outcome"] = rejected || duplicate ? "definitely-not-committed"
+        : valid && reply.error === null && confirmed(reply) ? "committed" : "unknown";
+      const settled = ledger.settleMutation(ticket, { outcome });
+      if (!settled) throw new Error("capture_settlement_rejected");
+      if (valid && reply.error) throw reply.error;
+      if (outcome !== "committed") throw new Error("capture_mutation_unconfirmed");
+      return reply.data;
+    } catch (error) {
+      // A terminal receipt cannot be weakened by a later observation failure.
+      uncertain();
+      throw error;
+    } finally { input.signal?.removeEventListener("abort", uncertain); }
+  }
+  return {
+    fence,
+    async upload(userId: string, slug: string, body: string) {
+      const path = rawClippingPath(userId, slug);
+      await mutate("raw-upload", request(`/storage/v1/object/raw-clippings/${path.split("/").map(encodeURIComponent).join("/")}`, {
+        method: "POST", body, headers: { "content-type": "text/markdown; charset=utf-8", "cache-control": "max-age=3600", "x-upsert": "false" },
+      }), reply => reply.status === 200 && object(reply.data) && typeof reply.data.Id === "string" && !!reply.data.Id
+        && reply.data.Key === `raw-clippings/${path}`);
+      return { path };
+    },
+    async create(row: CreateSourceInput): Promise<SourceRow> {
+      return await mutate("source-insert", request("/rest/v1/sources?select=*", {
+        method: "POST", body: JSON.stringify(row), headers: { Prefer: "return=representation", Accept: "application/vnd.pgrst.object+json" },
+      }), reply => reply.status === 201 && object(reply.data) && typeof reply.data.id === "string" && !!reply.data.id
+        && reply.data.user_id === row.user_id && reply.data.storage_path === row.storage_path
+        && reply.data.content_hash === row.content_hash) as SourceRow;
+    },
+    async drop(row: Parameters<GateDeps["recordDrop"]>[0]) {
+      // Custom GateDeps return no server receipt; keep their outcome unknown.
+      const custom = input.gateDeps;
+      await mutate("ingest-drop", custom ? () => custom.recordDrop(row).then(() => ({}))
+        : request("/rest/v1/ingest_log", { method: "POST", body: JSON.stringify({ user_id: input.userId, ...row }),
+          headers: { Prefer: "return=minimal" } }, true), reply => reply.status === 201 && reply.data === null);
+    },
+    async cleanup(path: string) {
+      await mutate("raw-cleanup", request("/storage/v1/object/raw-clippings", { method: "DELETE", body: JSON.stringify({ prefixes: [path] }) }),
+        reply => reply.status === 200 && Array.isArray(reply.data) && reply.data.length === 1 && object(reply.data[0]) && reply.data[0].name === path);
+    },
   };
 }
 

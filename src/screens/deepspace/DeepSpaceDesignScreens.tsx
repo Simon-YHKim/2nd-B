@@ -976,7 +976,7 @@ export function DeepSpacePrivacyDesignScreen() {
         minorRef.current
       ) return;
       const prefs = { ...current, records_embedding: true };
-      await savePrivacyPrefs(targetUserId, prefs, { before: current });
+      await savePrivacyPrefs(targetUserId, prefs, { before: current, enableRecordsEmbedding: true });
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||

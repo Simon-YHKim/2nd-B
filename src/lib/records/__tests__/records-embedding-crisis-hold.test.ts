@@ -32,7 +32,7 @@ jest.mock("../../supabase/client", () => ({
         then: (resolve: (value: unknown) => unknown) => {
           if (update !== undefined) {
             mockWrites.push({ id: filters.id as string, userId: filters.user_id as string, value: update });
-            return Promise.resolve(resolve({ data: null, error: null }));
+            return Promise.resolve(resolve({ data: [{ id: filters.id, ...(update as object) }], error: null }));
           }
           const selected = mockRows.filter((r) => r.user_id === filters.user_id && (!before || r.created_at < before))
             .slice(0, limit).map((row) => Object.fromEntries(fields.split(",").map((f) => [f.trim(), row[f.trim() as keyof StoredRow]])));

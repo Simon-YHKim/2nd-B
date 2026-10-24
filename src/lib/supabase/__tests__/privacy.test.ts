@@ -27,6 +27,7 @@ jest.mock("../client", () => {
 
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "../privacy";
 import { defaultPrivacyPrefs } from "../../privacy/prefs";
+import { beginPrivacyChange, currentPrivacyChange, resetPrivacyChangesForTests } from "../../privacy/changes";
 
 const { __mock, __maybeSingle, __update, __eqUpdate, __insert } = require("../client") as {
   __mock: { from: jest.Mock };
@@ -93,6 +94,120 @@ describe("savePrivacyPrefs", () => {
     __eqUpdate.mockResolvedValueOnce({ error: new Error("rls denied") });
     await expect(savePrivacyPrefs("u1", defaultPrivacyPrefs())).rejects.toThrow("rls denied");
     expect(__insert).not.toHaveBeenCalled(); // a failed save is not a consent change
+  });
+
+  test("legacy unmarked enable conflict keeps local display and consent ledger OFF", async () => {
+    resetPrivacyChangesForTests();
+    const before = defaultPrivacyPrefs();
+    beginPrivacyChange("legacy-user", before);
+    mockBeforeState(before);
+    const conflict = { code: "40001", message: "records_embedding_consent_conflict" };
+    __eqUpdate.mockResolvedValueOnce({ error: conflict });
+    let displayed = before;
+    const requested = { ...before, records_embedding: true };
+    // Same plain UPDATE/eq path as main's old savePrivacyPrefs: no marker,
+    // no RETURNING and no new option. Screens accept the value only on success.
+    const saving = savePrivacyPrefs("legacy-user", requested).then(() => { displayed = requested; });
+    await expect(saving).rejects.toEqual(conflict);
+    expect(__update).toHaveBeenCalledTimes(1);
+    expect(__update).toHaveBeenCalledWith({ privacy_prefs: requested });
+    expect(__eqUpdate).toHaveBeenCalledWith("id", "legacy-user");
+    expect(__maybeSingle).toHaveBeenCalledTimes(1);
+    expect(displayed.records_embedding).toBe(false);
+    expect(currentPrivacyChange("legacy-user")?.prefs.records_embedding).toBe(false);
+    expect(__mock.from).not.toHaveBeenCalledWith("consent_changes");
+    expect(__insert).not.toHaveBeenCalled();
+    resetPrivacyChangesForTests();
+  });
+});
+
+describe("explicit records embedding enable CAS", () => {
+  const before = defaultPrivacyPrefs();
+  const prefs = { ...before, records_embedding: true };
+  const options = { before, enableRecordsEmbedding: true as const };
+  let returning: jest.Mock;
+  beforeEach(() => {
+    __mock.from.mockClear();
+    __maybeSingle.mockReset();
+    __update.mockClear();
+    __eqUpdate.mockReset();
+    __insert.mockReset().mockResolvedValue({ error: null });
+    returning = jest.fn().mockResolvedValue({ data: [{ id: "u1", privacy_prefs: prefs }], error: null });
+    __eqUpdate.mockReturnValue({ select: returning });
+  });
+
+  test.each([undefined, 0, 7])("reads raw revision %s strictly and sends only its successor", async (revision) => {
+    __maybeSingle.mockResolvedValue({ data: { privacy_prefs: { records_embedding_revision: revision } }, error: null });
+    await savePrivacyPrefs("u1", prefs, options);
+    expect(__update).toHaveBeenCalledWith({
+      privacy_prefs: { ...prefs, records_embedding_enable_revision: (revision ?? 0) + 1 },
+    });
+    expect(returning).toHaveBeenCalledWith("id, privacy_prefs");
+    expect(__insert).toHaveBeenCalledWith([{ user_id: "u1", pref_key: "records_embedding", event_type: "grant" }]);
+  });
+
+  test.each([
+    { data: null, error: new Error("read failed") },
+    { data: { privacy_prefs: {} }, error: new Error("read failed with partial data") },
+    { data: null, error: null },
+    ...["7", -1, 1.5, Number.MAX_SAFE_INTEGER].map((revision) => ({
+      data: { privacy_prefs: { records_embedding_revision: revision } }, error: null,
+    })),
+  ])("a missing/failed/invalid revision read cannot write a grant: %#", async (result) => {
+    __maybeSingle.mockResolvedValue(result);
+    await expect(savePrivacyPrefs("u1", prefs, options)).rejects.toThrow();
+    expect(__update).not.toHaveBeenCalled();
+    expect(__insert).not.toHaveBeenCalled();
+  });
+
+  test("binds a repaired revision to the freshly read server recovery token", async () => {
+    const recovery = "ec026300-0000-4000-8000-000000000001";
+    __maybeSingle.mockResolvedValue({ data: { privacy_prefs: {
+      records_embedding_revision: 1, records_embedding_recovery: recovery,
+    } }, error: null });
+    await savePrivacyPrefs("u1", prefs, options);
+    expect(__update).toHaveBeenCalledWith({ privacy_prefs: {
+      ...prefs, records_embedding_enable_revision: 2, records_embedding_enable_recovery: recovery,
+    } });
+  });
+
+  test.each([null, 7, "bad", {}])("invalid recovery metadata cannot write a grant: %#", async (recovery) => {
+    __maybeSingle.mockResolvedValue({ data: { privacy_prefs: {
+      records_embedding_revision: 1, records_embedding_recovery: recovery,
+    } }, error: null });
+    await expect(savePrivacyPrefs("u1", prefs, options)).rejects.toThrow("records_embedding_invalid_recovery");
+    expect(__update).not.toHaveBeenCalled();
+    expect(__insert).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    [],
+    [{ id: "other", privacy_prefs: prefs }],
+    [{ id: "u1", privacy_prefs: { records_embedding: false } }],
+    [{ id: "u1", privacy_prefs: { records_embedding: "true" } }],
+    [{ id: "u1", privacy_prefs: prefs }, { id: "u1", privacy_prefs: prefs }],
+  ])("unconfirmed stored ON rejects without a grant ledger: %#", async (...rows) => {
+    // Jest spreads each array case into arguments.
+    __maybeSingle.mockResolvedValue({ data: { privacy_prefs: {} }, error: null });
+    returning.mockResolvedValue({ data: rows, error: null });
+    await expect(savePrivacyPrefs("u1", prefs, options)).rejects.toThrow("records_embedding_enable_not_saved");
+    expect(__insert).not.toHaveBeenCalled();
+  });
+
+  test("conflict propagates once without automatically retrying consent", async () => {
+    __maybeSingle.mockResolvedValue({ data: { privacy_prefs: { records_embedding_revision: 4 } }, error: null });
+    returning.mockResolvedValue({ data: null, error: new Error("records_embedding_consent_conflict") });
+    await expect(savePrivacyPrefs("u1", prefs, options)).rejects.toThrow("records_embedding_consent_conflict");
+    expect(__update).toHaveBeenCalledTimes(1);
+    expect(__insert).not.toHaveBeenCalled();
+  });
+
+  test("ordinary full-object true saves never mint an enable marker", async () => {
+    __eqUpdate.mockResolvedValue({ error: null });
+    await savePrivacyPrefs("u1", prefs, { before });
+    expect(__maybeSingle).not.toHaveBeenCalled();
+    expect(__update).toHaveBeenCalledWith({ privacy_prefs: prefs });
+    expect(returning).not.toHaveBeenCalled();
   });
 });
 

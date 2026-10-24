@@ -39,6 +39,8 @@ export interface SavePrivacyPrefsOptions {
    * a withdrawal would then lose its revoke row and log a grant for every other consent on.
    */
   before?: PrivacyPrefs;
+  /** Only the user's explicit records opt-in action may request the next CAS revision. */
+  enableRecordsEmbedding?: true;
 }
 
 export async function savePrivacyPrefs(
@@ -53,8 +55,42 @@ export async function savePrivacyPrefs(
   // so this can't block the save; a read miss resolves to all-off defaults. A
   // caller that has just read strictly (the health withdrawal) passes that instead.
   const before = options.before ?? (await fetchPrivacyPrefs(userId));
-  const { error } = await supabase.from("users").update({ privacy_prefs: prefs }).eq("id", userId);
-  if (error) throw error;
+  if (options.enableRecordsEmbedding) {
+    if (!prefs.records_embedding) throw new Error("records_embedding_enable_requires_true");
+    // Strict read: never turn a failed/absent read into revision zero. Read raw
+    // JSON because resolvePrivacyPrefs intentionally drops server metadata.
+    const { data: current, error: readError } = await supabase.from("users")
+      .select("privacy_prefs").eq("id", userId).maybeSingle();
+    if (readError) throw readError;
+    if (!current) throw new Error("records_embedding_user_missing");
+    const stored = current.privacy_prefs as Record<string, unknown> | null;
+    const previous = stored?.records_embedding_revision ?? 0;
+    if (typeof previous !== "number" || !Number.isSafeInteger(previous) || previous < 0 || previous >= Number.MAX_SAFE_INTEGER) {
+      throw new Error("records_embedding_invalid_revision");
+    }
+    // A server repair may restart the numeric revision. Bind this explicit ON
+    // to that repaired generation as well, so old numeric markers cannot recur.
+    const recovery = stored?.records_embedding_recovery;
+    if (recovery !== undefined && (typeof recovery !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(recovery))) {
+      throw new Error("records_embedding_invalid_recovery");
+    }
+    const { data, error } = await supabase.from("users").update({
+      privacy_prefs: { ...prefs, records_embedding_enable_revision: previous + 1,
+        ...(recovery === undefined ? {} : { records_embedding_enable_recovery: recovery }) },
+    }).eq("id", userId).select("id, privacy_prefs");
+    if (error) throw error;
+    // Works before 0263 too: the old DB stores the marker as an unused JSON key.
+    // After installation the trigger consumes it. Either way require actual ON
+    // before the screen starts its backfill or records a successful grant.
+    if (data?.length !== 1 || data[0].id !== userId ||
+        (data[0].privacy_prefs as Record<string, unknown> | null)?.records_embedding !== true) {
+      throw new Error("records_embedding_enable_not_saved");
+    }
+  } else {
+    const { error } = await supabase.from("users").update({ privacy_prefs: prefs }).eq("id", userId);
+    if (error) throw error;
+  }
   commitPrivacyChange(userId, revision, prefs);
   // Append only AFTER a successful write (a failed save recorded no consent
   // change). Best-effort and never rethrows, so the change ledger can't break

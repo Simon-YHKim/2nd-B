@@ -11,5 +11,6 @@
 /src/lib/avatar/engine.js text eol=lf
 /src/lib/avatar/renderer.js text eol=lf
 /.claude/hooks/*.sh text eol=lf
+/scripts/test-chat-turn-admission-races.sh text eol=lf
 # A unified patch represents an empty context line with one required space.
 /docs/qa/patches/*.patch whitespace=-blank-at-eol

@@ -58,6 +58,7 @@ interface ExportModule {
   EXPORT_TIMEOUT_MS?: number;
   EXPORT_TABLES?: ExportSource[];
   EXCLUDED?: Readonly<Record<string, string>>;
+  PENDING_EXPORT: Readonly<Record<string, string>>;
 }
 
 const edgePath = join(__dirname, "../../../../supabase/functions/export-account/index.ts");
@@ -86,6 +87,7 @@ const exported = new Function("Deno", "createClient", `${js}\nreturn {
   EXPORT_TIMEOUT_MS: typeof EXPORT_TIMEOUT_MS === "number" ? EXPORT_TIMEOUT_MS : undefined,
   EXPORT_TABLES: typeof EXPORT_TABLES === "object" ? EXPORT_TABLES : undefined,
   EXCLUDED: typeof EXCLUDED === "object" ? EXCLUDED : undefined,
+  PENDING_EXPORT: typeof PENDING_EXPORT === "object" ? PENDING_EXPORT : undefined,
 };`)({
   serve: serveMock,
   env: {
@@ -793,7 +795,56 @@ describe("export-account bounded owned readers", () => {
     expect(source).not.toMatch(/errors\[[^\]]+\]\s*=/);
   });
 
-  test("discloses every newer account-scoped operational and security table as excluded", () => {
+  test("T22 classifies registered chat turn reservations exactly once", () => {
+    const registry = JSON.parse(readFileSync(join(__dirname, "../../../../db/erasure-registry.json"), "utf8"));
+    const table = "chat_turn_reservations";
+    expect(registry.tables[table]).toMatchObject({ owner: "user_id" });
+    const exportedCount = edge.EXPORT_TABLES!.filter((entry) => entry.table === table).length;
+    const excludedCount = Number(Object.prototype.hasOwnProperty.call(edge.EXCLUDED, table));
+    expect({ table, classifications: exportedCount + excludedCount }).toEqual({ table, classifications: 1 });
+  });
+
+  test("T22 discloses the reservation exclusion without reading rows or internal audit links", async () => {
+    const setup = successfulAdmin();
+    createClientMock.mockReturnValue(setup.admin);
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(200);
+    const body = await response.json() as { tables: Record<string, unknown>; excluded: Record<string, string> };
+    expect(body.excluded.chat_turn_reservations).toMatch(/quota.*audit/i);
+    expect(body.excluded.chat_turn_reservations).toBe(
+      "chat quota/refund bookkeeping with internal audit links; rows older than two days may be removed when chatting through the reservation path, otherwise kept until account deletion",
+    );
+    expect(body.excluded.chat_turn_reservations).not.toMatch(/short-lived|at your next chat turn/i);
+    expect(body.tables).not.toHaveProperty("chat_turn_reservations");
+    expect(setup.from).not.toHaveBeenCalledWith("chat_turn_reservations");
+    expect(body.tables).toHaveProperty("chat_usage");
+  });
+
+  test("reports all pending preparation gaps and exclusions without querying any of their tables", async () => {
+    const pendingTables = [
+      "interview_transcript_turns", "interview_transcripts", "interview_sessions", "interview_probe_verdicts",
+      "llm_consent_receipts", "weather_consent_state", "weather_access_events", "dashboard_generation_settings",
+    ];
+    expect(Object.keys(edge.PENDING_EXPORT).sort()).toEqual(pendingTables.sort());
+    const setup = successfulAdmin();
+    createClientMock.mockReturnValue(setup.admin);
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(200);
+    const body = await response.json() as { tables: Record<string, unknown>; excluded: Record<string, string> };
+    expect(body.excluded).toEqual({ ...edge.EXCLUDED, ...edge.PENDING_EXPORT });
+    for (const [table, reason] of Object.entries(body.excluded)) {
+      expect(reason.trim().length).toBeGreaterThan(0);
+      expect(body.tables).not.toHaveProperty(table);
+      expect(setup.from).not.toHaveBeenCalledWith(table);
+    }
+    for (const table of pendingTables) expect(body.excluded[table]).toContain("준비 중");
+    for (const table of ["dashboard_generation_runs", "reward_dispute_holds", "reward_dispute_hold_events"]) {
+      expect(edge.EXCLUDED![table]).toContain("법무 확인 중");
+    }
+    expect(body.excluded.dashboard_generation_runs).toContain("generated-output cache");
+  });
+
+  test("discloses the known account-scoped operational and security exclusions", () => {
     expect(edge.EXCLUDED).toMatchObject({
       public_data_quota_daily: expect.any(String),
       oauth_naver_identities: expect.any(String),

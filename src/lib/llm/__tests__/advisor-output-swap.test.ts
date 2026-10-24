@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 // Regression test for CSO 2nd audit finding #1 (CRITICAL 9/10):
 // callAdvisor must re-classify the reasoning model's text output. If the LLM
 // emits crisis content (via prompt injection through knowledge_sources rows,

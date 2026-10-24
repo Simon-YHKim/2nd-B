@@ -403,7 +403,7 @@ PURPOSE_ROUTE[purpose] = {
 | 표면 | PHASE | MODE | VIA_EDGE | VENDOR | 실효 모델 (lite/flash/pro) | 근거 |
 |---|---|---|---|---|---|---|
 | 웹 라이브 (GitHub Pages) | **1** (Variable, 2026-07-05) | live (Variable) | true (Variable) | 미설정 → Phase1 전량 Gemini | **전부 `gemini-3.5-flash`** (MODEL_* Variable 미설정 → 워크플로 기본값) | repo Variables 실조회(gh variable list) + `.github/workflows/web-deploy.yml:82-102` |
-| 네이티브 (EAS preview/production) | **1** (eas.json:33,66) | live | true | 미설정 | **2.5 패밀리** (`gemini-2.5-flash-lite`/`-flash`/`-pro` — EXPO_PUBLIC_MODEL_* 부재 → types.ts 기본값) | `eas.json:30-33,63-66` + `src/lib/llm/types.ts:148-158` |
+| 네이티브 (EAS preview/production) | **1** (eas.json:33,66) | live | true | 미설정 | **2.5 패밀리** (`gemini-2.5-flash-lite`/`-flash`/`-pro` — EXPO_PUBLIC_MODEL_* 부재 → types.ts 기본값) | `eas.json:30-33,63-66` + `src/lib/llm/types.ts:174-184` |
 | 앱 기본값 (env 전무: 로컬/jest) | 1 (`llmPhase()` 기본) | mock (env.ts 기본) | false | 미설정 | 2.5 패밀리 (mock 접두) | `src/lib/llm/routing.ts:26-29` |
 | runtime_flags (서버) | 위상 아님 — `llm_enabled` 킬스위치만 (현재 true) | — | — | — | — | `db/migrations/0092_runtime_flags.sql:25-30` |
 

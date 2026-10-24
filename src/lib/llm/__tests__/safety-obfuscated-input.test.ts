@@ -205,11 +205,12 @@ describe("R1 obfuscated input deadline", () => {
     expect(jest.getTimerCount()).toBe(0);
   });
 
-  test("late RED payload is discarded before parsing", async () => {
+  test.each([false, true])("late RED payload is discarded before parsing (retention callback: %s)", async retain => {
     let deliver!: (value: typeof response) => void;
     mockInvoke.mockReturnValue(new Promise((resolve) => { deliver = resolve; }));
     const settled = jest.fn();
-    void classifyObfuscatedInput("sui.cide", "en").then(settled);
+    const onRedResult = jest.fn();
+    void classifyObfuscatedInput("sui.cide", "en", retain ? { onRedResult } : undefined).then(settled);
     await jest.advanceTimersByTimeAsync(5000);
     expect(settled).toHaveBeenCalledWith(null);
     const readText = jest.fn(() => response.data.text);
@@ -217,6 +218,7 @@ describe("R1 obfuscated input deadline", () => {
     await jest.advanceTimersByTimeAsync(0);
     expect(readText).not.toHaveBeenCalled();
     expect(settled).toHaveBeenCalledTimes(1);
+    expect(onRedResult).not.toHaveBeenCalled();
   });
 
   test("legacy full semantic path has no new deadline or composed signal", async () => {
