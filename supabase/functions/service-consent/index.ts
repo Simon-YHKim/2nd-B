@@ -8,16 +8,26 @@ import {
   readLlmProxyJsonObject, userIdFromJwt,
 } from '../_shared/llm-proxy-common.ts';
 
-const CURRENT_REVISION = 'service-v4';
+const CURRENT_REVISION = 'service-v5';
 const LEGACY_REVISION = 'service-v1';
 // service-v2 is the PolaScope (email-v7) client; service-v4 maps the email-v9
-// notice revision (0215). Installed clients keep their own reviewed tuple.
+// notice revision (0215); service-v5 maps the email-v10 notice revision (0262).
+// Installed clients keep their own reviewed tuple.
 // service-v3 is reserved for the unmerged #2024 re-consent draft.
-const REVISIONS = new Set([LEGACY_REVISION,'service-v2',CURRENT_REVISION]);
+const REVISIONS = new Set([LEGACY_REVISION,'service-v2','service-v4',CURRENT_REVISION]);
 const STATUS_RPC: Record<string, string> = {
   'service-v1':'llm_service_consent_status',
   'service-v2':'llm_service_consent_status_v2',
   'service-v4':'llm_service_consent_status_v4',
+  'service-v5':'llm_service_consent_status_v5',
+};
+// The exact document tuple each revision's status RPC must return (0194, 0210, 0215, 0262).
+// A status that names the right revision with any other date is not passed through.
+const TUPLES: Record<string, readonly [string, string, string]> = {
+  'service-v1':['2026-09-07','2026-09-29','2026-08-16'],
+  'service-v2':['2026-10-05','2026-09-29','2026-10-05'],
+  'service-v4':['2026-10-06','2026-10-06','2026-10-05'],
+  'service-v5':['2026-10-18','2026-10-07','2026-10-05'],
 };
 const ACK_KEYS = ['service','llmProcessing','overseasTransfer','sensitiveData','safetyNotice'];
 const STATUS_KEYS = ['contract_revision','consent_version','policy_version','terms_version','state','change_token','can_grant'];
@@ -28,8 +38,9 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boo
 }
 function validStatus(value: unknown, writing: boolean, revision: string): value is Record<string, unknown> {
   if (!isLlmJsonObject(value) || !exactKeys(value,writing ? [...STATUS_KEYS,'created'] : STATUS_KEYS)) return false;
-  return value.contract_revision === revision &&
-    ['consent_version','policy_version','terms_version'].every((key) => typeof value[key] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value[key])) &&
+  const tuple = TUPLES[revision];
+  return value.contract_revision === revision && tuple !== undefined &&
+    ['consent_version','policy_version','terms_version'].every((key,index) => value[key] === tuple[index]) &&
     ['uncovered','granted','revoked','blocked'].includes(value.state as string) &&
     typeof value.change_token === 'string' && TOKEN.test(value.change_token) &&
     typeof value.can_grant === 'boolean' && (!writing || value.created === true);
