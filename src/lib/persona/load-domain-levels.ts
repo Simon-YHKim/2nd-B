@@ -10,7 +10,7 @@
 // domainConfidence / domainLevel / northStarBrightness do the deterministic math.
 
 import { getSupabaseClient } from "../supabase/client";
-import { rowHasSystemTagsColumn, withSystemTagsColumn } from "../records/system-tags";
+import { isReasoningRatified, rowHasSystemTagsColumn, withSystemTagsColumn } from "../records/system-tags";
 import { isDomainId, type DomainEntry, type DomainId } from "./domain-stars";
 import { type LadderLevel } from "./brightness";
 import { domainStarLevels } from "./north-star"; // northStarBrightness stays out on purpose: see the 2026-08-24 note at the return below.
@@ -33,7 +33,8 @@ const DOMAIN_TAG_PREFIX = "domain:";
 // CDA-06: stripping it here dropped a user's own tag). Only a row read from a
 // database without the column still carries the app's marker in `tags`, and
 // only there is it stripped, exactly as before 0218.
-const CAPTURE_MODE_TAGS = new Set(["voice", "todo"]);
+// Q-261013-40 accepts this narrow metric exception even for same-word user tags.
+const CAPTURE_MODE_TAGS = new Set(["memo", "fourw", "todo", "link", "voice"]);
 const PRE_0218_MARKER_TAGS = new Set(["interview"]);
 
 function isCaptureTag(tag: string, markersInTags: boolean): boolean {
@@ -41,11 +42,13 @@ function isCaptureTag(tag: string, markersInTags: boolean): boolean {
   return t.startsWith(DOMAIN_TAG_PREFIX) || CAPTURE_MODE_TAGS.has(t) || (markersInTags && PRE_0218_MARKER_TAGS.has(t));
 }
 
-/** The tags the user put on a record, for the organized-ratio signal. Exported
- *  for the CDA-06 test; the screen reads it only through fetchDomainLevels. */
+/** Organization signals for the ratio: user tags plus confirmed ratification.
+ *  These calculation-only tags never flow to display or persistence. */
 export function userOrganizedTags(row: DomainRow): string[] {
   const markersInTags = !rowHasSystemTagsColumn(row);
-  return (row.tags ?? []).filter((t) => !isCaptureTag(t, markersInTags));
+  const tags = (row.tags ?? []).filter((t) => !isCaptureTag(t, markersInTags));
+  // Computation only; never persisted, exported, or wired to ladder ratified=L5.
+  return tags.length === 0 && isReasoningRatified(row) ? ["ratified"] : tags;
 }
 
 /** The DomainId encoded in a record's tags, or null if none / unknown slug. */
@@ -101,14 +104,9 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
           // would silently keep the OLDEST rows and freeze the home sky in the past.
           .order("created_at", { ascending: false }),
       ),
-      // Ratified sources (P0 연동 브리지): clips/imports the user connected to a
-      // domain through the deep-run propose→ratify loop, which stamps a
-      // domain:<slug> tag onto the sources row. Before this scan the engine
-      // never read `sources` at all, so a RATIFIED source connection (and every
-      // import, which lands only in `sources`) could not brighten any star.
-      // Honesty holds: an un-ratified source has no domain tag and stays a dark
-      // star, exactly like a pre-migration record. Recency key = captured_at
-      // (this table has no created_at); newest-first for the same cap reason.
+      // A source domain can come from direct capture selection or ratification.
+      // Both count as organized; system ratification is not a prerequisite.
+      // Recency key = captured_at, newest-first for the same cap reason.
       supabase
         .from("sources")
         .select("captured_at, tags")
@@ -159,11 +157,7 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
     });
   }
 
-  // Fold ratified sources: a domain tag on a sources row exists only because
-  // the user ratified that connection in the deep-run review (propose→ratify),
-  // so the entry is organized BY that deliberate act — it carries a sentinel
-  // user-tag like the structured rows below. Volume stays honest: one ratify =
-  // one entry, and nothing counts before the user says yes.
+  // A directly selected or ratified source domain is organized, one row per entry.
   for (const row of (sourcesRes.data ?? []) as { captured_at?: string | null; tags?: string[] | null }[]) {
     const domain = domainOf(row.tags ?? []);
     if (!domain) continue;

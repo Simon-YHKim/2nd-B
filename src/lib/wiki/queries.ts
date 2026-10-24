@@ -10,6 +10,7 @@
 // always equal auth.uid() (otherwise RLS rejects the operation).
 
 import { getSupabaseClient } from "../supabase/client";
+import { reasoningTagPatch, type SystemTaggedRow } from "../records/system-tags";
 import { diffWikiLinks } from "./link-diff";
 import { prepareSavedDataDeletion } from "./saved-data-changes";
 import { extractWikilinkSlugs } from "./wikilinks";
@@ -194,20 +195,28 @@ export async function updateSourceFrontmatter(
   if (error) throw error;
 }
 
-/** Replace a source's tags column (inbox accepts an AI-suggested tag before
- *  promotion). Caller passes the full desired set; we don't merge here. */
+/** Replace user tags; a freshly read ratification row additionally appends the
+ * system marker in the same conditional PATCH. That write never falls back to
+ * tags-only. Ordinary edits keep their existing contract. */
 export async function updateSourceTags(
   userId: string,
   sourceId: string,
   tags: string[],
+  ratification?: SystemTaggedRow,
 ): Promise<void> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase
+  const patch = ratification ? reasoningTagPatch(tags, ratification) : null;
+  let query = supabase
     .from("sources")
-    .update({ tags })
+    .update(patch ? patch.payload : { tags })
     .eq("user_id", userId)
     .eq("id", sourceId);
+  if (patch) query = query.filter("system_tags", "eq", patch.expected);
+  // Keep ordinary tag edits' existing response contract. Ratification must
+  // confirm an actual row before the proposal or its wiki page can advance.
+  const { data, error } = await (patch ? query.select("id") : query);
   if (error) throw error;
+  if (patch && (!data || data.length === 0)) throw new Error("updateSourceTags: no row updated (stale or unauthorized id)");
 }
 
 // --- wiki_pages --------------------------------------------------------

@@ -2916,6 +2916,16 @@ jobs:
           PGPASSWORD: postgres
           PGPORT: 5432
         run: python3 db/tests/interview_transcript_ledger_security.py --template postgres
+      - name: Exercise sources.system_tags schema, predecessor and rejection mutations (0264)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Keep destructive shape probes inside a disposable clone, never in the
+          # database used by the other regression lanes. Each probe also rolls back.
+          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE t54_sources_test_ci TEMPLATE postgres'
+          node db/tests/sources_system_tags_contract.mjs 5432 postgres t54_sources_test_ci
       - name: Exercise records.system_tags, its hand move and its rollback (0218)
         env:
           PGPASSWORD: postgres

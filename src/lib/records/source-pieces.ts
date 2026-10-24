@@ -14,6 +14,7 @@
 // sources half lives here now and both call it.
 
 import { getSupabaseClient } from "../supabase/client";
+import { withSystemTagsColumn } from "./system-tags";
 
 /** A source-origin capture, shaped to slot alongside a record row. */
 export interface SourcePiece {
@@ -25,6 +26,7 @@ export interface SourcePiece {
   /** Named `created_at` (not `captured_at`) so it merges with record rows unchanged. */
   created_at: string;
   tags: string[] | null;
+  system_tags?: string[];
 }
 
 const LIMIT = 200;
@@ -36,16 +38,18 @@ const LIMIT = 200;
  *         to tell those apart, which is the whole point.
  */
 export async function listSourcePieces(userId: string, opts: { excludeProfileImports?: boolean } = {}): Promise<SourcePiece[]> {
-  let query = getSupabaseClient()
-    .from("sources")
-    .select("id, title, captured_at, tags")
-    .eq("user_id", userId)
-    .order("captured_at", { ascending: false })
-    .limit(LIMIT);
-  // Reasoning must not create shared derivatives outside an import's withdrawal ledger.
-  // Keep the ordinary record list complete; this exclusion is opt-in for reasoning only.
-  if (opts.excludeProfileImports) query = query.is("frontmatter->profile_context_import_id", null);
-  const { data, error } = await query;
+  const { data, error } = await withSystemTagsColumn((columnPresent) => {
+    const table = getSupabaseClient().from("sources");
+    const selected = columnPresent
+      ? table.select("id, title, captured_at, tags, system_tags")
+      : table.select("id, title, captured_at, tags");
+    let query = selected.eq("user_id", userId)
+      .order("captured_at", { ascending: false })
+      .limit(LIMIT);
+    // Keep the ordinary archive complete; reasoning excludes managed imports.
+    if (opts.excludeProfileImports) query = query.is("frontmatter->profile_context_import_id", null);
+    return query;
+  });
   if (error) throw error;
 
   const rows = (data ?? []) as {
@@ -53,6 +57,7 @@ export async function listSourcePieces(userId: string, opts: { excludeProfileImp
     title: string | null;
     captured_at: string;
     tags: string[] | null;
+    system_tags?: string[];
   }[];
 
   return rows.map((r) => ({
@@ -61,5 +66,6 @@ export async function listSourcePieces(userId: string, opts: { excludeProfileImp
     title: r.title,
     created_at: r.captured_at,
     tags: r.tags,
+    ...(r.system_tags === undefined ? {} : { system_tags: r.system_tags }),
   }));
 }
