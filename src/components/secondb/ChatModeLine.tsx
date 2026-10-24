@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { modeSwitchPersona } from "@/lib/chat/mode-switch";
@@ -15,6 +15,7 @@ export function ChatModeLine({ previousPersona, persona }: {
   if (nextPersona === null) return null;
   return (
     <View testID="chat-mode-line" accessible accessibilityRole="text"
+      role={Platform.OS === "web" ? "separator" : undefined}
       accessibilityLabel={t(`rev2.${nextPersona}.lensName`)} style={styles.line} />
   );
 }

@@ -64,7 +64,7 @@ test.each(["KR_109", "KR_1388", "GLOBAL_988", "KR_119", "KR_112"])("remote %s op
   expect(h.scope.parseSourceCitations).not.toHaveBeenCalled();
   expect(h.scope.playReplyCue).not.toHaveBeenCalled();
   expect(h.turns()).toEqual([
-    { role: "user", text: "ordinary user input", safetyZone: "red" },
+    { role: "user", persona: "secondb", text: "ordinary user input", safetyZone: "red" },
     { role: "secondb", persona: "secondb", text: "fixed guidance from safety boundary", safetyZone: "red", crisisNotice: true },
   ]);
   expect(isKeepable(h.turns()[1])).toBe(true);
