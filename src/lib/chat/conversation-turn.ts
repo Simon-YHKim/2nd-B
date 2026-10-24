@@ -1,4 +1,4 @@
-// T39 A2-I: dormant live entry. Screens keep sendChatMessage until B1.
+// T39 B1: live reservation entry. Foreground wait release remains B2-only.
 import { abortError } from "../async/abort";
 import type { AccountOwnerLease } from "../auth/account-epoch";
 import { withLiveOwnerSignal } from "../auth/live-owner-guard";
@@ -38,7 +38,7 @@ interface TurnRuntime {
   emergencyNotices: Set<string>;
   onReceipt?: (receipt: ChatTurnUsage) => void;
   adBonus: number;
-  settlement: ReturnType<typeof createSwapSettlement>;
+  settlement?: ReturnType<typeof createSwapSettlement>;
 }
 const runtimes = new WeakMap<LiveChatTurn, TurnRuntime>();
 
@@ -46,6 +46,8 @@ const runtimes = new WeakMap<LiveChatTurn, TurnRuntime>();
 export function createLiveChatTurn(input: {
   owner: AccountOwnerLease; conversationId: string; pairId: string; message: string;
   onCrisisDetected: CrisisObserver; onReceipt?: (receipt: ChatTurnUsage) => void;
+  /** T40 is a separate activation. B1 never opts into refund RPCs. */
+  settleOutputSwap?: true;
 }): LiveChatTurn {
   const { ownerId, epoch } = input.owner;
   const isCurrent = input.owner.isCurrent.bind(input.owner);
@@ -54,7 +56,7 @@ export function createLiveChatTurn(input: {
   const runtime: TurnRuntime = {
     state: createTurnResultState({ ownerId, ownerEpoch: epoch, conversationId: input.conversationId, pairId: input.pairId }, input.message),
     assertOwner, notify: input.onCrisisDetected, emergencyNotices: new Set(), onReceipt: input.onReceipt, adBonus: 0,
-    settlement: createSwapSettlement(input.owner),
+    settlement: input.settleOutputSwap ? createSwapSettlement(input.owner) : undefined,
   };
   const turn: LiveChatTurn = Object.freeze({
     read: () => { assertOwner(); return runtime.state; },
@@ -161,7 +163,7 @@ export async function sendLiveChatMessage(source: SendMessageInput, turn: LiveCh
     if (reply.safety.zone === "red") {
       notify(reply.safety.crisisRouting?.hotline);
       const candidate = createSwapCandidate(ticket, receipt, reply);
-      if (candidate) void runtime.settlement.start(candidate);
+      if (candidate) void runtime.settlement?.start(candidate);
       return { status: "crisis", result: reply };
     }
     const result: SendMessageOk = { status: "ok", reply, used: receipt.count, limit,

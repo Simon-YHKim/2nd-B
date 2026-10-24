@@ -4,9 +4,9 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { chatDisplayText } from "@/lib/chat/display-text";
 import { retryableMessage } from "@/lib/chat/retry-failed";
-import { parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
-import { parseTwiBranches } from "@/lib/chat/twi-branches";
-import { classifyInputAnyLocale } from "@/lib/safety/classifier";
+import { sourceCitationDisplay } from "@/lib/chat/sources";
+import { createControlledSender, ControlledConsentError as LlmConsentError, type Line } from "./helpers/secondb-send-harness";
+import { canRetryFailedTurn } from "@/lib/chat/retry-failed";
 
 // Z40: a reply that failed offers "try again". The screen is not rendered here; the handlers and
 // the turn list are taken from the source and run with stand-ins for what they reach.
@@ -28,53 +28,8 @@ function execute(expression: string, scope: Props): unknown {
   } }).outputText;
   return runInNewContext(code, scope);
 }
-function callbackOf(name: string): string {
-  const declaration = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === name) as ts.VariableDeclaration;
-  return (declaration.initializer as ts.CallExpression).arguments[0]!.getText(ast);
-}
-
-class LlmConsentError extends Error { code = "paused"; }
-
-/** handleSend with stand-ins. `answer` settles the pending call. */
-function sender(turns: Props[]) {
-  let settle!: { resolve: (result: Props) => void; reject: (error: Error) => void };
-  const calls: Props[] = [];
-  let finished!: () => void;
-  let completion = new Promise<void>(done => { finished = done; });
-  const sendChatMessage = jest.fn((input: Props) => {
-    calls.push(input);
-    return new Promise<Props>((yes, no) => { settle = { resolve: yes, reject: no }; });
-  });
-  const scope: Props = {
-    captureAccountOwnerLease: () => ({ isCurrent: () => true }), classifyInputAnyLocale, publishCrisisNotice: jest.fn(),
-    conversationId: { current: 0 }, chatMounted: { current: true },
-    userId: "A", rev2Persona: "secondb", locale: "ko", progression: { tier: "free" }, turns, chatMode: "analytic", isMinor: false, limit: 10,
-    setSending: (sending: boolean) => { if (!sending) { finished(); completion = new Promise<void>(done => { finished = done; }); } },
-    setSendingPersona: jest.fn(),
-    setTurns: (updater: (previous: Props[]) => Props[]) => { const next = updater(turns); turns.splice(0, turns.length, ...next); },
-    holdExpression: () => jest.fn(), sendChatMessage, currentDisplayName: () => "Alex", rev2PersonaHint: (id: string) => id,
-    setUsedToday: jest.fn(), setLimitRefused: jest.fn(), setPendingUpgrade: jest.fn(), rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
-    captureEvent: jest.fn(), secondBSession: (event: unknown) => event,
-    parseSourceCitations, parseTwiBranches,
-    replyCueAllowed: () => false, isRecordingAudioMode: () => false, playReplyCue: jest.fn(),
-    LlmConsentError, consentT: (key: string) => key, t: (key: string) => key, reactExpression: jest.fn(), console: { warn: jest.fn() },
-  };
-  const handler = execute(`(${callbackOf("handleSend")})`, scope) as (message: string, retry?: { failedIndex: number }) => boolean;
-  const send = (message: string, retry?: { failedIndex: number }): boolean => {
-    // The component's handler sees `turns` as the state of the render that made it: a snapshot,
-    // not the list this stand-in for setTurns goes on to change.
-    scope.turns = turns.slice();
-    return handler(message, retry);
-  };
-  return {
-    send, calls, sendChatMessage, scope,
-    async answer(result: Props | Error) {
-      const done = completion;
-      if (result instanceof Error) settle.reject(result); else settle.resolve(result);
-      await done;
-    },
-  };
-}
+function sender(turns: Props[]) { return createControlledSender(turns as unknown as Line[]); }
+const withoutPairs = (turns: Props[]) => turns.map(({ pairId: _pairId, ...line }) => line);
 const ok = (text: string): Props => ({ status: "ok", reply: { text, safety: { zone: "green" } }, used: 1 });
 
 describe("a reply that failed says which message it was for", () => {
@@ -84,7 +39,7 @@ describe("a reply that failed says which message it was for", () => {
     chat.send("내일 일정 알려줘");
     await chat.answer(new Error("timeout"));
     expect((chat.scope.setLimitRefused as jest.Mock).mock.calls).toEqual([]);
-    expect(turns).toEqual([
+    expect(withoutPairs(turns)).toEqual([
       { role: "user", persona: "secondb", text: "내일 일정 알려줘" },
       expect.objectContaining({ role: "secondb", synthetic: true, text: "replyFailed", retryText: "내일 일정 알려줘" }),
     ]);
@@ -95,7 +50,7 @@ describe("a reply that failed says which message it was for", () => {
     const chat = sender(turns);
     chat.send("내일 일정 알려줘");
     await chat.answer(new LlmConsentError());
-    expect(turns[1]).toMatchObject({ synthetic: true, consentError: "paused" });
+    expect(turns[1]).toMatchObject({ synthetic: true, consentError: "consent_required" });
     expect(turns[1]).not.toHaveProperty("retryText");
   });
 
@@ -161,7 +116,7 @@ describe("trying again replaces the failed pair", () => {
 
     chat.send("내일 일정 알려줘", { failedIndex: 3 });
     // While the second attempt is out: the earlier turns, then the message once.
-    expect(turns).toEqual([...earlier(), { role: "user", persona: "secondb", text: "내일 일정 알려줘" }]);
+    expect(withoutPairs(turns)).toEqual([...earlier(), { role: "user", persona: "secondb", text: "내일 일정 알려줘" }]);
     expect(chat.calls[1]).toMatchObject({
       message: "내일 일정 알려줘",
       history: [{ role: "user", text: "안녕" }, { role: "assistant", text: "안녕하세요" }],
@@ -206,7 +161,7 @@ describe("trying again replaces the failed pair", () => {
     expect(turns.slice(2).map(turn => turn.persona)).toEqual(["meta", "meta"]);
     chat.scope.rev2Persona = "twi";
     chat.send("내일 일정 알려줘", { failedIndex: 3 });
-    expect(turns).toEqual([...earlier(), { role: "user", persona: "twi", text: "내일 일정 알려줘" }]);
+    expect(withoutPairs(turns)).toEqual([...earlier(), { role: "user", persona: "twi", text: "내일 일정 알려줘" }]);
     expect(chat.calls[1]).toMatchObject({
       personaHint: "twi", history: [{ role: "user", text: "안녕" }, { role: "assistant", text: "안녕하세요" }],
     });
@@ -221,7 +176,7 @@ describe("trying again replaces the failed pair", () => {
     chat.send("안녕");
     await chat.answer(new Error("offline"));
     chat.send("안녕", { failedIndex: 1 });
-    expect(turns).toEqual([{ role: "user", persona: "secondb", text: "안녕" }]);
+    expect(withoutPairs(turns)).toEqual([{ role: "user", persona: "secondb", text: "안녕" }]);
     expect(chat.calls[1]).toMatchObject({ message: "안녕", history: [] });
     await chat.answer(ok("안녕하세요"));
     expect(turns).toHaveLength(2);
@@ -252,7 +207,7 @@ describe("one rule for when a failed line can be sent again", () => {
     ["the turn before it is an answer", [{ role: "user", text: "질문" }, { role: "secondb", text: "답" }, failed("질문")], 2],
     ["nothing before it", [failed("질문")], 0],
     ["a limit line", [{ role: "user", text: "질문" }, { role: "secondb", synthetic: true, text: "Limit reached" }], 1],
-    ["a consent line", [{ role: "user", text: "질문" }, { role: "secondb", synthetic: true, consentError: "paused", text: "x" }], 1],
+    ["a consent line", [{ role: "user", text: "질문" }, { role: "secondb", synthetic: true, consentError: "consent_required", text: "x" }], 1],
     ["an answer", [{ role: "user", text: "질문" }, { role: "secondb", text: "답" }], 1],
     ["crisis guidance", [{ role: "user", text: "질문" }, { role: "secondb", text: "안내", safetyZone: "red" }], 1],
   ] as Array<[string, Props[], number]>)("not when %s", (_name, turns, i) => {
@@ -260,83 +215,17 @@ describe("one rule for when a failed line can be sent again", () => {
   });
 });
 
-describe("when a press on try again sends", () => {
-  const failed = (text: string): Props => ({ role: "secondb", synthetic: true, text: "replyFailed", retryText: text });
-  const pair = (): Props[] => [{ role: "user", text: "질문" }, failed("질문")];
-  function retry(turns: Props[], state: { sending?: boolean; underLimit?: boolean } = {}) {
-    const handleSend = jest.fn(() => true);
-    const retrying = { current: false };
-    const run = execute(`(${callbackOf("retryFailed")})`, {
-      turns, sending: state.sending ?? false, underLimit: state.underLimit ?? true, handleSend, retrying, retryableMessage,
-    }) as (i: number) => void;
-    return { run, handleSend, retrying };
-  }
-
-  test("the last turn, nothing being sent, under the limit: it sends the same message for that pair", () => {
-    const { run, handleSend } = retry(pair());
-    run(1);
-    expect(handleSend).toHaveBeenCalledWith("질문", { failedIndex: 1 });
-  });
-
-  test("not while something is being sent", () => {
-    const { run, handleSend } = retry(pair(), { sending: true });
-    run(1);
-    expect(handleSend).not.toHaveBeenCalled();
-  });
-
-  test("not at today's limit: the composer cannot send there either", () => {
-    const { run, handleSend } = retry(pair(), { underLimit: false });
-    run(1);
-    expect(handleSend).not.toHaveBeenCalled();
-  });
-
-  test("not for a line the rule does not accept", () => {
-    const turns = [{ role: "user", text: "질문" }, { role: "secondb", text: "답" }, failed("질문")];
-    const { run, handleSend } = retry(turns);
-    run(2);
-    expect(handleSend).not.toHaveBeenCalled();
-  });
-
-  test("the composer's gate and the retry's gate are the same expression", () => {
-    expect(source).toContain("const underLimit = usedToday === null || usedToday < allowance;");
-    expect(source).toContain("const sendEnabled = !sending && underLimit;");
-  });
-});
-
-describe("two presses in a row, through the screen's own handlers", () => {
-  test("the model is asked once for them", async () => {
+describe("two presses through the shared screen handlers", () => {
+  test("retry and composer cannot race before the sending render", async () => {
     const turns: Props[] = [];
     const chat = sender(turns);
-    chat.send("질문");
-    await chat.answer(new Error("offline"));
-    expect(chat.sendChatMessage).toHaveBeenCalledTimes(1);
-
-    // Both presses land on the same render: the same handler, the same snapshot of the turns.
-    const retrying = { current: false };
-    const press = execute(`(${callbackOf("retryFailed")})`, {
-      turns: turns.slice(), sending: false, underLimit: true, handleSend: chat.send, retrying, retryableMessage,
-    }) as (i: number) => void;
-    press(1);
-    press(1);
+    chat.send("질문"); await chat.answer(new Error("offline"));
+    chat.retry(1); chat.retry(1);
+    expect(chat.send("another question")).toBe(false);
     expect(chat.sendChatMessage).toHaveBeenCalledTimes(2);
-    expect(turns).toEqual([{ role: "user", persona: "secondb", text: "질문" }]);
     await chat.answer(ok("답"));
     expect(turns).toHaveLength(2);
     expect(turns[1]).toMatchObject({ role: "secondb", text: "답" });
-  });
-
-  test("the press is kept while the send is under way and forgotten when it is over", () => {
-    const effect = findNode(
-      node => ts.isCallExpression(node) && node.expression.getText(ast) === "useEffect" && node.arguments[0]!.getText(ast).includes("retrying.current"),
-    ) as ts.CallExpression;
-    const body = effect.arguments[0]!.getText(ast);
-    const retrying = { current: true };
-    (execute(`(${body})`, { sending: true, retrying }) as () => void)();
-    expect(retrying.current).toBe(true);
-    (execute(`(${body})`, { sending: false, retrying }) as () => void)();
-    expect(retrying.current).toBe(false);
-    // It runs when the send state or the turns change (a send always changes the turns).
-    expect(effect.arguments[1]!.getText(ast).split(/\s+/).join("")).toBe("[sending,turns]");
   });
 });
 
@@ -351,9 +240,12 @@ describe("the button under the failed line", () => {
       Fragment: "Fragment", ChatModeLine: "ChatModeLine",
       View: "View", Pressable: "Pressable", Text: "Text", ChatMessageAvatar: "ChatMessageAvatar",
       ServiceConsentLink: "ServiceConsentLink", MdButton: "MdButton",
-      turns, ds: anyStyle, userAvatar: null, userDisplayName: "나", lensAccent: "accent",
+      turns: turns.map(line => ({ ...line, pairId: "p" })), ds: anyStyle, userAvatar: null, userDisplayName: "나", lensAccent: "accent",
       getExchangeExpression: () => "A04", copyTurn: jest.fn(), chatDisplayText, sourceCitationDisplay, copyNotice: null,
-      sendEnabled, retryableMessage, retryFailed, t: (key: string) => key,
+      sendEnabled, sending: !sendEnabled, underLimit: sendEnabled,
+      liveTurnRef: { current: { read: () => ({ message: turns.at(-1)?.retryText, owner: { pairId: "p" },
+        terminal: null, selected: null, retryClosed: false, waiting: null, reservation: "legacy" }) } },
+      canRetryFailedTurn, retryableMessage, retryFailed, t: (key: string) => key,
     }) as Tree[];
     const buttons = tree.map(fragment => {
       const [line, message] = fragment.props.children as [Tree, Tree | null];
@@ -392,7 +284,7 @@ describe("the button under the failed line", () => {
     expect(counts([asked, { role: "secondb", text: "안내", safetyZone: "red" }])).toEqual([0, 0]);
     expect(counts([asked, { role: "secondb", text: "안내", safetyZone: "red", crisisNotice: true }])).toEqual([0, 0]);
     expect(counts([asked, { role: "secondb", synthetic: true, text: "Limit reached" }])).toEqual([0, 0]);
-    expect(counts([asked, { role: "secondb", synthetic: true, consentError: "paused", text: "x" }])).toEqual([0, 0]);
+    expect(counts([asked, { role: "secondb", synthetic: true, consentError: "consent_required", text: "x" }])).toEqual([0, 0]);
   });
 
   test("a failed line that does not follow its message draws no button (drawn means it works)", () => {

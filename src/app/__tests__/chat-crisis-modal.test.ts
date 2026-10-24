@@ -6,6 +6,13 @@ import { publishCrisisNotice, getCrisisNotice, dismissCrisisNotice } from "../..
 import { classifyInputAnyLocale } from "../../lib/safety/classifier";
 import { getReplyActions, getWikiSuggestion } from "../../lib/chat/presentation-policy";
 import { isKeepable } from "../../lib/chat/keep-exchange";
+import { canRetryFailedTurn, createChatSendLock, retryableMessage } from "../../lib/chat/retry-failed";
+import { kstDateToday } from "../../lib/chat/limits";
+import { createTurnResultState } from "../../lib/chat/turn-result-state";
+import type { LiveChatTurn } from "../../lib/chat/conversation-turn";
+import type { SendMessageOk } from "../../lib/chat/conversation";
+import type { AccountOwnerLease } from "../../lib/auth/account-epoch";
+import type { CrisisObserver } from "../../lib/llm/types";
 
 const screen = readFileSync(resolve(__dirname, "../secondb.tsx"), "utf8");
 const source = ts.createSourceFile("secondb.tsx", screen, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -29,16 +36,34 @@ function setup(locale = "ko", isMinor: boolean | null = false) {
   let reject!: (error: Error) => void;
   const result = new Promise((yes, no) => { settle = yes; reject = no; });
   let turns: Turn[] = [];
+  const observers = new WeakMap<LiveChatTurn, CrisisObserver>();
   const releaseThinking = jest.fn();
   const scope = {
     userId: "A", locale, isMinor, conversationId: { current: 0 }, chatMounted: { current: true },
     captureAccountOwnerLease, classifyInputAnyLocale, publishCrisisNotice,
-    rev2Persona: "secondb", turns, progression: { tier: "free" }, chatMode: "analytic", limit: 5,
+    rev2Persona: "secondb", turns, turnsRef: { current: turns }, progression: { tier: "free" }, chatMode: "analytic", limit: 5, allowance: 5,
+    pairSequence: { current: 0 }, liveTurnRef: { current: null }, sendLock: { current: createChatSendLock() },
+    usedTodayRef: { current: null }, usageRevision: { current: 0 }, kstDateToday, canRetryFailedTurn, retryableMessage,
+    createLiveChatTurn: (input: { owner: AccountOwnerLease; conversationId: string; pairId: string; message: string; onCrisisDetected: CrisisObserver }) => {
+      const state = createTurnResultState<SendMessageOk>({ ownerId: input.owner.ownerId, ownerEpoch: input.owner.epoch,
+        conversationId: input.conversationId, pairId: input.pairId }, input.message);
+      const live: LiveChatTurn = { read: () => state, retireRetry: () => {}, endWait: () => {}, historyValue: () => null };
+      observers.set(live, input.onCrisisDetected);
+      return live;
+    },
+    sendLiveChatMessage: async (input: unknown, live: LiveChatTurn) => {
+      const result = await scope.sendChatMessage(input) as SendMessageOk;
+      if (result.reply.safety.zone === "red") {
+        observers.get(live)?.(result.reply.safety.crisisRouting?.hotline);
+        return { status: "crisis", result: result.reply };
+      }
+      return { status: "selected", result };
+    },
     currentDisplayName: () => null, rev2PersonaHint: () => null,
     setSendingPersona: jest.fn(), setSending: jest.fn(),
-    setTurns: jest.fn((next: (previous: Turn[]) => Turn[]) => { turns = next(turns); }),
-    holdExpression: () => releaseThinking, sendChatMessage: jest.fn(() => result),
-    setUsedToday: jest.fn(), setLimitRefused: jest.fn(), setPendingUpgrade: jest.fn(),
+    setTurns: jest.fn((next: (previous: Turn[]) => Turn[]) => { turns = next(turns); scope.turnsRef.current = turns; }),
+    holdExpression: () => releaseThinking, sendChatMessage: jest.fn((_input?: unknown) => result),
+    applyUsedToday: jest.fn(), setUsedToday: jest.fn(), setLimitRefused: jest.fn(), setPendingUpgrade: jest.fn(),
     rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
     captureEvent: jest.fn(), secondBSession: (event: unknown) => event,
     parseSourceCitations: jest.fn((text: string) => ({ display: text, chips: [] })),
@@ -64,8 +89,8 @@ test.each(["KR_109", "KR_1388", "GLOBAL_988", "KR_119", "KR_112"])("remote %s op
   expect(h.scope.parseSourceCitations).not.toHaveBeenCalled();
   expect(h.scope.playReplyCue).not.toHaveBeenCalled();
   expect(h.turns()).toEqual([
-    { role: "user", persona: "secondb", text: "ordinary user input", safetyZone: "red" },
-    { role: "secondb", persona: "secondb", text: "fixed guidance from safety boundary", safetyZone: "red", crisisNotice: true },
+    { role: "user", pairId: "1", persona: "secondb", text: "ordinary user input", safetyZone: "red", retryText: undefined },
+    { role: "secondb", pairId: "1", persona: "secondb", text: "fixed guidance from safety boundary", safetyZone: "red", crisisNotice: true },
   ]);
   expect(isKeepable(h.turns()[1])).toBe(true);
   expect(getReplyActions({ turns: h.turns(), sending: false })).toEqual({ followUps: [], branches: [] });

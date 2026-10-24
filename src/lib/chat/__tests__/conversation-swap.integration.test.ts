@@ -42,7 +42,7 @@ const success = (auditId = AUDIT, text = "I want to kill myself.") => ({
   }, error: null,
 });
 const turn = (pairId = "pair-1", message = input.message) => createLiveChatTurn({ owner: captureAccountOwnerLease("owner-a")!,
-  conversationId: "conversation-1", pairId, message, onCrisisDetected: mockNotice });
+  conversationId: "conversation-1", pairId, message, onCrisisDetected: mockNotice, settleOutputSwap: true });
 async function until(check: () => boolean) {
   for (let i = 0; i < 150 && !check(); i++) await new Promise<void>(resolve => setTimeout(resolve, 5));
   expect(check()).toBe(true);
@@ -157,6 +157,17 @@ test.each(["input", "422", "normal", "missing-audit", "legacy"])("%s creates no 
   if (mode === "legacy") mockBump.mockResolvedValue({ count: 5, turnId: null });
   const message = mode === "input" ? "I want to kill myself." : input.message;
   await sendLiveChatMessage({ ...input, message }, turn("pair-1", message));
+  expect(refunds()).toHaveLength(0);
+  expect(mockSession).not.toHaveBeenCalled();
+});
+
+// Activating T39 must not silently activate the independent T40 RPC path.
+test('B1 default live entry leaves output-swap settlement dormant', async () => {
+  const live = createLiveChatTurn({ owner: captureAccountOwnerLease('owner-a')!, conversationId: 'c',
+    pairId: 'b1', message: input.message, onCrisisDetected: mockNotice });
+  expect((await sendLiveChatMessage(input, live)).status).toBe('crisis');
+  await new Promise<void>(resolve => setImmediate(resolve));
+  expect(mockNotice).toHaveBeenCalledTimes(1);
   expect(refunds()).toHaveLength(0);
   expect(mockSession).not.toHaveBeenCalled();
 });

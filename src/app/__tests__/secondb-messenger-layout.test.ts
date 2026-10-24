@@ -1,3 +1,4 @@
+import { createControlledSender, ControlledConsentError, type Line } from "./helpers/secondb-send-harness";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
@@ -6,8 +7,6 @@ import { getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion } from "@/l
 import { isKeepable } from "@/lib/chat/keep-exchange";
 import { chatDisplayText } from "@/lib/chat/display-text";
 import { formatSourceCitationLabel, parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
-import { parseTwiBranches } from "@/lib/chat/twi-branches";
-import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { modeSwitchPersona } from "@/lib/chat/mode-switch";
 import type { Rev2PersonaId } from "@/lib/chat/rev2-personas";
 
@@ -273,32 +272,13 @@ describe("HustleK messenger layout", () => {
   });
 
   test.each(["ok", "divergent", "blocked", "error", "consent"])("%s replies retain the persona selected at send time across an in-flight switch", async outcome => {
-    const declaration = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "handleSend") as ts.VariableDeclaration;
-    const callback = (declaration.initializer as ts.CallExpression).arguments[0];
     const turns: Props[] = [];
-    let resolve!: (result: Props) => void;
-    let reject!: (error: Error) => void;
-    const pending = new Promise<Props>((yes, no) => { resolve = yes; reject = no; });
-    let finished!: () => void;
-    const completion = new Promise<void>(done => { finished = done; });
-    const sendChatMessage = jest.fn(() => pending);
-    const setSendingPersona = jest.fn();
-    const setLimitRefused = jest.fn();
-    class LlmConsentError extends Error { code = "paused"; }
-    const scope: Props = {
-      captureAccountOwnerLease: () => ({ isCurrent: () => true }), classifyInputAnyLocale, publishCrisisNotice: jest.fn(),
-      conversationId: { current: 0 }, chatMounted: { current: true },
-      userId: "A", rev2Persona: "meta", locale: "en", progression: { tier: "free" }, turns, chatMode: outcome === "divergent" ? "divergent" : "analytic", isMinor: false, limit: 10,
-      setSending: (sending: boolean) => { if (!sending) finished(); }, setSendingPersona,
-      setTurns: (updater: (previous: Props[]) => Props[]) => { const next = updater(turns); turns.splice(0, turns.length, ...next); },
-      holdExpression: () => jest.fn(), sendChatMessage, currentDisplayName: () => "Alex", rev2PersonaHint: (id: string) => id,
-      setUsedToday: jest.fn(), setLimitRefused, setPendingUpgrade: jest.fn(), rewardedAllowedRef: { current: false }, setChatRewardVisible: jest.fn(),
-      captureEvent: jest.fn(), secondBSession: (event: unknown) => event,
-      parseSourceCitations, parseTwiBranches,
-      replyCueAllowed: () => false, isRecordingAudioMode: () => false, playReplyCue: jest.fn(),
-      LlmConsentError, consentT: (key: string) => key, t: (key: string) => key, reactExpression: jest.fn(), console: { warn: jest.fn() },
-    };
-    const send = execute(`(${callback.getText(ast)})`, scope) as (message: string) => boolean;
+    const chat = createControlledSender(turns as unknown as Line[]);
+    const { scope, send, sendChatMessage } = chat;
+    scope.rev2Persona = "meta";
+    scope.chatMode = outcome === "divergent" ? "divergent" : "analytic";
+    const setSendingPersona = scope.setSendingPersona;
+    const setLimitRefused = scope.setLimitRefused;
     expect(send("My question")).toBe(true);
     expect(turns[0]).toMatchObject({ role: "user", persona: "meta" });
     expect(setSendingPersona).toHaveBeenLastCalledWith("meta");
@@ -308,14 +288,12 @@ describe("HustleK messenger layout", () => {
       sendingPersona: "meta", rev2Persona: "twi", t: (key: string) => key,
     })).toBe("rev2.meta.lensName");
     const rawReply = "**Start here** [[untitled]]." + (outcome === "divergent" ? "\n→ Read [[english-study]]\n→ Try this" : "");
-    if (outcome === "error") reject(new Error("offline"));
-    else if (outcome === "consent") reject(new LlmConsentError());
-    else resolve(outcome === "blocked" ? { status: "blocked", hint: "Limit reached", used: 10 }
-      : { status: "ok", reply: { text: rawReply, safety: { zone: "green" } }, used: 1 });
-    await completion;
+    await chat.answer(outcome === "error" ? new Error("offline") : outcome === "consent" ? new ControlledConsentError()
+      : outcome === "blocked" ? { status: "blocked", hint: "Limit reached", used: 10 }
+        : { status: "ok", reply: { text: rawReply, safety: { zone: "green" } }, used: 1 });
     expect(turns).toHaveLength(2);
     expect(turns[1]).toMatchObject({ role: "secondb", persona: "meta" });
-    expect(sendChatMessage).toHaveBeenCalledWith(expect.objectContaining({ personaHint: "meta" }));
+    expect(sendChatMessage).toHaveBeenCalledWith(expect.objectContaining({ personaHint: "meta" }), expect.anything());
     expect(setSendingPersona).toHaveBeenLastCalledWith(null);
     // A limit refusal shows 요금제 보기 (Q-261014-24); a reply that goes through clears it; a failed
     // send or a consent pause leaves it as it was.
@@ -379,7 +357,7 @@ describe("HustleK messenger layout", () => {
   });
 
   test("clearing the conversation stops the old autosave before reusing turn indices", () => {
-    const clear = source.slice(source.indexOf("if (sending || keeping !== null || keepInFlight.current || chatPlans.busy) return;"));
+    const clear = source.slice(source.indexOf("if (sendLock.current.busy() || sending || keeping !== null || keepInFlight.current || chatPlans.busy) return;"));
     expect(clear.indexOf("autosaveSessionRef.current?.stop()")).toBeLessThan(clear.indexOf("setTurns([])"));
     expect(clear).toContain("setKeptIdx(new Set())");
     expect(source).toContain("}, [userId, activeConversationId])");

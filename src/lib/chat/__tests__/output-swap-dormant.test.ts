@@ -15,14 +15,14 @@ test("T40 has zero production entrances through screens, helpers, routers or re-
       const relative = path.relative(process.cwd(), file).replace(/\\/g, "/");
       if ([settlement, state, conversation].includes(relative)) continue;
       const source = fs.readFileSync(file, "utf8");
-      expect({ file: relative, entrance: /output-swap-(?:settlement|state)|conversation-turn|\b(createSwapSettlement|createSwapCandidate|createLiveChatTurn|sendLiveChatMessage)\b/.test(source) })
+      expect({ file: relative, entrance: /output-swap-(?:settlement|state)|\b(createSwapSettlement|createSwapCandidate|settleOutputSwap)\b/.test(source) })
         .toEqual({ file: relative, entrance: false });
     }
   };
   visit(path.resolve("src"));
 });
 
-test.each(["web", "android"].flatMap(platform => [settlement, state, conversation, "src/lib/llm/boundary.ts", "src/lib/llm/types.ts"].map(file => [platform, file])))(
+test.each(["web", "android"].flatMap(platform => [settlement, state, conversation, "src/lib/chat/retry-failed.ts", "src/app/secondb.tsx", "src/lib/llm/boundary.ts", "src/lib/llm/types.ts"].map(file => [platform, file])))(
   "%s release Babel compiles %s", (platform, file) => {
     const filename = path.resolve(file);
     const caller = { name: "metro", platform, isDev: false };

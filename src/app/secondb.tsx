@@ -61,8 +61,8 @@ import {
   isKeepable,
 } from "@/lib/chat/keep-exchange";
 import { useProgression } from "@/lib/progression/useProgression";
-import { sendChatMessage } from "@/lib/chat/conversation";
-import { retryableMessage } from "@/lib/chat/retry-failed";
+import { createLiveChatTurn, sendLiveChatMessage, type LiveChatTurn } from "@/lib/chat/conversation-turn";
+import { canRetryFailedTurn, createChatSendLock, retryableMessage } from "@/lib/chat/retry-failed";
 import { writeClipboardText } from "@/lib/capture/clipboard";
 import { useCitedWikiPage } from "@/lib/chat/use-cited-wiki-page";
 import { LlmConsentError, transcribeAudio } from "@/lib/llm/boundary";
@@ -106,7 +106,7 @@ import { parseTwiBranches } from "@/lib/chat/twi-branches";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRetry";
 import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsageDetail } from "@/lib/chat/usage";
-import { CHAT_DAILY_LIMIT, chatAllowance } from "@/lib/chat/limits";
+import { CHAT_DAILY_LIMIT, chatAllowance, kstDateToday } from "@/lib/chat/limits";
 import { RewardedSheet, type RewardedEarnOutcome } from "@/components/deepspace/RewardedSheet";
 import { personaAllowed } from "@/lib/entitlements/tiers";
 import { PUBLIC_TIER_BY_DB } from "@/lib/entitlements/tier-map";
@@ -477,8 +477,11 @@ function SecondBChatBody() {
   // 머리 탭으로 들어오면(?panel=dashboard) 대시보드를 펴고 시작한다.
   const [showDashboard, setShowDashboard] = useState(params.panel === "dashboard");
 
-  const [turns, setTurns] = useState<ChatTurn[]>([]);
+  const [turns, setTurns] = useState<(ChatTurn & { pairId?: string })[]>([]);
   const conversationId = useRef(0);
+  const pairSequence = useRef(0);
+  const liveTurnRef = useRef<LiveChatTurn | null>(null);
+  const sendLock = useRef(createChatSendLock());
   const chatMounted = useRef(true);
   useEffect(() => {
     chatMounted.current = true;
@@ -624,6 +627,13 @@ function SecondBChatBody() {
   const [sending, setSending] = useState(false);
   const [sendingPersona, setSendingPersona] = useState<Rev2PersonaId | null>(null);
   const [usedToday, setUsedToday] = useState<number | null>(null);
+  const usedTodayRef = useRef<number | null>(null);
+  const usageRevision = useRef(0);
+  const applyUsedToday = useCallback((used: number | null) => {
+    usageRevision.current += 1;
+    usedTodayRef.current = used;
+    setUsedToday(used);
+  }, []);
   // TODAY's rewarded-ad bonus. The screen used to not know this existed, so it
   // gated on the bare tier cap while the engine and the server both accept
   // `used < cap + adBonus` -- a user who watched an ad still found the composer
@@ -797,21 +807,26 @@ function SecondBChatBody() {
   // re-reads it the composer stays locked at the old wall.
   const refreshChatUsage = useCallback(async () => {
     if (!userId) return;
+    const owner = captureAccountOwnerLease(userId);
+    if (!owner) return;
+    const revision = ++usageRevision.current;
     await readChatUsageDetail(userId)
       .then((d) => {
-        setUsedToday(d.used);
+        if (!owner.isCurrent() || !chatMounted.current || revision !== usageRevision.current) return;
+        applyUsedToday(d.used);
         setAdBonusToday(d.adBonus);
       })
       .catch((e) => {
+        if (!owner.isCurrent() || !chatMounted.current || revision !== usageRevision.current) return;
         // Unknown is not zero: a fake 0/5 told capped users they had sends
         // left. null renders as "..." and the server still enforces the cap.
         // The bonus falls back to 0 rather than to a guess -- understating the
         // allowance keeps the client stricter than the server, never looser.
         if (typeof console !== "undefined") console.warn("[secondb] readChatUsageDetail failed", (e as Error).message);
-        setUsedToday(null);
+        applyUsedToday(null);
         setAdBonusToday(0);
       });
-  }, [userId]);
+  }, [userId, applyUsedToday]);
 
   useEffect(() => {
     void refreshChatUsage();
@@ -879,16 +894,57 @@ function SecondBChatBody() {
       // Fixed guidance must not wait for usage, model, audit or network. The
       // completed local-red result must not reopen a notice the person closed.
       const localRed = localSafety.zone === "red";
-      if (localRed) publishCrisisNotice(owner, localSafety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
+      const currentTurns = turnsRef.current.slice();
+      const canCharge = usedTodayRef.current === null || usedTodayRef.current < allowance;
+      if (retry) {
+        if (retryableMessage(currentTurns, retry.failedIndex) !== msg
+          || !canRetryFailedTurn(currentTurns, retry.failedIndex, liveTurnRef.current, canCharge)) return false;
+      } else if (!canCharge && !localRed) return false;
+      const request = sendLock.current.acquire(owner, requestConversation);
+      if (!request) return false;
+      const localHotline = localRed
+        ? localSafety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988")
+        : null;
+      if (localHotline) publishCrisisNotice(owner, localHotline);
+      if (!canUpdate()) {
+        sendLock.current.release(request);
+        return false;
+      }
+
+      let live = liveTurnRef.current;
+      if (!retry) {
+        // A pending/unknown receipt only holds its own failed line.
+        // An old account's turn is deliberately unreadable.
+        try { live?.retireRetry(); } catch { /* Old lease. */ }
+        live = createLiveChatTurn({
+          owner, conversationId: String(requestConversation), pairId: String(++pairSequence.current), message: msg,
+          onCrisisDetected: (hotline) => {
+            const resolved = hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988");
+            if (resolved !== localHotline) publishCrisisNotice(owner, resolved);
+          },
+          onReceipt: (receipt) => {
+            // Publish ID/count to the engine and count/ref to the screen before
+            // its catch/finally can expose another user action. Never use D's
+            // count for D+1, and recheck the lease immediately before writing.
+            if (!canUpdate() || live!.read().day !== kstDateToday()) return;
+            if (!owner.isCurrent()) return;
+            applyUsedToday(receipt.count);
+          },
+        });
+        liveTurnRef.current = live;
+      }
+      const activeTurn = live!;
+      const pairId = activeTurn.read().owner.pairId;
+      usageRevision.current += 1;
 
       const requestPersona = rev2Persona;
       // A retry replaces the failed pair (the message and the line that said it failed) instead
       // of adding the message a second time, on the screen and in what the model is told.
       const keep = retry ? Math.max(0, retry.failedIndex - 1) : null;
-      const earlier = keep === null ? turns : turns.slice(0, keep);
+      const earlier = keep === null ? currentTurns : currentTurns.slice(0, keep);
       setSendingPersona(requestPersona);
       setSending(true);
-      setTurns((prev) => [...(keep === null ? prev : prev.slice(0, keep)), { role: "user", persona: requestPersona, text: msg, ...(localRed ? { safetyZone: "red" as const } : {}) }]);
+      setTurns((prev) => [...(keep === null ? prev : prev.slice(0, keep)), { role: "user", pairId, persona: requestPersona, text: msg, ...(localRed ? { safetyZone: "red" as const } : {}) }]);
       void (async () => {
         // AI 응답 대기: every mounted head holds the thinking face (eyes drift
         // up-side) until the reply lands — released in finally either way.
@@ -897,7 +953,7 @@ function SecondBChatBody() {
         // call) lands in the same catch, and that line must not offer to send again.
         let answered = false;
         try {
-          const result = await sendChatMessage({
+          const outcome = await sendLiveChatMessage({
             userId,
             message: msg,
             locale,
@@ -913,17 +969,22 @@ function SecondBChatBody() {
               .map((t) => ({ role: t.role === "user" ? ("user" as const) : ("assistant" as const), text: t.text })),
             mode: chatMode,
             minor: isMinor !== false,
-          });
+          }, activeTurn);
           answered = true;
-          if (result.status === "ok" && result.reply.safety?.zone === "red" && !localRed) {
-            // Same-owner safety guidance survives navigation; a stale account
-            // result is rejected by the notice store before publication.
-            publishCrisisNotice(owner, result.reply.safety.crisisRouting?.hotline ?? (locale === "ko" ? (isMinor !== false ? "KR_1388" : "KR_109") : "GLOBAL_988"));
-          }
           if (!canUpdate()) return;
+          if (outcome.status === "ignored") return;
+          if (outcome.status === "crisis") {
+            setTurns((prev) => [
+              ...prev.map(turn => turn.pairId === pairId ? { ...turn, safetyZone: "red" as const, retryText: undefined } : turn),
+              { role: "secondb", pairId, persona: requestPersona, text: outcome.result.text, safetyZone: "red", crisisNotice: true },
+            ]);
+            if (activeTurn.read().receipt !== null) setLimitRefused(false);
+            return;
+          }
+          const result = outcome.result;
           if (result.status === "blocked") {
-            setTurns((prev) => [...prev, { role: "secondb", persona: requestPersona, text: result.hint, synthetic: true }]);
-            setUsedToday(result.used);
+            setTurns((prev) => [...prev, { role: "secondb", pairId, persona: requestPersona, text: result.hint, synthetic: true }]);
+            if (activeTurn.read().day === kstDateToday()) applyUsedToday(result.used);
             setLimitRefused(true);
             if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
             // 0090: free adults can widen TODAY's allowance by +2 via a
@@ -946,21 +1007,6 @@ function SecondBChatBody() {
             // 멈춤은 글로만 알린다(위 result.hint). 옛 가디 그림 순간은 2026-10-05 에
             // 걷었다(Simon 결정 Q-261004-15 A).
           } else {
-            if (result.reply.safety?.zone === "red") {
-              // Keep the boundary's fixed guidance in the in-memory transcript
-              // so existing explicitly opted-in autosave retains its behavior.
-              // The modal is its sole visible copy, actions remain suppressed,
-              // and neither this turn nor its paired input reenters model history.
-              setTurns((prev) => [
-                ...prev.map((turn, index) => index === earlier.length ? { ...turn, safetyZone: "red" as const } : turn),
-                { role: "secondb", persona: requestPersona, text: result.reply.text, safetyZone: "red", crisisNotice: true },
-              ]);
-              if (result.used !== null) {
-                setUsedToday(result.used);
-                setLimitRefused(false);
-              }
-              return;
-            }
             const { display, chips } = parseSourceCitations(result.reply.text);
             // 트위비 3-branch (P5f): Divergent replies on the main chat end with up
             // to three '→ ' next-step lines — lift them into tappable chips.
@@ -970,13 +1016,14 @@ function SecondBChatBody() {
                 : { display, branches: [] as string[] };
             setTurns((prev) => [
               ...prev,
-              { role: "secondb", persona: requestPersona, text: twi.display, chips, branches: twi.branches, safetyZone: result.reply.safety?.zone,
+              { role: "secondb", pairId, persona: requestPersona, text: twi.display, chips, branches: twi.branches, safetyZone: result.reply.safety?.zone,
                 citationText: chatMode === "divergent" ? parseTwiBranches(result.reply.text).display : result.reply.text },
             ]);
             // 답장 소리(Q-261006-04): 위기 응답도 status "ok" 로 오므로 구역을 따로 본다.
             if (replyCueAllowed({ zone: result.reply.safety?.zone, recording: isRecordingAudioMode() })) playReplyCue();
             if (result.used !== null) {
-              setUsedToday(result.used);
+              // The receipt already published usage. A later answer must not
+              // overwrite an intervening usage/ad refresh with its old count.
               setLimitRefused(false);
             }
             captureEvent(
@@ -994,17 +1041,20 @@ function SecondBChatBody() {
         } catch (e) {
           if (!canUpdate()) return;
           if (localRed) return; // fixed guidance was already delivered synchronously
-          const consentError = e instanceof LlmConsentError ? e.code : undefined;
-          const failText = consentError ? consentT(`serviceControl.${consentError}`) : t("replyFailed");
+          const state = activeTurn.read();
+          const consentError = e instanceof LlmConsentError && e.code === "consent_required" ? e.code : undefined;
+          const failText = consentError ? consentT(`serviceControl.${consentError}`)
+            : state.terminal === "limit" ? t("serverLimitReached") : t("replyFailed");
+          if (state.terminal === "limit") setLimitRefused(true);
           setTurns((prev) => [...prev, {
-            role: "secondb", persona: requestPersona, text: failText, synthetic: true, consentError,
-            ...(consentError || answered ? {} : { retryText: msg }),
+            role: "secondb", pairId, persona: requestPersona, text: failText, synthetic: true, consentError,
+            ...(state.terminal || state.selected || state.retryClosed || answered ? {} : { retryText: msg }),
           }]);
           reactExpression("negative");
           if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
         } finally {
           releaseThinking();
-          if (canUpdate()) {
+          if (sendLock.current.release(request) && canUpdate()) {
             setSending(false);
             setSendingPersona(null);
           }
@@ -1019,7 +1069,8 @@ function SecondBChatBody() {
       locale,
       chatMode,
       rev2Persona,
-      turns,
+      allowance,
+      applyUsedToday,
       limit,
       t,
       consentT,
@@ -1027,23 +1078,13 @@ function SecondBChatBody() {
     ],
   );
 
-  // [다시 시도] under a reply that failed (Z40 · Simon 2026-10-13 20:43: the sentence already used
-  // when no answer came, plus a way to try again). Only the last turn offers it, and only while
-  // nothing is being sent, so the pair it replaces is always the end of the conversation. It goes
-  // through handleSend, the same path and the same checks as typing the message again, and it is
-  // offered under the same gate as the composer's send (not sending, under today's limit).
-  // A second press before the first one has drawn `sending` would send the message twice, so the
-  // press is remembered at once and forgotten when that send is over (the turns change with it, so
-  // a send that began and ended inside one render is still seen).
-  const retrying = useRef(false);
-  useEffect(() => {
-    if (!sending) retrying.current = false;
-  }, [sending, turns]);
+  // B1 only exposes actual Promise failures. There is no foreground timeout.
+  // Both handlers acquire sendLock synchronously inside handleSend.
   const retryFailed = useCallback(
     (i: number) => {
       const message = retryableMessage(turns, i);
-      if (message === null || retrying.current || sending || !underLimit) return;
-      retrying.current = handleSend(message, { failedIndex: i });
+      if (message === null || sending || !canRetryFailedTurn(turns, i, liveTurnRef.current, underLimit)) return;
+      handleSend(message, { failedIndex: i });
     },
     [turns, sending, underLimit, handleSend],
   );
@@ -1184,11 +1225,12 @@ function SecondBChatBody() {
           {hasTurns ? (
             <Pressable
               onPress={() => {
-                if (sending || keeping !== null || keepInFlight.current || chatPlans.busy) return;
+                if (sendLock.current.busy() || sending || keeping !== null || keepInFlight.current || chatPlans.busy) return;
                 autosaveSessionRef.current?.stop();
                 autosaveSessionRef.current = null;
                 citedWiki.closeDrawer();
                 conversationId.current += 1;
+                liveTurnRef.current = null;
                 setTurns([]);
                 setKeptIdx(new Set());
                 setKeepNotice(null);
@@ -1323,7 +1365,7 @@ function SecondBChatBody() {
                         </Text>
                       </Pressable>
                       {turn.consentError ? <ServiceConsentLink /> : null}
-                      {turn.retryText && sendEnabled && retryableMessage(turns, i) !== null ? (
+                      {turn.retryText && !sending && canRetryFailedTurn(turns, i, liveTurnRef.current, underLimit) ? (
                         <MdButton variant="outlined" label={t("common:actions.retry")} onPress={() => retryFailed(i)} />
                       ) : null}
                       {copyNotice?.i === i ? (
