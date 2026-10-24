@@ -33,7 +33,9 @@ import {
 } from "@/lib/entitlements/tiers";
 import { PRO_COMING_SOON } from "@/lib/entitlements/plan-availability";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
-import { addRewardCredits, monthBucket, weekBucket } from "@/lib/entitlements/usage";
+import { addRewardCredits } from "@/lib/entitlements/usage";
+import { readReasoningUsageStrict } from "@/lib/entitlements/reasoning-usage-read";
+import { captureAccountOwnerLease, currentAccountEpoch } from "@/lib/auth/account-epoch";
 import { useAppRouter } from "@/lib/nav/phone-embed";
 import {
   arePurchasesAvailable,
@@ -86,6 +88,7 @@ interface PrefsRead {
 
 interface UsageRead {
   ownerId: string | null;
+  epoch: number;
   status: ReadStatus;
   used: number;
   rewardCredits: number;
@@ -101,6 +104,7 @@ const EMPTY_STORE: StoreRead = {
 const EMPTY_PREFS: PrefsRead = { ownerId: null, status: "idle", adsConsent: null };
 const EMPTY_USAGE: UsageRead = {
   ownerId: null,
+  epoch: -1,
   status: "idle",
   used: 0,
   rewardCredits: 0,
@@ -128,47 +132,17 @@ async function readPrivacyPrefsStrict(ownerId: string): Promise<PrefsRead> {
   }
 }
 
-/** Strict counterpart to getReasoningUsage: no zero-filled success on read failure. */
-async function readReasoningUsageStrict(ownerId: string): Promise<UsageRead> {
-  const week = weekBucket();
-  const month = monthBucket();
-  try {
-    const client = getSupabaseClient();
-    const [counters, summary] = await Promise.all([
-      client
-        .from("usage_counters")
-        .select("month_bucket, reasoning_used, reward_credits")
-        .eq("user_id", ownerId)
-        .in("month_bucket", [week, month]),
-      client.rpc("credit_summary_self"),
-    ]);
-    if (counters.error || summary.error) {
-      return { ownerId, status: "error", used: 0, rewardCredits: 0, rewardEarned: 0 };
-    }
-    if (summary.data === null || typeof summary.data !== "object" || Array.isArray(summary.data)) {
-      return { ownerId, status: "unavailable", used: 0, rewardCredits: 0, rewardEarned: 0 };
-    }
-    const weekRow = (counters.data ?? []).find((row) => row.month_bucket === week);
-    const monthRow = (counters.data ?? []).find((row) => row.month_bucket === month);
-    const credit = summary.data as Record<string, unknown>;
-    const summaryEarned = Number(credit.ad_earned_this_month);
-    const mirrorEarned = Math.max(0, Number(monthRow?.reward_credits) || 0);
-    const rewardEarned =
-      credit.ad_earned_this_month !== null &&
-      credit.ad_earned_this_month !== undefined &&
-      Number.isFinite(summaryEarned)
-        ? Math.max(0, summaryEarned)
-        : mirrorEarned;
-    return {
-      ownerId,
-      status: "ready",
-      used: Math.max(0, Number(weekRow?.reasoning_used) || 0),
-      rewardCredits: Math.max(0, Number(credit.available) || 0),
-      rewardEarned,
-    };
-  } catch {
-    return { ownerId, status: "error", used: 0, rewardCredits: 0, rewardEarned: 0 };
-  }
+/** Use the same validated counter + ledger read as the reasoning list. */
+async function readPlansUsage(ownerId: string, assertActive: () => void): Promise<UsageRead> {
+  const lease = captureAccountOwnerLease(ownerId);
+  const assertCurrent = () => {
+    assertActive();
+    if (!lease?.isCurrent()) throw new Error("stale plans usage read");
+  };
+  assertCurrent();
+  const usage = await readReasoningUsageStrict(ownerId, { assertCurrent });
+  assertCurrent();
+  return { ownerId, epoch: lease!.epoch, status: "ready", ...usage };
 }
 
 function krw(value: number): string {
@@ -347,6 +321,7 @@ export function DeepSpacePlansScreen() {
   const [storeRead, setStoreRead] = useState<StoreRead>(EMPTY_STORE);
   const [prefsRead, setPrefsRead] = useState<PrefsRead>(EMPTY_PREFS);
   const [usageRead, setUsageRead] = useState<UsageRead>(EMPTY_USAGE);
+  const accountEpoch = currentAccountEpoch();
   const [readEpoch, setReadEpoch] = useState(0);
   const storeGeneration = useRef(0);
   const prefsGeneration = useRef(0);
@@ -451,6 +426,7 @@ export function DeepSpacePlansScreen() {
     if (!dataOwner || currentTier !== "free") {
       setUsageRead({
         ownerId: dataOwner,
+        epoch: accountEpoch,
         status: dataOwner ? "unavailable" : "idle",
         used: 0,
         rewardCredits: 0,
@@ -461,16 +437,23 @@ export function DeepSpacePlansScreen() {
     let alive = true;
     setUsageRead({
       ownerId: dataOwner,
+      epoch: accountEpoch,
       status: "loading",
       used: 0,
       rewardCredits: 0,
       rewardEarned: 0,
     });
-    void settleAsyncRead(readReasoningUsageStrict(dataOwner), READ_TIMEOUT_MS).then(
+    const assertActive = () => {
+      if (!alive || generation !== usageGeneration.current || activeOwnerRef.current !== dataOwner) {
+        throw new Error("stale plans usage read");
+      }
+    };
+    void settleAsyncRead(readPlansUsage(dataOwner, assertActive), READ_TIMEOUT_MS).then(
       (settlement) => {
         if (
           !alive ||
           generation !== usageGeneration.current ||
+          accountEpoch !== currentAccountEpoch() ||
           activeOwnerRef.current !== dataOwner
         )
           return;
@@ -478,6 +461,7 @@ export function DeepSpacePlansScreen() {
         else
           setUsageRead({
             ownerId: dataOwner,
+            epoch: accountEpoch,
             status: settlement.status,
             used: 0,
             rewardCredits: 0,
@@ -488,7 +472,7 @@ export function DeepSpacePlansScreen() {
     return () => {
       alive = false;
     };
-  }, [currentTier, dataOwner, readEpoch]);
+  }, [currentTier, dataOwner, readEpoch, accountEpoch]);
 
   const ownedStore: StoreRead =
     storeRead.ownerId === dataOwner
@@ -504,10 +488,11 @@ export function DeepSpacePlansScreen() {
       ? prefsRead
       : { ownerId: dataOwner, status: dataOwner ? "loading" : "idle", adsConsent: null };
   const ownedUsage: UsageRead =
-    usageRead.ownerId === dataOwner
+    usageRead.ownerId === dataOwner && usageRead.epoch === accountEpoch && !!dataOwner && !!captureAccountOwnerLease(dataOwner)
       ? usageRead
       : {
           ownerId: dataOwner,
+          epoch: accountEpoch,
           status: dataOwner ? "loading" : "idle",
           used: 0,
           rewardCredits: 0,
@@ -727,9 +712,10 @@ export function DeepSpacePlansScreen() {
 
   async function onRewardEarned(credits: number): Promise<RewardedEarnOutcome> {
     const owner = dataOwner;
+    const lease = owner ? captureAccountOwnerLease(owner) : null;
     // A watch that cannot be attributed to this owner earns nothing and has
     // nothing to report; the sheet closes as it always did.
-    if (!owner || activeOwnerRef.current !== owner || !rewardedAllowed) return "granted";
+    if (!owner || !lease || lease.epoch !== accountEpoch || activeOwnerRef.current !== owner || !rewardedAllowed) return "granted";
     // The grant used to swallow its own failure, so this screen had nothing to
     // say when a watched ad paid nothing. Now it reports, and the sheet says it.
     const grant = await addRewardCredits(owner, credits);
@@ -737,16 +723,21 @@ export function DeepSpacePlansScreen() {
     // "granted" 로 돌아가지만 적립이 없으므로 여기까지 오지 않는다. SSV 모드에서는 서버가
     // 적립하므로 "processing" 이 와서 무음이다.
     if (grant === "granted") requestGlobalCue("rewardCredited");
-    if (activeOwnerRef.current !== owner) return grant;
+    if (!lease.isCurrent() || activeOwnerRef.current !== owner) return grant;
     const generation = ++usageGeneration.current;
-    const settlement = await settleAsyncRead(readReasoningUsageStrict(owner), READ_TIMEOUT_MS);
+    const settlement = await settleAsyncRead(readPlansUsage(owner, () => {
+      if (!lease.isCurrent() || generation !== usageGeneration.current || activeOwnerRef.current !== owner) {
+        throw new Error("stale plans reward usage read");
+      }
+    }), READ_TIMEOUT_MS);
     // A stale read is a reason to drop the refresh, not a reason to lose what the
     // grant said: the watch still happened and its outcome is still the truth.
-    if (generation !== usageGeneration.current || activeOwnerRef.current !== owner) return grant;
+    if (!lease.isCurrent() || generation !== usageGeneration.current || activeOwnerRef.current !== owner) return grant;
     if (settlement.status === "ready") setUsageRead(settlement.value);
     else
       setUsageRead({
         ownerId: owner,
+        epoch: lease.epoch,
         status: settlement.status,
         used: 0,
         rewardCredits: 0,
