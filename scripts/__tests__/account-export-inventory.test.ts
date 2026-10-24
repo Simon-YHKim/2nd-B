@@ -57,6 +57,27 @@ test("real descriptors classify 89 physical tables exactly once, plus the users 
   }
 });
 
+test("D4's wildcard-exported hold columns are disclosed in DPIA 6.1.3 and Q-H1", () => {
+  // The inventory above is table-level. A column addition is invisible to its
+  // counts, so pin this reviewed disclosure without changing export scope.
+  const draft = readFileSync(join(root, "db/migration-drafts/UNNUMBERED_crisis_ai_hold.sql"), "utf8");
+  const dpia = readFileSync(join(root, "docs/legal/DPIA-2ndB-minors-draft.md"), "utf8");
+  const portability = dpia.split("#### 6.1.3 ")[1].split("#### 6.1.4 ")[0];
+  const question = dpia.split("- **Q-H1 [COUNSEL TO CONFIRM]**")[1].split("#### H2.")[0];
+  for (const table of ["records", "sources", "wiki_pages"]) {
+    expect(draft).toContain(`ALTER TABLE public.${table} ADD COLUMN IF NOT EXISTS ai_hold boolean`);
+    expect(source).toContain(`{ table: '${table}', fk: 'user_id' },`);
+    expect(portability).toContain(`\`${table}.ai_hold\``);
+    expect(question).toContain(`\`${table}.ai_hold\``);
+  }
+  expect(source).toContain(".select(source.select ?? '*',");
+  expect(portability).toContain("**[COUNSEL TO CONFIRM] Q-H1:**");
+  expect(portability).toContain("missing or foreign parents also fail closed");
+  expect(portability).toContain("SQL does not authenticate a classifier verdict");
+  expect(portability).toContain("`records.interview_ai_hold` is already exported");
+  expect(portability).toContain("sources/pages default to false and receive no backfill");
+});
+
 const sourceMutations: [string, string, RegExp][] = [
   ["missing descriptor (a comment does not count)",
     replaceOnce(source, "{ table: 'records', fk: 'user_id' },", "// records is exported"), /records: expected exactly one.*0/],

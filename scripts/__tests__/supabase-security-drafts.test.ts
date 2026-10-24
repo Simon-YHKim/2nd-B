@@ -88,6 +88,10 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
+  "UNNUMBERED_crisis_ai_hold.sql": {
+    runner: "db/tests/crisis_ai_hold_draft_regression.sql",
+    workflowInvocation: "psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/crisis_ai_hold_draft_regression.sql",
+  },
   "UNNUMBERED_account_export_read_grants.sql": {
     runner: "db/migration-drafts/tests/account-export-read-grants.sql",
     workflowInvocation: "psql -X -h 127.0.0.1 -U postgres -d account_export_grants_test_ci -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/account-export-read-grants.sql",
@@ -411,6 +415,54 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(regression).toContain("direct chat grant was allowed");
     expect(regression).toContain("SET LOCAL ROLE service_role;");
     expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("D4 cleans held rows after both immutable 0263 guards and repairs prior draft residuals", () => {
+    const draft = read("db/migration-drafts/UNNUMBERED_crisis_ai_hold.sql");
+    const consent = read("db/migrations/0263_records_embedding_consent_guard.sql");
+    const trigger = draft.match(/CREATE TRIGGER (\w+) BEFORE INSERT OR UPDATE ON public\.records\n\s+FOR EACH ROW EXECUTE FUNCTION public\.guard_record_ai_hold_embedding\(\);/);
+    expect(trigger).not.toBeNull();
+    const consentNames = [...consent.matchAll(/CREATE TRIGGER (zz_records_embedding_(?:delete|write)_guard)/g)].map((match) => match[1]);
+    expect([...consentNames, trigger![1]].sort()).toEqual([
+      "zz_records_embedding_delete_guard", "zz_records_embedding_write_guard", trigger![1],
+    ]);
+    // A draft may add a narrower D4 rule, never replace or disable 0263.
+    expect(draft).not.toMatch(/(?:CREATE OR REPLACE FUNCTION|ALTER FUNCTION|DROP FUNCTION) public\.(?:guard_record_embedding_(?:delete|write)|guard_records_embedding_consent|clear_record_embeddings_on_privacy_change)\(/);
+    expect(draft).not.toMatch(/(?:DROP|ALTER|CREATE) TRIGGER[^;]*zz_records_embedding_(?:delete|write)_guard/);
+    expect(draft).not.toMatch(/DISABLE TRIGGER|UPDATE public\.users|SET (?:LOCAL )?session_replication_role/i);
+    expect(draft).toContain("WHERE (ai_hold OR interview_ai_hold OR ai_followup ->> 'zone' = 'red')");
+  });
+
+  test("D4 regression proves real consented vectors, unchanged 0263 and its complete suite after draft install", () => {
+    const regression = read("db/tests/crisis_ai_hold_draft_regression.sql");
+    const apply = "\\ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql";
+    expect(regression.indexOf("'fixture has three real consented vectors'")).toBeLessThan(regression.indexOf(apply));
+    expect(regression).toContain("'all four 0263 functions and ACLs unchanged'");
+    expect(regression).toContain("'all four 0263 trigger identities definitions and enablement unchanged'");
+    expect(regression).toContain("'0263 stale NULL still restores non-held pair'");
+    expect(regression).toContain("'reapply repairs already-held residual pairs'");
+    expect(regression).toContain("'existing record vector search returns only ordinary row'");
+    expect(regression).toContain(`BEGIN;\n${apply}\n\\ir records_embedding_consent_regression.sql`);
+    expect(regression).toContain("RAISE EXCEPTION 'D4 scratch rollback left draft objects'");
+  });
+
+  test("D4 AI views project only reader columns without pinning unrelated rollback columns", () => {
+    const draft = read("db/migration-drafts/UNNUMBERED_crisis_ai_hold.sql");
+    const projections = {
+      records: "id user_id kind topic body summary structured prompt audit_period tags ai_followup created_at embedding embedding_model",
+      sources: "id user_id kind title source_url storage_path frontmatter tags ingested captured_at simon_relevance",
+      wiki_pages: "id user_id slug kind title body_md frontmatter tags source_id created_at updated_at embedding embedding_model",
+    };
+    for (const [table, columns] of Object.entries(projections)) {
+      const select = draft.match(new RegExp(`CREATE OR REPLACE VIEW public\\.${table}_ai_eligible[\\s\\S]*?AS\\s+SELECT ([\\s\\S]*?)\\s+FROM public\\.${table}\\b`));
+      expect(select).not.toBeNull();
+      expect(select![1].split(",").map(column => column.trim().replace(/^[rsw]\./, "")))
+        .toEqual(columns.split(" "));
+    }
+    const regression = read("db/tests/crisis_ai_hold_draft_regression.sql");
+    expect(regression).toContain("\\ir ../migrations/rollback/0218_down.sql");
+    expect(regression).toContain("'0218 rollback preserves held original and empty pair'");
+    expect(regression).toContain("BEGIN;\n\\ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql\n\\ir records_system_tags_regression.sql");
   });
 
   test("runs 0263 consent contracts and real races on an isolated full-schema clone", () => {
