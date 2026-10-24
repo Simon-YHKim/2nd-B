@@ -13,6 +13,7 @@ export type EndingScan = { scanned: number; excluded: number; hits: EndingHit[] 
 // These are semantic roles, not whole-file exemptions. Pin the reviewed value
 // too: repurposing an answer key for an app status must not silently pass.
 const USER_COPY: Readonly<Record<string, readonly [value: string, reason: string]>> = {
+  "consent.json:recordRead.notNow": ["지금은 안 할게요", "T10 Q-71 consent refusal button, spoken by the user; legal draft 2026-10-13"],
   "auth.json:residenceCountry.notListed": ["내 거주 국가가 목록에 없어요", "ResidenceCountryField option spoken by the user"],
   "formats.json:add.placeholder": ["예: 팟캐스트에서 출연자와 핵심 주장을 정리하고 싶어요", "AddFormatFlow example of the user's input"],
   "home.json:ds.possible.a1Body": ["생각한 것을 직접 만드는 일을 하고 싶어요", "DeepSpaceViews sample aspiration, in the user's voice"],
