@@ -204,5 +204,49 @@
     "consent_check_unavailable": "We could not check your AI processing consent. Check its status before trying again.",
     "blockedHelp": "Your other consent choices still apply. Review your privacy settings if AI processing remains unavailable.",
     "privacySettings": "Open privacy settings"
+  },
+  "recordRead": {
+    "title": "May we read your entries in chat?",
+    "ack": "I separately consent to the processing of sensitive information in my entries for the purpose above.",
+    "agree": "I agree",
+    "notNow": "Not now",
+    "setting": "Read entries",
+    "lines": {
+      "sent": {
+        "label": "What is sent",
+        "text": "Parts of entries related to your question. They may include sensitive information, such as your health or emotional state."
+      },
+      "purpose": {
+        "label": "Purpose",
+        "text": "Used only to answer in this conversation."
+      },
+      "recipient": {
+        "label": "Recipient",
+        "text": "Sent to the AI provider OpenAI (United States)."
+      },
+      "retention": {
+        "label": "Retention",
+        "text": "The company does not separately store the text sent. Under its public policy, the provider may retain it for up to 30 days for abuse checks (Privacy Policy Section 5)."
+      },
+      "choice": {
+        "label": "Your choice",
+        "text": "You can chat without agreeing. You will only miss answers based on reading your entries. You can turn this off anytime in settings."
+      }
+    },
+    "smallPrint": "Entries that mention other people's names, health or money may also be sent. We recommend leaving out information others would not want shared.",
+    "policyClause": "Privacy Policy Section 5",
+    "afterPress": {
+      "agreed": "Entry reading is on.",
+      "declined": "Answers will not use your entries. You can turn this on in settings."
+    },
+    "settings": {
+      "off": "Off. When on, answers in chat use parts of entries related to your question.",
+      "enable": "Turn on entry reading",
+      "confirmEnable": "Agree and turn on",
+      "on": "On. Parts of entries related to your question are sent to the AI provider in chat.",
+      "disable": "Turn off entry reading",
+      "justDisabled": "Off. Entries will not be sent from the next conversation. Content already sent cannot be recalled; under its public policy, the provider may retain it for up to 30 days (Privacy Policy Section 5).",
+      "minor": "Entry reading is off and cannot be turned on."
+    }
   }
 }
