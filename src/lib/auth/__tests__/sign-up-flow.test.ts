@@ -149,7 +149,7 @@ describe("submitSignUp (E2E-3 silent drop / E2E-4 double entry)", () => {
     expect(deps.refreshAuth).not.toHaveBeenCalled();
   });
 
-  test("likely-existing account (J3): reports maybeExistingAccount so the screen can suggest sign-in, without consent or refresh", async () => {
+  test("legacy typed error stays distinguishable internally, without consent or refresh", async () => {
     const deps = makeDeps({
       signUp: jest.fn().mockRejectedValue(new FakeExistingAccountLikelyError("invalid login credentials")),
     });

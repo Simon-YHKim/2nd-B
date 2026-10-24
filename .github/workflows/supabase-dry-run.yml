@@ -90,6 +90,11 @@ jobs:
           CREATE DATABASE polaris_test_ci OWNER polaris_local;
           SQL
           node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci
+      - name: Exercise inactive T06 Before User Created draft
+        env:
+          PGPASSWORD: postgres
+        run: |
+          python3 scripts/test-before-user-created-signup.py 5432 t06_signup_test_ci
       - name: Exercise signup consent forward contract
         env:
           PGPASSWORD: postgres
@@ -359,7 +364,7 @@ jobs:
           # it never reads a production URL, project ref, or repository secret.
           # Keep exact pre-promotion schemas for historical apply/backfill/down tests.
           # Each numbered file enters the CLI directory once; later pushes see its ledger.
-          for boundary in 0265 0266 0267 final; do
+          for boundary in 0265 0266 0267 0270 final; do
             for f in "${staged_migrations[@]}"; do
               base="${f##*/}"
               version="${base%%_*}"
@@ -2935,11 +2940,16 @@ jobs:
           PGPASSWORD: postgres
           PGPORT: 5432
         run: python3 db/tests/interview_transcript_ledger_security.py --template postgres
-      - name: Exercise unnumbered D4 AI hold draft in a rolled-back transaction
+      - name: Exercise numbered D4 AI hold from the exact pre-0270 snapshot
         env:
           PGPASSWORD: postgres
+          PGDATABASE: t39_t40_before_0270
         run: |
-          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/crisis_ai_hold_draft_regression.sql
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/crisis_ai_hold_regression.sql
+      - name: Exercise installed 0270 read-view rollback and reapply
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/crisis_ai_hold_installed.sql
       - name: Exercise sources.system_tags schema, predecessor and rejection mutations (0264)
         env:
           PGPASSWORD: postgres

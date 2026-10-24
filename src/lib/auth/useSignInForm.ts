@@ -315,7 +315,7 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
           ? t("errors.signInBusy")
           : t("errors.signInFailed"),
       });
-      if (typeof console !== "undefined") console.warn("[auth] signIn error", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[auth] signIn error");
     } finally {
       actionLockRef.current -= 1;
       progress?.finish();
@@ -339,9 +339,9 @@ export function useSignInForm<T>(deletionNotice: T | null): UseSignInForm<T> {
       await sendPasswordResetEmail(resetEmail);
       setResetEmailSentTo(resetEmail);
       setToast({ tone: "success", message: t("signIn.resetSentToast") });
-    } catch (e) {
+    } catch {
       setToast({ tone: "danger", message: t("errors.passwordResetFailed") });
-      if (typeof console !== "undefined") console.warn("[auth] password reset email error", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[auth] password reset email error");
     } finally {
       actionLockRef.current -= 1;
       setResetSubmitting(false);

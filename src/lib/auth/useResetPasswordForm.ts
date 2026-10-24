@@ -214,11 +214,11 @@ export function useResetPasswordForm(): UseResetPasswordForm {
       setCodeSent(true);
       setResendSeconds(RESEND_COOLDOWN_SECONDS);
       setToast({ tone: "success", message: t("resetPassword.codeSentToast") });
-    } catch (e) {
+    } catch {
       // Same enumeration-safe wording either way (CSO R3): the toast never says
       // whether the address exists.
       setToast({ tone: "danger", message: t("errors.passwordResetFailed") });
-      if (typeof console !== "undefined") console.warn("[auth] reset code send error", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[auth] reset code send error");
     } finally {
       setSendSubmitting(false);
     }
@@ -247,9 +247,9 @@ export function useResetPasswordForm(): UseResetPasswordForm {
           await activateRecoverySession(verified);
         },
       );
-    } catch (e) {
+    } catch {
       setToast({ tone: "danger", message: t("resetPassword.codeInvalid") });
-      if (typeof console !== "undefined") console.warn("[auth] reset code verify error", (e as Error).message);
+      if (typeof console !== "undefined") console.warn("[auth] reset code verify error");
     } finally {
       setVerifying(false);
     }
