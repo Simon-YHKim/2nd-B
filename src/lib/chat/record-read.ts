@@ -41,7 +41,7 @@ export function maskRecordBodyIdentifiers(body: string): string {
       value => (value.match(/\d/g)?.length ?? 0) >= 8 ? "[account]" : value)
     // Preserve dates, year ranges and monetary amounts (legal S7). Horizontal
     // separators only: adjacent lines of numbers must never become one phone.
-    .replace(/(?<keep>\b\d{4}[-/.]\d{1,2}[-/.]\d{1,2}\b|\b\d{4}[-–]\d{4}\b|[$€£¥₩][ \t]*\d[\d,.]*|\b\d[\d,.]*[ \t]*(?:(?:만|억|천)?원|달러|유로|USD|EUR|KRW))|(?<number>\+?\d(?:[ \t()./\-\u2010-\u2015\u2212·\u119E_]*\d){6,})/gu,
+    .replace(/(?<keep>\b\d{4}[-/.]\d{1,2}[-/.]\d{1,2}\b|(?<!\d[-–./ \t]?)(?:19|20)\d{2}[-–](?:19|20)\d{2}(?![-–./ \t]?\d)|[$€£¥₩][ \t]*\d[\d,.]*|\b\d[\d,.]*[ \t]*(?:(?:만|억|천)?원|달러|유로|USD|EUR|KRW))|(?<number>\+?\d(?:[ \t()./\-\u2010-\u2015\u2212·\u119E_]*\d){6,})/gu,
       (value, _keep, _number, _offset, _source, groups: { keep?: string }) => {
         if (groups.keep) return value;
         const digits = value.replace(/\D/g, "");

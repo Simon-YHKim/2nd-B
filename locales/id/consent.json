@@ -245,7 +245,7 @@
       "confirmEnable": "Agree and turn on",
       "on": "On. Parts of entries related to your question are sent to the AI provider in chat.",
       "disable": "Turn off entry reading",
-      "justDisabled": "Off. Entries will not be sent from the next conversation. Content already sent cannot be recalled; provider retention follows Privacy Policy Section 5.",
+      "justDisabled": "Off. Entries will not be sent from the next conversation. Content already sent cannot be recalled; under its public policy, the provider may retain it for up to 30 days (Privacy Policy Section 5).",
       "minor": "Entry reading is off and cannot be turned on."
     }
   }

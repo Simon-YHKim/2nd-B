@@ -25,7 +25,7 @@ test("Q-71 approved original plus legal section 4 recommendation, without invent
     enable: "기록 읽기 켜기", confirmEnable: "동의하고 켜기",
     on: "켜져 있습니다. 대화에서 질문과 관련된 기록의 본문 일부를 AI 제공자에게 보냅니다.",
     disable: "기록 읽기 끄기",
-    justDisabled: "꺼져 있습니다. 다음 대화부터 보내지 않습니다. 이미 보낸 내용은 회수할 수 없고, 제공자 보관 기준은 처리방침 제5조를 따릅니다.",
+    justDisabled: "꺼져 있습니다. 다음 대화부터 보내지 않습니다. 이미 보낸 내용은 회수할 수 없고, 제공자는 공개 정책상 최대 30일 보관할 수 있습니다(처리방침 제5조).",
     minor: "기록 읽기는 꺼져 있고 켤 수 없습니다.",
   });
 });
