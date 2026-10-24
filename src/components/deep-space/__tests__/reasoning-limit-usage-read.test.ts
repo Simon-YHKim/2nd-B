@@ -4,6 +4,7 @@ import { REWARD_MONTHLY_CAP, REWARD_PER_WATCH } from "../../../lib/entitlements/
 import { monthLabelFor } from "../../../lib/reasoning/remaining-copy";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { beginAccountOwnerTransition } from "../../../lib/auth/account-epoch";
 
 const file = sourceFile("src/components/deep-space/ReasoningLimitSheet.tsx");
 const harness = usageHarness();
@@ -101,12 +102,25 @@ test("switching account during a watch never grants against the new session", as
   completed.resolve({ completed: true }); await watching;
   expect(grant).not.toHaveBeenCalled(); expect((await harness.settle(render)).grantOutcome).toBeNull();
   harness.owner("owner-a"); owner = "owner-a";
-  expect(await harness.settle(render)).toMatchObject({ grantOutcome: "unconfirmed", watching: false, adEligible: false });
+  expect(await harness.settle(render)).toMatchObject({ grantOutcome: "processing", watching: false, adEligible: false });
 });
 test("two presses on one ready button start only one watch", async () => {
   const completed = deferred<{ completed: boolean }>(); watch.mockReturnValue(completed.promise);
   const ready = await harness.settle(render); const first = ready.onWatch(); await ready.onWatch();
   expect(watch).toHaveBeenCalledTimes(1); completed.resolve({ completed: false }); await first;
+});
+
+test("an SSV watch completed after a same-owner epoch change stays processing through read failure", async () => {
+  const completed = deferred<{ completed: boolean }>(); watch.mockReturnValue(completed.promise);
+  const before = await harness.settle(render); const running = before.onWatch();
+  beginAccountOwnerTransition("owner-b"); beginAccountOwnerTransition("owner-a");
+  harness.read.mockRejectedValue(new Error("returned read failed"));
+  completed.resolve({ completed: true }); await running;
+  const after = await harness.settle(render);
+  expect(after).toMatchObject({ grantOutcome: "processing", watching: false, adEligible: false });
+  await before.onWatch(); expect(watch).toHaveBeenCalledTimes(1); expect(grant).not.toHaveBeenCalled();
+  expect(changed).not.toHaveBeenCalled();
+  expect(file.source).toContain('grantOutcome === "processing" ? t("ds.reward.creditProcessing") : t("ds.reward.creditFailed")');
 });
 test.each(["granted", "capped"])("%s is not rewritten to unconfirmed when its usage refresh fails", async (outcome) => {
   grant.mockResolvedValue(outcome); const ready = await harness.settle(render);

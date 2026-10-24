@@ -306,7 +306,7 @@ const SOURCE_EXEMPTIONS: readonly { reason: string; spots: readonly Spot[] }[] =
     spots: [
       ["src/lib/sufficiency/registry.ts", "THRESHOLDS › argument of at", "src/app/core-brain.tsx", 7],
       ["src/lib/sufficiency/registry.ts", "THRESHOLDS › argument of at", "v_cap := CASE COALESCE(v_tier,'free') WHEN 'brain' THEN NULL WHEN 'cortex' THEN 7 WHEN 'soma' THEN 7 ELSE 2 END;", 2],
-      ["src/lib/sufficiency/registry.ts", "THRESHOLDS › operand of +", "주간 심층 분석 남은 횟수가 0 이면 /plans 로 보낸다. free 2 · soma 7 · cortex 7 · brain 무제한, ", 1],
+      ["src/lib/sufficiency/registry.ts", "THRESHOLDS › operand of +", "첫 확인 전에는 제안을 막고 읽기 실패 시 재시도한다. free 2 · soma 7 · cortex 7 · brain 무제한, 보상 크레딧이 있으면 그만큼 더", 1],
       ["src/lib/sufficiency/registry.ts", "THRESHOLDS › value of output", "/core-brain 빈 상태 해제", 1],
       ["src/lib/sufficiency/registry.ts", "THRESHOLDS › value of text", "free 2 · soma 7 · cortex 7 · brain 무제한. 넘으면 크레딧 1, 크레딧도 없으면 polaris_limit_exceeded", 1],
       ["src/lib/sufficiency/registry.ts", "THRESHOLDS › value of text", "하루 대화 횟수. free 는 freeChatDaily() · soma 30 · cortex 80 · brain 250, 보상 광고 보너스 포함", 1],

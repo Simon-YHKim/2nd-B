@@ -85,21 +85,33 @@ export default function NorthstarSentence() {
   });
 
   // Reasoning-cap (count-only, mirrors the chat gate). Each 세컨비 제안 is one
-  // reasoning use; unlimited tiers (북극성/brain) are never gated. Unknown usage
-  // stays unknown; preserve this screen's existing fail-open proposal policy.
+  // reasoning use; a confirmed unlimited tier has no count limit. A first
+  // unknown read blocks proposals and offers retry instead of assuming zero use.
   const progression = useProgression();
   const accountEpoch = currentAccountEpoch();
   const { view: usageView, refresh: refreshUsage, confirmCurrent } = useReasoningUsageRead(userId, !loading);
-  // Keep the existing local cap update while the write is in flight. It applies
-  // only to this exact confirmed snapshot and is never a displayed balance.
-  const [localUse, setLocalUse] = useState<{ snapshot: ReasoningUsage; count: number } | null>(null);
-  const reasoningRemaining = usageView.status === "ready"
-    ? remainingReasoning(
-      progression.tier,
-      usageView.usage.used + (localUse?.snapshot === usageView.usage ? localUse.count : 0),
-      usageView.usage.rewardCredits,
-    )
-    : null;
+  // Admission only, never a displayed balance. Refresh pending/error must not
+  // erase confirmed exhaustion or successful proposals since that confirmation.
+  const usageBudget = useRef<{
+    ownerId: string; epoch: number; snapshot: ReasoningUsage | null;
+    localUses: number; writes: number; proposing: boolean;
+  } | null>(null);
+  const renderLease = !loading && userId ? captureAccountOwnerLease(userId) : null;
+  if (!renderLease) usageBudget.current = null;
+  else if (usageBudget.current?.ownerId !== userId || usageBudget.current.epoch !== accountEpoch) {
+    usageBudget.current = { ownerId: userId!, epoch: accountEpoch, snapshot: null, localUses: 0, writes: 0, proposing: false };
+  }
+  const budget = usageBudget.current;
+  // A refocus/retry while a write is pending cannot yet account for that use.
+  // Each write completion refreshes again; only then can a ready read replace it.
+  if (budget && budget.writes === 0 && usageView.status === "ready" && confirmCurrent() && budget.snapshot !== usageView.usage) {
+    budget.snapshot = usageView.usage;
+    budget.localUses = 0;
+  }
+  const remainingForProposal = useCallback(() => budget?.snapshot
+    ? Math.max(0, remainingReasoning(progression.tier, budget.snapshot.used, budget.snapshot.rewardCredits) - budget.localUses)
+    : null, [budget, progression.tier]);
+  const reasoningRemaining = remainingForProposal();
 
   useEffect(() => {
     if (loading || !userId) return;
@@ -121,13 +133,16 @@ export default function NorthstarSentence() {
   const propose = useCallback(async () => {
     if (!userId || proposing) return;
     const lease = captureAccountOwnerLease(userId);
-    if (!lease || lease.epoch !== accountEpoch) return;
+    if (!lease || lease.epoch !== accountEpoch || !budget || usageBudget.current !== budget || budget.proposing) return;
     // Reasoning-cap gate (count-only, never a quality gate — mirrors chat). On
     // cap, route to the paywall instead of spending another reasoning run.
-    if (confirmCurrent() && reasoningRemaining !== null && reasoningRemaining <= 0) {
+    const remaining = remainingForProposal();
+    if (remaining === null) return;
+    if (remaining <= 0) {
       router.push("/plans?from=northstar_limit");
       return;
     }
+    budget.proposing = true;
     setProposing(true);
     setThinBase(false);
     setProposeError(false);
@@ -136,11 +151,15 @@ export default function NorthstarSentence() {
       if (!lease.isCurrent()) return;
       if (out) {
         setSuggestions(out);
-        if (usageView.status === "ready") {
-          const snapshot = usageView.usage;
-          setLocalUse((previous) => ({ snapshot, count: previous?.snapshot === snapshot ? previous.count + 1 : 1 }));
-        }
-        void incrementReasoningUsage(userId).then(refreshUsage, refreshUsage);
+        // Update synchronously so even a captured button sees the spent run.
+        // Subtract from the total allowance: a use can spend a reward credit too.
+        budget.localUses += 1;
+        budget.writes += 1;
+        const afterWrite = () => {
+          budget.writes -= 1;
+          refreshUsage();
+        };
+        void incrementReasoningUsage(userId).then(afterWrite, afterWrite);
       } else {
         // null is the lib's honest "record base too thin" — the only null.
         setSuggestions(null);
@@ -153,9 +172,10 @@ export default function NorthstarSentence() {
       setSuggestions(null);
       setProposeError(true);
     } finally {
+      budget.proposing = false;
       setProposing(false);
     }
-  }, [userId, accountEpoch, locale, isMinor, proposing, confirmCurrent, reasoningRemaining, usageView, refreshUsage, router]);
+  }, [userId, accountEpoch, locale, isMinor, proposing, budget, remainingForProposal, refreshUsage, router]);
 
   const save = useCallback(async () => {
     if (!userId || saving || draft.trim().length === 0) return;
@@ -269,12 +289,20 @@ export default function NorthstarSentence() {
             </Text>
           </MdCard>
         ) : null}
+        {usageView.status === "error" || usageView.status === "timeout" ? (
+          <MdCard variant="outlined" style={styles.suggestCard}>
+            <Text style={styles.emptyText} accessibilityRole="alert" accessibilityLiveRegion="polite">
+              {usageView.status === "timeout" ? t("common:errors.network") : t("ops:phone.board.generation.unavailable")}
+            </Text>
+            <MdButton label={t("common:actions.retry")} variant="text" onPress={refreshUsage} />
+          </MdCard>
+        ) : null}
         <MdButton
           variant="text"
           label={proposing ? t("ds.northstar.thinking") : t("ds.northstar.propose")}
           icon={<Glyph name="replay" color={m3.color.primary} size={18} />}
           onPress={() => void propose()}
-          disabled={proposing}
+          disabled={proposing || reasoningRemaining === null}
           style={styles.replayBtn}
         />
       </View>

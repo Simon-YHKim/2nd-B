@@ -14,6 +14,23 @@ let surface: (dataOwner: string) => {
 };
 const render = () => surface(owner);
 
+// Execute just the projection: the hook harness otherwise flushes the account
+// effect before returning, hiding the stale same-owner frame from this test.
+test.each([
+  ["current owner and epoch", "owner-a", 7, true, "ready"],
+  ["another owner", "owner-b", 7, true, "loading"],
+  ["same owner returning in a new epoch", "owner-a", 8, true, "loading"],
+  ["same owner without a valid lease", "owner-a", 7, false, "loading"],
+] as const)("usage projection before effects: %s", (_label, dataOwner, epoch, hasLease, expected) => {
+  const project = compile<(usageRead: object, dataOwner: string, accountEpoch: number) => { status: string; rewardCredits: number }>(`
+    return (usageRead, dataOwner, accountEpoch) => {
+      ${file.statement("const ownedUsage:")}
+      return ownedUsage;
+    };`, { captureAccountOwnerLease: () => hasLease ? { epoch } : null });
+  expect(project({ ownerId: "owner-a", epoch: 7, status: "ready", ...snapshot(1, 9) }, dataOwner, epoch))
+    .toMatchObject({ status: expected, rewardCredits: expected === "ready" ? 9 : 0 });
+});
+
 beforeAll(() => {
   surface = compile(`
     ${progression.statement("function settleAsyncRead").replace("export ", "")}

@@ -211,7 +211,9 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
       const { completed } = await showRewardedAd({ ssvCustomData: userId });
       if (completed) {
         if (!lease.isCurrent()) {
-          setGrantOutcome("unconfirmed");
+          // A completed watch is SSV-backed. The ticket still belongs to its
+          // original owner; a changed client lease says nothing about settlement.
+          setGrantOutcome("processing");
           return;
         }
         const grant = await addRewardCredits(userId, REWARD_PER_WATCH);
