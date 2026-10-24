@@ -48,10 +48,16 @@ test("short/oversized counts request a requery without claiming affected IDs", (
   ]);
 });
 
-test("empty IDs cannot identify a requery target", () => {
+test.each([[], [""], [" \t\n"], ["s1", ""], ["s1", "  "]].map(ids => ({ ids })))("blank IDs suppress the whole target $ids without widening scope", ({ ids }) => {
   const { listener } = listen();
-  prepareSavedDataDeletion({ ...source, ids: [] })(1);
-  prepareSavedDataDeletion({ ...source, ids: [""] })(1);
+  prepareSavedDataDeletion({ ...source, ids })(1);
+  expect(listener).not.toHaveBeenCalled();
+});
+
+test.each([null, undefined, 1])("malformed ID %s is ignored without changing the caller result", id => {
+  const { listener } = listen();
+  const target = { ...source, ids: ["s1", id] } as SavedDataDeletionTarget;
+  expect(() => prepareSavedDataDeletion(target)(1)).not.toThrow();
   expect(listener).not.toHaveBeenCalled();
 });
 
@@ -65,6 +71,12 @@ test("copies only immutable metadata and counts distinct IDs", () => {
   expect(event).toEqual({ ...source, basis: "affected" });
   expect(Object.isFrozen(event)).toBe(true);
   expect(Object.isFrozen(event.ids)).toBe(true);
+});
+
+test("nonblank IDs are kept literally, never trimmed into another target", () => {
+  const { listener } = listen();
+  prepareSavedDataDeletion({ ...source, ids: [" s1 "] })(1);
+  expect(listener).toHaveBeenCalledWith({ ...source, ids: [" s1 "], basis: "affected" });
 });
 
 test.each(["source", "wiki_page"] as const)("all %s event contains only owner/kind/all/basis", kind => {
@@ -101,6 +113,22 @@ test("a throwing listener cannot escape or stop the next listener", () => {
   const { listener } = listen();
   expect(() => prepareSavedDataDeletion(source)(1)).not.toThrow();
   expect(listener).toHaveBeenCalledTimes(1);
+});
+
+test("a rejecting async listener is contained without awaiting or blocking other observers", async () => {
+  let reject!: (error: Error) => void;
+  const pending = new Promise<void>((_resolve, no) => { reject = no; });
+  const stop = subscribeSavedDataChanges("a", async () => { await pending; });
+  cleanups.push(stop);
+  const { listener } = listen();
+  expect(prepareSavedDataDeletion(source)(1)).toBeUndefined();
+  expect(listener).toHaveBeenCalledTimes(1); // Fan-out stays synchronous while the first observer is pending.
+  stop();
+  reject(new Error("late observer rejection"));
+  await new Promise<void>(resolve => setImmediate(resolve));
+  // Jest also fails this test if the detached listener leaves an unhandled rejection.
+  prepareSavedDataDeletion(source)(1);
+  expect(listener).toHaveBeenCalledTimes(2);
 });
 
 test("a listener cannot alter metadata delivered to the next listener", () => {
