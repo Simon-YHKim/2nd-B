@@ -39,10 +39,11 @@ import { reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
 import { REWARD_MONTHLY_CAP, REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import {
   addRewardCredits,
-  getReasoningUsage,
   type ReasoningUsage,
   type RewardGrantOutcome,
 } from "@/lib/entitlements/usage";
+import { captureAccountOwnerLease, currentAccountEpoch } from "@/lib/auth/account-epoch";
+import { useReasoningUsageRead } from "@/lib/reasoning/use-reasoning-usage-read";
 import { monthLabelFor } from "@/lib/reasoning/remaining-copy";
 import { useProgression } from "@/lib/progression/useProgression";
 import { m3 } from "@/lib/theme/m3";
@@ -61,6 +62,12 @@ import { a11yValue } from "@/lib/a11y/accessibility-value";
 const rlAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.bgMid);
 
 type RewardEarnedBaseline = Pick<ReasoningUsage, "monthBucket" | "rewardEarned">;
+
+type OwnerWatch = {
+  watching: boolean;
+  outcome: RewardGrantOutcome | null;
+  baseline: { current: RewardEarnedBaseline | null };
+};
 
 function hasRewardSettlementAdvanced(next: RewardEarnedBaseline, baseline: RewardEarnedBaseline): boolean {
   const canonicalMonthBucket = /^\d{4}-(?:0[1-9]|1[0-2])$/;
@@ -92,15 +99,33 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   const insets = useSafeAreaInsets();
   const sheetBottom = Math.max(insets.bottom, m3.spacing.s6);
 
-  const [usage, setUsage] = useState<ReasoningUsage | null>(null);
-  const [watching, setWatching] = useState(false);
+  const accountEpoch = currentAccountEpoch();
+  const { view: usageView, refresh: refreshUsage, confirmCurrent } = useReasoningUsageRead(userId, visible);
+  const usage = visible && usageView.status === "ready" ? usageView.usage : null;
   // Processing/unconfirmed stays locked across close -> reopen. Only a later
-  // authoritative usage read above this watch's baseline clears it.
-  const [grantOutcome, setGrantOutcome] = useState<RewardGrantOutcome | null>(null);
-  const pendingRewardBaselineRef = useRef<RewardEarnedBaseline | null>(null);
+  // authoritative usage read above this watch's baseline clears it. Keep each
+  // owner's pending watch separately, including an A -> B -> A return.
+  const ownerWatches = useRef(new Map<string | null, OwnerWatch>());
+  if (!ownerWatches.current.has(userId)) {
+    ownerWatches.current.set(userId, { watching: false, outcome: null, baseline: { current: null } });
+  }
+  const ownerWatch = ownerWatches.current.get(userId)!;
+  const [, redrawWatch] = useState(0);
+  const watching = ownerWatch.watching;
+  const grantOutcome = ownerWatch.outcome;
+  const pendingRewardBaselineRef = ownerWatch.baseline;
   // users.privacy_prefs.ads — null until resolved; the rewarded gate fails closed.
-  const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
+  const [consentRead, setConsentRead] = useState<{ ownerId: string; epoch: number; allowed: boolean } | null>(null);
+  const adsConsent = consentRead?.ownerId === userId && consentRead.epoch === accountEpoch ? consentRead.allowed : null;
   const mountedRef = useRef(true);
+  const setGrantOutcome = useCallback((outcome: RewardGrantOutcome | null) => {
+    ownerWatch.outcome = outcome;
+    if (mountedRef.current) redrawWatch((value) => value + 1);
+  }, [ownerWatch]);
+  const setWatching = useCallback((value: boolean) => {
+    ownerWatch.watching = value;
+    if (mountedRef.current) redrawWatch((version) => version + 1);
+  }, [ownerWatch]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -109,49 +134,42 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
     };
   }, []);
 
-  const refreshUsage = useCallback(async () => {
-    if (!userId) return;
-    const next = await getReasoningUsage(userId);
-    if (mountedRef.current) {
-      setUsage(next);
-      if (
-        pendingRewardBaselineRef.current !== null &&
-        hasRewardSettlementAdvanced(next, pendingRewardBaselineRef.current)
-      ) {
-        // Residual P2: the aggregate counter has no per-ticket receipt, so an
-        // increase from another device cannot be attributed to this watch.
-        pendingRewardBaselineRef.current = null;
-        setGrantOutcome(null);
-      }
-    }
-  }, [userId]);
-
   useEffect(() => {
-    if (!visible) return;
-    void refreshUsage();
-  }, [visible, refreshUsage]);
+    if (!usage || watching) return;
+    const next = usage;
+    if (
+      pendingRewardBaselineRef.current !== null &&
+      hasRewardSettlementAdvanced(next, pendingRewardBaselineRef.current)
+    ) {
+      // Residual P2: the aggregate counter has no per-ticket receipt, so an
+      // increase from another device cannot be attributed to this watch.
+      pendingRewardBaselineRef.current = null;
+      setGrantOutcome(null);
+    }
+  }, [usage, watching, pendingRewardBaselineRef, setGrantOutcome]);
 
   useEffect(() => {
     if (!visible || !userId) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease) return;
     let cancelled = false;
+    setConsentRead(null);
     fetchPrivacyPrefs(userId)
       .then((prefs) => {
-        if (!cancelled) setAdsConsent(prefs.ads === true);
+        if (!cancelled && lease.isCurrent()) setConsentRead({ ownerId: userId, epoch: lease.epoch, allowed: prefs.ads === true });
       })
       .catch(() => {
-        if (!cancelled) setAdsConsent(false); // fetch failure = no rewarded entry
+        if (!cancelled && lease.isCurrent()) setConsentRead({ ownerId: userId, epoch: lease.epoch, allowed: false });
       });
     return () => {
       cancelled = true;
     };
-  }, [visible, userId]);
+  }, [visible, userId, accountEpoch]);
 
   const cap = reasoningCapForTier(progression.tier);
-  const used = usage?.used ?? 0;
-  const baseLeft = cap === null ? null : Math.max(0, cap - used);
-  const rewardCredits = usage?.rewardCredits ?? 0;
-  const rewardEarned = usage?.rewardEarned ?? 0;
-  const earnCapReached = rewardEarned >= REWARD_MONTHLY_CAP;
+  const baseLeft = cap === null || !usage ? null : Math.max(0, cap - usage.used);
+  const rewardCredits = usage?.rewardCredits ?? null;
+  const earnCapReached = usage !== null && usage.rewardEarned >= REWARD_MONTHLY_CAP;
   const month = monthLabelFor(i18n.language ?? "en", usage?.monthBucket ?? "");
 
   // Fail-closed ad region: the FULL #1076 rewarded gate (build flag + free
@@ -174,7 +192,9 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
     !grantOutcome;
 
   const onWatch = useCallback(async () => {
-    if (!userId || watching || !usage) return;
+    if (!userId || ownerWatch.watching || ownerWatch.outcome !== null || !usage || !adEligible || !confirmCurrent()) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease) return;
     setWatching(true);
     pendingRewardBaselineRef.current = {
       monthBucket: usage.monthBucket,
@@ -190,12 +210,16 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
       // so one watch never double-grants.
       const { completed } = await showRewardedAd({ ssvCustomData: userId });
       if (completed) {
+        if (!lease.isCurrent()) {
+          setGrantOutcome("unconfirmed");
+          return;
+        }
         const grant = await addRewardCredits(userId, REWARD_PER_WATCH);
         const unresolved = grant === "processing" || grant === "unconfirmed";
         if (mountedRef.current) setGrantOutcome(unresolved ? grant : null);
         if (!unresolved) pendingRewardBaselineRef.current = null;
-        await refreshUsage();
-        onChanged?.();
+        refreshUsage();
+        if (lease.isCurrent()) onChanged?.();
         // "capped" already has a line of its own above. Processing and an
         // unconfirmed client failure both keep the CTA locked, but only the
         // latter is rendered as a failure.
@@ -206,9 +230,9 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
       }
       if (mountedRef.current) setGrantOutcome("unconfirmed");
     } finally {
-      if (mountedRef.current) setWatching(false);
+      setWatching(false);
     }
-  }, [userId, watching, usage, refreshUsage, onChanged]);
+  }, [userId, ownerWatch, usage, adEligible, confirmCurrent, pendingRewardBaselineRef, setWatching, setGrantOutcome, refreshUsage, onChanged]);
 
   const goPlans = useCallback(() => {
     onClose();
@@ -232,7 +256,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
           <RNText style={styles.title}>{t("ds.reasoningLimit.title")}</RNText>
 
           {/* ONE graphic: the weekly meter (2 or 7 cells), spent cells dimmed. */}
-          {cap !== null ? (
+          {cap !== null && usage ? (
             <View
               style={styles.meterRow}
               accessibilityRole="progressbar"
@@ -249,10 +273,18 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
           ) : null}
 
           <RNText style={[styles.rewardLine, m3TextStyle("bodyMedium")]}>
-            {earnCapReached
+            {!usage
+              ? usageView.status === "error"
+                ? t("ds.reasoningScreen.loadFailed")
+                : usageView.status === "timeout" ? t("common:errors.network") : "..."
+              : earnCapReached
               ? t("ds.reasoningLimit.rewardCapReached", { cap: REWARD_MONTHLY_CAP })
               : t("ds.reasoningLimit.rewardLeft", { n: rewardCredits, month })}
           </RNText>
+
+          {usageView.status === "error" || usageView.status === "timeout" ? (
+            <MdButton label={t("common:actions.retry")} variant="text" onPress={refreshUsage} />
+          ) : null}
 
           {grantOutcome ? (
             <RNText
