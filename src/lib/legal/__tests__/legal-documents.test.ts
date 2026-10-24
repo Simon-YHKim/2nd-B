@@ -228,7 +228,9 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).toContain("가명 클라이언트·기기 식별자");
     expect(PRIVACY_DOC.body).toContain("pseudonymous client and device identifiers");
     expect(PRIVACY_DOC.body).toContain("표준 집계 보고서는 이 보존 설정의 적용을 받지 않습니다");
-    expect(PRIVACY_DOC.body).toContain("standard aggregated reports are not governed by that retention setting");
+    expect(PRIVACY_DOC.body).toContain(
+      "standard aggregated reports, which do not identify individuals, are not governed by that retention setting",
+    );
     // Drafts and generated copies must not ship editorial fill markers.
     expect(PRIVACY_DOC.body).not.toMatch(
       /\[(?:배포일|N\b|서버 차단일|확인된|deployment date|server-block date|verified)/,
