@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP on
--- Scratch database only. The unnumbered draft and all fixtures roll back.
+-- Scratch pre-0270 snapshot only. The numbered install and all fixtures roll back.
 BEGIN;
 -- Vanilla scratch Postgres has no Supabase default table grants. These fixture
 -- grants let the real owner RLS run; they are not part of the draft migration.
@@ -48,7 +48,7 @@ SELECT pg_temp.assert_true((SELECT count(*) = 3 FROM public.records
   WHERE user_id = '28000000-0000-4000-8000-000000000001'
     AND embedding IS NOT NULL AND embedding_model = 'test'), 'fixture has three real consented vectors');
 
-\ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql
+\ir ../migrations/0270_crisis_ai_hold.sql
 
 SELECT pg_temp.assert_true((SELECT count(*) = 2 FROM public.records WHERE ai_hold), 'existing flags backfilled');
 SELECT pg_temp.assert_true((SELECT count(*) = 2 FROM public.records WHERE ai_hold AND embedding IS NULL AND embedding_model IS NULL), 'held vectors removed');
@@ -134,7 +134,7 @@ END;
 $acl$;
 
 -- Reapplication cannot reset the bits or erase the original rows.
-\ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql
+\ir ../migrations/0270_crisis_ai_hold.sql
 SELECT pg_temp.assert_true((SELECT count(*) = 5 FROM public.records WHERE ai_hold), 'reapply retains all holds');
 SELECT pg_temp.assert_true((SELECT count(*) = 2 FROM public.sources WHERE ai_hold), 'reapply retains source holds');
 SET LOCAL ROLE authenticated;
@@ -189,7 +189,7 @@ ALTER TABLE public.records ENABLE TRIGGER guard_record_ai_hold;
 ALTER TABLE public.records ENABLE TRIGGER zzz_records_ai_hold_embedding_guard;
 SELECT pg_temp.assert_true((SELECT ai_hold AND embedding IS NOT NULL AND embedding_model = 'old-draft'
   FROM public.records WHERE id = '28000000-0000-4000-8000-000000000043'), 'fixture models already-held residual from older draft');
-\ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql
+\ir ../migrations/0270_crisis_ai_hold.sql
 SELECT pg_temp.assert_true(NOT EXISTS (SELECT 1 FROM public.records WHERE ai_hold
   AND (embedding IS NOT NULL OR embedding_model IS NOT NULL)), 'reapply repairs already-held residual pairs');
 SELECT pg_temp.assert_true((SELECT embedding IS NOT NULL AND embedding_model = 'test'
@@ -257,12 +257,12 @@ ROLLBACK;
 -- consent CAS/recovery, partial pairs, owner changes, RLS and service writes.
 -- Its BEGIN joins this transaction; its ROLLBACK removes the draft as well.
 BEGIN;
-\ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql
+\ir ../migrations/0270_crisis_ai_hold.sql
 \ir records_embedding_consent_regression.sql
 
 -- Also retain 0218's full hand-move / down / reapply behavior under the draft.
 BEGIN;
-\ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql
+\ir ../migrations/0270_crisis_ai_hold.sql
 \ir records_system_tags_regression.sql
 
 DO $rollback_verified$
