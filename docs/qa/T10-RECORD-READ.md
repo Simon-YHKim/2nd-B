@@ -102,7 +102,7 @@ SQL 하네스는 실제 가입/동의 마이그레이션 0031~0262 중 필요한
 
 ## 검토 1회차 고침 검증 (2026-10-24 KST)
 
-- 관련 Jest **13묶음 337/337**, 요청 해시 snapshot **2개/12조합** 통과.
+- 관련 Jest **14묶음 348/348**, 요청 해시 snapshot **2개/12조합** 통과.
 - PostgreSQL **18.3**, 전용 새 폴더·`127.0.0.1:55586`·빈 DB에서 실제 연쇄를 재생했다.
   SQL **11개 PASS 그룹**(가입 회귀 포함), 삭제 경합 **writer/snapshot 2경로** 통과.
   수정 전 초안은 관련 없는 ads 저장 후 `existing LLM lease unchanged`에서 실패했다.
@@ -114,6 +114,9 @@ SQL 하네스는 실제 가입/동의 마이그레이션 0031~0262 중 필요한
 - `tsc`, 변경 파일 ESLint, 금지어, C7, 긴 줄표, constraints, erasure-registry,
   account-export-inventory, legal-review, safety-consent-locale, copy-endings, cycles,
   llm-boundary 종료코드 0. **4493키/5 locale · 내보내기 누락/중복 0**.
+- 첫 CI에서 기존 가입 제목의 `\u2060` 소스 표기 계약 한 건이 실패했다. JSON 전체 직렬화가
+  기존 escape를 실제 문자로 바꾼 것이 원인이다. 다섯 locale의 T10 앞부분을 기존 바이트로 복원하고
+  `visible-trust-copy`를 검증 묶음에 포함했다(수정 전 로컬 1 FAIL 재현).
 - 전체 verify와 CI 네 개의 최종 판정은 PR #2734의 해당 head에서 확인한다.
 
 남긴 것: T71이 질문에 맞는 문단을 골라 공급하는 계약과 감사 해시의 입력·키 사용 규칙은
