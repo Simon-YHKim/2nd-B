@@ -72,6 +72,7 @@ const CAT = "src/lib/auth/consent-age-table.ts";
 const D = "supabase/functions/delete-account/index.ts";
 const DS = "supabase/functions/delete-account/storage-erasure.ts";
 const X = "supabase/functions/export-account/index.ts";
+const IT = "db/migrations/0225_interview_transcript_ledger.sql";
 const W = "src/lib/wiki/export.ts";
 const AC = "src/lib/auth/AuthContext.tsx";
 const AD = "src/lib/ads/policy.ts";
@@ -164,6 +165,18 @@ const ANCHORS: Anchor[] = [
     why: "선행 스키마·열 권한 적용을 기다리는 표를 영구 제외와 구분한다." },
   { cite: `${X}:732-741`, symbol: "...PENDING_EXPORT",
     why: "준비 중인 사유도 기존 excluded 응답에 들어간다." },
+  { cite: `${X}:305`, symbol: "table: 'records'",
+    why: "records의 기존 내보내기를 대화록 표식의 새 공개로 오인하지 않는다." },
+  { cite: `${X}:509-511`, symbol: "source.select ?? '*'",
+    why: "열 목록이 없는 records는 interview_ai_hold도 이미 내보낸다." },
+  { cite: `${IT}:1482-1501`, symbol: "v_hold := p_crisis_hold OR v_record_hold",
+    why: "저장 시 C9 red 또는 기존 위기 표식과 세션 red 감사가 기록·대화록·턴에 반영된다." },
+  { cite: `${IT}:895-928`, symbol: "a.event_source = 'server_verified'",
+    why: "red probe hold는 서버 확인된 위기 감사에만 근거한다." },
+  { cite: `${IT}:1907-1909`, symbol: "t.ai_hold",
+    why: "backfill은 기존 대화록의 위기 표식을 기록에 복사하며 새 분류를 만들지 않는다." },
+  { cite: `${IT}:1812-1838`, symbol: "AND NOT tt.ai_hold",
+    why: "판정 전용 내보내기는 held 턴을 빼지만 계정 내보내기는 포함한다." },
   { cite: `${W}:285`, symbol: "includeRecords",
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
   { cite: `${AT}:96-131`, symbol: "remain inert",
@@ -294,6 +307,35 @@ test("내보내기 범위는 준비 중인 6개와 법무 확인 중인 제외 �
   expect(doc).toContain("Automatic JSON exclusion is not a statutory access exemption");
   expect(doc).toContain("These two tables are not queried");
   expect(doc).toContain("The exporter does not query those six and reports them as pending");
+});
+
+test("대화록 hold의 위기 출처와 기존 records 내보내기 및 판정 전용 경로의 차이를 명시한다", () => {
+  expect(doc).toContain("`ai_hold` is set only by crisis classification");
+  expect(doc).toContain("C9 red result at save (`p_crisis_hold`)");
+  expect(doc).toContain("`hold_interview_record_for_red` requires a `server_verified` `interview_probe` audit with `safety_zone='red'`");
+  expect(doc).toContain("backfill copies an existing transcript hold to its record");
+  expect(doc).toContain("The same value is already exported as `records.interview_ai_hold`");
+  expect(doc).toContain("`export_my_interview_judgements` excludes held turns");
+  expect(doc).toContain("account export includes held transcript rows and their text");
+});
+
+test.each([
+  ["export table", "| Exported: transcript headers and turns", "\n"],
+  ["records table", "| Exported: record crisis marker", "\n"],
+  ["pending legal list", "| Pending: legal review", "\n"],
+  ["residual risk", "**Residual risk.** Art.20", "\n"],
+  ["6.1.3 coverage", "  - **Coverage:**", "\n"],
+  ["6.3 backlog", "| 3 | **Portability export (Art.20)**", "\n"],
+  ["Q-H1 counsel question", "- **Q-H1 [COUNSEL TO CONFIRM]**", "#### H2."],
+])("%s keeps held transcripts and both crisis markers in the same counsel question", (_label, start, end) => {
+  const at = doc.indexOf(start);
+  expect(at).toBeGreaterThanOrEqual(0);
+  const section = doc.slice(at, doc.indexOf(end, at + start.length));
+  expect(section).toContain("[COUNSEL TO CONFIRM]");
+  expect(section).toContain("held transcript");
+  expect(section).toContain("`ai_hold`");
+  expect(section).toContain("`records.interview_ai_hold`");
+  expect(section).toContain("Q-H1");
 });
 
 test("표가 실제로 채워져 있다 - 0건 통과를 막는다", () => {
