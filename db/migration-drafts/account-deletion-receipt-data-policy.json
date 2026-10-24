@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "status": "inactive-draft",
+  "table": "deletion_receipt_private.accepted_requests",
+  "owner": "owner_id",
+  "erasure": {
+    "class": "retained",
+    "reason": "Operational deletion receipt; no Auth/profile FK. Content/account deletion cannot erase evidence or reopen unresolved execution.",
+    "terminalPurge": "Service-only purge_terminal_requests first expires unstarted accepted rows under the owner lock, then purges completed/failed/abandoned after receipt_expires_at. Expired admission retention starts at admission_expires_at, not the next visit. No scheduler installed.",
+    "completedDays": 365,
+    "failedOrAbandonedDays": 30,
+    "unresolved": "No time-based purge or failure. Execution reconciliation is required.",
+    "legalStatus": "365-day product value approved; legal basis and 30-day negative receipt retention remain activation gates."
+  },
+  "export": {
+    "class": "EXCLUDED",
+    "reason": "Private operational ledger, outside public account-export graph. Capability-authenticated receipt lookup exposes the minimal status projection. Session IDs and capability digests must not enter a general export.",
+    "activationGate": "Review the retained owner association and user access route before numbering/activation; public inventory passing alone is not evidence for this private table."
+  },
+  "columns": {
+    "operation_id": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Internal operation binding." },
+    "receipt_id": { "erasure": "terminal-retention", "export": "RECEIPT_LOOKUP", "reason": "Capability-bound receipt handle." },
+    "owner_id": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Account lock and request binding; never public receipt output." },
+    "session_id": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Exact admission session binding, never public output." },
+    "request_id": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Retained idempotency binding prevents request reuse." },
+    "key_version": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Capability key version." },
+    "lookup_hash": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Lookup digest; never export capability material." },
+    "recovery_hash": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Separate recovery digest; never export capability material." },
+    "accepted_at": { "erasure": "terminal-retention", "export": "RECEIPT_LOOKUP", "reason": "Receipt admission time." },
+    "phase": { "erasure": "terminal-retention", "export": "RECEIPT_LOOKUP", "reason": "Accepted/executing/terminal fact." },
+    "scope_version": { "erasure": "terminal-retention", "export": "RECEIPT_LOOKUP", "reason": "Version of deletion scope." },
+    "admission_expires_at": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Only unstarted admission expires." },
+    "execution_id": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Exclusive execution generation; no automatic takeover." },
+    "execution_started_at": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Lower bound for completion observations." },
+    "observed_at": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Trusted completion observation time." },
+    "finished_at": { "erasure": "terminal-retention", "export": "EXCLUDED", "reason": "Terminal retention origin." },
+    "receipt_expires_at": { "erasure": "terminal-retention", "export": "RECEIPT_LOOKUP", "reason": "Receipt visibility and purge end." },
+    "observations": { "erasure": "terminal-retention", "export": "RECEIPT_LOOKUP", "reason": "Four bounded status values; no paths, error bodies or counts." }
+  }
+}

@@ -1,17 +1,29 @@
 -- INACTIVE DRAFT. Apply after UNNUMBERED_account_deletion_receipt_contract.sql.
 -- Admission arbitration only: no executor, fence adoption/release, dispatch,
 -- terminal state, retention job, public endpoint, or app activation.
+-- Number only together with the terminal/observation draft (c)+(d).
+-- Receipt admission stays unreachable until every activation gate is met.
 -- Before numbering/rollout, drain legacy HTTP requests and reconcile existing
 -- ownerless tombstones. This cannot recall requests already sent to Auth/Storage.
 -- Both admission paths use 0192's owner lock. Only READ COMMITTED may admit a
 -- new row: a transaction snapshot taken before a lock wait could miss its winner.
 LOCK TABLE deletion_receipt_private.accepted_requests,
-  public.account_deletion_tombstones IN SHARE ROW EXCLUSIVE MODE NOWAIT;
+  public.account_deletion_tombstones IN ACCESS EXCLUSIVE MODE NOWAIT;
 
 DO $preflight$
 BEGIN
   IF pg_catalog.current_setting('transaction_isolation') <> 'read committed' THEN
     RAISE EXCEPTION USING ERRCODE = '25000', MESSAGE = 'receipt_arbitration_requires_read_committed';
+  END IF;
+  -- terminal down retains its schema and guards. Never reinstall this older
+  -- guard over that lifecycle, even after admission privileges were revoked.
+  IF EXISTS (SELECT 1 FROM pg_catalog.pg_attribute
+    WHERE attrelid='deletion_receipt_private.accepted_requests'::regclass
+      AND attname='admission_expires_at' AND NOT attisdropped)
+    OR EXISTS (SELECT 1 FROM pg_catalog.pg_constraint
+      WHERE conrelid='deletion_receipt_private.accepted_requests'::regclass
+        AND conname='receipt_terminal_shape') THEN
+    RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='receipt_arbitration_terminal_already_installed';
   END IF;
   IF EXISTS (
     SELECT 1 FROM deletion_receipt_private.accepted_requests r

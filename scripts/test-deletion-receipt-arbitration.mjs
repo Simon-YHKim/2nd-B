@@ -15,7 +15,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (file) => readFileSync(resolve(root, file), 'utf8');
 const draft = 'db/migration-drafts/UNNUMBERED_account_deletion_receipt_arbitration.sql';
 const up = read(draft);
-const down = read(draft.replace('UNNUMBERED_', 'rollback/UNNUMBERED_').replace('.sql', '_down.sql'));
+const downFile = read(draft.replace('UNNUMBERED_', 'rollback/UNNUMBERED_').replace('.sql', '_down.sql'));
+// Sandbox mutations inside caller-owned transactions; separately test the actual standalone down.
+const down = downFile.replace(/^BEGIN;\s*$/m, '').replace(/^COMMIT;\s*$/m, '');
 const base = read('db/migration-drafts/UNNUMBERED_account_deletion_receipt_contract.sql');
 const regression = read('db/migration-drafts/tests/account-deletion-receipt-arbitration.sql');
 const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^PG/i.test(key) || key === 'PGPASSWORD'));
@@ -102,8 +104,11 @@ await rejected(`BEGIN ISOLATION LEVEL REPEATABLE READ; ${up}`, 'receipt_arbitrat
 await rejected(`BEGIN ISOLATION LEVEL REPEATABLE READ; ${down}`, 'receipt_arbitration_requires_read_committed');
 
 // Empty pre-activation rollback is reversible and preserves the base contract.
-await ok(`BEGIN; ${down} COMMIT;`);
-assert.equal(await ok("SELECT to_regprocedure('deletion_receipt_private.guard_legacy_admission()') IS NULL;"), 't');
+await ok(downFile);
+const noArbitration = `SELECT to_regprocedure('deletion_receipt_private.guard_legacy_admission()') IS NULL
+  AND to_regprocedure('deletion_receipt_private.guard_receipt_admission()') IS NULL
+  AND NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgname IN ('receipt_admission_arbitration','legacy_admission_arbitration'));`;
+assert.equal(await ok(noArbitration), 't');
 await ok(`BEGIN; ${up} COMMIT;`);
 assert.equal(await ok(existingSnapshot), existing);
 pass('empty rollback/reapply preserves existing routines and triggers');
@@ -169,7 +174,13 @@ const beforeRollback = await ok(ledgers);
 await rejected(`BEGIN; ${down} COMMIT;`, 'receipt_arbitration_rollback_requires_empty_ledger');
 assert.equal(await ok(ledgers), beforeRollback);
 await rejected(`${service} ${legacy(1)}`, 'receipt_request_in_progress');
-pass('nonempty rollback refuses, preserves both ledgers and keeps arbitration active');
+const plain = await run(`\\set ON_ERROR_STOP off
+${downFile}`);
+assert.equal(plain.code, 0, plain.err);
+assert(plain.err.includes('receipt_arbitration_rollback_requires_empty_ledger'), plain.err);
+assert.equal(await ok(ledgers), beforeRollback);
+await rejected(`${service} ${legacy(1)}`, 'receipt_request_in_progress');
+pass('nonempty rollback refuses even with default psql error handling and preserves both guards');
 
 const conflict = `BEGIN; ALTER TABLE deletion_receipt_private.accepted_requests DISABLE TRIGGER receipt_admission_arbitration;
   ALTER TABLE public.account_deletion_tombstones DISABLE TRIGGER legacy_admission_arbitration;
@@ -177,6 +188,22 @@ const conflict = `BEGIN; ALTER TABLE deletion_receipt_private.accepted_requests 
 await rejected(conflict + up, 'receipt_arbitration_reconciliation_required');
 assert.equal(await ok(ledgers), beforeRollback);
 pass('install refuses pre-existing dual ownership and rolls back without adopting a fence');
+
+// DDL must never queue ACCESS EXCLUSIVE behind a reader (and stall later readers).
+for (const table of ['deletion_receipt_private.accepted_requests', 'public.account_deletion_tombstones']) {
+  const reader = connection();
+  try {
+    reader.send(`BEGIN; SELECT count(*) FROM ${table}; SELECT 'READER_HELD';`);
+    await reader.marker('READER_HELD');
+    for (const source of [up, downFile]) {
+      const r = await run(`BEGIN; SET lock_timeout='500ms'; ${source}`);
+      assert.notEqual(r.code, 0);
+      assert(r.err.includes('could not obtain lock on relation'), r.err);
+    }
+    await ok(`SET lock_timeout='500ms'; SELECT count(*) FROM ${table};`);
+  } finally { reader.end('ROLLBACK;'); await reader.done; }
+}
+pass('up/down fail NOWAIT behind either reader without queuing DDL');
 
 // Execute SQL mutants in rolled-back transactions, not string-presence tests.
 const mutants = [
@@ -245,6 +272,30 @@ const noRollbackGuard = down.replace('IF EXISTS (SELECT 1 FROM deletion_receipt_
 assert.notEqual(noRollbackGuard, down);
 assert.equal((await run(`BEGIN; ${noRollbackGuard} ROLLBACK;`)).code, 0);
 killed++; console.log('KILLED nonempty rollback guard');
+// Review lows: each failure must be witnessed by the actual post-down catalog.
+const receiptResidue = down.replace('DROP TRIGGER IF EXISTS receipt_admission_arbitration ON deletion_receipt_private.accepted_requests;', '')
+  .replace('DROP FUNCTION IF EXISTS deletion_receipt_private.guard_receipt_admission();', '');
+const residueResult = await ok(`BEGIN; DELETE FROM deletion_receipt_private.accepted_requests; ${receiptResidue} ${noArbitration} ROLLBACK;`);
+assert.equal(residueResult, 'f');
+killed++; console.log('KILLED receipt trigger/function rollback residue');
+// Missing standalone transaction reproduced with default psql error handling.
+const unwrapped = await run(`\\set ON_ERROR_STOP off
+${down}`);
+assert.equal(unwrapped.code,0);
+assert.equal(await ok(noArbitration),'t'); // Canonical plain down kept both guards above.
+killed++; console.log('KILLED down missing standalone transaction');
+await ok(`BEGIN; ${up} COMMIT;`);
+for (const [name, source] of [['reapply',up],['down',down]]) {
+  const reader=connection();
+  try {
+    reader.send("BEGIN; SELECT count(*) FROM public.account_deletion_tombstones; SELECT 'LOCK_MUTANT_HELD';");
+    await reader.marker('LOCK_MUTANT_HELD');
+    const weak=source.replace('ACCESS EXCLUSIVE MODE NOWAIT','SHARE ROW EXCLUSIVE MODE NOWAIT');
+    const r=await run(`BEGIN; SET lock_timeout='300ms'; DELETE FROM deletion_receipt_private.accepted_requests; ${weak}`);
+    assert.notEqual(r.code,0); assert(r.err.includes('canceling statement due to lock timeout'),r.err);
+    killed++; console.log(`KILLED ${name} lock escalation wait`);
+  } finally { reader.end('ROLLBACK;'); await reader.done; }
+}
 assert.equal(await ok(ledgers), beforeRollback);
 assert.equal(await ok(existingSnapshot), existing);
-console.log(`PASS ${groups} groups; 8 observed blocking schedules; SQL mutants killed ${killed}/${mutants.length + 8}; external Auth/Storage calls 0`);
+console.log(`PASS ${groups} groups; 8 observed blocking schedules; SQL mutants killed ${killed}/${mutants.length + 12}; external Auth/Storage calls 0`);
