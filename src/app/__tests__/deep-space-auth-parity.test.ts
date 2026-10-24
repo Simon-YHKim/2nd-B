@@ -11,7 +11,7 @@ const ROUTES: RouteContract[] = [
   { file: "account", deepComponent: "DeepSpaceAccountScreen" },
   { file: "data", deepComponent: "DeepSpaceDataScreen" },
   { file: "theme", deepComponent: "DeepSpaceThemeScreen" },
-  { file: "support", deepComponent: "DeepSpaceSupportDesignScreen" },
+  { file: "support", deepComponent: "SupportScreen" },
 ];
 
 function hasDescendant(node: ts.Node, predicate: (candidate: ts.Node) => boolean): boolean {

@@ -17,5 +17,29 @@
     "when112": "Saat seseorang sedang mengancammu sekarang",
     "callHint": "Ketuk untuk menelepon",
     "foot": "Daftar ini selalu tersedia. Aplikasi tidak memilih kapan menampilkannya berdasarkan tulisanmu. Aplikasi juga tidak membuat laporan atas namamu atau memberi tahu wali."
+  },
+  "report": {
+    "inquiryTitle": "Hubungi kami",
+    "bugTitle": "Laporkan bug",
+    "body": "Pesan",
+    "placeholder": "Tulis pertanyaan atau detail bug.",
+    "details": "Informasi yang dikirim",
+    "consent": "Saya setuju data digunakan untuk menjawab pertanyaan dan menangani bug",
+    "scope": "Pesan, ID akun, versi aplikasi, jalur layar, dan bahasa dikirim kepada pengelola untuk menjawab pertanyaan dan menangani bug. Catatan, percakapan, dan isi wiki tidak dilampirkan secara otomatis.",
+    "retention": "Laporan dihapus setiap jam setelah berumur 30 hari, atau saat kamu menghapus akun.",
+    "optional": "Kamu tetap bisa menggunakan aplikasi tanpa menyetujui. Pertanyaan atau laporan bug tidak akan dikirim.",
+    "metadata": "Versi {{version}} · Layar {{path}} · Bahasa {{locale}}",
+    "send": "Kirim",
+    "sending": "Mengirim…",
+    "retry": "Coba lagi",
+    "sent": "Terkirim.",
+    "receipt": "Nomor tanda terima {{receipt}}",
+    "done": "Selesai",
+    "offline": "Periksa koneksi internet dan coba lagi.",
+    "unconfirmed": "Penerimaan belum dapat dikonfirmasi. Coba lagi.",
+    "limited": "Coba lagi nanti. Kamu bisa mengirim 2 laporan per menit dan 10 dalam 24 jam.",
+    "invalid": "Periksa pesan dan persetujuan.",
+    "reply": "Balasan dikirim ke email akun kamu.",
+    "rejected": "Kiriman tidak diterima. Hubungi kami lewat email."
   }
 }
