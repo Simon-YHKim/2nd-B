@@ -54,13 +54,17 @@ BEGIN
     FOREACH instant IN ARRAY ARRAY[
       TIMESTAMPTZ '2026-10-24 14:59:59+00', TIMESTAMPTZ '2026-10-24 15:00:00+00',
       TIMESTAMPTZ '2026-10-24 23:59:59+00', TIMESTAMPTZ '2026-10-25 00:00:00+00',
-      TIMESTAMPTZ '2026-10-25 06:59:59+00', TIMESTAMPTZ '2026-10-25 07:00:00+00'
+      TIMESTAMPTZ '2026-10-25 06:59:59+00', TIMESTAMPTZ '2026-10-25 07:00:00+00',
+      -- A leap-day birth turns 14 on March 1 under the existing age() gates.
+      TIMESTAMPTZ '2026-02-28 14:59:59+00', TIMESTAMPTZ '2026-02-28 15:00:00+00',
+      TIMESTAMPTZ '2026-02-28 23:59:59+00', TIMESTAMPTZ '2026-03-01 00:00:00+00',
+      TIMESTAMPTZ '2026-03-01 07:59:59+00', TIMESTAMPTZ '2026-03-01 08:00:00+00'
     ] LOOP
       today := (instant AT TIME ZONE zone)::date;
       PERFORM set_config('t07.test_instant',instant::text,true);
       PERFORM set_config('t07.test_today',today::text,true);
-      FOREACH birth IN ARRAY ARRAY[DATE '2012-10-24',DATE '2012-10-25',DATE '2012-10-26'] LOOP
-        expected := today >= (birth + interval '14 years')::date;
+      FOREACH birth IN ARRAY ARRAY[DATE '2012-10-24',DATE '2012-10-25',DATE '2012-10-26',DATE '2012-02-29'] LOOP
+        expected := date_part('year', age(today, birth))::int >= 14;
         metadata := jsonb_build_object('signup_birth_date',birth::text,'keep',true);
         scrubbed := public.scrub_under14_signup_birth_date(metadata);
         PERFORM pg_temp.assert_t07((scrubbed ? 'signup_birth_date')=expected
@@ -120,7 +124,7 @@ BEGIN
       PERFORM pg_temp.assert_t07(current_setting('TimeZone')=zone,'session timezone unchanged');
     END LOOP;
   END LOOP;
-  PERFORM pg_temp.assert_t07(cases=54, 'all 54 session date birthday cases executed');
+  PERFORM pg_temp.assert_t07(cases=144, 'all 144 session date birthday cases executed');
 END $$;
 DROP TRIGGER t07_cleanup_session ON auth.users;
 SET LOCAL timezone = 'UTC';

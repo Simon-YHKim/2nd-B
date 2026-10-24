@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 const read = (name: string) => readFileSync(resolve(__dirname, "../..", name), "utf8").replace(/\r\n/g, "\n");
 const sql = read("db/migration-drafts/UNNUMBERED_unconfirmed_signup_cleanup.sql");
+const timezoneStatement = /\b(?:SET|RESET)\s+(?:(?:LOCAL|SESSION)\s+)?(?:time\s+zone\b|timezone\b|"timezone")/i;
 
 describe("T07 unconfirmed signup cleanup deployment contract", () => {
   test("stays an unnumbered draft with a real confirmation issuance preflight", () => {
@@ -39,10 +40,18 @@ describe("T07 unconfirmed signup cleanup deployment contract", () => {
   test("inherits the server age gate's session date without changing C10 routines", () => {
     const down = read("db/migration-drafts/rollback/UNNUMBERED_unconfirmed_signup_cleanup_down.sql");
     for (const script of [sql, down]) {
-      expect(script).not.toMatch(/(?:SET|RESET)\s+timezone\b/i);
+      expect(script).not.toMatch(timezoneStatement);
       expect(script).not.toMatch(/(?:ALTER|CREATE(?:\s+OR\s+REPLACE)?|DROP)\s+FUNCTION\s+public\.(?:enforce_user_age_tier|complete_verified_email_signup|complete_profile_signup_consent)\s*\(/i);
     }
     expect(sql).toContain("v_today date := current_date;");
+  });
+
+  test.each([
+    "SET timezone = 'UTC'", "RESET timezone", "SET TIME ZONE 'UTC'",
+    'SET "TimeZone" = \'UTC\'', 'RESET "TimeZone"', "SET LOCAL TIME ZONE 'UTC'",
+    'SET SESSION "TimeZone" TO \'UTC\'',
+  ])("recognizes the timezone override syntax: %s", (statement) => {
+    expect(statement).toMatch(timezoneStatement);
   });
 
   test("scrubs both Auth copies at insert/update and when installed", () => {

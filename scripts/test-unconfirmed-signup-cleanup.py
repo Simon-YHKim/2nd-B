@@ -59,6 +59,24 @@ require_failure("BEGIN; ALTER TABLE auth.users DROP COLUMN confirmation_sent_at;
                 "requires auth.users.confirmation_sent_at")
 require_failure("BEGIN; ALTER TABLE auth.users DROP COLUMN recovery_sent_at;\n" + installer,
                 "requires auth.users.recovery_sent_at")
+signup_routines = [
+    "enforce_user_age_tier()", "complete_verified_email_signup()",
+    "complete_profile_signup_consent(text,text,text,text,boolean,boolean,boolean,boolean,boolean,boolean)",
+]
+timezone_guard = re.search(
+    r"  IF EXISTS \(\n    SELECT 1 FROM pg_catalog\.pg_proc p\b.*?  END IF;\n", installer, re.S)
+if timezone_guard is None:
+    raise RuntimeError("Missing signup TimeZone preflight mutation anchor")
+for routine in signup_routines:
+    setup = f'BEGIN; ALTER FUNCTION public.{routine} SET "TimeZone" = \'Asia/Seoul\';\n'
+    require_failure(setup + installer, "P0001: T07 requires signup functions without TimeZone overrides")
+    # Removing this read-only guard must let the same incompatible DB install.
+    # Roll back both the fixture override and all installer effects.
+    run(setup + installer.replace(timezone_guard[0], "", 1) + "\nROLLBACK;")
+    print("KILLED preflight removal: " + routine.split("(")[0], flush=True)
+if run(signup_snapshot_sql).stdout != signup_before:
+    raise RuntimeError("Preflight probes changed existing signup functions/config/ACL")
+print("PASS: 3/3 signup TimeZone overrides refused; 3/3 guard-removal probes install", flush=True)
 for _ in range(2):
     run("BEGIN;\n" + installer + "\nCOMMIT;")
     if run(signup_snapshot_sql).stdout != signup_before:
@@ -76,7 +94,14 @@ def assert_diagnostics(result):
 
 assert_diagnostics(run(behavior))
 print("PASS: behavior, private ACL, real age gate, no cron, installer twice, missing column refusal", flush=True)
-print("PASS: 54 birthday cases across 3 session timezones; C10/signup definitions/config/ACL unchanged", flush=True)
+print("PASS: 144 birthday cases across 3 session timezones; C10/signup definitions/config/ACL unchanged", flush=True)
+
+age_expectation = "date_part('year', age(today, birth))::int >= 14"
+if behavior.count(age_expectation) != 1:
+    raise RuntimeError("Age expectation mutation anchor drift")
+require_failure(behavior.replace(age_expectation, "today >= (birth + interval '14 years')::date"),
+                "P0707: T07_ASSERT:")
+print("KILLED: birthday-addition expectation at leap-day boundary", flush=True)
 
 # Every mutant is installed in a transaction. Only the suite's P0707 semantic
 # assertion kills it; SQL syntax, transport, timeout and unrelated failures fail
@@ -109,10 +134,7 @@ mutations = [
     ("failed count", "failed := failed + 1;", "failed := failed;"),
     ("skipped count", "skipped := skipped + (1 - v_count);", "skipped := skipped;"),
 ]
-for routine in [
-    "enforce_user_age_tier()", "complete_verified_email_signup()",
-    "complete_profile_signup_consent(text,text,text,text,boolean,boolean,boolean,boolean,boolean,boolean)",
-]:
+for routine in signup_routines:
     mutations.append(("C10 timezone unchanged: " + routine.split("(")[0],
                       "-- Inherit session current_date",
                       f"ALTER FUNCTION public.{routine} SET timezone = 'Asia/Seoul';\n-- Inherit session current_date"))

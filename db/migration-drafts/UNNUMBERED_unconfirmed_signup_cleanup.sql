@@ -32,6 +32,18 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.erasure_registry) THEN
     RAISE EXCEPTION 'T07 requires the populated erasure registry';
   END IF;
+  -- A function-local timezone would diverge from the inherited session date.
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_proc p
+    CROSS JOIN LATERAL pg_catalog.unnest(p.proconfig) AS config(setting)
+    WHERE p.oid IN (
+      'public.enforce_user_age_tier()'::regprocedure,
+      'public.complete_verified_email_signup()'::regprocedure,
+      'public.complete_profile_signup_consent(text,text,text,text,boolean,boolean,boolean,boolean,boolean,boolean)'::regprocedure
+    ) AND pg_catalog.lower(pg_catalog.split_part(config.setting, '=', 1)) = 'timezone'
+  ) THEN
+    RAISE EXCEPTION 'T07 requires signup functions without TimeZone overrides';
+  END IF;
 END
 $preflight$;
 

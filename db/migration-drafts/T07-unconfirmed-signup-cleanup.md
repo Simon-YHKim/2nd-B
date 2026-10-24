@@ -63,7 +63,7 @@ pg_cron의 libpq 실행기는 반환 열 값을 `cron.job_run_details`에 저장
   이 문과 NOT NULL 계약은 유지한다. `enforce_user_age_tier`·`complete_verified_email_signup`·
   `complete_profile_signup_consent`의 본문·설정·ACL은 설치와 되돌림 모두에서 변경하지 않는다.
   스크러버·정리 함수도 시간대를 고정하지 않는다. DOB 판정은 기존 서버 나이 문과 같은
-  세션 `current_date`(트랜잭션 날짜)를 사용하므로 서버가 14세 미만으로 거절한 생년월일을
+  세션 `current_date`(트랜잭션 날짜)를 사용하므로 오늘 이전 생년월일 중 14세 미만인 값을
   같은 기준일에 지운다. UTC 세션이면 UTC 날짜, 다른 시간대 세션이면 그 세션 날짜다.
   운영에 수동 우회로 만든 잘못된 프로필이 있다면
   별도 승인된 정정이 필요하며 이 함수는 앱 프로필을 지우지 않는다.
@@ -105,6 +105,8 @@ identity 제공자 변경은 기존 identity 잠금으로 직렬화한다. 부�
 2. **번호 부여 → Relay 적용**: Auth 실제 발급 칸 둘·세션 날짜와 기존 나이 문·레지스트리·
    Storage를 확인하고 전체 SQL을 postgres로 한 트랜잭션에 적용한다. 칸이 없으면 멈추며
    created_at으로 대체하지 않는다. 기존 14세 미만 signup DOB 키도 같은 트랜잭션에서 제거한다.
+   적용 세션의 `TimeZone`이 DB 기본값인지 확인한다. 가입 함수 셋의 `proconfig`에 TimeZone
+   항목이 있으면 읽기 전용 preflight가 설치를 거절하며, 함수 설정은 변경하지 않는다.
 3. **pg_cron 등록 확인**: 없으면 관례대로 NOTICE만 내고 커밋하며 **예약되지 않는다**.
    `cron.job`에서 `jobname='purge-unconfirmed-signups' AND username='postgres'`인 행이 정확히 1건,
    schedule이 `37 * * * *`, command가 `SELECT * FROM public.purge_unconfirmed_signups(100);`인지
@@ -142,8 +144,11 @@ Auth/Storage는 최소 스키마이며 0050 나이 문과 프로필/동의 함�
 행 삭제/보존·상한·재실행·실패 재시도·권한·pg_cron 없음·누락 발급 칸·SQL 변이를 확인한다.
 동시성은 별도 세션의 실제 잠금 및 pg_blocking_pids 관측으로 확인한다.
 실제 Supabase Auth API/메일 호출이나 실제 pg_cron daemon 실행을 검증한 것은 아니다.
-SQL 의미 변이 26개와 로그/경고 변이 2개, 동시성 8개를 실행한다. 세션 날짜 시험은
-UTC·Asia/Seoul·America/Los_Angeles의 자정 전후 시각 6개와 생년월일 3개를 조합한 54개다.
+SQL 의미 변이 26개와 로그/경고 변이 2개, 동시성 8개를 실행한다. 가입 함수별 TimeZone
+설정 3개는 설치를 거절하고, preflight 검사 제거 변이 3개는 같은 환경의 설치가 통과한다.
+세션 날짜 시험은 UTC·Asia/Seoul·America/Los_Angeles의 자정 전후 시각 12개와
+2월 29일생을 포함한 생년월일 4개를 조합한 144개다. 기대값은 실제 나이 문과 같은
+`date_part('year', age(today, birth))::int >= 14`이며, 생일에 14년을 더하는 변이 1개는 실패해야 한다.
 스크러버·Auth 사본 둘·서버 나이 문·확인 가입·프로필 완료가 같은 결론인지 확인하고,
 정리 함수 실행 중에도 세션 시간대와 날짜가 유지되는지 확인한다. 시간대를 다시 고정하거나
 가입 함수 셋 중 하나의 기준일을 바꾸는 변이 7개는 이 SQL 시험에서 실패해야 한다.
