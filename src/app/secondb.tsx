@@ -10,7 +10,7 @@ import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pre
 // First-entry guidance lives in the empty state (Simon, 2026-10-10).
 // Retired intro storage values can remain on the device; this screen never reads them.
 
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, StyleSheet, Platform, ActivityIndicator, Animated, useWindowDimensions } from "react-native";
 import { KeyboardAvoidingArea } from "@/lib/ui/keyboard";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
@@ -87,6 +87,7 @@ import { ChatPlanSheet } from "@/components/secondb/ChatPlanSheet";
 import { useChatPlans } from "@/components/secondb/useChatPlans";
 import type { ChatTurn, ChatMode } from "@/lib/chat/session-types";
 import { ChatMessageAvatar, useChatUserAvatar } from "@/components/secondb/ChatMessageAvatar";
+import { ChatModeLine } from "@/components/secondb/ChatModeLine";
 import { HustleKPortrait } from "@/components/character/HustleKPortrait";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
 import {
@@ -135,7 +136,7 @@ const pillAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.
 const QUICK_ACTIONS: { kind: ChatFollowUp; ko: string; en: string; mode?: "divergent"; prompt: { ko: string; en: string } }[] = [
   { kind: "next-step", ko: "다음 한 걸음", en: "Next step", prompt: { ko: "지금 할 수 있는 다음 한 걸음으로 줄여줘.", en: "Narrow this to one next step I can take today." } },
   { kind: "new-angle", ko: "새 관점으로", en: "New angle", mode: "divergent", prompt: { ko: "이 생각을 전혀 다른 관점에서 펼쳐줘.", en: "Unfold this from a completely different angle." } },
-  { kind: "explain", ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 별가루를 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
+  { kind: "explain", ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 기록을 들어 설명해줘.", en: "Explain why you saw it that way, citing the records you used." } },
   { kind: "shorter", ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
 ];
 
@@ -887,7 +888,7 @@ function SecondBChatBody() {
       const earlier = keep === null ? turns : turns.slice(0, keep);
       setSendingPersona(requestPersona);
       setSending(true);
-      setTurns((prev) => [...(keep === null ? prev : prev.slice(0, keep)), { role: "user", text: msg, ...(localRed ? { safetyZone: "red" as const } : {}) }]);
+      setTurns((prev) => [...(keep === null ? prev : prev.slice(0, keep)), { role: "user", persona: requestPersona, text: msg, ...(localRed ? { safetyZone: "red" as const } : {}) }]);
       void (async () => {
         // AI 응답 대기: every mounted head holds the thinking face (eyes drift
         // up-side) until the reply lands — released in finally either way.
@@ -1289,66 +1290,70 @@ function SecondBChatBody() {
               <Text style={ds.emptyBody}>{t("empty")}</Text>
             </View>
           ) : (
-            turns.map((turn, i) => turn.crisisNotice ? null : (
-              <View
-                key={i}
-                testID={`chat-message-${turn.role}-${i}`}
-                style={[ds.bubbleRow, turn.role === "user" ? ds.userRow : ds.aiRow]}
-              >
-                <View style={[ds.messageHeader, turn.role === "user" && ds.userMessageHeader]} testID={`chat-message-header-${turn.role}-${i}`}>
-                  <ChatMessageAvatar role={turn.role} userAvatar={userAvatar}
-                    expression={turn.role === "secondb" ? getExchangeExpression(turns, i) : undefined}
-                    label={turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)} />
-                  <Text style={[ds.messageName, turn.role === "user" && ds.userMessageName]} testID={`chat-message-name-${turn.role}-${i}`}>
-                    {turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)}
-                  </Text>
-                </View>
-                <View style={ds.bubbleCol}>
-                  <Pressable
-                    onLongPress={() => copyTurn(i, turn.text)}
-                    style={turn.role === "user" ? ds.userBubble : [ds.aiBubble, { borderLeftColor: lensAccent }]}
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      turn.role === "user"
-                        ? t("yourMessage")
-                        : t("secondbAnswer", { name: t(`rev2.${turn.persona ?? "secondb"}.lensName`) })
-                    }
-                    accessibilityHint={t("longPressCopy")}
+            turns.map((turn, i) => (
+              <Fragment key={i}>
+                <ChatModeLine previousPersona={turns[i - 1]?.persona} persona={turn.persona} />
+                {turn.crisisNotice ? null : (
+                  <View
+                    testID={`chat-message-${turn.role}-${i}`}
+                    style={[ds.bubbleRow, turn.role === "user" ? ds.userRow : ds.aiRow]}
                   >
-                    <Text style={turn.role === "user" ? ds.userText : ds.aiText} selectable>
-                      {turn.role === "secondb" ? sourceCitationDisplay(chatDisplayText(turn.citationText ?? turn.text), t("deepspace:time.recordFallback")) : turn.text}
-                    </Text>
-                  </Pressable>
-                  {turn.consentError ? <ServiceConsentLink /> : null}
-                  {turn.retryText && sendEnabled && retryableMessage(turns, i) !== null ? (
-                    <MdButton variant="outlined" label={t("common:actions.retry")} onPress={() => retryFailed(i)} />
-                  ) : null}
-                  {copyNotice?.i === i ? (
-                    <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
-                      {t(copyNotice.ok ? "copied" : "copyFailed")}
-                    </Text>
-                  ) : null}
-                  {/* 근거(citation) chip -> reference drawer -> /records. One
-                      summary chip (reference "근거 · 기록 N건") tinted by the lens. */}
-                  {turn.role === "secondb" && turn.chips && turn.chips.length > 0 ? (
-                    <Pressable
-                      style={ds.chipRow}
-                      onPress={() => citedWiki.openDrawer(turn.chips ?? [])}
-                      accessibilityRole="button"
-                      accessibilityLabel={
-                        t("drewOnPieces", { n: turn.chips.length })
-                      }
-                    >
-                      <View style={[ds.citeChip, { backgroundColor: lensSoftBg }]}>
-                        <IconCite color={lensOnSoft} size={13} />
-                        <Text style={[ds.citeChipText, { color: lensOnSoft }]}>
-                          {t("nSources", { n: turn.chips.length })}
+                    <View style={[ds.messageHeader, turn.role === "user" && ds.userMessageHeader]} testID={`chat-message-header-${turn.role}-${i}`}>
+                      <ChatMessageAvatar role={turn.role} userAvatar={userAvatar}
+                        expression={turn.role === "secondb" ? getExchangeExpression(turns, i) : undefined}
+                        label={turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)} />
+                      <Text style={[ds.messageName, turn.role === "user" && ds.userMessageName]} testID={`chat-message-name-${turn.role}-${i}`}>
+                        {turn.role === "user" ? userDisplayName : t(`rev2.${turn.persona ?? "secondb"}.lensName`)}
+                      </Text>
+                    </View>
+                    <View style={ds.bubbleCol}>
+                      <Pressable
+                        onLongPress={() => copyTurn(i, turn.text)}
+                        style={turn.role === "user" ? ds.userBubble : [ds.aiBubble, { borderLeftColor: lensAccent }]}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          turn.role === "user"
+                            ? t("yourMessage")
+                            : t("secondbAnswer", { name: t(`rev2.${turn.persona ?? "secondb"}.lensName`) })
+                        }
+                        accessibilityHint={t("longPressCopy")}
+                      >
+                        <Text style={turn.role === "user" ? ds.userText : ds.aiText} selectable>
+                          {turn.role === "secondb" ? sourceCitationDisplay(chatDisplayText(turn.citationText ?? turn.text), t("deepspace:time.recordFallback")) : turn.text}
                         </Text>
-                      </View>
-                    </Pressable>
-                  ) : null}
-                </View>
-              </View>
+                      </Pressable>
+                      {turn.consentError ? <ServiceConsentLink /> : null}
+                      {turn.retryText && sendEnabled && retryableMessage(turns, i) !== null ? (
+                        <MdButton variant="outlined" label={t("common:actions.retry")} onPress={() => retryFailed(i)} />
+                      ) : null}
+                      {copyNotice?.i === i ? (
+                        <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
+                          {t(copyNotice.ok ? "copied" : "copyFailed")}
+                        </Text>
+                      ) : null}
+                      {/* 근거(citation) chip -> reference drawer -> /records. One
+                          summary chip (reference "근거 · 기록 N건") tinted by the lens. */}
+                      {turn.role === "secondb" && turn.chips && turn.chips.length > 0 ? (
+                        <Pressable
+                          style={ds.chipRow}
+                          onPress={() => citedWiki.openDrawer(turn.chips ?? [])}
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            t("drewOnPieces", { n: turn.chips.length })
+                          }
+                        >
+                          <View style={[ds.citeChip, { backgroundColor: lensSoftBg }]}>
+                            <IconCite color={lensOnSoft} size={13} />
+                            <Text style={[ds.citeChipText, { color: lensOnSoft }]}>
+                              {t("nSources", { n: turn.chips.length })}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  </View>
+                )}
+              </Fragment>
             ))
           )}
           {sending ? (
@@ -1361,6 +1366,8 @@ function SecondBChatBody() {
               <ActivityIndicator color={lensAccent} />
             </View>
           ) : null}
+          {/* A pending reply still belongs before the selected mode's trailing line. */}
+          <ChatModeLine previousPersona={turns[turns.length - 1]?.persona} persona={rev2Persona} />
         </ScrollView>
 
         {atLimit || limitRefused ? (

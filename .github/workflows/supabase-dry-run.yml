@@ -2922,6 +2922,11 @@ jobs:
           PGPASSWORD: postgres
           PGPORT: 5432
         run: python3 db/tests/interview_transcript_ledger_security.py --template postgres
+      - name: Exercise unnumbered D4 AI hold draft in a rolled-back transaction
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/crisis_ai_hold_draft_regression.sql
       - name: Exercise sources.system_tags schema, predecessor and rejection mutations (0264)
         env:
           PGPASSWORD: postgres

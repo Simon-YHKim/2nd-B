@@ -79,12 +79,21 @@ const DYNAMIC_RPCS = new Map([
   ["`${transition}_llm_proxy_capacity`", ["settle_llm_proxy_capacity", "release_llm_proxy_capacity"]],
 ]);
 
-// 0243 grants only history columns. Table existence alone cannot establish that
-// export-account can read them. Keep this contract paired with its descriptor.
+// 0243 grants only history columns; 0225 restores transcript SELECT after REVOKE.
+// Table existence alone cannot establish that export-account can read these
+// columns. Keep each effective SELECT contract paired with its descriptor.
 const SELECT_COLUMN_REQUIREMENTS = {
   profile_context_imports: [
     "id", "user_id", "created_at", "item_count", "profile_change_count", "status",
     "withdrawn_at", "profile_restored",
+  ],
+  interview_transcripts: [
+    "id", "user_id", "session_id", "record_id", "period", "locale", "turn_count",
+    "ai_hold", "superseded_by", "created_at",
+  ],
+  interview_transcript_turns: [
+    "transcript_id", "user_id", "turn_no", "role", "scene_seq", "asked_layer",
+    "origin", "ask_kind", "opener_unedited", "text", "ai_hold",
   ],
 };
 

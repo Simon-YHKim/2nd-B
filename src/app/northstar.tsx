@@ -35,7 +35,9 @@ import {
 } from "@/lib/persona/northstar";
 import { useProgression } from "@/lib/progression/useProgression";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
-import { getReasoningUsage, incrementReasoningUsage } from "@/lib/entitlements/usage";
+import { incrementReasoningUsage, type ReasoningUsage } from "@/lib/entitlements/usage";
+import { captureAccountOwnerLease, currentAccountEpoch } from "@/lib/auth/account-epoch";
+import { useReasoningUsageRead } from "@/lib/reasoning/use-reasoning-usage-read";
 import { keepAllKo, keepAllPlaceholder } from "@/lib/i18n/keep-all";
 
 
@@ -83,27 +85,33 @@ export default function NorthstarSentence() {
   });
 
   // Reasoning-cap (count-only, mirrors the chat gate). Each 세컨비 제안 is one
-  // reasoning use; unlimited tiers (북극성/brain) are never gated. getReasoningUsage
-  // is fail-open, so a load failure leaves the user unblocked.
+  // reasoning use; a confirmed unlimited tier has no count limit. A first
+  // unknown read blocks proposals and offers retry instead of assuming zero use.
   const progression = useProgression();
-  const [reasoningUsed, setReasoningUsed] = useState(0);
-  const [rewardCredits, setRewardCredits] = useState(0);
-  const reasoningRemaining = remainingReasoning(progression.tier, reasoningUsed, rewardCredits);
-  const reasoningUnlimited = reasoningRemaining === Infinity;
-  useEffect(() => {
-    if (loading || !userId) return;
-    let alive = true;
-    void getReasoningUsage(userId)
-      .then(({ used, rewardCredits: rc }) => {
-        if (!alive) return;
-        setReasoningUsed(used);
-        setRewardCredits(rc);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [loading, userId]);
+  const accountEpoch = currentAccountEpoch();
+  const { view: usageView, refresh: refreshUsage, confirmCurrent } = useReasoningUsageRead(userId, !loading);
+  // Admission only, never a displayed balance. Refresh pending/error must not
+  // erase confirmed exhaustion or successful proposals since that confirmation.
+  const usageBudget = useRef<{
+    ownerId: string; epoch: number; snapshot: ReasoningUsage | null;
+    localUses: number; writes: number; proposing: boolean;
+  } | null>(null);
+  const renderLease = !loading && userId ? captureAccountOwnerLease(userId) : null;
+  if (!renderLease) usageBudget.current = null;
+  else if (usageBudget.current?.ownerId !== userId || usageBudget.current.epoch !== accountEpoch) {
+    usageBudget.current = { ownerId: userId!, epoch: accountEpoch, snapshot: null, localUses: 0, writes: 0, proposing: false };
+  }
+  const budget = usageBudget.current;
+  // A refocus/retry while a write is pending cannot yet account for that use.
+  // Each write completion refreshes again; only then can a ready read replace it.
+  if (budget && budget.writes === 0 && usageView.status === "ready" && confirmCurrent() && budget.snapshot !== usageView.usage) {
+    budget.snapshot = usageView.usage;
+    budget.localUses = 0;
+  }
+  const remainingForProposal = useCallback(() => budget?.snapshot
+    ? Math.max(0, remainingReasoning(progression.tier, budget.snapshot.used, budget.snapshot.rewardCredits) - budget.localUses)
+    : null, [budget, progression.tier]);
+  const reasoningRemaining = remainingForProposal();
 
   useEffect(() => {
     if (loading || !userId) return;
@@ -124,35 +132,50 @@ export default function NorthstarSentence() {
 
   const propose = useCallback(async () => {
     if (!userId || proposing) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease || lease.epoch !== accountEpoch || !budget || usageBudget.current !== budget || budget.proposing) return;
     // Reasoning-cap gate (count-only, never a quality gate — mirrors chat). On
     // cap, route to the paywall instead of spending another reasoning run.
-    if (!reasoningUnlimited && reasoningRemaining <= 0) {
+    const remaining = remainingForProposal();
+    if (remaining === null) return;
+    if (remaining <= 0) {
       router.push("/plans?from=northstar_limit");
       return;
     }
+    budget.proposing = true;
     setProposing(true);
     setThinBase(false);
     setProposeError(false);
     try {
       const out = await proposeNorthstarSentences({ userId, locale, minor: isMinor === true });
+      if (!lease.isCurrent()) return;
       if (out) {
         setSuggestions(out);
-        setReasoningUsed((u) => u + 1);
-        void incrementReasoningUsage(userId).catch(() => {});
+        // Update synchronously so even a captured button sees the spent run.
+        // Subtract from the total allowance: a use can spend a reward credit too.
+        budget.localUses += 1;
+        budget.writes += 1;
+        const afterWrite = () => {
+          budget.writes -= 1;
+          refreshUsage();
+        };
+        void incrementReasoningUsage(userId).then(afterWrite, afterWrite);
       } else {
         // null is the lib's honest "record base too thin" — the only null.
         setSuggestions(null);
         setThinBase(true);
       }
     } catch {
+      if (!lease.isCurrent()) return;
       // Network/DB/AI failure. NOT the thin-base card: that card blamed the
       // user's records for what was really a connection problem.
       setSuggestions(null);
       setProposeError(true);
     } finally {
+      budget.proposing = false;
       setProposing(false);
     }
-  }, [userId, locale, isMinor, proposing, reasoningUnlimited, reasoningRemaining, router]);
+  }, [userId, accountEpoch, locale, isMinor, proposing, budget, remainingForProposal, refreshUsage, router]);
 
   const save = useCallback(async () => {
     if (!userId || saving || draft.trim().length === 0) return;
@@ -266,12 +289,20 @@ export default function NorthstarSentence() {
             </Text>
           </MdCard>
         ) : null}
+        {usageView.status === "error" || usageView.status === "timeout" ? (
+          <MdCard variant="outlined" style={styles.suggestCard}>
+            <Text style={styles.emptyText} accessibilityRole="alert" accessibilityLiveRegion="polite">
+              {usageView.status === "timeout" ? t("common:errors.network") : t("ops:phone.board.generation.unavailable")}
+            </Text>
+            <MdButton label={t("common:actions.retry")} variant="text" onPress={refreshUsage} />
+          </MdCard>
+        ) : null}
         <MdButton
           variant="text"
           label={proposing ? t("ds.northstar.thinking") : t("ds.northstar.propose")}
           icon={<Glyph name="replay" color={m3.color.primary} size={18} />}
           onPress={() => void propose()}
-          disabled={proposing}
+          disabled={proposing || reasoningRemaining === null}
           style={styles.replayBtn}
         />
       </View>

@@ -10,7 +10,7 @@ const direct = Object.keys(loadRegistry(root).tables);
 const edges = replayMigrations(migrationsDir(root)).foreignKeys;
 const check = (text = source, tables = direct, fks = edges) => checkAccountExportInventory(tables, fks, text);
 const pending = [
-  "interview_transcript_turns", "interview_transcripts", "interview_sessions", "interview_probe_verdicts",
+  "interview_sessions", "interview_probe_verdicts",
   "llm_consent_receipts", "weather_consent_state", "weather_access_events", "dashboard_generation_settings",
 ];
 
@@ -40,13 +40,42 @@ test("real descriptors classify 89 physical tables exactly once, plus the users 
   expect(direct).toHaveLength(82);
   expect(result.tables.size).toBe(90);
   const count = (kind: string) => result.entries.filter(e => e.kind === kind && e.table !== "users" && result.tables.has(e.table)).length;
-  expect([count("EXPORT"), count("EXCLUDED"), count("PENDING")]).toEqual([45, 36, 8]);
+  expect([count("EXPORT"), count("EXCLUDED"), count("PENDING")]).toEqual([47, 36, 6]);
   expect(result.entries.filter(e => e.kind === "PENDING").map(e => e.table).sort()).toEqual(pending.sort());
   expect(result.entries.find(e => e.table === "knowledge_sources")?.kind).toBe("EXPORT");
+  for (const table of ["interview_transcripts", "interview_transcript_turns"]) {
+    expect(result.entries.find(e => e.table === table)?.kind).toBe("EXPORT");
+  }
+  for (const table of ["interview_sessions", "interview_probe_verdicts"]) {
+    const reason = result.entries.find(e => e.table === table)?.reason;
+    expect(reason).toContain("legal review");
+    expect(reason).not.toContain("0225");
+  }
   expect(result.entries.some(e => e.table === "knowledge_sources_contributed")).toBe(false);
   for (const table of ["crisis_events", "llm_proxy_capacity_reservations", "peer_response_rate_limits"]) {
     expect(result.entries.find(e => e.table === table)?.kind).toBe("EXCLUDED");
   }
+});
+
+test("D4's wildcard-exported hold columns are disclosed in DPIA 6.1.3 and Q-H1", () => {
+  // The inventory above is table-level. A column addition is invisible to its
+  // counts, so pin this reviewed disclosure without changing export scope.
+  const draft = readFileSync(join(root, "db/migration-drafts/UNNUMBERED_crisis_ai_hold.sql"), "utf8");
+  const dpia = readFileSync(join(root, "docs/legal/DPIA-2ndB-minors-draft.md"), "utf8");
+  const portability = dpia.split("#### 6.1.3 ")[1].split("#### 6.1.4 ")[0];
+  const question = dpia.split("- **Q-H1 [COUNSEL TO CONFIRM]**")[1].split("#### H2.")[0];
+  for (const table of ["records", "sources", "wiki_pages"]) {
+    expect(draft).toContain(`ALTER TABLE public.${table} ADD COLUMN IF NOT EXISTS ai_hold boolean`);
+    expect(source).toContain(`{ table: '${table}', fk: 'user_id' },`);
+    expect(portability).toContain(`\`${table}.ai_hold\``);
+    expect(question).toContain(`\`${table}.ai_hold\``);
+  }
+  expect(source).toContain(".select(source.select ?? '*',");
+  expect(portability).toContain("**[COUNSEL TO CONFIRM] Q-H1:**");
+  expect(portability).toContain("missing or foreign parents also fail closed");
+  expect(portability).toContain("SQL does not authenticate a classifier verdict");
+  expect(portability).toContain("`records.interview_ai_hold` is already exported");
+  expect(portability).toContain("sources/pages default to false and receive no backfill");
 });
 
 const sourceMutations: [string, string, RegExp][] = [
@@ -63,7 +92,7 @@ const sourceMutations: [string, string, RegExp][] = [
   ["pending reason emptied",
     replaceOnce(source, /weather_access_events: '[^']*'/, "weather_access_events: ''"), /Empty PENDING reason: weather_access_events/],
   ["pending table queried outside the descriptors",
-    source + "\nadmin.from('interview_transcripts').select('*');", /Non-export table queried: interview_transcripts/],
+    source + "\nadmin.from('interview_sessions').select('*');", /Non-export table queried: interview_sessions/],
   ["duplicate excluded object key (not silently overwritten)",
     replaceOnce(source, "  ai_audit_log:", "  ai_audit_log: 'other reason',\n  ai_audit_log:"), /Duplicate inventory property: ai_audit_log/],
   ["duplicate pending object key",

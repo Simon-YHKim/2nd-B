@@ -8,6 +8,8 @@ import { chatDisplayText } from "@/lib/chat/display-text";
 import { formatSourceCitationLabel, parseSourceCitations, sourceCitationDisplay } from "@/lib/chat/sources";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
 import { classifyInputAnyLocale } from "@/lib/safety/classifier";
+import { modeSwitchPersona } from "@/lib/chat/mode-switch";
+import type { Rev2PersonaId } from "@/lib/chat/rev2-personas";
 
 const source = readFileSync(resolve(__dirname, "../secondb.tsx"), "utf8");
 const transcript = source.slice(source.indexOf("turns.map((turn, i)"), source.indexOf("{sending ? (", source.indexOf("turns.map((turn, i)")));
@@ -28,9 +30,33 @@ function execute(expression: string, scope: Props): unknown {
 }
 const flatten = (style: unknown) => Object.assign({}, ...(Array.isArray(style) ? style : [style]));
 
-function renderedMessages(messageTurns?: Props[], selectedLens = "HustleK") {
-  const map = findNode(node => ts.isCallExpression(node) && node.expression.getText(ast) === "turns.map");
-  if (!map) throw new Error("Conversation rendering is missing");
+// Execute the component and transcript JSX with host stand-ins, without an RN renderer.
+const reactHost = {
+  createElement: (type: string | ((props: Props) => Tree | null), props: Props | null, ...children: unknown[]) =>
+    typeof type === "function" ? type({ ...props, children }) : { type, props: { ...props, children } },
+};
+const labels: Record<string, string> = { "rev2.secondb.lensName": "HustleK", "rev2.meta.lensName": "Fact-K", "rev2.twi.lensName": "Joy-K" };
+const translate = (key: string) => key === "deepspace:time.recordFallback" ? "기록" : labels[key] ?? key;
+const lineSource = readFileSync(resolve(__dirname, "../../components/secondb/ChatModeLine.tsx"), "utf8");
+const lineAst = ts.createSourceFile("ChatModeLine.tsx", lineSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+function modeLineHost(platform = "web") {
+  const component = lineAst.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "ChatModeLine");
+  if (!component) throw new Error("Mode line component is missing");
+  return execute(`(${component.getText(lineAst).replace(/^export /, "")})`, {
+    React: reactHost, View: "View", Platform: { OS: platform }, styles: { line: {} }, modeSwitchPersona,
+    useTranslation: () => ({ t: translate }),
+  }) as (props: Props) => Tree | null;
+}
+function flattenFragments(value: unknown): Tree[] {
+  if (Array.isArray(value)) return value.flatMap(flattenFragments);
+  if (!value) return [];
+  const node = value as Tree;
+  return node.type === "Fragment" ? flattenFragments(node.props.children) : [node];
+}
+
+function renderedMessages(messageTurns?: Props[], selectedPersona: Rev2PersonaId = "secondb", sending = false) {
+  const scroll = findNode(node => ts.isJsxElement(node) && node.openingElement.getText(ast).includes('testID="chat-transcript"')) as ts.JsxElement | undefined;
+  if (!scroll) throw new Error("Conversation rendering is missing");
   const styles = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "ds") as ts.VariableDeclaration;
   const object = (styles.initializer as ts.CallExpression).arguments[0] as ts.ObjectLiteralExpression;
   const names = ["bubbleRow", "userRow", "aiRow", "bubbleCol", "messageHeader", "userMessageHeader", "messageName", "userMessageName"];
@@ -42,16 +68,23 @@ function renderedMessages(messageTurns?: Props[], selectedLens = "HustleK") {
   const copyTurn = jest.fn();
   const getExchangeExpression = jest.fn(() => "A04");
   const turns = messageTurns ?? [{ role: "user", text: "My draft" }, { role: "secondb", text: "A useful response" }];
-  const labels: Record<string, string> = { "rev2.secondb.lensName": "HustleK", "rev2.meta.lensName": "Fact-K", "rev2.twi.lensName": "Joy-K" };
-  const tree = execute(`(${map.getText(ast)})`, {
-    React: { createElement: (type: string, props: Props | null, ...children: unknown[]) => ({ type, props: { ...props, children } }) },
+  const children = source.slice(scroll.openingElement.end, scroll.closingElement.pos);
+  const rendered = execute(`(<Fragment>${children}</Fragment>)`, {
+    React: reactHost, Fragment: "Fragment", ChatModeLine: modeLineHost(),
     View: "View", Pressable: "Pressable", Text: "Text", ChatMessageAvatar: "ChatMessageAvatar", ServiceConsentLink: "ServiceConsentLink",
-    turns, ds, userAvatar: savedAvatar, userDisplayName: "Hotline_blingbling", lensName: selectedLens, lensAccent: "accent",
+    ActivityIndicator: "ActivityIndicator", HustleKPortrait: "HustleKPortrait",
+    turns, ds, userAvatar: savedAvatar, userDisplayName: "Hotline_blingbling", lensAccent: "accent",
+    rev2Persona: selectedPersona, sending, pendingLensName: "Fact-K", aiNoticeSeen: true, shouldShowChatAiNotice: () => false,
+    showDashboard: false, autosaveConsent: true, saveNoticeDismissed: true, shouldShowChatSaveNotice: () => false,
     getExchangeExpression, copyTurn, chatDisplayText, sourceCitationDisplay, copyNotice: null,
-    t: (key: string) => key === "deepspace:time.recordFallback" ? "기록" : labels[key] ?? key,
-  }) as Tree[];
-  return { tree, savedAvatar, getExchangeExpression, turns, copyTurn };
+    t: translate,
+  });
+  const transcript = flattenFragments(rendered);
+  const tree = transcript.filter(node => String(node.props.testID).startsWith("chat-message-"));
+  return { tree, transcript, savedAvatar, getExchangeExpression, turns, copyTurn };
 }
+const order = (host: ReturnType<typeof renderedMessages>) => host.transcript.map(node =>
+  node.props.testID === "chat-mode-line" ? `line:${node.props.accessibilityLabel}` : node.props.testID ?? "pending");
 
 describe("HustleK messenger layout", () => {
   test("only the model bubble loses formatting and long press still copies each original turn", () => {
@@ -180,7 +213,7 @@ describe("HustleK messenger layout", () => {
       { role: "secondb", text: "Analysis", persona: "meta" },
       { role: "secondb", text: "An older turn without identity" },
     ];
-    for (const selected of ["HustleK", "Fact-K", "Joy-K"]) {
+    for (const selected of ["secondb", "meta", "twi"] as const) {
       const host = renderedMessages(turns, selected);
       expect(host.tree.map(message => {
         const [header] = message.props.children as Tree[];
@@ -196,7 +229,47 @@ describe("HustleK messenger layout", () => {
       { role: "secondb", text: "fixed guidance", safetyZone: "red", crisisNotice: true },
     ]);
     expect(rendered.tree[0]).not.toBeNull();
-    expect(rendered.tree[1]).toBeNull();
+    expect(rendered.tree).toHaveLength(1);
+    expect(order(rendered)).toEqual(["chat-message-user-0"]);
+  });
+
+  test.each(["web", "android", "ios"])("the mode line keeps its spoken name and a supported role on %s", platform => {
+    const line = modeLineHost(platform)({ previousPersona: "secondb", persona: "meta" });
+    expect(line?.props).toMatchObject({ accessible: true, accessibilityLabel: "Fact-K", accessibilityRole: "text" });
+    expect(line?.props.role).toBe(platform === "web" ? "separator" : undefined);
+    expect(line?.props.children).toEqual([]);
+    expect(modeLineHost(platform)({ previousPersona: "meta", persona: "meta" })).toBeNull();
+  });
+
+  test("a selected mode line moves from the tail to before the next sent message", () => {
+    const turns = [{ role: "user", text: "Question", persona: "meta" }, { role: "secondb", text: "Answer", persona: "meta" }];
+    expect(order(renderedMessages(turns, "meta"))).toEqual(["chat-message-user-0", "chat-message-secondb-1"]);
+    expect(order(renderedMessages(turns, "twi"))).toEqual(["chat-message-user-0", "chat-message-secondb-1", "line:Joy-K"]);
+    expect(order(renderedMessages([...turns, { role: "user", text: "Next", persona: "twi" }], "twi")))
+      .toEqual(["chat-message-user-0", "chat-message-secondb-1", "line:Joy-K", "chat-message-user-2"]);
+    expect(order(renderedMessages([], "twi"))).toEqual(["chat-empty"]);
+  });
+
+  test("a hidden crisis reply leaves the line after its user bubble and before the next visible message", () => {
+    const turns = [
+      { role: "user", text: "My message", persona: "meta", safetyZone: "red" },
+      { role: "secondb", text: "Fixed guidance", persona: "meta", safetyZone: "red", crisisNotice: true },
+    ];
+    expect(order(renderedMessages(turns, "twi"))).toEqual(["chat-message-user-0", "line:Joy-K"]);
+    expect(order(renderedMessages([...turns, { role: "user", text: "Next", persona: "twi" }], "twi")))
+      .toEqual(["chat-message-user-0", "line:Joy-K", "chat-message-user-2"]);
+  });
+
+  test("the pending row and late reply stay before the selected mode line", () => {
+    const turns = [{ role: "user", text: "Question", persona: "meta" }];
+    const pending = renderedMessages(turns, "twi", true);
+    expect(order(pending)).toEqual(["chat-message-user-0", "pending", "line:Joy-K"]);
+    const [header, spinner] = pending.transcript[1].props.children as Tree[];
+    expect(spinner.type).toBe("ActivityIndicator");
+    expect((header.props.children as Tree[])[0].props.label).toBe("Fact-K");
+    const settled = [...turns, { role: "secondb", text: "Late reply", persona: "meta" }];
+    expect(order(renderedMessages(settled, "twi"))).toEqual(["chat-message-user-0", "chat-message-secondb-1", "line:Joy-K"]);
+    expect(order(renderedMessages(settled, "meta"))).toEqual(["chat-message-user-0", "chat-message-secondb-1"]);
   });
 
   test.each(["ok", "divergent", "blocked", "error", "consent"])("%s replies retain the persona selected at send time across an in-flight switch", async outcome => {
@@ -227,6 +300,7 @@ describe("HustleK messenger layout", () => {
     };
     const send = execute(`(${callback.getText(ast)})`, scope) as (message: string) => boolean;
     expect(send("My question")).toBe(true);
+    expect(turns[0]).toMatchObject({ role: "user", persona: "meta" });
     expect(setSendingPersona).toHaveBeenLastCalledWith("meta");
     scope.rev2Persona = "twi";
     const pendingName = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "pendingLensName") as ts.VariableDeclaration;
@@ -266,26 +340,34 @@ describe("HustleK messenger layout", () => {
     expect(source).toContain("isCurrentWikiSuggestion(");
   });
 
-  test("the actual action builder hides the reported test exchange and only offers relevant follow-ups", () => {
+  test.each(["ko", "en", "es", "pt", "id"])("the actual action builder offers relevant follow-ups and explains records (%s)", language => {
     const quickActions = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "QUICK_ACTIONS") as ts.VariableDeclaration;
     const quick = execute(`(${quickActions.initializer!.getText(ast)})`, {});
+    const localeDeclaration = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "locale") as ts.VariableDeclaration;
+    const locale = execute(`(${localeDeclaration.initializer!.getText(ast)})`, { i18n: { language } });
+    expect(locale).toBe(language === "ko" ? "ko" : "en");
     const start = source.indexOf("  const suggestionState =");
     const builder = source.slice(start, source.indexOf("  return (", start));
     const prefill = jest.fn();
     const selectRev2Persona = jest.fn();
-    const build = (prompt: string, text: string, plans: Props[] = []) => execute(`(() => { ${builder}; return chatActions; })()`, {
-      turns: [{ role: "user", text: prompt }, { role: "secondb", text }], conversationId: { current: 1 },
+    const build = (prompt: string, text: string, plans: Props[] = [], chips: string[] = []) => execute(`(() => { ${builder}; return chatActions; })()`, {
+      turns: [{ role: "user", text: prompt }, { role: "secondb", text, chips }], conversationId: { current: 1 },
       sending: false, keptIdx: new Set(), keeping: null, keepNotice: null,
       getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion, isKeepable,
-      chatPlans: { actions: plans }, QUICK_ACTIONS: quick, t: (key: string) => key, locale: "ko",
+      chatPlans: { actions: plans }, QUICK_ACTIONS: quick, t: (key: string) => key, locale,
       composerRef: { current: { prefill } }, selectRev2Persona,
-    }) as { id: string; onPress: () => void }[];
+    }) as { id: string; label: string; onPress: () => void }[];
     expect(build("test", "확인했습니다, Hotline_blingbling님. 무엇을 도와드릴까요?")).toEqual([]);
     const choice = build("이직할까?", "이직 여부는 지금 하는 일에서 얻는 경험과 새 일자리에서 기대하는 기회를 함께 비교해 볼 수 있어요.");
     expect(choice.map(action => action.id)).toEqual(["follow-up-1"]);
     choice[0].onPress();
     expect(selectRev2Persona).toHaveBeenCalledWith("twi");
-    expect(prefill).toHaveBeenCalledWith("이 생각을 전혀 다른 관점에서 펼쳐줘.");
+    expect(prefill).toHaveBeenCalledWith(language === "ko" ? "이 생각을 전혀 다른 관점에서 펼쳐줘." : "Unfold this from a completely different angle.");
+    const explain = build("어떻게 일하면 좋을까?", "혼자 초안을 쓴 뒤 함께 검토해 봐.", [], ["work-notes"]).find(action => action.id === "follow-up-2");
+    expect(explain?.label).toBe(language === "ko" ? "왜 이렇게 봤어?" : "Why this?");
+    explain!.onPress();
+    expect(prefill).toHaveBeenLastCalledWith(language === "ko" ? "왜 그렇게 봤는지 참고한 기록을 들어 설명해줘." : "Explain why you saw it that way, citing the records you used.");
+    expect(selectRev2Persona).toHaveBeenCalledTimes(1);
     expect(build("내일 오후 세시에 서류를 제출해야 해", "내일 제출할 서류를 확인해 두세요.", [{ id: "plan-reminder" }]).map(action => action.id)).toEqual(["plan-reminder"]);
   });
 

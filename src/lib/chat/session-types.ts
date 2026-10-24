@@ -7,7 +7,7 @@ export interface ChatTurn {
   text: string;
   /** In-memory bubble input with citation markers; never used for copy/history/capture. */
   citationText?: string;
-  /** Speaker at send time; absent only on older in-memory turns. */
+  /** Mode at send time for either role; optional for older turns. */
   persona?: Rev2PersonaId;
   /** Slugs the reply cited — rendered as small source chips. */
   chips?: string[];
