@@ -26,6 +26,9 @@ export interface ChatAutosaveTicket extends KeepPair {
   readonly revision: number;
   readonly signal: AbortSignal;
   isCurrent(): boolean;
+  /** F keeps withdrawal listening until real I/O settles, even if the public
+   * result has already returned stale on wipe. Only the owning auto flight retains. */
+  retainUntilSettled?(): () => void;
 }
 export type KeepAuthorization =
   | { readonly reason: "manual"; readonly retryUnknown?: true }
@@ -164,6 +167,7 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
       flight = active;
       const work = registry.claimWork(session, "keep", checked.replyTurnId, retire);
       if (!work) { flight = null; resolve(rejected("busy")); return promise; }
+      const releaseConsent = ticket?.retainUntilSettled?.();
       let finished = false, captureStarted = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
       const canEffect = () => current() && !controller.signal.aborted && consentCurrent()
@@ -215,6 +219,7 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
         fail(); controller.abort();
         controller.signal.removeEventListener("abort", fail); consentSignal?.removeEventListener("abort", cancelConsent);
         registry.settleWork(work); if (flight === active) flight = null;
+        releaseConsent?.();
         return promise;
       }
       timer = setTimeout(() => { fail(); controller.abort(); }, timeoutMs);
@@ -253,6 +258,7 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
           lease.release(); registry.settleWork(work);
           if (flight === active) flight = null;
           if (disposed) stopAccount();
+          releaseConsent?.();
         }
       })();
       return promise;
