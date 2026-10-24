@@ -29,7 +29,7 @@ DO $$ DECLARE role_name text; guard regprocedure; BEGIN
       'deletion_receipt_private.guard_legacy_admission()'::regprocedure
     ] LOOP
       PERFORM pg_temp.assert_true(NOT has_function_privilege(role_name,guard,'EXECUTE'), 'trigger helper exposed');
-      PERFORM pg_temp.assert_true((SELECT prosecdef AND proconfig @> ARRAY['search_path=""','row_security=off']
+      PERFORM pg_temp.assert_true((SELECT prosecdef AND provolatile = 'v' AND proconfig @> ARRAY['search_path=""','row_security=off']
         FROM pg_proc WHERE oid=guard), 'trigger helper execution context changed');
     END LOOP;
     PERFORM pg_temp.assert_true(NOT has_table_privilege(role_name,
