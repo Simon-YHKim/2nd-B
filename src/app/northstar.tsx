@@ -35,7 +35,9 @@ import {
 } from "@/lib/persona/northstar";
 import { useProgression } from "@/lib/progression/useProgression";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
-import { getReasoningUsage, incrementReasoningUsage } from "@/lib/entitlements/usage";
+import { incrementReasoningUsage } from "@/lib/entitlements/usage";
+import { captureAccountOwnerLease, currentAccountEpoch } from "@/lib/auth/account-epoch";
+import { useReasoningUsageRead } from "@/lib/reasoning/use-reasoning-usage-read";
 import { keepAllKo, keepAllPlaceholder } from "@/lib/i18n/keep-all";
 
 
@@ -83,27 +85,14 @@ export default function NorthstarSentence() {
   });
 
   // Reasoning-cap (count-only, mirrors the chat gate). Each 세컨비 제안 is one
-  // reasoning use; unlimited tiers (북극성/brain) are never gated. getReasoningUsage
-  // is fail-open, so a load failure leaves the user unblocked.
+  // reasoning use; unlimited tiers (북극성/brain) are never gated. Unknown usage
+  // stays unknown; preserve this screen's existing fail-open proposal policy.
   const progression = useProgression();
-  const [reasoningUsed, setReasoningUsed] = useState(0);
-  const [rewardCredits, setRewardCredits] = useState(0);
-  const reasoningRemaining = remainingReasoning(progression.tier, reasoningUsed, rewardCredits);
-  const reasoningUnlimited = reasoningRemaining === Infinity;
-  useEffect(() => {
-    if (loading || !userId) return;
-    let alive = true;
-    void getReasoningUsage(userId)
-      .then(({ used, rewardCredits: rc }) => {
-        if (!alive) return;
-        setReasoningUsed(used);
-        setRewardCredits(rc);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [loading, userId]);
+  const accountEpoch = currentAccountEpoch();
+  const { view: usageView, refresh: refreshUsage, confirmCurrent } = useReasoningUsageRead(userId, !loading);
+  const reasoningRemaining = usageView.status === "ready"
+    ? remainingReasoning(progression.tier, usageView.usage.used, usageView.usage.rewardCredits)
+    : null;
 
   useEffect(() => {
     if (loading || !userId) return;
@@ -124,9 +113,11 @@ export default function NorthstarSentence() {
 
   const propose = useCallback(async () => {
     if (!userId || proposing) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease || lease.epoch !== accountEpoch) return;
     // Reasoning-cap gate (count-only, never a quality gate — mirrors chat). On
     // cap, route to the paywall instead of spending another reasoning run.
-    if (!reasoningUnlimited && reasoningRemaining <= 0) {
+    if (confirmCurrent() && reasoningRemaining !== null && reasoningRemaining <= 0) {
       router.push("/plans?from=northstar_limit");
       return;
     }
@@ -135,16 +126,18 @@ export default function NorthstarSentence() {
     setProposeError(false);
     try {
       const out = await proposeNorthstarSentences({ userId, locale, minor: isMinor === true });
+      if (!lease.isCurrent()) return;
       if (out) {
         setSuggestions(out);
-        setReasoningUsed((u) => u + 1);
-        void incrementReasoningUsage(userId).catch(() => {});
+        await incrementReasoningUsage(userId).catch(() => {});
+        refreshUsage();
       } else {
         // null is the lib's honest "record base too thin" — the only null.
         setSuggestions(null);
         setThinBase(true);
       }
     } catch {
+      if (!lease.isCurrent()) return;
       // Network/DB/AI failure. NOT the thin-base card: that card blamed the
       // user's records for what was really a connection problem.
       setSuggestions(null);
@@ -152,7 +145,7 @@ export default function NorthstarSentence() {
     } finally {
       setProposing(false);
     }
-  }, [userId, locale, isMinor, proposing, reasoningUnlimited, reasoningRemaining, router]);
+  }, [userId, accountEpoch, locale, isMinor, proposing, confirmCurrent, reasoningRemaining, refreshUsage, router]);
 
   const save = useCallback(async () => {
     if (!userId || saving || draft.trim().length === 0) return;
