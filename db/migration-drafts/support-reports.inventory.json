@@ -1,0 +1,12 @@
+{
+  "table": "support_reports",
+  "erasure": {
+    "owner": "user_id",
+    "class": "account_delete_only",
+    "reason": "Support submissions: account deletion cascades; content wipe keeps reports and quotas; hourly purge after 30 days."
+  },
+  "export": {
+    "kind": "PENDING",
+    "reason": "T53 draft only. Before activation, deploy an owner-filtered export of id, kind, body, metadata, consent_version and created_at; no other user's reports."
+  }
+}

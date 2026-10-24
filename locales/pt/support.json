@@ -17,5 +17,27 @@
     "when112": "Quando alguém está te ameaçando agora",
     "callHint": "Toque para ligar",
     "foot": "Esta lista está sempre aqui. O app não lê o que você escreve para decidir mostrá-la; ela está aqui para você vir procurar. O app não denuncia por você nem avisa um responsável."
+  },
+  "report": {
+    "inquiryTitle": "Fale conosco",
+    "bugTitle": "Relatar um erro",
+    "body": "Mensagem",
+    "placeholder": "Qual foi o problema?",
+    "details": "Informações a enviar",
+    "consent": "Concordo com o uso dos dados para atender este relato",
+    "scope": "Sua mensagem, identificador da conta, versão do app, caminho da tela e idioma são enviados ao responsável. Registros, conversas e conteúdo da wiki não são anexados automaticamente.",
+    "retention": "Os relatos são excluídos a cada hora após completarem 30 dias, ou quando você exclui sua conta.",
+    "optional": "Você pode usar o app sem concordar. Seu relato não será enviado.",
+    "metadata": "Versão {{version}} · Tela {{path}} · Idioma {{locale}}",
+    "send": "Enviar",
+    "sending": "Enviando…",
+    "retry": "Tentar novamente",
+    "sent": "Enviado.",
+    "receipt": "Número de recebimento {{receipt}}",
+    "done": "Concluir",
+    "offline": "Verifique sua conexão com a internet e tente novamente.",
+    "unconfirmed": "Não foi possível confirmar o recebimento. Tente novamente.",
+    "limited": "Tente mais tarde. Você pode enviar 2 relatos por minuto e 10 em 24 horas.",
+    "invalid": "Confira a mensagem e a caixa de concordância."
   }
 }

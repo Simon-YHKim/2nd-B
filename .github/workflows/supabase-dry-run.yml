@@ -21,6 +21,7 @@ on:
       - "scripts/test-deletion-receipt-sql.mjs"
       - "scripts/test-records-embedding-consent-sql.mjs"
       - "scripts/test-interview-content-authority-sql.mjs"
+      - "scripts/test-support-reports-sql.mjs"
       - "scripts/test-chat-turn-admission-races.sh"
       - "scripts/test-chat-turn-refund-evidence.py"
       - "scripts/test-chat-turn-purpose-restore.py"
@@ -62,11 +63,23 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Exercise dormant support report RPC
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE t53_support_test_ci'
+          psql -X -h 127.0.0.1 -U postgres -d t53_support_test_ci -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/support-reports.sql
       # The weather SQL fixture runs the real Edge with Node's built-in TS
       # transform. No npm dependencies or app installation are needed here.
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
+      - name: Race support report retries and quota slots
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE t53_support_test_races'
+          node scripts/test-support-reports-sql.mjs 5432 t53_support_test_races
       - name: Exercise Polaris allowance and concurrent reservation contract
         env:
           PGPASSWORD: postgres

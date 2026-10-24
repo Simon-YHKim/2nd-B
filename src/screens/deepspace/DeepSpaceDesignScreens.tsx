@@ -98,6 +98,8 @@ import {
 } from "@/lib/records/records-embeddings";
 import { recordRecommendationsConsent } from "@/lib/supabase/consent";
 import { HealthWithdrawCard } from "./dds-health-withdraw-card";
+import { SupportReportForm } from "./SupportReportForm";
+import { inAppReportsEnabled, supportDestination, type ReportKind } from "@/lib/support/report";
 import { recommendationVendorLabel } from "@/lib/ops/recommend";
 import {
   notifyNow,
@@ -465,10 +467,18 @@ export function DeepSpaceSupportDesignScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const ko = renderedUiLanguage(i18n) === "ko";
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [reportKind, setReportKind] = useState<ReportKind | null>(null);
+  const reportsEnabled = inAppReportsEnabled();
+  const openReport = (kind: ReportKind) => {
+    const destination = supportDestination(kind, reportsEnabled);
+    if (destination === "form") setReportKind(kind);
+    else void Linking.openURL(destination);
+  };
+  if (reportsEnabled && reportKind) return <SupportReportForm kind={reportKind} onBack={() => setReportKind(null)} />;
   return (
     <Shell title={t("support.title")}>
       <View style={styles.center}><SecondbHead size={104} mood="neutral" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View>
-      <Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:kim0405@hayangzip.com')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:kim0405@hayangzip.com?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card>
+      <Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:reportsEnabled ? t("support:report.inquiryTitle") : t("support.emailUs"),onPress:()=>openReport("inquiry")},{label:t("support.reportBug"),onPress:()=>openReport("bug")}].map((r)=><Action key={r.label} {...r}/>)}</Card>
 
       {/* Always-on help directory. Above the FAQ on purpose: someone who needs
           it is not going to scroll past a list of product questions first. */}
