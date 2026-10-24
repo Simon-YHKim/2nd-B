@@ -2,6 +2,8 @@ import { compile, deferred, snapshot, sourceFile, usageHarness } from "../../../
 import { reasoningCapForTier } from "../../../lib/entitlements/reasoning-cap";
 import { REWARD_MONTHLY_CAP, REWARD_PER_WATCH } from "../../../lib/entitlements/tiers";
 import { monthLabelFor } from "../../../lib/reasoning/remaining-copy";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const file = sourceFile("src/components/deep-space/ReasoningLimitSheet.tsx");
 const harness = usageHarness();
@@ -122,7 +124,17 @@ test("a captured watch button stays locked after a watch exception", async () =>
 test("source gates the numeric meter and offers existing failure/retry copy", () => {
   expect(file.source).toContain("{cap !== null && usage ? (");
   expect(file.source).toContain("{!usage");
-  expect(file.source).toContain('t("ds.reasoningScreen.loadFailed")');
+  expect(file.source).toContain('t("ops:phone.board.generation.unavailable")');
   expect(file.source).toContain('label={t("common:actions.retry")} variant="text" onPress={refreshUsage}');
   expect(file.source).not.toContain("getReasoningUsage");
+});
+test.each([
+  ["ko", "불러오지 못했습니다. 다시 시도해 주세요."],
+  ["en", "Could not load. Please try again."],
+  ["es", "No se pudo cargar. Vuelve a intentarlo."],
+  ["pt", "Não foi possível carregar. Tente novamente."],
+  ["id", "Tidak dapat memuat. Silakan coba lagi."],
+])("%s reused failure copy describes a read, without blaming saved items", (locale, expected) => {
+  const bundle = JSON.parse(readFileSync(resolve(__dirname, "../../../../locales", locale, "ops.json"), "utf8"));
+  expect(bundle.phone.board.generation.unavailable).toBe(expected);
 });

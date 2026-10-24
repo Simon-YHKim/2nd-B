@@ -275,7 +275,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
           <RNText style={[styles.rewardLine, m3TextStyle("bodyMedium")]}>
             {!usage
               ? usageView.status === "error"
-                ? t("ds.reasoningScreen.loadFailed")
+                ? t("ops:phone.board.generation.unavailable")
                 : usageView.status === "timeout" ? t("common:errors.network") : "..."
               : earnCapReached
               ? t("ds.reasoningLimit.rewardCapReached", { cap: REWARD_MONTHLY_CAP })
