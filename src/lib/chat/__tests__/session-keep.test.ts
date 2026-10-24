@@ -11,6 +11,7 @@ import * as classifier from "../../safety/classifier";
 import type { SessionTurn } from "../session-types";
 import type { CreateSourceInput } from "../../wiki/queries";
 import { prepareSavedDataDeletion } from "../../wiki/saved-data-changes";
+import { prepareKeptExchange } from "../prepare-kept-exchange";
 
 type Query = { table: string; columns?: string; filters: Record<string, unknown>; insert?: CreateSourceInput; signal?: AbortSignal };
 const mockAuth = jest.fn(), mockUpload = jest.fn(), mockIO = jest.fn();
@@ -102,6 +103,66 @@ test("K01 a reentrant subscriber cannot start another capture while admission is
   f.keep.receipts.subscribe(() => { if (f.keep.receipts.get(f.input.exchangeId)?.state === "saving") joined = f.manual(); });
   const first = f.manual(); expect(joined).toBe(first); await first;
   expect(mockUpload).toHaveBeenCalledTimes(1); expect(f.complete).toHaveBeenCalledTimes(1);
+});
+
+test("H-prep completion subscription exposes operation outcomes, never a checking state", async () => {
+  const f = fixture(), states: string[] = [];
+  f.keep.subscribeCompletion(receipt => {
+    // Compile-time API contract: widening the callback back to KeepReceipt fails tsc.
+    const state: "present" | "unknown" | "failed" = receipt.state;
+    states.push(state);
+  });
+  await f.manual();
+  expect(states).toEqual(["present"]);
+});
+
+test("H-prep active keep uses the preparation's reply identity and cannot claim a second key", async () => {
+  const f = fixture(), pending = deferred<ReturnType<typeof auth>>(); mockAuth.mockReturnValue(pending.promise);
+  const first = f.manual();
+  const live = f.registry.getSessionSnapshot(f.session)!;
+  const work = live.work.find(work => work.kind === "keep")!;
+  expect(work.key).toBe(f.input.replyTurnId);
+  const prepared = prepareKeptExchange(f.registry, work, f.input.replyTurnId, live.revision, f.input);
+  expect(prepared.status).toBe("prepared");
+  if (prepared.status !== "prepared") throw new Error("expected prepared");
+  expect(prepared.subject.operationId).toBe(work.operationId);
+  expect(f.registry.claimWork(f.session, "keep", f.input.replyTurnId, () => true)).toBeNull();
+  pending.resolve(auth()); await first;
+  expect(capture.captureFromMarkdown).toHaveBeenCalledTimes(1);
+  expect(capture.captureFromMarkdown).toHaveBeenCalledWith(expect.objectContaining({
+    rawMd: prepared.payload.rawMd, kindOverride: prepared.payload.kindOverride, userTags: prepared.payload.userTags,
+  })); // Saved bytes, content dedup identity and existing source compatibility stay unchanged.
+});
+
+test("H-prep preparation already holding the reply prevents a parallel capture", async () => {
+  const f = fixture();
+  const work = f.registry.claimWork(f.session, "keep", f.input.replyTurnId, () => true)!;
+  expect(prepareKeptExchange(f.registry, work, f.input.replyTurnId,
+    f.registry.getSessionSnapshot(f.session)!.revision, f.input).status).toBe("prepared");
+  expect(await f.manual()).toEqual({ status: "rejected", reason: "busy" });
+  expect(capture.captureFromMarkdown).not.toHaveBeenCalled(); expect(mockAuth).not.toHaveBeenCalled();
+  f.registry.settleWork(work);
+  expect(await f.manual()).toMatchObject({ status: "settled", receipt: { state: "present" } });
+  expect(capture.captureFromMarkdown).toHaveBeenCalledTimes(1);
+});
+
+test.each(["present", "missing", "unknown"] as const)("H-prep checking suppresses completion; later %s only updates receipts", async state => {
+  const f = fixture(), inserted = deferred<unknown>(), read = deferred<unknown>();
+  mockIO.mockImplementation((q: Query) => q.insert ? inserted.promise : q.columns === "id" ? read.promise : defaultIO(q));
+  const first = f.manual(); await flush();
+  prepareSavedDataDeletion({ ownerId: "a", kind: "source", ids: ["source1"] })("requested");
+  inserted.resolve({ data: source(), error: null });
+  expect(await first).toMatchObject({ status: "settled", receipt: { state: "checking", sourceId: "source1" } });
+  expect(f.complete).not.toHaveBeenCalled();
+  expect(await f.manual()).toEqual({ status: "rejected", reason: "check-required" });
+  read.resolve({ data: state === "present" ? [{ id: "source1" }] : [], error: state === "unknown" ? new Error("offline") : null });
+  await flush();
+  expect(f.keep.receipts.get(f.input.exchangeId)?.state).toBe(state);
+  expect(f.complete).not.toHaveBeenCalled();
+  expect(capture.captureFromMarkdown).toHaveBeenCalledTimes(1);
+  expect(mockUpload).toHaveBeenCalledTimes(1);
+  expect(mockQueries.filter(q => q.columns === "id")).toHaveLength(1);
+  expect(jest.getTimerCount()).toBe(0);
 });
 
 test("K02 storagePending preserves inline source evidence without claiming a clean upload", async () => {
