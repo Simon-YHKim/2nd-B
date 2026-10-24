@@ -38,6 +38,11 @@ import { classifyChatTextForCrisis, classifyLiveChatTextForCrisis, callLlm } fro
 import type { TurnAdmission } from "../../llm/types";
 import { flushAuditWriteOutbox, getAuditWriteOutboxForTests, resetAuditWriteOutboxForTests } from "../../llm/audit-write-outbox";
 import { __resetAccountEpochForTests, captureAccountOwnerLease, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../auth/account-epoch";
+import { LlmConsentError } from "../../llm/boundary";
+import { createScreenHarness, executeCallback, screenSource, type Line } from "../../../app/__tests__/helpers/secondb-send-harness";
+import { canRetryFailedTurn } from "../retry-failed";
+import * as chatLimits from "../limits";
+import * as boundary from "../../llm/boundary";
 
 const ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const NEXT_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -81,6 +86,15 @@ function calls(purpose: string) { return mockInvoke.mock.calls.filter(([, option
 function bumps() { return mockRpc.mock.calls.filter(([name]) => name.startsWith("bump_chat_usage")); }
 function audits() { return mockRpc.mock.calls.filter(([name, args]) => name.startsWith("log_ai_audit") && args.p_purpose === "secondb_chat"); }
 function expireWait(turn: LiveChatTurn) { turn.endWait(turn.read().attempts.at(-1)!.ticket); }
+
+function screen() {
+  const turns: Line[] = [];
+  const chat = createScreenHarness(turns, { createLiveChatTurn, sendLiveChatMessage, captureAccountOwnerLease, LlmConsentError });
+  return { ...chat, turns,
+    finished: () => until(() => !chat.scope.sending),
+    canRetry: () => canRetryFailedTurn(turns, turns.length - 1, chat.scope.liveTurnRef.current, chat.scope.underLimit),
+  };
+}
 
 beforeEach(async () => {
   await resetAuditWriteOutboxForTests();
@@ -945,4 +959,239 @@ test.each(["medical_emergency", "immediate_threat"])("R3 a later %s upgrades the
   expect((await p3).status).toBe("crisis");
   expect(notify.mock.calls).toEqual([["GLOBAL_988"], [lane === "medical_emergency" ? "KR_119" : "KR_112"]]);
   expect(audits()).toHaveLength(3);
+});
+
+// B1: the actual screen callbacks -> live conversation -> boundary; transports
+// above are in-memory stand-ins. These are not production counter measurements.
+test('B1 screen reuses an undispatched receipt as first without another bump', async () => {
+  const chat = screen();
+  // Fail at boundary entry, after issuance but before beforeDispatch is reached.
+  const entry = jest.spyOn(boundary, 'callLlm').mockRejectedValueOnce(new Error('before_dispatch_failed'));
+  chat.send(input.message); await chat.finished();
+  const pairId = chat.turns[0].pairId;
+  expect(bumps()).toHaveLength(1); expect(calls('secondb_chat')).toHaveLength(0);
+  expect(nextTurnAction(chat.scope.liveTurnRef.current.read())).toBe('first');
+  expect(chat.canRetry()).toBe(true);
+  entry.mockRestore();
+  chat.retry(1); await chat.finished();
+  expect(bumps()).toHaveLength(1);
+  expect(calls('secondb_chat').map(([, x]) => [x.body.chatTurnId, x.body.chatAttemptIntent, x.body.user]))
+    .toEqual([[ID, 'first', input.message]]);
+  expect(chat.turns.map(line => line.pairId)).toEqual([pairId, pairId]);
+});
+
+test('B1 synchronous notice owner change releases the lock before constructing a stale turn', () => {
+  const chat = screen();
+  chat.scope.publishCrisisNotice.mockImplementation(() => noteResolvedOwner('owner-b'));
+  let accepted: boolean | undefined;
+  expect(() => { accepted = chat.send('I want to kill myself.'); }).not.toThrow();
+  expect(accepted).toBe(false);
+  expect(chat.scope.sendLock.current.busy()).toBe(false);
+  expect(chat.scope.liveTurnRef.current).toBeNull();
+  expect(chat.turns).toHaveLength(0); expect(bumps()).toHaveLength(0);
+});
+
+test.each(['consent_check_unavailable', 'tier_check_unavailable', 'chat_admission_unavailable', 'key_missing'])(
+  'B1 screen retains %s through two failed clicks, including 5/5', async code => {
+    const chat = screen(); let attempts = 0;
+    primary = () => ++attempts <= 2 ? failure(code === 'key_missing' ? 500 : 503, code, unknown) : (purposeCount++, success());
+    expect(chat.send(input.message)).toBe(true); await chat.finished();
+    const pairId = chat.turns[0].pairId;
+    expect(chat.scope.usedTodayRef.current).toBe(5);
+    expect(chat.scope.underLimit).toBe(false);
+    expect(chat.canRetry()).toBe(true);
+    expect(chat.events.indexOf('usage:5')).toBeLessThan(chat.events.indexOf('sending:false'));
+    expect(chat.send('A different question')).toBe(false);
+    chat.retry(1); await chat.finished();
+    expect(chat.canRetry()).toBe(true);
+    chat.retry(1); await chat.finished();
+    expect(chat.turns).toHaveLength(2);
+    expect(chat.turns.map(line => line.pairId)).toEqual([pairId, pairId]);
+    expect(chat.turns[1].synthetic).toBeUndefined();
+    expect(chat.canRetry()).toBe(false);
+    expect(bumps()).toHaveLength(1); expect(purposeCount).toBe(1);
+    expect(calls('secondb_chat').map(([, x]) => [x.body.chatTurnId, x.body.chatAttemptIntent, x.body.user]))
+      .toEqual([[ID, 'first', input.message], [ID, 'reask', input.message], [ID, 'reask', input.message]]);
+  },
+);
+
+test.each(['reask_ineligible', 'first_already_registered'])('B1 screen %s transitions immediately; one next click issues a fresh first', async code => {
+  count = 0;
+  const chat = screen();
+  primary = () => failure(409, code, rejected);
+  expect(chat.send(input.message)).toBe(true); await chat.finished();
+  const original = chat.scope.liveTurnRef.current as LiveChatTurn;
+  const pairId = chat.turns[0].pairId;
+  expect(nextTurnAction(original.read())).toBe('charge');
+  expect(bumps()).toHaveLength(1); expect(calls('secondb_chat')).toHaveLength(1); expect(purposeCount).toBe(0);
+  bump = () => ({ data: { count: ++count, turnId: NEXT_ID }, error: null, status: 200 });
+  primary = () => { purposeCount++; return success(); };
+  chat.retry(1); await chat.finished();
+  expect(chat.scope.liveTurnRef.current).toBe(original);
+  expect(chat.turns.map(line => line.pairId)).toEqual([pairId, pairId]);
+  expect(original.read().generation).toBe(2);
+  expect(bumps()).toHaveLength(2); expect(purposeCount).toBe(1);
+  expect(calls('secondb_chat').map(([, x]) => [x.body.chatTurnId, x.body.chatAttemptIntent, x.body.user]))
+    .toEqual([[ID, 'first', input.message], [NEXT_ID, 'first', input.message]]);
+});
+
+test('B1 screen does not unlock an unfinished Promise after elapsed time or duplicate send/retry presses', async () => {
+  count = 0;
+  const chat = screen(), held = deferred<unknown>(); primary = () => held.promise;
+  expect(chat.send(input.message)).toBe(true);
+  expect(chat.send('second press')).toBe(false);
+  await until(() => calls('secondb_chat').length === 1);
+  jest.useFakeTimers();
+  try {
+    await jest.advanceTimersByTimeAsync(300_000);
+    expect(chat.scope.sending).toBe(true);
+    expect(chat.send('still waiting')).toBe(false);
+    chat.retry(1);
+    expect(calls('secondb_chat')).toHaveLength(1);
+    expect(bumps()).toHaveLength(1);
+    expect(screenSource).not.toMatch(/foreground-deadline|\.endWait\(/);
+  } finally { jest.useRealTimers(); held.resolve(failure(503, 'offline', unknown)); await chat.finished(); }
+  const next = deferred<unknown>(); primary = () => next.promise;
+  chat.retry(1); chat.retry(1);
+  expect(chat.send('send racing retry')).toBe(false);
+  await until(() => calls('secondb_chat').length === 2);
+  next.resolve(success()); await chat.finished();
+  expect(bumps()).toHaveLength(1);
+});
+
+test('B1 unknown issuance blocks only that failed pair; a new question remains allowed', async () => {
+  count = 0;
+  const chat = screen(); bump = () => ({ data: null, error: { message: 'ambiguous', code: 'XX000' }, status: 503 });
+  chat.send(input.message); await chat.finished();
+  expect(chat.canRetry()).toBe(false);
+  chat.retry(1); expect(bumps()).toHaveLength(1);
+  expect(calls('secondb_chat')).toHaveLength(0);
+  bump = () => ({ data: { count: ++count, turnId: NEXT_ID }, error: null, status: 200 });
+  expect(chat.send('A new question.')).toBe(true); await chat.finished();
+  expect(bumps()).toHaveLength(2); expect(calls('secondb_chat')).toHaveLength(1);
+  expect(chat.turns[0].pairId).not.toBe(chat.turns[2].pairId);
+});
+
+test.each(['receipt', 'response', 'crisis'])('B1 screen rejects stale account %s and its finally cannot unlock the new send', async phase => {
+  count = 0;
+  const chat = screen(), held = deferred<unknown>(), newer = deferred<unknown>();
+  if (phase === 'receipt') bump = () => held.promise;
+  else primary = () => held.promise;
+  chat.send(input.message);
+  await until(() => phase === 'receipt' ? bumps().length === 1 : calls('secondb_chat').length === 1);
+  noteResolvedOwner('owner-b'); clearAccountTransition(currentAccountEpoch());
+  chat.scope.userId = 'owner-b';
+  chat.scope.usedTodayRef.current = 0;
+  chat.turns.splice(0);
+  bump = () => ({ data: { count: 1, turnId: NEXT_ID }, error: null, status: 200 });
+  primary = () => newer.promise;
+  expect(chat.send('B question')).toBe(true);
+  await until(() => calls('secondb_chat').some(([, x]) => x.body.user === 'B question'));
+  const usageWrites = chat.scope.applyUsedToday.mock.calls.length;
+  held.resolve(phase === 'receipt' ? { data: { count: 5, turnId: ID }, error: null, status: 200 }
+    : phase === 'crisis' ? failure(422, 'safety_red_zone') : success('A answer'));
+  await new Promise<void>(resolve => setImmediate(resolve));
+  await new Promise<void>(resolve => setImmediate(resolve));
+  expect(chat.scope.sending).toBe(true);
+  expect(chat.scope.applyUsedToday).toHaveBeenCalledTimes(usageWrites);
+  expect(chat.scope.publishCrisisNotice).not.toHaveBeenCalled();
+  expect(chat.turns).toHaveLength(1);
+  newer.resolve(success('B answer')); await chat.finished();
+  expect(chat.turns.map(line => line.text)).toEqual(['B question', 'B answer']);
+});
+
+test.each(['consent_required', 'purpose_limit_exceeded'])('B1 screen closes confirmed %s without offering retry', async code => {
+  const chat = screen(); primary = () => failure(code === 'consent_required' ? 403 : 429, code, code === 'consent_required' ? unknown : { ...rejected, reaskAvailable: null });
+  chat.send(input.message); await chat.finished();
+  expect(chat.canRetry()).toBe(false); expect(chat.turns[1].retryText).toBeUndefined();
+  if (code === 'purpose_limit_exceeded') {
+    expect(chat.turns[1].text).toBe('serverLimitReached');
+    expect(chat.scope.setLimitRefused).toHaveBeenCalledWith(true);
+  }
+});
+
+test('B1 screen publishes crisis once before audit completes, keeps C3 and excludes both lines from history', async () => {
+  count = 0; const chat = screen(), held = deferred<unknown>();
+  const transport = mockRpc.getMockImplementation()!;
+  mockRpc.mockImplementation((name, args) => name.startsWith('log_ai_audit') ? held.promise : transport(name, args));
+  chat.send('I want to kill myself.');
+  await until(() => chat.scope.publishCrisisNotice.mock.calls.length === 1);
+  expect(chat.scope.sending).toBe(true);
+  expect(bumps()).toHaveLength(0); expect(calls('secondb_chat')).toHaveLength(0);
+  held.resolve({ data: null, error: null }); await chat.finished();
+  expect(chat.scope.publishCrisisNotice).toHaveBeenCalledTimes(1);
+  expect(chat.turns.every(line => line.safetyZone === 'red')).toBe(true);
+  expect(chat.scope.setLimitRefused).not.toHaveBeenCalled();
+  expect(chat.canRetry()).toBe(false);
+  chat.send(input.message); await chat.finished();
+  expect(calls('secondb_chat')[0][1].body.system).not.toContain('I want to kill myself.');
+});
+
+test('B1 does not change model text: legacy and reservation paths use identical system/user messages', async () => {
+  count = 0;
+  const options = { ...input, displayName: 'Alex', personaHint: 'secondb', history: [{ role: 'user' as const, text: 'Earlier question' }] };
+  await sendChatMessage(options);
+  const before = calls('secondb_chat')[0][1].body;
+  await sendLiveChatMessage(options, makeTurn());
+  const after = calls('secondb_chat')[1][1].body;
+  expect(after.system).toBe(before.system);
+  expect(after.user).toBe(before.user);
+});
+
+test('T23 B1 previous-day receipt and answer never overwrite today; reask keeps the original reservation', async () => {
+  count = 0;
+  const day = jest.spyOn(chatLimits, 'kstDateToday').mockReturnValue('2026-10-24');
+  const chat = screen(), held = deferred<unknown>(); bump = () => held.promise;
+  primary = () => failure(503, 'key_missing', first);
+  chat.send(input.message); await until(() => bumps().length === 1);
+  day.mockReturnValue('2026-10-25');
+  chat.scope.applyUsedToday(2);
+  const writes = chat.scope.applyUsedToday.mock.calls.length;
+  held.resolve({ data: { count: 5, turnId: ID }, error: null, status: 200 });
+  await chat.finished();
+  expect(chat.scope.usedTodayRef.current).toBe(2);
+  expect(chat.scope.applyUsedToday).toHaveBeenCalledTimes(writes);
+  primary = () => success('After midnight', second);
+  chat.retry(1); await chat.finished();
+  expect(bumps()).toHaveLength(1);
+  expect(calls('secondb_chat').map(([, x]) => [x.body.chatTurnId, x.body.chatAttemptIntent]))
+    .toEqual([[ID, 'first'], [ID, 'reask']]);
+  expect(chat.scope.usedTodayRef.current).toBe(2);
+  expect(chat.scope.applyUsedToday).toHaveBeenCalledTimes(writes);
+});
+
+test('B1 answer cannot restore its receipt count over a newer usage refresh', async () => {
+  count = 0;
+  const chat = screen(), held = deferred<unknown>(); primary = () => held.promise;
+  chat.send(input.message); await until(() => calls('secondb_chat').length === 1);
+  chat.scope.applyUsedToday(4);
+  held.resolve(success()); await chat.finished();
+  expect(chat.scope.usedTodayRef.current).toBe(4);
+});
+
+test.each(['receipt', 'account'])('B1 pending usage read cannot overwrite a newer %s', async cause => {
+  const chat = screen(), held = deferred<{ used: number; adBonus: number }>();
+  chat.scope.readChatUsageDetail = () => held.promise;
+  const refresh = executeCallback<() => Promise<void>>('refreshChatUsage', chat.scope);
+  const pending = refresh();
+  if (cause === 'receipt') chat.scope.applyUsedToday(5);
+  else noteResolvedOwner('owner-b');
+  held.resolve({ used: 0, adBonus: 2 }); await pending;
+  expect(chat.scope.applyUsedToday.mock.calls).toEqual(cause === 'receipt' ? [[5]] : []);
+  expect(chat.scope.setAdBonusToday).not.toHaveBeenCalled();
+});
+
+test.each([false, true])('T23 B1 lost old-version response may reuse its slot (legacy-before-begin residual: %s)', async lostBeforeBegin => {
+  count = 0;
+  const chat = screen();
+  // A transport cannot identify which deployed version charged it. The narrow
+  // legacy-before-begin window can charge purpose twice; never synthesize a refund.
+  primary = () => { purposeCount++; return { data: null, error: new Error('response_lost') }; };
+  chat.send(input.message); await chat.finished();
+  primary = () => { if (lostBeforeBegin) purposeCount++; return success('Recovered', lostBeforeBegin ? first : second); };
+  chat.retry(1); await chat.finished();
+  expect(bumps()).toHaveLength(1);
+  expect(purposeCount).toBe(lostBeforeBegin ? 2 : 1);
+  expect(calls('secondb_chat')[1][1].body.chatAttemptIntent).toBe('reask');
+  expect(mockRpc.mock.calls.filter(([name]) => name.startsWith('refund_'))).toHaveLength(0);
 });

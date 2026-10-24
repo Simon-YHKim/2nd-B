@@ -188,7 +188,7 @@ describe("composer at the daily limit (Q-261015-82)", () => {
     expect(setCrisis).not.toHaveBeenCalled();
   });
 
-  test.each([null, 0, 5])("result with usage %s preserves or updates the actual usage display", used => {
+  test.each([null, 0, 5])("result with usage %s never overwrites a newer receipt/read", used => {
     let guard = "";
     const visitGuard = (node: ts.Node): void => {
       if (ts.isIfStatement(node) && node.expression.getText(ast) === "result.used !== null") guard = node.getText(ast);
@@ -197,12 +197,13 @@ describe("composer at the daily limit (Q-261015-82)", () => {
     visitGuard(ast);
     expect(guard).not.toBe("");
     const setUsedToday = jest.fn(); const setLimitRefused = jest.fn();
-    runInNewContext(guard, { result: { used }, setUsedToday, setLimitRefused });
+    runInNewContext(guard, { result: { used }, applyUsedToday: setUsedToday, setLimitRefused,
+      activeTurn: { read: () => ({ day: "today" }) }, kstDateToday: () => "today" });
     if (used === null) {
       expect(setUsedToday).not.toHaveBeenCalled();
       expect(setLimitRefused).not.toHaveBeenCalled();
     } else {
-      expect(setUsedToday).toHaveBeenCalledWith(used);
+      expect(setUsedToday).not.toHaveBeenCalled();
       expect(setLimitRefused).toHaveBeenCalledWith(false);
     }
   });

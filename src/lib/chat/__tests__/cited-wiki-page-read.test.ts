@@ -193,6 +193,7 @@ test("the shipping clear handler cancels before its actual conversation identity
   const clear = find((n) => ts.isArrowFunction(n) && n.body.getText(ast).includes("conversationId.current += 1")).getText(ast);
   const stop = jest.fn(); evaluate<() => void>(clear, {
     sending: false, keeping: null, keepInFlight: { current: false }, chatPlans: { busy: false }, autosaveSessionRef: { current: { stop } },
+    sendLock: { current: { busy: () => false } }, liveTurnRef: { current: null },
     conversationId: conversation, citedWiki: waiting, setTurns: jest.fn(), setKeptIdx: jest.fn(), setKeepNotice: jest.fn(), setCopyNotice: jest.fn(),
   })();
   expect(conversation.current).toBe(1); old.resolve({ data: { id: "old" }, error: null }); await settle(); expect(router.push).not.toHaveBeenCalled();

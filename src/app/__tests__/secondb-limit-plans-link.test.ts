@@ -86,5 +86,6 @@ test("only a refusal sets it, and only a reply or a granted ad bonus clears it",
   const writes = findAll((node) => ts.isCallExpression(node) && node.expression.getText(ast) === "setLimitRefused") as ts.CallExpression[];
   // Red replies now return before ordinary rendering; a known usage count
   // clears the refusal there too. Unknown usage preserves it (handler tests).
-  expect(writes.map((call) => call.arguments.map((arg) => arg.getText(ast)).join(", ")).sort()).toEqual(["false", "false", "false", "true"]);
+  // B1 also closes the pair on the proxy's confirmed purpose-limit rejection.
+  expect(writes.map((call) => call.arguments.map((arg) => arg.getText(ast)).join(", ")).sort()).toEqual(["false", "false", "false", "true", "true"]);
 });

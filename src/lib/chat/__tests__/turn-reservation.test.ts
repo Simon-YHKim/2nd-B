@@ -181,7 +181,7 @@ test("legacy transport failure is not retried", async () => {
   expect(mockRpc).toHaveBeenCalledTimes(2);
 });
 
-test("A1-U reservation consumers are dormant transitively across all production src", () => {
+test("B1 activates reservations only through the existing live chat screen", () => {
   const sources = new Map<string, string>();
   const visit = (directory: string): void => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -201,11 +201,12 @@ test("A1-U reservation consumers are dormant transitively across all production 
     && /turn-reservation/.test(source)).map(([file]) => file);
   expect(receiptImports).toEqual(["src/lib/chat/conversation-turn.ts", "src/lib/chat/turn-result-state.ts"]);
   // Import aliases, namespace imports and re-exports still name this module.
-  // Check all src, including helpers outside screens, before accepting dormancy.
+  // Type-only helpers do not activate it; every other production entry stays off.
   for (const [file, source] of sources) {
     if (file === "src/lib/chat/conversation-turn.ts") continue;
-    expect({ file, callsDormantEntry: /conversation-turn|\b(createLiveChatTurn|sendLiveChatMessage)\b/.test(source) })
-      .toEqual({ file, callsDormantEntry: false });
+    const runtime = source.replace(/import type\s*\{[^}]*\}\s*from\s*["'][^"']+["'];?/g, "");
+    expect({ file, callsLiveEntry: /conversation-turn|\b(createLiveChatTurn|sendLiveChatMessage)\b/.test(runtime) })
+      .toEqual({ file, callsLiveEntry: file === "src/app/secondb.tsx" });
   }
   const conversation = readFileSync(path.resolve(__dirname, "../conversation.ts"), "utf8");
   expect(conversation.includes("bumpChatUsageIfUnderCap")).toBe(true);
