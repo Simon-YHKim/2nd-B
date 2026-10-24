@@ -191,7 +191,7 @@ describe("T03: pre-bump vendor selection and dormant reservation dispatch", () =
     expect(result).not.toHaveProperty("turnAdmission");
   });
 
-  test("A1-P reservation consumers are dormant transitively across all production src", () => {
+  test("B1 activates the live chat turn only through the existing chat screen", () => {
     const sources = new Map<string, string>();
     const visit = (directory: string): void => {
       for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
