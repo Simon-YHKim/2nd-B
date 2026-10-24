@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { runInNewContext } from "node:vm";
 import { parse } from "yaml";
 
 // The deploy gate that stops an Edge function from shipping before the
@@ -187,6 +188,27 @@ describe("edge schema dependency gate", () => {
 });
 
 describe("edge schema dependency gate on the real repository", () => {
+  it("keeps the G4 SQL bootstrap limited to its own eight column grants", () => {
+    const deps = JSON.parse(run(["list", "export-account"]).stdout);
+    const allColumns = [...deps.selectColumns];
+    expect(allColumns.length).toBeGreaterThan(8);
+    const harness = readFileSync(path.join(root, "scripts/test-profile-import-sql.mjs"), "utf8");
+    const start = harness.indexOf("const exportDeps =");
+    const end = harness.indexOf("const grant =", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    // Execute the fixture's dependency selection, without starting psql or races.
+    const selected = runInNewContext(`${harness.slice(start, end)}\nexportDeps`, { dependencies: () => deps });
+    expect(selected.tables).toEqual(["profile_context_imports"]);
+    expect(selected.selectColumns).toEqual([
+      "created_at", "id", "item_count", "profile_change_count", "profile_restored", "status", "user_id", "withdrawn_at",
+    ].map((column) => `profile_context_imports.${column}`));
+    expect(selected.functions).toEqual([]);
+    expect(selected.functionContracts).toEqual([]);
+    expect(selected.columns).toEqual([]);
+    expect(deps.selectColumns).toEqual(allColumns);
+  });
+
   it("G4-05 requires the 0243 column grants, not just the existing table", () => {
     const deps = JSON.parse(run(["list", "export-account"]).stdout);
     expect(deps.tables).toContain("profile_context_imports");

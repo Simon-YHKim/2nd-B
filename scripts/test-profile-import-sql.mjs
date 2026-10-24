@@ -40,6 +40,7 @@ process.stdout.write(run(sql));
 // export inventory includes unrelated tables absent from this narrow bootstrap.
 const exportDeps = { ...dependencies("export-account"), functions: [], functionContracts: [],
   tables: ["profile_context_imports"], columns: [] };
+exportDeps.selectColumns = exportDeps.selectColumns.filter((column) => column.startsWith("profile_context_imports."));
 const grant = readFileSync(resolve(root, "db/migrations/0243_profile_context_import_export_grant.sql"), "utf8");
 const revoke = readFileSync(resolve(root, "db/migrations/rollback/0243_down.sql"), "utf8");
 const catalogQuery = `SELECT jsonb_agg(result)::text FROM (${requestBody(exportDeps).query}) result;`;
