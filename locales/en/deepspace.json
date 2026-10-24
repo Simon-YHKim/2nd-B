@@ -204,7 +204,7 @@
       "title": "Usage analytics and ads",
       "pendingAge": "Usage analytics and ad settings appear after your birth date is confirmed.",
       "minorLocked": "Usage analytics and ads are locked when the birth date shows an age under 18.",
-      "adultLead": "Optional. Your choice is saved and applies to Google Analytics on the web. Firebase Analytics and Microsoft Clarity are currently disabled on Android.",
+      "adultLead": "Optional and off by default. When on, usage events on the web, your device type and approximate country- or region-level location are sent to Google Analytics (United States). Activity records are deleted after 2 months, and the pseudonymous ID that recognises your device is deleted if you don't visit for 14 months. Your records and conversations are not sent, and none of it is used for ads. The app does not send usage statistics yet.",
       "checkingAge": "Checking your birth date…",
       "loadingSettings": "Loading settings…",
       "allow": "Allow usage analytics",
