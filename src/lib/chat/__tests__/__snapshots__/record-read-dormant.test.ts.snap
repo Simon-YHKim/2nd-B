@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`unchanged request bytes in en across RAG hit/miss/error and both modes 1`] = `
+[
+  "e8715205509758d2160fd84a8d658ff6501c3b7524cf65e5d98fbf9d9c5e624e",
+  "d909faa39b87be3d39015cadb05e787fa3280c3c2dbb8beea97a416eed00fcea",
+  "d909faa39b87be3d39015cadb05e787fa3280c3c2dbb8beea97a416eed00fcea",
+  "452dbbd5e58a4b1eef15b2af3c73e91673bfc119c0ea99158f9c21fe0229c471",
+  "1cfcc050886d589ecefb3d61681e53858a2eb1487bb04404b0a171db740f4ee9",
+  "1cfcc050886d589ecefb3d61681e53858a2eb1487bb04404b0a171db740f4ee9",
+]
+`;
+
+exports[`unchanged request bytes in ko across RAG hit/miss/error and both modes 1`] = `
+[
+  "602e69c36e2c29ec6c30f9bcc7a27bf1a906036ccbf771b1dbe8e334adfd6d67",
+  "5486b3df19890fbfca6d57adeb425256373e8b8371614df6c2f18fc3417f635c",
+  "5486b3df19890fbfca6d57adeb425256373e8b8371614df6c2f18fc3417f635c",
+  "ab0e1ad033338ae7436820a9a5d0bc78927cfbe5a78581f0e4774cffe086cb64",
+  "93393c781d1ae9e4a42d624232ca13af58f9b2551c30538c8002a6ce71e1de64",
+  "93393c781d1ae9e4a42d624232ca13af58f9b2551c30538c8002a6ce71e1de64",
+]
+`;

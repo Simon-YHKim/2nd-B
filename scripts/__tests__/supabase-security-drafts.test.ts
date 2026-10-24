@@ -93,6 +93,10 @@ const pendingDrafts: Record<string, { runner: string; workflowInvocation: string
     runner: "scripts/test-deletion-receipt-terminal.mjs",
     workflowInvocation: 'node scripts/test-deletion-receipt-terminal.mjs 5432 t04_arbitration_test_terminal_ci',
   },
+  "UNNUMBERED_record_body_consent.sql": {
+    runner: "scripts/test-record-body-consent-sql.mjs",
+    workflowInvocation: "node scripts/test-record-body-consent-sql.mjs 5432 record_read_local record_read_test_ci",
+  },
   "UNNUMBERED_before_user_created_signup.sql": {
     runner: "scripts/test-before-user-created-signup.py",
     workflowInvocation: "python3 scripts/test-before-user-created-signup.py 5432 t06_signup_test_ci",

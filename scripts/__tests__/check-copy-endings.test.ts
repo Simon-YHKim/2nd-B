@@ -71,7 +71,9 @@ describe("approved exceptions stay narrow", () => {
   test("retains the existing 17 version-bound consent strings but no new/repurposed ones", () => {
     const current = bundle("consent.json");
     expect(scan("consent.json", current).hits).toEqual([]);
-    expect(scan("consent.json", current).excluded).toBe(17);
+    expect(scan("consent.json", { serviceControl: current.serviceControl }).excluded).toBe(17);
+    // T10's refusal is the user's own choice, separately pinned below.
+    expect(scan("consent.json", current).excluded).toBe(18);
     current.serviceControl.saved = "새 내용도 자동 저장해요.";
     current.serviceControl.newStatus = "추가된 안내예요.";
     expect(scan("consent.json", current).hits.map((hit) => hit.key)).toEqual([
@@ -85,6 +87,13 @@ describe("approved exceptions stay narrow", () => {
     expect(scan("interview.json", { drill: { dontKnow: "모르겠어요", body: "모르겠어요" } }).hits)
       .toMatchObject([{ key: "drill.body" }]);
     expect(scan("peer.json", bundle("peer.json")).hits).toEqual([]);
+  });
+
+  test("T10 refusal preserves the exact user utterance, not arbitrary consent copy", () => {
+    expect(endingExclusion({ file: "consent.json", key: "recordRead.notNow", value: "지금은 안 할게요" })).toBeTruthy();
+    expect(endingExclusion({ file: "consent.json", key: "recordRead.notNow", value: "앱이 읽을게요" })).toBeNull();
+    expect(scan("consent.json", { recordRead: { notNow: "지금은 안 할게요", status: "앱이 읽을게요" } }).hits)
+      .toMatchObject([{ key: "recordRead.status" }]);
   });
 
   test("day-limit fact sentences retain the normal ending policy", () => {
