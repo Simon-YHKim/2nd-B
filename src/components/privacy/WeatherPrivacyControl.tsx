@@ -22,20 +22,37 @@ export function WeatherPrivacyControl() {
   const evidence = consentEvidence(status, snapshot?.revoked);
   const confirmed = evidence !== "unknown";
   const scope = useRef<AbortController | null>(null);
+  const pendingRead = useRef<object | null>(null);
   const saving = useRef(false);
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [readBusy, setReadBusy] = useState(false);
+  const [failure, setFailure] = useState<"read" | "save" | null>(null);
+  const failed = failure !== null;
   // A masked OFF or failed status read must not disable withdrawal; initial loading still waits.
   const canRevoke = !!userId && isMinor === false && evidence !== "off" && (!!status || failed);
+  const readConsent = useCallback(async () => {
+    const controller = scope.current;
+    if (!userId || isMinor !== false || !controller || controller.signal.aborted || pendingRead.current || saving.current) return;
+    const attempt = {};
+    pendingRead.current = attempt; setReadBusy(true);
+    const isCurrent = () => !controller.signal.aborted && pendingRead.current === attempt;
+    try {
+      const next = await loadWeatherConsent(userId, controller.signal);
+      if (isCurrent()) { setSnapshot({ ownerId: userId, status: next }); setFailure(null); }
+    } catch {
+      if (isCurrent()) setFailure("read");
+    } finally {
+      if (isCurrent()) { pendingRead.current = null; setReadBusy(false); }
+    }
+  }, [userId, isMinor]);
   useFocusEffect(useCallback(() => {
     const controller = new AbortController();
     scope.current = controller;
-    setSnapshot(null); setFailed(false); setBusy(false); saving.current = false;
-    if (userId && isMinor === false) void loadWeatherConsent(userId, controller.signal).then((next) => {
-      if (!controller.signal.aborted) setSnapshot({ ownerId: userId, status: next });
-    }).catch(() => { if (!controller.signal.aborted) setFailed(true); });
+    setSnapshot(null); setFailure(null); setBusy(false); saving.current = false;
+    pendingRead.current = null; setReadBusy(false);
+    void readConsent();
     return () => controller.abort();
-  }, [userId, isMinor]));
+  }, [readConsent]));
   // The device's own location permission, read without asking for it. Consent can be on while
   // this device never allowed location; the row then shows the sentence the weather sheet already uses for that state (Z75).
   // Read again when the app comes back to the front, since the permission is changed in OS settings.
@@ -54,7 +71,9 @@ export function WeatherPrivacyControl() {
   async function revoke() {
     const signal = scope.current?.signal;
     if (!userId || !canRevoke || saving.current || !signal || signal.aborted) return;
-    saving.current = true; setBusy(true); setFailed(false);
+    // Withdrawal supersedes a pending retry; its late read must not replace the write result.
+    pendingRead.current = null; setReadBusy(false);
+    saving.current = true; setBusy(true); setFailure(null);
     try {
       // Keep an unknown status explicit; the client uses revision 0 only for the request.
       const next = await saveWeatherConsent(userId, status, false, i18n.language, signal);
@@ -65,7 +84,7 @@ export function WeatherPrivacyControl() {
           const retained = consentAfterFailedRevoke(status, error.latest);
           if (retained !== status && retained) setSnapshot({ ownerId: userId, status: retained });
         }
-        setFailed(true);
+        setFailure("save");
       }
     }
     finally { if (!signal.aborted) { saving.current = false; setBusy(false); } }
@@ -81,7 +100,14 @@ export function WeatherPrivacyControl() {
       <Text variant="body">{isMinor !== false ? t("phone.board.weather.off") : confirmed ? t(evidence === "on" ? "phone.board.weather.on" : "phone.board.weather.off") : status || failed ? "" : t("common:states.loading")}</Text>
     </Pressable>
     {deviceNotAllowed ? <Text variant="caption" testID="weather-device-not-allowed">{t(Platform.OS === "web" ? "phone.board.weather.webSettingsBody" : "phone.board.weather.settingsBody")}</Text> : null}
-    {failed ? <Text variant="caption" accessibilityRole="alert">{t("phone.board.weather.failed")}</Text> : null}
+    {failure === "read" ? <View>
+      <Text variant="caption" accessibilityRole="alert">{t("phone.board.generation.unavailable")}</Text>
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: readBusy || busy, busy: readBusy }}
+        disabled={readBusy || busy} onPress={() => void readConsent()} style={styles.row}>
+        <Text variant="body">{t("common:actions.retry")}</Text>
+      </Pressable>
+    </View> : null}
+    {failure === "save" ? <Text variant="caption" accessibilityRole="alert">{t("phone.board.weather.failed")}</Text> : null}
   </View>;
 }
 const styles = StyleSheet.create({
