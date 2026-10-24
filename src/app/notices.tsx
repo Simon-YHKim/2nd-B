@@ -7,6 +7,7 @@ import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneScrollView
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Linking, Platform, StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
+import { Text } from "@/components/ui/Text";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -489,7 +490,7 @@ export default function NoticesScreen() {
 
   // Newest first: remote rows and bundled release notes interleaved by date.
   // Composed in src/lib/notices/center.ts.
-  const data = noticeCenter.notices;
+  const data = noticeCenter.hydrated ? noticeCenter.notices : [];
   const selectedIndex = selectedId == null ? -1 : data.findIndex((item) => item.id === selectedId);
   const selected = selectedIndex < 0 ? null : data[selectedIndex];
 
@@ -510,6 +511,12 @@ export default function NoticesScreen() {
           keyExtractor={(item) => item.id}
           style={styles.noticeCard}
           contentContainerStyle={styles.list}
+          ListHeaderComponent={
+            !noticeCenter.hydrated ? <Text variant="caption" style={styles.listStatus}>{t("phone.noticeLoading")}</Text> : null
+          }
+          ListEmptyComponent={
+            noticeCenter.hydrated ? <Text variant="caption" style={styles.listStatus}>{t("phone.noticeEmpty")}</Text> : null
+          }
           ItemSeparatorComponent={() => <View style={styles.divider} />}
           renderItem={({ item }) => {
             const unread = noticeCenter.isUnread(item.id);
@@ -590,6 +597,7 @@ const styles = StyleSheet.create({
     backgroundColor: m3.color.surfaceContainer,
   },
   list: { backgroundColor: m3.color.surfaceContainer },
+  listStatus: { color: phoneIos.label2, lineHeight: 20, paddingBottom: 2 },
   noticeRow: {
     minHeight: 68,
     flexDirection: "row",
