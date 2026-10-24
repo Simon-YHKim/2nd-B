@@ -1,5 +1,9 @@
 # Database Migrations
 
+T06's [Before User Created hook draft](../docs/qa/T06-SIGNUP-HOOK.md) is unnumbered
+and OFF. Device limiting and the other documented activation evidence remain
+required; installing the draft is not authorization to enable the Auth hook.
+
 For the inactive service-contract drafts and erasure registry promotion, follow
 [the forward-migration runbook](../docs/qa/ERASURE-FORWARD-260926.md). New registry
 rows use a separate additions-only migration and `forwardAdditions` metadata;

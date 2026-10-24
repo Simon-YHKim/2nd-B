@@ -780,9 +780,10 @@ results.push(
       // 레거시는 PremiumToast + toastWrap + existingHelpCard 로 피드백을 냈다.
       // 라이브는 같은 자리를 role="alert" + live region 으로 낸다 — 표면 이름이
       // 아니라 스크린리더에 알려지는지를 본다. "이미 가입된 계정" 안내도 같다.
-      signUp.includes('accessibilityRole="alert" accessibilityLiveRegion="polite"') &&
-      signUp.includes('t("auth:signUp.existingAccountTitle")') &&
-      signUp.includes('accessibilityLabel={t("auth:signUp.existingAccountSignIn")}') &&
+      signUp.includes('accessibilityRole="alert"') &&
+      signUp.includes('accessibilityLiveRegion={tone === "danger" ? "assertive" : "polite"}') &&
+      signUpHook.includes('t("errors.signUpRefused")') &&
+      !signUp.includes('t("auth:signUp.existingAccountTitle")') &&
       signUpHook.includes('t("errors.signUpFailed")') &&
       signUpHook.includes('t("errors.oauthSignUpStartFailed"') &&
       // 배송 /reset-password 는 실패를 assertive live region 으로 알린다.
@@ -2286,7 +2287,7 @@ results.push(
       const resetHelpers = read("src/lib/auth/reset-password-helpers.ts");
       const en = read("locales/en/auth.json");
       const ko = read("locales/ko/auth.json");
-      const screens = [signIn, signUp, resetPassword, completeProfile, signInHook, resetHelpers].join("\n");
+      const screens = [signIn, signUp, resetPassword, completeProfile, signInHook, resetHelpers, read("src/lib/auth/useSignUpForm.ts")].join("\n");
       const codeRequired = [
         't("common.checking")',
         't("common.entryArtwork")',
@@ -2321,10 +2322,8 @@ results.push(
         't("auth:signUp.passwordHint")',
         't("auth:signUp.signInHint")',
         't("auth:signUp.manualLink")',
-        // J3 recovery card (sign-up): mirrors the resetHelpCard pins above.
-        't("auth:signUp.existingAccountTitle")',
-        't("auth:signUp.existingAccountBody")',
-        't("auth:signUp.existingAccountSignIn")',
+        // T06 / Q-261013-79 replaces the unused card with the explicit hook notice.
+        't("errors.signUpRefused")',
         't("completeProfile.submitHint")',
         't("completeProfile.cancelHint")',
       ];
@@ -2344,7 +2343,7 @@ results.push(
         // 오역했고, 그 항목의 목적지는 /manual 즉 안내서였다. 이 검사가 지키는 것은
         // **카피가 화면이 아니라 로케일에 산다**는 것이지 특정 문구가 아니다.
         '"manualLink": "New here? Read the 1-min user guide"',
-        '"existingAccountBody": "If this email is already registered',
+        '"signUpRefused": "You cannot create an account with this address.',
       ];
       const koLocaleRequired = [
         '"common"',
@@ -2358,7 +2357,7 @@ results.push(
         '"resetPassword"',
         '"expiredBody": "비밀번호 재설정 메일에 있는 링크로 열어 주세요',
         '"manualLink": "이 앱이 처음이라면 사용 안내서 보기"',
-        '"existingAccountBody": "이 이메일로 가입된 계정이 있다면',
+        '"signUpRefused": "이 주소로는 계정을 만들 수 없습니다.',
       ];
       const forbiddenScreenCopy = [
         "Checking…",

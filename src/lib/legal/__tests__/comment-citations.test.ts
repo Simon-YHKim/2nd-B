@@ -95,7 +95,7 @@ const CITES: CommentCite[] = [
   },
   {
     from: "src/lib/supabase/consent.ts",
-    cite: "src/lib/auth/useSignUpForm.ts:419",
+    cite: "src/lib/auth/useSignUpForm.ts:412",
     symbol: "recordConsentBestEffort(",
     why: "원장에 **쓰는** 자리. 화면 파일이 아니라 화면의 훅에 있다는 것이 이 주석의 요점.",
   },

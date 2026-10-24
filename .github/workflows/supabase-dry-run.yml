@@ -90,6 +90,11 @@ jobs:
           CREATE DATABASE polaris_test_ci OWNER polaris_local;
           SQL
           node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci
+      - name: Exercise inactive T06 Before User Created draft
+        env:
+          PGPASSWORD: postgres
+        run: |
+          python3 scripts/test-before-user-created-signup.py 5432 t06_signup_test_ci
       - name: Exercise signup consent forward contract
         env:
           PGPASSWORD: postgres

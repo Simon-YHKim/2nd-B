@@ -66,7 +66,7 @@ export function DeepSpaceSignUpDesignScreen() {
     isMinorAge,
     canSubmit,
     oauthSubmitting,
-    existingAccountHelp,
+    // T06 refusal uses the single notice above submit.
     confirmSentTo,
     confirmCode,
     setConfirmCode,
@@ -429,38 +429,6 @@ export function DeepSpaceSignUpDesignScreen() {
         onChange={setConsent}
         canLeaveGate={canLeaveGate}
       />
-
-      {existingAccountHelp ? (
-        <PixelSurface
-          variant="frame"
-          background={m3.color.errorContainer}
-          style={styles.sectionSurface}
-          contentStyle={styles.sectionContent}
-        >
-          <View accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.sectionContent}>
-            <Text style={[styles.sectionTitle, styles.errorText]}>
-              {t("auth:signUp.existingAccountTitle")}
-            </Text>
-            <Text style={[styles.bodyText, styles.errorText]}>
-              {t("auth:signUp.existingAccountBody")}
-            </Text>
-            <PixelPressable
-              variant="bevel"
-              onPress={() => {
-                if (canLeaveGate()) router.push("/sign-in");
-              }}
-              disabled={actionBusy}
-              accessibilityLabel={t("auth:signUp.existingAccountSignIn")}
-              accessibilityHint={t("auth:signUp.signInHint")}
-              fullWidth
-              contentStyle={styles.linkContent}
-            >
-              <Text style={styles.linkText}>{t("auth:signUp.existingAccountSignIn")}</Text>
-              <PixelGlyph name="arrowForward" color={m3.color.primary} size={20} />
-            </PixelPressable>
-          </View>
-        </PixelSurface>
-      ) : null}
 
       {visibleProviders.length > 0 || naverEnabled ? (
         <PixelSurface variant="frame" style={styles.sectionSurface} contentStyle={styles.providerSection}>
@@ -972,7 +940,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   disabledText: { color: m3.color.onSurfaceVariant },
-  errorText: { color: m3.color.onErrorContainer },
   linkContent: {
     minHeight: m3.minTouch,
     flexDirection: "row",
