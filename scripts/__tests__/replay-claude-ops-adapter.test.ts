@@ -27,7 +27,7 @@ test("runs the actual button builder/parser with reviewed snapshots and cannot r
     schemaFailures: { numerator: 7, denominator: 12 }, acceptedOutsideSchema: 3, parserChangedItems: 3,
     parserGuidanceNumberLoss: 2 });
   for (const [path, hash] of Object.entries(result.sourceSha256)) {
-    expect(hash).toBe(createHash("sha256").update(readFileSync(join(root, path))).digest("hex"));
+    expect(hash).toBe(createHash("sha256").update(readFileSync(join(root, path), "utf8").replace(/\r\n/g, "\n")).digest("hex"));
   }
   const ordinary = row("valid-envelope-en");
   expect(ordinary.prompt).toMatchObject({ purpose: "ops_recommend", minor: false, locale: "en",
@@ -41,6 +41,14 @@ test("runs the actual button builder/parser with reviewed snapshots and cannot r
   expect(ordinary.parsed).toHaveLength(1);
   expect(row("valid-envelope-ko").prompt?.system).toContain("한 가지 생활 영역");
   expect(result.rows.every((sample) => sample.boundaryExecuted === false && sample.screen === null && sample.providerRaw === null)).toBe(true);
+});
+
+test("reviewed source pins accept either checkout EOL while content drift still fails", async () => {
+  const sources = loadOpsAdapterSources(root);
+  for (const eol of ["\n", "\r\n"]) {
+    const converted = Object.fromEntries(Object.entries(sources).map(([file, text]) => [file, text.replace(/\r?\n/g, eol)]));
+    expect((await replayClaudeOpsAdapter(root, converted)).counts).toEqual(result.counts);
+  }
 });
 
 test("does not consume fixed replies or load synthetic notes when the real local preference gate is closed", () => {
