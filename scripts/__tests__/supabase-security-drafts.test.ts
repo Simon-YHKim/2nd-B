@@ -450,7 +450,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     const draft = read("db/migration-drafts/UNNUMBERED_crisis_ai_hold.sql");
     const projections = {
       records: "id user_id kind topic body summary structured prompt audit_period tags ai_followup created_at embedding embedding_model",
-      sources: "id user_id kind title source_url storage_path frontmatter tags ingested captured_at",
+      sources: "id user_id kind title source_url storage_path frontmatter tags ingested captured_at simon_relevance",
       wiki_pages: "id user_id slug kind title body_md frontmatter tags source_id created_at updated_at embedding embedding_model",
     };
     for (const [table, columns] of Object.entries(projections)) {

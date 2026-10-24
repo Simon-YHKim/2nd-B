@@ -85,7 +85,7 @@ source 페이지를 다른 대상에 붙이거나 연결을 지워 이미 알게
 | 뷰 | 열 | 현재 읽기 근거 |
 | --- | --- | --- |
 | `records_ai_eligible` | `id, user_id, kind, topic, body, summary, structured, prompt, audit_period, tags, ai_followup, created_at, embedding, embedding_model` | `records/load-structured.ts`, `records/records-embeddings.ts`, `persona/build.ts`, `persona/seven-proposal-context.ts`, `persona/role-cards.ts`, `dashboard/load.ts`, `wiki/context-pack.ts`; `0071_records_pgvector.sql`의 `match_records` 결과·필터·벡터 정렬 |
-| `sources_ai_eligible` | `id, user_id, kind, title, source_url, storage_path, frontmatter, tags, ingested, captured_at` | `wiki/queries.ts`의 소유·수집 상태 필터와 시간 정렬; `wiki/phase1.ts`, `phase2.ts`, `promote-pending.ts`, `export.ts`의 본문 다운로드·분류·승격·문맥 입력 |
+| `sources_ai_eligible` | `id, user_id, kind, title, source_url, storage_path, frontmatter, tags, ingested, captured_at, simon_relevance` | `wiki/queries.ts`의 소유·수집 상태 필터와 시간 정렬; `wiki/phase1.ts`, `phase2.ts`, `promote-pending.ts`, `export.ts`의 본문 다운로드·분류·승격·문맥 입력 |
 | `wiki_pages_ai_eligible` | `id, user_id, slug, kind, title, body_md, frontmatter, tags, source_id, created_at, updated_at, embedding, embedding_model` | `wiki/queries.ts`의 소유·종류·출처·시간 조회; `wiki/export.ts`, `embeddings.ts`, `materialize.ts`; `0047_wiki_pgvector.sql`의 `match_wiki_pages` 결과·필터·벡터 정렬 |
 
 `system_tags`를 쓰는 northstar·build·role-cards·export 등은 뷰 이름만 바꾸면 안 된다.

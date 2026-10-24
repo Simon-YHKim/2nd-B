@@ -160,7 +160,7 @@ FROM public.records r WHERE NOT r.ai_hold AND NOT r.interview_ai_hold;
 CREATE OR REPLACE VIEW public.sources_ai_eligible
 WITH (security_invoker = true, security_barrier = true) AS
 SELECT s.id, s.user_id, s.kind, s.title, s.source_url, s.storage_path,
-       s.frontmatter, s.tags, s.ingested, s.captured_at
+       s.frontmatter, s.tags, s.ingested, s.captured_at, s.simon_relevance
 FROM public.sources s WHERE NOT s.ai_hold;
 CREATE OR REPLACE VIEW public.wiki_pages_ai_eligible
 WITH (security_invoker = true, security_barrier = true) AS
