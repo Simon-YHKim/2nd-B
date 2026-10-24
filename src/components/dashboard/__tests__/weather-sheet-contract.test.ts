@@ -50,8 +50,8 @@ test("unconfirmed status after 429/503 exposes a withdrawal button without a che
   const privacy = read("src/components/privacy/WeatherPrivacyControl.tsx");
   // Every rejected status read (including 429/503) leaves the owner-bound snapshot unknown.
   expect(privacy).toContain("snapshot?.ownerId === userId ? snapshot.status : null");
-  expect(privacy).toContain("setSnapshot(null); setFailed(false)");
-  expect(privacy).toContain(".catch(() => { if (!controller.signal.aborted) setFailed(true); })");
+  expect(privacy).toContain("setSnapshot(null); setFailure(null)");
+  expect(privacy).toContain('if (isCurrent()) setFailure("read")');
   expect(privacy).toContain('const confirmed = evidence !== "unknown"');
   expect(privacy).toContain('evidence !== "off" && (!!status || failed)');
   expect(privacy).toContain('accessibilityRole={confirmed ? "switch" : "button"}');
