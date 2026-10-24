@@ -7,9 +7,9 @@ describe("Indonesian home copy", () => {
   test("localizes the constellation kind label", () => {
     const home = JSON.parse(readFileSync(path.join(root, "locales/id/home.json"), "utf8"));
 
-    // The round replaced the loanword "Area" with proper Indonesian. The guard is
-    // the line below - the label must not fall back to the English "Domain".
-    expect(home.ds.home.kind.domain).toBe("Bidang");
-    expect(home.ds.home.kind.domain).not.toBe("Domain");
+    // Z62 / T47: this label belongs to the seven stars, not the life areas.
+    // Keep it Indonesian and distinct from the old life-area label.
+    expect(home.ds.home.kind.domain).toBe("Bintang");
+    expect(home.ds.home.kind.domain).not.toBe("Bidang");
   });
 });
