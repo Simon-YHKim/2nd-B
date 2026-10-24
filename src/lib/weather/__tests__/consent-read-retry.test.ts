@@ -133,6 +133,8 @@ test.each([true, false])("retry success clears the error and displays confirmed 
   expect(h.load).toHaveBeenNthCalledWith(2, "owner-a", h.scope.current!.signal);
   expect(h.state.snapshot).toEqual({ ownerId: "owner-a", status: consent(enabled) });
   expect(h.presentation()).toMatchObject({ readError: false, saveError: false, label: `phone.board.weather.${enabled ? "on" : "off"}`, canRevoke: enabled });
+  // A retry only reads; it must never write consent.
+  expect(h.save).not.toHaveBeenCalled();
 });
 
 test("retry stays a read error while pending, ignores duplicate presses and remains retryable on failure", async () => {
@@ -148,6 +150,7 @@ test("retry stays a read error while pending, ignores duplicate presses and rema
   await first;
   expect(h.pendingRead.current).toBeNull();
   expect(h.presentation()).toMatchObject({ readError: true, saveError: false, retryDisabled: false });
+  expect(h.save).not.toHaveBeenCalled();
 });
 
 test.each(["resolve", "reject"] as const)("leaving during retry ignores its late %s and all state writes", async (settle) => {
@@ -284,8 +287,15 @@ test.each(["ko", "en", "es", "pt", "id"])("%s reuses existing, distinct read/sav
   expect(ops.phone.board.generation.unavailable.length).toBeGreaterThan(0);
   expect(common.actions.retry.length).toBeGreaterThan(0);
   expect(ops.phone.board.generation.unavailable).not.toBe(ops.phone.board.weather.failed);
-  if (locale === "ko") {
-    expect(ops.phone.board.generation.unavailable).toBe("불러오지 못했습니다. 다시 시도해 주세요.");
-    expect(common.actions.retry).toBe("다시 시도");
-  }
+  // The read-failure line borrows the board's generation key: pin every language so a board-only
+  // rewording cannot silently change what the consent row says.
+  const expected: Record<string, [string, string]> = {
+    ko: ["불러오지 못했습니다. 다시 시도해 주세요.", "다시 시도"],
+    en: ["Could not load. Please try again.", "Retry"],
+    es: ["No se pudo cargar. Vuelve a intentarlo.", "Reintentar"],
+    pt: ["Não foi possível carregar. Tente novamente.", "Tentar novamente"],
+    id: ["Tidak dapat memuat. Silakan coba lagi.", "Coba lagi"],
+  };
+  expect(ops.phone.board.generation.unavailable).toBe(expected[locale][0]);
+  expect(common.actions.retry).toBe(expected[locale][1]);
 });
