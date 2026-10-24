@@ -66,7 +66,7 @@ import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { isAiExcludedSource } from "@/lib/wiki/ai-exclusion";
 import { isProfileContextImportSource, SourceImportManagedError } from "@/lib/wiki/profile-context-source";
 import { generateSourcePage } from "@/lib/wiki/phase2";
-import { getAiRecord } from "@/lib/safety/ai-read";
+import { getAiRecord, hasAiHeldRows } from "@/lib/safety/ai-read";
 import { getSource, updateSourceTags } from "@/lib/wiki/queries";
 import { downloadRawClipping } from "@/lib/wiki/storage";
 import { dismissTask, sendToBackground, startTask, useTaskStatus } from "@/lib/tasks/store";
@@ -328,6 +328,17 @@ async function loadSafeBatchText(
   );
   throwIfCancelled(input.signal);
   const eligible = entries.filter((entry): entry is readonly [string, string] => entry !== null);
+  if (eligible.length === 0) {
+    // Empty success would keep the reservation spent. Check only hold metadata
+    // to distinguish stored holds from deleted selections, then refund both.
+    const held = await Promise.all([
+      hasAiHeldRows(input.userId, "records", input.items.filter(item => item.refKind === "record").map(item => item.refId)),
+      hasAiHeldRows(input.userId, "sources", input.items.filter(item => item.refKind === "source").map(item => item.refId)),
+    ]);
+    throwIfCancelled(input.signal);
+    if (held.some(Boolean)) throw new ReasoningSafetyError();
+    throw new Error("reasoning_no_eligible_items");
+  }
   const crisis = eligible.map(([, text]) =>
     classifyInputAnyLocale(text, input.locale, { minor: input.minor }),
   ).find((result) => result.zone === "red");
@@ -1085,6 +1096,7 @@ export default function ReasoningScreen() {
             setPhase("idle");
             setLimitSheetVisible(true);
           } else if (error instanceof ReasoningSafetyError) {
+            refreshUsage();
             setCrisisHotline(error.hotline);
             setPhase("idle");
             setCrisisVisible(true);

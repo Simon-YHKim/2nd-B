@@ -41,6 +41,7 @@ function mockQuery(table: string) {
   let action = "select";
   let payload: Row | Row[] = {};
   let max = Infinity;
+  let offset = 0;
   const run = (): QueryResult => {
     const base = table.replace(/_ai_eligible$/, "");
     const rows = (mockTables[base] ??= []);
@@ -62,7 +63,7 @@ function mockQuery(table: string) {
       });
     } else if (action === "update") data.forEach((row) => Object.assign(row, payload));
     else if (action === "delete") mockTables[table] = rows.filter((row) => !data.includes(row));
-    return { data: data.slice(0, max).map((row) => ({ ...row })), error: null };
+    return { data: data.slice(offset, offset + max).map((row) => ({ ...row })), error: null };
   };
   const q = {
     select: () => q,
@@ -71,6 +72,7 @@ function mockQuery(table: string) {
     not: (key: string, _op: string, value: unknown) => { filters.push((row) => row[key] != value); return q; },
     overlaps: (key: string, values: unknown[]) => { filters.push((row) => (row[key] ?? []).some((v: unknown) => values.includes(v))); return q; },
     limit: (limit: number) => { max = limit; return q; },
+    range: (from: number, to: number) => { offset = from; max = to - from + 1; return q; },
     order: () => q,
     insert: (value: Row | Row[]) => { action = "insert"; payload = value; return q; },
     upsert: (value: Row | Row[]) => { action = "upsert"; payload = value; return q; },
@@ -284,6 +286,18 @@ test("saved exchange keeps original roles and reaches the next real chat prompt 
   await flushAuditWriteOutbox();
   expect(mockTables.ai_audit_log).toEqual(expect.arrayContaining([expect.objectContaining({ p_purpose: "secondb_chat", p_safety_zone: "green" })]));
   expect(JSON.stringify(mockTables.ai_audit_log)).not.toContain(ORIGINAL);
+});
+
+test("holding a promoted exchange prevents its source transcript from re-entering the next chat", async () => {
+  const saved = await captureFromMarkdown({ userId: OWNER, rawMd: exchangeMarkdown("Tool change", ORIGINAL), kindOverride: "self_knowledge", userTags: [CHAT_KEEP_TAG] });
+  const promoted = await generateSourcePage(OWNER, saved.source.id);
+  mockTables.wiki_pages.find(row => row.id === promoted.page.id)!.ai_hold = true;
+  expect(mockTables.sources.find(row => row.id === saved.source.id)!.ai_hold).toBe(false);
+  const calls = jest.spyOn(boundary, "callLlm");
+  await ask();
+  expect(calls).toHaveBeenCalled();
+  expect(calls.mock.calls[0][0].system).not.toContain(ORIGINAL);
+  expect((await exportUserWiki(OWNER)).prompt).toContain(ORIGINAL);
 });
 
 test("an ordinary source stays title-only until explicit promotion; citation opens that exact owned page", async () => {

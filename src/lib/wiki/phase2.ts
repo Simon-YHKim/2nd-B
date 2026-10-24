@@ -21,6 +21,7 @@ import { downloadRawClipping } from "./storage";
 import { embedAndStorePage } from "./embeddings";
 import { getEnv } from "../env";
 import type { WikiPageRow } from "./types";
+import { hasAiHeldRows } from "../safety/ai-read";
 
 export interface GenerateSourcePageResult {
   page: WikiPageRow;
@@ -42,6 +43,13 @@ export class SourceNotFoundError extends Error {
   constructor(public readonly sourceId: string) {
     super(`No source row for id=${sourceId}`);
     this.name = "SourceNotFoundError";
+  }
+}
+
+export class SourceAiHeldError extends Error {
+  constructor() {
+    super("source_ai_held");
+    this.name = "SourceAiHeldError";
   }
 }
 
@@ -70,7 +78,10 @@ function bodyFallback(frontmatter: Record<string, unknown> | null): string | nul
  */
 export async function generateSourcePage(userId: string, sourceId: string): Promise<GenerateSourcePageResult> {
   const source = await getSource(userId, sourceId, true);
-  if (!source) throw new SourceNotFoundError(sourceId);
+  if (!source) {
+    if (await hasAiHeldRows(userId, "sources", [sourceId])) throw new SourceAiHeldError();
+    throw new SourceNotFoundError(sourceId);
+  }
   if (isProfileContextImportSource(source.frontmatter)) throw new SourceImportManagedError(sourceId);
 
   // storage_path being set is NOT evidence the object exists: capture.ts writes

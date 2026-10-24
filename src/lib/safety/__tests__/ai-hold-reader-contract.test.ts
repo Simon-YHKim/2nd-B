@@ -50,6 +50,25 @@ test("role-card preparation also opts into eligible assessment enrichment", () =
   expect(snapshot).toContain("aiOnly = false");
   expect(snapshot).toContain("loadLatestMbti(supabase, userId, aiOnly)");
   expect(snapshot).toContain("loadLatestAttachment(supabase, userId, aiOnly)");
+  expect(fn("src/lib/persona/role-cards.ts", "proposeRoleCards"))
+    .toContain("if (generationId) return recheckRoleProposalEvidence(userId, await loadRoleCards(userId))");
+});
+
+test("manual promotion surfaces the held-source notice on both user entry points", () => {
+  for (const path of [
+    "src/screens/deepspace/dds-sources-screen.tsx",
+    "src/screens/deepspace/dds-record-detail-screen.tsx",
+  ]) {
+    expect(read(path)).toContain("instanceof SourceAiHeldError");
+    expect(read(path)).toContain('"wiki:aiHeld"');
+  }
+  expect(read("src/screens/deepspace/dds-record-detail-screen.tsx"))
+    .toMatch(/instanceof SourceAiHeldError[\s\S]*?setActionError\(message\)[\s\S]*?announceForAccessibility\(message\)/);
+});
+
+test("all-held reasoning reuses the refund and crisis notice path, then refreshes usage", () => {
+  const code = read("src/app/reasoning.tsx");
+  expect(code).toMatch(/else if \(error instanceof ReasoningSafetyError\) \{\s*refreshUsage\(\);\s*setCrisisHotline\(error.hotline\);\s*setPhase\("idle"\);\s*setCrisisVisible\(true\)/);
 });
 
 test("ordinary UI/export/count/storage recovery readers remain unfiltered", () => {
@@ -69,11 +88,19 @@ function sqlFunction(sql: string, name: string): string {
   if (!block) throw new Error(`Missing SQL ${name}`);
   return block[0];
 }
-test.each(["match_records", "match_wiki_pages"])("server search draft changes only the source view: %s", name => {
+test.each(["match_records", "match_wiki_pages"])("server search draft adds the view predicate on indexable base tables: %s", name => {
   const before = sqlFunction(read("db/migrations/0142_embedding_provenance.sql"), name);
   const after = sqlFunction(draft, name);
-  expect(after).toBe(before.replace("FROM records r", "FROM public.records_ai_eligible r")
-    .replace("FROM wiki_pages w", "FROM public.wiki_pages_ai_eligible w"));
+  expect(after).toBe(before.replace("FROM records r", "FROM public.records r")
+    .replace("FROM wiki_pages w", "FROM public.wiki_pages w")
+    .replace("WHERE r.user_id = p_user_id", "WHERE r.user_id = p_user_id\n    AND NOT r.ai_hold AND NOT r.interview_ai_hold")
+    .replace("WHERE w.user_id = p_user_id", "WHERE w.user_id = p_user_id\n    AND NOT w.ai_hold\n    AND (w.source_id IS NULL OR EXISTS (\n      SELECT 1 FROM public.sources s\n      WHERE s.id = w.source_id AND s.user_id = w.user_id AND NOT s.ai_hold\n    ))"));
+});
+
+test("the draft is ready for runner-owned transactions and documents the apply boundary", () => {
+  expect(draft).not.toMatch(/^\s*(?:BEGIN|COMMIT)\s*;/m);
+  expect(draft).toContain("number this draft -> Relay applies it -> write-wiring slice");
+  expect(draft).toContain("0270_down drops only the views");
 });
 test.each(["reserve_polaris_generation", "polaris_evidence_snapshot"])("Polaris draft adds hold exclusion without changing owner/locks/settlement: %s", name => {
   const before = sqlFunction(read("db/migrations/0225_interview_transcript_ledger.sql"), name);

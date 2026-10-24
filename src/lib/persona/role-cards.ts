@@ -15,6 +15,7 @@ import { rpcWithCapturedSession } from "../supabase/captured-session-client";
 import { failPolarisGeneration, loadPolarisQuota, reservePolarisGeneration } from "./polaris-quota";
 import { isQaPolarisAutoEligible } from "./polaris-progress";
 import { beginAccountSessionLease } from "../auth/account-session-lease";
+import { aiEligibleMatchIds } from "../safety/ai-read";
 
 export const ROLE_CARDS_KEY = "role_cards_v1";
 export interface RoleCard extends SynthesizedPersona {
@@ -72,6 +73,17 @@ export async function loadRoleCards(userId: string): Promise<RoleCard[]> {
   if (!userId) return [];
   const patterns = await readPatterns(userId);
   return parseRoleCards(patterns?.[ROLE_CARDS_KEY]);
+}
+
+/** Post-generation check only. Server snapshot filtering still must precede
+ * model input. Keep previously ratified user choices; reject a new proposal
+ * as a whole if any of its evidence is now unavailable for AI. */
+export async function recheckRoleProposalEvidence(userId: string, cards: RoleCard[]): Promise<RoleCard[]> {
+  const ids = [...new Set(cards.filter(card => card.status === "proposed")
+    .flatMap(card => card.evidenceRefs.map(ref => ref.slice(7))))];
+  const eligible = await aiEligibleMatchIds(userId, "records_ai_eligible", ids);
+  return cards.filter(card => card.status === "ratified" ||
+    (card.evidenceRefs.length > 0 && card.evidenceRefs.every(ref => eligible.has(ref.slice(7)))));
 }
 
 /** Display-only read: malformed storage is unread, never confirmed absence.
@@ -247,7 +259,7 @@ export async function proposeRoleCards(
     lease.release();
   }
   // The server persists the result and commits the allowance atomically.
-  if (generationId) return loadRoleCards(userId);
+  if (generationId) return recheckRoleProposalEvidence(userId, await loadRoleCards(userId));
   const byStar = new Map<SevenStarId, string[]>();
   for (const row of rows) {
     if (!isSevenStarId(row.audit_period ?? "") || !isInterviewRow(row)) continue;

@@ -1,5 +1,18 @@
 import { getSupabaseClient } from "../supabase/client";
 
+/** Metadata-only check for an unavailable AI selection. Never return held text. */
+export async function hasAiHeldRows(
+  userId: string,
+  table: "records" | "sources",
+  ids: readonly string[],
+): Promise<boolean> {
+  if (ids.length === 0) return false;
+  const { data, error } = await getSupabaseClient().from(table)
+    .select("id").eq("user_id", userId).in("id", [...ids]).eq("ai_hold", true).limit(1);
+  if (error) throw error;
+  return (data?.length ?? 0) > 0;
+}
+
 /** Read the current AI projection, never a screen's cached record body. A
  * missing view or failed read must not fall back to the unfiltered table. */
 export async function getAiRecord(userId: string, recordId: string) {

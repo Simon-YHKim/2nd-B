@@ -23,6 +23,7 @@
   "pageDeleted": "Página wiki eliminada.",
   "pageDeleteError": "No pudimos eliminar la página. Actualiza e inténtalo de nuevo.",
   "briefReady": "El resumen de fuente está listo.",
+  "aiHeld": "Se omitió este material porque su procesamiento con IA está en pausa.",
   "briefError": "No pudimos crear el resumen de fuente. Revisa la fuente e inténtalo de nuevo.",
   "exportError": "No pudimos crear la exportación. Actualiza e inténtalo de nuevo.",
   "loading": "Cargando la wiki…",

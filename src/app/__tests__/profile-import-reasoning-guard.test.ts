@@ -6,17 +6,19 @@ import { isProfileContextImportSource, SourceImportManagedError } from "../../li
 // Execute the real orchestration declarations without importing the native screen shell.
 const path = join(__dirname, "..", "reasoning.tsx");
 const source = ts.createSourceFile(path, readFileSync(path, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-const functions = ["loadSafeBatchText", "produceProposals", "applyReasoningProposal"].map((name) => {
+const functions = ["loadSafeBatchText", "produceProposals", "applyReasoningProposal", "runReasoningBatch"].map((name) => {
   const declaration = source.statements.find((node): node is ts.FunctionDeclaration =>
     ts.isFunctionDeclaration(node) && node.name?.text === name);
   if (!declaration) throw new Error(`Missing reasoning function: ${name}`);
-  return declaration.getText(source);
+  return declaration.getText(source).replace(/^export /, "");
 }).join("\n");
-const code = ts.transpileModule(functions + "\nreturn { produceProposals, applyReasoningProposal };", {
+const code = ts.transpileModule(functions + "\nreturn { produceProposals, applyReasoningProposal, runReasoningBatch };", {
   compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
 }).outputText;
 
 function harness() {
+  class ReasoningSafetyError extends Error {}
+  class ReasoningRunLimitError extends Error {}
   const getSource = jest.fn();
   const getAiRecord = jest.fn().mockResolvedValue({ topic: "Ordinary note", body: "Current note" });
   const downloadRawClipping = jest.fn().mockResolvedValue("Ordinary source body.");
@@ -24,6 +26,11 @@ function harness() {
   const updateSourceTags = jest.fn();
   const generateSourcePage = jest.fn();
   const deps = {
+    ReasoningSafetyError, ReasoningRunLimitError,
+    hasAiHeldRows: jest.fn().mockResolvedValue(true),
+    reserveRun: jest.fn().mockResolvedValue({ runId: "run-1", existing: false }),
+    startRunJob: jest.fn(), completeRun: jest.fn(), failRun: jest.fn(), cancelRunJob: jest.fn(),
+    proposalToPayload: (value: unknown) => value,
     getAiRecord, getSource, downloadRawClipping, callLlm, updateSourceTags, generateSourcePage,
     isProfileContextImportSource, SourceImportManagedError,
     throwIfCancelled: () => undefined,
@@ -38,6 +45,7 @@ function harness() {
   };
   const runtime = new Function(...Object.keys(deps), code)(...Object.values(deps)) as {
     produceProposals(input: unknown, runId: string): Promise<unknown[]>;
+    runReasoningBatch(input: unknown): Promise<unknown[]>;
     applyReasoningProposal(userId: string, proposal: unknown): Promise<void>;
   };
   return { ...deps, ...runtime };
@@ -91,17 +99,32 @@ describe("profile import reasoning guard", () => {
     const held = { key: "record:held", refKind: "record", refId: "held", title: "HELD TITLE", body: "HELD BODY", tags: [] };
     const ordinary = { ...held, key: "record:ordinary", refId: "ordinary", title: "STALE TITLE" };
     const source = { ...sourceItem, title: "HELD SOURCE TITLE" };
-    const output = await run.produceProposals(input([held, source, ordinary]), "run-1");
+    const output = await run.runReasoningBatch(input([held, source, ordinary]));
     expect(output).toHaveLength(1);
     expect(run.callLlm).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(run.callLlm.mock.calls)).toContain("Current record body");
     expect(JSON.stringify(run.callLlm.mock.calls)).not.toMatch(/HELD|STALE/);
+    expect(run.completeRun).toHaveBeenCalledTimes(1);
+    expect(run.completeRun.mock.calls[0][2]).toHaveLength(1);
+    expect(run.failRun).not.toHaveBeenCalled();
   });
 
-  test("an all-held batch has no model call or proposals", async () => {
+  test.each(["source", "record"])("an all-held %s batch refunds with the existing safety notice", async kind => {
     const run = harness(); run.getSource.mockResolvedValue(null); run.getAiRecord.mockResolvedValue(null);
-    expect(await run.produceProposals(input([sourceItem]), "run-1")).toEqual([]);
+    const item = { ...sourceItem, refKind: kind, key: `${kind}:s1` };
+    await expect(run.runReasoningBatch(input([item]))).rejects.toBeInstanceOf(run.ReasoningSafetyError);
+    expect(run.reserveRun).toHaveBeenCalledTimes(1);
+    expect(run.failRun).toHaveBeenCalledWith("owner-a", "run-1", "safety");
+    expect(run.completeRun).not.toHaveBeenCalled();
     expect(run.callLlm).not.toHaveBeenCalled(); expect(run.downloadRawClipping).not.toHaveBeenCalled();
+  });
+
+  test("deleted selections refund without claiming a safety hold", async () => {
+    const run = harness(); run.getSource.mockResolvedValue(null); run.hasAiHeldRows.mockResolvedValue(false);
+    await expect(run.runReasoningBatch(input([sourceItem]))).rejects.toThrow("reasoning_no_eligible_items");
+    expect(run.failRun).toHaveBeenCalledWith("owner-a", "run-1", "error");
+    expect(run.completeRun).not.toHaveBeenCalled();
+    expect(run.callLlm).not.toHaveBeenCalled();
   });
 
   test("a failed eligibility read cannot become a title-only model input", async () => {

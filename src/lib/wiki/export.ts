@@ -292,8 +292,25 @@ export async function exportUserWiki(
   fence();
   if (!opts.includeSavedConversations) return exported;
   const promotedIds = new Set(pages.map((page) => page.source_id));
-  const kept = sources.filter((source) => source.kind === "self_knowledge" &&
-    source.tags.includes(CHAT_KEEP_TAG) && !promotedIds.has(source.id)).slice(0, 8);
+  const candidates = sources.filter((source) => source.kind === "self_knowledge" &&
+    source.tags.includes(CHAT_KEEP_TAG) && !promotedIds.has(source.id));
+  if (opts.forAi && candidates.length > 0) {
+    // Read IDs only: a held (or out-of-page-limit) promotion must not reopen
+    // its transcript via Saved conversations. Page through metadata so the
+    // server's row limit cannot silently omit a promoted source.
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await read(async () => {
+        const query = getSupabaseClient().from("wiki_pages").select("source_id")
+          .eq("user_id", userId).in("source_id", candidates.map(source => source.id))
+          .order("id").range(offset, offset + 499);
+        return await (liveSignal ? query.abortSignal(liveSignal) : query);
+      });
+      if (error) throw error;
+      for (const page of data ?? []) promotedIds.add(page.source_id);
+      if ((data?.length ?? 0) < 500) break;
+    }
+  }
+  const kept = candidates.filter(source => !promotedIds.has(source.id)).slice(0, 8);
   const blocks = await read(() => Promise.all(kept.map((source) => read(async () => {
     // The source row is owner-scoped; also refuse a foreign Storage pointer.
     const stored = source.storage_path.startsWith(`${userId}/`)

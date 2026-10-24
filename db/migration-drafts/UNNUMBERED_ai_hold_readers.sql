@@ -2,7 +2,13 @@
 -- Requires 0270. Preserve signatures, model filters, RLS, ownership and locks.
 -- The app also rechecks search results through the 0270 views while this
 -- draft awaits independent review, numbering and server application.
-BEGIN;
+-- After this PR merges: number this draft -> Relay applies it -> write-wiring slice.
+-- No top-level transaction wrapper: the migration runner owns the transaction.
+-- For isolated replay use psql --single-transaction (or include inside BEGIN).
+-- 0270_down drops only the views. These four functions retain their inline
+-- hold predicates and keep working, but app AI view readers fail closed.
+-- Keep 0270's columns/triggers and this draft's filters; never restore 0142/0225
+-- as a rollback. Stop the affected AI feature and roll forward instead.
 SET LOCAL lock_timeout = '10s';
 
 
@@ -21,8 +27,13 @@ SET search_path = public
 AS $$
   SELECT w.id, w.slug, w.title, w.kind,
          (1 - (w.embedding <=> query_embedding))::real AS similarity
-  FROM public.wiki_pages_ai_eligible w
+  FROM public.wiki_pages w
   WHERE w.user_id = p_user_id
+    AND NOT w.ai_hold
+    AND (w.source_id IS NULL OR EXISTS (
+      SELECT 1 FROM public.sources s
+      WHERE s.id = w.source_id AND s.user_id = w.user_id AND NOT s.ai_hold
+    ))
     AND w.embedding IS NOT NULL
     AND (exclude_id IS NULL OR w.id <> exclude_id)
     -- NULL = no filter = pre-0142 behaviour, for clients that predate it.
@@ -46,8 +57,9 @@ SET search_path = public
 AS $$
   SELECT r.id, r.kind::text, r.topic, r.summary,
          (1 - (r.embedding <=> query_embedding))::real AS similarity
-  FROM public.records_ai_eligible r
+  FROM public.records r
   WHERE r.user_id = p_user_id
+    AND NOT r.ai_hold AND NOT r.interview_ai_hold
     AND r.embedding IS NOT NULL
     AND (exclude_id IS NULL OR r.id <> exclude_id)
     AND (p_embedding_model IS NULL OR r.embedding_model IS NOT DISTINCT FROM p_embedding_model)
@@ -167,4 +179,3 @@ GRANT EXECUTE ON FUNCTION public.match_records(uuid, vector, int, uuid, text) TO
 REVOKE ALL ON FUNCTION public.reserve_polaris_generation(uuid,text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.reserve_polaris_generation(uuid,text) TO authenticated;
 REVOKE ALL ON FUNCTION public.polaris_evidence_snapshot(uuid,jsonb) FROM PUBLIC, anon, authenticated, service_role;
-COMMIT;

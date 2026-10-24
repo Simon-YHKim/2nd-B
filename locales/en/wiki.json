@@ -23,6 +23,7 @@
   "pageDeleted": "Wiki page deleted.",
   "pageDeleteError": "Couldn't delete the page. Refresh and try again.",
   "briefReady": "Your summary and questions are ready.",
+  "aiHeld": "AI processing is on hold, so this source was skipped.",
   "briefError": "Couldn't create the summary and questions. Check the original material and try again.",
   "exportError": "Couldn't build the export. Refresh and try again.",
   "loading": "Loading wiki…",

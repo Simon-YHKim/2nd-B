@@ -53,7 +53,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useSourcesRead, type SourceBodyState } from "@/lib/wiki/use-sources-read";
 import { accountEpochFromSnapshot, accountTransitionPendingFromSnapshot, accountTransitionSnapshot, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { readPhase1, runPhase1, type Phase1Result } from "@/lib/wiki/phase1";
-import { generateSourcePage } from "@/lib/wiki/phase2";
+import { generateSourcePage, SourceAiHeldError } from "@/lib/wiki/phase2";
 import { isProfileContextImportSource } from "@/lib/wiki/profile-context-source";
 import { ProfileContextSummary } from "@/components/profile-import/summary";
 import type { SourceKind, SourceRow } from "@/lib/wiki/types";
@@ -154,7 +154,7 @@ function SourcesBody({ userId, title }: { userId: string; title: string }) {
         await load();
       } catch (e) {
         console.warn("[sources] generateSourcePage failed", (e as Error).message);
-        setNotice({ tone: "bad", text: t("ds.sources.pageError") });
+        setNotice({ tone: "bad", text: t(e instanceof SourceAiHeldError ? "wiki:aiHeld" : "ds.sources.pageError") });
       } finally {
         setPageId(null);
       }

@@ -13,6 +13,7 @@ function mockQuery(table: string) {
   const base = table.replace(/_ai_eligible$/, "");
   const filters: ((row: Row) => boolean)[] = [];
   let cap = Infinity;
+  let offset = 0;
   let patch: Row | undefined;
   let order: { field: string; ascending: boolean } | undefined;
   const reply = () => {
@@ -27,7 +28,7 @@ function mockQuery(table: string) {
       const { field, ascending } = order;
       rows = rows.slice().sort((a, b) => String(a[field]).localeCompare(String(b[field])) * (ascending ? 1 : -1));
     }
-    rows = rows.slice(0, cap);
+    rows = rows.slice(offset, offset + cap);
     if (patch) for (const row of rows) Object.assign(row, patch);
     return { data: rows, error: null };
   };
@@ -38,8 +39,9 @@ function mockQuery(table: string) {
     is: (key: string, value: unknown) => { filters.push(row => (row[key] ?? null) === value); return query; },
     not: (key: string, _op: string, value: unknown) => { filters.push(row => (row[key] ?? null) !== value); return query; },
     contains: (key: string, values: string[]) => { filters.push(row => values.every(value => (row[key] as string[] ?? []).includes(value))); return query; },
-    order: (field: string, opts: { ascending: boolean }) => { order = { field, ...opts }; return query; },
+    order: (field: string, opts: { ascending: boolean } = { ascending: true }) => { order = { field, ...opts }; return query; },
     limit: (value: number) => { cap = value; return query; },
+    range: (from: number, to: number) => { offset = from; cap = to - from + 1; return query; },
     lt: (key: string, value: string) => { filters.push(row => String(row[key]) < value); return query; },
     abortSignal: () => query,
     update: (value: Row) => { patch = value; return query; },
@@ -56,7 +58,7 @@ jest.mock("../../wiki/storage", () => ({ downloadRawClipping: (...args: unknown[
 jest.mock("../../env", () => ({ getEnv: () => ({ EXPO_PUBLIC_LLM_MODE: "mock" }) }));
 jest.mock("../../interview/coverage-store", () => ({ loadCoverage: async () => ({ school: { fact: 1, feeling: 1, meaning: 0, belief: 0, echo: 0 } }) }));
 
-import { getAiRecord } from "../ai-read";
+import { getAiRecord, hasAiHeldRows } from "../ai-read";
 import { getSource, getWikiPageById, listSources, listWikiPages } from "../../wiki/queries";
 import { exportUserWiki } from "../../wiki/export";
 import { exportContextPack } from "../../wiki/context-pack";
@@ -64,12 +66,14 @@ import { embedAndStorePage, backfillEmbeddings, relatedByEmbedding } from "../..
 import { embedAndStoreRecord, backfillRecordEmbeddings, relatedRecordsByEmbedding } from "../../records/records-embeddings";
 import { loadStructuredContext } from "../../records/load-structured";
 import { runPhase1 } from "../../wiki/phase1";
-import { generateSourcePage } from "../../wiki/phase2";
+import { generateSourcePage, SourceAiHeldError, SourceNotFoundError } from "../../wiki/phase2";
 import { materializeGraphFromPhase1 } from "../../wiki/materialize";
 import { proposeNorthstarSentences } from "../../persona/northstar";
 import { buildSevenProposalContext } from "../../persona/seven-proposal-context";
 import { buildPersona, loadLatestBfi, loadPersonaSnapshot } from "../../persona/build";
 import { getSupabaseClient } from "../../supabase/client";
+import { CHAT_KEEP_TAG } from "../../chat/keep-exchange";
+import { recheckRoleProposalEvidence, type RoleCard } from "../../persona/role-cards";
 import { retrieveChatContext } from "../../chat/rag";
 import { __resetAccountEpochForTests, noteResolvedOwner, clearAccountTransition, currentAccountEpoch } from "../../auth/account-epoch";
 
@@ -129,6 +133,65 @@ test("AI context-pack and structured context omit held records", async () => {
   const structured = await loadStructuredContext("owner");
   expect(structured).toContain("record-ok body");
   expect(structured).not.toContain("record-held");
+});
+
+test.each([false, true])("a held promoted page cannot re-enter AI context through its kept source (fallback=%s)", async fallback => {
+  const kept = { ...source("kept"), kind: "self_knowledge", tags: [CHAT_KEEP_TAG], frontmatter: { _body_fallback: "HELD TRANSCRIPT" } };
+  mockTables.sources = [kept];
+  mockTables.wiki_pages = [page("held-promotion", true, "kept"), page("visible")];
+  if (fallback) mockDownload.mockRejectedValue(new Error("offline"));
+  else mockDownload.mockResolvedValue("HELD TRANSCRIPT");
+  const result = await exportUserWiki("owner", { forAi: true, includeSavedConversations: true, pageLimit: 1 });
+  expect(result.prompt).not.toContain("HELD TRANSCRIPT");
+  expect(result.prompt).not.toContain("Saved conversations");
+  expect(mockDownload).not.toHaveBeenCalled();
+  const backup = await exportUserWiki("owner");
+  expect(backup.prompt).toContain("held-promotion body");
+});
+
+test("kept-source promotion lookup is owner-scoped and fails closed", async () => {
+  mockTables.sources = [{ ...source("kept"), kind: "self_knowledge", tags: [CHAT_KEEP_TAG] }];
+  mockTables.wiki_pages = [{ ...page("foreign", true, "kept"), user_id: "other" }];
+  const result = await exportUserWiki("owner", { forAi: true, includeSavedConversations: true });
+  expect(result.prompt).toContain("owner/kept.md body");
+  mockDownload.mockClear(); mockErrors.add("wiki_pages");
+  await expect(exportUserWiki("owner", { forAi: true, includeSavedConversations: true })).rejects.toThrow("read unavailable");
+  expect(mockDownload).not.toHaveBeenCalled();
+});
+
+test("promotion metadata spans server pages and ignores the prompt's page limit", async () => {
+  mockTables.sources = ["filler", "kept"].map(id => ({ ...source(id), kind: "self_knowledge", tags: [CHAT_KEEP_TAG] }));
+  mockTables.wiki_pages = [
+    ...Array.from({ length: 500 }, (_, i) => page(`a-${String(i).padStart(3, "0")}`, false, "filler")),
+    page("z-held", true, "kept"),
+  ];
+  const result = await exportUserWiki("owner", { forAi: true, includeSavedConversations: true, pageLimit: 0 });
+  expect(result.prompt).not.toContain("Saved conversations");
+  expect(mockDownload).not.toHaveBeenCalled();
+  expect(mockReads.filter(table => table === "wiki_pages")).toHaveLength(2);
+});
+
+test("promotion metadata distinguishes held, missing and foreign sources without returning content", async () => {
+  await expect(generateSourcePage("owner", "source-held")).rejects.toBeInstanceOf(SourceAiHeldError);
+  await expect(generateSourcePage("owner", "missing")).rejects.toBeInstanceOf(SourceNotFoundError);
+  await expect(generateSourcePage("other", "source-held")).rejects.toBeInstanceOf(SourceNotFoundError);
+  expect(mockDownload).not.toHaveBeenCalled(); expect(mockEmbed).not.toHaveBeenCalled();
+  expect(await hasAiHeldRows("owner", "records", ["record-held"])).toBe(true);
+  expect(await hasAiHeldRows("owner", "records", ["record-ok"])).toBe(false);
+  expect(await hasAiHeldRows("other", "records", ["record-held"])).toBe(false);
+  mockErrors.add("sources");
+  await expect(hasAiHeldRows("owner", "sources", ["source-held"])).rejects.toThrow("read unavailable");
+});
+
+test("Polaris results require every proposed evidence ID to remain eligible; saved ratifications stay visible", async () => {
+  const card = (id: string, refs: string[], status = "proposed") => ({ id, evidenceRefs: refs.map(ref => `record:${ref}`), status } as RoleCard);
+  const cards = [card("ok", ["record-ok"]), card("mixed", ["record-ok", "record-held"]),
+    card("held", ["record-held"]), card("missing", ["deleted"]), card("empty", []), card("saved", ["record-held"], "ratified")];
+  expect((await recheckRoleProposalEvidence("owner", cards)).map(row => row.id)).toEqual(["ok", "saved"]);
+  expect((await recheckRoleProposalEvidence("other", cards)).map(row => row.id)).toEqual(["saved"]);
+  mockErrors.add("records_ai_eligible");
+  await expect(recheckRoleProposalEvidence("owner", cards)).rejects.toThrow("read unavailable");
+  expect(mockReads).not.toContain("records");
 });
 
 test("direct record embedding re-reads eligibility and uses the current body", async () => {

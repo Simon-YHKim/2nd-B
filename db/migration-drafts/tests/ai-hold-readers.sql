@@ -5,9 +5,37 @@ DO $$ BEGIN
     RAISE EXCEPTION 'T28 requires its disposable CI clone';
   END IF;
 END $$;
-\ir ../UNNUMBERED_ai_hold_readers.sql
-
 BEGIN;
+-- Functional assertions use exact scans; ANN planning is exercised separately.
+SET LOCAL enable_indexscan = off;
+SET LOCAL enable_bitmapscan = off;
+-- Capture the deployed function contracts and pre-draft search bodies.
+CREATE TEMP TABLE t28_before_catalog AS
+  SELECT oid, proname, proacl, proconfig, prosecdef, provolatile
+  FROM pg_proc WHERE oid IN (
+    'public.match_records(uuid,vector,integer,uuid,text)'::regprocedure,
+    'public.match_wiki_pages(uuid,vector,integer,uuid,text)'::regprocedure,
+    'public.reserve_polaris_generation(uuid,text)'::regprocedure,
+    'public.polaris_evidence_snapshot(uuid,jsonb)'::regprocedure);
+DO $$ DECLARE n text; BEGIN
+  FOREACH n IN ARRAY ARRAY['match_records','match_wiki_pages'] LOOP
+    EXECUTE replace(pg_get_functiondef(('public.'||n||'(uuid,vector,integer,uuid,text)')::regprocedure),
+      'public.'||n||'(', 'pg_temp.t28_before_'||n||'(');
+  END LOOP;
+END $$;
+\ir ../UNNUMBERED_ai_hold_readers.sql
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM t28_before_catalog b JOIN pg_proc p USING(oid)
+    WHERE ROW(p.proacl,p.proconfig,p.prosecdef,p.provolatile)
+      IS DISTINCT FROM ROW(b.proacl,b.proconfig,b.prosecdef,b.provolatile)) THEN
+    RAISE EXCEPTION 'T28 changed ACL, search_path, invoker/definer or volatility';
+  END IF;
+  IF NOT has_function_privilege('authenticated','public.reserve_polaris_generation(uuid,text)','EXECUTE')
+    OR NOT has_function_privilege('authenticated','public.match_records(uuid,vector,integer,uuid,text)','EXECUTE')
+    OR NOT has_function_privilege('authenticated','public.match_wiki_pages(uuid,vector,integer,uuid,text)','EXECUTE') THEN
+    RAISE EXCEPTION 'T28 lost authenticated RPC access';
+  END IF;
+END $$;
 -- Match crisis_ai_hold_regression.sql: vanilla CI PostgreSQL does not install
 -- Supabase's default table grants. These fixture grants still exercise RLS;
 -- they roll back and are not part of the reader draft.
@@ -28,6 +56,9 @@ INSERT INTO public.records(id,user_id,kind,audit_period,body,system_tags,ai_hold
   ('28000000-0000-4000-8000-000000000082','28000000-0000-4000-8000-000000000080','audit_response','work','ordinary interview',ARRAY['interview'],false,array_fill(1::real,ARRAY[768])::vector,'t28-fixture'),
   ('28000000-0000-4000-8000-000000000083','28000000-0000-4000-8000-000000000080','audit_response','work','held interview',ARRAY['interview'],true,array_fill(1::real,ARRAY[768])::vector,'t28-fixture'),
   ('28000000-0000-4000-8000-000000000084','28000000-0000-4000-8000-000000000081','audit_response','work','other owner',ARRAY['interview'],false,array_fill(1::real,ARRAY[768])::vector,'t28-fixture');
+-- Replica-only inconsistent legacy row proves interview_ai_hold independently.
+INSERT INTO public.records(id,user_id,kind,audit_period,body,system_tags,ai_hold,interview_ai_hold,embedding,embedding_model) VALUES
+  ('28000000-0000-4000-8000-000000000085','28000000-0000-4000-8000-000000000080','audit_response','work','interview-only hold',ARRAY['interview'],false,true,array_fill(1::real,ARRAY[768])::vector,'t28-fixture');
 INSERT INTO public.sources(id,user_id,kind,title,storage_path,ai_hold) VALUES
   ('28000000-0000-4000-8000-000000000086','28000000-0000-4000-8000-000000000080','article','held source','fixture/held.md',true);
 INSERT INTO public.wiki_pages(id,user_id,slug,kind,title,body_md,source_id,ai_hold,embedding,embedding_model) VALUES
@@ -62,7 +93,7 @@ BEGIN
       OR EXISTS (SELECT 1 FROM public.match_wiki_pages(u,v,8,'28000000-0000-4000-8000-000000000087','t28-fixture')) THEN
     RAISE EXCEPTION 'T28 search changed model or exclude-id semantics';
   END IF;
-  IF (SELECT count(*) FROM public.records WHERE user_id=u) <> 2
+  IF (SELECT count(*) FROM public.records WHERE user_id=u) <> 3
       OR (SELECT count(*) FROM public.wiki_pages WHERE user_id=u) <> 3
       OR (SELECT count(*) FROM public.sources WHERE user_id=u) <> 1 THEN
     RAISE EXCEPTION 'T28 filtered the original user tables';
@@ -71,6 +102,9 @@ BEGIN
 END $$;
 RESET ROLE;
 UPDATE public.polaris_generation_config SET enabled=true;
+SET LOCAL ROLE authenticated;
+SELECT public.reserve_polaris_generation('28000000-0000-4000-8000-000000000080','t28-held-readers');
+RESET ROLE;
 DO $$
 DECLARE
   u uuid := '28000000-0000-4000-8000-000000000080';
@@ -90,6 +124,14 @@ BEGIN
   BEGIN
     PERFORM public.polaris_evidence_snapshot(u,held);
     RAISE EXCEPTION 'T28 snapshot accepted held evidence';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'polaris_evidence_changed' THEN RAISE; END IF;
+  END;
+  held := jsonb_build_array(jsonb_build_object('id','28000000-0000-4000-8000-000000000085',
+    'domain','work','body_hash',encode(sha256(convert_to('interview-only hold','UTF8')),'hex')));
+  BEGIN
+    PERFORM public.polaris_evidence_snapshot(u,held);
+    RAISE EXCEPTION 'T28 snapshot accepted interview-only hold';
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM <> 'polaris_evidence_changed' THEN RAISE; END IF;
   END;
@@ -114,4 +156,5 @@ BEGIN
   END IF;
   RAISE NOTICE 'T28 POLARIS PASS: reservation, snapshot, late hold, all-held, ACL';
 END $$;
+\ir ai-hold-search-plans.sql
 ROLLBACK;
