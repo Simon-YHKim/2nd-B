@@ -26,12 +26,25 @@ export interface ChatAutosaveTicket extends KeepPair {
   readonly revision: number;
   readonly signal: AbortSignal;
   isCurrent(): boolean;
+  /** F keeps withdrawal listening until real I/O settles, even if the public
+   * result has already returned stale on wipe. Only the owning auto flight retains. */
+  retainUntilSettled?(): () => void;
 }
 export type KeepAuthorization =
   | { readonly reason: "manual"; readonly retryUnknown?: true }
   | { readonly reason: "autosave"; readonly ticket: ChatAutosaveTicket };
+/** A settled capture can still need a source recheck. It is not a saved notice. */
 export type KeepResult = { readonly status: "settled"; readonly receipt: KeepReceipt }
   | { readonly status: "rejected"; readonly reason: string };
+
+/** Operation-result notice only. checking has no completion notice, including
+ * after a later recheck; views read those changes from receipts.subscribe.
+ * Only present is success. D1 can report unknown/failed; ledger-backed H only
+ * emits present and leaves failure details in KeepResult/the receipt snapshot. */
+export type KeepCompletionReceipt = KeepReceipt & { readonly state: "present" | "unknown" | "failed" };
+function isCompletionReceipt(receipt: KeepReceipt): receipt is KeepCompletionReceipt {
+  return receipt.state === "present" || receipt.state === "unknown" || receipt.state === "failed";
+}
 
 const tokenOf = (s: ChatSessionToken): ChatSessionToken => Object.freeze({ ownerId: s.ownerId, ownerEpoch: s.ownerEpoch,
   contentGeneration: s.contentGeneration, sessionId: s.sessionId, sessionGeneration: s.sessionGeneration });
@@ -67,7 +80,7 @@ export function snapshotKeepExchange(
 
 /** Dormant session owner. H must supply the registry's shared ledger before wiring.
  * Omission retains D1 compatibility, not a content-wipe guarantee.
- * Receipts own D2 invalidation for this session; prepareKeptExchange's key contract remains separate.
+ * Receipts own D2 invalidation; keep work is keyed by replyTurnId, as in prepareKeptExchange.
  * F must abort ticket.signal on consent revocation; isCurrent() alone cannot stop an issued capture. */
 export function createChatSessionKeep(registry: Registry, sourceSession: ChatSessionToken,
   options: { timeoutMs?: number; readTimeoutMs?: number; ledger?: ReturnType<typeof createContentWipeLedger> } = {}) {
@@ -76,7 +89,7 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
   const timeoutMs = options.timeoutMs ?? 30_000;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("invalid_keep_timeout");
   const receipts = createKeepReceipts(registry, session, options.readTimeoutMs);
-  const completions = new Set<(receipt: KeepReceipt) => void>();
+  const completions = new Set<(receipt: KeepCompletionReceipt) => void>();
   let disposed = false;
   let flight: { pair: KeepPair; promise: Promise<KeepResult>; retire: (reason: ChatRetirementReason) => boolean } | null = null;
   let stopAccount = () => {}, stopSession = () => {};
@@ -104,7 +117,7 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
 
   return {
     receipts,
-    subscribeCompletion(listener: (receipt: KeepReceipt) => void) {
+    subscribeCompletion(listener: (receipt: KeepCompletionReceipt) => void) {
       if (disposed) return () => {};
       completions.add(listener); return () => { completions.delete(listener); };
     },
@@ -152,8 +165,9 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
           return true;
         } };
       flight = active;
-      const work = registry.claimWork(session, "keep", "capture", retire);
+      const work = registry.claimWork(session, "keep", checked.replyTurnId, retire);
       if (!work) { flight = null; resolve(rejected("busy")); return promise; }
+      const releaseConsent = ticket?.retainUntilSettled?.();
       let finished = false, captureStarted = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
       const canEffect = () => current() && !controller.signal.aborted && consentCurrent()
@@ -164,7 +178,8 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
         if (finished) return;
         finished = true;
         if (timer !== undefined) clearTimeout(timer);
-        if (result.status === "settled" && (!options.ledger || result.receipt.state === "present") && canEffect()) for (const listener of [...completions]) {
+        if (result.status === "settled" && isCompletionReceipt(result.receipt)
+          && (!options.ledger || result.receipt.state === "present") && canEffect()) for (const listener of [...completions]) {
           if (!canEffect()) break;
           try { listener(result.receipt); } catch { /* The write outcome cannot become a retry on observer failure. */ }
         }
@@ -204,6 +219,7 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
         fail(); controller.abort();
         controller.signal.removeEventListener("abort", fail); consentSignal?.removeEventListener("abort", cancelConsent);
         registry.settleWork(work); if (flight === active) flight = null;
+        releaseConsent?.();
         return promise;
       }
       timer = setTimeout(() => { fail(); controller.abort(); }, timeoutMs);
@@ -242,6 +258,7 @@ export function createChatSessionKeep(registry: Registry, sourceSession: ChatSes
           lease.release(); registry.settleWork(work);
           if (flight === active) flight = null;
           if (disposed) stopAccount();
+          releaseConsent?.();
         }
       })();
       return promise;

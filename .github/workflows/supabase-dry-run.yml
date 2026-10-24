@@ -21,6 +21,7 @@ on:
       - "supabase/functions/dashboard-generate/**"
       - "scripts/test-profile-import-sql.mjs"
       - "scripts/test-deletion-receipt-sql.mjs"
+      - "scripts/test-deletion-receipt-arbitration.mjs"
       - "scripts/test-records-embedding-consent-sql.mjs"
       - "scripts/test-interview-content-authority-sql.mjs"
       - "scripts/test-support-reports-sql.mjs"
@@ -498,6 +499,13 @@ jobs:
           psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
             -c 'CREATE DATABASE t04_receipt_test_ci TEMPLATE postgres'
           node scripts/test-deletion-receipt-sql.mjs "$LOCAL_SQL_CONTAINER" t04_receipt_test_ci
+      - name: Exercise dormant receipt admission arbitration on full schema clone
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE t04_arbitration_test_ci TEMPLATE postgres'
+          node scripts/test-deletion-receipt-arbitration.mjs 5432 t04_arbitration_test_ci
       - name: Exercise dormant interview content authority on full schema clone
         env:
           PGPASSWORD: postgres

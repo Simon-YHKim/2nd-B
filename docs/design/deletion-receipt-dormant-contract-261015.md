@@ -95,3 +95,70 @@ pgcrypto/citext/pg_trgm/vector 네 건이며, 이번 객체에 대한 경고는 
 현재의 legacy exact `{}` 계약, 기존 앱의 메모리 영수증 및 local terminal 문제, 메일/법무
 2단계 계획은 이 첫 조각에서 변경하지 않았다. 최소 서버 설계 전체가 요구한 실제 Storage/Auth
 반례와 기기 검증도 계속 남는다.
+
+## 2026-10-24 후속 조각: 양방향 진입 중재 (번호 없는 초안)
+
+**선택: (b)의 진입 중재.** 위 시험 6의 빈칸은 완료 관측 없이 재현하고 닫을 수 있다.
+(d)+(f)는 아직 없는 실행 증거와 보관 정책에 의존하므로 먼저 구현하지 않았다.
+Q-261013-32의 「정해 둔 재설계(#2132)를 이어 간다」를 따른다. #2132의 과거 BLOCK,
+첫 조각의 R1 BLOCK 이력, 10-18 23:19 / 10-20 09:22의 운영 gateway commit 계약 확인 전
+O/H 활성화 금지는 그대로다. VISION의 세 축이 공유하는 계정 데이터 경계에 해당한다.
+
+`UNNUMBERED_account_deletion_receipt_arbitration.sql`을 첫 초안 **다음**에 적용한다.
+두 원장에 `BEFORE INSERT OR UPDATE` 트리거를 두며 기존 0192/0225 함수는 교체하지 않는다.
+
+| 먼저 커밋한 쪽 | 나중 요청 | 결과 |
+|---|---|---|
+| 기존 tombstone | 새 receipt begin 또는 원장 쓰기 | `receipt_legacy_fence_unresolved`, 새 영수증 없음 |
+| 새 accepted | 기존 begin / verify 호환 래퍼 또는 tombstone 쓰기 | `receipt_request_in_progress`, 새 fence 없음 |
+| 먼저 온 쪽이 rollback | 반대쪽 요청 | 잠금 대기 뒤 정상 진입 |
+| 다른 계정 | 기존 삭제 요청 | 첫 계정 잠금을 기다리지 않음 |
+
+두 트리거는 0192와 같은 계정 advisory lock을 얻고 **그 뒤 별도 SQL 문장**에서 반대
+원장을 읽는다. stale snapshot이 잠금 승자를 숨기지 않도록 신규 쓰기·설치·rollback은
+READ COMMITTED만 허용한다. 원장 owner 키 이동도 거절한다. helper의 직접 EXECUTE와
+두 테이블 직접 권한은 anon/authenticated/service_role 모두 닫혀 있다.
+새 접수는 여전히 accepted이며 fence를 소유하거나 만들거나 풀지 않는다.
+
+설치는 두 원장을 NOWAIT로 잠근 뒤 같은 owner가 양쪽에 이미 있는 경우 전체를 거절한다.
+기존 행을 합치거나 채택하지 않는다. `_arbitration_down.sql`은 **공개 전, 영수증 원장이
+비었을 때만** 두 트리거와 helper를 제거한다. 영수증이 하나라도 남으면 전체 rollback을
+거절하고 두 원장과 중재를 보존한다. 두 SQL 모두 하나의 transaction으로 실행해야 한다.
+기존 receipt down으로 begin/lookup을 닫더라도 중재 트리거는 남는다. 행을 지워 down을
+통과시키는 것은 운영 절차가 아니다. 공개 후 rollback은 별도 설계가 필요하다.
+
+검증 명령(로컬 PG는 새 폴더, loopback의 빈 포트 사용):
+
+```sh
+node scripts/test-deletion-receipt-arbitration.mjs 55484 t04_arbitration_test_local --fixture
+```
+
+로컬 PostgreSQL 18에서 기존 accepted-only SQL 회귀를 포함한 **10그룹**, 실제
+`pg_blocking_pids`로 확인한 양방향 **8개 경합 순서**, **SQL 변이 13/13**을 실행했다.
+변이: 양쪽 상대 원장 검사·owner 이동·helper ACL·양쪽 snapshot 제한·설치/down snapshot
+제한·양쪽 advisory lock·설치 충돌·비어 있지 않은 down. 변이는 disposable DB에서만
+실행하고 행과 함수는 복원한다. 로컬 fixture는 실제 0192와 두 초안을 실행하며, 관리형
+Auth/Storage나 전체 migration 재생의 증거는 아니다. CI는 전체 현행 schema의 새 clone에서
+**같은 runner를 `--fixture` 없이** 실행하고 기존 public/auth/storage 함수 및 기존 trigger
+catalog가 바뀌지 않았는지도 확인한다. 첫 초안만 실행하는 이전 12그룹은 역사적 기준선으로
+유지되며, 시험 6을 닫았다는 근거는 이 두 번째 초안의 별도 레인이다.
+
+앱/Edge 런타임에서 begin/lookup/private schema 호출 0, 기존 delete-account body `{}`,
+epoch+1 안내 경계 유지 여부는 소스 계약 시험으로 고정한다. 앱 삭제 응답·메모리 안내의
+기존 순수 함수 시험도 함께 실행한다. 새로운 완료 안내나 앱 동작 변경은 없다.
+
+**남은 순서와 바깥 조건:**
+
+1. (a) 공개 endpoint 및 서버 소유 owner/session/iat, 목적별 증표·한도·재발급 계약.
+2. (b)의 활성화 준비: 이미 발송된 legacy HTTP drain/조정, 무주체 tombstone 처리 계획,
+   동일 계정 잠금 안 실행 claim+fence 결속 및 dispatch generation CAS/reconciliation.
+   이번 진입 중재는 이미 발송된 Auth/Storage 요청을 회수하지 못한다.
+3. (c) P #2627 위에서 Auth UUID·별도 profile·raw/photos 완료 관측. O는 gateway commit
+   계약 확인 전 켜지 않는다. H도 같은 바깥 조건을 유지한다.
+4. (d)+(f) 증거에 근거한 completed/failed/abandoned와 private 원장의 내보내기·지움·보관
+   분류. 시간 경과를 실패로 확정하거나 fence 해제의 근거로 쓰지 않는다. 기존 public
+   erasure/export 검사 통과는 private 원장 정책 검증이 아니다.
+5. (e) 서버 영수증 기반 앱 안내, 기기 복구·소유권·동시 탭 경계 검증.
+
+번호 부여·운영 적용·실제 계정 삭제·처리방침/법무·메일·O/H 활성화·머지는 이 조각의
+범위 밖이다. 독립 검토 PASS + 새 medium 0 + CI 초록이 머지 조건이며 코디네이터가 맡는다.
