@@ -3,7 +3,7 @@
 작성: 2026-10-24 20:04:24 KST. 기준 코드: `b87b181f02241a5c9a3f81070080f56fbc7178e0`.
 상태: **독립 설계 검토용 초안. 구현·활성화 승인이 아닙니다.**
 
-권장안은 자동 전송을 항상 끈 채, 확인된 성인의 별도 선택과 보고서의 발생 구간을
+설계의 필수 조건은 자동 전송을 항상 끈 채, 확인된 성인의 별도 선택과 보고서의 발생 구간을
 네이티브 경계에서 함께 검사하는 것입니다. 다만 현재 검토 후보의 공개 API만으로는
 동의 전 기기 기록·보고 외 통신 차단, 삭제 완료, 계정별 보고서 분리, 전송 대기열 취소를 입증하지
 못했습니다. 아래 U1~U9가 닫히기 전에는 **현재의 SDK 미포함·수집 OFF를 유지합니다.**
@@ -48,7 +48,7 @@ Git 추적 파일이 아니므로 다른 검토자가 읽을 수 있도록 필�
 | [analytics/index.ts](../../src/lib/analytics/index.ts), `canLoadProductAnalytics`, `subscribeAccountTransition` | 성인 확인과 명시 true가 필요. 계정 경계에서 즉시 OFF. 네이티브 Firebase·Clarity는 OFF-only | JS 상태를 native 보고의 전송 허가로 직접 쓰지 않습니다. 웹 분석 동의를 읽어 Crashlytics를 켜지 않습니다 |
 | [analytics-consent-queue.ts](../../src/lib/privacy/analytics-consent-queue.ts) | OFF 먼저 적용, 늦거나 실패한 저장으로 다시 켜지지 않게 직렬 처리 | 같은 순서 규율이 native 경계에도 필요합니다. 기존 큐가 SDK 대기열까지 취소한다는 뜻은 아닙니다 |
 | [supabase/privacy.ts](../../src/lib/supabase/privacy.ts), `savePrivacyPrefs` | prefs 저장과 변경 원장이 별도이며 원장은 best-effort | 충돌 기록의 버전·성인·선택 영수증은 원자적인 서버 계약으로 별도 설계합니다. 성공한 prefs 쓰기만으로 허가하지 않습니다 |
-| [firebase.json](../../firebase.json), [react-native.config.js](../../react-native.config.js), [package.json](../../package.json) | 분석 관련 9값 false. Firebase app/analytics 25.1.0 설치, Crashlytics 없음. Firebase·Clarity iOS autolinking 제외 | 기존 FCM/Firebase 설치 처리를 바꾸지 않습니다. iOS는 동작 확인 전 별도 보류입니다 |
+| [firebase.json](../../firebase.json), [react-native.config.js](../../react-native.config.js), [package.json](../../package.json) | 분석 관련 9값 false. Firebase app/analytics 25.1.0 설치, Crashlytics 없음. Sentry RN(`@sentry/react-native`, 선언 `~7.11.0`)은 설치되어 있으며 Android auto-init은 꺼져 있음(`io.sentry.auto-init=false`). Firebase·Clarity iOS autolinking 제외 | 기존 FCM/Firebase 설치 처리를 바꾸지 않습니다. Sentry native·JS handler가 초기화되지 않는 상태도 T12 소스 계약으로 유지합니다. iOS는 동작 확인 전 별도 보류입니다 |
 | [withFcmAutoInitOff.js:3-8](../../config-plugins/withFcmAutoInitOff.js#L3-L8), [app.json:102](../../app.json#L102) | 동의 전 FID 요청·FCM 토큰 등록을 막기 위해 FCM auto-init을 끈 기존 결정과 plugin 연결 | Crashlytics가 유발하는 Installations·설정 조회도 보고 전송과 함께 시험합니다(T19). FCM 기준선이라는 이유로 제외하지 않습니다 |
 
 ## 2. 목표·수집 범위
@@ -96,17 +96,19 @@ Crashlytics 패키지는 설치되어 있지 않습니다. bridge 내부 동작�
 | Android `application` metadata | `firebase_crashlytics_collection_enabled=false` | [공식 Android opt-in 문서](https://firebase.google.com/docs/crashlytics/android/customize-crash-reports#enable-opt-in-reporting), 선행 조사에 보존된 후보 manifest. 빌드의 merged manifest에서 확인해야 함 |
 | RN Firebase `firebase.json` | `react-native.crashlytics_auto_collection_enabled=false` | 실제 `node_modules/@react-native-firebase/app/firebase-schema.json:65-68`의 설명: “If you want users to opt-in, it is recommended that you disable this here”. 현재 프로젝트 firebase.json에는 이 키가 없음 |
 | RN 전역 초기값 | `app_data_collection_default_enabled=false` 유지 | 현재 firebase.json에 있음. Crashlytics별 설정·저장 override를 대신하지 않음 |
-| iOS `Info.plist` | `FirebaseCrashlyticsCollectionEnabled=false`(boolean) | [공식 Apple opt-in 문서](https://firebase.google.com/docs/crashlytics/ios/customize-crash-reports#enable-opt-in-reporting). `node_modules/@react-native-firebase/app/ios_config.sh:225-232`의 auto disabler는 `react-native` 설정이 있으면 `crashlytics_auto_collection_enabled` 값과 무관하게 bool `NO`를 넣음(`crashlytics_disable_auto_disabler=true` 예외는 사용하지 않음). 이 값만으로 opt-in 경계를 입증하지 못함. RN iOS 초기화의 JSON·prefs 우선순위와 최종 값은 **설치 뒤 확인**(U1·U8) |
+| iOS `Info.plist` | `FirebaseCrashlyticsCollectionEnabled=false`(boolean) | [공식 Apple opt-in 문서](https://firebase.google.com/docs/crashlytics/ios/customize-crash-reports#enable-opt-in-reporting). `node_modules/@react-native-firebase/app/ios_config.sh:89,225-232`의 auto disabler는 firebase.json을 찾으면 `react-native` 루트 유무·`crashlytics_auto_collection_enabled` 값과 무관하게 bool `NO` 추가를 시도함(`crashlytics_disable_auto_disabler=true` 예외는 사용하지 않음). `setPlistValue`의 PlistBuddy `Add`(`:47-49`)는 **Info.plist에 그 키가 없을 때만 NO를 추가**하며 기존 true를 덮지 않음. 현재 iOS autolinking은 꺼져 있어 이 스크립트도 실행되지 않음. 빌드 산출물의 boolean false를 검사하고, RN iOS 초기화의 JSON·prefs 우선순위와 최종 값은 **설치 뒤 확인**(U1·U8) |
 | 선택적 수집 | `crashlytics_is_error_generation_on_js_crash_enabled=false`, `crashlytics_ndk_enabled=false` 후보 | 실제 `firebase-schema.json:73-84`. JS handler 연결 전체와 ANR까지 꺼졌다는 증거는 아님. 각 native SDK 버전에서 U5를 확인 |
-| 저장 override | RN prefs가 JSON/metadata보다 앞섬. native SDK에도 별도 override 존재 | 후보 `ReactNativeFirebaseCrashlyticsInitProvider.java:38`, 공식 native 설정 우선순위. **10-15 발췌·외부 문서 근거, 설치 뒤 확인**. JS에서 나중에 false로 바꾸는 것만으로 부팅 전 전송을 막지 못함 |
+| 저장 override | RN prefs → JSON → RN metadata 순서. RN metadata는 `rnfirebase_` 접두 키이며 위 Android/iOS native 키와 다름. native SDK에도 별도 override 존재 | 설치된 app의 `ReactNativeFirebaseMeta.java:30,61-65`·`RNFBMeta.m:24,34-38`에서 접두 키 확인. 후보 `ReactNativeFirebaseCrashlyticsInitProvider.java:38`의 prefs/JSON 누락 시 기본 true와 setter 호출은 **10-15 발췌 근거, 설치 뒤 확인**. native 키는 RN 초기화 전 구간만 다스리며 RN provider가 덮을 수 있으므로, RN 쪽 차단에는 `firebase.json`의 `crashlytics_auto_collection_enabled=false`가 필수. JS에서 나중에 false로 바꾸는 것만으로 부팅 전 전송을 막지 못함 |
 | provider | 후보 RN ContentProvider `onCreate`가 실제 collection setter를 부름(`initOrder=98`) | 같은 파일 `onCreate():115`, 후보 manifest. **10-15 발췌 근거, 설치 뒤 확인**. Firebase init과 RN init 모두 React/서버 읽기보다 먼저 실행될 수 있음 |
 | JS bridge | 후보 setter는 RN prefs 저장. delete는 native 완료를 Promise에 연결하지 않음. JS send는 wrapper flag true일 때만 호출 | 후보 `ReactNativeFirebaseCrashlyticsModule.java:92,142,155`의 delete/send/setter, `dist/module/namespaced.js:50,91,100`. **10-15 발췌 근거, 설치 뒤 확인**. 공식 native API와 wrapper의 계약이 같지 않음 |
 
 Android·Apple 공식 문서는 OFF에서도 기기에 오류가 남고 이후 ON으로 이전 보고가
 전송될 수 있으며 override가 다음 실행에도 지속된다고 설명합니다. Android의 false와
 Apple setter의 적용 시점은 다음 실행이라는 제약도 있습니다. 따라서 **UI ON을 SDK
-자동 수집 true로 번역하지 않는 것**을 권장합니다. 공식 native send는 자동 수집 OFF일 때
-가능하지만, 후보 RN wrapper는 이 경로를 그대로 제공하지 않습니다. 이 단락은 외부
+자동 수집 true로 번역하지 않는 것**은 필수입니다. `true → send → false` 우회도 금지합니다.
+중간 종료가 RN prefs에 true를 남겨 다음 부팅의 동의 확인보다 먼저 적용될 수 있기 때문입니다.
+공식 native send는 자동 수집 OFF일 때 가능하지만, 후보 RN wrapper는 이 경로를 그대로
+제공하지 않습니다. 이 단락은 외부
 문서·10-15 발췌 근거이며, 고정 SDK 원문과 실제 적용 시점은 **설치 뒤 확인**합니다.
 [Android API](https://firebase.google.com/docs/reference/android/com/google/firebase/crashlytics/FirebaseCrashlytics)
 · [Apple API](https://firebase.google.com/docs/reference/swift/firebasecrashlytics/api/reference/Classes/Crashlytics)
@@ -139,8 +141,9 @@ U1~U6에서 검증해야 하며, 불가능하면 이 후보를 활성화하지 �
 자동 전송 OFF와 오류 기록 OFF는 다릅니다. 현재 앱은 Crashlytics가 없으므로 이 SDK의
 대기 보고가 새로 만들어지는 경로도 없습니다. 향후 포함·초기화하면 OFF만으로 기기 기록 0을
 보장할 수 없습니다. 동의 전 기기 기록까지 막을 수 있는지가 U1의 필수 판정입니다.
-막을 수 없다면 먼저 법무·코디네이터에게 범위 차이를 제시하며, 로컬 기록을 몰래 허용하는
-것으로 기존 “켠 성인에게서만 수집” 결정을 해석하지 않습니다.
+막을 수 없다면 도입을 보류하고 Simon·법무·코디네이터에게 범위 차이를 제시합니다.
+예외 검토는 §6의 Simon 새 결정 조건을 따릅니다. 로컬 기록을 몰래 허용하는 것으로
+기존 “켠 성인에게서만 수집” 결정을 해석하지 않습니다.
 
 | 상황 | 처리 원칙 | 완료라고 말할 수 없는 근거 |
 |---|---|---|
@@ -200,35 +203,39 @@ U는 §8의 미확인 조건입니다. 아래 장치는 구현 요구이며 현�
 
 | # | 사례 | 일어나는 일 | 막는 장치 | 시험 방법·합격 기준 |
 |---|---|---|---|---|
-| T01 | 첫 실행, 동의 읽기 전 provider 시작 | 로그인 전 보고·식별자·설정 조회 | 빌드 OFF + 초기화 경계(U1·T19) | release 첫 부팅부터 React 전 구간을 포함해 Firebase 호스트 전부 캡처. 동의 전 Crashlytics가 유발한 모든 호출 0(보고 외 통신의 예외는 T19 법무 확인 필요), 동의 전 기록 여부 별도 판정 |
+| T01 | 첫 실행, 동의 읽기 전 provider 시작 | 로그인 전 보고·식별자·설정 조회 | 빌드 OFF + 초기화 경계(U1·T19) | release 첫 부팅부터 React 전 구간을 포함해 Firebase 호스트 전부 캡처. 동의 전 Crashlytics가 유발한 모든 호출 0. 하나라도 있으면 도입 보류. 동의 전 기록 여부 별도 판정 |
 | T02 | 이전 실행의 true·백업 복원 | manifest false를 저장값이 덮음 | [app.json:56](../../app.json#L56)의 `android.allowBackup=false` 유지 + 양쪽 override 정리, 복원 허가 무효 | release merged manifest의 백업 OFF 확인. 이 설정만으로 복원 경로가 없다고 보지 않고 RN prefs/native override 각각 true인 재시작·복원 표본 시험. 자동 전송 0 |
 | T03 | OFF 중 오류 후 성인 ON | 과거 보고가 소급 전송 | 구간 불명 보고 전체 폐기(U2·U3) | OFF 표식 A, ON 표식 B를 분리. A 수신 0 |
 | T04 | 미성년 오류 후 성인 계정 | 미성년 보고가 성인 동의를 빌림 | owner/epoch와 발생 구간 결합 | 미성년 A → 성인 B. A 수신 0, B 적격 보고만 후보 |
 | T05 | ON 읽기가 늦게 도착, 사이에 철회 | 저장·읽기 콜백이 재활성화 | choice revision, native 직렬 거부 | ON 응답을 지연 후 OFF. 늦은 응답 뒤에도 명령은 거부 |
 | T06 | OFF 저장 실패·오프라인·강제 종료 | 다음 실행이 서버 true를 복구 | 지속되는 로컬 철회와 재시도 | 쓰기 실패와 종료를 각 단계에 삽입. 재시작 뒤 Crashlytics가 유발한 모든 호출 0(Installations·설정 조회 포함) |
 | T07 | A → B → A, 늦은 콜백 | 같은 ID라 과거 권한이 살아남음 | 단조 epoch, 콜백 owner 검사 | ID는 같고 epoch만 다른 표본. 오래된 명령 채택 0 |
-| T08 | 성인 → 미성년, 직접 prefs 변조 | UI 잠금만 우회 | 0257 clamp + native 현재 연령 검사 | SQL 회귀는 Relay. 단위에서 변조 true·나이 null 모두 거부 |
+| T08 | 성인 → 미성년, 직접 prefs 변조 | UI 잠금만 우회 | 0257 clamp + native 현재 연령 검사 | SQL 회귀 작성은 서버 코딩 창(2ndb-e7), 운영 적용·증거는 Relay. 단위에서 변조 true·나이 null 모두 거부. release 기기에 성인 구간 미전송 보고·오프라인 send 대기열을 남긴 뒤 서버 연령을 미성년·미확인으로 바꾸고 온라인 복귀·재시작. §7.2 캡처에서 전환 뒤 Crashlytics 유발 호출 0, 성인 때 보고의 뒤늦은 수신 0, 열린 세션·허가 캐시 폐기 확인 |
 | T09 | 삭제 중 새 오류·현재 열린 세션 | 지웠다고 한 뒤 보고 재생성 | 기록 중지·세션 분리·완료 장벽(U3) | delete 직후 오류와 재시작. 옛 구간 보고 수신 0 |
 | T10 | SDK에 넘긴 직후 철회, 네트워크 복구 | 대기·재시도 보고나 보고 외 요청이 철회 뒤 나감 | 실제 취소/종료 계약(U4) | 오프라인 send → OFF → 온라인. 철회 뒤 Crashlytics가 유발한 모든 호출 0(Installations·설정 조회 포함). 늦은 호출이 있으면 활성화 불가 |
 | T11 | exception/cause/stack에 합성 원문 | 대화·이메일·토큰이 보고에 섞임 | 문자열 허용 목록 + 자동 fatal 별도 검증(U5) | 고유 합성 표식을 각 입력에 넣음. 파일·업로드 자료에서 표식 0 |
-| T12 | 전역 console·JS handler 연결 | 기존 로그와 예외가 자동 복제 | console 전달 금지, handler 범위 고정 | SDK import·global handler 소스 계약, release 합성 예외 시험 |
+| T12 | 전역 console·JS handler 연결 | 기존 로그와 예외가 자동 복제 | console 전달 금지, handler 범위 고정 | SDK import·global handler 소스 계약, Sentry native auto-init OFF·JS handler 미초기화 유지, release 합성 예외 시험 |
 | T13 | 앱 통계 후속이 Analytics를 켬 | breadcrumbs·이벤트 인자가 추가됨 | 수집 목록 변경 시 재검토 | Analytics ON/OFF 별도 시험. 미승인 필드 0, 이번에는 ON하지 않음 |
 | T14 | custom user ID를 비우고 삭제 완료 표시 | 옛 보고·설치 ID는 남음 | 세 종류 ID와 로컬/원격 삭제 구분(U6) | 빈 ID 호출만으로 완료 상태가 되면 단위 실패 |
 | T15 | debug에서는 통과, release에서 자동 시작 | 기본값·provider 조건 차이 | release manifest·실제 바이너리 검증 | 같은 부팅 시나리오를 release에서 재현. debug만으로 통과 금지 |
 | T16 | 구 APK에 새 JS·없는 native 모듈 | 시작 중 앱 종료, JS catch 이전 실패 | 모듈 존재 확인 후 import, runtime 호환성 | 없는 모듈 mock에서 import 0. QA 승인 뒤 구 바이너리 경로 확인 |
 | T17 | 다른 기기의 철회·연령 변경과 전송 경합 | 서버 결과가 이미 낡음 | 서버 재확인·허가 수명·경합 경계(U7) | 서버 읽기와 native 위임 사이 변경. 허용 시간 경계를 증명 못 하면 보류 |
 | T18 | 저장소 가득 참·보고서 폭증·삭제 시간 초과 | 시작 지연 또는 정리 실패 후 허용 | 제한된 대기, 오류 시 계속 거부 | 실패 주입. 앱은 사용 가능, 허가 0. 실제 용량·수명은 U3에서 결정 |
-| T19 | SDK 초기화가 동의 전에 Installations·Crashlytics 설정을 조회 | 보고 업로드 없이 식별자·기기 정보가 Google로 나감 | §1.2의 FCM 사전 등록 차단 결정과 같은 초기화 경계(U1). OFF만으로 통신 차단을 가정하지 않음 | release 신규 설치 첫 부팅 네트워크를 Firebase 호스트 전부 대상으로 캡처. SDK 없는 기준선과 비교하고 고정 SDK 호출 경로로 귀속 확인. 동의 전 Crashlytics로 인한 호출 0 또는 해당 보고 외 통신에 대한 명시적 법무 확인. 원인 불명·예외 미확정이면 도입 보류 |
-| T20 | 동의한 A의 로그아웃 중·직후 충돌 | A의 사용자 식별자·미전송 보고·대기 전송이 로그인하지 않은 구간에 남음 | 화면의 계정 제거 전 native 허가 무효화, epoch 폐기, ID·로그·custom key 정리, 보고 삭제·큐 취소(U3·U4·U6) | A 표식 보고를 쌓고 오프라인 send 후 로그아웃 각 단계와 직후에 합성 충돌. 온라인 복귀·재시작 뒤 A 표식 및 로그아웃 구간 수신 0. A 식별자 잔여·보고 재생성·늦은 콜백 0을 확인해야 다음 계정 허용 |
-| T21 | 둘 다 동의한 성인 A → 성인 B | A의 쌓인 보고·사용자 식별자가 B의 선택으로 전송되거나 B 보고에 섞임 | 동의 여부와 별개로 owner/epoch·보고 구간 검사, A 구간 정리 완료 전 B 전송 금지(U2·U3·U6) | A 미전송·전송 대기 보고를 남기고 B로 전환. B 현재 동의 재확인 후 온라인 복귀·재시작. A 표식 수신 0, 섞인 묶음은 전송 0, 정리 뒤 B 보고에 A 사용자 식별자·로그·custom key 0. 설치 UUID/FID 연관 한계는 U6에서 별도 판정 |
-| T22 | 동의한 A의 계정 삭제 중·뒤 충돌, 이후 B 로그인 | 삭제한 계정의 보고·사용자 식별자가 다음 계정으로 넘어가거나 로컬 정리를 원격 삭제로 오인 | 삭제 시작 시 로그아웃과 같은 native 무효화·기기 정리·큐 취소, 서버 영수증 처리와 벤더 삭제 별도 확인(U3·U4·U6) | A 보고를 쌓고 오프라인 send 후 삭제 성공·실패·강제 종료 각각 시험. 삭제 중·뒤 충돌과 B 로그인 후 온라인 복귀·재시작에서 A 표식·삭제 구간 수신 0, B에 A 사용자 식별자 잔여 0. 빈 ID 호출만으로 기기 정리·벤더 삭제 완료를 표시하면 실패 |
+| T19 | SDK 초기화가 동의 전에 Installations·Crashlytics 설정을 조회 | 보고 업로드 없이 식별자·기기 정보가 Google로 나감 | §1.2의 FCM 사전 등록 차단 결정과 같은 초기화 경계(U1). OFF만으로 통신 차단을 가정하지 않음 | release 신규 설치 첫 부팅 네트워크를 Firebase 호스트 전부 대상으로 캡처. SDK 없는 기준선과 비교하고 고정 SDK 호출 경로로 귀속 확인. 동의 전 Crashlytics로 인한 호출 0. 하나라도 있거나 원인 불명이면 도입 보류. 법무 확인으로 통과 처리하지 않음 |
+| T20 | 동의한 A의 로그아웃 중·직후 충돌 | A의 사용자 식별자·미전송 보고·대기 전송이 로그인하지 않은 구간에 남음 | 화면의 계정 제거 전 native 허가 무효화, epoch 폐기, ID·로그·custom key 정리, 보고 삭제·큐 취소(U3·U4·U6) | A 표식 보고를 쌓고 오프라인 send 후 로그아웃 각 단계와 직후에 합성 충돌. §7.2 캡처로 로그아웃 시작부터 온라인 복귀·재시작까지 Crashlytics 유발 호출 0, A 표식 및 로그아웃 구간 수신 0. A 식별자 잔여·보고 재생성·늦은 콜백 0을 확인해야 다음 계정 허용 |
+| T21 | 둘 다 동의한 성인 A → 성인 B | A의 쌓인 보고·사용자 식별자가 B의 선택으로 전송되거나 B 보고에 섞임 | 동의 여부와 별개로 owner/epoch·보고 구간 검사, A 구간 정리 완료 전 B 전송 금지(U2·U3·U6) | A 미전송·전송 대기 보고를 남기고 B로 전환. §7.2 캡처로 전환 시작부터 B 현재 동의 재확인·A 정리 완료 전까지 Crashlytics 유발 호출 0. 이후 온라인 복귀·재시작에서도 A 표식 수신 0, 섞인 묶음은 전송 0, B 보고에 A 사용자 식별자·로그·custom key 0. 설치 UUID/FID 연관 한계는 U6에서 별도 판정 |
+| T22 | 동의한 A의 계정 삭제 중·뒤 충돌, 이후 B 로그인 | 삭제한 계정의 보고·사용자 식별자가 다음 계정으로 넘어가거나 로컬 정리를 원격 삭제로 오인 | 삭제 시작 시 로그아웃과 같은 native 무효화·기기 정리·큐 취소, 서버 영수증 처리와 벤더 삭제 별도 확인(U3·U4·U6) | A 보고를 쌓고 오프라인 send 후 삭제 성공·실패·강제 종료 각각 시험. §7.2 캡처로 삭제 시작부터 B의 새 적격 구간 전까지 Crashlytics 유발 호출 0. 삭제 중·뒤 충돌과 B 로그인 후 온라인 복귀·재시작에서 A 표식·삭제 구간 수신 0, B에 A 사용자 식별자 잔여 0. 빈 ID 호출만으로 기기 정리·벤더 삭제 완료를 표시하면 실패 |
 
 공통 기준은 동의 전·미성년·철회·로그아웃·계정 삭제 구간의 **Crashlytics가 유발한 모든
 네트워크 호출 0**입니다. 보고 업로드뿐 아니라 Installations·설정 조회를 포함합니다.
 다른 계정의 보고·식별자를 다음 계정으로 넘기는 호출도 0이어야 합니다(T21).
-동의 전 보고 외 통신의 예외는 T19의 명시적 법무 확인이 있어야 하며, 대상 호스트·항목·
-목적·시점·연령 범위를 문구와 설계에 반영하기 전까지 도입을 보류합니다. 이 문서가 예외를
-승인하지 않으며 보고 전송 0 기준도 유지합니다.
+**동의 전 Crashlytics가 일으키는 통신이 하나라도 있으면 도입을 보류합니다.** 법무 확인은
+이 합격 기준을 대체하지 않습니다. 성인 동의·14~17세 OFF·기본 OFF는 Simon의
+10-14 10:16 결정이며, [선행 조사 §3.1·§5](error-collection-readiness-261015.md)의 기준을 유지합니다.
+예외는 **DECISIONS에 기록된 Simon의 새 결정으로만 검토**합니다. 예외는 로그인 전·미성년·
+연령 미확인 상태에는 적용할 수 없습니다. 첫 부팅은 로그인·연령 확인보다 앞서므로 이
+구간의 통신은 예외 대상이 될 수 없습니다. 이 문서는 예외를 승인하지 않으며, 법무 확인만으로
+T19·U1을 닫거나 도입 보류를 해제하지 않습니다.
 Crashlytics 없는 동일 release 설정의 FCM·Installations 통신을 기준선으로 기록하되,
 Crashlytics가 유발한 요청을 기준선에 섞지 않습니다. 호출 수 차이만 보지 않고 요청별
 시점·호스트·SDK 호출 경로로 귀속을 확인하며, 원인 불명 요청은 통과로 세지 않습니다.
@@ -245,7 +252,7 @@ Crashlytics가 유발한 요청을 기준선에 섞지 않습니다. 호출 수 
 | 순수 전환·명령 순서 | 시작 거부, OFF 우선, 서버 실패, A→B→A, 나이 변경, 오래된 콜백, 삭제 미완료. 로그아웃·계정 삭제는 화면의 계정 제거 전 무효화(T20·T22) | OFF를 서버 응답 뒤로 이동, epoch 증가 제거, 실패 뒤 ON 복구, 계정 제거 뒤에 native 무효화 |
 | 보고 구간 선택 | 동의 전/후, 다른 소유자, 열린 세션, 정보 누락, 섞인 묶음은 전체 거부. 둘 다 동의한 성인 A→B에서 A 구간·식별자 제외(T21) | 시각이나 동의 여부만 비교하고 owner 생략, 일부 적격만 보고 전송, 삭제 요청을 완료로 취급 |
 | 허용 필드 | 합성 원문·이메일·URL·cause·stack, 허용 목록 밖 객체 거부 | message/원문 전달, 사용자 ID 해시 허용, console 연결 |
-| 소스 계약 | manifest·plist·RN JSON 기본 OFF, 자동 true 없음, import 전 native 확인. iOS plist NO만으로 RN 초기화 통과 판정 금지(U1·U8) | 기본 false 하나를 true로 변경, provider 경계 우회, module 확인 제거 |
+| 소스 계약 | release merged manifest·빌드 산출물 Info.plist의 boolean false·RN JSON 기본 OFF, 자동 true 없음, import 전 native 확인. `firebase.json`의 `react-native.crashlytics_auto_collection_enabled` 누락 또는 true는 실패. iOS plist NO만으로 RN 초기화 통과 판정 금지(U1·U8). Sentry native·JS handler 미초기화 유지(T12) | 기본 false 하나를 true로 변경, RN JSON 키 제거·오타, 기존 plist true 유지, provider 경계 우회, module 확인 제거, Sentry 초기화 추가 |
 | 기존 경계 회귀 | `analytics.test.ts`, `conversions.test.ts`, `clarity-native.test.ts`, `analytics-consent-queue.test.ts`, `env-analytics.test.ts`, Z5 계약 검사 | 기존 웹 동의 또는 email-v10이 Crashlytics를 허가하지 않음을 유지 |
 
 위 새 단위·소스 계약 시험은 **구현 PR의 계획**입니다. 이번 문서 PR에는 테스트 파일을
@@ -261,11 +268,16 @@ Crashlytics가 유발한 요청을 기준선에 섞지 않습니다. 호출 수 
    자동 초기화부터 JS hydration 전까지 관찰하고, 앱이 살아 있는 동안의 철회도 포함합니다.
    T01·T19는 release 첫 부팅 전에 캡처를 시작해 Firebase 호스트 전부와 Installations·설정
    조회를 포함합니다. SDK 없는 기준선·있는 후보의 설정을 맞추고 각 요청의 귀속을 기록합니다.
-   같은 캡처를 T06·T10의 철회·재시작·온라인 복구에도 적용합니다.
+   같은 캡처를 T06·T10의 철회·재시작·온라인 복구, T08의 성인→미성년·연령 미확인 전환,
+   T20~T22의 로그아웃·계정 삭제·성인 A→B 전환에도 적용합니다. 전환 시작 전부터 동일
+   프로세스의 설정 조회·Installations 갱신과 온라인 복귀·재시작까지 이어서 기록합니다.
+   T08·T20의 전환 뒤, T21·T22의 B 새 적격 구간 전에는 Crashlytics 유발 호출 0이어야 합니다.
 3. 동의 전/후·계정별 합성 표식을 대조합니다. 콘솔의 수신뿐 아니라 로컬 미전송 파일,
    열린 세션, 전송 대기·재시도 상태를 확인합니다. 실제 사용자 콘텐츠는 쓰지 않습니다.
-   T20~T22는 쌓인 A 보고·대기 전송·식별자 잔여를 준비하고 로그아웃·삭제 중과 뒤의
-   충돌, 둘 다 동의한 성인 A→B를 각각 수행합니다. 합성 식별자 잔여 표본은 격리된 QA에서만
+   T08은 성인 때 미전송 보고와 오프라인 send 대기열을 각각 준비한 뒤 서버 연령을 바꿉니다.
+   미성년·연령 미확인 전환 후 온라인 복귀·재시작에서 성인 때 보고 수신 0과 열린 세션·허가
+   캐시 폐기를 확인합니다. T20~T22는 쌓인 A 보고·대기 전송·식별자 잔여를 준비하고
+   로그아웃·삭제 중과 뒤의 충돌, 둘 다 동의한 성인 A→B를 각각 수행합니다. 합성 식별자 잔여 표본은 격리된 QA에서만
    사용하며 제품 코드의 사용자 ID 입력 금지를 풀지 않습니다.
 4. 난독화한 합성 오류의 코드 위치가 복원되는지 확인합니다. 소스맵·심볼 업로드 권한과
    보관은 별도 운영 조건입니다. 중복 전송·삭제 후 재생성도 확인합니다.
@@ -284,7 +296,7 @@ hydration의 5초를 native 삭제 제한으로 복사하지 않고, 제한 시�
 
 | ID | 미확인 내용 | 닫는 데 필요한 증거·실패 시 처리 |
 |---|---|---|
-| U1 | ContentProvider·registrar와 RN iOS 초기화보다 앞선 동의 경계, OFF 중 기록·Installations·설정 조회 차단 여부 | **설치 뒤 확인**: 고정 SDK 시작 그래프·iOS JSON/prefs 우선순위와 release 첫 부팅의 Firebase 전체 호스트 캡처(T01·T19). 동의 전 Crashlytics 유발 호출 0 또는 T19의 명시적 법무 확인. plist NO·보고 수신 0만으로 닫지 않으며, Firebase 전체를 끄지 않고 경계를 만들 수 없거나 예외 미확정이면 도입 보류 |
+| U1 | ContentProvider·registrar와 RN iOS 초기화보다 앞선 동의 경계, OFF 중 기록·Installations·설정 조회 차단 여부 | **설치 뒤 확인**: 고정 SDK 시작 그래프·iOS JSON/prefs 우선순위와 release 첫 부팅의 Firebase 전체 호스트 캡처(T01·T19). 동의 전 Crashlytics 유발 호출 0. 하나라도 있거나 원인 불명이면 도입 보류. 법무 확인·plist NO·보고 수신 0만으로 닫지 않으며, Firebase 전체를 끄지 않고 경계를 만들 수 없어도 도입 보류. 예외 검토는 §6의 Simon 새 결정 조건을 따르고 로그인 전·미성년·연령 미확인에는 적용 불가 |
 | U2 | 보고와 계정·동의 구간을 외부 ID 없이 결합, 현재 세션의 분리 | 공식 지원 API·버전 소스와 기기 시험. 불명 보고는 전체 폐기, 승인 구간 분리가 불가능하면 활성화 보류 |
 | U3 | native 삭제 완료·열린 세션·백업·기기 보관 상한 | 삭제 요청 이후 재생성·재시작·오프라인 시험. SDK private 경로를 추정해 지우지 않음 |
 | U4 | 수동 전송 위임 이후 취소, 오프라인 재시도와 철회의 경계 | 고정 버전의 큐·취소 계약과 T10. 현재 문서만으로 즉시 중단 보장 불가, 초안 문구 재검토와 설계 재검토 선행 |
@@ -299,6 +311,7 @@ hydration의 5초를 native 삭제 제한으로 복사하지 않고, 제한 시�
 | 바깥 조건 | 담당·필요 결과 | 지금 상태 |
 |---|---|---|
 | 문구 재검토 | 코디네이터·법무: 10-18 초안의 전송 시점, OFF 중 로컬 기록, 철회 한계, 식별자, 90일 후 절차, 거부 효과를 실제 계약에 맞춤 | 미확정. B안 말투·다섯 언어 키 짝·승인 원문과 버전 묶음은 후속에서 처리 |
+| 새 SDK·동의 버전 변경 별도 제시 | 10-14 10:16 결정: “동의 버전 변경은 설계에서 따로 보여 드림”. 코디네이터가 새 SDK·동의 키·문구/정책 버전 튜플·기존 사용자 고지/재확인 방식을 Simon에게 별도 설계로 제시하고 확인 결과를 남김 | 별도 제시·확인 전. 이 문서에서 키·버전을 배정하지 않으며 0257 설계 확인이나 법무 문구 확인으로 대신하지 않음 |
 | 0257 서버 계약·운영 적용 | 결정 원문(10-14 11:20): “앱 분석 설계가 검토를 지나고 Simon 확인 뒤”. 이 조건과 키·문구 확정 후 서버 코딩 창(2ndb-e7)이 clamp·원자 동의 영수증·구버전 및 연령 전환 회귀를 작성. Relay는 운영 적용과 그 증거 담당 | 예약만 확인. Simon 확인·작성·적용 완료로 보지 않음. 이 갈래에서 작성·적용·운영 조회하지 않음 |
 | 처리방침 게시 승인 | 수집 항목·국외 처리·기간·삭제, 새 정책 판과 기존 사용자 고지/재확인 방식 확정 | 게시하지 않음. Z5 email-v10/service-v5를 재정의하지 않음 |
 | QA APK | 위 조건과 설계 검토 뒤 대표님 요청이 있을 때 코디네이터·빌드 담당이 준비 | 빌드 dispatch·설치·기기 시험 0. 웹/8081 확인으로 대체하지 않음 |
@@ -316,7 +329,8 @@ hydration의 5초를 native 삭제 제한으로 복사하지 않고, 제한 시�
 
 설계 자기 점검은 구조(부팅·계정 경계), 코드 계약(기존 동의와 SDK bridge 차이),
 시험(위협 22개와 변이 계획), 성능(정리 실패·저장소 압박) 네 관점입니다.
-1회차 독립 검토는 BLOCK이었고, 이번 보완은 보고 외 통신·계정 경계 시험과 근거 표기를
+1·2회차 독립 검토는 BLOCK이었습니다. 2회차 뒤 보완은 법무 확인만으로 동의 전 통신을
+허용할 수 있던 합격 조건을 제거하고, 전환 구간 캡처·담당·동의 버전 제시·설정 근거를
 수정한 것입니다. 재검토 PASS는 아직 확인하지 않았습니다.
 
 문서 PR의 실행 결과는 PR 본문에 남깁니다. 필수 검사는 `check:lexicon`과
