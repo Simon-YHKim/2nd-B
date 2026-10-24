@@ -351,7 +351,7 @@ const EXPORT_TABLES: readonly ExportTable[] = Object.freeze([
   { table: 'ops_reading', fk: 'user_id' },
   { table: 'interview_coverage', fk: 'user_id', order: ['period', 'layer'] },
   // 0225/0226 applied (coordinator, 2026-10-23). Keep linkage/version IDs and
-  // ai_hold metadata: AI-use restrictions do not omit the owner's transcript.
+  // ai_hold (crisis-derived hold, see DPIA Q-H1): held rows stay in the owner's export.
   {
     table: 'interview_transcripts', fk: 'user_id', order: ['id'],
     select: 'id,user_id,session_id,record_id,period,locale,turn_count,ai_hold,superseded_by,created_at',

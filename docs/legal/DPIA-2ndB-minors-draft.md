@@ -630,7 +630,7 @@ Together (named character + first-person address + persistent memory + idle/wake
 
 The explicit transcript column lists include all 10 header and 11 turn columns confirmed by the coordinator. `id`, `user_id`, `session_id`, `record_id`, `superseded_by` and `transcript_id` preserve ownership and record/session/version linkage; retaining the session identifier does not query or export the pending session row. Turn number, role, scene, layer, origin, question kind, `opener_unedited`, original `text` and `ai_hold` preserve the structured conversation. No audit IDs or answer digests are selected. Neither `ai_hold` nor `superseded_by` filters out the owner's transcript. `ai_hold` is set only by crisis classification, not by a general AI-use preference. The three write paths in 0225 are:
 
-1. Commit uses the C9 red result at save (`p_crisis_hold`), an existing record hold, or a linked session red audit; it carries the resulting hold to the record, header and every turn (`db/migrations/0225_interview_transcript_ledger.sql:1482-1501`).
+1. Commit uses the C9 red result at save (`p_crisis_hold`, reported by the screen; the server only raises the hold and never lowers it), an existing record hold, or a linked session red audit; it carries the resulting hold to the record, header and every turn (`db/migrations/0225_interview_transcript_ledger.sql:1482-1501`).
 2. `hold_interview_record_for_red` requires a `server_verified` `interview_probe` audit with `safety_zone='red'` and sets the record, header and turn holds (`db/migrations/0225_interview_transcript_ledger.sql:895-928`).
 3. The backfill copies an existing transcript hold to its record; it does not make a new classification (`db/migrations/0225_interview_transcript_ledger.sql:1907-1909`).
 
