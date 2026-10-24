@@ -146,6 +146,6 @@ DO $$ DECLARE v_role text; v_func text; BEGIN
   END LOOP;
 END $$;
 SELECT pg_temp.assert_t07(to_regnamespace('cron') IS NULL,'installed without pg_cron');
-\ir unconfirmed-signup-kst.sql
+\ir unconfirmed-signup-session-date.sql
 ROLLBACK;
 SELECT 'T07 SQL behavior PASS';

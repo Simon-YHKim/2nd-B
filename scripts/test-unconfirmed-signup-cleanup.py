@@ -59,12 +59,10 @@ require_failure("BEGIN; ALTER TABLE auth.users DROP COLUMN confirmation_sent_at;
                 "requires auth.users.confirmation_sent_at")
 require_failure("BEGIN; ALTER TABLE auth.users DROP COLUMN recovery_sent_at;\n" + installer,
                 "requires auth.users.recovery_sent_at")
-require_failure("BEGIN; ALTER FUNCTION public.enforce_user_age_tier() SET timezone='Europe/Paris';\n" + installer,
-                "unexpected signup timezone override")
-require_failure("BEGIN; ALTER FUNCTION public.enforce_user_age_tier() SET timezone='Asia/Seoul';\n" + installer,
-                "unexpected signup timezone override")
-run("BEGIN;\n" + installer + "\nCOMMIT;")
-run("BEGIN;\n" + installer + "\nCOMMIT;")
+for _ in range(2):
+    run("BEGIN;\n" + installer + "\nCOMMIT;")
+    if run(signup_snapshot_sql).stdout != signup_before:
+        raise RuntimeError("Installation changed existing C10/signup functions/config/ACL")
 
 
 def assert_diagnostics(result):
@@ -78,6 +76,7 @@ def assert_diagnostics(result):
 
 assert_diagnostics(run(behavior))
 print("PASS: behavior, private ACL, real age gate, no cron, installer twice, missing column refusal", flush=True)
+print("PASS: 54 birthday cases across 3 session timezones; C10/signup definitions/config/ACL unchanged", flush=True)
 
 # Every mutant is installed in a transaction. Only the suite's P0707 semantic
 # assertion kills it; SQL syntax, transport, timeout and unrelated failures fail
@@ -101,15 +100,22 @@ mutations = [
     ("identity DOB", "NEW.identity_data := public.scrub_under14_signup_birth_date(NEW.identity_data);", "NULL;"),
     ("14 boundary", "interval '14 years'", "interval '15 years'"),
     ("private ACL", "-- postgres (owner) alone", "GRANT EXECUTE ON FUNCTION public.purge_unconfirmed_signups(integer) TO authenticated;\n-- postgres (owner) alone"),
-    ("KST scrubber", "SET timezone = 'Asia/Seoul'\nAS $$", "SET timezone = 'UTC'\nAS $$"),
-    ("KST age gate", "ALTER FUNCTION public.enforce_user_age_tier() SET timezone = 'Asia/Seoul';",
-     "ALTER FUNCTION public.enforce_user_age_tier() RESET timezone;"),
-    ("KST confirmation", "ALTER FUNCTION public.complete_verified_email_signup() SET timezone = 'Asia/Seoul';",
-     "ALTER FUNCTION public.complete_verified_email_signup() RESET timezone;"),
-    ("KST profile completion", "  SET timezone = 'Asia/Seoul';", "  RESET timezone;"),
+    ("UTC scrubber", "LANGUAGE plpgsql STABLE\nSET search_path = ''",
+     "LANGUAGE plpgsql STABLE\nSET search_path = ''\nSET timezone = 'UTC'"),
+    ("KST scrubber", "LANGUAGE plpgsql STABLE\nSET search_path = ''",
+     "LANGUAGE plpgsql STABLE\nSET search_path = ''\nSET timezone = 'Asia/Seoul'"),
+    ("UTC cleanup", "SET row_security = off", "SET row_security = off\nSET timezone = 'UTC'"),
+    ("KST cleanup", "SET row_security = off", "SET row_security = off\nSET timezone = 'Asia/Seoul'"),
     ("failed count", "failed := failed + 1;", "failed := failed;"),
     ("skipped count", "skipped := skipped + (1 - v_count);", "skipped := skipped;"),
 ]
+for routine in [
+    "enforce_user_age_tier()", "complete_verified_email_signup()",
+    "complete_profile_signup_consent(text,text,text,text,boolean,boolean,boolean,boolean,boolean,boolean)",
+]:
+    mutations.append(("C10 timezone unchanged: " + routine.split("(")[0],
+                      "-- Inherit session current_date",
+                      f"ALTER FUNCTION public.{routine} SET timezone = 'Asia/Seoul';\n-- Inherit session current_date"))
 for label, before, after in mutations:
     if installer.count(before) != 1:
         raise RuntimeError("Mutation anchor drift: " + label)
@@ -138,8 +144,6 @@ for label, before, after in [
 assert_diagnostics(run(behavior))
 print("PASS: 2/2 diagnostic mutants killed; counts and WARNING restored", flush=True)
 down = (ROOT / "db/migration-drafts/rollback/UNNUMBERED_unconfirmed_signup_cleanup_down.sql").read_text(encoding="utf-8")
-require_failure("BEGIN; ALTER FUNCTION public.enforce_user_age_tier() SET timezone='Europe/Paris';\n" + down,
-                "down refuses unexpected signup timezone override")
 run("BEGIN;\n" + down + "\nCOMMIT;")
 if run(signup_snapshot_sql).stdout != signup_before:
     raise RuntimeError("Rollback changed existing signup functions/config/ACL")

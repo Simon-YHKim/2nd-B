@@ -11,7 +11,6 @@
 -- Signup copies Data into identity_data too: internal/api/signup.go.
 
 DO $preflight$
-DECLARE v_routine regprocedure;
 BEGIN
   IF current_user <> 'postgres' THEN
     RAISE EXCEPTION 'T07 requires postgres';
@@ -33,37 +32,17 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.erasure_registry) THEN
     RAISE EXCEPTION 'T07 requires the populated erasure registry';
   END IF;
-  -- Preserve the existing bodies/ACLs. Refuse an unexpected timezone override
-  -- rather than silently replacing it; down restores the prior unset option.
-  FOREACH v_routine IN ARRAY ARRAY[
-    'public.enforce_user_age_tier()'::regprocedure,
-    'public.complete_verified_email_signup()'::regprocedure,
-    'public.complete_profile_signup_consent(text,text,text,text,boolean,boolean,boolean,boolean,boolean,boolean)'::regprocedure
-  ] LOOP
-    IF EXISTS (SELECT 1 FROM pg_catalog.pg_proc p, unnest(p.proconfig) c
-      WHERE p.oid = v_routine AND lower(split_part(c, '=', 1)) = 'timezone'
-        AND (c <> 'TimeZone=Asia/Seoul'
-          OR pg_catalog.to_regprocedure('public.scrub_under14_signup_birth_date(jsonb)') IS NULL)) THEN
-      RAISE EXCEPTION 'T07 unexpected signup timezone override';
-    END IF;
-  END LOOP;
 END
 $preflight$;
 
--- The existing server gates use current_date. Pin all signup paths and the
--- scrubber to the same KST transaction date, including transactions at midnight.
-ALTER FUNCTION public.enforce_user_age_tier() SET timezone = 'Asia/Seoul';
-ALTER FUNCTION public.complete_verified_email_signup() SET timezone = 'Asia/Seoul';
-ALTER FUNCTION public.complete_profile_signup_consent(text,text,text,text,boolean,boolean,boolean,boolean,boolean,boolean)
-  SET timezone = 'Asia/Seoul';
-
+-- Inherit session current_date, exactly as the existing C10 server age gates.
+-- Leave those routines and their date/configuration/ACL contracts unchanged.
 -- Only the actual signup key is removed. Other metadata, including consent,
 -- remains intact. Malformed/non-date values never abort an Auth transaction.
 CREATE OR REPLACE FUNCTION public.scrub_under14_signup_birth_date(p_metadata jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql STABLE
 SET search_path = ''
-SET timezone = 'Asia/Seoul'
 AS $$
 DECLARE
   v_birth date;
@@ -132,7 +111,6 @@ RETURNS TABLE(deleted integer, skipped integer, failed integer)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 SET row_security = off
-SET timezone = 'UTC'
 AS $$
 DECLARE
   v_id uuid;

@@ -34,7 +34,15 @@ describe("T07 unconfirmed signup cleanup deployment contract", () => {
     expect(sql).toContain("FROM auth.identities WHERE user_id = v_id FOR UPDATE NOWAIT");
     expect(sql).toContain("DELETE FROM auth.users a WHERE a.id = $2 AND ' || v_filter");
     expect(sql).toContain("pg_try_advisory_xact_lock(261024, 7)");
-    expect(sql).toContain("SET timezone = 'UTC'");
+  });
+
+  test("inherits the server age gate's session date without changing C10 routines", () => {
+    const down = read("db/migration-drafts/rollback/UNNUMBERED_unconfirmed_signup_cleanup_down.sql");
+    for (const script of [sql, down]) {
+      expect(script).not.toMatch(/(?:SET|RESET)\s+timezone\b/i);
+      expect(script).not.toMatch(/(?:ALTER|CREATE(?:\s+OR\s+REPLACE)?|DROP)\s+FUNCTION\s+public\.(?:enforce_user_age_tier|complete_verified_email_signup|complete_profile_signup_consent)\s*\(/i);
+    }
+    expect(sql).toContain("v_today date := current_date;");
   });
 
   test("scrubs both Auth copies at insert/update and when installed", () => {
