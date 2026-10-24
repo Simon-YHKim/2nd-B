@@ -1,3 +1,8 @@
+import * as sceneProbe from "../../lib/interview/probe";
+import * as sceneStuck from "../../lib/interview/stuck";
+import * as sceneEnd from "../../lib/interview/session-end";
+import { isUneditedOpener } from "../../lib/interview/opener-selection";
+import type { InterviewFlow, InterviewChoice, SaveReceipt } from "../interview";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
@@ -80,6 +85,21 @@ function callback(name: string, scope: Record<string, unknown>) {
 type Delivery = { requestId: number; guidance: NonNullable<ProbeResult["guidance"]>; owner: AccountOwnerLease;
   instance: number; locale: string; token: object; ready: boolean };
 type DeliveryUpdate = Delivery | null | ((previous: Delivery | null) => Delivery | null);
+function wireFlow(scope: Record<string, unknown>) {
+  const names = ["sessionCurrent", "frameSnapshot", "stampCurrent", "actionCurrent", "beginAction", "releaseAction", "commitFrame", "showChoice", "acceptIntoFrame", "latchCrisis", "availableChoices", "ask", "startNewScene", "changeAngle", "chooseNext", "canContinueSave", "writeReceipt", "showSaveFailure", "completeSave", "saveCoverage", "retryCoverage", "keepIt", "send", "editDraft"];
+  const bodies = names.map(name => {
+    let found: ts.FunctionDeclaration | undefined;
+    const visit = (node: ts.Node): void => {
+      if (ts.isFunctionDeclaration(node) && node.name?.text === name) found = node;
+      ts.forEachChild(node, visit);
+    };
+    visit(source); if (!found) throw new Error(`Missing flow callback ${name}`);
+    return found.getText(source);
+  }).join("\n");
+  const js = ts.transpileModule(bodies, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  Object.assign(scope, new Function(...Object.keys(scope), `${js}\nreturn {${names.join(",")}};`)(...Object.values(scope)));
+}
+
 function setup(resetOwner = true, locale = "ko") {
   if (resetOwner) {
     noteResolvedOwner(null);
@@ -95,6 +115,15 @@ function setup(resetOwner = true, locale = "ko") {
   const ended = { current: false };
   const mounted = { current: true };
   const scope = {
+    ...sceneProbe, ...sceneStuck, ...sceneEnd,
+    isUneditedOpener, openerSelection: { current: undefined },
+    sessionContext: { current: null as object | null }, sessionOwner: { current: captureAccountOwnerLease("A") }, contextRef: { current: { key: "initial" } },
+    flowRef: { current: { revision: 0, action: null, choice: null, receipt: { phase: "idle" }, crisisLatched: false, crisisEpoch: 0 } as InterviewFlow },
+
+    choice: null as InterviewChoice | null, saveReceipt: { phase: "idle" } as SaveReceipt,
+    turns: [] as InterviewTurn[], coverage: sceneProbe.emptyCoverage(), pendingLayer: "fact", openers: [], abandoned: [], draft: "", stuckStreak: 0,
+    draftEditRevision: { current: 0 }, sending: { current: false },
+    isLocalNonAnswer: () => false, setAbandoned: jest.fn(), setConcreteOnly: jest.fn(), setChoice: jest.fn(), setDraft: jest.fn(),
     userId: "A", period: "work", locale, isMinor: false, concreteOnly: false,
     ended, mounted, captureAccountOwnerLease, publishCrisisNotice,
     interviewInstance: { current: 1 }, probeRequest: { current: 0 }, turnsOwnerRef: { current: [] as unknown[] },
@@ -109,9 +138,12 @@ function setup(resetOwner = true, locale = "ko") {
     setTurns: jest.fn((_value: InterviewTurn[]) => {}), setCoverage: jest.fn(), setStuckStreak: jest.fn(), confirmedAnswer: jest.fn(), incrementCoverage: jest.fn(),
     INTERVIEW_PURPOSE, readDayLimitRefusal: jest.fn(async () => false), setDayLimited: jest.fn(), finish: jest.fn(),
   };
+  scope.sessionContext.current = scope.contextRef.current;
   scope.isGuidanceCurrent = callback("isGuidanceCurrent", scope);
   scope.finish = jest.fn(callback("finish", scope));
-  return { scope, settle, reject, ask: callback("ask", scope), get delivery() { return delivery; } };
+  scope.turns = scope.turnsOwnerRef.current as InterviewTurn[];
+  wireFlow(scope);
+  return { scope, settle, reject, ask: (...args: unknown[]) => { scope.turns = scope.turnsOwnerRef.current as InterviewTurn[]; wireFlow(scope); return callback("ask", scope)(...args); }, get delivery() { return delivery; } };
 }
 
 function evaluateExpression(text: string, scope: Record<string, unknown>) {
@@ -202,7 +234,7 @@ function screenScroll(h: ReturnType<typeof setup>, focused = true) {
   const scrollRef = { current: node as unknown as ScrollView };
   let hook!: ReturnType<typeof useScrollMemory<ScrollView>>;
   const end = () => endEffects.render(() => {
-    const turns = h.scope.setTurns.mock.calls.at(-1)?.[0] ?? [];
+    const turns = h.scope.turnsOwnerRef.current;
     const scrollToLatest = initializer("scrollToLatest", { ...h.scope, turns, scrollRef, useCallback: endEffects.hooks.useCallback });
     let actual: ts.CallExpression | undefined;
     const visit = (n: ts.Node) => {
@@ -230,7 +262,7 @@ function screenScroll(h: ReturnType<typeof setup>, focused = true) {
     close: () => { hooks.unmount(); endEffects.unmount(); jest.useRealTimers(); global.requestAnimationFrame = savedRAF; global.cancelAnimationFrame = savedCancel; } };
 }
 async function askOrdinary(h: ReturnType<typeof setup>) {
-  const previous = h.scope.setTurns.mock.calls.at(-1)?.[0] ?? [];
+  const previous = h.scope.turnsOwnerRef.current as InterviewTurn[];
   h.scope.nextProbe.mockResolvedValueOnce({ zone: "green", question: "Ordinary follow-up?", layer: "fact", openers: [] });
   await h.ask([...previous, { role: "user", text: "A later original answer", layer: "fact" }], emptyCoverage());
 }
@@ -580,13 +612,14 @@ test.each(["question", "instance"])("ordinary results from a replaced %s cannot 
   expect(h.scope.setBusy.mock.calls).toEqual([[true]]);
 });
 
-test("an older ordinary request cannot settle a newer pending request", async () => {
-  const h = setup(); const first = h.ask([], {}); const secondResult = deferred<{ zone: ProbeResult["zone"] }>();
+test("a second ordinary request cannot take the first lock, and a later explicit request has its own token", async () => {
+  const h = setup(); const first = h.ask([], emptyCoverage());
+  await h.ask([], emptyCoverage()); expect(h.scope.nextProbe).toHaveBeenCalledTimes(1);
+  h.settle({ zone: "green", question: "Next?", layer: "fact", openers: [] }); await first;
+  const secondResult = deferred<{ zone: ProbeResult["zone"] }>();
   h.scope.nextProbe.mockImplementationOnce(() => secondResult.promise);
-  const second = h.ask([], {}); h.settle({ zone: "green" }); await first;
-  expect(h.scope.finish).not.toHaveBeenCalled(); expect(h.scope.setBusy.mock.calls).toEqual([[true], [true]]);
-  secondResult.resolve({ zone: "red" }); await second;
-  expect(h.scope.finish).toHaveBeenCalledTimes(1);
+  const second = h.ask([], emptyCoverage()); expect(h.scope.nextProbe).toHaveBeenCalledTimes(2);
+  secondResult.resolve({ zone: "red" }); await second; expect(h.scope.finish).toHaveBeenCalledTimes(1);
 });
 
 test("an observer called after its request settled cannot open a new notice", async () => {

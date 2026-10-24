@@ -90,8 +90,9 @@ describe("Q-261011-05 obfuscation request gate (not a verdict)", () => {
     // section title left per locale; notices are one row to the notices screen (Z73, 4429 - 7).
     // 2026-10-19: the user guide's four common tasks, a question and an answer each, plus three
     // button labels, added per locale (Z69, 4422 + 11).
-    // 2026-10-19: privacy links to terms and refund, two labels per locale (Z76, 4433 + 2).
-    expect(strings).toHaveLength(4435);
+    // S2 adds eleven scene-choice and save-receipt strings per locale.
+    // 2026-10-24: privacy terms and refund links add two labels (4444 + 2).
+    expect(strings).toHaveLength(4446);
     expect(strings.filter(hasCrisisObfuscation)).toEqual([]);
   });
 

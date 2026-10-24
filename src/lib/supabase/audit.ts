@@ -62,8 +62,12 @@ export async function insertAiAuditLog(
   };
   const name = outboxEventId === undefined ? "log_ai_audit" : "log_ai_audit_once";
   const body = outboxEventId === undefined ? args : { p_outbox_event_id: outboxEventId, ...args };
+  const liveRequest = () => {
+    const query = getSupabaseClient().rpc(name, body);
+    return signal ? query.abortSignal(signal) : query;
+  };
   const { error } = accessToken
     ? await rpcWithCapturedSession(name, body, accessToken, signal)
-    : await getSupabaseClient().rpc(name, body);
+    : await liveRequest();
   if (error) throw error;
 }

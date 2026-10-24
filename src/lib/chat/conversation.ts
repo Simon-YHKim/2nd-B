@@ -29,6 +29,7 @@ import { formatRagPages, retrieveChatContext } from "./rag";
 import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail, type CapturedChatUsageExecution } from "./usage";
 import { abortError, isAbortError, throwIfAborted } from "../async/abort";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { captureLiveOwnerCheck, withLiveOwnerSignal } from "../auth/live-owner-guard";
 
 /** One prior exchange line. `assistant` is the model's own earlier reply. */
 export interface ChatHistoryTurn {
@@ -217,28 +218,19 @@ const BLOCKED_HINT = {
   // Neither passes the tier any more.
 };
 
-export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
-  const execution = capturedConversation(input);
-  const stage = executionStage(execution);
-  const cut = await stage(() => answerDeviceRed(input, execution));
-  if (cut) return cut;
-  const day = kstDateToday();
-  const limit = CHAT_DAILY_LIMIT[input.tier];
+export interface ChatContext {
+  structuredBlock: Awaited<ReturnType<typeof loadStructuredContext>>;
+  profileLines: Awaited<ReturnType<typeof loadProfileContext>>;
+  ragBlock: string | null;
+  snapshot: Awaited<ReturnType<typeof exportUserWiki>>;
+}
 
-  // 0090: today's allowance includes any rewarded ad bonus.
-  const readUsage = () => execution ? readChatUsageDetail(input.userId, day, execution.session) : readChatUsageDetail(input.userId, day);
-  const { used: usedBefore, adBonus } = await stage(readUsage);
-  const precheck = checkChatLimit(input.tier, usedBefore, adBonus);
-  if (!precheck.allowed) {
-    return {
-      status: "blocked",
-      reason: "limit_reached",
-      limit: precheck.limit,
-      used: precheck.used,
-      upgradeTo: precheck.upgradeTo,
-      hint: BLOCKED_HINT[input.locale](precheck.limit),
-    };
-  }
+/** Reads context after the caller has passed its crisis and usage gates. */
+export async function loadChatContext(
+  input: SendMessageInput,
+  execution: CapturedChatUsageExecution | null,
+): Promise<ChatContext> {
+  const stage = executionStage(execution, input.userId);
   // Context assembly (D-26 A1): try query-relevant retrieval first — embed the
   // message and pull the top-8 semantically relevant pages (RAG). On a hit the
   // prompt carries ONLY those pages plus a slim recent-sources list (~10x smaller
@@ -247,9 +239,9 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // 0066: newest structured form captures (4W1H, career 3C4P) ride along so
   // the model reads the form data as structure, not prose. Small, fail-soft,
   // sanitized + fenced with the snapshot below.
-  const structuredBlock = await stage(() => execution ? loadStructuredContext(input.userId, 5, execution.session) : loadStructuredContext(input.userId, 5));
+  const structuredBlock = await stage(signal => execution ? loadStructuredContext(input.userId, 5, execution.session) : loadStructuredContext(input.userId, 5, undefined, signal));
   // Q-261007-05 (Simon 2026-10-07): 사용자가 채운 프로필 칸(대화명 제외) + 만 나이. Fail-soft.
-  const profileLines = await stage(() => execution ? loadProfileContext(input.userId, undefined, execution.session) : loadProfileContext(input.userId));
+  const profileLines = await stage(signal => execution ? loadProfileContext(input.userId, undefined, execution.session) : loadProfileContext(input.userId, undefined, undefined, signal));
   let ragBlock: string | null = null;
   try {
     const ragPages = await stage(() => retrieveChatContext(input.userId, input.message, input.locale, {
@@ -260,7 +252,7 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
     }));
     if (ragPages.length > 0) ragBlock = formatRagPages(ragPages, input.locale);
   } catch (error) {
-    execution?.session.assertCurrent();
+    stage.assertCurrent();
     if (execution && isAbortError(error)) throw error;
     // fail-soft: RAG must never take chat down — fall back to the snapshot.
   }
@@ -271,43 +263,14 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
         // "what did I clip" questions still see the inbox.
         { locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40, includeSavedConversations: true }
       : { locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100, includeSavedConversations: true },
-    ...(execution ? [execution.session] as const : []),
+    execution?.session, execution ? undefined : stage.assertCurrent,
   ));
+  return { structuredBlock, profileLines, ragBlock, snapshot };
+}
 
-  // Atomic check-and-bump (codex R2): the RPC inserts/increments the row
-  // ONLY if the existing count is below `limit`. It remains the final gate
-  // immediately before Gemini, so concurrent callers cannot overspend LLM
-  // quota. The earlier read is only a no-cost preflight: if wiki export fails,
-  // the user gets no reply but also does not lose a daily chat turn.
-  //
-  // A device-red turn never gets here: it was answered above, uncounted
-  // (Q-261014-30; this replaces the old "red turns still count" trade-off).
-  // A turn cut later (server gate, meaning check, output swap) is still counted.
-  let newCount: number;
-  try {
-    newCount = await stage(() => bumpChatUsageIfUnderCap(input.userId, limit, day, ...(execution ? [execution] as const : [])));
-  } catch (e) {
-    execution?.session.assertCurrent();
-    if (e instanceof ChatLimitExceededError) {
-      const detail = await stage(readUsage);
-      const check = checkChatLimit(input.tier, detail.used, detail.adBonus);
-      // FORCE_TIER and a stale client tier do not change the server's cap.
-      // Its rejection carries no cap value: when our local check still allows
-      // sending, do not label that rejection as exhaustion of the local cap.
-      return {
-        status: "blocked",
-        reason: "limit_reached",
-        limit: check.allowed ? null : check.limit,
-        used: check.used,
-        upgradeTo: check.upgradeTo,
-        hint: check.allowed
-          ? tLocale(input.locale, "secondb", "serverLimitReached")
-          : BLOCKED_HINT[input.locale](check.limit),
-      };
-    }
-    throw e;
-  }
-
+/** Pure assembly of the existing chat instructions and fenced context. */
+export function assembleChatSystemPrompt(input: SendMessageInput, context: ChatContext): string {
+  const { structuredBlock, profileLines, ragBlock, snapshot } = context;
   const personaLine = input.personaHint ? `${input.personaHint}\n\n` : "";
   const modeLine = `${MODE_INSTRUCTION[input.mode ?? "analytic"][input.locale]}\n\n`;
   // The wiki snapshot / RAG pages are untrusted user content (clipped page
@@ -365,6 +328,68 @@ ${sanitizeUntrusted(structuredBlock)}
     : "") + chatTurnToneLine(input);
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
   const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
+  return system;
+}
+
+export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
+  const execution = capturedConversation(input);
+  const stage = executionStage(execution, input.userId);
+  const cut = await stage(() => answerDeviceRed(input, execution));
+  if (cut) return cut;
+  const day = kstDateToday();
+  const limit = CHAT_DAILY_LIMIT[input.tier];
+
+  // 0090: today's allowance includes any rewarded ad bonus.
+  const readUsage = (signal?: AbortSignal) => execution ? readChatUsageDetail(input.userId, day, execution.session) : readChatUsageDetail(input.userId, day, undefined, signal);
+  const { used: usedBefore, adBonus } = await stage(readUsage);
+  const precheck = checkChatLimit(input.tier, usedBefore, adBonus);
+  if (!precheck.allowed) {
+    return {
+      status: "blocked",
+      reason: "limit_reached",
+      limit: precheck.limit,
+      used: precheck.used,
+      upgradeTo: precheck.upgradeTo,
+      hint: BLOCKED_HINT[input.locale](precheck.limit),
+    };
+  }
+  const context = await stage(() => loadChatContext(input, execution));
+
+  // Atomic check-and-bump (codex R2): the RPC inserts/increments the row
+  // ONLY if the existing count is below `limit`. It remains the final gate
+  // immediately before Gemini, so concurrent callers cannot overspend LLM
+  // quota. The earlier read is only a no-cost preflight: if wiki export fails,
+  // the user gets no reply but also does not lose a daily chat turn.
+  //
+  // A device-red turn never gets here: it was answered above, uncounted
+  // (Q-261014-30; this replaces the old "red turns still count" trade-off).
+  // A turn cut later (server gate, meaning check, output swap) is still counted.
+  let newCount: number;
+  try {
+    newCount = await stage(signal => bumpChatUsageIfUnderCap(input.userId, limit, day, execution ?? undefined, signal));
+  } catch (e) {
+    execution?.session.assertCurrent();
+    if (e instanceof ChatLimitExceededError) {
+      const detail = await stage(readUsage);
+      const check = checkChatLimit(input.tier, detail.used, detail.adBonus);
+      // FORCE_TIER and a stale client tier do not change the server's cap.
+      // Its rejection carries no cap value: when our local check still allows
+      // sending, do not label that rejection as exhaustion of the local cap.
+      return {
+        status: "blocked",
+        reason: "limit_reached",
+        limit: check.allowed ? null : check.limit,
+        used: check.used,
+        upgradeTo: check.upgradeTo,
+        hint: check.allowed
+          ? tLocale(input.locale, "secondb", "serverLimitReached")
+          : BLOCKED_HINT[input.locale](check.limit),
+      };
+    }
+    throw e;
+  }
+
+  const system = assembleChatSystemPrompt(input, context);
 
   // C1/C3/C9 are enforced by callLlm, whose own red-zone short-circuit still
   // runs for every turn that gets here. Device-red input was already routed
@@ -473,15 +498,16 @@ function capturedConversation(input: SendMessageInput): CapturedConversationExec
   return Object.freeze({ session, observer, onCrisisDetected });
 }
 
-function executionStage(execution: CapturedChatUsageExecution | null) {
-  return async <T,>(operation: () => Promise<T>): Promise<T> => {
-    execution?.session.assertCurrent();
+function executionStage(execution: CapturedChatUsageExecution | null, ownerId?: string) {
+  const assertCurrent = execution ? () => execution.session.assertCurrent() : captureLiveOwnerCheck(ownerId ?? "");
+  return Object.assign(async <T,>(operation: (signal?: AbortSignal) => Promise<T>): Promise<T> => {
+    assertCurrent();
     let result: T;
-    try { result = await operation(); }
-    catch (error) { execution?.session.assertCurrent(); throw error; }
-    execution?.session.assertCurrent();
+    try { result = execution ? await operation() : await withLiveOwnerSignal(assertCurrent, undefined, operation); }
+    catch (error) { assertCurrent(); throw error; }
+    assertCurrent();
     return result;
-  };
+  }, { assertCurrent });
 }
 
 // 이번 턴에만 붙는 말투 보정(Q-261018-55 다 · 리뷰 #2632 r1). 항상 켜진 말투 줄(SYSTEM_PROMPT_HEADER)은

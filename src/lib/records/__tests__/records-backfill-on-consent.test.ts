@@ -60,7 +60,7 @@ function mockChain() {
     }
     if (sawNot) mockDb.clears += 1; // clearRecordEmbeddings: update().eq().not()
     else if (updatedId) mockDb.updates.push(updatedId);
-    return Promise.resolve({ error: null }).then(resolve, reject);
+    return Promise.resolve({ data: updatedId ? [{ id: updatedId, embedding_model: "test-embed" }] : [], error: null }).then(resolve, reject);
   };
   return c;
 }

@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 const mockInsertAudit = jest.fn().mockResolvedValue(undefined);
 const mockInsertCrisis = jest.fn().mockResolvedValue(undefined);
 const mockRandomUUID = jest.fn(() => (require("crypto") as { randomUUID(): string }).randomUUID());
@@ -144,6 +147,7 @@ describe("audit write outbox", () => {
       payload: auditPayload,
       warnLabel: "[test] audit failed",
     });
+    __resetAccountEpochForTests(); noteResolvedOwner("u2");
     await enqueueAuditWrite({
       kind: "ai_audit_log",
       ownerUserId: "u2",
@@ -280,6 +284,7 @@ describe("audit write outbox", () => {
       payload: auditPayload,
       warnLabel: "[test] audit failed",
     });
+    __resetAccountEpochForTests(); noteResolvedOwner("u2");
     await enqueueAuditWrite({
       kind: "ai_audit_log",
       ownerUserId: "u2",
@@ -346,6 +351,8 @@ describe("audit write outbox", () => {
     });
     await flushAuditWriteOutbox("u1");
     expect(mockInsertAudit).not.toHaveBeenCalled();
+
+    __resetAccountEpochForTests(); noteResolvedOwner("u2");
 
     await enqueueAuditWrite({
       kind: "ai_audit_log",
@@ -460,6 +467,7 @@ describe("audit write outbox", () => {
       // B signs in on the same device and uses the app.
       globalSessionOwner = "u2";
       const bPayload = { ...auditPayload, userId: "u2", promptHash: "b" };
+      __resetAccountEpochForTests(); noteResolvedOwner("u2");
       await enqueueAuditWrite({ kind: "ai_audit_log", ownerUserId: "u2", payload: bPayload, warnLabel: "[test] B" });
       await flushAuditWriteOutbox("u2", { userId: "u2", accessToken: "token-b", assertCurrent: jest.fn() });
       // Even an explicit request for A's rows cannot ride B's session.
@@ -493,7 +501,7 @@ describe("audit write outbox", () => {
         mockRandomUUID.mockImplementation(() => (require("crypto") as { randomUUID(): string }).randomUUID());
       }
       expect(mockInsertAudit).toHaveBeenCalledTimes(1);
-      expect(mockInsertAudit.mock.calls[0]).toEqual([auditPayload]);
+      expect(mockInsertAudit.mock.calls[0]).toEqual([auditPayload, undefined, expect.any(AbortSignal)]);
       expect(serverRows).toHaveLength(1);
     });
   });

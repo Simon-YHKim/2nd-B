@@ -75,7 +75,7 @@ export interface AdvisorResult {
   audit: AuditMeta;
 }
 
-/** Routing metadata only; synchronous notification after a confirmed RED fence. */
+/** Routing metadata only, after a crisis verdict and before its audit. */
 export type CrisisObserver = (hotline: HotlineId | undefined) => void;
 
 export interface PromptInput {
@@ -111,6 +111,19 @@ export interface PromptInput {
   /** Server reservation for the two independently claimable reasoning batches. */
   reasoningRunId?: string;
   reasoningSlot?: "records" | "sources";
+  /** T39 dormant: select before the usage bump and reuse for this reservation. */
+  chatTurnRoute?: ChatTurnRoute;
+  chatTurnId?: string;
+  chatAttemptIntent?: "first" | "reask";
+  /** A2 live entry bundles its route with the reservation; A1 stays compatible. */
+  chatTurn?: Readonly<{
+    route: ChatTurnRoute;
+    turnId?: string;
+    intent?: "first" | "reask";
+    /** Synchronous final fence and dispatch record, immediately before invoke. */
+    beforeDispatch?: () => void;
+    assertCurrent?: () => void;
+  }>;
   // Reasoning effort. Only honored on the pro (reasoning) tier — when this call
   // resolves to pro (explicit model:"pro" or a pro-tier purpose). Defaults to
   // "high". Ignored on lite/flash tiers. Purpose-keyed only, never
@@ -153,6 +166,14 @@ export interface LlmResult<T = string> {
   text: T;
   safety: SafetyResult;
   audit: AuditMeta;
+  /** Server facts only; absent for non-reservation calls and unknown envelopes. */
+  turnAdmission?: TurnAdmission;
+  /** Actual server claim result, independent of admission/binding eligibility. */
+  turnBound?: boolean;
+  /** T40: this response replaced model output, with its proxy audit receipt.
+   * Absent for input blocks, ordinary replies and non-reservation requests.
+   * The server alone decides whether this audit qualifies for a refund. */
+  outputSwap?: Readonly<{ auditId: string; reservationId: string }>;
 }
 
 // 3-tier model ids. ENV-overridable so the owner can bump generations later
@@ -222,3 +243,26 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   // explicitly since #1063; this row makes the table agree with them).
   reasoning_connect: "pro",
 };
+
+/** Selected by the boundary before bump; production callers remain dormant. */
+export type ChatTurnRoute = Readonly<{
+  vendor: NonNullable<AuditMeta["reasoningProvider"]>;
+  reservationSupported: boolean;
+}>;
+
+/** t39-wire-contract.md: never derive these fields from the request intent. */
+export type TurnAdmission = {
+  mode: "legacy" | "enforce";
+  allowed: boolean | null;
+  kind: "first" | "reask" | "unbound" | "rejected" | null;
+  attempt: 1 | 2 | null;
+  quotaCharged: boolean | null;
+  bindingEligible: boolean | null;
+  reaskAvailable: boolean | null;
+};
+
+export type ChatTurnRejectionCode =
+  | "reask_ineligible"
+  | "first_already_registered"
+  | "purpose_limit_exceeded"
+  | "chat_admission_unavailable";

@@ -52,7 +52,7 @@ const CITES: CommentCite[] = [
   //  아래 CITE_RE 는 그 모양을 지킬 대상으로 세지 않는다.)
   {
     from: "src/app/(auth)/complete-profile.tsx",
-    cite: "src/lib/persona/northstar.ts:66-68",
+    cite: "src/lib/persona/northstar.ts:75-77",
     symbol: "hotline modal instead of navigating away",
     evidence: "comment",
     why: "주장이 'saveNorthstar 의 계약이 이렇게 적혀 있다' 라서 근거가 그 계약문이다. 화면이 그것을 어겼다는 지적의 출발점.",

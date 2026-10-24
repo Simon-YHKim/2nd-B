@@ -33,6 +33,7 @@ export async function loadProfileContext(
   userId: string,
   now: Date = new Date(),
   execution?: Pick<AuthenticatedAccountSessionLease, "userId" | "signal" | "assertCurrent">,
+  liveSignal?: AbortSignal,
 ): Promise<string[]> {
   const fence = (): void => {
     if (!execution) return;
@@ -43,11 +44,11 @@ export async function loadProfileContext(
   fence();
   let data, error;
   try {
-    ({ data, error } = await getSupabaseClient()
+    const query = getSupabaseClient()
       .from("users")
       .select("id,birth_date,profile_details,status_message")
-      .eq("id", userId)
-      .maybeSingle());
+      .eq("id", userId);
+    ({ data, error } = await (liveSignal ? query.abortSignal(liveSignal) : query).maybeSingle());
   } catch (error) {
     fence();
     if (execution && isAbortError(error)) throw error;

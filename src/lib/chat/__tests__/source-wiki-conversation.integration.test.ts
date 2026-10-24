@@ -80,7 +80,16 @@ function mockQuery(table: string) {
 }
 
 jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({
-  from: mockQuery, rpc: mockRpc, auth: { getSession: mockGetSession },
+  from: mockQuery, rpc: (name: string, args: Row) => {
+    let signal: AbortSignal | undefined;
+    const query = {
+      abortSignal: (value: AbortSignal) => { signal = value; return query; },
+      then: (yes: (value: unknown) => unknown, no: (error: unknown) => unknown) => Promise.resolve().then(() => {
+        if (signal?.aborted) throw Object.assign(new Error("aborted"), { name: "AbortError" });
+        return mockRpc(name, args);
+      }).then(yes, no),
+    }; return query;
+  }, auth: { getSession: mockGetSession },
   storage: { from: () => ({
     upload: mockUpload,
     download: async (path: string) => ({ data: mockObjects.has(path) ? { text: async () => mockObjects.get(path) } : null, error: null }),

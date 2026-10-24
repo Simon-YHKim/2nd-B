@@ -23,7 +23,7 @@ export function useAccountDeletionNotice(): AccountDeletionNotice | null {
   );
 }
 
-// 세 값은 세 가지 다른 사실이다 (delete-bulk.ts:227-248):
+// 세 값은 세 가지 다른 사실이다 (delete-bulk.ts:247-272):
 //   true  = 확인됨
 //   false = 서버가 그 정리를 끝내지 못했다고 **보고**함
 //   null  = 서버가 아무 말도 안 함 (옛 배포는 필드 자체가 없다)

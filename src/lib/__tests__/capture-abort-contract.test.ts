@@ -42,7 +42,8 @@ describe("capture submit abort contract", () => {
     expect(queries).toContain("createSource(input: CreateSourceInput, signal?: AbortSignal)");
     expect(queries).toContain("query.abortSignal(signal)");
     expect(ingest).not.toContain("callLlm");
-    expect(storage).not.toContain("signal?: AbortSignal");
+    // Upload remains uncancellable; the chat context downloader has its own signal.
+    expect(storage.slice(0, storage.indexOf("export async function downloadRawClipping"))).not.toContain("signal?: AbortSignal");
     expect(storage).not.toContain("{ signal: opts.signal }");
   });
 });

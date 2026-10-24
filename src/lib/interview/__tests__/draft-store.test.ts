@@ -117,10 +117,36 @@ function draftOf(result: InterviewDraftResult) {
   return result.draft;
 }
 
+test.each([undefined, false, true])("T37 v1 storage roundtrip preserves old and marked answers: %s", async fromOpener => {
+  const h = harness(); const input = content();
+  input.turns[1] = { ...input.turns[1]!, ...(fromOpener === undefined ? {} : { fromOpener }) };
+  const created = draftOf(await h.store.forOwner("owner-a").create(input));
+  expect(draftOf(await h.restart().forOwner("owner-a").load()).turns).toEqual(created.turns);
+  expect(created.turns).toEqual(input.turns);
+});
+
 function owner(value: string | null) {
   noteResolvedOwner(value);
   clearAccountTransition(currentAccountEpoch());
 }
+
+test.each([1, 2])("T37 v%s encrypted restart preserves an unsent chip selection", async version => {
+  const h = harness();
+  const turns = [{ role: "interviewer" as const, text: "Original question?", layer: "fact" as const }];
+  const draft = "Unedited candidate";
+  const openerSelection = { questionIndex: 0, questionText: turns[0].text, openerIndex: 0, text: draft };
+  if (version === 1) {
+    const first = draftOf(await h.store.forOwner("owner-a").create({ ...content(), turns, draft, openerSelection }));
+    const loaded = draftOf(await h.restart().forOwner("owner-a").load());
+    expect(loaded).toEqual(first); expect(loaded.openerSelection).toEqual(openerSelection);
+  } else {
+    const input = snapshotContent();
+    Object.assign(input.state, { turns, draft, openerSelection, openers: [draft] });
+    const first = snapshotOf(await h.snapshots.forOwner("owner-a").create(input));
+    const loaded = snapshotOf(await h.restartSnapshots().forOwner("owner-a").load());
+    expect(loaded).toEqual(first); expect(loaded.state.openerSelection).toEqual(openerSelection);
+  }
+});
 
 const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator");
 beforeEach(() => {
