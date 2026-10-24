@@ -41,7 +41,8 @@ Simon 원문(09-29): *"앱과 localhost는 같은 s/w여야 한다고. 그리고
    8081 이 1분 안에 따라가고, CI 가 같은 커밋의 APK 를 자동으로 만든다(빌드는 쓴 설정의 digest 를
    run 주석 `app-env-digest` 로 남긴다). **APK 게시(`npm run app:qa-release`)는 Simon 이 폰에서 볼
    때만** 한다 - 같은 코드 · 같은 설정의 빌드를 골라(없으면 기본 입력으로 새로 돌려) QA pre-release 로
-   올린다(`--latest=false`). 번들에 들어가는 파일은 전부 워크플로의 `on.push.paths` 안에 있어야 한다
+   올린다(`--latest=false`). 공개 출시 전 pre-release 는 개인 테스트용이다(Simon 10-18 Q-261018-54 가 ·
+   진단 빌드 산출물은 7일 보관하고, 고른 빌드의 산출물이 만료됐으면 `app:qa-release` 가 새로 빌드한다). 번들에 들어가는 파일은 전부 워크플로의 `on.push.paths` 안에 있어야 한다
    (`app-parity.test.ts` 가 src 의 import 를 풀어 검사한다) - 밖에 있으면 CI 가 APK 를 다시 안 만든다.
 4. **수정 작업 완료 = localhost:8081에서 실제 수정사항을 확인할 수 있는 상태다**(Simon, 2026-10-08).
    로컬 구현·테스트·커밋만으로 완료라고 보고하지 않는다. 요청받은 수정은 PR → CI → 머지 →
