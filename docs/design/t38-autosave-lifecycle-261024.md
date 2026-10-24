@@ -76,6 +76,11 @@ G의 두 파일, `session-controller.ts`, 동결된 인터뷰 범위, DECISIONS/
 entry metadata를 별도 PR에서 준비할 수 있다고 판단한다. 이는 동결 해제나 G 완성 판정이 아니다.
 재시작 불가 폴백이 남아 있으므로 owner lease/epoch 경계를 재시작 성공에 의존시켜서는 안 된다.
 
+검토 2회차 보완: G 는 대표님 결정으로 묶여 있다(`DECISIONS.md` 26.10.20 10:46 · 같은 날 이어진 줄). 이 판정은 기술적 근거만 다루며,
+G 를 다시 여는 것은 그 결정에 대한 대표님 답이 필요하다. 또 「#2318 과 무관」은 아래 1단계(순수 자료형)에만 성립한다.
+재시작 실패 폴백은 여전히 #2318 이전의 해제 증명(`account-epoch.ts:236-245`)을 쓰므로 2 · 3단계는 폴백에서의 계정 경계
+(owner · epoch 바뀔 때 entry 메타데이터 비우기 · binding 키에 ownerEpoch · A→B→A 재사용 금지 · 전환 대기 중 binding 금지)를 따로 증명해야 한다.
+
 별도 G 준비 제안:
 
 1. 본문 없는 `{entryId, route}` 메모리 자료형과 push/replace/back 전이 함수를 순수 모듈로 준비한다.

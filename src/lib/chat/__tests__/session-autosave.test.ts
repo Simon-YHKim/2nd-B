@@ -336,6 +336,7 @@ test("F stays dormant: no app route reaches session-autosave through its imports
   const target = resolve(src, "lib/chat/session-autosave.ts");
   const seen = new Set<string>();
   const queue = listFiles(resolve(src, "app"));
+  const startCount = queue.length;
   while (queue.length > 0) {
     const file = queue.pop()!;
     if (seen.has(file)) continue;
@@ -344,10 +345,16 @@ test("F stays dormant: no app route reaches session-autosave through its imports
     for (const match of text.matchAll(specPattern)) {
       const spec = match[1] ?? match[2] ?? match[3] ?? match[4];
       const next = spec ? resolveSpec(file, spec) : null;
-      if (next && !seen.has(next)) queue.push(next);
+      if (!next) continue;
+      // Metro bundles x.web.ts / x.native.ts / x.ios.ts / x.android.ts in place of x.ts.
+      const variants = [".web", ".native", ".ios", ".android"].flatMap((platform) =>
+        [".ts", ".tsx"].map((ext) => next.replace(/\.(ts|tsx|js)$/, `${platform}${ext}`)))
+        .filter((candidate) => candidate !== next && existsSync(candidate));
+      for (const candidate of [next, ...variants]) if (!seen.has(candidate)) queue.push(candidate);
     }
   }
-  expect(seen.size).toBeGreaterThan(100);
-  expect(seen.has(resolve(src, "app/secondb.tsx"))).toBe(true);
+  // Self-checks that only pass when import edges were really followed.
+  expect(seen.size).toBeGreaterThan(startCount + 100);
+  expect(seen.has(resolve(src, "lib/chat/autosave-session.ts"))).toBe(true);
   expect(seen.has(target)).toBe(false);
 });
