@@ -110,7 +110,7 @@ function withRoutingEnvironment<T>(environment: Record<string, string>, run: () 
 }
 
 export function prepareClaudeSeatMeasurement(root: string, corpusOverride?: Corpus) {
-  const corpusBytes = readFileSync(join(root, "scripts/claude-seat-measurement.corpus.json"), "utf8");
+  const corpusBytes = readFileSync(join(root, "scripts/claude-seat-measurement.corpus.json"), "utf8").replace(/\r\n/g, "\n");
   const corpus: Corpus = corpusOverride ?? JSON.parse(corpusBytes);
   if (corpus.syntheticOnly !== true || Object.values(corpus.modelIds).some((value) => value !== null)) throw new Error("This preparation cannot assert live model identities");
   const policyFile = "supabase/functions/_shared/llm-proxy-common.ts";

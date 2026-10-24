@@ -27,7 +27,7 @@ test("runs the actual button builder/parser with reviewed snapshots and cannot r
     schemaFailures: { numerator: 7, denominator: 12 }, acceptedOutsideSchema: 3, parserChangedItems: 3,
     parserGuidanceNumberLoss: 2 });
   for (const [path, hash] of Object.entries(result.sourceSha256)) {
-    expect(hash).toBe(createHash("sha256").update(readFileSync(join(root, path))).digest("hex"));
+    expect(hash).toBe(createHash("sha256").update(readFileSync(join(root, path), "utf8").replace(/\r\n/g, "\n")).digest("hex"));
   }
   const ordinary = row("valid-envelope-en");
   expect(ordinary.prompt).toMatchObject({ purpose: "ops_recommend", minor: false, locale: "en",
@@ -36,7 +36,7 @@ test("runs the actual button builder/parser with reviewed snapshots and cannot r
   expect(ordinary.prompt?.user).toContain("Now: 2026-10-15T00:00:00.000Z");
   expect(ordinary.prompt?.user).toContain("Recent adherence: 3 of 7 days.");
   expect(ordinary.prompt?.user).toContain("Self-understanding: synthetic aggregate hint.");
-  expect(ordinary.snapshotRequests).toEqual([["synthetic:ops-adapter", { bodyCharLimit: 600 }]]);
+  expect(ordinary.snapshotRequests).toEqual([["synthetic:ops-adapter", { forAi: true, bodyCharLimit: 600 }]]);
   expect(ordinary.strictSchemaIssues).toEqual([]);
   expect(ordinary.parsed).toHaveLength(1);
   expect(row("valid-envelope-ko").prompt?.system).toContain("한 가지 생활 영역");

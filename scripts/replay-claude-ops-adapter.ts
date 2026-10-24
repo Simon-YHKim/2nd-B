@@ -27,7 +27,7 @@ interface Corpus {
 }
 
 export function loadOpsAdapterSources(root: string): Record<string, string> {
-  return Object.fromEntries(FILES.map((file) => [file, readFileSync(join(root, file), "utf8")]));
+  return Object.fromEntries(FILES.map((file) => [file, readFileSync(join(root, file), "utf8").replace(/\r\n/g, "\n")]));
 }
 
 // Strict schema observation is separate from the app's deliberately tolerant parser.
