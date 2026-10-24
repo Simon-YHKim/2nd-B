@@ -19,7 +19,7 @@
 //   - $0/mo, RLS-scoped (user_id on every row), no extra LLM call (C1/C3/C9
 //     already satisfied by Phase 1).
 
-import { getOutgoingLinks, getWikiPage, upsertWikiPage } from "./queries";
+import { getOutgoingLinks, getWikiPage, getWikiPageById, upsertWikiPage } from "./queries";
 import { getSupabaseClient } from "../supabase/client";
 import { slugForTitle } from "./slug";
 import type { Phase1Result } from "./phase1";
@@ -68,6 +68,7 @@ export async function materializeGraphFromPhase1(
     ...phase1.concepts.map((name): NodeSpec => ({ name, kind: "concept" })),
   ];
   if (specs.length === 0) return { ...EMPTY };
+  if (!await getWikiPageById(userId, source.id, true)) throw new Error("source_page_ai_unavailable");
 
   const result: MaterializeResult = { ...EMPTY };
 

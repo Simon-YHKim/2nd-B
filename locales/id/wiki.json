@@ -23,6 +23,7 @@
   "pageDeleted": "Halaman wiki dihapus.",
   "pageDeleteError": "Tidak dapat menghapus halaman. Segarkan lalu coba lagi.",
   "briefReady": "Ringkasan sumber siap.",
+  "aiHeld": "Bahan ini dilewati karena pemrosesan AI sedang ditunda.",
   "briefError": "Tidak dapat membuat ringkasan sumber. Periksa sumbernya lalu coba lagi.",
   "exportError": "Tidak dapat membuat ekspor. Segarkan lalu coba lagi.",
   "loading": "Memuat wiki…",

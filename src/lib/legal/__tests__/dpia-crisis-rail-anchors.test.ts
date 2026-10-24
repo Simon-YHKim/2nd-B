@@ -177,7 +177,7 @@ const ANCHORS: Anchor[] = [
     why: "backfill은 기존 대화록의 위기 표식을 기록에 복사하며 새 분류를 만들지 않는다." },
   { cite: `${IT}:1812-1838`, symbol: "AND NOT tt.ai_hold",
     why: "판정 전용 내보내기는 held 턴을 빼지만 계정 내보내기는 포함한다." },
-  { cite: `${W}:285`, symbol: "includeRecords",
+  { cite: `${W}:288`, symbol: "includeRecords",
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
   { cite: `${AT}:96-131`, symbol: "remain inert",
     why: "Sentry 가 **일부러** 닫혀 있다는 주장의 근거. 문서가 '설정됐으나 안 쓴다'가 아니라 '울타리가 있고 조건이 적혀 있다'고 말하려면 그 울타리를 지키는 검사가 실재해야 한다." },

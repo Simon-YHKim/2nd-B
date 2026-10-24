@@ -15,6 +15,7 @@
 import { embedTexts, EMBED_DIM } from "../llm/boundary";
 import { embedVendor, type LlmVendor } from "../llm/routing";
 import { getSupabaseClient } from "../supabase/client";
+import { getAiRecord, aiEligibleMatchIds } from "../safety/ai-read";
 import { classifyInputAnyLocale } from "../safety/classifier";
 
 // D5 consent gate for records (journal) embedding — the MOST sensitive corpus.
@@ -62,6 +63,7 @@ export interface EmbeddableRecord {
   body: string;
   /** Stored crisis result remains authoritative even if the local terms do not match. */
   ai_followup?: unknown;
+  ai_hold?: boolean;
 }
 
 /** The text we embed for a record: topic + summary + body, blank-line joined,
@@ -83,6 +85,7 @@ export function recordEmbeddingText(
 // RED follow-up also holds the record when the current lexicon cannot reproduce
 // a semantic verdict. This does not replace the durable D4 ai_hold contract.
 function recordEmbeddingHeld(record: EmbeddableRecord): boolean {
+  if (record.ai_hold === true) return true;
   const followup = record.ai_followup;
   if (typeof followup === "object" && followup !== null && "zone" in followup && followup.zone === "red") {
     return true;
@@ -152,7 +155,9 @@ export async function embedAndStoreRecord(
 ): Promise<boolean> {
   // D5: fail closed — never embed journal content without explicit consent.
   if (!recordsEmbeddingAllowed(minor, consented) || recordEmbeddingHeld(record)) return false;
-  const text = recordEmbeddingText(record);
+  const current = await getAiRecord(userId, record.id);
+  if (!current || recordEmbeddingHeld(current)) return false;
+  const text = recordEmbeddingText(current);
   if (text.length === 0) return false;
   const { vectors, audit } = await embedTexts({ userId, texts: [text], locale, minor });
   const vec = vectors[0];
@@ -179,7 +184,7 @@ export async function relatedRecordsByEmbedding(
 ): Promise<RelatedRecord[]> {
   const supabase = getSupabaseClient();
   const { data: rec, error: e1 } = await supabase
-    .from("records")
+    .from("records_ai_eligible")
     .select("embedding, embedding_model")
     .eq("user_id", userId)
     .eq("id", recordId)
@@ -203,7 +208,9 @@ export async function relatedRecordsByEmbedding(
     p_embedding_model: storedModel,
   });
   if (error) throw error;
-  return (data ?? []) as RelatedRecord[];
+  const matches = (data ?? []) as RelatedRecord[];
+  const eligible = await aiEligibleMatchIds(userId, "records_ai_eligible", matches.map((row) => row.id));
+  return matches.filter((row) => eligible.has(row.id));
 }
 
 export interface BackfillResult {
@@ -241,7 +248,7 @@ export async function backfillRecordEmbeddings(
   const limit = opts.limit ?? 50;
   const supabase = getSupabaseClient();
   let query = supabase
-    .from("records")
+    .from("records_ai_eligible")
     .select("id, topic, summary, body, ai_followup, created_at")
     .eq("user_id", userId)
     .is("embedding", null)

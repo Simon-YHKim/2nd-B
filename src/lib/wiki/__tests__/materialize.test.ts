@@ -16,11 +16,13 @@ interface PageRow {
 const store = {
   pagesBySlug: new Map<string, PageRow>(),
   edges: new Set<string>(), // `${from}|${to}`
+  sourceOwner: "user-1",
   seq: 0,
   inserts: [] as { table: string; payload: unknown }[],
 };
 
 function reset() {
+  store.sourceOwner = "user-1";
   store.pagesBySlug.clear();
   store.edges.clear();
   store.seq = 0;
@@ -52,7 +54,9 @@ function wikiPagesChain(op: "select" | "upsert", payload?: unknown) {
     },
     maybeSingle() {
       const slug = filters.slug as string;
-      const found = store.pagesBySlug.get(slug) ?? null;
+      const found = filters.id === "pg-src" && filters.user_id === store.sourceOwner
+        ? { id: "pg-src", user_id: store.sourceOwner }
+        : store.pagesBySlug.get(slug) ?? null;
       return Promise.resolve({ data: found, error: null });
     },
     single() {
@@ -105,7 +109,7 @@ function wikiLinksChain(op: "select" | "insert", payload?: unknown) {
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
     from(table: string) {
-      if (table === "wiki_pages") {
+      if (table === "wiki_pages" || table === "wiki_pages_ai_eligible") {
         return {
           select: () => wikiPagesChain("select"),
           upsert: (p: unknown) => wikiPagesChain("upsert", p),
@@ -211,6 +215,7 @@ describe("materializeGraphFromPhase1", () => {
   });
 
   test("scopes inserts to the user", async () => {
+    store.sourceOwner = "user-XYZ";
     await materializeGraphFromPhase1("user-XYZ", SRC, { entities: ["Node"], concepts: [] });
     const edgeInsert = store.inserts.find((i) => i.table === "wiki_links");
     expect((edgeInsert?.payload as { user_id: string }[])[0].user_id).toBe("user-XYZ");

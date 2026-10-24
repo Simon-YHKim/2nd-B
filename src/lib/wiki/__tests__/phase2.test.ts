@@ -11,6 +11,10 @@ interface Captured {
 const captured: Captured[] = [];
 const fixtures: Record<string, unknown> = {};
 
+jest.mock("../../safety/ai-read", () => ({
+  hasAiHeldRows: jest.fn(async () => fixtures.held === true),
+}));
+
 jest.mock("../queries", () => ({
   getSource: jest.fn((userId: string, sourceId: string) => {
     captured.push({ fn: "getSource", args: [userId, sourceId] });
@@ -62,7 +66,7 @@ jest.mock("../materialize", () => ({
   }),
 }));
 
-import { generateSourcePage, SourceNotFoundError, SourceBodyUnavailableError } from "../phase2";
+import { generateSourcePage, SourceNotFoundError, SourceBodyUnavailableError, SourceAiHeldError } from "../phase2";
 import { SourceAiExcludedError } from "../ai-exclusion";
 import { HEALTH_PROPOSAL_SUB } from "../../import/proposals";
 
@@ -81,6 +85,12 @@ describe("generateSourcePage", () => {
   test("throws SourceNotFoundError when getSource returns null", async () => {
     fixtures.source = null;
     await expect(generateSourcePage("u1", "missing")).rejects.toBeInstanceOf(SourceNotFoundError);
+    expect(callOrder()).toEqual(["getSource"]);
+  });
+
+  test("a held source has a distinct notice and no download or promotion", async () => {
+    fixtures.source = null; fixtures.held = true;
+    await expect(generateSourcePage("u1", "held")).rejects.toBeInstanceOf(SourceAiHeldError);
     expect(callOrder()).toEqual(["getSource"]);
   });
 

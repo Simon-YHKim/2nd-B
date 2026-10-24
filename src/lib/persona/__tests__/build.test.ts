@@ -48,7 +48,7 @@ jest.mock("../../supabase/client", () => ({
         selectCalls.push({ table, columns });
         const query: ReadQuery = { table, columns, filters: [], tags: [] };
         readQueries.push(query);
-        return chainable(tableFixtures[`${table}:select`] ?? { data: [], error: null }, query);
+        return chainable(tableFixtures[`${table.replace(/_ai_eligible$/, "")}:select`] ?? { data: [], error: null }, query);
       },
       upsert: (payload: unknown, opts: unknown) => {
         upsertCalls.push({ table, payload, opts });

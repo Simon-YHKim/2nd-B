@@ -33,6 +33,7 @@ function mockChain() {
   let kind = "";
   let cursor: { col: string; val: string } | undefined;
   let updatedId: string | undefined;
+  let readId: string | undefined;
   let sawNot = false;
   let eqCalls = 0;
   const self = () => c;
@@ -40,9 +41,11 @@ function mockChain() {
   c.update = () => ((kind = "update"), c);
   c.eq = (_col: string, val: string) => {
     eqCalls += 1;
+    if (_col === "id") readId = val;
     if (kind === "update" && eqCalls === 2) updatedId = val;
     return c;
   };
+  c.maybeSingle = async () => ({ data: mockDb.pages.flat().find(row => row.id === readId) ?? null, error: null });
   c.is = self;
   c.not = () => ((sawNot = true), c);
   c.order = (col: string, opts: { ascending: unknown }) => {

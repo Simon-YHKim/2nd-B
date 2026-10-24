@@ -94,7 +94,7 @@ export async function saveNorthstar(args: {
 async function recentDigest(userId: string): Promise<{ count: number; digest: string }> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
-    .from("records")
+    .from("records_ai_eligible")
     .select("body, tags")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })

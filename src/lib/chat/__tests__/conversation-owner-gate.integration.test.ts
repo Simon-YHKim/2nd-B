@@ -327,8 +327,8 @@ test.each(["lexicon-only", "obfuscation-safety-unavailable"])("%s health still c
 test.each(["usage", "bump", "structured", "profile", "wiki", "sources", "rag-match", "rag-pages"])(
   "%s is cancelled inside the SDK session wait before dispatch", async point => {
     const hold = deferred<void>(); let waiting = false;
-    const table = ({ usage: "chat_usage", structured: "records", profile: "users", wiki: "wiki_pages",
-      sources: "sources", "rag-pages": "wiki_pages" } as Record<string, string>)[point];
+    const table = ({ usage: "chat_usage", structured: "records_ai_eligible", profile: "users", wiki: "wiki_pages_ai_eligible",
+      sources: "sources", "rag-pages": "wiki_pages_ai_eligible" } as Record<string, string>)[point];
     const rpcName = point === "bump" ? "bump_chat_usage_if_under_cap" : "match_wiki_pages";
     const query = mockQuery.getMockImplementation()!, rpc = mockRpc.getMockImplementation()!, invoke = mockInvoke.getMockImplementation()!;
     if (point.startsWith("rag-")) {
@@ -336,7 +336,7 @@ test.each(["usage", "bump", "structured", "profile", "wiki", "sources", "rag-mat
         ? { data: { vectors: [Array(768).fill(0.1)], audited: true, modelUsed: "test-embed" }, error: null } : invoke(fn, request));
       mockRpc.mockImplementation((name, args) => name === "match_wiki_pages"
         ? { data: [{ id: "w1", slug: "week", title: "Week", similarity: 0.9 }], error: null } : rpc(name, args));
-      mockQuery.mockImplementation((name, columns) => name === "wiki_pages"
+      mockQuery.mockImplementation((name, columns) => name === "wiki_pages_ai_eligible"
         ? { data: [{ id: "w1", slug: "week", title: "Week", body_md: "A grounded plan.", frontmatter: {} }], error: null } : query(name, columns));
     }
     if (table) mockBeforeQueryDispatch = name => { if (name !== table) return; waiting = true; return hold.promise; };
@@ -512,7 +512,7 @@ test.each(parityCases)("differential no-switch %s", async scenario => {
     mockInvoke.mockImplementation((fn, request) => request.body.op === "embed" ? { data: { vectors: [Array(768).fill(0.1)], audited: true, modelUsed: "test-embed" }, error: null } : transport(fn, request));
     mockRpc.mockImplementation((name, args) => name === "match_wiki_pages"
       ? { data: [{ id: "w1", slug: "week", title: "Week", similarity: 0.9 }], error: null } : rpc(name, args));
-    mockQuery.mockImplementation((table, columns) => table === "wiki_pages" && String(columns).includes("frontmatter")
+    mockQuery.mockImplementation((table, columns) => table === "wiki_pages_ai_eligible" && String(columns).includes("frontmatter")
       ? { data: [{ id: "w1", slug: "week", title: "Week", body_md: "A grounded plan.", frontmatter: {} }], error: null } : query(table, columns));
   }
   const account = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
@@ -591,7 +591,17 @@ test.each(parityCases)("differential no-switch %s", async scenario => {
     expect(trace.queued).toEqual([]);
     expect(trace.rpcErrors).toEqual([scenario === "direct-audit-failure" ? "classifier_audit_unavailable" : null, null]);
   }
-  expect(createHash("sha256").update(JSON.stringify(trace)).digest("hex"))
+  // T28 changes only the read relation in this non-held corpus. Keep the old
+  // result/prompt/quota/order hashes and normalize these two transport names;
+  // separately require the raw trace to use the new views (no hidden fallback).
+  expect(mockQuery.mock.calls.some(([table]) => table === "records" || table === "wiki_pages")).toBe(false);
+  const legacyRelation = (table: string) => table === "records_ai_eligible" ? "records"
+    : table === "wiki_pages_ai_eligible" ? "wiki_pages" : table;
+  const parityTrace = { ...trace,
+    events: trace.events.map(event => event.startsWith("read:") ? `read:${legacyRelation(event.slice(5))}` : event),
+    query: trace.query.map(([table, ...args]) => [legacyRelation(table), ...args]),
+  };
+  expect(createHash("sha256").update(JSON.stringify(parityTrace)).digest("hex"))
     .toBe(noSwitchBaseline.sha256[scenario as keyof typeof noSwitchBaseline.sha256]);
   if (["green", "yellow", "bonus", "failover", "embed-error", "embed-abort", "mock", "claude", "xai", "gemini", "history", "rag-hit"].includes(scenario)) {
     expect(result).toMatchObject({ status: "ok" });

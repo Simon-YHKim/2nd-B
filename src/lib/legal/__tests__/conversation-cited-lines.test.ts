@@ -25,8 +25,8 @@ const CITED: readonly (readonly [number, string])[] = [
   [164, "    \"말투는 편한 반말을 씁니다. 인사나 할 일 정리처럼 가볍고 편한 대화에서는 '오우, 브로'·'좋아, 브로' 같은 호칭을 가끔 섞되, 매번 붙이지는 마세요. 사용자가 존댓말이나 다른 호칭을 원하거나 호칭을 싫어하면 바로 따르세요. 사용자가 많이 힘들거나 아프거나 위험한 이야기를 하면 농담과 호칭을 빼고 차분하게 말하세요.\","],
   [172, "};"],
   [259, "  const snapshot = await stage(() => exportUserWiki("],
-  [264, "        { locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40, includeSavedConversations: true }"],
-  [265, "      : { locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100, includeSavedConversations: true },"],
+  [264, "        { forAi: true, locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40, includeSavedConversations: true }"],
+  [265, "      : { forAi: true, locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100, includeSavedConversations: true },"],
   [288, "  const fencedSnapshot = `<UNTRUSTED type=\"wiki_snapshot\">\\n${sanitizeUntrusted(snapshot.prompt)}\\n</UNTRUSTED>`;"],
   [330, "  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\\n\\n${crisisNumberRule(input.locale, input.minor)}\\n\\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;"],
 ];

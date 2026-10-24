@@ -53,7 +53,7 @@ import {
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { reactExpression } from "@/lib/companion/expression";
-import { generateSourcePage } from "@/lib/wiki/phase2";
+import { generateSourcePage, SourceAiHeldError } from "@/lib/wiki/phase2";
 import { promotePendingUploads } from "@/lib/wiki/promote-pending";
 
 import { relatedByTag, type TimelineRecord } from "./records-timeline";
@@ -723,8 +723,14 @@ export function DeepSpaceRecordDetailScreen() {
       if (!isCurrent(identity)) return;
       setPromoted(true);
       AccessibilityInfo.announceForAccessibility(t("deepspace:ds.wikiRecords.wikiPageMade"));
-    } catch {
-      if (isCurrent(identity)) announceActionError();
+    } catch (error) {
+      if (isCurrent(identity)) {
+        if (error instanceof SourceAiHeldError) {
+          const message = t("wiki:aiHeld");
+          setActionError(message);
+          AccessibilityInfo.announceForAccessibility(message);
+        } else announceActionError();
+      }
     } finally {
       if (locksRef.current.promote === identity) locksRef.current.promote = null;
       if (isCurrent(identity)) setPromoting(false);

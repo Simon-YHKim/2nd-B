@@ -1792,7 +1792,10 @@ export function SeenLensView() {
     if (!userId || synthBusy) return;
     setSynthBusy(true);
     try {
-      const lines = seenGapLines(rows);
+      const aiMeans = await loadLatestBfi(getSupabaseClient(), userId, true);
+      const aiRows = buildSeenRows(aiMeans, aggregate, locale);
+      if (!aiRows.hasGap) { setSynth(null); return; }
+      const lines = seenGapLines(aiRows);
       const res = await callLlm({
         userId,
         locale,

@@ -94,7 +94,7 @@ test("real ordinary pipeline preserves captured token/signal through RAG, quota,
   expect(calls("secondb_chat")).toHaveLength(1); expect(calls("safety_classify").length).toBeGreaterThanOrEqual(1);
   for (const [, init] of fetchMock.mock.calls) { expect(init.signal).toBe(f.session.signal); expect(init.headers.Authorization).toBe("Bearer captured-a"); }
   expect(facts(f)).toMatchObject([{ kind: "usage", outcome: "committed" }]);
-  expect(mockQueries.map(q => q.table)).toEqual(["chat_usage", "records", "users", "wiki_pages", "sources"]);
+  expect(mockQueries.map(q => q.table)).toEqual(["chat_usage", "records_ai_eligible", "users", "wiki_pages_ai_eligible", "sources"]);
   expect(mockQueries.every(q => q.filters.user_id === "a" || q.filters.id === "a")).toBe(true);
   expect(mockRpc.mock.calls.map(call => call[0])).toEqual(["match_wiki_pages"]);
   const prompt = body(calls("secondb_chat")[0]).system;
@@ -142,7 +142,7 @@ test("local RED observer wipe reentry happens before any audit/usage/model egres
   expect(f.input.onCrisisDetected).toHaveBeenCalledTimes(1); expect(mockQueries).toEqual([]); expect(fetchMock).not.toHaveBeenCalled();
 });
 
-const pendingStages = ["chat_usage", "records", "users", "embed", "match_wiki_pages", "wiki_pages", "sources", "quota", "secondb_chat", "safety_classify"] as const;
+const pendingStages = ["chat_usage", "records_ai_eligible", "users", "embed", "match_wiki_pages", "wiki_pages_ai_eligible", "sources", "quota", "secondb_chat", "safety_classify"] as const;
 test.each(pendingStages.flatMap(stage => ["wipe", "hold", "aba"].map(change => [stage, change] as const)))("pending %s + %s fences the next egress/result", async (stage, change) => {
   const f = await fixture(), pending = deferred<unknown>(), entered = deferred<void>();
   mockRead.mockImplementation((query: Query) => { if (query.table === stage) { entered.resolve(); return pending.promise; } return defaultRead(query); });
@@ -160,7 +160,7 @@ test.each(pendingStages.flatMap(stage => ["wipe", "hold", "aba"].map(change => [
   if (change === "wipe") wipe(f);
   else if (change === "hold") beginAccountOwnerTransition("b");
   else { owner("b"); owner("a"); }
-  if (["chat_usage", "records", "users", "wiki_pages", "sources"].includes(stage)) pending.resolve(defaultRead({ table: stage, columns: "", filters: {} }));
+  if (["chat_usage", "records_ai_eligible", "users", "wiki_pages_ai_eligible", "sources"].includes(stage)) pending.resolve(defaultRead({ table: stage, columns: "", filters: {} }));
   else if (stage === "match_wiki_pages") pending.resolve({ data: [], error: null });
   else if (stage === "quota") pending.resolve(response(1));
   else if (stage === "embed") pending.resolve(response({ vectors: [Array(EMBED_DIM).fill(0.1)], modelUsed: EMBED_MODEL, audited: true }));
@@ -183,12 +183,12 @@ test.each(["ordinary", "abort", "wipe-error"])("RAG %s keeps fallback distinct f
     expect(mockQueries.some(q => q.table === "sources")).toBe(true); expect(calls("secondb_chat")).toHaveLength(1);
   } else {
     await expect(send(f)).rejects.toMatchObject({ name: "AbortError" });
-    expect(mockQueries.some(q => q.table === "wiki_pages" || q.table === "sources")).toBe(false);
+    expect(mockQueries.some(q => q.table === "wiki_pages_ai_eligible" || q.table === "sources")).toBe(false);
     expect(calls("quota")).toHaveLength(0); expect(calls("secondb_chat")).toHaveLength(0);
   }
 });
 
-test.each(["records", "users"])("ordinary %s read error remains fail-soft for the same owner", async table => {
+test.each(["records_ai_eligible", "users"])("ordinary %s read error remains fail-soft for the same owner", async table => {
   const f = await fixture(); mockRead.mockImplementation((query: Query) => { if (query.table === table) throw new Error("ordinary read failed"); return defaultRead(query); });
   await expect(send(f)).resolves.toMatchObject({ status: "ok", used: 1 }); expect(calls("quota")).toHaveLength(1);
 });
@@ -200,7 +200,7 @@ test("export child synchronously starting wipe prevents sibling sources read", a
   const realAssert = f.session.assertCurrent; let applied = false;
   jest.spyOn(f.session, "assertCurrent").mockImplementation(() => {
     realAssert();
-    if (!applied && mockQueries.some(q => q.table === "wiki_pages")) { applied = true; wipe(f); }
+    if (!applied && mockQueries.some(q => q.table === "wiki_pages_ai_eligible")) { applied = true; wipe(f); }
   });
   await expect(send(f)).rejects.toMatchObject({ name: "AbortError" });
   expect(applied).toBe(true); expect(mockQueries.some(q => q.table === "sources")).toBe(false);
@@ -262,7 +262,7 @@ test("an actual cancelled transport is propagated without retry or model fallbac
   });
   await expect(send(f)).rejects.toMatchObject({ name: "AbortError" });
   expect(calls("embed")).toHaveLength(1); expect(calls("quota")).toHaveLength(0); expect(calls("secondb_chat")).toHaveLength(0);
-  expect(mockQueries.map(q => q.table)).toEqual(["chat_usage", "records", "users"]);
+  expect(mockQueries.map(q => q.table)).toEqual(["chat_usage", "records_ai_eligible", "users"]);
 });
 
 

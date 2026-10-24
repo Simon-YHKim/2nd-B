@@ -246,7 +246,7 @@ export interface ExportContextPackOpts extends ContextPackOpts {
 async function listRecordsForExport(userId: string, limit: number): Promise<ExportRecordRow[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
-    .from("records")
+    .from("records_ai_eligible")
     .select("kind, topic, body, created_at, tags")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -258,8 +258,8 @@ async function listRecordsForExport(userId: string, limit: number): Promise<Expo
 /** Fetch the user's data and compose their Personal Context Pack. */
 export async function exportContextPack(userId: string, opts: ExportContextPackOpts = {}): Promise<ContextPack> {
   const [pages, sources, records] = await Promise.all([
-    listWikiPages(userId, { kinds: opts.pageKinds, limit: opts.pageLimit ?? 500 }),
-    listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500 }),
+    listWikiPages(userId, { kinds: opts.pageKinds, limit: opts.pageLimit ?? 500, aiOnly: true }),
+    listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500, aiOnly: true }),
     opts.includeRecords ? listRecordsForExport(userId, opts.recordLimit ?? 500) : Promise.resolve(undefined),
   ]);
   return composeContextPack(pages, sources, opts, records);

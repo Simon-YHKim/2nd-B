@@ -17,6 +17,7 @@ jest.mock("../../supabase/client", () => ({
       select: (value: string) => { mockSelect(value); return chain; },
       eq: (...args: unknown[]) => { mockEq(...args); return chain; },
       is: () => chain, order: () => chain, limit: () => chain,
+      maybeSingle: async () => ({ data: mockRows[0], error: null }),
       then: (resolve: (value: unknown) => unknown) => Promise.resolve(
         writing ? mockResult : { data: mockRows, error: null },
       ).then(resolve),

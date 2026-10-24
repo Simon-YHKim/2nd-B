@@ -15,7 +15,7 @@ jest.mock("../../llm/boundary", () => ({
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
     from: (table: string) => {
-      if (table !== "records") throw new Error("unexpected table");
+      if (table !== "records" && table !== "records_ai_eligible") throw new Error("unexpected table");
       let fields = "";
       const filters: Record<string, unknown> = {};
       let before: string | undefined;
@@ -29,6 +29,7 @@ jest.mock("../../supabase/client", () => ({
         limit: (value: number) => { limit = value; return query; },
         lt: (_key: string, value: string) => { before = value; return query; },
         update: (value: unknown) => { update = value; return query; },
+        maybeSingle: async () => ({ data: mockRows.find(r => r.user_id === filters.user_id && r.id === filters.id) ?? null, error: mockReadError }),
         then: (resolve: (value: unknown) => unknown) => {
           if (update !== undefined) {
             mockWrites.push({ id: filters.id as string, userId: filters.user_id as string, value: update });
@@ -95,6 +96,7 @@ test("a signal completed across fields beyond the cap is held in direct and batc
 });
 
 test("ordinary records retain the consent and minor gates", async () => {
+  mockRows.push(row);
   expect(await embedAndStoreRecord("owner", row, "en", false, false)).toBe(false);
   expect(await embedAndStoreRecord("owner", row, "en", true, true)).toBe(false);
   expect(mockEmbed).not.toHaveBeenCalled();

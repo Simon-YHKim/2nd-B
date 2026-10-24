@@ -16,7 +16,7 @@ const loadSafeBatchText = (() => {
   return SRC.slice(start, next === -1 ? undefined : next);
 })();
 
-describe("loadSafeBatchText degrades instead of failing the run", () => {
+describe("loadSafeBatchText reads only eligible sources", () => {
   it("is the function this test thinks it is", () => {
     expect(loadSafeBatchText).toContain("Promise.all");
   });
@@ -24,9 +24,9 @@ describe("loadSafeBatchText degrades instead of failing the run", () => {
   it("does not throw when a source row is missing", () => {
     // These reads sit inside a Promise.all: one throw rejected the whole batch,
     // every other item lost its proposals, and the reserved run was refunded.
-    // A missing row now degrades that ONE item to title-only.
-    expect(loadSafeBatchText).toContain("getSource(input.userId, item.refId).catch(() => null)");
-    expect(loadSafeBatchText).toContain("if (!source) return [item.key, item.title] as const;");
+    // A missing or held row contributes no title or body to the model.
+    expect(loadSafeBatchText).toContain("getSource(input.userId, item.refId, true)");
+    expect(loadSafeBatchText).toContain("if (!source) return null;");
     expect(loadSafeBatchText).not.toMatch(/throw new Error\(`No source row/);
   });
 

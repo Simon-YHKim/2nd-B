@@ -478,6 +478,15 @@ jobs:
             -c 'CREATE DATABASE account_export_grants_test_ci TEMPLATE postgres'
           trap 'psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS account_export_grants_test_ci"' EXIT
           psql -X -h 127.0.0.1 -U postgres -d account_export_grants_test_ci -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/account-export-read-grants.sql
+      - name: Exercise T28 AI readers on full schema clone
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE t28_ai_readers_test_ci TEMPLATE postgres'
+          trap 'psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS t28_ai_readers_test_ci"' EXIT
+          psql -X -h 127.0.0.1 -U postgres -d t28_ai_readers_test_ci -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/ai-hold-readers.sql
       - name: Exercise records embedding consent on full schema clone
         env:
           PGPASSWORD: postgres

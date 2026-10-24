@@ -227,6 +227,8 @@ export function composeWikiExport(
 }
 
 export interface ExportUserWikiOpts extends ComposeOpts {
+  /** Internal model context excludes holds; user backups keep originals. */
+  forAi?: boolean;
   /** Chat context only: read explicitly kept exchanges, never ordinary source bodies. */
   includeSavedConversations?: boolean;
   /** Cap on pages fetched. Defaults to 500. */
@@ -240,14 +242,15 @@ export interface ExportUserWikiOpts extends ComposeOpts {
   recordLimit?: number;
 }
 
-async function listRecordsForExport(userId: string, limit: number): Promise<ExportRecordRow[]> {
+async function listRecordsForExport(userId: string, limit: number, forAi: boolean): Promise<ExportRecordRow[]> {
   const supabase = getSupabaseClient();
-  const { data, error } = await withSystemTagsColumn((columnPresent) => supabase
-    .from("records")
-    .select(columnPresent ? "kind, topic, body, created_at, tags, system_tags" : "kind, topic, body, created_at, tags")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(limit));
+  const { data, error } = await withSystemTagsColumn((columnPresent) => {
+    let query = supabase.from("records")
+      .select(columnPresent ? "kind, topic, body, created_at, tags, system_tags" : "kind, topic, body, created_at, tags")
+      .eq("user_id", userId);
+    if (forAi) query = query.eq("ai_hold", false);
+    return query.order("created_at", { ascending: false }).limit(limit);
+  });
   if (error) throw error;
   return (data ?? []) as unknown as ExportRecordRow[];
 }
@@ -280,17 +283,34 @@ export async function exportUserWiki(
   };
   fence();
   const [pages, sources, records] = await read(() => Promise.all([
-    read(() => listWikiPages(userId, { kinds: opts.pageKinds, limit: opts.pageLimit ?? 500 }, liveSignal)),
-    read(() => listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500 }, liveSignal)),
-    opts.includeRecords ? read(() => listRecordsForExport(userId, opts.recordLimit ?? 500)) : Promise.resolve(undefined),
+    read(() => listWikiPages(userId, { kinds: opts.pageKinds, limit: opts.pageLimit ?? 500, aiOnly: opts.forAi }, liveSignal)),
+    read(() => listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500, aiOnly: opts.forAi }, liveSignal)),
+    opts.includeRecords ? read(() => listRecordsForExport(userId, opts.recordLimit ?? 500, opts.forAi === true)) : Promise.resolve(undefined),
   ]));
   fence();
   const exported = composeWikiExport(pages, sources, opts, records);
   fence();
   if (!opts.includeSavedConversations) return exported;
   const promotedIds = new Set(pages.map((page) => page.source_id));
-  const kept = sources.filter((source) => source.kind === "self_knowledge" &&
-    source.tags.includes(CHAT_KEEP_TAG) && !promotedIds.has(source.id)).slice(0, 8);
+  const candidates = sources.filter((source) => source.kind === "self_knowledge" &&
+    source.tags.includes(CHAT_KEEP_TAG) && !promotedIds.has(source.id));
+  if (opts.forAi && candidates.length > 0) {
+    // Read IDs only: a held (or out-of-page-limit) promotion must not reopen
+    // its transcript via Saved conversations. Page through metadata so the
+    // server's row limit cannot silently omit a promoted source.
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await read(async () => {
+        const query = getSupabaseClient().from("wiki_pages").select("source_id")
+          .eq("user_id", userId).in("source_id", candidates.map(source => source.id))
+          .order("id").range(offset, offset + 499);
+        return await (liveSignal ? query.abortSignal(liveSignal) : query);
+      });
+      if (error) throw error;
+      for (const page of data ?? []) promotedIds.add(page.source_id);
+      if ((data?.length ?? 0) < 500) break;
+    }
+  }
+  const kept = candidates.filter(source => !promotedIds.has(source.id)).slice(0, 8);
   const blocks = await read(() => Promise.all(kept.map((source) => read(async () => {
     // The source row is owner-scoped; also refuse a foreign Storage pointer.
     const stored = source.storage_path.startsWith(`${userId}/`)

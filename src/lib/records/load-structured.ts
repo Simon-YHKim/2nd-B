@@ -26,7 +26,7 @@ export async function loadStructuredContext(
   try {
     const supabase = getSupabaseClient();
     const query = supabase
-      .from("records")
+      .from("records_ai_eligible")
       .select("topic, created_at, structured")
       .eq("user_id", userId)
       .not("structured", "is", null)

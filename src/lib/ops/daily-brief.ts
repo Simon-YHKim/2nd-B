@@ -180,7 +180,7 @@ export async function buildOpsDailyBrief(input: BuildBriefInput): Promise<OpsDai
   }
 
   const build = (async (): Promise<OpsDailyBrief> => {
-    const snapshot = await exportUserWiki(input.userId, { bodyCharLimit: SNAPSHOT_CHAR_LIMIT });
+    const snapshot = await exportUserWiki(input.userId, { forAi: true, bodyCharLimit: SNAPSHOT_CHAR_LIMIT });
     const user = [
       `Life areas: ${OPS_DOMAIN_IDS.join(", ")}`,
       `Now: ${now.toISOString()}`,
