@@ -210,6 +210,7 @@
       "allow": "Permitir estadísticas de uso",
       "lockedUnder18": "Bloqueado para menores de 18",
       "applied": "GA4 activo en la web · Firebase y Clarity desactivados en Android",
+      "paused": "Guardado · no se envía por ahora",
       "enableFailed": "No se pudieron activar las estadísticas. Inténtalo de nuevo.",
       "withdrawSaveFailed": "No se pudo guardar. La retirada de las estadísticas ya se aplicó en este dispositivo; vuelve a intentar guardar.",
       "adsSaveFailed": "No se pudo guardar el ajuste de anuncios. Inténtalo de nuevo."

@@ -210,6 +210,7 @@
       "allow": "Allow usage analytics",
       "lockedUnder18": "Locked under 18",
       "applied": "Web GA4 applied · Android Firebase and Clarity disabled",
+      "paused": "Saved · not sending now",
       "enableFailed": "Couldn't enable analytics. Please try again.",
       "withdrawSaveFailed": "Couldn't save. Analytics withdrawal took effect on this device; please try saving again.",
       "adsSaveFailed": "Couldn't save the ads setting. Please try again."

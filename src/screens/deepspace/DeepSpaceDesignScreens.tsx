@@ -90,6 +90,7 @@ import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { readPrivacyPrefsStrict } from "@/lib/supabase/privacy-strict";
 import { isTimeoutError, withTimeout } from "@/lib/async/with-timeout";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
+import { analyticsToggleValue, readAnalyticsServerSwitch } from "@/lib/analytics/server-switch";
 import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
 import {
   backfillAllRecordEmbeddings,
@@ -582,6 +583,20 @@ export function DeepSpacePrivacyDesignScreen() {
     setEmbedOn(shown.records_embedding === true);
   };
   const [analyticsOn, setAnalyticsOn] = useState<boolean | null>(null);
+  // Q-261024-72: whether the operator switch lets web usage statistics go out right now.
+  // Display only; the sending gate stays in lib/analytics. null = not read.
+  const [analyticsServerOn, setAnalyticsServerOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (analyticsOn !== true) return;
+    let cancelled = false;
+    void readAnalyticsServerSwitch().then((on) => {
+      if (!cancelled) setAnalyticsServerOn(on);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [analyticsOn]);
+  const analyticsValue = analyticsToggleValue({ minor, on: analyticsOn === true, serverOn: analyticsServerOn });
   const [adsOn, setAdsOn] = useState<boolean | null>(null);
   const [externalError, setExternalError] = useState<{
     key: "external_analytics" | "ads";
@@ -1121,11 +1136,13 @@ export function DeepSpacePrivacyDesignScreen() {
             <Toggle
               label={t("privacy.analytics.allow")}
               value={
-                minor
+                analyticsValue === "lockedUnder18"
                   ? t("privacy.analytics.lockedUnder18")
-                  : analyticsOn
-                    ? t("privacy.analytics.applied")
-                    : t("privacy.off")
+                  : analyticsValue === "paused"
+                    ? t("privacy.analytics.paused")
+                    : analyticsValue === "applied"
+                      ? t("privacy.analytics.applied")
+                      : t("privacy.off")
               }
               on={!minor && analyticsOn}
               disabled={minor || busy}
