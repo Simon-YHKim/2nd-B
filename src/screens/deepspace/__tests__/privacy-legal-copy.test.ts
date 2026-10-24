@@ -1,4 +1,5 @@
 // T09: preserve the exact B-1/B-2/B-3 copy approved in the 2026-10-23 internal review.
+// 2026-10-24 correction: PT/ID B-1 names account deletion, matching KO withdrawal.
 // A1 adds the overseas destination. This is display copy, not a consent revision.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -28,14 +29,14 @@ const APPROVED = {
     "processing": "Los registros se guardan en el servidor. El contenido necesario para las funciones de IA se envía a los proveedores de IA en el extranjero."
   },
   "pt": {
-    "retention": "Fica guardado enquanto você usa a conta e é excluído sem demora quando você sai. Só os registros exigidos por lei, como os de pagamento, ficam guardados à parte pelo prazo obrigatório.",
+    "retention": "Fica guardado enquanto você usa a conta e é excluído sem demora quando você exclui a conta. Só os registros exigidos por lei, como os de pagamento, ficam guardados à parte pelo prazo obrigatório.",
     "none": "Só nos casos da política de privacidade",
     "status": "Seus registros são usados em funções que ajudam você a se conhecer. Os detalhes estão na política de privacidade.",
     "tip": "Você pode escolher quais dados são usados.",
     "processing": "Os registros ficam salvos no servidor. O conteúdo necessário para as funções de IA é enviado aos fornecedores de IA no exterior."
   },
   "id": {
-    "retention": "Disimpan selama kamu memakai akun dan dihapus tanpa ditunda saat kamu keluar. Hanya catatan yang diwajibkan hukum, seperti catatan pembayaran, disimpan terpisah selama jangka waktu yang diwajibkan.",
+    "retention": "Disimpan selama kamu memakai akun dan dihapus tanpa ditunda saat kamu menghapus akun. Hanya catatan yang diwajibkan hukum, seperti catatan pembayaran, disimpan terpisah selama jangka waktu yang diwajibkan.",
     "none": "Hanya sesuai kebijakan privasi",
     "status": "Catatanmu dipakai untuk fitur yang membantumu memahami diri. Rinciannya ada di kebijakan privasi.",
     "tip": "Kamu bisa memilih data mana yang digunakan.",

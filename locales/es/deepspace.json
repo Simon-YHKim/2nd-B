@@ -597,7 +597,7 @@
     "saving": "Guardando…",
     "save": "Guardar",
     "opening": "Abriendo…",
-    "empty": "Anota qué te gusta hacer para descansar. Así puedes encender la estrella de descanso.",
+    "empty": "Aún no hay actividades de descanso guardadas. Anota qué disfrutas hacer para descansar.",
     "ratingLabel": "Valoración {{rating}}/5",
     "category": {
       "game": "Juego",
@@ -1059,10 +1059,10 @@
     "untitled": "(sin título)",
     "pieceHere": "Guardado aquí",
     "pieceOpenHint": "Abre este registro.",
-    "briefingOpening": "Abriendo esta estrella…",
-    "briefingEmpty": "Aún no hay registros en esta estrella. Guarda uno para que HustleK pueda usarlo.",
-    "briefingCountOne": "{{n}} registro en esta estrella, primero el más reciente.",
-    "briefingCount": "{{n}} registros en esta estrella, primero los más recientes."
+    "briefingOpening": "Abriendo esta área…",
+    "briefingEmpty": "Aún no hay registros en esta área. Guarda uno para que HustleK pueda usarlo.",
+    "briefingCountOne": "{{n}} registro en esta área, primero el más reciente.",
+    "briefingCount": "{{n}} registros en esta área, primero los más recientes."
   },
   "onboarding": {
     "nextHint": "Va a la siguiente diapositiva.",

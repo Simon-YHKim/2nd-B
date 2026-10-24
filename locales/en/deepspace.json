@@ -1059,10 +1059,10 @@
     "untitled": "(untitled)",
     "pieceHere": "Filed here",
     "pieceOpenHint": "Opens this record.",
-    "briefingOpening": "Opening this star…",
-    "briefingEmpty": "No records in this star yet. Add a record for HustleK to summarize.",
-    "briefingCountOne": "{{n}} record on this star, newest first.",
-    "briefingCount": "{{n}} records on this star, newest first."
+    "briefingOpening": "Opening this area…",
+    "briefingEmpty": "No records in this area yet. Add a record for HustleK to summarize.",
+    "briefingCountOne": "{{n}} record in this area, newest first.",
+    "briefingCount": "{{n}} records in this area, newest first."
   },
   "onboarding": {
     "nextHint": "Goes to the next slide.",

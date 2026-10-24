@@ -195,7 +195,7 @@
       },
       "retention": {
         "label": "Masa penyimpanan",
-        "v": "Disimpan selama kamu memakai akun dan dihapus tanpa ditunda saat kamu keluar. Hanya catatan yang diwajibkan hukum, seperti catatan pembayaran, disimpan terpisah selama jangka waktu yang diwajibkan."
+        "v": "Disimpan selama kamu memakai akun dan dihapus tanpa ditunda saat kamu menghapus akun. Hanya catatan yang diwajibkan hukum, seperti catatan pembayaran, disimpan terpisah selama jangka waktu yang diwajibkan."
       },
       "delete": {
         "label": "Hak menghapus",
@@ -1059,10 +1059,10 @@
     "untitled": "(tanpa judul)",
     "pieceHere": "Tersimpan di sini",
     "pieceOpenHint": "Membuka catatan ini.",
-    "briefingOpening": "Membuka bintang ini…",
-    "briefingEmpty": "Belum ada catatan di bintang ini. Simpan sesuatu dan HustleK membaca polanya.",
-    "briefingCountOne": "{{n}} catatan di bintang ini, yang terbaru dulu.",
-    "briefingCount": "{{n}} catatan di bintang ini, yang terbaru dulu."
+    "briefingOpening": "Membuka area ini…",
+    "briefingEmpty": "Belum ada catatan di area ini. Simpan sesuatu dan HustleK membaca polanya.",
+    "briefingCountOne": "{{n}} catatan di area ini, yang terbaru dulu.",
+    "briefingCount": "{{n}} catatan di area ini, yang terbaru dulu."
   },
   "onboarding": {
     "nextHint": "Ke slide berikutnya.",

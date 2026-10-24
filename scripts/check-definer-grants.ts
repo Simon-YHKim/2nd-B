@@ -100,6 +100,14 @@ const triggerOnlyOptOut = /--\s*definer-grants-lint:\s*trigger-only/i;
 // public status-RPC grant below is exempted from Rule A.
 // REVIEW: PENDING fresh-context review, 2026-10-05. normalized sha256
 // e5f38f6a6fa856729d24caf811dd2d300405a403b4129a842c6f27f2c30670e6.
+// 2026-10-18: 0262 (email-v10 / service-v5, Z5 쉬운 말 · 방침 판본 2026-10-07) is
+// pinned the same way. 공지형·재동의 없음. Same shape as 0215: one added VALUES row
+// and revision, the same revokes and the one public status-RPC grant, the new
+// DEFINER llm_service_consent_status_v5(uuid) with its service_role GRANT,
+// write_llm_service_consent with service-v1/v2/v4/v5 paths, and the receipts CHECK
+// with email-v10 added. REVIEW: the independent gate on its PR (gate_generic
+// z5-consent). normalized sha256
+// b7debcea9593692c9aa6115072b0af5a5b86007b0743cf3fe423a05e23dd7bf5.
 // 2026-10-04: 0210 (PolaScope email-v7 / service-v2, 2026-10-05 terms and
 // consent dates, policy 2026-09-29) is pinned the same way. It is NOT a pure
 // signup-metadata migration (review F2): the same pinned file also covers the
@@ -121,6 +129,7 @@ const REVIEWED_SIGNUP_METADATA_SHA256S: ReadonlySet<string> = new Set([
   "8c7e758936650a982c60fe1f0d828db683c4252ff45124f4766ca016a495e64a", // 0208 email-v6 (reviewed 2026-09-29)
   "12a40e2208601f237cbccac5a3b49043f004719e916f828078eccf388f407b9f", // 0210 email-v7 + service-v2 writer (reviewed 2026-10-04, second review PASS)
   "e5f38f6a6fa856729d24caf811dd2d300405a403b4129a842c6f27f2c30670e6", // 0215 email-v9 + service-v4 writer (PENDING fresh-context review, 2026-10-05)
+  "b7debcea9593692c9aa6115072b0af5a5b86007b0743cf3fe423a05e23dd7bf5", // 0262 email-v10 + service-v5 writer (independent review on its PR, 2026-10-18)
 ]);
 const REVIEWED_SIGNUP_METADATA_GRANT =
   "GRANT EXECUTE ON FUNCTION public.signup_consent_contract_status() TO anon, authenticated;";

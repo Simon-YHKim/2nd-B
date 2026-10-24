@@ -184,8 +184,9 @@ describe("legal document snapshots", () => {
     // The published policy remains v5 while the 10-05 notice and terms change.
     expect(md).toContain("_시행일: 2026-10-07 · 최종 개정: 2026-10-07_");
     expect(PRIVACY_DOC.body).toContain("시행일: 2026-10-07");
-    expect(PRIVACY_POLICY_VERSION).toBe("2026-10-06");
-    expect(CONSENT_VERSION).toBe("2026-10-06");
+    // Z5 (Q-261018-49 가): the policy constant now names the published 2026-10-07 policy.
+    expect(PRIVACY_POLICY_VERSION).toBe("2026-10-07");
+    expect(CONSENT_VERSION).toBe("2026-10-18");
     expect(TERMS_VERSION).toBe("2026-10-05");
     expect(PRIVACY_DOC.body).toContain("AI 제공자는 자체 이용 정책에 따라 남용과 안전 위반을 막기 위해");
     expect(PRIVACY_DOC.body).toContain("회사는 이 방침에 적은 경우 외에는 이용자의 개인정보를 제3자에게 제공하지 않습니다");

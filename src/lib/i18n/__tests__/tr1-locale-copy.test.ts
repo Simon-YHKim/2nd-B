@@ -240,9 +240,18 @@ describe("tr1: es/pt/id carry their own text", () => {
     expect(b.shiftNudgeCited).toContain("{{n}}");
   });
 
-  // T09, 2026-10-23 legal review: the approved retention sentences replace the
-  // 30-day claim, including ID "saat kamu keluar". Do not rewrite that approval
-  // with a standalone sign-out-verb ban; privacy-legal-copy.test.ts pins all five.
+  // T09, 2026-10-24: deletion follows account closure, never sign-out (#2102).
+  // PT "sai"/"saia" are conjugations of the button's "Sair", so checking only
+  // the button label misses the regression. Include the singular você forms.
+  it.each(["es", "pt", "id"])("%s retention line does not use the Sign out verb", (lng) => {
+    const retention = String(at(pack(lng, "deepspace"), "privacy.facts.retention.v")).toLocaleLowerCase(lng);
+    const signOut = String(at(pack(lng, "common"), "actions.signOut")).toLocaleLowerCase(lng);
+    expect(signOut.length).toBeGreaterThan(0);
+    const forms = lng === "pt" ? [signOut, "sai", "saia", "saiu", "saía", "sairá", "saísse"] : [signOut];
+    const alternatives = forms.map((verb) => verb.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+    const word = new RegExp(`(^|[^\\p{L}])(?:${alternatives})($|[^\\p{L}])`, "u");
+    expect({ lng, retention, usesSignOut: word.test(retention) }).toEqual({ lng, retention, usesSignOut: false });
+  });
 });
 
 describe("tr1: what stays KO/EN on purpose", () => {

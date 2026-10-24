@@ -195,7 +195,7 @@
       },
       "retention": {
         "label": "Período de retenção",
-        "v": "Fica guardado enquanto você usa a conta e é excluído sem demora quando você sai. Só os registros exigidos por lei, como os de pagamento, ficam guardados à parte pelo prazo obrigatório."
+        "v": "Fica guardado enquanto você usa a conta e é excluído sem demora quando você exclui a conta. Só os registros exigidos por lei, como os de pagamento, ficam guardados à parte pelo prazo obrigatório."
       },
       "delete": {
         "label": "Direito de exclusão",
@@ -1059,10 +1059,10 @@
     "untitled": "(sem título)",
     "pieceHere": "Guardado aqui",
     "pieceOpenHint": "Abre este registro.",
-    "briefingOpening": "Abrindo esta estrela…",
-    "briefingEmpty": "Ainda não há registros nesta estrela. Adicione um para começar o resumo.",
-    "briefingCountOne": "{{n}} registro nesta estrela, primeiro o mais recente.",
-    "briefingCount": "{{n}} registros nesta estrela, primeiro os mais recentes."
+    "briefingOpening": "Abrindo esta área…",
+    "briefingEmpty": "Ainda não há registros nesta área. Adicione um para começar o resumo.",
+    "briefingCountOne": "{{n}} registro nesta área, primeiro o mais recente.",
+    "briefingCount": "{{n}} registros nesta área, primeiro os mais recentes."
   },
   "onboarding": {
     "nextHint": "Vai para o próximo slide.",

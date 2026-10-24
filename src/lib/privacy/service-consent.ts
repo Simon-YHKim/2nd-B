@@ -43,9 +43,9 @@ function decodeStatus(value: unknown, ownerId: string, ownerEpoch: number, mutat
   return { ...Object.fromEntries(STATUS_KEYS.map((key) => [key, row[key]])), ownerId, ownerEpoch } as unknown as ServiceConsentStatus;
 }
 
-// service-v4 maps the email-v9 document tuple (0215). Older installed clients
-// keep service-v1/service-v2 and their own tuples; the server accepts all three.
-export const SERVICE_CONSENT_REVISION = "service-v4" as const;
+// service-v5 maps the email-v10 document tuple (0262). Older installed clients
+// keep service-v1/service-v2/service-v4 and their own tuples; the server accepts all four.
+export const SERVICE_CONSENT_REVISION = "service-v5" as const;
 
 /** A grant only records the exact document tuple that this app can display. */
 export function matchesServiceConsentContract(status: ServiceConsentStatus): boolean {
