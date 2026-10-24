@@ -33,7 +33,9 @@ describe("visible brand copy", () => {
     expect(signUp).toContain('router.push("/")');
     // 2026-10-12: 이 컨트롤의 낭독 이름은 실제 도착지(로그인 화면)를 말한다. 전에는 홈 별자리의
     // 드릴다운 이름("전체 별자리로 돌아가기")을 빌려 썼다(Device Lab 6회차 O3 와 같은 결함).
-    expect(signUp).toContain('accessibilityLabel={t("auth:signUp.existingAccountSignIn")}');
+    // The code step returns to the form; back-name-and-helper-wrap.test.ts
+    // pins both destinations and their spoken names on the actual top control.
+    expect(signUp).toContain('accessibilityLabel={confirmSentTo !== null ? t("auth:signUp.confirmBackToForm") : t("auth:signUp.existingAccountSignIn")}');
     expect(signUp).not.toContain("navGraph.drilldown");
     expect(signUp).toContain("styles.topBar");
     expect(signUp).toContain("styles.brand");

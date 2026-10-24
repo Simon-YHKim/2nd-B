@@ -459,7 +459,7 @@ const gap = StyleSheet.create({
   factText: { flex: 1, gap: 2 },
 });
 
-export function DeepSpaceSupportDesignScreen() {
+export function DeepSpaceSupportDesignScreen({ onReport }: { onReport?: (kind: "inquiry" | "bug") => void } = {}) {
   // Phone-aware: inside the dashboard phone, links open in the phone.
   const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
@@ -468,7 +468,7 @@ export function DeepSpaceSupportDesignScreen() {
   return (
     <Shell title={t("support.title")}>
       <View style={styles.center}><SecondbHead size={104} mood="neutral" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View>
-      <Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:kim0405@hayangzip.com')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:kim0405@hayangzip.com?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card>
+      <Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:onReport ? t("support:report.inquiryTitle") : t("support.emailUs"),onPress:()=>onReport ? onReport("inquiry") : Linking.openURL('mailto:kim0405@hayangzip.com')},{label:onReport ? t("support:report.bugTitle") : t("support.reportBug"),onPress:()=>onReport ? onReport("bug") : Linking.openURL('mailto:kim0405@hayangzip.com?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card>
 
       {/* Always-on help directory. Above the FAQ on purpose: someone who needs
           it is not going to scroll past a list of product questions first. */}

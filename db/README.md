@@ -1,5 +1,9 @@
 # Database Migrations
 
+T06's [Before User Created hook draft](../docs/qa/T06-SIGNUP-HOOK.md) is unnumbered
+and OFF. Device limiting and the other documented activation evidence remain
+required; installing the draft is not authorization to enable the Auth hook.
+
 For the inactive service-contract drafts and erasure registry promotion, follow
 [the forward-migration runbook](../docs/qa/ERASURE-FORWARD-260926.md). New registry
 rows use a separate additions-only migration and `forwardAdditions` metadata;
@@ -24,6 +28,35 @@ done
 docker stop 2ndb-pg && docker rm 2ndb-pg
 ```
 
+## T28 numbered AI hold (0270)
+
+`migrations/0270_crisis_ai_hold.sql` is the byte-identical promotion of the
+reviewed #2535 draft at `90384ca4`. Its LF SHA-256 (including the final newline)
+is `a14c2b01e2e2eed933581fe0dab735ec031f32a7e25ad7e939e9f6c1a728fc61`.
+The old draft is removed; tests, inventory replay and DPIA now read the numbered file.
+
+Apply after 0225 and 0263, on the current 0001–0269 schema (including 0262/0264).
+The D4 server half takes effect immediately: known RED/interview-held records
+lose vectors, and new writes inherit the hold. Originals and account export
+remain available. No dormant switch, new table, model call or app reader/writer
+wiring is added. Existing table erasure/export classifications stay unchanged.
+
+CI keeps `t39_t40_before_0270` for `tests/crisis_ai_hold_regression.sql`, including
+real backfill, immutable 0263 contracts and the actual 0218 down/reapply suite.
+`tests/crisis_ai_hold_installed.sql` runs on the final numbered schema.
+`rollback/0270_down.sql` removes only the three AI read views, in one transaction.
+It keeps all hold bits, row guards and cleared vectors; it cannot release a hold.
+Readers must fail closed without the views. Reapplying the numbered SQL restores
+them; the Relay installer intentionally refuses an existing ledger row, so
+incident reapply is a separate reviewed operation. No ledger row is removed.
+
+Relay uses one whole `execute_sql` call with LF body MD5, measured prerequisite
+ledger pairs, item-level prestate pins, runtime preservation checks and exact
+new-object expectations. Backfill and cleared-vector row counts are returned.
+Production function comments and historical ledger names may differ from local
+replay: the coordinator measures and pins them before application. See the
+[D4 contract](../docs/design/crisis-ai-hold-261015.md) for remaining app work.
+
 ## T39/T40 numbered promotion (0265 through 0269)
 
 Relay order is **0265 E1-S → 0266 S → 0267 F → 0268 S reason → 0269 F reason**, one complete file per
@@ -34,7 +67,7 @@ Historical `INACTIVE DRAFT`, numbering and rollback-path comments inside those
 files are preserved for that proof; use the numbered paths in this README.
 No executable self-path or function-source MD5 needs changing.
 
-CI pushes numbered migrations in four batches and preserves
+CI pushes numbered migrations in five batches (including the 0270 boundary) and preserves
 `t39_t40_before_0265`, `t39_t40_before_0266`, and `t39_t40_before_0267` at the
 three boundaries. The final `postgres` database has all five migrations once, including both registry revisions.
 CLI 2.116 rejects a top-level `LOCK TABLE` outside an explicit transaction.
