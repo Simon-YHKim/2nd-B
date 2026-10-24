@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertCatalogSnapshotUnchanged } from './lib/catalog-snapshot.cjs';
 
 const [port, database, mode] = process.argv.slice(2);
 assert(/^\d{4,5}$/.test(port ?? '') && Number(port) <= 65535 && Number(port) > 0
@@ -23,6 +24,10 @@ const args = (db) => ['-X', '--no-password', '-h', '127.0.0.1', '-p', port, '-U'
   '-Atq', '-v', 'ON_ERROR_STOP=1'];
 function connection(db = database) {
   const child = spawn('psql', args(db), { env, cwd: root, timeout: 30_000 });
+  // A catalog can exceed a pipe chunk; preserve UTF-8 characters split across
+  // chunks (e.g. Korean comments in prosrc) instead of decoding each Buffer.
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
   let out = ''; let err = ''; const waiters = new Map();
   const done = new Promise((resolveResult, reject) => {
     child.stdout.on('data', data => {
@@ -95,7 +100,7 @@ const existingSnapshot = `SELECT jsonb_build_object('routines',(SELECT jsonb_agg
 const existing = await ok(existingSnapshot);
 await ok(`BEGIN; ${up} COMMIT;`);
 await ok(`BEGIN; ${up} COMMIT;`);
-assert.equal(await ok(existingSnapshot), existing, 'existing routines or triggers changed');
+assertCatalogSnapshotUnchanged(await ok(existingSnapshot), existing, 'repeat apply');
 await ok(regression);
 pass('repeat apply, ACL/RLS, both entrypoints, same-owner exclusion, other owner, immutable bindings, no deletion/completion');
 await rejected(`BEGIN ISOLATION LEVEL REPEATABLE READ; ${up}`, 'receipt_arbitration_requires_read_committed');
@@ -105,7 +110,7 @@ await rejected(`BEGIN ISOLATION LEVEL REPEATABLE READ; ${down}`, 'receipt_arbitr
 await ok(`BEGIN; ${down} COMMIT;`);
 assert.equal(await ok("SELECT to_regprocedure('deletion_receipt_private.guard_legacy_admission()') IS NULL;"), 't');
 await ok(`BEGIN; ${up} COMMIT;`);
-assert.equal(await ok(existingSnapshot), existing);
+assertCatalogSnapshotUnchanged(await ok(existingSnapshot), existing, 'empty rollback/reapply');
 pass('empty rollback/reapply preserves existing routines and triggers');
 
 for (let n = 1; n <= 12; n++) await fixture(n);
@@ -246,5 +251,5 @@ assert.notEqual(noRollbackGuard, down);
 assert.equal((await run(`BEGIN; ${noRollbackGuard} ROLLBACK;`)).code, 0);
 killed++; console.log('KILLED nonempty rollback guard');
 assert.equal(await ok(ledgers), beforeRollback);
-assert.equal(await ok(existingSnapshot), existing);
+assertCatalogSnapshotUnchanged(await ok(existingSnapshot), existing, 'after SQL mutations');
 console.log(`PASS ${groups} groups; 8 observed blocking schedules; SQL mutants killed ${killed}/${mutants.length + 8}; external Auth/Storage calls 0`);

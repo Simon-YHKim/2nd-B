@@ -22,6 +22,8 @@ on:
       - "scripts/test-profile-import-sql.mjs"
       - "scripts/test-deletion-receipt-sql.mjs"
       - "scripts/test-deletion-receipt-arbitration.mjs"
+      - "scripts/lib/catalog-snapshot.cjs"
+      - "scripts/__tests__/catalog-snapshot.test.ts"
       - "scripts/test-records-embedding-consent-sql.mjs"
       - "scripts/test-interview-content-authority-sql.mjs"
       - "scripts/test-support-reports-sql.mjs"
