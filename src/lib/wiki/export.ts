@@ -21,6 +21,7 @@ import { classifyInputAnyLocale } from "../safety/classifier";
 import type { SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import { isAbortError, throwIfAborted } from "../async/abort";
+import { observeLiveOwner } from "../auth/live-owner-guard";
 import { withSystemTagsColumn } from "../records/system-tags";
 import { hasNorthstarAiProvenance } from "../persona/northstar-provenance";
 import { withAiCopyTail } from "../chat/ai-mark";
@@ -255,8 +256,13 @@ export async function exportUserWiki(
   userId: string,
   opts: ExportUserWikiOpts = {},
   execution?: Pick<AuthenticatedAccountSessionLease, "userId" | "signal" | "assertCurrent">,
+  liveOwnerCheck?: () => void,
 ): Promise<WikiExport> {
+  const liveOwner = liveOwnerCheck ? observeLiveOwner(liveOwnerCheck) : undefined;
+  const liveSignal = liveOwner?.signal;
+  try {
   const fence = (): void => {
+    liveOwner?.assertCurrent();
     if (!execution) return;
     if (!userId || execution.userId !== userId) throw new Error("context_session_owner_mismatch");
     throwIfAborted(execution.signal);
@@ -274,8 +280,8 @@ export async function exportUserWiki(
   };
   fence();
   const [pages, sources, records] = await read(() => Promise.all([
-    read(() => listWikiPages(userId, { kinds: opts.pageKinds, limit: opts.pageLimit ?? 500 })),
-    read(() => listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500 })),
+    read(() => listWikiPages(userId, { kinds: opts.pageKinds, limit: opts.pageLimit ?? 500 }, liveSignal)),
+    read(() => listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500 }, liveSignal)),
     opts.includeRecords ? read(() => listRecordsForExport(userId, opts.recordLimit ?? 500)) : Promise.resolve(undefined),
   ]));
   fence();
@@ -288,7 +294,7 @@ export async function exportUserWiki(
   const blocks = await read(() => Promise.all(kept.map((source) => read(async () => {
     // The source row is owner-scoped; also refuse a foreign Storage pointer.
     const stored = source.storage_path.startsWith(`${userId}/`)
-      ? await read(() => downloadRawClipping(source.storage_path).catch((error) => {
+      ? await read(() => downloadRawClipping(source.storage_path, liveSignal).catch((error) => {
         fence();
         if (execution && isAbortError(error)) throw error;
         return null;
@@ -306,4 +312,5 @@ export async function exportUserWiki(
   if (present.length) exported.prompt += `\n## Saved conversations (user words and generated replies; not wiki pages)\n\n${present.join("\n\n")}`;
   fence();
   return exported;
+  } finally { liveOwner?.release(); }
 }

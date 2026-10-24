@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const ROOT = resolve(__dirname, "../..");
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8").replace(/\r\n/g, "\n");
@@ -40,6 +40,9 @@ const sameBytes = (draft: string, numbered: string) =>
 // not applied yet may be revised before its GO, and its digest moves in the same
 // commit with the reason.
 const promoted = [
+  ["0267", "chat_turn_purpose_restore", "e7cfe580a1e2eeceeb47bceee8d65806d0585df29cd2ce7831f377a9ca165210"],
+  ["0266", "chat_turn_refund_evidence", "128170bea3ffe4944dcad8c82d4554418a807074181232c7c55ea564a5194cb7"],
+  ["0265", "chat_turn_attempt_with_quota", "017563cf778ba4b408f87ad1dbe21bed6e08b2331cb6de5144423560918939ef"],
   ["0263", "records_embedding_consent_guard", "ec7e9caa3c0652bcf501dfc7e70a8eada4309ebecf3c08eba95c9e9fb58b5b20"],
   ["0261", "reward_ssv_grant_helper_acl", "781b0a218086fed68ec3a89b134998a05fc044f1a9708c4088e49ca25669b039"],
   ["0236", "dashboard_generation", "a86ab9e7c03e335d0eb27b8c90f5e18b345824975e112d5ad51de57a5287d4b3"],
@@ -59,6 +62,7 @@ const promoted = [
   ["0210", "polascope_consent_20260928", "12a40e2208601f237cbccac5a3b49043f004719e916f828078eccf388f407b9f"],
   ["0215", "consent_email_v9_20261006", "e5f38f6a6fa856729d24caf811dd2d300405a403b4129a842c6f27f2c30670e6"],
   ["0216", "peer_response_rate_limit", "7b7abc8d550ff17cc4f13457d8eec8904d4c821884dcaa892b5dbd8feb685946"],
+  ["0262", "consent_email_v10_20261018", "b7debcea9593692c9aa6115072b0af5a5b86007b0743cf3fe423a05e23dd7bf5"],
 ] as const;
 
 const normalizedSqlSha256 = (sql: string) =>
@@ -84,9 +88,9 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
-  "UNNUMBERED_chat_turn_attempt_with_quota.sql": {
-    runner: "db/migration-drafts/tests/chat-turn-attempt-with-quota.sql",
-    workflowInvocation: "-f db/migration-drafts/tests/chat-turn-attempt-with-quota.sql",
+  "UNNUMBERED_account_export_read_grants.sql": {
+    runner: "db/migration-drafts/tests/account-export-read-grants.sql",
+    workflowInvocation: "psql -X -h 127.0.0.1 -U postgres -d account_export_grants_test_ci -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/account-export-read-grants.sql",
   },
   "UNNUMBERED_interview_content_authority.sql": {
     runner: "scripts/test-interview-content-authority-sql.mjs",
@@ -151,6 +155,10 @@ const behaviorLanes = {
     runner: read("db/migration-drafts/tests/consent-email-v9-forward-contract.sql"),
     workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
   },
+  "0262_consent_email_v10_20261018.sql": {
+    runner: read("db/migration-drafts/tests/consent-email-v10-forward-contract.sql"),
+    workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
+  },
   "0191_signup_consent_admob_20260925.sql": {
     runner: signupBootstrap,
     workflowInvocation: "node scripts/test-signup-consent-sql.mjs 5432 signup_local signup_test_ci",
@@ -175,6 +183,97 @@ const behaviorLanes = {
 } as const;
 
 describe("migration drafts: one copy per migration, and scratch PostgreSQL coverage", () => {
+
+  test("0265-0267 keep separate pre-install schemas and inspect the final numbered schema", () => {
+    const stage = workflow.split("- name: Apply staged migrations (0147+) through Supabase CLI")[1]
+      .split("- name:")[0];
+    expect(stage).toContain("for boundary in 0265 0266 0267 final; do");
+    expect(stage).toContain('if [[ "$boundary" == final ]] || (( 10#$version < 10#$boundary )); then');
+    expect(stage.indexOf("supabase db push")).toBeLessThan(stage.indexOf("CREATE DATABASE t39_t40_before_${boundary} TEMPLATE postgres"));
+    expect(stage).toContain('actual_count="$(psql');
+    expect(stage).toContain('expected_count="${#staged_migrations[@]}"');
+    expect(stage).toContain("for name in ('0266_chat_turn_refund_evidence.sql', '0267_chat_turn_purpose_restore.sql'):");
+    expect(stage).toContain("b'DO $cli_transaction$ BEGIN EXECUTE $cli_body$' + source");
+    expect(stage).toContain("b'$cli_body$; END $cli_transaction$;\\n'");
+    expect(stage).toContain("CLI wrapper delimiter collision");
+    const admission = workflow.split("- name: Exercise dormant T39 admission on full schema clone")[1].split("- name:")[0];
+    expect(admission).toContain("TEMPLATE t39_t40_before_0266");
+    expect(admission.match(/-f db\/migrations\/0265_chat_turn_attempt_with_quota.sql/g)).toHaveLength(2);
+    const reapply = admission.indexOf("migrations/0265_chat_turn_attempt_with_quota.sql");
+    const rollback = admission.indexOf("rollback/0265_down.sql");
+    expect(reapply).toBeLessThan(admission.indexOf("-f db/tests/chat-turn-attempt-with-quota.sql"));
+    expect(reapply).toBeLessThan(rollback);
+    expect(rollback).toBeLessThan(admission.lastIndexOf("migrations/0265_chat_turn_attempt_with_quota.sql"));
+    expect(admission).toContain("--schema=public --schema=supabase_migrations");
+    expect(admission.indexOf('t39_before="$(t39_snapshot)"')).toBeLessThan(reapply);
+    expect(admission.indexOf('t39_after="$(t39_snapshot)"')).toBeGreaterThan(reapply);
+    const compare = 'cmp <(printf \'%s\\n\' "$t39_before") <(printf \'%s\\n\' "$t39_after")';
+    expect(admission).toContain(compare);
+    expect(admission.indexOf(compare)).toBeGreaterThan(reapply);
+    expect(admission.indexOf(compare)).toBeLessThan(rollback);
+    for (const lane of ["Exercise chat turn refund on proxy evidence only", "Race two chat turn refunds over one proxy row"]) {
+      expect(workflow.split(`- name: ${lane}`)[1].split("- name:")[0]).toContain("PGDATABASE: t39_t40_before_0265");
+    }
+    const verify = workflow.split("- name: Verify promoted server-first contracts")[1].split("- name:")[0];
+    expect(verify).not.toContain("source digests");
+    for (const [number, stem] of promoted.filter(([number]) => ["0265", "0266", "0267"].includes(number))) {
+      expect(verify).toContain(`('${number}', '${stem}')`);
+    }
+    expect(verify).toContain("))) <> 16");
+    expect(verify).toContain("'attempt1_delivered','attempt2_delivered','binding_closed','quota_day','purpose_restored_day'" );
+    expect(verify).toContain("chat_turn_reservations_purpose_restore_day_key");
+    expect(verify).toContain("NOT has_function_privilege('service_role','public.begin_chat_turn_attempt_with_quota");
+  });
+
+  test("0265-0267 rollback files retain every reviewed byte after newline normalization", () => {
+    const pins = [
+      ["0265", "7d980cb43f548d3c43cfd23697e04cea270cc2ee7505374ab1206e10059e05a3"],
+      ["0266", "bbff4bbdbe47cc2de48c5c2a85635e60944145b60203dda281fd821dad0aadd2"],
+      ["0267", "433ed7f8829ba12eceac4d3d2173c08a87a9ebc9b08fd486bd4e576727c8843f"],
+    ];
+    for (const [number, digest] of pins) {
+      expect(createHash("sha256").update(read(`db/migrations/rollback/${number}_down.sql`)).digest("hex")).toBe(digest);
+    }
+  });
+
+  test("account export grants stay on their isolated full-schema lane with rollback coverage", () => {
+    const regression = read("db/migration-drafts/tests/account-export-read-grants.sql");
+    const lane = workflow.slice(
+      workflow.indexOf("- name: Exercise account export column grants on full schema clone"),
+      workflow.indexOf("- name: Exercise records embedding consent on full schema clone"),
+    );
+    expect(lane).toContain("CREATE DATABASE account_export_grants_test_ci TEMPLATE postgres");
+    expect(lane).toContain(pendingDrafts["UNNUMBERED_account_export_read_grants.sql"].workflowInvocation);
+    expect(lane).toContain("DROP DATABASE IF EXISTS account_export_grants_test_ci");
+    expect(regression).toContain("\\ir ../UNNUMBERED_account_export_read_grants.sql");
+    expect(regression).toContain("\\ir ../rollback/UNNUMBERED_account_export_read_grants_down.sql");
+    expect(regression).toContain("SET LOCAL ROLE service_role;");
+    expect(regression).toContain("SET LOCAL ROLE authenticated;");
+    expect(regression).toContain("SET LOCAL ROLE anon;");
+    expect(regression).toContain("WHEN insufficient_privilege THEN RETURN");
+    expect(regression).toContain("SELECT pg_temp.assert_export_acl(false);");
+    expect(regression).toMatch(/^BEGIN;[\s\S]*ROLLBACK;\s*$/m);
+  });
+
+  test("account export forward and rollback touch only the approved 20 service SELECT columns", () => {
+    const grants = [
+      ["llm_consent_receipts", "consent_record_id, user_id, contract_revision, service_action, recorded_at"],
+      ["weather_consent_state", "user_id, enabled, contract, locale, updated_at"],
+      ["weather_access_events", "id, user_id, event, recipient, contract, created_at"],
+      ["dashboard_generation_settings", "user_id, timezone, locale, last_active_at"],
+    ];
+    const statements = (sql: string) => sql.replace(/^--.*$/gm, "").replace(/\s+/g, " ").trim();
+    for (const [file, verb, preposition] of [
+      ["UNNUMBERED_account_export_read_grants.sql", "GRANT", "TO"],
+      ["rollback/UNNUMBERED_account_export_read_grants_down.sql", "REVOKE", "FROM"],
+    ]) {
+      const expected = "SET LOCAL lock_timeout = '10s'; " + grants.map(([table, columns]) =>
+        `${verb} SELECT (${columns}) ON public.${table} ${preposition} service_role;`,
+      ).join(" ");
+      expect(statements(read(`${DRAFT_DIR}/${file}`))).toBe(expected);
+    }
+  });
+
   test("no promoted draft sits beside its numbered migration (Q-261005-07)", () => {
     expect(draftCopyViolations(listDrafts(), listNumbered(), RETAINED_UNTIL_APPLIED, sameBytes))
       .toEqual([]);
@@ -205,7 +304,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(listDrafts()).toEqual([...retainedDrafts, ...Object.keys(pendingDrafts)].sort());
     for (const draft of Object.values(pendingDrafts)) {
       expect(existsSync(join(ROOT, draft.runner))).toBe(true);
-      expect(read(".github/workflows/supabase-dry-run.yml")).toContain(draft.workflowInvocation);
+      expect(workflow.split("\n").some((line) => line.trim() === draft.workflowInvocation)).toBe(true);
     }
   });
 
@@ -247,10 +346,15 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
       ...readdirSync(join(ROOT, DRAFT_DIR, "tests")).map((name) => `${DRAFT_DIR}/tests/${name}`),
     ].filter((path) => path.endsWith(".sql"));
     const retainedDrafts = RETAINED_UNTIL_APPLIED.map((key) => `UNNUMBERED_${key.slice(5)}.sql`);
+    const registered = [...retainedDrafts, ...Object.keys(pendingDrafts)];
+    const allowedFiles = new Set(registered.flatMap((draft) => [
+      resolve(ROOT, DRAFT_DIR, draft),
+      resolve(ROOT, DRAFT_DIR, "rollback", draft.replace(/\.sql$/, "_down.sql")),
+    ]).filter(existsSync));
     const offenders = fixtures.flatMap((path) =>
-      [...read(path).matchAll(/^\\i(?:r)?\s+[^\n]*?(UNNUMBERED_[a-z0-9_]+\.sql)/gm)]
-        .filter((hit) => !retainedDrafts.includes(hit[1]) && !Object.hasOwn(pendingDrafts, hit[1]))
-        .map((hit) => `${path}: ${hit[1]}`),
+      [...read(path).matchAll(/^\\(ir|i)\s+([^\n]*?UNNUMBERED_[a-z0-9_]+\.sql)/gm)]
+        .filter((hit) => !allowedFiles.has(resolve(ROOT, hit[1] === "ir" ? dirname(path) : ".", hit[2])))
+        .map((hit) => `${path}: ${hit[2]}`),
     );
     expect(fixtures.length).toBeGreaterThan(10);
     expect(offenders).toEqual([]);
@@ -402,6 +506,22 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(regression).toContain("signup tuple preservation/current contract failed");
     expect(regression).toContain("email-v9 confirmation/provenance contract failed");
     expect(draftLane).toContain("\\ir ../../tests/consent_email_v9_20261006_regression.sql");
+  });
+
+  test("exercises the numbered 2026-10-18 email-v10 contract and keeps it in the polaris lane", () => {
+    const regression = read("db/tests/consent_email_v10_20261018_regression.sql");
+    const forwardLane = read("db/migration-drafts/tests/consent-email-v10-forward-contract.sql");
+    const serviceLane = read("db/migration-drafts/tests/llm-service-consent-management-contract.sql");
+    expect(workflow).toContain("-f db/tests/consent_email_v10_20261018_regression.sql");
+    expect(regression).not.toMatch(/\\i(?:r)?\s+[^\r\n]*UNNUMBERED_/);
+    expect(regression).toContain("email-v10 signup tuple preservation/current contract failed");
+    expect(regression).toContain("email-v10 confirmation/provenance contract failed");
+    expect(regression).toContain("email-v9 confirmation/provenance changed after email-v10");
+    expect(forwardLane).toContain("\\ir ../../migrations/0262_consent_email_v10_20261018.sql");
+    expect(forwardLane).toContain("\\ir ../../tests/consent_email_v10_20261018_regression.sql");
+    // The v10 forward contract runs after the v9 one, on the same fixture.
+    expect(serviceLane.indexOf("\\ir consent-email-v10-forward-contract.sql"))
+      .toBeGreaterThan(serviceLane.indexOf("\\ir consent-email-v9-forward-contract.sql"));
   });
 
   test("exercises the numbered 0219 first-run claims, their race and their rollback", () => {

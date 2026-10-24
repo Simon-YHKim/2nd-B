@@ -681,7 +681,7 @@ export function CaptureView({
           kind: "note",
           body,
           topic,
-          tags: [tag],
+          systemTags: [tag],
           withFollowup: false,
           minor: isMinor === true,
           ...(structured ? { structured } : {}),

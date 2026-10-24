@@ -73,7 +73,7 @@
       "dialogueOpen": "Buka percakapan HustleK",
       "dialogueClose": "Tutup percakapan HustleK",
       "kind": {
-        "domain": "Bidang",
+        "domain": "Bintang",
         "profile": "Informasi tentang dirimu"
       },
       "bubble": {
@@ -193,7 +193,7 @@
       "save": "Simpan",
       "saving": "Menyimpan",
       "saved": "Tersimpan",
-      "openRecords": "Buka catatan",
+      "openRecords": "Lihat Wiki",
       "saveError": "Tidak dapat menyimpan. Coba lagi sebentar.",
       "saveHint": "Isi sesuatu untuk menyimpan catatan.",
       "saveHintFourW": "Isi kolom Apa untuk menyimpan catatan."
@@ -345,7 +345,7 @@
           "body": "Lupakan sejenak uang, pekerjaan, dan ikatan. Apa yang akan kamu lakukan pertama kali?",
           "step1": "Tulis 3 hal yang ingin kamu lakukan",
           "step2": "Coba satu di antaranya dengan satu jam saja bulan ini",
-          "step3": "Bayangkan siapa yang menemanimu di bintang Hubungan"
+          "step3": "Bayangkan siapa yang menemanimu di area Hubungan"
         },
         "reverse": {
           "angle": "Balik",
@@ -353,15 +353,15 @@
           "body": "Berimprovisasi alih-alih merencanakan, bersama alih-alih sendirian. Apa yang menarikmu dari sisi seberang?",
           "step1": "Coba satu hal yang tidak pernah kamu lakukan minggu ini",
           "step2": "Catat bersama HustleK apa yang terasa canggung",
-          "step3": "Simpan ke bintang Istirahat dan amati polanya"
+          "step3": "Simpan ke area Istirahat dan amati polanya"
         },
         "connect": {
           "angle": "Hubungkan",
           "title": "Karier × istirahat, digabungkan",
-          "body": "Paksa dua bintang itu bersatu. Ide aneh apa yang muncul?",
+          "body": "Paksa dua area itu bersatu. Ide aneh apa yang muncul?",
           "step1": "Tulis proyek satu kalimat dari dua kata kunci itu",
           "step2": "Buat prototipenya dalam dua jam di akhir pekan",
-          "step3": "Catat di bintang Pertumbuhan sebagai eksperimen"
+          "step3": "Catat di area Pertumbuhan sebagai eksperimen"
         }
       }
     },

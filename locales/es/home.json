@@ -73,7 +73,7 @@
       "dialogueOpen": "Abrir diálogo con HustleK",
       "dialogueClose": "Cerrar diálogo con HustleK",
       "kind": {
-        "domain": "Área",
+        "domain": "Estrella",
         "profile": "Cómo te ven"
       },
       "bubble": {
@@ -193,7 +193,7 @@
       "save": "Capturar",
       "saving": "Guardando",
       "saved": "Guardado",
-      "openRecords": "Abrir registros",
+      "openRecords": "Ver la Wiki",
       "saveError": "No se pudo guardar. Inténtalo de nuevo en un momento.",
       "saveHint": "Escribe algo para guardar.",
       "saveHintFourW": "Escribe en el campo Qué para guardar."
@@ -345,7 +345,7 @@
           "body": "Olvida por un momento el dinero, el trabajo y los compromisos. ¿Qué harías primero?",
           "step1": "Escribe 3 cosas que quieras hacer",
           "step2": "Prueba una con una sola hora este mes",
-          "step3": "Imagina quién te acompaña en la estrella de Relaciones"
+          "step3": "Imagina quién te acompaña en el área de Relaciones"
         },
         "reverse": {
           "angle": "Invertir",
@@ -353,15 +353,15 @@
           "body": "Improvisar en lugar de planear, en compañía en lugar de a solas. ¿Qué te atrae del otro lado?",
           "step1": "Prueba esta semana algo que nunca haces",
           "step2": "Anota con HustleK lo que te resultó incómodo",
-          "step3": "Captúralo en la estrella de Descanso y observa el patrón"
+          "step3": "Guárdalo en el área de Descanso y observa el patrón"
         },
         "connect": {
           "angle": "Conectar",
           "title": "Carrera × descanso, combinados",
-          "body": "Junta las dos estrellas a la fuerza. ¿Qué idea curiosa sale?",
+          "body": "Junta las dos áreas a la fuerza. ¿Qué idea curiosa sale?",
           "step1": "Escribe un proyecto de una línea con las dos palabras clave",
           "step2": "Haz un prototipo en dos horas del fin de semana",
-          "step3": "Regístralo en la estrella de Crecimiento como un experimento"
+          "step3": "Regístralo en el área de Crecimiento como un experimento"
         }
       }
     },

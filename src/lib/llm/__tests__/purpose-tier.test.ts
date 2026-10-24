@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 // 3-tier purpose router + effort default. Verifies, in mock mode (no network):
 //   - the purpose -> tier default map (classify -> lite, chat -> flash,
 //     advisor/reasoning -> pro) via the returned audit's modelUsed

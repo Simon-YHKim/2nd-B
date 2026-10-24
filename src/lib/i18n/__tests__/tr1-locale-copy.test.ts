@@ -74,7 +74,7 @@ describe("tr1: screens read the moved keys", () => {
   it("/privacy reads every moved privacy key and none of the old English literals", () => {
     const en = flatten(at(pack("en", "deepspace"), "privacy"));
     const moved = Object.keys(en).filter((k) =>
-      /^(atGlance|analytics\.|recommend\.|semantic\.|understand|saveFailed|deleteAccount\.)/.test(k),
+      /^(terms|refund|atGlance|analytics\.|recommend\.|semantic\.|understand|saveFailed|deleteAccount\.)/.test(k),
     );
     expect(moved.length).toBeGreaterThanOrEqual(36);
     for (const k of moved) expect({ key: k, used: privacyScreen.includes(`t("privacy.${k}"`) }).toEqual({ key: k, used: true });
@@ -210,7 +210,7 @@ describe("tr1: the Korean screen still paints the canon, and the ko keys mirror 
 
 describe("tr1: es/pt/id carry their own text", () => {
   const MOVED: Record<string, string[]> = {
-    deepspace: ["privacy.atGlance", "privacy.facts", "privacy.analytics", "privacy.recommend", "privacy.semantic", "privacy.understand", "privacy.understandA11y", "privacy.saveFailed", "privacy.deleteAccount", "support.faqs", "onboarding.skip", "onboarding.slides"],
+    deepspace: ["privacy.terms", "privacy.refund", "privacy.none", "privacy.status", "privacy.tip", "privacy.atGlance", "privacy.facts", "privacy.analytics", "privacy.recommend", "privacy.semantic", "privacy.understand", "privacy.understandA11y", "privacy.saveFailed", "privacy.deleteAccount", "support.faqs", "onboarding.skip", "onboarding.slides"],
     "core-brain": ["portrait", "savedResult", "polarisGraphicA11y", "deck"],
     brightness: ["shiftNudge", "shiftNudgeCited"],
   };
@@ -240,15 +240,16 @@ describe("tr1: es/pt/id carry their own text", () => {
     expect(b.shiftNudgeCited).toContain("{{n}}");
   });
 
-  // QA 261006, review of #2099 (F1). The retention fact counts the 30 days from
-  // closing the account (ko "탈퇴 시"). pt "se você sair" and id "jika kamu keluar"
-  // used the very verb of the Sign out button (common actions.signOut: "Sair",
-  // "Keluar"), so the line read as "removed 30 days after you sign out".
+  // T09, 2026-10-24: deletion follows account closure, never sign-out (#2102).
+  // PT "sai"/"saia" are conjugations of the button's "Sair", so checking only
+  // the button label misses the regression. Include the singular você forms.
   it.each(["es", "pt", "id"])("%s retention line does not use the Sign out verb", (lng) => {
     const retention = String(at(pack(lng, "deepspace"), "privacy.facts.retention.v")).toLocaleLowerCase(lng);
     const signOut = String(at(pack(lng, "common"), "actions.signOut")).toLocaleLowerCase(lng);
     expect(signOut.length).toBeGreaterThan(0);
-    const word = new RegExp(`(^|[^\\p{L}])${signOut.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^\\p{L}])`, "u");
+    const forms = lng === "pt" ? [signOut, "sai", "saia", "saiu", "saía", "sairá", "saísse"] : [signOut];
+    const alternatives = forms.map((verb) => verb.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+    const word = new RegExp(`(^|[^\\p{L}])(?:${alternatives})($|[^\\p{L}])`, "u");
     expect({ lng, retention, usesSignOut: word.test(retention) }).toEqual({ lng, retention, usesSignOut: false });
   });
 });

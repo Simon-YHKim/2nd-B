@@ -167,33 +167,35 @@
   },
   "privacy": {
     "title": "Privacidade e termos",
-    "status": "Os registros são usados apenas para apoiar seu autoconhecimento.",
-    "tip": "Escolhas sensíveis são sempre mostradas e confirmadas primeiro.",
+    "status": "Seus registros são usados em funções que ajudam você a se conhecer. Os detalhes estão na política de privacidade.",
+    "tip": "Você pode escolher quais dados são usados.",
     "lead": "Ajuste você mesmo como seus dados são usados.",
     "on": "Ligado",
     "off": "Desligado",
     "policy": "Política de privacidade",
+    "terms": "Termos de uso",
+    "refund": "Política de reembolso",
     "view": "Ver",
     "processingLog": "Registro de processamento de dados",
     "last7": "Últimos 7 dias",
     "thirdParty": "Compartilhamento com terceiros",
-    "none": "0 itens",
+    "none": "Só nos casos da política de privacidade",
     "footer": "O tratamento e armazenamento dos dados depende de cada função. Consulte o aviso de uso de dados.",
     "dataReview": "Revisão dos meus dados",
     "open": "Abrir",
     "atGlance": "Visão geral",
     "facts": {
       "onDevice": {
-        "label": "Primeiro no dispositivo",
-        "v": "O conteúdo original que você importa é analisado no seu dispositivo; só os sinais derivados ficam guardados, criptografados."
+        "label": "Como os registros são usados",
+        "v": "Os registros ficam salvos no servidor. O conteúdo necessário para as funções de IA é enviado aos fornecedores de IA no exterior."
       },
       "collect": {
         "label": "O que coletamos",
-        "v": "As fagulhas de estrela que você guarda, as pontuações de lentes e os padrões de uso. Localização e comunicações, só com o seu consentimento."
+        "v": "Informações da conta, registros salvos e dados de uso do serviço, entre outros. Os dados de localização e comunicações só são coletados com seu consentimento."
       },
       "retention": {
         "label": "Período de retenção",
-        "v": "Enquanto sua conta estiver ativa; se você excluir a conta, tudo é removido em até 30 dias."
+        "v": "Fica guardado enquanto você usa a conta e é excluído sem demora quando você exclui a conta. Só os registros exigidos por lei, como os de pagamento, ficam guardados à parte pelo prazo obrigatório."
       },
       "delete": {
         "label": "Direito de exclusão",
@@ -209,7 +211,7 @@
       "loadingSettings": "Carregando configurações…",
       "allow": "Permitir estatísticas de uso",
       "lockedUnder18": "Bloqueado para menores de 18",
-      "applied": "GA4 ativo na web · Firebase e Clarity desativados no Android",
+      "applied": "A escolha vale para o Google Analytics na web · Estatísticas de uso desativadas no Android",
       "enableFailed": "Não foi possível ativar as estatísticas. Tente novamente.",
       "withdrawSaveFailed": "Não foi possível salvar. A retirada das estatísticas já vale neste dispositivo; tente salvar de novo.",
       "adsSaveFailed": "Não foi possível salvar a configuração de anúncios. Tente novamente."
@@ -227,10 +229,10 @@
     "semantic": {
       "title": "Conexões de registros por significado",
       "minorLocked": "As conexões por significado estão desativadas e não podem ser ativadas.",
-      "onBody": "Ligadas. Os registros são indexados por significado para mostrar os parecidos.",
-      "turnOffA11y": "Desligar as conexões por significado",
-      "turnOff": "Desligar e excluir vetores",
-      "offBody": "Desligadas. Ligue para conectar registros com significado parecido, mesmo sem etiquetas em comum.",
+      "onBody": "Conecta registros com significado parecido. Ao desligar, os dados usados nas conexões são excluídos e seus registros ficam salvos.",
+      "turnOffA11y": "Desligar as conexões por significado e excluir os dados de conexão",
+      "turnOff": "Desligar e excluir dados de conexão",
+      "offBody": "Desligadas. Ligue para conectar registros com significado parecido.",
       "turnOnA11y": "Ligar as conexões por significado",
       "turnOn": "Ligar"
     },
@@ -1057,10 +1059,10 @@
     "untitled": "(sem título)",
     "pieceHere": "Guardado aqui",
     "pieceOpenHint": "Abre este registro.",
-    "briefingOpening": "Abrindo esta estrela…",
-    "briefingEmpty": "Ainda não há registros nesta estrela. Adicione um para começar o resumo.",
-    "briefingCountOne": "{{n}} registro nesta estrela, primeiro o mais recente.",
-    "briefingCount": "{{n}} registros nesta estrela, primeiro os mais recentes."
+    "briefingOpening": "Abrindo esta área…",
+    "briefingEmpty": "Ainda não há registros nesta área. Adicione um para começar o resumo.",
+    "briefingCountOne": "{{n}} registro nesta área, primeiro o mais recente.",
+    "briefingCount": "{{n}} registros nesta área, primeiro os mais recentes."
   },
   "onboarding": {
     "nextHint": "Vai para o próximo slide.",

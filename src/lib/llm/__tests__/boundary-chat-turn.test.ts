@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("owner-a"); });
+
 import fs from "node:fs";
 import path from "node:path";
 
@@ -188,22 +191,32 @@ describe("T03: pre-bump vendor selection and dormant reservation dispatch", () =
     expect(result).not.toHaveProperty("turnAdmission");
   });
 
-  test("production src has zero new contract callers outside the boundary and types", () => {
-    const callers: string[] = [];
+  test("A1-P reservation consumers are dormant transitively across all production src", () => {
+    const sources = new Map<string, string>();
     const visit = (directory: string): void => {
       for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
         if (entry.name === "__tests__") continue;
         const file = path.join(directory, entry.name);
         if (entry.isDirectory()) visit(file);
-        else if (/\.tsx?$/.test(entry.name)) {
+        else if (/\.[cm]?[jt]sx?$/.test(entry.name)) {
           const relative = path.relative(process.cwd(), file).replace(/\\/g, "/");
-          if (["src/lib/llm/boundary.ts", "src/lib/llm/types.ts"].includes(relative)) continue;
-          if (/\b(selectChatTurnRoute|chatTurnRoute|chatAttemptIntent|chatTurnId)\b/.test(fs.readFileSync(file, "utf8"))) callers.push(relative);
+          sources.set(relative, fs.readFileSync(file, "utf8"));
         }
       }
     };
     visit(path.join(process.cwd(), "src"));
-    expect(callers).toEqual([]);
+    const consumers = [...sources].filter(([file, source]) =>
+      !["src/lib/llm/boundary.ts", "src/lib/llm/types.ts"].includes(file)
+      && /\b(selectChatTurnRoute|chatTurnRoute|chatAttemptIntent|chatTurnId|chatTurn|classifyLiveChatTextForCrisis)\b/.test(source))
+      .map(([file]) => file);
+    expect(consumers).toEqual(["src/lib/chat/conversation-turn.ts"]);
+    // No production import/re-export of the sole consumer means no transitive
+    // entry either, including aliases or helpers outside the screen directory.
+    for (const [file, source] of sources) {
+      if (file === "src/lib/chat/conversation-turn.ts") continue;
+      expect({ file, callsDormantEntry: /conversation-turn|\b(createLiveChatTurn|sendLiveChatMessage)\b/.test(source) })
+        .toEqual({ file, callsDormantEntry: false });
+    }
   });
 });
 
@@ -327,6 +340,22 @@ describe("T13: authoritative admission across successful and failed responses", 
 });
 
 describe("C1/C3/C9 and byte-compatible calls without reservation options", () => {
+  test("R4 shared crisisObserver retains main's one-shot source contract", () => {
+    const source = fs.readFileSync(path.join(process.cwd(), "src/lib/llm/boundary.ts"), "utf8").replace(/\r\n/g, "\n");
+    const observer = source.slice(source.indexOf("function crisisObserver("), source.indexOf("\n// Web Crypto"));
+    expect(observer).toBe(`function crisisObserver(observer: CrisisObserver | undefined, fence: () => void): CrisisObserver | undefined {
+  if (!observer) return undefined;
+  let notified = false;
+  return (hotline) => {
+    fence();
+    if (notified) return;
+    notified = true;
+    try { observer(hotline); } catch { /* The audited result still follows. */ }
+  };
+}
+`);
+  });
+
   test("consent errors without admission keep their original own properties", () => {
     expect(Object.keys(new LlmConsentError("consent_required"))).toEqual(["code", "name"]);
   });

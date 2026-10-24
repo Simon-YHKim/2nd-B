@@ -13,6 +13,7 @@ export async function loadStructuredContext(
   userId: string,
   limit = 5,
   execution?: Pick<AuthenticatedAccountSessionLease, "userId" | "signal" | "assertCurrent">,
+  liveSignal?: AbortSignal,
 ): Promise<string> {
   const fence = (): void => {
     if (!execution) return;
@@ -24,13 +25,14 @@ export async function loadStructuredContext(
   let data, error;
   try {
     const supabase = getSupabaseClient();
-    ({ data, error } = await supabase
+    const query = supabase
       .from("records")
       .select("topic, created_at, structured")
       .eq("user_id", userId)
       .not("structured", "is", null)
       .order("created_at", { ascending: false })
-      .limit(limit));
+      .limit(limit);
+    ({ data, error } = await (liveSignal ? query.abortSignal(liveSignal) : query));
   } catch (error) {
     fence();
     if (execution && isAbortError(error)) throw error;

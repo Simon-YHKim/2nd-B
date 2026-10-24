@@ -42,9 +42,9 @@ export async function uploadRawClipping(
   return { path };
 }
 
-export async function downloadRawClipping(path: string): Promise<string> {
+export async function downloadRawClipping(path: string, signal?: AbortSignal): Promise<string> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.storage.from(BUCKET).download(path);
+  const { data, error } = await supabase.storage.from(BUCKET).download(path, undefined, signal ? { signal } : undefined);
   if (error) throw error;
   if (!data) throw new Error(`Empty download for ${path}`);
   return await data.text();

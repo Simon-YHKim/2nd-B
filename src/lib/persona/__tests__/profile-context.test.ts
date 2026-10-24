@@ -34,7 +34,7 @@ test('the status message rides along as its own line', () => {
 
 test('the chat engine fences the profile as untrusted data', () => {
   const chat = readFileSync(resolve(__dirname, '..', '..', 'chat', 'conversation.ts'), 'utf8').replace(/\r\n/g, '\n');
-  expect(chat).toContain('const profileLines = await stage(() => execution ? loadProfileContext(input.userId, undefined, execution.session) : loadProfileContext(input.userId));');
+  expect(chat).toContain('const profileLines = await stage(signal => execution ? loadProfileContext(input.userId, undefined, execution.session) : loadProfileContext(input.userId, undefined, undefined, signal));');
   expect(chat).toContain('<UNTRUSTED type="profile">\\n${sanitizeUntrusted(profileLines.join("\\n"))}\\n</UNTRUSTED>');
   const ctx = readFileSync(resolve(__dirname, '..', 'profile-context.ts'), 'utf8');
   expect(ctx).toContain('.select("id,birth_date,profile_details,status_message")');

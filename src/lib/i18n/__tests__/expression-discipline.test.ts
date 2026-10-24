@@ -43,9 +43,7 @@ const FORBIDDEN: Record<string, RegExp> = {
 
 /** Where the claim showed up, plus the rows that sit next to it. */
 const GUARDED: { ns: string; root: string }[] = [
-  { ns: "deepspace", root: "privacy.analytics" },
-  { ns: "deepspace", root: "privacy.recommend" },
-  { ns: "deepspace", root: "privacy.semantic" },
+  { ns: "deepspace", root: "privacy" },
   { ns: "brightness", root: "" },
 ];
 
