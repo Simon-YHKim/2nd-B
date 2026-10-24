@@ -34,9 +34,10 @@ wipe에서 공개 keep 결과가 먼저 `stale`로 끝나도 OFF 구독은 실�
 
 ## 라이브 불변 증거
 
-기준과 현재의 다음 Git blob이 **2/2 동일**하다. 새 테스트가 CRLF/LF 체크아웃 차이를
-정규화한 Git blob 바이트를 직접 계산해 고정한다. 화면의 자동 저장 index를 바꾸는 변이도 검출했다.
-이는 Git 저장 바이트에 대한 검사이며 각 OS의 줄바꿈이 서로 같다는 주장은 아니다.
+이 PR 시점에 기준과 현재의 다음 Git blob이 **2/2 동일**했다(검토 시점 diff 로 확인). 영구 시험은 blob 을
+고정하지 않는다: 고정하면 `secondb.tsx` 를 고치는 다른 PR(#2727 · H)이 무관하게 빨강이 된다(검토 1회차 medium).
+대신 `session-autosave.test.ts` 가 `src/app` 의 모든 경로에서 정적 import 를 따라가 `session-autosave` 에
+닿지 않음을 지킨다(앱 경로가 그 모듈을 import 하는 변이를 넣으면 빨강).
 
 | 파일 | Git blob |
 | --- | --- |

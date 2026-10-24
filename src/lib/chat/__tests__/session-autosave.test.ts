@@ -1,6 +1,5 @@
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { createChatSessionAutosave } from "../session-autosave";
 import { createChatSessionController } from "../session-controller";
 import { createChatSessionRegistry } from "../session-registry";
@@ -311,12 +310,44 @@ test("retired auto releases its withdrawal listener only after the real keep set
   held.resolve(result()); await flush(); expect(stops[0]).toHaveBeenCalledTimes(1);
 });
 
-test("F leaves the shipping screen and mount-scoped helper byte-identical as Git blobs", () => {
-  // Canonical Git bytes: CRLF checkout and Linux CI have the same LF blob.
-  const blobs = { "src/app/secondb.tsx": "9b4cc2c82e79987d9922e285dbc2f5125edadb2a",
-    "src/lib/chat/autosave-session.ts": "f13cc97761b781da7c1588933592bb76b5caad68" };
-  for (const [path, hash] of Object.entries(blobs)) {
-    const bytes = Buffer.from(readFileSync(resolve(__dirname, "../../../..", path), "utf8").replace(/\r\n/g, "\n"));
-    expect(createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex")).toBe(hash);
+test("F stays dormant: no app route reaches session-autosave through its imports", () => {
+  // Walk the static import graph from every route under src/app and fail if the
+  // dormant lifecycle becomes reachable before H wires it in on purpose.
+  const root = resolve(__dirname, "../../../..");
+  const src = resolve(root, "src");
+  const exts = ["", ".ts", ".tsx", ".js", "/index.ts", "/index.tsx", "/index.js"];
+  const resolveSpec = (from: string, spec: string): string | null => {
+    let base: string;
+    if (spec.startsWith("@/")) base = resolve(src, spec.slice(2));
+    else if (spec.startsWith(".")) base = resolve(dirname(from), spec);
+    else return null;
+    for (const ext of exts) {
+      const candidate = base + ext;
+      if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+    }
+    return null;
+  };
+  const listFiles = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = resolve(dir, entry.name);
+    if (entry.isDirectory()) return entry.name === "__tests__" ? [] : listFiles(full);
+    return /\.(ts|tsx)$/.test(entry.name) ? [full] : [];
+  });
+  const specPattern = /(?:import|export)\s[^"']*?from\s*["']([^"']+)["']|import\s*\(\s*["']([^"']+)["']\s*\)|require\(\s*["']([^"']+)["']\s*\)|import\s*["']([^"']+)["']/g;
+  const target = resolve(src, "lib/chat/session-autosave.ts");
+  const seen = new Set<string>();
+  const queue = listFiles(resolve(src, "app"));
+  while (queue.length > 0) {
+    const file = queue.pop()!;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const text = readFileSync(file, "utf8");
+    for (const match of text.matchAll(specPattern)) {
+      const spec = match[1] ?? match[2] ?? match[3] ?? match[4];
+      const next = spec ? resolveSpec(file, spec) : null;
+      if (next && !seen.has(next)) queue.push(next);
+    }
   }
+  expect(seen.size).toBeGreaterThan(100);
+  expect(seen.has(resolve(src, "app/secondb.tsx"))).toBe(true);
+  expect(seen.has(target)).toBe(false);
 });
