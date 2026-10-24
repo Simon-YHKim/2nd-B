@@ -135,7 +135,7 @@ const pillAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.
 const QUICK_ACTIONS: { kind: ChatFollowUp; ko: string; en: string; mode?: "divergent"; prompt: { ko: string; en: string } }[] = [
   { kind: "next-step", ko: "다음 한 걸음", en: "Next step", prompt: { ko: "지금 할 수 있는 다음 한 걸음으로 줄여줘.", en: "Narrow this to one next step I can take today." } },
   { kind: "new-angle", ko: "새 관점으로", en: "New angle", mode: "divergent", prompt: { ko: "이 생각을 전혀 다른 관점에서 펼쳐줘.", en: "Unfold this from a completely different angle." } },
-  { kind: "explain", ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 별가루를 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
+  { kind: "explain", ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 기록을 들어 설명해줘.", en: "Explain why you saw it that way, citing the records you used." } },
   { kind: "shorter", ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
 ];
 
