@@ -39,7 +39,7 @@ export function subscribeSavedDataChanges(ownerId: string, listener: Subscriptio
  * after the delete returned without error. Pass its exact affected count, or
  * "requested" for the existing count-less single-row queries. Missing/zero/short
  * counts also request a requery, without claiming which IDs vanished.
- * Empty/blank or malformed IDs invalidate the whole target; never trim IDs or widen scope.
+ * Empty/blank or malformed IDs drop the whole event (no notification); never trim IDs or widen scope.
  * No extra reads, content, logging, or changes to the deletion's result. */
 export function prepareSavedDataDeletion(change: SavedDataDeletionTarget): (outcome: number | null | undefined | "requested") => void {
   const owner = captureAccountOwnerLease(change.ownerId);
