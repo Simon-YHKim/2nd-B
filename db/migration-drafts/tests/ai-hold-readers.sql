@@ -8,6 +8,10 @@ END $$;
 \ir ../UNNUMBERED_ai_hold_readers.sql
 
 BEGIN;
+-- Match crisis_ai_hold_regression.sql: vanilla CI PostgreSQL does not install
+-- Supabase's default table grants. These fixture grants still exercise RLS;
+-- they roll back and are not part of the reader draft.
+GRANT SELECT ON public.records, public.sources, public.wiki_pages, public.users TO authenticated;
 -- Seed synthetic stale vectors deliberately: normal 0270 writes already clear
 -- them. The readers must exclude holds even when an old vector is present.
 SET LOCAL session_replication_role = replica;
