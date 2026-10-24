@@ -73,7 +73,7 @@ describe("standalone notice list states (T49)", () => {
     expect(listProp("renderItem")).toContain("setSelectedId(item.id)");
   });
 
-  test("both messages use the phone caption component, colour, and line spacing", () => {
+  test("both messages use the phone caption component and a tone that maps to the phone grey", () => {
     expect(source).toContain('import { Text } from "@/components/ui/Text"');
     expect(source).toContain('useTranslation("ops")');
     for (const [prop, key] of [["ListHeaderComponent", "noticeLoading"], ["ListEmptyComponent", "noticeEmpty"]]) {
@@ -81,7 +81,15 @@ describe("standalone notice list states (T49)", () => {
       expect(phone).toContain(`<Text variant="caption" style={styles.muted}>{t("phone.${key}")}</Text>`);
     }
     const referenceStyle = phone.match(/muted: (\{[^}]+\})/)?.[1];
-    expect(referenceStyle).toBeDefined();
-    expect(source).toContain(`listStatus: ${referenceStyle}`);
+    expect(referenceStyle).toContain("phoneIos.label2");
+    expect(referenceStyle).toContain("lineHeight: 20");
+    // Standalone /notices sits on the dark m3 card, so it uses the m3 muted tone (AA there);
+    // inside the phone PlainText maps that tone back to the same phone grey as the reference.
+    const listStatus = source.match(/listStatus: (\{[^}]+\})/)?.[1] ?? "";
+    expect(listStatus).toContain("color: m3.color.onSurfaceVariant");
+    expect(listStatus).toContain("lineHeight: 20");
+    expect(listStatus).not.toContain("phoneIos.label2");
+    const phoneDesign = readFileSync(join(__dirname, "../../theme/phone-design.ts"), "utf8");
+    expect(phoneDesign).toMatch(/textTone\(phoneIos\.label2, m3\.color\.onSurfaceVariant/);
   });
 });

@@ -597,7 +597,8 @@ const styles = StyleSheet.create({
     backgroundColor: m3.color.surfaceContainer,
   },
   list: { backgroundColor: m3.color.surfaceContainer },
-  listStatus: { color: phoneIos.label2, lineHeight: 20, paddingBottom: 2 },
+  // onSurfaceVariant reads at AA on the standalone card and maps back to the phone grey inside the phone.
+  listStatus: { color: m3.color.onSurfaceVariant, lineHeight: 20, paddingHorizontal: 15, paddingVertical: 12 },
   noticeRow: {
     minHeight: 68,
     flexDirection: "row",
