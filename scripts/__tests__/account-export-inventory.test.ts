@@ -10,7 +10,7 @@ const direct = Object.keys(loadRegistry(root).tables);
 const edges = replayMigrations(migrationsDir(root)).foreignKeys;
 const check = (text = source, tables = direct, fks = edges) => checkAccountExportInventory(tables, fks, text);
 const pending = [
-  "interview_transcript_turns", "interview_transcripts", "interview_sessions", "interview_probe_verdicts",
+  "interview_sessions", "interview_probe_verdicts",
   "llm_consent_receipts", "weather_consent_state", "weather_access_events", "dashboard_generation_settings",
 ];
 
@@ -40,9 +40,17 @@ test("real descriptors classify 89 physical tables exactly once, plus the users 
   expect(direct).toHaveLength(82);
   expect(result.tables.size).toBe(90);
   const count = (kind: string) => result.entries.filter(e => e.kind === kind && e.table !== "users" && result.tables.has(e.table)).length;
-  expect([count("EXPORT"), count("EXCLUDED"), count("PENDING")]).toEqual([45, 36, 8]);
+  expect([count("EXPORT"), count("EXCLUDED"), count("PENDING")]).toEqual([47, 36, 6]);
   expect(result.entries.filter(e => e.kind === "PENDING").map(e => e.table).sort()).toEqual(pending.sort());
   expect(result.entries.find(e => e.table === "knowledge_sources")?.kind).toBe("EXPORT");
+  for (const table of ["interview_transcripts", "interview_transcript_turns"]) {
+    expect(result.entries.find(e => e.table === table)?.kind).toBe("EXPORT");
+  }
+  for (const table of ["interview_sessions", "interview_probe_verdicts"]) {
+    const reason = result.entries.find(e => e.table === table)?.reason;
+    expect(reason).toContain("legal review");
+    expect(reason).not.toContain("0225");
+  }
   expect(result.entries.some(e => e.table === "knowledge_sources_contributed")).toBe(false);
   for (const table of ["crisis_events", "llm_proxy_capacity_reservations", "peer_response_rate_limits"]) {
     expect(result.entries.find(e => e.table === table)?.kind).toBe("EXCLUDED");
@@ -63,7 +71,7 @@ const sourceMutations: [string, string, RegExp][] = [
   ["pending reason emptied",
     replaceOnce(source, /weather_access_events: '[^']*'/, "weather_access_events: ''"), /Empty PENDING reason: weather_access_events/],
   ["pending table queried outside the descriptors",
-    source + "\nadmin.from('interview_transcripts').select('*');", /Non-export table queried: interview_transcripts/],
+    source + "\nadmin.from('interview_sessions').select('*');", /Non-export table queried: interview_sessions/],
   ["duplicate excluded object key (not silently overwritten)",
     replaceOnce(source, "  ai_audit_log:", "  ai_audit_log: 'other reason',\n  ai_audit_log:"), /Duplicate inventory property: ai_audit_log/],
   ["duplicate pending object key",

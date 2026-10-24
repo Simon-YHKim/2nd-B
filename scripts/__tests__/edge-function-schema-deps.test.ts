@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { runInNewContext } from "node:vm";
 import { parse } from "yaml";
 
 // The deploy gate that stops an Edge function from shipping before the
@@ -187,10 +188,32 @@ describe("edge schema dependency gate", () => {
 });
 
 describe("edge schema dependency gate on the real repository", () => {
+  it("keeps the G4 SQL bootstrap limited to its own eight column grants", () => {
+    const deps = JSON.parse(run(["list", "export-account"]).stdout);
+    const allColumns = [...deps.selectColumns];
+    expect(allColumns.length).toBeGreaterThan(8);
+    const harness = readFileSync(path.join(root, "scripts/test-profile-import-sql.mjs"), "utf8");
+    const start = harness.indexOf("const exportDeps =");
+    const end = harness.indexOf("const grant =", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    // Execute the fixture's dependency selection, without starting psql or races.
+    const selected = runInNewContext(`${harness.slice(start, end)}\nexportDeps`, { dependencies: () => deps });
+    expect(selected.tables).toEqual(["profile_context_imports"]);
+    expect(selected.selectColumns).toEqual([
+      "created_at", "id", "item_count", "profile_change_count", "profile_restored", "status", "user_id", "withdrawn_at",
+    ].map((column) => `profile_context_imports.${column}`));
+    expect(selected.functions).toEqual([]);
+    expect(selected.functionContracts).toEqual([]);
+    expect(selected.columns).toEqual([]);
+    expect(deps.selectColumns).toEqual(allColumns);
+  });
+
   it("G4-05 requires the 0243 column grants, not just the existing table", () => {
     const deps = JSON.parse(run(["list", "export-account"]).stdout);
     expect(deps.tables).toContain("profile_context_imports");
-    expect(deps.selectColumns).toEqual([
+    const historyColumns = deps.selectColumns.filter((name: string) => name.startsWith("profile_context_imports."));
+    expect(historyColumns).toEqual([
       "created_at", "id", "item_count", "profile_change_count", "profile_restored", "status", "user_id", "withdrawn_at",
     ].map((column) => `profile_context_imports.${column}`));
     const body = JSON.parse(run(["query", "export-account"]).stdout);
@@ -207,11 +230,52 @@ describe("edge schema dependency gate on the real repository", () => {
       ];
       writeFileSync(file, JSON.stringify(rows));
       expect(run(["verify", "export-account", file]).status).toBe(0);
-      for (const name of deps.selectColumns) {
+      for (const name of historyColumns) {
         writeFileSync(file, JSON.stringify(rows.map((entry) => entry.name === name ? { ...entry, present: false } : entry)));
         const rejected = run(["verify", "export-account", file]);
         expect(rejected.status).toBe(1);
         expect(rejected.stderr).toContain(`select_column:${name}`);
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ["interview_transcripts", 10],
+    ["interview_transcript_turns", 11],
+  ])("requires every exported %s column and service_role SELECT (%i columns)", (table, count) => {
+    const source = readFileSync(path.join(root, "supabase/functions/export-account/index.ts"), "utf8");
+    const descriptor = new RegExp(`table: '${table}'[^}]*select: '([^']+)'`).exec(source);
+    expect(descriptor).not.toBeNull();
+    const exported = descriptor![1].split(",").map((column) => `${table}.${column}`).sort();
+    expect(exported).toHaveLength(count);
+    const deps = JSON.parse(run(["list", "export-account"]).stdout);
+    expect(deps.selectColumns.filter((name: string) => name.startsWith(`${table}.`))).toEqual(exported);
+    const { query } = JSON.parse(run(["query", "export-account"]).stdout);
+    const selectCheck = query.slice(query.indexOf("when 'select_column' then exists"));
+    expect(selectCheck).toContain("a.attname = pg_catalog.split_part(req.name, '.', 2) and a.attnum > 0 and not a.attisdropped");
+    expect(selectCheck).toContain("has_column_privilege('service_role', c.oid, a.attnum, 'SELECT')");
+    for (const name of exported) expect(query).toContain(JSON.stringify({ kind: "select_column", name }));
+
+    const dir = mkdtempSync(path.join(tmpdir(), "interview-export-deps-"));
+    try {
+      const file = path.join(dir, "response.json");
+      const rows = [
+        ...deps.functionContracts.map((entry: { name: string; signature: string }) => ({ kind: "function", name: `${entry.name}(${entry.signature})`, present: true })),
+        ...deps.tables.map((name: string) => ({ kind: "table", name, present: true })),
+        ...deps.columns.map((name: string) => ({ kind: "column", name, present: true })),
+        ...deps.selectColumns.map((name: string) => ({ kind: "select_column", name, present: true })),
+      ];
+      writeFileSync(file, JSON.stringify(rows));
+      expect(run(["verify", "export-account", file]).status).toBe(0);
+      // A missing column or missing effective grant returns false from the catalog query.
+      // Table existence still passes: each column failure must independently stop deploy.
+      for (const name of exported) {
+        writeFileSync(file, JSON.stringify(rows.map((row) => row.name === name ? { ...row, present: false } : row)));
+        const rejected = run(["verify", "export-account", file]);
+        expect(rejected.status).toBe(1);
+        expect(rejected.stderr).toContain(`missing-in-production: select_column:${name}`);
       }
     } finally {
       rmSync(dir, { recursive: true, force: true });
