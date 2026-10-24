@@ -177,11 +177,11 @@ describe("tr2 /meals weekday labels read toolScreens.meals.days", () => {
 describe("tr2 /imagine seeds: canon on the Korean screen, home bundle everywhere else", () => {
   const EN_MIRROR = [
     ["Expand", "If you took a year off", "Erase money, work, and ties for a moment - what would you do first?",
-      "Write 3 things you want to do", "Taste one with a single hour this month", "Picture who joins you in the relationships area"],
+      "Write 3 things you want to do", "Taste one with a single hour this month", "Picture who joins you in the Relationships area"],
     ["Reverse", "If you lived the exact opposite", "Improvise instead of plan, together instead of alone. What pulls you from the far side?",
       "Try one thing you never do this week", "Note what felt awkward with HustleK", "Save it in the Rest area and watch the pattern"],
     ["Connect", "Career × rest, combined", "Force the two areas together - what odd idea falls out?",
-      "Write a one-line project from the two keywords", "Prototype it in two weekend hours", "Log it in the growth area as an experiment"],
+      "Write a one-line project from the two keywords", "Prototype it in two weekend hours", "Log it in the Growth area as an experiment"],
   ];
   const FIELDS = ["angle", "title", "body", ...IMAGINE_STEP_KEYS];
   const seedValues = (lng: string, key: string) => FIELDS.map((f) => at(pack(lng, "home"), `ds.imagine.seeds.${key}.${f}`));
