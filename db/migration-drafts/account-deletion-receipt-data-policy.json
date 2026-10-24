@@ -6,7 +6,7 @@
   "erasure": {
     "class": "retained",
     "reason": "Operational deletion receipt; no Auth/profile FK. Content/account deletion cannot erase evidence or reopen unresolved execution.",
-    "terminalPurge": "Only completed/failed/abandoned after receipt_expires_at, by service-only purge_terminal_requests. No scheduler installed.",
+    "terminalPurge": "Service-only purge_terminal_requests first expires unstarted accepted rows under the owner lock, then purges completed/failed/abandoned after receipt_expires_at. Expired admission retention starts at admission_expires_at, not the next visit. No scheduler installed.",
     "completedDays": 365,
     "failedOrAbandonedDays": 30,
     "unresolved": "No time-based purge or failure. Execution reconciliation is required.",

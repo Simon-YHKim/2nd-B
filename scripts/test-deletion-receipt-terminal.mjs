@@ -12,11 +12,13 @@ assert(/^\d{4,5}$/.test(port ?? '') && Number(port) <= 65535 && Number(port) > 0
   && /^t04_arbitration_test_[a-z0-9_]+$/.test(database ?? '')
   && (mode === undefined || mode === '--fixture'), 'Use a loopback port and disposable t04_arbitration_test_* database');
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const read = (file) => readFileSync(resolve(root, file), 'utf8');
+const read = (file) => readFileSync(resolve(root, file), 'utf8').replace(/\r\n/g, '\n');
 const draft = 'db/migration-drafts/UNNUMBERED_account_deletion_receipt_terminal.sql';
 const upFile = read(draft);
 const up = upFile.replace(/^BEGIN;\s*$/m, '').replace(/^COMMIT;\s*$/m, '');
 const arbitration = read('db/migration-drafts/UNNUMBERED_account_deletion_receipt_arbitration.sql');
+const arbitrationDown = read('db/migration-drafts/rollback/UNNUMBERED_account_deletion_receipt_arbitration_down.sql')
+  .replace(/^BEGIN;\s*$/m, '').replace(/^COMMIT;\s*$/m, '');
 const downFile = read(draft.replace('UNNUMBERED_', 'rollback/UNNUMBERED_').replace('.sql', '_down.sql'));
 // Sandbox mutations inside caller-owned transactions; separately test the actual standalone down.
 const down = downFile.replace(/^BEGIN;\s*$/m, '').replace(/^COMMIT;\s*$/m, '');
@@ -86,7 +88,45 @@ if (mode === '--fixture') {
   await ok(`CREATE DATABASE ${database};`, 'postgres');
   await ok('\\i db/migration-drafts/tests/account-deletion-receipt-arbitration-bootstrap.sql');
 }
-await ok(`BEGIN; ${base} ${arbitration} COMMIT;`);
+await ok(`BEGIN; ${base} COMMIT;`);
+const ledgers='SELECT row_to_json(r) FROM deletion_receipt_private.accepted_requests r ORDER BY owner_id,request_id; SELECT row_to_json(t) FROM public.account_deletion_tombstones t ORDER BY user_id;';
+// Include definitions, ACL, columns/defaults, constraints, indexes and both ledgers.
+// A failed installation must leave all of them byte-for-byte unchanged.
+const installSnapshot = `SELECT jsonb_build_object(
+  'functions',(SELECT jsonb_agg(to_jsonb(p) ORDER BY p.oid) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='deletion_receipt_private' OR p.proname IN ('begin_account_deletion_receipt','lookup_account_deletion_receipt')),
+  'triggers',(SELECT jsonb_agg(to_jsonb(t) ORDER BY t.oid) FROM pg_trigger t),
+  'columns',(SELECT jsonb_agg(to_jsonb(a) ORDER BY a.attnum) FROM pg_attribute a WHERE a.attrelid='deletion_receipt_private.accepted_requests'::regclass),
+  'defaults',(SELECT jsonb_agg(to_jsonb(d) ORDER BY d.oid) FROM pg_attrdef d WHERE d.adrelid='deletion_receipt_private.accepted_requests'::regclass),
+  'constraints',(SELECT jsonb_agg(to_jsonb(c) ORDER BY c.oid) FROM pg_constraint c WHERE c.conrelid='deletion_receipt_private.accepted_requests'::regclass),
+  'indexes',(SELECT jsonb_agg(to_jsonb(i) ORDER BY i.indexrelid) FROM pg_index i WHERE i.indrelid='deletion_receipt_private.accepted_requests'::regclass),
+  'table_acl',(SELECT relacl FROM pg_class WHERE oid='deletion_receipt_private.accepted_requests'::regclass),
+  'schema_acl',(SELECT nspacl FROM pg_namespace WHERE nspname='deletion_receipt_private'));
+  ${ledgers}`;
+let orderProbes = 0;
+async function refuseUnchanged(name, setup, sql, message) {
+  const before = await ok(installSnapshot);
+  await rejected(`BEGIN; ${setup} ${sql}`, message);
+  assert.equal(await ok(installSnapshot), before, `${name}: state changed after refusal`);
+  // Remove this guard in the exact historical state just tested. The same
+  // rejection assertion must fail, not a connection/syntax/other SQL error.
+  const changed = sql.replace(new RegExp(`RAISE EXCEPTION USING ERRCODE\\s*=\\s*'55000', MESSAGE\\s*=\\s*'${message}';`), 'NULL;');
+  assert.notEqual(changed,sql,`missing refusal mutation ${name}`);
+  await assert.rejects(rejected(`BEGIN; ${setup} ${changed}`,message), /Expected rejection/);
+  assert.equal(await ok(installSnapshot),before,`${name}: mutation escaped rollback`);
+  orderProbes++; console.log(`KILLED refusal ${name}`);
+}
+await refuseUnchanged('terminal without arbitration', '', up, 'receipt_terminal_requires_arbitration');
+await ok(`BEGIN; ${arbitration} COMMIT;`);
+for (const [trigger, table] of [
+  ['receipt_admission_arbitration','deletion_receipt_private.accepted_requests'],
+  ['legacy_admission_arbitration','public.account_deletion_tombstones'],
+]) {
+  await refuseUnchanged(`terminal missing ${trigger}`, `DROP TRIGGER ${trigger} ON ${table};`, up,
+    'receipt_terminal_requires_arbitration');
+  await refuseUnchanged(`terminal disabled ${trigger}`, `ALTER TABLE ${table} DISABLE TRIGGER ${trigger};`, up,
+    'receipt_terminal_requires_arbitration');
+}
 const existingSnapshot = `SELECT jsonb_build_object('routines',(SELECT jsonb_agg(to_jsonb(p) ORDER BY p.oid)
   FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname IN ('public','auth','storage')
   AND p.proname NOT IN ('begin_account_deletion_receipt','lookup_account_deletion_receipt')),
@@ -94,6 +134,16 @@ const existingSnapshot = `SELECT jsonb_build_object('routines',(SELECT jsonb_agg
 const existing = await ok(existingSnapshot);
 await ok(upFile);
 await ok(upFile);
+await refuseUnchanged('arbitration after terminal', '', arbitration, 'receipt_arbitration_terminal_already_installed');
+// Either durable terminal marker independently prevents downgrading guards.
+await refuseUnchanged('arbitration with column marker only',
+  'ALTER TABLE deletion_receipt_private.accepted_requests DROP CONSTRAINT receipt_terminal_shape;', arbitration,
+  'receipt_arbitration_terminal_already_installed');
+await refuseUnchanged('arbitration with constraint marker only',
+  'ALTER TABLE deletion_receipt_private.accepted_requests RENAME COLUMN admission_expires_at TO hidden_expiry;', arbitration,
+  'receipt_arbitration_terminal_already_installed');
+await refuseUnchanged('arbitration down before terminal down', '', arbitrationDown, 'receipt_arbitration_terminal_requires_retirement');
+pass('installation/reapplication/rollback order refusals preserve complete catalog and both ledgers');
 assert.equal(await ok(existingSnapshot), existing, 'existing routines/triggers changed');
 await ok(regression);
 pass('terminal states, independent evidence, ACL, expiry release, retention, replay and legacy invariants');
@@ -163,17 +213,40 @@ await rejected(`${service} ${legacy(7)}`,'receipt_request_in_progress');
 assert.equal(await ok(state(7)),'executing');
 pass('post-lock expiry prevents late start; elapsed executing remains unresolved');
 
-const ledgers='SELECT row_to_json(r) FROM deletion_receipt_private.accepted_requests r ORDER BY owner_id,request_id; SELECT row_to_json(t) FROM public.account_deletion_tombstones t ORDER BY user_id;';
+for (const n of [8,9]) {
+  await ok(expiringReceipt(n,0.4));
+  await race(n,`${transition(n,'start')} SELECT pg_sleep(0.5);`,
+    'SELECT deletion_receipt_private.purge_terminal_requests();',n===8);
+  assert.equal(await ok(state(n)),n===8?'executing':'abandoned');
+}
+await ok(expiringReceipt(10,0.05));
+await ok('SELECT pg_sleep(0.1);');
+await race(10,'SELECT deletion_receipt_private.purge_terminal_requests();',transition(10,'start'),true);
+assert.equal(await ok(state(10)),'abandoned');
+pass('purge versus start commit/rollback and reverse order preserve exclusive admission');
+
+await refuseUnchanged('arbitration after retained and executing receipts', 'DELETE FROM public.account_deletion_tombstones;',
+  arbitration, 'receipt_arbitration_terminal_already_installed');
+await refuseUnchanged('terminal down with executing', '', down, 'receipt_terminal_rollback_execution_unresolved');
+await rejected(`${service} ${legacy(4)}`,'receipt_request_in_progress');
+// Complete the synthetic reservations before exercising a successful down.
+for (const n of [4,5,7,8]) await ok(`${trusted}
+  DELETE FROM public.users WHERE id='${owner(n)}'; DELETE FROM auth.users WHERE id='${owner(n)}';
+  SELECT deletion_receipt_private.transition_request(${operation(n)},'${owner(n)}','${owner(n)}','completed',clock_timestamp(),true,true,true);`);
 const before=await ok(ledgers);
 await ok(downFile);
 assert.equal(await ok(ledgers),before);
 await rejected(`${service} ${begin(8)}`,'permission denied');
 await rejected(`${service} SELECT deletion_receipt_private.transition_request('${owner(4)}','${owner(4)}',NULL,'failed');`,'permission denied');
-await rejected(`${service} ${legacy(4)}`,'receipt_request_in_progress');
+// Revocation does not uninstall terminal. Its lookup still needs expiry/arbitration.
+await refuseUnchanged('arbitration down after terminal down', 'DELETE FROM deletion_receipt_private.accepted_requests;',
+  arbitrationDown, 'receipt_arbitration_terminal_requires_retirement');
+await refuseUnchanged('arbitration reapply after terminal down', 'DELETE FROM deletion_receipt_private.accepted_requests;',
+  arbitration, 'receipt_arbitration_terminal_already_installed');
 await ok(upFile);
 assert.equal(await ok(ledgers),before);
 assert.equal(await ok(existingSnapshot),existing);
-pass('standalone down preserves evidence/arbitration, closes admission/start, reapply restores grants');
+pass('down refuses executing; drained down preserves evidence/arbitration and reapply restores grants');
 
 // Behavioral mutations execute actual altered SQL in rollback-only transactions.
 const mutants=[
@@ -187,6 +260,10 @@ const mutants=[
   ['missing execution identity', "r.phase <> 'executing' OR p_execution_id IS DISTINCT FROM r.execution_id", "r.phase <> 'executing'"],
   ['no terminal immutability', "OLD.phase IN ('completed','failed','abandoned') AND NEW IS DISTINCT FROM OLD", 'false'],
   ['lookup uses recovery proof', 'r.lookup_hash = p_lookup_hash', 'r.recovery_hash = p_lookup_hash'],
+  ['lookup skips expiry', 'PERFORM deletion_receipt_private.expire_unstarted(v_row.owner_id);', 'NULL;'],
+  ['projection exposes owner', "'observations',r.observations", "'ownerId',r.owner_id,'observations',r.observations"],
+  ['purge skips accepted expiry', 'PERFORM deletion_receipt_private.expire_unstarted(v_owner);', 'NULL;'],
+  ['expiry restarts retention clock', "finished_at=admission_expires_at,\n    receipt_expires_at=admission_expires_at + interval '30 days'", "finished_at=v_now,\n    receipt_expires_at=v_now + interval '30 days'"],
   ['purge removes active', "phase IN ('completed','failed','abandoned') AND receipt_expires_at <= pg_catalog.clock_timestamp()", 'true'],
 ];
 let killed=0;
@@ -194,10 +271,10 @@ for (const [name,from,to] of mutants) {
   const changed=up.replace(from,to); assert.notEqual(changed,up,`missing mutation ${name}`);
   const result=await run(`BEGIN; ${changed} ${regression}`);
   assert.notEqual(result.code,0,`SURVIVED ${name}`);
-  assert(/expected error|blocks legacy|expiry not persisted|lookup omitted terminal|purged unexpired|receipt_request_in_progress/.test(result.err),
+  assert(/expected error|blocks legacy|expiry not persisted|lookup omitted terminal|purged unexpired|receipt_request_in_progress|lookup expiry|projection keys|expired accepted purge/.test(result.err),
     `unrelated mutant failure ${name}: ${result.err}`);
   killed++; console.log(`KILLED ${name}`);
 }
 assert.equal(await ok(ledgers),before);
 assert.equal(await ok(existingSnapshot),existing);
-console.log(`PASS ${groups} groups; ${races} observed blocking schedules; SQL mutants killed ${killed}/${mutants.length}; external Auth/Storage calls 0`);
+console.log(`PASS ${groups} groups; ${races} observed blocking schedules; SQL mutants killed ${killed + orderProbes}/${mutants.length + orderProbes}; order refusals ${orderProbes} with zero state changes; external Auth/Storage calls 0`);

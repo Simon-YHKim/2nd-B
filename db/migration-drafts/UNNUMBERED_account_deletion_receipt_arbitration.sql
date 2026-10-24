@@ -15,6 +15,16 @@ BEGIN
   IF pg_catalog.current_setting('transaction_isolation') <> 'read committed' THEN
     RAISE EXCEPTION USING ERRCODE = '25000', MESSAGE = 'receipt_arbitration_requires_read_committed';
   END IF;
+  -- terminal down retains its schema and guards. Never reinstall this older
+  -- guard over that lifecycle, even after admission privileges were revoked.
+  IF EXISTS (SELECT 1 FROM pg_catalog.pg_attribute
+    WHERE attrelid='deletion_receipt_private.accepted_requests'::regclass
+      AND attname='admission_expires_at' AND NOT attisdropped)
+    OR EXISTS (SELECT 1 FROM pg_catalog.pg_constraint
+      WHERE conrelid='deletion_receipt_private.accepted_requests'::regclass
+        AND conname='receipt_terminal_shape') THEN
+    RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='receipt_arbitration_terminal_already_installed';
+  END IF;
   IF EXISTS (
     SELECT 1 FROM deletion_receipt_private.accepted_requests r
     JOIN public.account_deletion_tombstones t ON t.user_id = r.owner_id

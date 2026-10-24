@@ -2,12 +2,30 @@
 -- No dispatch, legacy-fence adoption/release, public endpoint, scheduler or caller.
 -- A start is an exclusive reservation, NOT permission to send destructive I/O.
 -- Future execution must bind its own fence and drain writes before observation.
+-- REQUIRED BEFORE O ACTIVATION: audited executing reconciliation (including
+-- operator recovery for lost execution IDs) with proof no external I/O remains.
+-- A timeout or direct ledger DELETE is not a recovery contract.
 BEGIN;
 LOCK TABLE deletion_receipt_private.accepted_requests,
   public.account_deletion_tombstones IN ACCESS EXCLUSIVE MODE NOWAIT;
 DO $$ BEGIN
   IF pg_catalog.current_setting('transaction_isolation') <> 'read committed' THEN
     RAISE EXCEPTION 'receipt_terminal_requires_read_committed';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM (VALUES
+      ('deletion_receipt_private.accepted_requests'::regclass, 'receipt_admission_arbitration',
+        pg_catalog.to_regprocedure('deletion_receipt_private.guard_receipt_admission()')),
+      ('public.account_deletion_tombstones'::regclass, 'legacy_admission_arbitration',
+        pg_catalog.to_regprocedure('deletion_receipt_private.guard_legacy_admission()'))
+    ) AS required(table_id, trigger_name, function_id)
+    WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_trigger t
+      WHERE t.tgrelid=required.table_id AND t.tgname=required.trigger_name
+        AND t.tgfoid=required.function_id AND t.tgtype=23
+        AND t.tgenabled IN ('O','A') AND NOT t.tgisinternal
+        AND t.tgqual IS NULL AND t.tgnargs=0 AND t.tgattr=''::pg_catalog.int2vector)
+  ) THEN
+    RAISE EXCEPTION USING ERRCODE='55000', MESSAGE='receipt_terminal_requires_arbitration';
   END IF;
 END $$;
 ALTER TABLE deletion_receipt_private.accepted_requests
@@ -66,8 +84,9 @@ BEGIN
   END IF;
   PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_owner_id::text,260913));
   v_now := pg_catalog.clock_timestamp();
-  UPDATE deletion_receipt_private.accepted_requests SET phase='abandoned', finished_at=v_now,
-    receipt_expires_at=v_now + interval '30 days'
+  -- An unstarted reservation ended at its admission deadline, not at this visit.
+  UPDATE deletion_receipt_private.accepted_requests SET phase='abandoned', finished_at=admission_expires_at,
+    receipt_expires_at=admission_expires_at + interval '30 days'
     WHERE owner_id=p_owner_id AND phase='accepted' AND execution_id IS NULL AND admission_expires_at <= v_now;
 END;
 $$;
@@ -304,15 +323,23 @@ BEGIN
 END;
 $$;
 
--- No cron is installed. Only terminal rows reach their documented retention end.
+-- No cron is installed. Expire unstarted rows even when their owner never returns.
 CREATE OR REPLACE FUNCTION deletion_receipt_private.purge_terminal_requests()
 RETURNS bigint LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = '' SET row_security = off AS $$
-DECLARE v_count bigint;
+DECLARE v_count bigint; v_owner uuid;
 BEGIN
   IF COALESCE(NULLIF(pg_catalog.current_setting('request.jwt.claim.role',true),''),
     NULLIF(pg_catalog.current_setting('request.jwt.claims',true),'')::jsonb ->> 'role') IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='receipt_service_required';
   END IF;
+  -- Same owner-first lock order as start/lookup/legacy. Recheck after any wait;
+  -- never take a receipt row lock before the advisory lock or expire executing.
+  FOR v_owner IN SELECT owner_id FROM deletion_receipt_private.accepted_requests
+    WHERE phase='accepted' AND execution_id IS NULL AND admission_expires_at <= pg_catalog.clock_timestamp()
+    ORDER BY owner_id
+  LOOP
+    PERFORM deletion_receipt_private.expire_unstarted(v_owner);
+  END LOOP;
   DELETE FROM deletion_receipt_private.accepted_requests
     WHERE phase IN ('completed','failed','abandoned') AND receipt_expires_at <= pg_catalog.clock_timestamp();
   GET DIAGNOSTICS v_count = ROW_COUNT;

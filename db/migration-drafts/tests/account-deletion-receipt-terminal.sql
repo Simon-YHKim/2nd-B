@@ -14,10 +14,10 @@ $$;
 CREATE FUNCTION pg_temp.session(n int) RETURNS uuid LANGUAGE sql AS $$
   SELECT ('de1e7104-0000-4000-9202-'||lpad(n::text,12,'0'))::uuid;
 $$;
-INSERT INTO auth.users(id,email) SELECT pg_temp.owner(n),'terminal-'||n||'@example.invalid' FROM generate_series(1,12) n;
+INSERT INTO auth.users(id,email) SELECT pg_temp.owner(n),'terminal-'||n||'@example.invalid' FROM generate_series(1,15) n;
 INSERT INTO public.users(id,email,birth_date,locale)
-SELECT pg_temp.owner(n),'terminal-'||n||'@example.invalid','1990-01-01','en' FROM generate_series(1,12) n;
-INSERT INTO auth.sessions(id,user_id) SELECT pg_temp.session(n),pg_temp.owner(n) FROM generate_series(1,12) n;
+SELECT pg_temp.owner(n),'terminal-'||n||'@example.invalid','1990-01-01','en' FROM generate_series(1,15) n;
+INSERT INTO auth.sessions(id,user_id) SELECT pg_temp.session(n),pg_temp.owner(n) FROM generate_series(1,15) n;
 SET LOCAL request.jwt.claim.role='service_role';
 SELECT public.begin_account_deletion_receipt(pg_temp.owner(n),pg_temp.session(n),clock_timestamp(),pg_temp.owner(n),
   'v1',decode(repeat('ab',32),'hex'),decode(repeat('cd',32),'hex')) FROM generate_series(1,9) n;
@@ -26,7 +26,7 @@ INSERT INTO deletion_receipt_private.accepted_requests(operation_id,owner_id,ses
   accepted_at,admission_expires_at)
 SELECT pg_temp.owner(n),pg_temp.owner(n),pg_temp.session(n),pg_temp.owner(n),'v1',decode(repeat('ab',32),'hex'),
   decode(repeat('cd',32),'hex'),clock_timestamp()-interval '11 minutes',clock_timestamp()-interval '1 minute'
-FROM generate_series(10,11) n;
+FROM (VALUES (10),(11),(13)) AS fixtures(n);
 
 CREATE FUNCTION pg_temp.transition(n int,action text,token uuid DEFAULT NULL,seen timestamptz DEFAULT NULL,
   raw_empty boolean DEFAULT false,photos_empty boolean DEFAULT false,drained boolean DEFAULT false)
@@ -61,6 +61,11 @@ SELECT pg_temp.assert_true((SELECT phase='abandoned' FROM deletion_receipt_priva
   'expiry not persisted');
 SELECT pg_temp.assert_true(pg_temp.transition(11,'start',pg_temp.owner(11))->>'state'='abandoned','expired start resurrected');
 SELECT pg_temp.assert_true(pg_temp.transition(2,'start',pg_temp.owner(2))->>'state'='abandoned','terminal start resurrected');
+SELECT pg_temp.assert_true((SELECT public.lookup_account_deletion_receipt(receipt_id,key_version,lookup_hash)->>'state'='abandoned'
+  FROM deletion_receipt_private.accepted_requests WHERE owner_id=pg_temp.owner(13)),'lookup expiry missing');
+SELECT pg_temp.assert_true((SELECT phase='abandoned' AND finished_at=admission_expires_at
+  AND receipt_expires_at=admission_expires_at+interval '30 days'
+  FROM deletion_receipt_private.accepted_requests WHERE owner_id=pg_temp.owner(13)),'lookup expiry not persisted at deadline');
 
 SELECT pg_temp.assert_true(pg_temp.transition(3,'start',pg_temp.owner(3))->>'state'='executing','start missing');
 SELECT pg_temp.assert_true(pg_temp.transition(3,'start',pg_temp.owner(3))->>'state'='executing','same start not idempotent');
@@ -102,6 +107,10 @@ SELECT pg_temp.assert_true((SELECT receipt_expires_at=finished_at+interval '30 d
   FROM deletion_receipt_private.accepted_requests WHERE owner_id=pg_temp.owner(1)),'failed retention wrong');
 SELECT pg_temp.assert_true((SELECT public.lookup_account_deletion_receipt(receipt_id,key_version,lookup_hash)->>'state'='completed'
   FROM deletion_receipt_private.accepted_requests WHERE owner_id=pg_temp.owner(3)),'lookup omitted terminal');
+SELECT pg_temp.assert_true((SELECT array_agg(k ORDER BY k)=ARRAY['acceptedAt','expiresAt','observations','receiptId','scopeVersion','state','version']
+  FROM deletion_receipt_private.accepted_requests r,
+    LATERAL jsonb_object_keys(public.lookup_account_deletion_receipt(r.receipt_id,r.key_version,r.lookup_hash)) k
+  WHERE owner_id=pg_temp.owner(3)),'projection keys changed');
 SELECT pg_temp.assert_true((SELECT public.lookup_account_deletion_receipt(receipt_id,key_version,recovery_hash)->>'state'='not_found'
   FROM deletion_receipt_private.accepted_requests WHERE owner_id=pg_temp.owner(3)),'recovery capability used for lookup');
 SELECT pg_temp.transition(8,'abandoned');
@@ -133,5 +142,20 @@ UPDATE deletion_receipt_private.accepted_requests SET phase='failed',finished_at
   receipt_expires_at=accepted_at+interval '1 hour 30 days' WHERE owner_id=pg_temp.owner(12);
 SELECT pg_temp.assert_true((SELECT public.lookup_account_deletion_receipt(receipt_id,key_version,lookup_hash)->>'state'='not_found'
   FROM deletion_receipt_private.accepted_requests WHERE owner_id=pg_temp.owner(12)),'expired lookup visible');
-SELECT pg_temp.assert_true(deletion_receipt_private.purge_terminal_requests()=1,'terminal purge count wrong');
+-- No lookup, legacy call or owner return is needed to age out an unstarted row.
+INSERT INTO deletion_receipt_private.accepted_requests(owner_id,session_id,request_id,key_version,lookup_hash,recovery_hash,
+  accepted_at,admission_expires_at)
+SELECT pg_temp.owner(n),pg_temp.session(n),pg_temp.owner(n),'v1',decode(repeat('ab',32),'hex'),decode(repeat('cd',32),'hex'),
+  clock_timestamp()-age,clock_timestamp()-age+interval '10 minutes'
+FROM (VALUES (14,interval '400 days'),(15,interval '1 day')) AS fixtures(n,age);
+SELECT pg_temp.transition(9,'start',pg_temp.owner(9));
+SELECT pg_temp.assert_true(deletion_receipt_private.purge_terminal_requests()=2,'expired accepted purge count wrong');
+SELECT pg_temp.assert_true(NOT EXISTS(SELECT 1 FROM deletion_receipt_private.accepted_requests WHERE owner_id IN (pg_temp.owner(12),pg_temp.owner(14))),
+  'expired accepted purge left old rows');
+SELECT pg_temp.assert_true((SELECT phase='abandoned' AND finished_at=admission_expires_at
+  AND receipt_expires_at=admission_expires_at+interval '30 days'
+  FROM deletion_receipt_private.accepted_requests WHERE owner_id=pg_temp.owner(15)),'expired accepted purge lost retention');
+SELECT pg_temp.assert_true((SELECT phase='executing' FROM deletion_receipt_private.accepted_requests WHERE owner_id=pg_temp.owner(9)),
+  'purged unexpired or unresolved execution');
+SELECT pg_temp.assert_true(deletion_receipt_private.purge_terminal_requests()=0,'expired accepted purge not idempotent');
 ROLLBACK;
