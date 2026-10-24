@@ -33,6 +33,14 @@ SELECT pg_temp.expect_error($q$UPDATE public.support_reports SET body='changed'$
 SELECT pg_temp.expect_error($q$DELETE FROM public.support_reports$q$,'42501');
 SELECT pg_temp.expect_error($q$SELECT public.submit_support_report(gen_random_uuid(),'bug','hello','{"app_version":"1.0","screen_path":"/support","locale":"ko"}','support-v1')$q$,'42501');
 SELECT set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000001',true);
+-- Valid metadata is essential: a metadata error must not mask a blank-body bug.
+DO $$ DECLARE blank text; BEGIN
+  FOREACH blank IN ARRAY ARRAY[E'\n', E'\t', U&'\3000', E' \r\n\t' || U&'\3000',
+    U&'\0009\000A\000B\000C\000D\0020\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000\FEFF'] LOOP
+    PERFORM pg_temp.expect_error(format('SELECT public.submit_support_report(gen_random_uuid(),%L,%L,%L::jsonb,%L)',
+      'bug',blank,'{"app_version":"1.0","screen_path":"/support","locale":"ko"}','support-v1'),'22023');
+  END LOOP;
+END $$;
 SELECT pg_temp.expect_error($q$SELECT public.submit_support_report(gen_random_uuid(),'bug','   ','{}','support-v1')$q$,'22023');
 SELECT pg_temp.expect_error($q$SELECT public.submit_support_report(gen_random_uuid(),'bug',repeat('x',2001),'{}','support-v1')$q$,'22023');
 SELECT pg_temp.expect_error($q$SELECT public.submit_support_report(gen_random_uuid(),'bug','hello','{}','support-v0')$q$,'22023');
@@ -61,6 +69,13 @@ SELECT public.submit_support_report('10000000-0000-4000-8000-000000000001','bug'
 SELECT pg_temp.assert(:'minor_receipt'::uuid<>:'first_receipt'::uuid,'request IDs are per owner');
 RESET ROLE;
 SELECT pg_temp.assert((SELECT count(*)=3 FROM public.support_reports),'idempotent count');
+-- A privileged writer still cannot bypass the table's independent constraint.
+DO $$ DECLARE blank text; BEGIN
+  FOREACH blank IN ARRAY ARRAY[E'\n', E'\t', U&'\3000', E' \r\n\t' || U&'\3000',
+    U&'\0009\000A\000B\000C\000D\0020\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000\FEFF'] LOOP
+    PERFORM pg_temp.expect_error(format('UPDATE public.support_reports SET body=%L',blank),'23514');
+  END LOOP;
+END $$;
 SELECT pg_temp.assert((SELECT user_id='b0000000-0000-4000-8000-000000000002' FROM public.support_reports WHERE id=:'minor_receipt'),'JWT owns write');
 -- Check RLS independently of the table ACL: accidental grants still expose no
 -- rows and cannot become a quota-bypassing write path.

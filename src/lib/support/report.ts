@@ -11,12 +11,26 @@ export type ReportRequest = {
 };
 export type ReportState =
   | { phase: "editing" | "sending" }
-  | { phase: "failed"; reason: "offline" | "unconfirmed" | "limited" | "invalid" }
+  | { phase: "failed"; reason: "offline" | "unconfirmed" | "limited" | "invalid" | "rejected" }
   | { phase: "sent"; receipt: string };
 
 export const REPORT_MAX_LENGTH = 2000;
 export const REPORT_TIMEOUT_MS = 15000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function reportCanRetry(state: ReportState): boolean {
+  return state.phase === "failed" && ["offline", "unconfirmed", "limited"].includes(state.reason);
+}
+
+function failureReason(error: unknown): "limited" | "unconfirmed" | "rejected" {
+  const { code, name } = (error ?? {}) as { code?: string; name?: string };
+  if (code === "P0053") return "limited";
+  if (name === "AbortError") return "rejected"; // owner lease ended
+  // No response (fetch/timeout) is ambiguous. Explicit server rejections only
+  // retry for connection, transaction, capacity, or temporary availability errors.
+  if (!code || /^(08|40|53)/.test(code) || /^(57014|57P0[123]|PGRST00[0-3])$/.test(code)) return "unconfirmed";
+  return "rejected";
+}
 
 // Deliberately absent from every release configuration until the server and
 // published privacy notice have been verified. Expo replaces this literal access.
@@ -55,6 +69,7 @@ export function createReportSender(deps: {
     dispose() { disposed = true; active?.abort(); request = undefined; },
     async submit(body: string, consent: boolean, kind: ReportKind, metadata: ReportMetadata) {
       if (disposed || state.phase === "sending" || state.phase === "sent" || !deps.enabled()) return;
+      if (state.phase === "failed" && state.reason === "rejected") return;
       if (!consent || !body.trim() || Array.from(body.trim()).length > REPORT_MAX_LENGTH) {
         publish({ phase: "failed", reason: "invalid" });
         return;
@@ -79,8 +94,7 @@ export function createReportSender(deps: {
         if (typeof receipt !== "string" || !UUID.test(receipt)) throw new Error("receipt_missing");
         publish({ phase: "sent", receipt });
       } catch (error) {
-        const code = (error as { code?: string } | null)?.code;
-        publish({ phase: "failed", reason: code === "P0053" ? "limited" : "unconfirmed" });
+        publish({ phase: "failed", reason: failureReason(error) });
       } finally {
         active?.abort();
         active = undefined;

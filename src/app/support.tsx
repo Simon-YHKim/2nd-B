@@ -18,7 +18,7 @@ import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRet
 import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { profileGate } from "@/lib/auth/profile-probe";
-import { DeepSpaceSupportDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+import { DeepSpaceSupportDesignScreen } from "@/screens/deepspace/SupportScreen";
 
 export default function Support() {
   const { t } = useTranslation(["support", "deepspace"]);

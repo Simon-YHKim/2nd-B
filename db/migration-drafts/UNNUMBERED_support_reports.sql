@@ -7,7 +7,8 @@ CREATE TABLE public.support_reports (
   user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   request_id uuid NOT NULL,
   kind text NOT NULL CHECK (kind IN ('inquiry','bug')),
-  body text NOT NULL CHECK (char_length(btrim(body)) BETWEEN 1 AND 2000 AND octet_length(body) <= 8000),
+  body text NOT NULL CHECK (char_length(btrim(body)) BETWEEN 1 AND 2000 AND octet_length(body) <= 8000
+    AND btrim(body, U&'\0009\000A\000B\000C\000D\0020\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000\FEFF') <> ''),
   metadata jsonb NOT NULL CHECK (
     jsonb_typeof(metadata) = 'object'
     AND metadata ?& ARRAY['app_version','screen_path','locale']
@@ -50,6 +51,8 @@ BEGIN
   END IF;
   v_now := clock_timestamp();
   IF p_request_id IS NULL OR p_body IS NULL OR char_length(btrim(p_body)) NOT BETWEEN 1 AND 2000
+    -- Same whitespace set as JavaScript trim(), independent of DB locale.
+    OR btrim(p_body, U&'\0009\000A\000B\000C\000D\0020\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000\FEFF') = ''
     OR octet_length(p_body) > 8000 OR p_kind IS NULL OR p_kind NOT IN ('inquiry','bug')
     OR p_consent_version IS DISTINCT FROM 'support-v1' THEN
     RAISE EXCEPTION 'support_invalid_input' USING ERRCODE='22023';

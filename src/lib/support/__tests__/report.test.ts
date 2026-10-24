@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { createReportSender, inAppReportsEnabled, supportDestination, REPORT_TIMEOUT_MS, type ReportState } from "../report";
+import { createReportSender, inAppReportsEnabled, reportCanRetry, supportDestination, REPORT_TIMEOUT_MS, type ReportState } from "../report";
 
 const id = "10000000-0000-4000-8000-000000000001";
 const receipt = "20000000-0000-4000-8000-000000000002";
@@ -34,10 +34,51 @@ describe("T53 dormant support submission", () => {
     const { deps, submit } = setup(); deps.enabled.mockReturnValue(false);
     await submit(); expect(deps.send).not.toHaveBeenCalled(); expect(deps.online).not.toHaveBeenCalled();
   });
-  test.each([["", true], ["   ", true], ["hello", false], ["x".repeat(2001), true]])("rejects empty/long/unconsented input", async (body, consent) => {
+  test.each([["", true], ["   ", true], ["\n", true], ["\t", true], ["\u3000", true], [" \r\n\t\u3000", true],
+    ["\u0009\u000a\u000b\u000c\u000d\u0020\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff", true],
+    ["hello", false], ["x".repeat(2001), true]])("rejects empty/long/unconsented input %j", async (body, consent) => {
     const { sender, deps } = setup();
     await sender.submit(body as string, consent as boolean, "bug", metadata);
     expect(sender.state).toEqual({ phase: "failed", reason: "invalid" });
+    expect(deps.send).not.toHaveBeenCalled();
+    expect(deps.online).not.toHaveBeenCalled();
+    expect(reportCanRetry(sender.state)).toBe(false);
+  });
+  test("local validation remains editable and accepts a corrected body", async () => {
+    const { sender, deps, submit } = setup();
+    await sender.submit("\u3000", true, "bug", metadata);
+    expect(sender.locked).toBe(false);
+    await submit();
+    expect(sender.state).toEqual({ phase: "sent", receipt });
+    expect(deps.send).toHaveBeenCalledTimes(1);
+  });
+  test.each(["22023", "22021", "22P02", "23514", "42501", "42883", "PGRST202", "PGRST301", "PGRST302"])("permanent rejection %s cannot redispatch the locked request", async code => {
+    const { sender, deps, submit } = setup();
+    deps.send.mockRejectedValueOnce({ code });
+    await submit();
+    expect(sender.state).toEqual({ phase: "failed", reason: "rejected" });
+    expect(sender.locked).toBe(true);
+    expect(reportCanRetry(sender.state)).toBe(false);
+    await submit();
+    expect(deps.send).toHaveBeenCalledTimes(1);
+  });
+  test.each(["08006", "40001", "40P01", "53300", "57014", "57P01", "PGRST000", "PGRST003"])("transient rejection %s retries the original envelope", async code => {
+    const { sender, deps, submit } = setup();
+    deps.send.mockRejectedValueOnce({ code });
+    await submit();
+    expect(sender.state).toEqual({ phase: "failed", reason: "unconfirmed" });
+    expect(reportCanRetry(sender.state)).toBe(true);
+    await submit();
+    expect(deps.send.mock.calls[1][0]).toEqual(deps.send.mock.calls[0][0]);
+    expect(sender.state).toEqual({ phase: "sent", receipt });
+  });
+  test("an expired owner lease cannot be retried", async () => {
+    const { sender, deps, submit } = setup();
+    deps.assertOwner.mockImplementation(() => { throw Object.assign(new Error("stale"), { name: "AbortError" }); });
+    await submit();
+    expect(sender.state).toEqual({ phase: "failed", reason: "rejected" });
+    await submit();
+    expect(deps.assertOwner).toHaveBeenCalledTimes(1);
     expect(deps.send).not.toHaveBeenCalled();
   });
   test("offline fails without dispatch and can retry online", async () => {
@@ -110,12 +151,26 @@ describe("T53 dormant support submission", () => {
 
 test("support screen wires both switched entries and preserves existing copy keys", () => {
   const source = read("src/screens/deepspace/DeepSpaceDesignScreens.tsx");
-  expect(source).toContain('supportDestination(kind, reportsEnabled)');
-  expect(source).toContain('if (reportsEnabled && reportKind) return <SupportReportForm');
-  expect(source).toContain('onPress:()=>openReport("inquiry")');
-  expect(source).toContain('onPress:()=>openReport("bug")');
-  expect(source).toContain('else void Linking.openURL(destination)');
-  expect(source).toContain('t("support.emailUs")');
+  const flow = read("src/screens/deepspace/SupportScreen.tsx");
+  expect(flow).toContain('const reportsEnabled = inAppReportsEnabled()');
+  expect(flow).toContain('if (reportsEnabled && reportKind) return <SupportReportForm');
+  expect(flow).toContain('<SupportHome onReport={reportsEnabled ? setReportKind : undefined} />');
+  expect(read("src/app/support.tsx")).toContain('@/screens/deepspace/SupportScreen');
+  expect(source).toContain('onReport ? onReport("inquiry") : Linking.openURL(\'mailto:kim0405@hayangzip.com\')');
+  expect(source).toContain('onReport ? onReport("bug") : Linking.openURL(\'mailto:kim0405@hayangzip.com?subject=Bug%20report\')');
+  expect(source).toContain('onReport ? t("support:report.inquiryTitle") : t("support.emailUs")');
+  expect(source).toContain('onReport ? t("support:report.bugTitle") : t("support.reportBug")');
+});
+
+test("all active DPIA citations still name the original screen evidence", () => {
+  const doc = read("docs/legal/DPIA-2ndB-minors-draft.md");
+  const source = read("src/screens/deepspace/DeepSpaceDesignScreens.tsx").split(/\r?\n/);
+  const citations = [...doc.matchAll(/`src\/screens\/deepspace\/DeepSpaceDesignScreens\.tsx:(\d+)-(\d+)`/g)];
+  expect(citations).toHaveLength(3);
+  const subjects = ["setAnalyticsConsent(false", "buildPersona(userId, locale, isMinor === true)", "captureSignOutExpectation()"];
+  citations.forEach((citation, i) => {
+    expect(source.slice(Number(citation[1]) - 1, Number(citation[2])).join("\n")).toContain(subjects[i]);
+  });
 });
 
 test("form has keyboard/back/owner boundaries and a single accessible send action", () => {
@@ -136,4 +191,29 @@ test("five languages have all report keys and no em dash", () => {
     expect(Object.keys(strings)).toEqual(Object.keys(en));
     expect(Object.values(strings).every(v => typeof v === "string" && v.length > 0 && !v.includes("\u2014"))).toBe(true);
   }
+});
+
+test("form exposes checked/expanded state and excludes only decorative glyphs from speech", () => {
+  const source = read("src/screens/deepspace/SupportReportForm.tsx");
+  const checkbox = source.match(/<Pressable\s+accessibilityRole="checkbox"[^>]*>/)?.[0];
+  expect(checkbox).toContain('aria-checked={consent}');
+  expect(checkbox).toContain('aria-disabled={locked}');
+  expect(checkbox).toContain('accessibilityLabel={t("report.consent")}');
+  const toggle = source.match(/<Pressable\s+accessibilityRole="button"[^>]*>/)?.[0];
+  expect(toggle).toContain('aria-expanded={details}');
+  expect(toggle).toContain('accessibilityLabel={t("report.details")}');
+  for (const expression of ['{details ? "⌄" : "›"}', '{consent ? "☑" : "☐"}']) {
+    expect(source).toContain('<Text accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" aria-hidden>' + expression + '</Text>');
+  }
+});
+
+test("permanent rejection offers email while retry is limited to transient failures", () => {
+  const source = read("src/screens/deepspace/SupportReportForm.tsx");
+  expect(source).toContain('const rejected = state.phase === "failed" && state.reason === "rejected"');
+  expect(source).toContain('{rejected ? <Button label={t("deepspace:support.emailUs")}');
+  expect(source).toContain('Linking.openURL(supportDestination(kind, false))');
+  expect(source).toContain('reportCanRetry(state) ? "report.retry" : "report.send"');
+  expect(reportCanRetry({ phase: "editing" })).toBe(false);
+  for (const reason of ["offline", "unconfirmed", "limited"] as const) expect(reportCanRetry({ phase: "failed", reason })).toBe(true);
+  expect(source.match(/t\("report.reply"\)/g)).toHaveLength(2); // before consent submission and after receipt
 });

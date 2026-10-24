@@ -22,12 +22,12 @@
     "inquiryTitle": "Contactar",
     "bugTitle": "Reportar un error",
     "body": "Mensaje",
-    "placeholder": "¿Qué problema ocurrió?",
+    "placeholder": "Escribe tu consulta o describe el error.",
     "details": "Información que se enviará",
-    "consent": "Acepto el uso de mis datos para atender este reporte",
-    "scope": "Se envían al operador tu mensaje, identificador de cuenta, versión de la app, ruta de pantalla e idioma. No se adjuntan automáticamente registros, conversaciones ni contenido de la wiki.",
+    "consent": "Acepto el uso de mis datos para atender consultas y errores",
+    "scope": "Se envían al operador tu mensaje, identificador de cuenta, versión de la app, ruta de pantalla e idioma para responder consultas y resolver errores. No se adjuntan automáticamente registros, conversaciones ni contenido de la wiki.",
     "retention": "Los reportes se borran cada hora una vez cumplidos 30 días, o al eliminar tu cuenta.",
-    "optional": "Puedes usar la app sin aceptar. Tu reporte no se enviará.",
+    "optional": "Puedes usar la app sin aceptar. Tu consulta o reporte de error no se enviará.",
     "metadata": "Versión {{version}} · Pantalla {{path}} · Idioma {{locale}}",
     "send": "Enviar",
     "sending": "Enviando…",
@@ -38,6 +38,8 @@
     "offline": "Revisa tu conexión a internet e inténtalo de nuevo.",
     "unconfirmed": "No pudimos confirmar la recepción. Inténtalo de nuevo.",
     "limited": "Inténtalo más tarde. Puedes enviar 2 reportes por minuto y 10 en 24 horas.",
-    "invalid": "Revisa el mensaje y la casilla de aceptación."
+    "invalid": "Revisa el mensaje y la casilla de aceptación.",
+    "reply": "La respuesta llegará al correo de tu cuenta.",
+    "rejected": "No se aceptó el envío. Contáctanos por correo."
   }
 }

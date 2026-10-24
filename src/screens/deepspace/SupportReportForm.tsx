@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet } from "react-native";
+import { Linking, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import * as Crypto from "expo-crypto";
 import * as Network from "expo-network";
@@ -15,7 +15,7 @@ import { renderedUiLanguage } from "@/lib/i18n/ui-language";
 import { useHardwareBack } from "@/lib/nav/phone-embed";
 import { KeyboardAvoidingArea, useKeyboard } from "@/lib/ui/keyboard";
 import { semantic, spacing } from "@/lib/theme/tokens";
-import { createReportSender, inAppReportsEnabled, REPORT_MAX_LENGTH, type ReportKind, type ReportState } from "@/lib/support/report";
+import { createReportSender, inAppReportsEnabled, reportCanRetry, supportDestination, REPORT_MAX_LENGTH, type ReportKind, type ReportState } from "@/lib/support/report";
 import { submitSupportReport } from "@/lib/support/report-rpc";
 
 export function SupportReportForm({ kind, onBack }: { kind: ReportKind; onBack: () => void }) {
@@ -49,6 +49,7 @@ function OwnedReportForm({ ownerId, kind, onBack }: { ownerId: string; kind: Rep
   }, [ownerId]);
   useHardwareBack(useCallback(() => { onBack(); return true; }, [onBack]));
   const busy = state.phase === "sending";
+  const rejected = state.phase === "failed" && state.reason === "rejected";
   const locked = busy || senderRef.current?.locked === true;
   const submit = () => {
     const sender = senderRef.current;
@@ -61,14 +62,16 @@ function OwnedReportForm({ ownerId, kind, onBack }: { ownerId: string; kind: Rep
           {state.phase === "sent" ? <>
             <Text accessibilityLiveRegion="polite">{t("report.sent")}</Text>
             <Text selectable>{t("report.receipt", { receipt: state.receipt })}</Text>
+            <Text>{t("report.reply")}</Text>
             <Button label={t("report.done")} onPress={onBack} />
           </> : <>
             <Text>{t("report.body")}</Text>
             <Input multiline value={body} onChangeText={setBody} maxLength={REPORT_MAX_LENGTH} editable={!locked}
               accessibilityLabel={t("report.body")} placeholder={t("report.placeholder")} style={styles.input} />
             <Text variant="caption">{body.length} / {REPORT_MAX_LENGTH}</Text>
-            <Pressable accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => setDetails(!details)} style={styles.row}>
-              <Text>{t("report.details")} {details ? "⌄" : "›"}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("report.details")} accessibilityState={{ expanded: details }} aria-expanded={details} onPress={() => setDetails(!details)} style={styles.row}>
+              <Text style={styles.rowLabel}>{t("report.details")}</Text>
+              <Text accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" aria-hidden>{details ? "⌄" : "›"}</Text>
             </Pressable>
             {details ? <View style={styles.details}>
               <Text>{t("report.scope")}</Text>
@@ -76,13 +79,16 @@ function OwnedReportForm({ ownerId, kind, onBack }: { ownerId: string; kind: Rep
               <Text>{t("report.optional")}</Text>
               <Text>{t("report.metadata", { version: metadata.app_version, path: metadata.screen_path, locale: metadata.locale })}</Text>
             </View> : null}
-            <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: consent, disabled: locked }} disabled={locked}
+            <Pressable accessibilityRole="checkbox" accessibilityLabel={t("report.consent")} accessibilityState={{ checked: consent, disabled: locked }} aria-checked={consent} aria-disabled={locked} disabled={locked}
               onPress={() => setConsent(!consent)} style={styles.row}>
-              <Text>{consent ? "☑" : "☐"} {t("report.consent")}</Text>
+              <Text accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" aria-hidden>{consent ? "☑" : "☐"}</Text>
+              <Text style={styles.rowLabel}>{t("report.consent")}</Text>
             </Pressable>
+            <Text>{t("report.reply")}</Text>
             {state.phase === "failed" ? <Text accessibilityLiveRegion="polite">{t(`report.${state.reason}`)}</Text> : null}
-            <Button label={t(busy ? "report.sending" : state.phase === "failed" ? "report.retry" : "report.send")}
-              disabled={busy || !consent || !body.trim()} onPress={submit} />
+            {rejected ? <Button label={t("deepspace:support.emailUs")} onPress={() => { void Linking.openURL(supportDestination(kind, false)); }} /> :
+              <Button label={t(busy ? "report.sending" : reportCanRetry(state) ? "report.retry" : "report.send")}
+                disabled={busy || !consent || !body.trim()} onPress={submit} />}
           </>}
         </ScrollView>
       </KeyboardAvoidingArea>
@@ -94,6 +100,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },
   input: { minHeight: 160 },
-  row: { minHeight: 48, justifyContent: "center", borderBottomWidth: 1, borderBottomColor: semantic.border },
+  row: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: semantic.border },
+  rowLabel: { flexShrink: 1 },
   details: { gap: spacing.sm },
 });

@@ -22,12 +22,12 @@
     "inquiryTitle": "Contact us",
     "bugTitle": "Report a bug",
     "body": "Message",
-    "placeholder": "What went wrong?",
+    "placeholder": "Enter your question or bug details.",
     "details": "Information to send",
-    "consent": "I agree to processing this report",
-    "scope": "Your message, account ID, app version, screen path and language go to the operator. Saved records, conversations and wiki content are not attached automatically.",
+    "consent": "I agree to the use of my data for inquiries and bug reports",
+    "scope": "Your message, account ID, app version, screen path and language go to the operator to answer inquiries and resolve bugs. Saved records, conversations and wiki content are not attached automatically.",
     "retention": "Reports are deleted hourly once they are 30 days old, or when you delete your account.",
-    "optional": "You can use the app without agreeing. Your report will not be submitted.",
+    "optional": "You can use the app without agreeing. Your inquiry or bug report will not be submitted.",
     "metadata": "Version {{version}} · Screen {{path}} · Language {{locale}}",
     "send": "Send",
     "sending": "Sending…",
@@ -38,6 +38,8 @@
     "offline": "Check your internet connection and try again.",
     "unconfirmed": "We could not confirm receipt. Try again.",
     "limited": "Try again later. You can send 2 reports per minute and 10 in 24 hours.",
-    "invalid": "Check your message and agreement."
+    "invalid": "Check your message and agreement.",
+    "reply": "Replies go to the email address on your account.",
+    "rejected": "This submission was rejected. Please contact us by email."
   }
 }
