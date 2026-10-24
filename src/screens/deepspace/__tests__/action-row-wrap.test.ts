@@ -148,9 +148,9 @@ describe("action 행 - 긴 라벨은 줄바꿈하고 값은 잘리지 않는다 
     const keys = new Set<string>();
     for (const m of screens.matchAll(/<Action\b[^>]*\bvalue=\{t\("([^"]+)"\)\}/g)) keys.add(m[1]);
     for (const m of screens.matchAll(/style=\{styles\.actionValue\}>\{t\("([^"]+)"\)\}/g)) keys.add(m[1]);
-    // 아무것도 못 찾은 채 통과하지 않게: /privacy 4개 + /formats 1개.
+    // 아무것도 못 찾은 채 통과하지 않게: /privacy 3개 + /formats 1개 (T09: 제3자 제공도 보기 링크).
     expect([...keys].sort()).toEqual(
-      expect.arrayContaining(["formats.included", "privacy.last7", "privacy.none", "privacy.open", "privacy.view"]),
+      expect.arrayContaining(["formats.included", "privacy.last7", "privacy.open", "privacy.view"]),
     );
     const tooLong: string[] = [];
     for (const locale of LOCALES) {

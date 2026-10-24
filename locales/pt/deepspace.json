@@ -167,8 +167,8 @@
   },
   "privacy": {
     "title": "Privacidade e termos",
-    "status": "Os registros são usados apenas para apoiar seu autoconhecimento.",
-    "tip": "Escolhas sensíveis são sempre mostradas e confirmadas primeiro.",
+    "status": "Seus registros são usados em funções que ajudam você a se conhecer. Os detalhes estão na política de privacidade.",
+    "tip": "Você pode escolher quais dados são usados.",
     "lead": "Ajuste você mesmo como seus dados são usados.",
     "on": "Ligado",
     "off": "Desligado",
@@ -179,7 +179,7 @@
     "processingLog": "Registro de processamento de dados",
     "last7": "Últimos 7 dias",
     "thirdParty": "Compartilhamento com terceiros",
-    "none": "0 itens",
+    "none": "Só nos casos da política de privacidade",
     "footer": "O tratamento e armazenamento dos dados depende de cada função. Consulte o aviso de uso de dados.",
     "dataReview": "Revisão dos meus dados",
     "open": "Abrir",
@@ -187,7 +187,7 @@
     "facts": {
       "onDevice": {
         "label": "Como os registros são usados",
-        "v": "Os registros ficam salvos no servidor. O conteúdo necessário para as funções de IA é enviado aos fornecedores de IA."
+        "v": "Os registros ficam salvos no servidor. O conteúdo necessário para as funções de IA é enviado aos fornecedores de IA no exterior."
       },
       "collect": {
         "label": "O que coletamos",
@@ -195,7 +195,7 @@
       },
       "retention": {
         "label": "Período de retenção",
-        "v": "Enquanto sua conta estiver ativa; se você excluir a conta, tudo é removido em até 30 dias."
+        "v": "Fica guardado enquanto você usa a conta e é excluído sem demora quando você sai. Só os registros exigidos por lei, como os de pagamento, ficam guardados à parte pelo prazo obrigatório."
       },
       "delete": {
         "label": "Direito de exclusão",

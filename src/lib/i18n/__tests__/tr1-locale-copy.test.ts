@@ -210,7 +210,7 @@ describe("tr1: the Korean screen still paints the canon, and the ko keys mirror 
 
 describe("tr1: es/pt/id carry their own text", () => {
   const MOVED: Record<string, string[]> = {
-    deepspace: ["privacy.terms", "privacy.refund", "privacy.atGlance", "privacy.facts", "privacy.analytics", "privacy.recommend", "privacy.semantic", "privacy.understand", "privacy.understandA11y", "privacy.saveFailed", "privacy.deleteAccount", "support.faqs", "onboarding.skip", "onboarding.slides"],
+    deepspace: ["privacy.terms", "privacy.refund", "privacy.none", "privacy.status", "privacy.tip", "privacy.atGlance", "privacy.facts", "privacy.analytics", "privacy.recommend", "privacy.semantic", "privacy.understand", "privacy.understandA11y", "privacy.saveFailed", "privacy.deleteAccount", "support.faqs", "onboarding.skip", "onboarding.slides"],
     "core-brain": ["portrait", "savedResult", "polarisGraphicA11y", "deck"],
     brightness: ["shiftNudge", "shiftNudgeCited"],
   };
@@ -240,17 +240,9 @@ describe("tr1: es/pt/id carry their own text", () => {
     expect(b.shiftNudgeCited).toContain("{{n}}");
   });
 
-  // QA 261006, review of #2099 (F1). The retention fact counts the 30 days from
-  // closing the account (ko "탈퇴 시"). pt "se você sair" and id "jika kamu keluar"
-  // used the very verb of the Sign out button (common actions.signOut: "Sair",
-  // "Keluar"), so the line read as "removed 30 days after you sign out".
-  it.each(["es", "pt", "id"])("%s retention line does not use the Sign out verb", (lng) => {
-    const retention = String(at(pack(lng, "deepspace"), "privacy.facts.retention.v")).toLocaleLowerCase(lng);
-    const signOut = String(at(pack(lng, "common"), "actions.signOut")).toLocaleLowerCase(lng);
-    expect(signOut.length).toBeGreaterThan(0);
-    const word = new RegExp(`(^|[^\\p{L}])${signOut.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^\\p{L}])`, "u");
-    expect({ lng, retention, usesSignOut: word.test(retention) }).toEqual({ lng, retention, usesSignOut: false });
-  });
+  // T09, 2026-10-23 legal review: the approved retention sentences replace the
+  // 30-day claim, including ID "saat kamu keluar". Do not rewrite that approval
+  // with a standalone sign-out-verb ban; privacy-legal-copy.test.ts pins all five.
 });
 
 describe("tr1: what stays KO/EN on purpose", () => {

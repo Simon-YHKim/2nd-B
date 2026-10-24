@@ -167,8 +167,8 @@
   },
   "privacy": {
     "title": "Privacy & terms",
-    "status": "Records are used only to support your self-understanding.",
-    "tip": "Choose which data to use before continuing.",
+    "status": "Your records power features that help you understand yourself. Full details are in the privacy policy.",
+    "tip": "You can choose which data is used.",
     "lead": "Choose how your data is used.",
     "on": "On",
     "off": "Off",
@@ -179,7 +179,7 @@
     "processingLog": "Data processing log",
     "last7": "Last 7 days",
     "thirdParty": "Third-party sharing",
-    "none": "0 items",
+    "none": "Only as listed in the privacy policy",
     "footer": "How data is processed and stored depends on the feature. Check its data-use notice for details.",
     "dataReview": "My saved data",
     "open": "Open",
@@ -187,7 +187,7 @@
     "facts": {
       "onDevice": {
         "label": "How records are used",
-        "v": "Records are stored on the server. Content needed for AI features is sent to AI providers."
+        "v": "Records are stored on the server. Content needed for AI features is sent to overseas AI providers."
       },
       "collect": {
         "label": "What we collect",
@@ -195,7 +195,7 @@
       },
       "retention": {
         "label": "Retention",
-        "v": "While your account is active; fully removed within 30 days of leaving."
+        "v": "Kept while you use your account and deleted without delay when you leave. Only records the law requires, such as payment records, are kept separately for the required period."
       },
       "delete": {
         "label": "Right to delete",

@@ -167,8 +167,8 @@
   },
   "privacy": {
     "title": "Privacidad y términos",
-    "status": "Los registros se usan solo para apoyar tu autoconocimiento.",
-    "tip": "Las decisiones sensibles siempre se muestran y se confirman primero.",
+    "status": "Tus registros se usan en funciones que te ayudan a conocerte. Los detalles están en la política de privacidad.",
+    "tip": "Puedes elegir qué datos se usan.",
     "lead": "Ajusta tú mismo cómo se usan tus datos.",
     "on": "Activado",
     "off": "Desactivado",
@@ -179,7 +179,7 @@
     "processingLog": "Registro de procesamiento de datos",
     "last7": "Últimos 7 días",
     "thirdParty": "Compartir con terceros",
-    "none": "0 elementos",
+    "none": "Solo en los casos de la política de privacidad",
     "footer": "El tratamiento y almacenamiento de los datos depende de cada función. Consulta su aviso de uso de datos.",
     "dataReview": "Revisión de mis datos",
     "open": "Abrir",
@@ -187,7 +187,7 @@
     "facts": {
       "onDevice": {
         "label": "Cómo se usan los registros",
-        "v": "Los registros se guardan en el servidor. El contenido necesario para las funciones de IA se envía a los proveedores de IA."
+        "v": "Los registros se guardan en el servidor. El contenido necesario para las funciones de IA se envía a los proveedores de IA en el extranjero."
       },
       "collect": {
         "label": "Qué recopilamos",
@@ -195,7 +195,7 @@
       },
       "retention": {
         "label": "Plazo de conservación",
-        "v": "Mientras tu cuenta esté activa; si te das de baja, se elimina por completo en un plazo de 30 días."
+        "v": "Se guarda mientras uses tu cuenta y se borra sin demora cuando te das de baja. Solo los registros que exige la ley, como los de pago, se guardan aparte durante el plazo obligatorio."
       },
       "delete": {
         "label": "Derecho a borrar",

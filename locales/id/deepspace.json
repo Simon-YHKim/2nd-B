@@ -167,8 +167,8 @@
   },
   "privacy": {
     "title": "Privasi & ketentuan",
-    "status": "Catatan hanya digunakan untuk mendukung pemahaman dirimu.",
-    "tip": "Pilihan sensitif selalu ditampilkan dan dikonfirmasi lebih dulu.",
+    "status": "Catatanmu dipakai untuk fitur yang membantumu memahami diri. Rinciannya ada di kebijakan privasi.",
+    "tip": "Kamu bisa memilih data mana yang digunakan.",
     "lead": "Atur sendiri bagaimana datamu digunakan.",
     "on": "Aktif",
     "off": "Nonaktif",
@@ -179,7 +179,7 @@
     "processingLog": "Log pemrosesan data",
     "last7": "7 hari terakhir",
     "thirdParty": "Berbagi pihak ketiga",
-    "none": "0 item",
+    "none": "Hanya sesuai kebijakan privasi",
     "footer": "Cara data diproses dan disimpan bergantung pada fiturnya. Baca penjelasan penggunaan data pada fitur tersebut.",
     "dataReview": "Tinjauan data saya",
     "open": "Buka",
@@ -187,7 +187,7 @@
     "facts": {
       "onDevice": {
         "label": "Cara catatan digunakan",
-        "v": "Catatan disimpan di server. Konten yang diperlukan untuk fitur AI dikirim ke penyedia AI."
+        "v": "Catatan disimpan di server. Konten yang diperlukan untuk fitur AI dikirim ke penyedia AI di luar negeri."
       },
       "collect": {
         "label": "Yang kami kumpulkan",
@@ -195,7 +195,7 @@
       },
       "retention": {
         "label": "Masa penyimpanan",
-        "v": "Selama akunmu aktif; jika kamu menghapus akun, semuanya terhapus dalam 30 hari."
+        "v": "Disimpan selama kamu memakai akun dan dihapus tanpa ditunda saat kamu keluar. Hanya catatan yang diwajibkan hukum, seperti catatan pembayaran, disimpan terpisah selama jangka waktu yang diwajibkan."
       },
       "delete": {
         "label": "Hak menghapus",

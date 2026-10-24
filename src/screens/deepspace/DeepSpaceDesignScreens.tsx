@@ -1289,9 +1289,9 @@ export function DeepSpacePrivacyDesignScreen() {
       <Card>
         {/* audit med#17: these rows rendered as buttons with no onPress — dead
             taps on a privacy surface. 처리 기록 opens the read-only ai_audit_log
-            viewer (/processing-log); 제3자 제공 "없음" is a FACT, so it renders static
-            (no button role); the 처리방침 row opens the /privacy-policy
-            document (restored once the policy document existed to open). */}
+            viewer (/processing-log); third-party disclosure opens the policy,
+            whose section 4 describes the cases. No measured count is available.
+            The policy, terms and refund rows open their existing documents. */}
         <Action label={t("privacy.policy")} value={t("privacy.view")} onPress={() => router.push("/privacy-policy")} />
         <Action label={t("privacy.terms")} value={t("privacy.view")} onPress={() => router.push("/terms")} />
         <Action label={t("privacy.refund")} value={t("privacy.view")} onPress={() => router.push("/refund")} />
@@ -1300,10 +1300,10 @@ export function DeepSpacePrivacyDesignScreen() {
             레퍼런스가 이 자리에 그 줄을 두고 있고, 개인정보 화면에서 자기 데이터를
             열람하러 가는 것은 자연스럽다. */}
         <Action label={t("privacy.dataReview")} value={t("privacy.open")} onPress={() => router.push("/data")} />
-        <View style={styles.action} accessible accessibilityLabel={`${t("privacy.thirdParty")}, ${t("privacy.none")}`}>
-          <Text variant="body" style={styles.actionLabel}>{t("privacy.thirdParty")}</Text>
-          <Text variant="body" style={styles.actionValue}>{t("privacy.none")}</Text>
-        </View>
+        <Action label={t("privacy.thirdParty")}
+          value={t("privacy.view")}
+          onPress={() => router.push("/privacy-policy")}
+        />
       </Card>
 
       <Card>

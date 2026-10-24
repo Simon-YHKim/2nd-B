@@ -47,15 +47,15 @@ const locales = Object.keys(JARGON) as (keyof typeof JARGON)[];
 const FACTS = {
   ko: {
     collect: /위치·통신 자료는 동의할 때만 모읍니다\./,
-    stored: /기록을 서버에 저장하며/,
-    sent: /AI 기능에 필요한 내용은 AI 제공사로 보냅니다/,
+    stored: /기록은 서버에 저장하고/,
+    sent: /AI 기능을 쓸 때 필요한 내용은 국외 AI 제공사로 보냅니다/,
     removed: /끄면 연결용 데이터만 삭제하고 기록은 남깁니다/,
     applied: /^웹 Google Analytics에 선택 반영 · Android 사용 통계 꺼짐$/,
   },
   en: {
     collect: /Location and communications data are collected only with your consent\./,
     stored: /Records are stored on the server/,
-    sent: /Content needed for AI features is sent to AI providers/,
+    sent: /Content needed for AI features is sent to overseas AI providers/,
     removed: /Turning this off removes connection data and keeps your records/,
     applied: /^Choice applies to web Google Analytics · Android usage statistics off$/,
   },
