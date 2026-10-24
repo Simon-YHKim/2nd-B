@@ -8,7 +8,7 @@ const LANGUAGES = [
   { locale: "en", star: "Star", area: "area", oldStar: /\bstars?\b/i },
   { locale: "es", star: "Estrella", area: "área", oldStar: /\bestrellas?\b/i },
   { locale: "pt", star: "Estrela", area: "área", oldStar: /\bestrelas?\b/i },
-  { locale: "id", star: "Bintang", area: "bidang", oldStar: /\bbintang\b/i },
+  { locale: "id", star: "Bintang", area: "area", oldStar: /\bbintang\b/i },
 ] as const;
 
 function readJson(file: string) {
@@ -60,5 +60,35 @@ describe("T47 star and life-area wording", () => {
     });
     expect(reference[2].body).toContain("두 영역");
     expect(reference[2].body).not.toContain("별");
+  });
+
+  test("the English reverse seed uses the displayed Rest name", () => {
+    const home = readJson("locales/en/home.json").ds;
+    expect(home.imagine.seeds.reverse.step3).toContain(`the ${home.home.domainName.recreation} area`);
+  });
+
+  describe.each(LANGUAGES)("$locale life-area briefing", ({ locale, area, oldStar }) => {
+    test.each([
+      ["briefingOpening", []],
+      ["briefingEmpty", []],
+      ["briefingCountOne", ["{{n}}"]],
+      ["briefingCount", ["{{n}}"]],
+    ] as const)("%s names an area and preserves the count placeholder", (key, placeholders) => {
+      const value = readJson(`locales/${locale}/deepspace.json`).star[key];
+      expect(value.toLowerCase()).toContain(area);
+      expect(value).not.toMatch(oldStar);
+      expect(value.match(/\{\{[^}]+\}\}/g) ?? []).toEqual(placeholders);
+    });
+  });
+
+  test("the life-area screen selects the loading, empty, singular and plural briefing keys", () => {
+    const source = readFileSync(join(ROOT, "src/app/star/[domain].tsx"), "utf8");
+    expect(source).toMatch(/rows === null\s*\? t\("star\.briefingOpening"\)\s*:\s*count === 0\s*\? t\("star\.briefingEmpty"\)\s*:\s*count === 1\s*\? t\("star\.briefingCountOne", \{ n: count \}\)\s*:\s*t\("star\.briefingCount", \{ n: count \}\)/);
+  });
+
+  test("the Spanish rest empty state describes saved activities and invites a note", () => {
+    expect(readJson("locales/es/deepspace.json").rest.empty).toBe(
+      "Aún no hay actividades de descanso guardadas. Anota qué disfrutas hacer para descansar.",
+    );
   });
 });

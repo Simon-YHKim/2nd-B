@@ -631,6 +631,7 @@ export function ConstellationHome({
   const levelOf = (id: HomeStarId): LadderLevel =>
     (starLevels[id] ?? 1) as LadderLevel;
   const starName = (id: HomeStarId) => t(`ds.star.${id}`);
+  // ds.home.kind.domain은 일곱 별 꼬리표입니다.
   const kindOf = (id: HomeStarId) => (id === "profile" ? t("ds.home.kind.profile") : t("ds.home.kind.domain"));
 
   const focusedId = bubble.kind === "star" ? bubble.id : null;
