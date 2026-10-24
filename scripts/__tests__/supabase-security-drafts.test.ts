@@ -113,6 +113,10 @@ const pendingDrafts: Record<string, { runner: string; workflowInvocation: string
     runner: "scripts/test-deletion-receipt-sql.mjs",
     workflowInvocation: 'node scripts/test-deletion-receipt-sql.mjs "$LOCAL_SQL_CONTAINER" t04_receipt_test_ci',
   },
+  "UNNUMBERED_account_deletion_receipt_arbitration.sql": {
+    runner: "scripts/test-deletion-receipt-arbitration.mjs",
+    workflowInvocation: 'node scripts/test-deletion-receipt-arbitration.mjs 5432 t04_arbitration_test_ci',
+  },
 };
 
 /** Violations of the one-copy rule. Pure, so the guard itself can be mutated below. */
