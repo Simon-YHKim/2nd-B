@@ -210,12 +210,13 @@ describe("T03: pre-bump vendor selection and dormant reservation dispatch", () =
       && /\b(selectChatTurnRoute|chatTurnRoute|chatAttemptIntent|chatTurnId|chatTurn|classifyLiveChatTextForCrisis)\b/.test(source))
       .map(([file]) => file);
     expect(consumers).toEqual(["src/lib/chat/conversation-turn.ts"]);
-    // No production import/re-export of the sole consumer means no transitive
-    // entry either, including aliases or helpers outside the screen directory.
+    // B1: the existing live chat screen is the only production runtime entry.
+    // Type-only helpers do not activate it; aliases or other helpers stay off.
     for (const [file, source] of sources) {
       if (file === "src/lib/chat/conversation-turn.ts") continue;
-      expect({ file, callsDormantEntry: /conversation-turn|\b(createLiveChatTurn|sendLiveChatMessage)\b/.test(source) })
-        .toEqual({ file, callsDormantEntry: false });
+      const runtime = source.replace(/import type\s*\{[^}]*\}\s*from\s*["'][^"']+["'];?/g, "");
+      expect({ file, callsLiveEntry: /conversation-turn|\b(createLiveChatTurn|sendLiveChatMessage)\b/.test(runtime) })
+        .toEqual({ file, callsLiveEntry: file === "src/app/secondb.tsx" });
     }
   });
 });
