@@ -53,6 +53,7 @@ const ROOT = join(__dirname, "..", "..", "..");
 const src = readFileSync(join(ROOT, "screens", "deepspace", "dds-plans-screen.tsx"), "utf8");
 const checkout = readFileSync(join(ROOT, "lib", "billing", "paddle-checkout.ts"), "utf8");
 const purchasesSource = readFileSync(join(ROOT, "lib", "payments", "purchases.ts"), "utf8");
+const usageSource = readFileSync(join(ROOT, "lib", "entitlements", "reasoning-usage-read.ts"), "utf8");
 
 const LOCALES = ["en", "ko", "es", "id", "pt"] as const;
 const plansOf = (locale: string) =>
@@ -213,11 +214,21 @@ describe("auth, owner-scoped reads, and mutation boundaries", () => {
 
   test("prefs and usage use strict owner-scoped reads with explicit verdicts", () => {
     expect(src).toMatch(/\.select\("privacy_prefs"\)[\s\S]*?\.eq\("id", ownerId\)/);
-    expect(src).toMatch(/\.from\("usage_counters"\)[\s\S]*?\.eq\("user_id", ownerId\)/);
-    expect(src).toContain('client.rpc("credit_summary_self")');
-    expect(src).toContain("credit.ad_earned_this_month");
-    expect(src).toContain("monthRow?.reward_credits");
-    expect(src).toContain("rewardCredits: Math.max(0, Number(credit.available) || 0)");
+    expect(src).toContain('import { readReasoningUsageStrict } from "@/lib/entitlements/reasoning-usage-read"');
+    expect(src).toContain("readReasoningUsageStrict(ownerId, { assertCurrent })");
+    expect(src).toContain("captureAccountOwnerLease(ownerId)");
+    expect(src).toContain('if (!lease?.isCurrent()) throw new Error("stale plans usage read")');
+    expect(src).toContain('return { ownerId, epoch: lease!.epoch, status: "ready", ...usage }');
+    expect(src).toContain("usageRead.epoch === accountEpoch");
+    expect(src).toContain("!!captureAccountOwnerLease(dataOwner)");
+    // Preserve the old pins' owner scope and ledger provenance at their new home.
+    expect(usageSource).toContain('const COUNTER_TABLE = "usage_counters"');
+    expect(usageSource).toMatch(/\.from\(COUNTER_TABLE\)[\s\S]*?\.eq\("user_id", userId\)/);
+    expect(usageSource).toContain('const LEDGER_RPC = "credit_summary_self"');
+    expect(usageSource).toContain("client.rpc(LEDGER_RPC)");
+    expect(usageSource).toContain("available: summary.available, earned: summary.ad_earned_this_month");
+    expect(usageSource).toContain("rewardCredits: credits.available, rewardEarned: credits.earned");
+    expect(src).not.toContain("monthRow?.reward_credits");
     expect(src).toContain(
       'type ReadStatus = "idle" | "loading" | "ready" | "unavailable" | "error" | "timeout"',
     );

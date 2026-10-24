@@ -70,10 +70,8 @@ export type SignUpSubmitResult =
   | { kind: "ageGate" }
   /** Password found in the HIBP breach corpus. No session was created. */
   | { kind: "breachedPassword" }
-  /** The enumeration-safe "already registered" shape (J3): GoTrue faked the
-   *  sign-up success without a session and the immediate sign-in failed with
-   *  invalid credentials. The screen suggests sign-in / password reset —
-   *  conditionally worded, never asserting the account exists. */
+  /** Legacy typed error with no current producer. The form shows the generic
+   *  failure notice, never an account-existence claim or a removed card. */
   | { kind: "maybeExistingAccount" }
   /** Explicit Before User Created refusal; never inferred from a 500. */
   | { kind: "signupRefused" }

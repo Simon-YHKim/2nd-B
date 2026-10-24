@@ -10,6 +10,7 @@ on:
       - "scripts/check-reward-ssv-db.sh"
       - "scripts/test-polaris-sql.mjs"
       - "scripts/test-signup-consent-sql.mjs"
+      - "scripts/test-unconfirmed-signup-cleanup.py"
       - "scripts/test-weather-sql.mjs"
       - "scripts/test-weather-consent-admission.mjs"
       - "supabase/functions/weather/handler.ts"
@@ -80,8 +81,7 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
-          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE t06_signup_test_ci'
-          psql -X -h 127.0.0.1 -U postgres -d t06_signup_test_ci -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/before-user-created-signup.sql
+          python3 scripts/test-before-user-created-signup.py 5432 t06_signup_test_ci
       - name: Exercise signup consent forward contract
         env:
           PGPASSWORD: postgres
@@ -91,6 +91,11 @@ jobs:
           CREATE DATABASE signup_test_ci OWNER signup_local;
           SQL
           node scripts/test-signup-consent-sql.mjs 5432 signup_local signup_test_ci
+      - name: Exercise unconfirmed signup cleanup draft and SQL mutations
+        timeout-minutes: 5
+        env:
+          PGPASSWORD: postgres
+        run: python3 scripts/test-unconfirmed-signup-cleanup.py 5432 t07_cleanup_test_ci
       - name: Exercise weather location consent and adult lock
         env:
           PGPASSWORD: postgres

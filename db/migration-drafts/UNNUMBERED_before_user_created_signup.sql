@@ -55,6 +55,7 @@ DECLARE
   v_secret text;
   v_window timestamptz;
   v_crypto_schema name;
+  v_address inet;
   v_ip text;
   v_email text;
   v_id uuid;
@@ -70,20 +71,19 @@ BEGIN
   -- Sample after the lock: a waiter must never rewind the global window.
   v_window := date_bin(interval '10 minutes', clock_timestamp(), timestamptz '2000-01-01 UTC');
 
-  -- Bound total work and storage BEFORE allocating any attacker-selected key.
-  UPDATE public.signup_hook_policy
-    SET budget_count = CASE WHEN budget_window = v_window THEN LEAST(budget_count + 1, 1001) ELSE 1 END,
-        budget_window = v_window
-    WHERE singleton RETURNING budget_count INTO v_budget;
   PERFORM public.prune_signup_hook_attempts();
-  IF v_budget > 1000 THEN
-    RETURN '{"error":{"http_code":429,"message":"signup_request_limited"}}'::jsonb;
-  END IF;
 
   -- Read only Auth-owned request IP and user id; no age or user_metadata branch.
   -- Malformed values return a fixed response instead of an uncaught cast error.
   BEGIN
-    v_ip := host((event #>> '{metadata,ip_address}')::inet);
+    v_address := (event #>> '{metadata,ip_address}')::inet;
+    -- IPv6 privacy/interface addresses in one /64 share a budget. IPv4 keeps
+    -- its host address; IPv4-mapped IPv6 uses that same IPv4 bucket as well.
+    IF family(v_address) = 6 AND v_address <<= inet '::ffff:0.0.0.0/96' THEN
+      v_address := inet '0.0.0.0' + (v_address - inet '::ffff:0.0.0.0');
+    END IF;
+    v_ip := CASE WHEN family(v_address) = 6 THEN network(set_masklen(v_address, 64))::text
+      ELSE host(v_address) END;
     v_id := (event #>> '{user,id}')::uuid;
   EXCEPTION WHEN invalid_text_representation THEN
     RETURN '{"error":{"http_code":400,"message":"signup_request_invalid"}}'::jsonb;
@@ -97,6 +97,26 @@ BEGIN
   -- catalog-owned identifier is interpolated; request values are bound parameters.
   EXECUTE format('SELECT %I.hmac($1, $2, ''sha256'')', v_crypto_schema)
     INTO v_hash USING 'ip:' || extract(epoch FROM v_window)::bigint::text || ':' || v_ip, v_secret;
+  -- The singleton lock covers this read and all writes below. Already-limited
+  -- sources must not spend the global budget or allocate another mailbox key.
+  SELECT attempts INTO v_count FROM public.signup_hook_attempts
+    WHERE window_start = v_window AND dimension = 'ip' AND key_hash = v_hash;
+  IF v_count >= 10 THEN
+    UPDATE public.signup_hook_attempts SET attempts = LEAST(attempts + 1, 1001)
+      WHERE window_start = v_window AND dimension = 'ip' AND key_hash = v_hash;
+    RETURN '{"error":{"http_code":429,"message":"signup_request_limited"}}'::jsonb;
+  END IF;
+
+  -- Only IP-eligible attempts spend budget, still BEFORE any key allocation.
+  -- At most 1,000 eligible requests allocate two keys each in one window.
+  UPDATE public.signup_hook_policy
+    SET budget_count = CASE WHEN budget_window = v_window THEN LEAST(budget_count + 1, 1001) ELSE 1 END,
+        budget_window = v_window
+    WHERE singleton RETURNING budget_count INTO v_budget;
+  IF v_budget > 1000 THEN
+    RETURN '{"error":{"http_code":429,"message":"signup_request_limited"}}'::jsonb;
+  END IF;
+
   INSERT INTO public.signup_hook_attempts AS a VALUES (v_window, 'ip', v_hash, 1)
     ON CONFLICT (window_start, dimension, key_hash)
     DO UPDATE SET attempts = LEAST(a.attempts + 1, 1001) RETURNING attempts INTO v_count;
@@ -112,7 +132,12 @@ BEGIN
     INTO v_hash USING 'mailbox:' || extract(epoch FROM v_window)::bigint::text || ':' || v_canon, v_secret;
   INSERT INTO public.signup_hook_attempts AS a VALUES (v_window, 'mailbox', v_hash, 1)
     ON CONFLICT (window_start, dimension, key_hash)
-    DO UPDATE SET attempts = LEAST(a.attempts + 1, 1001);
+    DO UPDATE SET attempts = LEAST(a.attempts + 1, 1001) RETURNING attempts INTO v_count;
+  -- Legal's repeat-attempt record must drive a rule, including alias attempts
+  -- spread over different IPs. Apply before existence lookup for every mailbox.
+  IF v_count > 10 THEN
+    RETURN '{"error":{"http_code":429,"message":"signup_request_limited"}}'::jsonb;
+  END IF;
 
   IF EXISTS (
     SELECT 1 FROM auth.users a

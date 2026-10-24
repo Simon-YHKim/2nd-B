@@ -40,7 +40,7 @@ function effect(marker: string, scope: Record<string, unknown>): (() => void) | 
 }
 
 function harness(notice: SignUpToast | null = { tone: "danger", message: "errors.signUpFailed" }) {
-  const state = { toast: notice, existingAccountHelp: true, email: "mailbox@example.invalid", password: "fixture-password",
+  const state = { toast: notice, email: "mailbox@example.invalid", password: "fixture-password",
     birthDate: "1990-01-01", residenceCountry: "KR", consent: {}, confirmCode: "123456", confirmSentTo: "mailbox@example.invalid" as string | null,
     confirmResendSeconds: 0, confirmResending: false };
   const setToast = jest.fn((value: SignUpToast | null | ((current: SignUpToast | null) => SignUpToast | null)) => {
@@ -159,7 +159,6 @@ describe("Z1 notice policy and actual effect", () => {
       h.scope[producer] = jest.fn(async () => { await pending; throw new Error("fixture failure"); });
       const action = h.action(name);
       expect(h.state.toast).toBeNull();
-      expect(h.state.existingAccountHelp).toBe(false);
       expect(h.scope[producer]).toHaveBeenCalledTimes(1);
       release();
       await action;
@@ -171,13 +170,12 @@ describe("Z1 notice policy and actual effect", () => {
     },
   );
 
-  test("focus loss clears notice/card, including a late result on the covered route", () => {
+  test("focus loss clears notice, including a late result on the covered route", () => {
     const h = harness();
     h.focus(true);
     expect(h.setToast).not.toHaveBeenCalled();
     h.focus(false);
     expect(h.state.toast).toBeNull();
-    expect(h.state.existingAccountHelp).toBe(false);
     h.setToast({ tone: "danger", message: "late failure" });
     h.focus(false);
     h.focus(true);
@@ -186,12 +184,12 @@ describe("Z1 notice policy and actual effect", () => {
 
   // The sequence above re-runs the blur effect by hand, so it cannot tell whether a failure that
   // arrives AFTER the blur re-triggers the effect. That depends on the dependency list alone:
-  // without `toast` and `existingAccountHelp` in it, a late result would stay on the covered route
+  // without `toast` in it, a late result would stay on the covered route
   // and be announced again on return.
-  test("the blur effect re-runs when a late notice or card arrives", () => {
+  test("the blur effect re-runs when a late notice arrives", () => {
     const hook = readFileSync(join(__dirname, "..", "useSignUpForm.ts"), "utf8").replace(/\r\n/g, "\n");
     expect(hook).toMatch(
-      /if \(isFocused\) return;\s*setToast\(null\);\s*setExistingAccountHelp\(false\);\s*\}, \[isFocused, toast, existingAccountHelp\]\);/,
+      /if \(isFocused\) return;\s*setToast\(null\);\s*\}, \[isFocused, toast\]\);/,
     );
   });
 
@@ -207,17 +205,15 @@ describe("Z1 notice policy and actual effect", () => {
   });
 });
 
-describe("Z1 recovery card lifetime", () => {
+describe("T06 single notice lifetime", () => {
   test("T06 explicit hook refusal uses the persistent button notice without the recovery card", async () => {
     const h = harness();
-    h.state.existingAccountHelp = false;
     h.state.confirmSentTo = null;
     h.scope.signUpWithEmail = jest.fn().mockRejectedValue({
       status: 403, code: "unknown", message: "polascope_signup_refused",
     });
     await h.action("handleSubmit");
     expect(h.state.toast).toEqual({ tone: "danger", message: "errors.signUpRefused" });
-    expect(h.state.existingAccountHelp).toBe(false);
     h.timer();
     jest.advanceTimersByTime(60000);
     expect(h.state.toast?.message).toBe("errors.signUpRefused");
@@ -233,23 +229,19 @@ describe("Z1 recovery card lifetime", () => {
     });
     await h.action("handleSubmit");
     expect(h.state.toast).toEqual({ tone: "danger", message: "errors.signUpSubmitFailed" });
-    expect(h.state.existingAccountHelp).toBe(false);
   });
 
-  test("the typed error flows through submitSignUp to the hook's recovery card", async () => {
+  test("the legacy typed error shows a persistent generic failure instead of silently returning", async () => {
     const h = harness();
-    h.state.existingAccountHelp = false;
     h.state.confirmSentTo = null;
     await h.action("handleSubmit");
-    expect(h.state.existingAccountHelp).toBe(true);
-    expect(h.state.toast).toBeNull();
+    expect(h.state.toast).toEqual({ tone: "danger", message: "errors.signUpSubmitFailed" });
     h.timer();
     jest.advanceTimersByTime(60000);
-    expect(h.state.existingAccountHelp).toBe(true);
+    expect(h.state.toast?.message).toBe("errors.signUpSubmitFailed");
     h.input("setPassword", "different-password");
-    expect(h.state.existingAccountHelp).toBe(true);
+    expect(h.state.toast).toBeNull();
     h.input("setEmail", "other@example.invalid");
-    expect(h.state.existingAccountHelp).toBe(false);
     expect(h.state.confirmSentTo).toBeNull();
     expect(h.state.confirmCode).toBe("");
   });
@@ -259,7 +251,6 @@ describe("Z1 recovery card lifetime", () => {
     h.state.confirmSentTo = null;
     h.scope.signUpWithEmail = jest.fn(async () => ({ kind: "confirmationRequired" }));
     await h.action("handleSubmit");
-    expect(h.state.existingAccountHelp).toBe(false);
     expect(h.state.confirmSentTo).toBe(h.state.email);
     expect(h.state.toast).toBeNull();
   });

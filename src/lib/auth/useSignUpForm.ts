@@ -140,7 +140,6 @@ export interface UseSignUpForm {
   isMinorAge: boolean;
   canSubmit: boolean;
   oauthSubmitting: boolean;
-  existingAccountHelp: boolean;
   /** Confirmation email sent to this address; the screen's primary post-submit state. */
   confirmSentTo: string | null;
   /** 6-digit code from the code-only confirmation mail (Gmail buries supabase.co links). */
@@ -185,8 +184,6 @@ export function useSignUpForm(): UseSignUpForm {
   // Keep its first-profile destination through the AuthContext refresh.
   const [avatarSetupAfterConfirmation, setAvatarSetupAfterConfirmation] = useState(false);
   const [toast, setToast] = useState<SignUpToast | null>(null);
-  // J3: persistent recovery card for the likely-already-registered shape.
-  const [existingAccountHelp, setExistingAccountHelp] = useState(false);
   // Judge-rehearsal finding #1 (260717): mandatory email confirmation (0086)
   // was announced by a two-word toast reusing signIn.resetSentTitle -- easy to
   // miss, looked like a failed submit. This is the screen's PRIMARY state
@@ -234,11 +231,10 @@ export function useSignUpForm(): UseSignUpForm {
 
   useEffect(() => {
     // A covered route may stay mounted. Retire feedback on blur, including late
-    // async results, so returning cannot re-announce an old failure or card.
+    // async results, so returning cannot re-announce an old failure.
     if (isFocused) return;
     setToast(null);
-    setExistingAccountHelp(false);
-  }, [isFocused, toast, existingAccountHelp]);
+  }, [isFocused, toast]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -354,9 +350,7 @@ export function useSignUpForm(): UseSignUpForm {
 
   const setEmailAndClearHelp = useCallback((value: string) => {
     setEmail(value);
-    // The recovery + confirm cards are keyed to the email they were shown
-    // for; editing the address makes them stale, so retire them immediately.
-    setExistingAccountHelp((prev) => (prev ? false : prev));
+    // Confirmation belongs to the submitted address; editing it retires the step.
     setConfirmSentTo((prev) => (prev ? null : prev));
     setAvatarSetupAfterConfirmation(false);
     setConfirmCode((prev) => (prev ? "" : prev));
@@ -398,7 +392,6 @@ export function useSignUpForm(): UseSignUpForm {
     if (owner === null) return;
     setSubmitting(true);
     setToast(null);
-    setExistingAccountHelp(false);
     try {
       const result = await submitSignUp({
         signUp: () =>
@@ -461,16 +454,11 @@ export function useSignUpForm(): UseSignUpForm {
         setToast({ tone: "danger", message: t("errors.breachedPassword") });
         return;
       }
-      if (result.kind === "maybeExistingAccount") {
-        // J3: persistent card (not a toast) with the recovery path. The copy is
-        // conditional — we never confirm the email exists (CSO R3).
-        setExistingAccountHelp(true);
-        return;
-      }
       if (result.kind === "signupRefused") {
         setToast({ tone: "danger", message: t("errors.signUpRefused") });
         return;
       }
+      // The legacy maybeExistingAccount result also uses this generic notice.
       setToast({ tone: "danger", message: t("errors.signUpSubmitFailed") });
       if (typeof console !== "undefined") console.warn("[auth] sign-up failed");
     } finally {
@@ -515,7 +503,6 @@ export function useSignUpForm(): UseSignUpForm {
     if (owner === null) return;
     setConfirmVerifying(true);
     setToast(null);
-    setExistingAccountHelp(false);
     try {
       await verifySignUpCode(target, token);
       await refresh();
@@ -622,7 +609,6 @@ export function useSignUpForm(): UseSignUpForm {
       if (owner === null) return;
       setOauthSubmitting(true);
       setToast(null);
-      setExistingAccountHelp(false);
       try {
         await startOAuthProvider(provider);
       } catch {
@@ -659,7 +645,6 @@ export function useSignUpForm(): UseSignUpForm {
     if (owner === null) return;
     setOauthSubmitting(true);
     setToast(null);
-    setExistingAccountHelp(false);
     try {
       await signInWithNaver();
     } catch {
@@ -731,7 +716,6 @@ export function useSignUpForm(): UseSignUpForm {
     isMinorAge,
     canSubmit,
     oauthSubmitting,
-    existingAccountHelp,
     confirmSentTo,
     confirmCode,
     setConfirmCode: setConfirmCodeAndClearFailure,

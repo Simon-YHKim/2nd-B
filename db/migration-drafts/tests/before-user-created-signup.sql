@@ -111,9 +111,12 @@ BEGIN;
 SELECT public.before_user_created_signup(pg_temp.event_t06('repeat@example.invalid','198.51.100.40'));
 COMMIT;
 SELECT pg_temp.assert_t06((SELECT count(*) >= 2 FROM public.signup_hook_attempts WHERE attempts = 2), 'repeat counters persisted across transactions');
+-- Isolate IP behavior from the mailbox counts exercised by parity cases.
+TRUNCATE public.signup_hook_attempts;
+UPDATE public.signup_hook_policy SET budget_count = 0, budget_window = '-infinity';
 DO $$ DECLARE n integer; got jsonb; BEGIN
   FOR n IN 1..11 LOOP
-    got := public.before_user_created_signup(pg_temp.event_t06('owner+rate@gmail.com','198.51.100.50'));
+    got := public.before_user_created_signup(pg_temp.event_t06('first+rate@example.invalid','198.51.100.50'));
     PERFORM pg_temp.assert_t06((got #>> '{error,http_code}')::integer = CASE WHEN n <= 10 THEN 403 ELSE 429 END, 'IP limit includes refused attempts ' || n);
   END LOOP;
   got := public.before_user_created_signup(pg_temp.event_t06('brand-new@example.invalid','198.51.100.50'));
@@ -132,9 +135,85 @@ SELECT pg_temp.assert_t06((SELECT array_agg(column_name::text ORDER BY ordinal_p
   WHERE table_schema='public' AND table_name='signup_hook_attempts') = ARRAY['window_start','dimension','key_hash','attempts'], 'only hashes and counters persisted');
 SELECT pg_temp.assert_t06(EXISTS (
   SELECT 1 FROM public.signup_hook_attempts a CROSS JOIN public.signup_hook_policy p
-  WHERE a.dimension = 'mailbox' AND a.attempts >= 4
+  WHERE a.dimension = 'mailbox' AND a.attempts = 3
     AND a.key_hash = public.hmac('mailbox:' || extract(epoch FROM a.window_start)::bigint::text || ':owner@gmail.com', p.hash_key, 'sha256')
 ), 'canonical repeats use keyed HMAC not a plain address digest');
+
+-- Review R1 adversarial replays. Each scenario starts with only synthetic data
+-- and a fresh quota; this helper never belongs to the installed draft.
+CREATE FUNCTION pg_temp.reset_t06_limits() RETURNS void LANGUAGE plpgsql AS $$ BEGIN
+  TRUNCATE public.signup_hook_attempts;
+  UPDATE public.signup_hook_policy SET budget_count = 0, budget_window = '-infinity';
+END $$;
+SELECT pg_temp.reset_t06_limits();
+DO $$ DECLARE n integer; got jsonb; allowed integer := 0; limited integer := 0; BEGIN
+  FOR n IN 1..1000 LOOP
+    got := public.before_user_created_signup(pg_temp.event_t06('flood' || n || '@example.invalid','198.51.100.100'));
+    IF got = '{}' THEN allowed := allowed + 1;
+    ELSIF got = '{"error":{"http_code":429,"message":"signup_request_limited"}}' THEN limited := limited + 1;
+    ELSE RAISE EXCEPTION 'unexpected flood response'; END IF;
+  END LOOP;
+  PERFORM pg_temp.assert_t06(allowed = 10 AND limited = 990, 'flood replay 10 allowed and 990 limited');
+  PERFORM pg_temp.assert_t06((SELECT budget_count = 10 FROM public.signup_hook_policy), 'limited IP leaves global budget alone');
+  PERFORM pg_temp.assert_t06((SELECT count(*) = 11 FROM public.signup_hook_attempts), 'limited IP allocates no extra mailbox keys');
+  PERFORM pg_temp.assert_t06(public.before_user_created_signup(pg_temp.event_t06('fresh-after-flood@example.invalid','198.51.100.101')) = '{}', 'fresh source survives flood');
+END $$;
+
+SELECT pg_temp.reset_t06_limits();
+DO $$ DECLARE n integer; got jsonb; BEGIN
+  FOR n IN 1..30 LOOP
+    got := public.before_user_created_signup(pg_temp.event_t06('owner+v6@gmail.com','2001:db8:1:2::' || to_hex(n)));
+    PERFORM pg_temp.assert_t06(got = CASE WHEN n <= 10 THEN
+      '{"error":{"http_code":403,"message":"polascope_signup_refused"}}'::jsonb
+      ELSE '{"error":{"http_code":429,"message":"signup_request_limited"}}'::jsonb END, 'IPv6 /64 alias replay ' || n);
+  END LOOP;
+  PERFORM pg_temp.assert_t06((SELECT count(*) = 1 FROM public.signup_hook_attempts WHERE dimension = 'ip'), 'IPv6 /64 shares one IP row');
+  PERFORM pg_temp.assert_t06((SELECT budget_count = 10 FROM public.signup_hook_policy), 'IPv6 limited aliases spend no global budget');
+  PERFORM pg_temp.assert_t06(public.before_user_created_signup(pg_temp.event_t06('other-prefix@example.invalid','2001:db8:1:3::1')) = '{}', 'different IPv6 /64 remains separate');
+  PERFORM pg_temp.assert_t06(public.before_user_created_signup(pg_temp.event_t06('expanded@example.invalid','2001:0db8:0001:0002:0000:0000:0000:ffff')) #>> '{error,http_code}' = '429', 'expanded IPv6 spelling shares limit');
+END $$;
+
+SELECT pg_temp.reset_t06_limits();
+DO $$ DECLARE n integer; BEGIN
+  FOR n IN 1..10 LOOP
+    PERFORM public.before_user_created_signup(pg_temp.event_t06(NULL,'198.51.100.110'));
+  END LOOP;
+  PERFORM pg_temp.assert_t06(public.before_user_created_signup(pg_temp.event_t06(NULL,'::ffff:198.51.100.110')) #>> '{error,http_code}' = '429', 'IPv4-mapped IPv6 shares IPv4 budget');
+  PERFORM pg_temp.assert_t06(public.before_user_created_signup(pg_temp.event_t06(NULL,'198.51.100.111')) = '{}', 'IPv4 neighbors keep independent host budgets');
+END $$;
+
+SELECT pg_temp.reset_t06_limits();
+DO $$ DECLARE n integer; got jsonb; fresh jsonb; BEGIN
+  FOR n IN 1..12 LOOP
+    got := public.before_user_created_signup(pg_temp.event_t06('o.w.n.e.r+alias' || n || '@googlemail.com','198.18.0.' || n));
+    fresh := public.before_user_created_signup(pg_temp.event_t06('new.t.a.r.g.e.t+alias' || n || '@gmail.com','198.18.1.' || n));
+    PERFORM pg_temp.assert_t06(got = CASE WHEN n <= 10 THEN
+      '{"error":{"http_code":403,"message":"polascope_signup_refused"}}'::jsonb
+      ELSE '{"error":{"http_code":429,"message":"signup_request_limited"}}'::jsonb END, 'distributed canonical mailbox repeat ' || n);
+    PERFORM pg_temp.assert_t06(fresh = CASE WHEN n <= 10 THEN '{}'::jsonb
+      ELSE '{"error":{"http_code":429,"message":"signup_request_limited"}}'::jsonb END, 'unknown mailbox gets same repeat limit ' || n);
+  END LOOP;
+  PERFORM pg_temp.assert_t06((SELECT count(*) = 2 AND min(attempts) = 12 FROM public.signup_hook_attempts WHERE dimension = 'mailbox'), 'repeat decision retains canonical hash counts');
+  PERFORM pg_temp.assert_t06(public.before_user_created_signup(pg_temp.event_t06('independent@example.invalid','198.18.2.1')) = '{}', 'different mailbox remains eligible');
+END $$;
+
+-- Simulate the next fixed window without sleeping or changing the server clock.
+UPDATE public.signup_hook_attempts SET window_start = window_start - interval '10 minutes';
+UPDATE public.signup_hook_policy SET budget_window = budget_window - interval '10 minutes';
+SELECT pg_temp.assert_t06(public.before_user_created_signup(pg_temp.event_t06('owner+next-window@gmail.com','198.18.0.1')) #>> '{error,http_code}' = '403', 'mailbox limit resets in next window');
+SELECT pg_temp.assert_t06((SELECT budget_count = 1 FROM public.signup_hook_policy), 'global budget resets in next window');
+
+SELECT pg_temp.reset_t06_limits();
+DO $$ DECLARE n integer; got jsonb; BEGIN
+  FOR n IN 1..1000 LOOP
+    got := public.before_user_created_signup(pg_temp.event_t06('bounded' || n || '@example.invalid',host(inet '198.18.0.0' + n)));
+    IF got <> '{}' THEN RAISE EXCEPTION 'eligible request refused before storage cap'; END IF;
+  END LOOP;
+  PERFORM pg_temp.assert_t06((SELECT count(*) = 2000 FROM public.signup_hook_attempts), 'at most 2000 keys allocated in current window');
+  PERFORM pg_temp.assert_t06(public.before_user_created_signup(pg_temp.event_t06('storage-overflow@example.invalid','198.19.0.1')) #>> '{error,http_code}' = '429', 'real global budget replay refuses overflow');
+  PERFORM pg_temp.assert_t06((SELECT count(*) = 2000 FROM public.signup_hook_attempts), 'real global cap creates no overflow keys');
+END $$;
+SELECT pg_temp.reset_t06_limits();
 
 -- A hook precheck cannot serialize later inserts. 0113 must still reject the
 -- loser when the mailbox is taken after an allowed hook response.

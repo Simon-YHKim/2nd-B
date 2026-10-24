@@ -269,8 +269,8 @@ export const THRESHOLDS: readonly ThresholdRow[] = [
       {
         kind: "weeklyAllowance",
         text:
-          "주간 심층 분석 남은 횟수가 0 이면 /plans 로 보낸다. free 2 · soma 7 · cortex 7 · brain 무제한, " +
-          "보상 크레딧이 있으면 그만큼 더",
+          "마지막 확인값에서 이후 완료한 제안을 빼 남은 횟수가 0 이면 /plans 로 보낸다. 새로 고침 대기·실패에도 유지한다. " +
+          "첫 확인 전에는 제안을 막고 읽기 실패 시 재시도한다. free 2 · soma 7 · cortex 7 · brain 무제한, 보상 크레딧이 있으면 그만큼 더",
         source: at(
           "src/lib/entitlements/tier-map.ts",
           "export const REASONING_PER_WEEK: Record<SubscriptionTier, number | null> = {",
@@ -280,10 +280,10 @@ export const THRESHOLDS: readonly ThresholdRow[] = [
     llmPurpose: "northstar_propose",
     progress: {
       state: "없음",
-      text: "남은 횟수를 보여주지 않는다. 0 이 되면 /plans 로 이동만 한다",
+      text: "남은 횟수는 표시하지 않는다. 확인값과 이후 사용으로 소진되면 /plans 로 이동한다. 첫 확인 전에는 제안을 막고 읽기 실패 시 재시도한다",
       at: at("src/app/northstar.tsx", 'router.push("/plans?from=northstar_limit");'),
     },
-    source: at("src/app/northstar.tsx", "if (!reasoningUnlimited && reasoningRemaining <= 0) {"),
+    source: at("src/app/northstar.tsx", "if (remaining <= 0) {"),
   },
   {
     id: "seven.brightness",

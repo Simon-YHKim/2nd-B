@@ -55,6 +55,7 @@ test("the new notice is reachable only from the explicit branch and reuses the b
   expect(hook).toMatch(/if \(result.kind === "signupRefused"\) \{\s*setToast\(\{ tone: "danger", message: t\("errors.signUpRefused"\) \}\);\s*return;/);
   expect(hook.match(/t\("errors.signUpRefused"\)/g)).toHaveLength(1);
   const screen = read("src/screens/deepspace/dds-sign-up-screen.tsx");
+  expect(hook).not.toContain("existingAccountHelp");
   expect(screen).not.toContain('t("auth:signUp.existingAccountTitle")');
   expect(screen).toMatch(/\{notice\}\s*<PixelPressable\s+variant=\{submitDisabled[\s\S]*?accessibilityLabel=\{t\("auth:signUp.submit"\)\}/);
   expect(read("src/lib/supabase/auth.ts")).toContain("if (signUpErr) throw signUpErr;");
@@ -68,6 +69,13 @@ test("approved Korean copy is verbatim and each language has the same refusal ke
     expect(value.split("\n")).toHaveLength(2);
     expect(value).not.toMatch(/14|17|18|polascope_signup_refused|—/);
   }
+});
+
+test.each(["ko", "en", "es", "pt", "id"])("%s retires only unused card copy and keeps the back label", locale => {
+  const { signUp } = JSON.parse(read(`locales/${locale}/auth.json`));
+  expect(signUp).not.toHaveProperty("existingAccountTitle");
+  expect(signUp).not.toHaveProperty("existingAccountBody");
+  expect(typeof signUp.existingAccountSignIn).toBe("string");
 });
 
 test("login and reset keep generic notices and no longer log server-supplied error text", () => {

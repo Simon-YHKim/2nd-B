@@ -111,7 +111,7 @@ describe("세 보상 표면이 전부 그 결과를 쓴다", () => {
     const baselineWrite = source.indexOf("pendingRewardBaselineRef.current = {");
     const watch = source.indexOf("await showRewardedAd", baselineWrite);
 
-    expect(source).toMatch(/useRef<RewardEarnedBaseline \| null>\(null\)/);
+    expect(source).toContain("const pendingRewardBaselineRef = ownerWatch.baseline;");
     expect(baselineWrite).toBeGreaterThan(-1);
     expect(baselineWrite).toBeLessThan(watch);
     expect(source).toMatch(
