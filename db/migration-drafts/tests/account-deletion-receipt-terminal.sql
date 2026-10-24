@@ -71,13 +71,16 @@ SELECT pg_temp.expect_error($q$SELECT public.begin_account_deletion(pg_temp.owne
   'receipt_request_in_progress');
 SELECT pg_temp.expect_error($q$SELECT pg_temp.transition(3,'completed',pg_temp.owner(3),clock_timestamp(),true,true,true)$q$,'receipt_completion_unconfirmed');
 -- Profile absence alone cannot confirm Auth hard deletion (including soft delete).
+-- Preserve the valid full-schema row before disabling FK triggers below. Rebuilding
+-- four columns would skip the real tier initializer and fail users_active_has_tier.
+CREATE TEMP TABLE saved_terminal_profile AS SELECT * FROM public.users WHERE id=pg_temp.owner(3);
 DELETE FROM public.users WHERE id=pg_temp.owner(3);
 UPDATE auth.users SET deleted_at=clock_timestamp() WHERE id=pg_temp.owner(3);
 SELECT pg_temp.expect_error($q$SELECT pg_temp.transition(3,'completed',pg_temp.owner(3),clock_timestamp(),true,true,true)$q$,'receipt_completion_unconfirmed');
 DELETE FROM auth.users WHERE id=pg_temp.owner(3);
 -- Synthetic broken-cascade fixture: observe the profile independently even if Auth is gone.
 SET LOCAL session_replication_role=replica;
-INSERT INTO public.users(id,email,birth_date,locale) VALUES(pg_temp.owner(3),'orphan@example.invalid','1990-01-01','en');
+INSERT INTO public.users SELECT * FROM saved_terminal_profile;
 SET LOCAL session_replication_role=origin;
 SELECT pg_temp.expect_error($q$SELECT pg_temp.transition(3,'completed',pg_temp.owner(3),clock_timestamp(),true,true,true)$q$,'receipt_completion_unconfirmed');
 DELETE FROM public.users WHERE id=pg_temp.owner(3);
