@@ -20,6 +20,8 @@
 // screen-side half of the fix is holding the guest guard open while
 // submitting, so failure feedback paints on a mounted form.
 
+import { isSignUpRefusal } from "./sign-up-refusal";
+
 export interface SignUpFlowDeps {
   /** Creates the auth user (signUpWithEmail). A new confirm-email account has
    *  no session and returns confirmationRequired. In confirm-off/local setups,
@@ -73,6 +75,8 @@ export type SignUpSubmitResult =
    *  invalid credentials. The screen suggests sign-in / password reset —
    *  conditionally worded, never asserting the account exists. */
   | { kind: "maybeExistingAccount" }
+  /** Explicit Before User Created refusal; never inferred from a 500. */
+  | { kind: "signupRefused" }
   /** Sign-up failed after the pre-checks (profile INSERT, network). signUp
    *  already rolled the session back; the screen stays on the form with the
    *  user's values intact so they can retry — never a silent drop. */
@@ -99,6 +103,7 @@ export async function submitSignUp(deps: SignUpFlowDeps): Promise<SignUpSubmitRe
     try { deps.onEntered?.(result.created, result.userId); } catch { /* observation cannot block entry */ }
     return { kind: "entered", judgeMode: result.judgeMode, consentRecorded };
   } catch (e) {
+    if (isSignUpRefusal(e)) return { kind: "signupRefused" };
     if (deps.isAgeGateError(e)) return { kind: "ageGate" };
     if (deps.isBreachedPasswordError(e)) return { kind: "breachedPassword" };
     if (deps.isExistingAccountLikelyError(e)) return { kind: "maybeExistingAccount" };

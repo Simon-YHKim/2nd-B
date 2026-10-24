@@ -92,7 +92,8 @@ describe("Q-261011-05 obfuscation request gate (not a verdict)", () => {
     // button labels, added per locale (Z69, 4422 + 11).
     // S2 adds eleven scene-choice and save-receipt strings per locale.
     // 2026-10-24: privacy terms and refund links add two labels (4444 + 2).
-    expect(strings).toHaveLength(4446);
+    // T06: one explicit hook-refusal notice added per locale (4446 + 1).
+    expect(strings).toHaveLength(4447);
     expect(strings.filter(hasCrisisObfuscation)).toEqual([]);
   });
 

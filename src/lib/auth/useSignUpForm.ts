@@ -467,6 +467,10 @@ export function useSignUpForm(): UseSignUpForm {
         setExistingAccountHelp(true);
         return;
       }
+      if (result.kind === "signupRefused") {
+        setToast({ tone: "danger", message: t("errors.signUpRefused") });
+        return;
+      }
       setToast({ tone: "danger", message: t("errors.signUpSubmitFailed") });
       if (typeof console !== "undefined") console.warn("[auth] sign-up failed");
     } finally {

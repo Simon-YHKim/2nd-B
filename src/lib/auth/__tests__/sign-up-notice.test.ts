@@ -208,6 +208,34 @@ describe("Z1 notice policy and actual effect", () => {
 });
 
 describe("Z1 recovery card lifetime", () => {
+  test("T06 explicit hook refusal uses the persistent button notice without the recovery card", async () => {
+    const h = harness();
+    h.state.existingAccountHelp = false;
+    h.state.confirmSentTo = null;
+    h.scope.signUpWithEmail = jest.fn().mockRejectedValue({
+      status: 403, code: "unknown", message: "polascope_signup_refused",
+    });
+    await h.action("handleSubmit");
+    expect(h.state.toast).toEqual({ tone: "danger", message: "errors.signUpRefused" });
+    expect(h.state.existingAccountHelp).toBe(false);
+    h.timer();
+    jest.advanceTimersByTime(60000);
+    expect(h.state.toast?.message).toBe("errors.signUpRefused");
+    h.input("setEmail", "next@example.invalid");
+    expect(h.state.toast).toBeNull();
+  });
+
+  test("T06 keeps the current 500 on the existing generic submit notice", async () => {
+    const h = harness();
+    h.state.confirmSentTo = null;
+    h.scope.signUpWithEmail = jest.fn().mockRejectedValue({
+      status: 500, code: "unexpected_failure", message: "Database error saving new user",
+    });
+    await h.action("handleSubmit");
+    expect(h.state.toast).toEqual({ tone: "danger", message: "errors.signUpSubmitFailed" });
+    expect(h.state.existingAccountHelp).toBe(false);
+  });
+
   test("the typed error flows through submitSignUp to the hook's recovery card", async () => {
     const h = harness();
     h.state.existingAccountHelp = false;
