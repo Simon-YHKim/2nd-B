@@ -210,6 +210,7 @@
       "allow": "Izinkan statistik penggunaan",
       "lockedUnder18": "Terkunci untuk usia di bawah 18",
       "applied": "GA4 aktif di web · Firebase dan Clarity nonaktif di Android",
+      "paused": "Tersimpan · saat ini tidak dikirim",
       "enableFailed": "Statistik tidak dapat diaktifkan. Coba lagi.",
       "withdrawSaveFailed": "Gagal menyimpan. Penarikan statistik sudah berlaku di perangkat ini; coba simpan lagi.",
       "adsSaveFailed": "Pengaturan iklan gagal disimpan. Coba lagi."

@@ -210,6 +210,7 @@
       "allow": "사용 통계 허용",
       "lockedUnder18": "만 18세 미만 잠금",
       "applied": "웹 GA4 적용 · Android Firebase·Clarity 비활성",
+      "paused": "저장됨 · 지금은 보내지 않음",
       "enableFailed": "통계 설정을 켜지 못했습니다. 다시 시도해 주세요.",
       "withdrawSaveFailed": "저장에 실패했습니다. 통계 철회는 이 기기에서 즉시 적용됐지만 다시 저장해 주세요.",
       "adsSaveFailed": "광고 설정을 저장하지 못했습니다. 다시 시도해 주세요."
