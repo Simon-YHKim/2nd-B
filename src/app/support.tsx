@@ -2,7 +2,7 @@ import { PhoneView as View } from "@/components/phone/PhoneUIKit";
 // Route: /support — user-facing "지원" (A-to-Z Phase 12).
 //
 // The auth gate stays here because it decides whether the screen renders at
-// all; the screen itself is DeepSpaceSupportDesignScreen. The legacy-track copy that
+// all; SupportScreen owns the home/form flow. The legacy-track copy that
 // used to sit below this gate is now E:/Legacy/2ndB/legacy/screens/support.tsx, out of the build
 // but still readable. Its accessibility hints moved with it — the live screen
 // keys label/hint/role per action off its own data (see check:constraints A11y).
@@ -18,7 +18,7 @@ import { ProfileProbeRetryScreen } from "@/components/deep-space/ProfileProbeRet
 import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { profileGate } from "@/lib/auth/profile-probe";
-import { DeepSpaceSupportDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
+import { SupportScreen } from "@/screens/deepspace/SupportScreen";
 
 export default function Support() {
   const { t } = useTranslation(["support", "deepspace"]);
@@ -39,7 +39,7 @@ export default function Support() {
       </PremiumAppShell>
     );
   }
-  return <DeepSpaceSupportDesignScreen />;
+  return <SupportScreen />;
 }
 
 const styles = StyleSheet.create({

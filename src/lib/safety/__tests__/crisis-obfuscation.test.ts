@@ -94,7 +94,9 @@ describe("Q-261011-05 obfuscation request gate (not a verdict)", () => {
     // 2026-10-24: privacy terms and refund links add two labels (4444 + 2).
     // T06: one explicit hook-refusal notice added per locale (4446 + 1).
     // T06 review: retire the two unused recovery-card strings (4447 - 2).
-    expect(strings).toHaveLength(4445);
+    // 2026-10-24: T53 dormant report form adds 20 strings per locale (Z74).
+    // T53 review: reply route and permanent rejection add two strings per locale.
+    expect(strings).toHaveLength(4467);
     expect(strings.filter(hasCrisisObfuscation)).toEqual([]);
   });
 

@@ -92,6 +92,10 @@ const pendingDrafts: Record<string, { runner: string; workflowInvocation: string
     runner: "scripts/test-before-user-created-signup.py",
     workflowInvocation: "python3 scripts/test-before-user-created-signup.py 5432 t06_signup_test_ci",
   },
+  "UNNUMBERED_support_reports.sql": {
+    runner: "db/migration-drafts/tests/support-reports.sql",
+    workflowInvocation: "psql -X -h 127.0.0.1 -U postgres -d t53_support_test_ci -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/support-reports.sql",
+  },
   "UNNUMBERED_unconfirmed_signup_cleanup.sql": {
     runner: "scripts/test-unconfirmed-signup-cleanup.py",
     workflowInvocation: "run: python3 scripts/test-unconfirmed-signup-cleanup.py 5432 t07_cleanup_test_ci",

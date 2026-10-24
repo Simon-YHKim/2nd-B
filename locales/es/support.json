@@ -17,5 +17,29 @@
     "when112": "Cuando alguien te está amenazando ahora mismo",
     "callHint": "Toca para llamar",
     "foot": "Esta lista siempre está aquí. La app no lee lo que escribes para decidir mostrarla; está aquí para que puedas venir a buscarla. La app no denuncia por ti ni avisa a un tutor."
+  },
+  "report": {
+    "inquiryTitle": "Contactar",
+    "bugTitle": "Reportar un error",
+    "body": "Mensaje",
+    "placeholder": "Escribe tu consulta o describe el error.",
+    "details": "Información que se enviará",
+    "consent": "Acepto el uso de mis datos para atender consultas y errores",
+    "scope": "Se envían al operador tu mensaje, identificador de cuenta, versión de la app, ruta de pantalla e idioma para responder consultas y resolver errores. No se adjuntan automáticamente registros, conversaciones ni contenido de la wiki.",
+    "retention": "Los reportes se borran cada hora una vez cumplidos 30 días, o al eliminar tu cuenta.",
+    "optional": "Puedes usar la app sin aceptar. Tu consulta o reporte de error no se enviará.",
+    "metadata": "Versión {{version}} · Pantalla {{path}} · Idioma {{locale}}",
+    "send": "Enviar",
+    "sending": "Enviando…",
+    "retry": "Reintentar",
+    "sent": "Enviado.",
+    "receipt": "Número de recepción {{receipt}}",
+    "done": "Listo",
+    "offline": "Revisa tu conexión a internet e inténtalo de nuevo.",
+    "unconfirmed": "No pudimos confirmar la recepción. Inténtalo de nuevo.",
+    "limited": "Inténtalo más tarde. Puedes enviar 2 reportes por minuto y 10 en 24 horas.",
+    "invalid": "Revisa el mensaje y la casilla de aceptación.",
+    "reply": "La respuesta llegará al correo de tu cuenta.",
+    "rejected": "No se aceptó el envío. Contáctanos por correo."
   }
 }
