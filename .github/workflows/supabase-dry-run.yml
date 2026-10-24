@@ -10,6 +10,7 @@ on:
       - "scripts/check-reward-ssv-db.sh"
       - "scripts/test-polaris-sql.mjs"
       - "scripts/test-signup-consent-sql.mjs"
+      - "scripts/test-unconfirmed-signup-cleanup.py"
       - "scripts/test-weather-sql.mjs"
       - "scripts/test-weather-consent-admission.mjs"
       - "supabase/functions/weather/handler.ts"
@@ -98,6 +99,11 @@ jobs:
           CREATE DATABASE signup_test_ci OWNER signup_local;
           SQL
           node scripts/test-signup-consent-sql.mjs 5432 signup_local signup_test_ci
+      - name: Exercise unconfirmed signup cleanup draft and SQL mutations
+        timeout-minutes: 5
+        env:
+          PGPASSWORD: postgres
+        run: python3 scripts/test-unconfirmed-signup-cleanup.py 5432 t07_cleanup_test_ci
       - name: Exercise weather location consent and adult lock
         env:
           PGPASSWORD: postgres
@@ -2929,6 +2935,11 @@ jobs:
           PGPASSWORD: postgres
           PGPORT: 5432
         run: python3 db/tests/interview_transcript_ledger_security.py --template postgres
+      - name: Exercise unnumbered D4 AI hold draft in a rolled-back transaction
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/crisis_ai_hold_draft_regression.sql
       - name: Exercise sources.system_tags schema, predecessor and rejection mutations (0264)
         env:
           PGPASSWORD: postgres
