@@ -38,11 +38,14 @@ test.each([
   ["번호 1234-5678", "번호 [number]"],
   ["2019-2020-1234-5678", "[number]"],
   ["2019–2021 회사 생활, 1998-2004 학교", "2019–2021 회사 생활, 1998-2004 학교"],
+  ["2015-2019 4년 동안 대학, 2019–2020 12월", "2015-2019 4년 동안 대학, 2019–2020 12월"],
+  ["2001-2003 1234 계좌, 2001-2003-1234", "[number] 계좌, [number]"],
+  ["친구 번호 010ㅡ1234ㅡ5678", "친구 번호 [number]"],
   ["hong @ naver.com", "[email]"], ["hong(at)naver.com", "[email]"],
   ["2026, 12 pages and 3 ideas", "2026, 12 pages and 3 ideas"],
 ])("masks contacts/accounts: %s", (input, expected) => expect(maskRecordBodyIdentifiers(input)).toBe(expected));
 
-test.each(["–", "·", "ㆍ", "_", "\u00AD", "\u180E"])("masks phone separator %s", separator => {
+test.each(["–", "·", "ㆍ", "ㅡ", "_", "\u00AD", "\u180E"])("masks phone separator %s", separator => {
   expect(maskRecordBodyIdentifiers(`010${separator}1234${separator}5678`)).toBe("[number]");
 });
 
