@@ -35,7 +35,7 @@ import {
 } from "@/lib/persona/northstar";
 import { useProgression } from "@/lib/progression/useProgression";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
-import { incrementReasoningUsage } from "@/lib/entitlements/usage";
+import { incrementReasoningUsage, type ReasoningUsage } from "@/lib/entitlements/usage";
 import { captureAccountOwnerLease, currentAccountEpoch } from "@/lib/auth/account-epoch";
 import { useReasoningUsageRead } from "@/lib/reasoning/use-reasoning-usage-read";
 import { keepAllKo, keepAllPlaceholder } from "@/lib/i18n/keep-all";
@@ -90,8 +90,15 @@ export default function NorthstarSentence() {
   const progression = useProgression();
   const accountEpoch = currentAccountEpoch();
   const { view: usageView, refresh: refreshUsage, confirmCurrent } = useReasoningUsageRead(userId, !loading);
+  // Keep the existing local cap update while the write is in flight. It applies
+  // only to this exact confirmed snapshot and is never a displayed balance.
+  const [localUse, setLocalUse] = useState<{ snapshot: ReasoningUsage; count: number } | null>(null);
   const reasoningRemaining = usageView.status === "ready"
-    ? remainingReasoning(progression.tier, usageView.usage.used, usageView.usage.rewardCredits)
+    ? remainingReasoning(
+      progression.tier,
+      usageView.usage.used + (localUse?.snapshot === usageView.usage ? localUse.count : 0),
+      usageView.usage.rewardCredits,
+    )
     : null;
 
   useEffect(() => {
@@ -129,8 +136,11 @@ export default function NorthstarSentence() {
       if (!lease.isCurrent()) return;
       if (out) {
         setSuggestions(out);
-        await incrementReasoningUsage(userId).catch(() => {});
-        refreshUsage();
+        if (usageView.status === "ready") {
+          const snapshot = usageView.usage;
+          setLocalUse((previous) => ({ snapshot, count: previous?.snapshot === snapshot ? previous.count + 1 : 1 }));
+        }
+        void incrementReasoningUsage(userId).then(refreshUsage, refreshUsage);
       } else {
         // null is the lib's honest "record base too thin" — the only null.
         setSuggestions(null);
@@ -145,7 +155,7 @@ export default function NorthstarSentence() {
     } finally {
       setProposing(false);
     }
-  }, [userId, accountEpoch, locale, isMinor, proposing, confirmCurrent, reasoningRemaining, refreshUsage, router]);
+  }, [userId, accountEpoch, locale, isMinor, proposing, confirmCurrent, reasoningRemaining, usageView, refreshUsage, router]);
 
   const save = useCallback(async () => {
     if (!userId || saving || draft.trim().length === 0) return;

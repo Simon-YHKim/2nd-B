@@ -64,4 +64,14 @@ test("a successful proposal refreshes confirmed usage instead of inventing a cou
   expect(increment).toHaveBeenCalledTimes(1); expect(next.reasoningRemaining).toBeNull();
   expect(next.suggestions).toEqual(["suggestion"]);
 });
+test("an unresponsive usage write cannot hold the proposal UI; the existing local cap still counts the run", async () => {
+  const writing = deferred<void>(); increment.mockReturnValue(writing.promise);
+  propose.mockResolvedValue(["suggestion"]); harness.read.mockResolvedValue(snapshot(1));
+  const a = await harness.settle(render); let finished = false;
+  const running = a.propose().then(() => { finished = true; });
+  const next = await harness.settle(render);
+  expect(finished).toBe(true); expect(next.reasoningRemaining).toBe(0);
+  await next.propose(); expect(propose).toHaveBeenCalledTimes(1); expect(push).toHaveBeenCalledTimes(1);
+  writing.resolve(); await running;
+});
 test("northstar no longer calls the zero-filling getter", () => { expect(file.source).not.toContain("getReasoningUsage"); });
