@@ -91,6 +91,7 @@
   "nPieces": "{{n}} registros",
   "chatSaveNotice": "Esta conversa não está sendo guardada",
   "chatSaveNoticeOpen": "Abrir ajustes",
+  "chatSaveNoticeOpenLabel": "Abrir ajustes",
   "chatSaveNoticeDismiss": "Fechar",
   "planSuggestion": {
     "routineButton": "Criar uma rotina",

@@ -3,6 +3,7 @@
 // body must equal the 0215 body with only the listed edits applied (review #2624 r1). The
 // migration's own preflight additionally refuses to run unless the live bodies are still 0215's.
 import { readFileSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 
 const ROOT = resolve(__dirname, "../../../..");
@@ -100,6 +101,11 @@ const CASES: { name: string; v9: string; v10: string; edits: [string, string][] 
 ];
 
 describe("0262 changes 0215's function bodies only by the email-v10 / service-v5 additions", () => {
+  test("preserves the LF bytes applied by Relay on 2026-10-23", () => {
+    // The checksum is for the $mig0262$ body, not the surrounding apply block.
+    expect(createHash("md5").update(V10).digest("hex")).toBe("c1e5913eced9d6d947dedf879528a6de");
+  });
+
   test.each(CASES)("$name", ({ v9, v10, edits }) => {
     expect(functionBlock(V10, v10)).toBe(applyEdits(functionBlock(V9, v9), edits));
   });

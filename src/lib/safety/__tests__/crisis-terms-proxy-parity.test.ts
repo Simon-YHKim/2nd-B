@@ -14,6 +14,13 @@ import { dirname, resolve } from "path";
 
 import * as ts from "typescript";
 
+// T40 output-evidence comparison: keyless/D4-off, no network or model calls.
+jest.mock("../../env", () => ({ getEnv: () => ({ EXPO_PUBLIC_LLM_MODE: "mock", EXPO_PUBLIC_USE_VERTEX: false }) }));
+jest.mock("../../supabase/audit", () => ({ insertAiAuditLog: jest.fn().mockResolvedValue(undefined) }));
+jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => { throw new Error("T40 parity must not call a server"); } }));
+
+import { classifySafety } from "../../llm/safety";
+
 import { classifyInput, KO_PARTIAL_SPACING_TERMS, koSpacingForms, koTermSpellings } from "../classifier";
 import { CRISIS_TERMS, EMERGENCY_PHRASES } from "../lexicon";
 import { BENIGN_CRISIS_CONTEXTS, RISK_OR_UNRESOLVED_CRISIS_CONTEXTS } from "./crisis-context.fixtures";
@@ -90,6 +97,39 @@ function loadHasCrisisTerm(src: string, relPath: string): (text: string) => bool
   }
   return exportsObj.hasCrisisTerm;
 }
+
+test("T40 actual OpenAI audit zone agrees with D4-off output replacement for the shared corpus", async () => {
+  const previous = process.env.EXPO_PUBLIC_SERVER_SAFETY;
+  process.env.EXPO_PUBLIC_SERVER_SAFETY = "false";
+  try {
+    const proxy = readProxy("../../../../supabase/functions/openai-proxy/index.ts");
+    const audit = proxy.slice(proxy.indexOf("const audited = await insertLlmAuditRow"));
+    expect(audit).toMatch(/event_source: 'server_verified'/);
+    const expression = audit.match(/safety_zone: ([^\r\n]+),/)?.[1];
+    expect(expression).toBeDefined();
+    const matcher = loadHasCrisisTerm(readProxy(PROXY_SOURCES["_shared/llm-proxy-common"]), PROXY_SOURCES["_shared/llm-proxy-common"]);
+    const auditZone = new Function("text", "hasCrisisTerm", `return (${expression});`) as (text: string, match: typeof matcher) => string;
+    const boundary = readProxy("../../llm/boundary.ts");
+    const outputExpression = boundary.match(/const outputZone: "green" \| "yellow" \| "red" =\s*([\s\S]*?);/)?.[1];
+    expect(outputExpression).toBeDefined();
+    const outputZone = new Function("lexical", "semantic", `return (${outputExpression});`) as (lexical: { zone: string }, semantic: { zone: string }) => string;
+    expect(boundary).toContain('if (outputZone === "red")');
+    expect(boundary).toContain('const fixed = fixedCrisisResponse(input.locale, input.minor, lexical.crisisRouting?.hotline);');
+    const samples = [...BENIGN_CRISIS_CONTEXTS, ...RISK_OR_UNRESOLVED_CRISIS_CONTEXTS,
+      ...Object.values(EMERGENCY_PHRASES).flatMap(phrases => [...phrases.en, ...phrases.ko])];
+    for (const text of samples) {
+      for (const locale of ["en", "ko"] as const) {
+        const semantic = await classifySafety(text, locale);
+        const replaced = outputZone(classifyInput(text, locale), semantic) === "red";
+        expect({ text, locale, serverRed: auditZone(text, matcher) === "red" }).toEqual({ text, locale, serverRed: replaced });
+      }
+    }
+    // This compares only red eligibility, not all colors or future D4 semantics.
+  } finally {
+    if (previous === undefined) delete process.env.EXPO_PUBLIC_SERVER_SAFETY;
+    else process.env.EXPO_PUBLIC_SERVER_SAFETY = previous;
+  }
+});
 
 describe.each(Object.entries(PROXY_SOURCES))("%s crisis-term parity", (_name, relPath) => {
   const src = readProxy(relPath);

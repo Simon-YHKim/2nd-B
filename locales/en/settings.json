@@ -27,6 +27,7 @@
   },
   "actions": {
     "signOutHint": "Signs out and returns to the sign-in screen.",
+    "signOutAllHint": "Signs out on every device and returns to the sign-in screen.",
     "deleteJournalsHint": "Opens a confirmation before deleting every journal entry.",
     "deleteNotesHint": "Opens a confirmation before deleting every note.",
     "deleteAuditHint": "Opens a confirmation before deleting every audit response.",
@@ -71,6 +72,9 @@
     "signOut": {
       "title": "Sign out?",
       "cancelHint": "Closes without signing out."
+    },
+    "signOutAll": {
+      "title": "Sign out of all devices?"
     },
     "confirm": {
       "label": "Settings confirmation dialog",
@@ -161,6 +165,7 @@
   "deleteEverything": "Delete everything",
   "finalCheck": "Deleted data cannot be restored. Make sure you have exported anything you need.",
   "signOut": "Sign out",
+  "signOutAll": "Sign out of all devices",
   "couldntSignOut": "Couldn't sign out",
   "signOutError": "Could not sign out. Try again shortly.",
   "deletedN": "Deleted {{n}}",

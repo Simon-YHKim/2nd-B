@@ -21,8 +21,10 @@ import { classifyInputAnyLocale } from "../safety/classifier";
 // Adults must explicitly opt in (the `records_embedding` privacy pref, OFF by
 // default; privacy/prefs.ts). Minors are hard-blocked here (not merely
 // server-locked) because journal text is the highest-sensitivity data. NOTHING
-// in this module embeds a record unless this returns true: the write primitives
-// take the resolved consent and fail closed (no-op) without it.
+// in this module calls the model unless this returns true. This is an app-side
+// preflight, not a final-write check: storeRecordEmbedding reads no consent.
+// Once 0263 is installed, the database checks the locked user's current consent
+// and age on candidate writes, including writes that finish after withdrawal.
 export function recordsEmbeddingAllowed(
   isMinor: boolean | null | undefined,
   recordsEmbeddingPref: boolean | null | undefined,
@@ -95,29 +97,33 @@ function toVectorLiteral(vec: number[]): string {
   return `[${vec.join(",")}]`;
 }
 
-/** Store a record's embedding (vector column, migration 0071). */
+/** Return true only when exactly one row reports the stored model (0263 keeps
+ * vector/model NULL together). RLS misses and server-cleared writes return false. */
 export async function storeRecordEmbedding(
   userId: string,
   recordId: string,
   embedding: number[],
   /** The model that ACTUALLY produced it - see wiki/embeddings.ts. */
   embeddingModel: string,
-): Promise<void> {
+): Promise<boolean> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("records")
     // 0142: see the note in wiki/embeddings.ts.
     .update({ embedding: toVectorLiteral(embedding), embedding_model: embeddingModel })
     .eq("user_id", userId)
-    .eq("id", recordId);
+    .eq("id", recordId)
+    .select("id, embedding_model");
   if (error) throw error;
+  return data?.length === 1 && data[0].id === recordId && data[0].embedding_model === embeddingModel;
 }
 
 /**
  * D5: forget the user's records semantic index — null out every stored vector.
- * Called when the user turns records embedding OFF (consent revoked) so the
- * toggle's "turning it off deletes the stored vectors" promise is honest. RLS
- * scopes to the user; only rows that actually carry a vector are touched.
+ * The current screen and backfill still call this best-effort cleanup. It is
+ * not atomic with preference saving and only targets rows carrying a vector.
+ * After 0263 installation, the server owns atomic withdrawal and also clears
+ * model-only rows. Removing the screen call requires the separate rollout gate.
  */
 export async function clearRecordEmbeddings(userId: string): Promise<void> {
   const supabase = getSupabaseClient();
@@ -134,7 +140,8 @@ export async function clearRecordEmbeddings(userId: string): Promise<void> {
 /**
  * Embed one record and persist its vector. Returns false (no write) when the
  * record has no text or the model produced nothing usable (red-zone → zero
- * vector, or live-key egress refused by the cost guard upstream).
+ * vector, or live-key egress refused by the cost guard upstream), or when the
+ * database returns no row or clears the candidate after consent changed.
  */
 export async function embedAndStoreRecord(
   userId: string,
@@ -150,8 +157,7 @@ export async function embedAndStoreRecord(
   const { vectors, audit } = await embedTexts({ userId, texts: [text], locale, minor });
   const vec = vectors[0];
   if (!vec || vec.length !== EMBED_DIM || vec.every((x) => x === 0)) return false;
-  await storeRecordEmbedding(userId, record.id, vec, audit.modelUsed);
-  return true;
+  return storeRecordEmbedding(userId, record.id, vec, audit.modelUsed);
 }
 
 export interface RelatedRecord {
@@ -269,8 +275,9 @@ export async function backfillRecordEmbeddings(
       const vec = vectors[i];
       if (!vec || vec.length !== EMBED_DIM || vec.every((x) => x === 0)) continue;
       try {
-        await storeRecordEmbedding(userId, targets[i].record.id, vec, audit.modelUsed);
-        embedded += 1;
+        if (await storeRecordEmbedding(userId, targets[i].record.id, vec, audit.modelUsed)) {
+          embedded += 1;
+        }
       } catch {
         // best-effort; move on
       }

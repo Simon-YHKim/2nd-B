@@ -367,12 +367,17 @@ describe('0255 대화 횟수 환불을 그 턴의 예약에 묶는다 (Z46)', ()
     const registry = JSON.parse(read('db/erasure-registry.json')) as {
       tables: Record<string, { owner: string; class: string; reason: string }>;
       forwardAdditions: Record<string, string[]>;
+      forwardRevisions: Record<string, Record<string, { previousReason: string }>>;
     };
     expect(registry.tables.chat_turn_reservations).toMatchObject({ owner: 'user_id', class: 'account_delete_only' });
     expect(registry.forwardAdditions['0258_chat_turn_reservations_erasure_registry.sql']).toEqual(['chat_turn_reservations']);
     const forward = read('db/migrations/0258_chat_turn_reservations_erasure_registry.sql');
     expect(forward).toContain("('chat_turn_reservations', 'user_id', 'account_delete_only', NULL, NULL, ");
-    expect(forward).toContain(registry.tables.chat_turn_reservations.reason.replace(/'/g, "''"));
+    // 0268 records the reason 0258 shipped; the canonical row now carries F.
+    const historical = registry.forwardRevisions['0268_chat_turn_refund_evidence_erasure_registry_reason.sql']
+      .chat_turn_reservations.previousReason;
+    expect(forward).toContain(historical.replace(/'/g, "''"));
+    expect(registry.tables.chat_turn_reservations.reason).not.toBe(historical);
   });
 
   it('회귀는 환불에 근거 줄만 넘기고, 묶기를 실제 함수로 묻고, 되돌리기는 새 것부터 한다', () => {

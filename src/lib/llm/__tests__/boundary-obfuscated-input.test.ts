@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 const mockInvoke = jest.fn();
 const mockCapturedInvoke = jest.fn();
 jest.mock("../../supabase/client", () => ({

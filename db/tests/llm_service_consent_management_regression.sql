@@ -27,9 +27,10 @@ INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
   ('01940000-0000-0000-0000-000000000001', 'service-v1-ci@example.invalid', now()),
   ('01940000-0000-0000-0000-000000000004', 'service-v4-ci@example.invalid', now()),
   ('01940000-0000-0000-0000-000000000005', 'service-v5-ci@example.invalid', now());
+-- Keep the opt-out explicit: 0263 normalizes an absent embedding choice to false.
 INSERT INTO public.users (id, email, birth_date, minor_tier, privacy_prefs) VALUES
   ('01940000-0000-0000-0000-000000000001', 'service-v1-ci@example.invalid',
-   '2000-01-01', 'adult', '{"chat_autosave":true}'::jsonb),
+   '2000-01-01', 'adult', '{"chat_autosave":true,"records_embedding":false}'::jsonb),
   ('01940000-0000-0000-0000-000000000004', 'service-v4-ci@example.invalid',
    '2000-01-01', 'adult', '{}'::jsonb),
   ('01940000-0000-0000-0000-000000000005', 'service-v5-ci@example.invalid',
@@ -131,9 +132,14 @@ BEGIN
      ) THEN
     RAISE EXCEPTION '0194: grant/revoke did not create two canonical email-v6 receipts';
   END IF;
-  IF (SELECT privacy_prefs FROM public.users
+  -- 0263_records_embedding_consent_guard.sql owns these persisted CAS metadata
+  -- keys: the server revision and recovery generation are not user choices.
+  -- Compare every other key, including records_embedding and unknown options;
+  -- one-use enable request markers must not leak into the stored preferences.
+  IF (SELECT privacy_prefs - 'records_embedding_revision' - 'records_embedding_recovery'
+      FROM public.users
       WHERE id = '01940000-0000-0000-0000-000000000001')
-       IS DISTINCT FROM '{"chat_autosave":true}'::jsonb THEN
+       IS DISTINCT FROM '{"chat_autosave":true,"records_embedding":false}'::jsonb THEN
     RAISE EXCEPTION '0194: writer changed optional preferences';
   END IF;
   IF (SELECT count(*) FROM public.llm_consent_receipts p

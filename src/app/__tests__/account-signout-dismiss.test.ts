@@ -13,7 +13,9 @@ const PATHS: SignOutPath[] = [
   {
     label: "settings sign-out success",
     source: readFileSync(resolve(ROOT, "src/app/settings.tsx"), "utf8").replace(/\r\n/g, "\n"),
-    navigationOwner: "success",
+    // Q-261018-50 (review #2625 r1): same shape as account deletion - navigate after the
+    // catch, and an owner change returns before any navigation.
+    navigationOwner: "afterCatch",
   },
   // ("legacy account deletion" 항목은 2026-10-05 에 걷었다. 그 렌더러의 보관본
   //  legacy/screens/account.tsx 가 E:/Legacy/2ndB 로 나갔고(롤백 레버 제거, Simon 결정
@@ -37,7 +39,7 @@ describe("account sign-out navigation dismissal", () => {
   }) => {
     const signOutCall = source.includes("await signOutExpected(authExpectation);")
       ? "await signOutExpected(authExpectation);"
-      : "await signOut();";
+      : "await signOutCaptured(expected, scope);";
     const signOutAt = source.indexOf(signOutCall);
     const dismissAt = source.indexOf("router.dismissAll();", signOutAt);
     const replaceAt = source.indexOf('router.replace("/sign-in");', signOutAt);

@@ -18,6 +18,7 @@
 
 import { isAbortError, throwIfAborted } from "../async/abort";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { captureLiveOwnerCheck, observeLiveOwner } from "../auth/live-owner-guard";
 import { EMBED_DIM, embedTexts } from "../llm/boundary";
 import { getSupabaseClient } from "../supabase/client";
 import { isProfileContextImportSource, serializeProfileImportQuote } from "../wiki/profile-context-source";
@@ -52,13 +53,15 @@ export async function retrieveChatContext(
   const { session } = opts;
   if (session && session.userId !== userId) throw new Error("rag_session_owner_mismatch");
   if (session && opts.signal && opts.signal !== session.signal) throw new Error("rag_session_signal_mismatch");
-  const signal = session?.signal ?? opts.signal;
+  const liveOwner = session ? undefined : observeLiveOwner(captureLiveOwnerCheck(userId), opts.signal);
+  const signal = session?.signal ?? liveOwner?.signal ?? opts.signal;
   const fence = (): void => {
     throwIfAborted(signal);
     session?.assertCurrent();
+    liveOwner?.assertCurrent();
   };
-  fence();
   try {
+    fence();
     const k = opts.k ?? 8;
     const bodyCharLimit = opts.bodyCharLimit ?? 600;
 
@@ -78,7 +81,7 @@ export async function retrieveChatContext(
 
     const supabase = getSupabaseClient();
     fence();
-    const { data, error } = await supabase.rpc("match_wiki_pages", {
+    const matches = supabase.rpc("match_wiki_pages", {
       p_user_id: userId,
       query_embedding: `[${vec.join(",")}]`,
       match_count: k,
@@ -92,6 +95,7 @@ export async function retrieveChatContext(
       // old-space rows - the exact mixing this parameter exists to prevent.
       p_embedding_model: audit.modelUsed,
     });
+    const { data, error } = await (liveOwner ? matches.abortSignal(liveOwner.signal) : matches);
     fence();
     if (isAbortError(error)) throw error;
     if (error || !Array.isArray(data) || data.length === 0) return [];
@@ -101,11 +105,12 @@ export async function retrieveChatContext(
 
     // The kNN RPC returns metadata only; fetch the bodies for the survivors.
     fence();
-    const { data: pages, error: e2 } = await supabase
+    const pageQuery = supabase
       .from("wiki_pages")
       .select("id, slug, title, body_md, frontmatter")
       .eq("user_id", userId)
       .in("id", neighbors.map((n) => n.id));
+    const { data: pages, error: e2 } = await (liveOwner ? pageQuery.abortSignal(liveOwner.signal) : pageQuery);
     fence();
     if (isAbortError(e2)) throw e2;
     if (e2 || !Array.isArray(pages)) return [];
@@ -131,7 +136,7 @@ export async function retrieveChatContext(
   } catch (error) {
     fence();
     throw error; // The caller may fall back only for an ordinary current-owner failure.
-  }
+  } finally { liveOwner?.release(); }
 }
 
 /** Render RAG pages as the same [[slug]]-citable shape the snapshot uses, so

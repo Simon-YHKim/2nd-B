@@ -821,6 +821,7 @@ export async function buildPersona(
   // MBTI, and attachment still surface from their own assessments above; only
   // this narrative slot is gated. (Also avoids a needless paid call.)
   let summaryText: string;
+  let summarySource: "model" | "fixed_safety" | undefined;
   let summarySig: string | null = null;
   if (rows.length > 0) {
     // Input basis: interview transcripts excluded (like the trait heuristic);
@@ -854,10 +855,12 @@ export async function buildPersona(
       if (
         pat &&
         pat.__summary_sig === summarySig &&
+        (pat.__summary_source === "model" || pat.__summary_source === "fixed_safety") &&
         typeof pat.summary === "string" &&
         pat.summary.length > 0
       ) {
         cachedSummary = pat.summary;
+        summarySource = pat.__summary_source;
       }
     } catch {
       // Cache read is best-effort — a miss just means one LLM call.
@@ -898,6 +901,7 @@ export async function buildPersona(
         minor,
       });
       summaryText = summaryRes.text;
+      summarySource = summaryRes.safety.zone === "red" ? "fixed_safety" : "model";
     }
   } else {
     summaryText =
@@ -907,6 +911,9 @@ export async function buildPersona(
   }
 
   const patterns: Record<string, string> = { summary: summaryText };
+  // Red-zone replies are fixed app copy, not model text (chat/ai-mark.ts).
+  // Keep this with the cached text; legacy caches without it miss once.
+  if (summarySource) patterns.__summary_source = summarySource;
   // Cache key for the summary (double-underscore prefix: the persona screen
   // only renders `summary` and `top_*` keys, so this never reaches the UI).
   if (summarySig) patterns.__summary_sig = summarySig;

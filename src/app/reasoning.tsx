@@ -25,6 +25,7 @@ import { rewardedAdsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning, reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { getReasoningUsage, monthBucket } from "@/lib/entitlements/usage";
+import { useReasoningUsageRead } from "@/lib/reasoning/use-reasoning-usage-read";
 import { callLlm } from "@/lib/llm/boundary";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
 import { captureEvent, proposalDecided } from "@/lib/analytics";
@@ -749,8 +750,13 @@ export default function ReasoningScreen() {
   const listFailed = currentListRead !== null && currentListRead.status !== "ready";
   const listReady = currentListRead?.status === "ready";
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const [used, setUsed] = useState(0);
-  const [rewardCredits, setRewardCredits] = useState(0);
+  // T43: the usage numbers are their own strict read (never the fail-open getter): until a
+  // read for this focus, owner and request succeeds they are unknown and show "...".
+  const usageRead = useReasoningUsageRead(userId, !loading);
+  const usageReady = usageRead.view.status === "ready";
+  const usageFailed = usageRead.view.status === "error" || usageRead.view.status === "timeout";
+  const used = usageRead.view.status === "ready" ? usageRead.view.usage.used : 0;
+  const rewardCredits = usageRead.view.status === "ready" ? usageRead.view.usage.rewardCredits : 0;
   const [phase, setPhase] = useState<ScreenPhase>("idle");
   const [runState, setRunState] = useState<Record<string, ItemRunState>>({});
   const [proposals, setProposals] = useState<ReasoningProposal[]>([]);
@@ -787,13 +793,10 @@ export default function ReasoningScreen() {
   }, [phase, orbit]);
   const orbitSpin = orbit.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
-  const refreshUsage = useCallback(async () => {
-    if (!userId) return;
-    const next = await getReasoningUsage(userId);
-    if (!mountedRef.current) return;
-    setUsed(next.used);
-    setRewardCredits(next.rewardCredits);
-  }, [userId]);
+  // One identity per signed-in owner generation (see use-reasoning-usage-read.ts), so the
+  // recovery effect below never re-runs because of a refresh, a retry or a focus change.
+  const refreshUsage = usageRead.refresh;
+  const confirmUsageCurrent = usageRead.confirmCurrent;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -825,7 +828,7 @@ export default function ReasoningScreen() {
       setCrisisVisible(true);
     } else if (deferred === "limit") {
       setPhase("idle");
-      void refreshUsage().catch(() => undefined);
+      refreshUsage();
       setLimitSheetVisible(true);
     } else {
       setPhase("error");
@@ -848,7 +851,7 @@ export default function ReasoningScreen() {
       // claim a recovery that never happened.
       const refunded = await recoverStaleRuns(userId);
       if (refunded !== null && refunded > 0) {
-        await refreshUsage().catch(() => undefined);
+        refreshUsage();
       }
       const rows = await listPendingProposals(userId);
       const pending = rows
@@ -871,9 +874,9 @@ export default function ReasoningScreen() {
     return () => {
       cancelled = true;
     };
-    // refreshUsage is useCallback([userId]), so listing it cannot re-run this
-    // sweep more often than userId already does - the RPC still fires once per
-    // user, which is what a recovery sweep should do.
+    // refreshUsage keeps one identity per owner generation, so listing it cannot
+    // re-run this sweep more often than userId already does - the RPC still fires
+    // once per user, which is what a recovery sweep should do.
   }, [refreshUsage, userId]);
 
   useEffect(() => {
@@ -882,11 +885,11 @@ export default function ReasoningScreen() {
     if (!lease || lease.epoch !== accountEpoch) return;
     let cancelled = false;
     const current = () => !cancelled && lease.isCurrent();
-    // Bound the whole list read, including quota, once. Retrying this read does
-    // not repeat recovery, start a run, or discard the user's selection/review.
-    const work = Promise.all([listRecentRecords(userId, 60), listSourcePieces(userId, { excludeProfileImports: true }), getReasoningUsage(userId)]);
+    // Bound the whole list read once. Retrying this read does not repeat recovery,
+    // start a run, or discard the user's selection/review. Usage is a separate read.
+    const work = Promise.all([listRecentRecords(userId, 60), listSourcePieces(userId, { excludeProfileImports: true })]);
     void withTimeout(work, REASONING_LIST_READ_TIMEOUT_MS, "Reasoning list")
-      .then(([records, sources, usage]) => {
+      .then(([records, sources]) => {
         if (!current()) return;
         // A fixed t for the painted language: the list re-reads when the language (or its
         // lazy pack) changes, not on every i18n event the hook's t follows.
@@ -925,8 +928,6 @@ export default function ReasoningScreen() {
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
             .slice(0, 80),
         });
-        setUsed(usage.used);
-        setRewardCredits(usage.rewardCredits);
       })
       .catch((error: unknown) => {
         if (!current()) return;
@@ -944,7 +945,7 @@ export default function ReasoningScreen() {
   const cap = reasoningCapForTier(progression.tier);
   const remaining = remainingReasoning(progression.tier, used, rewardCredits);
   const unlimited = remaining === Infinity;
-  const depleted = listReady && !unlimited && remaining <= 0;
+  const depleted = listReady && usageReady && !unlimited && remaining <= 0;
   const selectedItems = useMemo(
     () => items.filter((item) => selected.has(item.key)),
     [items, selected],
@@ -996,7 +997,10 @@ export default function ReasoningScreen() {
   }, []);
 
   const startRun = useCallback(() => {
-    if (!userId || isMinor == null || !listReady || selectedItems.length === 0 || phase === "running") return;
+    if (!userId || isMinor == null || !listReady || !usageReady || selectedItems.length === 0 || phase === "running") return;
+    // A press captured in an earlier render re-checks the usage at press time: a refresh,
+    // blur or account transition since then has already dropped the ready token.
+    if (!confirmUsageCurrent()) return;
     if (depleted) return;
     if (task.phase === "running") {
       setErrorText(t("ds.reasoningScreen.busyOther"));
@@ -1057,7 +1061,7 @@ export default function ReasoningScreen() {
             // toast would compete with the review message. Background runs keep
             // the toast because this branch is skipped after unmount.
             dismissTask();
-            await refreshUsage().catch(() => undefined);
+            refreshUsage();
           }
         } catch (error) {
           runningRef.current = false;
@@ -1076,7 +1080,7 @@ export default function ReasoningScreen() {
           }
           dismissTask();
           if (error instanceof ReasoningLimitError) {
-            await refreshUsage().catch(() => undefined);
+            refreshUsage();
             setPhase("idle");
             setLimitSheetVisible(true);
           } else if (error instanceof ReasoningSafetyError) {
@@ -1097,6 +1101,8 @@ export default function ReasoningScreen() {
     selectedItems,
     phase,
     listReady,
+    usageReady,
+    confirmUsageCurrent,
     depleted,
     task.phase,
     t,
@@ -1210,7 +1216,7 @@ export default function ReasoningScreen() {
   // Split display (spec 결정 5 + 계약 13): weekly base and monthly reward are
   // separate ledgers with separate reset instants — never merge them into one
   // "N회 남음 · 월요일 초기화" line. The RUN gate (depleted) still counts both.
-  const quotaCopy = !listReady ? "..." : unlimited
+  const quotaCopy = !usageReady ? "..." : unlimited
     ? t("ds.reasoningScreen.unlimited")
     : t("ds.reasoningScreen.weeklyLeft", {
         cap: cap ?? 0,
@@ -1218,7 +1224,7 @@ export default function ReasoningScreen() {
       });
   // Same words as THE limit sheet's reward line (ds.reasoningLimit.rewardLeft).
   const rewardCopy =
-    listReady && !unlimited && rewardCredits > 0
+    usageReady && !unlimited && rewardCredits > 0
       ? t("ds.reasoningLimit.rewardLeft", { n: rewardCredits, month: monthLabelFor(uiLng, monthBucket()) })
       : null;
 
@@ -1400,7 +1406,7 @@ export default function ReasoningScreen() {
                   </View>
                   {cap == null ? (
                     <RNText style={styles.infinity}>{"∞"}</RNText>
-                  ) : (
+                  ) : !usageReady ? null : (
                     <View style={styles.pips}>
                       {Array.from({ length: cap }, (_, index) => {
                         const lit = index < Math.max(0, cap - used);
@@ -1427,6 +1433,14 @@ export default function ReasoningScreen() {
               {errorText ? (
                 <View style={styles.errorCard}>
                   <RNText style={styles.errorText}>{errorText}</RNText>
+                </View>
+              ) : null}
+              {usageFailed && phase !== "running" && phase !== "done" ? (
+                <View style={styles.errorCard}>
+                  <RNText style={styles.errorText}>
+                    {usageRead.view.status === "timeout" ? t("common:errors.network") : t("ds.reasoningScreen.loadFailed")}
+                  </RNText>
+                  <MdButton testID="reasoning-usage-retry" label={t("common:actions.retry")} variant="tonal" onPress={usageRead.retry} />
                 </View>
               ) : null}
               {listFailed ? (
@@ -1513,7 +1527,7 @@ export default function ReasoningScreen() {
               applying ||
               (phase !== "running" && phase !== "done" && selected.size === 0 && !depleted) ||
               listLoading ||
-              (phase !== "running" && phase !== "done" && listFailed)
+              (phase !== "running" && phase !== "done" && (listFailed || !usageReady))
             }
             onPress={() => {
               if (phase === "running") cancelRun();
@@ -1543,7 +1557,7 @@ export default function ReasoningScreen() {
       <ReasoningLimitSheet
         visible={limitSheetVisible}
         onClose={() => setLimitSheetVisible(false)}
-        onChanged={() => void refreshUsage().catch(() => undefined)}
+        onChanged={refreshUsage}
       />
       <AutoReasoningIntroSheet
         visible={autoIntroVisible}

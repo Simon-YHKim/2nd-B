@@ -22,6 +22,71 @@ function read(value = fixture(), captured = context(), current = context(), now 
   return prepareInterviewDraftRestore(encodeInterviewDraftSnapshot(value), captured, current, now);
 }
 
+test.each([undefined, false, true])("T37 v2 keeps old and marked turns: %s", fromOpener => {
+  const value = fixture();
+  value.state.turns.push({ role: "user", text: "I joined a band", ...(fromOpener === undefined ? {} : { fromOpener }) });
+  const restored = read(value);
+  expect(restored.status).toBe("restored");
+  if (restored.status !== "restored") throw new Error("expected restored");
+  expect(restored.draft.state.turns).toEqual(value.state.turns);
+});
+
+test.each([null, "true", 1])("T37 rejects invalid opener provenance: %s", fromOpener => {
+  const value = fixture();
+  value.state.turns.push({ role: "user", text: "I joined a band", ...{ fromOpener: fromOpener as unknown as boolean } });
+  expect(() => encodeInterviewDraftSnapshot(value)).toThrow("interview_draft_invalid");
+});
+
+test("T37 interviewer turns cannot claim answer provenance", () => {
+  const value = fixture(); value.state.turns[0].fromOpener = true;
+  expect(() => encodeInterviewDraftSnapshot(value)).toThrow("interview_draft_invalid");
+});
+
+function selectedFixture() {
+  const value = fixture(); value.state.draft = value.state.openers[0];
+  value.state.openerSelection = { questionIndex: 0, questionText: value.state.turns[0].text, openerIndex: 0, text: value.state.draft };
+  return value;
+}
+
+test.each(["state", "request", "save"])("T37 selection survives %s snapshot preparation", kind => {
+  const value = selectedFixture();
+  if (kind === "request") value.pending = { kind: "request", requestId: "request-1", submittedAnswer: value.state.draft,
+    inputRevision: value.state.inputRevision, before: structuredClone(value.state) };
+  if (kind === "save") value.pending = { kind: "save", status: "unknown", intent: { requestId: "save-1", sessionId: "session-1",
+    draftId: value.draftId, revision: value.revision, contentGeneration: value.contentGeneration, snapshot: structuredClone(value.state) } };
+  const restored = read(value);
+  expect(restored.status).toBe("restored");
+  if (restored.status !== "restored") throw new Error("expected restored");
+  expect(restored.draft).toEqual(value);
+  expect(restored.draft.state.openerSelection).toEqual(value.state.openerSelection);
+});
+
+test("T37 v1 legacy-body-only preparation preserves selected text's source", () => {
+  const selected = selectedFixture();
+  const value: InterviewDraft = { v: 1, ownerId: "A", draftId: "draft-1", revision: 1, createdAt: 1000,
+    expiresAt: 1000 + INTERVIEW_DRAFT_TTL_MS, period: "work", locale: "en", growthOrigin: false,
+    phase: "active", turns: selected.state.turns, draft: selected.state.draft, openerSelection: selected.state.openerSelection };
+  expect(prepareInterviewDraftRestore(encodeInterviewDraft(value), context(), context(), 1001))
+    .toEqual({ status: "legacy-body-only", draft: value });
+});
+
+test.each(["space", "newline", "question-index", "question-text", "candidate-index", "candidate-text", "null", "extra"])(
+  "T37 malformed or mismatched selection %s rejects the snapshot without losing only the source", change => {
+    const value = selectedFixture();
+    const selection = value.state.openerSelection!;
+    if (change === "space") value.state.draft = ` ${value.state.draft}`;
+    if (change === "newline") value.state.draft += "\n";
+    if (change === "question-index") selection.questionIndex = 1;
+    if (change === "question-text") selection.questionText = "Other question?";
+    if (change === "candidate-index") selection.openerIndex = 1;
+    if (change === "candidate-text") value.state.openers[0] = "Other candidate";
+    if (change === "null") Object.assign(value.state, { openerSelection: null });
+    if (change === "extra") Object.assign(selection, { unrelated: true });
+    expect(() => encodeInterviewDraftSnapshot(value)).toThrow("interview_draft_invalid");
+    expect(prepareInterviewDraftRestore(JSON.stringify(value), context(), context(), 1001)).toEqual({ status: "invalid" });
+  },
+);
+
 test("a detached roundtrip preserves every field without inventing baseline confirmation", () => {
   const value = fixture(); value.state.coverage.base.school.fact = 2; value.state.coverage.current.school.fact = 3;
   const result = read(value); expect(result.status).toBe("restored");

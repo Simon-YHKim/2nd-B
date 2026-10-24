@@ -256,7 +256,6 @@
     "reportBug": "Laporkan bug",
     "footer": "PolaScope v{{version}} · 2 hari kerja KST",
     "faqTitle": "Pertanyaan umum",
-    "noticesTitle": "Pengumuman",
     "faqs": {
       "brightness": {
         "q": "Apa arti kecerahan bintang?",
@@ -266,23 +265,9 @@
         "q": "Apakah paket berbayar membuatnya lebih pintar?",
         "a": "Tidak. Kualitas jawaban sama di semua paket. Yang berbeda hanya batas jumlah, masa simpan, dan ekspor."
       },
-      "call": {
-        "q": "Apakah rekaman panggilan aman?",
-        "a": "Rekaman ditranskripsikan di server AI melalui koneksi terenkripsi, lalu audio aslinya langsung dihapus dari perangkatmu. Hanya teks dan sinyalnya yang disimpan dalam bentuk terenkripsi."
-      }
-    },
-    "notices": {
-      "modes": {
-        "t": "Tiga mode HustleK telah hadir",
-        "tag": "Baru"
-      },
-      "museum": {
-        "t": "Museum AI: 8 koleksi kini dibuka",
-        "tag": "Konten"
-      },
       "voice": {
-        "t": "Transkripsi suara ditingkatkan",
-        "tag": "Peningkatan"
+        "q": "Apakah transkripsi suara aman?",
+        "a": "Suara ditranskripsikan di server AI melalui koneksi terenkripsi, lalu audio aslinya langsung dihapus dari perangkatmu. Hanya teks dan sinyalnya yang disimpan dalam bentuk terenkripsi."
       }
     }
   },

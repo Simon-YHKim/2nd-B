@@ -1137,7 +1137,7 @@ results.push(
       // 배송 대화 말풍선이 같은 동작을 longPressCopy 힌트로 알린다.
       jarvis.includes('accessibilityHint={t("longPressCopy")}') &&
       // UI2-CHAT-04/05: the retired intro has no controls; both save choices stay named.
-      jarvis.includes('accessibilityLabel={t("chatSaveNoticeOpen")}') &&
+      jarvis.includes('accessibilityLabel={t("chatSaveNoticeOpenLabel")}') &&
       jarvis.includes('accessibilityLabel={t("chatSaveNoticeDismiss")}') &&
       jarvis.includes('t("closeReferencedHint")') &&
       // 2026-10-04: 옛 홈 그래프 NavGraph 의 핀 9줄(버튼 수 >= 7 · nav* 키 8개)을
@@ -1762,9 +1762,10 @@ results.push(
     //
     // FAQ · 소식은 2026-10-06 (Q-261005-01 = A) 에 갚았다. 한국어는 여전히
     // canonGaps 원문을 그대로 그리고, 그 밖의 언어는 캐논 배열과 순서를 맞춘
-    // deepspace 키(support.faqs.* · support.notices.*)를 읽는다. 전에는 코드 안의
+    // deepspace 키(support.faqs.*)를 읽는다. 전에는 코드 안의
     // GAPS_FAQ_EN 영어 사본이라 es/pt/id 가 영어로 떨어졌다 — 그 사본이 돌아오면
-    // 여기서 걸린다.
+    // 여기서 걸린다. 소식 세 줄은 Z73(Simon 2026-10-13)으로 실제 공지 화면을 여는
+    // 줄 하나가 됐다 — 이름은 그 화면의 제목 키를 그대로 쓴다.
     const screen = read("src/screens/deepspace/DeepSpaceDesignScreens.tsx");
     const helpDirectory = read("src/components/safety/HelpDirectory.tsx");
     const enSupportBundle = read("locales/en/support.json");
@@ -1777,7 +1778,8 @@ results.push(
       screen.includes('t("support.faqTitle")') &&
       screen.includes("t(`support.faqs.${key}.q`)") &&
       screen.includes("t(`support.faqs.${key}.a`)") &&
-      screen.includes("t(`support.notices.${key}.t`)") &&
+      screen.includes('<Action label={t("ops:phone.apps.notifications")} onPress={() => router.push("/notices")} />') &&
+      !screen.includes("canonGaps.notices.map") &&
       !screen.includes("GAPS_FAQ_EN") &&
       !screen.includes("GAPS_NOTICE_EN") &&
       helpDirectory.includes('useTranslation("support")') &&
@@ -1792,7 +1794,7 @@ results.push(
       id: "SupportI18nCopy",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "support help copy stays in the support bundle and screen copy in the deepspace bundle (FAQ and notices read deepspace keys outside Korean)"
+        ? "support help copy stays in the support bundle and screen copy in the deepspace bundle (FAQ reads deepspace keys outside Korean; notices are one row to /notices)"
         : "support screen should source sensitive help copy from the support bundle and screen copy from the deepspace bundle",
     };
   }),

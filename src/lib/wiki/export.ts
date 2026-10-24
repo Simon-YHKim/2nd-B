@@ -21,6 +21,10 @@ import { classifyInputAnyLocale } from "../safety/classifier";
 import type { SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import { isAbortError, throwIfAborted } from "../async/abort";
+import { observeLiveOwner } from "../auth/live-owner-guard";
+import { withSystemTagsColumn } from "../records/system-tags";
+import { hasNorthstarAiProvenance } from "../persona/northstar-provenance";
+import { withAiCopyTail } from "../chat/ai-mark";
 
 // P2-2 (persona sim): journal/note records are the user's MOST personal data,
 // and the danger-zone copy points at this export as the pre-delete backup —
@@ -33,9 +37,12 @@ export interface ExportRecordRow {
   body: string;
   created_at: string;
   tags: string[] | null;
+  system_tags?: string[] | null;
 }
 
 export interface ComposeOpts {
+  /** Localized secondb:aiCopyTail for explicitly attributed northstar records. */
+  aiCopyTail?: string;
   /** Header date stamp (defaults to today's ISO date). */
   asOf?: string;
   /** Optional user display name woven into the system prompt header. */
@@ -138,7 +145,7 @@ export function formatSource(s: SourceRow, locale: "en" | "ko"): string {
   return `- [${labelByKind[s.kind][locale]}] ${s.title}${url}${tags}${rel}${ingest}`;
 }
 
-export function formatRecord(r: ExportRecordRow, bodyCharLimit: number | undefined, locale: "en" | "ko"): string {
+export function formatRecord(r: ExportRecordRow, bodyCharLimit: number | undefined, locale: "en" | "ko", aiCopyTail?: string): string {
   const kindLabel: Record<string, { en: string; ko: string }> = {
     journal: { en: "Journal", ko: "일기" },
     note: { en: "Note", ko: "노트" },
@@ -154,6 +161,7 @@ export function formatRecord(r: ExportRecordRow, bodyCharLimit: number | undefin
   if (bodyCharLimit !== undefined && body.length > bodyCharLimit) {
     body = body.slice(0, bodyCharLimit) + STRINGS[locale].truncated(r.body.length);
   }
+  if (aiCopyTail && hasNorthstarAiProvenance(r)) body = withAiCopyTail(body, aiCopyTail);
   const title = r.topic && r.topic.trim().length > 0 ? ` - ${r.topic.trim()}` : "";
   return `### ${date} · ${label}${title}${tags}\n\n${body}`;
 }
@@ -200,7 +208,7 @@ export function composeWikiExport(
     const recordsBlock =
       records.length === 0
         ? strings.noRecords
-        : records.map((r) => formatRecord(r, opts.bodyCharLimit, locale)).join("\n\n");
+        : records.map((r) => formatRecord(r, opts.bodyCharLimit, locale, opts.aiCopyTail)).join("\n\n");
     parts.push(strings.recordsH, "", recordsBlock, "");
   }
 
@@ -234,22 +242,27 @@ export interface ExportUserWikiOpts extends ComposeOpts {
 
 async function listRecordsForExport(userId: string, limit: number): Promise<ExportRecordRow[]> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
+  const { data, error } = await withSystemTagsColumn((columnPresent) => supabase
     .from("records")
-    .select("kind, topic, body, created_at, tags")
+    .select(columnPresent ? "kind, topic, body, created_at, tags, system_tags" : "kind, topic, body, created_at, tags")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(limit));
   if (error) throw error;
-  return (data ?? []) as ExportRecordRow[];
+  return (data ?? []) as unknown as ExportRecordRow[];
 }
 
 export async function exportUserWiki(
   userId: string,
   opts: ExportUserWikiOpts = {},
   execution?: Pick<AuthenticatedAccountSessionLease, "userId" | "signal" | "assertCurrent">,
+  liveOwnerCheck?: () => void,
 ): Promise<WikiExport> {
+  const liveOwner = liveOwnerCheck ? observeLiveOwner(liveOwnerCheck) : undefined;
+  const liveSignal = liveOwner?.signal;
+  try {
   const fence = (): void => {
+    liveOwner?.assertCurrent();
     if (!execution) return;
     if (!userId || execution.userId !== userId) throw new Error("context_session_owner_mismatch");
     throwIfAborted(execution.signal);
@@ -267,8 +280,8 @@ export async function exportUserWiki(
   };
   fence();
   const [pages, sources, records] = await read(() => Promise.all([
-    read(() => listWikiPages(userId, { kinds: opts.pageKinds, limit: opts.pageLimit ?? 500 })),
-    read(() => listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500 })),
+    read(() => listWikiPages(userId, { kinds: opts.pageKinds, limit: opts.pageLimit ?? 500 }, liveSignal)),
+    read(() => listSources(userId, { kinds: opts.sourceKinds, limit: opts.sourceLimit ?? 500 }, liveSignal)),
     opts.includeRecords ? read(() => listRecordsForExport(userId, opts.recordLimit ?? 500)) : Promise.resolve(undefined),
   ]));
   fence();
@@ -281,7 +294,7 @@ export async function exportUserWiki(
   const blocks = await read(() => Promise.all(kept.map((source) => read(async () => {
     // The source row is owner-scoped; also refuse a foreign Storage pointer.
     const stored = source.storage_path.startsWith(`${userId}/`)
-      ? await read(() => downloadRawClipping(source.storage_path).catch((error) => {
+      ? await read(() => downloadRawClipping(source.storage_path, liveSignal).catch((error) => {
         fence();
         if (execution && isAbortError(error)) throw error;
         return null;
@@ -299,4 +312,5 @@ export async function exportUserWiki(
   if (present.length) exported.prompt += `\n## Saved conversations (user words and generated replies; not wiki pages)\n\n${present.join("\n\n")}`;
   fence();
   return exported;
+  } finally { liveOwner?.release(); }
 }

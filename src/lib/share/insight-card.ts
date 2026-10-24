@@ -17,6 +17,7 @@ import { Platform } from "react-native";
 
 import type { ShareCardProps } from "@/components/deepspace/ShareCard";
 import { SITE_ORIGIN } from "@/lib/site-meta";
+import { withAiCopyTail } from "@/lib/chat/ai-mark";
 
 /** Default lit count for captureCardProps when the caller passes none. The
  *  share screen never relies on it: it waits for the real count instead. */
@@ -33,6 +34,8 @@ const SHARE_LINK = SITE_ORIGIN;
 export interface ShareInsightOptions {
   variant: "A" | "B";
   insight: string;
+  /** Existing localized disclosure, only for an unedited AI proposal. */
+  aiCopyTail?: string;
   /** Share-sheet text/dialog only — the card itself shows the piece count. */
   handle: string;
   litCount?: number;
@@ -78,7 +81,8 @@ export function deriveCardProps(input: {
 
 /** Compose the plain-text fallback shared when image capture is unavailable. */
 export function fallbackShareText(opts: ShareInsightOptions): string {
-  return `${opts.insight}\n\n@${opts.handle} · ${SHARE_LINK}`;
+  const text = `${opts.insight}\n\n@${opts.handle} · ${SHARE_LINK}`;
+  return opts.aiCopyTail ? withAiCopyTail(text, opts.aiCopyTail) : text;
 }
 
 /**
@@ -89,6 +93,7 @@ export function captureCardProps(opts: ShareInsightOptions): ShareCardProps {
   return {
     variant: opts.variant,
     insight: opts.insight,
+    aiCopyTail: opts.aiCopyTail,
     pieceCount: opts.pieceCount,
     litCount: opts.litCount ?? FALLBACK_LIT_COUNT,
     size: CAPTURE_SIZE,

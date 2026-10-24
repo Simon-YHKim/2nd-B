@@ -140,7 +140,7 @@
       "takeout": {
         "name": "Google Timeline",
         "sub": "Localização · arquivo do Takeout",
-        "what": "Só padrões de lugares e tempo de permanência. As coordenadas exatas não são guardadas."
+        "what": "Só os nomes dos lugares que você escolher. Não guardamos coordenadas nem trajetos."
       },
       "sms": {
         "name": "SMS",
@@ -150,7 +150,7 @@
       "live-location": {
         "name": "Histórico de localização",
         "sub": "Localização · arquivo exportado",
-        "what": "Só padrões de lugares e tempo de permanência. As coordenadas exatas não são guardadas."
+        "what": "Só os nomes dos lugares que você escolher. Não guardamos coordenadas nem trajetos."
       },
       "health": {
         "name": "Saúde",

@@ -9,7 +9,7 @@
   "permissionsHint": "Abre la guía de permisos de la app.",
   "curated": "Fuentes seleccionadas",
   "guide": {
-    "hero": "Cinco preguntas explican cómo tus registros se convierten en algo útil.",
+    "hero": "Cómo tus registros se convierten en algo útil y dónde están las tareas frecuentes.",
     "tip": "Abre una respuesta a la vez o filtra la guía más abajo.",
     "searchLabel": "Filtrar la guía de uso",
     "searchPlaceholder": "Buscar preguntas y respuestas",
@@ -36,6 +36,22 @@
       "data": {
         "question": "¿Dónde están la privacidad, la seguridad y las exportaciones?",
         "answer": "Las opciones de privacidad y la exportación de la cuenta son controles explícitos. IDEN es un resumen de identidad portátil. Si un mensaje necesita ayuda urgente, la app muestra recursos de apoyo antes de una respuesta normal y no contacta a ningún servicio por ti."
+      },
+      "refund": {
+        "question": "¿Cómo pido un reembolso?",
+        "answer": "Pídelo en Gestionar suscripción, dentro de Opciones. Si tienes un pago, esa pantalla muestra si puedes recibir un reembolso ahora y por qué."
+      },
+      "export": {
+        "question": "¿Cómo exporto mis registros?",
+        "answer": "En Mis datos, dentro de Opciones, descarga los datos de tu cuenta en un solo archivo. El archivo también indica qué deja fuera y por qué."
+      },
+      "deleteAccount": {
+        "question": "¿Cómo elimino mi cuenta?",
+        "answer": "Elige Eliminar cuenta en Cuenta, dentro de Opciones. No se puede deshacer, así que exporta antes lo que necesites."
+      },
+      "notifications": {
+        "question": "¿Dónde cambio las notificaciones?",
+        "answer": "En la app del teléfono, actívalas o desactívalas en Permisos, dentro de Opciones. La versión web no envía notificaciones."
       }
     },
     "actions": {
@@ -46,7 +62,10 @@
       "privacy": "Ajustes de privacidad",
       "iden": "IDEN portátil",
       "accountExport": "Exportar la cuenta",
-      "support": "Recursos de apoyo"
+      "support": "Recursos de apoyo",
+      "subscription": "Gestionar suscripción",
+      "deleteAccount": "Eliminar cuenta",
+      "permissions": "Gestionar permisos"
     }
   }
 }

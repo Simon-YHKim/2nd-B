@@ -4,6 +4,7 @@
 const storageCalls: { op: string; args: unknown[] }[] = [];
 let uploadError: unknown = null;
 let failUploadAt = -1;
+jest.mock("../../env", () => ({ getEnv: () => ({ EXPO_PUBLIC_SUPABASE_URL: "https://project.example.test/", EXPO_PUBLIC_SUPABASE_ANON_KEY: "public-anon" }) }));
 
 jest.mock("../../supabase/client", () => {
   const bucket = {
@@ -39,6 +40,8 @@ import {
   removeRecordPhotoObjects,
   signRecordPhotoUrls,
   uploadRecordPhotos,
+  prepareRecordPhotoWipe,
+  removeRecordPhotoBatchCaptured,
 } from "../record-photos";
 
 const USER = "11111111-2222-3333-4444-555555555555";
@@ -180,5 +183,117 @@ describe("Storage calls", () => {
     const urls = await signRecordPhotoUrls([pathOf("aaaaaaaa"), "../etc"]);
     expect(urls).toEqual({ [pathOf("aaaaaaaa")]: `https://signed.example/${pathOf("aaaaaaaa")}` });
     expect(storageCalls).toEqual([{ op: "sign", args: [[pathOf("aaaaaaaa")], 3600] }]);
+  });
+});
+
+describe("strict opt-in record photo wipe", () => {
+  const photo = (id: string, owner = USER) => ({ path: pathOf(id, owner), mime: "image/jpeg" });
+  const rowsOf = (count: number) => Array.from({ length: count }, (_, i) => ({ structured: { photos: [photo(i.toString().padStart(8, "0"))] } }));
+  const originalFetch = globalThis.fetch, fetchMock = jest.fn();
+  const request = () => ({ userId: USER, accessToken: "captured-owner", signal: new AbortController().signal });
+  const response = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json; charset=utf-8" } });
+  beforeEach(() => { fetchMock.mockReset(); globalThis.fetch = fetchMock as typeof fetch; });
+  afterEach(() => { globalThis.fetch = originalFetch; jest.restoreAllMocks(); });
+
+  test("complete original rows retain owner filtering, deduplication and order without mutable path aliases", () => {
+    const own = photo("aaaaaaaa"), second = photo("bbbbbbbb");
+    const rows = [
+      { structured: { photos: [own, photo("cccccccc", OTHER), own, second] } },
+      { structured: { photos: [second] } }, { structured: null },
+      { structured: { form: "fourw", version: 1, fields: { what: "private" } } },
+    ];
+    const manifest = prepareRecordPhotoWipe(rows, rows.length, USER);
+    expect(manifest).toEqual({ state: "complete", batches: [[own.path, second.path]] });
+    own.path = pathOf("dddddddd"); rows.length = 0;
+    if (manifest.state !== "complete") throw new Error("unconfirmed fixture");
+    expect(manifest.batches).toEqual([[pathOf("aaaaaaaa"), pathOf("bbbbbbbb")]]);
+    expect(Object.isFrozen(manifest)).toBe(true); expect(Object.isFrozen(manifest.batches)).toBe(true); expect(Object.isFrozen(manifest.batches[0])).toBe(true);
+  });
+  test.each([[], [{ structured: null }], [{ structured: {} }], [{ structured: { photos: [] } }], [{ structured: { photos: [photo("aaaaaaaa", OTHER)] } }]].map(rows => ({ rows })))(
+    "known-empty needs complete rows $rows", ({ rows }) => {
+      expect(prepareRecordPhotoWipe(rows, rows.length, USER)).toEqual({ state: "complete", batches: [] }); expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+  test.each([1, 100, 101, 201])("%i photos produce immutable batches of at most 100 without a request", count => {
+    const manifest = prepareRecordPhotoWipe(rowsOf(count), count, USER);
+    if (manifest.state !== "complete") throw new Error("unconfirmed fixture");
+    expect(manifest.batches.map(batch => batch.length)).toEqual(count === 201 ? [100, 100, 1] : count === 101 ? [100, 1] : [count]);
+    expect(manifest.batches.flat()).toHaveLength(count); expect(fetchMock).not.toHaveBeenCalled();
+  });
+  test.each([
+    undefined, null, {}, [null], [{}], [{ structured: undefined }], [{ structured: [] }], [{ structured: "text" }],
+    [{ structured: { photos: null } }], [{ structured: { photos: "text" } }], [{ structured: { photos: [null] } }],
+    [{ structured: { photos: [{ path: pathOf("aaaaaaaa"), mime: "image/png" }] } }],
+    [{ structured: { photos: [{ path: `${USER}/clip.md`, mime: "image/jpeg" }] } }],
+    [{ structured: { photos: Array.from({ length: 5 }, (_, i) => photo(i.toString().padStart(8, "0"))) } }],
+    new Array(1), [{ structured: { photos: new Array(1) } }],
+  ].map(rows => ({ rows })))("malformed or incomplete rows $rows cannot become an empty successful plan", ({ rows }) => {
+    expect(prepareRecordPhotoWipe(rows, 1, USER)).toEqual({ state: "unconfirmed" }); expect(fetchMock).not.toHaveBeenCalled();
+  });
+  test.each([-1, NaN, 0.5, Number.MAX_SAFE_INTEGER + 1, 2])("invalid or mismatched row count %s cannot produce a plan", count => {
+    expect(prepareRecordPhotoWipe([{ structured: null }], count, USER)).toEqual({ state: "unconfirmed" });
+  });
+
+  test("a single original batch dispatches immediately with captured credentials and accepts its exact returned path set", async () => {
+    const paths = [pathOf("aaaaaaaa"), pathOf("bbbbbbbb")], captured = request();
+    fetchMock.mockResolvedValue(response([{ name: paths[1], bucket_id: "record-photos" }, { name: paths[0] }]));
+    const work = removeRecordPhotoBatchCaptured(paths, captured);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("https://project.example.test/storage/v1/object/record-photos", {
+      method: "DELETE", body: JSON.stringify({ prefixes: paths }), signal: captured.signal, redirect: "error",
+      headers: { Authorization: "Bearer captured-owner", apikey: "public-anon", "content-type": "application/json", Accept: "application/json" },
+    });
+    await expect(work).resolves.toEqual({ outcome: "committed", scopeConfirmed: true, observedRemovedCount: 2 });
+    expect(storageCalls).toEqual([]);
+  });
+  test.each([
+    { name: "empty", value: [], observed: 0 },
+    { name: "short", value: [{ name: pathOf("aaaaaaaa") }], observed: 1 },
+    { name: "duplicate", value: [{ name: pathOf("aaaaaaaa") }, { name: pathOf("aaaaaaaa") }], observed: 1 },
+    { name: "foreign", value: [{ name: pathOf("aaaaaaaa") }, { name: pathOf("bbbbbbbb", OTHER) }], observed: 1 },
+    { name: "other-bucket", value: [{ name: pathOf("aaaaaaaa") }, { name: pathOf("bbbbbbbb"), bucket_id: "raw-clippings" }], observed: 1 },
+    { name: "error-property", value: [{ name: pathOf("aaaaaaaa") }, { name: pathOf("bbbbbbbb"), error: "denied" }], observed: 1 },
+    { name: "marker", value: [{ name: pathOf("aaaaaaaa") }, { name: pathOf("bbbbbbbb"), is_delete_marker: true }], observed: 1 },
+    { name: "versioned", value: [{ name: pathOf("aaaaaaaa") }, { name: pathOf("bbbbbbbb"), is_versioned: true }], observed: 1 },
+    { name: "invalid-row", value: [{ name: pathOf("aaaaaaaa") }, null], observed: 1 },
+    { name: "extra", value: [{ name: pathOf("aaaaaaaa") }, { name: pathOf("bbbbbbbb") }, { name: pathOf("cccccccc") }], observed: 2 },
+    { name: "object", value: { count: 2 }, observed: null }, { name: "null", value: null, observed: null },
+  ])("$name Storage response remains unknown with only observed matching paths", async ({ value, observed }) => {
+    fetchMock.mockResolvedValue(response(value));
+    await expect(removeRecordPhotoBatchCaptured([pathOf("aaaaaaaa"), pathOf("bbbbbbbb")], request()))
+      .resolves.toEqual({ outcome: "unknown", observedRemovedCount: observed });
+    expect(fetchMock).toHaveBeenCalledTimes(1); expect(storageCalls).toEqual([]);
+  });
+  test.each(["throw", "reject", "denied", "malformed", "empty-body", "wrong-content-type", "redirect", "unexpected-status"])(
+    "%s is unknown with no automatic retry or next batch", async mode => {
+      const sensitive = `${USER}/private-native-error`;
+      if (mode === "throw") fetchMock.mockImplementation(() => { throw new Error(sensitive); });
+      else if (mode === "reject") fetchMock.mockRejectedValue(new Error(sensitive));
+      else if (mode === "denied") fetchMock.mockResolvedValue(response({ code: "AccessDenied", message: sensitive }, 403));
+      else if (mode === "malformed") fetchMock.mockResolvedValue(new Response("{broken", { headers: { "content-type": "application/json" } }));
+      else if (mode === "empty-body") fetchMock.mockResolvedValue(new Response("", { headers: { "content-type": "application/json" } }));
+      else if (mode === "wrong-content-type") fetchMock.mockResolvedValue(new Response(JSON.stringify([{ name: pathOf("aaaaaaaa") }]), { headers: { "content-type": "text/plain" } }));
+      else if (mode === "redirect") fetchMock.mockResolvedValue(new Response(null, { status: 307 }));
+      else fetchMock.mockResolvedValue(response([{ name: pathOf("aaaaaaaa") }], 201));
+      const warn = jest.spyOn(console, "warn");
+      const result = await removeRecordPhotoBatchCaptured([pathOf("aaaaaaaa")], request());
+      expect(result).toEqual({ outcome: "unknown", observedRemovedCount: null }); expect(JSON.stringify(result)).not.toContain(USER);
+      expect(fetchMock).toHaveBeenCalledTimes(1); expect(warn).not.toHaveBeenCalled(); expect(storageCalls).toEqual([]);
+    },
+  );
+  test.each([[], [pathOf("aaaaaaaa", OTHER)], [pathOf("aaaaaaaa"), pathOf("aaaaaaaa")], new Array(1), Array.from({ length: 101 }, (_, i) => pathOf(i.toString().padStart(8, "0")))].map(paths => ({ paths })))(
+    "invalid batch $paths issues no transport", async ({ paths }) => {
+      await expect(removeRecordPhotoBatchCaptured(paths, request())).rejects.toThrow("record_photo_batch_invalid"); expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+  test("caller path mutation and abort cannot erase a late original batch result", async () => {
+    const paths = [pathOf("aaaaaaaa")], controller = new AbortController(); let resolve!: (value: Response) => void;
+    fetchMock.mockReturnValue(new Promise<Response>(yes => { resolve = yes; }));
+    const work = removeRecordPhotoBatchCaptured(paths, { ...request(), signal: controller.signal });
+    paths[0] = pathOf("bbbbbbbb", OTHER); paths.push(pathOf("cccccccc", OTHER)); controller.abort();
+    resolve(response([{ name: pathOf("aaaaaaaa") }]));
+    await expect(work).resolves.toEqual({ outcome: "committed", scopeConfirmed: true, observedRemovedCount: 1 });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ prefixes: [pathOf("aaaaaaaa")] });
+    expect(fetchMock).toHaveBeenCalledTimes(1); expect(storageCalls).toEqual([]);
   });
 });

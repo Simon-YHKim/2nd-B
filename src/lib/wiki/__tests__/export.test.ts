@@ -3,6 +3,7 @@ import { CHAT_KEEP_TAG } from "../../chat/keep-exchange";
 import { beginAccountSessionLease, type AuthenticatedAccountSessionLease } from "../../auth/account-session-lease";
 import { __resetAccountEpochForTests, noteResolvedOwner, clearAccountTransition, currentAccountEpoch, beginAccountOwnerTransition } from "../../auth/account-epoch";
 import { abortError } from "../../async/abort";
+import { northstarAiTag, NORTHSTAR_AI_TAG } from "../../persona/northstar-provenance";
 
 const mockFrom = jest.fn(), mockRead = jest.fn(), mockDownload = jest.fn(), mockText = jest.fn(), mockGetSession = jest.fn();
 const mockBucket = jest.fn(() => ({ download: mockDownload }));
@@ -47,6 +48,18 @@ function source(over: Partial<SourceRow>): SourceRow {
 }
 
 describe("composeWikiExport", () => {
+  test.each([undefined, 5])("northstar labels use full-body fingerprints before clipping (%s)", (bodyCharLimit) => {
+    const body = "I keep learning.";
+    const row = { kind: "note", topic: null, body, created_at: "2026-10-19", tags: [northstarAiTag(body)] };
+    const result = composeWikiExport([], [], { aiCopyTail: "AI TAIL", bodyCharLimit }, [
+      { ...row, system_tags: [northstarAiTag(body)] },
+      { ...row, body: `${body}!`, system_tags: [northstarAiTag(body)] },
+      { ...row, system_tags: [NORTHSTAR_AI_TAG] },
+      { ...row, system_tags: [] }, row,
+    ]);
+    expect(result.prompt.match(/AI TAIL/g)).toHaveLength(1);
+    expect(composeWikiExport([], [], { aiCopyTail: "AI TAIL" }).prompt).not.toContain("AI TAIL");
+  });
   test("empty wiki produces a complete document with placeholders", () => {
     const r = composeWikiExport([], [], { asOf: "2026-05-25" });
     expect(r.pageCount).toBe(0);
@@ -289,8 +302,23 @@ describe("exportUserWiki captured execution preparation", () => {
     expect(requests.slice(0, 3)).toEqual([
       expect.objectContaining({ table: "wiki_pages", limit: 4, filters: [["user_id", "u1"]], kinds: ["kind", ["concept"]] }),
       expect.objectContaining({ table: "sources", limit: 3, filters: [["user_id", "u1"]], kinds: ["kind", ["article"]] }),
-      expect.objectContaining({ table: "records", columns: "kind, topic, body, created_at, tags", limit: 2, filters: [["user_id", "u1"]], order: ["created_at", { ascending: false }] }),
+      expect.objectContaining({ table: "records", columns: "kind, topic, body, created_at, tags, system_tags", limit: 2, filters: [["user_id", "u1"]], order: ["created_at", { ascending: false }] }),
     ]);
+  });
+
+  it("record reads carry the fingerprint through Markdown export and support a missing column", async () => {
+    const body = "I keep learning.";
+    tables.records = [{ user_id: "u1", kind: "note", topic: null, body, created_at: "2026-10-19", tags: [northstarAiTag(body)], system_tags: [northstarAiTag(body)] }];
+    const opts = { includeRecords: true, aiCopyTail: "AI TAIL" };
+    expect((await exportUserWiki("u1", opts)).prompt).toContain("AI TAIL");
+    mockRead.mockImplementation(async request => {
+      if (request.table !== "records") return rows(request);
+      if (request.columns.includes("system_tags")) return { data: null, error: { code: "42703", message: "column system_tags does not exist" } };
+      return { data: tables.records.map(({ system_tags: _tags, ...row }: { system_tags?: unknown }) => row), error: null };
+    });
+    const legacy = await exportUserWiki("u1", opts);
+    expect(legacy.prompt).toContain(body);
+    expect(legacy.prompt).not.toContain("AI TAIL");
   });
 
   it("keeps only eight unpromoted explicit conversations; ordinary sources and promoted bodies are never downloaded", async () => {

@@ -410,8 +410,16 @@ describe("비서 허브 PIXEL·legacy 회귀", () => {
     // "star picker" became "area picker" in the next comment. The Domains screen
     // itself is byte-identical (slice diff checked, 2 hunks, both in the focus header);
     // the focus rules are held by src/lib/ops/__tests__/focus-tally.test.ts.
+    // 2026-10-19 (T18 · Q-261013-75 B1 · Q-261019-42 가): the persona export now passes the
+    // existing AI copy tail (`secondb:aiCopyTail`) to the two `exportIden` calls and wraps the
+    // JSON document with `withIdenAiCopyTail`. Only those three lines in this slice changed
+    // (slice diff checked: 3 hunks, one line each). The label itself is held by
+    // src/lib/iden/__tests__/formats-ai-disclosure.test.ts. The other digest did not change.
+    // T18 review follow-up: Markdown now forwards the same localized tail for
+    // fingerprint-matched northstar rows. Re-pinned from the LF-normalized slice;
+    // the Formats handler execution test holds this extra call-site contract.
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceFormatsScreen()", "export { DeepSpaceRecordsScreen"))).toBe(
-      "0ae10b95e13affbf453974a11e420f73792a352895ec4fee4e9d310c81ed5902",
+      "76f8b45b808a6b356e40e2c2fe0e2ee1cf556de858e86bf1230834950e9e06cb",
     );
     expect(sha256(sourceSlice(GIANT, "export function DeepSpaceDomainsScreen()", "export function DeepSpaceFocusScreen()"))).toBe(
       "07f1e37cb47a85bd6b4b277bfead83688d793a1c64e71fa9633ce5cf99703c6d",

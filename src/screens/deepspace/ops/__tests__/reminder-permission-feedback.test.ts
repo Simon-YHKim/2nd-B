@@ -87,7 +87,8 @@ test("denied permission stays off and shows the approved explanation and explici
   const host = mount(); await host.flush(); host.press(); await host.flush();
   expect(host.row().props.vm).toMatchObject({ on: false, feedback: "secondb:planSuggestion.reminderDenied" });
   expect(nodes(host.card(), "Text").some(node => node.props.children === "secondb:planSuggestion.reminderDenied" && node.props.accessibilityRole === "alert")).toBe(true);
-  expect(host.settingsLabel()).toBe("chatSaveNoticeOpen");
+  // The reminder button keeps 「설정 열기」 (Q-261018-51 shortened only the chat notice button).
+  expect(host.settingsLabel()).toBe("chatSaveNoticeOpenLabel");
   expect(host.openSettings).not.toHaveBeenCalled();
   (host.row().props.onPermissionSettings as () => void)(); await host.flush();
   expect(host.openSettings).toHaveBeenCalledTimes(1);

@@ -195,7 +195,7 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   // core-brain 은 2026-10-06 에 6 -> 0 으로 **갚아서** 줄을 지웠다(Q-261005-01 = A,
   // 저장 결과 카드 · 덱 제목 · 그래픽 라벨 · 내보내기를 core-brain/persona 키로).
   "src/app/iden.tsx": 7,
-  "src/app/interview.tsx": 3,
+  "src/app/interview.tsx": 2,
   "src/app/ipip-neo.tsx": 16,
   "src/app/motivation.tsx": 6,
   "src/app/notices.tsx": 9, // 38 -> 10: D-06 목업 제거; 10 -> 9: T49 제목을 번역 키로 연결
@@ -240,7 +240,10 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   // 24 -> 28: 2026-10-11 Q-261011-11 위기 전화번호 원칙(crisisNumberRule). KO/EN 한 쌍의 모델 지시문이고
   // UI 문구가 아니다 - 같은 파일의 SYSTEM_PROMPT_HEADER 와 같은 성질이라 번들로 빼지 않는다.
   // 28 -> 25: 2026-10-14 Q-261014-24 한도 말풍선의 업그레이드 권유 문장(템플릿 세 조각)을 뺐다.
-  "src/lib/chat/conversation.ts": 25,
+  // 25 -> 27: 2026-10-18 Q-261018-55 다(대화 답 반말 + 「브로」). 말투 줄을 고치며 하나 줄고, 이번 턴 말투 보정
+  // (chatTurnToneLine)의 모델 지시문 두 문장과 「브로」 일치 규칙 하나가 늘었다. UI 문구가 아니라 위 crisisNumberRule
+  // · SYSTEM_PROMPT_HEADER 와 같은 모델 지시문이라 번들로 빼지 않는다.
+  "src/lib/chat/conversation.ts": 27,
   "src/lib/chat/keep-exchange.ts": 3,
   "src/lib/chat/rag.ts": 1,
   "src/lib/entitlements/reasoning-cap.ts": 4,
@@ -252,6 +255,8 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/import/proposals.ts": 17,
   // 2026-09-25: two KO/EN paired scene-continuity and voluntary-disclosure prompt rules.
   "src/lib/interview/probe.ts": 58,
+  // Q7 stored transcript labels: KO/EN pair, also used in model history and dormant finalize.
+  "src/lib/interview/saved-story.ts": 2,
   // Offline-only layer fixtures; all five questions have an explicit English branch.
   "src/lib/interview/mock-probe.ts": 5,
   "src/lib/interview/stuck.ts": 10,
@@ -275,7 +280,8 @@ const MIXED_FILE_DEBT: Record<string, number> = {
   "src/lib/persona/motivation-survey.ts": 22,
   "src/lib/persona/northstar.ts": 6,
   "src/lib/persona/proposal-display.ts": 11,
-  "src/lib/persona/propose-self-model.ts": 9,
+  // Q7: both language prompts name both provenance labels for mixed-language records.
+  "src/lib/persona/propose-self-model.ts": 11,
   // reflection-scaffold.ts(4) 는 2026-10-06 에 파일째 E:/Legacy 로 갔다
   // (Simon 결정 Q-261005-08 B). **고친 것이 아니라 빠진 것**이다.
   "src/lib/persona/rlss.ts": 15,

@@ -85,6 +85,8 @@ import {
 } from "../build";
 import { callLlm } from "../../llm/boundary";
 import { AUDIT_QUESTIONS } from "../../audit/questions";
+import { buildIdenDoc } from "../../iden/build-iden";
+import { buildIdenExport } from "../../iden/iden-export";
 
 function reset() {
   for (const k of Object.keys(tableFixtures)) delete tableFixtures[k];
@@ -850,6 +852,7 @@ describe("buildPersona", () => {
         {
           patterns: {
             summary: "cached mirror",
+            __summary_source: "model",
             __summary_sig: personaSummarySig("en", false, 2, "2026-01-03T00:00:00Z"),
           },
         },
@@ -907,7 +910,7 @@ describe("buildPersona", () => {
     };
     const cached = (sig: string) => {
       tableFixtures["personas:select"] = {
-        data: [{ patterns: { summary: "summary on the other age's routing", __summary_sig: sig } }],
+        data: [{ patterns: { summary: "summary on the other age's routing", __summary_sig: sig, __summary_source: "model" } }],
         error: null,
       };
     };
@@ -1009,6 +1012,44 @@ describe("buildPersona", () => {
       expect(callLlm).toHaveBeenCalledTimes(1);
       expect(callLlm).toHaveBeenCalledWith(expect.objectContaining({ purpose: "persona_narrative", minor }));
     }
+  });
+});
+
+describe("persona export summary provenance", () => {
+  beforeEach(() => {
+    reset();
+    tableFixtures["records:select"] = {
+      data: [{ id: "r1", prompt: "Q", body: "A", created_at: "2026-10-19", tags: [] }], error: null,
+    };
+  });
+
+  test.each(["red", "green", "yellow"])("%s provenance survives persistence and a cache hit in every export", async (zone) => {
+    (callLlm as jest.Mock).mockResolvedValueOnce({ text: "Saved response.", safety: { zone } });
+    const fresh = await buildIdenDoc("u1", { locale: "en", minor: false });
+    const persisted = upsertCalls.find((u) => u.table === "personas")!.payload as { patterns: Record<string, string> };
+    expect(persisted.patterns.__summary_source).toBe(zone === "red" ? "fixed_safety" : "model");
+    tableFixtures["personas:select"] = { data: [persisted], error: null };
+    const cached = await buildIdenDoc("u1", { locale: "en", minor: false });
+    expect(callLlm).toHaveBeenCalledTimes(1);
+    expect(cached.summary).toEqual(fresh.summary);
+    expect((upsertCalls.at(-1)!.payload as typeof persisted).patterns.__summary_source).toBe(persisted.patterns.__summary_source);
+    for (const doc of [fresh, cached]) {
+      const exported = buildIdenExport(doc, { aiCopyTail: "AI TAIL" });
+      for (const artifact of [exported.iden, exported.html, exported.json]) {
+        expect(artifact).toContain("Saved response.");
+        expect(artifact.includes("AI TAIL")).toBe(zone !== "red");
+      }
+    }
+  });
+
+  test("a legacy cache without summary provenance misses even when its signature matches", async () => {
+    tableFixtures["personas:select"] = {
+      data: [{ patterns: { summary: "Unknown old response", __summary_sig: personaSummarySig("en", false, 1, "2026-10-19") } }], error: null,
+    };
+    const card = await buildPersona("u1", "en", false);
+    expect(callLlm).toHaveBeenCalledTimes(1);
+    expect(card.patterns.__summary_source).toBe("model");
+    expect(card.patterns.summary).toBe("mock summary");
   });
 });
 

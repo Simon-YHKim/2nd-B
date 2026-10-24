@@ -178,7 +178,7 @@ ALTER TABLE public.interview_sessions ADD CONSTRAINT interview_sessions_end_reas
 | `id` | uuid PK | 서버 | |
 | `session_id` | uuid FK → sessions ON DELETE CASCADE | 프록시 | 장면 id 의 앞쪽 |
 | `audit_id` | uuid UNIQUE NULL | 프록시 | 그 호출의 `ai_audit_log.id`. fold 때 해시 비우기에 씀 |
-| ★`prior_audit_ids` | uuid[] NOT NULL DEFAULT '{}' | 프록시 | 같은 턴의 앞선 호출(장애 전환 재시도, `src/lib/llm/boundary.ts:706`) — 해시 비우기 대상 |
+| ★`prior_audit_ids` | uuid[] NOT NULL DEFAULT '{}' | 프록시 | 같은 턴의 앞선 호출(장애 전환 재시도, `src/lib/llm/boundary.ts:854-885`) — 해시 비우기 대상 |
 | `scene_seq` | int 1..10000 | 클라이언트 메타 | 장면 번호(장면 id = 세션 + 장면 번호) |
 | `turn_seq` | int 1..10000 | 클라이언트 메타 | 장면 안 답 순번(0220 의미 그대로) |
 | ★`turn_no` | int 1..20000 NULL | 클라이언트 메타 · commit | **대화록 전체에서의 턴 번호**(질문 · 답 모두 셈, 1부터). `UNIQUE (session_id, turn_no)` |

@@ -140,7 +140,7 @@
       "takeout": {
         "name": "Google Timeline",
         "sub": "Location · Takeout file",
-        "what": "Only place/dwell patterns. Exact coordinates aren't stored."
+        "what": "Only the place names you choose. We don't store coordinates or routes."
       },
       "sms": {
         "name": "SMS",
@@ -150,7 +150,7 @@
       "live-location": {
         "name": "Location history",
         "sub": "Location · exported file",
-        "what": "Only place/dwell patterns. Exact coordinates aren't stored."
+        "what": "Only the place names you choose. We don't store coordinates or routes."
       },
       "health": {
         "name": "Health",

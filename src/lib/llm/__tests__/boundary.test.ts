@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 // C9 assertion: classifyInput runs before any LLM network call, and
 // red-zone input short-circuits without invoking the SDK.
 // C3 assertion: normal flows enqueue and flush insertAiAuditLog.
@@ -175,6 +178,7 @@ describe("callLlm", () => {
   });
 
   test("interview red routing records honest source/purpose in both ledgers without Gemini", async () => {
+    __resetAccountEpochForTests(); noteResolvedOwner("interview-user");
     const api = jest.requireActual("../boundary") as {
       classifyInterviewTextForCrisis?: (
         text: string,
@@ -251,6 +255,7 @@ describe("callLlm", () => {
     // return null for chat there while the only live red test ran with the edge off (review G-03,
     // 2026-10-14). So every crisis router built on routeCrisis runs in both settings, and must give
     // the same fixed result it gives in this suite's default env.
+    beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("chat-user"); });
     const actual = jest.requireActual("../boundary") as typeof import("../boundary");
     type Router = (text: string, locale: "en" | "ko", userId: string, minor?: boolean) => Promise<LlmResult<string> | null>;
     const ROUTERS: [string, Router, string | undefined, string][] = [
@@ -424,6 +429,7 @@ describe("callLlm", () => {
   });
 
   test("deferred interview ledgers never delay visible UI and concurrent starts route exactly once", async () => {
+    __resetAccountEpochForTests(); noteResolvedOwner("interview-user");
     const events: string[] = [];
     let releaseAudit!: () => void;
     const deferredAudit = new Promise<void>((resolve) => {

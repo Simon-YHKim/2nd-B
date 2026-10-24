@@ -1,4 +1,5 @@
 import type { Coverage, DrillLayer, LifePeriod } from "./probe";
+import { isUneditedOpener, type OpenerSelection } from "./opener-selection";
 import { HOTLINES, type HotlineId } from "../safety/lexicon";
 import {
   copyInterviewDraftContent, INTERVIEW_DRAFT_MAX_BYTES, INTERVIEW_DRAFT_TTL_MS,
@@ -9,6 +10,7 @@ import {
 export interface InterviewStableSnapshot {
   turns: InterviewDraftTurn[];
   draft: string;
+  openerSelection?: OpenerSelection;
   inputRevision: number;
   pendingLayer: DrillLayer | null;
   openers: string[];
@@ -89,13 +91,13 @@ function matrix(value: unknown): value is Coverage {
   });
 }
 function state(value: unknown, root: Record<string, unknown>): value is InterviewStableSnapshot {
-  if (!object(value) || !keys(value, ["turns", "draft", "inputRevision", "pendingLayer", "openers",
+  if (!object(value) || !keys(value, ["turns", "draft", "openerSelection", "inputRevision", "pendingLayer", "openers",
     "stuckStreak", "abandoned", "concreteOnly", "phase", "endReason", "crisisHotline", "notice", "coverage"])) return false;
   // Reuse v1's strict turn validation, including missing/false/null distinctions.
   try {
     copyInterviewDraftContent({ period: root.period, locale: root.uiLanguage,
       growthOrigin: root.growthOrigin, phase: value.phase, turns: value.turns,
-      draft: value.draft } as Parameters<typeof copyInterviewDraftContent>[0]);
+      draft: value.draft, openerSelection: value.openerSelection } as Parameters<typeof copyInterviewDraftContent>[0]);
   } catch { return false; }
   if (!["active", "ended", "crisis-ended"].includes(value.phase as string)
     || !integer(value.inputRevision) || !(value.pendingLayer === null || layer(value.pendingLayer))
@@ -103,6 +105,8 @@ function state(value: unknown, root: Record<string, unknown>): value is Intervie
     || !integer(value.stuckStreak) || !Array.isArray(value.abandoned) || !value.abandoned.every(layer)
     || new Set(value.abandoned).size !== value.abandoned.length
     || typeof value.concreteOnly !== "boolean" || !notices.includes(value.notice)) return false;
+  if (value.openerSelection !== undefined && !isUneditedOpener(value.openerSelection, value.draft as string,
+    value.turns as InterviewDraftTurn[], value.openers)) return false;
   if (value.phase === "active" ? value.endReason !== null
     : value.pendingLayer !== null || value.openers.length !== 0
       || (value.phase === "crisis-ended" ? value.endReason !== "crisis"

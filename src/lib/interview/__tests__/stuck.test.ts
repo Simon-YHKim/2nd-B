@@ -5,7 +5,7 @@
 // "잘 모르겠는데" → 믿음(L4) → "모르겠다구" → 울림(L5) 로 계속 내려갔고,
 // 못 답한 칸이 전부 채워진 것으로 셌다.
 import { emptyCoverage, incrementCoverage, nextMove, type Coverage } from "../probe";
-import { isNonAnswer, shouldScaffold, SCAFFOLD_FALLBACK, scaffoldQuestion, MAX_SCAFFOLDS_PER_LAYER } from "../stuck";
+import { isNonAnswer, shouldScaffold, SCAFFOLD_FALLBACK, scaffoldQuestion, failedAttemptMove, MAX_SCAFFOLDS_PER_LAYER } from "../stuck";
 import { narrativeStarLevel } from "../narrative-level";
 import { livedPeriods } from "../periods";
 import { classifyInputAnyLocale } from "../../safety/classifier";
@@ -185,7 +185,7 @@ describe("⚠ 층을 정하는 곳은 하나다 (실행해서 잡은 두 번째 
   const SCREEN = readFileSync(join(__dirname, "..", "..", "..", "app", "interview.tsx"), "utf8");
 
   it("화면이 nextProbe 에 move.layer 를 항상 넘긴다", () => {
-    expect(SCREEN).toContain('0, move.kind === "finish" ? credited : move.layer,');
+    expect(SCREEN).toContain('0, target, deliverRed,');
     // 발판은 nextProbe 앞에서 반환하고, 평상시에도 nextMove가 고른 층을 넘긴다.
     expect(SCREEN).not.toContain("isScaffold ? move.layer : null");
   });
@@ -249,7 +249,7 @@ describe("발판은 네트워크 없이 즉시 보여준다", () => {
     const redEnd = SCREEN.indexOf("const disposition =", redStart);
     // 막힘 판정은 send() 가 `isLocalNonAnswer` 로 부른다(건너뛰기 가드와 같은 판정, F2049-02).
     const nonAnswer = SCREEN.indexOf("isLocalNonAnswer(text, pendingLayer)", sendStart);
-    const coverageWrite = SCREEN.indexOf("setCoverage(nextCoverage)", sendStart);
+    const coverageWrite = SCREEN.indexOf("commitFrame(action,", sendStart);
     const llmBoundary = SCREEN.indexOf("await ask(nextTurns, nextCoverage", sendStart);
 
     expect(sendStart).toBeGreaterThan(-1);
@@ -276,16 +276,16 @@ describe("발판은 네트워크 없이 즉시 보여준다", () => {
   });
 
   it("scaffold 클릭은 LLM 0회, POST 0회이며 coverage를 바꾸지 않는다", () => {
-    const scaffoldStart = SCREEN.indexOf('if (move.kind === "scaffold") {');
+    const scaffoldStart = SCREEN.indexOf('if (request.kind === "answer" && stuck) {');
     const llmBoundary = SCREEN.indexOf("const probe = await nextProbe(");
 
     expect(scaffoldStart).toBeGreaterThan(-1);
     expect(llmBoundary).toBeGreaterThan(scaffoldStart);
 
     const deterministicBranch = SCREEN.slice(scaffoldStart, llmBoundary);
-    expect(deterministicBranch).toContain("scaffoldQuestion(move.layer, locale, stuck?.streak ?? 1)");
-    expect(deterministicBranch).toContain("setPendingLayer(move.layer)");
-    expect(deterministicBranch).toContain("return;");
+    expect(deterministicBranch).toContain("scaffoldQuestion(stuck.layer, locale, 1)");
+    expect(deterministicBranch).toContain("acceptIntoFrame(action, frame, local(stuck.layer");
+    expect(deterministicBranch).toContain("return acceptIntoFrame");
     expect(deterministicBranch).not.toMatch(/nextProbe|callLlm|fetch|createRecord|addCoverage/);
     expect(deterministicBranch).not.toMatch(/(?:increment|decrement|set)Coverage/);
   });
@@ -319,4 +319,11 @@ describe("발판은 네트워크 없이 즉시 보여준다", () => {
     expect(SCREEN).toContain('<Text style={[m3TextStyle("labelLarge"), styles.answerChipText]}>');
     expect(SCREEN).toContain('{t("drill.enough")}');
   });
+});
+
+test("S2 attempts differ from the preserved legacy scaffold budget", () => {
+  expect(failedAttemptMove("fact", 0)).toBeNull();
+  expect(failedAttemptMove("fact", 1)).toEqual({ kind: "scaffold", layer: "fact" });
+  expect(failedAttemptMove("fact", 2)).toEqual({ kind: "stuckChoice", layer: "fact", attempts: 2 });
+  expect(shouldScaffold(2)).toBe(true); expect(MAX_SCAFFOLDS_PER_LAYER).toBe(2);
 });
