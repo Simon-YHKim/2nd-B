@@ -39,7 +39,8 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { rewardedAdsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
-import { getReasoningUsage } from "@/lib/entitlements/usage";
+import { captureAccountOwnerLease, currentAccountEpoch } from "@/lib/auth/account-epoch";
+import { useReasoningUsageRead } from "@/lib/reasoning/use-reasoning-usage-read";
 import { getAutoReasoningEnabled } from "@/lib/reasoning/auto-pref";
 import { weeklyBaseRemaining } from "@/lib/reasoning/remaining-copy";
 import { useProgression } from "@/lib/progression/useProgression";
@@ -548,15 +549,16 @@ export function ConstellationHome({
       setPhoneGlare({ run: phoneGlareSeq.current, frame: { left: glare.x - rootX, top: glare.y - rootY, width: glare.width, height: glare.height } });
     });
   }, []);
-  const [reasoningStatus, setReasoningStatus] = useState<{
-    automatic: boolean;
-    /** Run gate: weekly base + monthly reward credits (what CAN still run). */
-    remaining: number | null;
-    /** Display split (spec 결정 5): weekly base only. null = unlimited/unknown. */
-    baseRemaining: number | null;
-    /** Display split: monthly reward credits still available. */
-    rewardCredits: number;
-  }>({ automatic: false, remaining: null, baseRemaining: null, rewardCredits: 0 });
+  const accountEpoch = currentAccountEpoch();
+  const [automaticRead, setAutomaticRead] = useState<{ ownerId: string; epoch: number; enabled: boolean } | null>(null);
+  const { view: usageView, refresh: refreshReasoningStatus } = useReasoningUsageRead(userId, bubble.kind === "reasoning");
+  const usage = usageView.status === "ready" ? usageView.usage : null;
+  const reasoningStatus = {
+    automatic: automaticRead?.ownerId === userId && automaticRead.epoch === accountEpoch && automaticRead.enabled,
+    remaining: usage ? remainingReasoning(progression.tier, usage.used, usage.rewardCredits) : null,
+    baseRemaining: usage ? weeklyBaseRemaining(progression.tier, usage.used) : null,
+    rewardCredits: usage?.rewardCredits ?? null,
+  };
   const [limitSheetVisible, setLimitSheetVisible] = useState(false);
 
   // Home stays mounted behind other routes; pause its portrait while covered.
@@ -565,26 +567,16 @@ export function ConstellationHome({
     return () => setHomeFocused(false);
   }, []));
 
-  const refreshReasoningStatus = useCallback(async () => {
-    if (!userId) {
-      setReasoningStatus({ automatic: false, remaining: null, baseRemaining: null, rewardCredits: 0 });
-      return;
-    }
-    const [automatic, usage] = await Promise.all([
-      getAutoReasoningEnabled(userId),
-      getReasoningUsage(userId),
-    ]);
-    setReasoningStatus({
-      automatic,
-      remaining: remainingReasoning(
-        progression.tier,
-        usage.used,
-        usage.rewardCredits,
-      ),
-      baseRemaining: weeklyBaseRemaining(progression.tier, usage.used),
-      rewardCredits: usage.rewardCredits,
-    });
-  }, [progression.tier, userId]);
+  useFocusEffect(useCallback(() => {
+    if (!userId || bubble.kind !== "reasoning") return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease) return;
+    let live = true;
+    void getAutoReasoningEnabled(userId).then((enabled) => {
+      if (live && lease.isCurrent()) setAutomaticRead({ ownerId: userId, epoch: lease.epoch, enabled });
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [userId, accountEpoch, bubble.kind]));
 
   useEffect(() => {
     if (bubble.kind === "reasoning") void refreshReasoningStatus();
@@ -737,7 +729,9 @@ export function ConstellationHome({
                 ? reasoningCopy.choose
                 : reasoningStatus.baseRemaining !== null && reasoningStatus.baseRemaining > 0
                   ? reasoningCopy.baseLeft(reasoningStatus.baseRemaining)
-                  : reasoningCopy.rewardLeft(reasoningStatus.rewardCredits)
+                  : reasoningStatus.rewardCredits !== null
+                    ? reasoningCopy.rewardLeft(reasoningStatus.rewardCredits)
+                    : reasoningCopy.choose
       : bubble.kind === "star"
         ? `${t(`ds.home.star.${bubble.id}.line`)}${selectedEntry?.kind === "previous"
           ? ` ${t("ds.home.star.entryAfter", { star: starName(selectedEntry.prerequisite) })}`
