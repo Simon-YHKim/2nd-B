@@ -40,6 +40,7 @@ const sameBytes = (draft: string, numbered: string) =>
 // not applied yet may be revised before its GO, and its digest moves in the same
 // commit with the reason.
 const promoted = [
+  ["0270", "crisis_ai_hold", "c681c8ff0c7fc5f1401fc76ce5499d351635386711d0c8e4448760c4e3359c9b"],
   ["0267", "chat_turn_purpose_restore", "e7cfe580a1e2eeceeb47bceee8d65806d0585df29cd2ce7831f377a9ca165210"],
   ["0266", "chat_turn_refund_evidence", "128170bea3ffe4944dcad8c82d4554418a807074181232c7c55ea564a5194cb7"],
   ["0265", "chat_turn_attempt_with_quota", "017563cf778ba4b408f87ad1dbe21bed6e08b2331cb6de5144423560918939ef"],
@@ -88,6 +89,10 @@ const RETAINED_UNTIL_APPLIED = ["0197:paddle_refund_consequence_integrity"] as c
 // Drafts that do not have a number yet, each with its behavioural lane. A new
 // draft is registered here; it leaves this map in the change that numbers it.
 const pendingDrafts: Record<string, { runner: string; workflowInvocation: string }> = {
+  "UNNUMBERED_before_user_created_signup.sql": {
+    runner: "scripts/test-before-user-created-signup.py",
+    workflowInvocation: "python3 scripts/test-before-user-created-signup.py 5432 t06_signup_test_ci",
+  },
   "UNNUMBERED_support_reports.sql": {
     runner: "db/migration-drafts/tests/support-reports.sql",
     workflowInvocation: "psql -X -h 127.0.0.1 -U postgres -d t53_support_test_ci -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/support-reports.sql",
@@ -95,10 +100,6 @@ const pendingDrafts: Record<string, { runner: string; workflowInvocation: string
   "UNNUMBERED_unconfirmed_signup_cleanup.sql": {
     runner: "scripts/test-unconfirmed-signup-cleanup.py",
     workflowInvocation: "run: python3 scripts/test-unconfirmed-signup-cleanup.py 5432 t07_cleanup_test_ci",
-  },
-  "UNNUMBERED_crisis_ai_hold.sql": {
-    runner: "db/tests/crisis_ai_hold_draft_regression.sql",
-    workflowInvocation: "psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/crisis_ai_hold_draft_regression.sql",
   },
   "UNNUMBERED_account_export_read_grants.sql": {
     runner: "db/migration-drafts/tests/account-export-read-grants.sql",
@@ -151,6 +152,10 @@ function draftCopyViolations(
 
 // Every migration file a behavioural lane replays, numbered or (0197) retained.
 const behaviorLanes = {
+  "0270_crisis_ai_hold.sql": {
+    runner: read("db/tests/crisis_ai_hold_regression.sql"),
+    workflowInvocation: "-f db/tests/crisis_ai_hold_regression.sql",
+  },
   "0206_users_avatar_spec.sql": {
     runner: avatarSpecRegression,
     workflowInvocation: "-f db/migration-drafts/tests/users-avatar-spec-contract.sql",
@@ -203,7 +208,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
   test("0265-0267 keep separate pre-install schemas and inspect the final numbered schema", () => {
     const stage = workflow.split("- name: Apply staged migrations (0147+) through Supabase CLI")[1]
       .split("- name:")[0];
-    expect(stage).toContain("for boundary in 0265 0266 0267 final; do");
+    expect(stage).toContain("for boundary in 0265 0266 0267 0270 final; do");
     expect(stage).toContain('if [[ "$boundary" == final ]] || (( 10#$version < 10#$boundary )); then');
     expect(stage.indexOf("supabase db push")).toBeLessThan(stage.indexOf("CREATE DATABASE t39_t40_before_${boundary} TEMPLATE postgres"));
     expect(stage).toContain('actual_count="$(psql');
@@ -430,7 +435,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
   });
 
   test("D4 cleans held rows after both immutable 0263 guards and repairs prior draft residuals", () => {
-    const draft = read("db/migration-drafts/UNNUMBERED_crisis_ai_hold.sql");
+    const draft = read("db/migrations/0270_crisis_ai_hold.sql");
     const consent = read("db/migrations/0263_records_embedding_consent_guard.sql");
     const trigger = draft.match(/CREATE TRIGGER (\w+) BEFORE INSERT OR UPDATE ON public\.records\n\s+FOR EACH ROW EXECUTE FUNCTION public\.guard_record_ai_hold_embedding\(\);/);
     expect(trigger).not.toBeNull();
@@ -446,8 +451,8 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
   });
 
   test("D4 regression proves real consented vectors, unchanged 0263 and its complete suite after draft install", () => {
-    const regression = read("db/tests/crisis_ai_hold_draft_regression.sql");
-    const apply = "\\ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql";
+    const regression = read("db/tests/crisis_ai_hold_regression.sql");
+    const apply = "\\ir ../migrations/0270_crisis_ai_hold.sql";
     expect(regression.indexOf("'fixture has three real consented vectors'")).toBeLessThan(regression.indexOf(apply));
     expect(regression).toContain("'all four 0263 functions and ACLs unchanged'");
     expect(regression).toContain("'all four 0263 trigger identities definitions and enablement unchanged'");
@@ -459,7 +464,7 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
   });
 
   test("D4 AI views project only reader columns without pinning unrelated rollback columns", () => {
-    const draft = read("db/migration-drafts/UNNUMBERED_crisis_ai_hold.sql");
+    const draft = read("db/migrations/0270_crisis_ai_hold.sql");
     const projections = {
       records: "id user_id kind topic body summary structured prompt audit_period tags ai_followup created_at embedding embedding_model",
       sources: "id user_id kind title source_url storage_path frontmatter tags ingested captured_at simon_relevance",
@@ -471,10 +476,10 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
       expect(select![1].split(",").map(column => column.trim().replace(/^[rsw]\./, "")))
         .toEqual(columns.split(" "));
     }
-    const regression = read("db/tests/crisis_ai_hold_draft_regression.sql");
+    const regression = read("db/tests/crisis_ai_hold_regression.sql");
     expect(regression).toContain("\\ir ../migrations/rollback/0218_down.sql");
     expect(regression).toContain("'0218 rollback preserves held original and empty pair'");
-    expect(regression).toContain("BEGIN;\n\\ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql\n\\ir records_system_tags_regression.sql");
+    expect(regression).toContain("BEGIN;\n\\ir ../migrations/0270_crisis_ai_hold.sql\n\\ir records_system_tags_regression.sql");
   });
 
   test("runs 0263 consent contracts and real races on an isolated full-schema clone", () => {

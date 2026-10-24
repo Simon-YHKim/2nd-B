@@ -6,6 +6,7 @@ import { createContentWipeLedger } from "../../account/content-wipe";
 import { beginAccountSessionLease, type AuthenticatedAccountSessionLease } from "../../auth/account-session-lease";
 import * as accountSessionLease from "../../auth/account-session-lease";
 import { deleteSource } from "../../wiki/queries";
+import { prepareSavedDataDeletion } from "../../wiki/saved-data-changes";
 import { __resetAccountEpochForTests, beginAccountOwnerTransition, captureAccountOwnerLease,
   clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../auth/account-epoch";
 import { __resetAccountLocalDeletionFencesForTests } from "../../account/local-deletion-fence";
@@ -174,6 +175,25 @@ test.each([false, true])("K01 ledger keep (auto %s) joins one pending write and 
   expect(f.complete).toHaveBeenCalledTimes(1);
   expect(await f.startKeep()).toMatchObject({ reason: "already-saved" });
   expect(await f.startKeep(true)).toMatchObject({ reason: "autosave-blocked" });
+});
+
+test.each(["present", "missing", "unknown"] as const)("H-prep ledger checking has no completion notice, even after %s recheck", async state => {
+  jest.useFakeTimers();
+  const f = keepFixture(), inserted = deferred<unknown>(), read = deferred<unknown>();
+  mockIO.mockImplementation(q => q.insert ? inserted.promise : q.columns === "id" ? read.promise : defaultIO(q));
+  const result = f.startKeep(); await flush();
+  prepareSavedDataDeletion({ ownerId: "a", kind: "source", ids: ["source-a"] })("requested");
+  inserted.resolve(sourceReply());
+  expect(await result).toMatchObject({ status: "settled", receipt: { state: "checking", sourceId: "source-a" } });
+  expect(f.complete).not.toHaveBeenCalled();
+  expect(await f.startKeep()).toMatchObject({ reason: "check-required" });
+  read.resolve({ data: state === "present" ? [{ id: "source-a" }] : [], error: state === "unknown" ? new Error("offline") : null });
+  await flush();
+  expect(f.keep.receipts.get("exchange")?.state).toBe(state);
+  expect(f.complete).not.toHaveBeenCalled();
+  expect(f.facts().map(t => t.outcome)).toEqual(["committed", "committed"]);
+  expect(mockQueries.filter(q => q.insert)).toHaveLength(1);
+  expect(mockUpload).toHaveBeenCalledTimes(1); expect(jest.getTimerCount()).toBe(0);
 });
 
 test("K02 ledger keep returns the existing source after a confirmed exact-duplicate drop", async () => {

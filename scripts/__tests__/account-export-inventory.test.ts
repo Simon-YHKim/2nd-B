@@ -60,7 +60,7 @@ test("real descriptors classify 89 physical tables exactly once, plus the users 
 test("D4's wildcard-exported hold columns are disclosed in DPIA 6.1.3 and Q-H1", () => {
   // The inventory above is table-level. A column addition is invisible to its
   // counts, so pin this reviewed disclosure without changing export scope.
-  const draft = readFileSync(join(root, "db/migration-drafts/UNNUMBERED_crisis_ai_hold.sql"), "utf8");
+  const draft = readFileSync(join(root, "db/migrations/0270_crisis_ai_hold.sql"), "utf8");
   const dpia = readFileSync(join(root, "docs/legal/DPIA-2ndB-minors-draft.md"), "utf8");
   const portability = dpia.split("#### 6.1.3 ")[1].split("#### 6.1.4 ")[0];
   const question = dpia.split("- **Q-H1 [COUNSEL TO CONFIRM]**")[1].split("#### H2.")[0];

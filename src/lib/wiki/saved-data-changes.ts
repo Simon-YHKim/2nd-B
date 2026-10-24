@@ -21,7 +21,7 @@ export type SavedDataChange = Readonly<SavedDataDeletionTarget & {
 
 type Subscription = {
   owner: AccountOwnerLease;
-  listener: (change: SavedDataChange) => void;
+  listener: (change: SavedDataChange) => void | Promise<void>;
 };
 const subscriptions = new Set<Subscription>();
 
@@ -39,6 +39,7 @@ export function subscribeSavedDataChanges(ownerId: string, listener: Subscriptio
  * after the delete returned without error. Pass its exact affected count, or
  * "requested" for the existing count-less single-row queries. Missing/zero/short
  * counts also request a requery, without claiming which IDs vanished.
+ * Empty/blank or malformed IDs drop the whole event (no notification); never trim IDs or widen scope.
  * No extra reads, content, logging, or changes to the deletion's result. */
 export function prepareSavedDataDeletion(change: SavedDataDeletionTarget): (outcome: number | null | undefined | "requested") => void {
   const owner = captureAccountOwnerLease(change.ownerId);
@@ -49,14 +50,17 @@ export function prepareSavedDataDeletion(change: SavedDataDeletionTarget): (outc
       : { ownerId: change.ownerId, kind: change.kind, ids: Object.freeze([...new Set(change.ids)]) });
   return outcome => {
     if (!owner?.isCurrent()) return;
-    if (target.ids && (!target.ids.length || target.ids.some(id => !id))) return;
+    if (target.ids && (!target.ids.length || target.ids.some(id => typeof id !== "string" || !id.trim()))) return;
     const affected = typeof outcome === "number" && Number.isSafeInteger(outcome) && outcome > 0
       && (target.ids === undefined || outcome === target.ids.length);
     const event: SavedDataChange = Object.freeze({ ...target, basis: affected ? "affected" : "requested" });
     for (const subscription of [...subscriptions]) {
       if (!owner.isCurrent()) break;
       if (!subscriptions.has(subscription) || subscription.owner.ownerId !== event.ownerId || !subscription.owner.isCurrent()) continue;
-      try { subscription.listener(event); } catch { /* An observer cannot change the delete result or block other observers. */ }
+      try {
+        // Fan-out is synchronous; observe later rejection without awaiting it.
+        void Promise.resolve(subscription.listener(event)).catch(() => {});
+      } catch { /* An observer cannot change the delete result or block other observers. */ }
     }
   };
 }

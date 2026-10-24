@@ -116,6 +116,15 @@ describe.each(paths)("$name live deletion contract", path => {
     expect(mockQueries).toEqual(path.queries);
   });
 
+  test("async observer rejection preserves the caller result and subsequent delivery", async () => {
+    cleanups.push(subscribeSavedDataChanges("a", async () => { throw new Error("observer failed"); }));
+    const listener = listen(); mockExecute.mockResolvedValue({ count: path.count, error: null });
+    await expect(path.run("a")).resolves.toBe(path.result);
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(mockQueries).toEqual(path.queries);
+    expect(listener).toHaveBeenCalledWith(path.event);
+  });
+
   test("a mismatched owner still gets the original delete result, but no event", async () => {
     const listener = listen(); mockExecute.mockResolvedValue({ count: path.count, error: null });
     await expect(path.run("b")).resolves.toBe(path.result);
