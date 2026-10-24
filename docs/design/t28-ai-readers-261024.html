@@ -16,7 +16,7 @@
 <div class="card">목적<strong>D4 읽기 계약</strong><small>AI 전용 뷰 또는 ai_hold=false</small></div>
 <div class="card">사용자 데이터<strong>원문 열람 유지</strong><small>목록·상세·계정 내보내기 변경 없음</small></div>
 <div class="card">서버 변경<strong>함수 4개 초안</strong><small>번호 없음 · Relay 적용 필수 · 로컬 PG 검증</small></div>
-<div class="card">검증<strong id="validation-summary">1,874개 테스트 통과</strong><small id="validation-time">2026-10-24 22:55:29 KST</small></div>
+<div class="card">검증<strong id="validation-summary">1,923개 테스트 통과</strong><small id="validation-time">2026-10-24 23:04:58 KST</small></div>
 </div>
 <p>결정 원문: “저장 + 위기 안내, AI 처리(추출 · 임베딩 · 분류)는 건너뛴다. 보류 상태는 레코드 필드 ai_hold 로 남긴다.” <code>DECISIONS-2026-10-07_12.md:27</code>, D4. 0270 운영 적용(21:02, <code>20261024120238</code>)은 발주에서 제공한 사실이며 이 세션에서 운영에 접속해 확인하지 않았습니다.</p>
 <svg viewBox="0 0 1040 200" role="img" aria-labelledby="flow-title flow-desc">
@@ -71,14 +71,14 @@
 <details open><summary>검증과 한계</summary>
 <div id="validation-results">
 <ul>
-<li>이번 R1 관련 Jest: <strong>74개 묶음 / 1,874개 테스트 PASS</strong>, 실패·실행 오류 0, <code>--maxWorkers=2</code>. RN 렌더 테스트는 사용하지 않았습니다.</li>
+<li>최신 main 반영 후 R1 관련 Jest: <strong>76개 묶음 / 1,923개 테스트 PASS</strong>, 실패·실행 오류 0, <code>--maxWorkers=2</code>. RN 렌더 테스트는 사용하지 않았습니다.</li>
 <li>변이: <strong>33/33 사멸</strong> (앱·계약 19 + 실제 SQL 14), 생존 0. TS 테스트 실행 오류 0, 복구 후 관련 전체 재검증 PASS. SQL은 각 변이 전 VACUUM 후 재실행해 일시적인 로컬 DB 경합을 제외했습니다.</li>
-<li><code>tsc --noEmit -p tsconfig.json</code>, 변경 TS/TSX ESLint <code>--max-warnings 0</code>, constraints, i18n, emdash, cycles, 금지어 검사: 종료코드 0. C7: 5개 언어 · 40개 namespace · 4,468개 키. 런타임 순환 0.</li>
+<li><code>tsc --noEmit -p tsconfig.json</code>, 변경 TS/TSX ESLint <code>--max-warnings 0</code>, constraints, i18n, emdash, cycles, 금지어 검사: 종료코드 0. C7: 5개 언어 · 40개 namespace · 4,494개 키. 런타임 순환 0.</li>
 <li>로컬 폐기용 PostgreSQL 18.3 / pgvector 0.8.1에서 CI와 같은 seed 및 0001~0270 스키마를 재현했습니다. 함수 ACL·search_path·실행 권한·volatility 보존, RLS·일반/보류 행·부모 보류·Polaris 예약/스냅샷·0270 뷰 롤백 후 hold 유지 PASS.</li>
 <li>검색: 일반 행에 대해 역할·사용자·벡터·limit·모델·제외 ID를 바꾼 <strong>384회 차등 비교에서 차이 0</strong>. 행·열·유사도·순서까지 기존 0142와 같습니다.</li>
 <li>실제 설치된 두 검색 함수 본문에 <code>EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)</code> 실행. 순차 스캔을 강제로 끄지 않아도 <code>records_embedding_hnsw</code>, <code>wiki_pages_embedding_idx</code>의 거리 정렬을 사용했고 각각 8행 반환했습니다. 이 결과는 로컬 fixture의 계획이며 운영 성능 수치는 아닙니다.</li>
 <li>차등 비교에는 정확 검색을 사용하고 HNSW 접근 가능성은 별도로 검증합니다. HNSW는 근사 검색이므로 인덱스 계획의 모든 결과가 정확 검색과 같다는 주장은 하지 않습니다. <a href="https://github.com/pgvector/pgvector#querying">pgvector 공식 설명</a></li>
-<li>Jest 직전 가용 메모리 9,064,212 KB. 변이마다 2,621,440 KB 이상 확인. 전체 verify와 최종 CI 4개 상태는 PR 최신 head에서 판정합니다.</li>
+<li>Jest 직전 가용 메모리 9,335,536 KB. 변이마다 2,621,440 KB 이상 확인. main의 T10 안내 26개와 T28 안내 1개를 함께 반영했습니다. SQL 초안 등록 두 항목도 함께 보존했습니다. 전체 verify와 최종 CI 4개 상태는 PR 최신 head에서 판정합니다.</li>
 </ul>
 <details><summary>33개 변이 세부 결과</summary><div class="scroll"><table><thead><tr><th>종류</th><th>되돌린 조건</th><th>검출 결과</th></tr></thead><tbody>
 <tr><td>앱/계약</td><td><code>reasoning-empty-refund</code></td><td>3개 테스트 실패</td></tr>
