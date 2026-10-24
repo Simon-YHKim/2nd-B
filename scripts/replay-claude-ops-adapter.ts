@@ -13,6 +13,8 @@ const PARSER = "src/lib/ops/recommend-parse.ts";
 const UNTRUSTED = "src/lib/llm/untrusted.ts";
 const FILES = [ENGINE, PARSER, UNTRUSTED];
 const sha = (text: string): string => createHash("sha256").update(text).digest("hex");
+// Reviewed text pins describe source content, independent of Git checkout EOLs.
+const sourceSha = (text: string): string => sha(text.replace(/\r\n/g, "\n"));
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 type Schema = Record<string, unknown>;
 interface Prompt { purpose: string; system: string; user: string; responseSchema: Schema; minor?: boolean; locale: string }
@@ -155,11 +157,12 @@ export function createOfflineOpsRuntime(sources: Record<string, string>) {
 export async function replayClaudeOpsAdapter(root: string, sourcesOverride?: Record<string, string>) {
   const preparation = prepareClaudeSeatMeasurement(root);
   const corpusBytes = readFileSync(join(root, "scripts/claude-ops-adapter.corpus.json"), "utf8");
+  const preparationCorpusText = readFileSync(join(root, "scripts/claude-seat-measurement.corpus.json"), "utf8");
   const corpus: Corpus = JSON.parse(corpusBytes), sources = sourcesOverride ?? loadOpsAdapterSources(root);
   if (!corpus.syntheticOnly || corpus.live !== false || !corpus.cases.length ||
-      corpus.preparationCorpusSha256 !== preparation.corpusSha256 ||
+      corpus.preparationCorpusSha256 !== sourceSha(preparationCorpusText) ||
       Object.keys(corpus.sourceSha256).sort().join() !== [...FILES].sort().join() ||
-      FILES.some((file) => sha(sources[file] ?? "") !== corpus.sourceSha256[file])) throw new Error("Offline ops source/input snapshot changed; review before repinning");
+      FILES.some((file) => sourceSha(sources[file] ?? "") !== corpus.sourceSha256[file])) throw new Error("Offline ops source/input snapshot changed; review before repinning");
   if (new Set(corpus.cases.map((sample) => sample.id)).size !== corpus.cases.length || corpus.cases.some((sample) =>
     !sample.id || !["ko", "en"].includes(sample.locale) || typeof sample.minor !== "boolean" ||
     ![undefined, null, false, true].includes(sample.recommendationsPref) ||
@@ -168,7 +171,7 @@ export async function replayClaudeOpsAdapter(root: string, sourcesOverride?: Rec
     (sample.snapshotSuffix !== undefined && typeof sample.snapshotSuffix !== "string") ||
     (sample.rejectBoundary ? sample.fixtureReply !== null || sample.replySha256 !== null :
       typeof sample.fixtureReply !== "string" || sha(sample.fixtureReply) !== sample.replySha256))) throw new Error("Offline ops corpus integrity failure");
-  const preparationCorpus = JSON.parse(readFileSync(join(root, "scripts/claude-seat-measurement.corpus.json"), "utf8")) as {
+  const preparationCorpus = JSON.parse(preparationCorpusText) as {
     qualityCases: Array<{ id: string; seats: string[]; text?: string }>;
   };
   const inputs = preparationCorpus.qualityCases.filter((row) => row.id === corpus.inputCaseId && row.seats.includes("ops_recommend"));
@@ -178,7 +181,8 @@ export async function replayClaudeOpsAdapter(root: string, sourcesOverride?: Rec
   const replayed = rows.filter((row) => row.replyConsumed);
   return { status: "OFFLINE_PARTIAL_ADAPTER_ONLY", live: false, liveCalls: 0, providerCost: 0, productionWrites: 0,
     measuredSourceRevision: preparation.measuredSourceRevision, sourceSha256: corpus.sourceSha256,
-    corpusSha256: sha(corpusBytes), preparationCorpusSha256: preparation.corpusSha256, inputCaseId: corpus.inputCaseId,
+    sourceHashEncoding: "UTF-8 with CRLF normalized to LF",
+    corpusSha256: sha(corpusBytes), preparationCorpusSha256: sourceSha(preparationCorpusText), inputCaseId: corpus.inputCaseId,
     scope: "actual forceFresh recommendForDomain + untrusted sanitizer + parser; fixed text replaces callLlm entirely",
     replyStage: "synthetic text at callLlm return seam; NOT raw provider output or real boundary postprocessing",
     adapters: { seat: "ops_recommend", status: "BUILDER_PARSER_ONLY", countedAsComplete: false },
