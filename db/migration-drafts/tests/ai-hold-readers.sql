@@ -14,9 +14,12 @@ SET LOCAL session_replication_role = replica;
 INSERT INTO auth.users(id,email) VALUES
   ('28000000-0000-4000-8000-000000000080','t28-owner@example.invalid'),
   ('28000000-0000-4000-8000-000000000081','t28-other@example.invalid');
+SET LOCAL session_replication_role = origin;
+-- Keep the real age-tier derivation for users; only corpus vectors are stale.
 INSERT INTO public.users(id,email,birth_date,locale) VALUES
   ('28000000-0000-4000-8000-000000000080','t28-owner@example.invalid','1990-01-01','en'),
   ('28000000-0000-4000-8000-000000000081','t28-other@example.invalid','1990-01-01','en');
+SET LOCAL session_replication_role = replica;
 INSERT INTO public.records(id,user_id,kind,audit_period,body,system_tags,ai_hold,embedding,embedding_model) VALUES
   ('28000000-0000-4000-8000-000000000082','28000000-0000-4000-8000-000000000080','audit_response','work','ordinary interview',ARRAY['interview'],false,array_fill(1::real,ARRAY[768])::vector,'t28-fixture'),
   ('28000000-0000-4000-8000-000000000083','28000000-0000-4000-8000-000000000080','audit_response','work','held interview',ARRAY['interview'],true,array_fill(1::real,ARRAY[768])::vector,'t28-fixture'),
