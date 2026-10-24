@@ -84,5 +84,14 @@
   "drillLayerPeriod": "lapisan / periode",
   "backToGraph": "Kembali ke grafik",
   "backToGraphHint": "Membuka layar beranda grafik.",
-  "clearContext": "Hapus konteks pilihan"
+  "clearContext": "Hapus konteks pilihan",
+  "deviceLock": {
+    "title": "Verifikasi dengan kunci ponsel",
+    "fallback": "Gunakan kode sandi ponsel",
+    "unlock": "Buka kunci",
+    "checking": "Memverifikasi…",
+    "setup": "Atur kunci layar di pengaturan ponsel terlebih dahulu.",
+    "unavailable": "Autentikasi perangkat tidak tersedia. Instal versi aplikasi terbaru lalu coba lagi.",
+    "failed": "Kunci tidak dapat dibuka. Coba lagi."
+  }
 }

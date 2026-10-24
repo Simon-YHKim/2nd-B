@@ -9,7 +9,7 @@
   "current": "Plan actual",
   "tiers": {
     "free": {
-      "name": "Stargazer",
+      "name": "Observador de estrellas",
       "price": "Gratis",
       "tagline": "Registros ilimitados para tu día a día",
       "f1": "Registros, notas y wiki ilimitados",
@@ -17,22 +17,22 @@
       "f3": "5 chats con IA por día"
     },
     "cortex": {
-      "name": "Voyager",
+      "name": "Viajero",
       "price": "$9.99 / mo",
       "priceNote": "$99.90 / yr (2 meses gratis)",
       "tagline": "Más conversaciones con IA cada día",
       "f1": "80 chats con IA por día",
-      "f2": "Todo lo de Stargazer",
+      "f2": "Todo lo de Observador de estrellas",
       "f3": "Más uso para conversaciones largas"
     },
     "brain": {
-      "name": "North Star",
+      "name": "Estrella Polar",
       "price": "$19.99 / mo",
       "priceNote": "$199.90 / yr (2 meses gratis)",
       "tagline": "El plan con más conversaciones con IA",
       "f1": "250 chats con IA por día",
       "f2": "Reflexiones sobre tus entradas",
-      "f3": "Todo lo de Voyager"
+      "f3": "Todo lo de Viajero"
     }
   },
   "back": "Volver"

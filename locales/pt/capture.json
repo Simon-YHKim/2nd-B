@@ -23,7 +23,7 @@
     "subtitle": "Diário · nota · ligação · foto · arquivo",
     "speechSaved": "Salvo. Você pode abrir agora mesmo.",
     "speechSavedOcr": "O texto da foto foi salvo como um registro privado. Você pode abrir agora mesmo.",
-    "speechSavedRecords": "Salvo. Você pode encontrar nos seus registros.",
+    "speechSavedRecords": "Salvo. Você pode encontrar na Wiki.",
     "speechIdle": "Escreva uma nota ou escolha um material para salvar e encontrar depois."
   },
   "sections": {
@@ -54,7 +54,7 @@
   "modes": {
     "journal": {
       "label": "Diário",
-      "help": "Escreva a reflexão de hoje. Salva nos seus registros, com reflexão opcional do HustleK."
+      "help": "Escreva a reflexão de hoje. Salva na Wiki, com reflexão opcional do HustleK."
     },
     "memo": {
       "label": "Nota",
@@ -97,10 +97,10 @@
     "seeAreaHint": "Abre {{area}} com este registro no topo.",
     "seePiece": "Ver este registro",
     "seePieceHint": "Abre em uma tela própria o registro que você acabou de salvar.",
-    "seeRecords": "Ver meus registros",
-    "seeRecordsHint": "Abre seus registros para você encontrar esta entrada novamente.",
+    "seeRecords": "Ver a Wiki",
+    "seeRecordsHint": "Abre a Wiki para você encontrar esta entrada novamente.",
     "captureMore": "Capturar mais",
-    "recordsOwnership": "Uma frase já basta por hoje. Esta entrada está em Registros, então você pode reler e incluir em uma exportação mais tarde.",
+    "recordsOwnership": "Uma frase já basta por hoje. Esta entrada está na Wiki, então você pode reler e incluir em uma exportação mais tarde.",
     "recordsAiOptIn": "O HustleK só analisa esta entrada se você ativar esta opção.",
     "storagePending": "Salvo, mas o backup do arquivo não foi enviado desta vez. O texto foi salvo.",
     "advisor": {
@@ -347,5 +347,15 @@
   "manualTab": "Guia de uso",
   "shareRefused": {
     "body": "O que você compartilhou não foi adicionado. Entre na sua conta e compartilhe de novo."
+  },
+  "sharedMedia": {
+    "photoReady": "Uma foto foi compartilhada com o PolaScope.",
+    "photoReplace": "Substituir a foto e o texto pela foto compartilhada",
+    "discard": "Descartar arquivo compartilhado",
+    "audioSend": "Transcrever áudio compartilhado",
+    "multiple": "Compartilhe um arquivo por vez.",
+    "unreadable": "Não foi possível abrir o arquivo compartilhado. Compartilhe novamente pelo aplicativo original.",
+    "unavailable": "O arquivo compartilhado não está mais disponível. Compartilhe novamente pelo aplicativo original.",
+    "audioName": "Áudio compartilhado"
   }
 }

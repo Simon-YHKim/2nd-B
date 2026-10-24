@@ -15,15 +15,15 @@
     "todoRequired": "Escribe la tarea antes de guardar.",
     "fourwRequired": "Completa primero la casilla Qué"
   },
-  "savedTitleFallback": "Pieza de hoy",
+  "savedTitleFallback": "Registro de hoy",
   "loading": "Cargando captura...",
   "hero": {
     "eyebrow": "01. Capturar",
     "title": "Guarda una nota o fuente",
     "subtitle": "Diario · nota · enlace · foto · archivo",
     "speechSaved": "Guardado. Puedes abrirlo enseguida.",
-    "speechSavedOcr": "Tu nota de foto está guardada como un fragmento privado. Puedes abrirla enseguida.",
-    "speechSavedRecords": "Guardado. Puedes encontrarlo en tus registros.",
+    "speechSavedOcr": "Tu nota de foto está guardada como un registro privado. Puedes abrirla enseguida.",
+    "speechSavedRecords": "Guardado. Puedes encontrarlo en la Wiki.",
     "speechIdle": "Escribe una nota o elige un material. Se organizará para que puedas encontrarlo después."
   },
   "sections": {
@@ -54,7 +54,7 @@
   "modes": {
     "journal": {
       "label": "Diario",
-      "help": "Escribe sobre tu día. Se guarda en tus registros y, si quieres, puedes pedir a HustleK que lo comente."
+      "help": "Escribe sobre tu día. Se guarda en la Wiki y, si quieres, puedes pedir a HustleK que lo comente."
     },
     "memo": {
       "label": "Nota",
@@ -90,17 +90,17 @@
     "shared": "Formato guardado y compartido."
   },
   "saved": {
-    "title": "Fragmento guardado",
+    "title": "Registro guardado",
     "ocrTitle": "Tu nota de foto está guardada",
-    "ocrBody": "Quedó como un fragmento privado.",
+    "ocrBody": "Quedó como un registro privado.",
     "seeArea": "Verlo en {{area}}",
-    "seeAreaHint": "Abre {{area}} con este fragmento arriba de todo.",
-    "seePiece": "Ver este fragmento",
-    "seePieceHint": "Abre en su propia pantalla el fragmento que acabas de guardar.",
-    "seeRecords": "Ver mis registros",
-    "seeRecordsHint": "Abre tus registros para que puedas encontrar esta entrada de nuevo.",
+    "seeAreaHint": "Abre {{area}} con este registro arriba de todo.",
+    "seePiece": "Ver este registro",
+    "seePieceHint": "Abre en su propia pantalla el registro que acabas de guardar.",
+    "seeRecords": "Ver la Wiki",
+    "seeRecordsHint": "Abre la Wiki para que puedas encontrar esta entrada de nuevo.",
     "captureMore": "Capturar más",
-    "recordsOwnership": "Una oración basta por hoy. Esta entrada está en Registros, así que puedes releerla e incluirla en una exportación más tarde.",
+    "recordsOwnership": "Una oración basta por hoy. Esta entrada está en la Wiki, así que puedes releerla e incluirla en una exportación más tarde.",
     "recordsAiOptIn": "HustleK solo comenta esta entrada si activas esa opción.",
     "storagePending": "Guardado, pero la copia de respaldo no se subió esta vez. Tu texto está a salvo.",
     "advisor": {
@@ -265,10 +265,10 @@
     },
     "journalSave": {
       "title": "No se pudo guardar tu entrada",
-      "message": "No pudimos guardar la pieza de hoy. Lo que escribiste sigue aquí. Por favor, inténtalo de nuevo."
+      "message": "No pudimos guardar el registro de hoy. Lo que escribiste sigue aquí. Por favor, inténtalo de nuevo."
     },
     "pieceSave": {
-      "title": "No se pudo guardar tu pieza",
+      "title": "No se pudo guardar tu registro",
       "message": "No pudimos guardarla todavía. Lo que ingresaste sigue aquí. Por favor, inténtalo de nuevo."
     },
     "proposeEmpty": {
@@ -307,7 +307,7 @@
     "doneHelper": "Actívalo si ya está terminada. Puedes cambiarlo después."
   },
   "recent": {
-    "title": "Piezas recientes",
+    "title": "Registros recientes",
     "openHint": "Abre esta entrada completa."
   },
   "fourw": {
@@ -325,7 +325,7 @@
       "what": "¿Qué pasó o de qué se trata?",
       "how": "¿Cómo pasó? ¿Recuerdas por qué?"
     },
-    "note": "Solo se guardan las casillas completadas, como una pieza con la etiqueta #fourw."
+    "note": "Solo se guardan las casillas completadas, como un registro con la etiqueta #fourw."
   },
   "callReflection": {
     "blockedTitle": "No disponible por ahora",
@@ -347,5 +347,15 @@
   "manualTab": "Guía de uso",
   "shareRefused": {
     "body": "No se agregó lo que compartiste. Inicia sesión y vuelve a compartirlo."
+  },
+  "sharedMedia": {
+    "photoReady": "Se compartió una foto con PolaScope.",
+    "photoReplace": "Reemplazar la foto y el texto con la foto compartida",
+    "discard": "Descartar archivo compartido",
+    "audioSend": "Transcribir el audio compartido",
+    "multiple": "Comparte un solo archivo a la vez.",
+    "unreadable": "No se pudo abrir el archivo compartido. Vuelve a compartirlo desde la aplicación original.",
+    "unavailable": "El archivo compartido ya no está disponible. Vuelve a compartirlo desde la aplicación original.",
+    "audioName": "Audio compartido"
   }
 }

@@ -37,7 +37,7 @@ import { useNoticeCenter } from "@/app/notices";
 import { renderableBlocks } from "@/lib/notices/markdown";
 import { createRecord } from "@/lib/records/create";
 import { filterPhoneWikiPages } from "@/lib/wiki/phone-search";
-import { getBacklinks, getWikiPageById, listWikiPages } from "@/lib/wiki/queries";
+import { usePhoneWikiRead } from "@/lib/wiki/use-phone-wiki-read";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
@@ -182,16 +182,6 @@ function AccountDashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   }, [ownerId, tab, boardPage, phoneApp, selectedNoticeId, screenStack, selectedNoticeValid, noticeCenter.hydrated]);
   const [recordQuery, setRecordQuery] = useState("");
   const [wikiQuery, setWikiQuery] = useState("");
-  const [wikiPages, setWikiPages] = useState<WikiPageRow[]>([]);
-  const [wikiOwnerId, setWikiOwnerId] = useState<string | null>(null);
-  const [wikiLoading, setWikiLoading] = useState(false);
-  const [wikiFailed, setWikiFailed] = useState(false);
-  const [wikiRefresh, setWikiRefresh] = useState(0);
-  const [wikiPage, setWikiPage] = useState<WikiPageRow | null>(null);
-  const [wikiBacklinks, setWikiBacklinks] = useState<WikiPageRow[]>([]);
-  const [wikiBacklinksFailed, setWikiBacklinksFailed] = useState(false);
-  const [wikiDetailLoading, setWikiDetailLoading] = useState(false);
-  const [wikiDetailFailed, setWikiDetailFailed] = useState(false);
   const [draft, setDraft] = useState("");
   // A tag carried by /capture?tag= (Discover), saved with the note and shown on the page.
   const [captureTag, setCaptureTag] = useState<string | null>(null);
@@ -239,6 +229,14 @@ function AccountDashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
   const contentOwnsBack = ownsDisplay || insideRoute === "/board/summary" || (insideRoute !== null && OPS_PHONE_ROUTES[insideRoute] !== undefined);
   const wikiDetailId = insideRoute?.startsWith("/wiki/page/")
     ? decodeURIComponent(insideRoute.slice("/wiki/page/".length)) : null;
+  const wikiRead = usePhoneWikiRead(ownerId, insideRoute === "/wiki", wikiDetailId);
+  const wikiPages = wikiRead.list.value ?? [];
+  const wikiPage = wikiRead.page.value;
+  const wikiBacklinks = wikiRead.backlinks.value ?? [];
+  const wikiLoading = wikiRead.list.status === "loading";
+  const wikiFailed = wikiRead.list.status === "failed";
+  const wikiDetailLoading = wikiRead.page.status === "loading";
+  const wikiDetailFailed = wikiRead.page.status === "failed";
   const go = useCallback((target: string) => {
     if (target === "/board/retry") { setGenerationRefresh((value) => value + 1); return; }
     // Phone-originated navigation stays in the supplied phone display. The
@@ -424,55 +422,7 @@ function AccountDashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
     return () => { if (timer) clearTimeout(timer); subscription.remove(); };
   }, [refreshSettings, data?.readAt, refresh]));
 
-  useFocusEffect(useCallback(() => {
-    if (insideRoute !== "/wiki") return;
-    let active = true;
-    const lease = captureAccountOwnerLease(ownerId);
-    setWikiLoading(true);
-    setWikiFailed(false);
-    if (!lease?.isCurrent()) {
-      setWikiLoading(false);
-      setWikiFailed(true);
-      return;
-    }
-    void listWikiPages(ownerId, { limit: 200 }).then((pages) => {
-      if (active && lease.isCurrent()) { setWikiPages(pages); setWikiOwnerId(ownerId); }
-    }).catch(() => { if (active && lease.isCurrent()) setWikiFailed(true); }).finally(() => {
-      if (active && lease.isCurrent()) setWikiLoading(false);
-    });
-    return () => { active = false; };
-  }, [insideRoute, ownerId, wikiRefresh]));
-
-  useFocusEffect(useCallback(() => {
-    if (!wikiDetailId) return;
-    let active = true;
-    const lease = captureAccountOwnerLease(ownerId);
-    setWikiPage(null);
-    setWikiBacklinks([]);
-    setWikiBacklinksFailed(false);
-    setWikiDetailLoading(true);
-    setWikiDetailFailed(false);
-    if (!lease?.isCurrent()) {
-      setWikiDetailLoading(false);
-      setWikiDetailFailed(true);
-      return;
-    }
-    void Promise.all([getWikiPageById(ownerId, wikiDetailId), getBacklinks(ownerId, wikiDetailId)
-      .then((pages) => ({ pages, failed: false }))
-      .catch(() => ({ pages: [] as WikiPageRow[], failed: true }))]).then(([page, backlinks]) => {
-      if (active && lease.isCurrent()) {
-        setWikiPage(page);
-        setWikiBacklinks(backlinks.pages);
-        setWikiBacklinksFailed(backlinks.failed);
-      }
-    }).catch(() => { if (active && lease.isCurrent()) setWikiDetailFailed(true); }).finally(() => {
-      if (active && lease.isCurrent()) setWikiDetailLoading(false);
-    });
-    return () => { active = false; };
-  }, [wikiDetailId, ownerId, wikiRefresh]));
-
-  const filteredWikiPages = useMemo(() => wikiOwnerId === ownerId
-    ? filterPhoneWikiPages(wikiPages, wikiQuery) : [], [wikiOwnerId, ownerId, wikiPages, wikiQuery]);
+  const filteredWikiPages = useMemo(() => filterPhoneWikiPages(wikiRead.list.value ?? [], wikiQuery), [wikiRead.list.value, wikiQuery]);
 
   const date = (value: string, includeTime = false) => {
     const parsed = new Date(value);
@@ -592,26 +542,29 @@ function AccountDashboardPhone({ ownerId, isMinor }: { ownerId: string; isMinor:
         <PixelRoundRect corner="small" fill={phoneIos.fill} style={styles.searchField}>
           <TextInput accessibilityLabel={t("wiki:searchPieces")} value={wikiQuery} onChangeText={setWikiQuery} placeholder={t("wiki:searchPieces")} placeholderTextColor={phoneIos.label2} style={[styles.searchInput, styles.phoneText]} />
         </PixelRoundRect>
-        {wikiLoading ? <Text variant="caption" style={styles.muted}>{t("wiki:loading")}</Text> : null}
+        {wikiLoading ? <Text variant="caption" style={styles.muted}>{"..."}</Text> : null}
         {wikiFailed ? <View style={styles.stack}>
-          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text>
-          <View style={styles.actions}><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setWikiRefresh((value) => value + 1)} /></View>
+          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t(wikiRead.list.errorKey ?? "common:errors.unknown")}</Text>
+          <View style={styles.actions}><PhoneAction label={t("common:actions.retry")} glyph="refresh" onPress={wikiRead.retry} /></View>
         </View> : null}
-        {!wikiLoading && !wikiFailed && wikiOwnerId === ownerId && wikiPages.length === 0 ? <Text variant="caption" style={styles.muted}>{t("wiki:empty")}</Text> : null}
-        {!wikiLoading && !wikiFailed && wikiOwnerId === ownerId && wikiPages.length > 0 && filteredWikiPages.length === 0 ? <Text variant="caption" style={styles.muted}>{t("wiki:noMatch", { query: wikiQuery.trim() })}</Text> : null}
+        {!wikiLoading && !wikiFailed && wikiPages.length === 0 ? <Text variant="caption" style={styles.muted}>{t("wiki:empty")}</Text> : null}
+        {!wikiLoading && !wikiFailed && wikiPages.length > 0 && filteredWikiPages.length === 0 ? <Text variant="caption" style={styles.muted}>{t("wiki:noMatch", { query: wikiQuery.trim() })}</Text> : null}
       </View> : null}
       {route.startsWith("/wiki/page/") ? <View style={styles.stack}>
-        {wikiDetailLoading ? <Text variant="caption" style={styles.muted}>{t("wiki:loading")}</Text> : null}
+        {wikiDetailLoading ? <Text variant="caption" style={styles.muted}>{"..."}</Text> : null}
         {wikiDetailFailed ? <View style={styles.stack}>
-          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text>
-          <View style={styles.actions}><PhoneAction label={t("phone.retry")} glyph="refresh" onPress={() => setWikiRefresh((value) => value + 1)} /></View>
+          <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t(wikiRead.page.errorKey ?? "common:errors.unknown")}</Text>
+          <View style={styles.actions}><PhoneAction label={t("common:actions.retry")} glyph="refresh" onPress={wikiRead.retry} /></View>
         </View> : null}
         {!wikiDetailLoading && !wikiDetailFailed && wikiPage?.user_id === ownerId && wikiPage.id === wikiDetailId ? <PixelRoundRect fill={phoneIos.cell} style={styles.card}>
           <Text variant="heading" style={styles.cardTitle}>{wikiPage.title || wikiPage.slug}</Text>
           <Text variant="caption" style={styles.muted}>{t("wiki:savedAs", { name: wikiPage.slug })}</Text>
           <Text variant="body">{wikiPage.body_md || t("wiki:emptyBody")}</Text>
-          <Text variant="caption" style={styles.muted}>{t("wiki:backlinks")} ({wikiBacklinks.length})</Text>
-          {wikiBacklinksFailed ? <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t("phone.readError")}</Text> : null}
+          <Text variant="caption" style={styles.muted}>{t("wiki:backlinks")} ({wikiRead.backlinks.status === "ready" ? wikiBacklinks.length : "..."})</Text>
+          {wikiRead.backlinks.status === "failed" ? <View style={styles.stack}>
+            <Text accessibilityRole="alert" variant="caption" style={styles.muted}>{t(wikiRead.backlinks.errorKey)}</Text>
+            <View style={styles.actions}><PhoneAction label={t("common:actions.retry")} glyph="refresh" onPress={wikiRead.retry} /></View>
+          </View> : null}
         </PixelRoundRect> : null}
         {!wikiDetailLoading && !wikiDetailFailed && wikiPage === null ? <Text variant="caption" style={styles.muted}>{t("wiki:empty")}</Text> : null}
       </View> : null}

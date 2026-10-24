@@ -56,7 +56,7 @@ describe("PIXEL-CLAY /manual content contract", () => {
 
   test("gives every question real content and distinct destinations", () => {
     const topics = manualTopicsFor(translatorFor("en"));
-    expect(topics).toHaveLength(5);
+    expect(topics).toHaveLength(9);
     expect(topics.every(({ answer }) => answer.trim().length > 40)).toBe(true);
     expect(topics.map(({ actions }) => actions[0]?.route)).toEqual([
       "/secondb?panel=dashboard",
@@ -64,6 +64,10 @@ describe("PIXEL-CLAY /manual content contract", () => {
       "/records",
       "/review",
       "/privacy",
+      "/subscription",
+      "/data?open=account-export",
+      "/privacy?section=delete",
+      "/permissions",
     ]);
     expect(topics.flatMap(({ actions }) => actions.map(({ route }) => route))).toEqual(
       expect.arrayContaining(["/privacy", "/iden", "/data?open=account-export", "/support"]),
@@ -75,8 +79,43 @@ describe("PIXEL-CLAY /manual content contract", () => {
     expect(filterManualTopics(topics, "  위키 ").map(({ id }) => id)).toEqual(["source"]);
     expect(filterManualTopics(topics, "L5").map(({ id }) => id)).toEqual(["brightness", "ratify"]);
     expect(filterManualTopics(topics, "찾을 수 없는 값")).toEqual([]);
-    expect(filterManualTopics(topics, "")).toHaveLength(5);
+    expect(filterManualTopics(topics, "")).toHaveLength(9);
   });
+});
+
+// Z69 (Simon 2026-10-13 20:43, Q-261013-22): searching the guide for "환불" or "알림" found nothing
+// and sent the visitor to HustleK, which spends a daily turn. Simon picked "add the four common
+// tasks as questions, each answer with a button to that screen" (refund · export · delete account ·
+// notifications, the four the 2026-10-13 proposal named).
+describe("the guide answers the four common tasks with a button to the screen", () => {
+  const TASKS = [
+    { id: "refund", route: "/subscription", question: "환불은 어떻게 받나요?" },
+    { id: "export", route: "/data?open=account-export", question: "내 기록은 어떻게 내보내나요?" },
+    { id: "deleteAccount", route: "/privacy?section=delete", question: "계정은 어떻게 지우나요?" },
+    { id: "notifications", route: "/permissions", question: "알림은 어디서 바꾸나요?" },
+  ] as const;
+
+  test("each task is one question with one button, in the order proposed", () => {
+    const topics = manualTopicsFor(translatorFor("ko"));
+    const tail = topics.slice(-TASKS.length);
+    expect(tail.map(({ id }) => id)).toEqual(TASKS.map(({ id }) => id));
+    for (const [i, task] of TASKS.entries()) {
+      expect(tail[i].question).toBe(task.question);
+      expect(tail[i].actions.map(({ route }) => route)).toEqual([task.route]);
+    }
+  });
+
+  test("the words that found nothing now find their task", () => {
+    const topics = manualTopicsFor(translatorFor("ko"));
+    expect(filterManualTopics(topics, "환불").map(({ id }) => id)).toEqual(["refund"]);
+    expect(filterManualTopics(topics, "알림").map(({ id }) => id)).toEqual(["notifications"]);
+    const en = manualTopicsFor(translatorFor("en"));
+    expect(filterManualTopics(en, "refund").map(({ id }) => id)).toEqual(["refund"]);
+    expect(filterManualTopics(en, "notifications").map(({ id }) => id)).toEqual(["notifications"]);
+  });
+
+  // Where each button lands, and what the answers claim about those screens:
+  // manual-task-destinations.test.ts.
 });
 
 describe("사용 안내서가 앱이 제공하는 모든 언어로 풀린다", () => {
@@ -90,7 +129,7 @@ describe("사용 안내서가 앱이 제공하는 모든 언어로 풀린다", (
     for (const locale of LOCALES) {
       const t = translatorFor(locale);
       const topics = manualTopicsFor(t);
-      expect(topics).toHaveLength(5);
+      expect(topics).toHaveLength(9);
       for (const topic of topics) {
         expect(topic.question.trim().length).toBeGreaterThan(4);
         expect(topic.answer.trim().length).toBeGreaterThan(40);
@@ -144,6 +183,16 @@ describe("PIXEL-CLAY /manual renderer contract", () => {
     expect(source).toContain("resetCoachmarks(userId)");
     expect(source).toContain('router.replace("/")');
     expect(source).toContain('router.push("/secondb")');
+  });
+
+  // The screen searches and draws one list made for this platform, so a button whose screen has
+  // nothing to do here is neither drawn nor searchable (the notifications button on the web, Z69).
+  test("searches and draws only the buttons this platform can use", () => {
+    const code = read(SCREEN).replace(/^\s*\/\/.*$/gm, "");
+    expect(code).toContain("const topics = useMemo(() => manualTopicsOn(manualTopicsFor(t), Platform.OS), [t, i18n.language]);");
+    expect(code).toContain("const filteredTopics = useMemo(() => filterManualTopics(topics, query), [query, topics]);");
+    expect(code).toContain("{topic.actions.length > 0 ? (");
+    expect(code.split("manualTopicsFor(").length - 1).toBe(1);
   });
 
   test("every literal t() key on the screen resolves in its namespace (no raw keys)", () => {

@@ -4,7 +4,7 @@ import { ScreenModal as Modal } from "@/components/ui/ScreenModal";
 // the already-built backing data libs. deepSpace.* tokens only, no auto-execution
 // (every write is behind a user tap). Strings come from the bilingual ops copy.
 
-import { useEffect, useMemo, useRef, useState, type DependencyList } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type DependencyList } from "react";
 import { Linking, Platform, Share, StyleSheet } from "react-native";
 import { PhonePressable as Pressable, PhoneTextInput as TextInput, PhoneView as View } from "@/components/phone/PhoneUIKit";
 import { ChatRemindersList } from "@/components/secondb/ChatRemindersList";
@@ -23,6 +23,7 @@ import { phoneIos } from "@/lib/theme/phone-ios";
 import { phoneStyleSheet } from "@/lib/theme/phone-design";
 import { usePhoneDesign } from "@/lib/theme/phone-design-context";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { accountTransitionSnapshot, captureAccountOwnerLease, subscribeAccountTransition } from "@/lib/auth/account-epoch";
 import { useTranslation } from "react-i18next";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import {
@@ -91,7 +92,7 @@ import {
 import { listActiveRoutines, type OpsRoutine } from "@/lib/ops/routines";
 import {
   disableReminder,
-  enableReminder,
+  enableReminderWithResult,
   getReminderStates,
   getScheduledRoutineIds,
   sweepResidualReminderNotifications,
@@ -1825,14 +1826,17 @@ type ReminderVM = {
   star: string; // "" hides the "· {star} 별" suffix (real routines)
   on: boolean;
   interactive: boolean;
+  feedback?: string;
 };
 
-function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: string; onToggle?: () => void }) {
+function ReminderCard({ vm, starWord, onToggle, onPermissionSettings }: {
+  vm: ReminderVM; starWord: string; onToggle?: () => void; onPermissionSettings?: () => void;
+}) {
   const phone = usePhoneDesign();
   const remStyles = phone ? phoneReminderStyles : clayReminderStyles;
   const source = vm.star ? `${vm.src} · ${vm.star} ${starWord}` : vm.src;
   return (
-    <MdCard variant="outlined" style={[remStyles.card, !vm.on && remStyles.cardOff]}>
+    <MdCard variant="outlined" style={[remStyles.card, !vm.on && !vm.feedback && remStyles.cardOff]}>
       <View style={remStyles.row}>
         <View style={remStyles.iconBox}>
           <View style={remStyles.iconDots}>
@@ -1854,6 +1858,8 @@ function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: st
             <View style={remStyles.srcDot} />
             <Text variant="caption" style={remStyles.srcText}>{source}</Text>
           </View>
+          {vm.feedback ? <Text variant="caption" accessibilityRole="alert" accessibilityLiveRegion="polite">{vm.feedback}</Text> : null}
+          {onPermissionSettings ? <ReminderPermissionSettings onPress={onPermissionSettings} /> : null}
         </View>
         {onToggle && phone ? (
           <OpsPhoneSwitch checked={vm.on} label={vm.title} onPress={onToggle} />
@@ -1873,10 +1879,24 @@ function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: st
   );
 }
 
+function ReminderPermissionSettings({ onPress }: { onPress: () => void }) {
+  const { t } = useTranslation("secondb");
+  // 「설정 열기」 그대로(대화 안내 단추는 Q-261018-51 로 「설정」이 됐지만 이 단추는 그대로).
+  return <MdButton variant="tonal" label={t("chatSaveNoticeOpenLabel")} onPress={onPress} />;
+}
+
 export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => void } = {}) {
   const remStyles = usePhoneDesign() ? phoneReminderStyles : clayReminderStyles;
   const c = useOpsCopy();
+  const { t } = useTranslation(["ops", "secondb", "common"]);
   const { userId } = useAuth();
+  const scope = useSyncExternalStore(subscribeAccountTransition, accountTransitionSnapshot, accountTransitionSnapshot);
+  const mounted = useRef(true);
+  const pendingToggles = useRef(new Set<string>());
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const supported = remindersSupported();
   const routines = useAsync<OpsRoutine[]>(
     () => (userId ? listActiveRoutines(userId) : Promise.resolve([])),
@@ -1894,9 +1914,9 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
   // on/off lives device-local, not in the owner-scoped ops_routines table).
   // Default = ON: every reminder is on unless explicitly toggled off.
   const [states, setStates] = useState<Record<string, boolean>>({});
-  // Routines the user tried to enable but the OS permission was denied — they
-  // render the row's "권한 필요" state instead of crashing or silently failing.
-  const [denied, setDenied] = useState<Record<string, true>>({});
+  // A failed schedule is not necessarily a denied permission. Keep the real
+  // outcome and account generation so an old response cannot label a new row.
+  const [feedback, setFeedback] = useState<{ scope: number; rows: Record<string, "denied" | "unavailable" | "error"> }>({ scope, rows: {} });
   const [chatReminderCount, setChatReminderCount] = useState(0);
 
   // Hydrate on/off from the persisted flag AND the real OS schedule. ON now
@@ -1949,49 +1969,70 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
 
   const toggle = async (r: OpsRoutine) => {
     if (!userId) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease || accountTransitionSnapshot() !== scope) return;
     const id = r.id;
+    const pendingKey = `${scope}:${id}`;
+    if (pendingToggles.current.has(pendingKey)) return;
+    pendingToggles.current.add(pendingKey);
+    const current = () => mounted.current && lease.isCurrent();
+    const showFeedback = (result?: "denied" | "unavailable" | "error") => {
+      if (!current()) return;
+      setFeedback(prev => {
+        const rows = prev.scope === scope ? { ...prev.rows } : {};
+        if (result) rows[id] = result;
+        else delete rows[id];
+        return { scope, rows };
+      });
+    };
+    showFeedback();
     const currentlyOn = states[id] === true;
-    if (currentlyOn) {
-      // Cancels the scheduled OS notification too (not just the flag).
-      await disableReminder(userId, id);
-      setStates((prev) => ({ ...prev, [id]: false }));
-      setDenied((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      return;
-    }
-    // Enabling: ask for the OS permission first (propose->ratify — the tap is
-    // the user action), then actually SCHEDULE under the routine's identifier.
-    // Denied → keep it off and show "권한 필요".
-    const event = eventForRoutine(r);
-    if (!event) return; // unparsable reminder_time: nothing real to schedule
-    const ok = await enableReminder(userId, id, event);
-    if (ok) {
-      setStates((prev) => ({ ...prev, [id]: true }));
-      setDenied((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-    } else {
-      setDenied((prev) => ({ ...prev, [id]: true }));
+    try {
+      if (currentlyOn) {
+        // Cancels the scheduled OS notification too (not just the flag).
+        await disableReminder(userId, id, { strict: true });
+        if (current()) setStates(prev => ({ ...prev, [id]: false }));
+        return;
+      }
+      // The tap requests permission, then schedules under the routine's ID.
+      // A denial keeps the switch off and exposes the explicit Settings action.
+      const event = eventForRoutine(r);
+      if (!event) { showFeedback("error"); return; }
+      const result = await enableReminderWithResult(userId, id, event);
+      if (!current() || result === "stale") return;
+      setStates(prev => ({ ...prev, [id]: result === "enabled" }));
+      if (result !== "enabled") showFeedback(result);
+    } catch {
+      showFeedback("error");
+    } finally {
+      pendingToggles.current.delete(pendingKey);
     }
   };
 
-  // Real routines when present; otherwise the sb-more demo reminders so the
-  // list state renders (QA account has no scheduled routines).
+  // Only real routines; an empty account has no invented reminder rows.
   const hasReal = withReminder.length > 0;
-  const rows: { vm: ReminderVM; onToggle?: () => void }[] = hasReal
+  const rows: { vm: ReminderVM; onToggle?: () => void; onPermissionSettings?: () => void }[] = hasReal
     ? withReminder.map((r) => {
-        const isDenied = !!denied[r.id];
+        const outcome = feedback.scope === scope ? feedback.rows[r.id] : undefined;
         // ON = actually scheduled (states is hydrated against the OS schedule).
-        const on = supported && !isDenied && states[r.id] === true;
+        const on = supported && states[r.id] === true;
         const repeat = r.recurrence === "daily" ? c.daily : r.recurrence === "weekly" ? c.weekly : c.once;
         return {
-          vm: { key: r.id, title: r.title, when: reminderSchedule(r, c), repeat, src: c.assistantSource, star: "", on, interactive: supported },
+          vm: { key: r.id, title: r.title, when: reminderSchedule(r, c), repeat, src: c.assistantSource, star: "", on, interactive: supported,
+            feedback: outcome === "denied" ? t("secondb:planSuggestion.reminderDenied") :
+              outcome === "unavailable" ? c.notOnThisDevice : outcome === "error" ? t("common:errors.unknown") : undefined },
           onToggle: supported ? () => void toggle(r) : undefined,
+          onPermissionSettings: outcome === "denied" ? () => {
+            if (!userId || accountTransitionSnapshot() !== scope || !captureAccountOwnerLease(userId)) return;
+            void Promise.resolve().then(() => {
+              if (!mounted.current || accountTransitionSnapshot() !== scope) return;
+              return Linking.openSettings();
+            }).catch(() => {
+              if (mounted.current && accountTransitionSnapshot() === scope) {
+                setFeedback(prev => ({ scope, rows: { ...(prev.scope === scope ? prev.rows : {}), [r.id]: "error" } }));
+              }
+            });
+          } : undefined,
         };
       })
     : [];
@@ -2025,7 +2066,7 @@ export function RemindersScreen({ onOpenAssistant }: { onOpenAssistant?: () => v
 
           <View style={remStyles.list}>
             {rows.map((r) => (
-              <ReminderCard key={r.vm.key} vm={r.vm} starWord={c.starWord} onToggle={r.onToggle} />
+              <ReminderCard key={r.vm.key} vm={r.vm} starWord={c.starWord} onToggle={r.onToggle} onPermissionSettings={r.onPermissionSettings} />
             ))}
           </View>
         </>

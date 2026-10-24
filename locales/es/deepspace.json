@@ -45,9 +45,9 @@
     "statPages": "Páginas",
     "statLinks": "Enlaces",
     "filterAll": "Todo",
-    "emptyTag": "Aún no hay nada bajo esta etiqueta. Prueba otra etiqueta o añade una pieza.",
+    "emptyTag": "Aún no hay nada bajo esta etiqueta. Prueba otra etiqueta o añade un registro.",
     "emptyAll": "Aún no hay páginas wiki. Guarda una nota o un enlace y organízalo como página desde la bandeja de entrada.",
-    "addPiece": "+ Añadir una pieza",
+    "addPiece": "+ Añadir un registro",
     "backlinks": "Registros enlazados {{count}}",
     "connections": "Enlaces {{count}}",
     "viewList": "Lista",
@@ -66,8 +66,8 @@
     "headline": "'{{title}}' es la página con más conexiones.",
     "chipPages": "Páginas {{count}}",
     "chipLinks": "Enlaces {{count}}",
-    "chipOrphans": "Piezas sueltas {{count}}",
-    "noLinks": "Hay fragmentos guardados, pero todavía no están conectados. Añade más para buscar relaciones entre ellos.",
+    "chipOrphans": "Registros sin enlaces {{count}}",
+    "noLinks": "Hay registros guardados, pero todavía no están conectados. Añade más para buscar relaciones entre ellos.",
     "surprise": "Se encontró una conexión entre '{{from}}' y '{{to}}', aunque tratan temas distintos.",
     "islandChip": "Grupos de conocimiento {{count}}",
     "proposalsLabel": "Conexiones propuestas",
@@ -87,7 +87,7 @@
     "viewList": "Lista",
     "viewGraph": "Grafo",
     "triageTitle": "{{count}} por clasificar",
-    "triageBody": "Etiqueta, guarda o elimina piezas sin clasificar",
+    "triageBody": "Etiqueta, guarda o elimina registros sin clasificar",
     "typeText": "Texto",
     "typeLink": "Enlace",
     "typeVoice": "Voz",
@@ -96,7 +96,7 @@
     "unfiledBadge": "Sin clasificar",
     "fallbackTitle": "Sin título",
     "graphEmpty": "Aún no hay conocimiento que conectar.",
-    "loadError": "No se pudo cargar la lista. Tus fragmentos guardados no han cambiado. Inténtalo de nuevo.",
+    "loadError": "No se pudo cargar la Wiki. Tus registros guardados no han cambiado. Inténtalo de nuevo.",
     "retry": "Reintentar",
     "periodScope": "Historias: {{star}}",
     "periodShowAll": "Ver todo"
@@ -109,14 +109,14 @@
     "lead": "Tus áreas de un vistazo",
     "empty": "Añade etiquetas a los registros para verlos agrupados por área.",
     "addData": "+ Añadir registros",
-    "unit": "piezas",
+    "unit": "registros",
     "noActivity": "Sin registros",
     "topicsLabel": "{{tag}} · temas clave"
   },
   "recordDetail": {
     "title": "Detalle del registro",
-    "headerLinked": "Esta pieza está conectada con {{count}} registros.",
-    "headerAlone": "Vuelve a leer este fragmento.",
+    "headerLinked": "Este registro está conectado con {{count}} registros.",
+    "headerAlone": "Vuelve a leer este registro.",
     "a11yDelete": "Eliminar este registro",
     "deleteConfirmTitle": "¿Eliminar este registro?",
     "deleteConfirmBody": "Esto no se puede deshacer.",
@@ -167,33 +167,35 @@
   },
   "privacy": {
     "title": "Privacidad y términos",
-    "status": "Los registros se usan solo para apoyar tu autoconocimiento.",
-    "tip": "Las decisiones sensibles siempre se muestran y se confirman primero.",
+    "status": "Tus registros se usan en funciones que te ayudan a conocerte. Los detalles están en la política de privacidad.",
+    "tip": "Puedes elegir qué datos se usan.",
     "lead": "Ajusta tú mismo cómo se usan tus datos.",
     "on": "Activado",
     "off": "Desactivado",
     "policy": "Política de privacidad",
+    "terms": "Términos de servicio",
+    "refund": "Política de reembolso",
     "view": "Ver",
     "processingLog": "Registro de procesamiento de datos",
     "last7": "Últimos 7 días",
     "thirdParty": "Compartir con terceros",
-    "none": "0 elementos",
+    "none": "Solo en los casos de la política de privacidad",
     "footer": "El tratamiento y almacenamiento de los datos depende de cada función. Consulta su aviso de uso de datos.",
     "dataReview": "Revisión de mis datos",
     "open": "Abrir",
     "atGlance": "De un vistazo",
     "facts": {
       "onDevice": {
-        "label": "Primero en el dispositivo",
-        "v": "El contenido original que importas se analiza en tu dispositivo; solo se guardan, cifradas, las señales derivadas."
+        "label": "Cómo se usan los registros",
+        "v": "Los registros se guardan en el servidor. El contenido necesario para las funciones de IA se envía a los proveedores de IA en el extranjero."
       },
       "collect": {
         "label": "Qué recopilamos",
-        "v": "Las motas de estrella que guardas, las puntuaciones de lentes y los patrones de uso. Ubicación y comunicaciones, solo con tu consentimiento."
+        "v": "Información de la cuenta, registros guardados y datos de uso del servicio, entre otros. Los datos de ubicación y comunicaciones solo se recopilan con tu consentimiento."
       },
       "retention": {
         "label": "Plazo de conservación",
-        "v": "Mientras tu cuenta esté activa; si te das de baja, se elimina por completo en un plazo de 30 días."
+        "v": "Se guarda mientras uses tu cuenta y se borra sin demora cuando te das de baja. Solo los registros que exige la ley, como los de pago, se guardan aparte durante el plazo obligatorio."
       },
       "delete": {
         "label": "Derecho a borrar",
@@ -209,7 +211,7 @@
       "loadingSettings": "Cargando ajustes…",
       "allow": "Permitir estadísticas de uso",
       "lockedUnder18": "Bloqueado para menores de 18",
-      "applied": "GA4 activo en la web · Firebase y Clarity desactivados en Android",
+      "applied": "La elección se aplica a Google Analytics en la web · Estadísticas de uso desactivadas en Android",
       "enableFailed": "No se pudieron activar las estadísticas. Inténtalo de nuevo.",
       "withdrawSaveFailed": "No se pudo guardar. La retirada de las estadísticas ya se aplicó en este dispositivo; vuelve a intentar guardar.",
       "adsSaveFailed": "No se pudo guardar el ajuste de anuncios. Inténtalo de nuevo."
@@ -227,10 +229,10 @@
     "semantic": {
       "title": "Conexiones de registros por significado",
       "minorLocked": "Las conexiones por significado están desactivadas y no se pueden activar.",
-      "onBody": "Activadas. Los registros se indexan por significado para mostrar los que se parecen.",
-      "turnOffA11y": "Desactivar las conexiones por significado",
-      "turnOff": "Desactivar y borrar vectores",
-      "offBody": "Desactivadas. Actívalas para conectar registros de significado parecido, aunque no compartan etiquetas.",
+      "onBody": "Conecta registros de significado parecido. Al desactivar, se borran los datos para las conexiones y se conservan tus registros.",
+      "turnOffA11y": "Desactivar las conexiones por significado y borrar los datos de conexión",
+      "turnOff": "Desactivar y borrar datos de conexión",
+      "offBody": "Desactivadas. Actívalas para conectar registros de significado parecido.",
       "turnOnA11y": "Activar las conexiones por significado",
       "turnOn": "Activar"
     },
@@ -239,7 +241,7 @@
     "saveFailed": "No se pudo guardar. Inténtalo de nuevo en un momento.",
     "deleteAccount": {
       "body": "Tus registros, capturas, wiki, uso y cuenta se borran de forma permanente. No se puede deshacer. Exporta antes lo que necesites.",
-      "typePrompt": "Escribe \"DELETE\" para continuar.",
+      "typePrompt": "Escribe \"{{phrase}}\" para continuar.",
       "inputA11y": "Confirmación de eliminación",
       "buttonA11y": "Eliminar la cuenta de forma permanente",
       "button": "Eliminar cuenta",
@@ -256,33 +258,18 @@
     "reportBug": "Reportar un error",
     "footer": "PolaScope v{{version}} · 2 días hábiles KST",
     "faqTitle": "Preguntas frecuentes",
-    "noticesTitle": "Avisos",
     "faqs": {
       "brightness": {
-        "q": "¿En qué se diferencian el brillo (la luz de las estrellas) y la confianza?",
-        "a": "La luz de las estrellas indica cuánto has guardado en esa área; la confianza, cuánto se ha comprobado la estimación de HustleK. Las dos cambian por separado."
+        "q": "¿Qué significa el brillo de las estrellas?",
+        "a": "El brillo de una estrella de entrevista indica cuántas capas de la entrevista has abierto. La cobertura llega hasta L4; L5 solo aparece cuando confirmas una propuesta."
       },
       "plan": {
         "q": "¿Un plan de pago lo hace más inteligente?",
         "a": "No. La calidad de las respuestas es la misma en todos los planes. Solo cambian los límites de cantidad, conservación y exportación."
       },
-      "call": {
-        "q": "¿Es segura la grabación de llamadas?",
-        "a": "Las grabaciones se transcriben en el servidor de IA mediante una conexión cifrada, y el audio original se borra de tu dispositivo justo después. Solo se guardan, cifrados, el texto y las señales."
-      }
-    },
-    "notices": {
-      "modes": {
-        "t": "Llegan los tres modos de HustleK",
-        "tag": "Nuevo"
-      },
-      "museum": {
-        "t": "Museo de la IA: ya hay 8 colecciones abiertas",
-        "tag": "Contenido"
-      },
       "voice": {
-        "t": "Mejoras en la transcripción de voz",
-        "tag": "Mejora"
+        "q": "¿Es segura la transcripción de voz?",
+        "a": "La voz se transcribe en el servidor de IA mediante una conexión cifrada, y el audio original se borra de tu dispositivo justo después. Solo se guardan, cifrados, el texto y las señales."
       }
     }
   },
@@ -323,7 +310,7 @@
     "tip": "Toca el tema sobre el que más escribiste para ver sus registros.",
     "sectionNow": "Tú últimamente",
     "lead": "Comparado con la semana pasada, esta semana",
-    "weeklyCap": "Piezas guardadas · semanal",
+    "weeklyCap": "Registros guardados · semanal",
     "lastWeek": "Semana pasada",
     "thisWeek": "Esta semana",
     "delta": "▲ {{percent}}% más guardado",
@@ -394,7 +381,7 @@
     "title": "Mapa de mis registros",
     "subtitle": "{{nodes}} elementos · {{edges}} enlaces",
     "status": "Consulta las conexiones entre tus registros y páginas.",
-    "tip": "Toca un grupo para ver sus fragmentos.",
+    "tip": "Toca un grupo para ver sus registros.",
     "me": "Yo",
     "clRecords": "Registros",
     "clRelations": "Relaciones",
@@ -486,10 +473,10 @@
     "saving": "Guardando…",
     "save": "Guardar",
     "opening": "Abriendo la línea de tiempo…",
-    "loadError": "No se pudo cargar tu historial laboral. Los fragmentos guardados no han cambiado. Inténtalo de nuevo.",
+    "loadError": "No se pudo cargar tu historial laboral. Los registros guardados no han cambiado. Inténtalo de nuevo.",
     "retry": "Reintentar",
     "empty": "Aún no hay registros de trabajo. Añade un logro para encender esta estrella.",
-    "pieceFallback": "Pieza de carrera",
+    "pieceFallback": "Registro de carrera",
     "drillDown": "Ver detalles",
     "originalNote": "Las vistas previas conservan el idioma guardado. Abre una tarjeta para leer el registro completo.",
     "sourceInterview": "Entrevista de recuerdos",
@@ -610,7 +597,7 @@
     "saving": "Guardando…",
     "save": "Guardar",
     "opening": "Abriendo…",
-    "empty": "Anota qué te gusta hacer para descansar. Así puedes encender la estrella de descanso.",
+    "empty": "Aún no hay actividades de descanso guardadas. Anota qué disfrutas hacer para descansar.",
     "ratingLabel": "Valoración {{rating}}/5",
     "category": {
       "game": "Juego",
@@ -709,9 +696,12 @@
     "eyebrowConstellation": "MI CONSTELACIÓN",
     "footerWeek": "Resumen semanal de HustleK",
     "starsLit": "{{count}} estrellas brillando",
-    "signature": "PolaScope · {{count}} motas de estrella"
+    "signature": "PolaScope · {{count}} registros"
   },
   "ds": {
+    "network": {
+      "offline": "Sin conexión a internet."
+    },
     "growth": {
       "title": "Mi cambio",
       "bubble": "Mira cómo cambió el brillo esta semana.",
@@ -839,9 +829,9 @@
       "meaning": "significado",
       "edit": "Editar",
       "move": "Mover",
-      "fillStar": "Completar esta estrella",
+      "fillStar": "Completar esta área",
       "fillStarBody": "Añade información sobre esta área.",
-      "secondbLinked": "Este fragmento se conecta con tu estrella '{{star}}'. {{n}} registros similares están en el mismo periodo.",
+      "secondbLinked": "Este registro se conecta con tu área '{{star}}'. {{n}} registros similares están en el mismo periodo.",
       "makeWikiPage": "Crear página wiki",
       "wikiPageMade": "Página wiki creada"
     },
@@ -855,7 +845,7 @@
       "peerBody": "{{n}} de tus invitaciones recibieron respuesta.",
       "peerCta": "Ver respuestas",
       "sourcesTitle": "Material a la espera de revisión",
-      "sourcesBody": "{{n}} piezas todavía no son páginas del wiki.",
+      "sourcesBody": "{{n}} registros todavía no son páginas del wiki.",
       "sourcesCta": "Ver el material"
     },
     "import": {
@@ -904,8 +894,8 @@
       "healthRoutinesCompleted": "Rutinas completadas con esto: {{count}}.",
       "healthAutoDaily": "Con la actualización automática activada, este teléfono también lee pasos, entrenamientos y sueño una vez al día por sí solo.",
       "healthErrFailed": "No se pudo añadir tu actividad. Inténtalo de nuevo en un momento.",
-      "summaryPieces": "{{count}} pieza",
-      "summaryPieces_plural": "{{count}} piezas",
+      "summaryPieces": "{{count}} registro",
+      "summaryPieces_plural": "{{count}} registros",
       "resultAdded": "Se agregó {{count}} a tu bandeja",
       "resultAdded_plural": "Se agregaron {{count}} a tu bandeja",
       "resultDuplicate": "{{count}} duplicado",
@@ -923,7 +913,7 @@
       "propose": "Ver otros borradores",
       "cancel": "Cancelar",
       "save": "Guardar esta frase",
-      "thinBase": "Aún faltan registros. Guarda unos {{count}} fragmentos para preparar borradores.",
+      "thinBase": "Aún faltan registros. Guarda unos {{count}} registros para preparar borradores.",
       "proposeFailed": "No pude traer borradores ahora. Revisa tu conexión e inténtalo de nuevo.",
       "saveFailed": "No se pudo guardar. Tu frase sigue aquí, inténtalo de nuevo."
     },
@@ -966,7 +956,7 @@
     "reasoningScreen": {
       "autoTitle": "Conexiones automáticas",
       "autoPaused": "Límite alcanzado · se reanuda el lunes",
-      "autoBody": "HustleK busca conexiones cuando guardas un fragmento.",
+      "autoBody": "HustleK busca conexiones cuando guardas un registro.",
       "autoNote": "Cada búsqueda automática usa una de las búsquedas semanales. Siempre se reserva una para que la inicies tú.",
       "queuedRecord": "Registro nuevo · en cola",
       "queuedSource": "Fuente nueva · en cola",
@@ -990,7 +980,7 @@
       "reviewTitle": "Revisar resultados",
       "selectedTitle": "{{n}} seleccionados",
       "progressDone": "Todos los elementos están conectados",
-      "progressRunning": "Conectando tus estrellas",
+      "progressRunning": "Conectando tus áreas",
       "unlimited": "Conexiones ilimitadas",
       "weeklyLeft": "Búsquedas disponibles esta semana: {{left}} de {{cap}} · se reinician el lunes",
       "cancel": "Cancelar",
@@ -1069,10 +1059,10 @@
     "untitled": "(sin título)",
     "pieceHere": "Guardado aquí",
     "pieceOpenHint": "Abre este registro.",
-    "briefingOpening": "Abriendo esta estrella…",
-    "briefingEmpty": "Aún no hay registros en esta estrella. Guarda uno para que HustleK pueda usarlo.",
-    "briefingCountOne": "{{n}} registro en esta estrella, primero el más reciente.",
-    "briefingCount": "{{n}} registros en esta estrella, primero los más recientes."
+    "briefingOpening": "Abriendo esta área…",
+    "briefingEmpty": "Aún no hay registros en esta área. Guarda uno para que HustleK pueda usarlo.",
+    "briefingCountOne": "{{n}} registro en esta área, primero el más reciente.",
+    "briefingCount": "{{n}} registros en esta área, primero los más recientes."
   },
   "onboarding": {
     "nextHint": "Va a la siguiente diapositiva.",

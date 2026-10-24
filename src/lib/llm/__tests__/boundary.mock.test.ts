@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 // C9 + C3 invariants in mock mode. Mirrors gemini.test.ts but flips
 // EXPO_PUBLIC_LLM_MODE to "mock" so callLlm takes the templated-response
 // branch. Same safety contract applies: red zone short-circuits, every call
@@ -360,9 +363,10 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
     // verdict, otherwise call the SDK" keeps every string the function has today, and every
     // behaviour test in this file runs in mock mode, so it would take the routing branch and pass
     // (review N-01, 2026-10-14). The declaration is held whole instead: its modifiers, its
-    // parameters, its return type, and a body of exactly these three statements. Any added
-    // statement, branch, default value or wrapper changes one of these lists.
-    test("the declaration is exactly one verdict, one early null and one direct routing call", () => {
+    // parameters, its return type, and the approved captured-session fence around the same
+    // verdict/null/direct route. Runtime tests in boundary.test and call-llm-captured-session.test
+    // execute this path with live mode, real outbox delivery and owner/observer reentry.
+    test("the declaration permits only the captured fence, one verdict and the existing direct route", () => {
       const fn = declaration();
       expect(texts(fn.modifiers)).toEqual(["export", "async"]);
       expect(fn.asteriskToken).toBeUndefined();
@@ -372,16 +376,26 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
         'locale: "en" | "ko"',
         "userId: string",
         "minor?: boolean",
+        "options?: { session: AuthenticatedAccountSessionLease; signal?: AbortSignal; onCrisisDetected?: CrisisObserver; }",
       ]);
       expect(fn.type ? norm(fn.type) : "").toBe("Promise<LlmResult<string> | null>");
       expect(texts(fn.body?.statements)).toEqual([
+        'if (options && options.session.userId !== userId) throw new Error("llm_session_owner_mismatch");',
+        'if (options?.signal && options.signal !== options.session.signal) throw new Error("llm_session_signal_mismatch");',
+        "const fence = (): void => { throwIfAborted(options?.session.signal); options?.session.assertCurrent(); };",
+        "fence();",
         "const safety = classifyInputAnyLocale(text, locale, { minor });",
         'if (safety.zone !== "red") return null;',
-        'return routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", { purpose: "secondb_chat" });',
+        "const notifyCrisis = crisisObserver(options?.onCrisisDetected, fence);",
+        "notifyCrisis?.(safety.crisisRouting?.hotline);",
+        "fence();",
+        'const reply = await routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", { purpose: "secondb_chat", session: options?.session, });',
+        "fence();",
+        "return reply;",
       ]);
     });
 
-    // The three statements above hand the raw text to three names, so the spelling of the
+    // The routing statements above hand the raw text to three names, so the spelling of the
     // declaration is only as good as what those names are. A live-only send placed inside one of
     // them (djb2 included) would leave the declaration as it is and never run in this mock-mode
     // file (review G-01, 2026-10-14). Hold what each name is bound to, and djb2's own body.
@@ -423,10 +437,12 @@ describe("classifyChatTextForCrisis (Q-261014-30)", () => {
       return found;
     };
 
-    test("the names the three statements call are bound once: the classifier's import, and two top-level functions", () => {
+    test("the classifier, direct route, hash and fence helpers remain bound once", () => {
       expect(bindingsOf("classifyInputAnyLocale")).toEqual(["import classifyInputAnyLocale from ../safety/classifier"]);
       expect(bindingsOf("routeCrisis")).toEqual(["top-level function"]);
       expect(bindingsOf("djb2")).toEqual(["top-level function"]);
+      expect(bindingsOf("crisisObserver")).toEqual(["top-level function"]);
+      expect(bindingsOf("throwIfAborted")).toEqual(["import throwIfAborted from ../async/abort"]);
     });
 
     test("djb2, which receives the raw text, is the same pure hash as written", () => {

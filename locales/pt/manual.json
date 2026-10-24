@@ -9,7 +9,7 @@
   "permissionsHint": "Abre o guia de permissões do app.",
   "curated": "Fontes selecionadas",
   "guide": {
-    "hero": "Cinco perguntas explicam como seus registros se tornam algo útil.",
+    "hero": "Como seus registros se tornam algo útil e onde ficam as tarefas mais comuns.",
     "tip": "Abra uma resposta por vez ou filtre o guia abaixo.",
     "searchLabel": "Filtrar o guia de uso",
     "searchPlaceholder": "Buscar perguntas e respostas",
@@ -36,17 +36,36 @@
       "data": {
         "question": "Onde ficam privacidade, segurança e exportações?",
         "answer": "As escolhas de privacidade e a exportação da conta são controles explícitos. O IDEN é um resumo de identidade portátil. Se uma mensagem precisar de ajuda urgente, o app mostra recursos de apoio antes de uma resposta comum e não entra em contato com nenhum serviço por você."
+      },
+      "refund": {
+        "question": "Como peço um reembolso?",
+        "answer": "Peça em Gerenciar assinatura, dentro de Opções. Se você tem um pagamento, essa tela mostra se pode receber um reembolso agora e por quê."
+      },
+      "export": {
+        "question": "Como exporto meus registros?",
+        "answer": "Em Meus dados, dentro de Opções, baixe os dados da sua conta em um único arquivo. O arquivo também informa o que ficou de fora e por quê."
+      },
+      "deleteAccount": {
+        "question": "Como excluo minha conta?",
+        "answer": "Escolha Excluir conta em Conta, dentro de Opções. Não dá para desfazer, então exporte antes o que precisar."
+      },
+      "notifications": {
+        "question": "Onde mudo as notificações?",
+        "answer": "No app do celular, ative ou desative em Permissões, dentro de Opções. A versão web não envia notificações."
       }
     },
     "actions": {
       "dashboard": "Abrir o painel do HustleK",
       "brightness": "Ver o brilho",
-      "records": "Abrir registros",
+      "records": "Ver a Wiki",
       "review": "Revisar propostas",
       "privacy": "Ajustes de privacidade",
       "iden": "IDEN portátil",
       "accountExport": "Exportar a conta",
-      "support": "Recursos de apoio"
+      "support": "Recursos de apoio",
+      "subscription": "Gerenciar assinatura",
+      "deleteAccount": "Excluir conta",
+      "permissions": "Gerenciar permissões"
     }
   }
 }

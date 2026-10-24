@@ -9,12 +9,16 @@
 //
 // Fail-soft by design: any miss (no embeddings yet, embed egress failure,
 // red-zone query -> zero vector, RPC error) returns [] and the caller falls
-// back to the legacy whole-wiki snapshot, so chat NEVER breaks on RAG.
+// back to the legacy whole-wiki snapshot. Captured cancellation/owner changes
+// instead propagate; a future captured caller must not treat them as a miss.
 //
 // Cost: one embedTexts call per chat turn (shared proxy spend counter). C9
 // holds inside embedTexts (red text is never embedded); C1 holds because the
 // only model access is through the gemini.ts boundary.
 
+import { isAbortError, throwIfAborted } from "../async/abort";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { captureLiveOwnerCheck, observeLiveOwner } from "../auth/live-owner-guard";
 import { EMBED_DIM, embedTexts } from "../llm/boundary";
 import { getSupabaseClient } from "../supabase/client";
 import { isProfileContextImportSource, serializeProfileImportQuote } from "../wiki/profile-context-source";
@@ -31,6 +35,8 @@ export interface RetrieveChatContextOpts {
   k?: number;
   bodyCharLimit?: number;
   minor?: boolean;
+  session?: AuthenticatedAccountSessionLease;
+  signal?: AbortSignal;
 }
 
 /** Floor below which a neighbour is noise, not grounding. Mirrors the 0.5
@@ -44,64 +50,93 @@ export async function retrieveChatContext(
   locale: "en" | "ko",
   opts: RetrieveChatContextOpts = {},
 ): Promise<RagPage[]> {
-  const k = opts.k ?? 8;
-  const bodyCharLimit = opts.bodyCharLimit ?? 600;
+  const { session } = opts;
+  if (session && session.userId !== userId) throw new Error("rag_session_owner_mismatch");
+  if (session && opts.signal && opts.signal !== session.signal) throw new Error("rag_session_signal_mismatch");
+  const liveOwner = session ? undefined : observeLiveOwner(captureLiveOwnerCheck(userId), opts.signal);
+  const signal = session?.signal ?? liveOwner?.signal ?? opts.signal;
+  const fence = (): void => {
+    throwIfAborted(signal);
+    session?.assertCurrent();
+    liveOwner?.assertCurrent();
+  };
+  try {
+    fence();
+    const k = opts.k ?? 8;
+    const bodyCharLimit = opts.bodyCharLimit ?? 600;
 
-  const { vectors, audit } = await embedTexts({
-    userId,
-    texts: [query],
-    locale,
-    minor: opts.minor ?? false,
-  });
-  const vec = vectors[0];
-  // Zero vector = red-zone query (C9 skip) or an empty model reply — no RAG.
-  if (!vec || vec.length !== EMBED_DIM || vec.every((x) => x === 0)) return [];
-
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.rpc("match_wiki_pages", {
-    p_user_id: userId,
-    query_embedding: `[${vec.join(",")}]`,
-    match_count: k,
-    // 0142: only compare against vectors from the SAME model. During a
-    // re-index the table holds two spaces at once, and an unfiltered kNN would
-    // rank them together - returning confident, plausible, unrelated pages
-    // rather than an error anyone would report.
-    // The model that produced THIS query vector, not the EMBED_MODEL constant:
-    // after the vendor switch moves, the constant and the truth diverge, and
-    // filtering by the constant would compare a new-space query against
-    // old-space rows - the exact mixing this parameter exists to prevent.
-    p_embedding_model: audit.modelUsed,
-  });
-  if (error || !Array.isArray(data) || data.length === 0) return [];
-  const neighbors = (data as { id: string; slug: string; title: string; similarity: number }[])
-    .filter((n) => n.similarity >= RAG_MIN_SIMILARITY);
-  if (neighbors.length === 0) return [];
-
-  // The kNN RPC returns metadata only; fetch the bodies for the survivors.
-  const { data: pages, error: e2 } = await supabase
-    .from("wiki_pages")
-    .select("id, slug, title, body_md, frontmatter")
-    .eq("user_id", userId)
-    .in("id", neighbors.map((n) => n.id));
-  if (e2 || !Array.isArray(pages)) return [];
-  const byId = new Map(
-    (pages as { id: string; slug: string; title: string; body_md: string | null; frontmatter?: unknown }[]).map((p) => [p.id, p]),
-  );
-
-  const out: RagPage[] = [];
-  for (const n of neighbors) {
-    const p = byId.get(n.id);
-    if (!p) continue;
-    out.push({
-      slug: p.slug,
-      title: p.title,
-      body: isProfileContextImportSource(p.frontmatter)
-        ? serializeProfileImportQuote(p.body_md ?? "", bodyCharLimit)
-        : (p.body_md ?? "").slice(0, bodyCharLimit),
-      similarity: n.similarity,
+    fence();
+    const { vectors, audit } = await embedTexts({
+      userId,
+      texts: [query],
+      locale,
+      minor: opts.minor ?? false,
+      session,
+      signal,
     });
-  }
-  return out;
+    fence();
+    const vec = vectors[0];
+    // Zero vector = red-zone query (C9 skip) or an empty model reply — no RAG.
+    if (!vec || vec.length !== EMBED_DIM || vec.every((x) => x === 0)) return [];
+
+    const supabase = getSupabaseClient();
+    fence();
+    const matches = supabase.rpc("match_wiki_pages", {
+      p_user_id: userId,
+      query_embedding: `[${vec.join(",")}]`,
+      match_count: k,
+      // 0142: only compare against vectors from the SAME model. During a
+      // re-index the table holds two spaces at once, and an unfiltered kNN would
+      // rank them together - returning confident, plausible, unrelated pages
+      // rather than an error anyone would report.
+      // The model that produced THIS query vector, not the EMBED_MODEL constant:
+      // after the vendor switch moves, the constant and the truth diverge, and
+      // filtering by the constant would compare a new-space query against
+      // old-space rows - the exact mixing this parameter exists to prevent.
+      p_embedding_model: audit.modelUsed,
+    });
+    const { data, error } = await (liveOwner ? matches.abortSignal(liveOwner.signal) : matches);
+    fence();
+    if (isAbortError(error)) throw error;
+    if (error || !Array.isArray(data) || data.length === 0) return [];
+    const neighbors = (data as { id: string; slug: string; title: string; similarity: number }[])
+      .filter((n) => n.similarity >= RAG_MIN_SIMILARITY);
+    if (neighbors.length === 0) return [];
+
+    // The kNN RPC returns metadata only; fetch the bodies for the survivors.
+    fence();
+    const pageQuery = supabase
+      .from("wiki_pages")
+      .select("id, slug, title, body_md, frontmatter")
+      .eq("user_id", userId)
+      .in("id", neighbors.map((n) => n.id));
+    const { data: pages, error: e2 } = await (liveOwner ? pageQuery.abortSignal(liveOwner.signal) : pageQuery);
+    fence();
+    if (isAbortError(e2)) throw e2;
+    if (e2 || !Array.isArray(pages)) return [];
+    const byId = new Map(
+      (pages as { id: string; slug: string; title: string; body_md: string | null; frontmatter?: unknown }[]).map((p) => [p.id, p]),
+    );
+
+    const out: RagPage[] = [];
+    for (const n of neighbors) {
+      const p = byId.get(n.id);
+      if (!p) continue;
+      out.push({
+        slug: p.slug,
+        title: p.title,
+        body: isProfileContextImportSource(p.frontmatter)
+          ? serializeProfileImportQuote(p.body_md ?? "", bodyCharLimit)
+          : (p.body_md ?? "").slice(0, bodyCharLimit),
+        similarity: n.similarity,
+      });
+    }
+    fence();
+    return out;
+  } catch (error) {
+    fence();
+    throw error; // The caller may fall back only for an ordinary current-owner failure.
+  } finally { liveOwner?.release(); }
 }
 
 /** Render RAG pages as the same [[slug]]-citable shape the snapshot uses, so

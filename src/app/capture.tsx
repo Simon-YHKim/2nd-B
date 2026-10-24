@@ -56,6 +56,8 @@ import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { galmuriFor } from "@/components/m3/typeface";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureAccountOwnerLease } from "@/lib/auth/account-epoch";
+import { publishCrisisNotice } from "@/lib/safety/crisis-notice";
 import {
   beginAccountSessionLease,
   type PendingAccountSessionLease,
@@ -63,6 +65,8 @@ import {
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { isAbortError } from "@/lib/async/abort";
+import { discardSharedMedia, takeSharedImage } from "@/lib/capture/shared-media";
+import { sharedMediaError, sharedMediaToken } from "@/lib/capture/share-media-intent";
 import { detectClipperKind } from "@/lib/wiki/clipper-kind";
 import {
   pickImageAsset,
@@ -141,10 +145,10 @@ import { pieceIdFor } from "@/lib/records/get-piece";
 import type { RecordFollowup } from "@/lib/records/followup";
 import { computeStreak } from "@/lib/journal/streak";
 import { dailyPrompt } from "@/lib/journal/daily-prompts";
-import { listRecentRecords, countRecordsByKind } from "@/lib/records/create";
+import { CaptureRecordReadNotice, useCaptureRecords } from "@/lib/capture/use-capture-records";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
-// Journal-mode (일기) entitlement: feature gate + free-tier use limit, ported
+// Journal-mode (일기) entitlement: shared feature and usage policy, ported
 // from the retired /journal screen so the /journal→/capture redirect (Phase 3)
 // doesn't bypass progression gating.
 import { useProgression } from "@/lib/progression/useProgression";
@@ -195,8 +199,6 @@ type StorageMode = CaptureDraftMode;
 // 정본이다 — 렌더 없이 테스트하기 위해서다. 여기는 별칭만 둔다.
 type Mode = CaptureMode;
 type CaptureFeedbackModal = { title: string; body: string; retry?: () => void } | null;
-// One row of the 최근 조각 recent list — a subset of listRecentRecords output.
-type RecentRow = { id: string; kind: string; topic: string | null; body: string | null; created_at: string };
 
 // This guard separates source/journal-shaped drafts from the typed transient
 // record drafts. Both are persisted, but their schemas and save destinations differ.
@@ -371,10 +373,13 @@ export default function Capture() {
     tag?: string;
     coach?: string;
     from?: string;
+    sharedMedia?: string;
+    sharedMediaError?: string;
   }>();
   const coachMode = firstRecordCoachMode(captureParams.coach);
   const firstRecordCoach = coachMode !== null;
   const hasFullCaptureParams =
+    sharedMediaToken(captureParams.sharedMedia) !== null || sharedMediaError(captureParams.sharedMediaError) !== null ||
     normalizeSharedCaptureParams({
       url: captureParams.url,
       text: captureParams.text,
@@ -477,8 +482,19 @@ function CaptureLegacySession({
   // is fine", and one screen should not say it twice.
   // url/text/title arrive from the Web Share Target (manifest.webmanifest):
   // sharing a page from another app opens /capture with the payload here.
-  const { url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam } =
-    useLocalSearchParams<{ url?: string; text?: string; title?: string; mode?: string; tag?: string }>();
+  const { url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam,
+    sharedMedia: sharedMediaParam, sharedMediaError: sharedMediaErrorParam } =
+    useLocalSearchParams<{ url?: string; text?: string; title?: string; mode?: string; tag?: string;
+      sharedMedia?: string; sharedMediaError?: string }>();
+  const incomingMedia = sharedMediaToken(sharedMediaParam);
+  const incomingMediaError = sharedMediaError(sharedMediaErrorParam);
+  const [receivingMedia, setReceivingMedia] = useState(false);
+  const sharedMediaAbort = useRef<AbortController | null>(null);
+  const transferredMedia = useRef(new Set<string>());
+  useEffect(() => () => {
+    sharedMediaAbort.current?.abort();
+    if (!incomingMedia || !transferredMedia.current.delete(incomingMedia)) discardSharedMedia(incomingMedia);
+  }, [incomingMedia]);
   const shared = useMemo(
     () => normalizeSharedCaptureParams({ url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam }),
     [sharedUrlParam, sharedTextParam, sharedTitleParam],
@@ -714,7 +730,8 @@ function CaptureLegacySession({
 
   // Journal-mode (일기) state — ported from /journal. Writes to records.
   const progression = useProgression();
-  const [journalCount, setJournalCount] = useState(0);
+  const recentRead = useCaptureRecords(userId, loading);
+  const refreshRecentRecords = recentRead.refresh;
   const [topic, setTopic] = useState("");
   const [conclusion, setConclusion] = useState("");
   const [showExtras, setShowExtras] = useState(false);
@@ -827,6 +844,7 @@ function CaptureLegacySession({
         focusDraftHydratedRef.current = false;
         captureFocusedRef.current = false;
         setCaptureFocused(false);
+        sharedMediaAbort.current?.abort();
         asyncProducerGenerationRef.current += 1;
         setExtracting(false);
         stopVoiceCaptureForModeExitRef.current(DEFAULT_CAPTURE_DRAFT_MODE);
@@ -859,15 +877,13 @@ function CaptureLegacySession({
     });
     return () => sub.remove();
   }, [captureInstanceId, userId]);
-  const [recentDates, setRecentDates] = useState<string[]>([]);
-  // 최근 조각 (recent pieces): the records rows already fetched for the streak
-  // double as a tappable recent list under the composer. Each row → /record/[id].
-  const [recentRows, setRecentRows] = useState<RecentRow[]>([]);
+  // Owned reads supply the recent list/streak independently of the journal usage gate.
+  const recentRows = recentRead.rows;
   const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
     visible: false,
     hotline: "GLOBAL_988",
   });
-  const streak = useMemo(() => computeStreak(recentDates), [recentDates]);
+  const streak = useMemo(() => computeStreak(recentRows.map((row) => row.created_at)), [recentRows]);
 
   /**
    * Composer mutation B를 state setter보다 먼저 기록한다. passive effect는
@@ -915,6 +931,8 @@ function CaptureLegacySession({
   }
 
   function beginAsyncProducer(): { generation: number; revision: number } {
+    sharedMediaAbort.current?.abort();
+    setReceivingMedia(false);
     // A newer producer owns the loading surface. This also releases a stale
     // OCR/audio spinner when the replacement action is a picker or paste that
     // does not set extracting=true itself.
@@ -1706,29 +1724,6 @@ function CaptureLegacySession({
     router.setParams({ mode: undefined, tag: undefined });
   }, [captureFocused, captureInstanceId, paramDeliveryIdentity, paramDurableAck, userId]);
 
-  // Load recent record dates (journal streak) + journal use count (free-tier
-  // limit) once we have a user.
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    void Promise.all([
-      listRecentRecords(userId),
-      countRecordsByKind(userId, "journal"),
-    ])
-      .then(([rows, jc]) => {
-        if (cancelled) return;
-        setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at));
-        setRecentRows(rows as RecentRow[]);
-        setJournalCount(jc);
-      })
-      .catch((e) => {
-        if (typeof console !== "undefined") console.warn("[capture] streak load failed", (e as Error).message);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
   // Link/Clip unified box lives in `body`. If it's a bare URL we detect the
   // clipper kind from it; otherwise it's pasted markdown. These useMemo hooks
   // MUST stay above the early returns below: a hook after a conditional return
@@ -1811,11 +1806,14 @@ function CaptureLegacySession({
     );
   }
 
-  // 일기(journal) entitlement — feature gate first, then the free tier allows a
-  // fixed number of entries. Other modes write to `sources` and were never
-  // gated, so this only constrains the journal mode.
+  // Journal uses the shared feature/usage entitlement. Local writes are
+  // unlimited; a read failure must not invent a free-tier write cap.
   const journalGate = checkGate("journal", progression.totalXp);
-  const journalUsage = checkUsage("journal", progression.tier, journalCount);
+  // Local journal writes are currently unlimited. An unavailable count must
+  // not turn that entitlement into a write outage. A future limited tier still
+  // waits for an exact count instead of treating an unread count as zero.
+  const journalUsage = checkUsage("journal", progression.tier, recentRead.journalCount ?? 0);
+  const journalUsageKnown = journalUsage.unlimited || recentRead.journalCount !== null;
   // Brain entitlement for the opt-in Advisor follow-up (cycle-5 wiring of the
   // previously dead canUsePremium — the AI reflection is the marginal-cost
   // surface, mirroring the chat daily cap).
@@ -2087,6 +2085,7 @@ function CaptureLegacySession({
       setSelectedLifeArea(null);
     }
     if (nextMode === mode) return;
+    sharedMediaAbort.current?.abort();
     // 저장 A는 사용자가 이미 확정한 snapshot이라 끝까지 보낸다. 모드 전환은
     // revision만 올려 A의 UI 정리 권한을 회수한다(Storage upload orphan 방지).
     advanceCaptureRevision();
@@ -2184,11 +2183,52 @@ function CaptureLegacySession({
     }
   }
 
+  async function receiveSharedPhoto(): Promise<void> {
+    if (!userId || !incomingMedia || receivingMedia || sharedMediaAbort.current || mode !== "ocr" || isMinor === null) return;
+    const ticket = beginAsyncProducer();
+    const controller = new AbortController();
+    sharedMediaAbort.current = controller;
+    setReceivingMedia(true);
+    let image: PickedImage | null = null;
+    try {
+      image = await takeSharedImage(userId, incomingMedia, controller.signal);
+      if (!asyncProducerIsCurrent(ticket, "ocr") || controller.signal.aborted) return;
+      // The button explicitly says the old photo/text will be replaced. OCR
+      // still requires its own Extract tap and the existing save approval.
+      commitComposerMutation();
+      replacePickedImage(image);
+      image = null;
+      setBody("");
+      setOcrReviewApproved(false);
+      // The image now owns its release. Do not abort it when params are cleared.
+      sharedMediaAbort.current = null;
+      transferredMedia.current.add(incomingMedia);
+      router.setParams({ sharedMedia: undefined, sharedMediaError: undefined });
+    } catch (error) {
+      if (!isAbortError(error) && asyncProducerIsCurrent(ticket, "ocr")) {
+        showFeedback(t("alerts.imageOpen.title"), t("sharedMedia.unreadable"));
+      }
+    } finally {
+      await image?.release();
+      if (sharedMediaAbort.current === controller) sharedMediaAbort.current = null;
+      if (sessionActiveRef.current && sharedMediaAbort.current === null) setReceivingMedia(false);
+    }
+  }
+
   async function runExtract() {
     if (!userId || !pickedImage || extracting) return;
+    const safetyOwner = captureAccountOwnerLease(userId);
+    if (!safetyOwner) return;
     const ticket = beginAsyncProducer();
     const accountLease = beginAccountSessionLease(userId);
     ocrAccountLeaseRef.current = accountLease;
+    let crisisNotified = false;
+    const notifyCrisis = (hotline: HotlineId | undefined): void => {
+      if (crisisNotified || !sessionActiveRef.current) return;
+      try { accountLease.assertCurrent(); } catch { return; }
+      crisisNotified = true;
+      publishCrisisNotice(safetyOwner, hotline ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988"));
+    };
     setExtracting(true);
     try {
       const authenticated = await accountLease.authenticate();
@@ -2198,6 +2238,7 @@ function CaptureLegacySession({
         locale,
         pickedImage,
         isMinor === true,
+        notifyCrisis,
       );
       authenticated.assertCurrent();
       if (!asyncProducerIsCurrent(ticket, "ocr")) return;
@@ -2219,7 +2260,7 @@ function CaptureLegacySession({
       // blocking finding). Route to the crisis modal like the journal path.
       if (isImageOcrCrisisResultError(e)) {
         if (!sessionActiveRef.current) return;
-        setCrisis({ visible: true, hotline: imageOcrCrisisHotline(e) ?? (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988") });
+        notifyCrisis(imageOcrCrisisHotline(e));
         return;
       }
       if (!asyncProducerIsCurrent(ticket, "ocr")) return;
@@ -2471,7 +2512,7 @@ ${transcript}`;
   };
 
   const canSubmit = !!userId && !submitting && !extracting && !proposing && voicePhase === "idle" && (
-    (mode === "journal" && journalGate.unlocked && journalUsage.allowed && body.trim().length > 0) ||
+    (mode === "journal" && journalGate.unlocked && journalUsageKnown && journalUsage.allowed && body.trim().length > 0) ||
     (mode === "memo" && body.trim().length > 0) ||
     (mode === "linkclip" && body.trim().length > 0) ||
     (mode === "ocr" && hasOcrDraft && ocrReviewApproved) ||
@@ -2486,8 +2527,10 @@ ${transcript}`;
       ? t("submitHints.saving")
       : mode === "journal" && !journalGate.unlocked
         ? t("submitHints.journalLocked", { level: journalGate.requiredLevel })
-        : mode === "journal" && !journalUsage.allowed
-          ? t("submitHints.journalLimit")
+        : mode === "journal" && !journalUsageKnown
+          ? undefined // The read notice already explains waiting/failure; keep the draft editable.
+          : mode === "journal" && !journalUsage.allowed
+            ? t("submitHints.journalLimit")
           : mode === "ocr" && hasOcrDraft && !ocrReviewApproved
             ? t("ocrReview.submitHint")
             : mode === "ocr"
@@ -2505,7 +2548,8 @@ ${transcript}`;
   // 일기(journal) mode writes to `records` via createRecord: streak, optional
   // topic/conclusion, and an opt-in Advisor reply. Crisis routing is honoured.
   async function handleJournalSubmit() {
-    if (!userId || !body.trim()) return;
+    if (!userId || !body.trim() || !journalUsageKnown || !journalUsage.allowed || !recentRead.isOwnerCurrent()
+      || (!journalUsage.unlimited && !recentRead.isCountCurrent())) return;
     const startModeEpoch = storageMutationEpochRef.current.journal;
     const journalDraft = draftFromFields("journal");
     const submitted: SubmittedCaptureDraft = {
@@ -2583,24 +2627,10 @@ ${transcript}`;
           setSavedPending(false);
         }
       } else if (draftCleanupResult === "failed") showDraftCleanupFailure();
-      // Refresh streak + journal use count (free-tier limit) + XP (the entry
+      // Refresh streak + journal count + XP (the entry
       // earns progression, mirroring the retired /journal screen).
       void progression.refresh();
-      void Promise.all([
-        listRecentRecords(userId),
-        countRecordsByKind(userId, "journal"),
-      ])
-        .then(([rows, jc]) => {
-          setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at));
-          setRecentRows(rows as RecentRow[]);
-          setJournalCount(jc);
-        })
-        .catch((e) => {
-          // Post-save streak/count refresh is best-effort, but swallowing it left
-          // stale streak + journal-usage numbers on screen. Log and leave the
-          // prior values rather than masking the failure entirely.
-          if (typeof console !== "undefined") console.warn("[capture] streak refresh failed", (e as Error).message);
-        });
+      refreshRecentRecords();
     } catch (e) {
       if (recordSaved) {
         if (typeof console !== "undefined") console.warn("[capture] journal post-save step failed", (e as Error).message);
@@ -2674,7 +2704,6 @@ ${transcript}`;
     try {
       const baseTag = noteMode;
       const tags = [
-        baseTag,
         ...(noteDraft.mode === "todo" && noteDraft.todoDone ? ["done"] : []),
         ...(noteDraft.tags ?? []),
       ];
@@ -2685,6 +2714,7 @@ ${transcript}`;
         kind: "note",
         body: noteBody,
         tags,
+        systemTags: [baseTag],
         domainIntent: noteDraft.domainIntent,
         tier: progression.tier,
         // 0066: 4W1H keeps the machine-readable payload beside the flattened body.
@@ -2748,18 +2778,7 @@ ${transcript}`;
         }
       } else if (draftCleanupResult === "failed") showDraftCleanupFailure();
       void progression.refresh();
-      void Promise.all([
-        listRecentRecords(userId),
-        countRecordsByKind(userId, "journal"),
-      ])
-        .then(([rows, jc]) => {
-          setRecentDates((rows as { created_at: string }[]).map((r) => r.created_at));
-          setRecentRows(rows as RecentRow[]);
-          setJournalCount(jc);
-        })
-        .catch((e) => {
-          if (typeof console !== "undefined") console.warn("[capture] recent refresh failed", (e as Error).message);
-        });
+      refreshRecentRecords();
     } catch (e) {
       if (recordSaved) {
         if (typeof console !== "undefined") console.warn("[capture] note post-save step failed", (e as Error).message);
@@ -3718,8 +3737,9 @@ ${transcript}`;
             </PixelSurface>
           ) : null}
 
-          {/* Journal (일기) gate — feature unlock then free-tier use limit, ported
-              from the retired /journal screen so the redirect can't bypass it. */}
+          <CaptureRecordReadNotice read={recentRead} />
+
+          {/* Journal entitlement follows the shared feature and usage policy. */}
           {mode === "journal" && progression.loading ? (
             <View style={styles.gateCard}>
               {/* Same wait as everywhere else. This file already used
@@ -3762,9 +3782,9 @@ ${transcript}`;
           ) : null}
 
           {/* Journal (일기) mode — streak, reflection prompt, topic, body,
-              optional conclusion, opt-in Advisor. Writes to records. Only shown
-              when unlocked and within the free-tier limit. */}
-          {mode === "journal" && !progression.loading && journalGate.unlocked && journalUsage.allowed ? (
+              optional conclusion, opt-in Advisor. Keep the draft editable while
+              usage is unknown; only a limited entitlement waits for the read. */}
+          {mode === "journal" && !progression.loading && journalGate.unlocked && (!journalUsageKnown || journalUsage.allowed) ? (
             <View style={styles.fieldGroup}>
               <Input
                 value={body}
@@ -3777,7 +3797,7 @@ ${transcript}`;
               />
               {secondaryOpen ? (
                 <>
-              {streak.current > 0 ? (
+              {recentRead.rowsStatus === "ready" && streak.current > 0 ? (
                 <View style={styles.streakRow}>
                   <View style={[styles.streakDot, streak.capturedToday && styles.streakDotOn]} />
                   <Text variant="subtle" color="textMuted">
@@ -4097,6 +4117,24 @@ ${transcript}`;
             </View>
           ) : null}
 
+          {mode === "ocr" && (incomingMedia || incomingMediaError) ? (
+            <View style={styles.ocrDisclosureCard}>
+              <Text variant="subtle" accessibilityLiveRegion="polite">
+                {incomingMediaError ? t(`sharedMedia.${incomingMediaError}`) : t("sharedMedia.photoReady")}
+              </Text>
+              {incomingMedia && !incomingMediaError ? (
+                <Button label={t("sharedMedia.photoReplace")} variant="primary"
+                  onPress={() => void receiveSharedPhoto()} loading={receivingMedia}
+                  disabled={receivingMedia || isMinor === null} />
+              ) : null}
+              <Button label={t("sharedMedia.discard")} variant="secondary" onPress={() => {
+                sharedMediaAbort.current?.abort();
+                discardSharedMedia(incomingMedia);
+                router.setParams({ sharedMedia: undefined, sharedMediaError: undefined });
+              }} />
+            </View>
+          ) : null}
+
           {mode === "ocr" ? (
             <View style={styles.ocrDisclosureCard}>
               <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
@@ -4283,7 +4321,7 @@ ${transcript}`;
 
           {/* 최근 조각 (recent pieces): the already-fetched records rows as a
               tappable list. Each row opens /record/[id]. */}
-          {recentRows.length > 0 ? (
+          {recentRead.rowsStatus === "ready" && recentRows.length > 0 ? (
             <View style={styles.recentCard}>
               <Text variant="caption" color="brand" style={[styles.eyebrow, eyebrowTracking]}>
                 {t("recent.title")}

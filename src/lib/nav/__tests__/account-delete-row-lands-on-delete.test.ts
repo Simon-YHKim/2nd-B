@@ -80,7 +80,7 @@ describe("Z38: the delete confirmation box starts empty", () => {
   test("no example value in the box, the prompt still names the word", () => {
     const privacy = privacyScreen();
     expect(privacy).not.toContain('placeholder="DELETE"');
-    expect(privacy).toContain('t("privacy.deleteAccount.typePrompt")');
-    expect(privacy).toContain('delConfirm !== "DELETE"');
+    expect(privacy).toContain('t("privacy.deleteAccount.typePrompt", { phrase: deleteConfirmWord })');
+    expect(privacy).toContain('delConfirm !== deleteConfirmWord');
   });
 });

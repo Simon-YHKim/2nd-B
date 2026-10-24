@@ -155,6 +155,22 @@ function setCapacityLedger(h: ReturnType<typeof createHarness>, total: number): 
 }
 
 describe("encrypted native storage core", () => {
+  test.each(["v1", "v2"])("refuses unexpected interview %s plaintext on direct read and startup migration", async (version) => {
+    const h = createHarness();
+    const key = `interview.drafts.${version}.owner-a`;
+    // Actual marker before v2 was allowlisted (62c7a2df); it must not skip this rescan.
+    h.values.set(MIGRATION_MARKER, "complete-v2:2dd9daaa");
+    h.values.set(key, "unexpected plaintext");
+    await expect(h.storage.getItem(key)).rejects.toThrow("secure_storage_unexpected_plaintext");
+    await expect(h.storage.migrateLegacyPlaintextAtStartup()).rejects.toThrow("secure_storage_migration_failed");
+    expect(h.dependencies.crypto.encrypt).not.toHaveBeenCalled();
+    expect(h.values.get(key)).toBe("unexpected plaintext");
+    expect(h.values.get(MIGRATION_MARKER)).not.toBe(ENCRYPTED_STORAGE_MIGRATION_MARKER_VALUE);
+    // Existing explicit recovery/owner deletion can still remove the unreadable row.
+    await h.storage.removeItem(key);
+    expect(h.values.has(key)).toBe(false);
+  });
+
   test("persists one-off reminder details encrypted across adapter restarts and supports scoped purge", async () => {
     const h = createHarness();
     const key = "ops.one-off-reminders.v1.owner-a";
@@ -184,23 +200,23 @@ describe("encrypted native storage core", () => {
     await expect(h.storage.getItem(key)).resolves.toBe("private pixels");
   });
 
-  test("stores authenticated ciphertext and binds it to the logical key", async () => {
+  test.each(["capture.drafts.v2", "interview.drafts.v1", "interview.drafts.v2"])("stores authenticated ciphertext bound to %s logical keys", async (prefix) => {
     const h = createHarness();
-    await h.storage.setItem("capture.drafts.v2.owner-a", "private unfinished note");
+    await h.storage.setItem(`${prefix}.owner-a`, "private unfinished note");
 
-    const persisted = h.values.get("capture.drafts.v2.owner-a")!;
+    const persisted = h.values.get(`${prefix}.owner-a`)!;
     expect(persisted).toMatch(/^SBENC1:/);
     expect(persisted).not.toContain("private unfinished note");
-    await expect(h.storage.getItem("capture.drafts.v2.owner-a")).resolves.toBe(
+    await expect(h.storage.getItem(`${prefix}.owner-a`)).resolves.toBe(
       "private unfinished note",
     );
 
-    h.values.set("capture.drafts.v2.owner-b", persisted);
-    await expect(h.storage.getItem("capture.drafts.v2.owner-b")).rejects.toThrow(
+    h.values.set(`${prefix}.owner-b`, persisted);
+    await expect(h.storage.getItem(`${prefix}.owner-b`)).rejects.toThrow(
       "secure_storage_decrypt_failed",
     );
-    h.values.set("capture.drafts.v2.owner-a", `${persisted.slice(0, -2)}AA`);
-    await expect(h.storage.getItem("capture.drafts.v2.owner-a")).rejects.toThrow(
+    h.values.set(`${prefix}.owner-a`, `${persisted.slice(0, -2)}AA`);
+    await expect(h.storage.getItem(`${prefix}.owner-a`)).rejects.toThrow(
       "secure_storage_decrypt_failed",
     );
   });
@@ -414,9 +430,9 @@ describe("encrypted native storage core", () => {
     expect(h.values.get(MIGRATION_MARKER)).toBe(ENCRYPTED_STORAGE_MIGRATION_MARKER_VALUE);
   });
 
-  test("invalidates an old migration marker when the allowlist schema changes", async () => {
+  test.each(["complete-v1", "complete-v2:2dd9daaa"])("invalidates old migration marker %s when the allowlist schema changes", async oldMarker => {
     const h = createHarness();
-    h.values.set(MIGRATION_MARKER, "complete-v1");
+    h.values.set(MIGRATION_MARKER, oldMarker);
     h.values.set("import.history:user-a", "newly allowlisted private history");
 
     await expect(h.storage.migrateLegacyPlaintextAtStartup()).resolves.toEqual({

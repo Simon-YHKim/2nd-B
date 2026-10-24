@@ -29,10 +29,12 @@
     "check:constraints": "tsx scripts/check-constraints.ts",
     "check:definer-grants": "tsx scripts/check-definer-grants.ts",
     "check:erasure-registry": "tsx scripts/check-erasure-registry.ts",
+    "check:account-export-inventory": "tsx scripts/check-account-export-inventory.ts",
     "check:supabase-auth-config": "tsx scripts/check-supabase-auth-config.ts",
     "check:safety-consent-locale": "tsx scripts/check-safety-consent-locale.ts",
     "check:emdash": "tsx scripts/check-no-emdash.ts",
     "check:explanatory-copy": "tsx scripts/check-explanatory-copy.ts",
+    "check:copy-endings": "tsx scripts/check-copy-endings.ts",
     "check:pixel-rules": "tsx scripts/check-pixel-rules.ts",
     "check:anti-anthro": "tsx scripts/check-anti-anthro.ts",
     "check:mascot-voice": "tsx scripts/check-mascot-voice.ts",
@@ -47,7 +49,7 @@
     "qc:mobile-web": "node scripts/qc-mobile-web.mjs",
     "qc:mobile-web:serve": "node scripts/qc-mobile-web.mjs --serve",
     "notice:release": "tsx scripts/release-notice.ts",
-    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:i18n-untranslated && npm run check:lexicon && npm run check:crisis-parity && npm run check:legal-review && npm run check:legal-html && npm run check:legal-snapshot && npm run check:llm-boundary && npm run check:constraints && npm run check:definer-grants && npm run check:erasure-registry && npm run check:supabase-auth-config && npm run check:safety-consent-locale && npm run check:emdash && npm run check:explanatory-copy && npm run check:pixel-rules && npm run check:anti-anthro && npm run check:mascot-voice && npm run check:asset-exts && npm run check:cycles && npm run check:canon-data && npm run check:design-ref && npm run check:ota-runtime && npm run test:ui-work0 && npm test -- --ci",
+    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:i18n-untranslated && npm run check:lexicon && npm run check:crisis-parity && npm run check:legal-review && npm run check:legal-html && npm run check:legal-snapshot && npm run check:llm-boundary && npm run check:constraints && npm run check:definer-grants && npm run check:erasure-registry && npm run check:account-export-inventory && npm run check:supabase-auth-config && npm run check:safety-consent-locale && npm run check:emdash && npm run check:explanatory-copy && npm run check:copy-endings && npm run check:pixel-rules && npm run check:anti-anthro && npm run check:mascot-voice && npm run check:asset-exts && npm run check:cycles && npm run check:canon-data && npm run check:design-ref && npm run check:ota-runtime && npm run test:ui-work0 && npm test -- --ci",
     "check:i18n-untranslated": "tsx scripts/check-i18n-untranslated.ts",
     "check:asset-exts": "tsx scripts/check-asset-exts.ts",
     "verify:web": "node scripts/verify-web-export.js",
@@ -84,8 +86,10 @@
     "expo-image-manipulator": "~56.0.20",
     "expo-image-picker": "~56.0.19",
     "expo-linking": "~56.0.14",
+    "expo-local-authentication": "~56.0.4",
     "expo-localization": "~56.0.6",
     "expo-location": "~56.0.19",
+    "expo-network": "~56.0.5",
     "expo-notifications": "~56.0.19",
     "expo-router": "~56.2.12",
     "expo-secure-store": "~56.0.4",
@@ -154,6 +158,14 @@
     },
     "xcode": {
       "uuid": "11.1.1"
+    }
+  },
+  "expo": {
+    "autolinking": {
+      "buildFromSource": [
+        "expo-local-authentication",
+        "expo-network"
+      ]
     }
   }
 }

@@ -45,9 +45,9 @@
     "statPages": "Pages",
     "statLinks": "Links",
     "filterAll": "All",
-    "emptyTag": "Nothing under this tag yet. Try another tag or add a piece.",
+    "emptyTag": "Nothing under this tag yet. Try another tag or add a record.",
     "emptyAll": "No wiki pages yet. Capture a record or link, then turn it into a wiki page from Inbox.",
-    "addPiece": "+ Add a piece",
+    "addPiece": "+ Add a record",
     "backlinks": "Linked records {{count}}",
     "connections": "Links {{count}}",
     "viewList": "List",
@@ -66,7 +66,7 @@
     "headline": "'{{title}}' has the most connections to other records.",
     "chipPages": "Pages {{count}}",
     "chipLinks": "Links {{count}}",
-    "chipOrphans": "Unlinked items {{count}}",
+    "chipOrphans": "Unlinked records {{count}}",
     "noLinks": "Your saved records aren't connected yet. New records may help find links.",
     "surprise": "'{{from}}' and '{{to}}' are linked, although they cover different topics.",
     "islandChip": "Knowledge groups {{count}}",
@@ -87,7 +87,7 @@
     "viewList": "List",
     "viewGraph": "Graph",
     "triageTitle": "{{count}} items to sort",
-    "triageBody": "Tag, keep, or delete unfiled pieces",
+    "triageBody": "Tag, keep, or delete unfiled records",
     "typeText": "Text",
     "typeLink": "Link",
     "typeVoice": "Voice",
@@ -96,7 +96,7 @@
     "unfiledBadge": "Unfiled",
     "fallbackTitle": "Untitled",
     "graphEmpty": "No knowledge to connect yet.",
-    "loadError": "Couldn't load your archive. Try again.",
+    "loadError": "Couldn't load the Wiki. Try again.",
     "retry": "Try again",
     "periodScope": "Stories: {{star}}",
     "periodShowAll": "Show all"
@@ -109,13 +109,13 @@
     "lead": "Your areas at a glance",
     "empty": "Tags group your records by topic. Start by writing about today.",
     "addData": "+ Add a record",
-    "unit": "pieces",
+    "unit": "records",
     "noActivity": "No records",
     "topicsLabel": "{{tag}} · key topics"
   },
   "recordDetail": {
     "title": "Record details",
-    "headerLinked": "This piece is connected to {{count}} records.",
+    "headerLinked": "This record is connected to {{count}} records.",
     "headerAlone": "Read your saved record again.",
     "a11yDelete": "Delete this record",
     "deleteConfirmTitle": "Delete this record?",
@@ -167,33 +167,35 @@
   },
   "privacy": {
     "title": "Privacy & terms",
-    "status": "Records are used only to support your self-understanding.",
-    "tip": "Choose which data to use before continuing.",
+    "status": "Your records power features that help you understand yourself. Full details are in the privacy policy.",
+    "tip": "You can choose which data is used.",
     "lead": "Choose how your data is used.",
     "on": "On",
     "off": "Off",
     "policy": "Privacy policy",
+    "terms": "Terms of service",
+    "refund": "Refund policy",
     "view": "View",
     "processingLog": "Data processing log",
     "last7": "Last 7 days",
     "thirdParty": "Third-party sharing",
-    "none": "0 items",
+    "none": "Only as listed in the privacy policy",
     "footer": "How data is processed and stored depends on the feature. Check its data-use notice for details.",
     "dataReview": "My saved data",
     "open": "Open",
     "atGlance": "At a glance",
     "facts": {
       "onDevice": {
-        "label": "On-device first",
-        "v": "Imported raw content is analyzed on your device; only derived signals are kept, encrypted."
+        "label": "How records are used",
+        "v": "Records are stored on the server. Content needed for AI features is sent to overseas AI providers."
       },
       "collect": {
         "label": "What we collect",
-        "v": "Captured stardust, lens scores, usage patterns. Location and comms only with consent."
+        "v": "Account information, saved records and service usage details, among other data. Location and communications data are collected only with your consent."
       },
       "retention": {
         "label": "Retention",
-        "v": "While your account is active; fully removed within 30 days of leaving."
+        "v": "Kept while you use your account and deleted without delay when you leave. Only records the law requires, such as payment records, are kept separately for the required period."
       },
       "delete": {
         "label": "Right to delete",
@@ -209,7 +211,7 @@
       "loadingSettings": "Loading settings…",
       "allow": "Allow usage analytics",
       "lockedUnder18": "Locked under 18",
-      "applied": "Web GA4 applied · Android Firebase and Clarity disabled",
+      "applied": "Choice applies to web Google Analytics · Android usage statistics off",
       "enableFailed": "Couldn't enable analytics. Please try again.",
       "withdrawSaveFailed": "Couldn't save. Analytics withdrawal took effect on this device; please try saving again.",
       "adsSaveFailed": "Couldn't save the ads setting. Please try again."
@@ -225,13 +227,13 @@
       "turnOn": "Turn on"
     },
     "semantic": {
-      "title": "Semantic record connections",
-      "minorLocked": "Semantic connections are off and cannot be enabled.",
-      "onBody": "On. Records are indexed by meaning to surface similar ones.",
-      "turnOffA11y": "Turn off semantic connections",
-      "turnOff": "Turn off and delete vectors",
-      "offBody": "Off. Turn it on to connect records that are similar in meaning, even without shared tags.",
-      "turnOnA11y": "Turn on semantic connections",
+      "title": "Connections by meaning",
+      "minorLocked": "Connections by meaning are off and cannot be enabled.",
+      "onBody": "Connects records with similar meanings. Turning this off removes connection data and keeps your records.",
+      "turnOffA11y": "Turn off connections by meaning and delete connection data",
+      "turnOff": "Turn off and delete connection data",
+      "offBody": "Off. Turn it on to connect records with similar meanings.",
+      "turnOnA11y": "Turn on connections by meaning",
       "turnOn": "Turn on"
     },
     "understandA11y": "I understand, turn it on",
@@ -239,7 +241,7 @@
     "saveFailed": "Couldn't save. Please try again.",
     "deleteAccount": {
       "body": "Your records, captures, wiki, usage and account are permanently erased. This cannot be undone. Export anything you need first.",
-      "typePrompt": "Type \"DELETE\" to proceed.",
+      "typePrompt": "Type \"{{phrase}}\" to proceed.",
       "inputA11y": "Deletion confirmation",
       "buttonA11y": "Delete account permanently",
       "button": "Delete account",
@@ -256,33 +258,18 @@
     "reportBug": "Report a bug",
     "footer": "PolaScope v{{version}} · 2 business days KST",
     "faqTitle": "FAQ",
-    "noticesTitle": "Notices",
     "faqs": {
       "brightness": {
-        "q": "What's the difference between brightness (starlight) and confidence?",
-        "a": "Starlight is how much you've captured in that area; confidence is how well HustleK's estimate has been verified. The two move independently."
+        "q": "What does star brightness mean?",
+        "a": "An interview star's brightness shows how many interview layers you have opened. Coverage can reach L4; L5 appears only after you confirm a proposal."
       },
       "plan": {
         "q": "Does a paid plan make it smarter?",
         "a": "No. Answer quality is the same on every plan. Only the limits on counts, retention, and export differ."
       },
-      "call": {
-        "q": "Is call recording safe?",
-        "a": "Recordings are transcribed over an encrypted connection on the AI server, and the original audio is deleted from your device right after. Only the text and signals are kept, encrypted."
-      }
-    },
-    "notices": {
-      "modes": {
-        "t": "HustleK three modes launched",
-        "tag": "New"
-      },
-      "museum": {
-        "t": "AI Museum: 8 collections now open",
-        "tag": "Content"
-      },
       "voice": {
-        "t": "Voice transcription improved",
-        "tag": "Improved"
+        "q": "Is voice transcription safe?",
+        "a": "Voice is transcribed on the AI server over an encrypted connection, and the original audio is deleted from your device right after. Only the text and signals are kept, encrypted."
       }
     }
   },
@@ -323,7 +310,7 @@
     "tip": "Tap a topic to see how your records have changed.",
     "sectionNow": "You lately",
     "lead": "Compare this week with last week",
-    "weeklyCap": "Saved pieces · weekly",
+    "weeklyCap": "Saved records · weekly",
     "lastWeek": "Last week",
     "thisWeek": "This week",
     "delta": "▲ {{percent}}% more saved",
@@ -489,7 +476,7 @@
     "loadError": "Couldn't load your achievements. Try again.",
     "retry": "Try again",
     "empty": "No achievements saved yet. Write about something you've done recently.",
-    "pieceFallback": "Career piece",
+    "pieceFallback": "Career record",
     "drillDown": "Drill down",
     "originalNote": "Title and text previews keep their saved language. Open a card to read the full record.",
     "sourceInterview": "Recall interview",
@@ -709,9 +696,12 @@
     "eyebrowConstellation": "MY CONSTELLATION",
     "footerWeek": "A week seen together with HustleK",
     "starsLit": "{{count}} stars shining",
-    "signature": "PolaScope · {{count}} stardust"
+    "signature": "PolaScope · {{count}} records"
   },
   "ds": {
+    "network": {
+      "offline": "No internet connection."
+    },
     "growth": {
       "title": "My progress",
       "bubble": "See how your star brightness changed this week.",
@@ -839,9 +829,9 @@
       "meaning": "meaning",
       "edit": "Edit",
       "move": "Move",
-      "fillStar": "Add information to this star",
+      "fillStar": "Add information to this area",
       "fillStarBody": "Add information for this domain.",
-      "secondbLinked": "This record is linked to your '{{star}}' star. {{n}} related records were saved around the same time.",
+      "secondbLinked": "This record is linked to your '{{star}}' area. {{n}} related records were saved around the same time.",
       "makeWikiPage": "Make a wiki page",
       "wikiPageMade": "Wiki page created"
     },
@@ -855,7 +845,7 @@
       "peerBody": "{{n}} of your invites got a response.",
       "peerCta": "See responses",
       "sourcesTitle": "Material waiting to be worked through",
-      "sourcesBody": "{{n}} pieces have not become wiki pages yet.",
+      "sourcesBody": "{{n}} records have not become wiki pages yet.",
       "sourcesCta": "See the material"
     },
     "import": {
@@ -904,8 +894,8 @@
       "healthRoutinesCompleted": "Routines completed from this: {{count}}.",
       "healthAutoDaily": "While automatic refresh is on, this phone also reads steps, workouts and sleep once a day on its own.",
       "healthErrFailed": "Couldn't add your health activity. Try again shortly.",
-      "summaryPieces": "{{count}} piece",
-      "summaryPieces_plural": "{{count}} pieces",
+      "summaryPieces": "{{count}} record",
+      "summaryPieces_plural": "{{count}} records",
       "resultAdded": "Added {{count}} to your inbox",
       "resultAdded_plural": "Added {{count}} to your inbox",
       "resultDuplicate": "{{count}} duplicate",
@@ -923,7 +913,7 @@
       "propose": "Get other drafts",
       "cancel": "Cancel",
       "save": "Save this sentence",
-      "thinBase": "There aren't many records to use yet. Save about {{count}} pieces to get suggestions based on them.",
+      "thinBase": "There aren't many records to use yet. Save about {{count}} records to get suggestions based on them.",
       "proposeFailed": "Couldn't fetch drafts right now. Check your connection and try again.",
       "saveFailed": "Couldn't save. Your sentence is still here, so try again."
     },
@@ -990,7 +980,7 @@
       "reviewTitle": "Review results",
       "selectedTitle": "{{n}} selected",
       "progressDone": "All items are connected",
-      "progressRunning": "Connecting your stars",
+      "progressRunning": "Connecting your areas",
       "unlimited": "Unlimited connections",
       "weeklyLeft": "{{left}} of {{cap}} runs left this week · resets Monday",
       "cancel": "Cancel",
@@ -1069,10 +1059,10 @@
     "untitled": "(untitled)",
     "pieceHere": "Filed here",
     "pieceOpenHint": "Opens this record.",
-    "briefingOpening": "Opening this star…",
-    "briefingEmpty": "No records in this star yet. Add a record for HustleK to summarize.",
-    "briefingCountOne": "{{n}} record on this star, newest first.",
-    "briefingCount": "{{n}} records on this star, newest first."
+    "briefingOpening": "Opening this area…",
+    "briefingEmpty": "No records in this area yet. Add a record for HustleK to summarize.",
+    "briefingCountOne": "{{n}} record in this area, newest first.",
+    "briefingCount": "{{n}} records in this area, newest first."
   },
   "onboarding": {
     "nextHint": "Goes to the next slide.",

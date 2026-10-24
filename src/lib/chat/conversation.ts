@@ -18,7 +18,7 @@ import { tLocale } from "@/lib/i18n/text";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
 import { classifyInput, crisisHotlines } from "@/lib/safety/classifier";
 import { promptSafeName } from "@/lib/persona/address";
-import type { LlmResult } from "@/lib/llm/types";
+import type { CrisisObserver, LlmResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
 import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
@@ -26,7 +26,10 @@ import { loadStructuredContext } from "../records/load-structured";
 import { loadProfileContext } from "../persona/profile-context";
 import { exportUserWiki } from "../wiki/export";
 import { formatRagPages, retrieveChatContext } from "./rag";
-import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail } from "./usage";
+import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail, type CapturedChatUsageExecution } from "./usage";
+import { abortError, isAbortError, throwIfAborted } from "../async/abort";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { captureLiveOwnerCheck, withLiveOwnerSignal } from "../auth/live-owner-guard";
 
 /** One prior exchange line. `assistant` is the model's own earlier reply. */
 export interface ChatHistoryTurn {
@@ -81,6 +84,11 @@ export interface SendMessageInput {
    * screen to pre-strip.
    */
   history?: ChatHistoryTurn[];
+  /** Inactive captured path: all four fields are required together at runtime. */
+  session?: AuthenticatedAccountSessionLease;
+  signal?: AbortSignal;
+  onCrisisDetected?: CrisisObserver;
+  mutationObserver?: CapturedChatUsageExecution["observer"];
 }
 
 export interface SendMessageBlocked {
@@ -145,15 +153,15 @@ const SYSTEM_PROMPT_HEADER = {
     "당신은 허슬케이, 이 사람의 개인 매니저이자 곁에서 함께 걷는 페이스메이커입니다. 이 사람이 남긴 기록을 읽고 곁에서 돕습니다.",
     "잘 아는 친구처럼 편하고 따뜻하게 말해도 됩니다. 다만 따뜻함이 지어내도 된다는 뜻은 아닙니다.",
     "모든 이야기는 이 사람의 기록에 근거합니다. 기록에 없는 사실이나 특성, 수치(심리 점수 포함)를 지어내지 마세요.",
-    "사람에 대한 단정이 아니라 기록 속 패턴을 말하세요. '~로 보입니다', '이 기록들에서는' 처럼 신중한 표현을 쓰고, 그 사람이 누구인지 확신하듯 말하지 마세요.",
+    "사람에 대한 단정이 아니라 기록 속 패턴을 말하세요. '~로 보여', '이 기록들에서는' 처럼 신중한 표현을 쓰고, 그 사람이 누구인지 확신하듯 말하지 마세요.",
     "의료·임상·상담 서비스가 아닙니다. 일상적인 말을 쓰고, 진단하거나 임상 용어를 쓰지 마세요.",
     "그 사람이 스스로를 아는 것보다 더 잘 안다고 주장하지 마세요.",
     "무엇을 이야기할지는 사용자가 정합니다. 비밀을 말해 달라고 하거나, 말하지 않겠다는 내용을 거듭 캐묻지 마세요.",
-    // 말투 규칙은 화면과 맞춘다(Simon 결정 2026-10-02, B안): 사실·안내는 ~습니다,
-    // 질문·제안은 해요체(~나요? · ~까요?). 화면 문구(locales/ko)와 페르소나
-    // 지시문(rev2.*.systemHint)도 같은 규칙이라, 한 지시문 안에서 말투가
-    // 갈리지 않는다. identity-prompt.test.ts 가 이 줄을 지킨다.
-    "말투는 평서문 '~습니다', 질문은 '~나요?' 를 씁니다.",
+    // 대화 답의 말투는 편한 반말 + 「브로」다(Simon 결정 2026-10-18 Q-261018-55 다). 10-02 B안
+    // (사실 ~습니다 · 질문 ~나요?)은 화면 문구에 그대로 남고 대화 답에서만 뒤집었다. 페르소나
+    // 지시문(rev2.meta/twi.systemHint)도 같은 말투로 맞췄다. 위기 고정 안내는 모델이 쓰지 않으므로
+    // 이 줄과 무관하다. identity-prompt.test.ts 가 이 줄을 지킨다.
+    "말투는 편한 반말을 씁니다. 인사나 할 일 정리처럼 가볍고 편한 대화에서는 '오우, 브로'·'좋아, 브로' 같은 호칭을 가끔 섞되, 매번 붙이지는 마세요. 사용자가 존댓말이나 다른 호칭을 원하거나 호칭을 싫어하면 바로 따르세요. 사용자가 많이 힘들거나 아프거나 위험한 이야기를 하면 농담과 호칭을 빼고 차분하게 말하세요.",
     "짧고 쉬운 일상어로 편안하게, 질문에 바로 답하세요. '당신'이라는 호칭은 번역투로 들리니 쓰지 마세요.",
     "'좋은 질문이에요', '소중한 이야기를 나눠주셔서 감사해요' 같은 상투적인 칭찬·공감, 과장, 추상적인 비유를 쓰지 마세요. 사용자가 털어놓은 이야기에 먼저 귀 기울이고, 공감이 필요하면 사용자가 실제로 말한 상황을 짚어 솔직하고 따뜻하게 위로와 지지를 전하세요.",
     "항상 세 가지 목록으로 정리하거나, 끝에 요약·다음 질문을 붙이지 마세요. 답에 필요한 경우에만 쓰세요. 문장마다 줄을 바꾸지 마세요. 줄바꿈은 문단을 나누거나, 목록·단계를 한 줄에 하나씩 적을 때만 씁니다.",
@@ -195,8 +203,8 @@ const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: strin
 // the limit sentence and the 요금제 보기 link under it. Those names were legacy anyway
 // (people see 별바라기 · 항해자 · 북극성), so the map went with the pitch.
 //
-// These comment lines stand where the map stood so that every line below keeps its number:
-// docs/legal cites this file by line (DPIA-2ndB-minors-draft.md: 254 · 259 · 260 · 310 · 352).
+// docs/legal cites the actual export options, untrusted snapshot and system assembly below.
+// Update those source anchors together when the call sites move.
 // The next tier still travels in SendMessageResult.upgradeTo for the ai_limit_hit event
 // (Q-261014-26); no sentence names it.
 
@@ -210,25 +218,19 @@ const BLOCKED_HINT = {
   // Neither passes the tier any more.
 };
 
-export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
-  const cut = await answerDeviceRed(input);
-  if (cut) return cut;
-  const day = kstDateToday();
-  const limit = CHAT_DAILY_LIMIT[input.tier];
+export interface ChatContext {
+  structuredBlock: Awaited<ReturnType<typeof loadStructuredContext>>;
+  profileLines: Awaited<ReturnType<typeof loadProfileContext>>;
+  ragBlock: string | null;
+  snapshot: Awaited<ReturnType<typeof exportUserWiki>>;
+}
 
-  // 0090: today's allowance includes any rewarded ad bonus.
-  const { used: usedBefore, adBonus } = await readChatUsageDetail(input.userId, day);
-  const precheck = checkChatLimit(input.tier, usedBefore, adBonus);
-  if (!precheck.allowed) {
-    return {
-      status: "blocked",
-      reason: "limit_reached",
-      limit: precheck.limit,
-      used: precheck.used,
-      upgradeTo: precheck.upgradeTo,
-      hint: BLOCKED_HINT[input.locale](precheck.limit),
-    };
-  }
+/** Reads context after the caller has passed its crisis and usage gates. */
+export async function loadChatContext(
+  input: SendMessageInput,
+  execution: CapturedChatUsageExecution | null,
+): Promise<ChatContext> {
+  const stage = executionStage(execution, input.userId);
   // Context assembly (D-26 A1): try query-relevant retrieval first — embed the
   // message and pull the top-8 semantically relevant pages (RAG). On a hit the
   // prompt carries ONLY those pages plus a slim recent-sources list (~10x smaller
@@ -237,62 +239,38 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   // 0066: newest structured form captures (4W1H, career 3C4P) ride along so
   // the model reads the form data as structure, not prose. Small, fail-soft,
   // sanitized + fenced with the snapshot below.
-  const structuredBlock = await loadStructuredContext(input.userId, 5);
+  const structuredBlock = await stage(signal => execution ? loadStructuredContext(input.userId, 5, execution.session) : loadStructuredContext(input.userId, 5, undefined, signal));
   // Q-261007-05 (Simon 2026-10-07): 사용자가 채운 프로필 칸(대화명 제외) + 만 나이. Fail-soft.
-  const profileLines = await loadProfileContext(input.userId);
+  const profileLines = await stage(signal => execution ? loadProfileContext(input.userId, undefined, execution.session) : loadProfileContext(input.userId, undefined, undefined, signal));
   let ragBlock: string | null = null;
   try {
-    const ragPages = await retrieveChatContext(input.userId, input.message, input.locale, {
+    const ragPages = await stage(() => retrieveChatContext(input.userId, input.message, input.locale, {
       k: 8,
       bodyCharLimit: 600,
       minor: input.minor,
-    });
+      ...(execution ? { session: execution.session, signal: execution.session.signal } : {}),
+    }));
     if (ragPages.length > 0) ragBlock = formatRagPages(ragPages, input.locale);
-  } catch {
+  } catch (error) {
+    stage.assertCurrent();
+    if (execution && isAbortError(error)) throw error;
     // fail-soft: RAG must never take chat down — fall back to the snapshot.
   }
-  const snapshot = await exportUserWiki(
+  const snapshot = await stage(() => exportUserWiki(
     input.userId,
     ragBlock
       ? // RAG hit: pages come from retrieval; keep only a slim sources list so
         // "what did I clip" questions still see the inbox.
         { locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40, includeSavedConversations: true }
       : { locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100, includeSavedConversations: true },
-  );
+    execution?.session, execution ? undefined : stage.assertCurrent,
+  ));
+  return { structuredBlock, profileLines, ragBlock, snapshot };
+}
 
-  // Atomic check-and-bump (codex R2): the RPC inserts/increments the row
-  // ONLY if the existing count is below `limit`. It remains the final gate
-  // immediately before Gemini, so concurrent callers cannot overspend LLM
-  // quota. The earlier read is only a no-cost preflight: if wiki export fails,
-  // the user gets no reply but also does not lose a daily chat turn.
-  //
-  // A device-red turn never gets here: it was answered above, uncounted
-  // (Q-261014-30; this replaces the old "red turns still count" trade-off).
-  // A turn cut later (server gate, meaning check, output swap) is still counted.
-  let newCount: number;
-  try {
-    newCount = await bumpChatUsageIfUnderCap(input.userId, limit, day);
-  } catch (e) {
-    if (e instanceof ChatLimitExceededError) {
-      const detail = await readChatUsageDetail(input.userId, day);
-      const check = checkChatLimit(input.tier, detail.used, detail.adBonus);
-      // FORCE_TIER and a stale client tier do not change the server's cap.
-      // Its rejection carries no cap value: when our local check still allows
-      // sending, do not label that rejection as exhaustion of the local cap.
-      return {
-        status: "blocked",
-        reason: "limit_reached",
-        limit: check.allowed ? null : check.limit,
-        used: check.used,
-        upgradeTo: check.upgradeTo,
-        hint: check.allowed
-          ? tLocale(input.locale, "secondb", "serverLimitReached")
-          : BLOCKED_HINT[input.locale](check.limit),
-      };
-    }
-    throw e;
-  }
-
+/** Pure assembly of the existing chat instructions and fenced context. */
+export function assembleChatSystemPrompt(input: SendMessageInput, context: ChatContext): string {
+  const { structuredBlock, profileLines, ragBlock, snapshot } = context;
   const personaLine = input.personaHint ? `${input.personaHint}\n\n` : "";
   const modeLine = `${MODE_INSTRUCTION[input.mode ?? "analytic"][input.locale]}\n\n`;
   // The wiki snapshot / RAG pages are untrusted user content (clipped page
@@ -343,25 +321,88 @@ ${sanitizeUntrusted(structuredBlock)}
   // 이 값은 시스템 프롬프트 안에 들어가므로 한 호출부의 실수가 곧 주입이 된다.
   // 씻는 비용은 0 이고, 두 번 씻어도 결과는 같다.
   const safeName = promptSafeName(input.displayName);
-  const addressLine = safeName
+  const addressLine = (safeName
     ? input.locale === "ko"
-      ? `이 사람의 이름은 ${safeName} 입니다. ${safeName}님이라고 부르세요.\n\n`
+      ? `이 사람의 이름은 ${safeName} 입니다. 사용자가 다른 호칭이나 존댓말을 원하지 않으면 이름이나 '브로'로 부르고 '님'은 붙이지 마세요. 사용자의 요청과 힘든 순간에 호칭을 빼는 규칙이 이 줄보다 먼저입니다.\n\n`
       : `This person's name is ${safeName}. Address them as ${safeName}.\n\n`
-    : "";
+    : "") + chatTurnToneLine(input);
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
   const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${crisisNumberRule(input.locale, input.minor)}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedProfile}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
+  return system;
+}
+
+export async function sendChatMessage(input: SendMessageInput): Promise<SendMessageResult> {
+  const execution = capturedConversation(input);
+  const stage = executionStage(execution, input.userId);
+  const cut = await stage(() => answerDeviceRed(input, execution));
+  if (cut) return cut;
+  const day = kstDateToday();
+  const limit = CHAT_DAILY_LIMIT[input.tier];
+
+  // 0090: today's allowance includes any rewarded ad bonus.
+  const readUsage = (signal?: AbortSignal) => execution ? readChatUsageDetail(input.userId, day, execution.session) : readChatUsageDetail(input.userId, day, undefined, signal);
+  const { used: usedBefore, adBonus } = await stage(readUsage);
+  const precheck = checkChatLimit(input.tier, usedBefore, adBonus);
+  if (!precheck.allowed) {
+    return {
+      status: "blocked",
+      reason: "limit_reached",
+      limit: precheck.limit,
+      used: precheck.used,
+      upgradeTo: precheck.upgradeTo,
+      hint: BLOCKED_HINT[input.locale](precheck.limit),
+    };
+  }
+  const context = await stage(() => loadChatContext(input, execution));
+
+  // Atomic check-and-bump (codex R2): the RPC inserts/increments the row
+  // ONLY if the existing count is below `limit`. It remains the final gate
+  // immediately before Gemini, so concurrent callers cannot overspend LLM
+  // quota. The earlier read is only a no-cost preflight: if wiki export fails,
+  // the user gets no reply but also does not lose a daily chat turn.
+  //
+  // A device-red turn never gets here: it was answered above, uncounted
+  // (Q-261014-30; this replaces the old "red turns still count" trade-off).
+  // A turn cut later (server gate, meaning check, output swap) is still counted.
+  let newCount: number;
+  try {
+    newCount = await stage(signal => bumpChatUsageIfUnderCap(input.userId, limit, day, execution ?? undefined, signal));
+  } catch (e) {
+    execution?.session.assertCurrent();
+    if (e instanceof ChatLimitExceededError) {
+      const detail = await stage(readUsage);
+      const check = checkChatLimit(input.tier, detail.used, detail.adBonus);
+      // FORCE_TIER and a stale client tier do not change the server's cap.
+      // Its rejection carries no cap value: when our local check still allows
+      // sending, do not label that rejection as exhaustion of the local cap.
+      return {
+        status: "blocked",
+        reason: "limit_reached",
+        limit: check.allowed ? null : check.limit,
+        used: check.used,
+        upgradeTo: check.upgradeTo,
+        hint: check.allowed
+          ? tLocale(input.locale, "secondb", "serverLimitReached")
+          : BLOCKED_HINT[input.locale](check.limit),
+      };
+    }
+    throw e;
+  }
+
+  const system = assembleChatSystemPrompt(input, context);
 
   // C1/C3/C9 are enforced by callLlm, whose own red-zone short-circuit still
   // runs for every turn that gets here. Device-red input was already routed
   // above by the same boundary module, before any context read or bump.
-  const reply = await callLlm({
+  const reply = await stage(() => callLlm({
     userId: input.userId,
     locale: input.locale,
     purpose: "secondb_chat",
     system,
     user: input.message,
     minor: input.minor,
-  });
+    ...(execution ? { session: execution.session, signal: execution.session.signal, onCrisisDetected: execution.onCrisisDetected } : {}),
+  }));
 
   return {
     status: "ok",
@@ -398,8 +439,85 @@ function crisisNumberRule(locale: "en" | "ko", minor: boolean | undefined): stri
 // Q-261014-30 / Q-261015-82: one device-red verdict, one routing call, before
 // any quota read, limit refusal or context read, without a bump.
 // Quota is unknown here; callers retain their last verified usage display.
-async function answerDeviceRed(input: SendMessageInput): Promise<SendMessageOk | null> {
-  const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor);
+type CapturedConversationExecution = CapturedChatUsageExecution & { readonly onCrisisDetected: CrisisObserver };
+
+async function answerDeviceRed(input: SendMessageInput, execution: CapturedConversationExecution | null): Promise<SendMessageOk | null> {
+  const reply = await classifyChatTextForCrisis(input.message, input.locale, input.userId, input.minor,
+    ...(execution ? [{ session: execution.session, signal: execution.session.signal, onCrisisDetected: execution.onCrisisDetected }] as const : []));
   if (!reply) return null;
+  if (execution && (reply.safety.zone !== "red" || reply.audit.modelUsed !== "none-crisis-routed")) throw new Error("chat_local_red_result_invalid");
   return { status: "ok", reply, used: null, limit: null, remaining: null };
+}
+
+/** Strict C3 local-RED port. A missing/inconsistent local result cannot become an ordinary send. */
+export async function auditChatLocalRed(input: SendMessageInput): Promise<SendMessageOk> {
+  const execution = capturedConversation(input);
+  if (!execution) throw new Error("chat_captured_execution_required");
+  const result = await executionStage(execution)(() => answerDeviceRed(input, execution));
+  if (!result) throw new Error("chat_local_red_result_missing");
+  return result;
+}
+
+function capturedConversation(input: SendMessageInput): CapturedConversationExecution | null {
+  const raw = input.session, source = input.mutationObserver, signal = input.signal, onCrisisDetected = input.onCrisisDetected;
+  if (raw === undefined && source === undefined && signal === undefined && onCrisisDetected === undefined) return null;
+  if (!raw || !source || !signal || typeof onCrisisDetected !== "function") throw new Error("chat_captured_execution_required");
+  const { userId, epoch, assertCurrent, abort, release } = raw;
+  const { owner: sourceOwner, ledger: sourceLedger, generation, operationId, stepId } = source;
+  // Match the ledger's identifier contract before even read-only context can egress.
+  const validId = (value: unknown) => typeof value === "string" && /^[A-Za-z0-9:_-]{1,160}$/.test(value);
+  if (!sourceOwner || !sourceLedger || !validId(operationId) || !validId(stepId) ||
+      typeof sourceOwner.isCurrent !== "function" || typeof sourceLedger.read !== "function" ||
+      typeof sourceLedger.acquireMutation !== "function" || typeof sourceLedger.issueMutation !== "function" ||
+      typeof sourceLedger.settleMutation !== "function" || typeof assertCurrent !== "function" ||
+      typeof abort !== "function" || typeof release !== "function") throw new Error("chat_captured_observer_invalid");
+  const owner = Object.freeze({ ownerId: sourceOwner.ownerId, epoch: sourceOwner.epoch, isCurrent: sourceOwner.isCurrent.bind(sourceOwner) });
+  const ledger = Object.freeze({ read: sourceLedger.read.bind(sourceLedger), acquireMutation: sourceLedger.acquireMutation.bind(sourceLedger),
+    issueMutation: sourceLedger.issueMutation.bind(sourceLedger), settleMutation: sourceLedger.settleMutation.bind(sourceLedger) });
+  const observer = Object.freeze({ owner, ledger, generation, operationId, stepId });
+  if (!input.userId || input.userId !== userId || owner.ownerId !== userId || owner.epoch !== epoch) throw new Error("chat_session_owner_mismatch");
+  if (signal !== raw.signal) throw new Error("chat_session_signal_mismatch");
+  const assertSession = assertCurrent.bind(raw), abortSession = abort.bind(raw), releaseSession = release.bind(raw);
+  const fence = () => {
+    throwIfAborted(signal); assertSession();
+    if (!owner.isCurrent()) throw abortError();
+    const content = ledger.read(owner);
+    if (!Number.isSafeInteger(generation) || generation < 0 || content.generation !== generation || content.phase !== "open") throw abortError();
+  };
+  fence();
+  const accessToken = raw.accessToken;
+  fence();
+  // Snapshot authority before the first await. Callers may later mutate their input,
+  // observer or methods; that cannot replace the original ledger or crisis observer.
+  // One original lease/token/signal; no authentication, release or subscription here.
+  const session: AuthenticatedAccountSessionLease = Object.freeze({
+    userId, epoch, signal,
+    get accessToken() { fence(); return accessToken; },
+    assertCurrent: fence, abort: abortSession, release: releaseSession,
+  });
+  return Object.freeze({ session, observer, onCrisisDetected });
+}
+
+function executionStage(execution: CapturedChatUsageExecution | null, ownerId?: string) {
+  const assertCurrent = execution ? () => execution.session.assertCurrent() : captureLiveOwnerCheck(ownerId ?? "");
+  return Object.assign(async <T,>(operation: (signal?: AbortSignal) => Promise<T>): Promise<T> => {
+    assertCurrent();
+    let result: T;
+    try { result = execution ? await operation() : await withLiveOwnerSignal(assertCurrent, undefined, operation); }
+    catch (error) { assertCurrent(); throw error; }
+    assertCurrent();
+    return result;
+  }, { assertCurrent });
+}
+
+// 이번 턴에만 붙는 말투 보정(Q-261018-55 다 · 리뷰 #2632 r1). 항상 켜진 말투 줄(SYSTEM_PROMPT_HEADER)은
+// 이번 입력이 노랑(임상 어휘가 섞인 무거운 이야기)인지, 바로 앞 답에 이미 「브로」가 있었는지 모른다.
+// 그 둘은 여기서 정해 이번 답에만 알린다. 한국어 대화 답에만 해당한다(반말 · 「브로」는 한국어 말투다).
+function chatTurnToneLine(input: SendMessageInput): string {
+  if (input.locale !== "ko") return "";
+  const yellow = (["ko", "en"] as const).some((l) => classifyInput(input.message, l, { minor: input.minor }).zone === "yellow");
+  if (yellow) return "이번 답에는 농담을 하지 말고, 이름과 '브로'를 포함한 어떤 호칭도 붙이지 말고 차분하게 말하세요.\n\n";
+  const lastReply = [...(input.history ?? [])].reverse().find((turn) => turn.role === "assistant");
+  if (lastReply?.text.includes("브로")) return "바로 앞 답에 이미 '브로'를 썼습니다. 이번 답에는 '브로'를 쓰지 마세요.\n\n";
+  return "";
 }

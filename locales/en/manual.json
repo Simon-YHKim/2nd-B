@@ -9,7 +9,7 @@
   "permissionsHint": "Opens the app permissions guide.",
   "curated": "Selected research",
   "guide": {
-    "hero": "Five questions explain how your records become something useful.",
+    "hero": "How your records become something useful, and where common tasks live.",
     "tip": "Open one answer at a time, or filter the guide below.",
     "searchLabel": "Filter the user guide",
     "searchPlaceholder": "Search questions and answers",
@@ -36,17 +36,36 @@
       "data": {
         "question": "Where do privacy, safety, and exports live?",
         "answer": "Privacy choices and account export are explicit controls. IDEN is a portable identity summary. If a message needs urgent support, the app shows support resources before an ordinary reply and does not contact services for you."
+      },
+      "refund": {
+        "question": "How do I get a refund?",
+        "answer": "Request it in Manage subscription, in Settings. If you have a payment, that screen shows whether you can get a refund right now, and why."
+      },
+      "export": {
+        "question": "How do I export my records?",
+        "answer": "Choose Account data export in My data, in Settings, to get your account data as one file. The file also lists what it leaves out and why."
+      },
+      "deleteAccount": {
+        "question": "How do I delete my account?",
+        "answer": "Choose Delete account in Account, in Settings. Deleting cannot be undone, so export anything you need first."
+      },
+      "notifications": {
+        "question": "Where do I change notifications?",
+        "answer": "In the phone app, turn them on or off in Permissions, in Settings. The web version sends no notifications."
       }
     },
     "actions": {
       "dashboard": "Open the HustleK dashboard",
       "brightness": "View brightness",
-      "records": "Open records",
+      "records": "View the Wiki",
       "review": "Review proposals",
       "privacy": "Privacy controls",
       "iden": "Portable IDEN",
       "accountExport": "Account export",
-      "support": "Support resources"
+      "support": "Support resources",
+      "subscription": "Manage subscription",
+      "deleteAccount": "Delete account",
+      "permissions": "Manage permissions"
     }
   }
 }

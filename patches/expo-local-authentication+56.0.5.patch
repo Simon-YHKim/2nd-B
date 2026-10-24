@@ -1,0 +1,885 @@
+diff --git a/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml b/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml
+index ab3ac3f..daa45de 100644
+--- a/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml
++++ b/node_modules/expo-local-authentication/android/src/main/AndroidManifest.xml
+@@ -1,4 +1,11 @@
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
++    <application>
++        <activity
++            android:name="expo.modules.localauthentication.DeviceAuthenticationActivity"
++            android:exported="false"
++            android:launchMode="standard"
++            android:theme="@android:style/Theme.Material.NoActionBar" />
++    </application>
+ </manifest>
+diff --git a/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/DeviceAuthenticationActivity.kt b/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/DeviceAuthenticationActivity.kt
+new file mode 100644
+index 0000000..56d863a
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/DeviceAuthenticationActivity.kt
+@@ -0,0 +1,364 @@
++@file:Suppress("DEPRECATION")
++package expo.modules.localauthentication
++
++import android.app.Activity
++import android.app.KeyguardManager
++import android.content.Intent
++import android.hardware.biometrics.BiometricPrompt
++import android.hardware.fingerprint.FingerprintManager
++import android.os.Build
++import android.os.Bundle
++import android.os.CancellationSignal
++import android.os.Handler
++import android.os.Looper
++import android.security.keystore.KeyGenParameterSpec
++import android.security.keystore.KeyProperties
++import android.view.Gravity
++import android.view.WindowManager
++import android.widget.Button
++import android.widget.LinearLayout
++import android.widget.TextView
++import androidx.annotation.RequiresApi
++import java.security.KeyStore
++import java.security.SecureRandom
++import java.util.concurrent.Executor
++import javax.crypto.Cipher
++import javax.crypto.KeyGenerator
++import javax.crypto.SecretKey
++
++// Never singleTop/singleTask and never applicationContext: API 26-28 cache a
++// mutable FingerprintManager in ContextImpl. Each request needs a new cache.
++class DeviceAuthenticationActivity : Activity() {
++  private var request: DeviceAuthenticationRequests.Request? = null
++  private var session: DeviceBiometricSession? = null
++  private var credentialPending = false
++  private var closing = false
++  private var started = false
++  private var status: TextView? = null
++  private val mainHandler = Handler(Looper.getMainLooper())
++  private val executor = Executor { runnable -> mainHandler.post(runnable); Unit }
++
++  override fun onCreate(savedInstanceState: Bundle?) {
++    super.onCreate(savedInstanceState)
++    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
++    val call = DeviceAuthenticationRequests.attach(
++      intent?.getStringExtra(DeviceAuthenticationRequests.REQUEST_ID), this
++    )
++    request = call
++    if (call == null) {
++      finish()
++      return
++    }
++    // Recreation is a canceled request, never an implicit new authentication.
++    if (savedInstanceState != null || !DeviceAuthenticationRequests.isPending(call)) {
++      complete("app_cancel")
++      closeAuthentication()
++      return
++    }
++    showLockContent(call.options)
++  }
++
++  override fun onResume() {
++    super.onResume()
++    if (!started && pending()) {
++      started = true
++      startBiometric()
++    }
++  }
++
++  override fun onStop() {
++    // Before Q the platform does not own this lifecycle cancellation. Keep a
++    // PIN child alive, but never leave a background fingerprint scan active.
++    if (Build.VERSION.SDK_INT < 29 && !credentialPending && !closing) complete("app_cancel")
++    super.onStop()
++  }
++
++  private fun showLockContent(options: AuthOptions) {
++    val content = LinearLayout(this).apply {
++      orientation = LinearLayout.VERTICAL
++      gravity = Gravity.CENTER
++      setBackgroundColor(android.graphics.Color.BLACK)
++      val inset = (24 * resources.displayMetrics.density).toInt()
++      setPadding(inset, inset, inset, inset)
++    }
++    status = TextView(this).apply {
++      text = options.promptMessage
++      setTextColor(android.graphics.Color.WHITE)
++      gravity = Gravity.CENTER
++      textSize = 20f
++    }
++    content.addView(status)
++    if (!options.disableDeviceFallback) {
++      content.addView(Button(this).apply {
++        text = options.cancelLabel ?: options.promptMessage
++        setOnClickListener { startCredential() }
++      })
++    }
++    content.addView(Button(this).apply {
++      setText(android.R.string.cancel)
++      setOnClickListener { complete("user_cancel") }
++    })
++    setContentView(content)
++  }
++
++  private fun pending(): Boolean = !closing && request?.let {
++    DeviceAuthenticationRequests.isPending(it)
++  } == true
++
++  private fun startBiometric() {
++    val call = request ?: return
++    try {
++      if (!(getSystemService(KEYGUARD_SERVICE) as KeyguardManager).isDeviceSecure) {
++        complete("not_enrolled")
++        return
++      }
++      session = if (Build.VERSION.SDK_INT >= 28) {
++        PlatformBiometricSession(this, call, executor)
++      } else {
++        FingerprintSession(this)
++      }
++      session?.start()
++    } catch (_: Exception) {
++      biometricError(1)
++    }
++  }
++
++  internal fun biometricSucceeded() {
++    if (!credentialPending && pending()) complete(null)
++  }
++
++  internal fun biometricError(code: Int) {
++    if (!pending() || credentialPending) return
++    // User/OS cancellation must never silently open another authentication UI.
++    if (code in intArrayOf(1, 7, 9, 11, 12) && request?.options?.disableDeviceFallback == false) {
++      startCredential()
++    } else {
++      complete(when (code) {
++        5, 10, 13 -> "user_cancel"
++        7, 9 -> "lockout"
++        1, 11, 12, 14 -> "not_available"
++        3 -> "timeout"
++        else -> "authentication_failed"
++      })
++    }
++  }
++
++  internal fun biometricHelp(message: CharSequence?) {
++    if (pending() && !credentialPending && !message.isNullOrBlank()) status?.text = message
++  }
++
++  internal fun startCredential() {
++    val call = request ?: return
++    if (!pending() || credentialPending) return
++    if (call.options.disableDeviceFallback) {
++      complete("user_cancel")
++      return
++    }
++    // Set phase before cancellation: its error callback belongs to the old
++    // biometric phase and must not finish/replace this credential request.
++    credentialPending = true
++    runCatching { session?.cancel() }
++    session = null
++    try {
++      val keyguard = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
++      val credential = keyguard.createConfirmDeviceCredentialIntent(
++        call.options.promptMessage, call.options.promptDescription
++      )
++      if (credential == null) {
++        complete("not_enrolled")
++        return
++      }
++      // No NEW_TASK/NEW_DOCUMENT. Result owner is this unique request Activity.
++      startActivityForResult(credential, CREDENTIAL_RESULT)
++    } catch (_: Exception) {
++      complete("not_available")
++    }
++  }
++
++  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
++    super.onActivityResult(requestCode, resultCode, data)
++    if (requestCode != CREDENTIAL_RESULT || !credentialPending || !pending()) return
++    credentialPending = false
++    complete(if (resultCode == RESULT_OK) null else "user_cancel")
++  }
++
++  override fun onBackPressed() { complete("user_cancel") }
++
++  private fun complete(error: String?) {
++    request?.let { DeviceAuthenticationRequests.finish(it, this, error) }
++  }
++
++  internal fun closeAuthentication() {
++    if (closing) return
++    closing = true
++    runCatching { session?.cancel() }
++    session = null
++    if (credentialPending) {
++      runCatching { finishActivity(CREDENTIAL_RESULT) }
++    }
++    finish()
++  }
++
++  override fun onDestroy() {
++    closing = true
++    runCatching { session?.cancel() }
++    session = null
++    if (credentialPending) runCatching { finishActivity(CREDENTIAL_RESULT) }
++    request?.let { DeviceAuthenticationRequests.destroyed(it, this) }
++    request = null
++    super.onDestroy()
++  }
++
++  private companion object { const val CREDENTIAL_RESULT = 1 }
++}
++
++private interface DeviceBiometricSession {
++  fun start()
++  fun cancel()
++}
++
++private class FingerprintSession(private val host: DeviceAuthenticationActivity) : DeviceBiometricSession {
++  private val signal = CancellationSignal()
++  private var canceled = false
++
++  override fun start() {
++    // Activity-scoped service. Do not use the application's cached manager.
++    val manager = host.getSystemService(FingerprintManager::class.java)
++    if (manager == null || !manager.isHardwareDetected || !manager.hasEnrolledFingerprints()) {
++      host.biometricError(11)
++      return
++    }
++    manager.authenticate(null, signal, 0, object : FingerprintManager.AuthenticationCallback() {
++      override fun onAuthenticationSucceeded(result: FingerprintManager.AuthenticationResult) {
++        if (!canceled) host.biometricSucceeded()
++      }
++      override fun onAuthenticationError(code: Int, message: CharSequence) {
++        if (!canceled) host.biometricError(code)
++      }
++      override fun onAuthenticationHelp(code: Int, message: CharSequence) {
++        if (!canceled) host.biometricHelp(message)
++      }
++    }, Handler(Looper.getMainLooper()))
++  }
++
++  override fun cancel() {
++    canceled = true
++    runCatching { signal.cancel() }
++  }
++}
++
++@RequiresApi(28)
++private class PlatformBiometricSession(
++  private val host: DeviceAuthenticationActivity,
++  private val request: DeviceAuthenticationRequests.Request,
++  private val executor: Executor
++) : DeviceBiometricSession {
++  private val signal = CancellationSignal()
++  private var canceled = false
++  private var crypto: RequestCrypto? = null
++
++  override fun start() {
++    val options = request.options
++    val builder = BiometricPrompt.Builder(host).setTitle(options.promptMessage)
++    options.promptSubtitle?.let { builder.setSubtitle(it) }
++    options.promptDescription?.let { builder.setDescription(it) }
++    if (Build.VERSION.SDK_INT >= 29) builder.setConfirmationRequired(options.requireConfirmation)
++    if (Build.VERSION.SDK_INT >= 30) {
++      var allowed = if (options.biometricsSecurityLevel == BiometricsSecurityLevel.STRONG) 15 else 255
++      if (!options.disableDeviceFallback) allowed = allowed or 32768
++      builder.setAllowedAuthenticators(allowed)
++    }
++    if (Build.VERSION.SDK_INT < 30 || options.disableDeviceFallback) {
++      builder.setNegativeButton(options.cancelLabel ?: host.getString(android.R.string.cancel), executor) { _, _ ->
++        if (!canceled) {
++          if (options.disableDeviceFallback) host.biometricError(13) else host.startCredential()
++        }
++      }
++    }
++    val prompt = builder.build() // Never reused for a different request.
++    val callback = object : BiometricPrompt.AuthenticationCallback() {
++      override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
++        if (canceled) return
++        val proof = crypto
++        if (proof != null && !proof.verify(result.cryptoObject?.cipher)) {
++          host.biometricError(2)
++          return
++        }
++        host.biometricSucceeded()
++      }
++      override fun onAuthenticationError(code: Int, message: CharSequence) {
++        if (!canceled) host.biometricError(code)
++      }
++      override fun onAuthenticationHelp(code: Int, message: CharSequence) {
++        if (!canceled) host.biometricHelp(message)
++      }
++    }
++    if (Build.VERSION.SDK_INT == 29 && options.biometricsSecurityLevel == BiometricsSecurityLevel.STRONG) {
++      // API 29 has no setAllowedAuthenticators(STRONG), and rejects combining
++      // crypto with deviceCredentialAllowed. Strong proof then separate PIN.
++      val proof = RequestCrypto(request.id)
++      crypto = proof
++      prompt.authenticate(BiometricPrompt.CryptoObject(proof.prepare()), signal, executor, callback)
++    } else {
++      prompt.authenticate(signal, executor, callback)
++    }
++  }
++
++  override fun cancel() {
++    canceled = true
++    try {
++      signal.cancel()
++    } finally {
++      crypto?.close()
++      crypto = null
++    }
++  }
++}
++
++private class RequestCrypto(requestId: String) {
++  private val alias = "expo.device-auth.request.$requestId"
++  private var cipher: Cipher? = null
++  private val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
++
++  fun prepare(): Cipher {
++    // Remove only this module's orphaned per-request keys after process death.
++    // There is one active host; no live request's key can be deleted here.
++    val aliases = store.aliases()
++    while (aliases.hasMoreElements()) {
++      val oldAlias = aliases.nextElement()
++      if (oldAlias.startsWith("expo.device-auth.request.")) store.deleteEntry(oldAlias)
++    }
++    // No request shares an alias/operation, including canceled requests.
++    val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
++    generator.init(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT)
++      .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
++      .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
++      .setUserAuthenticationRequired(true)
++      .setUserAuthenticationValidityDurationSeconds(-1)
++      .build())
++    generator.generateKey()
++    val key = store.getKey(alias, null) as SecretKey
++    return Cipher.getInstance("AES/CBC/PKCS7Padding").apply {
++      init(Cipher.ENCRYPT_MODE, key)
++      cipher = this
++    }
++  }
++
++  fun verify(returned: Cipher?): Boolean {
++    val expected = cipher ?: return false
++    if (returned !== expected) return false
++    return try {
++      expected.doFinal(ByteArray(16).also { SecureRandom().nextBytes(it) })
++      true
++    } catch (_: Exception) {
++      false
++    } finally {
++      close()
++    }
++  }
++
++  fun close() {
++    cipher = null
++    runCatching { store.deleteEntry(alias) }
++  }
++}
+diff --git a/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/DeviceAuthenticationRequests.kt b/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/DeviceAuthenticationRequests.kt
+new file mode 100644
+index 0000000..999dec7
+--- /dev/null
++++ b/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/DeviceAuthenticationRequests.kt
+@@ -0,0 +1,101 @@
++package expo.modules.localauthentication
++
++import android.app.Activity
++import android.content.Intent
++import android.os.Bundle
++import android.os.Looper
++import expo.modules.kotlin.Promise
++import java.lang.ref.WeakReference
++import java.util.UUID
++
++internal fun authenticationResponse(error: String? = null) = Bundle().apply {
++  putBoolean("success", error == null)
++  error?.let { putString("error", it) }
++}
++
++// Main-thread-only registry. Neither Activity results nor callbacks look up a
++// replacement promise. A request owns one Activity for its entire lifetime.
++internal object DeviceAuthenticationRequests {
++  const val REQUEST_ID = "expo.modules.localauthentication.requestId"
++
++  class Request(val owner: Any, val options: AuthOptions, val promise: Promise) {
++    val id: String = UUID.randomUUID().toString()
++    var host: WeakReference<DeviceAuthenticationActivity>? = null
++    var result: Bundle? = null
++    val cancellations = mutableListOf<Promise>()
++  }
++
++  private var active: Request? = null
++
++  private fun onMainThread() = check(Looper.myLooper() == Looper.getMainLooper())
++
++  fun launch(activity: Activity, owner: Any, options: AuthOptions, promise: Promise) {
++    onMainThread()
++    if (active != null) {
++      promise.resolve(authenticationResponse("app_cancel"))
++      return
++    }
++    val request = Request(owner, options, promise)
++    active = request
++    try {
++      activity.startActivity(Intent(activity, DeviceAuthenticationActivity::class.java).apply {
++        putExtra(REQUEST_ID, request.id)
++      })
++    } catch (_: Exception) {
++      request.result = authenticationResponse("not_available")
++      close(request)
++    }
++  }
++
++  fun attach(id: String?, host: DeviceAuthenticationActivity): Request? {
++    onMainThread()
++    val request = active ?: return null
++    if (request.id != id || request.host != null) return null
++    // A cancel before onCreate keeps the slot until this exact host is closed.
++    request.host = WeakReference(host)
++    return request
++  }
++
++  fun isPending(request: Request): Boolean {
++    onMainThread()
++    return active === request && request.result == null
++  }
++
++  fun finish(request: Request, host: DeviceAuthenticationActivity, error: String?) {
++    onMainThread()
++    if (!isPending(request) || request.host?.get() !== host) return
++    request.result = authenticationResponse(error)
++    host.closeAuthentication()
++  }
++
++  fun cancel(owner: Any, completion: Promise? = null) {
++    onMainThread()
++    val request = active
++    if (request == null || request.owner !== owner) {
++      completion?.resolve()
++      return
++    }
++    completion?.let { request.cancellations.add(it) }
++    // Revocation may override a success whose host has not finished yet.
++    request.result = authenticationResponse("app_cancel")
++    request.host?.get()?.closeAuthentication()
++  }
++
++  fun destroyed(request: Request, host: DeviceAuthenticationActivity) {
++    onMainThread()
++    if (active !== request || request.host?.get() !== host) return
++    if (request.result == null) request.result = authenticationResponse("app_cancel")
++    close(request)
++  }
++
++  private fun close(request: Request) {
++    if (active !== request) return
++    active = null
++    // Resolve only after host destruction, or when launching it failed. This is
++    // a lifecycle acknowledgement, not a timer or a guessed callback drain.
++    runCatching { request.promise.resolve(request.result ?: authenticationResponse("app_cancel")) }
++    request.cancellations.forEach { runCatching { it.resolve() } }
++    request.cancellations.clear()
++    request.host = null
++  }
++}
+diff --git a/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt b/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt
+index c470cd0..aa56576 100644
+--- a/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt
++++ b/node_modules/expo-local-authentication/android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt
+@@ -1,25 +1,14 @@
+ // Copyright 2015-present 650 Industries. All rights reserved.
+ package expo.modules.localauthentication
+ 
+-import android.app.Activity
+ import android.app.KeyguardManager
+ import android.content.Context
+-import android.os.Build
+-import android.os.Bundle
+-import androidx.annotation.UiThread
+ import androidx.biometric.BiometricManager
+-import androidx.biometric.BiometricPrompt
+-import androidx.biometric.BiometricPrompt.PromptInfo
+-import androidx.fragment.app.FragmentActivity
+ import expo.modules.kotlin.Promise
+ import expo.modules.kotlin.exception.Exceptions
+-import expo.modules.kotlin.exception.UnexpectedException
+ import expo.modules.kotlin.functions.Queues
+ import expo.modules.kotlin.modules.Module
+ import expo.modules.kotlin.modules.ModuleDefinition
+-import kotlinx.coroutines.launch
+-import java.util.concurrent.Executor
+-import java.util.concurrent.Executors
+ 
+ private const val AUTHENTICATION_TYPE_FINGERPRINT = 1
+ private const val AUTHENTICATION_TYPE_FACIAL_RECOGNITION = 2
+@@ -28,7 +17,6 @@
+ private const val SECURITY_LEVEL_SECRET = 1
+ private const val SECURITY_LEVEL_BIOMETRIC_WEAK = 2
+ private const val SECURITY_LEVEL_BIOMETRIC_STRONG = 3
+-private const val DEVICE_CREDENTIAL_FALLBACK_CODE = 6
+ 
+ class LocalAuthenticationModule : Module() {
+   override fun definition() = ModuleDefinition {
+@@ -75,62 +63,30 @@
+     }
+ 
+     AsyncFunction("authenticateAsync") { options: AuthOptions, promise: Promise ->
+-      val fragmentActivity = appContext.throwingActivity as? FragmentActivity
+-      if (fragmentActivity == null) {
+-        promise.reject(Exceptions.MissingActivity())
+-        return@AsyncFunction
++      try {
++        val activity = appContext.throwingActivity
++        if (
++          activity.isFinishing || activity.isDestroyed || !activity.hasWindowFocus() ||
++          activity is DeviceAuthenticationActivity
++        ) {
++          promise.resolve(authenticationResponse("app_cancel"))
++        } else if (!keyguardManager.isDeviceSecure) {
++          promise.resolve(authenticationResponse("not_enrolled"))
++        } else {
++          DeviceAuthenticationRequests.launch(activity, requestOwner, options, promise)
++        }
++      } catch (_: Exception) {
++        promise.resolve(authenticationResponse("not_available"))
+       }
+-      if (!keyguardManager.isDeviceSecure) {
+-        promise.resolve(
+-          createResponse(
+-            error = "not_enrolled",
+-            warning = "KeyguardManager#isDeviceSecure() returned false"
+-          )
+-        )
+-        return@AsyncFunction
+-      }
+-
+-      // BiometricPrompt callbacks are invoked on the main thread so also run this there to avoid
+-      // having to do locking.
+-      appContext.mainQueue.launch {
+-        authenticate(fragmentActivity, options, promise)
+-      }
+-    }
+-
+-    AsyncFunction<Unit>("cancelAuthenticate") {
+-      val current = activePromise
+-      val currentPrompt = biometricPrompt
+-      activePromise = null
+-      biometricPrompt = null
+-      isAuthenticating = false
+-      isRetryingWithDeviceCredentials = false
+-      currentPrompt?.cancelAuthentication()
+-      current?.resolve(createResponse(error = "user_cancel"))
+     }.runOnQueue(Queues.MAIN)
+ 
+-    OnActivityResult { activity, (requestCode, resultCode, data) ->
+-      if (requestCode == DEVICE_CREDENTIAL_FALLBACK_CODE) {
+-        if (resultCode == Activity.RESULT_OK) {
+-          activePromise?.resolve(createResponse())
+-        } else {
+-          activePromise?.resolve(
+-            createResponse(
+-              error = "user_cancel",
+-              warning = "Device Credentials canceled"
+-            )
+-          )
+-        }
++    AsyncFunction("cancelAuthenticate") { promise: Promise ->
++      DeviceAuthenticationRequests.cancel(requestOwner, promise)
++    }.runOnQueue(Queues.MAIN)
+ 
+-        isAuthenticating = false
+-        isRetryingWithDeviceCredentials = false
+-        biometricPrompt = null
+-        activePromise = null
+-      } else if (activity is FragmentActivity) {
+-        // If the user uses PIN as an authentication method, the result will be passed to the `onActivityResult`.
+-        // Unfortunately, react-native doesn't pass this value to the underlying fragment - we won't resolve the promise.
+-        // So we need to do it manually.
+-        val fragment = activity.supportFragmentManager.findFragmentByTag("androidx.biometric.BiometricFragment")
+-        fragment?.onActivityResult(requestCode and 0xffff, resultCode, data)
++    OnDestroy {
++      android.os.Handler(android.os.Looper.getMainLooper()).post {
++        DeviceAuthenticationRequests.cancel(requestOwner)
+       }
+     }
+   }
+@@ -143,151 +99,7 @@
+ 
+   private val biometricManager by lazy { BiometricManager.from(context) }
+   private val packageManager by lazy { context.packageManager }
+-  private var biometricPrompt: BiometricPrompt? = null
+-  private var activePromise: Promise? = null
+-  private var isRetryingWithDeviceCredentials = false
+-  private var isAuthenticating = false
+-
+-  private fun buildAuthenticationCallback(
+-    callPromise: Promise,
+-    callOptions: AuthOptions
+-  ): BiometricPrompt.AuthenticationCallback = object : BiometricPrompt.AuthenticationCallback() {
+-    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+-      finishCall(callPromise) {
+-        callPromise.resolve(
+-          Bundle().apply {
+-            putBoolean("success", true)
+-          }
+-        )
+-      }
+-    }
+-
+-    override fun onAuthenticationError(errMsgId: Int, errString: CharSequence) {
+-      if (
+-        isBiometricUnavailable(errMsgId) &&
+-        isDeviceSecure &&
+-        !isRetryingWithDeviceCredentials &&
+-        !callOptions.disableDeviceFallback &&
+-        activePromise === callPromise
+-      ) {
+-        isRetryingWithDeviceCredentials = true
+-        promptDeviceCredentialsFallback(callOptions, callPromise)
+-        return
+-      }
+-      finishCall(callPromise) {
+-        callPromise.resolve(
+-          createResponse(
+-            error = convertErrorCode(errMsgId),
+-            warning = errString.toString()
+-          )
+-        )
+-      }
+-    }
+-  }
+-
+-  // Drop late callbacks for a call whose promise was already settled by another path (e.g. cancelAuthenticate).
+-  private inline fun finishCall(callPromise: Promise, resolve: () -> Unit) {
+-    if (activePromise !== callPromise) {
+-      return
+-    }
+-    activePromise = null
+-    biometricPrompt = null
+-    isAuthenticating = false
+-    isRetryingWithDeviceCredentials = false
+-    resolve()
+-  }
+-
+-  @UiThread
+-  private fun authenticate(fragmentActivity: FragmentActivity, options: AuthOptions, promise: Promise) {
+-    if (isAuthenticating) {
+-      // Reject the new call rather than supersede. AndroidX `BiometricPrompt` won't show a
+-      // replacement prompt while the previous fragment is still detaching
+-      promise.resolve(createResponse(error = "app_cancel"))
+-      return
+-    }
+-
+-    val allowedAuthenticators = if (options.disableDeviceFallback) {
+-      options.biometricsSecurityLevel.toNativeBiometricSecurityLevel()
+-    } else {
+-      options.biometricsSecurityLevel.toNativeBiometricSecurityLevel() or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+-    }
+-
+-    isAuthenticating = true
+-    activePromise = promise
+-    val executor: Executor = Executors.newSingleThreadExecutor()
+-    val localBiometricPrompt = BiometricPrompt(fragmentActivity, executor, buildAuthenticationCallback(promise, options))
+-    biometricPrompt = localBiometricPrompt
+-    val promptInfoBuilder = PromptInfo.Builder().apply {
+-      setTitle(options.promptMessage)
+-      setSubtitle(options.promptSubtitle)
+-      setDescription(options.promptDescription)
+-      setAllowedAuthenticators(allowedAuthenticators)
+-      if (options.disableDeviceFallback && options.cancelLabel != null) {
+-        setNegativeButtonText(options.cancelLabel)
+-      }
+-      setConfirmationRequired(options.requireConfirmation)
+-    }
+-
+-    val promptInfo = promptInfoBuilder.build()
+-    try {
+-      localBiometricPrompt.authenticate(promptInfo)
+-    } catch (e: NullPointerException) {
+-      finishCall(promise) {
+-        promise.reject(UnexpectedException("Canceled authentication due to an internal error", e))
+-      }
+-    }
+-  }
+-
+-  private fun promptDeviceCredentialsFallback(options: AuthOptions, promise: Promise) {
+-    val fragmentActivity = appContext.throwingActivity as FragmentActivity?
+-    if (fragmentActivity == null) {
+-      finishCall(promise) {
+-        promise.resolve(
+-          createResponse(
+-            error = "not_available",
+-            warning = "getCurrentActivity() returned null"
+-          )
+-        )
+-      }
+-      return
+-    }
+-
+-    val promptMessage = options.promptMessage
+-    val promptDescription = options.promptDescription
+-
+-    // BiometricPrompt callbacks are invoked on the main thread so also run this there to avoid
+-    // having to do locking.
+-    appContext.mainQueue.launch {
+-      // On Android devices older than 11, we need to use Keyguard to unlock by Device Credentials.
+-      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+-        val credentialConfirmationIntent = keyguardManager.createConfirmDeviceCredentialIntent(promptMessage, promptDescription)
+-        fragmentActivity.startActivityForResult(credentialConfirmationIntent, DEVICE_CREDENTIAL_FALLBACK_CODE)
+-        return@launch
+-      }
+-
+-      val executor: Executor = Executors.newSingleThreadExecutor()
+-      val localBiometricPrompt = BiometricPrompt(fragmentActivity, executor, buildAuthenticationCallback(promise, options))
+-
+-      biometricPrompt = localBiometricPrompt
+-
+-      val promptInfoBuilder = PromptInfo.Builder().apply {
+-        setTitle(promptMessage)
+-        setSubtitle(options.promptSubtitle)
+-        setDescription(promptDescription)
+-        setAllowedAuthenticators(BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+-        setConfirmationRequired(options.requireConfirmation)
+-      }
+-
+-      val promptInfo = promptInfoBuilder.build()
+-      try {
+-        localBiometricPrompt.authenticate(promptInfo)
+-      } catch (e: NullPointerException) {
+-        finishCall(promise) {
+-          promise.reject(UnexpectedException("Canceled authentication due to an internal error", e))
+-        }
+-      }
+-    }
+-  }
++  private val requestOwner = Any()
+ 
+   private fun hasSystemFeature(feature: String) = packageManager.hasSystemFeature(feature)
+ 
+@@ -302,48 +114,11 @@
+   private val isDeviceSecure: Boolean
+     get() = keyguardManager.isDeviceSecure
+ 
+-  private fun convertErrorCode(code: Int): String {
+-    return when (code) {
+-      BiometricPrompt.ERROR_CANCELED, BiometricPrompt.ERROR_NEGATIVE_BUTTON, BiometricPrompt.ERROR_USER_CANCELED -> "user_cancel"
+-      BiometricPrompt.ERROR_HW_NOT_PRESENT, BiometricPrompt.ERROR_HW_UNAVAILABLE, BiometricPrompt.ERROR_NO_BIOMETRICS, BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL -> "not_available"
+-      BiometricPrompt.ERROR_LOCKOUT, BiometricPrompt.ERROR_LOCKOUT_PERMANENT -> "lockout"
+-      BiometricPrompt.ERROR_NO_SPACE -> "no_space"
+-      BiometricPrompt.ERROR_TIMEOUT -> "timeout"
+-      BiometricPrompt.ERROR_UNABLE_TO_PROCESS -> "unable_to_process"
+-      else -> "unknown"
+-    }
+-  }
+-
+-  private fun isBiometricUnavailable(code: Int): Boolean {
+-    return when (code) {
+-      BiometricPrompt.ERROR_HW_NOT_PRESENT,
+-      BiometricPrompt.ERROR_HW_UNAVAILABLE,
+-      BiometricPrompt.ERROR_NO_BIOMETRICS,
+-      BiometricPrompt.ERROR_UNABLE_TO_PROCESS,
+-      BiometricPrompt.ERROR_NO_SPACE -> true
+-
+-      else -> false
+-    }
+-  }
+-
+   private fun canAuthenticateUsingWeakBiometrics(): Int =
+     biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK)
+ 
+   private fun canAuthenticateUsingStrongBiometrics(): Int =
+     biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+-
+-  private fun createResponse(
+-    error: String? = null,
+-    warning: String? = null
+-  ) = Bundle().apply {
+-    putBoolean("success", error == null)
+-    error?.let {
+-      putString("error", it)
+-    }
+-    warning?.let {
+-      putString("warning", it)
+-    }
+-  }
+ }
+ 
+ fun <T> MutableSet<T>.addIf(condition: Boolean, valueToAdd: T) {
+diff --git a/node_modules/expo-local-authentication/ios/LocalAuthenticationModule.swift b/node_modules/expo-local-authentication/ios/LocalAuthenticationModule.swift
+index d6da190..1183254 100644
+--- a/node_modules/expo-local-authentication/ios/LocalAuthenticationModule.swift
++++ b/node_modules/expo-local-authentication/ios/LocalAuthenticationModule.swift
+@@ -2,6 +2,9 @@
+ import LocalAuthentication
+ 
+ public class LocalAuthenticationModule: Module {
++  // Main queue owns the active context and promise, including cancellation.
++  private var activeContext: LAContext?
++  private var activePromise: Promise?
+   public func definition() -> ModuleDefinition {
+     Name("ExpoLocalAuthentication")
+ 
+@@ -57,7 +60,19 @@
+       return level
+     }
+ 
++    AsyncFunction("cancelAuthenticate") { () -> Void in
++      let context = self.activeContext
++      let promise = self.activePromise
++      self.activeContext = nil
++      self.activePromise = nil
++      context?.invalidate()
++      promise?.resolve(["success": false, "error": "app_cancel"] as [String: Any])
++    }.runOnQueue(.main)
++
+     AsyncFunction("authenticateAsync") { (options: LocalAuthenticationOptions, promise: Promise) -> Void in
++      guard self.activeContext == nil else {
++        return promise.resolve(["success": false, "error": "app_cancel"] as [String: Any])
++      }
+       var warningMessage: String?
+       let reason = options.promptMessage
+       let cancelLabel = options.cancelLabel
+@@ -99,20 +114,23 @@
+         }
+       }
+ 
++      self.activeContext = context
++      self.activePromise = promise
+       context.evaluatePolicy(policyForAuth, localizedReason: reason ?? "") { success, error in
+-        var err: String?
+-
+-        if let error = error as? NSError {
+-          err = convertErrorCode(error: error)
++        DispatchQueue.main.async {
++          guard self.activeContext === context else { return }
++          self.activeContext = nil
++          self.activePromise = nil
++          var err: String?
++          if let error = error as? NSError { err = convertErrorCode(error: error) }
++          promise.resolve([
++            "success": success,
++            "error": err as Any,
++            "warning": warningMessage as Any
++          ])
+         }
+-
+-        return promise.resolve([
+-          "success": success,
+-          "error": err as Any,
+-          "warning": warningMessage as Any
+-        ])
+       }
+-    }
++    }.runOnQueue(.main)
+   }
+ }
+ 

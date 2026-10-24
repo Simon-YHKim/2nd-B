@@ -1,4 +1,6 @@
 import { getSupabaseClient } from "../supabase/client";
+import { withSystemTagsColumn } from "../records/system-tags";
+import { NORTHSTAR_TAG, hasNorthstarAiProvenance } from "../persona/northstar-provenance";
 import type { IdenDoc, IdenField, IdenSummary, ScoreMap } from "./types";
 
 type Locale = "en" | "ko";
@@ -76,10 +78,11 @@ export function visibleIdenDocForExport(
   for (const rowId of excludedRows) {
     for (const key of EXPORT_ROW_FIELDS[rowId] ?? []) droppedFields.add(key);
   }
-  const { summary: _hiddenSummary, ...visibleDoc } = doc;
+  const { summary: _hiddenSummary, oneLinerAiSuggested, ...visibleDoc } = doc;
   return {
     ...visibleDoc,
     oneLiner: excludedRows.includes("northstar") ? "" : doc.oneLiner,
+    ...(!excludedRows.includes("northstar") && oneLinerAiSuggested ? { oneLinerAiSuggested } : {}),
     fields: doc.fields.filter((field) => !droppedFields.has(field.key)),
   };
 }
@@ -92,7 +95,6 @@ interface PersistedPersonaRow {
   version: number;
 }
 
-const NORTHSTAR_TAG = "northstar_sentence";
 const TRAIT_KEYS = [
   "openness",
   "conscientiousness",
@@ -148,7 +150,7 @@ function persistedSummary(value: unknown): IdenSummary | undefined {
   if (typeof summary !== "string") return undefined;
   const text = summary.trim();
   if (!text || EMPTY_SUMMARY.test(text)) return undefined;
-  return { text, source: { kind: "ai_summary" } };
+  return { text, source: { kind: (value as Record<string, unknown>).__summary_source === "fixed_safety" ? "derived" : "ai_summary" } };
 }
 
 function throwOnError(results: Array<{ error: unknown }>): void {
@@ -176,13 +178,13 @@ export async function loadPersistedIden(
       .eq("user_id", userId)
       .eq("version", 1)
       .maybeSingle(),
-    supabase
+    withSystemTagsColumn((columnPresent) => supabase
       .from("records")
-      .select("body, created_at")
+      .select(columnPresent ? "body, created_at, system_tags" : "body, created_at")
       .eq("user_id", userId)
       .contains("tags", [NORTHSTAR_TAG])
       .order("created_at", { ascending: false })
-      .limit(1),
+      .limit(1)),
     supabase.from("sources").select("*", { count: "exact", head: true }).eq("user_id", userId),
     supabase.from("records").select("*", { count: "exact", head: true }).eq("user_id", userId),
     supabase
@@ -195,7 +197,7 @@ export async function loadPersistedIden(
   throwOnError([userRes, personaRes, northstarRes, sourcesRes, recordsRes, conceptsRes]);
 
   const persona = personaRes.data as PersistedPersonaRow | null;
-  const northstar = (northstarRes.data?.[0] ?? null) as { body?: string | null; created_at?: string | null } | null;
+  const northstar = (northstarRes.data?.[0] ?? null) as { body?: string | null; created_at?: string | null; system_tags?: string[] } | null;
   const oneLiner = northstar?.body?.trim() ?? "";
   const traits = persistedTraits(persona?.traits, locale);
   const values = persistedValues(persona?.values);
@@ -254,6 +256,7 @@ export async function loadPersistedIden(
     name: user?.display_name?.trim() || COPY[locale].name,
     generated: opts.generated ?? new Date().toISOString().slice(0, 10),
     oneLiner,
+    ...(hasNorthstarAiProvenance(northstar) ? { oneLinerAiSuggested: true } : {}),
     fields,
   };
   if (summary) doc.summary = summary;

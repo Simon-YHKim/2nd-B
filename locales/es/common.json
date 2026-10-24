@@ -84,5 +84,14 @@
   "drillLayerPeriod": "tema / periodo",
   "backToGraph": "Volver al gráfico",
   "backToGraphHint": "Abre la pantalla de inicio del gráfico.",
-  "clearContext": "Borrar texto de referencia"
+  "clearContext": "Borrar texto de referencia",
+  "deviceLock": {
+    "title": "Verifica con el bloqueo del teléfono",
+    "fallback": "Usar código del teléfono",
+    "unlock": "Desbloquear",
+    "checking": "Verificando…",
+    "setup": "Primero configura un bloqueo de pantalla en los ajustes del teléfono.",
+    "unavailable": "La autenticación del dispositivo no está disponible. Instala la última versión de la app e inténtalo de nuevo.",
+    "failed": "No se pudo desbloquear. Inténtalo de nuevo."
+  }
 }

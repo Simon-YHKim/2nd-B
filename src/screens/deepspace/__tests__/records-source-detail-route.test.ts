@@ -247,7 +247,22 @@ describe("deep-space records source detail routing", () => {
       // re-pinning: the previous digest
       // 3c52b8a74b97388b39715e189c1f529a8d3f24b9ecedde299d5909daad952c6d recomputes
       // byte-for-byte from origin/main's copy of this file.
-      "56d241df78a284981b8795cfba3a108c586603f0be4ffb979a5734661b4645bb",
+      // Re-pinned 2026-10-15 (T43, Q-261013-21~24 / Z40 / Z80): the read now
+      // has one deadline, treats either archive source's failure as unknown,
+      // and binds its result to owner/epoch/retry. Role evidence gains the
+      // same epoch fence. This pin covers the whole function, not just JSX.
+      // c6e3d022 reproduces 56d241df; the slice is 23,568 -> 23,367 chars.
+      // From openRecord through all filters, rendering and styles it is
+      // byte-identical. Executed lifecycle coverage: wiki-list-read-failure.
+      // Re-pinned 2026-10-16 (T43 role/evidence reads): only the role reader,
+      // graph readiness/count and read-only retry change. The archive/list,
+      // filter and navigation contracts retain executed regression coverage.
+      // Base 5246d593 reproduces a4183028; the standalone wiki function is
+      // byte-identical. See role-evidence-read-failure for real helper/UI tests.
+      // T54: this slice changes only the source-to-record mapping, preserving
+      // system_tags for the shared inbox predicate. Type/predicate helpers are
+      // outside this slice and exercised by t54-system-tags.test.ts.
+      "202474b6bf660fb8176b2062a4fed7f2af77463191a5f57f303184c153b87ee2",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,
@@ -284,6 +299,16 @@ describe("deep-space records source detail routing", () => {
     // previous digest 3df2eb1f8ceb487c0c0ba75257ed3382587f5ba32c78cc959a221a91f0d5affc.
     // 2026-10-08: same scoped list/graph transition as records, preserving the
     // original gap. Removing the two wrapper tags reproduces 5d80807c exactly.
-    expect(sha256(wiki)).toBe("24f3475eecdf94a09afc755003c5de6dd6e959975fad4590b01a49ebd384028e");
+    // 2026-10-15, Q-261013-21/Z80: the page list now exposes a failed read,
+    // retry and unread counts; citation lookup waits for a successful list.
+    // The ab56c928 baseline reproduces 24f3475e above; this slice changes
+    // 12,132 -> 12,697 chars. The neighboring records renderer is unchanged.
+    // 2026-10-16 T43: focused citations now use an owner/epoch/target/attempt
+    // read hook with timeout/error/missing states and read-only retry. Successful
+    // manual row selection stays separate from pending citation expansion.
+    // The eaca1221 base reproduces 9b7973b1 above; the neighboring records
+    // renderer remains byte-identical (a4183028). Actual screen/query lifecycle
+    // regressions live in wiki-pages-read-failure.test.ts.
+    expect(sha256(wiki)).toBe("6ec96f4a734f4973641981a3e19a2931a9f6b0f68605e089ff3b24ca452f1169");
   });
 });

@@ -19,7 +19,7 @@
 // reset or the first avatar setup, the share is dropped like any link's params
 // and that screen says so in one line. Nothing keeps a share for later.
 //
-// Three edits, all during expo prebuild:
+// Text routing edits, all during expo prebuild:
 //   1. AndroidManifest: <intent-filter> SEND + DEFAULT + mimeType text/plain on
 //      the main activity.
 //   2. ShareTargetIntent.kt next to MainActivity: reads EXTRA_TEXT/EXTRA_SUBJECT,
@@ -41,7 +41,7 @@
 //      that JS acknowledges, which this plugin does not have (gate W5-R3-01,
 //      left open on purpose, Simon 2026-10-07).
 //
-// Every intent that is not a text share goes through MainActivity exactly as
+// Every intent that is not a supported share goes through MainActivity exactly as
 // before this plugin: no rewrite and no setIntent. That covers the sign-in and
 // password-reset links on purpose. An earlier draft (#2075) also let a newer
 // link replace a held share in getIntent(); the gates found that this made
@@ -60,6 +60,10 @@
 // Lengths, host and marker come from src/lib/capture/share-intent-contract.json,
 // the same file the JS side reads. scripts/__tests__/android-share-target.test.ts
 // checks the generated manifest and Kotlin.
+// Q-261014-29 adds image/audio SEND reception. ShareMediaPackage.kt registers
+// a bounded, one-use local-copy bridge in MainApplication; only actual SEND
+// intents create opaque handles. Photo OCR and audio transcription still need
+// explicit screen actions. Media files are never retained for auth resumption.
 const fs = require("fs");
 const path = require("path");
 const {
@@ -68,9 +72,11 @@ const {
   withAndroidManifest,
   withDangerousMod,
   withMainActivity,
+  withMainApplication,
 } = require("expo/config-plugins");
 
 const contract = require("../src/lib/capture/share-intent-contract.json");
+const mediaContract = require("../src/lib/capture/share-media-contract.json");
 
 const SEND_ACTION = "android.intent.action.SEND";
 const DEFAULT_CATEGORY = "android.intent.category.DEFAULT";
@@ -101,6 +107,17 @@ function setShareTargetIntentFilter(manifest) {
     });
   }
   activity["intent-filter"] = filters;
+  if (!filters.some((filter) =>
+    [SEND_ACTION, "android.intent.action.SEND_MULTIPLE"].every((name) => (filter.action ?? []).some((action) => action.$?.["android:name"] === name)) &&
+    ["image/*", "audio/*"].every((mime) => (filter.data ?? []).some((data) => data.$?.["android:mimeType"] === mime)) &&
+    (filter.category ?? []).some((category) => category.$?.["android:name"] === DEFAULT_CATEGORY)
+  )) {
+    filters.push({
+      action: [SEND_ACTION, "android.intent.action.SEND_MULTIPLE"].map((name) => ({ $: { "android:name": name } })),
+      category: [{ $: { "android:name": DEFAULT_CATEGORY } }],
+      data: ["image/*", "audio/*"].map((mime) => ({ $: { "android:mimeType": mime } })),
+    });
+  }
   return manifest;
 }
 
@@ -241,7 +258,7 @@ function applyShareTargetToMainActivity(contents, language) {
     comment: "    //",
     anchor: /super\.onCreate\(/,
     offset: 0,
-    newSrc: `    ${HELPER_CLASS}.routeToCapture(intent, savedInstanceState != null)`,
+    newSrc: `    ShareMediaIntent.route(this, intent, savedInstanceState != null)\n    ${HELPER_CLASS}.routeToCapture(intent, savedInstanceState != null)`,
   }).contents;
   src = mergeContents({
     src,
@@ -258,7 +275,8 @@ function applyShareTargetToMainActivity(contents, language) {
       "    // reads getIntent(), which would otherwise be the older launch intent.",
       "    // Any other intent (a sign-in or password-reset link included) is not",
       "    // set here, so it reaches React Native exactly as it does without this.",
-      `    if (${HELPER_CLASS}.routeToCapture(intent, false)) {`,
+      "    val mediaShare = ShareMediaIntent.route(this, intent, false)",
+      `    if (${HELPER_CLASS}.routeToCapture(intent, false) || mediaShare) {`,
       "      setIntent(intent)",
       "    }",
       "    super.onNewIntent(intent)",
@@ -293,9 +311,38 @@ function withShareTargetHelperFile(config) {
       const target = path.join(path.dirname(mainActivity), HELPER_FILE);
       const source = renderShareTargetKotlin({ packageName: androidPackage(cfg), scheme: firstScheme(cfg) });
       await fs.promises.writeFile(target, source);
+      await fs.promises.writeFile(path.join(path.dirname(mainActivity), "ShareMediaPackage.kt"),
+        renderShareMediaKotlin({ packageName: androidPackage(cfg), scheme: firstScheme(cfg) }));
       return cfg;
     },
   ]);
+}
+
+function renderShareMediaKotlin({ packageName, scheme }) {
+  if (!PACKAGE_RE.test(packageName) || !SCHEME_RE.test(scheme)) throw new Error("Invalid media share config");
+  let source = fs.readFileSync(path.join(__dirname, "android", "ShareMediaPackage.kt"), "utf8");
+  const tokens = {
+    PACKAGE_NAME: packageName, SCHEME: scheme, HOST: mediaContract.host, MODULE: mediaContract.module,
+    MAX_AUDIO: mediaContract.maxAudioBytes, MAX_IMAGE: mediaContract.maxImageBytes,
+    MAX_PREPARED: mediaContract.maxPreparedImageBytes, MAX_PIXELS: mediaContract.maxImagePixels,
+    MAX_SIDE: mediaContract.imageMaxSide, TTL_MS: mediaContract.ttlMs, COPY_TIMEOUT_MS: mediaContract.copyTimeoutMs,
+  };
+  for (const [key, value] of Object.entries(tokens)) source = source.replaceAll(`__${key}__`, String(value));
+  if (/__[A-Z_]+__/.test(source)) throw new Error("Unresolved media share template token");
+  return source;
+}
+
+function applyShareMediaToMainApplication(contents, language) {
+  if (language !== "kt") throw new Error("Share media requires a Kotlin MainApplication");
+  const anchor = /PackageList\(this\)\.packages\.apply\s*\{/;
+  return CodeGenerator.mergeContents({
+    src: contents,
+    tag: "share-media-package",
+    comment: "        //",
+    anchor,
+    offset: 1,
+    newSrc: "          add(ShareMediaPackage())",
+  }).contents;
 }
 
 module.exports = function withAndroidShareTarget(config) {
@@ -306,9 +353,15 @@ module.exports = function withAndroidShareTarget(config) {
   config = withShareTargetManifest(config);
   config = withShareTargetMainActivity(config);
   config = withShareTargetHelperFile(config);
+  config = withMainApplication(config, (cfg) => {
+    cfg.modResults.contents = applyShareMediaToMainApplication(cfg.modResults.contents, cfg.modResults.language);
+    return cfg;
+  });
   return config;
 };
 module.exports.setShareTargetIntentFilter = setShareTargetIntentFilter;
 module.exports.applyShareTargetToMainActivity = applyShareTargetToMainActivity;
 module.exports.renderShareTargetKotlin = renderShareTargetKotlin;
 module.exports.HELPER_FILE = HELPER_FILE;
+module.exports.renderShareMediaKotlin = renderShareMediaKotlin;
+module.exports.applyShareMediaToMainApplication = applyShareMediaToMainApplication;

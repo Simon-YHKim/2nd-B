@@ -19,15 +19,23 @@ export function answerDisposition(text: string, locale: "en" | "ko"): AnswerDisp
   return isNonAnswer(text, locale) ? "uncertain" : "answer";
 }
 
-/** Conservative sufficiency, not an intimacy/length score. One feeling word can suffice;
- * a bare place/name does not yet introduce an event. The model can only veto this gate. */
+// Q4 (2026-10-07): only known bare places are rejected locally in the fact layer.
+// Unknown names/places are model candidates; do not infer them from length or spelling.
+const BARE_FACT_PLACES = new Set([
+  "집", "학교", "회사", "사무실", "도서관", "office", "at the office", "in the office",
+]);
+
+/** Local candidacy, not a semantic judgement or immediate credit. Short answers,
+ * numbers and emoji reach the model. Q5's missing-verdict fallback stays separate. */
 export function canCreditAnswer(text: string, layer: DrillLayer, locale: "en" | "ko"): boolean {
   if (answerDisposition(text, locale) !== "answer") return false;
   const compact = text.replace(/[\s\p{P}\p{S}]+/gu, "").toLowerCase();
   if (/^(네|예|응|아니|아니요|음|어|yes|no|ok|okay|yeah|hmm|sure)$/.test(compact)) return false;
-  if (compact.length < 2) return false;
-  if (layer === "feeling") return true;
-  return compact.length >= (locale === "ko" ? 8 : 14);
+  // Symbols (including emoji) must not become empty merely because the legacy
+  // exact-choice normalization above removes them.
+  if (/^[\s\p{P}]*$/u.test(text)) return false;
+  const normalized = text.trim().replace(/\s+/gu, " ").toLowerCase();
+  return layer !== "fact" || !BARE_FACT_PLACES.has(normalized);
 }
 
 /** Only an explicit topic change starts another scene. Old turns remain in the saved
@@ -41,5 +49,8 @@ export function currentScene(history: readonly InterviewTurn[]): InterviewTurn[]
 export function confirmedAnswer(
   text: string, askedLayer: DrillLayer, locale: "en" | "ko", judgedLayer: DrillLayer | null | undefined,
 ): boolean {
-  return canCreditAnswer(text, askedLayer, locale) && judgedLayer === askedLayer;
+  // Q5 (2026-10-07): a successful response without a verdict follows the local
+  // judgement. Explicit none and another named layer cannot award this layer.
+  return canCreditAnswer(text, askedLayer, locale)
+    && (judgedLayer === undefined || judgedLayer === askedLayer);
 }

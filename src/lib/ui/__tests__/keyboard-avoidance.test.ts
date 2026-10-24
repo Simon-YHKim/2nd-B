@@ -276,9 +276,9 @@ describe("경계 - 화면은 키보드 영역 하나로만 피한다", () => {
   test("영역은 플랫폼마다 정해진 일만 한다", () => {
     const helper = fs.readFileSync(path.join(ROOT, HELPER), "utf8");
     expect(helper).toContain("keyboardAvoidanceMode(Platform.OS)");
-    // iOS: 예전 그대로 RN KeyboardAvoidingView + padding + 화면이 준 오프셋.
+    // iOS: RN padding 에 화면 좌표계에 맞춘 부모 원점을 전달한다.
     expect(helper).toContain("behavior={IOS_KEYBOARD_BEHAVIOR}");
-    expect(helper).toContain("keyboardVerticalOffset={iosKeyboardVerticalOffset}");
+    expect(helper).toContain("keyboardVerticalOffset={iosKeyboardOffset(iosKeyboardVerticalOffset, frameOffset, iosOffsetCoordinateSpace)}");
     // Android: 키보드 윗변과 뷰의 절대 아래 끝을 직접 비교한다.
     expect(helper).toContain('Keyboard.addListener("keyboardDidShow"');
     expect(helper).toContain('Keyboard.addListener("keyboardDidHide"');
@@ -322,7 +322,7 @@ describe("배선 - /capture 모든 방식에서 저장 버튼이 키보드를 �
   });
 
   test("iOS와 Android 모두 입력 스크롤과 저장 행을 함께 띄운다", () => {
-    const areaStart = capture.indexOf("<KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset}>");
+    const areaStart = capture.indexOf('<KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset} iosOffsetCoordinateSpace="window">');
     const scrollEnd = capture.indexOf("</ScrollView>");
     const save = capture.indexOf("<View ref={saveCoachTargetRef}");
     expect(areaStart).toBeGreaterThan(0);

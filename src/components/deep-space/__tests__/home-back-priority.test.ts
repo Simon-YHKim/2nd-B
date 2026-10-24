@@ -80,6 +80,9 @@ describe("R3-3 home Back composition matrix", () => {
   test("the complete registration inventory preserves other home owners and their separation", () => {
     const inventory: Record<string, number> = {
       "app/+not-found.tsx": 1, "app/capture.tsx": 1, "app/onboarding.tsx": 1, "app/people.tsx": 2,
+      // The native lock consumes Back while covered; its lifecycle is exercised
+      // by device-lock-gate.test.ts without replacing the home owners below.
+      "components/auth/DeviceLockGate.tsx": 1,
       "components/dashboard/DashboardPhone.tsx": 1,
       "components/deep-space/DeepSpaceScreen.tsx": 1, "components/deep-space/HomeCoachmarks.tsx": 1,
       "components/deep-space/PocketPhone.tsx": 1, "components/deep-space/StarCapture.tsx": 1,

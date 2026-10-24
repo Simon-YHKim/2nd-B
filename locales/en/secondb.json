@@ -1,7 +1,7 @@
 {
   "title": "HustleK",
   "subtitle": "Ask about your wiki. See which pages each answer refers to.",
-  "empty": "Ask a question. Try: \"What topics did I write about most this month?\"",
+  "empty": "Ask a question. Try: \"What topics are covered in my wiki?\"",
   "placeholder": "Ask HustleK...",
   "composerPlaceholder": "Message…",
   "inputA11y": "Ask {{name}}",
@@ -12,11 +12,11 @@
   "viewPlans": "View plans",
   "viewPlansHint": "Opens the plans screen",
   "serverLimitReached": "This account has reached today's chat limit. Limits reset at midnight KST.",
-  "reference_piece_meta": "referenced piece",
+  "reference_piece_meta": "referenced record",
   "heroSpeech": {
-    "sending": "Reading relevant records…",
+    "sending": "Reading relevant wiki pages…",
     "divergent": "Considering other possibilities…",
-    "default": "What would you like to know about your records?"
+    "default": "What would you like to know about the wiki built from your records?"
   },
   "personaHero": {
     "speech": "Here are things that come up often in your records. Check whether they fit you."
@@ -32,7 +32,7 @@
       "role": "Empathy",
       "lensName": "HustleK",
       "tag": "HustleK",
-      "desc": "Answers using your own records"
+      "desc": "Answers from your wiki of records"
     },
     "meta": {
       "name": "Fact-K",
@@ -40,7 +40,7 @@
       "systemHint": "Persona: Fact-K. Keep every grounding, citation, and safety rule. Focus on facts and point out patterns supported by concrete numbers and dates in the user's records. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful.",
       "lensName": "Fact-K",
       "tag": "Fact-K",
-      "desc": "Looks at the facts in your records"
+      "desc": "Facts from your wiki of records"
     },
     "twi": {
       "name": "Joy-K",
@@ -48,7 +48,7 @@
       "systemHint": "Persona: Joy-K. Keep every grounding, citation, and safety rule. Suggest other possibilities based on the user's own records, and clearly separate facts from imagined scenarios. If useful, describe how they could try one suggestion. Avoid a fixed closing formula. Use plain, everyday language. Avoid elaborate metaphors, exaggerated praise, and formulaic empathy. Ask a question only when it is useful.",
       "lensName": "Joy-K",
       "tag": "Joy-K",
-      "desc": "Finds other possibilities in your records"
+      "desc": "Other ideas from your wiki of records"
     }
   },
   "replyFailed": "Could not get a reply. Please try again in a moment.",
@@ -71,10 +71,10 @@
     "transcribeFailed": "Couldn't turn that recording into text. Try again, or type your message.",
     "transcriptEmpty": "We couldn't make out any words. Try again closer to the microphone, or type it."
   },
-  "closeReferenced": "Close referenced pieces",
-  "closeReferencedHint": "Closes the list of referenced pieces",
-  "piecesReferenced": "Pieces referenced",
-  "piecesReferencedBody": "The pieces used in this answer. Open one to read it.",
+  "closeReferenced": "Close referenced records",
+  "closeReferencedHint": "Closes the list of referenced records",
+  "piecesReferenced": "Records referenced",
+  "piecesReferencedBody": "The records used in this answer. Open one to read it.",
   "closeChip": "Close",
   "eyebrow": "06. HustleK chat",
   "newPerspectives": "Try another view",
@@ -84,13 +84,14 @@
   "copyFailed": "Copy failed. Select the text to copy it.",
   "keepFailed": "Could not confirm the save. Check your wiki, then tap Keep to wiki again.",
   "aboutNode": "About '{{node}}': ",
-  "drewOnPieces": "This answer used {{n}} pieces. Tap to see them.",
+  "drewOnPieces": "This answer used {{n}} records. Tap to see them.",
   "nSources": "{{n}} sources",
   "captureBranch": "Capture: {{branch}}",
   "askLens": "Ask {{lens}}…",
   "nPieces": "{{n}} pieces",
   "chatSaveNotice": "This conversation is not being saved",
   "chatSaveNoticeOpen": "Open settings",
+  "chatSaveNoticeOpenLabel": "Open settings",
   "chatSaveNoticeDismiss": "Dismiss",
   "planSuggestion": {
     "routineButton": "Make a routine",

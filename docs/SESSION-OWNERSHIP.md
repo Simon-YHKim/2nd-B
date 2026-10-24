@@ -31,6 +31,33 @@
 서버 쪽이 콘솔 소유이고 클라이언트 쪽이 코딩 세션 소유이므로, 이 순서는
 **두 세션 사이의 순서**다. 클라이언트를 머지하는 쪽이 서버 배포가 끝났는지 확인한다.
 
+#### T39 대화 허가 모드: 서버 확인 뒤 enforce
+
+Q-261021-04(8판)의 E1-Ec는 env 레버와 적용 절차를 준비하며 워크플로 실행은 0회다.
+코디네이터(Claude Code 2ndb-4e)는 S0a 양성 기록과 독립 검토 PASS · 새 medium 0 ·
+CI 초록을 확인해 E1-Ec는 Relay 적용일 전에, E1-Ea는 Relay가 E1-S를 적용한 날에
+머지한다(openai-proxy가 새 함수를 부르므로 `deploy-edge-function.yml`의 스키마 게이트가
+운영에 그 함수가 있을 때만 배포를 통과시킨다. 먼저 머지하면 그때까지 openai-proxy의 다른
+배포도 막힌다). 운영 적용 · 배포 · 레버 실행을 시작하기 전에 코디네이터가
+`_sync/TO-CLI.md`에 "적용 중"(또는 "배포 중")을 올리고 끝나면 "완료"로 내린다. 운영 적용
+담당 Relay는 E1-S의 적용·함수 서명·service_role 전용 권한을 확인하고, OpenAI Edge 배포와
+legacy 동작 확인(코디네이터가 QA 계정으로 실모델 2회 이내)을 마친 뒤에만 main의 `.github/workflows/edge-flag-set.yml`에서
+`flag=CHAT_TURN_ADMISSION_MODE`, `value=enforce`, 적용 사유 `reason`을 지정한다.
+Production 승인과 `supabase-production-mutations` 직렬 실행, 최신 main 확인 및 적용 직전
+재확인을 거쳐 Production의 `PRODUCTION_SUPABASE_PROJECT_REF`가 가리키는 Supabase
+프로젝트의 Edge secret/env를 바꾼다. GitHub 저장소 Variable이나 앱 빌드 설정을 바꾸는
+절차가 아니다. 입력 UI의 값 목록은 공통이지만 실행 시 Paddle 두 플래그는 `0|1`,
+대화 허가 모드는 `legacy|enforce`만 허용하며 적용 후 선택한 플래그의 digest를 확인한다.
+이후 코디네이터가 제한 하네스로 대화·목적 두 카운터, 오류, 혼합 버전을 확인해야 B1을
+활성화하고, B2는 별도 검증 뒤 활성화한다. 되돌림은 Relay가 같은 워크플로에서
+`CHAT_TURN_ADMISSION_MODE=legacy`로 설정하고 digest와 legacy 동작을 확인한다.
+미설정·알 수 없는 값의 legacy 폴백은 E1-Ea의 서버 계약이며, 이 워크플로는 그런 값을
+설정하지 않는다. 되돌림 창의 재차감 가능성은 8판의 수용 잔여이고 자동 보상은 없다.
+되돌림 뒤에도 남는 것: enforce 동안 커밋된 시도 등록과 목적 차감은 그대로이고, B1이 켜진
+상태의 legacy에서는 명시적 재질문이 409가 되어 다음 클릭에 일반 차감 재시도로 넘어간다.
+E1-S를 down 마이그레이션으로 지우지 않는다(지우면 스키마 게이트 때문에 openai-proxy를
+다시 배포할 수 없다).
+
 #### Paddle 환불 무결성 draft: 웹훅을 끈 상태에서만 교체
 
 `db/migration-drafts/UNNUMBERED_paddle_refund_consequence_integrity.sql`은 DB 함수와
@@ -120,7 +147,11 @@ migration과 현재 Edge 함수가 모두 정상인 상태를 만든 뒤에만 �
    - `claim_reward_ssv_issue_rate_limit(uuid)`
    - `issue_reward_ssv_ticket(uuid,text,text,text,integer,text)`
    - `claim_reward_ssv_callback_attempt(text,text,text,integer,text)`
-   - `settle_reward_ssv_ticket_v2(text,text,text,integer,text)`
+   - `settle_reward_ssv_ticket_v3(text,text,text,integer,text,bigint)` (0213 · 2026-10-15 운영 Edge v104도 호출 확인).
+     0214 뒤로 `settle_reward_ssv_ticket_v2(text,text,text,integer,text)` 는 v3 안에서만 쓰이고
+     `service_role` 도 직접 실행할 수 없어야 한다(0214는 v2를 통한 신선도 검사 우회를 닫는다).
+     기존 `grant_reward_credits_ssv`·`grant_chat_ad_bonus_ssv`의 service_role 직접 권한은 별도 잔여
+     경로다. [재대조와 후속](handoff/SSV-RECHECK-261015.md)을 함께 확인한다.
    기존 `consume_reward_ssv_ticket(text,uuid,text,text,integer,text)`와
    `grant_chat_ad_bonus(uuid)`·`bump_reward_credits_if_under_cap(uuid,text,integer)`는
    공개 역할과 `service_role` 모두 실행할 수 없어야 한다. 함수 이름 존재만으로 0172 적용을

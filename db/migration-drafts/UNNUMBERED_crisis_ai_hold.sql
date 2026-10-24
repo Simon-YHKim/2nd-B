@@ -1,7 +1,9 @@
 -- D4 (2026-10-07 01:20): keep the person's record, skip later AI processing.
 -- Unnumbered preparation only. Do not apply to production or activate readers
 -- until the complete reader inventory and rollout in the accompanying design
--- are verified. 0225 must already be applied. This file is NOT a full D4 rollout.
+-- are verified. 0225 and 0263 must already be applied. Applying this SQL alone
+-- immediately holds known RED records and clears their vectors, including new
+-- inserts from old apps. No UI change. This file is NOT a full D4 rollout.
 -- No raw text scan, external request, new content copy, or unhold operation.
 SET LOCAL lock_timeout = '10s';
 
@@ -13,6 +15,17 @@ BEGIN
       AND attname = 'interview_ai_hold' AND NOT attisdropped
   ) THEN
     RAISE EXCEPTION 'crisis_ai_hold: 0225 interview hold is required';
+  END IF;
+  IF (SELECT count(*) FROM pg_catalog.pg_trigger t
+      JOIN pg_catalog.pg_proc p ON p.oid = t.tgfoid
+      WHERE t.tgrelid = 'public.records'::regclass AND NOT t.tgisinternal
+        AND t.tgenabled = 'O' AND (
+          (t.tgname = 'zz_records_embedding_delete_guard'
+            AND p.oid = pg_catalog.to_regprocedure('public.guard_record_embedding_delete()') AND t.tgtype = 19)
+          OR (t.tgname = 'zz_records_embedding_write_guard'
+            AND p.oid = pg_catalog.to_regprocedure('public.guard_record_embedding_write()') AND t.tgtype = 23)
+        )) <> 2 THEN
+    RAISE EXCEPTION 'crisis_ai_hold: active 0263 record embedding guards are required';
   END IF;
 END;
 $prerequisites$;
@@ -52,6 +65,28 @@ REVOKE ALL ON FUNCTION public.guard_record_ai_hold() FROM PUBLIC, anon, authenti
 DROP TRIGGER IF EXISTS guard_record_ai_hold ON public.records;
 CREATE TRIGGER guard_record_ai_hold BEFORE INSERT OR UPDATE ON public.records
   FOR EACH ROW EXECUTE FUNCTION public.guard_record_ai_hold();
+
+-- BEFORE row triggers run by name, and WHEN sees changes from earlier triggers:
+-- guard_record_ai_hold -> zz_records_embedding_delete_guard (0263 restores an
+-- allowed adult's complete OLD pair) -> zz_records_embedding_write_guard -> us.
+-- 0263 has no hold exception: do not spoof consent/age/owner, replace its
+-- functions, or disable/rebind its triggers to manufacture an allowed delete.
+-- Keep all of its checks, then narrow the final row to D4's held subset only.
+-- INVOKER, no table lookup/update, no recursive write or new locking order.
+CREATE OR REPLACE FUNCTION public.guard_record_ai_hold_embedding()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+BEGIN
+  IF NEW.ai_hold THEN
+    NEW.embedding := NULL;
+    NEW.embedding_model := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.guard_record_ai_hold_embedding() FROM PUBLIC, anon, authenticated, service_role;
+DROP TRIGGER IF EXISTS zzz_records_ai_hold_embedding_guard ON public.records;
+CREATE TRIGGER zzz_records_ai_hold_embedding_guard BEFORE INSERT OR UPDATE ON public.records
+  FOR EACH ROW EXECUTE FUNCTION public.guard_record_ai_hold_embedding();
 
 CREATE OR REPLACE FUNCTION public.guard_source_ai_hold()
 RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
@@ -102,9 +137,11 @@ CREATE TRIGGER guard_wiki_page_ai_hold BEFORE INSERT OR UPDATE ON public.wiki_pa
   FOR EACH ROW EXECUTE FUNCTION public.guard_wiki_page_ai_hold();
 
 -- Existing authoritative record flags, not a new interpretation of raw text.
--- No source/page backfill is inferred from tags, titles, or prose.
+-- No source/page backfill is inferred from tags, titles, or prose. Also repair
+-- residual vectors left on already-held rows by an earlier draft + 0263.
 UPDATE public.records SET ai_hold = true
-WHERE NOT ai_hold AND (interview_ai_hold OR ai_followup ->> 'zone' = 'red');
+WHERE (ai_hold OR interview_ai_hold OR ai_followup ->> 'zone' = 'red')
+  AND (NOT ai_hold OR embedding IS NOT NULL OR embedding_model IS NOT NULL);
 
 -- These views are for future AI readers only. The user's own detail/export
 -- readers must keep using the original tables. Missing views must fail closed;

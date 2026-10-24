@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "forwardMigration": "UNNUMBERED: registry additions must accompany future authority rollout",
+  "tables": {
+    "interview_content_authority": {
+      "owner": "owner_id",
+      "class": "retained",
+      "reason": "Content generation and barrier metadata prevents old interview work from regaining write authority. Content deletion retains it; account deletion cascades through auth.users. No body or token."
+    },
+    "interview_content_wipes": {
+      "owner": "owner_id",
+      "class": "retained",
+      "reason": "Immutable content-wipe request and generation binding prevents replaying an old barrier as a new deletion. Content deletion retains it; account deletion cascades through auth.users. S1 has no executor or completion state."
+    },
+    "interview_work_contracts": {
+      "owner": "owner_id",
+      "class": "retained",
+      "reason": "Immutable interview work keys outlive session folding and deletion to prevent recreation. Content deletion retains minimal control metadata; record/intent erasure must remove snapshot_digest under the S2 hook before activation. Account deletion cascades through auth.users."
+    }
+  },
+  "activationBlockers": [
+    "Registry candidate is validated but not installed by S1.",
+    "S2 must wire digest erasure and terminal work transitions to every close/fold/discard/record deletion path.",
+    "Retention policy, exact wipe executor scope and protocol cutover remain separate reviewed work."
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "title": "HustleK",
   "subtitle": "Tanya tentang wikimu. Jawaban menyertakan halaman yang digunakan.",
-  "empty": "Mulai percakapan. Misalnya: \"Topik apa yang berulang dalam catatanku bulan ini?\"",
+  "empty": "Ajukan pertanyaan. Misalnya: \"Topik apa saja yang ada di wikiku?\"",
   "placeholder": "Tanyakan ke HustleK...",
   "composerPlaceholder": "Pesan…",
   "inputA11y": "Tanyakan ke {{name}}",
@@ -14,9 +14,9 @@
   "serverLimitReached": "Akun ini telah mencapai batas obrolan hari ini. Batas direset pada tengah malam waktu Korea (KST).",
   "reference_piece_meta": "catatan yang dirujuk",
   "heroSpeech": {
-    "sending": "Sedang membaca catatan yang terkait.",
+    "sending": "Sedang membaca halaman wiki yang terkait…",
     "divergent": "Sedang mempertimbangkan kemungkinan lain.",
-    "default": "Apa yang ingin kamu bahas dari catatanmu?"
+    "default": "Apa yang ingin kamu ketahui tentang wiki yang disusun dari catatanmu?"
   },
   "personaHero": {
     "speech": "Lihat pola yang berulang di catatanmu."
@@ -32,7 +32,7 @@
       "role": "Empati",
       "lensName": "HustleK",
       "tag": "HustleK",
-      "desc": "Asisten yang menggunakan catatanmu sebagai konteks"
+      "desc": "Menjawab dari wiki catatanmu"
     },
     "meta": {
       "name": "Fact-K",
@@ -40,7 +40,7 @@
       "systemHint": "Persona: Fact-K. Pertahankan semua aturan sumber, kutipan, dan keamanan. Fokus pada fakta serta pola yang didukung angka dan tanggal dalam catatan pengguna. Gunakan bahasa sehari-hari dan kalimat yang jelas. Hindari metafora berlebihan, pujian yang dibuat-buat, dan ungkapan empati yang klise. Ajukan pertanyaan hanya jika berguna.",
       "lensName": "Fact-K",
       "tag": "Fact-K",
-      "desc": "Melihat pola berdasarkan catatanmu"
+      "desc": "Fakta dari wiki catatanmu"
     },
     "twi": {
       "name": "Joy-K",
@@ -48,7 +48,7 @@
       "systemHint": "Persona: Joy-K dari PolaScope. Pertahankan semua aturan landasan, kutipan, dan keamanan. Jelajahi beberapa kemungkinan \"bagaimana jika\" berdasarkan catatan pengguna. Gunakan bahasa sehari-hari. Hindari pujian umum, metafora berlebihan, dan pertanyaan atau saran penutup yang dipaksakan.",
       "lensName": "Joy-K",
       "tag": "Joy-K",
-      "desc": "Mencoba sudut lain dari catatanmu"
+      "desc": "Sudut lain dari wiki catatanmu"
     }
   },
   "replyFailed": "Tidak bisa mendapatkan balasan. Coba lagi sebentar lagi.",
@@ -91,6 +91,7 @@
   "nPieces": "{{n}} serpihan",
   "chatSaveNotice": "Percakapan ini tidak disimpan",
   "chatSaveNoticeOpen": "Buka pengaturan",
+  "chatSaveNoticeOpenLabel": "Buka pengaturan",
   "chatSaveNoticeDismiss": "Tutup",
   "planSuggestion": {
     "routineButton": "Buat rutinitas",

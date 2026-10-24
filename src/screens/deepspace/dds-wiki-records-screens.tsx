@@ -14,7 +14,7 @@ import { PixelSurface } from "@/components/pixel/PixelSurface";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { m3 } from "@/lib/theme/m3";
 import { stripDomainTags } from "@/lib/persona/domain-stars";
-import { loadRoleCards, roleEvidenceIds, type RoleCard } from "@/lib/persona/role-cards";
+import { useRoleEvidenceRead } from "@/lib/persona/use-role-evidence-read";
 import { ddsStyles as styles } from "./dds-styles";
 import { Text } from "@/components/ui/Text";
 // Button / PremiumModal / SecondbHead left with DeepSpaceRecordDetailScreen when
@@ -26,14 +26,17 @@ import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureAccountOwnerLease, currentAccountEpoch, isCurrentAccountEpoch, subscribeAccountTransition } from "@/lib/auth/account-epoch";
+import { isTimeoutError, withTimeout } from "@/lib/async/with-timeout";
 import { useAppRouter, useHardwareBack, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
-import { listRecordsByIds } from "@/lib/records/create";
 import { SEVEN_STARS } from "@/lib/persona/seven-stars";
 import { listAllRecords } from "@/lib/records/list-all-records";
 import { buildRoleRecordsGraph } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
-import { getWikiPageById, listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
+import { hasCaptureMarker, isReasoningRatified } from "@/lib/records/system-tags";
+import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
+import { useFocusedWikiPage } from "@/lib/wiki/use-focused-wiki-page";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { buildDeepWikiView, type WikiEdge } from "./wiki-graph-view";
 import { buildRecordsTimeline, type TimelineLabels, type TimelineRecord } from "./records-timeline";
@@ -73,47 +76,56 @@ function dsTimeLabels(t: Tx): TimelineLabels {
  *  were loaded under. */
 interface OwnedWikiRows {
   ownerId: string | null;
+  epoch: number;
+  attempt: number;
+  status: "ready" | "error" | "timeout";
   pages: WikiPageRow[];
   edges: WikiEdge[];
 }
 
 /** Shared so an owner mismatch returns a stable reference and costs no re-render. */
-const NO_WIKI_ROWS: OwnedWikiRows = { ownerId: null, pages: [], edges: [] };
+const NO_WIKI_ROWS: OwnedWikiRows = { ownerId: null, epoch: -1, attempt: -1, status: "ready", pages: [], edges: [] };
+export const WIKI_PAGES_READ_TIMEOUT_MS = 10_000;
 
 function useWikiGraphData() {
   const { userId, loading: authLoading } = useAuth();
+  const accountEpoch = currentAccountEpoch();
+  const [attempt, setAttempt] = useState(0);
   const [held, setHeld] = useState<OwnedWikiRows>(NO_WIKI_ROWS);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || authLoading) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease || lease.epoch !== accountEpoch) return;
     let alive = true;
-    setLoading(true);
-    Promise.all([
+    // Pages and links are one snapshot. Missing links must not look like zero
+    // connections, and a missing page list must not look like an empty library.
+    const work = Promise.all([
       listWikiPages(userId, { limit: 200 }),
-      listAllWikiLinks(userId).catch(() => [] as WikiEdge[]),
-    ])
+      listAllWikiLinks(userId),
+    ]);
+    void withTimeout(work, WIKI_PAGES_READ_TIMEOUT_MS, "Wiki pages")
       .then(([p, e]) => {
-        if (!alive) return;
-        setHeld({ ownerId: userId, pages: p, edges: e });
+        if (!alive || !lease.isCurrent()) return;
+        setHeld({ ownerId: userId, epoch: accountEpoch, attempt, status: "ready", pages: p, edges: e });
       })
-      .catch(() => {
-        if (!alive) return;
-        setHeld({ ownerId: userId, pages: [], edges: [] });
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
+      .catch((error: unknown) => {
+        if (!alive || !lease.isCurrent()) return;
+        setHeld({ ownerId: userId, epoch: accountEpoch, attempt, status: isTimeoutError(error) ? "timeout" : "error", pages: [], edges: [] });
       });
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [accountEpoch, attempt, authLoading, userId]);
 
   // Read back only for the owner they were loaded under. The effect above overwrites
   // `held` only once the network answers, so without this the previous account's rows
   // would be what the screen draws for the whole refetch window.
-  const owned = held.ownerId !== null && held.ownerId === userId ? held : NO_WIKI_ROWS;
-  return { userId, authLoading, pages: owned.pages, edges: owned.edges, loading };
+  const owned = held.ownerId !== null && held.ownerId === userId && held.epoch === accountEpoch && held.attempt === attempt ? held : NO_WIKI_ROWS;
+  const loading = owned === NO_WIKI_ROWS;
+  const loadError = !loading && owned.status !== "ready" ? owned.status : null;
+  const retry = useCallback(() => setAttempt((previous) => previous + 1), []);
+  return { userId, authLoading, pages: owned.pages, edges: owned.edges, loading, loadError, retry };
 }
 
 function GraphLoading() {
@@ -160,6 +172,15 @@ export function FilterChip({ label, active, violet, onPress }: { label: string; 
 type RType = "text" | "link" | "voice" | "photo" | "todo";
 type RecordsOrigin = "record" | "source";
 type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string; audit_period?: string | null };
+export const WIKI_LIST_READ_TIMEOUT_MS = 10_000;
+const NO_RECORDS: RecordsTimelineRecord[] = [];
+interface RecordsRead {
+  ownerId: string;
+  epoch: number;
+  reloadKey: number;
+  rows: RecordsTimelineRecord[];
+  failed: boolean;
+}
 
 const TYPE_CHIPS: { id: RType | "all" | "unfiled"; labelKey: string }[] = [
   { id: "all", labelKey: "records.filterAll" },
@@ -181,13 +202,13 @@ function recordType(r: TimelineRecord): RType {
   const has = (...k: string[]) => k.some((x) => tags.includes(x));
   if (r.kind === "audit_response") return "todo";
   const hay = `${r.topic ?? ""} ${r.summary ?? ""} ${r.body ?? ""}`;
-  if (has("link", "링크", "url") || URL_RE.test(hay)) return "link";
-  if (has("voice", "음성") || DUR_RE.test(hay)) return "voice";
+  if (hasCaptureMarker(r, "link") || has("링크", "url") || URL_RE.test(hay)) return "link";
+  if (hasCaptureMarker(r, "voice") || has("음성") || DUR_RE.test(hay)) return "voice";
   if (has("photo", "사진", "image", "이미지")) return "photo";
   return "text";
 }
 function isUnfiled(r: TimelineRecord): boolean {
-  return stripDomainTags(r.tags ?? []).length === 0;
+  return stripDomainTags(r.tags ?? []).length === 0 && !isReasoningRatified(r);
 }
 function timelineTitle(r: TimelineRecord, fallback: string): string {
   const s = r.summary?.trim() || r.topic?.trim();
@@ -294,16 +315,17 @@ export function DeepSpaceRecordsScreen() {
     }
     return null;
   }, [tagFilter]);
-  const [records, setRecords] = useState<RecordsTimelineRecord[]>([]);
-  const [roleCards, setRoleCards] = useState<RoleCard[]>([]);
-  const [roleEvidenceRecords, setRoleEvidenceRecords] = useState<RecordsTimelineRecord[]>([]);
-  const [roleCardsUserId, setRoleCardsUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const accountEpoch = currentAccountEpoch();
+  const [recordsRead, setRecordsRead] = useState<RecordsRead | null>(null);
   // Bumped to re-run the load: on focus re-entry (useFocusRefetch) and on the
-  // error-state retry. The effect's alive-flag cleanup cancels any in-flight
-  // read before the next one commits, so overlapping loads never race.
+  // error-state retry. Rows belong to that request's owner, epoch and retry,
+  // so stale rows disappear in render before the next effect even starts.
   const [reloadKey, setReloadKey] = useState(0);
+  const currentRead = recordsRead?.ownerId === userId && recordsRead.epoch === accountEpoch && recordsRead.reloadKey === reloadKey
+    ? recordsRead : null;
+  const records = currentRead?.rows ?? NO_RECORDS;
+  const loading = currentRead === null;
+  const loadError = currentRead?.failed ?? false;
   const [typeFilter, setTypeFilter] = useState<RType | "all" | "unfiled">("all");
   // PIXEL-CLAY `records` is the connection map. Keep the real, virtualized list
   // one tap away instead of replacing it with the reference's sample corpus.
@@ -333,95 +355,52 @@ export function DeepSpaceRecordsScreen() {
   useHardwareBack(backToStar);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || authLoading) return;
     let alive = true;
-    setLoading(true);
-    setLoadError(false);
+    const controller = new AbortController();
+    const current = () => alive && !controller.signal.aborted && isCurrentAccountEpoch(accountEpoch);
+    const unsubscribe = subscribeAccountTransition(() => {
+      if (!isCurrentAccountEpoch(accountEpoch)) controller.abort();
+    });
     // /records shows EVERY saved piece — including non-journal Capture/Import
-    // (글/링크/사진/file) that land in `sources`, not just `records` — so a
-    // source-only user no longer sees a false-empty list. Sources are
-    // best-effort: a sources failure degrades to records-only and never blanks
-    // the screen (mirrors core-brain's merged evidence read). Source rows keep
-    // their DB id for detail navigation while the list id stays collision-free.
-    (async () => {
-      // The canonical records read is NOT coerced to [] on failure. Doing so
-      // rendered the genuine-empty state ("아직 기록이 없어요" + 담기 CTA) to a
-      // user whose network/Supabase call merely failed — telling someone with
-      // records that they have none. A records-read failure is a distinct error
-      // state (retry) instead. Sources stay best-effort (source-only users still
-      // merge in below), so only the primary records read gates the error.
-      let recs: RecordsTimelineRecord[] = [];
-      let recordsFailed = false;
-      try {
-        // Every record, not the 90-day window listRecentRecords keeps for the streak: a record
-        // older than that was never asked for and so never listed (2026-10-14).
-        recs = (await listAllRecords(userId)) as RecordsTimelineRecord[];
-      } catch {
-        recordsFailed = true;
-      }
-      // Same source of truth as /insights. This read used to live here inline, and
-      // /insights had no equivalent at all -- which is exactly how the two screens came to
-      // disagree about how much the user had captured.
-      let srcRecs: RecordsTimelineRecord[] = [];
-      try {
-        srcRecs = (await listSourcePieces(userId)).map(
-          (s) =>
-            ({
-              id: s.id,
-              origin: "source",
-              sourceId: s.sourceId,
-              kind: "note",
-              summary: s.title,
-              topic: s.title,
-              body: null,
-              tags: s.tags,
-              created_at: s.created_at,
-            }) as RecordsTimelineRecord,
-        );
-      } catch {
-        // records-only fallback (sources stay best-effort)
-      }
-      if (!alive) return;
-      if (recordsFailed) {
-        setLoadError(true);
-        setLoading(false);
-        return;
-      }
+    // (글/링크/사진/file) in sources. Either failed read makes the list unknown,
+    // including a source-only account; a partial result must not look empty.
+    // One deadline bounds the whole paged read and sources, not each page.
+    const work = Promise.all([
+      listAllRecords(userId, { signal: controller.signal }),
+      listSourcePieces(userId),
+    ]).then(([recs, sources]) => {
+      const srcRecs: RecordsTimelineRecord[] = sources.map((s) => ({
+        id: s.id, origin: "source", sourceId: s.sourceId, kind: "note",
+        summary: s.title, topic: s.title, body: null, tags: s.tags, system_tags: s.system_tags, created_at: s.created_at,
+      }));
       const merged = [...recs, ...srcRecs].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-      setRecords(merged);
-      setLoading(false);
-    })();
+      return merged;
+    });
+    void withTimeout(work, WIKI_LIST_READ_TIMEOUT_MS, "Wiki records")
+      .then((rows) => {
+        if (current()) setRecordsRead({ ownerId: userId, epoch: accountEpoch, reloadKey, rows, failed: false });
+      })
+      .catch(() => {
+        if (current()) setRecordsRead({ ownerId: userId, epoch: accountEpoch, reloadKey, rows: NO_RECORDS, failed: true });
+      })
+      .finally(() => { unsubscribe(); controller.abort(); });
     return () => {
       alive = false;
+      unsubscribe();
+      controller.abort();
     };
-  }, [userId, reloadKey]);
+  }, [userId, authLoading, accountEpoch, reloadKey]);
 
   // Reload on focus re-entry so a delete on the record detail (then router.back)
   // is reflected here; the shared helper skips the initial mount, so this never
   // double-loads on first render.
   useFocusRefetch(() => setReloadKey((k) => k + 1), Boolean(userId));
 
-  useEffect(() => {
-    if (!userId) return;
-    let alive = true;
-    loadRoleCards(userId).then(async (cards) => {
-      const evidence = await listRecordsByIds(userId, roleEvidenceIds(cards)).catch(() => []);
-      if (alive) {
-        setRoleCards(cards);
-        setRoleEvidenceRecords(evidence as RecordsTimelineRecord[]);
-        setRoleCardsUserId(userId);
-      }
-    }).catch(() => {
-      if (alive) {
-        setRoleCards([]);
-        setRoleEvidenceRecords([]);
-        setRoleCardsUserId(userId);
-      }
-    });
-    return () => { alive = false; };
-  }, [userId, reloadKey]);
-  const visibleRoleCards = roleCardsUserId === userId ? roleCards : [];
-  const visibleRoleEvidence = roleCardsUserId === userId ? roleEvidenceRecords : [];
+  const roleRead = useRoleEvidenceRead(userId, authLoading, reloadKey,
+    JSON.stringify([recordsParams.tags ?? "", recordsParams.period ?? ""]));
+  const visibleRoleCards = roleRead.pair?.cards;
+  const visibleRoleEvidence = roleRead.pair?.evidence;
 
   // Stable across renders so the memoized RecordCard's onPress prop does not
   // change (React.memo keeps unchanged rows from re-rendering on filter taps).
@@ -458,14 +437,14 @@ export function DeepSpaceRecordsScreen() {
     if (view !== "graph") return [];
     if (tagFilter.length > 0 || typeFilter !== "all") return filtered;
     const byId = new Map(filtered.map((record) => [record.id, record]));
-    visibleRoleEvidence.forEach((record) => byId.set(record.id, record));
+    visibleRoleEvidence?.forEach((record) => byId.set(record.id, record as RecordsTimelineRecord));
     return [...byId.values()];
   }, [view, tagFilter, typeFilter, filtered, visibleRoleEvidence]);
   const recordsGraph = useMemo(
     () =>
       buildRoleRecordsGraph(
         graphSourceRecords,
-        visibleRoleCards,
+        visibleRoleCards ?? [],
         isKo ? "ko" : "en",
         t("home:ds.home.polaris"),
       ),
@@ -497,8 +476,9 @@ export function DeepSpaceRecordsScreen() {
   // Z80 (Simon 2026-10-13): a count that was not read is not zero. While the records read is
   // pending or has failed, the two counts show "..." the way the chat's daily count does.
   const countsUnread = loading || loadError;
+  const graphCountsUnread = countsUnread || roleRead.status !== "ready";
   const graphCount = recordsGraph.nodes.filter((node) => node.kind === "record").length;
-  const graphCountText = countsUnread
+  const graphCountText = graphCountsUnread
     ? `... ${t("domains.unit")}`
     : `${graphCount}${graphCount < graphSourceRecords.length ? ` / ${graphSourceRecords.length}` : ""} ${t("domains.unit")}`;
   const triageTitle = countsUnread
@@ -666,6 +646,19 @@ export function DeepSpaceRecordsScreen() {
             <View style={rStyles.centerState}>{errorState}</View>
           ) : loading ? (
             <View style={rStyles.centerState}><GraphLoading /></View>
+          ) : roleRead.status === "error" || roleRead.status === "timeout" ? (
+            <View style={rStyles.centerState}>
+              <View style={styles.wikiPageOpen}>
+                <Text variant="body" style={styles.wikiBody} accessibilityRole="alert">
+                  {t(roleRead.status === "timeout" ? "common:errors.network" : "common:errors.unknown")}
+                </Text>
+                <PixelPressable onPress={roleRead.retry} accessibilityLabel={t("common:actions.retry")} contentStyle={styles.primary}>
+                  <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
+                </PixelPressable>
+              </View>
+            </View>
+          ) : roleRead.status === "loading" ? (
+            <View style={rStyles.centerState}><GraphLoading /></View>
           ) : graphSourceRecords.length > 0 && recordsGraph.nodes.some((node) => node.kind === "persona") ? (
             <RecordsGraph
               graph={recordsGraph}
@@ -676,7 +669,7 @@ export function DeepSpaceRecordsScreen() {
             <View style={rStyles.centerState}>
               <View style={styles.wikiPageOpen}>
                 <Text variant="body" style={styles.wikiBody}>
-                  {visibleRoleCards.some((card) => card.status === "ratified")
+                  {visibleRoleCards?.some((card) => card.status === "ratified")
                     ? t("core-brain:roleGraphFiltered")
                     : t("core-brain:roleGraphEmpty")}
                 </Text>
@@ -812,86 +805,43 @@ export function DeepSpaceWikiScreen() {
   const floatClear = usePhoneEmbed() ? [styles.wikiFloatClear, NO_FLOAT_CLEAR] : styles.wikiFloatClear;
   const { t, i18n } = useTranslation("deepspace");
   const isKo = i18n.language === "ko";
-  const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
+  const { userId, authLoading, pages, edges, loading, loadError, retry } = useWikiGraphData();
   // Deep-link to one page, by wiki_pages.id. Three screens hold a wiki page id and used
   // to push it at /record/[id], which looks a record up by that id and always 404s -- a
   // page id is not a record id. They send it here instead, which is where it belongs.
   // (The legacy wiki screen has focusSourceId, keyed on source_id; this is the live
   // deep-space screen and it read no params at all.)
   const { focusPageId } = useScreenParams<{ focusPageId?: string }>();
+  const focusRead = useFocusedWikiPage(userId, focusPageId, pages, loading || !!loadError, authLoading);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   // Which page row is expanded. null until the user taps; the first page renders
   // expanded by default (matching the old fixed-open-first behaviour) but any row
   // can now toggle open via its caret.
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const honouredFocusRef = useRef<typeof focusRead.key | null>(null);
+  const [expanded, setExpanded] = useState<{ key: typeof focusRead.key; id: string | null } | null>(null);
+  const expandedId = expanded?.key === focusRead.key ? expanded.id : null;
+  const setExpandedId = useCallback((id: string | null) => {
+    // A manual row/graph choice supersedes an outstanding citation expansion.
+    honouredFocusRef.current = focusRead.key;
+    setExpanded({ key: focusRead.key, id });
+  }, [focusRead.key]);
   // rev2 P4b: list <-> node-graph view. The graph honours the same tag filter;
   // tapping a node twice opens it back in the list (progressive disclosure).
   const [wikiView, setWikiView] = useState<"list" | "graph">("list");
 
-  // A page this screen never loaded. The list is the 200 most recently updated rows
-  // (useWikiGraphData above), and a SecondB citation can name a page well outside that
-  // window: the RAG path retrieves by vector neighbourhood (lib/chat/rag.ts), which has
-  // no recency floor at all. Pinning an id that is not in `pages` pins nothing, so the
-  // deep link used to land silently on the default row - the source card opening
-  // something that is not the source. The absent row is fetched by id and carried
-  // alongside the list instead.
-  //
-  // Carried WITH the account it was fetched for, for the reason OwnedWikiRows gives:
-  // one row of someone's own writing is still their writing, and a bare WikiPageRow
-  // here would be readable by whoever the next published owner turns out to be.
-  const [linkedPage, setLinkedPage] = useState<{ ownerId: string; page: WikiPageRow } | null>(null);
-  // Honoured once per (account, ID) pair, not once per screen. The old guard was
-  // `expandedId !== null`, which meant the second citation opened from the same mounted
-  // /wiki - after any row had been expanded, including by the deep link itself - was
-  // dropped without a trace. The account half is what stops a focus honoured for one
-  // owner from silencing the same id for the next one.
-  const honouredFocusRef = useRef<{ ownerId: string; focusPageId: string } | null>(null);
-
-  // A ?focusPageId= deep link opens that page. Must sit ABOVE the early returns below --
-  // a hook after a conditional return breaks the hook order (react-hooks/rules-of-hooks
-  // caught this). A stale or foreign id still falls back to the default (first page)
-  // rather than leaving every row collapsed.
+  // Mark a citation honoured only after its owned page is known. Later renders
+  // must not reopen it over a row the user deliberately selected.
   useEffect(() => {
-    if (!userId || !focusPageId) return;
-    // The pair, held as two fields rather than one joined key: a UUID is opaque and a
-    // separator that happens to appear in one would silently merge two different pairs.
-    const honoured = honouredFocusRef.current;
-    if (honoured && honoured.ownerId === userId && honoured.focusPageId === focusPageId) return;
-    const honour = { ownerId: userId, focusPageId };
-    if (pages.some((p) => p.id === focusPageId)) {
-      honouredFocusRef.current = honour;
-      setExpandedId(focusPageId);
-      return;
-    }
-    // Absent from the list. Wait for the load to settle before concluding that -- an
-    // id asked for mid-fetch is not yet known to be missing.
-    if (loading) return;
-    honouredFocusRef.current = honour;
-    let alive = true;
-    void getWikiPageById(userId, focusPageId)
-      .then((page) => {
-        if (!alive || !page) return;
-        setLinkedPage({ ownerId: userId, page });
-        setExpandedId(page.id);
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [focusPageId, pages, loading, userId]);
+    if (focusRead.status !== "ready" || !focusRead.page || !focusPageId || honouredFocusRef.current === focusRead.key) return;
+    honouredFocusRef.current = focusRead.key;
+    setExpandedId(focusPageId);
+  }, [focusRead.status, focusRead.page, focusRead.key, focusPageId, setExpandedId]);
 
-  // The fetched row joins the list for every downstream reader, so the tag chips, the
-  // graph and the row list all agree about what exists -- but only for the account it
-  // was fetched for. `pages` is already fenced the same way by useWikiGraphData, so an
-  // owner that does not match reads an empty library rather than the last one's.
+  // Only the current owner/epoch/target's successful row joins the window.
+  const linkedPage = focusRead.page;
   const listedPages = useMemo(
-    () =>
-      linkedPage &&
-      linkedPage.ownerId === userId &&
-      !pages.some((p) => p.id === linkedPage.page.id)
-        ? [linkedPage.page, ...pages]
-        : pages,
-    [pages, linkedPage, userId],
+    () => linkedPage && !pages.some((page) => page.id === linkedPage.id) ? [linkedPage, ...pages] : pages,
+    [pages, linkedPage],
   );
 
   // The page the user asked to open is pinned into the list: the graph draws every page but
@@ -920,13 +870,11 @@ export function DeepSpaceWikiScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  // Default the first page open when nothing is explicitly toggled. An id that is not in
-  // the current view is not a toggle -- it is left over. That happens when a tag filter
-  // hides the open row, and it is also what an account swap leaves behind, so the
-  // fallback is keyed on what is actually drawable rather than on the id being non-null.
+  // A citation must never silently open an unrelated default row while its
+  // target is waiting, failed, missing or hidden by a tag filter.
   const openId = view.pages.some((p) => p.id === expandedId)
     ? expandedId
-    : (view.pages[0]?.id ?? null);
+    : focusPageId ? null : (view.pages[0]?.id ?? null);
 
   // rev2 records: the companion FLOATS over the surface (sb-app), so the body
   // clears its height instead of being pushed by a header band.
@@ -935,8 +883,8 @@ export function DeepSpaceWikiScreen() {
       <View style={floatClear}>
       <DockBody title={t("wiki.title")}>
       <View style={styles.wikiStatRow}>
-        <View style={styles.wikiStat}><Text variant="heading" style={styles.wikiStatNum}>{view.pageCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statPages")}</Text></View>
-        <View style={styles.wikiStat}><Text variant="heading" style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>{view.edgeCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statLinks")}</Text></View>
+        <View style={styles.wikiStat}><Text variant="heading" style={styles.wikiStatNum}>{loading || loadError ? "..." : view.pageCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statPages")}</Text></View>
+        <View style={styles.wikiStat}><Text variant="heading" style={[styles.wikiStatNum, styles.wikiStatNumCyan]}>{loading || loadError ? "..." : view.edgeCount}</Text><Text variant="subtle" style={styles.wikiStatCap}>{t("wiki.statLinks")}</Text></View>
       </View>
       <SegBtn
         segments={[
@@ -947,7 +895,7 @@ export function DeepSpaceWikiScreen() {
         onSelect={(key) => setWikiView(key === "graph" ? "graph" : "list")}
         style={styles.wikiViewToggle}
       />
-      {view.tagChips.length > 0 ? (
+      {!loading && !loadError && view.tagChips.length > 0 ? (
         <View style={styles.filterRow}>
           <FilterChip label={t("wiki.filterAll")} active={activeTag === null} onPress={() => setActiveTag(null)} />
           {view.tagChips.map((c) => (
@@ -960,10 +908,31 @@ export function DeepSpaceWikiScreen() {
           ))}
         </View>
       ) : null}
+      {!loading && !loadError && focusPageId && focusRead.status !== "ready" ? (
+        <View style={styles.wikiPageOpen}>
+          <Text variant="body" style={styles.wikiBody} accessibilityLiveRegion="polite">
+            {focusRead.status === "loading" ? "..." : focusRead.status === "missing"
+              ? t("recordDetail:state.missingTitle")
+              : t(focusRead.status === "timeout" ? "common:errors.network" : "common:errors.unknown")}
+          </Text>
+          {focusRead.status === "error" || focusRead.status === "timeout" ? (
+            <Pressable style={styles.primary} onPress={focusRead.retry} accessibilityRole="button">
+              <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
       <SceneTransition transitionKey={wikiView} kind="replace" animateOnMount={false} style={{ gap: spacing.md }}>
       {loading ? (
         <GraphLoading />
-      ) : wikiView === "graph" && graphPages.length > 0 ? (
+      ) : loadError ? (
+        <View style={styles.wikiPageOpen}>
+          <Text variant="body" style={styles.wikiBody}>{t(loadError === "timeout" ? "common:errors.network" : "common:errors.unknown")}</Text>
+          <Pressable style={styles.primary} onPress={retry} accessibilityRole="button">
+            <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
+          </Pressable>
+        </View>
+      ) : focusPageId && focusRead.status !== "ready" && view.pages.length === 0 ? null : wikiView === "graph" && graphPages.length > 0 ? (
         <WikiGraph
           pages={graphPages}
           edges={edges}
@@ -984,7 +953,7 @@ export function DeepSpaceWikiScreen() {
         <>
           {view.pages.map((p) => {
             const isOpen = p.id === openId;
-            const toggle = () => setExpandedId((prev) => ((prev ?? view.pages[0]?.id ?? null) === p.id ? null : p.id));
+            const toggle = () => setExpandedId(isOpen ? null : p.id);
             if (isOpen) {
               return (
                 <View key={p.id} style={styles.wikiPageOpen}>

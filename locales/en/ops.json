@@ -163,7 +163,7 @@
       "growth": "Goals",
       "meals": "Meals",
       "museum": "AI Museum",
-      "notifications": "Notifications",
+      "notifications": "Notices",
       "community": "Community",
       "avatarPalette": "Avatar Palette",
       "avatarPaletteShort": "Palette",
@@ -172,8 +172,8 @@
       "more": "More"
     },
     "appsBack": "Back",
-    "noticeLoading": "Loading notifications…",
-    "noticeEmpty": "No notifications yet.",
+    "noticeLoading": "Loading notices…",
+    "noticeEmpty": "No notices yet.",
     "noticeUnread": "Unread",
     "notifications": "Phone reminders",
     "push": {
@@ -418,12 +418,12 @@
     "side_project": "Creative side project"
   },
   "recommend": {
-    "off": "Routine suggestions are off for this account, so your saved pieces stay private.",
+    "off": "Routine suggestions are off for this account, so your saved records stay private.",
     "cta": "Get suggestions",
-    "ctaHint": "Uses your saved pieces to suggest things to try.",
+    "ctaHint": "Uses your saved records to suggest things to try.",
     "working": "Preparing suggestions…",
     "empty": "We could not find a useful suggestion. Try again or pick another area.",
-    "error": "We could not prepare suggestions. Your saved pieces are still here. Try again.",
+    "error": "We could not prepare suggestions. Your saved records are still here. Try again.",
     "limit": "Today's free suggestions are used up. They reset tomorrow.",
     "disclaimerBody": "Ideas and plans, not professional advice."
   },

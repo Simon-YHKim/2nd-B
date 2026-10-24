@@ -50,7 +50,7 @@ describe("PIXEL-CLAY /capture screen contract", () => {
     expect(renderer).toContain("setError(true)");
     // Both platforms move the input scroll and its sibling save footer together
     // (R2A-02: the 4W1H "how" field and save must stay reachable above the keyboard).
-    expect(renderer).toContain("<KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset}>");
+    expect(renderer).toContain('<KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset} iosOffsetCoordinateSpace="window">');
     expect(renderer).toContain("onSubmitEditing={() => whatRef.current?.focus()}");
     expect(renderer).toContain("minHeight: 44");
   });

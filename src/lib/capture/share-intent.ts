@@ -46,8 +46,14 @@
 // one line saying the share was not added (SHARE_REFUSED_PARAMS below). There
 // is no delivery id, no registry and no waiting state: a share that is not
 // filled is gone.
+//
+// Q-261014-29 adds a separate share-media host for a short-lived native
+// capability. It never carries provider URIs or media bytes in the URL;
+// share-media-intent.ts sends it to the existing explicit image/audio intake.
+// The no-queue text contract above remains unchanged.
 
 import contract from "./share-intent-contract.json";
+import { redirectSharedMediaPath, sharedMediaError, sharedMediaToken } from "./share-media-intent";
 
 export const SHARE_INTENT_HOST: string = contract.host;
 export const SHARE_TEXT_MAX_CHARS: number = contract.maxTextChars;
@@ -193,6 +199,8 @@ export function captureHrefForSharedIntent(fields: SharedIntentFields): string {
  * screen, and any other link is returned exactly as it came in.
  */
 export function redirectSharedIntentPath(path: string): string {
+  const mediaPath = redirectSharedMediaPath(path);
+  if (mediaPath !== null) return mediaPath;
   let fields: SharedIntentFields | null;
   try {
     fields = parseSharedIntentUrl(path);
@@ -217,12 +225,13 @@ const hasContent = (value: unknown): boolean => typeof value === "string" && val
  */
 export function carriesShareMarker(params: Readonly<Record<string, unknown>>): boolean {
   if (params[SHARE_MARKER_PARAM] !== SHARE_MARKER_VALUE) return false;
-  return hasContent(params[TEXT_PARAM]) || hasContent(params[TITLE_PARAM]);
+  return hasContent(params[TEXT_PARAM]) || hasContent(params[TITLE_PARAM]) ||
+    sharedMediaToken(params.sharedMedia) !== null || sharedMediaError(params.sharedMediaError) !== null;
 }
 
-/** carriesShareMarker for a gate that sees the whole route: only /capture counts. */
+/** The two existing share intake routes share the same auth refusal notice. */
 export function isMarkedShareCapture(pathname: string, params: Readonly<Record<string, unknown>>): boolean {
-  return pathname === "/capture" && carriesShareMarker(params);
+  return (pathname === "/capture" || pathname === "/call-reflection") && carriesShareMarker(params);
 }
 
 /**

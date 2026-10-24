@@ -1,0 +1,11 @@
+{
+  "host": "share-media",
+  "module": "PolaSharedMedia",
+  "maxAudioBytes": 3000000,
+  "maxImageBytes": 12000000,
+  "maxPreparedImageBytes": 2000000,
+  "maxImagePixels": 24000000,
+  "imageMaxSide": 1600,
+  "ttlMs": 300000,
+  "copyTimeoutMs": 15000
+}

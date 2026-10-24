@@ -18,6 +18,16 @@ on:
       - "scripts/test-dashboard-recovery-replay.mjs"
       - "supabase/functions/dashboard-generate/**"
       - "scripts/test-profile-import-sql.mjs"
+      - "scripts/test-deletion-receipt-sql.mjs"
+      - "scripts/test-records-embedding-consent-sql.mjs"
+      - "scripts/test-interview-content-authority-sql.mjs"
+      - "scripts/test-chat-turn-admission-races.sh"
+      - "scripts/test-chat-turn-refund-evidence.py"
+      - "scripts/test-chat-turn-purpose-restore.py"
+      - "scripts/check-account-export-inventory.ts"
+      - "scripts/generate-erasure-registry.ts"
+      - "db/erasure-registry.json"
+      - "supabase/functions/export-account/**"
       - ".github/workflows/supabase-dry-run.yml"
 
 # Least privilege: this workflow only reads the repo (checkout + local tooling).
@@ -262,6 +272,11 @@ jobs:
           -- production ACL so 0179's own postcondition tests the repair.
           GRANT ALL ON TABLE public.ai_audit_log, public.crisis_events
             TO anon, authenticated, service_role;
+          -- Vanilla PG has no Supabase public-table grant floor. 0140 narrows
+          -- users UPDATE but deliberately preserves SELECT; 0263 checks that
+          -- real clients can read their own RETURNING row (RLS still applies).
+          GRANT SELECT ON public.users TO authenticated;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON public.records TO authenticated;
           DO $precondition$
           BEGIN
             IF NOT has_table_privilege('anon', 'public.ai_audit_log', 'TRUNCATE')
@@ -313,7 +328,6 @@ jobs:
               echo "Top-level transaction wrapper is forbidden in CLI-managed migration: $f" >&2
               exit 1
             fi
-            cp -- "$f" "$staged_project/supabase/migrations/"
           done
 
           # Vanilla CI has no pg_cron; opt out explicitly for this scratch DB only.
@@ -324,12 +338,44 @@ jobs:
           # production bundle must receive separate monotonic timestamp versions
           # before any live db push. This command targets only the job-local DB;
           # it never reads a production URL, project ref, or repository secret.
-          supabase db push \
-            --db-url "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable" \
-            --workdir "$staged_project" \
-            --include-all \
-            --skip-vault \
-            --yes
+          # Keep exact pre-promotion schemas for historical apply/backfill/down tests.
+          # Each numbered file enters the CLI directory once; later pushes see its ledger.
+          for boundary in 0265 0266 0267 final; do
+            for f in "${staged_migrations[@]}"; do
+              base="${f##*/}"
+              version="${base%%_*}"
+              if [[ "$boundary" == final ]] || (( 10#$version < 10#$boundary )); then
+                cp -- "$f" "$staged_project/supabase/migrations/"
+              fi
+            done
+            # CLI 2.116 sends top-level LOCK outside an explicit transaction.
+            # Keep repository bytes untouched; one DO executes each complete S/F
+            # body atomically, like the Relay block. Never split its table locks.
+            python3 - "$staged_project/supabase/migrations" <<'PY'
+          from pathlib import Path
+          import sys
+          root = Path(sys.argv[1])
+          for name in ('0266_chat_turn_refund_evidence.sql', '0267_chat_turn_purpose_restore.sql'):
+              path = root / name
+              if not path.exists():
+                  continue
+              source = path.read_bytes()
+              if b'$cli_body$' in source or b'$cli_transaction$' in source:
+                  raise ValueError('CLI wrapper delimiter collision')
+              path.write_bytes(b'DO $cli_transaction$ BEGIN EXECUTE $cli_body$' + source
+                               + b'$cli_body$; END $cli_transaction$;\n')
+          PY
+            supabase db push \
+              --db-url "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable" \
+              --workdir "$staged_project" \
+              --include-all \
+              --skip-vault \
+              --yes
+            if [[ "$boundary" != final ]]; then
+              psql -X -h localhost -U postgres -d template1 -v ON_ERROR_STOP=1 \
+                -c "CREATE DATABASE t39_t40_before_${boundary} TEMPLATE postgres"
+            fi
+          done
 
           expected_count="${#staged_migrations[@]}"
           actual_count="$(psql -h localhost -U postgres -Atc \
@@ -387,6 +433,109 @@ jobs:
             END IF;
           END $$;
           SQL
+      - name: Exercise account export column grants on full schema clone
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Keep the draft out of the numbered replay DB and all other lanes.
+          psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE account_export_grants_test_ci TEMPLATE postgres'
+          trap 'psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS account_export_grants_test_ci"' EXIT
+          psql -X -h 127.0.0.1 -U postgres -d account_export_grants_test_ci -v ON_ERROR_STOP=1 -f db/migration-drafts/tests/account-export-read-grants.sql
+      - name: Exercise records embedding consent on full schema clone
+        env:
+          PGPASSWORD: postgres
+          LOCAL_SQL_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE embed_consent_test_ci TEMPLATE postgres'
+          node scripts/test-records-embedding-consent-sql.mjs "$LOCAL_SQL_CONTAINER" embed_consent_test_ci
+      - name: Exercise dormant deletion-receipt contract on full schema clone
+        env:
+          PGPASSWORD: postgres
+          LOCAL_SQL_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          # Clone only this job's fully replayed schema, before later lanes
+          # deliberately mutate the main scratch DB. The runner refuses other
+          # database names, accepts no URL, and does not read production env.
+          psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE t04_receipt_test_ci TEMPLATE postgres'
+          node scripts/test-deletion-receipt-sql.mjs "$LOCAL_SQL_CONTAINER" t04_receipt_test_ci
+      - name: Exercise dormant interview content authority on full schema clone
+        env:
+          PGPASSWORD: postgres
+          LOCAL_SQL_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          # Use this job's freshly replayed numbered schema, not a cached DB.
+          # The runner checks the complete ledger and installed writer locks
+          # before applying the draft, then exercises real two-connection races.
+          psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE t16_authority_test_ci TEMPLATE postgres'
+          node scripts/test-interview-content-authority-sql.mjs "$LOCAL_SQL_CONTAINER" t16_authority_test_ci
+      - name: Exercise dormant T39 admission on full schema clone
+        timeout-minutes: 10
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # 0265 is already installed in this pre-0266 snapshot. Reapply its exact file.
+          # Only this job's fresh local schema is cloned; no remote URL or secrets.
+          psql -X -h 127.0.0.1 -U postgres -d template1 -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE t39_admission_test_ci TEMPLATE t39_t40_before_0266'
+          t39_snapshot() {
+            pg_dump -h 127.0.0.1 -U postgres -d t39_admission_test_ci \
+              --schema=public --schema=supabase_migrations \
+              | sed -E '/^\\(un)?restrict /d'
+          }
+          t39_before="$(t39_snapshot)"
+          psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
+            --single-transaction -f db/migrations/0265_chat_turn_attempt_with_quota.sql
+          t39_after="$(t39_snapshot)"
+          cmp <(printf '%s\n' "$t39_before") <(printf '%s\n' "$t39_after")
+          echo "PASS: exact 0265 reapply leaves public schema/data and migration ledger unchanged"
+          psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
+            -f db/tests/chat-turn-attempt-with-quota.sql
+          psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
+            --single-transaction -f db/migrations/rollback/0265_down.sql
+          psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 <<'SQL'
+          DO $t39_down$
+          BEGIN
+            IF to_regprocedure('public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)') IS NOT NULL
+               OR to_regprocedure('public.begin_chat_turn_attempt(uuid,uuid,uuid)') IS NULL
+               OR to_regprocedure('public.consume_llm_proxy_purpose_quota(uuid,text,text)') IS NULL THEN
+              RAISE EXCEPTION 'T39 rollback must remove only the new entrypoint';
+            END IF;
+          END
+          $t39_down$;
+          SQL
+          psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
+            --single-transaction -f db/migrations/0265_chat_turn_attempt_with_quota.sql
+          psql -X -h 127.0.0.1 -U postgres -d t39_admission_test_ci -v ON_ERROR_STOP=1 \
+            -f db/tests/chat-turn-attempt-with-quota.sql
+          bash scripts/test-chat-turn-admission-races.sh
+      - name: Exercise dormant T40 S evidence on full schema clone
+        timeout-minutes: 10
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Fixed pre-0266 loopback clones. Test S apply, exact down/reapply, all nine
+          # admission schedules plus claim/refund/delete races and killed mutants.
+          # The historical numbered replay and T39 lane keep their own contracts.
+          python3 scripts/test-chat-turn-refund-evidence.py
+      - name: Exercise dormant T40 F purpose restore on full schema clone
+        timeout-minutes: 10
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Fixed pre-0267 loopback clones: test F apply, real lock waits,
+          # mutation assertions and cap-preserving rollback/reapply. Fail closed.
+          python3 scripts/test-chat-turn-purpose-restore.py
       - name: Verify promoted server-first contracts after numbered scratch replay
         env:
           PGPASSWORD: postgres
@@ -450,7 +599,22 @@ jobs:
                   ('0198', 'service_contract_erasure_registry'),
                   ('0199', 'oauth_naver_rate_limit_completion'),
                   ('0200', 'rss_proxy_quota'),
-                  ('0201', 'rss_proxy_erasure_registry'))) <> 11
+                  ('0201', 'rss_proxy_erasure_registry'),
+                  ('0265', 'chat_turn_attempt_with_quota'),
+                  ('0266', 'chat_turn_refund_evidence'),
+                  ('0267', 'chat_turn_purpose_restore'),
+                  ('0268', 'chat_turn_refund_evidence_erasure_registry_reason'),
+                  ('0269', 'chat_turn_purpose_restore_erasure_registry_reason'))) <> 16
+               OR to_regprocedure('public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)') IS NULL
+               OR has_function_privilege('anon','public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)','EXECUTE')
+               OR has_function_privilege('authenticated','public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)','EXECUTE')
+               OR NOT has_function_privilege('service_role','public.begin_chat_turn_attempt_with_quota(uuid,uuid,uuid,text,text)','EXECUTE')
+               OR (SELECT count(*) FROM information_schema.columns
+                   WHERE table_schema='public' AND table_name='chat_turn_reservations'
+                     AND column_name IN ('attempt1_delivered','attempt2_delivered','binding_closed','quota_day','purpose_restored_day')) <> 5
+               OR NOT EXISTS (SELECT 1 FROM pg_index
+                   WHERE indexrelid=to_regclass('public.chat_turn_reservations_purpose_restore_day_key')
+                     AND indisunique AND indisvalid AND indisready AND indimmediate)
                OR (SELECT count(*) FROM public.erasure_registry) <> 82
                OR (SELECT count(*) FROM public.erasure_registry
                    WHERE table_name='profile_context_imports' AND owner_column='user_id'
@@ -490,7 +654,7 @@ jobs:
           $verify$;
           ROLLBACK;
           SQL
-          echo "PASS: eleven numbered migrations executed once by CLI; draft bytes, 82 registry rows, contracts and ACL verified"
+          echo "PASS: sixteen promoted migrations executed once by CLI; 82 registry rows, contracts and ACL verified"
       # db/migrations/rollback/0189_down.sql is run by hand, mid-incident, and the
       # next `db push` is then trusted to put everything back. Nothing exercised
       # that path, and it was broken. The rollback deleted only its OWN ledger row
@@ -653,7 +817,7 @@ jobs:
           port="${PGPORT:-5432}"
           source_db="${PGDATABASE:-postgres}"
           down="db/migrations/rollback/0189_down.sql"
-          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason interview_transcript_erasure_registry weather_erasure_registry dashboard_erasure_registry profile_context_import_erasure_registry chat_turn_reservations_erasure_registry"
+          pair="erasure_registry lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason interview_transcript_erasure_registry weather_erasure_registry dashboard_erasure_registry profile_context_import_erasure_registry chat_turn_reservations_erasure_registry chat_turn_refund_evidence_erasure_registry_reason chat_turn_purpose_restore_erasure_registry_reason"
           run_token="${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-0}_$$_${RANDOM}"
           control_db="rollback_control_${run_token}"
           fixed_db="rollback_fixed_${run_token}"
@@ -723,7 +887,7 @@ jobs:
                                        'service_contract_erasure_registry', 'rss_proxy_erasure_registry',
                                        'credit_ledger_erasure_registry_reason',
                                        'reward_records_erasure_registry_reason',
-                                       'interview_transcript_erasure_registry', 'weather_erasure_registry', 'dashboard_erasure_registry', 'profile_context_import_erasure_registry', 'chat_turn_reservations_erasure_registry')"
+                                       'interview_transcript_erasure_registry', 'weather_erasure_registry', 'dashboard_erasure_registry', 'profile_context_import_erasure_registry', 'chat_turn_reservations_erasure_registry', 'chat_turn_refund_evidence_erasure_registry_reason', 'chat_turn_purpose_restore_erasure_registry_reason')"
           }
           can_execute() { # <db> <role>
             sql "$1" "SELECT pg_catalog.has_function_privilege('$2', 'public.erase_my_data(text)', 'EXECUTE')"
@@ -1006,7 +1170,7 @@ jobs:
             fi
           done
 
-          # The registry forwards (0198, 0201, 0226, 0233, 0237, 0240, 0258) and the reason revisions (0205, 0212) are kept
+          # The registry forwards (0198, 0201, 0226, 0233, 0237, 0240, 0258) and the reason revisions (0205, 0212, 0268, 0269) are kept
           # with 0190: each one's guard refuses to run while erase_my_data is open, so
           # re-applying them here would stop the push before the control can look.
           echo "== control: retain 0190 and every registry forward, then replay only 0189"
@@ -1018,7 +1182,7 @@ jobs:
                                             'rss_proxy_erasure_registry',
                                             'credit_ledger_erasure_registry_reason',
                                             'reward_records_erasure_registry_reason',
-                                            'interview_transcript_erasure_registry', 'weather_erasure_registry', 'dashboard_erasure_registry', 'profile_context_import_erasure_registry', 'chat_turn_reservations_erasure_registry')"
+                                            'interview_transcript_erasure_registry', 'weather_erasure_registry', 'dashboard_erasure_registry', 'profile_context_import_erasure_registry', 'chat_turn_reservations_erasure_registry', 'chat_turn_refund_evidence_erasure_registry_reason', 'chat_turn_purpose_restore_erasure_registry_reason')"
           roll_back "$control_db"
           # ON CONFLICT: if the rollback under test leaves the row in place (the very
           # regression this lane is for), the control still builds the same state
@@ -1031,7 +1195,7 @@ jobs:
           push_again "$control_db"
           control_open="$(can_execute "$control_db" authenticated)"
           echo "control: ledger before the re-push [$control_ledger] -> authenticated EXECUTE after it = $control_open"
-          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason interview_transcript_erasure_registry weather_erasure_registry dashboard_erasure_registry profile_context_import_erasure_registry chat_turn_reservations_erasure_registry" ]]; then
+          if [[ "$control_ledger" != "lock_erase_my_data_authenticated service_contract_erasure_registry rss_proxy_erasure_registry credit_ledger_erasure_registry_reason reward_records_erasure_registry_reason interview_transcript_erasure_registry weather_erasure_registry dashboard_erasure_registry profile_context_import_erasure_registry chat_turn_reservations_erasure_registry chat_turn_refund_evidence_erasure_registry_reason chat_turn_purpose_restore_erasure_registry_reason" ]]; then
             fail "the control did not reach the pre-fix state: ledger held [$control_ledger], expected 0190 and every registry forward"
           fi
           if [[ "$control_open" != "t" ]]; then
@@ -1295,6 +1459,16 @@ jobs:
                 && grep -Fq "erasure_revisions_row_not_in_recorded_state: credit_ledger" "$push_log" \
                 && grep -Fq "SQLSTATE P0001" "$push_log"; then
                 causal_failure="0212/P0001 credit_ledger reason 0205 writes"
+              elif [[ "$1" == "chat_turn_reservations_erasure_registry" ]] \
+                && grep -Fq "Applying migration 0268_chat_turn_refund_evidence_erasure_registry_reason.sql" "$push_log" \
+                && grep -Fq "erasure_revisions_row_not_in_recorded_state: chat_turn_reservations" "$push_log" \
+                && grep -Fq "SQLSTATE P0001" "$push_log"; then
+                causal_failure="0268/P0001 registry row 0258 adds"
+              elif [[ "$1" == "chat_turn_refund_evidence_erasure_registry_reason" ]] \
+                && grep -Fq "Applying migration 0269_chat_turn_purpose_restore_erasure_registry_reason.sql" "$push_log" \
+                && grep -Fq "erasure_revisions_row_not_in_recorded_state: chat_turn_reservations" "$push_log" \
+                && grep -Fq "SQLSTATE P0001" "$push_log"; then
+                causal_failure="0269/P0001 reservation reason 0268 writes"
               fi
               if [[ -z "$causal_failure" ]]; then
                 fail "INCONCLUSIVE necessity check: '$1' re-push exited $push_rc without a reviewed causal SQL failure. Infrastructure, CLI, authentication, timeout, and unrelated SQL failures are never evidence that a ledger row belongs in c_names."
@@ -1436,6 +1610,10 @@ jobs:
       # removes a held transaction, dispute audit rows go three years after the
       # dispute ended, reviews push the deadline out by 90 days, and client
       # roles cannot reach any of it. Rolled back.
+      - name: Exercise numbered SSV helper ACL with real service role
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/reward_ssv_grant_helper_acl_regression.sql
       - name: Exercise 88-day reward purge
         env:
           PGPASSWORD: postgres
@@ -1650,6 +1828,14 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/erasure_registry_regression.sql
+      - name: Compare account-export inventory with the public FK catalog
+        env:
+          PGPASSWORD: postgres
+        run: |
+          npx tsx scripts/check-account-export-inventory.ts --catalog-sql "$RUNNER_TEMP/account-export-inventory.sql"
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 \
+            -f "$RUNNER_TEMP/account-export-inventory.sql" \
+            -f db/tests/account_export_inventory_regression.sql
       # 0253: a record or source deleted while its reasoning run was still
       # working. complete_reasoning_run must not store a proposal whose target is
       # gone for that owner, and must store everything it cannot judge.
@@ -1960,6 +2146,7 @@ jobs:
       - name: Exercise chat turn refund on proxy evidence only
         env:
           PGPASSWORD: postgres
+          PGDATABASE: t39_t40_before_0265
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/chat_turn_refund_regression.sql
       # Two sessions of one user ask at the same moment. Each call names the
       # proxy row of its turn and no day (0255): the day is the row of chat_usage
@@ -1990,6 +2177,7 @@ jobs:
       - name: Race two chat turn refunds over one proxy row
         env:
           PGPASSWORD: postgres
+          PGDATABASE: t39_t40_before_0265
         run: |
           set -euo pipefail
           source_db="${PGDATABASE:-postgres}"
@@ -2731,7 +2919,18 @@ jobs:
       - name: Exercise unnumbered D4 AI hold draft in a rolled-back transaction
         env:
           PGPASSWORD: postgres
-        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/crisis_ai_hold_draft_regression.sql
+        run: |
+          psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/crisis_ai_hold_draft_regression.sql
+      - name: Exercise sources.system_tags schema, predecessor and rejection mutations (0264)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Keep destructive shape probes inside a disposable clone, never in the
+          # database used by the other regression lanes. Each probe also rolls back.
+          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE t54_sources_test_ci TEMPLATE postgres'
+          node db/tests/sources_system_tags_contract.mjs 5432 postgres t54_sources_test_ci
       - name: Exercise records.system_tags, its hand move and its rollback (0218)
         env:
           PGPASSWORD: postgres
@@ -4020,6 +4219,12 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/consent_email_v9_20261006_regression.sql
+      # 0262: email-v10 / service-v5 (Z5 쉬운 말 · 방침 2026-10-07). 공지형·재동의 없음.
+      # 번호 재생이 이미 적용했다. v4~v9 · service-v1/v2/v4 유지.
+      - name: Exercise the numbered 2026-10-18 email-v10 consent contract
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/consent_email_v10_20261018_regression.sql
       - name: Exercise numbered 0206 avatar column contract on scratch PostgreSQL
         env:
           PGPASSWORD: postgres

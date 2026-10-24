@@ -1,7 +1,7 @@
 {
   "title": "HustleK",
-  "subtitle": "Pergunte sobre seus registros. As respostas mostram as páginas usadas.",
-  "empty": "Comece uma conversa. Por exemplo: \"Quais assuntos se repetem nas minhas notas deste mês?\"",
+  "subtitle": "Pergunte sobre sua wiki. As respostas mostram as páginas usadas.",
+  "empty": "Faça uma pergunta. Por exemplo: \"Quais assuntos estão na minha wiki?\"",
   "placeholder": "Pergunte ao HustleK...",
   "composerPlaceholder": "Mensagem…",
   "inputA11y": "Pergunte a {{name}}",
@@ -14,9 +14,9 @@
   "serverLimitReached": "Esta conta atingiu o limite de conversas de hoje. O limite é restabelecido à meia-noite, no horário da Coreia (KST).",
   "reference_piece_meta": "registro usado na resposta",
   "heroSpeech": {
-    "sending": "Consultando os registros relacionados.",
+    "sending": "Consultando as páginas da sua wiki…",
     "divergent": "Considerando outra forma de olhar para a questão.",
-    "default": "Sobre o que você quer conversar hoje?"
+    "default": "O que você quer saber sobre a wiki criada a partir dos seus registros?"
   },
   "personaHero": {
     "speech": "Veja o que se repete nos seus registros. Você pode conferir as fontes e decidir o que fazer a seguir."
@@ -32,7 +32,7 @@
       "role": "Empatia",
       "lensName": "HustleK",
       "tag": "HustleK",
-      "desc": "Responde a partir dos seus registros"
+      "desc": "Responde com sua wiki de registros"
     },
     "meta": {
       "name": "Fact-K",
@@ -40,7 +40,7 @@
       "systemHint": "Persona: Fact-K. Mantenha todas as regras de fundamentação, citação e segurança. Concentre-se nos fatos e descreva padrões apoiados por números e datas dos registros do usuário. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis.",
       "lensName": "Fact-K",
       "tag": "Fact-K",
-      "desc": "Analisa fatos e padrões nos seus registros"
+      "desc": "Fatos da sua wiki de registros"
     },
     "twi": {
       "name": "Joy-K",
@@ -48,7 +48,7 @@
       "systemHint": "Persona: Joy-K. Mantenha todas as regras de fundamentação, citação e segurança. Sugira possibilidades com base nos próprios registros do usuário, separando fatos de cenários imaginados. Se for útil, explique como testar uma sugestão. Não use sempre a mesma frase de encerramento. Use linguagem simples do dia a dia. Evite metáforas elaboradas, elogios exagerados e frases prontas de empatia. Faça perguntas apenas quando forem úteis.",
       "lensName": "Joy-K",
       "tag": "Joy-K",
-      "desc": "Explora outras ideias a partir dos seus registros"
+      "desc": "Outras ideias da sua wiki de registros"
     }
   },
   "replyFailed": "Não foi possível obter uma resposta. Tente de novo em um instante.",
@@ -91,6 +91,7 @@
   "nPieces": "{{n}} registros",
   "chatSaveNotice": "Esta conversa não está sendo guardada",
   "chatSaveNoticeOpen": "Abrir ajustes",
+  "chatSaveNoticeOpenLabel": "Abrir ajustes",
   "chatSaveNoticeDismiss": "Fechar",
   "planSuggestion": {
     "routineButton": "Criar uma rotina",

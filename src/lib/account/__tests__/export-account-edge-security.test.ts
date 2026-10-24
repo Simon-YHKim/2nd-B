@@ -58,6 +58,7 @@ interface ExportModule {
   EXPORT_TIMEOUT_MS?: number;
   EXPORT_TABLES?: ExportSource[];
   EXCLUDED?: Readonly<Record<string, string>>;
+  PENDING_EXPORT: Readonly<Record<string, string>>;
 }
 
 const edgePath = join(__dirname, "../../../../supabase/functions/export-account/index.ts");
@@ -86,6 +87,7 @@ const exported = new Function("Deno", "createClient", `${js}\nreturn {
   EXPORT_TIMEOUT_MS: typeof EXPORT_TIMEOUT_MS === "number" ? EXPORT_TIMEOUT_MS : undefined,
   EXPORT_TABLES: typeof EXPORT_TABLES === "object" ? EXPORT_TABLES : undefined,
   EXCLUDED: typeof EXCLUDED === "object" ? EXCLUDED : undefined,
+  PENDING_EXPORT: typeof PENDING_EXPORT === "object" ? PENDING_EXPORT : undefined,
 };`)({
   serve: serveMock,
   env: {
@@ -212,7 +214,8 @@ function fakeDatabase(data: Record<string, Row[]>, serverPageSize = 2, options: 
             .filter((row) => filters.every(([column, value]) => row[column] === value))
             .sort((a, b) => {
               for (const key of call.order) {
-                const compared = String(a[key]).localeCompare(String(b[key]));
+                const compared = typeof a[key] === "number" && typeof b[key] === "number"
+                  ? a[key] - b[key] : String(a[key]).localeCompare(String(b[key]));
                 if (compared !== 0) return compared;
               }
               return 0;
@@ -793,7 +796,62 @@ describe("export-account bounded owned readers", () => {
     expect(source).not.toMatch(/errors\[[^\]]+\]\s*=/);
   });
 
-  test("discloses every newer account-scoped operational and security table as excluded", () => {
+  test("T22 classifies registered chat turn reservations exactly once", () => {
+    const registry = JSON.parse(readFileSync(join(__dirname, "../../../../db/erasure-registry.json"), "utf8"));
+    const table = "chat_turn_reservations";
+    expect(registry.tables[table]).toMatchObject({ owner: "user_id" });
+    const exportedCount = edge.EXPORT_TABLES!.filter((entry) => entry.table === table).length;
+    const excludedCount = Number(Object.prototype.hasOwnProperty.call(edge.EXCLUDED, table));
+    expect({ table, classifications: exportedCount + excludedCount }).toEqual({ table, classifications: 1 });
+  });
+
+  test("T22 discloses the reservation exclusion without reading rows or internal audit links", async () => {
+    const setup = successfulAdmin();
+    createClientMock.mockReturnValue(setup.admin);
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(200);
+    const body = await response.json() as { tables: Record<string, unknown>; excluded: Record<string, string> };
+    expect(body.excluded.chat_turn_reservations).toMatch(/quota.*audit/i);
+    expect(body.excluded.chat_turn_reservations).toBe(
+      "chat quota/refund bookkeeping with internal audit links; rows older than two days may be removed when chatting through the reservation path, otherwise kept until account deletion",
+    );
+    expect(body.excluded.chat_turn_reservations).not.toMatch(/short-lived|at your next chat turn/i);
+    expect(body.tables).not.toHaveProperty("chat_turn_reservations");
+    expect(setup.from).not.toHaveBeenCalledWith("chat_turn_reservations");
+    expect(body.tables).toHaveProperty("chat_usage");
+  });
+
+  test("reports all pending preparation gaps and exclusions without querying any of their tables", async () => {
+    const pendingTables = [
+      "interview_sessions", "interview_probe_verdicts",
+      "llm_consent_receipts", "weather_consent_state", "weather_access_events", "dashboard_generation_settings",
+    ];
+    expect(Object.keys(edge.PENDING_EXPORT).sort()).toEqual(pendingTables.sort());
+    const setup = successfulAdmin();
+    createClientMock.mockReturnValue(setup.admin);
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(200);
+    const body = await response.json() as { tables: Record<string, unknown>; excluded: Record<string, string> };
+    expect(body.excluded).toEqual({ ...edge.EXCLUDED, ...edge.PENDING_EXPORT });
+    for (const [table, reason] of Object.entries(body.excluded)) {
+      expect(reason.trim().length).toBeGreaterThan(0);
+      expect(body.tables).not.toHaveProperty(table);
+      expect(setup.from).not.toHaveBeenCalledWith(table);
+    }
+    for (const table of pendingTables) expect(body.excluded[table]).toContain("준비 중");
+    expect(body.excluded.interview_sessions).toBe(
+      "준비 중 (export preparation pending): crisis-related fields under legal review",
+    );
+    expect(body.excluded.interview_probe_verdicts).toBe(
+      "준비 중 (export preparation pending): selected judgement columns and held rows under legal review",
+    );
+    for (const table of ["dashboard_generation_runs", "reward_dispute_holds", "reward_dispute_hold_events"]) {
+      expect(edge.EXCLUDED![table]).toContain("법무 확인 중");
+    }
+    expect(body.excluded.dashboard_generation_runs).toContain("generated-output cache");
+  });
+
+  test("discloses the known account-scoped operational and security exclusions", () => {
     expect(edge.EXCLUDED).toMatchObject({
       public_data_quota_daily: expect.any(String),
       oauth_naver_identities: expect.any(String),
@@ -804,6 +862,104 @@ describe("export-account bounded owned readers", () => {
       rss_proxy_quota_daily: expect.any(String),
       account_deletion_tombstones: expect.any(String),
     });
+  });
+});
+
+describe("0225 interview transcript export", () => {
+  const cases = [
+    {
+      table: "interview_transcripts", order: ["id"],
+      columns: "id,user_id,session_id,record_id,period,locale,turn_count,ai_hold,superseded_by,created_at",
+      rows: [
+        { id: "transcript-b", user_id: OWNER_ID, session_id: "session-b", record_id: "record-b",
+          period: "now", locale: "ko", turn_count: 2, ai_hold: false, superseded_by: null, created_at: "2026-10-24T00:00:00Z" },
+        { id: "transcript-a", user_id: OWNER_ID, session_id: "session-a", record_id: "record-a",
+          period: "school", locale: "en", turn_count: 10, ai_hold: true, superseded_by: "transcript-b", created_at: "2026-10-23T00:00:00Z" },
+      ],
+    },
+    {
+      table: "interview_transcript_turns", order: ["transcript_id", "turn_no"],
+      columns: "transcript_id,user_id,turn_no,role,scene_seq,asked_layer,origin,ask_kind,opener_unedited,text,ai_hold",
+      rows: [
+        { transcript_id: "transcript-b", user_id: OWNER_ID, turn_no: 1, role: "interviewer", scene_seq: 1,
+          asked_layer: "fact", origin: "model", ask_kind: "drill", opener_unedited: null, text: "What happened?", ai_hold: false },
+        { transcript_id: "transcript-a", user_id: OWNER_ID, turn_no: 10, role: "user", scene_seq: 1,
+          asked_layer: "fact", origin: "user", ask_kind: null, opener_unedited: true, text: "남겨 둔 답변🙂", ai_hold: true },
+        { transcript_id: "transcript-a", user_id: OWNER_ID, turn_no: 2, role: "interviewer", scene_seq: 1,
+          asked_layer: "fact", origin: "fixed", ask_kind: "seed", opener_unedited: null, text: "기억나는 일이 있나요?", ai_hold: true },
+      ],
+    },
+  ];
+
+  test.each(cases)("exports all selected $table fields with owner-only ordered pagination", async ({ table, columns, order, rows }) => {
+    const descriptor = edge.EXPORT_TABLES!.find(entry => entry.table === table);
+    expect(descriptor).toEqual({ table, fk: "user_id", order, select: columns });
+    const sorted = [...rows].reverse();
+    const db = fakeDatabase({ [table]: [
+      ...rows.map(row => ({ ...row, future_internal_field: "must-not-export" })),
+      { ...rows[0], user_id: OTHER_ID },
+    ] }, 1);
+    const budget = edge.createExportBudget!();
+    await expect(edge.readAllOwnedRows!(db.admin, descriptor!, OWNER_ID, budget)).resolves.toEqual(sorted);
+    expect(db.calls.map(call => call.from)).toEqual(rows.map((_, index) => index));
+    for (const call of db.calls) {
+      expect(call).toMatchObject({ select: columns, filters: [["user_id", OWNER_ID]], order });
+    }
+    expect(budget.rows).toBe(rows.length);
+    expect(budget.bytes).toBe(sorted.reduce((bytes, row) => bytes + Buffer.byteLength(JSON.stringify(row)), 0));
+
+    const setup = successfulAdmin();
+    createClientMock.mockReturnValue({
+      ...setup.admin,
+      from: (name: string) => name === table ? db.admin.from(name) : setup.from(name),
+    });
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(200);
+    const body = await response.json() as { tables: Record<string, unknown>; excluded: Record<string, string> };
+    expect(body.tables[table]).toEqual(sorted);
+    expect(body.excluded).not.toHaveProperty(table);
+  });
+
+  test.each(cases)("rejects a foreign $table row returned despite the owner predicate", async ({ table, rows }) => {
+    const descriptor = edge.EXPORT_TABLES!.find(entry => entry.table === table)!;
+    expect(descriptor).toBeDefined();
+    const db = fakeDatabase({ [table]: rows }, 1, {
+      transformPage: page => page.map(row => ({ ...row, user_id: OTHER_ID })),
+    });
+    const budget = edge.createExportBudget!();
+    await expect(edge.readAllOwnedRows!(db.admin, descriptor, OWNER_ID, budget))
+      .rejects.toThrow("export_source_unavailable");
+    expect(budget).toMatchObject({ rows: 0, bytes: 0 });
+  });
+
+  test.each(cases)("keeps the shared row and byte budgets for $table", async ({ table, rows }) => {
+    const descriptor = edge.EXPORT_TABLES!.find(entry => entry.table === table)!;
+    expect(descriptor).toBeDefined();
+    for (const [limits, error] of [
+      [{ maxRows: rows.length }, "export_row_limit_exceeded"],
+      [{ maxBytes: 2 }, "export_byte_limit_exceeded"],
+    ] as const) {
+      const budget = edge.createExportBudget!(limits);
+      edge.reserveExportValue!(budget, {});
+      const db = fakeDatabase({ [table]: rows }, 1);
+      await expect(edge.readAllOwnedRows!(db.admin, descriptor, OWNER_ID, budget)).rejects.toThrow(error);
+      expect(budget).toMatchObject({ rows: 1, bytes: 2 });
+    }
+  });
+
+  test.each(cases)("returns 503 when $table cannot be read", async ({ table }) => {
+    expect(edge.EXPORT_TABLES!.some(entry => entry.table === table)).toBe(true);
+    const setup = successfulAdmin();
+    const fallback = setup.from.getMockImplementation()!;
+    setup.from.mockImplementation(name => {
+      const builder = fallback(name);
+      if (name === table) builder.range = async () => ({ data: [], error: { code: "42501" }, count: null });
+      return builder;
+    });
+    createClientMock.mockReturnValue(setup.admin);
+    const response = await edge.handler(request({ token: jwt(), body: "{}" }));
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "export_temporarily_unavailable" });
   });
 });
 

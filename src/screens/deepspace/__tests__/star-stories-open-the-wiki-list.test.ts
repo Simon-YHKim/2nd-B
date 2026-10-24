@@ -37,8 +37,11 @@ describe("the star summary: the count opens that star's stories", () => {
   });
 
   it("the count is still counted the same way: that period, no date window", () => {
-    expect(SUMMARY).toContain('.select("id", { count: "exact", head: true })');
-    expect(SUMMARY).toContain('.eq("audit_period", period);');
+    // T43 moved the same count into the screen's strict reader; failure is no longer zero.
+    const loader = read("src/lib/persona/load-star-summary.ts");
+    expect(SUMMARY).toContain("loadStarSummary(userId, meta.id, meta.period, age)");
+    expect(loader).toContain('.select("id", { count: "exact", head: true })');
+    expect(loader).toContain('.eq("audit_period", period)');
   });
 
   it("a star with no stories has nothing to press, and there is one way in", () => {

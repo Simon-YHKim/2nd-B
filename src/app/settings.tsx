@@ -32,7 +32,9 @@ import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { signOut } from "@/lib/supabase/auth";
+import { AuthSessionOwnerChangedError, captureSignOutExpectation, signOutCaptured } from "@/lib/supabase/auth";
+import type { AuthSessionExpectation } from "@/lib/auth/session-mutation";
+import { createSignOutGate } from "@/lib/auth/sign-out-gate";
 // Direct module import (NOT the components/deepspace barrel) — the barrel has a
 // known require cycle that crashed the /settings path once already (PR 711).
 import { changeUiLanguage } from "@/lib/i18n";
@@ -77,7 +79,7 @@ const SETTINGS_SURFACE_COPY: Record<
 > = {
   en: {
     reasoning: "Reasoning",
-    reasoningSub: "Automatic runs · item selection",
+    reasoningSub: "Reviews material and suggests connections",
     wikiAuto: "Auto wiki pages",
     wikiAutoSub: "Turn new captures into wiki pages by themselves",
     devScreens: "Developer",
@@ -85,7 +87,7 @@ const SETTINGS_SURFACE_COPY: Record<
   },
   ko: {
     reasoning: "리즈닝",
-    reasoningSub: "자동 실행 · 자료 선택",
+    reasoningSub: "자료를 살펴 연결을 제안합니다",
     wikiAuto: "위키 자동 만들기",
     wikiAutoSub: "새로 저장한 자료를 알아서 위키 페이지로 만듭니다",
     devScreens: "개발자",
@@ -93,7 +95,7 @@ const SETTINGS_SURFACE_COPY: Record<
   },
   es: {
     reasoning: "Razonamiento",
-    reasoningSub: "Ejecuciones automáticas · selección de material",
+    reasoningSub: "Revisa el material y sugiere conexiones",
     wikiAuto: "Páginas wiki automáticas",
     wikiAutoSub: "Convierte las capturas nuevas en páginas wiki",
     devScreens: "Desarrollador",
@@ -101,7 +103,7 @@ const SETTINGS_SURFACE_COPY: Record<
   },
   pt: {
     reasoning: "Raciocínio",
-    reasoningSub: "Execuções automáticas · seleção de material",
+    reasoningSub: "Analisa o material e sugere conexões",
     wikiAuto: "Páginas wiki automáticas",
     wikiAutoSub: "Transforma capturas novas em páginas wiki",
     devScreens: "Desenvolvedor",
@@ -109,7 +111,7 @@ const SETTINGS_SURFACE_COPY: Record<
   },
   id: {
     reasoning: "Penalaran",
-    reasoningSub: "Jalankan otomatis · pilih materi",
+    reasoningSub: "Meninjau materi dan menyarankan keterkaitan",
     wikiAuto: "Halaman wiki otomatis",
     wikiAutoSub: "Ubah bahan baru menjadi halaman wiki",
     devScreens: "Pengembang",
@@ -420,6 +422,13 @@ export default function Settings() {
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
   const [toast, setToast] = useState<SettingsToast | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
+  // One sign-out flow at a time, from the press to the end (review #2625 r1 · r2).
+  const [signOutGate] = useState(createSignOutGate);
+  // A sign-out dialog closed without confirming returns the gate to idle. A confirm moves it to
+  // "running" before this runs, so this never stops a sign-out that has started.
+  useEffect(() => {
+    if (pendingConfirm === null) signOutGate.cancelConfirm();
+  }, [pendingConfirm, signOutGate]);
   const [actionError, setActionError] = useState<ActionError>(null);
   const [dataDeleteStep, setDataDeleteStep] = useState<DataDeleteStep>("records");
   const [openDisclosures, setOpenDisclosures] = useState<Record<SettingsDisclosureKey, boolean>>({
@@ -452,6 +461,61 @@ export default function Settings() {
 
   function confirm(message: string, onYes: () => Promise<void>, ask?: ConfirmAsk): void {
     setPendingConfirm({ message, onYes, ask });
+  }
+
+  // Q-261018-50 가(Simon 10-18): 로그아웃은 이 기기만("local"), 「모든 기기에서 로그아웃」은 "global".
+  // 두 단추가 같은 길을 쓴다. 누른 순간의 세션을 붙잡아 두고 그 세션만 끊는다(review #2625 r1): 확인 사이에
+  // 다른 계정이 들어왔으면 compare-and-set 이 거절하고 아무도 로그아웃되지 않는다. 한 번에 하나만 돈다.
+  async function askSignOut(scope: "local" | "global"): Promise<void> {
+    // Take the gate before the first await; both buttons are disabled while the session is read.
+    if (!signOutGate.tryCapture()) return;
+    setBusy("signOut");
+    let expected: AuthSessionExpectation;
+    try {
+      expected = await captureSignOutExpectation();
+    } catch (e) {
+      signOutGate.release();
+      setBusy(null);
+      showActionError("signOut", e, t("couldntSignOut"), t("signOutError"));
+      return;
+    }
+    setBusy(null);
+    if (!expected.userId) {
+      signOutGate.release();
+      return;
+    }
+    signOutGate.confirming();
+    if (scope === "local") {
+      confirm(t("actions.signOutHint"), signOutAndLeave(expected, "local"), { title: t("modals.signOut.title"), action: t("signOut"), actionHint: t("actions.signOutHint"), cancelHint: t("modals.signOut.cancelHint") });
+    } else {
+      confirm(t("actions.signOutAllHint"), signOutAndLeave(expected, "global"), { title: t("modals.signOutAll.title"), action: t("signOutAll"), actionHint: t("actions.signOutAllHint"), cancelHint: t("modals.signOut.cancelHint") });
+    }
+  }
+
+  function signOutAndLeave(expected: AuthSessionExpectation, scope: "local" | "global"): () => Promise<void> {
+    return async () => {
+      if (!signOutGate.tryRun()) return;
+      setBusy("signOut");
+      try {
+        await signOutCaptured(expected, scope);
+      } catch (e) {
+        signOutGate.release();
+        setBusy(null);
+        // Another account took over after the button was pressed: nothing was signed out.
+        if (e instanceof AuthSessionOwnerChangedError) return;
+        showActionError(
+          "signOut",
+          e,
+          t("couldntSignOut"),
+          t("signOutError"),
+        );
+        return;
+      }
+      // Go straight to /sign-in. Routing via "/" could briefly render
+      // with a stale session before the SIGNED_OUT event lands.
+      router.dismissAll();
+      router.replace("/sign-in");
+    };
   }
 
   // Surface a calm, product-tone failure with a retry. The raw error stays in
@@ -740,8 +804,6 @@ export default function Settings() {
           <M3LinkRow icon="settings" label={t("nav.theme")} hint={t("nav.themeHint")} onPress={() => router.push("/theme")} />
           <M3Divider />
           <M3LinkRow icon="article" label={t("nav.data")} hint={t("nav.dataHint")} onPress={() => router.push("/data")} />
-          <M3Divider />
-          <M3LinkRow icon="book" label={t("nav.records")} hint={t("nav.recordsHint")} onPress={() => router.push("/records")} />
           <M3Divider />
           <M3LinkRow icon="lock" label={t("permissions")} onPress={() => router.push("/permissions")} />
         </M3Group>
@@ -1041,22 +1103,14 @@ export default function Settings() {
             accessibilityHint={t("actions.signOutHint")}
             variant="secondary"
             disabled={busy !== null}
-            onPress={() => confirm(t("actions.signOutHint"), async () => {
-              try {
-                await signOut();
-                // Go straight to /sign-in. Routing via "/" could briefly render
-                // with a stale session before the SIGNED_OUT event lands.
-                router.dismissAll();
-                router.replace("/sign-in");
-              } catch (e) {
-                showActionError(
-                  "signOut",
-                  e,
-                  t("couldntSignOut"),
-                  t("signOutError"),
-                );
-              }
-            }, { title: t("modals.signOut.title"), action: t("signOut"), actionHint: t("actions.signOutHint"), cancelHint: t("modals.signOut.cancelHint") })}
+            onPress={() => void askSignOut("local")}
+          />
+          <Button
+            label={t("signOutAll")}
+            accessibilityHint={t("actions.signOutAllHint")}
+            variant="secondary"
+            disabled={busy !== null}
+            onPress={() => void askSignOut("global")}
           />
         </View>
 

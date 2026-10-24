@@ -3,6 +3,16 @@ import type { ProposalTarget } from "../proposal";
 
 const target: ProposalTarget = { kind: "star", star: "now" };
 
+test.each(["ko", "en"] as const)("T37 %s system explains both stored provenance labels without changing credit rules", locale => {
+  const { system, user } = buildSelfModelProposalPrompt({ kind: "sevenStar", star: "work" }, "before",
+    "답변(제안 그대로): 회의에서 이야기했어요\nA (suggested, sent as is): I spoke in a meeting", locale);
+  expect(user).toContain("답변(제안 그대로): 회의에서 이야기했어요");
+  expect(user).toContain("A (suggested, sent as is): I spoke in a meeting");
+  expect(system).toContain("답변(제안 그대로)");
+  expect(system).toContain("A (suggested, sent as is)");
+  expect(system).toContain(locale === "ko" ? "그 사람의 말로 인용하지" : "do not quote them as the person's own words");
+});
+
 describe("parseSelfModelProposal", () => {
   test("parses a well-formed, clean, changing proposal", () => {
     const raw = '{"after":"Openness: high","rationale":"recent entries show more curiosity","citations":["rec_1","rec_2"]}';

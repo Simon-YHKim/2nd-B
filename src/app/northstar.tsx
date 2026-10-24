@@ -6,7 +6,7 @@ import { PhoneScrollView as ScrollView, PhoneTextInput as TextInput, PhoneView a
 // 세컨비 제안 come from the user's own records (proposeNorthstarSentences); with a
 // thin record base the screen says so honestly instead of inventing a persona.
 // 다른 제안 받기 re-asks; tapping a suggestion fills the editor (user always confirms).
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
 
 import { reactExpression } from "@/lib/companion/expression";
@@ -56,6 +56,18 @@ export default function NorthstarSentence() {
   const { userId, loading, isMinor } = useAuth();
 
   const [draft, setDraft] = useState("");
+  const selectedSuggestion = useRef<{ ownerId: string; text: string } | null>(null);
+
+  function editDraft(value: string) {
+    selectedSuggestion.current = null;
+    setDraft(value);
+  }
+
+  function selectSuggestion(text: string) {
+    if (!userId) return;
+    selectedSuggestion.current = { ownerId: userId, text };
+    setDraft(text);
+  }
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
   const [suggestions, setSuggestions] = useState<string[] | null>(null);
@@ -99,7 +111,10 @@ export default function NorthstarSentence() {
     fetchCurrentNorthstar(userId)
       .then((s) => {
         if (!alive) return;
-        if (s.sentence) setDraft(s.sentence);
+        if (s.sentence) {
+          selectedSuggestion.current = s.aiSuggested ? { ownerId: userId, text: s.sentence } : null;
+          setDraft(s.sentence);
+        }
       })
       .catch(() => {});
     return () => {
@@ -144,7 +159,11 @@ export default function NorthstarSentence() {
     setSaving(true);
     setSaveErr(false);
     try {
-      const res = await saveNorthstar({ userId, locale, sentence: draft, minor: isMinor === true });
+      const res = await saveNorthstar({
+        userId, locale, sentence: draft, minor: isMinor === true,
+        selectedSuggestion: selectedSuggestion.current?.ownerId === userId ? selectedSuggestion.current.text : undefined,
+      });
+      selectedSuggestion.current = null;
       if (res.followup?.zone === "red") {
         // The sentence tripped the C9 red-zone classifier. The record is in the
         // ledger, but leaving with a cheerful "delight" and no hotline is the
@@ -204,7 +223,7 @@ export default function NorthstarSentence() {
         </View>
         <TextInput
           value={draft}
-          onChangeText={setDraft}
+          onChangeText={editDraft}
           multiline
           // Native hint keeps Korean words whole ("찾 / 고" at font scale 1.3, QA R2A-06).
           placeholder={keepAllPlaceholder(t("ds.northstar.placeholder"), Platform.OS)}
@@ -222,7 +241,7 @@ export default function NorthstarSentence() {
             <MdCard
               key={s}
               variant={on ? "outlined" : "filled"}
-              onPress={() => setDraft(s)}
+              onPress={() => selectSuggestion(s)}
               accessibilityLabel={s}
               style={[styles.suggestCard, on && styles.suggestCardOn]}
             >

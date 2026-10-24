@@ -102,7 +102,7 @@ describe("capture available-height layout", () => {
     expect(footer.parent === scroll.parent).toBe(true);
     expect(ts.isJsxElement(footer.parent)).toBe(true);
     expect((footer.parent as ts.JsxElement).openingElement.getText(ast)).toBe(
-      "<KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset}>",
+      '<KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset} iosOffsetCoordinateSpace="window">',
     );
     expect(footer.pos).toBeGreaterThan(scroll.end);
     expect(body.match(/ref=\{saveCoachTargetRef\}/g)).toHaveLength(1);

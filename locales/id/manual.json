@@ -9,7 +9,7 @@
   "permissionsHint": "Membuka panduan izin aplikasi.",
   "curated": "Riset terkurasi",
   "guide": {
-    "hero": "Lima pertanyaan menjelaskan bagaimana catatanmu menjadi sesuatu yang berguna.",
+    "hero": "Bagaimana catatanmu menjadi sesuatu yang berguna, dan di mana hal yang sering dilakukan berada.",
     "tip": "Buka satu jawaban sekaligus, atau saring panduan di bawah.",
     "searchLabel": "Saring panduan penggunaan",
     "searchPlaceholder": "Cari pertanyaan dan jawaban",
@@ -36,17 +36,36 @@
       "data": {
         "question": "Di mana privasi, keamanan, dan ekspor berada?",
         "answer": "Pilihan privasi dan ekspor akun adalah kontrol yang kamu buka sendiri. IDEN adalah rangkuman identitas yang bisa dibawa. Jika sebuah pesan membutuhkan bantuan mendesak, aplikasi menampilkan sumber dukungan sebelum jawaban biasa dan tidak menghubungi layanan untukmu."
+      },
+      "refund": {
+        "question": "Bagaimana cara meminta pengembalian dana?",
+        "answer": "Minta lewat Kelola langganan di Pengaturan. Jika ada pembayaran, layar itu menunjukkan apakah pengembalian dana bisa didapat sekarang, beserta alasannya."
+      },
+      "export": {
+        "question": "Bagaimana cara mengekspor catatanku?",
+        "answer": "Di Dataku pada Pengaturan, unduh data akunmu sebagai satu berkas. Berkas itu juga mencatat apa yang tidak disertakan dan alasannya."
+      },
+      "deleteAccount": {
+        "question": "Bagaimana cara menghapus akunku?",
+        "answer": "Pilih Hapus akun di Akun pada Pengaturan. Ini tidak bisa dibatalkan, jadi ekspor dulu apa pun yang kamu perlukan."
+      },
+      "notifications": {
+        "question": "Di mana mengubah notifikasi?",
+        "answer": "Di aplikasi ponsel, nyalakan atau matikan lewat Izin di Pengaturan. Versi web tidak mengirim notifikasi."
       }
     },
     "actions": {
       "dashboard": "Buka dasbor HustleK",
       "brightness": "Lihat kecerahan",
-      "records": "Buka catatan",
+      "records": "Lihat Wiki",
       "review": "Tinjau usulan",
       "privacy": "Pengaturan privasi",
       "iden": "IDEN portabel",
       "accountExport": "Ekspor akun",
-      "support": "Sumber dukungan"
+      "support": "Sumber dukungan",
+      "subscription": "Kelola langganan",
+      "deleteAccount": "Hapus akun",
+      "permissions": "Kelola izin"
     }
   }
 }

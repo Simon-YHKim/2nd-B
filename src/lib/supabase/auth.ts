@@ -287,8 +287,8 @@ export function ageInYears(birthDate: string, now: Date = new Date()): number {
 // matching revision, so an older installed app cannot be stamped as if it had
 // shown newer documents. Any future document change needs a new revision and a
 // forward migration that maps it to server-owned versions.
-// Requires the server's email-v9 contract (0215) before this client is published.
-export const VERIFIED_EMAIL_SIGNUP_REVISION = "email-v9" as const;
+// Requires the server's email-v10 contract (0262) before this client is published.
+export const VERIFIED_EMAIL_SIGNUP_REVISION = "email-v10" as const;
 
 export interface SignUpArgs {
   email: string;
@@ -1286,8 +1286,22 @@ export async function signOutAuthCallbackSession(
   return true;
 }
 
-export async function signOut(scope: "global" | "local" = "global"): Promise<void> {
-  const expected = await captureSignOutExpectation();
+// Q-261018-50 가(Simon 10-18): 사용자가 누르는 로그아웃의 기본은 이 기기만이다. 모든 기기는 설정의
+// 「모든 기기에서 로그아웃」이 "global" 로 부른다. 계정 삭제(signOutExpected 기본 "global")와 비밀번호
+// 변경 · 복구(서버가 세션을 끝냄)는 그대로 모든 기기다.
+export async function signOut(scope: "global" | "local" = "local"): Promise<void> {
+  await signOutCaptured(await captureSignOutExpectation(), scope);
+}
+
+/**
+ * Sign out the session captured earlier (review #2625 r1: the settings screen captures it when the
+ * button is pressed, so a confirm that lands after another account took over signs out no one -
+ * the compare-and-set throws AuthSessionOwnerChangedError instead).
+ */
+export async function signOutCaptured(
+  expected: AuthSessionExpectation,
+  scope: "global" | "local" = "local",
+): Promise<void> {
   // Remove only the captured owner's OS notifications and preference keys
   // before releasing auth. If another account wins while cleanup awaits, the
   // exact-session compare-and-set below preserves that newer session.

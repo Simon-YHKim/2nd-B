@@ -25,7 +25,8 @@ import { domainTagFor, isDomainId, stripDomainTags, type DomainId } from "../per
 import { withDomainTag } from "./detect-domain";
 import { embedAndStoreRecord, recordsEmbeddingAllowed } from "./records-embeddings";
 import type { RecordFollowup } from "./followup";
-import { legacyTagLayout, normalizeSystemTags, withSystemTagsColumn, writeWithSystemTagsColumn } from "./system-tags";
+import { legacyTagLayout, normalizeSystemTags, reasoningTagPatch, withSystemTagsColumn, writeWithSystemTagsColumn, type SystemTaggedRow } from "./system-tags";
+import { classifyInputAnyLocale } from "../safety/classifier";
 
 export type RecordKind = "journal" | "note" | "audit_response";
 
@@ -66,6 +67,9 @@ export interface CreateRecordArgs {
    * retried once in the pre-0218 layout (markers in `tags`).
    */
   systemTags?: readonly string[];
+  /** New provenance must stay separate from user tags even on a pre-0218 DB.
+   *  When true, a missing column fails the save instead of using legacy tags. */
+  requireSystemTagsColumn?: boolean;
   /**
    * Domain the capture files under (별 담기: /star/<id> → capture), so the
    * piece lands on the star it was captured from. A permitted UX override —
@@ -352,6 +356,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   // fallback a select naming the column asks Postgres itself (gate ST-01): a table
   // that has the column never gets the pre-0218 layout (writeWithSystemTagsColumn).
   const insertRecord = (columnPresent: boolean) => {
+    if (args.requireSystemTagsColumn && !columnPresent) throw new Error("record_system_tags_required");
     storedTags = columnPresent ? tags : legacyTagLayout(tags, systemTags);
     return withTimeout(
       supabase
@@ -430,7 +435,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       topic: args.topic ?? null,
       summary: args.summary ?? null,
       body: args.body,
-    });
+    }, aiFollowup?.zone === "red");
   }
 
   return { id: data.id, tags: storedTags, followup: aiFollowup ?? undefined, crisisHotline };
@@ -454,7 +459,12 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
 function embedRecordDetached(
   args: Pick<CreateRecordArgs, "userId" | "locale" | "minor">,
   row: { id: string; topic: string | null; summary: string | null; body: string },
+  crisisDetected = false,
 ): void {
+  // A known verdict must not be lost when optional enrichment runs after save.
+  // Scan the full body before embedding truncates it, even when audited routing
+  // failed. Durable ai_hold and all other readers remain a separate server task.
+  if (crisisDetected || classifyInputAnyLocale(row.body, args.locale).zone === "red") return;
   if (args.minor === true || getEnv().EXPO_PUBLIC_LLM_MODE === "mock") return;
   void (async () => {
     try {
@@ -497,7 +507,7 @@ async function replayKeyedRecord(
   const { data: existing, error } = await withTimeout(
     getSupabaseClient()
       .from("records")
-      .select("id, kind, body, tags, topic, summary")
+      .select("id, kind, body, tags, topic, summary, ai_followup")
       .eq("user_id", args.userId)
       .eq("client_request_id", clientRequestId)
       .maybeSingle(),
@@ -520,7 +530,7 @@ async function replayKeyedRecord(
       topic: typeof existing.topic === "string" ? existing.topic : null,
       summary: typeof existing.summary === "string" ? existing.summary : null,
       body: existing.body,
-    });
+    }, followup?.zone === "red" || isRedRecordFollowup(existing.ai_followup));
   }
   return {
     id: existing.id,
@@ -528,6 +538,10 @@ async function replayKeyedRecord(
     followup: followup ?? undefined,
     crisisHotline,
   };
+}
+
+function isRedRecordFollowup(value: unknown): boolean {
+  return value !== null && typeof value === "object" && "zone" in value && value.zone === "red";
 }
 
 // How far back the streak query looks, in days. A streak longer than this is
@@ -571,7 +585,7 @@ export async function listRecentRecords(userId: string, limit = 500) {
           .limit(limit),
   );
   if (error) throw error;
-  return (data ?? []) as NonNullable<typeof data>[number][];
+  return (data ?? []) as (NonNullable<typeof data>[number] & SystemTaggedRow)[];
 }
 
 /** Fetch Polaris-cited records by id, including evidence older than the
@@ -579,13 +593,15 @@ export async function listRecentRecords(userId: string, limit = 500) {
 export async function listRecordsByIds(userId: string, ids: readonly string[]) {
   const uniqueIds = [...new Set(ids)].filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 60);
   if (!userId || uniqueIds.length === 0) return [];
-  const { data, error } = await getSupabaseClient()
-    .from("records")
-    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured")
-    .eq("user_id", userId)
-    .in("id", uniqueIds);
+  const { data, error } = await withSystemTagsColumn((columnPresent) => {
+    const table = getSupabaseClient().from("records");
+    const query = columnPresent
+      ? table.select("id, kind, body, ai_followup, topic, summary, conclusion, tags, system_tags, created_at, structured")
+      : table.select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured");
+    return query.eq("user_id", userId).in("id", uniqueIds);
+  });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as (NonNullable<typeof data>[number] & SystemTaggedRow)[];
 }
 
 // Read a single record by id (deep-space /record detail). RLS scopes to
@@ -593,26 +609,30 @@ export async function listRecordsByIds(userId: string, ids: readonly string[]) {
 // Returns null when the id doesn't exist or isn't the caller's.
 export async function getRecordById(userId: string, id: string) {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from("records")
-    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured")
-    .eq("user_id", userId)
-    .eq("id", id)
-    .maybeSingle();
+  const { data, error } = await withSystemTagsColumn((columnPresent) => {
+    const table = supabase.from("records");
+    const query = columnPresent
+      ? table.select("id, kind, body, ai_followup, topic, summary, conclusion, tags, system_tags, created_at, structured")
+      : table.select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured");
+    return query.eq("user_id", userId).eq("id", id).maybeSingle();
+  });
   if (error) throw error;
-  return data;
+  return data as (NonNullable<typeof data> & SystemTaggedRow) | null;
 }
 
-/** Replace a record's tags column. Owner-only via the records_owner_all RLS
- *  policy (0009); the explicit user_id keeps the index-friendly WHERE first. */
-export async function updateRecordTags(userId: string, id: string, tags: string[]): Promise<void> {
+/** Replace user tags, or atomically add the ratification marker when given the
+ * freshly read row. The latter requires system_tags and compares its exact prior
+ * value. Owner-only via records_owner_all RLS and the explicit user_id. */
+export async function updateRecordTags(userId: string, id: string, tags: string[], ratification?: SystemTaggedRow): Promise<void> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
+  const patch = ratification ? reasoningTagPatch(tags, ratification) : null;
+  let query = supabase
     .from("records")
-    .update({ tags })
+    .update(patch ? patch.payload : { tags })
     .eq("user_id", userId)
-    .eq("id", id)
-    .select("id");
+    .eq("id", id);
+  if (patch) query = query.filter("system_tags", "eq", patch.expected);
+  const { data, error } = await query.select("id");
   if (error) throw error;
   // A 0-row update returns error===null (a Supabase no-op success), so a stale
   // or RLS-filtered id would read as a successful write and the optimistic UI
@@ -667,10 +687,14 @@ export async function deleteRecord(userId: string, recordId: string): Promise<vo
   if (photoPaths.length > 0) await removeRecordPhotoObjects(photoPaths);
 }
 
-// Exact count of a user's records of one kind. Used by the free-tier usage
-// gate (entitlements.checkUsage) so the 2-use limit is accurate regardless of
-// how many other-kind records exist.
-export async function countRecordsByKind(userId: string, kind: RecordKind): Promise<number> {
+// Exact count of a user's records of one kind, independent of the recent-list
+// window. Entitlement policy comes from checkUsage; this count does not impose
+// a local journal limit.
+export async function countRecordsByKind(
+  userId: string,
+  kind: RecordKind,
+  options: { requireCount?: boolean } = {},
+): Promise<number> {
   const supabase = getSupabaseClient();
   const { count, error } = await supabase
     .from("records")
@@ -678,5 +702,10 @@ export async function countRecordsByKind(userId: string, kind: RecordKind): Prom
     .eq("user_id", userId)
     .eq("kind", kind);
   if (error) throw error;
+  // Strict screen reads must distinguish an unread count from zero records.
+  // Other callers retain their existing compatibility behavior.
+  if (options.requireCount && (count === null || !Number.isSafeInteger(count) || count < 0)) {
+    throw new Error("Record count was not returned");
+  }
   return count ?? 0;
 }

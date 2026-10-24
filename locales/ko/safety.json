@@ -22,5 +22,13 @@
       "title": "지금 안전부터 확인해 주세요.",
       "callCta": "한국에 계실 때 탭하여 전화 걸기"
     }
+  },
+  "interviewGuidance": {
+    "title": "연락 안내",
+    "directoryLabel": "도움 전화 찾기",
+    "krSupport": "한국에서 대화 지원이 필요하면 {{supportNumber}}로 연락할 수 있습니다.",
+    "krYouthSupport": "한국에서는 청소년전화 {{youthNumber}} 또는 {{supportNumber}}로 연락할 수 있습니다.",
+    "usSupport": "미국에서는 {{supportNumber}}로 전화하거나 문자를 보낼 수 있습니다. 다른 나라의 연락처는 도움 전화 찾기에서 확인하세요.",
+    "unresolved": "연락처를 확인하지 못했습니다. 지금 신체에 위험이 있으면 현지 긴급전화로 연락해 주세요. 다른 도움이 필요하면 도움 전화 찾기에서 확인하세요."
   }
 }

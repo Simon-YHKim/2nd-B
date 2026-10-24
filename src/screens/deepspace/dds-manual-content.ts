@@ -12,7 +12,16 @@
 // 그래서 이 파일은 이제 **id · 아이콘 · 목적지**만 갖는다. 문구는 키로 가리키고
 // 화면이 t() 로 푼다. 새 문구는 다른 모든 카피와 같은 길을 탄다.
 
-export type ManualTopicId = "stars" | "brightness" | "source" | "ratify" | "data";
+export type ManualTopicId =
+  | "stars"
+  | "brightness"
+  | "source"
+  | "ratify"
+  | "data"
+  | "refund"
+  | "export"
+  | "deleteAccount"
+  | "notifications";
 
 export type ManualRoute =
   | "/secondb?panel=dashboard"
@@ -22,9 +31,21 @@ export type ManualRoute =
   | "/privacy"
   | "/iden"
   | "/data?open=account-export"
-  | "/support";
+  | "/support"
+  | "/subscription"
+  | "/privacy?section=delete"
+  | "/permissions";
 
-export type ManualGlyph = "home" | "sparkle" | "book" | "taskAlt" | "lock";
+export type ManualGlyph =
+  | "home"
+  | "sparkle"
+  | "book"
+  | "taskAlt"
+  | "lock"
+  | "creditCard"
+  | "download"
+  | "trash"
+  | "notifications";
 
 /** 번들에서 문구를 꺼내는 함수. 화면의 `t` 를 그대로 넘긴다. */
 export type ManualTranslate = (key: string) => string;
@@ -32,6 +53,8 @@ export type ManualTranslate = (key: string) => string;
 export interface ManualAction {
   label: string;
   route: ManualRoute;
+  /** The screen has something to do only in the phone app (see NATIVE_ONLY). */
+  nativeOnly: boolean;
 }
 
 export interface ManualTopic {
@@ -62,7 +85,15 @@ const ACTION_KEY: Record<ManualRoute, string> = {
   "/iden": "iden",
   "/data?open=account-export": "accountExport",
   "/support": "support",
+  "/subscription": "subscription",
+  "/privacy?section=delete": "deleteAccount",
+  "/permissions": "permissions",
 };
+
+/** Destinations with nothing to do on the web. The permissions screen draws its rows only on a
+ *  phone, and the web build loads no notification module (notifications-sdk.web.ts), so on the
+ *  web the notifications answer stands without a button. */
+const NATIVE_ONLY: ReadonlySet<ManualRoute> = new Set<ManualRoute>(["/permissions"]);
 
 interface TopicSpec {
   id: ManualTopicId;
@@ -81,6 +112,12 @@ const TOPIC_SPECS: readonly TopicSpec[] = [
     icon: "lock",
     routes: ["/privacy", "/iden", "/data?open=account-export", "/support"],
   },
+  // Common tasks (Z69, Simon 2026-10-13): a search for refund or notifications found nothing
+  // and sent the visitor to the chat. Each answer has one button to the screen that does it.
+  { id: "refund", icon: "creditCard", routes: ["/subscription"] },
+  { id: "export", icon: "download", routes: ["/data?open=account-export"] },
+  { id: "deleteAccount", icon: "trash", routes: ["/privacy?section=delete"] },
+  { id: "notifications", icon: "notifications", routes: ["/permissions"] },
 ];
 
 const SCREEN_FIELDS = [
@@ -105,8 +142,23 @@ export function manualTopicsFor(t: ManualTranslate): readonly ManualTopic[] {
     icon,
     question: t(`manual:guide.topics.${id}.question`),
     answer: t(`manual:guide.topics.${id}.answer`),
-    actions: routes.map((route) => ({ label: t(`manual:guide.actions.${ACTION_KEY[route]}`), route })),
+    actions: routes.map((route) => ({
+      label: t(`manual:guide.actions.${ACTION_KEY[route]}`),
+      route,
+      nativeOnly: NATIVE_ONLY.has(route),
+    })),
   }));
+}
+
+/** The buttons this platform draws: on the web, the ones that would open an empty screen are left out. */
+export function visibleManualActions(actions: readonly ManualAction[], os: string): readonly ManualAction[] {
+  return os === "web" ? actions.filter(({ nativeOnly }) => !nativeOnly) : actions;
+}
+
+/** The topics as this platform shows them. The screen searches and draws this one list, so a
+ *  button left out on the web cannot match a search either (review #2640 r2). */
+export function manualTopicsOn(topics: readonly ManualTopic[], os: string): readonly ManualTopic[] {
+  return topics.map((topic) => ({ ...topic, actions: visibleManualActions(topic.actions, os) }));
 }
 
 function searchableText(topic: ManualTopic): string {

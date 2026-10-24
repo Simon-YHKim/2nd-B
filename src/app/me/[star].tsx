@@ -16,7 +16,7 @@ import { PhonePressable as Pressable, PhoneScrollView as ScrollView, PhoneView a
 //
 // 아직 살지 않은 시기(스물다섯 살의 "30대 이후")는 **잠긴다.** 살지 않은 때를
 // 물어보는 것은 지어내라는 말이다.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, useFocusEffect } from "expo-router";
@@ -37,7 +37,6 @@ import { fetchDisplayName } from "@/lib/supabase/display-name";
 import { loadProfileIdentity } from "@/screens/deepspace/dds-profile-identity";
 import { fetchProfileDetails } from "@/lib/supabase/profile-details";
 import { fetchStatusMessage } from "@/lib/supabase/status-message";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import { m3 } from "@/lib/theme/m3";
 import { spacing } from "@/lib/theme/tokens";
 import {
@@ -46,54 +45,14 @@ import {
   isUnlived,
   type SevenStarId,
 } from "@/lib/persona/seven-stars";
-import { loadCoverage } from "@/lib/interview/coverage-store";
-import {
-  DRILL_LAYERS,
-  type DrillLayer,
-  type LifePeriod,
-} from "@/lib/interview/probe";
+import { DRILL_LAYERS } from "@/lib/interview/probe";
 import { starLadderRungs } from "@/lib/interview/star-ladder";
-import { coveredDrillLayers, meStarStaticParams } from "@/lib/nav/me-star-route";
+import { meStarStaticParams } from "@/lib/nav/me-star-route";
 import { RedirectHome } from "@/lib/nav/go-home";
 import { useAppRouter, usePhoneEmbed, useScreenParams } from "@/lib/nav/phone-embed";
 import { a11yValue } from "@/lib/a11y/accessibility-value";
-import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
-import { starEntryStatus, type StarEntryStatus } from "@/lib/persona/star-entry-tracks";
-
-interface Summary {
-  /** 이 별에서 판 칸 수 (0~5). 인터뷰가 없는 별은 null. */
-  cells: number | null;
-  /** 이 별과 연결된 기록 수. */
-  records: number;
-  /** 실제 답변이 있어 켜진 드릴 층. */
-  covered: DrillLayer[];
-}
-
-async function loadSummary(userId: string, period: LifePeriod | null): Promise<Summary> {
-  if (period === null) return { cells: null, records: 0, covered: [] };
-  let cells = 0;
-  let covered: DrillLayer[] = [];
-  try {
-    const cov = await loadCoverage(userId);
-    covered = coveredDrillLayers(cov[period]);
-    cells = covered.length;
-  } catch {
-    cells = 0;
-    covered = [];
-  }
-  let records = 0;
-  try {
-    const { count } = await getSupabaseClient()
-      .from("records")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("audit_period", period);
-    records = count ?? 0;
-  } catch {
-    records = 0;
-  }
-  return { cells, records, covered };
-}
+import { withTimeout } from "@/lib/async/with-timeout";
+import { loadStarSummary, STAR_SUMMARY_TIMEOUT_MS, starSummaryReadErrorKey, type StarSummary } from "@/lib/persona/load-star-summary";
 
 // 프로필 별은 설명 대신 그 사람의 프로필을 바로 보여준다(Simon 2026-10-06):
 // 아바타 · 이름 · 요약 한 줄, 그리고 버튼 하나(채운 칸이 없으면 설정, 있으면 수정).
@@ -106,20 +65,21 @@ type ProfileCard =
   | { status: "ready"; name: string | null; statusMessage: string | null; details: ProfileDetails; avatar: AvatarSpec | null };
 
 async function loadProfileCard(userId: string): Promise<ProfileCard> {
-  try {
-    const [name, details, avatar, statusMessage] = await Promise.all([
-      fetchDisplayName(userId),
-      fetchProfileDetails(userId),
-      fetchAvatarSpec(userId).catch(() => null),
-      fetchStatusMessage(userId).catch(() => null),
-    ]);
-    // 저장된 이름이 없으면 /profile 과 같은 이름(로그인 이메일 앞부분)을 보여 준다(2026-10-07).
-    const shown = name?.trim() ? name : await loadProfileIdentity(userId).catch(() => null);
-    return { status: "ready", name: shown, statusMessage, details, avatar };
-  } catch {
-    return { status: "error" };
-  }
+  const [name, details, avatar, statusMessage] = await Promise.all([
+    fetchDisplayName(userId),
+    fetchProfileDetails(userId),
+    fetchAvatarSpec(userId).catch(() => null),
+    fetchStatusMessage(userId),
+  ]);
+  // 저장된 이름이 없으면 /profile 과 같은 이름(로그인 이메일 앞부분)을 보여 준다(2026-10-07).
+  const shown = name?.trim() ? name : await loadProfileIdentity(userId).catch(() => null);
+  return { status: "ready", name: shown, statusMessage, details, avatar };
 }
+
+type ReadState =
+  | { identity: string; status: "loading" }
+  | { identity: string; status: "error"; message: ReturnType<typeof starSummaryReadErrorKey> }
+  | { identity: string; status: "ready"; summary: StarSummary | null; profile: ProfileCard | null };
 
 export default function StarSummaryRoute() {
   // Phone-aware: inside the dashboard phone, the interview opens in the phone,
@@ -128,12 +88,11 @@ export default function StarSummaryRoute() {
   // Inside the dashboard phone, /records is the phone's own notes page, which does not narrow
   // to a star. There the count stays a plain line, as it was.
   const inPhone = usePhoneEmbed() !== null;
-  const { t } = useTranslation(["home", "deepspace", "profile"]);
+  const { t } = useTranslation(["home", "deepspace", "profile", "common"]);
   const { star } = useScreenParams<{ star?: string }>();
   const { userId, loading, age } = useAuth();
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [entry, setEntry] = useState<StarEntryStatus | null>(null);
-  const [profile, setProfile] = useState<ProfileCard>({ status: "loading" });
+  const [read, setRead] = useState<ReadState>({ identity: "", status: "loading" });
+  const [retry, setRetry] = useState(0);
   // 승인한 가져오기 시안의 208px 초상화. 좁은 창에서는 실제 가용 폭을 따른다.
   const [avatarWidth, setAvatarWidth] = useState(0);
 
@@ -142,29 +101,34 @@ export default function StarSummaryRoute() {
   const meta = id ? getSevenStar(id) : null;
   const locked = id ? isUnlived(id, age) : false;
 
-  const load = useCallback(async () => {
-    if (!userId || !meta) return;
-    const [nextSummary, { starLevels }] = await Promise.all([
-      loadSummary(userId, meta.period),
-      loadSevenLevels(userId),
-    ]);
-    setSummary(nextSummary);
-    setEntry(starEntryStatus(meta.id, starLevels, age));
-  }, [userId, meta, age]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  // 프로필 별만. 수정 화면에서 돌아올 때도 다시 읽어 방금 고친 내용이 보이게 한다.
   const isProfileStar = meta?.period === null;
+  const identity = JSON.stringify([userId, id, age]);
+  const activeIdentity = useRef(identity);
+  activeIdentity.current = identity;
+  const currentRead: ReadState = read.identity === identity ? read : { identity, status: "loading" };
+  const summary = currentRead.status === "ready" ? currentRead.summary : null;
+  const entry = summary?.entry ?? null;
+  const profile: ProfileCard = currentRead.status === "ready" && currentRead.profile
+    ? currentRead.profile
+    : { status: currentRead.status === "error" ? "error" : "loading" };
+
+  // Returning from an interview/profile edit also rereads. The request belongs to
+  // this focus, account, star, age and retry; an older result never paints a new one.
   useFocusEffect(useCallback(() => {
-    if (!userId || !isProfileStar) return;
+    if (!userId || !meta || locked) return;
     let live = true;
-    setProfile({ status: "loading" });
-    void loadProfileCard(userId).then((next) => { if (live) setProfile(next); });
+    setRead({ identity, status: "loading" });
+    const work = meta.period === null
+      ? withTimeout(loadProfileCard(userId), STAR_SUMMARY_TIMEOUT_MS, "Profile summary")
+        .then((card) => ({ summary: null, profile: card }))
+      : loadStarSummary(userId, meta.id, meta.period, age)
+        .then((next) => ({ summary: next, profile: null }));
+    void work.then(
+      (next) => { if (live && activeIdentity.current === identity) setRead({ identity, status: "ready", ...next }); },
+      (error: unknown) => { if (live && activeIdentity.current === identity) setRead({ identity, status: "error", message: starSummaryReadErrorKey(error) }); },
+    );
     return () => { live = false; };
-  }, [userId, isProfileStar]));
+  }, [userId, meta, locked, age, identity, retry]));
 
   if (loading) return <PremiumLoadingState />;
   if (!userId) return <Redirect href="/sign-in" />;
@@ -187,7 +151,7 @@ export default function StarSummaryRoute() {
     if (!value || value === "undisclosed") return [];
     return [{ key: field.key, value: field.kind === "choice" ? t(`deepspace:profileDetails.${profileChoiceLabelKey(field.key, value)}`) : value }];
   }) : [];
-  // 요약은 한 줄에 한 조각, 최대 세 줄. 읽기 실패면 아무것도 쓰지 않는다.
+  // 요약은 한 줄에 한 조각. 실패 문장과 재시도는 아래 공용 카드에서 보여준다.
   const profileLines = profile.status === "loading"
     ? [t("ds.star.loading")]
     : profile.status === "error"
@@ -286,9 +250,18 @@ export default function StarSummaryRoute() {
               <Text style={[m3TextStyle("labelLarge"), styles.title]}>
                 {t("ds.star.count", { n: ladder.filter((rung) => rung.on).length, total: ladder.length })}
               </Text>
+            ) : !locked && currentRead.status !== "ready" ? (
+              <Text style={[m3TextStyle("labelLarge"), styles.title]} aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">...</Text>
             ) : null}
           </View>
         )}
+
+        {!locked && currentRead.status === "error" ? (
+          <MdCard variant="outlined" style={styles.card}>
+            <Text accessibilityRole="alert" style={[m3TextStyle("bodyMedium"), styles.muted]}>{t(currentRead.message)}</Text>
+            <MdButton label={t("common:actions.retry")} variant="outlined" onPress={() => setRetry((value) => value + 1)} />
+          </MdCard>
+        ) : null}
 
         {locked ? (
           // 아직 오지 않은 시기. 들어가지 못하게 하고 이유를 말한다.
@@ -377,7 +350,7 @@ export default function StarSummaryRoute() {
                   )
                 ) : null}
               </>
-            ) : summary === null ? (
+            ) : currentRead.status === "loading" ? (
               <MdCard variant="outlined" style={styles.card}>
                 <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>
                   {t("ds.star.loading")}
@@ -385,26 +358,28 @@ export default function StarSummaryRoute() {
               </MdCard>
             ) : null}
 
-            {entry?.kind !== "previous" ? (
-              <MdButton
-                label={summary && (summary.cells ?? 0) > 0 ? t("ds.star.continue") : t("ds.star.start")}
-                variant="filled"
-                disabled={entry === null}
-                onPress={() =>
-                  router.push({ pathname: "/interview", params: { period: meta.period ?? "now" } })
-                }
-                style={styles.cta}
-              />
-            ) : (
-              // Z23: the home bubble sends a waiting star to the one before it. That one can be
-              // waiting too, so the same way on is offered here instead of a dead end.
-              <MdButton
-                label={t("ds.home.bubble.goToStar", { star: t(`ds.star.${entry.prerequisite}`) })}
-                variant="filled"
-                onPress={() => router.push(`/me/${entry.prerequisite}`)}
-                style={styles.cta}
-              />
-            )}
+            {summary ? <>
+              {entry?.kind !== "previous" ? (
+                <MdButton
+                  label={summary && (summary.cells ?? 0) > 0 ? t("ds.star.continue") : t("ds.star.start")}
+                  variant="filled"
+                  disabled={entry === null}
+                  onPress={() =>
+                    router.push({ pathname: "/interview", params: { period: meta.period ?? "now" } })
+                  }
+                  style={styles.cta}
+                />
+              ) : (
+                // Z23: the home bubble sends a waiting star to the one before it. That one can be
+                // waiting too, so the same way on is offered here instead of a dead end.
+                <MdButton
+                  label={t("ds.home.bubble.goToStar", { star: t(`ds.star.${entry.prerequisite}`) })}
+                  variant="filled"
+                  onPress={() => router.push(`/me/${entry.prerequisite}`)}
+                  style={styles.cta}
+                />
+              )}
+            </> : null}
           </>
         )}
       </ScrollView>

@@ -73,7 +73,7 @@
       "dialogueOpen": "Abrir conversa com HustleK",
       "dialogueClose": "Fechar conversa com HustleK",
       "kind": {
-        "domain": "Domínio",
+        "domain": "Estrela",
         "profile": "Como te leem"
       },
       "bubble": {
@@ -193,7 +193,7 @@
       "save": "Capturar",
       "saving": "Salvando",
       "saved": "Salvo",
-      "openRecords": "Abrir registros",
+      "openRecords": "Ver a Wiki",
       "saveError": "Não foi possível salvar. Tente novamente em instantes.",
       "saveHint": "Digite algum conteúdo para salvar.",
       "saveHintFourW": "Preencha o campo O quê para salvar."
@@ -345,7 +345,7 @@
           "body": "Esqueça por um momento dinheiro, trabalho e compromissos. O que você faria primeiro?",
           "step1": "Escreva 3 coisas que você quer fazer",
           "step2": "Experimente uma delas com uma única hora este mês",
-          "step3": "Imagine quem te acompanha na estrela de Relações"
+          "step3": "Imagine quem te acompanha na área de Relações"
         },
         "reverse": {
           "angle": "Inverter",
@@ -353,15 +353,15 @@
           "body": "Improvisar em vez de planejar, junto em vez de sozinho. O que te atrai do outro lado?",
           "step1": "Experimente nesta semana algo que você nunca faz",
           "step2": "Anote com o HustleK o que pareceu estranho",
-          "step3": "Capture na estrela de Descanso e observe o padrão"
+          "step3": "Salve na área de Descanso e observe o padrão"
         },
         "connect": {
           "angle": "Conectar",
           "title": "Carreira × descanso, combinados",
-          "body": "Junte as duas estrelas à força. Que ideia curiosa aparece?",
+          "body": "Junte as duas áreas à força. Que ideia curiosa aparece?",
           "step1": "Escreva um projeto de uma linha com as duas palavras-chave",
           "step2": "Faça um protótipo em duas horas do fim de semana",
-          "step3": "Registre na estrela de Crescimento como um experimento"
+          "step3": "Registre na área de Crescimento como um experimento"
         }
       }
     },

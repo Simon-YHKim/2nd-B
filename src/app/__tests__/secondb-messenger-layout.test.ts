@@ -91,7 +91,7 @@ describe("HustleK messenger layout", () => {
     const openCitedPage = jest.fn();
     const tree = execute(`(${card.getText(ast)})`, {
       React: { createElement: (type: string, props: Props | null, ...children: unknown[]) => ({ type, props: { ...props, children } }) },
-      Pressable: "Pressable", Text: "Text", ds: {}, slug: "untitled-deadbeef", openCitedPage,
+      Pressable: "Pressable", Text: "Text", ds: {}, slug: "untitled-deadbeef", openCitedPage, citedWiki: { slug: null },
       formatSourceCitationLabel, t: (key: string) => key === "deepspace:time.recordFallback" ? "기록" : key,
     }) as Tree;
     expect(tree.props.accessibilityLabel).toBe("기록");

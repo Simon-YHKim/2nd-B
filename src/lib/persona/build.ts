@@ -128,6 +128,9 @@ export interface PersonaCard {
   markdownExport: string;
 }
 
+/** Saved fields for the Polaris screen; no claim about unread assessments. */
+export type CorePersonaSnapshot = Omit<PersonaCard, "mbti" | "attachment">;
+
 export interface AuditResponseRow {
   id: string;
   prompt: string | null;
@@ -564,25 +567,32 @@ export type SelfPortraitSignals = Pick<PersonaCard, "mbti" | "attachment" | "val
  * synthesis and must refresh after a user returns from an assessment or audit.
  * This path is SELECT-only: no LLM call, synthesis, or persona write.
  */
-export async function loadSelfPortraitSignals(userId: string): Promise<SelfPortraitSignals> {
+export async function loadSelfPortraitSignals(userId: string, assertCurrent?: () => void): Promise<SelfPortraitSignals> {
+  assertCurrent?.();
   const supabase = getSupabaseClient();
-  const [recordsResult, mbti, attachment] = await Promise.all([
+  const [records, mbti, attachment] = await Promise.all([
     supabase
       .from("records")
       .select("prompt")
       .eq("user_id", userId)
       .eq("kind", "audit_response")
       .order("created_at", { ascending: false })
-      .limit(MAX_PERSONA_ROWS),
+      .limit(MAX_PERSONA_ROWS)
+      .then(({ data, error }) => {
+        assertCurrent?.();
+        // A known prompt failure must not wait behind an unresolved assessment.
+        if (error) throw error;
+        return data ?? [];
+      }),
     loadLatestMbti(supabase, userId),
     loadLatestAttachment(supabase, userId),
   ]);
-  if (recordsResult.error) throw recordsResult.error;
+  assertCurrent?.();
 
   return {
     mbti,
     attachment,
-    values: deriveValues(recordsResult.data ?? []),
+    values: deriveValues(records),
   };
 }
 
@@ -624,14 +634,41 @@ export async function loadPersonaRatifiableSignals(
  * or retrying a screen must not change the user's model. `buildPersona` remains
  * the explicit rebuild path.
  */
-export async function loadPersonaSnapshot(userId: string): Promise<PersonaCard | null> {
+export async function loadPersonaSnapshot(userId: string, assertCurrent?: () => void): Promise<PersonaCard | null> {
+  // A screen may opt into an owner/deadline guard. Existing callers retain the
+  // same snapshot contract; no stale screen starts the dependent assessment reads.
+  assertCurrent?.();
   const supabase = getSupabaseClient();
+  const snapshot = await readStoredPersonaSnapshot(supabase, userId, assertCurrent);
+  assertCurrent?.();
+  if (!snapshot) return null;
+  const [mbti, attachment] = await Promise.all([
+    loadLatestMbti(supabase, userId),
+    loadLatestAttachment(supabase, userId),
+  ]);
+  assertCurrent?.();
+  return { ...snapshot, mbti, attachment };
+}
+
+/** Polaris primary read: return stored fields without assessment enrichment. */
+export async function loadCorePersonaSnapshot(userId: string, assertCurrent: () => void): Promise<CorePersonaSnapshot | null> {
+  assertCurrent();
+  const snapshot = await readStoredPersonaSnapshot(getSupabaseClient(), userId, assertCurrent);
+  assertCurrent();
+  return snapshot;
+}
+
+async function readStoredPersonaSnapshot(
+  supabase: ReturnType<typeof getSupabaseClient>, userId: string, assertCurrent?: () => void,
+): Promise<CorePersonaSnapshot | null> {
+  assertCurrent?.();
   const { data, error } = await supabase
     .from("personas")
     .select("version, traits, values, patterns, markdown_export")
     .eq("user_id", userId)
     .eq("version", 1)
     .maybeSingle();
+  assertCurrent?.();
   if (error) throw error;
   if (!data) return null;
 
@@ -653,11 +690,6 @@ export async function loadPersonaSnapshot(userId: string): Promise<PersonaCard |
   }
   const traits = rawTraits as PersonaTraits;
 
-  const [mbti, attachment] = await Promise.all([
-    loadLatestMbti(supabase, userId),
-    loadLatestAttachment(supabase, userId),
-  ]);
-
   // Legacy persona rows do not persist provenance. Never infer a validated
   // source merely because the saved numbers happen to equal a newer IPIP/BFI
   // result: equal values are not proof that this row came from that instrument.
@@ -676,8 +708,6 @@ export async function loadPersonaSnapshot(userId: string): Promise<PersonaCard |
     traits,
     traitsSource,
     traitConfidence,
-    mbti,
-    attachment,
     values: Array.isArray(row.values)
       ? row.values.filter((value): value is string => typeof value === "string")
       : [],
@@ -791,6 +821,7 @@ export async function buildPersona(
   // MBTI, and attachment still surface from their own assessments above; only
   // this narrative slot is gated. (Also avoids a needless paid call.)
   let summaryText: string;
+  let summarySource: "model" | "fixed_safety" | undefined;
   let summarySig: string | null = null;
   if (rows.length > 0) {
     // Input basis: interview transcripts excluded (like the trait heuristic);
@@ -824,10 +855,12 @@ export async function buildPersona(
       if (
         pat &&
         pat.__summary_sig === summarySig &&
+        (pat.__summary_source === "model" || pat.__summary_source === "fixed_safety") &&
         typeof pat.summary === "string" &&
         pat.summary.length > 0
       ) {
         cachedSummary = pat.summary;
+        summarySource = pat.__summary_source;
       }
     } catch {
       // Cache read is best-effort — a miss just means one LLM call.
@@ -868,6 +901,7 @@ export async function buildPersona(
         minor,
       });
       summaryText = summaryRes.text;
+      summarySource = summaryRes.safety.zone === "red" ? "fixed_safety" : "model";
     }
   } else {
     summaryText =
@@ -877,6 +911,9 @@ export async function buildPersona(
   }
 
   const patterns: Record<string, string> = { summary: summaryText };
+  // Red-zone replies are fixed app copy, not model text (chat/ai-mark.ts).
+  // Keep this with the cached text; legacy caches without it miss once.
+  if (summarySource) patterns.__summary_source = summarySource;
   // Cache key for the summary (double-underscore prefix: the persona screen
   // only renders `summary` and `top_*` keys, so this never reaches the UI).
   if (summarySig) patterns.__summary_sig = summarySig;

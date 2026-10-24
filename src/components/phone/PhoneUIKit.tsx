@@ -11,7 +11,7 @@ import { phoneFlatSurface, phoneInputStyle, phoneStyle } from "@/lib/theme/phone
 import { phoneIos } from "@/lib/theme/phone-ios";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { fontFamilies } from "@/theme/typography";
-import { useScrollMemory } from "@/lib/nav/scroll-memory";
+import { useScrollMemory, type ScrollRevealRequest } from "@/lib/nav/scroll-memory";
 
 // The names also remain valid as ref types when imported as RN aliases.
 export type PhoneView = View;
@@ -88,9 +88,11 @@ export const PhoneTextInput = forwardRef<TextInput, TextInputProps>(function Pho
     }]} />;
 });
 
-export const PhoneScrollView = forwardRef<ScrollView, ScrollViewProps>(function PhoneScrollView({ style, contentContainerStyle, ...rest }, ref) {
+export type PhoneScrollViewProps = ScrollViewProps & { priorityReveal?: ScrollRevealRequest | null };
+
+export const PhoneScrollView = forwardRef<ScrollView, PhoneScrollViewProps>(function PhoneScrollView({ style, contentContainerStyle, priorityReveal, ...rest }, ref) {
   const phone = usePhoneDesign();
-  const { hostKey, ...memory } = useScrollMemory(rest, ref);
+  const { hostKey, ...memory } = useScrollMemory(rest, ref, false, priorityReveal);
   return <ScrollView {...rest} {...memory} key={hostKey} style={phone ? mapped(style) : style}
     contentContainerStyle={phone ? mapped(contentContainerStyle) : contentContainerStyle} />;
 });

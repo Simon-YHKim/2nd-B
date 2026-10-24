@@ -18,7 +18,8 @@
 //      *반복*을 잡지 *막힘*을 잡지 않아 발동하지 않는다. 서로 다른 실패다.
 //
 // [Simon 결정 2026-08-24] 막히면 **같은 층에 머물되 더 쉬운 각도로** 다시 묻는다.
-// 최대 두 번까지 시도하고, 그래도 막히면 넘어간다 — 다만 **그 칸은 끝까지 빈 칸**이다.
+// 현재 S2는 첫 실패에 발판, 두 번째 실패에 장면 변경·질문 건너뛰기 선택을 준다.
+// 건너뛴 칸은 같은 장면에서 끝까지 비워 둔다. 아래의 두 발판 예산은 레거시 호출용이다.
 //
 // 판정을 LLM 에 맡기지 않은 것도 의도다. 이 판정이 곧 별의 밝기로 이어지므로
 // 결정론적이고 감사 가능해야 한다. 대신 **보수적으로** 잡는다: 사용자가 스스로
@@ -26,7 +27,7 @@
 
 import { type DrillLayer } from "./probe";
 
-/** 한 층에서 발판을 최대 몇 번까지 줄지. 넘으면 칸을 비운 채 다음 층으로 간다. */
+/** 레거시 호출의 발판 예산. S2는 아래 failedAttemptMove의 시도 횟수를 쓴다. */
 export const MAX_SCAFFOLDS_PER_LAYER = 2;
 
 /** "못 답하겠다"는 표시. 정규화된 답 **전체가** 사실상 이것뿐일 때만 걸린다. */
@@ -126,7 +127,16 @@ export function scaffoldQuestion(
   return pair[Math.min(Math.max(streak, 1), pair.length) - 1] ?? pair[0];
 }
 
-/** 발판을 쓸 차례인가. `streak` 은 **이 층에서** 연속으로 못 답한 횟수다. */
+/** 레거시 호출용. `streak` 은 **이 층에서** 연속으로 못 답한 횟수다. */
 export function shouldScaffold(streak: number): boolean {
   return streak > 0 && streak <= MAX_SCAFFOLDS_PER_LAYER;
+}
+
+/** S2 counts attempts, not scaffold sentences. Legacy callers keep their budget above. */
+export function failedAttemptMove(layer: DrillLayer, attempts: number):
+  | { kind: "scaffold"; layer: DrillLayer }
+  | { kind: "stuckChoice"; layer: DrillLayer; attempts: 2 }
+  | null {
+  if (attempts >= 2) return { kind: "stuckChoice", layer, attempts: 2 };
+  return attempts === 1 ? { kind: "scaffold", layer } : null;
 }

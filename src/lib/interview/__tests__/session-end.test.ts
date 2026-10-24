@@ -154,15 +154,12 @@ describe("2. 로컬 안전장치 (모델을 안 부르는 건너뛰기)", () => 
 
   it("화면의 건너뛰기 · 사실만은 질문을 붙이기 전에 이 검사를 거친다", () => {
     const code = codeOnly("src/app/interview.tsx");
-    const angle = between(code, "function changeAngle(", "async function keepIt(");
-    expect(angle.length).toBeGreaterThan(0);
-    const call = "localPromptsExhausted(turns, (turn) => isLocalNonAnswer(turn.text, turn.layer))";
-    const guard = angle.indexOf(call);
-    expect(guard).toBeGreaterThan(-1);
-    expect(guard).toBeLessThan(angle.indexOf("setTurns("));
-    expect(between(angle, call, "setTurns(")).toContain("finish()");
-    // 대화 전체의 질문 수를 세면 12턴 상한이 이름만 바꿔 남는다.
-    expect(angle).not.toMatch(/role\s*===\s*"interviewer"\)\.length/);
+    const angle = between(code, "function startNewScene(", "function changeAngle(");
+    expect(angle).toContain("localPromptsExhausted(frame.turns, turn => isLocalNonAnswer(turn.text, turn.layer))");
+    expect(angle.indexOf("localPromptsExhausted(")).toBeLessThan(angle.indexOf("commitFrame("));
+    expect(angle).toContain('reason: "local-prompts-exhausted"');
+    expect(angle).not.toContain("finish()");
+
   });
 
   it("send() 의 막힘 판정과 건너뛰기 가드가 같은 함수다 (갈라지면 교대 반복이 다시 열린다)", () => {
@@ -254,7 +251,7 @@ describe("2-1. 모르겠어요 -> 건너뛰기 교대 (게이트 F2049-02)", () 
   });
 });
 
-describe("3. 하루 몫 거절은 끝맺음이다", () => {
+describe("3. 확인된 한도 거절은 현재 화면을 유지한다", () => {
   describe("순수 판정 isDayLimitRefusal", () => {
     it.each([
       ["공용 하루 지출 한도", 429, { error: "daily_limit_exceeded" }, true],
@@ -376,28 +373,28 @@ describe("3. 하루 몫 거절은 끝맺음이다", () => {
     }
   });
 
-  it("화면은 그 거절을 오류 안내보다 먼저 끝맺음으로 받는다", () => {
+  it("화면은 확인된 한도 거절을 일반 오류와 구분하고 끝내지 않는다", () => {
     const code = codeOnly("src/app/interview.tsx");
-    const ask = between(code, "const ask = useCallback(", "const started = useRef(");
+    const ask = between(code, "async function ask(", "const started = useRef(");
     const handler = between(ask, "catch (error)", "finally");
     expect(handler.length).toBeGreaterThan(0);
     const limit = handler.indexOf("readDayLimitRefusal(error, INTERVIEW_PURPOSE)");
-    const failed = handler.indexOf('setNotice(t("drill.failed"))');
     expect(limit).toBeGreaterThan(-1);
-    expect(failed).toBeGreaterThan(limit);
-    const branch = handler.slice(limit, failed);
-    expect(branch).toContain("setDayLimited(true)");
-    expect(branch).toContain("finish()");
-    expect(branch).toMatch(/return;/);
+    expect(handler).toContain('t(limited ? "drill.dayLimit" : "drill.failed")');
+    expect(handler).toContain('return limited ? "limited" : "failed"');
+    expect(handler).toContain('commitFrame(action, action.snapshot)');
+    expect(handler).not.toContain("finish()");
+
   });
 
-  it("끝 화면은 안내 한 줄만 바꾸고, 지금까지의 대화를 담는 버튼은 그대로다", () => {
+  it("한도 안내는 현재 대화의 notice에 표시하고 저장 화면은 사용자가 끝낼 때만 연다", () => {
     const code = codeOnly("src/app/interview.tsx");
-    expect(code).toContain('dayLimited ? t("drill.dayLimit") : t("drill.closing")');
+    expect(code).not.toContain("dayLimited ?");
     const doneBranch = /\{done \?[\s\S]*?\) : \(/.exec(read("src/app/interview.tsx"))?.[0] ?? "";
-    expect(doneBranch).toContain('t("drill.dayLimit")');
+    expect(doneBranch).toContain('t("drill.closing")');
+    expect(doneBranch).not.toContain('t("drill.dayLimit")');
     expect(doneBranch).toContain("onPress={() => void keepIt()}");
-    expect(doneBranch).toContain("disabled={busy || userTurns === 0}");
+    expect(doneBranch).toContain('disabled={busy || userTurns === 0 || receipt.phase !== "idle"}');
     expect(doneBranch).not.toContain("dayLimited &&");
   });
 
@@ -414,7 +411,7 @@ describe("3. 하루 몫 거절은 끝맺음이다", () => {
     // B안: 사실 · 안내는 ~습니다, 제안은 해요체.
     const ko = JSON.parse(read("locales/ko/interview.json")).drill.dayLimit as string;
     expect(ko).toContain("습니다.");
-    expect(ko).toMatch(/해요\.$/);
+    expect(ko).toMatch(/습니다\.$/);
   });
 
   // F2049-03: 두 카운터가 하루를 다르게 끊고(목적별 몫 KST 자정 · 지출 한도 UTC 자정),
@@ -429,4 +426,91 @@ describe("3. 하루 몫 거절은 끝맺음이다", () => {
     const drill = JSON.parse(read(`locales/${loc}/interview.json`)).drill as Record<string, string>;
     expect(drill.dayLimit).not.toMatch(claim);
   });
+});
+
+
+import { createHash } from "node:crypto";
+// Baseline ed1441c3, independently printed with comments removed. No Git dependency in CI.
+const frozenContracts = [
+  [
+    "src/lib/interview/session-end.ts",
+    "*",
+    "e0299d0f9d5fde652309ab50562680443e130873ac4f82776a9b3568b1728bbb"
+  ],
+  [
+    "src/lib/interview/continuity.ts",
+    "*",
+    "e87484fdc38e6b1c2a2bc6266c7807c2bb1a0deb8db15ae1c7f84cafd12e03ce"
+  ],
+  [
+    "src/lib/interview/probe.ts",
+    "buildSystemPrompt",
+    "a44c1680e1a24d2eed4d2a0540df30ddb92bbfe43fc40a272f0c3f5698b2c4c6"
+  ],
+  [
+    "src/lib/interview/probe.ts",
+    "buildUserPrompt",
+    // T37/Q7: carry provenance in history; buildSystemPrompt and credit rules stay frozen.
+    "afe8ea9945644896b04150f37d793e5d685b9df4bd4513411d8d730b08d49e3d"
+  ],
+  [
+    "src/lib/interview/probe.ts",
+    "PROBE_SCHEMA",
+    "fce4acd7ff19b0c3a9f8e3418a73e23204f946611700af0a8445200286e93344"
+  ],
+  [
+    "src/lib/interview/probe.ts",
+    "parseProbeReply",
+    "bf1a31e961a5635725be373fc2a62bf2adc5fb2fd32080b27b778645ad6a3ac7"
+  ],
+  [
+    "src/lib/interview/probe.ts",
+    "readAnsweredLayer",
+    "7b9c32afde0f9ad277a7f65f41458e28345afec7fe4447db648d342fd004f41f"
+  ],
+  [
+    "src/lib/interview/probe.ts",
+    "readOpeners",
+    "3cbad85be29177306a5c46762359a1ff6cbd19ca78e10bb8ae37bad229936d06"
+  ],
+  [
+    "src/lib/interview/probe.ts",
+    "usableQuestion",
+    "3bb394e94a54884e8d599e8d770ed14df956ffd7cfeeabc97a46761b3b2dd9c6"
+  ],
+  [
+    "src/app/interview.tsx",
+    "finish",
+    "f4d4a0762befbf2cca324f55865c224505dc15b8df087d30f4ce218e9a0ad746"
+  ],
+  [
+    "src/app/interview.tsx",
+    "useGoHomeStop",
+    "37175213aabc3fd4fa2fe16fe0831923b35739c175e24f1f480cb454b1c16795"
+  ],
+  [
+    "src/app/interview.tsx",
+    "stop",
+    "ff1b441b1e32365ff8db1c5d884f02f2f270956ddb62e32ee8e851f1fcbd1a8d"
+  ],
+  [
+    "src/app/interview.tsx",
+    "skip",
+    "79fb329a31a928c26aed72441affe98db98b3c95bc4013919b6154943d78714f"
+  ]
+];
+test.each(frozenContracts)("S2 frozen runtime %s %s", (file, key, digest) => {
+  const sf = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const printer = ts.createPrinter({ removeComments: true });
+  let found: ts.Node | undefined;
+  const visit = (node: ts.Node): void => {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === key) found = node;
+    if (ts.isVariableDeclaration(node) && node.name.getText(sf) === key) found = node.initializer;
+    if (key === "useGoHomeStop" && ts.isCallExpression(node) && node.expression.getText(sf) === key) found = node;
+    if (["stop", "skip"].includes(key) && ts.isIfStatement(node) && node.expression.getText(sf) === `disposition === "${key}"`) found = node.thenStatement;
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  const printed = key === "*" ? printer.printFile(sf) : found ? printer.printNode(ts.EmitHint.Unspecified, found, sf) : "MISSING";
+  expect(createHash("sha256").update(printed.replace(/\r\n/g, "\n")).digest("hex")).toBe(digest);
 });

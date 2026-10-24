@@ -55,6 +55,7 @@ import {
   buildSevenProposalContext,
   sevenRatifiableTargets,
 } from "../seven-proposal-context";
+import { buildSelfModelProposalPrompt } from "../propose-self-model";
 
 beforeEach(() => {
   for (const k of Object.keys(coverageByUser)) delete coverageByUser[k];
@@ -134,6 +135,20 @@ describe("제안 재료", () => {
   it("현재 등급은 커버리지 사다리에서 온다 (2층 = L3)", async () => {
     const ctx = await buildSevenProposalContext("u1", "school", "ko");
     expect(ctx!.currentLevel).toBe(3);
+  });
+
+  it.each(["답변(제안 그대로)", "A (suggested, sent as is)"])("T37 retains %s in evidence and keeps eligibility", async label => {
+    recordRows.splice(0, recordRows.length, { id: "opener", prompt: null,
+      body: `Q: Tell me about school\n\n${label}: I joined a band\n\nA: I played drums`, created_at: "2026-10-19" });
+    const ctx = await buildSevenProposalContext("u1", "school", "en");
+    expect(ctx!.evidence).toContain(`${label}: I joined a band`);
+    expect(ctx!.evidence).toContain("A: I played drums");
+    expect(ctx!.evidenceRefs).toEqual(["record:opener"]);
+    expect(ctx!.currentLevel).toBe(3);
+    expect(await sevenRatifiableTargets("u1")).toEqual([{ star: "school", period: "school", cells: 2 }]);
+    const prompt = buildSelfModelProposalPrompt({ kind: "sevenStar", star: "school" }, ctx!.before, ctx!.evidence, "en");
+    expect(prompt.user).toContain(`${label}: I joined a band`);
+    expect(prompt.system).toContain("do not quote them as the person's own words");
   });
 
   it("⚠ 커버리지는 있는데 원문이 없으면 제안하지 않는다", async () => {

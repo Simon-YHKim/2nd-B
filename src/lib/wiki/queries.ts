@@ -10,7 +10,9 @@
 // always equal auth.uid() (otherwise RLS rejects the operation).
 
 import { getSupabaseClient } from "../supabase/client";
+import { reasoningTagPatch, type SystemTaggedRow } from "../records/system-tags";
 import { diffWikiLinks } from "./link-diff";
+import { prepareSavedDataDeletion } from "./saved-data-changes";
 import { extractWikilinkSlugs } from "./wikilinks";
 import type { RelationType, SourceKind, SourceRow, WikiPageKind, WikiPageRow } from "./types";
 
@@ -101,13 +103,13 @@ export interface ListSourcesOpts {
   limit?: number;
 }
 
-export async function listSources(userId: string, opts: ListSourcesOpts = {}): Promise<SourceRow[]> {
+export async function listSources(userId: string, opts: ListSourcesOpts = {}, signal?: AbortSignal): Promise<SourceRow[]> {
   const supabase = getSupabaseClient();
   let q = supabase.from("sources").select("*").eq("user_id", userId).order("captured_at", { ascending: false });
   if (opts.ingested !== undefined) q = q.eq("ingested", opts.ingested);
   if (opts.kinds && opts.kinds.length > 0) q = q.in("kind", opts.kinds);
   if (opts.limit !== undefined) q = q.limit(opts.limit);
-  const { data, error } = await q;
+  const { data, error } = await (signal ? q.abortSignal(signal) : q);
   if (error) throw error;
   return (data ?? []) as SourceRow[];
 }
@@ -147,12 +149,14 @@ export async function markSourceIngested(userId: string, sourceId: string): Prom
  */
 export async function deleteSource(userId: string, sourceId: string): Promise<void> {
   const supabase = getSupabaseClient();
+  const notifyDeletion = prepareSavedDataDeletion({ ownerId: userId, kind: "source", ids: [sourceId] });
   const { error } = await supabase
     .from("sources")
     .delete()
     .eq("user_id", userId)
     .eq("id", sourceId);
   if (error) throw error;
+  notifyDeletion("requested");
 }
 
 /** Sources whose Storage upload failed at capture time (frontmatter carries
@@ -191,20 +195,28 @@ export async function updateSourceFrontmatter(
   if (error) throw error;
 }
 
-/** Replace a source's tags column (inbox accepts an AI-suggested tag before
- *  promotion). Caller passes the full desired set; we don't merge here. */
+/** Replace user tags; a freshly read ratification row additionally appends the
+ * system marker in the same conditional PATCH. That write never falls back to
+ * tags-only. Ordinary edits keep their existing contract. */
 export async function updateSourceTags(
   userId: string,
   sourceId: string,
   tags: string[],
+  ratification?: SystemTaggedRow,
 ): Promise<void> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase
+  const patch = ratification ? reasoningTagPatch(tags, ratification) : null;
+  let query = supabase
     .from("sources")
-    .update({ tags })
+    .update(patch ? patch.payload : { tags })
     .eq("user_id", userId)
     .eq("id", sourceId);
+  if (patch) query = query.filter("system_tags", "eq", patch.expected);
+  // Keep ordinary tag edits' existing response contract. Ratification must
+  // confirm an actual row before the proposal or its wiki page can advance.
+  const { data, error } = await (patch ? query.select("id") : query);
   if (error) throw error;
+  if (patch && (!data || data.length === 0)) throw new Error("updateSourceTags: no row updated (stale or unauthorized id)");
 }
 
 // --- wiki_pages --------------------------------------------------------
@@ -272,13 +284,13 @@ export interface ListWikiPagesOpts {
   limit?: number;
 }
 
-export async function listWikiPages(userId: string, opts: ListWikiPagesOpts = {}): Promise<WikiPageRow[]> {
+export async function listWikiPages(userId: string, opts: ListWikiPagesOpts = {}, signal?: AbortSignal): Promise<WikiPageRow[]> {
   const supabase = getSupabaseClient();
   let q = supabase.from("wiki_pages").select("*").eq("user_id", userId).order("updated_at", { ascending: false });
   if (opts.kinds && opts.kinds.length > 0) q = q.in("kind", opts.kinds);
   if (opts.anyOfTags && opts.anyOfTags.length > 0) q = q.overlaps("tags", opts.anyOfTags);
   if (opts.limit !== undefined) q = q.limit(opts.limit);
-  const { data, error } = await q;
+  const { data, error } = await (signal ? q.abortSignal(signal) : q);
   if (error) throw error;
   return (data ?? []) as WikiPageRow[];
 }
@@ -309,6 +321,7 @@ export async function markSourceNotIngested(userId: string, sourceId: string): P
  */
 export async function deleteWikiPage(userId: string, pageId: string): Promise<void> {
   const supabase = getSupabaseClient();
+  const notifyDeletion = prepareSavedDataDeletion({ ownerId: userId, kind: "wiki_page", ids: [pageId] });
   // Read the promoted-from source BEFORE deleting, while the FK still exists.
   const { data: page, error: lookupErr } = await supabase
     .from("wiki_pages")
@@ -334,6 +347,7 @@ export async function deleteWikiPage(userId: string, pageId: string): Promise<vo
         console.warn("[wiki] page deleted but source reset failed", (e as Error).message);
     }
   }
+  notifyDeletion("requested");
 }
 
 /** Pages whose body links TO the given page (i.e., wiki_links.to_page = pageId). */

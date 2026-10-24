@@ -3,6 +3,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import { hookHarness } from "../../nav/__tests__/hook-harness";
+
+let mockCitationHarness: ReturnType<typeof hookHarness>;
+jest.mock("expo-router", () => ({ useFocusEffect: (effect: () => void | (() => void)) => mockCitationHarness.hooks.useEffect(effect, [effect]) }));
 
 type Row = Record<string, any>;
 const mockTables: Record<string, Row[]> = {};
@@ -10,7 +14,7 @@ const mockTables: Record<string, Row[]> = {};
 const mockTouched: string[] = [];
 const mockObjects = new Map<string, string>();
 const mockUpload = jest.fn(async (path: string, content: string) => { mockObjects.set(path, content); return { error: null }; });
-const mockRpc = jest.fn(async (name: string, args: Row) => {
+const mockRpcDefault = async (name: string, args: Row): Promise<{ data: Row[] | number | null; error: Error | null }> => {
   if (name === "match_wiki_pages") return { data: [], error: null };
   if (name === "bump_chat_usage_if_under_cap") return { data: 1, error: null };
   // The outbox writes through the 0179/0181 keyed RPCs; like the server, a
@@ -25,7 +29,11 @@ const mockRpc = jest.fn(async (name: string, args: Row) => {
     return { data: null, error: null };
   }
   throw new Error(`Unexpected RPC: ${name}`);
-});
+};
+const mockRpc = jest.fn(mockRpcDefault);
+const mockGetSession = jest.fn();
+type QueryResult = { data: Row[]; error: Error | null };
+let mockQueryResultHook: ((table: string, result: QueryResult) => QueryResult | Promise<QueryResult>) | undefined;
 
 function mockQuery(table: string) {
   mockTouched.push(table);
@@ -33,7 +41,7 @@ function mockQuery(table: string) {
   let action = "select";
   let payload: Row | Row[] = {};
   let max = Infinity;
-  const run = () => {
+  const run = (): QueryResult => {
     const rows = (mockTables[table] ??= []);
     let data = rows.filter((row) => filters.every((test) => test(row)));
     if (action === "insert" || action === "upsert") {
@@ -63,20 +71,32 @@ function mockQuery(table: string) {
     abortSignal: () => q,
     single: async () => { const result = run(); return { ...result, data: result.data[0] ?? null }; },
     maybeSingle: async () => { const result = run(); return { ...result, data: result.data[0] ?? null }; },
-    then: (resolve: (value: ReturnType<typeof run>) => unknown) => Promise.resolve(run()).then(resolve),
+    then: (resolve: (value: QueryResult) => unknown, reject?: (error: unknown) => unknown) => {
+      const result = run();
+      return Promise.resolve(mockQueryResultHook ? mockQueryResultHook(table, result) : result).then(resolve, reject);
+    },
   };
   return q;
 }
 
 jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({
-  from: mockQuery, rpc: mockRpc,
+  from: mockQuery, rpc: (name: string, args: Row) => {
+    let signal: AbortSignal | undefined;
+    const query = {
+      abortSignal: (value: AbortSignal) => { signal = value; return query; },
+      then: (yes: (value: unknown) => unknown, no: (error: unknown) => unknown) => Promise.resolve().then(() => {
+        if (signal?.aborted) throw Object.assign(new Error("aborted"), { name: "AbortError" });
+        return mockRpc(name, args);
+      }).then(yes, no),
+    }; return query;
+  }, auth: { getSession: mockGetSession },
   storage: { from: () => ({
     upload: mockUpload,
     download: async (path: string) => ({ data: mockObjects.has(path) ? { text: async () => mockObjects.get(path) } : null, error: null }),
   }) },
 }) }));
 let mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: "mock", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: false };
-jest.mock("../../env", () => ({ getEnv: () => mockRuntimeEnv }));
+jest.mock("../../env", () => ({ getEnv: () => ({ ...mockRuntimeEnv, EXPO_PUBLIC_SUPABASE_URL: "https://example.supabase.co", EXPO_PUBLIC_SUPABASE_ANON_KEY: "fixture-public-key" }) }));
 jest.mock("../../persona/profile-context", () => ({ loadProfileContext: jest.fn(async () => []) }));
 jest.mock("@google/genai", () => ({ GoogleGenAI: jest.fn(() => { throw new Error("Network forbidden in this fixture"); }) }));
 
@@ -89,7 +109,9 @@ import { parseSourceCitations } from "../sources";
 import { CHAT_KEEP_TAG, composeExchangeBody, exchangeMarkdown } from "../keep-exchange";
 import * as boundary from "../../llm/boundary";
 import { flushAuditWriteOutbox, resetAuditWriteOutboxForTests } from "../../llm/audit-write-outbox";
-import { __resetAccountEpochForTests, captureAccountOwnerLease, noteResolvedOwner } from "../../auth/account-epoch";
+import { __resetAccountEpochForTests, beginAccountOwnerTransition, clearAccountTransition, currentAccountEpoch, noteResolvedOwner } from "../../auth/account-epoch";
+import { beginAccountSessionLease, type AuthenticatedAccountSessionLease } from "../../auth/account-session-lease";
+import { formatRagPages, retrieveChatContext } from "../rag";
 import { createChatAutosaveSession } from "../autosave-session";
 import { defaultPrivacyPrefs } from "../../privacy/prefs";
 import { resetPrivacyChangesForTests } from "../../privacy/changes";
@@ -103,7 +125,8 @@ const ask = () => sendChatMessage({ userId: OWNER, message: "What did I record a
 beforeEach(async () => {
   mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: "mock", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: false };
   for (const key of Object.keys(mockTables)) delete mockTables[key];
-  mockObjects.clear(); mockRpc.mockClear(); mockUpload.mockClear(); resetPrivacyChangesForTests();
+  mockObjects.clear(); mockRpc.mockReset().mockImplementation(mockRpcDefault); mockUpload.mockClear(); resetPrivacyChangesForTests();
+  mockQueryResultHook = undefined; mockGetSession.mockReset();
   mockTables.records = [{ user_id: OWNER, body: PRIVATE_DIARY, structured: null }];
   __resetAccountEpochForTests(); noteResolvedOwner(OWNER);
   await resetAuditWriteOutboxForTests();
@@ -169,9 +192,9 @@ test("the composed conversation still runs the real safety classifier and record
   expect(JSON.stringify(mockTables.crisis_events)).not.toContain("I want to kill myself");
 });
 
-// Every optional input the engine takes, filled in. Required<> turns an optional field added to
-// SendMessageInput later into a type error here until it is filled too, so "every" stays true.
-const EVERY_OPTIONAL_INPUT: Required<Omit<SendMessageInput, "userId" | "message" | "locale" | "tier">> = {
+// Every optional legacy content/presentation input is filled in. Required<> guards new ones;
+// captured execution fields are exercised together by conversation-captured.integration.test.ts.
+const EVERY_OPTIONAL_INPUT: Required<Omit<SendMessageInput, "userId" | "message" | "locale" | "tier" | "session" | "signal" | "onCrisisDetected" | "mutationObserver">> = {
   displayName: "Alex",
   personaHint: "Speak plainly.",
   mode: "divergent",
@@ -271,14 +294,184 @@ test("an ordinary source stays title-only until explicit promotion; citation ope
   const parsed = parseSourceCitations(`The record says this. [[${promoted.slug}]]`);
   const source = readFileSync(join(__dirname, "../../../app/secondb.tsx"), "utf8");
   const ast = ts.createSourceFile("secondb.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  let handler = "";
-  const walk = (node: ts.Node): void => { if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "openCitedPage") handler = node.initializer!.getText(ast); ts.forEachChild(node, walk); };
-  walk(ast); expect(handler).not.toBe("");
-  const code = ts.transpileModule(`const open = ${handler};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-  const router = { push: jest.fn() };
-  const open = new Function("userId", "setRefDrawer", "router", "getWikiPage", "captureAccountOwnerLease", `${code}; return open;`)(OWNER, jest.fn(), router, getWikiPage, captureAccountOwnerLease);
-  open(parsed.chips[0]);
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  expect(router.push).toHaveBeenCalledWith({ pathname: "/wiki", params: { focusPageId: promoted.page.id } });
+  const declarations = new Map<string, string>();
+  const walk = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && ["citedWiki", "openCitedPage"].includes(node.name.getText(ast))) declarations.set(node.name.getText(ast), node.initializer!.getText(ast));
+    ts.forEachChild(node, walk);
+  };
+  walk(ast); expect(declarations.size).toBe(2);
+  const evaluate = <T,>(code: string, bindings: Record<string, unknown>): T => {
+    const js = ts.transpileModule(`const result = ${code};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+    return new Function(...Object.keys(bindings), `${js}; return result;`)(...Object.values(bindings)) as T;
+  };
+  const react = jest.requireActual<typeof import("react")>("react");
+  mockCitationHarness = hookHarness();
+  const spies = (["useState", "useRef", "useMemo", "useCallback", "useEffect", "useSyncExternalStore"] as const).map((name) =>
+    jest.spyOn(react, name).mockImplementation(((...args: unknown[]) => (mockCitationHarness.hooks[name] as (...args: unknown[]) => unknown)(...args)) as never));
+  try {
+    const { useCitedWikiPage } = jest.requireActual<typeof import("../use-cited-wiki-page")>("../use-cited-wiki-page");
+    const router = { push: jest.fn() };
+    const conversationId = { current: 0 };
+    const render = () => mockCitationHarness.render(() => evaluate<ReturnType<typeof useCitedWikiPage>>(declarations.get("citedWiki")!, {
+      useCitedWikiPage, userId: OWNER, conversationId, rev2Persona: "secondb", chatMode: "convergent", pathname: "/secondb", params: {}, router,
+    }));
+    render().openDrawer(parsed.chips);
+    const citedWiki = render();
+    evaluate<(slug: string) => void>(declarations.get("openCitedPage")!, { citedWiki })(parsed.chips[0]);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(router.push).toHaveBeenCalledWith({ pathname: "/wiki", params: { focusPageId: promoted.page.id } });
+    expect(render().slugs).toBeNull();
+  } finally { mockCitationHarness.unmount(); spies.forEach((spy) => spy.mockRestore()); }
   expect(await getWikiPage("another-owner", promoted.slug)).toBeNull();
+});
+
+describe("captured RAG through actual embedding, reads and audit outbox", () => {
+  const originalFetch = globalThis.fetch;
+  const releases: (() => void)[] = [];
+  const vector = Array.from({ length: 768 }, (_, index) => index === 0 ? 1 : 0);
+  const neighbors = [
+    { id: "page-owned", slug: "owned", title: "Owned", similarity: 0.9 },
+    { id: "page-foreign", slug: "foreign", title: "Foreign", similarity: 0.8 },
+    { id: "page-low", slug: "low", title: "Low", similarity: 0.1 },
+  ];
+  const embedResponse = (audited = true) => new Response(JSON.stringify({ vectors: [vector], modelUsed: "fixture-query-space", audited }), { status: 200 });
+  let fetchMock: jest.Mock;
+  async function lease() {
+    const pending = beginAccountSessionLease(OWNER); releases.push(pending.release);
+    return pending.authenticate();
+  }
+  function retire(session: AuthenticatedAccountSessionLease, reason: string) {
+    if (reason === "abort") session.abort();
+    else {
+      beginAccountOwnerTransition("next-owner");
+      if (reason === "ABA") {
+        noteResolvedOwner("next-owner"); clearAccountTransition(currentAccountEpoch());
+        noteResolvedOwner(OWNER); clearAccountTransition(currentAccountEpoch());
+      }
+    }
+  }
+  const matches = () => mockRpc.mock.calls.filter(([name]) => name === "match_wiki_pages");
+  beforeEach(() => {
+    mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: "live", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: true };
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: OWNER }, access_token: "captured-rag-token" } }, error: null });
+    mockTables.wiki_pages = [
+      { id: "page-owned", user_id: OWNER, slug: "owned", title: "Owned", body_md: ORIGINAL },
+      { id: "page-foreign", user_id: "another-owner", slug: "foreign", title: "Foreign", body_md: "FOREIGN_BODY" },
+      { id: "page-low", user_id: OWNER, slug: "low", title: "Low", body_md: "LOW_SIMILARITY_BODY" },
+    ];
+    mockRpc.mockImplementation(async (name, args) => name === "match_wiki_pages" ? { data: neighbors, error: null } : mockRpcDefault(name, args));
+    fetchMock = jest.fn(async (url: string) => {
+      if (url.includes("/functions/v1/")) return embedResponse();
+      if (url.endsWith("/rest/v1/rpc/log_ai_audit_once")) return new Response("null", { status: 200 });
+      throw new Error("Unexpected captured RAG network route");
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+    mockTouched.length = 0;
+  });
+  afterEach(() => {
+    releases.splice(0).forEach(release => release());
+    globalThis.fetch = originalFetch; mockQueryResultHook = undefined;
+  });
+
+  test("keeps original owner/model provenance, clipping and citation shape with one auth read", async () => {
+    const session = await lease();
+    const pages = await retrieveChatContext(OWNER, "Tool notes", "en", { session, signal: session.signal, k: 3, bodyCharLimit: 20 });
+    expect(pages).toEqual([{ slug: "owned", title: "Owned", body: ORIGINAL.slice(0, 20), similarity: 0.9 }]);
+    expect(matches()).toEqual([["match_wiki_pages", { p_user_id: OWNER, query_embedding: `[${vector.join(",")}]`, match_count: 3, p_embedding_model: "fixture-query-space" }]]);
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ signal: session.signal, headers: { Authorization: "Bearer captured-rag-token" } });
+    expect(mockGetSession).toHaveBeenCalledTimes(1);
+    expect(formatRagPages(pages, "en")).toContain("[[owned]]");
+    expect(parseSourceCitations(formatRagPages(pages, "en")).chips).toEqual(["owned"]);
+    expect(mockTouched).toEqual(["wiki_pages"]);
+  });
+
+  test("actual capture and promotion reach captured RAG with a same-token audit", async () => {
+    mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: "mock", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: false };
+    const captured = await captureFromMarkdown({ userId: OWNER, rawMd: `---\ntitle: Tool evidence\n---\n${ORIGINAL}`, kindOverride: "self_knowledge" });
+    const promoted = await generateSourcePage(OWNER, captured.source.id);
+    const session = await lease();
+    mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: "live", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: true };
+    mockRpc.mockImplementation(async (name, args) => name === "match_wiki_pages" ? { data: [{ id: promoted.page.id, slug: promoted.slug, title: "Tool evidence", similarity: 0.9 }], error: null } : mockRpcDefault(name, args));
+    fetchMock.mockImplementation(async (url: string) => url.includes("/functions/v1/") ? embedResponse(false) : new Response("null", { status: 200 }));
+    const pages = await retrieveChatContext(OWNER, "What changed?", "en", { session });
+    expect(pages).toEqual([expect.objectContaining({ slug: promoted.slug, body: ORIGINAL })]);
+    expect(parseSourceCitations(formatRagPages(pages, "en")).chips).toEqual([promoted.slug]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const [, options] of fetchMock.mock.calls) {
+      expect(options.signal).toBe(session.signal); expect(options.headers.Authorization).toBe("Bearer captured-rag-token");
+    }
+    const audit = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(audit).toMatchObject({ p_model_used: "fixture-query-space", p_purpose: "embed_index" });
+    expect(audit).not.toHaveProperty("p_user_id"); // The keyed RPC derives its owner from this captured JWT.
+    expect(JSON.stringify(audit)).not.toContain(ORIGINAL);
+    expect(mockGetSession).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(["owner", "signal", "abort", "hold", "ABA"])("%s before RAG prevents embedding and both reads", async reason => {
+    const session = await lease();
+    if (!["owner", "signal"].includes(reason)) retire(session, reason);
+    await expect(retrieveChatContext(reason === "owner" ? "another-owner" : OWNER, "Tool notes", "en", { session, signal: reason === "signal" ? new AbortController().signal : session.signal })).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled(); expect(matches()).toHaveLength(0); expect(mockTouched).toEqual([]);
+  });
+
+  test("a hold after the actual embed result settles still blocks the first RAG read", async () => {
+    const session = await lease();
+    const embed = boundary.embedTexts;
+    jest.spyOn(boundary, "embedTexts").mockImplementationOnce(async input => {
+      const result = await embed(input);
+      retire(session, "hold");
+      return result;
+    });
+    await expect(retrieveChatContext(OWNER, "Tool notes", "en", { session })).rejects.toMatchObject({ name: "AbortError" });
+    expect(fetchMock).toHaveBeenCalledTimes(1); expect(matches()).toHaveLength(0); expect(mockTouched).toEqual([]);
+  });
+
+  test.each(["embed", "knn", "body"].flatMap(stage => ["abort", "hold", "ABA"].flatMap(reason => ["resolve", "reject"].map(outcome => [stage, reason, outcome] as const))))("%s %s on %s cannot become fallback or return old bodies", async (stage, reason, outcome) => {
+    const session = await lease();
+    const settle = () => { retire(session, reason); if (outcome === "reject") throw new Error("Late read failure"); };
+    if (stage === "embed") fetchMock.mockImplementationOnce(async () => { settle(); return embedResponse(); });
+    else if (stage === "knn") mockRpc.mockImplementationOnce(async () => { settle(); return { data: neighbors, error: null }; });
+    else mockQueryResultHook = async (_table, result) => { settle(); return result; };
+    await expect(retrieveChatContext(OWNER, "Tool notes", "en", { session })).rejects.toMatchObject({ name: "AbortError" });
+    expect(matches()).toHaveLength(stage === "embed" ? 0 : 1);
+    expect(mockTouched).toEqual(stage === "body" ? ["wiki_pages"] : []);
+    expect(fetchMock).toHaveBeenCalledTimes(1); expect(mockGetSession).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(["knn", "body"])("%s returned ordinary error remains empty, returned AbortError propagates", async stage => {
+    const session = await lease(); const error = new Error("Read unavailable");
+    const install = (failure: Error) => {
+      if (stage === "knn") mockRpc.mockImplementationOnce(async () => ({ data: [], error: failure }));
+      else mockQueryResultHook = async () => ({ data: [], error: failure });
+    };
+    install(error);
+    await expect(retrieveChatContext(OWNER, "Tool notes", "en", { session })).resolves.toEqual([]);
+    const aborted = Object.assign(new Error("Read aborted"), { name: "AbortError" }); install(aborted);
+    await expect(retrieveChatContext(OWNER, "Tool notes", "en", { session })).rejects.toBe(aborted);
+  });
+
+  test.each(["knn", "body"])("%s thrown ordinary error preserves legacy propagation", async stage => {
+    const session = await lease(); const error = new Error("Ordinary read transport failure");
+    if (stage === "knn") mockRpc.mockImplementationOnce(async () => { throw error; });
+    else mockQueryResultHook = async () => { throw error; };
+    await expect(retrieveChatContext(OWNER, "Tool notes", "en", { session })).rejects.toBe(error);
+  });
+
+  test("no-index and RED zero-vector stay empty without a body read", async () => {
+    const session = await lease(); mockRpc.mockImplementationOnce(async () => ({ data: [], error: null }));
+    await expect(retrieveChatContext(OWNER, "Tool notes", "en", { session })).resolves.toEqual([]);
+    await expect(retrieveChatContext(OWNER, "I want to die", "en", { session })).resolves.toEqual([]);
+    expect(matches()).toHaveLength(1); expect(mockTouched).toEqual([]);
+    const embeds = fetchMock.mock.calls.filter(([url]) => String(url).includes("/functions/v1/"));
+    expect(embeds).toHaveLength(1);
+  });
+
+  test("a signal-only caller does not accept a body after cancellation", async () => {
+    // No captured capability is provided; the embedding is the unchanged mock branch.
+    mockRuntimeEnv = { EXPO_PUBLIC_LLM_MODE: "mock", EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: false };
+    const controller = new AbortController();
+    mockQueryResultHook = async (_table, result) => { controller.abort(); return result; };
+    await expect(retrieveChatContext(OWNER, "Tool notes", "en", { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(mockTouched).toEqual(["wiki_pages"]);
+  });
 });

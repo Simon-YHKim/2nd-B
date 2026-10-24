@@ -8,10 +8,12 @@
 //   이름으로 읽어 뺐던 것은 Simon 이 상태 메시지로 바로잡으면서 이유가 사라졌다.
 // - '답하지 않음' 은 넘기지 않는다.
 // - 자유 입력(좌우명 등)이 있으므로 호출부는 이 줄들을 <UNTRUSTED> 로 감싸고 씻어서 넣는다.
-// - 못 읽으면 빈 배열 - 프로필이 대화를 멈추게 하지 않는다.
+// - 일반 조회 실패는 빈 배열. 선택 captured fence의 취소/소유권 상실은 전파한다.
 import { getSupabaseClient } from "../supabase/client";
 import { ageInYears } from "../supabase/auth";
 import { PROFILE_DETAIL_FIELDS, resolveProfileDetails, type ProfileDetails } from "./profile-details";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { isAbortError, throwIfAborted } from "../async/abort";
 
 /** 한 줄에 한 칸: `age: 34` · `occupation: 디자이너` · `gender: female` … */
 export function profileContextLines(details: ProfileDetails, age: number | null, statusMessage: string | null = null): string[] {
@@ -27,17 +29,43 @@ export function profileContextLines(details: ProfileDetails, age: number | null,
   return lines;
 }
 
-export async function loadProfileContext(userId: string, now: Date = new Date()): Promise<string[]> {
+export async function loadProfileContext(
+  userId: string,
+  now: Date = new Date(),
+  execution?: Pick<AuthenticatedAccountSessionLease, "userId" | "signal" | "assertCurrent">,
+  liveSignal?: AbortSignal,
+): Promise<string[]> {
+  const fence = (): void => {
+    if (!execution) return;
+    if (!userId || execution.userId !== userId) throw new Error("context_session_owner_mismatch");
+    throwIfAborted(execution.signal);
+    execution.assertCurrent();
+  };
+  fence();
+  let data, error;
   try {
-    const { data, error } = await getSupabaseClient()
+    const query = getSupabaseClient()
       .from("users")
       .select("id,birth_date,profile_details,status_message")
-      .eq("id", userId)
-      .maybeSingle();
-    if (error || !data || data.id !== userId) return [];
-    const age = typeof data.birth_date === "string" ? ageInYears(data.birth_date, now) : -1;
-    return profileContextLines(resolveProfileDetails(data.profile_details), age >= 0 ? age : null, data.status_message ?? null);
-  } catch {
+      .eq("id", userId);
+    ({ data, error } = await (liveSignal ? query.abortSignal(liveSignal) : query).maybeSingle());
+  } catch (error) {
+    fence();
+    if (execution && isAbortError(error)) throw error;
     return [];
   }
+  fence();
+  if (execution && isAbortError(error)) throw error;
+  if (error || !data || data.id !== userId) return [];
+  let lines;
+  try {
+    const age = typeof data.birth_date === "string" ? ageInYears(data.birth_date, now) : -1;
+    lines = profileContextLines(resolveProfileDetails(data.profile_details), age >= 0 ? age : null, data.status_message ?? null);
+  } catch (error) {
+    fence();
+    if (execution && isAbortError(error)) throw error;
+    return [];
+  }
+  fence();
+  return lines;
 }

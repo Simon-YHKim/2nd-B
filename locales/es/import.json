@@ -77,7 +77,7 @@
   "hub": {
     "back": "Atrás",
     "import": "Importar",
-    "imported": "Datos importados",
+    "imported": "Historial de importación",
     "hubBubble": "¿Qué quieres traer?",
     "hubTip": "Solo se guarda lo que apruebes.",
     "tier_critical": "Muy sensible · requiere consentimiento",
@@ -140,7 +140,7 @@
       "takeout": {
         "name": "Google Timeline",
         "sub": "Ubicación · archivo de Takeout",
-        "what": "Solo patrones de lugares y tiempo de estancia. No se guardan las coordenadas exactas."
+        "what": "Solo los nombres de los lugares que elijas. No guardamos coordenadas ni recorridos."
       },
       "sms": {
         "name": "SMS",
@@ -150,7 +150,7 @@
       "live-location": {
         "name": "Historial de ubicaciones",
         "sub": "Ubicación · archivo exportado",
-        "what": "Solo patrones de lugares y tiempo de estancia. No se guardan las coordenadas exactas."
+        "what": "Solo los nombres de los lugares que elijas. No guardamos coordenadas ni recorridos."
       },
       "health": {
         "name": "Salud",

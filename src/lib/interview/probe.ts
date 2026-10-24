@@ -17,6 +17,8 @@
 // signals are deterministic functions here (LLM-agnostic per C1/C9).
 
 import { callLlm } from "../llm/boundary";
+import { interviewAnswerLabel } from "./saved-story";
+import type { CrisisObserver } from "../llm/types";
 import {
   detectLoops,
   loopCheckKeyFor,
@@ -25,8 +27,9 @@ import {
   type ReflectionEntry,
 } from "./loop-check";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
-import { scaffoldQuestion, shouldScaffold } from "./stuck";
+import { failedAttemptMove, scaffoldQuestion, shouldScaffold } from "./stuck";
 import { answerDisposition, canCreditAnswer, currentScene } from "./continuity";
+import { inspectProbeContactGuidance, type ProbeGuidance } from "./probe-guidance";
 
 /**
  * 인터뷰가 다루는 자리. **북두칠성 일곱 중 인터뷰가 있는 여섯과 1:1** 이다
@@ -72,15 +75,17 @@ export const DRILL_LAYERS: readonly DrillLayer[] = [
 export interface InterviewTurn {
   role: "interviewer" | "user";
   text: string;
+  /** Actual chip selection and exact raw draft match. Not a credit verdict. */
+  fromOpener?: boolean;
   /** Layer the *answer* sits in (interviewer turn has the layer it was probing for). */
   layer?: DrillLayer;
   /** Period this turn sits under. A turn can switch period when user changes focus. */
   period?: LifePeriod;
   /** Session-only metadata, no change to stored transcript/schema. */
   sceneStart?: boolean;
-  /** Session-only: true = this answer earned its layer's cell, false = it did not.
-   *  Unset = no verdict yet: the answer the screen is sending now, or one that never got one. */
-  answered?: boolean;
+  /** Session-only: true = credited, false = a miss, null = another named layer
+   *  (neither credit nor miss). Unset = awaiting a response, or failed/unsettled. */
+  answered?: boolean | null;
   /** Session-only: the request that carried this answer failed (network or server error), so it
    *  has no verdict. It is neither progress nor a miss; the screen asks again at the same layer. */
   unsettled?: boolean;
@@ -218,6 +223,8 @@ export function isPeriodComplete(c: Coverage, period: LifePeriod): boolean {
 export type NextMove =
   | { kind: "drill"; layer: DrillLayer }
   | { kind: "finish" }
+  | { kind: "sceneChoice"; reason: SceneChoiceReason }
+  | { kind: "stuckChoice"; layer: DrillLayer; attempts: 2 }
   /** 사용자가 이 층을 못 답했다. **내려가지 않고** 같은 층을 더 쉬운
    *  각도로 다시 묻는다. 그 칸은 여전히 빈 칸이다(`stuck.ts`). */
   | { kind: "scaffold"; layer: DrillLayer }
@@ -233,47 +240,23 @@ export function nextMove(
   stuck: { layer: DrillLayer; streak: number } | null = null,
   /** 발판을 다 썼는데도 막혀서 더 묻지 않기로 한 층들. */
   abandoned: readonly DrillLayer[] = [],
-  thread?: { history: readonly InterviewTurn[]; locale: "en" | "ko"; concreteOnly?: boolean },
+  thread?: { history: readonly InterviewTurn[]; locale: "en" | "ko"; concreteOnly?: boolean; bypassCompletionOnce?: boolean },
 ): NextMove {
   if (thread) {
     const scene = currentScene(thread.history);
     const answers = scene.filter((turn) => turn.role === "user");
     const last = answers[answers.length - 1];
-    // A refusal and exhausted scaffolds end questioning; empty cells are not a reason
-    // to revisit a declined topic. No obligation to reach all five layers.
     if (last && answerDisposition(last.text, thread.locale) === "stop") return { kind: "finish" };
-    // 장면은 **답의 개수로 끝나지 않는다** (QA 261005 R2F-09). 여기 있던 `answers.length >= 8`
-    // 은 인정 여부와 상관없이 답을 세서, 두 층에서 막혔다 회복한 사람의 장면을 울림(L5)을
-    // 묻기도 전에 끊었다. 장면을 끝내는 것은 인정된 진전(아래 `isPeriodComplete`: 다섯 층이 모두
-    // 인정됨)과 원래 있던 규칙들이다 -- 거절(위), 막힘(아래 `stuck`), 화면의 판정 경로에서 한
-    // 층을 세 번 인정받지 못함(interview.tsx). 그래서 장면 안의 판정 호출은 층마다 세 번이 넘지 않는다.
-    // 마지막 층도 같다 -- 다섯 층 x 3 = 장면당 판정 호출 15회가 상한이다(게이트 LAST-01).
-    if (abandoned.length === DRILL_LAYERS.length) return { kind: "finish" };
-    if (stuck) return shouldScaffold(stuck.streak)
-      ? { kind: "scaffold", layer: stuck.layer }
-      : { kind: "finish" };
-    // 판정을 기다리는 답은 장면의 맨 끝 턴 하나다(화면의 ask 가 방금 보낸 답). 판정과 다음 질문이
-    // 한 호출에서 오므로 다음 층은 이 답이 인정된다고 보고 고른다. 그 가정으로 나온 `finish` 는
-    // 화면이 판정이 인정일 때만 따른다(interview.tsx, 게이트 LAST-01). 앞에 남은 답 중 판정이 없는
-    // 것(오류로 `unsettled` 가 된 답 · 위험 신호로 멈춘 답)은 진전으로도 셈으로도 세지 않는다.
-    const awaiting = (turn: InterviewTurn, index: number): boolean =>
-      index === scene.length - 1 && turn.answered === undefined && !turn.unsettled;
-    const progress = scene.filter((turn, index): turn is InterviewTurn & { layer: DrillLayer } =>
-      turn.role === "user" && turn.layer !== undefined
-      && (turn.answered === true || awaiting(turn, index))
-      && canCreditAnswer(turn.text, turn.layer, thread.locale));
-    // "사실만"의 4답 상한도 이 진전만 센다(게이트 LAST-02): 모델이 인정한 답과 지금 판정을 기다리는
-    // 답이다. 예전에는 장면의 답을 전부 세서, 오류로 판정을 못 받은 답 셋 뒤 네 번째 입력이 모델
-    // 판정 없이 끝났다. 인정 못 받은 답은 화면이 같은 층에 발판을 놓고 세 번째면 끝내므로 유한하다.
-    if (thread.concreteOnly) return progress.length >= 4
-      ? { kind: "finish" }
-      : { kind: "drill", layer: "fact" };
-    // Past sessions may have every cell filled. A new event still starts with its own
-    // scene, and follows its own answers. No cumulative coverage drives this path.
-    const sceneCoverage = emptyCoverage();
-    for (const turn of progress) sceneCoverage[period][turn.layer] += 1;
-    if (isPeriodComplete(sceneCoverage, period)) return { kind: "finish" };
-    return { kind: "drill", layer: nextLayerSuggestion(sceneCoverage, period, abandoned) };
+    const failure = stuck && failedAttemptMove(stuck.layer, stuck.streak);
+    if (failure) return failure;
+    // Optimism chooses only the request target. The screen rechecks confirmed history.
+    const optimistic = thread.history.map((turn, index) => index === thread.history.length - 1
+      && turn.role === "user" && turn.answered === undefined && !turn.unsettled
+      ? { ...turn, answered: true } : turn);
+    const status = sceneStatus(optimistic, period, thread.locale, abandoned, thread.concreteOnly);
+    if (status.kind === "noEligible") return { kind: "sceneChoice", reason: "no-eligible" };
+    if (status.kind === "complete" && !thread.bypassCompletionOnce) return { kind: "sceneChoice", reason: status.reason };
+    return { kind: "drill", layer: status.target };
   }
   const loops = detectLoops(recentEntries, now);
   if (loops.length > 0) {
@@ -285,6 +268,82 @@ export function nextMove(
   // 이 우선순위가 boundary의 안전 분류를 대신하거나 앞선다는 뜻은 아니다.
   if (stuck && shouldScaffold(stuck.streak)) return { kind: "scaffold", layer: stuck.layer };
   return { kind: "drill", layer: nextLayerSuggestion(c, period, abandoned) };
+}
+
+export type SceneChoiceReason = "first-pass-handled" | "concrete-progress" | "no-eligible"
+  | "question-exhausted" | "local-prompts-exhausted";
+export type SceneStatus = { eligible: DrillLayer[]; progress: number } & (
+  | { kind: "noEligible" }
+  | { kind: "incomplete"; target: DrillLayer }
+  | { kind: "complete"; target: DrillLayer; reason: "first-pass-handled" | "concrete-progress" }
+);
+
+export function sceneStatus(history: readonly InterviewTurn[], period: LifePeriod, locale: "en" | "ko",
+  abandoned: readonly DrillLayer[] = [], concreteOnly = false): SceneStatus {
+  const progress = currentScene(history).filter((turn): turn is InterviewTurn & { layer: DrillLayer } =>
+    turn.role === "user" && turn.layer !== undefined && DRILL_LAYERS.includes(turn.layer)
+    && turn.answered === true && !turn.unsettled && canCreditAnswer(turn.text, turn.layer, locale));
+  const eligible = DRILL_LAYERS.filter(layer => !abandoned.includes(layer) && (!concreteOnly || layer === "fact"));
+  const common = { eligible, progress: progress.length };
+  if (!eligible.length) return { ...common, kind: "noEligible" };
+  const cov = emptyCoverage();
+  for (const turn of progress) cov[period][turn.layer] += 1;
+  const target = concreteOnly ? "fact" : nextLayerSuggestion(cov, period, abandoned);
+  if (concreteOnly ? progress.length >= 4 : DRILL_LAYERS.every(layer => cov[period][layer] > 0 || abandoned.includes(layer))) {
+    return { ...common, kind: "complete", target, reason: concreteOnly ? "concrete-progress" : "first-pass-handled" };
+  }
+  return { ...common, kind: "incomplete", target };
+}
+
+/** Neutral, unsettled and unjudged answers neither increment nor reset a layer's misses. */
+export function failedAttempts(history: readonly InterviewTurn[], layer: DrillLayer, locale: "en" | "ko"): number {
+  let count = 0;
+  for (const turn of currentScene(history)) {
+    if (turn.role !== "user" || turn.layer !== layer || turn.unsettled) continue;
+    if (turn.answered === true && canCreditAnswer(turn.text, layer, locale)) count = 0;
+    else if (turn.answered === false) count += 1;
+  }
+  return count;
+}
+
+export type QuestionPolicy = "assigned-target" | "local-fact";
+export type AcceptedQuestion =
+  | { kind: "question"; question: string; pendingLayer: DrillLayer; openers: string[]; source: "model" | "local" }
+  | { kind: "noEligible" | "questionExhausted" | "localPromptsExhausted" };
+
+/** Structural assignment only. This does not classify a model sentence's meaning. */
+export function acceptQuestion(input: {
+  candidate?: { question: string; layer: DrillLayer; openers: string[]; questionSource?: "model" | "local" };
+  target: DrillLayer; eligible: readonly DrillLayer[]; policy: QuestionPolicy;
+  history: readonly InterviewTurn[]; locale: "en" | "ko"; localGuard: boolean;
+  localQuestion?: string; scaffoldStreak?: number;
+}): AcceptedQuestion {
+  const { target, eligible, policy, history, locale, candidate } = input;
+  if (!eligible.includes(target)) return { kind: "noEligible" };
+  const assigned = policy === "assigned-target" && candidate?.layer === target
+    && (candidate.questionSource === "model" || candidate.questionSource === "local");
+  const raw = input.localQuestion ?? (assigned ? candidate.question : "");
+  const question = usableQuestion(raw, [...history], target, locale, input.scaffoldStreak);
+  if (!question) return { kind: "questionExhausted" };
+  const source = input.localQuestion === undefined && assigned && candidate.questionSource === "model"
+    && question === candidate.question ? "model" : "local";
+  if (source === "local" && input.localGuard) return { kind: "localPromptsExhausted" };
+  return { kind: "question", question, pendingLayer: target, source,
+    openers: source === "model" ? candidate!.openers : [] };
+}
+
+export function choiceAvailability(input: {
+  kind: "sceneChoice" | "stuckChoice"; reason?: SceneChoiceReason;
+  eligible: readonly DrillLayer[]; hasUserTurns: boolean; locked: boolean;
+}): { more: boolean; newScene: boolean; save: boolean; skipLayer: boolean } {
+  const exhausted = input.reason === "local-prompts-exhausted";
+  return {
+    more: !input.locked && input.kind === "sceneChoice" && input.eligible.length > 0
+      && !exhausted && input.reason !== "question-exhausted" && input.reason !== "no-eligible",
+    newScene: !input.locked && !exhausted,
+    save: !input.locked && input.kind === "sceneChoice" && input.hasUserTurns,
+    skipLayer: !input.locked && input.kind === "stuckChoice",
+  };
 }
 
 export function nextLayerSuggestion(
@@ -299,11 +358,8 @@ export function nextLayerSuggestion(
 ): DrillLayer {
   const cov = c[period];
   const open = DRILL_LAYERS.filter((l) => !abandoned.includes(l));
-  // 전부 포기했으면 포기 목록을 무시한다 -- 달리 돌려줄 것이 없다.
-  // 대화를 끝내는 것은 이 함수가 아니다. 화면은 `nextMove` 에 thread 를 넘기고,
-  // 그 분기가 다섯 층을 모두 포기했을 때 `finish` 를 돌려준다(위 `abandoned.length
-  // === DRILL_LAYERS.length`). 여기 적혀 있던 "턴 상한(MAX_TURNS)이 어차피 끝낸다"는
-  // 그 상한과 함께 없어졌다(Simon 결정 2026-10-05, 12턴 상한 해제).
+  // Legacy callers retain a total return type. S2 checks sceneStatus first:
+  // noEligible becomes sceneChoice(no-eligible), never a revived abandoned layer.
   const pool = open.length > 0 ? open : DRILL_LAYERS;
 
   if (pool.includes("fact") && cov.fact === 0) return "fact";
@@ -438,18 +494,21 @@ function buildSystemPrompt(
 // The transcript is stored user material — fence it (was raw until 2026-07-26).
 function buildUserPrompt(history: InterviewTurn[]): string {
   const transcript = history
-    .map((t) => (t.role === "interviewer" ? `Q (${t.layer ?? "choice"}): ${t.text}` : `A (${t.layer ?? "choice"}): ${t.text}`))
+    .map((t) => (t.role === "interviewer" ? `Q (${t.layer ?? "choice"}): ${t.text}` : `${interviewAnswerLabel(t.fromOpener, "en")} (${t.layer ?? "choice"}): ${t.text}`))
     .join("\n");
   return wrapUntrusted("interview_transcript", transcript);
 }
 
 export interface ProbeResult {
   question: string;
+  questionSource?: "model" | "local";
+  /** Accepted non-RED contact metadata, separate from interview text and verdict. */
+  guidance?: Exclude<ProbeGuidance, { kind: "none" }>;
   /**
    * **말문 후보** — 이 질문에 답을 시작할 만한 짧은 문장 최대 2개.
    *
    * ⚠ 이건 답이 아니다. 화면은 이걸 누르면 **보내지 않고 입력창을 채운다** —
-   *   모델이 지어낸 문장이 사용자의 기록으로 남으면 안 되기 때문이다.
+   *   그대로 보낸 경우 fromOpener로 출처를 남겨 사용자가 쓴 말과 구분한다(Q7).
    *   이 저장소의 데이터 방향(위키가 원본, 페르소나가 파생)이 그걸 요구한다.
    * ⚠ 모델이 안 주면 빈 배열이다. 그때는 칩이 안 뜨고 화면은 그대로 돈다.
    */
@@ -463,10 +522,16 @@ export interface ProbeResult {
    * 직전 답이 **실제로** 어느 층에 닿았는지에 대한 모델의 판정. 닿은 데가 없으면
    * `null`. 직전 답이 아예 없으면 `undefined`.
    *
-   * 화면은 결정론적 적합성과 이 판정이 모두 확인된 뒤에만 물었던 층을 더한다.
-   * 모델이 다른 층을 지목하거나 판정이 없으면 더하지 않는다. 저장 원문은 그대로다.
+   * 성공 응답에서 판정이 없으면 로컬 적합성을 따른다. 다른 층을 지목하면 물었던
+   * 층을 더하지도 실패로 세지도 않는다. 통신 실패와 위기는 별도 경로다. 저장 원문은 그대로다.
    */
   answeredLayer?: DrillLayer | null;
+}
+
+export interface ProbeGuidanceContext {
+  readonly isMinor: boolean | null;
+  /** The original request's owner, instance, request and completion fence. */
+  isCurrent(): boolean;
 }
 
 /** Generate the next interviewer question.
@@ -487,6 +552,11 @@ export async function nextProbe(
   scaffoldStreak = 0,
   /** 발판일 때 머물 층. 주어지면 `nextLayerSuggestion` 을 건너뛴다. */
   forceLayer: DrillLayer | null = null,
+  /** Forward confirmed RED before the boundary's audit awaits. */
+  onCrisisDetected?: CrisisObserver,
+  /** Optional delivery context; never sent to the model or persisted. */
+  guidanceContext?: ProbeGuidanceContext,
+  options?: { includeQuestionSource?: boolean },
 ): Promise<ProbeResult> {
   // 어느 층을 물을지를 **부르는 쪽이 정할 수도 있다.** 발판이 그렇다 --
   // 막힌 층에 그대로 머무른다. 안 주면 예전처럼 빈 칸을 찾아 내려간다.
@@ -500,6 +570,7 @@ export async function nextProbe(
     user: buildUserPrompt(currentScene(history)),
     minor,
     responseSchema: PROBE_SCHEMA,
+    onCrisisDetected,
   });
   // 구조화 출력이 깨져도 화면이 멈추지 않게 원문 첫 줄로 떨어진다.
   // 그 아래 대체 문장까지 있으니 두 겹이다.
@@ -510,13 +581,25 @@ export async function nextProbe(
   const parsed = parseProbeReply(typeof res.text === "string" ? res.text : "");
   const raw = typeof parsed?.question === "string" ? parsed.question : typeof res.text === "string" ? res.text : "";
   const cleaned = raw.trim().split("\n")[0]?.trim() ?? "";
+  let guidance: ProbeResult["guidance"];
+  if (res.safety.zone !== "red" && guidanceContext) {
+    try {
+      if (guidanceContext.isCurrent() === true) {
+        const inspected = inspectProbeContactGuidance(res.text, guidanceContext.isMinor);
+        if (inspected.status === "inspected" && inspected.evidence === "current-contact") guidance = inspected.guidance;
+      }
+    } catch { /* Failed inspection is not evidence of a contact recommendation. */ }
+  }
+  const question = usableQuestion(guidance ? "" : cleaned, history, layer, locale, scaffoldStreak);
   return {
-    question: usableQuestion(cleaned, history, layer, locale, scaffoldStreak),
-    openers: readOpeners(parsed),
+    question,
+    ...(options?.includeQuestionSource ? { questionSource: (!guidance && cleaned && question === cleaned ? "model" : "local") as "model" | "local" } : {}),
+    openers: guidance ? [] : readOpeners(parsed),
     zone: res.safety.zone,
     hotline: res.safety.crisisRouting?.hotline,
     layer,
     answeredLayer: askedLayer === null ? undefined : readAnsweredLayer(parsed),
+    ...(guidance ? { guidance } : {}),
   };
 }
 
@@ -590,7 +673,7 @@ function lastAskedLayer(history: readonly InterviewTurn[]): DrillLayer | null {
   return null;
 }
 
-/** Missing and negative judgements stay distinct; neither can confirm coverage. */
+/** Missing follows the local judgement; explicit none remains a veto. */
 function readAnsweredLayer(parsed: ProbeReply | null): DrillLayer | null | undefined {
   const v = parsed?.answeredLayer;
   if (typeof v !== "string") return undefined;

@@ -72,6 +72,8 @@ export interface IdenDoc {
   /** ISO date, e.g. "2026-06-16". */
   generated: string;
   oneLiner: string;
+  /** Present only when the saved northstar's body fingerprint matched. */
+  oneLinerAiSuggested?: boolean;
   fields: IdenField[];
   /** Optional AI narrative, rendered under an "AI-generated interpretation" label. */
   summary?: IdenSummary;

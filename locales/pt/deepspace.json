@@ -66,7 +66,7 @@
     "headline": "'{{title}}' tem mais conexões com outros registros.",
     "chipPages": "Páginas {{count}}",
     "chipLinks": "Conexões {{count}}",
-    "chipOrphans": "Sem conexões {{count}}",
+    "chipOrphans": "Registros sem conexões {{count}}",
     "noLinks": "Ainda não há conexões entre os registros salvos. Você pode adicionar outros registros e buscar novamente.",
     "surprise": "Há uma conexão sugerida entre '{{from}}' e '{{to}}', que tratam de temas diferentes.",
     "islandChip": "Grupos de conhecimento {{count}}",
@@ -96,7 +96,7 @@
     "unfiledBadge": "Não classificado",
     "fallbackTitle": "Sem título",
     "graphEmpty": "Ainda não há conhecimento para conectar.",
-    "loadError": "Não foi possível carregar seus registros. Tente novamente.",
+    "loadError": "Não foi possível carregar a Wiki. Tente novamente.",
     "retry": "Tentar de novo",
     "periodScope": "Histórias: {{star}}",
     "periodShowAll": "Ver tudo"
@@ -167,33 +167,35 @@
   },
   "privacy": {
     "title": "Privacidade e termos",
-    "status": "Os registros são usados apenas para apoiar seu autoconhecimento.",
-    "tip": "Escolhas sensíveis são sempre mostradas e confirmadas primeiro.",
+    "status": "Seus registros são usados em funções que ajudam você a se conhecer. Os detalhes estão na política de privacidade.",
+    "tip": "Você pode escolher quais dados são usados.",
     "lead": "Ajuste você mesmo como seus dados são usados.",
     "on": "Ligado",
     "off": "Desligado",
     "policy": "Política de privacidade",
+    "terms": "Termos de uso",
+    "refund": "Política de reembolso",
     "view": "Ver",
     "processingLog": "Registro de processamento de dados",
     "last7": "Últimos 7 dias",
     "thirdParty": "Compartilhamento com terceiros",
-    "none": "0 itens",
+    "none": "Só nos casos da política de privacidade",
     "footer": "O tratamento e armazenamento dos dados depende de cada função. Consulte o aviso de uso de dados.",
     "dataReview": "Revisão dos meus dados",
     "open": "Abrir",
     "atGlance": "Visão geral",
     "facts": {
       "onDevice": {
-        "label": "Primeiro no dispositivo",
-        "v": "O conteúdo original que você importa é analisado no seu dispositivo; só os sinais derivados ficam guardados, criptografados."
+        "label": "Como os registros são usados",
+        "v": "Os registros ficam salvos no servidor. O conteúdo necessário para as funções de IA é enviado aos fornecedores de IA no exterior."
       },
       "collect": {
         "label": "O que coletamos",
-        "v": "As fagulhas de estrela que você guarda, as pontuações de lentes e os padrões de uso. Localização e comunicações, só com o seu consentimento."
+        "v": "Informações da conta, registros salvos e dados de uso do serviço, entre outros. Os dados de localização e comunicações só são coletados com seu consentimento."
       },
       "retention": {
         "label": "Período de retenção",
-        "v": "Enquanto sua conta estiver ativa; se você excluir a conta, tudo é removido em até 30 dias."
+        "v": "Fica guardado enquanto você usa a conta e é excluído sem demora quando você exclui a conta. Só os registros exigidos por lei, como os de pagamento, ficam guardados à parte pelo prazo obrigatório."
       },
       "delete": {
         "label": "Direito de exclusão",
@@ -209,7 +211,7 @@
       "loadingSettings": "Carregando configurações…",
       "allow": "Permitir estatísticas de uso",
       "lockedUnder18": "Bloqueado para menores de 18",
-      "applied": "GA4 ativo na web · Firebase e Clarity desativados no Android",
+      "applied": "A escolha vale para o Google Analytics na web · Estatísticas de uso desativadas no Android",
       "enableFailed": "Não foi possível ativar as estatísticas. Tente novamente.",
       "withdrawSaveFailed": "Não foi possível salvar. A retirada das estatísticas já vale neste dispositivo; tente salvar de novo.",
       "adsSaveFailed": "Não foi possível salvar a configuração de anúncios. Tente novamente."
@@ -227,10 +229,10 @@
     "semantic": {
       "title": "Conexões de registros por significado",
       "minorLocked": "As conexões por significado estão desativadas e não podem ser ativadas.",
-      "onBody": "Ligadas. Os registros são indexados por significado para mostrar os parecidos.",
-      "turnOffA11y": "Desligar as conexões por significado",
-      "turnOff": "Desligar e excluir vetores",
-      "offBody": "Desligadas. Ligue para conectar registros com significado parecido, mesmo sem etiquetas em comum.",
+      "onBody": "Conecta registros com significado parecido. Ao desligar, os dados usados nas conexões são excluídos e seus registros ficam salvos.",
+      "turnOffA11y": "Desligar as conexões por significado e excluir os dados de conexão",
+      "turnOff": "Desligar e excluir dados de conexão",
+      "offBody": "Desligadas. Ligue para conectar registros com significado parecido.",
       "turnOnA11y": "Ligar as conexões por significado",
       "turnOn": "Ligar"
     },
@@ -239,7 +241,7 @@
     "saveFailed": "Não foi possível salvar. Tente novamente daqui a pouco.",
     "deleteAccount": {
       "body": "Seus registros, capturas, wiki, uso e conta são apagados para sempre. Não dá para desfazer. Exporte antes o que precisar.",
-      "typePrompt": "Digite \"DELETE\" para continuar.",
+      "typePrompt": "Digite \"{{phrase}}\" para continuar.",
       "inputA11y": "Confirmação de exclusão",
       "buttonA11y": "Excluir a conta permanentemente",
       "button": "Excluir conta",
@@ -256,33 +258,18 @@
     "reportBug": "Relatar um erro",
     "footer": "PolaScope v{{version}} · 2 dias úteis KST",
     "faqTitle": "Perguntas frequentes",
-    "noticesTitle": "Avisos",
     "faqs": {
       "brightness": {
-        "q": "Qual é a diferença entre o brilho (a luz das estrelas) e a confiança?",
-        "a": "A luz das estrelas mostra quanto você guardou nessa área; a confiança, quanto a estimativa do HustleK foi confirmada. As duas mudam de forma independente."
+        "q": "O que significa o brilho das estrelas?",
+        "a": "O brilho de uma estrela de entrevista mostra quantas camadas da entrevista você abriu. A cobertura vai até L4; L5 só aparece depois que você confirma uma proposta."
       },
       "plan": {
         "q": "Um plano pago deixa o app mais inteligente?",
         "a": "Não. A qualidade das respostas é a mesma em todos os planos. Só mudam os limites de quantidade, retenção e exportação."
       },
-      "call": {
-        "q": "A gravação de chamadas é segura?",
-        "a": "As gravações são transcritas no servidor de IA por uma conexão criptografada, e o áudio original é apagado do seu dispositivo logo depois. Só o texto e os sinais ficam guardados, criptografados."
-      }
-    },
-    "notices": {
-      "modes": {
-        "t": "Chegaram os três modos do HustleK",
-        "tag": "Novo"
-      },
-      "museum": {
-        "t": "Museu da IA: 8 coleções já abertas",
-        "tag": "Conteúdo"
-      },
       "voice": {
-        "t": "Transcrição de voz aprimorada",
-        "tag": "Melhoria"
+        "q": "A transcrição de voz é segura?",
+        "a": "A voz é transcrita no servidor de IA por uma conexão criptografada, e o áudio original é apagado do seu dispositivo logo depois. Só o texto e os sinais ficam guardados, criptografados."
       }
     }
   },
@@ -709,9 +696,12 @@
     "eyebrowConstellation": "MINHA CONSTELACAO",
     "footerWeek": "Uma semana vista ao lado do HustleK",
     "starsLit": "{{count}} estrelas brilhando",
-    "signature": "PolaScope · {{count}} fagulhas de estrela"
+    "signature": "PolaScope · {{count}} registros"
   },
   "ds": {
+    "network": {
+      "offline": "Sem conexão com a internet."
+    },
     "growth": {
       "title": "Minha mudança",
       "bubble": "Veja o que mudou nos seus registros nesta semana.",
@@ -839,9 +829,9 @@
       "meaning": "significado",
       "edit": "Editar",
       "move": "Mover",
-      "fillStar": "Preencher esta estrela",
+      "fillStar": "Preencher esta área",
       "fillStarBody": "Adicione informações deste domínio.",
-      "secondbLinked": "Este registro se conecta à estrela '{{star}}'. Há {{n}} registros semelhantes no mesmo período.",
+      "secondbLinked": "Este registro se conecta à área '{{star}}'. Há {{n}} registros semelhantes no mesmo período.",
       "makeWikiPage": "Criar página wiki",
       "wikiPageMade": "Página wiki criada"
     },
@@ -904,8 +894,8 @@
       "healthRoutinesCompleted": "Rotinas concluídas a partir disto: {{count}}.",
       "healthAutoDaily": "Com a atualização automática ligada, este celular também lê passos, treinos e sono uma vez por dia sozinho.",
       "healthErrFailed": "Não foi possível registrar seus dados de saúde. Tente novamente.",
-      "summaryPieces": "{{count}} item",
-      "summaryPieces_plural": "{{count}} itens",
+      "summaryPieces": "{{count}} registro",
+      "summaryPieces_plural": "{{count}} registros",
       "resultAdded": "{{count}} adicionado à sua caixa de entrada",
       "resultAdded_plural": "{{count}} adicionados à sua caixa de entrada",
       "resultDuplicate": "{{count}} duplicado",
@@ -990,7 +980,7 @@
       "reviewTitle": "Revisar resultados",
       "selectedTitle": "{{n}} selecionados",
       "progressDone": "Todos os itens estão conectados",
-      "progressRunning": "Conectando suas estrelas",
+      "progressRunning": "Conectando suas áreas",
       "unlimited": "Conexões ilimitadas",
       "weeklyLeft": "Buscas disponíveis nesta semana: {{left}} de {{cap}} · renovam na segunda",
       "cancel": "Cancelar",
@@ -1069,10 +1059,10 @@
     "untitled": "(sem título)",
     "pieceHere": "Guardado aqui",
     "pieceOpenHint": "Abre este registro.",
-    "briefingOpening": "Abrindo esta estrela…",
-    "briefingEmpty": "Ainda não há registros nesta estrela. Adicione um para começar o resumo.",
-    "briefingCountOne": "{{n}} registro nesta estrela, primeiro o mais recente.",
-    "briefingCount": "{{n}} registros nesta estrela, primeiro os mais recentes."
+    "briefingOpening": "Abrindo esta área…",
+    "briefingEmpty": "Ainda não há registros nesta área. Adicione um para começar o resumo.",
+    "briefingCountOne": "{{n}} registro nesta área, primeiro o mais recente.",
+    "briefingCount": "{{n}} registros nesta área, primeiro os mais recentes."
   },
   "onboarding": {
     "nextHint": "Vai para o próximo slide.",

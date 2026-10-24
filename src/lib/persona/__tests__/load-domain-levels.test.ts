@@ -101,6 +101,23 @@ describe("loadDomainLevels records scan order (regression)", () => {
 describe("loadDomainLevels (cheap, no-Gemini)", () => {
   beforeEach(reset);
 
+  test.each([0, 1, 4, 5, 14, 15])("T54 system ratification keeps coverage bands at n=%i without granting L5", async (n) => {
+    tableFixtures["records:select"] = { data: rawRows("growth", n).map((row) => ({ ...row, system_tags: ["reasoning:ratified"] })), error: null };
+    expect((await loadDomainLevels("u1")).domainLevels.growth).toBe(n === 0 ? 1 : n < 5 ? 2 : n < 15 ? 3 : 4);
+  });
+
+  test("T54 preserves directly classified sources without requiring ratification", async () => {
+    tableFixtures["sources:select"] = { data: Array.from({ length: 5 }, () => ({ captured_at: RECENT_ISO, tags: ["domain:career"], system_tags: [] })), error: null };
+    expect((await loadDomainLevels("u1")).domainLevels.career).toBe(3);
+  });
+
+  test.each([2, 3])("T54 counts %i ratifications among six captures against the 0.5 boundary", async (organized) => {
+    tableFixtures["records:select"] = { data: rawRows("growth", 6).map((row, i) => ({ ...row,
+      tags: [...row.tags, "memo"], system_tags: i < organized ? ["reasoning:ratified"] : ["memo"],
+    })), error: null };
+    expect((await loadDomainLevels("u1")).domainLevels.growth).toBe(organized === 3 ? 3 : 2);
+  });
+
   test("no data -> every domain L1", async () => {
     tableFixtures["records:select"] = { data: [], error: null };
     const { domainLevels } = await loadDomainLevels("u1");

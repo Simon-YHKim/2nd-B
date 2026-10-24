@@ -66,7 +66,7 @@
     "headline": "‘{{title}}’에 가장 많은 기록이 연결돼 있습니다.",
     "chipPages": "페이지 {{count}}",
     "chipLinks": "연결 {{count}}",
-    "chipOrphans": "연결 없는 별가루 {{count}}",
+    "chipOrphans": "연결 없는 기록 {{count}}",
     "noLinks": "아직 서로 연결된 기록이 없습니다. 새 기록을 추가하면 관련된 내용을 찾을 수 있습니다.",
     "surprise": "‘{{from}}’과 ‘{{to}}’ 사이에 연결이 있습니다. 두 기록은 서로 다른 주제입니다.",
     "islandChip": "지식 묶음 {{count}}",
@@ -96,7 +96,7 @@
     "unfiledBadge": "미분류",
     "fallbackTitle": "제목 없음",
     "graphEmpty": "아직 연결할 지식이 없습니다.",
-    "loadError": "기록 보관소를 불러오지 못했습니다. 다시 시도해 주세요.",
+    "loadError": "위키를 불러오지 못했습니다. 다시 시도해 주세요.",
     "retry": "다시 시도",
     "periodScope": "{{star}} 별의 이야기",
     "periodShowAll": "전체 보기"
@@ -109,7 +109,7 @@
     "lead": "{{who}}의 영역을 한눈에",
     "empty": "기록에 태그를 붙이면 관련 주제에 모입니다. 오늘 있었던 일을 적어보세요.",
     "addData": "+ 기록 추가",
-    "unit": "별가루",
+    "unit": "기록",
     "noActivity": "기록 없음",
     "topicsLabel": "{{tag}} · 핵심 주제"
   },
@@ -167,33 +167,35 @@
   },
   "privacy": {
     "title": "개인정보 · 약관",
-    "status": "기록은 자기 이해를 돕기 위해서만 사용됩니다.",
+    "status": "기록은 나를 이해하도록 돕는 기능에 씁니다. 자세한 쓰임은 처리방침에 있습니다.",
     "tip": "어떤 데이터를 쓸지 직접 정할 수 있습니다.",
     "lead": "내 데이터 사용 범위를 직접 조정하세요.",
     "on": "켜짐",
     "off": "꺼짐",
     "policy": "개인정보 처리방침",
+    "terms": "이용약관",
+    "refund": "환불 정책",
     "view": "보기",
     "processingLog": "데이터 처리 기록",
     "last7": "최근 7일",
     "thirdParty": "제3자 제공",
-    "none": "0건",
+    "none": "처리방침에 적은 경우만",
     "footer": "자료마다 처리하고 보관하는 방식이 다릅니다. 각 기능의 안내에서 확인해 주세요.",
     "dataReview": "내 데이터 확인",
     "open": "열기",
     "atGlance": "한눈에",
     "facts": {
       "onDevice": {
-        "label": "온디바이스 우선",
-        "v": "가져온 원문은 기기에서 분석하고, 파생 신호만 암호화해 남깁니다."
+        "label": "기록 처리",
+        "v": "기록은 서버에 저장하고, AI 기능을 쓸 때 필요한 내용은 국외 AI 제공사로 보냅니다."
       },
       "collect": {
         "label": "수집 항목",
-        "v": "저장한 기록·렌즈 점수·사용 패턴. 위치·통신은 동의 시에만."
+        "v": "계정 정보·저장한 기록·서비스 이용 내역 등입니다. 위치·통신 자료는 동의할 때만 모읍니다."
       },
       "retention": {
         "label": "보관 기간",
-        "v": "계정이 살아있는 동안 · 탈퇴 시 30일 내 완전 삭제."
+        "v": "계정을 쓰는 동안 보관하고, 탈퇴하면 지체 없이 지웁니다. 결제 기록 등 법으로 정한 기록만 정한 기간 따로 보관합니다."
       },
       "delete": {
         "label": "삭제권",
@@ -209,7 +211,7 @@
       "loadingSettings": "설정을 불러오는 중…",
       "allow": "사용 통계 허용",
       "lockedUnder18": "만 18세 미만 잠금",
-      "applied": "웹 GA4 적용 · Android Firebase·Clarity 비활성",
+      "applied": "웹 Google Analytics에 선택 반영 · Android 사용 통계 꺼짐",
       "enableFailed": "통계 설정을 켜지 못했습니다. 다시 시도해 주세요.",
       "withdrawSaveFailed": "저장에 실패했습니다. 통계 철회는 이 기기에서 즉시 적용됐지만 다시 저장해 주세요.",
       "adsSaveFailed": "광고 설정을 저장하지 못했습니다. 다시 시도해 주세요."
@@ -227,10 +229,10 @@
     "semantic": {
       "title": "기록 의미 연결",
       "minorLocked": "기록 의미 연결은 꺼져 있고 켤 수 없습니다.",
-      "onBody": "켜져 있습니다. 기록을 의미로 색인해 비슷한 기록을 이어 보여줍니다.",
-      "turnOffA11y": "의미 연결 끄기",
-      "turnOff": "끄고 벡터 삭제",
-      "offBody": "꺼져 있습니다. 켜면 태그가 겹치지 않아도 의미가 비슷한 기록을 이어 보여줍니다.",
+      "onBody": "뜻이 비슷한 기록을 연결합니다. 끄면 연결용 데이터만 삭제하고 기록은 남깁니다.",
+      "turnOffA11y": "의미 연결 끄고 연결용 데이터 삭제",
+      "turnOff": "끄고 연결용 데이터 삭제",
+      "offBody": "꺼져 있습니다. 켜면 뜻이 비슷한 기록을 연결합니다.",
       "turnOnA11y": "의미 연결 켜기",
       "turnOn": "의미 연결 켜기"
     },
@@ -239,7 +241,7 @@
     "saveFailed": "저장에 실패했습니다. 잠시 후 다시 시도해 주세요.",
     "deleteAccount": {
       "body": "기록·캡처·위키·허슬케이 사용량과 계정이 영구 삭제됩니다. 되돌릴 수 없습니다. 필요한 내용은 먼저 내보내기로 챙겨두세요.",
-      "typePrompt": "진행하려면 \"DELETE\" 라고 입력하세요.",
+      "typePrompt": "진행하려면 \"{{phrase}}\" 라고 입력하세요.",
       "inputA11y": "삭제 확인 입력",
       "buttonA11y": "계정 영구 삭제",
       "button": "계정 영구 삭제",
@@ -256,33 +258,18 @@
     "reportBug": "오류 신고",
     "footer": "PolaScope v{{version}} · 답변까지 영업일 2일 (KST)",
     "faqTitle": "자주 묻는 질문",
-    "noticesTitle": "공지사항",
     "faqs": {
       "brightness": {
-        "q": "밝기(별빛)와 확신은 뭐가 다른가요?",
-        "a": "별빛은 그 영역의 기록이 얼마나 쌓였는지, 확신은 허슬케이의 추정이 얼마나 검증됐는지입니다. 둘은 따로 움직입니다."
+        "q": "별 밝기는 무엇을 뜻하나요?",
+        "a": "인터뷰 별의 밝기는 실제로 연 층을 나타냅니다. 기록만으로는 L4까지이며, L5는 제안을 직접 확인한 뒤에만 열립니다."
       },
       "plan": {
         "q": "유료가 더 똑똑한가요?",
         "a": "아니요. 답의 질은 모든 요금제가 같습니다. 횟수·보관·내보내기 한도만 다릅니다."
       },
-      "call": {
-        "q": "통화 녹음은 안전한가요?",
-        "a": "받아쓰기는 암호화된 연결로 AI 서버를 거치고, 원본 음성은 받아쓰기 직후 기기에서 삭제합니다. 텍스트와 신호만 암호화해 남깁니다."
-      }
-    },
-    "notices": {
-      "modes": {
-        "t": "허슬케이 3모드 출시",
-        "tag": "새 기능"
-      },
-      "museum": {
-        "t": "AI 뮤지엄 8개 컬렉션 공개",
-        "tag": "콘텐츠"
-      },
       "voice": {
-        "t": "음성 받아쓰기 개선",
-        "tag": "개선"
+        "q": "음성 받아쓰기는 안전한가요?",
+        "a": "받아쓰기는 암호화된 연결로 AI 서버를 거치고, 원본 음성은 받아쓰기 직후 기기에서 삭제합니다. 텍스트와 신호만 암호화해 남깁니다."
       }
     }
   },
@@ -489,7 +476,7 @@
     "loadError": "성과 기록을 불러오지 못했습니다. 다시 시도해 주세요.",
     "retry": "다시 시도",
     "empty": "아직 저장한 성과가 없습니다. 최근에 해낸 일을 적어보세요.",
-    "pieceFallback": "커리어 별가루",
+    "pieceFallback": "커리어 기록",
     "drillDown": "자세히 보기",
     "originalNote": "제목과 본문 미리보기는 저장된 언어 그대로입니다. 카드를 열면 전체 기록을 볼 수 있습니다.",
     "sourceInterview": "회상 인터뷰",
@@ -709,9 +696,12 @@
     "eyebrowConstellation": "나의 별자리",
     "footerWeek": "허슬케이가 함께 본 한 주",
     "starsLit": "{{count}}개 별이 빛나는 중",
-    "signature": "PolaScope · {{count}}개 별가루"
+    "signature": "PolaScope · 기록 {{count}}개"
   },
   "ds": {
+    "network": {
+      "offline": "인터넷에 연결되어 있지 않습니다."
+    },
     "growth": {
       "title": "나의 변화",
       "bubble": "이번 주 별 밝기가 얼마나 바뀌었는지 보세요.",
@@ -839,9 +829,9 @@
       "meaning": "의미",
       "edit": "편집",
       "move": "이동",
-      "fillStar": "이 별에 정보 추가",
+      "fillStar": "이 영역에 정보 추가",
       "fillStarBody": "이 영역의 정보를 직접 추가합니다.",
-      "secondbLinked": "이 기록은 '{{star}}' 별과 연결돼 있습니다. 비슷한 시기에 남긴 관련 기록이 {{n}}건 있습니다.",
+      "secondbLinked": "이 기록은 '{{star}}' 영역과 연결돼 있습니다. 비슷한 시기에 남긴 관련 기록이 {{n}}건 있습니다.",
       "makeWikiPage": "위키 페이지로 만들기",
       "wikiPageMade": "위키 페이지를 만들었습니다"
     },
@@ -904,8 +894,8 @@
       "healthRoutinesCompleted": "이 기록으로 완료 처리된 루틴: {{count}}개.",
       "healthAutoDaily": "자동 새로고침이 켜져 있으면 이 폰에서는 걸음·운동·수면을 하루 한 번 자동으로도 읽습니다.",
       "healthErrFailed": "건강 데이터를 반영하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-      "summaryPieces": "별가루 {{count}}개",
-      "summaryPieces_plural": "별가루 {{count}}개",
+      "summaryPieces": "기록 {{count}}개",
+      "summaryPieces_plural": "기록 {{count}}개",
       "resultAdded": "{{count}}개를 정리함에 추가했습니다",
       "resultAdded_plural": "{{count}}개를 정리함에 추가했습니다",
       "resultDuplicate": "중복 {{count}}개",
@@ -982,16 +972,16 @@
       "backgroundFailed": "백그라운드 리즈닝을 마치지 못했습니다. 다시 시도해 주세요.",
       "loadFailed": "자료를 불러오지 못했습니다. 다시 열어 주세요.",
       "busyOther": "다른 작업이 끝난 뒤 다시 실행해 주세요.",
-      "taskTitle": "선택한 자료의 별을 잇는 중",
+      "taskTitle": "선택한 자료의 영역을 잇는 중",
       "taskTip": "선택한 자료의 연결을 확인해 보세요.",
-      "runFailed": "별을 잇지 못했습니다. 잠시 뒤 다시 시도해 주세요.",
+      "runFailed": "영역을 잇지 못했습니다. 잠시 뒤 다시 시도해 주세요.",
       "applyFailed": "선택한 제안을 반영하지 못했습니다. 잠시 뒤 다시 시도해 주세요.",
       "title": "리즈닝",
       "reviewTitle": "결과 검토",
       "selectedTitle": "{{n}}개 선택됨",
-      "progressDone": "별을 모두 이었습니다",
-      "progressRunning": "별을 잇는 중입니다",
-      "unlimited": "무제한으로 별을 이을 수 있습니다",
+      "progressDone": "영역을 모두 이었습니다",
+      "progressRunning": "영역을 잇는 중입니다",
+      "unlimited": "무제한으로 영역을 이을 수 있습니다",
       "weeklyLeft": "이번 주 {{cap}}회 중 {{left}}회 남음 · 월요일 초기화",
       "cancel": "실행 취소",
       "applySelected": "선택한 {{n}}건 반영",
@@ -1014,7 +1004,7 @@
       "emptyItems": "아직 저장한 자료가 없습니다",
       "captureFirst": "첫 자료 추가",
       "readingItem": "읽는 중…",
-      "proposedFor": "{{domain}} 별 연결 제안",
+      "proposedFor": "{{domain}} 영역 연결 제안",
       "runHint": "자료를 선택하면 실행 버튼이 켜집니다."
     },
     "sources": {
@@ -1069,10 +1059,10 @@
     "untitled": "(제목 없음)",
     "pieceHere": "여기에 추가했습니다",
     "pieceOpenHint": "이 기록을 엽니다.",
-    "briefingOpening": "이 별의 기록을 불러오는 중…",
-    "briefingEmpty": "이 별에는 아직 기록이 없습니다. 기록을 추가하면 허슬케이가 내용을 정리합니다.",
-    "briefingCountOne": "이 별에 {{n}}개의 기록이 있습니다. 최근 기록부터 정리했습니다.",
-    "briefingCount": "이 별에 {{n}}개의 기록이 있습니다. 최근 기록부터 정리했습니다."
+    "briefingOpening": "이 영역의 기록을 불러오는 중…",
+    "briefingEmpty": "이 영역에는 아직 기록이 없습니다. 기록을 추가하면 허슬케이가 내용을 정리합니다.",
+    "briefingCountOne": "이 영역에 {{n}}개의 기록이 있습니다. 최근 기록부터 정리했습니다.",
+    "briefingCount": "이 영역에 {{n}}개의 기록이 있습니다. 최근 기록부터 정리했습니다."
   },
   "onboarding": {
     "nextHint": "다음 소개로 넘어갑니다.",

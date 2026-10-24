@@ -17,12 +17,14 @@ import { GoogleGenAI } from "@google/genai";
 import { emergencyGuidance, emergencyHotlineForText } from "../safety/emergency-routing";
 import { getEnv } from "../env";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { beforeOwnerDispatch, captureLiveOwnerCheck, observeLiveOwner, requestCancellationSignal, withLiveOwnerSignal } from "../auth/live-owner-guard";
+import { enqueueAuditWrite } from "./audit-write-outbox";
 import { abortError, throwIfAborted } from "../async/abort";
 import { isTimeoutError, withTimeout } from "../async/with-timeout";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
 import { proxyFnForVendor, safetyVendor } from "./routing";
-import { MODELS } from "./types";
+import { MODELS, type CrisisObserver } from "./types";
 // C3: the Flash classifier makes a real Gemini call client-side (not via the
 // gemini-proxy), so the proxy never logs it. This module audits its own call.
 // safety.ts is a sanctioned LLM-boundary module (already C1-allowlisted for
@@ -137,6 +139,7 @@ function noteSemanticUnavailable(opts?: {
   userId?: string;
   lexiconZone?: SafetyZone;
   capturedSession?: AuthenticatedAccountSessionLease;
+  assertCurrent?: () => void;
 }): void {
   // Fast exit only when BOTH signals are already emitted this session.
   if (_semanticDarkWarned && _semanticDarkAudited) return;
@@ -165,6 +168,8 @@ function noteSemanticUnavailable(opts?: {
     // an anon first-hit doesn't consume the once-per-session audit slot. Never
     // throws -- the safety path must not break on a telemetry failure.
     if (!_semanticDarkAudited && opts?.userId) {
+      opts.assertCurrent?.();
+      const liveOwner = opts.assertCurrent ? observeLiveOwner(opts.assertCurrent) : undefined;
       _semanticDarkAudited = true;
       void insertAiAuditLog({
         userId: opts.userId,
@@ -175,9 +180,11 @@ function noteSemanticUnavailable(opts?: {
         safetyZone: opts.lexiconZone ?? "green",
         latencyMs: 0,
         purpose: "safety_classify",
-      }, opts.capturedSession?.accessToken, opts.capturedSession?.signal).catch(() => {
+      }, opts.capturedSession?.accessToken, opts.capturedSession?.signal ?? liveOwner?.signal).catch(() => {
+        // A cancelled dispatch did not spend the session's health slot.
+        if ((opts.capturedSession?.signal ?? liveOwner?.signal)?.aborted) _semanticDarkAudited = false;
         // best-effort health signal; never surface
-      });
+      }).finally(() => liveOwner?.release());
     }
   } catch {
     // The safety path must never throw.
@@ -241,11 +248,12 @@ async function classifyViaProxy(
   userMessage: string,
   locale: "en" | "ko",
   capturedSession?: AuthenticatedAccountSessionLease,
+  signal?: AbortSignal,
 ): Promise<SafetyResult | null> {
   capturedSession?.assertCurrent();
   // Direct read: babel-preset-expo inlines this independent, default-off flag.
   if (process.env.EXPO_PUBLIC_SERVER_SAFETY !== "true") return null;
-  return requestProxyClassification(userMessage, locale, capturedSession);
+  return requestProxyClassification(userMessage, locale, capturedSession, signal);
 }
 
 // R1: 449 production-seat round trips on 2026-10-11 measured median 1.5s,
@@ -257,16 +265,19 @@ const OBFUSCATION_TIMEOUT_MS = 5_000;
 export async function classifyObfuscatedInput(
   userMessage: string,
   locale: "en" | "ko",
-  opts?: { capturedSession?: AuthenticatedAccountSessionLease; signal?: AbortSignal },
+  opts?: { capturedSession?: AuthenticatedAccountSessionLease; signal?: AbortSignal; assertCurrent?: () => void; onRedResult?: (result: SafetyResult) => void },
 ): Promise<SafetyResult | null> {
   const assertActive = (): void => {
     opts?.capturedSession?.assertCurrent();
     throwIfAborted(opts?.capturedSession?.signal);
     throwIfAborted(opts?.signal);
+    opts?.assertCurrent?.();
   };
   assertActive();
   if (process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY !== "true") return null;
   const controller = new AbortController();
+  const liveOwner = opts?.assertCurrent ? observeLiveOwner(opts.assertCurrent, controller.signal) : undefined;
+  let timedOut = false;
   const signals = [opts?.signal, opts?.capturedSession?.signal];
   let onAbort!: () => void;
   const cancelled = new Promise<never>((_, reject) => {
@@ -280,7 +291,11 @@ export async function classifyObfuscatedInput(
     // Bound the wait even if the transport ignores signal. Cancellation also
     // races independently so a stalled proxy cannot delay a user's abort.
     const result = await withTimeout(Promise.race([
-      requestProxyClassification(userMessage, locale, opts?.capturedSession, controller.signal, true),
+      requestProxyClassification(userMessage, locale, opts?.capturedSession, liveOwner?.signal ?? controller.signal, true, opts?.onRedResult ? result => {
+        // Retain only a validated received verdict, never a timeout guess. This
+        // callback records for the original owner; it cannot authorize egress/UI.
+        if (!timedOut) opts.onRedResult?.(result);
+      } : undefined, () => !timedOut),
       cancelled,
     ]), OBFUSCATION_TIMEOUT_MS, "Obfuscated input classification");
     assertActive();
@@ -289,12 +304,13 @@ export async function classifyObfuscatedInput(
     // Abort the transport on timeout; the aborted signal also discards late
     // payloads before parsing. Recheck callers AFTER abort: cancellation wins
     // even when it arrives during the timeout's continuation.
-    if (isTimeoutError(error)) controller.abort();
+    if (isTimeoutError(error)) { timedOut = true; controller.abort(); }
     assertActive();
     if (isTimeoutError(error)) return null;
     throw error;
   } finally {
     for (const signal of signals) signal?.removeEventListener("abort", onAbort);
+    liveOwner?.release();
   }
 }
 
@@ -306,7 +322,9 @@ export function noteObfuscationUnavailable(
   capturedSession?: AuthenticatedAccountSessionLease,
   signal?: AbortSignal,
 ): void {
+  const liveOwner = capturedSession ? undefined : observeLiveOwner(captureLiveOwnerCheck(userId), signal);
   try {
+    liveOwner?.assertCurrent();
     void insertAiAuditLog({
       userId,
       promptHash: "",
@@ -316,8 +334,10 @@ export function noteObfuscationUnavailable(
       safetyZone: lexiconZone,
       latencyMs: 0,
       purpose: "safety_classify",
-    }, capturedSession?.accessToken, capturedSession?.signal ?? signal).catch(() => {});
+    }, capturedSession?.accessToken, capturedSession?.signal ?? liveOwner?.signal ?? signal)
+      .catch(() => {}).finally(() => liveOwner?.release());
   } catch {
+    liveOwner?.release();
     // Best effort, like noteSemanticUnavailable; generation must remain available.
   }
 }
@@ -328,6 +348,8 @@ async function requestProxyClassification(
   capturedSession?: AuthenticatedAccountSessionLease,
   signal?: AbortSignal,
   strictPayload = false,
+  onRedResult?: (result: SafetyResult) => void,
+  canRetainRed?: () => boolean,
 ): Promise<SafetyResult | null> {
   try {
     capturedSession?.assertCurrent();
@@ -379,8 +401,10 @@ async function requestProxyClassification(
           request,
         )
       : await getSupabaseClient().functions.invoke(proxyFnForVendor(vendor), request);
+    // The live callback may retain an already received RED for its owner, even
+    // when delivery has become stale. Captured execution keeps its existing fence.
     capturedSession?.assertCurrent();
-    throwIfAborted(signal);
+    if (!onRedResult || canRetainRed?.() === false) throwIfAborted(requestCancellationSignal(signal));
     if (error || !data) return null;
     const text = String((data as { text?: unknown }).text ?? "").trim();
     if (!text) return null;
@@ -396,7 +420,7 @@ async function requestProxyClassification(
       !Array.isArray(parsed.triggers) || !parsed.triggers.every((trigger) => typeof trigger === "string") ||
       typeof parsed.confidence !== "number" || !Number.isFinite(parsed.confidence)
     )) return null;
-    return {
+    const result: SafetyResult = {
       zone: parsed.zone,
       triggers: parsed.triggers ?? [],
       confidence:
@@ -406,9 +430,12 @@ async function requestProxyClassification(
       source: "llm",
       routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
     };
+    if (result.zone === "red") onRedResult?.(result);
+    throwIfAborted(requestCancellationSignal(signal));
+    return result;
   } catch {
     capturedSession?.assertCurrent();
-    throwIfAborted(signal);
+    throwIfAborted(requestCancellationSignal(signal));
     return null; // the safety path must never throw
   }
 }
@@ -416,9 +443,22 @@ async function requestProxyClassification(
 export async function classifySafety(
   userMessage: string,
   locale: "en" | "ko",
-  opts?: { userId?: string; capturedSession?: AuthenticatedAccountSessionLease },
+  opts?: { userId?: string; capturedSession?: AuthenticatedAccountSessionLease; onRed?: CrisisObserver;
+    assertCurrent?: () => void; signal?: AbortSignal; retainResult?: boolean },
 ): Promise<SafetyResult> {
-  opts?.capturedSession?.assertCurrent();
+  const fence = () => { opts?.assertCurrent?.(); opts?.capturedSession?.assertCurrent(); if (opts?.signal) throwIfAborted(opts.signal); };
+  fence();
+  // A completed live call owns its result even after the screen owner leaves.
+  // Keep the request gate above and on the transport; only defer UI ownership.
+  const resultFence = () => { if (opts?.retainResult && !opts.capturedSession) throwIfAborted(opts.signal); else fence(); };
+  const liveOwner = opts?.assertCurrent ? observeLiveOwner(opts.assertCurrent, opts.signal) : undefined;
+  const requestSignal = liveOwner?.signal ?? opts?.signal;
+  try {
+  const notifyRed = (result: SafetyResult): void => {
+    if (result.zone !== "red" || !opts?.onRed) return;
+    resultFence();
+    try { opts.onRed(result.hotline); } catch { /* Continue the classifier's audit/result. */ }
+  };
   // Layer 1: lexicon. Always runs synchronously. Dual-locale: catch a crisis
   // term written in the other language than the UI locale (mirrors the proxy
   // EN+KO gate + classifyInputAnyLocale) - the largest single-locale blind spot.
@@ -428,17 +468,23 @@ export async function classifySafety(
     if (lexOther.zone === "red") lex = lexOther;
   }
 
+  notifyRed(lex);
   if (lex.hotline) return lex; // Explicit emergencies never wait for a model classification.
   const client = getFlashClient();
   if (!client) {
     // D4 (flag-gated): try the server-side classifier before degrading to lexicon.
-    const viaProxy = await classifyViaProxy(userMessage, locale, opts?.capturedSession);
-    opts?.capturedSession?.assertCurrent();
-    if (viaProxy) return mergeResults(lex, viaProxy);
+    const viaProxy = await classifyViaProxy(userMessage, locale, opts?.capturedSession, requestSignal);
+    resultFence();
+    if (viaProxy) {
+      const result = mergeResults(lex, viaProxy);
+      notifyRed(result);
+      return result;
+    }
     noteSemanticUnavailable({
       userId: opts?.userId,
       lexiconZone: lex.zone,
       capturedSession: opts?.capturedSession,
+      assertCurrent: opts?.assertCurrent,
     });
     return lex;
   }
@@ -451,7 +497,7 @@ export async function classifySafety(
         { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\nUser message (locale=${locale}):\n"""\n${userMessage}\n"""\n\nClassify now. Output JSON only, no prose.` }] },
       ],
       config: {
-        ...(opts?.capturedSession ? { abortSignal: opts.capturedSession.signal } : {}),
+        ...(opts?.capturedSession || requestSignal ? { abortSignal: opts?.capturedSession?.signal ?? beforeOwnerDispatch(requestSignal) } : {}),
         responseMimeType: "application/json",
         responseSchema: {
           type: "object",
@@ -464,7 +510,7 @@ export async function classifySafety(
         },
       },
     });
-    opts?.capturedSession?.assertCurrent();
+    resultFence();
     const latencyMs = Date.now() - t0;
     const text = (res.text ?? "").trim();
     let result: SafetyResult = lex;
@@ -496,36 +542,44 @@ export async function classifySafety(
         if (typeof console !== "undefined") console.warn("[safety] classifier payload unparseable, using lexicon");
       }
     }
+    notifyRed(result);
     // C3: a real Gemini Flash call happened. The classifier runs client-side (not
     // via the gemini-proxy), so the proxy never logs it — audit it here,
     // best-effort, when attributable to a user. On the public web build the Flash
     // client has no key (getFlashClient() === null) so we never reach this; this
     // closes the C3 gap on native/Vertex live builds.
     if (opts?.userId) {
+      const row = {
+        userId: opts.userId,
+        promptHash: djb2(`${SYSTEM_PROMPT}${userMessage}`),
+        outputHash: djb2(text),
+        modelUsed: "gemini-2.5-flash",
+        vertexBackend: getEnv().EXPO_PUBLIC_USE_VERTEX,
+        safetyZone: result.zone,
+        latencyMs,
+        // 0095: the A18 seat name — same label the proxy path self-reports
+        // (classifyViaProxy), so classifier rows aggregate under one purpose.
+        purpose: "safety_classify",
+      };
       try {
-        await insertAiAuditLog({
-          userId: opts.userId,
-          promptHash: djb2(`${SYSTEM_PROMPT}${userMessage}`),
-          outputHash: djb2(text),
-          modelUsed: "gemini-2.5-flash",
-          vertexBackend: getEnv().EXPO_PUBLIC_USE_VERTEX,
-          safetyZone: result.zone,
-          latencyMs,
-          // 0095: the A18 seat name — same label the proxy path self-reports
-          // (classifyViaProxy), so classifier rows aggregate under one purpose.
-          purpose: "safety_classify",
-        }, opts.capturedSession?.accessToken, opts.capturedSession?.signal);
+        await withLiveOwnerSignal(opts.capturedSession ? undefined : opts.assertCurrent, opts.capturedSession?.signal ?? opts.signal,
+          signal => insertAiAuditLog(row, opts.capturedSession?.accessToken, signal));
         opts.capturedSession?.assertCurrent();
       } catch {
+        // Retain C3 after an owner change; ordinary audit failures stay best-effort.
+        if (opts.retainResult && !opts.capturedSession && !opts.signal?.aborted && liveOwner?.signal.aborted) {
+          await enqueueAuditWrite({ kind: "ai_audit_log", ownerUserId: opts.userId, payload: row, warnLabel: "[safety] classifier audit failed" });
+        }
         if (typeof console !== "undefined") console.warn("[safety] classifier audit failed");
       }
     }
     return result;
   } catch {
-    opts?.capturedSession?.assertCurrent();
+    resultFence();
     if (typeof console !== "undefined") console.warn("[safety] llm classifier failed, using lexicon");
     return lex;
   }
+  } finally { liveOwner?.release(); }
 }
 
 // Fixed-string crisis templates per docs/research/batches/crisis-detection.md.

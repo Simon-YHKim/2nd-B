@@ -112,7 +112,7 @@ describe("저장·읽기가 막지 않는다 (fail-soft)", () => {
 
   it("화면이 **이번에 판 만큼만** 더한다", () => {
     expect(SCREEN).toContain("coverage[p][l] - baseCoverage.current[p][l]");
-    expect(SCREEN).toContain("addCoverage(userId, delta)");
+    expect(SCREEN).toContain("addCoverage(intent.input.userId, intent.delta, () => canContinueSave(intent))");
   });
 
   it("지난 세션 커버리지를 이어받는다", () => {
@@ -123,5 +123,43 @@ describe("저장·읽기가 막지 않는다 (fail-soft)", () => {
   it("빌드가 커버리지 등급을 넘긴다", () => {
     expect(BUILD).toContain("loadNarrativeStarLevel(userId)");
     expect(BUILD).toContain("deriveStarLevels(persona, esmCount, standingRatified, narrativeLevel)");
+  });
+});
+
+
+import { addCoverage, loadCoverage } from "../coverage-store";
+import { emptyCoverage } from "../probe";
+const mockRead = jest.fn(); const mockUpsert = jest.fn();
+jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({ from: () => ({
+  select: () => ({ eq: mockRead }), upsert: mockUpsert,
+}) }) }));
+describe("S2 coverage receipts from the actual store", () => {
+  beforeEach(() => { mockRead.mockReset().mockResolvedValue({ data: [], error: null }); mockUpsert.mockReset().mockResolvedValue({ error: null }); });
+  const delta = () => { const d = emptyCoverage(); d.work.fact = 1; return d; };
+  test("strict read failure is notApplied; initial load stays fail-soft", async () => {
+    mockRead.mockResolvedValue({ data: null, error: new Error("offline") });
+    expect(await addCoverage("A", delta())).toEqual({ kind: "notApplied" });
+    expect(mockUpsert).not.toHaveBeenCalled(); expect(await loadCoverage("A")).toEqual(emptyCoverage());
+  });
+  test.each(["error", "throw"])("post-send %s is unknown, never retryable", async kind => {
+    if (kind === "error") mockUpsert.mockResolvedValue({ error: new Error("lost") });
+    else mockUpsert.mockRejectedValue(new Error("lost"));
+    expect(await addCoverage("A", delta())).toEqual({ kind: "unknown" });
+    expect(mockUpsert).toHaveBeenCalledTimes(1);
+  });
+  test("only explicit upsert success or zero-delta acknowledges", async () => {
+    expect(await addCoverage("A", emptyCoverage())).toEqual({ kind: "acknowledged", receipt: "zero-delta" });
+    expect(mockRead).not.toHaveBeenCalled(); expect(mockUpsert).not.toHaveBeenCalled();
+    mockRead.mockResolvedValue({ data: [{ period: "work", layer: "fact", answers: 4 }], error: null });
+    expect(await addCoverage("A", delta())).toEqual({ kind: "acknowledged", receipt: "upsert" });
+    expect(mockUpsert.mock.calls[0][0]).toEqual([{ user_id: "A", period: "work", layer: "fact", answers: 5 }]);
+  });
+  test("RED during read prevents upsert, while a sent write retains its actual ACK", async () => {
+    let live = true;
+    mockRead.mockImplementationOnce(async () => { live = false; return { data: [], error: null }; });
+    expect(await addCoverage("A", delta(), () => live)).toEqual({ kind: "stale" });
+    expect(mockUpsert).not.toHaveBeenCalled();
+    live = true; mockUpsert.mockImplementationOnce(async () => { live = false; return { error: null }; });
+    expect(await addCoverage("A", delta(), () => live)).toEqual({ kind: "acknowledged", receipt: "upsert" });
   });
 });

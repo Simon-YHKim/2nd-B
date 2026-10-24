@@ -2,7 +2,7 @@
 // its records had simply not been read. A tester wrote "did my records all vanish?". Simon picked
 // "a number that was not loaded shows 「...」" (2026-10-13, Q-261013-21), the way the chat's
 // daily count already does.
-// Source contracts: render tests are not available here.
+// Source contracts complement the actual-screen wiki-list/role-evidence read tests.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -17,7 +17,8 @@ describe("a wiki count that was not read is not zero", () => {
   });
 
   it("shows dots in the graph's count, and the real count otherwise", () => {
-    expect(screen).toMatch(/const graphCountText = countsUnread\s*\? `\.\.\. \$\{t\("domains\.unit"\)\}`\s*: `\$\{graphCount\}/);
+    expect(screen).toContain('const graphCountsUnread = countsUnread || roleRead.status !== "ready";');
+    expect(screen).toMatch(/const graphCountText = graphCountsUnread\s*\? `\.\.\. \$\{t\("domains\.unit"\)\}`\s*: `\$\{graphCount\}/);
     // The count is still what the screen reader hears.
     expect(screen).toContain("accessibilityLabel={graphCountText}");
   });

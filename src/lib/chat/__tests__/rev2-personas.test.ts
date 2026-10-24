@@ -32,6 +32,15 @@ describe("rev2 세컨비 personas (PRD v2.0)", () => {
     expect(rev2PersonaHint("meta", "ko")).not.toBe(rev2PersonaHint("meta", "en"));
   });
 
+  test("팩트케이/조이케이 Korean hints speak the chat register (Q-261018-55 다)", () => {
+    for (const id of ["meta", "twi"] as const) {
+      const hint = rev2PersonaHint(id, "ko")!;
+      expect(hint).toContain("사용자가 존댓말을 원하지 않으면 편한 반말로 말하세요");
+      expect(hint).not.toContain("'~습니다'");
+      expect(hint).not.toContain("'~나요?'");
+    }
+  });
+
   test("names and roles resolve in both system locales", () => {
     for (const id of REV2_PERSONA_IDS) {
       for (const locale of ["en", "ko"] as const) {

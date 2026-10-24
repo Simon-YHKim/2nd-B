@@ -163,30 +163,20 @@ describe("core-loop focus refetch contract", () => {
 
   it("keeps Core Brain mount/retry and focus refresh read-only", () => {
     const source = read("src/app/core-brain.tsx");
-    expect(source).toContain("function loadCoreBrainEvidence");
-    expect(source).toContain("useFocusRefetch(() => setEvidenceReloadKey((k) => k + 1), Boolean(userId && hasProfile === true))");
+    const reader = read("src/lib/persona/use-core-evidence-read.ts");
+    expect(source).toContain("useCoreEvidenceRead(userId, !loading && hasProfile === true && isMinor !== null,");
+    expect(source).toContain("primaryRead.invalidateAuto()");
+    expect(source).toContain("setEvidenceReloadKey((key) => key + 1)");
     expect(source).not.toContain("buildPersona");
-
-    const mountEffect = source.slice(
-      source.indexOf("// The snapshot path is SELECT-only"),
-      source.indexOf("useFocusRefetch("),
-    );
-    expect(mountEffect).toContain("loadCoreBrainEvidence(userId, locale)");
-    expect(mountEffect).toContain("loadPersonaSnapshot(userId)");
-    expect(mountEffect).not.toMatch(/\.(?:insert|update|upsert|delete)\(/);
-
-    const evidenceRefreshStart = source.indexOf("if (evidenceReloadKey === 0");
-    const evidenceRefreshEnd = source.indexOf(
-      "}, [userId, hasProfile, locale, evidenceReloadKey, resolvedUserId]);",
-      evidenceRefreshStart,
-    );
-    expect(evidenceRefreshStart).toBeGreaterThanOrEqual(0);
-    expect(evidenceRefreshEnd).toBeGreaterThan(evidenceRefreshStart);
-    const evidenceRefreshEffect = source.slice(evidenceRefreshStart, evidenceRefreshEnd);
-    expect(evidenceRefreshEffect).toContain("hasProfile !== true");
-    expect(evidenceRefreshEffect).toContain("loadCoreBrainEvidence(userId, locale)");
-    expect(evidenceRefreshEffect).not.toContain("buildPersona");
-    expect(evidenceRefreshEffect).not.toMatch(/\.(?:insert|update|upsert|delete)\(/);
+    expect(reader).toContain("function loadCoreBrainEvidence");
+    expect(reader).toContain("loadCoreBrainEvidence(owner, scope.locale, requireCurrent)");
+    expect(reader).toContain("fullRead ? evidence.length > 0 ? await loadCorePersonaSnapshot(owner, requireCurrent) : null : previous.persona");
+    expect(reader).not.toMatch(/\.(?:insert|update|upsert|delete)\(/);
+    expect(reader).not.toMatch(/claimQaPolarisAuto|proposeRoleCards|ratifyRoleCard/);
+    // The executed eligible-QA regression also follows the screen's auto effect:
+    // a retry cannot spend merely because these read statements contain no writes.
+    expect(source).toContain("!canAutoPropose() || roleReadScope !== primaryScope");
+    expect(source).toContain("visibleRoleCards.length > 0, evidence.length > 0, current");
   });
 
   it("refreshes the shipped Home when focus returns", () => {

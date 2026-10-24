@@ -96,7 +96,7 @@
     "unfiledBadge": "Tak terkategori",
     "fallbackTitle": "Tanpa judul",
     "graphEmpty": "Belum ada pengetahuan untuk dihubungkan.",
-    "loadError": "Arsipmu belum bisa dimuat. Coba lagi.",
+    "loadError": "Wiki belum bisa dimuat. Coba lagi.",
     "retry": "Coba lagi",
     "periodScope": "Cerita: {{star}}",
     "periodShowAll": "Lihat semua"
@@ -109,7 +109,7 @@
     "lead": "Area-areamu sekilas",
     "empty": "Catatan dikelompokkan menurut tag bidangnya. Tambahkan catatan untuk memulai.",
     "addData": "+ Tambah data",
-    "unit": "keping",
+    "unit": "catatan",
     "noActivity": "Tidak ada catatan",
     "topicsLabel": "{{tag}} · topik utama"
   },
@@ -167,33 +167,35 @@
   },
   "privacy": {
     "title": "Privasi & ketentuan",
-    "status": "Catatan hanya digunakan untuk mendukung pemahaman dirimu.",
-    "tip": "Pilihan sensitif selalu ditampilkan dan dikonfirmasi lebih dulu.",
+    "status": "Catatanmu dipakai untuk fitur yang membantumu memahami diri. Rinciannya ada di kebijakan privasi.",
+    "tip": "Kamu bisa memilih data mana yang digunakan.",
     "lead": "Atur sendiri bagaimana datamu digunakan.",
     "on": "Aktif",
     "off": "Nonaktif",
     "policy": "Kebijakan privasi",
+    "terms": "Ketentuan layanan",
+    "refund": "Kebijakan pengembalian dana",
     "view": "Lihat",
     "processingLog": "Log pemrosesan data",
     "last7": "7 hari terakhir",
     "thirdParty": "Berbagi pihak ketiga",
-    "none": "0 item",
+    "none": "Hanya sesuai kebijakan privasi",
     "footer": "Cara data diproses dan disimpan bergantung pada fiturnya. Baca penjelasan penggunaan data pada fitur tersebut.",
     "dataReview": "Tinjauan data saya",
     "open": "Buka",
     "atGlance": "Sekilas",
     "facts": {
       "onDevice": {
-        "label": "Diproses di perangkat lebih dulu",
-        "v": "Konten asli yang kamu impor dianalisis di perangkatmu; hanya sinyal turunannya yang disimpan dalam bentuk terenkripsi."
+        "label": "Cara catatan digunakan",
+        "v": "Catatan disimpan di server. Konten yang diperlukan untuk fitur AI dikirim ke penyedia AI di luar negeri."
       },
       "collect": {
         "label": "Yang kami kumpulkan",
-        "v": "Serpihan bintang yang kamu simpan, skor lensa, dan pola penggunaan. Lokasi dan komunikasi hanya dengan persetujuanmu."
+        "v": "Antara lain informasi akun, catatan yang disimpan, dan data penggunaan layanan. Data lokasi dan komunikasi hanya dikumpulkan dengan persetujuanmu."
       },
       "retention": {
         "label": "Masa penyimpanan",
-        "v": "Selama akunmu aktif; jika kamu menghapus akun, semuanya terhapus dalam 30 hari."
+        "v": "Disimpan selama kamu memakai akun dan dihapus tanpa ditunda saat kamu menghapus akun. Hanya catatan yang diwajibkan hukum, seperti catatan pembayaran, disimpan terpisah selama jangka waktu yang diwajibkan."
       },
       "delete": {
         "label": "Hak menghapus",
@@ -209,7 +211,7 @@
       "loadingSettings": "Memuat pengaturan…",
       "allow": "Izinkan statistik penggunaan",
       "lockedUnder18": "Terkunci untuk usia di bawah 18",
-      "applied": "GA4 aktif di web · Firebase dan Clarity nonaktif di Android",
+      "applied": "Pilihan berlaku untuk Google Analytics di web · Statistik penggunaan nonaktif di Android",
       "enableFailed": "Statistik tidak dapat diaktifkan. Coba lagi.",
       "withdrawSaveFailed": "Gagal menyimpan. Penarikan statistik sudah berlaku di perangkat ini; coba simpan lagi.",
       "adsSaveFailed": "Pengaturan iklan gagal disimpan. Coba lagi."
@@ -227,10 +229,10 @@
     "semantic": {
       "title": "Koneksi catatan berdasarkan makna",
       "minorLocked": "Koneksi berdasarkan makna dinonaktifkan dan tidak dapat diaktifkan.",
-      "onBody": "Aktif. Catatan diindeks berdasarkan makna untuk menampilkan yang mirip.",
-      "turnOffA11y": "Matikan koneksi berdasarkan makna",
-      "turnOff": "Matikan dan hapus vektor",
-      "offBody": "Nonaktif. Aktifkan untuk menghubungkan catatan yang maknanya mirip, meski tidak punya tag yang sama.",
+      "onBody": "Menghubungkan catatan yang maknanya mirip. Jika dimatikan, data untuk menghubungkan catatan dihapus dan catatanmu tetap tersimpan.",
+      "turnOffA11y": "Matikan koneksi berdasarkan makna dan hapus data penghubung",
+      "turnOff": "Matikan dan hapus data penghubung",
+      "offBody": "Nonaktif. Aktifkan untuk menghubungkan catatan yang maknanya mirip.",
       "turnOnA11y": "Aktifkan koneksi berdasarkan makna",
       "turnOn": "Aktifkan"
     },
@@ -239,7 +241,7 @@
     "saveFailed": "Gagal menyimpan. Coba lagi sebentar lagi.",
     "deleteAccount": {
       "body": "Catatan, tangkapan, wiki, data penggunaan, dan akunmu dihapus permanen. Ini tidak bisa dibatalkan. Ekspor dulu apa pun yang kamu perlukan.",
-      "typePrompt": "Ketik \"DELETE\" untuk melanjutkan.",
+      "typePrompt": "Ketik \"{{phrase}}\" untuk melanjutkan.",
       "inputA11y": "Konfirmasi penghapusan",
       "buttonA11y": "Hapus akun secara permanen",
       "button": "Hapus akun",
@@ -256,33 +258,18 @@
     "reportBug": "Laporkan bug",
     "footer": "PolaScope v{{version}} · 2 hari kerja KST",
     "faqTitle": "Pertanyaan umum",
-    "noticesTitle": "Pengumuman",
     "faqs": {
       "brightness": {
-        "q": "Apa beda kecerahan (cahaya bintang) dan tingkat keyakinan?",
-        "a": "Cahaya bintang menunjukkan seberapa banyak yang sudah kamu simpan di area itu; tingkat keyakinan menunjukkan seberapa jauh perkiraan HustleK sudah diverifikasi. Keduanya bergerak sendiri-sendiri."
+        "q": "Apa arti kecerahan bintang?",
+        "a": "Kecerahan bintang wawancara menunjukkan berapa lapis wawancara yang sudah kamu buka. Cakupan bisa mencapai L4; L5 baru muncul setelah kamu menyetujui sebuah usulan."
       },
       "plan": {
         "q": "Apakah paket berbayar membuatnya lebih pintar?",
         "a": "Tidak. Kualitas jawaban sama di semua paket. Yang berbeda hanya batas jumlah, masa simpan, dan ekspor."
       },
-      "call": {
-        "q": "Apakah rekaman panggilan aman?",
-        "a": "Rekaman ditranskripsikan di server AI melalui koneksi terenkripsi, lalu audio aslinya langsung dihapus dari perangkatmu. Hanya teks dan sinyalnya yang disimpan dalam bentuk terenkripsi."
-      }
-    },
-    "notices": {
-      "modes": {
-        "t": "Tiga mode HustleK telah hadir",
-        "tag": "Baru"
-      },
-      "museum": {
-        "t": "Museum AI: 8 koleksi kini dibuka",
-        "tag": "Konten"
-      },
       "voice": {
-        "t": "Transkripsi suara ditingkatkan",
-        "tag": "Peningkatan"
+        "q": "Apakah transkripsi suara aman?",
+        "a": "Suara ditranskripsikan di server AI melalui koneksi terenkripsi, lalu audio aslinya langsung dihapus dari perangkatmu. Hanya teks dan sinyalnya yang disimpan dalam bentuk terenkripsi."
       }
     }
   },
@@ -323,7 +310,7 @@
     "tip": "Ketuk topik yang paling sering kamu simpan untuk melihat alurnya.",
     "sectionNow": "Kamu belakangan ini",
     "lead": "Dibanding minggu lalu, minggu ini kamu",
-    "weeklyCap": "Keping tersimpan · mingguan",
+    "weeklyCap": "Catatan tersimpan · mingguan",
     "lastWeek": "Minggu lalu",
     "thisWeek": "Minggu ini",
     "delta": "▲ {{percent}}% lebih banyak tersimpan",
@@ -709,9 +696,12 @@
     "eyebrowConstellation": "KONSTELASI SAYA",
     "footerWeek": "Seminggu yang dilihat bersama HustleK",
     "starsLit": "{{count}} bintang bersinar",
-    "signature": "PolaScope · {{count}} serpihan bintang"
+    "signature": "PolaScope · {{count}} catatan"
   },
   "ds": {
+    "network": {
+      "offline": "Tidak ada koneksi internet."
+    },
     "growth": {
       "title": "Perubahanku",
       "bubble": "Lihat apa yang berubah minggu ini.",
@@ -839,9 +829,9 @@
       "meaning": "makna",
       "edit": "Sunting",
       "move": "Pindahkan",
-      "fillStar": "Isi bintang ini",
+      "fillStar": "Isi bidang ini",
       "fillStarBody": "Tambahkan informasi untuk bidang ini.",
-      "secondbLinked": "Catatan ini terhubung dengan bintang '{{star}}'. Ada {{n}} catatan serupa dalam rentang waktu yang sama.",
+      "secondbLinked": "Catatan ini terhubung dengan bidang '{{star}}'. Ada {{n}} catatan serupa dalam rentang waktu yang sama.",
       "makeWikiPage": "Buat halaman wiki",
       "wikiPageMade": "Halaman wiki dibuat"
     },
@@ -904,8 +894,8 @@
       "healthRoutinesCompleted": "Rutinitas yang diselesaikan dari ini: {{count}}.",
       "healthAutoDaily": "Selama penyegaran otomatis aktif, ponsel ini juga membaca langkah, olahraga, dan tidur sekali sehari secara otomatis.",
       "healthErrFailed": "Tidak dapat mencerminkan data kesehatanmu. Coba lagi sebentar lagi.",
-      "summaryPieces": "{{count}} potongan",
-      "summaryPieces_plural": "{{count}} potongan",
+      "summaryPieces": "{{count}} catatan",
+      "summaryPieces_plural": "{{count}} catatan",
       "resultAdded": "{{count}} ditambahkan ke kotak masukmu",
       "resultAdded_plural": "{{count}} ditambahkan ke kotak masukmu",
       "resultDuplicate": "{{count}} duplikat",
@@ -990,7 +980,7 @@
       "reviewTitle": "Tinjau hasil",
       "selectedTitle": "{{n}} dipilih",
       "progressDone": "Semua item sudah terhubung",
-      "progressRunning": "Menghubungkan bintangmu",
+      "progressRunning": "Menghubungkan bidangmu",
       "unlimited": "Keterkaitan tanpa batas",
       "weeklyLeft": "Sisa {{left}} dari {{cap}} jatah minggu ini · reset hari Senin",
       "cancel": "Batal",
@@ -1069,10 +1059,10 @@
     "untitled": "(tanpa judul)",
     "pieceHere": "Tersimpan di sini",
     "pieceOpenHint": "Membuka catatan ini.",
-    "briefingOpening": "Membuka bintang ini…",
-    "briefingEmpty": "Belum ada catatan di bintang ini. Simpan sesuatu dan HustleK membaca polanya.",
-    "briefingCountOne": "{{n}} catatan di bintang ini, yang terbaru dulu.",
-    "briefingCount": "{{n}} catatan di bintang ini, yang terbaru dulu."
+    "briefingOpening": "Membuka area ini…",
+    "briefingEmpty": "Belum ada catatan di area ini. Simpan sesuatu dan HustleK membaca polanya.",
+    "briefingCountOne": "{{n}} catatan di area ini, yang terbaru dulu.",
+    "briefingCount": "{{n}} catatan di area ini, yang terbaru dulu."
   },
   "onboarding": {
     "nextHint": "Ke slide berikutnya.",

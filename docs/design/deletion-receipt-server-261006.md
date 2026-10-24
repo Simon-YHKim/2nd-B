@@ -35,12 +35,12 @@
 [개인정보 화면] 삭제 확인
    │  DeepSpaceDesignScreens.tsx:625  captureSignOutExpectation()
    ▼
-requestAccountDeletion()                          delete-bulk.ts:315-423
-   │  runMutation(..., { requireCrossTab: true })   delete-bulk.ts:321,422
+requestAccountDeletion()                          delete-bulk.ts:324-432
+   │  runMutation(..., { requireCrossTab: true })   delete-bulk.ts:330,431
    │    └ Web Locks 없으면 여기서 거부 → 일반 실패   session-mutation.ts:196
-   │  ① 기기 영구 울타리 설치 (서버 호출 전)        delete-bulk.ts:329
-   │  ② 세션 갱신 (실패 · 기한 소진 가능)           delete-bulk.ts:339-344
-   │  ③ Edge delete-account 호출 (최대 12회, 90초)  delete-bulk.ts:349-366
+   │  ① 기기 영구 울타리 설치 (서버 호출 전)        delete-bulk.ts:338
+   │  ② 세션 갱신 (실패 · 기한 소진 가능)           delete-bulk.ts:348-353
+   │  ③ Edge delete-account 호출 (최대 12회, 90초)  delete-bulk.ts:358-375
    ▼
 Edge delete-account                               supabase/functions/delete-account/index.ts
    │  begin_account_deletion: 서버 tombstone 커밋   index.ts:207-221  (0192)
@@ -84,9 +84,9 @@ Edge delete-account                               supabase/functions/delete-acco
 
 | # | 결함 | 근거 | 출처 |
 |---|---|---|---|
-| F1 | 되돌릴 수 없는 기기 울타리를 **세션 갱신 · Edge 호출 전에** 칩니다. 오프라인 · 계정 전환 · 기한 초과로 서버에 한 번도 안 갔는데도 살아 있는 계정의 기기 쓰기(초안 · 설정 · 감사 outbox 등)가 영구히 막힙니다. | `delete-bulk.ts:329` → `:339-344` · `local-deletion-fence.ts:155-158`("never cleared") | R3-05 · BL-07 (`n-deletion-daybreak-r1/r2`) |
-| F2 | 울타리 저장 · 확인 읽기 자체가 90초를 다 쓰면 Edge 를 안 부르고 실패하는데 울타리는 남습니다. | `delete-bulk.ts:320,336` | DEL-BL-02 (w3b r1~r3, n r1 · r2 "기존 남음") |
-| F3 | **Web Locks 없는 브라우저.** 울타리 함수는 표식을 쓰고 `false` 를 돌려주는 길이 있습니다(표식은 남고 삭제는 보류). 지금은 그 앞에서 `requireCrossTab:true` 가 콜백 전에 거부하므로 **삭제 자체가 일반 실패**로 끝납니다. 사용자는 이유를 모릅니다. | `local-deletion-fence.ts:159-161,179-181` · `session-mutation.ts:196` · `delete-bulk.ts:422` | D2A-R2-03 (astra r2) · `n-deletion-astra-r2.txt` "기존 설명의 보정" |
+| F1 | 되돌릴 수 없는 기기 울타리를 **세션 갱신 · Edge 호출 전에** 칩니다. 오프라인 · 계정 전환 · 기한 초과로 서버에 한 번도 안 갔는데도 살아 있는 계정의 기기 쓰기(초안 · 설정 · 감사 outbox 등)가 영구히 막힙니다. | `delete-bulk.ts:338` → `:339-344` · `local-deletion-fence.ts:155-158`("never cleared") | R3-05 · BL-07 (`n-deletion-daybreak-r1/r2`) |
+| F2 | 울타리 저장 · 확인 읽기 자체가 90초를 다 쓰면 Edge 를 안 부르고 실패하는데 울타리는 남습니다. | `delete-bulk.ts:329,345` | DEL-BL-02 (w3b r1~r3, n r1 · r2 "기존 남음") |
+| F3 | **Web Locks 없는 브라우저.** 울타리 함수는 표식을 쓰고 `false` 를 돌려주는 길이 있습니다(표식은 남고 삭제는 보류). 지금은 그 앞에서 `requireCrossTab:true` 가 콜백 전에 거부하므로 **삭제 자체가 일반 실패**로 끝납니다. 사용자는 이유를 모릅니다. | `local-deletion-fence.ts:159-161,179-181` · `session-mutation.ts:196` · `delete-bulk.ts:431` | D2A-R2-03 (astra r2) · `n-deletion-astra-r2.txt` "기존 설명의 보정" |
 | F4 | (#2054 ③ 에서 시도한 intent 단계가 만든 함정, 지금 main 에는 없음) 작업 정보 없는 intent 가 프로세스 종료 뒤 남음 · 작업 토큰 없음 · 모르는 값 덮어쓰기 · 구빌드 캐시 · Edge 뒤 정리가 무기한 대기 | `w3b-deletion-*` | DEL-SAFE-01~04 · DEL-BL-03~05 · DEL-G3-01 |
 | F5 | **서버 쪽 같은 모양 (이 문서에서 새로 확인).** `begin_account_deletion` 이 커밋한 tombstone 은 지워지는 경로가 없습니다. 그 뒤 Auth 삭제가 실패해 계정이 살아 있어도 raw-clippings · record-photos 업로드, LLM 서비스 동의 변경, 북극성 생성이 그 계정에 대해 영구히 거절됩니다. | `0192:82-95`(삽입만) · `0192:197-203` · `0194:62-63` · `0195:67-68` · `0209:114-117` · `0215:288-289` · 삭제문 0건(`grep "DELETE FROM public.account_deletion_tombstones"`) | 코드 확인. **운영 tombstone 은 0행**(2026-10-06 11:41 KST 집계)이라 지금 영향받는 계정은 없습니다. |
 
@@ -205,7 +205,7 @@ Edge delete-account                               supabase/functions/delete-acco
 
 ## 5. 클라이언트 울타리 상태 기계
 
-**먼저, 서버 완료 전에 기기 쓰기를 막을 필요가 있나.** 지금 main 과 #2054 는 "Edge 호출 전에 기기 울타리를 확인한다"(`delete-bulk.ts:325-332`)를 지켰고, 그 울타리가 서버에 안 간 실패에서 영구히 남는 것이 F1 · F2 · F4 의 뿌리였습니다. 울타리의 목적은 **삭제된 계정의 기기 데이터가 정리 뒤에 다시 생기지 않게** 하는 것입니다(추론, `local-deletion-fence.ts:103-107` 주석). 그 목적은 "서버 완료 확인 → terminal 울타리(쓰기들과 같은 잠금 아래) → 정리" 순서만으로 지켜집니다. 서버가 지우는 동안 생긴 기기 데이터도 그 뒤의 정리가 지우기 때문입니다. 그래서 이 설계는 **서버 완료 전에는 쓰기를 막지 않습니다.**
+**먼저, 서버 완료 전에 기기 쓰기를 막을 필요가 있나.** 지금 main 과 #2054 는 "Edge 호출 전에 기기 울타리를 확인한다"(`delete-bulk.ts:334-341`)를 지켰고, 그 울타리가 서버에 안 간 실패에서 영구히 남는 것이 F1 · F2 · F4 의 뿌리였습니다. 울타리의 목적은 **삭제된 계정의 기기 데이터가 정리 뒤에 다시 생기지 않게** 하는 것입니다(추론, `local-deletion-fence.ts:103-107` 주석). 그 목적은 "서버 완료 확인 → terminal 울타리(쓰기들과 같은 잠금 아래) → 정리" 순서만으로 지켜집니다. 서버가 지우는 동안 생긴 기기 데이터도 그 뒤의 정리가 지우기 때문입니다. 그래서 이 설계는 **서버 완료 전에는 쓰기를 막지 않습니다.**
 
 ```
  idle

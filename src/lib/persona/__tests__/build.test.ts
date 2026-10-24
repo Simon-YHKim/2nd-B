@@ -12,26 +12,31 @@ interface QueryResult {
 const tableFixtures: Record<string, QueryResult> = {};
 const upsertCalls: { table: string; payload: unknown; opts: unknown }[] = [];
 const selectCalls: { table: string; columns: string }[] = [];
+type ReadQuery = { table: string; columns: string; filters: [string, unknown][]; tags: string[]; order?: [string, unknown]; limit?: number };
+const readQueries: ReadQuery[] = [];
+let readOverride: ((query: ReadQuery) => QueryResult | Promise<QueryResult> | undefined) | undefined;
+const forbiddenWrite = jest.fn(() => { throw new Error("Read-only loader attempted a mutation"); });
 
-function chainable(result: QueryResult) {
+function chainable(result: QueryResult, query: ReadQuery) {
   // Thenable terminus so `await` works regardless of which chain step ends.
-  const promise = Promise.resolve(result);
+  const reply = () => Promise.resolve(readOverride?.(query) ?? result);
   const chain: Record<string, unknown> = {
     select: () => chain,
-    eq: () => chain,
-    contains: () => chain,
-    order: () => chain,
-    limit: () => chain,
+    eq: (key: string, value: unknown) => { query.filters.push([key, value]); return chain; },
+    contains: (_key: string, tags: string[]) => { query.tags = tags; return chain; },
+    order: (key: string, value: unknown) => { query.order = [key, value]; return chain; },
+    limit: (count: number) => { query.limit = count; return chain; },
     // maybeSingle unwraps an array fixture to its first row (or null) — the
     // shape the summary-cache read (personas:select) consumes.
     maybeSingle: () =>
-      promise.then((r) => ({
+      reply().then((r) => ({
         data: Array.isArray(r.data) ? ((r.data as unknown[])[0] ?? null) : r.data,
         error: r.error,
       })),
-    then: (...args: unknown[]) => promise.then(...(args as Parameters<typeof promise.then>)),
-    catch: (...args: unknown[]) => promise.catch(...(args as Parameters<typeof promise.catch>)),
-    finally: (...args: unknown[]) => promise.finally(...(args as Parameters<typeof promise.finally>)),
+    then: (...args: Parameters<Promise<QueryResult>["then"]>) => reply().then(...args),
+    catch: (...args: Parameters<Promise<QueryResult>["catch"]>) => reply().catch(...args),
+    finally: (...args: Parameters<Promise<QueryResult>["finally"]>) => reply().finally(...args),
+    insert: forbiddenWrite, update: forbiddenWrite, delete: forbiddenWrite,
   };
   return chain;
 }
@@ -41,12 +46,15 @@ jest.mock("../../supabase/client", () => ({
     from: (table: string) => ({
       select: (columns: string) => {
         selectCalls.push({ table, columns });
-        return chainable(tableFixtures[`${table}:select`] ?? { data: [], error: null });
+        const query: ReadQuery = { table, columns, filters: [], tags: [] };
+        readQueries.push(query);
+        return chainable(tableFixtures[`${table}:select`] ?? { data: [], error: null }, query);
       },
       upsert: (payload: unknown, opts: unknown) => {
         upsertCalls.push({ table, payload, opts });
         return Promise.resolve({ data: null, error: null });
       },
+      insert: forbiddenWrite, update: forbiddenWrite, delete: forbiddenWrite,
     }),
   }),
 }));
@@ -67,6 +75,7 @@ import {
   deriveValues,
   instrumentLabel,
   isMeasuredSource,
+  loadCorePersonaSnapshot,
   loadPersonaRatifiableSignals,
   loadPersonaSnapshot,
   loadSelfPortraitSignals,
@@ -76,11 +85,14 @@ import {
 } from "../build";
 import { callLlm } from "../../llm/boundary";
 import { AUDIT_QUESTIONS } from "../../audit/questions";
+import { buildIdenDoc } from "../../iden/build-iden";
+import { buildIdenExport } from "../../iden/iden-export";
 
 function reset() {
   for (const k of Object.keys(tableFixtures)) delete tableFixtures[k];
   upsertCalls.length = 0;
   selectCalls.length = 0;
+  readQueries.length = 0; readOverride = undefined; forbiddenWrite.mockClear();
   (callLlm as jest.Mock).mockClear();
 }
 
@@ -261,6 +273,12 @@ describe("loadSelfPortraitSignals", () => {
 });
 
 describe("Core Brain read-only mount", () => {
+  test("an opted-in snapshot guard can reject before any query or synthesis", async () => {
+    reset();
+    await expect(loadPersonaSnapshot("u1", () => { throw new Error("read no longer owned"); })).rejects.toThrow("read no longer owned");
+    expect(selectCalls).toHaveLength(0); expect(upsertCalls).toHaveLength(0); expect(callLlm).not.toHaveBeenCalled();
+  });
+
   beforeEach(reset);
 
   test("keeps legacy persisted provenance conservative even when latest IPIP values match", async () => {
@@ -392,15 +410,163 @@ describe("Core Brain read-only mount", () => {
   test("loads a SELECT-only persona snapshot instead of rebuilding on mount", () => {
     const root = join(__dirname, "..", "..", "..", "..");
     const source = readFileSync(join(root, "src/app/core-brain.tsx"), "utf8");
-    const mountStart = source.indexOf("useEffect(() => {");
-    const focusRefreshStart = source.indexOf("useFocusRefetch(", mountStart);
-    const mount = source.slice(mountStart, focusRefreshStart);
+    const reader = readFileSync(join(root, "src/lib/persona/use-core-evidence-read.ts"), "utf8");
+    expect(source).toContain("const primaryRead = useCoreEvidenceRead(");
+    expect(reader).toContain("await loadCorePersonaSnapshot(owner, requireCurrent)");
+    expect(reader).toContain("const fullRead = previous === null");
+    expect(reader).not.toContain("buildPersona(");
+    expect(reader).not.toMatch(/\.(?:insert|update|upsert|delete)\(/);
+  });
+});
 
-    expect(mountStart).toBeGreaterThan(-1);
-    expect(focusRefreshStart).toBeGreaterThan(mountStart);
-    expect(mount).toContain("loadPersonaSnapshot(userId)");
-    expect(mount).not.toContain("buildPersona(");
-    expect(mount).not.toMatch(/\.(?:insert|update|upsert|delete)\(/);
+describe("Polaris companion loader boundaries", () => {
+  const traits = { openness: 0.2, conscientiousness: 0.3, extraversion: 0.4, agreeableness: 0.5, neuroticism: 0.6 };
+  const row = { version: 1, traits, values: ["saved value", 7], patterns: { summary: "saved summary", discarded: false }, markdown_export: "saved export" };
+  const mbti = { type: "INTJ", scores: { E: 0, I: 4, S: 0, N: 4, T: 4, F: 0, J: 4, P: 0 } };
+  const attachment = { style: "secure", anxiety: 2.5, avoidance: 1.8 };
+  const current = () => {};
+  const readers = [
+    { name: "Core projection", load: loadCorePersonaSnapshot },
+    { name: "shared snapshot", load: loadPersonaSnapshot },
+  ];
+  const signal = (query: ReadQuery) => query.columns === "prompt" ? "prompt" : query.tags[0];
+  function held() {
+    let resolve!: (value: QueryResult) => void;
+    const promise = new Promise<QueryResult>(done => { resolve = done; });
+    return { promise, resolve };
+  }
+  async function flush() { for (let i = 0; i < 35; i++) await Promise.resolve(); }
+  async function rejectsBeforePeer(work: Promise<unknown>, error: unknown) {
+    const settled: unknown[] = [];
+    void work.then(value => settled.push({ value }), reason => settled.push({ error: reason }));
+    await flush(); expect(settled).toEqual([{ error }]);
+  }
+  beforeEach(() => { reset(); tableFixtures["personas:select"] = { data: row, error: null }; });
+  afterEach(() => {
+    expect(callLlm).not.toHaveBeenCalled(); expect(upsertCalls).toEqual([]);
+    expect(forbiddenWrite).not.toHaveBeenCalled();
+  });
+
+  test("Core projection keeps normalized saved fields and conservative provenance with assessment I/O zero", async () => {
+    readOverride = query => {
+      if (query.table === "records") throw new Error("Core must not query assessments");
+      return undefined;
+    };
+    const snapshot = await loadCorePersonaSnapshot("owner", current);
+    expect(snapshot).toMatchObject({ version: 1, traits, traitsSource: "heuristic", values: ["saved value"], patterns: { summary: "saved summary" }, markdownExport: "saved export" });
+    expect(Object.values(snapshot!.traitConfidence!)).toEqual(Array(5).fill({ source: "default", confidence: "low", observationCount: 0 }));
+    expect(snapshot).not.toHaveProperty("mbti"); expect(snapshot).not.toHaveProperty("attachment");
+    expect(readQueries).toEqual([{ table: "personas", columns: "version, traits, values, patterns, markdown_export", filters: [["user_id", "owner"], ["version", 1]], tags: [] }]);
+  });
+
+  test("shared snapshot still waits for its row, then enriches with current MBTI and attachment", async () => {
+    const saved = held();
+    readOverride = query => query.table === "personas" ? saved.promise : {
+      data: [{ body: JSON.stringify(signal(query) === "mbti" ? mbti : attachment) }], error: null,
+    };
+    const loading = loadPersonaSnapshot("owner");
+    await flush(); expect(readQueries.map(query => query.table)).toEqual(["personas"]);
+    saved.resolve({ data: row, error: null });
+    const snapshot = await loading;
+    expect(snapshot).toMatchObject({ mbti, attachment, traitsSource: "heuristic", traits });
+    expect(readQueries.map(query => query.table)).toEqual(["personas", "records", "records"]);
+    expect(readQueries.slice(1).map(query => ({ filters: query.filters, tags: query.tags, order: query.order, limit: query.limit }))).toEqual([
+      { filters: [["user_id", "owner"]], tags: ["mbti", "assessment"], order: ["created_at", { ascending: false }], limit: 1 },
+      { filters: [["user_id", "owner"]], tags: ["attachment", "ecr"], order: ["created_at", { ascending: false }], limit: 1 },
+    ]);
+    readOverride = undefined;
+    const core = await loadCorePersonaSnapshot("owner", current);
+    const { mbti: measuredMbti, attachment: measuredAttachment, ...savedFields } = snapshot!;
+    expect(measuredMbti).toEqual(mbti); expect(measuredAttachment).toEqual(attachment);
+    expect(savedFields).toEqual(core);
+  });
+
+  test.each(readers)("$name keeps no row distinct from failed reads", async ({ load }) => {
+    tableFixtures["personas:select"] = { data: null, error: null };
+    await expect(load("owner", current)).resolves.toBeNull();
+    const error = { message: "offline" }; tableFixtures["personas:select"] = { data: null, error };
+    await expect(load("owner", current)).rejects.toBe(error);
+    expect(readQueries.every(query => query.table === "personas")).toBe(true);
+  });
+
+  test.each(readers)("$name rejects malformed traits before assessment enrichment", async ({ load }) => {
+    for (const invalid of [null, {}, { ...traits, openness: "0.2" }, { ...traits, openness: NaN }, { ...traits, openness: Infinity }]) {
+      tableFixtures["personas:select"] = { data: { ...row, traits: invalid }, error: null };
+      await expect(load("owner", current)).rejects.toThrow("Invalid persisted persona traits");
+    }
+    expect(readQueries).toHaveLength(5); expect(readQueries.every(query => query.table === "personas")).toBe(true);
+  });
+
+  test.each(readers)("$name keeps stored field normalization for absent optional values", async ({ load }) => {
+    tableFixtures["personas:select"] = { data: { version: 1, traits, values: null, patterns: [], markdown_export: 7 }, error: null };
+    await expect(load("owner", current)).resolves.toMatchObject({ values: [], patterns: {}, markdownExport: "", traitsSource: "heuristic" });
+  });
+
+  test.each(readers)("$name rejects an invalid owner/deadline before the first SELECT", async ({ load }) => {
+    const error = new Error("scope expired");
+    await expect(load("owner", () => { throw error; })).rejects.toBe(error);
+    expect(readQueries).toEqual([]);
+  });
+
+  test.each(readers)("$name cannot return a late stored row or start dependent I/O after invalidation", async ({ load }) => {
+    const saved = held(); readOverride = query => query.table === "personas" ? saved.promise : undefined;
+    let valid = true; const error = new Error("scope expired");
+    const loading = load("owner", () => { if (!valid) throw error; });
+    await flush(); valid = false; saved.resolve({ data: row, error: null });
+    await expect(loading).rejects.toBe(error);
+    expect(readQueries.map(query => query.table)).toEqual(["personas"]);
+  });
+
+  test("shared snapshot rejects a late enrichment result after invalidation", async () => {
+    const assessment = held(); readOverride = query => query.table === "records" ? assessment.promise : undefined;
+    let valid = true; const error = new Error("scope expired");
+    const loading = loadPersonaSnapshot("owner", () => { if (!valid) throw error; });
+    await flush(); expect(readQueries).toHaveLength(3);
+    valid = false; assessment.resolve({ data: [], error: null });
+    await expect(loading).rejects.toBe(error);
+  });
+
+  test.each(["mbti", "attachment"])("shared snapshot retains %s failure while the other enrichment waits", async failed => {
+    const error = { message: "assessment offline" };
+    readOverride = query => query.table === "records" ? signal(query) === failed ? { data: null, error } : new Promise(() => {}) : undefined;
+    await rejectsBeforePeer(loadPersonaSnapshot("owner"), error);
+  });
+
+  test.each(["prompt", "mbti", "attachment"])("portrait %s failure rejects before an unresolved peer", async failed => {
+    const error = { message: `${failed} offline` };
+    readOverride = query => signal(query) === failed ? { data: null, error } : new Promise(() => {});
+    await rejectsBeforePeer(loadSelfPortraitSignals("owner"), error);
+    expect(readQueries).toHaveLength(3);
+  });
+
+  test("portrait still derives successful values with owned bounded newest-first queries", async () => {
+    readOverride = query => ({ data: signal(query) === "prompt" ? [{ prompt: AUDIT_QUESTIONS[0].prompt.en }]
+      : [{ body: JSON.stringify(signal(query) === "mbti" ? mbti : attachment) }], error: null });
+    await expect(loadSelfPortraitSignals("owner", current)).resolves.toEqual({ mbti, attachment, values: [AUDIT_QUESTIONS[0].framework] });
+    expect(readQueries).toHaveLength(3);
+    expect(readQueries[0]).toEqual({ table: "records", columns: "prompt", filters: [["user_id", "owner"], ["kind", "audit_response"]], tags: [], order: ["created_at", { ascending: false }], limit: 1000 });
+    for (const query of readQueries.slice(1)) {
+      expect(query.filters).toEqual([["user_id", "owner"]]);
+      expect(query.order).toEqual(["created_at", { ascending: false }]); expect(query.limit).toBe(1);
+    }
+  });
+
+  test("portrait normal absence remains successful empty signals", async () => {
+    await expect(loadSelfPortraitSignals("owner", current)).resolves.toEqual({ mbti: null, attachment: null, values: [] });
+  });
+
+  test("portrait invalid scope before start performs no SELECT", async () => {
+    const error = new Error("scope expired");
+    await expect(loadSelfPortraitSignals("owner", () => { throw error; })).rejects.toBe(error);
+    expect(readQueries).toEqual([]);
+  });
+
+  test.each(["prompt", "mbti", "attachment"])("portrait cannot publish late %s success after invalidation", async pending => {
+    const last = held(); readOverride = query => signal(query) === pending ? last.promise : undefined;
+    let valid = true; const error = new Error("scope expired");
+    const loading = loadSelfPortraitSignals("owner", () => { if (!valid) throw error; });
+    await flush(); valid = false; last.resolve({ data: [], error: null });
+    await expect(loading).rejects.toBe(error); expect(readQueries).toHaveLength(3);
   });
 });
 
@@ -686,6 +852,7 @@ describe("buildPersona", () => {
         {
           patterns: {
             summary: "cached mirror",
+            __summary_source: "model",
             __summary_sig: personaSummarySig("en", false, 2, "2026-01-03T00:00:00Z"),
           },
         },
@@ -743,7 +910,7 @@ describe("buildPersona", () => {
     };
     const cached = (sig: string) => {
       tableFixtures["personas:select"] = {
-        data: [{ patterns: { summary: "summary on the other age's routing", __summary_sig: sig } }],
+        data: [{ patterns: { summary: "summary on the other age's routing", __summary_sig: sig, __summary_source: "model" } }],
         error: null,
       };
     };
@@ -845,6 +1012,44 @@ describe("buildPersona", () => {
       expect(callLlm).toHaveBeenCalledTimes(1);
       expect(callLlm).toHaveBeenCalledWith(expect.objectContaining({ purpose: "persona_narrative", minor }));
     }
+  });
+});
+
+describe("persona export summary provenance", () => {
+  beforeEach(() => {
+    reset();
+    tableFixtures["records:select"] = {
+      data: [{ id: "r1", prompt: "Q", body: "A", created_at: "2026-10-19", tags: [] }], error: null,
+    };
+  });
+
+  test.each(["red", "green", "yellow"])("%s provenance survives persistence and a cache hit in every export", async (zone) => {
+    (callLlm as jest.Mock).mockResolvedValueOnce({ text: "Saved response.", safety: { zone } });
+    const fresh = await buildIdenDoc("u1", { locale: "en", minor: false });
+    const persisted = upsertCalls.find((u) => u.table === "personas")!.payload as { patterns: Record<string, string> };
+    expect(persisted.patterns.__summary_source).toBe(zone === "red" ? "fixed_safety" : "model");
+    tableFixtures["personas:select"] = { data: [persisted], error: null };
+    const cached = await buildIdenDoc("u1", { locale: "en", minor: false });
+    expect(callLlm).toHaveBeenCalledTimes(1);
+    expect(cached.summary).toEqual(fresh.summary);
+    expect((upsertCalls.at(-1)!.payload as typeof persisted).patterns.__summary_source).toBe(persisted.patterns.__summary_source);
+    for (const doc of [fresh, cached]) {
+      const exported = buildIdenExport(doc, { aiCopyTail: "AI TAIL" });
+      for (const artifact of [exported.iden, exported.html, exported.json]) {
+        expect(artifact).toContain("Saved response.");
+        expect(artifact.includes("AI TAIL")).toBe(zone !== "red");
+      }
+    }
+  });
+
+  test("a legacy cache without summary provenance misses even when its signature matches", async () => {
+    tableFixtures["personas:select"] = {
+      data: [{ patterns: { summary: "Unknown old response", __summary_sig: personaSummarySig("en", false, 1, "2026-10-19") } }], error: null,
+    };
+    const card = await buildPersona("u1", "en", false);
+    expect(callLlm).toHaveBeenCalledTimes(1);
+    expect(card.patterns.__summary_source).toBe("model");
+    expect(card.patterns.summary).toBe("mock summary");
   });
 });
 

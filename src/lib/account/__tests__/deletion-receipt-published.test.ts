@@ -79,7 +79,8 @@ function harness(
   const completion = require("../deletion-completion") as typeof import("../deletion-completion");
   const epoch = require("../../auth/account-epoch") as typeof import("../../auth/account-epoch");
   const context: Record<string, unknown> = {
-    userId: OWNER, delConfirm: "DELETE",
+    userId: OWNER, delConfirm: "DELETE", deleteConfirmWord: "DELETE",
+    deleteConfirmWordRef: { current: "DELETE" },
     deleteConfirmUserRef: { current: OWNER },
     deleteInFlightRef: inFlight,
     allowDeletionNavigationRef: { current: false },

@@ -1,6 +1,6 @@
 // Q-261005-01 = A (QA 261006, R2B-03) translation bundle tr1.
 //
-// WHY. /privacy, the /support FAQ and notices, the three onboarding slides, the
+// WHY. /privacy, the /support FAQ (and, until Z73, its notices), the three onboarding slides, the
 // North Star self-portrait fields and the /brightness re-check nudge picked their
 // copy with "Korean, otherwise English" in code. The es/pt/id packs had every
 // key, so check:i18n-keys passed, while those screens painted English (es 280
@@ -62,12 +62,10 @@ function keyList(source: string, name: string): string[] {
 }
 
 describe("tr1: screens read the moved keys", () => {
-  it("/support FAQ and notices read deepspace keys outside Korean, no EN mirror left", () => {
+  it("/support FAQ reads deepspace keys outside Korean, no EN mirror left", () => {
     expect(supportScreen).toContain("renderedUiLanguage(i18n)");
     expect(supportScreen).toContain("t(`support.faqs.${key}.q`)");
     expect(supportScreen).toContain("t(`support.faqs.${key}.a`)");
-    expect(supportScreen).toContain("t(`support.notices.${key}.t`)");
-    expect(supportScreen).toContain("t(`support.notices.${key}.tag`)");
     for (const gone of ["GAPS_FAQ_EN", "GAPS_NOTICE_EN", "Does a paid plan make it smarter?", "SecondB three modes launched"]) {
       expect(DSDS).not.toContain(gone);
     }
@@ -76,10 +74,10 @@ describe("tr1: screens read the moved keys", () => {
   it("/privacy reads every moved privacy key and none of the old English literals", () => {
     const en = flatten(at(pack("en", "deepspace"), "privacy"));
     const moved = Object.keys(en).filter((k) =>
-      /^(atGlance|analytics\.|recommend\.|semantic\.|understand|saveFailed|deleteAccount\.)/.test(k),
+      /^(terms|refund|atGlance|analytics\.|recommend\.|semantic\.|understand|saveFailed|deleteAccount\.)/.test(k),
     );
     expect(moved.length).toBeGreaterThanOrEqual(36);
-    for (const k of moved) expect({ key: k, used: privacyScreen.includes(`t("privacy.${k}")`) }).toEqual({ key: k, used: true });
+    for (const k of moved) expect({ key: k, used: privacyScreen.includes(`t("privacy.${k}"`) }).toEqual({ key: k, used: true });
     expect(privacyScreen).toContain("t(`privacy.facts.${key}.label`)");
     expect(privacyScreen).toContain("t(`privacy.facts.${key}.v`)");
     // Reused keys whose text was already the same in every language.
@@ -151,14 +149,32 @@ describe("tr1: the Korean screen still paints the canon, and the ko keys mirror 
     });
   });
 
-  it("support notice keys follow canonGaps.notices order and text", () => {
-    const keys = keyList(DSDS, "GAPS_NOTICE_KEYS");
-    expect(keys).toHaveLength(GAPS.notices.length);
-    const ko = pack("ko", "deepspace");
-    keys.forEach((k, i) => {
-      expect(at(ko, `support.notices.${k}.t`)).toBe(GAPS.notices[i].t);
-      expect(at(ko, `support.notices.${k}.tag`)).toBe(GAPS.notices[i].tag);
-    });
+  // Z73 (Simon 2026-10-13 20:43, Q-261013-23): the three notice lines were the canon's fixed
+  // sample text, with no year, and could not be opened. Simon picked "the question becomes the
+  // voice-transcription one; notices become one row to the real notices screen".
+  it("notices are one row that opens the real notices screen, named as that screen is", () => {
+    expect(supportScreen).toContain('<Action label={t("ops:phone.apps.notifications")} onPress={() => router.push("/notices")} />');
+    expect(supportScreen.split('router.push("/notices")').length - 1).toBe(1);
+    expect(supportScreen).not.toContain("canonGaps.notices");
+    expect(supportScreen).not.toContain("support.notices");
+    expect(DSDS).not.toContain("GAPS_NOTICE_KEYS");
+    expect(read("src/app/notices.tsx")).toContain('title={t("phone.apps.notifications")}');
+    for (const lng of ["en", "ko", "es", "pt", "id"]) {
+      const support = at(pack(lng, "deepspace"), "support") as Record<string, unknown>;
+      expect({ lng, notices: support.notices, noticesTitle: support.noticesTitle }).toEqual({ lng, notices: undefined, noticesTitle: undefined });
+    }
+  });
+
+  // The app does not record calls; the answer was always about voice transcription.
+  it("the third FAQ asks about voice transcription, not call recording, in every language", () => {
+    expect(keyList(DSDS, "GAPS_FAQ_KEYS")).toEqual(["brightness", "plan", "voice"]);
+    expect(GAPS.faqs[2].q).toBe("음성 받아쓰기는 안전한가요?");
+    const CALL: Record<string, RegExp> = { en: /call/i, ko: /통화/, es: /llamada/i, pt: /chamada/i, id: /panggilan/i };
+    const VOICE: Record<string, RegExp> = { en: /transcri/i, ko: /받아쓰기/, es: /transcri/i, pt: /transcri/i, id: /transkrip/i };
+    for (const lng of Object.keys(CALL)) {
+      const faq = at(pack(lng, "deepspace"), "support.faqs.voice") as { q: string; a: string };
+      expect({ lng, call: CALL[lng].test(`${faq.q} ${faq.a}`), voice: VOICE[lng].test(faq.q) }).toEqual({ lng, call: false, voice: true });
+    }
   });
 
   it("privacy fact keys follow canonGaps.privacyFacts order and text", () => {
@@ -194,7 +210,7 @@ describe("tr1: the Korean screen still paints the canon, and the ko keys mirror 
 
 describe("tr1: es/pt/id carry their own text", () => {
   const MOVED: Record<string, string[]> = {
-    deepspace: ["privacy.atGlance", "privacy.facts", "privacy.analytics", "privacy.recommend", "privacy.semantic", "privacy.understand", "privacy.understandA11y", "privacy.saveFailed", "privacy.deleteAccount", "support.faqs", "support.notices", "onboarding.skip", "onboarding.slides"],
+    deepspace: ["privacy.terms", "privacy.refund", "privacy.none", "privacy.status", "privacy.tip", "privacy.atGlance", "privacy.facts", "privacy.analytics", "privacy.recommend", "privacy.semantic", "privacy.understand", "privacy.understandA11y", "privacy.saveFailed", "privacy.deleteAccount", "support.faqs", "onboarding.skip", "onboarding.slides"],
     "core-brain": ["portrait", "savedResult", "polarisGraphicA11y", "deck"],
     brightness: ["shiftNudge", "shiftNudgeCited"],
   };
@@ -216,23 +232,24 @@ describe("tr1: es/pt/id carry their own text", () => {
     expect(compared).toBeGreaterThanOrEqual(80);
   });
 
-  it.each(["en", "ko", "es", "pt", "id"])("%s keeps the DELETE token and the nudge variables", (lng) => {
-    expect(at(pack(lng, "deepspace"), "privacy.deleteAccount.typePrompt")).toContain('"DELETE"');
+  it.each(["en", "ko", "es", "pt", "id"])("%s keeps the deletion word placeholder and the nudge variables", (lng) => {
+    expect(at(pack(lng, "deepspace"), "privacy.deleteAccount.typePrompt")).toContain('"{{phrase}}"');
     const b = pack(lng, "brightness");
     expect(b.shiftNudge).toContain("{{stars}}");
     expect(b.shiftNudgeCited).toContain("{{stars}}");
     expect(b.shiftNudgeCited).toContain("{{n}}");
   });
 
-  // QA 261006, review of #2099 (F1). The retention fact counts the 30 days from
-  // closing the account (ko "탈퇴 시"). pt "se você sair" and id "jika kamu keluar"
-  // used the very verb of the Sign out button (common actions.signOut: "Sair",
-  // "Keluar"), so the line read as "removed 30 days after you sign out".
+  // T09, 2026-10-24: deletion follows account closure, never sign-out (#2102).
+  // PT "sai"/"saia" are conjugations of the button's "Sair", so checking only
+  // the button label misses the regression. Include the singular você forms.
   it.each(["es", "pt", "id"])("%s retention line does not use the Sign out verb", (lng) => {
     const retention = String(at(pack(lng, "deepspace"), "privacy.facts.retention.v")).toLocaleLowerCase(lng);
     const signOut = String(at(pack(lng, "common"), "actions.signOut")).toLocaleLowerCase(lng);
     expect(signOut.length).toBeGreaterThan(0);
-    const word = new RegExp(`(^|[^\\p{L}])${signOut.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^\\p{L}])`, "u");
+    const forms = lng === "pt" ? [signOut, "sai", "saia", "saiu", "saía", "sairá", "saísse"] : [signOut];
+    const alternatives = forms.map((verb) => verb.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+    const word = new RegExp(`(^|[^\\p{L}])(?:${alternatives})($|[^\\p{L}])`, "u");
     expect({ lng, retention, usesSignOut: word.test(retention) }).toEqual({ lng, retention, usesSignOut: false });
   });
 });

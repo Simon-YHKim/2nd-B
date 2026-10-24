@@ -110,6 +110,29 @@ const interview = {
 };
 
 describe("createRecord - 0218 system_tags", () => {
+  test.each(["memo", "fourw", "todo", "link", "voice"])("T54 %s marker and a same-word user tag keep separate payloads", async (marker) => {
+    await createRecord({ userId: "owner-a", locale: "ko", kind: "note", body: "My note",
+      withFollowup: false, domainIntent: "growth", tags: [marker, "done", "call_reflection"], systemTags: [marker] });
+    expect(mockStored[0].tags).toEqual(["domain:growth", marker, "done", "call_reflection"]);
+    expect(mockStored[0].system_tags).toEqual([marker]);
+  });
+
+  test.each(["missing", "dropped"])("required provenance never falls back to user tags when the column is %s", async (state) => {
+    mockNoSystemTagsColumn = state === "missing";
+    mockDroppedColumnCachedInsert = state === "dropped";
+    await expect(createRecord({ ...interview, requireSystemTagsColumn: true })).rejects.toThrow("record_system_tags_required");
+    expect(mockWire).toHaveLength(1);
+    expect(mockStored).toEqual([]);
+  });
+
+  test("required provenance survives a transient schema cache miss", async () => {
+    mockStaleCacheInserts = 1;
+    await createRecord({ ...interview, requireSystemTagsColumn: true });
+    expect(mockStored).toHaveLength(1);
+    expect(mockStored[0].system_tags).toEqual(interview.systemTags);
+    expect(mockStored[0].tags).toEqual(["domain:growth"]);
+  });
+
   test("the interview's markers go to system_tags, never into the user's tags", async () => {
     const res = await createRecord(interview);
     expect(mockStored).toHaveLength(1);

@@ -22,5 +22,13 @@
       "title": "Your immediate safety comes first.",
       "callCta": "Tap to call if you are in South Korea"
     }
+  },
+  "interviewGuidance": {
+    "title": "Contact information",
+    "directoryLabel": "Find a helpline",
+    "krSupport": "In South Korea, you can call {{supportNumber}} for support.",
+    "krYouthSupport": "In South Korea, young people can call {{youthNumber}} or {{supportNumber}} for support.",
+    "usSupport": "In the US, you can call or text {{supportNumber}} for support. For other countries, use the helpline directory.",
+    "unresolved": "The contact details could not be verified. If you are in physical danger now, contact your local emergency service. For other support, use the helpline directory."
   }
 }

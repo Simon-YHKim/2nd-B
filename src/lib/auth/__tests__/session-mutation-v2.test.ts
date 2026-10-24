@@ -1,6 +1,23 @@
 import { GoTrueClient, processLock, type LockFunc, type SupportedStorage } from "@supabase/auth-js";
 import {
+  activateExpectedWebInterviewSession,
+  signOutExpectedWebInterviewSession,
+  signOutExpectedWebInterviewSessionInsideMutation,
+  signOutEmptyWebInterviewSession,
+  signOutEmptyWebInterviewSessionInsideMutation,
+  resolveWebInterviewSignOut,
+  type WebInterviewLogoutRequest,
+} from "../web-interview-signout";
+import {
+  WebInterviewLifecycleError,
+  type WebInterviewLifecycle,
+  type WebInterviewLogoutIntent,
+  type WebInterviewPurgeReceipt,
+  type WebInterviewTicket,
+} from "../../interview/web-draft-lifecycle";
+import {
   AuthLocalClearUnavailableError,
+  AuthMutationContextUnavailableError,
   AuthLockWaitTimeoutError,
   AuthSessionOwnerChangedError,
   AUTH_WEB_LOCK_WAIT_TIMEOUT_MS,
@@ -9,7 +26,9 @@ import {
   createAuthStorageRuntime,
   refreshExpectedSessionInsideMutation,
   resolveAuthStorage,
+  runWithWebAuthMutationContext,
   signOutExpectedSession,
+  type AuthMutationContext,
 } from "../session-mutation";
 import {
   LEGACY_RECOVERY_PENDING_KEY,
@@ -1088,4 +1107,553 @@ describe("a runtime retired during its v1 -> v2 migration (KZ-1840-1)", () => {
     await live.ready();
     expect(bundleOnDisk(shared, keys)).toEqual(MIGRATED);
   });
+});
+
+// The SDK and auth runtime are real. The D barrier below is a sequencing double;
+// scripts/qa/interview-web-logout.cjs independently executes actual IndexedDB.
+describe("dormant web interview logout coordinator with the real SDK", () => {
+  let sequence = 0;
+  async function setup(locks: "valid" | "missing" | "invalid" = "valid") {
+    const storage = new MemoryStorage();
+    const trace: string[] = [];
+    const request: TestBrowserLockRequest = (name, _options, callback) =>
+      processLock(name, -1, async () => {
+        trace.push(name.startsWith("lock:") ? "S:enter" : "M:enter");
+        try { return await callback(locks === "invalid" ? null : { name, mode: "exclusive" }); }
+        finally { trace.push(name.startsWith("lock:") ? "S:exit" : "M:exit"); }
+      });
+    const runtime = createAuthStorageRuntime({
+      url: `https://web-draft-${++sequence}.supabase.co`, storage, web: true,
+      ...(locks === "missing" ? { navigatorLocksAvailable: false } : { navigatorLockRequest: request }),
+    });
+    await runtime.ready();
+    const a = session("web-a", "web-session-a");
+    storage.setItem(runtime.storageKey, JSON.stringify(a));
+    let sdkFailure = false;
+    const fetcher = jest.fn(async (_input: RequestInfo | globalThis.URL) => {
+      trace.push("SDK:request");
+      return sdkFailure ? jsonResponse({ message: "synthetic failure" }, 500) : new Response(null, { status: 204 });
+    });
+    const client = makeClient(runtime.storage!, runtime.storageKey, runtime.sdkLock, fetcher as typeof fetch);
+    const expected = await captureAuthSessionExpectation(client, runtime);
+    const ticket: WebInterviewTicket = { ownerId: a.user.id, sessionId: "web-session-a", storageGeneration: "generation-a", revision: 1 };
+    const receipt: WebInterviewPurgeReceipt = { ...ticket, revision: 2, phase: "inactive", logoutId: "logout-a" };
+    const lifecycle: WebInterviewLifecycle = {
+      storageKey: runtime.storageKey,
+      inspect: jest.fn(async () => ({ kind: "empty" as const })),
+      prepareIntent: jest.fn(async (intent: WebInterviewLogoutIntent) => intent),
+      activate: jest.fn(async () => ticket),
+      purge: jest.fn(async () => { trace.push("D:complete"); return receipt; }),
+      lookup: jest.fn(async () => receipt),
+    };
+    trace.length = 0;
+    return { storage, runtime, client, expected, ticket, receipt, lifecycle, fetcher, trace,
+      failSdk: () => { sdkFailure = true; } };
+  }
+
+  test("releases snapshot S before D and never calls SDK before D ACK", async () => {
+    const h = await setup();
+    let release!: (value: WebInterviewPurgeReceipt) => void;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    h.lifecycle.purge = jest.fn(() => new Promise((resolve) => {
+      expect(h.trace.at(-1)).toBe("S:exit");
+      h.trace.push("D:start"); entered(); release = resolve;
+    }));
+    const pending = signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a");
+    await started;
+    expect(h.fetcher).not.toHaveBeenCalled();
+    expect(h.trace.filter((v) => v === "M:exit")).toHaveLength(0);
+    h.trace.push("D:complete"); release(h.receipt);
+    await expect(pending).resolves.toEqual(h.receipt);
+    expect(h.trace.indexOf("D:complete")).toBeLessThan(h.trace.indexOf("SDK:request"));
+    expect(h.trace.at(-1)).toBe("M:exit");
+    expect(h.storage.getItem(h.runtime.storageKey)).toBeNull();
+  });
+
+  test.each(["unconfirmed", "conflict", "unsupported"] as const)("D %s keeps auth and calls SDK zero times", async (code) => {
+    const h = await setup();
+    h.lifecycle.purge = jest.fn(async () => { throw new WebInterviewLifecycleError(code); });
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a"))
+      .rejects.toMatchObject({ code });
+    expect(h.fetcher).not.toHaveBeenCalled();
+    expect(h.storage.getItem(h.runtime.storageKey)).not.toBeNull();
+  });
+
+  test.each(["missing", "invalid"] as const)("%s Web Locks prevent D and SDK", async (locks) => {
+    const h = await setup(locks);
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a"))
+      .rejects.toBeInstanceOf(AuthLocalClearUnavailableError);
+    expect(h.lifecycle.purge).not.toHaveBeenCalled();
+    expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test.each([["web-a", "new-session"], ["web-b", "web-session-b"]])("rejects live %s / %s before D", async (owner, sid) => {
+    const h = await setup();
+    h.storage.setItem(h.runtime.storageKey, JSON.stringify(session(owner, sid)));
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a"))
+      .rejects.toBeInstanceOf(AuthSessionOwnerChangedError);
+    expect(h.lifecycle.purge).not.toHaveBeenCalled();
+    expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test("same stable session accepts token rotation and preserves local scope", async () => {
+    const h = await setup();
+    h.storage.setItem(h.runtime.storageKey, JSON.stringify(session("web-a", "web-session-a", 2)));
+    await signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a", "local");
+    expect(h.fetcher).toHaveBeenCalledTimes(1);
+    expect(String(h.fetcher.mock.calls[0][0])).toContain("scope=local");
+  });
+
+  test("missing stable session rejects activation even if a legacy token exists", async () => {
+    const h = await setup();
+    await expect(activateExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, { ...h.expected, sessionId: null }, "new", null))
+      .rejects.toBeInstanceOf(AuthSessionOwnerChangedError);
+    expect(h.lifecycle.activate).not.toHaveBeenCalled();
+  });
+
+  test("required adapter/project binding and a real-shaped receipt cannot be omitted", async () => {
+    const h = await setup();
+    for (const adapter of [undefined, { ...h.lifecycle, storageKey: "other-project" }]) {
+      await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, adapter as WebInterviewLifecycle, h.expected, h.ticket, "logout-a"))
+        .rejects.toMatchObject({ code: "unsupported" });
+    }
+    h.lifecycle.purge = jest.fn(async () => undefined as unknown as WebInterviewPurgeReceipt);
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a"))
+      .rejects.toMatchObject({ code: "unconfirmed" });
+    expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test("copies caller ticket and expectation before queued M work", async () => {
+    const h = await setup();
+    let release!: () => void;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const hold = h.runtime.runMutation(() => new Promise<void>((resolve) => { release = resolve; entered(); }), { requireCrossTab: true });
+    await started;
+    const ticket = { ...h.ticket };
+    const expected = { ...h.expected };
+    const pending = signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, expected, ticket, "logout-a");
+    ticket.sessionId = "mutated";
+    expected.sessionId = "mutated";
+    release(); await hold;
+    await expect(pending).resolves.toEqual(h.receipt);
+    expect(h.lifecycle.purge).toHaveBeenCalledWith(h.ticket, "logout-a", "global");
+  });
+
+  test("SDK failure follows D ACK and does not reactivate", async () => {
+    const h = await setup();
+    h.failSdk();
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a")).rejects.toBeDefined();
+    expect(h.lifecycle.purge).toHaveBeenCalledTimes(1);
+    expect(h.lifecycle.activate).not.toHaveBeenCalled();
+    expect(h.trace.indexOf("D:complete")).toBeLessThan(h.trace.indexOf("SDK:request"));
+  });
+
+  test("already-cleared exact ticket still requires D before the SDK event", async () => {
+    const h = await setup();
+    h.storage.removeItem(h.runtime.storageKey);
+    const events: string[] = [];
+    h.client.onAuthStateChange((event) => { if (event === "SIGNED_OUT") events.push(event); });
+    await expect(signOutExpectedWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, h.ticket, "logout-a")).resolves.toEqual(h.receipt);
+    expect(h.lifecycle.purge).toHaveBeenCalledTimes(1);
+    expect(events).toContain("SIGNED_OUT");
+  });
+
+  test("already-M exact helper acquires M once and keeps the original receipt", async () => {
+    const h = await setup();
+    await expect(h.runtime.runMutation((context) => signOutExpectedWebInterviewSessionInsideMutation(
+      h.client, h.runtime, context, h.lifecycle, h.expected, h.ticket, "logout-a",
+    ), { requireCrossTab: true })).resolves.toEqual(h.receipt);
+    expect(h.trace.filter((v) => v === "M:enter")).toHaveLength(1);
+    expect(h.trace.filter((v) => v === "M:exit")).toHaveLength(1);
+  });
+
+  test("fresh empty uses auth-only, preserves local scope, and performs no purge", async () => {
+    const h = await setup();
+    h.lifecycle.inspect = jest.fn(async () => { expect(h.trace.at(-1)).toBe("S:exit"); h.trace.push("D:empty"); return { kind: "empty" as const }; });
+    await expect(signOutEmptyWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected, "local"))
+      .resolves.toEqual({ kind: "auth-only" });
+    expect(h.lifecycle.inspect).toHaveBeenCalledTimes(1);
+    expect(h.lifecycle.purge).not.toHaveBeenCalled();
+    expect(String(h.fetcher.mock.calls[0][0])).toContain("scope=local");
+    expect(h.trace.indexOf("D:empty")).toBeLessThan(h.trace.indexOf("SDK:request"));
+  });
+
+  test.each(["active", "inactive", "malformed"])("%s is not auth-only emptiness", async (kind) => {
+    const h = await setup();
+    h.lifecycle.inspect = jest.fn(async () => kind === "active" ? { kind: "active" as const, ticket: h.ticket, intent: null }
+      : kind === "inactive" ? { kind: "inactive" as const, receipt: h.receipt, intent: null } : { kind: "empty" as const, unexpected: true });
+    await expect(signOutEmptyWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected)).rejects.toMatchObject({ code: "unconfirmed" });
+    expect(h.fetcher).not.toHaveBeenCalled();
+    expect(h.lifecycle.purge).not.toHaveBeenCalled();
+  });
+
+  test.each(["unconfirmed", "unsupported", "conflict"] as const)("empty inspection %s is SDK zero", async (code) => {
+    const h = await setup();
+    h.lifecycle.inspect = jest.fn(async () => { throw new WebInterviewLifecycleError(code); });
+    await expect(signOutEmptyWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected)).rejects.toMatchObject({ code });
+    expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test.each(["legacy", "stable-rotation", "null", "cleared"])("auth-only retains %s expected-session meaning", async (mode) => {
+    const h = await setup();
+    if (mode === "legacy") h.storage.setItem(h.runtime.storageKey, JSON.stringify(session("web-a", "")));
+    if (mode === "null") h.storage.removeItem(h.runtime.storageKey);
+    const expected = await captureAuthSessionExpectation(h.client, h.runtime);
+    if (mode === "stable-rotation") h.storage.setItem(h.runtime.storageKey, JSON.stringify(session("web-a", "web-session-a", 2)));
+    if (mode === "cleared") h.storage.removeItem(h.runtime.storageKey);
+    const sdk = jest.spyOn(h.client, "signOut");
+    await expect(signOutEmptyWebInterviewSession(h.client, h.runtime, h.lifecycle, expected)).resolves.toEqual({ kind: "auth-only" });
+    expect(sdk).toHaveBeenCalledTimes(1);
+    expect(h.lifecycle.inspect).toHaveBeenCalledTimes(1);
+  });
+
+  test("legacy token rotation fails before inspection; unknown read is not known-null", async () => {
+    const h = await setup();
+    h.storage.setItem(h.runtime.storageKey, JSON.stringify(session("web-a", "")));
+    const expected = await captureAuthSessionExpectation(h.client, h.runtime);
+    h.storage.setItem(h.runtime.storageKey, JSON.stringify(session("web-a", "", 2)));
+    await expect(signOutEmptyWebInterviewSession(h.client, h.runtime, h.lifecycle, expected)).rejects.toBeInstanceOf(AuthSessionOwnerChangedError);
+    const original = h.client.getSession.bind(h.client);
+    const failure = new Error("synthetic unknown auth");
+    jest.spyOn(h.client, "getSession").mockImplementationOnce(async () => { await original(); throw failure; });
+    await expect(signOutEmptyWebInterviewSession(h.client, h.runtime, h.lifecycle, expected)).rejects.toBe(failure);
+    expect(h.lifecycle.inspect).not.toHaveBeenCalled();
+    expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test("new auth after empty inspection is preserved by the final SDK comparison", async () => {
+    const h = await setup();
+    h.lifecycle.inspect = jest.fn(async () => {
+      h.storage.setItem(h.runtime.storageKey, JSON.stringify(session("web-b", "web-session-b")));
+      return { kind: "empty" as const };
+    });
+    await expect(signOutEmptyWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected)).rejects.toBeInstanceOf(AuthSessionOwnerChangedError);
+    expect(h.fetcher).not.toHaveBeenCalled();
+    expect((await h.client.getSession()).data.session?.user.id).toBe("web-b");
+  });
+
+  test("SDK failure retry inspects afresh and rejects a newly active generation", async () => {
+    const h = await setup(); h.failSdk();
+    await expect(signOutEmptyWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected)).rejects.toBeDefined();
+    h.lifecycle.inspect = jest.fn(async () => ({ kind: "active" as const, ticket: h.ticket, intent: null }));
+    await expect(signOutEmptyWebInterviewSession(h.client, h.runtime, h.lifecycle, h.expected)).rejects.toMatchObject({ code: "unconfirmed" });
+    expect(h.lifecycle.inspect).toHaveBeenCalledTimes(1);
+    expect(h.fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(["copy", "fake", "other-runtime", "retired"])("%s context has no D or SDK authority", async (mode) => {
+    const h = await setup();
+    await h.runtime.runMutation(async (context) => {
+      const selected = mode === "copy" ? { ...context } : mode === "fake" ? { destructiveSafe: true } : context;
+      const runtime = mode === "other-runtime" ? { ...h.runtime } : h.runtime;
+      if (mode === "retired") h.runtime.retire();
+      await expect(signOutEmptyWebInterviewSessionInsideMutation(h.client, runtime, selected, h.lifecycle, h.expected))
+        .rejects.toBeInstanceOf(AuthMutationContextUnavailableError);
+    }, { requireCrossTab: true });
+    expect(h.lifecycle.inspect).not.toHaveBeenCalled(); expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test("released context cannot be reused in a later callback of the same runtime", async () => {
+    const h = await setup(); let previous!: AuthMutationContext;
+    await h.runtime.runMutation((context) => { previous = context; }, { requireCrossTab: true });
+    await h.runtime.runMutation(async () => {
+      await expect(signOutEmptyWebInterviewSessionInsideMutation(h.client, h.runtime, previous, h.lifecycle, h.expected))
+        .rejects.toBeInstanceOf(AuthMutationContextUnavailableError);
+    }, { requireCrossTab: true });
+    expect(h.lifecycle.inspect).not.toHaveBeenCalled(); expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test.each(["value", "throw", "getter-value", "getter-throw"])("%s callback closes before queued registration", async (mode) => {
+    const h = await setup(); const failure = new Error("original synchronous failure");
+    let child!: Promise<unknown>; let calls = 0; let reads = 0;
+    const value = Object.defineProperty({}, "then", { get() {
+      reads++;
+      if (mode === "getter-throw") throw failure;
+      return undefined;
+    } });
+    const outer = h.runtime.runMutation((context) => {
+      queueMicrotask(() => {
+        child = runWithWebAuthMutationContext(h.runtime, context, () => { calls++; return "late"; });
+        void child.catch(() => undefined);
+      });
+      if (mode === "throw") throw failure;
+      return mode.startsWith("getter") ? value : "ordinary";
+    }, { requireCrossTab: true });
+    if (mode.endsWith("throw")) await expect(outer).rejects.toBe(failure);
+    else expect(await outer).toBe(mode.startsWith("getter") ? value : "ordinary");
+    await expect(child).rejects.toBeInstanceOf(AuthMutationContextUnavailableError);
+    expect(calls).toBe(0);
+    // The getter may also be read while the outer Promise adopts an ordinary
+    // object value; no callback-scope reopen is allowed during that adoption.
+    if (mode === "getter-value") expect(reads).toBeGreaterThan(0);
+    else expect(reads).toBe(mode === "getter-throw" ? 1 : 0);
+  });
+
+  test.each(["auth-only", "explicit"])("queued actual %s helper never starts S, D or SDK after sync return", async (mode) => {
+    const h = await setup(); let child!: Promise<unknown>;
+    const read = jest.spyOn(h.client, "getSession");
+    await expect(h.runtime.runMutation((context) => {
+      queueMicrotask(() => {
+        child = mode === "auth-only"
+          ? signOutEmptyWebInterviewSessionInsideMutation(h.client, h.runtime, context, h.lifecycle, h.expected)
+          : signOutExpectedWebInterviewSessionInsideMutation(h.client, h.runtime, context, h.lifecycle, h.expected, h.ticket, "logout-a");
+        void child.catch(() => undefined);
+      });
+      return "ordinary";
+    }, { requireCrossTab: true })).resolves.toBe("ordinary");
+    await expect(child).rejects.toBeInstanceOf(AuthMutationContextUnavailableError);
+    expect(read).not.toHaveBeenCalled(); expect(h.lifecycle.inspect).not.toHaveBeenCalled();
+    expect(h.lifecycle.purge).not.toHaveBeenCalled(); expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test("then getter is read once while closed; adopted pending helper keeps M until settle", async () => {
+    const h = await setup(); let reads = 0; let calls = 0; let getterCalls = 0;
+    let getterChild!: Promise<unknown>; let enter!: () => void; let release!: () => void;
+    const entered = new Promise<void>((yes) => { enter = yes; });
+    const gate = new Promise<void>((yes) => { release = yes; });
+    h.lifecycle.inspect = jest.fn(async () => { enter(); await gate; return { kind: "empty" as const }; });
+    const outer = h.runtime.runMutation((context) => Object.defineProperty({}, "then", { get() {
+      reads++;
+      getterChild = runWithWebAuthMutationContext(h.runtime, context, () => { getterCalls++; });
+      void getterChild.catch(() => undefined);
+      return (resolve: (value: Promise<unknown>) => void) => {
+        calls++;
+        resolve(signOutEmptyWebInterviewSessionInsideMutation(h.client, h.runtime, context, h.lifecycle, h.expected));
+        throw new Error("ignored after resolve");
+      };
+    } }) as Promise<unknown>, { requireCrossTab: true });
+    await entered;
+    await expect(getterChild).rejects.toBeInstanceOf(AuthMutationContextUnavailableError);
+    expect(getterCalls).toBe(0); expect(reads).toBe(1); expect(calls).toBe(1);
+    expect(h.trace.filter((v) => v === "M:exit")).toHaveLength(0);
+    release(); await expect(outer).resolves.toEqual({ kind: "auth-only" });
+    expect(h.fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  test("settled thenable cannot reopen registration from its queued continuation", async () => {
+    const h = await setup(); let child!: Promise<unknown>; let calls = 0;
+    const outer = h.runtime.runMutation((context) => ({ then(resolve: (value: string) => void) {
+      resolve("settled");
+      queueMicrotask(() => {
+        child = runWithWebAuthMutationContext(h.runtime, context, () => { calls++; });
+        void child.catch(() => undefined);
+      });
+    } }) as unknown as Promise<string>, { requireCrossTab: true });
+    await expect(outer).resolves.toBe("settled");
+    await expect(child).rejects.toBeInstanceOf(AuthMutationContextUnavailableError);
+    expect(calls).toBe(0);
+  });
+
+  test("thenable settling before its registered child still drains that child under M", async () => {
+    const h = await setup(); let enter!: () => void; let release!: () => void;
+    const entered = new Promise<void>((yes) => { enter = yes; });
+    const gate = new Promise<void>((yes) => { release = yes; });
+    h.lifecycle.inspect = jest.fn(async () => { enter(); await gate; return { kind: "empty" as const }; });
+    const outer = h.runtime.runMutation((context) => ({ then(resolve: (value: string) => void) {
+      void signOutEmptyWebInterviewSessionInsideMutation(h.client, h.runtime, context, h.lifecycle, h.expected);
+      void entered.then(() => resolve("callback settled"));
+    } }) as unknown as Promise<string>, { requireCrossTab: true });
+    const checked = expect(outer).rejects.toBeInstanceOf(AuthMutationContextUnavailableError);
+    await entered; await new Promise<void>((yes) => setImmediate(yes));
+    expect(h.trace.filter((v) => v === "M:exit")).toHaveLength(0);
+    release(); await checked; expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test("thenable rejection and getter failure preserve the original error", async () => {
+    const h = await setup(); const failure = new Error("original thenable rejection");
+    let thenCalls = 0;
+    const thenable = { then(_resolve: unknown, reject: (error: unknown) => void) {
+      thenCalls++; reject(failure); throw new Error("ignored after rejection");
+    } } as unknown as Promise<never>;
+    await expect(h.runtime.runMutation(() => thenable)).rejects.toBe(failure);
+    expect(thenCalls).toBe(1);
+    const native = Promise.resolve("native");
+    Object.defineProperty(native, "then", { get() { throw new Error("native await must not read overridden then"); } });
+    await expect(h.runtime.runMutation(() => native)).resolves.toBe("native");
+  });
+
+  test.each(["snapshot", "D", "final-snapshot", "SDK"])("early callback end during %s drains under M and prevents false success", async (stage) => {
+    const h = await setup();
+    let enter!: () => void; let release!: () => void;
+    const entered = new Promise<void>((yes) => { enter = yes; });
+    const gate = new Promise<void>((yes) => { release = yes; });
+    const original = h.client.getSession.bind(h.client);
+    if (stage === "snapshot" || stage === "final-snapshot") {
+      let reads = 0;
+      jest.spyOn(h.client, "getSession").mockImplementation(async () => {
+        const result = await original();
+        if (++reads === (stage === "snapshot" ? 1 : 2)) { enter(); await gate; }
+        return result;
+      });
+    } else if (stage === "D") h.lifecycle.inspect = jest.fn(async () => { enter(); await gate; return { kind: "empty" as const }; });
+    else h.fetcher.mockImplementation(async () => { enter(); await gate; return new Response(null, { status: 204 }); });
+    let child!: Promise<unknown>; let childError: unknown;
+    const outer = h.runtime.runMutation(async (context) => {
+      child = signOutEmptyWebInterviewSessionInsideMutation(h.client, h.runtime, context, h.lifecycle, h.expected);
+      void child.catch((error: unknown) => { childError = error; });
+      await entered; // Deliberately do not await the helper.
+    }, { requireCrossTab: true });
+    const outerCheck = expect(outer).rejects.toBeInstanceOf(AuthMutationContextUnavailableError);
+    await entered; await new Promise<void>((yes) => setImmediate(yes));
+    expect(h.trace.filter((v) => v === "M:exit")).toHaveLength(0);
+    let nextEntered = false;
+    const next = h.runtime.runMutation(() => { nextEntered = true; }, { requireCrossTab: true });
+    await new Promise<void>((yes) => setImmediate(yes)); expect(nextEntered).toBe(false);
+    release(); await outerCheck; await child.catch(() => undefined); await next;
+    expect(childError).toBeInstanceOf(AuthMutationContextUnavailableError);
+    expect(h.fetcher).toHaveBeenCalledTimes(stage === "SDK" ? 1 : 0);
+    if (stage === "snapshot") expect(h.lifecycle.inspect).not.toHaveBeenCalled();
+  });
+
+  test("callback error wins while registered D drains; ordinary callback results stay unchanged", async () => {
+    const h = await setup(); const failure = new Error("original callback failure");
+    let enter!: () => void; let release!: () => void;
+    const entered = new Promise<void>((yes) => { enter = yes; });
+    const gate = new Promise<void>((yes) => { release = yes; });
+    h.lifecycle.inspect = jest.fn(async () => { enter(); await gate; return { kind: "empty" as const }; });
+    const outer = h.runtime.runMutation(async (context) => {
+      void signOutEmptyWebInterviewSessionInsideMutation(h.client, h.runtime, context, h.lifecycle, h.expected);
+      await entered; throw failure;
+    }, { requireCrossTab: true });
+    const checked = expect(outer).rejects.toBe(failure);
+    await entered; await new Promise<void>((yes) => setImmediate(yes));
+    expect(h.trace.filter((v) => v === "M:exit")).toHaveLength(0);
+    release(); await checked;
+    expect(h.fetcher).not.toHaveBeenCalled();
+    await expect(h.runtime.runMutation(() => "ordinary")).resolves.toBe("ordinary");
+    await expect(h.runtime.runMutation(() => { throw failure; })).rejects.toBe(failure);
+  });
+
+  function durable(h: Awaited<ReturnType<typeof setup>>, scope: "global" | "local" = "local") {
+    return { v: 1 as const, kind: "web-interview-logout" as const, ownerId: h.ticket.ownerId,
+      sessionId: h.ticket.sessionId, storageGeneration: h.ticket.storageGeneration,
+      activeRevision: h.ticket.revision, logoutId: h.receipt.logoutId, scope };
+  }
+
+  test("B0b new request fixes one original ID and waits for prepare ACK before purge", async () => {
+    const h = await setup(); const createLogoutId = jest.fn(() => "logout-a");
+    h.lifecycle.inspect = jest.fn(async () => ({ kind: "active" as const, ticket: h.ticket, intent: null }));
+    let release!: () => void; let enter!: () => void;
+    const entered = new Promise<void>((yes) => { enter = yes; });
+    h.lifecycle.prepareIntent = jest.fn(async (intent: WebInterviewLogoutIntent) => {
+      enter(); await new Promise<void>((yes) => { release = yes; }); return intent;
+    });
+    const pending = resolveWebInterviewSignOut(h.client, h.runtime, h.lifecycle, h.expected,
+      { kind: "new", scope: "local", createLogoutId });
+    await entered; expect(createLogoutId).toHaveBeenCalledTimes(1);
+    expect(h.lifecycle.purge).not.toHaveBeenCalled(); expect(h.fetcher).not.toHaveBeenCalled();
+    release(); await expect(pending).resolves.toEqual({ kind: "draft-purged", receipt: h.receipt });
+    expect(h.lifecycle.prepareIntent).toHaveBeenCalledWith(durable(h));
+    expect(h.lifecycle.purge).toHaveBeenCalledWith(h.ticket, "logout-a", "local");
+    expect(String(h.fetcher.mock.calls[0][0])).toContain("scope=local");
+  });
+
+  test.each(["unknown", "wrong-ack"])("B0b prepare %s never starts purge or SDK", async (mode) => {
+    const h = await setup();
+    h.lifecycle.inspect = jest.fn(async () => ({ kind: "active" as const, ticket: h.ticket, intent: null }));
+    h.lifecycle.prepareIntent = jest.fn(async (intent: WebInterviewLogoutIntent) => {
+      if (mode === "unknown") throw new WebInterviewLifecycleError("unconfirmed");
+      return { ...intent, logoutId: "different" };
+    });
+    await expect(resolveWebInterviewSignOut(h.client, h.runtime, h.lifecycle, h.expected,
+      { kind: "new", scope: "local", createLogoutId: () => "logout-a" })).rejects.toBeInstanceOf(WebInterviewLifecycleError);
+    expect(h.lifecycle.purge).not.toHaveBeenCalled(); expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test.each(["active", "inactive"] as const)("B0b restart resumes %s with durable original revision/ID/scope", async (kind) => {
+    const h = await setup(); const intent = durable(h);
+    h.lifecycle.inspect = jest.fn(async () => kind === "active"
+      ? { kind, ticket: h.ticket, intent } : { kind, receipt: h.receipt, intent });
+    await expect(resolveWebInterviewSignOut(h.client, h.runtime, h.lifecycle, h.expected,
+      { kind: "resume", emptyScope: "global" })).resolves.toEqual({ kind: "draft-purged", receipt: h.receipt });
+    expect(h.lifecycle.prepareIntent).not.toHaveBeenCalled();
+    expect(kind === "active" ? h.lifecycle.purge : h.lifecycle.lookup).toHaveBeenCalledWith(h.ticket, "logout-a", "local");
+    expect(String(h.fetcher.mock.calls[0][0])).toContain("scope=local");
+  });
+
+  test.each(["active", "inactive"] as const)("B0b %s without original ID is never automatic new work", async (kind) => {
+    const h = await setup();
+    h.lifecycle.inspect = jest.fn(async () => kind === "active"
+      ? { kind, ticket: h.ticket, intent: null } : { kind, receipt: h.receipt, intent: null });
+    await expect(resolveWebInterviewSignOut(h.client, h.runtime, h.lifecycle, h.expected,
+      { kind: "resume", emptyScope: "global" })).rejects.toMatchObject({ code: "unconfirmed-missing-origin" });
+    expect(h.lifecycle.prepareIntent).not.toHaveBeenCalled(); expect(h.lifecycle.purge).not.toHaveBeenCalled();
+    expect(h.lifecycle.lookup).not.toHaveBeenCalled(); expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test.each(["null", "foreign", "legacy"])("B0b new bound %s auth cannot mint an ID", async (mode) => {
+    const h = await setup(); const createLogoutId = jest.fn(() => "logout-a");
+    h.lifecycle.inspect = jest.fn(async () => ({ kind: "active" as const, ticket: h.ticket, intent: null }));
+    if (mode === "null") h.storage.removeItem(h.runtime.storageKey);
+    else h.storage.setItem(h.runtime.storageKey, JSON.stringify(session(mode === "foreign" ? "web-b" : "web-a", mode === "legacy" ? "" : "web-session-b")));
+    const current = await captureAuthSessionExpectation(h.client, h.runtime);
+    await expect(resolveWebInterviewSignOut(h.client, h.runtime, h.lifecycle, current,
+      { kind: "new", scope: "global", createLogoutId })).rejects.toBeInstanceOf(AuthSessionOwnerChangedError);
+    expect(createLogoutId).not.toHaveBeenCalled(); expect(h.lifecycle.prepareIntent).not.toHaveBeenCalled();
+    expect(h.lifecycle.purge).not.toHaveBeenCalled(); expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test("B0b known-null durable origin resumes; null without an origin stays unconfirmed", async () => {
+    const h = await setup();
+    h.storage.removeItem(h.runtime.storageKey);
+    const current = await captureAuthSessionExpectation(h.client, h.runtime);
+    h.lifecycle.inspect = jest.fn(async () => ({ kind: "inactive" as const, receipt: h.receipt, intent: durable(h) }));
+    await expect(resolveWebInterviewSignOut(h.client, h.runtime, h.lifecycle, current,
+      { kind: "resume", emptyScope: "global" })).resolves.toMatchObject({ kind: "draft-purged" });
+    expect(h.lifecycle.lookup).toHaveBeenCalledWith(h.ticket, "logout-a", "local");
+  });
+
+  test.each(["id", "scope", "revision"])("B0b captured original %s mismatch cannot consume durable intent", async (field) => {
+    const h = await setup();
+    h.lifecycle.inspect = jest.fn(async () => ({ kind: "active" as const, ticket: h.ticket, intent: durable(h) }));
+    const original = { expected: h.expected, ticket: { ...h.ticket, revision: field === "revision" ? 3 : 1 },
+      logoutId: field === "id" ? "other" : "logout-a", scope: field === "scope" ? "global" as const : "local" as const };
+    await expect(resolveWebInterviewSignOut(h.client, h.runtime, h.lifecycle, h.expected,
+      { kind: "resume", emptyScope: "global", original })).rejects.toMatchObject({ code: "conflict" });
+    expect(h.lifecycle.prepareIntent).not.toHaveBeenCalled(); expect(h.lifecycle.purge).not.toHaveBeenCalled();
+    expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test("B0b in-memory original retries prepare while legacy inactive uses only A explicit context", async () => {
+    for (const kind of ["active", "inactive"] as const) {
+      const h = await setup();
+      h.lifecycle.inspect = jest.fn(async () => kind === "active"
+        ? { kind, ticket: h.ticket, intent: null } : { kind, receipt: h.receipt, intent: null });
+      const original = { expected: h.expected, ticket: h.ticket, logoutId: "logout-a", scope: "local" as const };
+      await expect(resolveWebInterviewSignOut(h.client, h.runtime, h.lifecycle, h.expected,
+        { kind: "resume", emptyScope: "global", original })).resolves.toMatchObject({ kind: "draft-purged" });
+      expect(h.lifecycle.prepareIntent).toHaveBeenCalledTimes(kind === "active" ? 1 : 0);
+      expect(h.lifecycle.purge).toHaveBeenCalledWith(h.ticket, "logout-a", "local");
+    }
+  });
+
+  test("B0b initial empty is auth-only with no ID; new work never overwrites pending intent", async () => {
+    const h = await setup(); const createLogoutId = jest.fn(() => "logout-a");
+    const request: WebInterviewLogoutRequest = { kind: "new", scope: "local", createLogoutId };
+    await expect(resolveWebInterviewSignOut(h.client, h.runtime, h.lifecycle, h.expected, request)).resolves.toEqual({ kind: "auth-only" });
+    expect(createLogoutId).not.toHaveBeenCalled(); expect(h.lifecycle.prepareIntent).not.toHaveBeenCalled();
+    h.storage.setItem(h.runtime.storageKey, JSON.stringify(session("web-a", "web-session-a")));
+    h.lifecycle.inspect = jest.fn(async () => ({ kind: "active" as const, ticket: h.ticket, intent: durable(h) }));
+    await expect(resolveWebInterviewSignOut(h.client, h.runtime, h.lifecycle, h.expected, request)).rejects.toMatchObject({ code: "conflict" });
+    expect(createLogoutId).not.toHaveBeenCalled(); expect(h.lifecycle.prepareIntent).not.toHaveBeenCalled();
+  });
+
+
+  test("B0b queued new request copies expected, scope, and ID factory before first await", async () => {
+    const h = await setup(); h.lifecycle.inspect = jest.fn(async () => ({ kind: "active" as const, ticket: h.ticket, intent: null }));
+    let enter!: () => void; let release!: () => void;
+    const entered = new Promise<void>((yes) => { enter = yes; });
+    const blocker = h.runtime.runMutation(async () => { enter(); await new Promise<void>((yes) => { release = yes; }); });
+    await entered;
+    const expected = { ...h.expected }; const first = jest.fn(() => "logout-a"); const later = jest.fn(() => "different-id");
+    const request = { kind: "new" as const, scope: "local" as "local" | "global", createLogoutId: first };
+    const pending = resolveWebInterviewSignOut(h.client, h.runtime, h.lifecycle, expected, request);
+    expected.userId = "changed-owner"; request.scope = "global"; request.createLogoutId = later;
+    release(); await blocker; await expect(pending).resolves.toMatchObject({ kind: "draft-purged" });
+    expect(first).toHaveBeenCalledTimes(1); expect(later).not.toHaveBeenCalled();
+    expect(h.lifecycle.purge).toHaveBeenCalledWith(h.ticket, "logout-a", "local");
+  });
+
 });

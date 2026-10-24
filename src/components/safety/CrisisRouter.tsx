@@ -22,18 +22,15 @@ import { Button } from "@/components/ui/Button";
 import { HOTLINES, type HotlineId } from "@/lib/safety/lexicon";
 import { dismissCrisisNotice, getCrisisNotice, subscribeCrisisNotice } from "@/lib/safety/crisis-notice";
 import { emergencyGuidance } from "@/lib/safety/emergency-routing";
+import { CRISIS_DIRECTORY_URL } from "@/lib/safety/help-directory";
+
+export { CRISIS_DIRECTORY_URL } from "@/lib/safety/help-directory";
 
 export interface CrisisRouterProps {
   visible: boolean;
   hotline: HotlineId;
   onClose: () => void;
 }
-
-// P1-3 (Simon-approved option A, 2026-06-11): 988 serves the US, but the EN
-// locale also reaches users in countries we have no number for. ThroughLine's
-// findahelpline.com (the directory WHO and major platforms point to) covers
-// the rest — surfaced as a secondary row, never replacing the call box.
-export const CRISIS_DIRECTORY_URL = "https://findahelpline.com";
 
 export function CrisisRouter(props: CrisisRouterProps) {
   return <CrisisDialog {...props} Dialog={Modal} />;
@@ -70,6 +67,7 @@ function CrisisDialog({ visible, hotline, onClose, Dialog }: CrisisRouterProps &
 
   return (
     <Dialog
+      crisisAboveDeviceLock
       visible={visible}
       transparent
       animationType="slide"

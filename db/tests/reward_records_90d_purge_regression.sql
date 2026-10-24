@@ -40,6 +40,8 @@
 --   전 거래는 세지 않는다(DB4-01). 미실행 판단의 기준 시각은 가장 최근 04:37 KST 이고 30분 유예가
 --   지나야 그날 것이 된다(BL4-01). pg_cron 이 없는 CI 에서는 cron_stale 이 늘 false 라 시각 계산
 --   함수를 직접 시각 사례로 본다. 0221 이 없으면(그 전 판) 건너뛴다.
+-- PR-7c(0214): P17 service_role 로 실제 역할을 바꿔, v2 를 직접 부르면 권한 오류이고 v3 는 그대로
+--   지급하는지 본다(v3 는 SECURITY DEFINER 라 안에서 v2 를 부른다). 0214 가 없거나 되돌려졌으면 실패한다.
 BEGIN;
 
 SET LOCAL session_replication_role = replica;
@@ -420,6 +422,40 @@ BEGIN
     RAISE EXCEPTION 'P16: health does not show the due time it judged against'; END IF;
 END
 $p16$;
+RESET request.jwt.claim.role;
+
+-- P17 (0214, PR-7c): 티켓은 postgres 세션에서 발급하고, 지급은 실제 service_role 로 한다.
+SET LOCAL request.jwt.claim.role = 'service_role';
+DO $p17_issue$
+BEGIN
+  IF has_function_privilege('service_role', 'public.settle_reward_ssv_ticket_v2(text,text,text,integer,text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'P17: service_role can still execute settle v2 directly (0214 missing or undone)'; END IF;
+  IF NOT public.issue_reward_ssv_ticket('30000000-0000-0000-0000-000000000211', 'reasoning',
+                                        pg_catalog.repeat('b7', 32), 'ci-ad-unit', 2, 'reasoning credit') THEN
+    RAISE EXCEPTION 'P17: ticket not issued'; END IF;
+END
+$p17_issue$;
+SET LOCAL ROLE service_role;
+DO $p17_settle$
+DECLARE
+  n integer;
+  now_ms constant bigint := (extract(epoch FROM pg_catalog.now()) * 1000)::bigint;
+BEGIN
+  IF current_user <> 'service_role' THEN
+    RAISE EXCEPTION 'P17: not running as service_role (%)', current_user; END IF;
+  BEGIN
+    PERFORM * FROM public.settle_reward_ssv_ticket_v2(
+      pg_catalog.repeat('b7', 32), 'txn-p17-v2', 'ci-ad-unit', 2, 'reasoning credit');
+    RAISE EXCEPTION 'P17: service_role still settles through v2 directly';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  SELECT count(*) INTO n FROM public.settle_reward_ssv_ticket_v3(
+    pg_catalog.repeat('b7', 32), 'txn-p17-v3', 'ci-ad-unit', 2, 'reasoning credit', now_ms);
+  IF n <> 1 THEN RAISE EXCEPTION 'P17: v3 did not pay as service_role after 0214 (rows %)', n; END IF;
+END
+$p17_settle$;
+RESET ROLE;
 RESET request.jwt.claim.role;
 
 ROLLBACK;

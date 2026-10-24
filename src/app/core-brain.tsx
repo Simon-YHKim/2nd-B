@@ -2,8 +2,7 @@ import { ScreenModal } from "@/components/ui/ScreenModal";
 import { PhoneView as View, PhoneScrollView as ScrollView, PhonePressable as Pressable, PhoneTouchableOpacity as TouchableOpacity } from "@/components/phone/PhoneUIKit";
 // Polaris / Core Brain screen (core-brain pack v2). Internal route and data
 // keys stay "Core Brain"; user-facing name is "북극성". Reuses the read-only
-// persona snapshot
-// + buildCenterCards (the §7-2 cards) and a real records fetch for the
+// saved persona projection and a real records fetch for the
 // evidence drawer. Per the pack's data_contract we never fabricate
 // unsupported summaries — sections fall back to a collecting/empty state.
 //
@@ -34,26 +33,15 @@ import { PolarisCategorySlots } from "@/components/deep-space/PolarisCategorySlo
 import { MdButton, m3TextStyle } from "@/components/m3";
 import { m3, m3BrightnessBand } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getSupabaseClient } from "@/lib/supabase/client";
-import {
-  loadLatestStrengths,
-  loadPersonaSnapshot,
-  loadSelfPortraitSignals,
-  type LoadedStrengths,
-  type PersonaCard,
-  type SelfPortraitSignals,
-} from "@/lib/persona/build";
 import { STRENGTH_LABEL_EN, STRENGTH_LABEL_KO } from "@/lib/persona/strengths-survey";
 import { OFFERABLE } from "@/lib/assess/registry";
-import { loadSevenLevels, type SevenLevels } from "@/lib/persona/load-seven-levels";
 import { SEVEN_STARS, type SevenStarId } from "@/lib/persona/seven-stars";
-import { buildCenterCards, type CenterCard } from "@/lib/persona/center";
-import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
-import { withSystemTagsColumn } from "@/lib/records/system-tags";
+import { evidenceTypeLabel, type EvidenceShard } from "@/lib/persona/evidence";
+import { useCoreEvidenceRead } from "@/lib/persona/use-core-evidence-read";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
-import { claimQaPolarisAuto, loadRoleCards, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
+import { claimQaPolarisAuto, proposeRoleCards, ratifyRoleCard, type RoleCard } from "@/lib/persona/role-cards";
 import { requestGlobalCue } from "@/lib/audio/global-cues";
-import { loadPolarisQuota, type PolarisQuota } from "@/lib/persona/polaris-quota";
+import { useCoreBrightnessRead, useCoreCompanionReads, useCoreRoleReads } from "@/lib/persona/use-core-role-reads";
 import { useCompanionMoment } from "@/components/art/CompanionSprite";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
@@ -84,47 +72,6 @@ const POLARIS_GUIDE_CELLS = stepPolyline(
   3,
 ).filter((_, index) => index % 3 === 0);
 
-async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promise<OriginShard[]> {
-  const supabase = getSupabaseClient();
-  // Core must count ALL saved pieces the user sees in /records, not just
-  // `records`: non-journal Capture/Import/Wiki land in `sources`. Reading
-  // only records gives source-only users a false "center is still small"
-  // empty state (data-truth gate). Mirrors /records' merged read.
-  const [recRes, srcRes] = await Promise.all([
-    // system_tags (0218) tells an interview piece from a life-audit one.
-    withSystemTagsColumn((columnPresent) =>
-      supabase
-        .from("records")
-        .select(columnPresent ? "id, kind, topic, created_at, tags, system_tags" : "id, kind, topic, created_at, tags")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(24),
-    ),
-    supabase
-      .from("sources")
-      .select("id, kind, title, captured_at, tags")
-      .eq("user_id", userId)
-      .order("captured_at", { ascending: false })
-      .limit(24),
-  ]);
-  // A transient RLS/timeout/token-refresh error returns data null without
-  // throwing — surface it as an error state instead of a false empty one.
-  if (recRes.error) {
-    if (typeof console !== "undefined") console.warn("[core-brain] records query failed", recRes.error);
-    throw recRes.error;
-  }
-  // The select string is chosen at run time (system_tags or not), so name the row type.
-  const recRows = (recRes.data ?? []) as unknown as RawRecordRow[];
-  // Sources are best-effort: a sources failure degrades to records-only, never blanks Core.
-  let srcRows: RawSourceRow[] = [];
-  if (srcRes.error) {
-    if (typeof console !== "undefined") console.warn("[core-brain] sources query failed; records only", srcRes.error);
-  } else {
-    srcRows = (srcRes.data ?? []) as RawSourceRow[];
-  }
-  return mergeEvidence(recRows, srcRows, locale);
-}
-
 // One functional screen: all data (evidence, persona, the deck pages, the
 // evidence drawer) and every CTA live here. (LensView is the 7-axis per-trait
 // view — wrong fit for the aggregate Polaris readout, so it is not used here.)
@@ -147,31 +94,6 @@ function CoreShell({ children, deck = false }: { children: ReactNode; deck?: boo
 const VALIDATED_TOOLS = OFFERABLE.filter((a) => a.provenance === "validated");
 const SELF_TOOLS = OFFERABLE.filter((a) => a.provenance !== "validated");
 
-function hasUnrecordedPersonaProvenance(persona: PersonaCard): boolean {
-  return Object.values(persona.traitConfidence ?? {}).some(
-    (confidence) => confidence.source === "default",
-  );
-}
-
-function buildCoreCenterCards(
-  persona: PersonaCard,
-  locale: "en" | "ko",
-  t: (key: string) => string,
-): CenterCard[] {
-  if (!hasUnrecordedPersonaProvenance(persona)) return buildCenterCards(persona, locale);
-
-  // Screen copy, so it reads core-brain keys in the language on screen
-  // (Q-261005-01 = A); `locale` above still picks the en/ko persona data.
-  return [
-    {
-      id: "pieces",
-      title: t("savedResult.title"),
-      body: t("savedResult.body"),
-      accent: cosmic.pixelLamp,
-    },
-  ];
-}
-
 export default function CoreBrain() {
   return <CoreBrainScreen />;
 }
@@ -187,210 +109,131 @@ function CoreBrainScreen() {
   const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
-  const [persona, setPersona] = useState<PersonaCard | null>(null);
-  const [evidence, setEvidence] = useState<OriginShard[]>([]);
-  const [sevenLevels, setSevenLevels] = useState<SevenLevels | null>(null);
-  const [strengths, setStrengths] = useState<LoadedStrengths | null>(null);
-  const [building, setBuilding] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loadErrorUserId, setLoadErrorUserId] = useState<string | null>(null);
-  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [evidenceReloadKey, setEvidenceReloadKey] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [portraitSignals, setPortraitSignals] = useState<SelfPortraitSignals | null>(null);
-  const [roleCards, setRoleCards] = useState<RoleCard[]>([]);
-  const [roleCardsUserId, setRoleCardsUserId] = useState<string | null>(null);
   const [rolePending, setRolePending] = useState(false);
   const [roleError, setRoleError] = useState(false);
   const [roleErrorCode, setRoleErrorCode] = useState("");
-  const [quota, setQuota] = useState<PolarisQuota | null>(null);
   const roleBusy = useRef(false);
   const currentUser = useRef(userId);
   currentUser.current = userId;
   const { fire: fireCompanion } = useCompanionMoment();
 
-  useEffect(() => {
-    // The snapshot path is SELECT-only. Still wait for auth/profile hydration so
-    // the effect cannot query under an unresolved or stale user identity.
-    if (loading || !userId || hasProfile !== true || isMinor === null) return;
-    let cancelled = false;
-    setBuilding(true);
-    setLoadError(false);
-    setLoadErrorUserId(null);
-    setPortraitSignals(null);
-    (async () => {
-      try {
-        const [ev, nextStars, nextStrengths] = await Promise.all([
-          loadCoreBrainEvidence(userId, locale),
-          loadSevenLevels(userId).catch(() => null),
-          loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
-        ]);
-        const snapshot = ev.length > 0 ? await loadPersonaSnapshot(userId) : null;
-        const p = snapshot && nextStars
-          ? { ...snapshot, soulCoreBrightness: nextStars.northStarBrightness }
-          : snapshot;
-        if (!cancelled) {
-          setEvidence(ev);
-          setPersona(p);
-          setSevenLevels(nextStars);
-          setStrengths(nextStrengths);
-          setResolvedUserId(userId);
-          // The SecondB head reacts when the center surfaces a fresh connection (companion pack §3).
-          if (p) fireCompanion("connectionFound");
-        }
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[core-brain] load failed", (e as Error).message);
-        if (!cancelled) {
-          setPersona(null);
-          setEvidence([]);
-          setSevenLevels(null);
-          setStrengths(null);
-          setPortraitSignals(null);
-          setResolvedUserId(null);
-          setLoadError(true);
-          setLoadErrorUserId(userId);
-        }
-      } finally {
-        if (!cancelled) setBuilding(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loading, userId, hasProfile, isMinor, locale, fireCompanion, reloadKey]);
+  const primaryRead = useCoreEvidenceRead(userId, !loading && hasProfile === true && isMinor !== null,
+    locale, reloadKey, evidenceReloadKey, () => setReloadKey((key) => key + 1), () => fireCompanion("connectionFound"));
+  const { persona = null, evidence = [] } = primaryRead.data ?? {};
+  const primaryScope = primaryRead.scope;
+  const primaryIsCurrent = primaryRead.isCurrent;
+  const canAutoPropose = primaryRead.canAutoPropose;
+  const brightnessRead = useCoreBrightnessRead(userId, primaryScope, primaryIsCurrent, primaryRead.invalidateAuto);
+  const sevenLevels = brightnessRead.status === "ready" ? brightnessRead.data : null;
+  const roleReads = useCoreRoleReads(userId, primaryScope, primaryIsCurrent, primaryRead.invalidateAuto);
+  const companionReads = useCoreCompanionReads(userId, primaryScope, primaryIsCurrent, primaryRead.invalidateAuto);
+  const portraitSignals = companionReads.portrait.data;
+  const strengths = companionReads.strengths.data;
+  const { beginMutation } = roleReads;
+  const visibleRoleCards = roleReads.roles.data ?? [];
+  const rolesReady = roleReads.roles.status === "ready";
+  const roleReadScope = rolesReady ? primaryScope : null;
+  const quota = roleReads.quota.status === "ready" ? roleReads.quota.data : null;
+  useEffect(() => { setRolePending(false); }, [primaryScope]);
+  useEffect(() => { setRoleError(false); setRoleErrorCode(""); }, [userId]);
+  useEffect(() => { setDrawerOpen(false); }, [primaryScope]);
 
-  // Re-focus refreshes only cheap DB evidence. The initial/retry path above is
-  // also read-only; persona synthesis and persistence require an explicit action.
-  useFocusRefetch(() => setEvidenceReloadKey((k) => k + 1), Boolean(userId && hasProfile === true));
-
-  useEffect(() => {
-    if (evidenceReloadKey === 0 || !userId || hasProfile !== true || resolvedUserId !== userId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [ev, nextStars, nextStrengths] = await Promise.all([
-          loadCoreBrainEvidence(userId, locale),
-          loadSevenLevels(userId).catch(() => null),
-          loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
-        ]);
-        if (!cancelled) {
-          setEvidence(ev);
-          if (nextStars) setSevenLevels(nextStars);
-          setStrengths(nextStrengths);
-          setLoadError(false);
-          setLoadErrorUserId(null);
-        }
-      } catch (e) {
-        if (typeof console !== "undefined") console.warn("[core-brain] evidence refresh failed", (e as Error).message);
-        if (!cancelled) {
-          setLoadError(true);
-          setLoadErrorUserId(userId);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, hasProfile, locale, evidenceReloadKey, resolvedUserId]);
-
-  // Direct portrait measurements are optional, SELECT-only companions to the
-  // synthesized persona. Load them independently so an assessment read failure
-  // cannot turn the whole Core Brain into an error screen; focus/retry refreshes
-  // them without calling the LLM or writing a persona row.
-  useEffect(() => {
-    if (loading || !userId || hasProfile !== true || isMinor === null) return;
-    let cancelled = false;
-    loadSelfPortraitSignals(userId)
-      .then((signals) => {
-        if (!cancelled) setPortraitSignals(signals);
-      })
-      .catch(() => {
-        // Optional field data stays at its prior/collecting state; the main
-        // evidence loader owns the screen-level error surface.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]);
-
-  useEffect(() => {
-    if (loading || !userId || hasProfile !== true || isMinor === null) return;
-    let cancelled = false;
-    setQuota(null);
-    void loadPolarisQuota(userId).then((next) => { if (!cancelled) setQuota(next); });
-    loadRoleCards(userId).then((cards) => {
-      if (!cancelled) {
-        setRoleCards(cards);
-        setRoleCardsUserId(userId);
-      }
-    }).catch(() => {
-      if (!cancelled) setRoleError(true);
-    });
-    return () => { cancelled = true; };
-  }, [loading, userId, hasProfile, isMinor, reloadKey, evidenceReloadKey]);
+  // Refocus and retry are reads. Neither may reactivate the initial QA proposal.
+  useFocusRefetch(() => {
+    primaryRead.invalidateAuto();
+    setEvidenceReloadKey((key) => key + 1);
+  }, Boolean(userId && hasProfile === true));
 
   // Simon explicitly authorized one dev-only draft for the existing QA
   // account. Everyone else's mount path remains read-only. No auto approval.
   useEffect(() => {
     if (loading || !userId || isMinor === null || hasProfile !== true ||
-        resolvedUserId !== userId || roleCardsUserId !== userId || roleBusy.current) return;
+        !canAutoPropose() || roleReadScope !== primaryScope || !rolesReady || roleBusy.current) return;
     let alive = true;
+    const current = () => alive && canAutoPropose() && currentUser.current === userId;
     void (async () => {
-      const claimed = await claimQaPolarisAuto(userId, roleCards.length > 0, evidence.length > 0);
-      if (!claimed || !alive || currentUser.current !== userId || roleBusy.current) return;
+      const claimed = await claimQaPolarisAuto(userId, visibleRoleCards.length > 0, evidence.length > 0, current);
+      if (!claimed || !current() || roleBusy.current) return;
+      const operation = beginMutation(true);
+      if (!operation) return;
+      primaryRead.invalidateAuto();
       roleBusy.current = true;
       setRolePending(true);
       setRoleError(false);
+      setRoleErrorCode("");
+      let succeeded = false;
       try {
         const next = await proposeRoleCards(userId, locale, isMinor);
-        if (alive && currentUser.current === userId) { setRoleCards(next); setRoleCardsUserId(userId); }
+        if (operation.isCurrent()) { operation.publish(next); succeeded = true; }
       } catch (error) {
-        if (alive && currentUser.current === userId) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
+        if (operation.isCurrent()) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
       } finally {
         roleBusy.current = false;
-        if (currentUser.current === userId) setRolePending(false);
+        if (operation.isCurrent()) setRolePending(false);
+        operation.finish(succeeded);
       }
     })();
     return () => { alive = false; };
-  }, [loading, userId, isMinor, hasProfile, resolvedUserId, roleCardsUserId, roleCards.length, evidence.length, locale]);
+  }, [loading, userId, isMinor, hasProfile, primaryScope, roleReadScope, canAutoPropose, rolesReady, visibleRoleCards.length, evidence.length, locale, beginMutation, primaryRead.invalidateAuto]);
 
   const generateRoles = async () => {
     if (!userId || isMinor === null || roleBusy.current || !quota?.available) return;
+    primaryRead.invalidateAuto();
+    const operation = beginMutation(true);
+    if (!operation) return;
     roleBusy.current = true;
     setRolePending(true);
     setRoleError(false);
+    setRoleErrorCode("");
+    let succeeded = false;
     try {
       const next = await proposeRoleCards(userId, locale, isMinor);
-      if (currentUser.current === userId) { setRoleCards(next); setRoleCardsUserId(userId); setQuota(await loadPolarisQuota(userId)); }
+      if (operation.isCurrent()) { operation.publish(next); succeeded = true; }
     } catch (error) {
-      if (currentUser.current === userId) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
+      if (operation.isCurrent()) { setRoleError(true); setRoleErrorCode(error instanceof Error ? error.message : ""); }
     } finally {
       roleBusy.current = false;
-      setRolePending(false);
+      if (operation.isCurrent()) setRolePending(false);
+      operation.finish(succeeded);
     }
   };
 
   const approveRole = async (card: RoleCard) => {
     if (!userId || roleBusy.current) return;
+    primaryRead.invalidateAuto();
+    const operation = beginMutation(false);
+    if (!operation) return;
     roleBusy.current = true;
     setRolePending(true);
     setRoleError(false);
+    setRoleErrorCode("");
+    let succeeded = false;
     try {
       const next = await ratifyRoleCard(userId, card);
-      if (currentUser.current === userId) {
-        setRoleCards(next); setRoleCardsUserId(userId);
-        // L5 소리 재사용(Q-261006-09). 승인 버튼이 서랍(Modal) 안에 있을 수 있어 화면 소리 관문
-        // 대신 루트의 GlobalCueHost 가 낸다.
+      if (operation.isCurrent()) {
+        operation.publish(next); succeeded = true;
+        // Approval keeps the existing global sound gate, including drawer actions.
         requestGlobalCue("polarisRatified");
       }
     } catch {
-      if (currentUser.current === userId) setRoleError(true);
+      if (operation.isCurrent()) setRoleError(true);
     } finally {
       roleBusy.current = false;
-      setRolePending(false);
+      if (operation.isCurrent()) setRolePending(false);
+      operation.finish(succeeded);
     }
   };
+
+  const roleReadStatus = roleReads.roles.status === "loading"
+    ? <PremiumLoadingState message={t("loading")} />
+    : !rolesReady ? <View style={dsDeck.pageBody}>
+      <Text variant="caption" color="textMuted">{t("roleLoadError")}</Text>
+      <Button label={t("tryAgain")} variant="secondary" testID="core-roles-retry" onPress={roleReads.roles.retry} />
+    </View> : null;
+  const categoryBody = rolesReady ? <PolarisCategorySlots cards={visibleRoleCards} /> : roleReadStatus;
 
   if (loading) {
     return (
@@ -404,12 +247,11 @@ function CoreBrainScreen() {
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  const hasCurrentLoadError = loadError && loadErrorUserId === userId;
+  const hasCurrentLoadError = primaryRead.status === "error" || primaryRead.status === "timeout";
   if (
     hasProfile !== true ||
     isMinor === null ||
-    building ||
-    (resolvedUserId !== userId && !hasCurrentLoadError)
+    primaryRead.status === "loading"
   ) {
     return (
       <CoreShell>
@@ -438,7 +280,7 @@ function CoreBrainScreen() {
             <Button
               label={t("tryAgain")}
               variant="primary"
-              onPress={() => setReloadKey((k) => k + 1)}
+              onPress={primaryRead.retry}
             />
             <Button
               label={t("startSecondB")}
@@ -450,6 +292,14 @@ function CoreBrainScreen() {
       </CoreShell>
     );
   }
+
+  const brightnessStatus = <View testID="core-brightness-status" style={dsDeck.pageBody}>
+    {brightnessRead.status === "loading" ? <PremiumLoadingState message={t("loading")} />
+      : brightnessRead.status !== "ready" ? <>
+        <Text variant="caption" color="textMuted">{t("loadError")}</Text>
+        <Button label={t("tryAgain")} variant="secondary" testID="core-brightness-retry" onPress={brightnessRead.retry} />
+      </> : null}
+  </View>;
 
   // Empty state (§7) — never fabricate a summary with no pieces. Show a dimmed,
   // locked constellation as the lure: Polaris stays dominant while the seven
@@ -463,7 +313,7 @@ function CoreBrainScreen() {
         <View style={styles.center}>
           <View style={styles.lockedConstellation}>
             <IslandArt id="core" size={120} />
-            <View style={styles.lockedStarRow}>
+            {sevenLevels ? <View testID="core-empty-stars" style={styles.lockedStarRow}>
               {SEVEN_STARS.map((star) => (
                 <View key={star.id} style={styles.starItem}>
                   <View style={[styles.starDot, { backgroundColor: dimStarColor }]} />
@@ -472,7 +322,7 @@ function CoreBrainScreen() {
                   </Text>
                 </View>
               ))}
-            </View>
+            </View> : brightnessStatus}
           </View>
           <Text variant="heading" style={{ marginTop: spacing.lg, textAlign: "center" }}>
             {t("sevenStars")}
@@ -494,15 +344,14 @@ function CoreBrainScreen() {
           </View>
         </View>
           ) },
-          { key: "categories", title: t("categoryTitle"), body: <PolarisCategorySlots cards={[]} /> },
+          { key: "categories", title: t("categoryTitle"), body: categoryBody },
         ]} />
       </CoreShell>
     );
   }
 
-  const visibleRoleCards = roleCardsUserId === userId ? roleCards : [];
-  const cards = persona ? buildCoreCenterCards(persona, locale, t) : [];
-  const pieces = cards.find((c) => c.id === "pieces");
+  // Saved rows do not carry measured provenance; their existing copy stays local.
+  const pieces = persona ? { title: t("savedResult.title"), body: t("savedResult.body") } : null;
 
   // 나의 모습 — the 5-field self-portrait (who / forWhom / goal / do / fuel).
   // Data contract: only measured fields are filled. Collecting rows point to an
@@ -510,9 +359,16 @@ function CoreBrainScreen() {
   // The remaining three fields disclose that automatic summary is not wired yet.
   // Trait provenance gates generated role/direction copy, not these independent
   // measurement reads. They refresh on focus and can predate persona synthesis.
-  const portrait = buildSelfPortrait({ persona: portraitSignals }, locale, t);
-
-  const starBrightness = sevenLevels?.northStarBrightness ?? null;
+  const portrait = companionReads.portrait.status === "ready"
+    ? buildSelfPortrait({ persona: portraitSignals }, locale, t) : null;
+  const companionStatus = (slot: "portrait" | "strengths") => {
+    const read = companionReads[slot];
+    return read.status === "loading" ? <PremiumLoadingState message={t("loading")} />
+      : read.status !== "ready" ? <View style={dsDeck.pageBody}>
+        <Text variant="caption" color="textMuted">{t("loadError")}</Text>
+        <Button label={t("tryAgain")} variant="secondary" testID={`core-${slot}-retry`} onPress={read.retry} />
+      </View> : null;
+  };
 
   // Evidence drawer (§5) — shared by the deep-space deck and the legacy screen.
   const renderEvidenceDrawer = () => (
@@ -586,7 +442,7 @@ function CoreBrainScreen() {
   // The prototype's role/strength sample values are never copied.
   // 북극성 밝기는 이제 **별 여섯**의 평균이다(2026-08-24). 도메인 로더가
   // 그 숫자를 더 이상 들고 있지 않으므로 별 쪽에서 읽는다.
-  const polarisBandIndex = m3BrightnessBand(starBrightness ?? 0.2) - 1;
+  const polarisBandIndex = sevenLevels ? m3BrightnessBand(sevenLevels.northStarBrightness) - 1 : null;
   const strengthSummary = (strengths?.scores ?? []).slice(0, 4).map((score) =>
     locale === "ko" ? STRENGTH_LABEL_KO[score.strength] : STRENGTH_LABEL_EN[score.strength],
   );
@@ -599,6 +455,7 @@ function CoreBrainScreen() {
       accent: cosmic.soulViolet,
       body: (
         <View style={dsDeck.roleBody}>
+          {sevenLevels && polarisBandIndex !== null ? <>
           <View style={dsDeck.polarisGraphic}>
             <Svg
               width="100%"
@@ -616,7 +473,7 @@ function CoreBrainScreen() {
                 <Rect key={`guide-${index}`} x={cell.x} y={cell.y} width={3} height={3} fill={m3.accent.starDim} />
               ))}
               {SEVEN_STARS.map((star) => {
-                const level = sevenLevels?.starLevels?.[star.id] ?? 1;
+                const level = sevenLevels.starLevels[star.id];
                 const point = POLARIS_INPUT_POINTS[star.id];
                 return (
                   <PixelStarSvg
@@ -634,6 +491,7 @@ function CoreBrainScreen() {
             </Svg>
           </View>
           <Text style={dsDeck.roleStatement}>{t("currentBrightness")}</Text>
+          </> : brightnessStatus}
           {visibleRoleCards.map((card) => (
             <View key={card.id} style={{ gap: 6, marginTop: 12 }}>
               <Text variant="heading">{card.label}</Text>
@@ -651,11 +509,12 @@ function CoreBrainScreen() {
               ) : null}
             </View>
           ))}
-          {visibleRoleCards.length === 0 ? (
+          {rolesReady && visibleRoleCards.length === 0 ? (
             <Text variant="caption" color="textMuted">
               {t("roleEmpty")}
             </Text>
           ) : null}
+          {roleReadStatus}
           {roleError ? (
             <View style={dsDeck.pageBody}>
             <Text variant="caption" color="textMuted">
@@ -672,9 +531,13 @@ function CoreBrainScreen() {
             disabled={rolePending || !quota?.available}
             onPress={() => void generateRoles()}
           />
-          <Text variant="caption" color="textMuted">
-            {t(quota?.available ? "generationAllowance" : "generationUnavailable", { n: quota?.introRemaining })}
-          </Text>
+          {roleReads.quota.status === "loading" ? <PremiumLoadingState message={t("loading")} />
+            : quota ? <Text variant="caption" color="textMuted">
+              {t(quota.available ? "generationAllowance" : "generationUnavailable", { n: quota.introRemaining })}
+            </Text> : <View style={dsDeck.pageBody}>
+              <Text variant="caption" color="textMuted">{t("loadError")}</Text>
+              <Button label={t("tryAgain")} variant="secondary" testID="core-quota-retry" onPress={roleReads.quota.retry} />
+            </View>}
           <MdButton
             variant="filled"
             label={t("editNorthStar")}
@@ -688,7 +551,7 @@ function CoreBrainScreen() {
       key: "categories",
       title: t("categoryTitle"),
       accent: cosmic.soulViolet,
-      body: <View style={dsDeck.pageBody}><PolarisCategorySlots cards={visibleRoleCards} /></View>,
+      body: <View style={dsDeck.pageBody}>{categoryBody}</View>,
     },
     {
       key: "portrait",
@@ -697,7 +560,7 @@ function CoreBrainScreen() {
       body: (
         <View style={dsDeck.pageBody}>
           <Text style={dsDeck.pageHeadline}>{t("sideOfMe")}</Text>
-          <View style={styles.fieldList}>
+          {portrait ? <View style={styles.fieldList}>
             {portrait.map((field) => (
               <TouchableOpacity
                 key={field.id}
@@ -729,10 +592,10 @@ function CoreBrainScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
-          <Text variant="caption" color="textSubtle" style={{ marginTop: 8 }}>
+          </View> : companionStatus("portrait")}
+          {portrait ? <Text variant="caption" color="textSubtle" style={{ marginTop: 8 }}>
             {t("aiApprox")}
-          </Text>
+          </Text> : null}
           {strengthSummary.length > 0 ? (
             <View style={dsDeck.progressiveSummary}>
               <Text style={dsDeck.pageDescription}>
@@ -740,6 +603,7 @@ function CoreBrainScreen() {
               </Text>
             </View>
           ) : null}
+          {companionStatus("strengths")}
           <View style={dsDeck.secondaryActions}>
             <MdButton variant="outlined" label={t("brightness")} onPress={() => router.push("/brightness")} />
             <MdButton variant="outlined" label={t("ratLog")} onPress={() => router.push("/ratifications")} />

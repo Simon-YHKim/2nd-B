@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 // C9 assertion: classifyInput runs before any LLM network call, and
 // red-zone input short-circuits without invoking the SDK.
 // C3 assertion: normal flows enqueue and flush insertAiAuditLog.
@@ -175,6 +178,7 @@ describe("callLlm", () => {
   });
 
   test("interview red routing records honest source/purpose in both ledgers without Gemini", async () => {
+    __resetAccountEpochForTests(); noteResolvedOwner("interview-user");
     const api = jest.requireActual("../boundary") as {
       classifyInterviewTextForCrisis?: (
         text: string,
@@ -251,6 +255,7 @@ describe("callLlm", () => {
     // return null for chat there while the only live red test ran with the edge off (review G-03,
     // 2026-10-14). So every crisis router built on routeCrisis runs in both settings, and must give
     // the same fixed result it gives in this suite's default env.
+    beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("chat-user"); });
     const actual = jest.requireActual("../boundary") as typeof import("../boundary");
     type Router = (text: string, locale: "en" | "ko", userId: string, minor?: boolean) => Promise<LlmResult<string> | null>;
     const ROUTERS: [string, Router, string | undefined, string][] = [
@@ -334,6 +339,45 @@ describe("callLlm", () => {
       },
     );
 
+    test.each([
+      ...RED_INPUTS,
+      { label: "KO medical emergency", text: "약을 이미 많이 먹었어", locale: "ko" as const,
+        numbers: "119", primary: "119", absent: [] },
+      { label: "KO immediate threat", text: "지금 누가 나를 칼로 위협하고 있어", locale: "ko" as const,
+        numbers: "112", primary: "112", absent: [] },
+    ])("captured local RED keeps the legacy routing and real outbox delivery: $label", async input => {
+      const reference = await send(actual.classifyChatTextForCrisis, input);
+      expect(reference?.text).toContain(input.numbers);
+      expect(reference?.safety.crisisRouting?.number).toBe(input.primary);
+      await resetAuditWriteOutboxForTests(); insertMock.mockClear(); crisisMock.mockClear();
+      const order: string[] = [];
+      insertMock.mockImplementationOnce(async () => { order.push("audit"); });
+      crisisMock.mockImplementationOnce(async () => { order.push("event"); });
+      const controller = new AbortController();
+      const session = { userId: "chat-user", epoch: 1, accessToken: "captured-chat-token", signal: controller.signal,
+        assertCurrent: () => { if (controller.signal.aborted) throw new Error("aborted"); },
+        abort: () => controller.abort(), release: () => controller.abort(),
+      };
+      const observer = jest.fn(() => { order.push("visible"); });
+      const live = liveHarness(true);
+      try {
+        const result = await actual.classifyChatTextForCrisis(input.text, input.locale, "chat-user", input.minor, {
+          session, signal: session.signal, onCrisisDetected: observer,
+        });
+        expect(result).toEqual(reference);
+        expect(observer).toHaveBeenCalledTimes(1);
+        expect(observer).toHaveBeenCalledWith(reference!.safety.crisisRouting?.hotline);
+        expect(order).toEqual(["visible", "audit", "event"]);
+        expect(insertMock).toHaveBeenCalledTimes(1); expect(crisisMock).toHaveBeenCalledTimes(1);
+        expect(insertMock.mock.calls[0].slice(1, 3)).toEqual([session.accessToken, session.signal]);
+        expect(crisisMock.mock.calls[0].slice(1, 3)).toEqual([session.accessToken, session.signal]);
+        expect(insertMock.mock.calls[0][0]).toMatchObject({ userId: "chat-user", purpose: "secondb_chat", modelUsed: "none-crisis-routed" });
+        expect(crisisMock.mock.calls[0][0].triggerCategories).toContain("input_red");
+        expect(await getAuditWriteOutboxForTests()).toHaveLength(0);
+        expect(mockGenerateContent).not.toHaveBeenCalled(); expect(live.client).not.toHaveBeenCalled(); expect(live.capturedInvoke).not.toHaveBeenCalled();
+      } finally { live.restore(); session.release(); }
+    });
+
     test("control: in the same live harness a green call reaches the SDK", async () => {
       const live = liveHarness();
       try {
@@ -385,6 +429,7 @@ describe("callLlm", () => {
   });
 
   test("deferred interview ledgers never delay visible UI and concurrent starts route exactly once", async () => {
+    __resetAccountEpochForTests(); noteResolvedOwner("interview-user");
     const events: string[] = [];
     let releaseAudit!: () => void;
     const deferredAudit = new Promise<void>((resolve) => {

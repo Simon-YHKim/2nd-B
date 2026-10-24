@@ -2,7 +2,7 @@
   "textFormat": {
     "general": "Standard"
   },
-  "submit": "Save piece",
+  "submit": "Save record",
   "submitting": "Saving...",
   "submitHints": {
     "writeFirst": "Add a sentence before saving.",
@@ -15,15 +15,15 @@
     "saving": "Already saving.",
     "fourwRequired": "Fill the What box first"
   },
-  "savedTitleFallback": "Today's piece",
+  "savedTitleFallback": "Today's record",
   "loading": "Loading capture...",
   "hero": {
     "eyebrow": "01. Capture",
     "title": "Save a note or source",
     "subtitle": "Journal · note · link · photo · file",
     "speechSaved": "Saved. You can open it right away.",
-    "speechSavedOcr": "Your photo note is saved as a private piece. You can open it right away.",
-    "speechSavedRecords": "Saved. You can find it in your records.",
+    "speechSavedOcr": "Your photo note is saved as a private record. You can open it right away.",
+    "speechSavedRecords": "Saved. You can find it in the Wiki.",
     "speechIdle": "Write a note or choose something to save."
   },
   "sections": {
@@ -54,7 +54,7 @@
   "modes": {
     "journal": {
       "label": "Journal",
-      "help": "Write about today and save it to your records. You can also ask HustleK for its thoughts on the entry."
+      "help": "Write about today and save it to the Wiki. You can also ask HustleK for its thoughts on the entry."
     },
     "memo": {
       "label": "Note",
@@ -78,7 +78,7 @@
     },
     "todo": {
       "label": "To do",
-      "help": "Write a task and mark whether it's done. It will be saved as a to-do piece."
+      "help": "Write a task and mark whether it's done. It will be saved as a to-do record."
     },
     "fourw": {
       "label": "4W1H",
@@ -108,7 +108,7 @@
     "doneHelper": "Turn on if it is already finished. You can change it later."
   },
   "recent": {
-    "title": "Recent pieces",
+    "title": "Recent records",
     "openHint": "Opens this entry in full."
   },
   "formatSaved": {
@@ -116,17 +116,17 @@
     "shared": "Saved and shared your new format."
   },
   "saved": {
-    "title": "Piece saved",
+    "title": "Record saved",
     "ocrTitle": "Your photo note is saved",
-    "ocrBody": "Kept as a private piece.",
+    "ocrBody": "Kept as a private record.",
     "seeArea": "See it in {{area}}",
-    "seeAreaHint": "Opens {{area}} with this piece at the top.",
-    "seePiece": "View this piece",
-    "seePieceHint": "Opens the piece you just saved on its own screen.",
-    "seeRecords": "View my records",
-    "seeRecordsHint": "Opens your records so you can find this entry again.",
+    "seeAreaHint": "Opens {{area}} with this record at the top.",
+    "seePiece": "View this record",
+    "seePieceHint": "Opens the record you just saved on its own screen.",
+    "seeRecords": "View the Wiki",
+    "seeRecordsHint": "Opens the Wiki so you can find this entry again.",
     "captureMore": "Capture more",
-    "recordsOwnership": "One sentence is enough for today. This entry is in Records, so you can reread it and include it in an export later.",
+    "recordsOwnership": "One sentence is enough for today. This entry is in Wiki, so you can reread it and include it in an export later.",
     "recordsAiOptIn": "HustleK can read and respond to this entry only if you turn on this switch.",
     "storagePending": "Your text was saved, but the backup file didn't upload.",
     "advisor": {
@@ -291,10 +291,10 @@
     },
     "journalSave": {
       "title": "Couldn't save your entry",
-      "message": "We couldn't save today's piece. What you wrote is still here. Please try again."
+      "message": "We couldn't save today's record. What you wrote is still here. Please try again."
     },
     "pieceSave": {
-      "title": "Couldn't save your piece",
+      "title": "Couldn't save your record",
       "message": "We couldn't save it yet. What you entered is still here. Please try again."
     },
     "proposeEmpty": {
@@ -325,7 +325,7 @@
       "what": "What happened, or what is it?",
       "how": "How did it go? What would you like to remember?"
     },
-    "note": "Only filled boxes are saved, as one piece with a #fourw tag."
+    "note": "Only filled boxes are saved, as one record with a #fourw tag."
   },
   "callReflection": {
     "blockedTitle": "Not available",
@@ -347,5 +347,15 @@
   "manualTab": "User Guide",
   "shareRefused": {
     "body": "Your share was not added. Sign in, then share it again."
+  },
+  "sharedMedia": {
+    "photoReady": "A photo was shared with PolaScope.",
+    "photoReplace": "Replace the photo and text with the shared photo",
+    "discard": "Discard shared file",
+    "audioSend": "Transcribe shared audio",
+    "multiple": "Please share one file at a time.",
+    "unreadable": "The shared file could not be opened. Share it again from the original app.",
+    "unavailable": "The shared file is no longer available. Share it again from the original app.",
+    "audioName": "Shared audio"
   }
 }

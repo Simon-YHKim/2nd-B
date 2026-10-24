@@ -204,10 +204,10 @@ const HOME_REASONING_COPY: Record<
 > = {
   en: {
     reasoningTag: "REASONING",
-    running: "I'm reading your selected items and connecting their stars.",
+    running: "I'm reading your selected items and connecting them to life areas.",
     depleted: "You've used this week's base runs. They refill Monday.",
     automatic: "Automatic reasoning is on. New items connect right away.",
-    choose: "Choose the items whose stars you want to connect.",
+    choose: "Choose the items you want to connect to life areas.",
     baseLeft: (count) => `You have ${count} runs left this week. What should we connect?`,
     rewardLeft: (count) => `Weekly base is used. ${count} reward runs are available.`,
     adReward: (count) => `Watch an ad for ${count} runs`,
@@ -217,10 +217,10 @@ const HOME_REASONING_COPY: Record<
   },
   ko: {
     reasoningTag: "리즈닝",
-    running: "선택한 자료를 읽고 별을 잇는 중입니다.",
+    running: "선택한 자료를 읽고 관련 영역에 연결하는 중입니다.",
     depleted: "이번 주 기본 횟수를 다 썼습니다. 월요일에 다시 채워집니다.",
     automatic: "자동 리즈닝이 켜져 있습니다. 새 자료를 저장하면 바로 잇습니다.",
-    choose: "필요한 자료를 골라 별을 이어볼까요?",
+    choose: "영역에 연결할 자료를 골라볼까요?",
     baseLeft: (count) => `이번 주 ${count}회 남았습니다. 어떤 자료를 이을까요?`,
     rewardLeft: (count) => `주간 기본은 다 썼습니다. 보상 ${count}회를 쓸 수 있습니다.`,
     adReward: (count) => `광고 보고 ${count}회 받기`,
@@ -230,10 +230,10 @@ const HOME_REASONING_COPY: Record<
   },
   es: {
     reasoningTag: "RAZONAMIENTO",
-    running: "Estoy leyendo tus elementos seleccionados y conectando sus estrellas.",
+    running: "Estoy leyendo tus elementos seleccionados y conectándolos con áreas de tu vida.",
     depleted: "Ya usaste las ejecuciones base de esta semana. Se recargan el lunes.",
     automatic: "El razonamiento automático está activo. Los nuevos elementos se conectan al instante.",
-    choose: "Elige los elementos cuyas estrellas quieres conectar.",
+    choose: "Elige los elementos que quieres conectar con áreas de tu vida.",
     baseLeft: (count) => `Te quedan ${count} ejecuciones esta semana. ¿Qué conectamos?`,
     rewardLeft: (count) => `La base semanal se uso. Hay ${count} ejecuciones de recompensa disponibles.`,
     adReward: (count) => `Ver un anuncio por ${count} ejecuciones`,
@@ -243,10 +243,10 @@ const HOME_REASONING_COPY: Record<
   },
   pt: {
     reasoningTag: "RACIOCÍNIO",
-    running: "Estou lendo os itens selecionados e conectando suas estrelas.",
+    running: "Estou lendo os itens selecionados e conectando-os às áreas da sua vida.",
     depleted: "Você usou as execuções base desta semana. Elas voltam na segunda.",
     automatic: "O raciocínio automático está ativo. Novos itens se conectam na hora.",
-    choose: "Escolha os itens cujas estrelas você quer conectar.",
+    choose: "Escolha os itens que você quer conectar às áreas da sua vida.",
     baseLeft: (count) => `Você tem ${count} execuções nesta semana. O que vamos conectar?`,
     rewardLeft: (count) => `A base semanal acabou. ${count} execuções de recompensa estão disponíveis.`,
     adReward: (count) => `Ver um anúncio por ${count} execuções`,
@@ -256,10 +256,10 @@ const HOME_REASONING_COPY: Record<
   },
   id: {
     reasoningTag: "PENALARAN",
-    running: "Aku sedang membaca item pilihanmu dan menghubungkan bintangnya.",
+    running: "Aku sedang membaca item pilihanmu dan menghubungkannya dengan bidang kehidupanmu.",
     depleted: "Jatah dasar minggu ini sudah habis. Akan terisi lagi Senin.",
     automatic: "Penalaran otomatis aktif. Item baru langsung terhubung.",
-    choose: "Pilih item yang bintangnya ingin kamu hubungkan.",
+    choose: "Pilih item yang ingin kamu hubungkan dengan bidang kehidupanmu.",
     baseLeft: (count) => `Minggu ini tersisa ${count} kali. Apa yang perlu kita hubungkan?`,
     rewardLeft: (count) => `Jatah dasar mingguan sudah habis. ${count} jatah hadiah tersedia.`,
     adReward: (count) => `Tonton iklan untuk ${count} kali`,
@@ -631,6 +631,7 @@ export function ConstellationHome({
   const levelOf = (id: HomeStarId): LadderLevel =>
     (starLevels[id] ?? 1) as LadderLevel;
   const starName = (id: HomeStarId) => t(`ds.star.${id}`);
+  // ds.home.kind.domain은 프로필을 뺀 여섯 별의 꼬리표입니다(생활 영역 아님).
   const kindOf = (id: HomeStarId) => (id === "profile" ? t("ds.home.kind.profile") : t("ds.home.kind.domain"));
 
   const focusedId = bubble.kind === "star" ? bubble.id : null;

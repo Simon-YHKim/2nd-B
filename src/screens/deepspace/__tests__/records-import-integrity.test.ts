@@ -37,9 +37,9 @@ describe("records screen honest error state + focus refetch + virtualized list",
     // it, and keeps the old name too so neither spelling of the false-empty can come back.
     expect(src).not.toContain("listAllRecords(userId).catch(() => [])");
     expect(src).not.toContain("listRecentRecords(userId).catch(() => [])");
-    expect(src).toContain("recs = (await listAllRecords(userId)) as RecordsTimelineRecord[];");
-    expect(src).toContain("recordsFailed = true");
-    expect(src).toContain("setLoadError(true)");
+    expect(src).toContain("listAllRecords(userId, { signal: controller.signal })");
+    expect(src).toContain("withTimeout(work, WIKI_LIST_READ_TIMEOUT_MS");
+    expect(src).toContain("rows: NO_RECORDS, failed: true");
   });
 
   it("renders a distinct error state with a retry, using both-locale keys", () => {
@@ -92,7 +92,11 @@ describe("PIXEL-CLAY records root composition", () => {
   it("bounds only the visual graph, never the archive data source", () => {
     expect(src).toContain("buildRoleRecordsGraph(");
     expect(src).toContain('if (view !== "graph") return [];');
-    expect(src).toContain('listRecordsByIds(userId, roleEvidenceIds(cards))');
+    expect(src).toContain("const roleRead = useRoleEvidenceRead(userId, authLoading, reloadKey,");
+    const reader = read("src/lib/persona/use-role-evidence-read.ts");
+    expect(reader).toContain("const cards = await loadRoleCards(owner)");
+    expect(reader).toContain("const ids = roleEvidenceIds(cards)");
+    expect(reader).toContain("await listRecordsByIds(owner, ids)");
     expect(src).toMatch(/buildRoleRecordsGraph\(\s+graphSourceRecords,/);
     expect(src).toContain('recordsGraph.nodes.filter((node) => node.kind === "record").length');
     expect(src).toContain("graphCount < graphSourceRecords.length");

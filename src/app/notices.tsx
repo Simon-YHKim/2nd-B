@@ -7,6 +7,7 @@ import { PhoneFlatList as FlatList, PhonePressable as Pressable, PhoneScrollView
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Linking, Platform, StyleSheet } from "react-native";
 import { PlainText as RNText } from "@/components/ui/PlainText";
+import { Text } from "@/components/ui/Text";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -476,7 +477,7 @@ export default function NoticesScreen() {
   // Phone-aware: inside the dashboard phone, Back steps the phone, not the app.
   const router = useAppRouter();
   const { userId, loading } = useAuth();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("ops");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const noticeCenter = useNoticeCenter(userId);
   // Keyed by ID, not by index. `data` is bundled-only until fetchNotices()
@@ -489,7 +490,7 @@ export default function NoticesScreen() {
 
   // Newest first: remote rows and bundled release notes interleaved by date.
   // Composed in src/lib/notices/center.ts.
-  const data = noticeCenter.notices;
+  const data = noticeCenter.hydrated ? noticeCenter.notices : [];
   const selectedIndex = selectedId == null ? -1 : data.findIndex((item) => item.id === selectedId);
   const selected = selectedIndex < 0 ? null : data[selectedIndex];
 
@@ -501,7 +502,7 @@ export default function NoticesScreen() {
       active="settings"
       header="none"
       variant="windowed"
-      title={ko ? "공지사항" : "Notices"}
+      title={t("phone.apps.notifications")}
       onBack={() => router.back()}
     >
       <View style={styles.listFrame}>
@@ -510,6 +511,12 @@ export default function NoticesScreen() {
           keyExtractor={(item) => item.id}
           style={styles.noticeCard}
           contentContainerStyle={styles.list}
+          ListHeaderComponent={
+            !noticeCenter.hydrated ? <Text variant="caption" style={styles.listStatus}>{t("phone.noticeLoading")}</Text> : null
+          }
+          ListEmptyComponent={
+            noticeCenter.hydrated ? <Text variant="caption" style={styles.listStatus}>{t("phone.noticeEmpty")}</Text> : null
+          }
           ItemSeparatorComponent={() => <View style={styles.divider} />}
           renderItem={({ item }) => {
             const unread = noticeCenter.isUnread(item.id);
@@ -590,6 +597,8 @@ const styles = StyleSheet.create({
     backgroundColor: m3.color.surfaceContainer,
   },
   list: { backgroundColor: m3.color.surfaceContainer },
+  // onSurfaceVariant reads at AA on the standalone card and maps back to the phone grey inside the phone.
+  listStatus: { color: m3.color.onSurfaceVariant, lineHeight: 20, paddingHorizontal: 15, paddingVertical: 12 },
   noticeRow: {
     minHeight: 68,
     flexDirection: "row",

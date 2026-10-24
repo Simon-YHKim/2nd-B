@@ -7,6 +7,18 @@ export interface PolarisQuota {
   tier: string | null;
 }
 
+/** UI status reads distinguish a confirmed disabled flag from an unread reply.
+ * Admission and QA callers keep loadPolarisQuota's conservative fallback. */
+export async function loadPolarisQuotaStrict(userId: string): Promise<PolarisQuota> {
+  if (!userId) throw new Error("polaris_status_owner_required");
+  const { data, error } = await getSupabaseClient().rpc("polaris_generation_status", { p_user_id: userId });
+  if (error) throw error;
+  if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.available !== "boolean" ||
+      !Number.isInteger(data.intro_remaining) || data.intro_remaining < 0 || data.intro_remaining > POLARIS_INTRO_GENERATIONS ||
+      typeof data.tier !== "string" || !data.tier.trim()) throw new Error("polaris_status_invalid");
+  return { available: data.available, introRemaining: data.intro_remaining, tier: data.tier };
+}
+
 /** A missing RPC/disabled server is unavailable, never two imaginary credits. */
 export async function loadPolarisQuota(userId: string): Promise<PolarisQuota> {
   try {

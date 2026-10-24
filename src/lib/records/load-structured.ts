@@ -1,23 +1,48 @@
 // Thin reader for structured form captures (0066): the newest records that
 // carry a machine-readable payload, rendered as a compact text block for the
-// 세컨비 chat context. Fails soft: any error returns "" so a chat turn never
-// dies on a context nicety.
+// 세컨비 chat context. Ordinary read/parse failures return "". An optional
+// captured execution fence must still reject cancellation or stale ownership.
 
 import { getSupabaseClient } from "../supabase/client";
 import { parseStructured, renderStructuredForContext } from "../capture/structured";
 import { kstDayKey } from "../journal/streak";
+import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { isAbortError, throwIfAborted } from "../async/abort";
 
-export async function loadStructuredContext(userId: string, limit = 5): Promise<string> {
+export async function loadStructuredContext(
+  userId: string,
+  limit = 5,
+  execution?: Pick<AuthenticatedAccountSessionLease, "userId" | "signal" | "assertCurrent">,
+  liveSignal?: AbortSignal,
+): Promise<string> {
+  const fence = (): void => {
+    if (!execution) return;
+    if (!userId || execution.userId !== userId) throw new Error("context_session_owner_mismatch");
+    throwIfAborted(execution.signal);
+    execution.assertCurrent();
+  };
+  fence();
+  let data, error;
   try {
     const supabase = getSupabaseClient();
-    const { data, error } = await supabase
+    const query = supabase
       .from("records")
       .select("topic, created_at, structured")
       .eq("user_id", userId)
       .not("structured", "is", null)
       .order("created_at", { ascending: false })
       .limit(limit);
-    if (error || !data || data.length === 0) return "";
+    ({ data, error } = await (liveSignal ? query.abortSignal(liveSignal) : query));
+  } catch (error) {
+    fence();
+    if (execution && isAbortError(error)) throw error;
+    return "";
+  }
+  fence();
+  if (execution && isAbortError(error)) throw error;
+  if (error || !data || data.length === 0) return "";
+  let context;
+  try {
     const blocks: string[] = [];
     for (const row of data) {
       const payload = parseStructured(row.structured);
@@ -32,8 +57,12 @@ export async function loadStructuredContext(userId: string, limit = 5): Promise<
       const head = [row.topic, day].filter(Boolean).join(" · ");
       blocks.push(`${head ? head + "\n" : ""}${renderStructuredForContext(payload)}`);
     }
-    return blocks.join("\n---\n");
-  } catch {
+    context = blocks.join("\n---\n");
+  } catch (error) {
+    fence();
+    if (execution && isAbortError(error)) throw error;
     return "";
   }
+  fence();
+  return context;
 }

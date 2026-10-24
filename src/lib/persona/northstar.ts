@@ -25,8 +25,10 @@ import { callLlm } from "../llm/boundary";
 import { sanitizeUntrusted } from "../llm/untrusted";
 import { containsAnalysisForbidden, containsForbiddenLexicon } from "../safety/classifier";
 import { createRecord, type CreatedRecord } from "../records/create";
+import { withSystemTagsColumn } from "../records/system-tags";
+import { NORTHSTAR_TAG, hasNorthstarAiProvenance, northstarAiTag } from "./northstar-provenance";
 
-export const NORTHSTAR_TAG = "northstar_sentence";
+export { NORTHSTAR_TAG, NORTHSTAR_AI_TAG } from "./northstar-provenance";
 export const MIN_RECORDS_FOR_PROPOSAL = 5;
 
 // Gemini structured-output schema (uppercase casing like wiki/phase1.ts).
@@ -41,39 +43,50 @@ export const NORTHSTAR_SCHEMA = {
 export interface NorthstarState {
   sentence: string | null;
   savedAt: string | null;
+  aiSuggested: boolean;
 }
 
 export async function fetchCurrentNorthstar(userId: string): Promise<NorthstarState> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
+  const { data, error } = await withSystemTagsColumn((columnPresent) => supabase
     .from("records")
-    .select("body, created_at")
+    .select(columnPresent ? "body, created_at, system_tags" : "body, created_at")
     .eq("user_id", userId)
     .contains("tags", [NORTHSTAR_TAG])
     .order("created_at", { ascending: false })
-    .limit(1);
+    .limit(1));
   if (error) throw error;
-  const row = data?.[0];
-  return { sentence: row?.body ?? null, savedAt: row?.created_at ?? null };
+  const row = data?.[0] as unknown as { body: string | null; created_at: string; system_tags?: string[] } | undefined;
+  return {
+    sentence: row?.body ?? null,
+    savedAt: row?.created_at ?? null,
+    // This marker has no pre-0218 history. Never infer it from user tags.
+    aiSuggested: hasNorthstarAiProvenance(row),
+  };
 }
 
 export async function saveNorthstar(args: {
   userId: string;
   locale: "en" | "ko";
   sentence: string;
+  selectedSuggestion?: string;
   minor?: boolean;
 }): Promise<CreatedRecord> {
   // Return the created record: createRecord runs the C9 crisis classifier on
   // every save and reports a red zone via followup — the screen must surface
   // the hotline modal instead of navigating away (flow-map /northstar).
+  const body = args.sentence.trim();
+  const aiSuggested = body.length > 0 && args.selectedSuggestion === args.sentence && args.selectedSuggestion === body;
   return createRecord({
     userId: args.userId,
     locale: args.locale,
     kind: "note",
-    body: args.sentence.trim(),
+    body,
     minor: args.minor,
     withFollowup: false,
     tags: [NORTHSTAR_TAG],
+    systemTags: aiSuggested ? [northstarAiTag(body)] : [],
+    requireSystemTagsColumn: aiSuggested,
   });
 }
 

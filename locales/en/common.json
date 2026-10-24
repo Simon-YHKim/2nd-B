@@ -84,5 +84,14 @@
   "drillLayerPeriod": "topic / period",
   "backToGraph": "Return to graph",
   "backToGraphHint": "Opens the graph home screen.",
-  "clearContext": "Clear reference text"
+  "clearContext": "Clear reference text",
+  "deviceLock": {
+    "title": "Verify with your device lock",
+    "fallback": "Use device passcode",
+    "unlock": "Unlock",
+    "checking": "Verifying…",
+    "setup": "Set up a screen lock in your phone settings first.",
+    "unavailable": "Device authentication is unavailable. Install the latest app and try again.",
+    "failed": "Could not unlock. Please try again."
+  }
 }

@@ -87,11 +87,11 @@ describe("the wiki list's own read", () => {
     await listAllRecords("owner-1");
     // TimelineRecord (records-timeline.ts): what a row, its icon, its title and its time read.
     // audit_period: the star a record was told under, which ?period= narrows the list by.
-    expect(calls[0].select.split(",").map((c) => c.trim()).sort()).toEqual(["audit_period", "body", "created_at", "id", "kind", "summary", "tags", "topic"]);
+    expect(calls[0].select.split(",").map((c) => c.trim()).sort()).toEqual(["audit_period", "body", "created_at", "id", "kind", "summary", "system_tags", "tags", "topic"]);
     const timeline = readFileSync(join(__dirname, "..", "..", "..", "screens", "deepspace", "records-timeline.ts"), "utf8").replace(/\r\n?/g, "\n");
     const shape = timeline.slice(timeline.indexOf("export interface TimelineRecord {"), timeline.indexOf("}", timeline.indexOf("export interface TimelineRecord {")));
     const fields = [...shape.matchAll(/^\s+(\w+)\??:/gm)].map((m) => m[1]).sort();
-    expect(fields).toEqual(["body", "created_at", "id", "kind", "summary", "tags", "topic"]);
+    expect(fields).toEqual(["body", "created_at", "id", "kind", "summary", "system_tags", "tags", "topic"]);
   });
 
   it("starts each next page after the last row of the one before", async () => {
@@ -162,7 +162,7 @@ describe("the wiki list uses it", () => {
 
   it("reads every record, and no longer borrows the streak's 90-day read", () => {
     expect(screen).toContain('import { listAllRecords } from "@/lib/records/list-all-records";');
-    expect(screen).toContain("recs = (await listAllRecords(userId)) as RecordsTimelineRecord[];");
+    expect(screen).toContain("listAllRecords(userId, { signal: controller.signal })");
     expect(screen).not.toMatch(/listRecentRecords\(/);
   });
 

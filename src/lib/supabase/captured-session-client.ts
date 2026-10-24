@@ -92,3 +92,35 @@ export async function rpcWithCapturedSession(
     ? { error: null }
     : { error: requestError(response.clone()) };
 }
+
+/**
+ * Return a PostgREST RPC's JSON without rereading the mutable auth session.
+ * This is transport data, not a validated quota or mutation receipt. Callers
+ * must validate the value and record any issued mutation's outcome before
+ * checking whether it may still publish to the current owner or screen.
+ */
+export async function rpcJsonWithCapturedSession<T = unknown>(
+  functionName: string,
+  args: Readonly<Record<string, unknown>>,
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<CapturedFunctionResult<T>> {
+  assertRouteSegment(functionName);
+  const response = await globalThis.fetch(
+    `${supabaseUrl()}/rest/v1/rpc/${functionName}`,
+    {
+      method: "POST",
+      headers: capturedHeaders(accessToken),
+      body: JSON.stringify(args),
+      signal,
+    },
+  );
+  if (!response.ok) return { data: null, error: requestError(response.clone()) };
+  const context = response.clone();
+  try {
+    return { data: await response.json() as T, error: null };
+  } catch {
+    // A malformed success response does not prove that a write did not happen.
+    return { data: null, error: requestError(context) };
+  }
+}

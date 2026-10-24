@@ -6,7 +6,7 @@
 // MIME allowlist + 2.7MB base64 cap.
 
 import { callLlm } from "../llm/boundary";
-import type { LlmResult } from "../llm/types";
+import type { LlmResult, CrisisObserver } from "../llm/types";
 import type { HotlineId } from "../safety/lexicon";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import {
@@ -840,6 +840,7 @@ export async function ocrImageAsset(
   // C10: forwarded so a minor's crisis output-swap (if the OCR'd text trips the
   // classifier) routes to the youth hotline. Defaults to adult routing.
   minor = false,
+  onCrisisDetected?: CrisisObserver,
 ): Promise<string> {
   const userId = session.userId;
   session.assertCurrent();
@@ -852,6 +853,7 @@ export async function ocrImageAsset(
       session,
       locale,
       purpose: "capture_ocr",
+      onCrisisDetected,
       user: ocrPromptForLocale(locale),
       image: { mimeType, data },
       minor,

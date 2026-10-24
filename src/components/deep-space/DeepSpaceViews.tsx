@@ -681,7 +681,7 @@ export function CaptureView({
           kind: "note",
           body,
           topic,
-          tags: [tag],
+          systemTags: [tag],
           withFollowup: false,
           minor: isMinor === true,
           ...(structured ? { structured } : {}),
@@ -868,7 +868,7 @@ export function CaptureView({
     // iOS padding. Measure its parent's screen origin to include safe-area/window
     // offsets; the inner area's local y is zero. Scroll-only insets miss the footer.
     <View ref={keyboardHostRef} collapsable={false} style={styles.capCoachRoot} onLayout={measureKeyboardHost}>
-    <KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset}>
+    <KeyboardAvoidingArea style={styles.capCoachRoot} iosKeyboardVerticalOffset={iosKeyboardOffset} iosOffsetCoordinateSpace="window">
       <ScrollView
         ref={scrollRef}
         style={styles.capScroll}

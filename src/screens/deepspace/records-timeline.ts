@@ -23,6 +23,7 @@ export interface TimelineRecord {
   topic?: string | null;
   body?: string | null;
   tags?: string[] | null;
+  system_tags?: readonly string[] | null;
   created_at: string;
 }
 

@@ -28,7 +28,6 @@ import {
   DOMAIN_TAG_PREFIX,
   DOMAIN_STARS,
   domainTagFor,
-  getDomainStar,
   isDomainId,
   isDomainTag,
   stripDomainTags,
@@ -36,6 +35,7 @@ import {
 } from "@/lib/persona/domain-stars";
 import { evidenceDateLabel } from "@/lib/persona/evidence";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
+import { hasCaptureMarker } from "@/lib/records/system-tags";
 import { resolvePrivacyPrefs } from "@/lib/privacy/prefs";
 import {
   deleteRecord,
@@ -202,7 +202,7 @@ function relatedTitle(
 type PresentationType = "text" | "link" | "voice" | "photo" | "todo";
 
 function presentationType(
-  piece: Pick<DetailPiece, "kind" | "topic" | "summary" | "body" | "tags">,
+  piece: Pick<DetailPiece, "kind" | "topic" | "summary" | "body" | "tags" | "system_tags">,
 ): PresentationType {
   const tags = (piece.tags ?? []).map((tag) => tag.toLowerCase());
   const has = (...keys: string[]) => keys.some((key) => tags.includes(key));
@@ -214,8 +214,8 @@ function presentationType(
   if (kind === "voice" || kind === "audio") return "voice";
   if (kind === "photo" || kind === "image") return "photo";
   const haystack = `${piece.topic ?? ""} ${piece.summary ?? ""} ${piece.body ?? ""}`;
-  if (has("link", "링크", "url") || /https?:\/\//.test(haystack)) return "link";
-  if (has("voice", "음성") || /\(\d+:\d{2}\)/.test(haystack)) return "voice";
+  if (hasCaptureMarker(piece, "link") || has("링크", "url") || /https?:\/\//.test(haystack)) return "link";
+  if (hasCaptureMarker(piece, "voice") || has("음성") || /\(\d+:\d{2}\)/.test(haystack)) return "voice";
   if (has("photo", "사진", "image", "이미지")) return "photo";
   return "text";
 }
@@ -842,8 +842,7 @@ export function DeepSpaceRecordDetailScreen() {
   const evidenceLine =
     relatedIsSettled && domain
       ? t("deepspace:ds.wikiRecords.secondbLinked", {
-          star:
-            i18n.language === "ko" ? getDomainStar(domain).nameKo : getDomainStar(domain).nameEn,
+          star: t(`home:ds.home.domainName.${domain}`),
           n: relatedItems.length,
         })
       : relatedIsSettled && relatedItems.length > 0
@@ -1343,7 +1342,7 @@ export function DeepSpaceRecordDetailScreen() {
                       variant={selected ? "inset" : "frame"}
                       onPress={() => void moveTo(item.id)}
                       disabled={tagsBusy}
-                      accessibilityLabel={i18n.language === "ko" ? item.nameKo : item.nameEn}
+                      accessibilityLabel={t(`home:ds.home.domainName.${item.id}`)}
                       accessibilityState={{ selected, busy: tagsBusy }}
                       fullWidth
                       contentStyle={styles.actionContent}
@@ -1354,7 +1353,7 @@ export function DeepSpaceRecordDetailScreen() {
                         size={24}
                       />
                       <RNText style={[m3TextStyle("labelLarge"), styles.secondaryLabel]}>
-                        {i18n.language === "ko" ? item.nameKo : item.nameEn}
+                        {t(`home:ds.home.domainName.${item.id}`)}
                       </RNText>
                     </PixelPressable>
                   );

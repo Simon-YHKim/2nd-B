@@ -1,7 +1,7 @@
 {
   "title": "HustleK",
   "subtitle": "Pregunta sobre tu wiki y consulta las páginas usadas en cada respuesta.",
-  "empty": "Empieza una conversación. Por ejemplo: \"¿Qué temas se repiten en mis notas de este mes?\"",
+  "empty": "Haz una pregunta. Por ejemplo: \"¿Qué temas aparecen en mi wiki?\"",
   "placeholder": "Pregúntale a HustleK...",
   "composerPlaceholder": "Mensaje…",
   "inputA11y": "Pregúntale a {{name}}",
@@ -12,11 +12,11 @@
   "viewPlans": "Ver planes",
   "viewPlansHint": "Abre la pantalla de planes.",
   "serverLimitReached": "Esta cuenta ha alcanzado el límite de chat de hoy. El límite se restablece a medianoche, hora de Corea (KST).",
-  "reference_piece_meta": "pieza referenciada",
+  "reference_piece_meta": "registro usado",
   "heroSpeech": {
-    "sending": "Leyendo los registros relacionados…",
+    "sending": "Consultando las páginas de tu wiki…",
     "divergent": "Considerando otras posibilidades…",
-    "default": "¿Qué quieres saber sobre tus registros?"
+    "default": "¿Qué quieres saber sobre la wiki creada a partir de tus registros?"
   },
   "personaHero": {
     "speech": "Aquí está lo que se repite en tus registros. Comprueba si encaja contigo."
@@ -32,7 +32,7 @@
       "role": "Empatía",
       "lensName": "HustleK",
       "tag": "HustleK",
-      "desc": "Responde a partir de tus registros"
+      "desc": "Responde con tu wiki de registros"
     },
     "meta": {
       "name": "Fact-K",
@@ -40,7 +40,7 @@
       "systemHint": "Persona: Fact-K. Mantén todas las reglas de fundamento, citas y seguridad. Céntrate en los hechos y en patrones respaldados por cifras y fechas de los registros del usuario. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles.",
       "lensName": "Fact-K",
       "tag": "Fact-K",
-      "desc": "Examina los hechos de tus registros"
+      "desc": "Hechos de tu wiki de registros"
     },
     "twi": {
       "name": "Joy-K",
@@ -48,7 +48,7 @@
       "systemHint": "Persona: Joy-K. Mantén todas las reglas de fundamento, citas y seguridad. Propón otras posibilidades a partir de los registros y separa claramente los hechos de lo imaginado. Si es útil, explica cómo probar una propuesta. No uses siempre la misma frase de cierre. Usa palabras cotidianas y frases claras. Evita las metáforas elaboradas, los elogios exagerados y las frases de empatía prefabricadas. Haz preguntas solo cuando sean útiles.",
       "lensName": "Joy-K",
       "tag": "Joy-K",
-      "desc": "Busca otras posibilidades en tus registros"
+      "desc": "Otras ideas de tu wiki de registros"
     }
   },
   "replyFailed": "No se pudo obtener respuesta. Inténtalo de nuevo en un momento.",
@@ -71,10 +71,10 @@
     "transcribeFailed": "No se pudo convertir esa grabación en texto. Inténtalo de nuevo o escribe tu mensaje.",
     "transcriptEmpty": "No pudimos distinguir palabras. Inténtalo más cerca del micrófono o escríbelo."
   },
-  "closeReferenced": "Cerrar los fragmentos referenciados",
-  "closeReferencedHint": "Cierra la lista de fragmentos consultados",
-  "piecesReferenced": "Fragmentos referenciados",
-  "piecesReferencedBody": "Los fragmentos usados en esta respuesta. Abre uno para leerlo.",
+  "closeReferenced": "Cerrar los registros referenciados",
+  "closeReferencedHint": "Cierra la lista de registros consultados",
+  "piecesReferenced": "Registros referenciados",
+  "piecesReferencedBody": "Los registros usados en esta respuesta. Abre uno para leerlo.",
   "closeChip": "Cerrar",
   "eyebrow": "06. Chat con HustleK",
   "newPerspectives": "Ver de otra forma",
@@ -84,13 +84,14 @@
   "copyFailed": "No se pudo copiar. Selecciona el texto para copiarlo.",
   "keepFailed": "No se pudo confirmar el guardado. Revisa la wiki y vuelve a pulsar Guardar en la wiki.",
   "aboutNode": "Sobre '{{node}}': ",
-  "drewOnPieces": "Esta respuesta usó {{n}} fragmentos. Toca para verlos.",
+  "drewOnPieces": "Esta respuesta usó {{n}} registros. Toca para verlos.",
   "nSources": "{{n}} fuentes",
   "captureBranch": "Guardar: {{branch}}",
   "askLens": "Pregúntale a {{lens}}…",
   "nPieces": "{{n}} fragmentos",
   "chatSaveNotice": "Esta conversación no se está guardando",
   "chatSaveNoticeOpen": "Abrir ajustes",
+  "chatSaveNoticeOpenLabel": "Abrir ajustes",
   "chatSaveNoticeDismiss": "Cerrar",
   "planSuggestion": {
     "routineButton": "Crear una rutina",

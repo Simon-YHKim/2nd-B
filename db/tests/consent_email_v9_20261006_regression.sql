@@ -21,7 +21,8 @@ SET request.jwt.claim.role='service_role';
 
 DO $$
 BEGIN
-  IF (SELECT count(*) FROM public.signup_consent_contract_status()) <> 8
+  -- 0262 (email-v10) adds a ninth revision after this one; v9 stays current beside it.
+  IF (SELECT count(*) FROM public.signup_consent_contract_status()) < 8
     OR NOT EXISTS(SELECT 1 FROM public.signup_consent_contract('email-v9') c
       WHERE c.consent_version='2026-10-06' AND c.policy_version='2026-10-06'
         AND c.terms_version='2026-10-05' AND c.confirmation_eligible)

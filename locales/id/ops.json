@@ -163,7 +163,7 @@
       "growth": "Tujuan",
       "meals": "Makanan",
       "museum": "Museum AI",
-      "notifications": "Notifikasi",
+      "notifications": "Pengumuman",
       "community": "Komunitas",
       "avatarPalette": "Palet Avatar",
       "avatarPaletteShort": "Palet",
@@ -172,8 +172,8 @@
       "more": "Lainnya"
     },
     "appsBack": "Kembali",
-    "noticeLoading": "Memuat notifikasi…",
-    "noticeEmpty": "Belum ada notifikasi.",
+    "noticeLoading": "Memuat pengumuman…",
+    "noticeEmpty": "Belum ada pengumuman.",
     "noticeUnread": "Belum dibaca",
     "notifications": "Pengingat ponsel",
     "push": {

@@ -14,7 +14,7 @@ describe("PIXEL-CLAY settings screen contract", () => {
     expect(source).not.toContain('from "@/components/deep-space/DeepSpaceLinks"');
   });
 
-  test("keeps every production destination while removing duplicate deep-space navigation", () => {
+  test("keeps the approved settings destinations without duplicate navigation", () => {
     const routes = [
       ...source.matchAll(/router\.(?:push|replace)\("([^"]+)"\)/g),
     ].map((match) => match[1]);
@@ -22,6 +22,8 @@ describe("PIXEL-CLAY settings screen contract", () => {
     expect(routes.filter((route) => route === "/data-connections")).toHaveLength(1);
 
     // 2026-10-07: /profile (내 계정) and /notices (소식) left settings (Simon).
+    // 2026-10-13 Q11: the redundant records row also leaves settings.
+    expect(routes).not.toContain("/records");
     expect(new Set(routes)).toEqual(
       new Set([
         "/",
@@ -37,7 +39,6 @@ describe("PIXEL-CLAY settings screen contract", () => {
         "/plans",
         "/privacy",
         "/reasoning",
-        "/records",
         "/sign-in",
         "/subscription",
         "/support",
@@ -52,7 +53,7 @@ describe("PIXEL-CLAY settings screen contract", () => {
 
   // "keeps the legacy rollback navigation explicitly secondary" 는 2026-10-05 에 은퇴했다.
   // 그 레거시 버튼 묶음(아홉 개)은 롤백 레버와 함께 빠졌다(Simon 결정 Q-261004-11 C). 배송
-  // 목적지 전부는 위 "keeps every production destination" 이 계속 본다.
+  // 승인된 목적지는 위 "keeps the approved settings destinations" 가 계속 본다.
 
   test("applies the PIXEL-CLAY overrides over the base type and spacing", () => {
     // 2026-10-05: 전에는 덮어쓰기가 스킨에 따라 갈렸다(`pixel ? … : null` ·

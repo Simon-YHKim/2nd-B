@@ -10,8 +10,9 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-import { throwIfAborted } from "../async/abort";
+import { isAbortError, throwIfAborted } from "../async/abort";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
+import { beforeOwnerDispatch, captureLiveOwnerCheck, observeLiveOwner, requestCancellationSignal, withLiveOwnerSignal } from "../auth/live-owner-guard";
 import { getEnv } from "../env";
 import {
   embedVendor,
@@ -41,8 +42,24 @@ import {
   type LlmResult,
   type PromptInput,
   type PromptPurpose,
+  type CrisisObserver,
   type ReasoningEffort,
+  type ChatTurnRoute, type ChatTurnRejectionCode, type TurnAdmission,
 } from "./types";
+
+// Optional UI guidance runs once, after the same ownership/cancellation fence
+// as the result. Only routing metadata crosses this callback; UI exceptions
+// cannot skip the audit path or change the standard result.
+function crisisObserver(observer: CrisisObserver | undefined, fence: () => void): CrisisObserver | undefined {
+  if (!observer) return undefined;
+  let notified = false;
+  return (hotline) => {
+    fence();
+    if (notified) return;
+    notified = true;
+    try { observer(hotline); } catch { /* The audited result still follows. */ }
+  };
+}
 
 // Web Crypto SubtleCrypto fallback to a simple non-cryptographic hash when
 // running outside a browser/RN runtime (e.g. node tests). Audit hashes are
@@ -350,6 +367,7 @@ type ProxyCrisisDecision = {
 export type LlmConsentErrorCode = "consent_required" | "consent_check_unavailable";
 
 /** A server consent refusal is terminal across providers, including collect mode. */
+export interface LlmConsentError { readonly turnAdmission?: TurnAdmission }
 export class LlmConsentError extends Error {
   constructor(readonly code: LlmConsentErrorCode) {
     super(code);
@@ -506,7 +524,9 @@ async function routeCrisis(
     session?: AuthenticatedAccountSessionLease;
     classifierConfidence?: number;
   } = {},
+  liveCrisisFence?: () => void,
 ): Promise<LlmResult<string>> {
+  const liveFence = liveCrisisFence ?? takeLiveChatDeviceScope(userId, sourceTag, opts, result);
   if (opts.session?.userId !== undefined && opts.session.userId !== userId) {
     throw new Error("llm_session_owner_mismatch");
   }
@@ -555,6 +575,7 @@ async function routeCrisis(
       : result.matched.length > 0
         ? ["lexicon_match"]
         : [];
+  liveFence?.();
   if (opts.recordCrisisEvent !== false) {
     await writeCrisisEvent(
       userId,
@@ -569,6 +590,7 @@ async function routeCrisis(
     );
   }
   opts.session?.assertCurrent();
+  liveFence?.();
   return { text, safety: result, audit };
 }
 
@@ -589,19 +611,35 @@ export function assertRootObjectSchema(schema: Record<string, unknown> | undefin
   }
 }
 
+// Keep the shared observer contract unchanged. The live legacy path may have
+// a received RED to retain after its screen owner has left.
+function retainedCrisisObserver(observer: CrisisObserver | undefined, fence: () => void): CrisisObserver | undefined {
+  const notify = crisisObserver(observer, fence);
+  return notify ? hotline => {
+    try { notify(hotline); } catch (error) { if (!isAbortError(error)) throw error; }
+  } : undefined;
+}
+
 export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult<T>> {
+  if (input.chatTurn && (input.chatTurnRoute || input.chatTurnId !== undefined || input.chatAttemptIntent !== undefined || input.session || input.signal)) throw new Error("chat_turn_execution_mismatch");
   if (input.session && input.session.userId !== input.userId) {
     throw new Error("llm_session_owner_mismatch");
   }
   if (input.session && input.signal && input.signal !== input.session.signal) {
     throw new Error("llm_session_signal_mismatch");
   }
+  const liveOwner = input.purpose === "secondb_chat" && !input.session
+    ? captureLiveOwnerCheck(input.userId) : undefined;
   const signal = input.session?.signal ?? input.signal;
   const fence = (): void => {
     throwIfAborted(signal);
     input.session?.assertCurrent();
+    liveOwner?.();
+    if (input.purpose === "secondb_chat") input.chatTurn?.assertCurrent?.();
   };
   fence();
+  const notifyCrisis = input.purpose === "secondb_chat" && !input.session && !input.chatTurn
+    ? retainedCrisisObserver(input.onCrisisDetected, fence) : crisisObserver(input.onCrisisDetected, fence);
   assertRootObjectSchema(input.responseSchema);
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
   // Dual-locale: catch a crisis term written in the other language than the UI
@@ -610,6 +648,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   const inputSafety = classifyInputAnyLocale(input.user, input.locale, { minor: input.minor });
   const promptHash = djb2(`${input.system ?? ""}${input.user}`);
   if (inputSafety.zone === "red") {
+    notifyCrisis?.(inputSafety.crisisRouting?.hotline);
     return (await routeCrisis(
       inputSafety,
       input.locale,
@@ -618,6 +657,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       input.minor,
       "input_red",
       { purpose: input.purpose, session: input.session },
+      input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
     )) as unknown as LlmResult<T>;
   }
 
@@ -628,12 +668,25 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     process.env.EXPO_PUBLIC_OBFUSCATION_SAFETY === "true" &&
     hasCrisisObfuscation(input.user)
   ) {
+    let retainedRed: Promise<LlmResult<string>> | undefined;
+    const retainRed = input.session || input.chatTurn ? undefined : (result: { confidence: number }) => {
+      notifyCrisis?.(undefined);
+      retainedRed ??= routeCrisis(
+        { zone: "red", matched: [], categories: ["crisis"] }, input.locale, input.userId,
+        promptHash, input.minor, "input_semantic_red", { purpose: input.purpose, classifierConfidence: result.confidence },
+      );
+      // A cancelled transport may still finish parsing a response it already received.
+      void retainedRed.catch(() => {});
+    };
     const semanticInput = await classifyObfuscatedInput(input.user, input.locale, {
       capturedSession: input.session,
-      signal,
-    });
+      signal, assertCurrent: liveOwner,
+      onRedResult: retainRed,
+    }).catch(async error => { if (retainedRed) await retainedRed; throw error; });
+    if (retainedRed) { const result = await retainedRed; fence(); return result as unknown as LlmResult<T>; }
     fence();
     if (semanticInput?.zone === "red") {
+      notifyCrisis?.(undefined);
       return (await routeCrisis(
         { zone: "red", matched: [], categories: ["crisis"] },
         input.locale,
@@ -642,6 +695,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         input.minor,
         "input_semantic_red",
         { purpose: input.purpose, session: input.session, classifierConfidence: semanticInput.confidence },
+        input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
       )) as unknown as LlmResult<T>;
     }
     if (semanticInput === null) {
@@ -663,9 +717,13 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // (pro) tier the legacy EXPO_PUBLIC_REASONING_PROVIDER seam gets the last
   // word when the axis resolves gemini (routing.ts, opts.reasoningTier).
   // Polaris reservations are currently settled only by openai-proxy.
-  const vendorSeat = input.purpose === "persona_synthesis" ? "openai" : resolveVendorForPurpose(input.purpose, input.image != null, {
+  const vendorSeat = input.purpose === "persona_synthesis" ? "openai" :
+    (input.purpose === "secondb_chat" ? (input.chatTurn?.route ?? input.chatTurnRoute)?.vendor : undefined) ?? resolveVendorForPurpose(input.purpose, input.image != null, {
     reasoningTier: tier === "pro",
   });
+  const chatTurnRequest = input.purpose === "secondb_chat" && supportsChatTurnReservation(vendorSeat)
+    && (input.chatTurn?.turnId !== undefined || input.chatTurn?.intent !== undefined || input.chatTurnId !== undefined || input.chatAttemptIntent !== undefined);
+  const requestedTurnId = input.chatTurn?.turnId ?? input.chatTurnId;
   // effort applies on the reasoning (pro) tier, and on non-Gemini vendor seats
   // (the proxy maps it to the vendor's native reasoning ladder). On Gemini
   // lite/flash it stays undefined so the audit row doesn't imply a reasoning
@@ -740,6 +798,10 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // When the proxy writes the audit row itself (C3 server-authoritative), it
   // returns audited:true and we skip the client insert to avoid double-logging.
   let proxyAudited = false;
+  let turnAdmission: TurnAdmission | undefined;
+  let turnBound: boolean | undefined;
+  let swapReceipt: LlmResult["outputSwap"];
+  let chatTurnFailure: LlmChatTurnError | null = null;
 
   // Route through an edge function when configured, OR whenever the vendor is
   // non-Gemini (Claude/OpenAI have no client-side path — the keys live only in
@@ -759,6 +821,10 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // and gives server logs call attribution. Labels are self-reported, so
       // the proxy's tier-aware cap + effort clamp are the hard ceilings.
       purpose: input.purpose,
+      ...(chatTurnRequest ? {
+        ...((input.chatTurn?.turnId ?? input.chatTurnId) !== undefined ? { chatTurnId: input.chatTurn?.turnId ?? input.chatTurnId } : {}),
+        ...((input.chatTurn?.intent ?? input.chatAttemptIntent) !== undefined ? { chatAttemptIntent: input.chatTurn?.intent ?? input.chatAttemptIntent } : {}),
+      } : {}),
       // The server claims each reasoning slot against its existing reservation.
       ...(input.purpose === "reasoning_connect" ? {
         reasoningRunId: input.reasoningRunId,
@@ -786,6 +852,9 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     const primaryFn = proxyFnForVendor(vendorSeat);
     const invokeProxy = async (functionName: string) => {
       fence();
+      if (input.purpose === "secondb_chat") input.chatTurn?.beforeDispatch?.();
+      const liveRequest = liveOwner ? observeLiveOwner(liveOwner, signal) : undefined;
+      try {
       const result = input.session
         ? await invokeFunctionWithCapturedSession(
             functionName,
@@ -794,15 +863,25 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           )
         : await getSupabaseClient().functions.invoke(functionName, {
             body: proxyBody,
-            signal,
+            signal: liveRequest?.signal ?? signal,
           });
-      fence();
+      // A response already received may contain RED evidence. No further request
+      // is allowed until its own fence, but the original owner's rows come first.
+      const retainReceived = input.purpose === "secondb_chat" && !input.session && !input.chatTurn && !chatTurnRequest;
+      if (!retainReceived) fence();
       if (result.error) {
+        if (chatTurnRequest) {
+          // A readable non-crisis 422 must not publish or consume a crisis notice.
+          chatTurnFailure = await inspectProxyChatTurnFailure(result.error);
+          fence();
+          turnAdmission = chatTurnFailure?.turnAdmission;
+        }
         const consentError = await inspectProxyConsentRejection(result.error);
-        fence();
-        if (consentError) throw consentError;
+        if (!retainReceived || consentError) fence();
+        if (consentError) throw turnAdmission ? Object.assign(consentError, { turnAdmission }) : consentError;
       }
       return result;
+      } finally { liveRequest?.release(); }
     };
     const t0 = Date.now();
     let { data, error } = await invokeProxy(primaryFn);
@@ -819,11 +898,12 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     const failoverTarget = failoverVendor();
     const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
     // Reservation-backed calls cannot reuse a claimed slot on another provider.
-    if (error && input.purpose !== "persona_synthesis" && input.purpose !== "reasoning_connect" && failoverFn && failoverFn !== primaryFn) {
+    if (error && !chatTurnRequest && input.purpose !== "persona_synthesis" && input.purpose !== "reasoning_connect" && failoverFn && failoverFn !== primaryFn) {
       const vendorCrisis = await inspectProxyCrisisRejection(error);
-      fence();
+      if (!(input.purpose === "secondb_chat" && !input.session && !input.chatTurn && vendorCrisis.route)) fence();
       if (vendorCrisis.route) {
-        return (await routeCrisis(
+        notifyCrisis?.(proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane).crisisRouting?.hotline);
+        const crisisResult = (await routeCrisis(
           proxyCrisisSafetyResult(input.locale, input.minor, vendorCrisis.lane),
           input.locale,
           input.userId,
@@ -835,8 +915,12 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
             purpose: input.purpose,
             session: input.session,
           },
+          input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
         )) as unknown as LlmResult<T>;
+        if (liveOwner) fence();
+        return crisisResult;
       }
+      fence();
       if (typeof console !== "undefined") {
         console.warn(`[llm] ${primaryFn} failed for ${input.purpose} - falling back to ${failoverFn}`);
       }
@@ -856,9 +940,10 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // The restricted crisis_events row is added only when the body explicitly
       // carries safety_red_zone; unreadable 422s still show the hotline template.
       const proxyCrisis = await inspectProxyCrisisRejection(error);
-      fence();
+      if (!(input.purpose === "secondb_chat" && !input.session && !input.chatTurn && proxyCrisis.route)) fence();
       if (proxyCrisis.route) {
-        return (await routeCrisis(
+        notifyCrisis?.(proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane).crisisRouting?.hotline);
+        const crisisResult = (await routeCrisis(
           proxyCrisisSafetyResult(input.locale, input.minor, proxyCrisis.lane),
           input.locale,
           input.userId,
@@ -870,11 +955,25 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
             purpose: input.purpose,
             session: input.session,
           },
+          input.chatTurn && input.purpose === "secondb_chat" ? fence : undefined,
         )) as unknown as LlmResult<T>;
+        if (liveOwner) fence();
+        return turnAdmission ? { ...crisisResult, turnAdmission } : crisisResult;
       }
-      throw error;
+      fence();
+      throw chatTurnFailure ?? error;
     }
-    const payload = data as { text?: string; modelUsed?: string; audited?: boolean } | null;
+    const payload = data as { text?: string; modelUsed?: string; audited?: boolean; turnBound?: unknown; auditId?: unknown } | null;
+    if (chatTurnRequest) {
+      turnAdmission = readTurnAdmission(data);
+      if (typeof payload?.turnBound === "boolean") turnBound = payload.turnBound;
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      // Invocation-local only. The client C3 row is never refund evidence.
+      if (payload?.audited === true && typeof payload.auditId === "string" && uuid.test(payload.auditId)
+        && typeof requestedTurnId === "string" && uuid.test(requestedTurnId)) {
+        swapReceipt = { auditId: payload.auditId, reservationId: requestedTurnId };
+      }
+    }
     text = payload?.text ?? "";
     modelUsedForAudit = payload?.modelUsed ?? model;
     vertexBackend = false;
@@ -896,7 +995,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         ? { thinkingConfig: { thinkingBudget: 0 } }
         : {}),
     };
-    const res = await client.models.generateContent({
+    const res = await withLiveOwnerSignal(liveOwner, signal, requestSignal => client.models.generateContent({
       model,
       contents: [
         ...(input.system ? [{ role: "user", parts: [{ text: `[SYSTEM]\n${input.system}` }] }] : []),
@@ -913,9 +1012,9 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
           ],
         },
       ],
-      config: Object.keys(config).length > 0 ? config : undefined,
-    });
-    fence();
+      config: requestSignal ? { ...config, abortSignal: beforeOwnerDispatch(requestSignal) } : Object.keys(config).length > 0 ? config : undefined,
+    }));
+    if (!(input.purpose === "secondb_chat" && !input.session && !input.chatTurn)) fence();
     latencyMs = Date.now() - t0;
     text = res.text ?? "";
     modelUsedForAudit = model;
@@ -931,11 +1030,22 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // LlmResult.safety shape, but the swap DECISION + recorded zone use the
   // semantic (worst-case-merged) result.
   const lexical = classifyInput(text, input.locale, { minor: input.minor });
-  const semantic = await classifySafety(text, input.locale, {
-    userId: input.userId,
-    capturedSession: input.session,
-  });
-  fence();
+  if (lexical.zone === "red") notifyCrisis?.(lexical.crisisRouting?.hotline);
+  const semantic = await (input.purpose === "secondb_chat" && !input.session
+    ? classifySafety(text, input.locale, {
+        userId: input.userId, assertCurrent: fence, signal, retainResult: !input.chatTurn,
+        ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
+      }).catch(error => {
+        if (input.chatTurn || signal?.aborted || !isAbortError(error)) throw error;
+        // The chat completed before this optional classification could be sent.
+        // Preserve its C3 row (or known lexical swap) for its original owner.
+        return { zone: lexical.zone, confidence: 0.95, triggers: lexical.categories.length ? lexical.categories : ["lexicon_match"] };
+      })
+    : classifySafety(text, input.locale, {
+        userId: input.userId, capturedSession: input.session,
+        ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
+      }));
+  if (!(input.purpose === "secondb_chat" && !input.session && !input.chatTurn)) fence();
   const outputZone: "green" | "yellow" | "red" =
     lexical.zone === "red" || semantic.zone === "red"
       ? "red"
@@ -958,6 +1068,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   // proxyAudited meant the edge path recorded only the proxy's green row, so an
   // ai_audit_log query for interceptions missed this call entirely.
   if (outputZone === "red") {
+    notifyCrisis?.(lexical.crisisRouting?.hotline);
     const fixed = fixedCrisisResponse(input.locale, input.minor, lexical.crisisRouting?.hotline);
     const swapAudit = {
       promptHash,
@@ -976,6 +1087,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       "[ai_audit_log] output-swap insert failed",
       input.session,
     );
+    if (input.chatTurn && input.purpose === "secondb_chat") fence();
     await writeCrisisEvent(
       input.userId,
       {
@@ -995,6 +1107,9 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       text: fixed.text as unknown as T,
       safety: outputSafety,
       audit: swapAudit,
+      ...(turnAdmission ? { turnAdmission } : {}),
+      ...(turnBound !== undefined ? { turnBound } : {}),
+      ...(input.purpose === "secondb_chat" && swapReceipt ? { outputSwap: swapReceipt } : {}),
     };
   }
 
@@ -1028,6 +1143,8 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     text: text as unknown as T,
     safety: outputSafety,
     audit,
+    ...(turnAdmission ? { turnAdmission } : {}),
+    ...(turnBound !== undefined ? { turnBound } : {}),
   };
 }
 
@@ -1134,6 +1251,8 @@ function mockEmbedding(text: string): number[] {
 
 export interface EmbedTextsInput {
   userId: string;
+  /** Optional immutable account capability; actual chat wiring is a later unit. */
+  session?: AuthenticatedAccountSessionLease;
   texts: string[];
   locale: "en" | "ko";
   minor?: boolean;
@@ -1162,114 +1281,144 @@ const zeroVector = (): number[] => new Array<number>(EMBED_DIM).fill(0);
  *        (assertDirectEgressAllowed), so the $0/mo promise holds.
  */
 export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResult> {
-  throwIfAborted(input.signal);
-  const env = getEnv();
+  const { userId, session } = input;
+  if (session && session.userId !== userId) throw new Error("llm_session_owner_mismatch");
+  if (session && input.signal && input.signal !== session.signal) throw new Error("llm_session_signal_mismatch");
+  const signal = session?.signal ?? input.signal;
+  const fence = (): void => {
+    throwIfAborted(signal);
+    session?.assertCurrent();
+  };
+  const resultFence = (): void => {
+    if (!session && requestCancellationSignal(signal) !== signal) throwIfAborted(requestCancellationSignal(signal));
+    else fence();
+  };
+  fence();
+  // Keep the selected batch and capability stable across proxy/audit awaits.
+  const texts = [...input.texts];
+  try {
+    const env = getEnv();
 
-  if (input.texts.length === 0) {
-    return {
-      vectors: [],
-      audit: {
-        promptHash: "",
-        outputHash: "",
-        modelUsed: `none:${EMBED_MODEL}`,
+    if (texts.length === 0) {
+      fence();
+      return {
+        vectors: [],
+        audit: {
+          promptHash: "",
+          outputHash: "",
+          modelUsed: `none:${EMBED_MODEL}`,
+          vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
+          safetyZone: "green",
+          latencyMs: 0,
+        },
+      };
+    }
+
+    const t0 = Date.now();
+    // C9: classify each text; red ones are skipped (never embedded). Scans BOTH
+    // locales: wiki pages carry mixed-language content and the proxy's server
+    // gate checks the EN+KO lists on every text — a single-locale client scan
+    // would let a cross-locale term through only to have the proxy 422 the
+    // whole batch (one poisoned page would wedge every backfill run).
+    const skip = texts.map(
+      (text) =>
+        classifyInput(text, "en", { minor: input.minor }).zone === "red" ||
+        classifyInput(text, "ko", { minor: input.minor }).zone === "red",
+    );
+    const anyRed = skip.some(Boolean);
+
+    if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
+      const vectors = texts.map((text, i) => (skip[i] ? zeroVector() : mockEmbedding(text)));
+      const audit: AuditMeta = {
+        promptHash: djb2(texts.join(" ")),
+        outputHash: djb2(String(vectors.length)),
+        modelUsed: `mock:${EMBED_MODEL}`,
         vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
-        safetyZone: "green",
-        latencyMs: 0,
-      },
-    };
-  }
+        safetyZone: anyRed ? "red" : "green",
+        latencyMs: Date.now() - t0,
+        purpose: "embed_index",
+      };
+      fence();
+      await writeAiAuditLog(userId, audit, "[ai_audit_log] embed insert failed (mock)", session);
+      fence();
+      return { vectors, audit };
+    }
 
-  const t0 = Date.now();
-  // C9: classify each text; red ones are skipped (never embedded). Scans BOTH
-  // locales: wiki pages carry mixed-language content and the proxy's server
-  // gate checks the EN+KO lists on every text — a single-locale client scan
-  // would let a cross-locale term through only to have the proxy 422 the
-  // whole batch (one poisoned page would wedge every backfill run).
-  const skip = input.texts.map(
-    (text) =>
-      classifyInput(text, "en", { minor: input.minor }).zone === "red" ||
-      classifyInput(text, "ko", { minor: input.minor }).zone === "red",
-  );
-  const anyRed = skip.some(Boolean);
+    const toEmbed = texts.filter((_, i) => !skip[i]);
+    let embedded: number[][] = [];
+    let vertexBackend = false;
+    let modelUsedForAudit: string = EMBED_MODEL;
+    let proxyAudited = false;
 
-  if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
-    const vectors = input.texts.map((text, i) => (skip[i] ? zeroVector() : mockEmbedding(text)));
+    if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
+      // Edge path (P0-2): the proxy owns the key + spend cap; this is the ONLY
+      // live embedding route on the keyless web build. One batch = one call.
+      if (toEmbed.length > 0) {
+        fence();
+        const options = { body: { op: "embed", texts: toEmbed, purpose: "embed_index" }, signal };
+        const { data, error } = session
+          ? await invokeFunctionWithCapturedSession(proxyFnForVendor(embedVendor()), session.accessToken, options)
+          : await getSupabaseClient().functions.invoke(proxyFnForVendor(embedVendor()), options);
+        if (error) { fence(); throw error; }
+        resultFence();
+        const payload = data as { vectors?: number[][]; modelUsed?: string; audited?: boolean } | null;
+        embedded = Array.isArray(payload?.vectors) ? payload.vectors : [];
+        modelUsedForAudit = payload?.modelUsed ?? EMBED_MODEL;
+        proxyAudited = payload?.audited === true;
+      }
+    } else {
+      // Direct path: Vertex-only live egress passes the cost guard.
+      assertDirectEgressAllowed(env);
+      const { client, vertex } = getClient();
+      vertexBackend = vertex;
+      if (toEmbed.length > 0) {
+        fence();
+        const res = await client.models.embedContent({
+          model: EMBED_MODEL,
+          contents: toEmbed,
+          // 768-dim MRL slice - keeps the pgvector column shape (0047) unchanged.
+          config: { outputDimensionality: EMBED_DIM, abortSignal: beforeOwnerDispatch(signal) },
+        });
+        resultFence();
+        embedded = (res.embeddings ?? []).map((e) => e.values ?? []);
+      }
+    }
+
+    // Re-interleave: red-zone texts get zeros, the rest take the next live vector.
+    let k = 0;
+    const vectors = texts.map((_, i) => (skip[i] ? zeroVector() : embedded[k++] ?? zeroVector()));
     const audit: AuditMeta = {
-      promptHash: djb2(input.texts.join(" ")),
+      promptHash: djb2(texts.join(" ")),
       outputHash: djb2(String(vectors.length)),
-      modelUsed: `mock:${EMBED_MODEL}`,
-      vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
+      modelUsed: modelUsedForAudit,
+      vertexBackend,
       safetyZone: anyRed ? "red" : "green",
       latencyMs: Date.now() - t0,
       purpose: "embed_index",
     };
-    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] embed insert failed (mock)");
+    // C3: skip the client insert when the proxy already audited the batch —
+    // UNLESS the batch carried withheld red-zone texts: the proxy only saw the
+    // green remainder and audits 'green', so the client row is the only honest
+    // record that crisis content was withheld from embedding.
+    if (!proxyAudited || anyRed) {
+      resultFence();
+      await writeAiAuditLog(userId, audit, "[ai_audit_log] embed insert failed", session);
+      fence();
+    }
+    fence();
     return { vectors, audit };
+  } catch (error) {
+    fence(); // A stale operation cannot become an ordinary upstream failure.
+    throw error;
   }
-
-  const toEmbed = input.texts.filter((_, i) => !skip[i]);
-  let embedded: number[][] = [];
-  let vertexBackend = false;
-  let modelUsedForAudit: string = EMBED_MODEL;
-  let proxyAudited = false;
-
-  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
-    // Edge path (P0-2): the proxy owns the key + spend cap; this is the ONLY
-    // live embedding route on the keyless web build. One batch = one call.
-    if (toEmbed.length > 0) {
-      const supabase = getSupabaseClient();
-      const { data, error } = await supabase.functions.invoke(proxyFnForVendor(embedVendor()), {
-        body: { op: "embed", texts: toEmbed, purpose: "embed_index" },
-        signal: input.signal,
-      });
-      if (error) throw error;
-      const payload = data as { vectors?: number[][]; modelUsed?: string; audited?: boolean } | null;
-      embedded = Array.isArray(payload?.vectors) ? payload.vectors : [];
-      modelUsedForAudit = payload?.modelUsed ?? EMBED_MODEL;
-      proxyAudited = payload?.audited === true;
-    }
-  } else {
-    // Direct path: Vertex-only live egress passes the cost guard.
-    assertDirectEgressAllowed(env);
-    const { client, vertex } = getClient();
-    vertexBackend = vertex;
-    if (toEmbed.length > 0) {
-      const res = await client.models.embedContent({
-        model: EMBED_MODEL,
-        contents: toEmbed,
-        // 768-dim MRL slice - keeps the pgvector column shape (0047) unchanged.
-        config: { outputDimensionality: EMBED_DIM },
-      });
-      embedded = (res.embeddings ?? []).map((e) => e.values ?? []);
-    }
-  }
-
-  // Re-interleave: red-zone texts get zeros, the rest take the next live vector.
-  let k = 0;
-  const vectors = input.texts.map((_, i) => (skip[i] ? zeroVector() : embedded[k++] ?? zeroVector()));
-  const audit: AuditMeta = {
-    promptHash: djb2(input.texts.join(" ")),
-    outputHash: djb2(String(vectors.length)),
-    modelUsed: modelUsedForAudit,
-    vertexBackend,
-    safetyZone: anyRed ? "red" : "green",
-    latencyMs: Date.now() - t0,
-    purpose: "embed_index",
-  };
-  // C3: skip the client insert when the proxy already audited the batch —
-  // UNLESS the batch carried withheld red-zone texts: the proxy only saw the
-  // green remainder and audits 'green', so the client row is the only honest
-  // record that crisis content was withheld from embedding.
-  if (!proxyAudited || anyRed) {
-    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] embed insert failed");
-  }
-  return { vectors, audit };
 }
 
 // --- Audio transcription (voice capture) ----------------------------------
 
 export interface TranscribeAudioInput {
   userId: string;
+  /** Optional early RED guidance, before audit awaits; never bypasses session fences. */
+  onCrisisDetected?: CrisisObserver;
   /** Immutable JWT + owner epoch captured before local audio is read. */
   session: AuthenticatedAccountSessionLease;
   locale: "en" | "ko";
@@ -1318,6 +1467,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     input.session.assertCurrent();
   };
   fence();
+  const notifyCrisis = crisisObserver(input.onCrisisDetected, fence);
   const env = getEnv();
   const model = MODELS.flash;
   const promptHash = djb2(`transcribe:${input.mimeType}:${input.base64.length}`);
@@ -1422,9 +1572,11 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   // write an HONEST audit row (real model + latency + a +swap marker) and a
   // categorical crisis_event, exactly like callLlm's output swap.
   const lexical = classifyInput(text, input.locale, { minor: input.minor });
+  if (lexical.zone === "red") notifyCrisis?.(lexical.crisisRouting?.hotline);
   const semantic = await classifySafety(text, input.locale, {
     userId: input.userId,
     capturedSession: input.session,
+    ...(notifyCrisis ? { onRed: notifyCrisis } : {}),
   });
   fence();
   const outputZone: "green" | "yellow" | "red" =
@@ -1436,6 +1588,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   const outputSafety: SafetyResult = { ...lexical, zone: outputZone };
 
   if (outputZone === "red") {
+    notifyCrisis?.(lexical.crisisRouting?.hotline);
     const fixed = fixedCrisisResponse(input.locale, input.minor, lexical.crisisRouting?.hotline);
     const swapAudit: AuditMeta = {
       promptHash,
@@ -1795,6 +1948,120 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   };
 }
 
+// T39 A1-P: dormant until A2 connects the pre-bump selection to callLlm.
+function supportsChatTurnReservation(vendor: LlmVendor): boolean {
+  return vendor === "openai";
+}
+
+/** Select using the eventual call's image/model options, BEFORE any usage bump. */
+export function selectChatTurnRoute(input: Pick<PromptInput, "image" | "model"> = {}): ChatTurnRoute {
+  const vendor = resolveVendorForPurpose("secondb_chat", input.image != null, {
+    reasoningTier: resolveTier({ ...input, purpose: "secondb_chat" }) === "pro",
+  });
+  return Object.freeze({ vendor, reservationSupported: supportsChatTurnReservation(vendor) });
+}
+
+/** The four terminal/unknown admission codes stay distinct from transport errors. */
+export class LlmChatTurnError extends Error {
+  constructor(
+    readonly code: ChatTurnRejectionCode | null,
+    readonly turnAdmission: TurnAdmission | undefined,
+    readonly cause: unknown,
+  ) {
+    super(code ?? (cause instanceof Error ? cause.message : "chat_proxy_failed"));
+    this.name = "LlmChatTurnError";
+  }
+}
+
+function isTurnRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readTurnAdmission(body: unknown): TurnAdmission | undefined {
+  if (!isTurnRecord(body) || !isTurnRecord(body.turnAdmission)) return undefined;
+  const a = body.turnAdmission;
+  const nullableBoolean = (value: unknown): value is boolean | null => value === null || typeof value === "boolean";
+  if ((a.mode !== "legacy" && a.mode !== "enforce")
+    || !nullableBoolean(a.allowed)
+    || (a.kind !== null && a.kind !== "first" && a.kind !== "reask" && a.kind !== "unbound" && a.kind !== "rejected")
+    || (a.attempt !== null && a.attempt !== 1 && a.attempt !== 2)
+    || !nullableBoolean(a.quotaCharged) || !nullableBoolean(a.bindingEligible)
+    || !nullableBoolean(a.reaskAvailable)) return undefined;
+  return {
+    mode: a.mode, allowed: a.allowed, kind: a.kind, attempt: a.attempt,
+    quotaCharged: a.quotaCharged, bindingEligible: a.bindingEligible, reaskAvailable: a.reaskAvailable,
+  };
+}
+
+async function inspectProxyChatTurnFailure(error: unknown): Promise<LlmChatTurnError | null> {
+  if (!isTurnRecord(error) || !isTurnRecord(error.context)) return null;
+  const ctx = error.context;
+  try {
+    // Clone only: consent/crisis handling and the caller retain the original body.
+    if (typeof ctx.clone !== "function") return null;
+    const body: unknown = await ctx.clone().json();
+    if (!isTurnRecord(body)) return null;
+    const code: ChatTurnRejectionCode | null =
+      ctx.status === 409 && (body.error === "reask_ineligible" || body.error === "first_already_registered") ? body.error :
+      ctx.status === 429 && body.error === "purpose_limit_exceeded" ? body.error :
+      ctx.status === 503 && body.error === "chat_admission_unavailable" ? body.error : null;
+    const admission = readTurnAdmission(body);
+    return code || admission ? new LlmChatTurnError(code, admission, error) : null;
+  } catch {
+    // An unreadable envelope proves neither admission nor a fresh quota charge.
+    return null;
+  }
+}
+
+type LiveChatDeviceScope = Readonly<{
+  userId: string;
+  assertCurrent: () => void;
+  onCrisisDetected: CrisisObserver;
+}>;
+// Only the synchronous call stack owns this slot. routeCrisis consumes it before
+// notifying (including observer reentry); no slot survives an await. The legacy
+// classifier stays the single verdict and lane/locale/minor implementation.
+let liveChatDeviceScope: LiveChatDeviceScope | null = null;
+
+function takeLiveChatDeviceScope(
+  userId: string, source: string,
+  options: { purpose?: string; session?: AuthenticatedAccountSessionLease },
+  safety: SafetyResult,
+): (() => void) | undefined {
+  const scope = liveChatDeviceScope;
+  liveChatDeviceScope = null;
+  if (!scope || scope.userId !== userId || source !== "input_red" || options.purpose !== "secondb_chat" || options.session) return undefined;
+  scope.assertCurrent();
+  crisisObserver(scope.onCrisisDetected, scope.assertCurrent)?.(safety.crisisRouting?.hotline);
+  scope.assertCurrent();
+  return scope.assertCurrent;
+}
+
+/** Dormant live adapter: no captured credentials and no second classifier. */
+export async function classifyLiveChatTextForCrisis(
+  text: string, locale: "en" | "ko", userId: string, minor: boolean | undefined,
+  hooks: { assertCurrent: () => void; onCrisisDetected: CrisisObserver },
+): Promise<LlmResult<string> | null> {
+  const { assertCurrent, onCrisisDetected } = hooks;
+  assertCurrent();
+  const previous = liveChatDeviceScope;
+  let pending: Promise<LlmResult<string> | null>;
+  try {
+    liveChatDeviceScope = { userId, assertCurrent, onCrisisDetected };
+    pending = classifyChatTextForCrisis(text, locale, userId, minor);
+  } finally {
+    liveChatDeviceScope = previous;
+  }
+  try {
+    const result = await pending;
+    assertCurrent();
+    return result;
+  } catch (error) {
+    assertCurrent();
+    throw error;
+  }
+}
+
 // Chat turns are classified by the conversation engine before it reads any
 // context or counts the turn (Simon 2026-10-14, Q-261014-30). RED gets the same
 // ledgers and fixed guidance as callLlm's own short-circuit (same source tag,
@@ -1804,8 +2071,28 @@ export async function classifyChatTextForCrisis(
   locale: "en" | "ko",
   userId: string,
   minor?: boolean,
+  options?: {
+    session: AuthenticatedAccountSessionLease;
+    signal?: AbortSignal;
+    onCrisisDetected?: CrisisObserver;
+  },
 ): Promise<LlmResult<string> | null> {
+  if (options && options.session.userId !== userId) throw new Error("llm_session_owner_mismatch");
+  if (options?.signal && options.signal !== options.session.signal) throw new Error("llm_session_signal_mismatch");
+  const fence = (): void => {
+    throwIfAborted(options?.session.signal);
+    options?.session.assertCurrent();
+  };
+  fence();
   const safety = classifyInputAnyLocale(text, locale, { minor });
   if (safety.zone !== "red") return null;
-  return routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", { purpose: "secondb_chat" });
+  const notifyCrisis = crisisObserver(options?.onCrisisDetected, fence);
+  notifyCrisis?.(safety.crisisRouting?.hotline);
+  // An observer can synchronously change owner or cancel without throwing.
+  fence();
+  const reply = await routeCrisis(safety, locale, userId, djb2(text), minor, "input_red", {
+    purpose: "secondb_chat", session: options?.session,
+  });
+  fence();
+  return reply;
 }

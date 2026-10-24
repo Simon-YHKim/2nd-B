@@ -595,6 +595,11 @@ function ConsentBlock({
           <Text style={styles.minorText}>{t("notice.minorBanner")}</Text>
         </PixelSurface>
       ) : null}
+      <Text style={styles.groupLabel}>{t("notice.purposesTitle")}</Text>
+      <Text style={styles.bodyText}>{t("notice.items")}</Text>
+      <Text style={styles.bodyText}>{t("notice.purposeService")}</Text>
+      <Text style={styles.bodyText}>{t("notice.retention")}</Text>
+      <Text style={styles.bodyText}>{t("notice.rights")}</Text>
       <Text style={styles.groupLabel}>{t("notice.requiredLabel")}</Text>
       <ConsentCheckRow
         checked={allChecked}

@@ -56,7 +56,7 @@ import {
   type LocalPurgeOutcome,
 } from "@/lib/account/deletion-completion";
 import { purgeDeletedAccountLocalData } from "@/lib/account/local-purge";
-import { currentAccountEpoch } from "@/lib/auth/account-epoch";
+import { captureAccountOwnerLease, currentAccountEpoch } from "@/lib/auth/account-epoch";
 import { buildPersona, loadPersonaRatifiableSignals } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
@@ -88,7 +88,7 @@ import { type EvidenceShard } from "@/lib/persona/evidence";
 import { RatifySheet, runRatifyDecisionOnce } from "@/components/persona/RatifySheet";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { readPrivacyPrefsStrict } from "@/lib/supabase/privacy-strict";
-import { withTimeout } from "@/lib/async/with-timeout";
+import { isTimeoutError, withTimeout } from "@/lib/async/with-timeout";
 import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
 import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
 import {
@@ -139,7 +139,7 @@ import {
 } from "@/lib/wiki/queries";
 import { exportUserWiki } from "@/lib/wiki/export";
 import { backfillEmbeddings, proposeAllRelatedLinks } from "@/lib/wiki/embeddings";
-import { exportIden } from "@/lib/iden/iden-export";
+import { exportIden, withIdenAiCopyTail } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { listRecentRecords } from "@/lib/records/create";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
@@ -433,12 +433,13 @@ export function DeepSpaceIntegrationsScreen() {
 // mirror the canon byte for byte (tr1-locale-copy.test.ts) and only keep the
 // five-locale key parity; the ko screen still reads the canon.
 //
-// HONESTY (audit follow-up) for support.faqs.call: transcription is cloud STT
+// HONESTY (audit follow-up) for support.faqs.voice: transcription is cloud STT
 // through the spend-capped LLM proxy, not on-device; the old copy claimed
 // on-device. What IS true: the original audio is deleted from the device right
-// after transcription.
-const GAPS_FAQ_KEYS = ["brightness", "plan", "call"] as const;
-const GAPS_NOTICE_KEYS = ["modes", "museum", "voice"] as const;
+// after transcription. The question asked about call recording until Z73
+// (Simon 2026-10-13): the app records no calls, and the answer was always about
+// voice transcription, so the key and the question now say that.
+const GAPS_FAQ_KEYS = ["brightness", "plan", "voice"] as const;
 const GAPS_FACT_KEYS = ["onDevice", "collect", "retention", "delete"] as const;
 
 // Map a canon Material-symbol icon name to a local CLONE_ICON glyph, falling
@@ -447,16 +448,13 @@ function gapGlyph(name: string): CloneIconName {
   return (CLONE_ICON.has(name) ? name : "sparkle") as CloneIconName;
 }
 
-// Token-only styles for the gaps-pack sections (FAQ / notices / facts / concepts).
+// Token-only styles for the gaps-pack sections (FAQ / facts / concepts).
 const gap = StyleSheet.create({
   flex1: { flex: 1 },
   row: { paddingVertical: spacing.sm },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
   qRow: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: spacing.sm },
   answer: { marginTop: spacing.xs },
-  noticeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
-  tag: { borderRadius: m3.shape.full, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  tagText: { color: colors.cyanSoft, fontSize: 11 },
   factRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", paddingVertical: spacing.sm },
   factText: { flex: 1, gap: 2 },
 });
@@ -502,21 +500,11 @@ export function DeepSpaceSupportDesignScreen() {
         })}
       </Card>
 
-      {/* 공지사항 / Notices (canonGaps.notices) — tag + title + date. */}
+      {/* Notices: one row to the real notices screen, named as that screen is (Z73,
+          Simon 2026-10-13). The three lines here were the canon's fixed sample text,
+          with no year, and could not be opened. */}
       <Card>
-        <Text variant="caption" style={styles.section}>{t("support.noticesTitle")}</Text>
-        {canonGaps.notices.map((n, i) => {
-          const key = GAPS_NOTICE_KEYS[i];
-          const title = ko || !key ? n.t : t(`support.notices.${key}.t`);
-          const tag = ko || !key ? n.tag : t(`support.notices.${key}.tag`);
-          return (
-            <View key={n.t} style={[gap.noticeRow, i < canonGaps.notices.length - 1 && gap.rowDivider]}>
-              <View style={gap.tag}><Text variant="caption" style={gap.tagText}>{tag}</Text></View>
-              <Text variant="body" style={[styles.actionLabel, gap.flex1]}>{title}</Text>
-              <Text variant="subtle" style={styles.actionValue}>{n.d}</Text>
-            </View>
-          );
-        })}
+        <Action label={t("ops:phone.apps.notifications")} onPress={() => router.push("/notices")} />
       </Card>
 
       <Text variant="subtle" style={styles.footer}>{t("support.footer", { version: appVersion() ?? "?" })}</Text>
@@ -565,6 +553,7 @@ export function DeepSpacePrivacyDesignScreen() {
   const router = useAppRouter();
   const { t, i18n } = useTranslation("deepspace");
   const { t: consentT } = useTranslation("consent");
+  const { t: commonT } = useTranslation("common");
   const navigation = useNavigation();
   // Picks the canon fact copy and the consent-ledger locale below. Every other
   // string on this screen reads a deepspace key, so es/pt/id see their own
@@ -606,7 +595,12 @@ export function DeepSpacePrivacyDesignScreen() {
   const [embedUnderstanding, setEmbedUnderstanding] = useState(false);
   const [embedErr, setEmbedErr] = useState(false);
   // Right-to-erasure in deep-space (was legacy-only). Terminal + irreversible, so
-  // it is gated behind a typed "DELETE" confirm and reuses the proven cascade.
+  // it is gated behind the displayed language's deletion word and the proven cascade.
+  const deleteConfirmLanguage = renderedUiLanguage(i18n);
+  const deleteConfirmWord = commonT("actions.delete").toLocaleUpperCase(deleteConfirmLanguage);
+  // A queued callback from a previous render cannot accept an old language's word.
+  const deleteConfirmWordRef = useRef(deleteConfirmWord);
+  deleteConfirmWordRef.current = deleteConfirmWord;
   const [delConfirm, setDelConfirm] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -619,6 +613,12 @@ export function DeepSpacePrivacyDesignScreen() {
   const deleteConfirmUserRef = useRef<string | null>(null);
 
   useEffect(() => {
+    setDelConfirm("");
+    setDeleteConfirmOpen(false);
+    deleteConfirmUserRef.current = null;
+  }, [deleteConfirmLanguage, deleteConfirmWord]);
+
+  useEffect(() => {
     privacyMountedRef.current = true;
     return () => {
       privacyMountedRef.current = false;
@@ -629,7 +629,8 @@ export function DeepSpacePrivacyDesignScreen() {
     if (
       !userId
       || deleteInFlightRef.current
-      || delConfirm !== "DELETE"
+      || delConfirm !== deleteConfirmWord
+      || deleteConfirmWordRef.current !== deleteConfirmWord
       || deleteConfirmUserRef.current !== userId
     ) return;
     const targetUserId = userId;
@@ -713,7 +714,8 @@ export function DeepSpacePrivacyDesignScreen() {
   }
 
   function requestDeleteAccountConfirm() {
-    if (!userId || deleteInFlightRef.current || delConfirm !== "DELETE") return;
+    if (!userId || deleteInFlightRef.current || delConfirm !== deleteConfirmWord
+      || deleteConfirmWordRef.current !== deleteConfirmWord) return;
     deleteConfirmUserRef.current = userId;
     setDeleteConfirmOpen(true);
   }
@@ -974,7 +976,7 @@ export function DeepSpacePrivacyDesignScreen() {
         minorRef.current
       ) return;
       const prefs = { ...current, records_embedding: true };
-      await savePrivacyPrefs(targetUserId, prefs, { before: current });
+      await savePrivacyPrefs(targetUserId, prefs, { before: current, enableRecordsEmbedding: true });
       if (
         !privacyMountedRef.current ||
         activeUserRef.current !== targetUserId ||
@@ -1287,19 +1289,21 @@ export function DeepSpacePrivacyDesignScreen() {
       <Card>
         {/* audit med#17: these rows rendered as buttons with no onPress — dead
             taps on a privacy surface. 처리 기록 opens the read-only ai_audit_log
-            viewer (/processing-log); 제3자 제공 "없음" is a FACT, so it renders static
-            (no button role); the 처리방침 row opens the /privacy-policy
-            document (restored once the policy document existed to open). */}
+            viewer (/processing-log); third-party disclosure opens the policy,
+            whose section 4 describes the cases. No measured count is available.
+            The policy, terms and refund rows open their existing documents. */}
         <Action label={t("privacy.policy")} value={t("privacy.view")} onPress={() => router.push("/privacy-policy")} />
+        <Action label={t("privacy.terms")} value={t("privacy.view")} onPress={() => router.push("/terms")} />
+        <Action label={t("privacy.refund")} value={t("privacy.view")} onPress={() => router.push("/refund")} />
         <Action label={t("privacy.processingLog")} value={t("privacy.last7")} onPress={() => router.push("/processing-log")} />
         {/* ⚠ `내 데이터 리뷰`(/data) 는 화면은 있는데 **들어갈 문이 없었다.**
             레퍼런스가 이 자리에 그 줄을 두고 있고, 개인정보 화면에서 자기 데이터를
             열람하러 가는 것은 자연스럽다. */}
         <Action label={t("privacy.dataReview")} value={t("privacy.open")} onPress={() => router.push("/data")} />
-        <View style={styles.action} accessible accessibilityLabel={`${t("privacy.thirdParty")}, ${t("privacy.none")}`}>
-          <Text variant="body" style={styles.actionLabel}>{t("privacy.thirdParty")}</Text>
-          <Text variant="body" style={styles.actionValue}>{t("privacy.none")}</Text>
-        </View>
+        <Action label={t("privacy.thirdParty")}
+          value={t("privacy.view")}
+          onPress={() => router.push("/privacy-policy")}
+        />
       </Card>
 
       <Card>
@@ -1307,10 +1311,9 @@ export function DeepSpacePrivacyDesignScreen() {
         <Text variant="subtle" style={styles.footer}>
           {t("privacy.deleteAccount.body")}
         </Text>
-        {/* "DELETE" is the token the input below compares against, so it
-            stays literal inside every language's prompt. */}
+        {/* The displayed word is the same value checked by both destructive-action gates. */}
         <Text variant="subtle" style={styles.footer}>
-          {t("privacy.deleteAccount.typePrompt")}
+          {t("privacy.deleteAccount.typePrompt", { phrase: deleteConfirmWord })}
         </Text>
         <TextInput
           value={delConfirm}
@@ -1331,13 +1334,13 @@ export function DeepSpacePrivacyDesignScreen() {
             styles.danger,
             // ⚠ 비활성은 **미리 합성한 색 한 쌍**이다(PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
             //   바탕만 바꾸고 글자를 그대로 두면 비활성이 활성보다 또렷해진다.
-            (delConfirm !== "DELETE" || deleting) && {
+            (delConfirm !== deleteConfirmWord || deleting) && {
               backgroundColor: m3.disabled.primary,
               borderColor: m3.disabled.outline,
             },
           ]}
           onPress={requestDeleteAccountConfirm}
-          disabled={delConfirm !== "DELETE" || deleting}
+          disabled={delConfirm !== deleteConfirmWord || deleting}
           accessibilityRole="button"
           accessibilityLabel={t("privacy.deleteAccount.buttonA11y")}
         >
@@ -2262,6 +2265,15 @@ const RESEARCH_SAT = [
   { cx: 185, cy: 90, r: 4, fill: colors.cyanDim, stroke: colors.border },
 ] as const;
 
+export const RESEARCH_READ_TIMEOUT_MS = 10_000;
+type OwnedResearchRead<T> = {
+  ownerId: string;
+  epoch: number;
+  generation: number;
+  status: "loading" | "ready" | "error" | "timeout";
+  rows: T[];
+};
+
 export function DeepSpaceResearchScreen() {
   const router = useAppRouter(); // Phone-aware: inside the dashboard phone, links and proposals open in the phone.
   const { t, i18n } = useTranslation("deepspace");
@@ -2275,28 +2287,45 @@ export function DeepSpaceResearchScreen() {
   // orphans / islands all keep working, now over real data. $0: pure tag
   // overlap, no LLM and no embeddings (the kNN layer stays consent-gated).
   const { userId, loading: authLoading } = useAuth();
-  // Every load below is held WITH the account it was loaded for, and read back
-  // only while that account is still the one signed in. The route can stay
-  // mounted across an account change (A out, B in); a bare value kept A's
-  // records, tag chips and link proposals on B's screen until B's own loads
-  // answered (QA 261004 SG-02). A different owner reads as "not loaded yet".
-  const [heldRecords, setHeldRecords] = useState<{ ownerId: string; rows: GraphRecord[] } | null>(null);
+  // Owner + epoch also distinguish A -> B -> A. Each list has its own
+  // generation and deadline; one failed read cannot hide the other list.
+  const epoch = currentAccountEpoch();
+  const mounted = useRef(false);
+  const recordsGeneration = useRef(0);
+  const proposalsGeneration = useRef(0);
   useEffect(() => {
-    if (!userId) return;
-    let alive = true;
-    void listRecentRecords(userId)
-      .then((rows) => {
-        if (alive) setHeldRecords({ ownerId: userId, rows: rows as GraphRecord[] });
-      })
-      .catch(() => {
-        if (alive) setHeldRecords({ ownerId: userId, rows: [] });
-      });
+    mounted.current = true;
     return () => {
-      alive = false;
+      mounted.current = false;
+      recordsGeneration.current += 1;
+      proposalsGeneration.current += 1;
     };
-  }, [userId]);
-  const records = heldRecords !== null && userId !== null && heldRecords.ownerId === userId ? heldRecords.rows : null;
-  const loading = userId != null && records === null;
+  }, []);
+  const [heldRecords, setHeldRecords] = useState<OwnedResearchRead<GraphRecord> | null>(null);
+  const loadRecords = useCallback(async (current: () => boolean = () => true) => {
+    if (!userId || authLoading || !mounted.current || !current()) return;
+    const lease = captureAccountOwnerLease(userId);
+    if (!lease || lease.epoch !== epoch) return;
+    const generation = ++recordsGeneration.current;
+    const owner = { ownerId: userId, epoch, generation };
+    const canPublish = () => mounted.current && current() && lease.isCurrent() && recordsGeneration.current === generation;
+    setHeldRecords({ ...owner, status: "loading", rows: [] });
+    try {
+      const rows = await withTimeout(listRecentRecords(userId), RESEARCH_READ_TIMEOUT_MS, "research records");
+      if (canPublish()) setHeldRecords({ ...owner, status: "ready", rows: rows as GraphRecord[] });
+    } catch (error) {
+      if (canPublish()) setHeldRecords({ ...owner, status: isTimeoutError(error) ? "timeout" : "error", rows: [] });
+    }
+  }, [userId, authLoading, epoch]);
+  useEffect(() => {
+    let alive = true;
+    void loadRecords(() => alive);
+    return () => { alive = false; };
+  }, [loadRecords]);
+  const recordsRead = heldRecords?.ownerId === userId && heldRecords.epoch === epoch && heldRecords.generation === recordsGeneration.current ? heldRecords : null;
+  const records = recordsRead?.status === "ready" ? recordsRead.rows : null;
+  const loading = recordsRead === null || recordsRead.status === "loading";
+  const recordsError = recordsRead?.status === "error" || recordsRead?.status === "timeout";
   const view = useMemo(() => {
     const graph = recordsToResearchGraph(records ?? [], {
       locale: i18n.language === "ko" ? "ko" : "en",
@@ -2308,34 +2337,44 @@ export function DeepSpaceResearchScreen() {
   // graph's focused tag label rather than refetching.
   // The picked chip is one of the owner's own tag names, and the graph caption
   // prints it, so it is held with its owner like the records it came from.
-  const [clusterPick, setClusterPick] = useState<{ ownerId: string; tag: string } | null>(null);
-  const activeCluster = clusterPick !== null && userId !== null && clusterPick.ownerId === userId ? clusterPick.tag : null;
+  const [clusterPick, setClusterPick] = useState<{ ownerId: string; epoch: number; tag: string } | null>(null);
+  const activeCluster = clusterPick !== null && userId !== null && clusterPick.ownerId === userId && clusterPick.epoch === epoch ? clusterPick.tag : null;
 
   // propose->ratify: AI-proposed (inferred) links awaiting the user's verdict.
-  const [heldProposals, setHeldProposals] = useState<{ ownerId: string; rows: InferredLinkDetail[] } | null>(null);
-  const proposals = heldProposals !== null && userId !== null && heldProposals.ownerId === userId ? heldProposals.rows : [];
+  const [heldProposals, setHeldProposals] = useState<OwnedResearchRead<InferredLinkDetail> | null>(null);
+  const proposalsRead = heldProposals?.ownerId === userId && heldProposals.epoch === epoch && heldProposals.generation === proposalsGeneration.current ? heldProposals : null;
+  const proposals = proposalsRead?.status === "ready" ? proposalsRead.rows : [];
+  const proposalsLoading = proposalsRead === null || proposalsRead.status === "loading";
+  const proposalsError = proposalsRead?.status === "error" || proposalsRead?.status === "timeout";
   const [proposing, setProposing] = useState(false);
   const [actingKey, setActingKey] = useState<string | null>(null);
   // Screen-reader feedback for ratify/reject: the row removal alone is silent,
   // so announce the outcome via a polite live region (persona-sim a11y, D-25).
   const [announce, setAnnounce] = useState("");
 
-  const loadProposals = useMemo(
-    () => async (uid: string, current: () => boolean = () => true) => {
-      const rows = await listInferredLinkDetails(uid).catch(() => [] as InferredLinkDetail[]);
-      if (current()) setHeldProposals({ ownerId: uid, rows });
-    },
-    [],
-  );
+  const loadProposals = useCallback(async (uid: string, current: () => boolean = () => true) => {
+    if (uid !== userId || authLoading || !mounted.current || !current()) return;
+    const lease = captureAccountOwnerLease(uid);
+    // A completion from an older write handler may request a refresh. It must
+    // not start a read under the same owner's newer account session.
+    if (!lease || lease.epoch !== epoch) return;
+    const generation = ++proposalsGeneration.current;
+    const owner = { ownerId: uid, epoch, generation };
+    const canPublish = () => mounted.current && current() && lease.isCurrent() && proposalsGeneration.current === generation;
+    setHeldProposals({ ...owner, status: "loading", rows: [] });
+    try {
+      const rows = await withTimeout(listInferredLinkDetails(uid), RESEARCH_READ_TIMEOUT_MS, "research proposals");
+      if (canPublish()) setHeldProposals({ ...owner, status: "ready", rows });
+    } catch (error) {
+      if (canPublish()) setHeldProposals({ ...owner, status: isTimeoutError(error) ? "timeout" : "error", rows: [] });
+    }
+  }, [userId, authLoading, epoch]);
 
   useEffect(() => {
     if (!userId) return;
-    // A slow answer for the previous owner must not land after this owner's.
     let alive = true;
     void loadProposals(userId, () => alive);
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [userId, loadProposals]);
 
   async function findProposals() {
@@ -2412,7 +2451,7 @@ export function DeepSpaceResearchScreen() {
 
   const satellites = RESEARCH_SAT.slice(0, Math.max(1, Math.min(view.hubs.length, 4)));
   const headerText =
-    view.headline !== null
+    loading || recordsError ? "..." : view.headline !== null
       ? t("research.headerFound", { count: view.edgeCount })
       : t("research.headerNone");
 
@@ -2422,6 +2461,13 @@ export function DeepSpaceResearchScreen() {
       <Text variant="body" style={styles.lead}>{t("research.lead")}</Text>
       {loading ? (
         <GraphLoading />
+      ) : recordsError ? (
+        <View style={styles.insightViolet}>
+          <Text variant="body" accessibilityLiveRegion="polite" style={styles.insightVioletText}>{t(recordsRead?.status === "timeout" ? "common:errors.network" : "common:errors.unknown")}</Text>
+          <Pressable style={styles.primary} accessibilityRole="button" onPress={() => void loadRecords()}>
+            <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
+          </Pressable>
+        </View>
       ) : (
         <>
         {/* The records half. This gate counts RECORDS; the proposal half below
@@ -2446,7 +2492,7 @@ export function DeepSpaceResearchScreen() {
                   label={`${c.tag} · ${c.count}`}
                   active={activeCluster === c.tag}
                   violet={activeCluster === null ? i === 0 : false}
-                  onPress={() => setClusterPick(activeCluster === c.tag ? null : { ownerId: userId, tag: c.tag })}
+                  onPress={() => setClusterPick(activeCluster === c.tag ? null : { ownerId: userId, epoch, tag: c.tag })}
                 />
               ))}
             </View>
@@ -2516,6 +2562,8 @@ export function DeepSpaceResearchScreen() {
         </>
         )}
 
+        </>
+      )}
           {/* propose->ratify: AI proposes semantic links, the user decides.
               Outside the records gate on purpose — see the note above. */}
           <Text variant="caption" pixelEn style={styles.tlLabel}>{t("research.proposalsLabel")}</Text>
@@ -2528,7 +2576,16 @@ export function DeepSpaceResearchScreen() {
               {announce}
             </RNText>
           ) : null}
-          {proposals.length === 0 ? (
+          {proposalsLoading ? (
+            <GraphLoading />
+          ) : proposalsError ? (
+            <View style={styles.insightViolet}>
+              <Text variant="body" accessibilityLiveRegion="polite" style={styles.insightVioletText}>{t(proposalsRead?.status === "timeout" ? "common:errors.network" : "common:errors.unknown")}</Text>
+              <Pressable style={styles.primary} accessibilityRole="button" onPress={() => void loadProposals(userId)}>
+                <Text variant="caption" style={styles.primaryText}>{t("common:actions.retry")}</Text>
+              </Pressable>
+            </View>
+          ) : proposals.length === 0 ? (
             <View style={styles.insightViolet}>
               <Text variant="body" style={styles.insightVioletText}>{t("research.noProposals")}</Text>
             </View>
@@ -2571,8 +2628,6 @@ export function DeepSpaceResearchScreen() {
           >
             <Text variant="caption" style={styles.smallBtnGhostText}>{proposing ? t("research.gettingProposals") : t("research.getProposals")}</Text>
           </Pressable>
-        </>
-      )}
     </Shell>
   );
 }
@@ -2614,17 +2669,17 @@ export function DeepSpaceFormatsScreen() {
     setNote(null);
     try {
       if (format === "iden") {
-        const r = await exportIden(userId, { locale, minor: isMinor === true });
+        const r = await exportIden(userId, { locale, minor: isMinor === true, aiCopyTail: t("secondb:aiCopyTail") });
         setResult({ text: r.iden, name: r.idenFilename });
       } else if (format === "html") {
-        const r = await exportIden(userId, { locale, minor: isMinor === true });
+        const r = await exportIden(userId, { locale, minor: isMinor === true, aiCopyTail: t("secondb:aiCopyTail") });
         setResult({ text: r.html, name: r.htmlFilename });
       } else if (format === "markdown") {
-        const r = await exportUserWiki(userId, { locale, includeRecords });
+        const r = await exportUserWiki(userId, { locale, includeRecords, aiCopyTail: t("secondb:aiCopyTail") });
         setResult({ text: r.prompt, name: "polascope-wiki.md" });
       } else {
         const doc = await buildIdenDoc(userId, { locale, minor: isMinor === true });
-        setResult({ text: JSON.stringify(doc, null, 2), name: "polascope-iden.json" });
+        setResult({ text: JSON.stringify(withIdenAiCopyTail(doc, t("secondb:aiCopyTail")), null, 2), name: "polascope-iden.json" });
       }
     } catch {
       setNote("error");
