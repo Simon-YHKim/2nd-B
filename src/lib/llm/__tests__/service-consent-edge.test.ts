@@ -13,6 +13,10 @@ const statusV2 = {
   ...status, contract_revision: "service-v4", consent_version: "2026-10-06",
   policy_version: "2026-10-06", terms_version: "2026-10-05",
 };
+const statusV5 = {
+  ...status, contract_revision: "service-v5", consent_version: "2026-10-18",
+  policy_version: "2026-10-07", terms_version: "2026-10-05",
+};
 const compiled = new Map<string, string>();
 const edgeRoot = resolve(process.cwd(), "supabase/functions");
 const importMap = JSON.parse(readFileSync(resolve(edgeRoot, "import_map.json"), "utf8")).imports as Record<string, string>;
@@ -35,7 +39,8 @@ function host(mode: string | null = "collect", oldRequired = false) {
     if (name === "llm_service_consent_status") return { data: status };
     if (name === "llm_service_consent_status_v2") return { data: { ...status, contract_revision: "service-v2", consent_version: "2026-10-05", policy_version: "2026-09-29", terms_version: "2026-10-05" } };
     if (name === "llm_service_consent_status_v4") return { data: statusV2 };
-    if (name === "write_llm_service_consent") return { data: { ...(args.p_contract_revision === "service-v4" ? statusV2 : status), state: args.p_action === "grant" ? "granted" : "revoked", created: true } };
+    if (name === "llm_service_consent_status_v5") return { data: statusV5 };
+    if (name === "write_llm_service_consent") return { data: { ...(args.p_contract_revision === "service-v5" ? statusV5 : args.p_contract_revision === "service-v4" ? statusV2 : status), state: args.p_action === "grant" ? "granted" : "revoked", created: true } };
     throw new Error(`Unexpected local RPC ${name}`);
   });
   const createClient = jest.fn(() => ({ rpc }));
@@ -100,6 +105,40 @@ describe("service consent management Edge", () => {
     expect(saved.status).toBe(200);
     expect(await saved.json()).toEqual({ mode: "collect", ...statusV2, state: "granted", created: true });
     expect(fixture.rpc).toHaveBeenCalledWith("write_llm_service_consent", expect.objectContaining({ p_contract_revision: "service-v4" }));
+  });
+  it("routes the current client's explicit v5 status and grant (Z5, 0262) without touching v4", async () => {
+    const fixture = host();
+    const response = await fixture.run({ action: "status", contractRevision: "service-v5" });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ mode: "collect", ...statusV5 });
+    expect(fixture.rpc).toHaveBeenCalledWith("llm_service_consent_status_v5", { p_user_id: userId });
+    expect(fixture.rpc).not.toHaveBeenCalledWith("llm_service_consent_status_v4", expect.anything());
+    const saved = await fixture.run({ ...grant, contractRevision: "service-v5" });
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toEqual({ mode: "collect", ...statusV5, state: "granted", created: true });
+    expect(fixture.rpc).toHaveBeenCalledWith("write_llm_service_consent", expect.objectContaining({ p_contract_revision: "service-v5" }));
+  });
+  it("fails closed when the v5 database status returns the v4 tuple", async () => {
+    const fixture = host(); fixture.result(statusV2);
+    const response = await fixture.run({ action: "status", contractRevision: "service-v5" });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "service_consent_unavailable" });
+  });
+  it.each([
+    ["consent_version", "2026-10-06"], ["policy_version", "2026-10-06"], ["terms_version", "2026-10-13"],
+  ])("fails closed when a service-v5 status carries another %s (%s)", async (key, value) => {
+    const fixture = host(); fixture.result({ ...statusV5, [key]: value });
+    const response = await fixture.run({ action: "status", contractRevision: "service-v5" });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "service_consent_unavailable" });
+  });
+  it("fails closed when a legacy status names its own revision with another date", async () => {
+    for (const [revision, body] of [["service-v4", { ...statusV2, policy_version: "2026-10-07" }],
+      ["service-v1", { ...status, consent_version: "2026-10-18" }]] as const) {
+      const fixture = host(); fixture.result(body);
+      const response = await fixture.run(revision === "service-v1" ? { action: "status" } : { action: "status", contractRevision: revision });
+      expect(response.status).toBe(503);
+    }
   });
   it("fails closed when the v4 database status returns a legacy tuple", async () => {
     const fixture = host(); fixture.result(status);

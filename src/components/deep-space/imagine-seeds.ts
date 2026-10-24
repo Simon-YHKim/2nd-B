@@ -2,7 +2,7 @@
 // KO is the design canon; every other language reads the home bundle under
 // ds.imagine.seeds.<key>.* (Q-261005-01 = A, R2B-03). The English used to be an
 // in-code mirror that es/pt/id fell back to, so /imagine painted English seeds
-// under translated chrome. The en bundle values are that mirror byte for byte,
+// under translated chrome. T47 updates those examples to name life areas,
 // and the ko bundle values mirror the canon (tr2-locale-copy.test.ts).
 // Static demo content by design — no dynamic generation
 // (src/lib/llm/imagine.ts stays dormant; "세컨비와 더" deep-links Divergent chat).

@@ -62,6 +62,7 @@ const promoted = [
   ["0210", "polascope_consent_20260928", "12a40e2208601f237cbccac5a3b49043f004719e916f828078eccf388f407b9f"],
   ["0215", "consent_email_v9_20261006", "e5f38f6a6fa856729d24caf811dd2d300405a403b4129a842c6f27f2c30670e6"],
   ["0216", "peer_response_rate_limit", "7b7abc8d550ff17cc4f13457d8eec8904d4c821884dcaa892b5dbd8feb685946"],
+  ["0262", "consent_email_v10_20261018", "b7debcea9593692c9aa6115072b0af5a5b86007b0743cf3fe423a05e23dd7bf5"],
 ] as const;
 
 const normalizedSqlSha256 = (sql: string) =>
@@ -152,6 +153,10 @@ const behaviorLanes = {
   },
   "0215_consent_email_v9_20261006.sql": {
     runner: read("db/migration-drafts/tests/consent-email-v9-forward-contract.sql"),
+    workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
+  },
+  "0262_consent_email_v10_20261018.sql": {
+    runner: read("db/migration-drafts/tests/consent-email-v10-forward-contract.sql"),
     workflowInvocation: "node scripts/test-polaris-sql.mjs 5432 polaris_local polaris_test_ci",
   },
   "0191_signup_consent_admob_20260925.sql": {
@@ -501,6 +506,22 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(regression).toContain("signup tuple preservation/current contract failed");
     expect(regression).toContain("email-v9 confirmation/provenance contract failed");
     expect(draftLane).toContain("\\ir ../../tests/consent_email_v9_20261006_regression.sql");
+  });
+
+  test("exercises the numbered 2026-10-18 email-v10 contract and keeps it in the polaris lane", () => {
+    const regression = read("db/tests/consent_email_v10_20261018_regression.sql");
+    const forwardLane = read("db/migration-drafts/tests/consent-email-v10-forward-contract.sql");
+    const serviceLane = read("db/migration-drafts/tests/llm-service-consent-management-contract.sql");
+    expect(workflow).toContain("-f db/tests/consent_email_v10_20261018_regression.sql");
+    expect(regression).not.toMatch(/\\i(?:r)?\s+[^\r\n]*UNNUMBERED_/);
+    expect(regression).toContain("email-v10 signup tuple preservation/current contract failed");
+    expect(regression).toContain("email-v10 confirmation/provenance contract failed");
+    expect(regression).toContain("email-v9 confirmation/provenance changed after email-v10");
+    expect(forwardLane).toContain("\\ir ../../migrations/0262_consent_email_v10_20261018.sql");
+    expect(forwardLane).toContain("\\ir ../../tests/consent_email_v10_20261018_regression.sql");
+    // The v10 forward contract runs after the v9 one, on the same fixture.
+    expect(serviceLane.indexOf("\\ir consent-email-v10-forward-contract.sql"))
+      .toBeGreaterThan(serviceLane.indexOf("\\ir consent-email-v9-forward-contract.sql"));
   });
 
   test("exercises the numbered 0219 first-run claims, their race and their rollback", () => {
