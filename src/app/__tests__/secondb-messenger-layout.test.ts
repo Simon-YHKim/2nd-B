@@ -340,26 +340,34 @@ describe("HustleK messenger layout", () => {
     expect(source).toContain("isCurrentWikiSuggestion(");
   });
 
-  test("the actual action builder hides the reported test exchange and only offers relevant follow-ups", () => {
+  test.each(["ko", "en", "es", "pt", "id"])("the actual action builder offers relevant follow-ups and explains records (%s)", language => {
     const quickActions = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "QUICK_ACTIONS") as ts.VariableDeclaration;
     const quick = execute(`(${quickActions.initializer!.getText(ast)})`, {});
+    const localeDeclaration = findNode(node => ts.isVariableDeclaration(node) && node.name.getText(ast) === "locale") as ts.VariableDeclaration;
+    const locale = execute(`(${localeDeclaration.initializer!.getText(ast)})`, { i18n: { language } });
+    expect(locale).toBe(language === "ko" ? "ko" : "en");
     const start = source.indexOf("  const suggestionState =");
     const builder = source.slice(start, source.indexOf("  return (", start));
     const prefill = jest.fn();
     const selectRev2Persona = jest.fn();
-    const build = (prompt: string, text: string, plans: Props[] = []) => execute(`(() => { ${builder}; return chatActions; })()`, {
-      turns: [{ role: "user", text: prompt }, { role: "secondb", text }], conversationId: { current: 1 },
+    const build = (prompt: string, text: string, plans: Props[] = [], chips: string[] = []) => execute(`(() => { ${builder}; return chatActions; })()`, {
+      turns: [{ role: "user", text: prompt }, { role: "secondb", text, chips }], conversationId: { current: 1 },
       sending: false, keptIdx: new Set(), keeping: null, keepNotice: null,
       getReplyActions, getWikiSuggestion, isCurrentWikiSuggestion, isKeepable,
-      chatPlans: { actions: plans }, QUICK_ACTIONS: quick, t: (key: string) => key, locale: "ko",
+      chatPlans: { actions: plans }, QUICK_ACTIONS: quick, t: (key: string) => key, locale,
       composerRef: { current: { prefill } }, selectRev2Persona,
-    }) as { id: string; onPress: () => void }[];
+    }) as { id: string; label: string; onPress: () => void }[];
     expect(build("test", "확인했습니다, Hotline_blingbling님. 무엇을 도와드릴까요?")).toEqual([]);
     const choice = build("이직할까?", "이직 여부는 지금 하는 일에서 얻는 경험과 새 일자리에서 기대하는 기회를 함께 비교해 볼 수 있어요.");
     expect(choice.map(action => action.id)).toEqual(["follow-up-1"]);
     choice[0].onPress();
     expect(selectRev2Persona).toHaveBeenCalledWith("twi");
-    expect(prefill).toHaveBeenCalledWith("이 생각을 전혀 다른 관점에서 펼쳐줘.");
+    expect(prefill).toHaveBeenCalledWith(language === "ko" ? "이 생각을 전혀 다른 관점에서 펼쳐줘." : "Unfold this from a completely different angle.");
+    const explain = build("어떻게 일하면 좋을까?", "혼자 초안을 쓴 뒤 함께 검토해 봐.", [], ["work-notes"]).find(action => action.id === "follow-up-2");
+    expect(explain?.label).toBe(language === "ko" ? "왜 이렇게 봤어?" : "Why this?");
+    explain!.onPress();
+    expect(prefill).toHaveBeenLastCalledWith(language === "ko" ? "왜 그렇게 봤는지 참고한 기록을 들어 설명해줘." : "Explain why you saw it that way, citing the records you used.");
+    expect(selectRev2Persona).toHaveBeenCalledTimes(1);
     expect(build("내일 오후 세시에 서류를 제출해야 해", "내일 제출할 서류를 확인해 두세요.", [{ id: "plan-reminder" }]).map(action => action.id)).toEqual(["plan-reminder"]);
   });
 

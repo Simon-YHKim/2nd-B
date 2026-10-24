@@ -72,6 +72,7 @@ const CAT = "src/lib/auth/consent-age-table.ts";
 const D = "supabase/functions/delete-account/index.ts";
 const DS = "supabase/functions/delete-account/storage-erasure.ts";
 const X = "supabase/functions/export-account/index.ts";
+const IT = "db/migrations/0225_interview_transcript_ledger.sql";
 const W = "src/lib/wiki/export.ts";
 const AC = "src/lib/auth/AuthContext.tsx";
 const AD = "src/lib/ads/policy.ts";
@@ -154,16 +155,28 @@ const ANCHORS: Anchor[] = [
     why: "지움 결과의 이름 집합이 요청 집합과 정확히 같은지 관측하는 자리. 개수만 같거나 일부만 지워졌는데도 '지워졌다'고 주장하지 못하게 한다." },
   { cite: `${DS}:95-116`, symbol: "listingResponse.error",
     why: "flat listV2 페이지 실패를 닫힌 상태로 처리하는 자리 - Art.17 삭제 주장의 실제 근거." },
-  { cite: `${X}:304-364`, symbol: "consent_records",
+  { cite: `${X}:304-374`, symbol: "consent_records",
     why: "Art.20 이식성이 실제로 무엇을 담아 오는가. 6.1.3 이 '빠져 있다'고 나열하던 여덟 범주가 바로 이 목록이다." },
-  { cite: `${X}:366-407`, symbol: "gemini_spend_daily",
+  { cite: `${X}:376-417`, symbol: "gemini_spend_daily",
     why: "일부러 뺀 저장소 목록. 빼는 것 자체가 아니라 **응답에 적어 돌려준다는 것**이 통제이고, 실제 제외 매니페스트가 근거다." },
-  { cite: `${X}:379-380`, symbol: "chat_turn_reservations",
+  { cite: `${X}:389-390`, symbol: "chat_turn_reservations",
     why: "T22: 예약 경로로 대화할 때 이틀 지난 행이 지워질 수 있고 그렇지 않으면 계정 삭제까지 남는 예약·내부 감사 연결은 제외 사유만 반환한다. 법정 열람 범위 판단과 구분한다." },
-  { cite: `${X}:409-421`, symbol: "PENDING_EXPORT",
+  { cite: `${X}:422-429`, symbol: "PENDING_EXPORT",
     why: "선행 스키마·열 권한 적용을 기다리는 표를 영구 제외와 구분한다." },
-  { cite: `${X}:724-735`, symbol: "...PENDING_EXPORT",
+  { cite: `${X}:732-741`, symbol: "...PENDING_EXPORT",
     why: "준비 중인 사유도 기존 excluded 응답에 들어간다." },
+  { cite: `${X}:305`, symbol: "table: 'records'",
+    why: "records의 기존 내보내기를 대화록 표식의 새 공개로 오인하지 않는다." },
+  { cite: `${X}:509-511`, symbol: "source.select ?? '*'",
+    why: "열 목록이 없는 records는 interview_ai_hold도 이미 내보낸다." },
+  { cite: `${IT}:1482-1501`, symbol: "v_hold := p_crisis_hold OR v_record_hold",
+    why: "저장 시 C9 red 또는 기존 위기 표식과 세션 red 감사가 기록·대화록·턴에 반영된다." },
+  { cite: `${IT}:895-928`, symbol: "a.event_source = 'server_verified'",
+    why: "red probe hold는 서버 확인된 위기 감사에만 근거한다." },
+  { cite: `${IT}:1907-1909`, symbol: "t.ai_hold",
+    why: "backfill은 기존 대화록의 위기 표식을 기록에 복사하며 새 분류를 만들지 않는다." },
+  { cite: `${IT}:1812-1838`, symbol: "AND NOT tt.ai_hold",
+    why: "판정 전용 내보내기는 held 턴을 빼지만 계정 내보내기는 포함한다." },
   { cite: `${W}:285`, symbol: "includeRecords",
     why: "저널이 기본으로 안 실린다는 주장의 **실제 근거** - 그 삼항 연산이 없으면 기본값이 무의미하다." },
   { cite: `${AT}:96-131`, symbol: "remain inert",
@@ -287,12 +300,42 @@ test("예약 보관 설명은 예약 경로의 정리 조건을 말하고 단기
   expect(doc).toContain("rows older than two days may be removed when that user chats through the reservation path, otherwise they stay until account deletion");
 });
 
-test("내보내기 범위는 준비 중인 8개와 법무 확인 중인 제외 셋을 명시한다", () => {
-  expect(doc).toContain("45 are exported, 36 excluded and 8 pending");
+test("내보내기 범위는 준비 중인 6개와 법무 확인 중인 제외 셋을 명시한다", () => {
+  expect(doc).toContain("47 are exported, 36 excluded and 6 pending");
   expect(doc).toContain("법무 확인 중 / legal review pending");
   expect(doc).toContain("The dashboard cache includes generated text that may not exist elsewhere");
   expect(doc).toContain("Automatic JSON exclusion is not a statutory access exemption");
-  expect(doc).toContain("These tables are not queried");
+  expect(doc).toContain("These two tables are not queried");
+  expect(doc).toContain("The exporter does not query those six and reports them as pending");
+});
+
+test("대화록 hold의 위기 출처와 기존 records 내보내기 및 판정 전용 경로의 차이를 명시한다", () => {
+  expect(doc).toContain("`ai_hold` is set only by crisis classification");
+  expect(doc).toContain("C9 red result at save (`p_crisis_hold`)");
+  expect(doc).toContain("`hold_interview_record_for_red` requires a `server_verified` `interview_probe` audit with `safety_zone='red'`");
+  expect(doc).toContain("backfill copies an existing transcript hold to its record");
+  expect(doc).toContain("The same value is already exported as `records.interview_ai_hold`");
+  expect(doc).toContain("`export_my_interview_judgements` excludes held turns");
+  expect(doc).toContain("account export includes held transcript rows and their text");
+});
+
+test.each([
+  ["export table", "| Exported: transcript headers and turns", "\n"],
+  ["records table", "| Exported: record crisis marker", "\n"],
+  ["pending legal list", "| Pending: legal review", "\n"],
+  ["residual risk", "**Residual risk.** Art.20", "\n"],
+  ["6.1.3 coverage", "  - **Coverage:**", "\n"],
+  ["6.3 backlog", "| 3 | **Portability export (Art.20)**", "\n"],
+  ["Q-H1 counsel question", "- **Q-H1 [COUNSEL TO CONFIRM]**", "#### H2."],
+])("%s keeps held transcripts and both crisis markers in the same counsel question", (_label, start, end) => {
+  const at = doc.indexOf(start);
+  expect(at).toBeGreaterThanOrEqual(0);
+  const section = doc.slice(at, doc.indexOf(end, at + start.length));
+  expect(section).toContain("[COUNSEL TO CONFIRM]");
+  expect(section).toContain("held transcript");
+  expect(section).toContain("`ai_hold`");
+  expect(section).toContain("`records.interview_ai_hold`");
+  expect(section).toContain("Q-H1");
 });
 
 test("표가 실제로 채워져 있다 - 0건 통과를 막는다", () => {
