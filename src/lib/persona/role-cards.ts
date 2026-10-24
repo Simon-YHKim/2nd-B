@@ -213,6 +213,7 @@ export async function proposeRoleCards(
   const { data, error } = await withSystemTagsColumn((columnPresent) =>
     getSupabaseClient().from("records")
       .select(columnPresent ? "id, audit_period, body, tags, system_tags" : "id, audit_period, body, tags")
+      .eq("ai_hold", false)
       .eq("user_id", userId).eq("kind", "audit_response")
       .order("created_at", { ascending: false }).limit(120),
   );
@@ -223,7 +224,7 @@ export async function proposeRoleCards(
   }
   const [levels, persona] = await Promise.all([
     loadSevenLevels(userId),
-    loadPersonaSnapshot(userId),
+    loadPersonaSnapshot(userId, undefined, true),
   ]);
   const input = roleInputFromInterviews(rows, levels.starLevels, persona ?? { traitConfidence: {} } as PersonaCard, previous.filter((p) => p.status === "ratified"));
   // These roles are derived from interviews. Questionnaires remain in their

@@ -98,6 +98,8 @@ export async function recordIngestDrop(input: IngestDropInput, signal?: AbortSig
 }
 
 export interface ListSourcesOpts {
+  /** AI readers only; ordinary user lists retain held originals. */
+  aiOnly?: boolean;
   ingested?: boolean;
   kinds?: SourceKind[];
   limit?: number;
@@ -106,6 +108,7 @@ export interface ListSourcesOpts {
 export async function listSources(userId: string, opts: ListSourcesOpts = {}, signal?: AbortSignal): Promise<SourceRow[]> {
   const supabase = getSupabaseClient();
   let q = supabase.from("sources").select("*").eq("user_id", userId).order("captured_at", { ascending: false });
+  if (opts.aiOnly) q = q.eq("ai_hold", false);
   if (opts.ingested !== undefined) q = q.eq("ingested", opts.ingested);
   if (opts.kinds && opts.kinds.length > 0) q = q.in("kind", opts.kinds);
   if (opts.limit !== undefined) q = q.limit(opts.limit);
@@ -114,14 +117,15 @@ export async function listSources(userId: string, opts: ListSourcesOpts = {}, si
   return (data ?? []) as SourceRow[];
 }
 
-export async function getSource(userId: string, id: string): Promise<SourceRow | null> {
+export async function getSource(userId: string, id: string, aiOnly = false): Promise<SourceRow | null> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("sources")
     .select("*")
     .eq("user_id", userId)
-    .eq("id", id)
-    .maybeSingle();
+    .eq("id", id);
+  if (aiOnly) query = query.eq("ai_hold", false);
+  const { data, error } = await query.maybeSingle();
   if (error) throw error;
   return data as SourceRow | null;
 }
@@ -265,10 +269,10 @@ export async function getWikiPage(userId: string, slug: string): Promise<WikiPag
   return data as WikiPageRow | null;
 }
 
-export async function getWikiPageById(userId: string, id: string): Promise<WikiPageRow | null> {
+export async function getWikiPageById(userId: string, id: string, aiOnly = false): Promise<WikiPageRow | null> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
-    .from("wiki_pages")
+    .from(aiOnly ? "wiki_pages_ai_eligible" : "wiki_pages")
     .select("*")
     .eq("user_id", userId)
     .eq("id", id)
@@ -278,6 +282,8 @@ export async function getWikiPageById(userId: string, id: string): Promise<WikiP
 }
 
 export interface ListWikiPagesOpts {
+  /** Includes the linked source hold check from 0270. */
+  aiOnly?: boolean;
   kinds?: WikiPageKind[];
   /** Pages whose tags array overlaps any of these (Postgres && operator). */
   anyOfTags?: string[];
@@ -286,7 +292,7 @@ export interface ListWikiPagesOpts {
 
 export async function listWikiPages(userId: string, opts: ListWikiPagesOpts = {}, signal?: AbortSignal): Promise<WikiPageRow[]> {
   const supabase = getSupabaseClient();
-  let q = supabase.from("wiki_pages").select("*").eq("user_id", userId).order("updated_at", { ascending: false });
+  let q = supabase.from(opts.aiOnly ? "wiki_pages_ai_eligible" : "wiki_pages").select("*").eq("user_id", userId).order("updated_at", { ascending: false });
   if (opts.kinds && opts.kinds.length > 0) q = q.in("kind", opts.kinds);
   if (opts.anyOfTags && opts.anyOfTags.length > 0) q = q.overlaps("tags", opts.anyOfTags);
   if (opts.limit !== undefined) q = q.limit(opts.limit);

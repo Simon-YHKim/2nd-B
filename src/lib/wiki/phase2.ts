@@ -69,7 +69,7 @@ function bodyFallback(frontmatter: Record<string, unknown> | null): string | nul
  * and is safe to call multiple times.
  */
 export async function generateSourcePage(userId: string, sourceId: string): Promise<GenerateSourcePageResult> {
-  const source = await getSource(userId, sourceId);
+  const source = await getSource(userId, sourceId, true);
   if (!source) throw new SourceNotFoundError(sourceId);
   if (isProfileContextImportSource(source.frontmatter)) throw new SourceImportManagedError(sourceId);
 

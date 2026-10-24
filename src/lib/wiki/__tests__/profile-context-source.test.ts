@@ -49,7 +49,7 @@ describe("profile import regeneration guard", () => {
       ? runPhase1({ userId: "owner-a", sourceId: "source-1", locale: "en" })
       : generateSourcePage("owner-a", "source-1");
     await expect(run).rejects.toBeInstanceOf(SourceImportManagedError);
-    expect(getSource).toHaveBeenCalledWith("owner-a", "source-1");
+    expect(getSource).toHaveBeenCalledWith("owner-a", "source-1", true);
     expect(getSource).toHaveBeenCalledTimes(1);
     for (const sideEffect of [
       downloadRawClipping, callLlm, getWikiPage, upsertWikiPage, syncWikiLinks,

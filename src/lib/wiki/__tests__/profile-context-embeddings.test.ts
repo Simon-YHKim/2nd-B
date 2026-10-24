@@ -1,5 +1,5 @@
 jest.mock("../../llm/boundary", () => ({ EMBED_DIM: 2, embedTexts: jest.fn() }));
-jest.mock("../queries", () => ({ listWikiPages: jest.fn(), insertInferredLinks: jest.fn() }));
+jest.mock("../queries", () => ({ listWikiPages: jest.fn(), getWikiPageById: jest.fn(), insertInferredLinks: jest.fn() }));
 const writes: Array<{ field: string; value: string }> = [];
 const from = jest.fn(() => {
   const query: Record<string, unknown> = {
@@ -12,7 +12,7 @@ const from = jest.fn(() => {
 jest.mock("../../supabase/client", () => ({ getSupabaseClient: () => ({ from }) }));
 
 import { embedTexts } from "../../llm/boundary";
-import { listWikiPages } from "../queries";
+import { listWikiPages, getWikiPageById } from "../queries";
 import { backfillEmbeddings, embedAndStorePage } from "../embeddings";
 import type { WikiPageRow } from "../types";
 
@@ -25,6 +25,7 @@ const page = (id: string, managed = false): WikiPageRow => ({
 beforeEach(() => {
   jest.clearAllMocks();
   writes.length = 0;
+  jest.mocked(getWikiPageById).mockImplementation(async (_owner, id) => page(id));
   jest.mocked(embedTexts).mockImplementation(async (input) => ({
     vectors: input.texts.map(() => [1, 2]), audit: { modelUsed: "test-model" },
   }) as Awaited<ReturnType<typeof embedTexts>>);

@@ -192,7 +192,7 @@ test.each(["usage", "loader"].flatMap(stage => ["switch", "return"].map(change =
     const turn = makeTurn(), held = deferred<unknown>(), query = mockQuery.getMockImplementation()!;
     let waiting = false;
     mockQuery.mockImplementation((table, columns) => {
-      if (table === (stage === "usage" ? "chat_usage" : "wiki_pages")) { waiting = true; return held.promise; }
+      if (table === (stage === "usage" ? "chat_usage" : "wiki_pages_ai_eligible")) { waiting = true; return held.promise; }
       return query(table, columns);
     });
     const pending = sendLiveChatMessage(input, turn).catch(error => error);
@@ -582,7 +582,7 @@ test("T15 an ambiguous reservation failure never creates another bump", async ()
 test("context fails before bump and a later explicit send can charge", async () => {
   const turn = makeTurn();
   mockQuery.mockImplementation((table: string) => {
-    if (table === "wiki_pages") throw new Error("context_unavailable");
+    if (table === "wiki_pages_ai_eligible") throw new Error("context_unavailable");
     return { data: [], error: null };
   });
   await expect(sendLiveChatMessage(input, turn)).rejects.toThrow("context_unavailable");
@@ -822,7 +822,7 @@ test.each(["xai", "openai"])("R3 post-loader adoption prevents a charged %s retr
   const query = mockQuery.getMockImplementation()!;
   let loading = false;
   mockQuery.mockImplementation((table, columns) => {
-    if (table === "wiki_pages") { loading = true; return context.promise; }
+    if (table === "wiki_pages_ai_eligible") { loading = true; return context.promise; }
     return query(table, columns);
   });
   const retry = sendLiveChatMessage(input, turn);

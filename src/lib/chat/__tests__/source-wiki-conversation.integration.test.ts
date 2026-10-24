@@ -42,12 +42,20 @@ function mockQuery(table: string) {
   let payload: Row | Row[] = {};
   let max = Infinity;
   const run = (): QueryResult => {
-    const rows = (mockTables[table] ??= []);
-    let data = rows.filter((row) => filters.every((test) => test(row)));
+    const base = table.replace(/_ai_eligible$/, "");
+    const rows = (mockTables[base] ??= []);
+    let data = rows.filter((row) => {
+      if (table.endsWith("_ai_eligible")) {
+        if (row.ai_hold === true || row.interview_ai_hold === true) return false;
+        if (base === "wiki_pages" && row.source_id != null &&
+            !(mockTables.sources ?? []).some(source => source.id === row.source_id && source.user_id === row.user_id && source.ai_hold !== true)) return false;
+      }
+      return filters.every((test) => test(row));
+    });
     if (action === "insert" || action === "upsert") {
       data = (Array.isArray(payload) ? payload : [payload]).map((item) => {
         const prior = action === "upsert" && rows.find((row) => row.user_id === item.user_id && row.slug === item.slug);
-        const row = prior || { id: `${table}-${rows.length + 1}`, ingested: false, captured_at: "2026-09-25T00:00:00Z", updated_at: "2026-09-25T00:00:00Z" };
+        const row = prior || { ai_hold: false, id: `${table}-${rows.length + 1}`, ingested: false, captured_at: "2026-09-25T00:00:00Z", updated_at: "2026-09-25T00:00:00Z" };
         Object.assign(row, item);
         if (!prior) rows.push(row);
         return row;
@@ -382,7 +390,7 @@ describe("captured RAG through actual embedding, reads and audit outbox", () => 
     expect(mockGetSession).toHaveBeenCalledTimes(1);
     expect(formatRagPages(pages, "en")).toContain("[[owned]]");
     expect(parseSourceCitations(formatRagPages(pages, "en")).chips).toEqual(["owned"]);
-    expect(mockTouched).toEqual(["wiki_pages"]);
+    expect(mockTouched).toEqual(["wiki_pages_ai_eligible"]);
   });
 
   test("actual capture and promotion reach captured RAG with a same-token audit", async () => {
@@ -434,7 +442,7 @@ describe("captured RAG through actual embedding, reads and audit outbox", () => 
     else mockQueryResultHook = async (_table, result) => { settle(); return result; };
     await expect(retrieveChatContext(OWNER, "Tool notes", "en", { session })).rejects.toMatchObject({ name: "AbortError" });
     expect(matches()).toHaveLength(stage === "embed" ? 0 : 1);
-    expect(mockTouched).toEqual(stage === "body" ? ["wiki_pages"] : []);
+    expect(mockTouched).toEqual(stage === "body" ? ["wiki_pages_ai_eligible"] : []);
     expect(fetchMock).toHaveBeenCalledTimes(1); expect(mockGetSession).toHaveBeenCalledTimes(1);
   });
 
@@ -472,6 +480,6 @@ describe("captured RAG through actual embedding, reads and audit outbox", () => 
     const controller = new AbortController();
     mockQueryResultHook = async (_table, result) => { controller.abort(); return result; };
     await expect(retrieveChatContext(OWNER, "Tool notes", "en", { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
-    expect(mockTouched).toEqual(["wiki_pages"]);
+    expect(mockTouched).toEqual(["wiki_pages_ai_eligible"]);
   });
 });

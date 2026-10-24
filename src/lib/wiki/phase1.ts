@@ -185,7 +185,7 @@ export interface RunPhase1Input {
 }
 
 export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
-  const source = await getSource(input.userId, input.sourceId);
+  const source = await getSource(input.userId, input.sourceId, true);
   if (!source) throw new Error(`No source row for id=${input.sourceId}`);
 
   if (isProfileContextImportSource(source.frontmatter)) throw new SourceImportManagedError(input.sourceId);
@@ -223,14 +223,16 @@ export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
   // concurrency fix). Merging into a fresh read shrinks the race to the tiny
   // read->write gap instead of the whole LLM latency.
   const supabase = getSupabaseClient();
-  const fresh = await getSource(input.userId, input.sourceId);
-  const baseFrontmatter = fresh?.frontmatter ?? source.frontmatter;
+  const fresh = await getSource(input.userId, input.sourceId, true);
+  if (!fresh) throw new Error("source_ai_unavailable");
+  const baseFrontmatter = fresh.frontmatter;
   const nextFrontmatter = { ...baseFrontmatter, __phase1__: result };
   const { error } = await supabase
     .from("sources")
     .update({ frontmatter: nextFrontmatter })
     .eq("id", input.sourceId)
-    .eq("user_id", input.userId);
+    .eq("user_id", input.userId)
+    .eq("ai_hold", false);
   if (error) throw error;
 
   return result;

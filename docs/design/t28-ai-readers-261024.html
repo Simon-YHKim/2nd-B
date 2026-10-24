@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>T28 · AI 읽기의 ai_hold 연결</title>
+<style>
+:root{color-scheme:light dark;--bg:#fff;--text:#202522;--muted:#626a65;--accent:#246d50}
+@media(prefers-color-scheme:dark){:root{--bg:#161b18;--text:#edf1ee;--muted:#b1bbb4;--accent:#8cd5ad}}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--text);font:16px/1.65 system-ui,sans-serif;max-width:1120px;margin:auto;padding:28px 22px 64px}h1{font-size:2rem;line-height:1.3}h2{font-size:1.3rem}a{color:var(--accent)}code{font-size:.9em;overflow-wrap:anywhere}small,.muted{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}.card,details{border:1px solid var(--muted);border-radius:10px;padding:16px}.card strong{display:block;font-size:1.25rem;color:var(--accent)}details{margin:18px 0}summary{cursor:pointer;font-weight:700}summary:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:16px 0}th,td{padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--muted)}th{white-space:nowrap}li{margin:7px 0}svg{max-width:100%;height:auto}svg text{fill:var(--text);font:14px system-ui,sans-serif}svg rect{fill:var(--bg);stroke:var(--accent);stroke-width:2}svg path{fill:none;stroke:var(--accent);stroke-width:2}
+</style>
+<main>
+<p class="muted">2ndB · T28 앱 읽기 조각 · 2026-10-24</p>
+<h1>원문은 보관하고, 보류 행은 AI 재사용에서 제외합니다</h1>
+<p>영구 <code>ai_hold</code>를 앱의 기록·소스·위키 읽기에 연결합니다. 사용자 목록·상세·전체 내보내기의 기본 읽기는 유지합니다. 이 조각은 T28 전체 완료가 아닙니다.</p>
+<div class="cards" aria-label="결과 요약">
+<div class="card">목적<strong>D4 읽기 계약</strong><small>AI 전용 뷰 또는 ai_hold=false</small></div>
+<div class="card">사용자 데이터<strong>원문 열람 유지</strong><small>목록·상세·계정 내보내기 변경 없음</small></div>
+<div class="card">서버 변경<strong>함수 4개 초안</strong><small>번호 없음 · DB 실행·배포 없음</small></div>
+<div class="card">검증<strong id="validation-summary">2,369개 테스트 통과</strong><small id="validation-time">2026-10-24 21:45:17 KST</small></div>
+</div>
+<p>결정 원문: “저장 + 위기 안내, AI 처리(추출 · 임베딩 · 분류)는 건너뛴다. 보류 상태는 레코드 필드 ai_hold 로 남긴다.” <code>DECISIONS-2026-10-07_12.md:27</code>, D4. 0270 운영 적용(21:02, <code>20261024120238</code>)은 발주에서 제공한 사실이며 이 세션에서 운영에 접속해 확인하지 않았습니다.</p>
+<svg viewBox="0 0 1040 200" role="img" aria-labelledby="flow-title flow-desc">
+<title id="flow-title">사용자 읽기와 AI 읽기 분리</title><desc id="flow-desc">보관한 원문은 사용자에게 그대로 보입니다. AI 읽기는 보류 조건을 통과한 행만 전달하며, 서버 SQL 초안 적용은 별도입니다.</desc>
+<rect x="10" y="62" width="210" height="70" rx="8"/><text x="30" y="92">records · sources</text><text x="30" y="115">wiki_pages 원문</text>
+<path d="M220 97H270V38H320M270 97V155H320"/>
+<rect x="320" y="8" width="250" height="60" rx="8"/><text x="340" y="43">사용자 목록·상세·전체 내보내기</text>
+<rect x="320" y="125" width="250" height="60" rx="8"/><text x="340" y="160">AI 뷰 / ai_hold=false</text>
+<path d="M570 155H625"/><rect x="625" y="125" width="230" height="60" rx="8"/><text x="645" y="160">요약 · 임베딩 · RAG · 추론</text>
+<text x="640" y="45">보류 행도 원문 보존</text><text x="875" y="160">보류 행 제외</text>
+</svg>
+<details open><summary>읽기 경로 전수 표</summary>
+<p>앱의 직접 테이블 조회, 공용 조회 함수 호출자, 모델 호출, 검색 RPC, 서버 함수 정의를 함께 검색했습니다. 변경된 1개 함수의 여러 호출 경로는 한 행으로 묶었습니다.</p>
+<div class="scroll"><table><thead><tr><th>입구 / 호출자</th><th>처리</th><th>검증 / 경계</th></tr></thead><tbody>
+<tr><td><code>chat/conversation.ts</code> 문맥 스냅샷·RAG 실패 시 스냅샷</td><td><code>exportUserWiki(forAi:true)</code> 두 호출</td><td>일반 대화 소유권·취소·기존 프롬프트 회귀 포함</td></tr>
+<tr><td><code>ops/daily-brief.ts</code>, <code>ops/recommend.ts</code></td><td>공용 AI 내보내기 옵션</td><td>호출부 계약 + 공용 함수 가짜 데이터</td></tr>
+<tr><td><code>wiki/export.ts</code> 위키·소스·기록·보관 대화</td><td>AI일 때 페이지 뷰, 소스·기록 조건; 전체 백업 기본값 유지</td><td>보류 제목·본문 제외, 일반 본문 유지, 전체 백업에는 보류 포함</td></tr>
+<tr><td><code>wiki/context-pack.ts</code></td><td>AI 프롬프트 팩은 세 종류 모두 제외</td><td>현재 런타임 호출자 없음; 공개 함수 자체 고정</td></tr>
+<tr><td><code>records/load-structured.ts</code></td><td><code>records_ai_eligible</code></td><td>구조화 문맥의 보류 본문 제외</td></tr>
+<tr><td><code>chat/rag.ts</code> → <code>match_wiki_pages</code></td><td>RPC 결과 본문을 페이지 뷰에서 다시 조회</td><td>이전 RPC가 보류 ID를 반환해도 문맥에서 빠짐</td></tr>
+<tr><td><code>records/records-embeddings.ts</code> 직접 색인</td><td>현재 소유자의 적격 행 재조회 후 현재 본문 사용</td><td>오래된 화면 본문·다른 소유자·보류 ID 제외</td></tr>
+<tr><td>기록 색인 배치·개별 재시도·전체 백필 순회</td><td>배치 뷰 조회; 개별 재시도는 직접 색인 공용 함수</td><td>성인·동의·기존 red 검사 유지</td></tr>
+<tr><td>기록 연결 검색 → <code>match_records</code></td><td>기준 벡터도 뷰; 결과 ID를 현재 뷰와 교집합</td><td>기존 RPC의 보류 결과 제외</td></tr>
+<tr><td><code>wiki/embeddings.ts</code> 직접 색인</td><td>현재 페이지·연결 소스 적격성 재조회</td><td>페이지 자체 hold와 부모 source hold 각각 제외</td></tr>
+<tr><td>위키 색인 배치·개별 재시도</td><td><code>listWikiPages(aiOnly:true)</code>; 재시도도 적격 페이지 확인</td><td>배치 실패 후 구제 경로도 가짜 데이터 검증</td></tr>
+<tr><td>위키 연결 검색·개별/전체 연결 제안</td><td>벡터 조회·결과 교집합·전체 순회 모두 적격 행</td><td>추론한 연결의 자동 승인 규칙은 변경 없음</td></tr>
+<tr><td><code>wiki/phase1.ts</code> 요약·분류</td><td>처음과 저장 전 소스 확인에 hold 조건</td><td>읽기 오류·사라진 소스를 오래된 제목으로 대체하지 않음</td></tr>
+<tr><td><code>wiki/phase2.ts</code> 위키 승격</td><td>소스 적격성 확인 후 본문 다운로드</td><td>프로필/기존 제외 규칙 유지; 슬러그 충돌 확인은 원문 조회 유지</td></tr>
+<tr><td><code>wiki/materialize.ts</code> 추출 결과의 그래프 반영</td><td>출발 페이지 적격성 확인</td><td>기존 entity/concept의 출처 추적은 다음 조각</td></tr>
+<tr><td><code>persona/northstar.ts</code> 최근 발췌</td><td>기록 뷰</td><td>사용자가 저장한 문장 조회는 그대로</td></tr>
+<tr><td><code>persona/build.ts</code> 본문 종합</td><td>태그 포함 기록 조회에 hold 조건</td><td>일반 근거·모델 입력 유지, 보류 근거 제외</td></tr>
+<tr><td>종합에 쓰는 MBTI·Attachment·BFI·IPIP 조회</td><td>AI 호출자만 기록 뷰 사용</td><td>사용자 결과 화면의 기본 조회는 그대로</td></tr>
+<tr><td><code>persona/seven-proposal-context.ts</code> → 자기 모델 제안</td><td>근거 수집에 hold 조건</td><td>기존 인터뷰 태그와 제안 그대로 보낸 답 구분 유지</td></tr>
+<tr><td><code>persona/role-cards.ts</code> → 역할 종합</td><td>본문 hold 조건; 스냅샷의 평가 보강 조회도 AI 옵션</td><td>기존 확정 역할·커버리지 등 파생 데이터는 별도 과제</td></tr>
+<tr><td><code>app/reasoning.tsx</code> 수동·자동 분류</td><td>기록/소스 현재 적격성 조회; 적격 항목만 모델·제안 배치</td><td>보류된 제목으로 우회하지 않음; 전부 보류면 모델 0회</td></tr>
+<tr><td>서버 <code>match_records</code>, <code>match_wiki_pages</code></td><td>번호 없는 초안: 원본 → 적격 뷰</td><td>현재 최신 0142와 투영·모델 필터·RLS·시그니처 동일 계약</td></tr>
+<tr><td>서버 <code>reserve_polaris_generation</code>, <code>polaris_evidence_snapshot</code></td><td>번호 없는 초안: <code>NOT ai_hold</code> 추가</td><td>최신 0225의 잠금·소유권·정산·인터뷰 hold 규칙 그대로</td></tr>
+<tr><td>서버 <code>dashboard_generation_source</code></td><td>변경 없음</td><td>0236은 <code>ops_routines</code>만 읽고 해당 세 테이블을 읽지 않음</td></tr>
+</tbody></table></div>
+<p><code>system_tags</code>는 0270 뷰에 없습니다. 태그 호환성이 필요한 export·build·role-cards·seven-proposal-context는 원본 표에 <code>ai_hold=false</code>를 붙이고, 열 호환 재시도에도 조건을 유지합니다. 소스 조회 역시 기존 전체 열 계약을 보존하면서 조건을 붙입니다. 뷰 오류를 원본 표 재시도로 우회하지 않습니다.</p>
+</details>
+<details><summary>변경하지 않은 사용자 경로와 신규 입력 경로</summary>
+<ul>
+<li><code>records/create.ts</code>의 목록/상세, <code>list-all-records</code>, <code>get-piece</code>, <code>source-pieces</code>, 공용 sources/wiki 기본 조회, career·star 화면: 보류 원문 열람 유지.</li>
+<li><code>export-account</code> 및 <code>DeepSpaceDesignScreens</code>의 전체 <code>exportUserWiki</code>: 보류 원문도 내보냅니다.</li>
+<li><code>load-evidence-shards</code>, 별/프로필 개수, growth·trends·dashboard의 사용자 표시: 모델에 원문을 공급하는 조회가 아니므로 변경하지 않았습니다.</li>
+<li><code>promote-pending</code>는 저장소 본문 복구, keep-receipts·history-ownership·capture 중복 확인은 저장 소유권 확인입니다. 이 자체로 모델 입력을 만들지 않습니다.</li>
+<li>새 입력의 기록 추출·클리퍼 분류·이미지 텍스트 추출·템플릿 제안은 이미 저장된 세 테이블의 AI 재읽기와 다릅니다. 위기 판정 시 영구 hold를 함께 저장하는 연결은 다음 조각입니다.</li>
+<li>한국어 UI 및 번역 키 변경 0. #2440의 stop/Back/RESET·<code>continuity.ts answerDisposition</code> 변경 0.</li>
+</ul>
+</details>
+<details open><summary>검증과 한계</summary>
+<div id="validation-results"><ul><li>관련 Jest: 100개 묶음 / 2,369개 테스트 PASS (--maxWorkers=2). 새 AI 데이터/계약 묶음 32건 + 리즈닝 묶음 7건을 포함합니다.</li><li>조건 제거 변이: 42/42 사멸, 생존 0, 테스트 실행 오류 0. 매 변이 뒤 원본 바이트 복구 42/42. 변이 전 기준 39/39 PASS, 복구 후 관련 전체 2,369/2,369 PASS.</li><li>tsc --noEmit -p tsconfig.json, 변경 TS/TSX 36개 eslint --max-warnings 0: 종료코드 0.</li><li>check:constraints, check:llm-boundary, check:i18n, check:emdash, check:cycles, check-forbidden-lexicon.ts: 모두 종료코드 0.</li><li>C7: 5개 언어 · 40개 namespace · 4,467개 키 일치. 런타임 순환 0. 시크릿 패턴 검사 후보 0. git diff --check 통과.</li><li>Jest 실행 직전 메모리 8,704,160 KB. 각 변이 실행 전도 2,621,440 KB 이상 확인. 전체 verify는 PR CI 판정 대상입니다.</li></ul><details><summary>42개 변이 세부 결과 · 실제 실패한 테스트 수</summary><div class="scroll"><table><thead><tr><th>변이</th><th>파일</th><th>실패 / 복구</th></tr></thead><tbody><tr><td><code>current-record-view</code></td><td><code>src/lib/safety/ai-read.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>source-list-filter</code></td><td><code>src/lib/wiki/queries.ts</code></td><td>3건 / 복구 확인</td></tr><tr><td><code>source-detail-filter</code></td><td><code>src/lib/wiki/queries.ts</code></td><td>2건 / 복구 확인</td></tr><tr><td><code>page-detail-view</code></td><td><code>src/lib/wiki/queries.ts</code></td><td>3건 / 복구 확인</td></tr><tr><td><code>page-list-view</code></td><td><code>src/lib/wiki/queries.ts</code></td><td>6건 / 복구 확인</td></tr><tr><td><code>export-record-filter</code></td><td><code>src/lib/wiki/export.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>export-page-opt-in</code></td><td><code>src/lib/wiki/export.ts</code></td><td>2건 / 복구 확인</td></tr><tr><td><code>export-source-opt-in</code></td><td><code>src/lib/wiki/export.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>chat-snapshot-opt-in</code></td><td><code>src/lib/chat/conversation.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>chat-fallback-opt-in</code></td><td><code>src/lib/chat/conversation.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>daily-brief-opt-in</code></td><td><code>src/lib/ops/daily-brief.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>recommend-opt-in</code></td><td><code>src/lib/ops/recommend.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>context-pack-record-view</code></td><td><code>src/lib/wiki/context-pack.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>context-pack-page-opt-in</code></td><td><code>src/lib/wiki/context-pack.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>context-pack-source-opt-in</code></td><td><code>src/lib/wiki/context-pack.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>structured-record-view</code></td><td><code>src/lib/records/load-structured.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>rag-body-view</code></td><td><code>src/lib/chat/rag.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>record-index-view</code></td><td><code>src/lib/records/records-embeddings.ts</code></td><td>2건 / 복구 확인</td></tr><tr><td><code>record-search-postfilter</code></td><td><code>src/lib/records/records-embeddings.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>page-search-postfilter</code></td><td><code>src/lib/wiki/embeddings.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>page-index-opt-in</code></td><td><code>src/lib/wiki/embeddings.ts</code></td><td>3건 / 복구 확인</td></tr><tr><td><code>page-links-opt-in</code></td><td><code>src/lib/wiki/embeddings.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>direct-page-current-read</code></td><td><code>src/lib/wiki/embeddings.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>northstar-view</code></td><td><code>src/lib/persona/northstar.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>persona-filter-build.ts</code></td><td><code>src/lib/persona/build.ts</code></td><td>2건 / 복구 확인</td></tr><tr><td><code>persona-filter-role-cards.ts</code></td><td><code>src/lib/persona/role-cards.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>persona-filter-seven-proposal-context.ts</code></td><td><code>src/lib/persona/seven-proposal-context.ts</code></td><td>2건 / 복구 확인</td></tr><tr><td><code>assessment-loadLatestMbti</code></td><td><code>src/lib/persona/build.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>assessment-loadLatestAttachment</code></td><td><code>src/lib/persona/build.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>assessment-loadLatestBfi</code></td><td><code>src/lib/persona/build.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>assessment-loadLatestIpip</code></td><td><code>src/lib/persona/build.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>role-snapshot-opt-in</code></td><td><code>src/lib/persona/role-cards.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>snapshot-assessment-forwarding</code></td><td><code>src/lib/persona/build.ts</code></td><td>2건 / 복구 확인</td></tr><tr><td><code>summary-source-opt-in</code></td><td><code>src/lib/wiki/phase1.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>promotion-source-opt-in</code></td><td><code>src/lib/wiki/phase2.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>materialize-origin-opt-in</code></td><td><code>src/lib/wiki/materialize.ts</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>reasoning-source-opt-in</code></td><td><code>src/app/reasoning.tsx</code></td><td>2건 / 복구 확인</td></tr><tr><td><code>reasoning-eligible-batch</code></td><td><code>src/app/reasoning.tsx</code></td><td>2건 / 복구 확인</td></tr><tr><td><code>sql-match-records</code></td><td><code>db/migration-drafts/UNNUMBERED_ai_hold_readers.sql</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>sql-match-wiki_pages</code></td><td><code>db/migration-drafts/UNNUMBERED_ai_hold_readers.sql</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>sql-polaris-reservation</code></td><td><code>db/migration-drafts/UNNUMBERED_ai_hold_readers.sql</code></td><td>1건 / 복구 확인</td></tr><tr><td><code>sql-polaris-snapshot</code></td><td><code>db/migration-drafts/UNNUMBERED_ai_hold_readers.sql</code></td><td>1건 / 복구 확인</td></tr></tbody></table></div><p>각 변이는 조건 한 곳을 제거하거나 원본 테이블 조회로 되돌렸습니다. 동작 시험과 소스 계약 시험을 함께 실행했으며, 컴파일 실패를 사멸로 세지 않았습니다.</p></details></div>
+<p>테스트는 가짜 DB·가짜 모델·소스 계약으로 실행했습니다. RN 렌더 테스트, 실제 모델 호출, 계정 로그인, 운영 DB 접속, SQL 실행, APK·8081 확인은 하지 않았습니다. SQL은 기존 함수에서 적격 조건만 바뀌는 계약을 검사했으며 PostgreSQL·pgvector 실행 검증은 남아 있습니다.</p>
+<p>기존 대화 소유권 테스트의 일반 사용자 흐름 해시는 테이블 이름만 기존 이름으로 정규화해 비교합니다. 원본 테이블을 읽지 않는다는 별도 assertion을 먼저 두고, 본문·프롬프트·쿼터·순서 등 나머지 추적값은 기존 기준과 그대로 비교합니다.</p>
+</details>
+<details open><summary>다음 조각 · 위험 · 되돌림</summary>
+<ol>
+<li><strong>서버 초안 검토·실행 검증·승격·적용.</strong> <code>db/migration-drafts/UNNUMBERED_ai_hold_readers.sql</code>은 적용하지 않았습니다. 이전 검색 RPC는 보류 메타데이터를 앱에 반환할 수 있으나 앱은 AI 재사용 전에 교집합을 확인합니다. Polaris 서버 근거는 초안 적용 전까지 완결되지 않습니다. 먼저 전체 AI 경계가 닫혔다고 보고하면 안 됩니다.</li>
+<li><strong>쓰기 연결.</strong> 기록·소스·보관 대화·인터뷰의 알려진 판정을 같은 저장에 전달하고 중복 저장 재시도에도 hold를 보존해야 합니다. 여러 입력과 동결된 인터뷰 경계를 함께 다루므로 이 읽기 조각에는 넣지 않았습니다.</li>
+<li><strong>이미 존재하는 파생물.</strong> source_id 없는 entity/concept, 이전 요약·확정 역할·페르소나·커버리지 등은 원본까지 연결할 근거가 필요합니다. 이 조각은 직접 hold와 직접 부모 hold만 확인하며 보류 전 파생물을 소급 제거하지 않습니다.</li>
+<li><strong>늦은 RED와 삭제 경합.</strong> 조회 후 모델 전송까지 보류가 생기는 구간, 전송된 요청 취소, 결과 저장 거부, 삭제와의 결합은 별도 검증 대상입니다. 현재 행 재조회와 0270의 벡터 가드만으로 모든 경합을 해결했다고 주장하지 않습니다.</li>
+<li><strong>보류 표시 UI.</strong> 이번에는 문구를 추가하지 않았습니다. 상태 표시는 쓰기 계약과 함께 후속 구현합니다.</li>
+</ol>
+<p>추가 AI 적격성 조회가 직접 색인·검색에 들어갑니다. 조회 실패는 원본으로 대체하지 않고 실패하거나 빈 결과로 처리합니다. 문제가 생기면 해당 AI 기능을 중지하고 앞으로 수정합니다. 보류 열·뷰를 제거하거나 필터를 되돌리는 롤백은 D4를 위반합니다.</p>
+</details>
+<details><summary>코디네이터의 8081 확인 항목 · 병합 조건</summary>
+<ul>
+<li>병합 후 코디네이터가 원문 목록·상세·전체 내보내기에서 일반/보류 행을 모두 열 수 있는지 확인.</li>
+<li>보류 항목이 대화 문맥·연결 검색·색인·요약·수동/자동 리즈닝에 들어가지 않는지, 일반 항목은 기존처럼 동작하는지 확인.</li>
+<li>보류 부모 소스의 위키 페이지도 AI 대상에서 빠지는지 확인.</li>
+<li>서버 SQL 별도 적용 전 Polaris 전체 차단을 완료로 판정하지 않기.</li>
+<li>독립 검토 Codex daybreak PASS + 새 medium 0 + CI 초록 후 코디네이터만 병합. 이 구현 세션은 draft PR까지만 수행.</li>
+</ul>
+<p>VISION: 1축 자기 데이터 축적의 원문 보존, 2축 개인 비서 기반의 AI 재사용 경계.</p>
+</details>
+</main>
+</html>

@@ -67,7 +67,7 @@ jest.mock("../../supabase/client", () => ({
               eq: (col2: string, val2: unknown) => {
                 if (col2 === "id") updateEqId(val2);
                 else if (col2 === "user_id") updateEqUserId(val2);
-                return Promise.resolve({ error: null });
+                return { eq: () => Promise.resolve({ error: null }) };
               },
             };
           },

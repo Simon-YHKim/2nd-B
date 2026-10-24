@@ -261,8 +261,8 @@ export async function loadChatContext(
     ragBlock
       ? // RAG hit: pages come from retrieval; keep only a slim sources list so
         // "what did I clip" questions still see the inbox.
-        { locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40, includeSavedConversations: true }
-      : { locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100, includeSavedConversations: true },
+        { forAi: true, locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40, includeSavedConversations: true }
+      : { forAi: true, locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100, includeSavedConversations: true },
     execution?.session, execution ? undefined : stage.assertCurrent,
   ));
   return { structuredBlock, profileLines, ragBlock, snapshot };

@@ -9,8 +9,9 @@
 // pages that don't have a vector yet. relatedByEmbedding reads neighbours back.
 
 import { embedTexts, EMBED_DIM } from "../llm/boundary";
+import { aiEligibleMatchIds } from "../safety/ai-read";
 import { getSupabaseClient } from "../supabase/client";
-import { insertInferredLinks, listWikiPages, type InferredEdgeInput } from "./queries";
+import { getWikiPageById, insertInferredLinks, listWikiPages, type InferredEdgeInput } from "./queries";
 import { isProfileContextImportSource } from "./profile-context-source";
 import type { WikiPageRow } from "./types";
 
@@ -100,7 +101,9 @@ export async function embedAndStorePage(
   minor = false,
 ): Promise<boolean> {
   if (isProfileContextImportSource(page.frontmatter)) return false;
-  const text = pageEmbeddingText(page);
+  const current = await getWikiPageById(userId, page.id, true);
+  if (!current || isProfileContextImportSource(current.frontmatter)) return false;
+  const text = pageEmbeddingText(current);
   if (text.length === 0) return false;
   const { vectors, audit } = await embedTexts({ userId, texts: [text], locale, minor });
   const vec = vectors[0];
@@ -125,7 +128,7 @@ export async function backfillEmbeddings(
   opts: { locale?: "en" | "ko"; minor?: boolean; limit?: number } = {},
 ): Promise<BackfillResult> {
   const limit = opts.limit ?? 50;
-  const pages = await listWikiPages(userId, { limit: 200 });
+  const pages = await listWikiPages(userId, { limit: 200, aiOnly: true });
   const targets: { page: (typeof pages)[number]; text: string }[] = [];
   for (const page of pages) {
     if (targets.length >= limit) break;
@@ -194,7 +197,7 @@ export async function relatedByEmbedding(
 ): Promise<RelatedPage[]> {
   const supabase = getSupabaseClient();
   const { data: page, error: e1 } = await supabase
-    .from("wiki_pages")
+    .from("wiki_pages_ai_eligible")
     .select("embedding")
     .eq("user_id", userId)
     .eq("id", pageId)
@@ -209,7 +212,9 @@ export async function relatedByEmbedding(
     exclude_id: pageId,
   });
   if (error) throw error;
-  return (data ?? []) as RelatedPage[];
+  const matches = (data ?? []) as RelatedPage[];
+  const eligible = await aiEligibleMatchIds(userId, "wiki_pages_ai_eligible", matches.map((row) => row.id));
+  return matches.filter((row) => eligible.has(row.id));
 }
 
 // --- propose -> ratify bridge (STEP 2 + STEP 4) ---------------------------
@@ -252,7 +257,7 @@ export async function proposeAllRelatedLinks(
   opts: { k?: number; minConfidence?: number; limit?: number } = {},
 ): Promise<ProposeAllResult> {
   const limit = opts.limit ?? 50;
-  const pages = await listWikiPages(userId, { limit: 200 });
+  const pages = await listWikiPages(userId, { limit: 200, aiOnly: true });
   let proposed = 0;
   let pagesScanned = 0;
   for (const page of pages) {

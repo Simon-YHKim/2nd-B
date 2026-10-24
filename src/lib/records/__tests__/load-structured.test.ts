@@ -55,7 +55,7 @@ it("keeps the owner-filtered query, requested limit, original formatting and one
   const legacy = await loadStructuredContext("u1", 3);
   const cap = await session();
   expect(await loadStructuredContext("u1", 3, cap)).toBe(legacy);
-  expect(mockFrom).toHaveBeenLastCalledWith("records");
+  expect(mockFrom).toHaveBeenLastCalledWith("records_ai_eligible");
   expect(mockSelect).toHaveBeenLastCalledWith("topic, created_at, structured");
   expect(mockEq).toHaveBeenLastCalledWith("user_id", "u1");
   expect(mockNot).toHaveBeenLastCalledWith("structured", "is", null);

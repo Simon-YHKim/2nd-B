@@ -66,6 +66,7 @@ import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { isAiExcludedSource } from "@/lib/wiki/ai-exclusion";
 import { isProfileContextImportSource, SourceImportManagedError } from "@/lib/wiki/profile-context-source";
 import { generateSourcePage } from "@/lib/wiki/phase2";
+import { getAiRecord } from "@/lib/safety/ai-read";
 import { getSource, updateSourceTags } from "@/lib/wiki/queries";
 import { downloadRawClipping } from "@/lib/wiki/storage";
 import { dismissTask, sendToBackground, startTask, useTaskStatus } from "@/lib/tasks/store";
@@ -303,16 +304,13 @@ async function loadSafeBatchText(
     input.items.map(async (item) => {
       throwIfCancelled(input.signal);
       if (item.refKind === "record") {
-        return [item.key, `${item.title}\n${item.body ?? ""}`] as const;
+        const record = await getAiRecord(input.userId, item.refId);
+        return record ? [item.key, `${record.topic ?? ""}\n${record.body}`] as const : null;
       }
-      // Everything below degrades to title-only instead of throwing. These reads
-      // sit inside a Promise.all, so ONE unreadable source used to fail the whole
-      // run: every other item lost its proposals and the reserved run was
-      // refunded. A missing body is a reason to reason over less, not a reason to
-      // reason over nothing. The item still carries its title, which is what the
-      // domain classifier mostly keys on anyway.
-      const source = await getSource(input.userId, item.refId).catch(() => null);
-      if (!source) return [item.key, item.title] as const;
+      // A held/missing row contributes nothing, including its cached title.
+      // Read errors fail the run; they cannot authorize a title-only fallback.
+      const source = await getSource(input.userId, item.refId, true);
+      if (!source) return null;
       if (isProfileContextImportSource(source.frontmatter)) throw new SourceImportManagedError(item.refId);
       // capture.ts stashes the body inline (frontmatter._body_fallback) when
       // the Storage upload didn't land — reading storage_path then 400s and
@@ -329,11 +327,12 @@ async function loadSafeBatchText(
     }),
   );
   throwIfCancelled(input.signal);
-  const crisis = entries.map(([, text]) =>
+  const eligible = entries.filter((entry): entry is readonly [string, string] => entry !== null);
+  const crisis = eligible.map(([, text]) =>
     classifyInputAnyLocale(text, input.locale, { minor: input.minor }),
   ).find((result) => result.zone === "red");
   if (crisis) throw new ReasoningSafetyError(crisis.crisisRouting?.hotline);
-  return new Map(entries);
+  return new Map(eligible);
 }
 
 export async function runReasoningBatch(
@@ -397,8 +396,9 @@ async function produceProposals(
   throwIfCancelled(input.signal);
 
   let completed = 0;
-  const recordItems = input.items.filter((item) => item.refKind === "record");
-  const sourceItems = input.items.filter((item) => item.refKind === "source");
+  const eligibleItems = input.items.filter((item) => safeTextByKey.has(item.key));
+  const recordItems = eligibleItems.filter((item) => item.refKind === "record");
+  const sourceItems = eligibleItems.filter((item) => item.refKind === "source");
   const domainByKey = new Map<string, DomainId>();
   const proposals: (ReasoningItem & { domain: DomainId })[] = [];
 
@@ -410,7 +410,7 @@ async function produceProposals(
     // whole JSON payload (instruction-only guard until 2026-07-26).
     const payload = recordItems.map((item) => ({
       id: item.refId,
-      text: sanitizeUntrusted(safeTextByKey.get(item.key) ?? item.title).slice(0, 900),
+      text: sanitizeUntrusted(safeTextByKey.get(item.key) ?? "").slice(0, 900),
     }));
     const system =
       input.locale === "ko"
@@ -445,7 +445,7 @@ async function produceProposals(
 
     for (const item of recordItems) {
       throwIfCancelled(input.signal);
-      const domain = domainByKey.get(item.key) ?? fallbackDomain(item);
+      const domain = domainByKey.get(item.key) ?? fallbackDomain({ ...item, title: "", body: safeTextByKey.get(item.key) });
       proposals.push({ ...item, domain });
       completed += 1;
       input.onItemDone?.(item.key, completed, domain);
@@ -460,7 +460,7 @@ async function produceProposals(
     // whole JSON payload (instruction-only guard until 2026-07-26).
     const payload = sourceItems.map((item) => ({
       id: item.refId,
-      text: sanitizeUntrusted(safeTextByKey.get(item.key) ?? item.title).slice(0, 900),
+      text: sanitizeUntrusted(safeTextByKey.get(item.key) ?? "").slice(0, 900),
     }));
     const system =
       input.locale === "ko"

@@ -249,9 +249,10 @@ export async function loadMemorizedHistogram(
 async function loadLatestMbti(
   supabase: ReturnType<typeof getSupabaseClient>,
   userId: string,
+  aiOnly = false,
 ): Promise<PersonaMbti | null> {
   const { data, error } = await supabase
-    .from("records")
+    .from(aiOnly ? "records_ai_eligible" : "records")
     .select("body, created_at")
     .eq("user_id", userId)
     .contains("tags", ["mbti", "assessment"])
@@ -271,9 +272,10 @@ async function loadLatestMbti(
 export async function loadLatestAttachment(
   supabase: ReturnType<typeof getSupabaseClient>,
   userId: string,
+  aiOnly = false,
 ): Promise<PersonaAttachment | null> {
   const { data, error } = await supabase
-    .from("records")
+    .from(aiOnly ? "records_ai_eligible" : "records")
     .select("body, created_at")
     .eq("user_id", userId)
     .contains("tags", ["attachment", "ecr"])
@@ -303,11 +305,12 @@ export async function loadLatestAttachment(
 export async function loadLatestBfi(
   supabase: ReturnType<typeof getSupabaseClient>,
   userId: string,
+  aiOnly = false,
 ): Promise<{ openness: number; conscientiousness: number; extraversion: number; agreeableness: number; neuroticism: number } | null> {
   // BFI-44 (1-5 Likert) is the primary Big Five measure. Scores written by
   // /big-five carry tags ["big_five", "bfi", "assessment"]; we match on "bfi".
   const { data, error } = await supabase
-    .from("records")
+    .from(aiOnly ? "records_ai_eligible" : "records")
     .select("body, created_at")
     .eq("user_id", userId)
     .contains("tags", ["bfi"])
@@ -499,13 +502,14 @@ export async function loadLatestMotivation(
 export async function loadLatestIpip(
   supabase: ReturnType<typeof getSupabaseClient>,
   userId: string,
+  aiOnly = false,
 ): Promise<{ openness: number; conscientiousness: number; extraversion: number; agreeableness: number; neuroticism: number; facets: Record<string, number> } | null> {
   // IPIP-NEO-120 (1-5 Likert) is the facet-level measure. /ipip-neo writes a record
   // tagged ["ipip_neo", ...] whose body carries the 5 domain means + 30 facet means.
   // Same 5 domains as BFI, so the domains feed the persona/lens identically; the 30
   // facets are the precision layer the facet lens renders.
   const { data, error } = await supabase
-    .from("records")
+    .from(aiOnly ? "records_ai_eligible" : "records")
     .select("body, created_at")
     .eq("user_id", userId)
     .contains("tags", ["ipip_neo"])
@@ -634,7 +638,7 @@ export async function loadPersonaRatifiableSignals(
  * or retrying a screen must not change the user's model. `buildPersona` remains
  * the explicit rebuild path.
  */
-export async function loadPersonaSnapshot(userId: string, assertCurrent?: () => void): Promise<PersonaCard | null> {
+export async function loadPersonaSnapshot(userId: string, assertCurrent?: () => void, aiOnly = false): Promise<PersonaCard | null> {
   // A screen may opt into an owner/deadline guard. Existing callers retain the
   // same snapshot contract; no stale screen starts the dependent assessment reads.
   assertCurrent?.();
@@ -643,8 +647,8 @@ export async function loadPersonaSnapshot(userId: string, assertCurrent?: () => 
   assertCurrent?.();
   if (!snapshot) return null;
   const [mbti, attachment] = await Promise.all([
-    loadLatestMbti(supabase, userId),
-    loadLatestAttachment(supabase, userId),
+    loadLatestMbti(supabase, userId, aiOnly),
+    loadLatestAttachment(supabase, userId, aiOnly),
   ]);
   assertCurrent?.();
   return { ...snapshot, mbti, attachment };
@@ -767,6 +771,7 @@ export async function buildPersona(
       .select(auditResponseColumns(columnPresent))
       .eq("user_id", userId)
       .eq("kind", "audit_response")
+      .eq("ai_hold", false)
       .order("created_at", { ascending: false })
       .limit(MAX_PERSONA_ROWS),
   );
@@ -791,8 +796,8 @@ export async function buildPersona(
   // older TIPI's emotional_stability). When both exist, IPIP-NEO-120 (120 items,
   // facet-level) outranks BFI-44 (44 items) for the same five domains.
   const [ipip, bfi] = await Promise.all([
-    loadLatestIpip(supabase, userId),
-    loadLatestBfi(supabase, userId),
+    loadLatestIpip(supabase, userId, true),
+    loadLatestBfi(supabase, userId, true),
   ]);
   const measured = ipip ?? bfi;
   if (measured) {
@@ -809,8 +814,8 @@ export async function buildPersona(
 
   const [memorized, mbti, attachment] = await Promise.all([
     loadMemorizedHistogram(supabase, userId),
-    loadLatestMbti(supabase, userId),
-    loadLatestAttachment(supabase, userId),
+    loadLatestMbti(supabase, userId, true),
+    loadLatestAttachment(supabase, userId, true),
   ]);
 
   // Pull one short narrative summary from the LLM wrapper (mock or live).

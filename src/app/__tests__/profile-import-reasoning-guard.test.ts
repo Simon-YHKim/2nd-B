@@ -18,12 +18,13 @@ const code = ts.transpileModule(functions + "\nreturn { produceProposals, applyR
 
 function harness() {
   const getSource = jest.fn();
+  const getAiRecord = jest.fn().mockResolvedValue({ topic: "Ordinary note", body: "Current note" });
   const downloadRawClipping = jest.fn().mockResolvedValue("Ordinary source body.");
   const callLlm = jest.fn().mockResolvedValue({ text: "{}", safety: { zone: "green" } });
   const updateSourceTags = jest.fn();
   const generateSourcePage = jest.fn();
   const deps = {
-    getSource, downloadRawClipping, callLlm, updateSourceTags, generateSourcePage,
+    getAiRecord, getSource, downloadRawClipping, callLlm, updateSourceTags, generateSourcePage,
     isProfileContextImportSource, SourceImportManagedError,
     throwIfCancelled: () => undefined,
     classifyInputAnyLocale: () => ({ zone: "green" }),
@@ -50,7 +51,7 @@ describe("profile import reasoning guard", () => {
     const run = harness();
     run.getSource.mockResolvedValue({ frontmatter: { profile_context_import_id: "batch-1", _body_fallback: "Imported private story." } });
     await expect(run.produceProposals(input([sourceItem]), "run-1")).rejects.toBeInstanceOf(SourceImportManagedError);
-    expect(run.getSource).toHaveBeenCalledWith("owner-a", "s1");
+    expect(run.getSource).toHaveBeenCalledWith("owner-a", "s1", true);
     expect(run.callLlm).not.toHaveBeenCalled();
     expect(run.downloadRawClipping).not.toHaveBeenCalled();
   });
@@ -79,5 +80,33 @@ describe("profile import reasoning guard", () => {
     ]);
     expect(run.callLlm).toHaveBeenCalledTimes(1);
     expect(run.downloadRawClipping).toHaveBeenCalledWith("owner-a/source.md");
+  });
+
+  test("held record/source IDs cannot send cached titles or bodies alongside eligible items", async () => {
+    const run = harness();
+    run.getSource.mockImplementation(async (_owner: string, id: string, aiOnly: boolean) =>
+      id === "s1" && aiOnly ? null : { title: "Current source", frontmatter: { _body_fallback: "Current body" } });
+    run.getAiRecord.mockImplementation(async (_owner: string, id: string) =>
+      id === "held" ? null : { topic: "Current record", body: "Current record body" });
+    const held = { key: "record:held", refKind: "record", refId: "held", title: "HELD TITLE", body: "HELD BODY", tags: [] };
+    const ordinary = { ...held, key: "record:ordinary", refId: "ordinary", title: "STALE TITLE" };
+    const source = { ...sourceItem, title: "HELD SOURCE TITLE" };
+    const output = await run.produceProposals(input([held, source, ordinary]), "run-1");
+    expect(output).toHaveLength(1);
+    expect(run.callLlm).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(run.callLlm.mock.calls)).toContain("Current record body");
+    expect(JSON.stringify(run.callLlm.mock.calls)).not.toMatch(/HELD|STALE/);
+  });
+
+  test("an all-held batch has no model call or proposals", async () => {
+    const run = harness(); run.getSource.mockResolvedValue(null); run.getAiRecord.mockResolvedValue(null);
+    expect(await run.produceProposals(input([sourceItem]), "run-1")).toEqual([]);
+    expect(run.callLlm).not.toHaveBeenCalled(); expect(run.downloadRawClipping).not.toHaveBeenCalled();
+  });
+
+  test("a failed eligibility read cannot become a title-only model input", async () => {
+    const run = harness(); run.getSource.mockRejectedValue(new Error("unavailable"));
+    await expect(run.produceProposals(input([sourceItem]), "run-1")).rejects.toThrow("unavailable");
+    expect(run.callLlm).not.toHaveBeenCalled();
   });
 });

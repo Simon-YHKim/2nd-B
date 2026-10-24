@@ -106,7 +106,7 @@ export async function retrieveChatContext(
     // The kNN RPC returns metadata only; fetch the bodies for the survivors.
     fence();
     const pageQuery = supabase
-      .from("wiki_pages")
+      .from("wiki_pages_ai_eligible")
       .select("id, slug, title, body_md, frontmatter")
       .eq("user_id", userId)
       .in("id", neighbors.map((n) => n.id));

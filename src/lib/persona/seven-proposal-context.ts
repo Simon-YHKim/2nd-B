@@ -102,6 +102,7 @@ export async function buildSevenProposalContext(
     getSupabaseClient()
       .from("records")
       .select("id, prompt, body, created_at")
+      .eq("ai_hold", false)
       .eq("user_id", userId)
       .eq("kind", "audit_response")
       .eq("audit_period", period)

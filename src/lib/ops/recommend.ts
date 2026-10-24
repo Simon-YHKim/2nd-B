@@ -232,7 +232,7 @@ export async function recommendForDomain(input: OpsRecommendInput): Promise<OpsR
     // on-demand single-domain call below (self-correct for a partial brief).
   }
 
-  const snapshot = await exportUserWiki(input.userId, { bodyCharLimit: SNAPSHOT_CHAR_LIMIT });
+  const snapshot = await exportUserWiki(input.userId, { forAi: true, bodyCharLimit: SNAPSHOT_CHAR_LIMIT });
   // Deterministic, aggregate-only behavior signal (the user's own completion
   // ledger). Best-effort: "" on any read failure so it never blocks the run.
   // Passed as a TRUSTED fact line — it carries no third-party text to inject.
