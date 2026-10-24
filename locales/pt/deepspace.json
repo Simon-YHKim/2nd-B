@@ -1057,10 +1057,10 @@
     "untitled": "(sem título)",
     "pieceHere": "Guardado aqui",
     "pieceOpenHint": "Abre este registro.",
-    "briefingOpening": "Abrindo esta estrela…",
-    "briefingEmpty": "Ainda não há registros nesta estrela. Adicione um para começar o resumo.",
-    "briefingCountOne": "{{n}} registro nesta estrela, primeiro o mais recente.",
-    "briefingCount": "{{n}} registros nesta estrela, primeiro os mais recentes."
+    "briefingOpening": "Abrindo esta área…",
+    "briefingEmpty": "Ainda não há registros nesta área. Adicione um para começar o resumo.",
+    "briefingCountOne": "{{n}} registro nesta área, primeiro o mais recente.",
+    "briefingCount": "{{n}} registros nesta área, primeiro os mais recentes."
   },
   "onboarding": {
     "nextHint": "Vai para o próximo slide.",
