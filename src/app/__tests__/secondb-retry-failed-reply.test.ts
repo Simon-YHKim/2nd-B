@@ -85,7 +85,7 @@ describe("a reply that failed says which message it was for", () => {
     await chat.answer(new Error("timeout"));
     expect((chat.scope.setLimitRefused as jest.Mock).mock.calls).toEqual([]);
     expect(turns).toEqual([
-      { role: "user", text: "내일 일정 알려줘" },
+      { role: "user", persona: "secondb", text: "내일 일정 알려줘" },
       expect.objectContaining({ role: "secondb", synthetic: true, text: "replyFailed", retryText: "내일 일정 알려줘" }),
     ]);
   });
@@ -161,7 +161,7 @@ describe("trying again replaces the failed pair", () => {
 
     chat.send("내일 일정 알려줘", { failedIndex: 3 });
     // While the second attempt is out: the earlier turns, then the message once.
-    expect(turns).toEqual([...earlier(), { role: "user", text: "내일 일정 알려줘" }]);
+    expect(turns).toEqual([...earlier(), { role: "user", persona: "secondb", text: "내일 일정 알려줘" }]);
     expect(chat.calls[1]).toMatchObject({
       message: "내일 일정 알려줘",
       history: [{ role: "user", text: "안녕" }, { role: "assistant", text: "안녕하세요" }],
@@ -197,13 +197,31 @@ describe("trying again replaces the failed pair", () => {
     expect(turns[3]).toMatchObject({ synthetic: true, retryText: "내일 일정 알려줘" });
   });
 
+  test("retrying after a mode change stamps both replacement turns with the new send mode", async () => {
+    const turns: Props[] = earlier();
+    const chat = sender(turns);
+    chat.scope.rev2Persona = "meta";
+    chat.send("내일 일정 알려줘");
+    await chat.answer(new Error("offline"));
+    expect(turns.slice(2).map(turn => turn.persona)).toEqual(["meta", "meta"]);
+    chat.scope.rev2Persona = "twi";
+    chat.send("내일 일정 알려줘", { failedIndex: 3 });
+    expect(turns).toEqual([...earlier(), { role: "user", persona: "twi", text: "내일 일정 알려줘" }]);
+    expect(chat.calls[1]).toMatchObject({
+      personaHint: "twi", history: [{ role: "user", text: "안녕" }, { role: "assistant", text: "안녕하세요" }],
+    });
+    chat.scope.rev2Persona = "secondb";
+    await chat.answer(ok("내일은 일정이 없습니다."));
+    expect(turns.slice(2).map(turn => turn.persona)).toEqual(["twi", "twi"]);
+  });
+
   test("a first message that failed is retried from an empty history", async () => {
     const turns: Props[] = [];
     const chat = sender(turns);
     chat.send("안녕");
     await chat.answer(new Error("offline"));
     chat.send("안녕", { failedIndex: 1 });
-    expect(turns).toEqual([{ role: "user", text: "안녕" }]);
+    expect(turns).toEqual([{ role: "user", persona: "secondb", text: "안녕" }]);
     expect(chat.calls[1]).toMatchObject({ message: "안녕", history: [] });
     await chat.answer(ok("안녕하세요"));
     expect(turns).toHaveLength(2);
@@ -301,7 +319,7 @@ describe("two presses in a row, through the screen's own handlers", () => {
     press(1);
     press(1);
     expect(chat.sendChatMessage).toHaveBeenCalledTimes(2);
-    expect(turns).toEqual([{ role: "user", text: "질문" }]);
+    expect(turns).toEqual([{ role: "user", persona: "secondb", text: "질문" }]);
     await chat.answer(ok("답"));
     expect(turns).toHaveLength(2);
     expect(turns[1]).toMatchObject({ role: "secondb", text: "답" });
@@ -330,13 +348,18 @@ describe("the button under the failed line", () => {
     const anyStyle = new Proxy({}, { get: () => ({}) });
     const tree = execute(`(${map.getText(ast)})`, {
       React: { createElement: (type: string, props: Props | null, ...children: unknown[]) => ({ type, props: { ...props, children } }) },
+      Fragment: "Fragment", ChatModeLine: "ChatModeLine",
       View: "View", Pressable: "Pressable", Text: "Text", ChatMessageAvatar: "ChatMessageAvatar",
       ServiceConsentLink: "ServiceConsentLink", MdButton: "MdButton",
       turns, ds: anyStyle, userAvatar: null, userDisplayName: "나", lensAccent: "accent",
       getExchangeExpression: () => "A04", copyTurn: jest.fn(), chatDisplayText, sourceCitationDisplay, copyNotice: null,
       sendEnabled, retryableMessage, retryFailed, t: (key: string) => key,
     }) as Tree[];
-    const buttons = tree.map(message => {
+    const buttons = tree.map(fragment => {
+      const [line, message] = fragment.props.children as [Tree, Tree | null];
+      expect(fragment.type).toBe("Fragment");
+      expect(line.type).toBe("ChatModeLine");
+      if (message === null) return [];
       const column = (message.props.children as Tree[])[1]!;
       return (column.props.children as Array<Tree | null>).filter((child): child is Tree => child?.type === "MdButton");
     });
@@ -367,6 +390,7 @@ describe("the button under the failed line", () => {
     const asked: Props = { role: "user", text: "질문" };
     expect(counts([asked, { role: "secondb", text: "답" }])).toEqual([0, 0]);
     expect(counts([asked, { role: "secondb", text: "안내", safetyZone: "red" }])).toEqual([0, 0]);
+    expect(counts([asked, { role: "secondb", text: "안내", safetyZone: "red", crisisNotice: true }])).toEqual([0, 0]);
     expect(counts([asked, { role: "secondb", synthetic: true, text: "Limit reached" }])).toEqual([0, 0]);
     expect(counts([asked, { role: "secondb", synthetic: true, consentError: "paused", text: "x" }])).toEqual([0, 0]);
   });
