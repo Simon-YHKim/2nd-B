@@ -29,7 +29,7 @@ T65는 Q-45로 보류됐으며 지금 활성화의 무조건 선행 조건으로
 
 ## 구현 경계
 
-- [순수 함수](../../src/lib/chat/record-read.ts): 소유자·note/journal·현재 버전·hold 없음·건강 측정값 없음·양의 관련도·원문 전체 red 확인 → 관련도순·중복 제거·상위 N → 이메일/전화/숫자 계좌/IBAN 형태 가림 → Unicode 문자 600개. 난독화 의심 글도 제외한다. 정규식은 모든 형태의 개인정보를 알아보는 장치가 아니다.
+- [순수 함수](../../src/lib/chat/record-read.ts): 확인된 성인·소유자·note/journal·현재 버전·hold 없음·건강 측정값 없음·양의 관련도·원문 전체 red 확인 → 관련도순·중복 제거·상위 N → 이메일/전화/숫자 계좌/IBAN 형태 가림 → Unicode 문자 600개. 연령 미확인과 난독화 의심 글도 제외한다. 정규식은 모든 형태의 개인정보를 알아보는 장치가 아니다.
 - R의 실제 검색·랭킹은 구현하지 않았다. 입력 어댑터가 최신 소유권·버전·hold·측정값 정보를 확인해야 하며, 이 정보가 없으면 제외한다. 감사 모양은 UUID와 SHA-256 hex만 받는다. 해시 계산·감사 저장·제공자 전송은 하지 않는다.
 - [휴면 UI](../../src/components/consent/RecordReadConsent.tsx): 다섯 줄 튜플을 받는 카드와 설정 칸. 기본 플래그 `false`, 호출부 없음, 제출·설정은 비활성. 본문이 없으면 카드가 나오지 않는다. 완성된 동의 흐름으로 세지 않는다.
 - 다섯 locale 파일에 키 5개씩 추가. `consent` namespace의 기존 사람 검토 관문에 따라 ko/en만 고유 문구이고 es/pt/id는 EN 복사본이다. 번역 승인 전 이 관문을 완화하지 않는다. C7 키 짝은 맞는다.
@@ -88,14 +88,15 @@ SQL 하네스는 실제 가입/동의 마이그레이션 0031~0262 중 필요한
 
 ## 이번 검증 결과 (2026-10-24 KST)
 
-- 관련 Jest **11묶음 354개**, 요청 해시 snapshot **2개/12조합** 통과.
+- 관련 Jest **13묶음 441개**, 요청 해시 snapshot **2개/12조합** 통과.
 - PostgreSQL **18.3**, 새 폴더·`127.0.0.1:55584`·빈 DB에서 실제 동의 연쇄와 초안/회귀 통과.
   시험 후 서버를 종료했다. 운영 PostgreSQL/전체 스키마/실제 데이터 검증은 아니다.
-- 변이 **22/22 사멸**: Jest 14(스위치·소유자·hold·건강·버전·red·이메일·번호·600자·N·해시·UI OFF·includeRecords·프롬프트 문자),
+- 변이 **24/24 사멸**: Jest 16(스위치·소유자·hold·건강·버전·red·연령 확인·SQL CI 연결·이메일·번호·600자·N·해시·UI OFF·includeRecords·프롬프트 문자),
   SQL 8(빈 계약·tier·생년월일·신뢰 작성자·CAS·스냅샷 갱신·직접 OFF·서비스 동의).
   각 변이 후 원본 바이트를 복원했으며 이후 정상 시험도 다시 통과했다.
 - `tsc`, 변경 파일 ESLint, `check:constraints`, `check:erasure-registry`,
   `check:account-export-inventory`, `check:i18n`, `check:emdash`, `check:lexicon`,
   `check:safety-consent-locale`, `check:copy-endings`, `check:cycles`, `check:llm-boundary` 종료코드 0.
   C7 **4472키/5 locale**, 런타임 순환 **0**, 내보내기 누락/중복 **0**.
+- 새 초안은 `supabase-security-drafts` 목록에 등록했으며 SQL CI에서도 격리된 빈 DB에 실제 동의 연쇄·초안·회귀를 실행한다.
 - 전체 `verify`는 발주 지시대로 PR CI 몫이다. 렌더·폰·8081·실모델·운영 적용 검증은 실행하지 않았다.

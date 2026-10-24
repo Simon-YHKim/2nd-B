@@ -22,7 +22,7 @@ test.each([
 ])("masks contacts/accounts: %s", (input, expected) => expect(maskRecordBodyIdentifiers(input)).toBe(expected));
 
 test("masks before the cut and counts Unicode characters without splitting pairs", () => {
-  const results = selectRecordBodyExcerpts([candidate({ body: "😀".repeat(595) + "010-1234-5678" })], "owner", 1);
+  const results = selectRecordBodyExcerpts([candidate({ body: "😀".repeat(595) + "010-1234-5678" })], "owner", 1, false);
   expect(Array.from(results[0].body)).toHaveLength(600);
   expect(results[0].body).toBe("😀".repeat(595) + "[numb");
   expect(results[0].body).not.toContain("010");
@@ -36,19 +36,23 @@ test.each([
   { body: "지금 죽고 싶어." }, { body: "I want.to die." },
   { aiHold: undefined }, { supersededBy: undefined }, { containsHealthMeasurements: undefined },
 ])("excludes unsafe/unknown evidence %j", patch => {
-  expect(selectRecordBodyExcerpts([candidate(patch as Partial<RecordBodyCandidate>)], "owner", 3)).toEqual([]);
+  expect(selectRecordBodyExcerpts([candidate(patch as Partial<RecordBodyCandidate>)], "owner", 3, false)).toEqual([]);
+});
+
+test.each([true, null, undefined])("excludes minor or unresolved age %s", minor => {
+  expect(selectRecordBodyExcerpts([candidate()], "owner", 1, minor as boolean | null)).toEqual([]);
 });
 
 test("filters before ranking/limit, deduplicates IDs and preserves inputs", () => {
   const records = [candidate({ aiHold: true, relevance: 20 }), candidate({ id: "b", relevance: 2 }),
     candidate({ id: "c", relevance: 3 }), candidate({ id: "c", relevance: 1 }), candidate({ id: "a", relevance: 2 })];
   const before = JSON.stringify(records);
-  expect(selectRecordBodyExcerpts(records, "owner", 3).map(r => r.id)).toEqual(["c", "a", "b"]);
+  expect(selectRecordBodyExcerpts(records, "owner", 3, false).map(r => r.id)).toEqual(["c", "a", "b"]);
   expect(JSON.stringify(records)).toBe(before);
 });
 
 test.each([0, -1, 0.5, Infinity, NaN])("no implicit N when limit is %s", limit => {
-  expect(selectRecordBodyExcerpts([candidate()], "owner", limit)).toEqual([]);
+  expect(selectRecordBodyExcerpts([candidate()], "owner", limit, false)).toEqual([]);
 });
 
 test("audit contains only UUID and validated SHA-256 hex", () => {

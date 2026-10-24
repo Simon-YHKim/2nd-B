@@ -38,10 +38,10 @@ export function maskRecordBodyIdentifiers(body: string): string {
 }
 
 export function selectRecordBodyExcerpts(
-  candidates: readonly RecordBodyCandidate[], userId: string, limit: number,
+  candidates: readonly RecordBodyCandidate[], userId: string, limit: number, isMinor: boolean | null,
 ): RecordBodyExcerpt[] {
   // N is deliberately a caller input: the decision says top N; N<=5 is only a legal draft recommendation.
-  if (!userId || !Number.isSafeInteger(limit) || limit <= 0) return [];
+  if (isMinor !== false || !userId || !Number.isSafeInteger(limit) || limit <= 0) return [];
   const ids = new Set<string>();
   return candidates.filter(record =>
     record.userId === userId && typeof record.id === "string" && record.id.length > 0 &&
@@ -49,7 +49,7 @@ export function selectRecordBodyExcerpts(
     record.aiHold === false && record.supersededBy === null && record.containsHealthMeasurements === false &&
     Number.isFinite(record.relevance) && record.relevance > 0 &&
     typeof record.body === "string" && record.body.trim().length > 0 &&
-    classifyInputAnyLocale(record.body, "en", { minor: false }).zone !== "red" &&
+    classifyInputAnyLocale(record.body, "en", { minor: isMinor }).zone !== "red" &&
     !hasCrisisObfuscation(record.body),
   ).sort((a, b) => b.relevance - a.relevance || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .filter(record => { if (ids.has(record.id)) return false; ids.add(record.id); return true; })

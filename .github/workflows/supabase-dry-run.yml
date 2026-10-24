@@ -10,6 +10,7 @@ on:
       - "scripts/check-reward-ssv-db.sh"
       - "scripts/test-polaris-sql.mjs"
       - "scripts/test-signup-consent-sql.mjs"
+      - "scripts/test-record-body-consent-sql.mjs"
       - "scripts/test-unconfirmed-signup-cleanup.py"
       - "scripts/test-weather-sql.mjs"
       - "scripts/test-weather-consent-admission.mjs"
@@ -109,6 +110,15 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: python3 scripts/test-unconfirmed-signup-cleanup.py 5432 t07_cleanup_test_ci
+      - name: Exercise dormant T10 record body consent draft
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE record_read_local LOGIN SUPERUSER PASSWORD 'postgres';
+          CREATE DATABASE record_read_test_ci OWNER record_read_local;
+          SQL
+          node scripts/test-record-body-consent-sql.mjs 5432 record_read_local record_read_test_ci
       - name: Exercise weather location consent and adult lock
         env:
           PGPASSWORD: postgres

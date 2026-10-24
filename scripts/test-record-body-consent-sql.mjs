@@ -37,7 +37,9 @@ const sql = `${base}\nBEGIN;
   ${read("db/migration-drafts/UNNUMBERED_record_body_consent.sql")}
   COMMIT;
   ${read("db/migration-drafts/tests/record-body-consent.sql")}`;
-const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^PG/i.test(key)));
+// Only a password for the explicitly selected loopback fixture may cross the boundary.
+// Host, service, options, user and database defaults remain ignored.
+const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => key === "PGPASSWORD" || !/^PG/i.test(key)));
 const result = spawnSync("psql", ["-X", "--no-password", "-h", "127.0.0.1", "-p", port,
   "-U", user, "-d", database, "-v", "ON_ERROR_STOP=1"], {
   input: sql, encoding: "utf8", env, windowsHide: true, timeout: 60_000,
