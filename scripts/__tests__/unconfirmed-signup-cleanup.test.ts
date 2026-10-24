@@ -8,6 +8,7 @@ describe("T07 unconfirmed signup cleanup deployment contract", () => {
   test("stays an unnumbered draft with a real confirmation issuance preflight", () => {
     expect(sql).toContain("INACTIVE DRAFT");
     expect(sql).toContain("attname = 'confirmation_sent_at'");
+    expect(sql).toContain("attname = 'recovery_sent_at'");
     expect(sql).toContain("no created_at fallback");
     expect(sql).not.toMatch(/CREATE TABLE/i);
   });
@@ -19,11 +20,11 @@ describe("T07 unconfirmed signup cleanup deployment contract", () => {
     expect(sql).not.toMatch(/DELETE FROM public\./i);
   });
 
-  test("conditionally registers one daily postgres-owned cron using the existing pattern", () => {
+  test("conditionally registers one hourly postgres-owned cron using the existing pattern", () => {
     expect(sql).toContain("extname = 'pg_cron'");
     expect(sql).toContain("to_regprocedure('cron.schedule(text,text,text)') IS NOT NULL");
     expect(sql).toContain("EXECUTE 'SELECT cron.unschedule($1)' USING v_job_id");
-    expect(sql).toContain("'purge-unconfirmed-signups', '37 14 * * *'");
+    expect(sql).toContain("'purge-unconfirmed-signups', '37 * * * *'");
     expect(sql).toContain("SELECT * FROM public.purge_unconfirmed_signups(100);");
     expect(sql).toContain("IF current_user <> 'postgres'");
   });
@@ -43,12 +44,45 @@ describe("T07 unconfirmed signup cleanup deployment contract", () => {
     expect(sql).toContain("UPDATE auth.identities\nSET identity_data");
   });
 
-  test("keeps the prescribed Korean policy sentence and mirrors without changing versions", () => {
+  test("defers the policy sentence in all three published copies until the separate publication PR", () => {
     const sentence = "가입을 시작했으나 이메일 확인을 마치지 않은 경우, 입력한 이메일·생년월일 등은 확인 코드가 만료된 날부터 1일 안에 파기합니다.";
     for (const name of ["docs/legal/privacy-policy.md", "src/lib/legal/legal-documents.ts", "public/legal/privacy.html"]) {
-      expect(read(name)).toContain(sentence);
+      expect(read(name)).not.toContain(sentence);
     }
-    expect(read("docs/legal/privacy-policy.md")).toContain("_시행일: 2026-10-07 · 최종 개정: 2026-10-07_");
+    const runbook = read("db/migration-drafts/T07-unconfirmed-signup-cleanup.md");
+    expect(runbook).toContain(sentence);
+    for (const gate of ["do not merge before NNNN applied", "PRIVACY_POLICY_VERSION", "제12조", "첫 실행"]) {
+      expect(runbook).toContain(gate);
+    }
+    expect(sql).toContain("do not merge before NNNN applied");
+    expect(sql).toContain("Before numbering, the coordinator must confirm production Auth OTP");
+    expect(read("supabase/config.toml")).toMatch(/^otp_expiry = 600$/m);
+  });
+
+  test("hourly scheduling with a 22-hour cutoff fits both elapsed and KST calendar deadlines", () => {
+    const hours = Number(sql.match(/v_cutoff[^;]*- interval '(\d+) hours'/)?.[1]);
+    const cron = sql.match(/USING 'purge-unconfirmed-signups', '([^']+)'/)?.[1].split(" ");
+    expect(hours).toBe(22);
+    expect(cron).toEqual(["37", "*", "*", "*", "*"]);
+    // Every expiry minute over two KST days, including midnight on either day.
+    const start = Date.parse("2026-10-24T00:00:00+09:00");
+    const minute = 60_000, hour = 60 * minute, day = 24 * hour;
+    for (let offset = 0; offset < 2 * day; offset += minute) {
+      const expiry = start + offset;
+      const eligible = expiry + hours * hour;
+      const run = Math.ceil((eligible - Number(cron![0]) * minute) / hour) * hour + Number(cron![0]) * minute;
+      expect(run - expiry).toBeGreaterThanOrEqual(22 * hour);
+      expect(run - expiry).toBeLessThan(23 * hour);
+      const nextDayEnd = Math.floor((expiry + 9 * hour) / day) * day + 2 * day - 9 * hour;
+      expect(run).toBeLessThan(nextDayEnd);
+    }
+  });
+
+  test("reports aggregate counts and warns about row failures without exposing row data", () => {
+    expect(sql).toContain("RETURNS TABLE(deleted integer, skipped integer, failed integer)");
+    expect(sql).toContain("RAISE LOG 'T07 cleanup: deleted=% skipped=% failed=%', deleted, skipped, failed;");
+    expect(sql).toContain("IF failed > 0 THEN\n    RAISE WARNING");
+    expect(sql).not.toMatch(/RAISE (?:LOG|WARNING)[^;]*(?:SQLERRM|v_id|email|v_birth)/);
   });
 
   test("runs executable SQL and semantic mutations in the no-cron CI lane", () => {

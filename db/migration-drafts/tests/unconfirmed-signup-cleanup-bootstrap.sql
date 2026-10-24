@@ -11,6 +11,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, au
 CREATE TABLE auth.users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), email text,
   email_confirmed_at timestamptz, confirmation_sent_at timestamptz,
+  recovery_sent_at timestamptz,
   raw_user_meta_data jsonb NOT NULL DEFAULT '{}',
   raw_app_meta_data jsonb NOT NULL DEFAULT '{"provider":"email","providers":["email"]}',
   phone text, phone_confirmed_at timestamptz, last_sign_in_at timestamptz,
@@ -31,10 +32,12 @@ CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT NULL::uuid $$;
 CREATE TABLE public.users (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE, email text UNIQUE,
   birth_date date NOT NULL, judge_mode boolean DEFAULT false, locale text,
-  display_name text, account_status text DEFAULT 'active', minor_tier text DEFAULT 'adult'
+  display_name text, account_status text DEFAULT 'active', minor_tier text DEFAULT 'adult',
+  privacy_prefs jsonb DEFAULT '{}'
 );
 -- Real server gates and signup provisioning, not successful mock functions.
 \ir ../../migrations/0030_server_age_gate.sql
+\ir ../../migrations/0050_health_consent_default.sql
 \ir ../../migrations/0031_consent_records.sql
 \ir ../../migrations/0130_safety_notice_ack.sql
 \ir ../../migrations/0148_verified_email_signup_consent_ledger.sql

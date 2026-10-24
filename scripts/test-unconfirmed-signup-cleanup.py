@@ -25,7 +25,7 @@ def run(sql, *, database=DATABASE, success=True):
     result = subprocess.run(
         ["psql", "-X", "--no-password", "-h", "127.0.0.1", "-p", PORT,
          "-U", "postgres", "-d", database, "-v", "ON_ERROR_STOP=1", "-At"],
-        input="\\set VERBOSITY verbose\nSET statement_timeout='20s';\n" + sql,
+        input="\\set VERBOSITY verbose\nSET statement_timeout='20s'; SET client_min_messages='log';\n" + sql,
         text=True, encoding="utf-8", capture_output=True, env=ENV, timeout=60,
     )
     if success and result.returncode:
@@ -46,14 +46,37 @@ def require_failure(sql, needle):
 
 run(f'CREATE DATABASE "{DATABASE}";', database="postgres")
 run(expand(FIXTURES / "unconfirmed-signup-cleanup-bootstrap.sql"))
+signup_snapshot_sql = """SELECT p.oid::regprocedure::text, pg_get_functiondef(p.oid), p.proacl::text
+  FROM pg_proc p WHERE p.oid IN ('public.enforce_user_age_tier()'::regprocedure,
+    'public.complete_verified_email_signup()'::regprocedure,
+    'public.complete_profile_signup_consent(text,text,text,text,boolean,boolean,boolean,boolean,boolean,boolean)'::regprocedure)
+  ORDER BY p.oid::regprocedure::text;"""
+signup_before = run(signup_snapshot_sql).stdout
 installer = DRAFT.read_text(encoding="utf-8")
-behavior = (FIXTURES / "unconfirmed-signup-cleanup.sql").read_text(encoding="utf-8")
+behavior = expand(FIXTURES / "unconfirmed-signup-cleanup.sql")
 # PostgreSQL rolls back failed installations in these explicit transactions.
 require_failure("BEGIN; ALTER TABLE auth.users DROP COLUMN confirmation_sent_at;\n" + installer,
                 "requires auth.users.confirmation_sent_at")
+require_failure("BEGIN; ALTER TABLE auth.users DROP COLUMN recovery_sent_at;\n" + installer,
+                "requires auth.users.recovery_sent_at")
+require_failure("BEGIN; ALTER FUNCTION public.enforce_user_age_tier() SET timezone='Europe/Paris';\n" + installer,
+                "unexpected signup timezone override")
+require_failure("BEGIN; ALTER FUNCTION public.enforce_user_age_tier() SET timezone='Asia/Seoul';\n" + installer,
+                "unexpected signup timezone override")
 run("BEGIN;\n" + installer + "\nCOMMIT;")
 run("BEGIN;\n" + installer + "\nCOMMIT;")
-run(behavior)
+
+
+def assert_diagnostics(result):
+    if not re.search(r"WARNING: [^\n]*T07 cleanup: deleted=1 skipped=1 failed=1; retry next run", result.stderr):
+        raise AssertionError("T07_DIAGNOSTICS: missing failure WARNING counts")
+    if not re.search(r"LOG: [^\n]*T07 cleanup: deleted=1 skipped=1 failed=1", result.stderr):
+        raise AssertionError("T07_DIAGNOSTICS: missing execution LOG counts")
+    if "synthetic deletion failure" in result.stderr or "fixture-" in result.stderr:
+        raise AssertionError("T07_DIAGNOSTICS: row or exception data leaked")
+
+
+assert_diagnostics(run(behavior))
 print("PASS: behavior, private ACL, real age gate, no cron, installer twice, missing column refusal", flush=True)
 
 # Every mutant is installed in a transaction. Only the suite's P0707 semantic
@@ -62,7 +85,9 @@ print("PASS: behavior, private ACL, real age gate, no cron, installer twice, mis
 mutations = [
     ("confirmed", "a.email_confirmed_at IS NULL", "true"),
     ("issuance threshold", "interval '600 seconds'", "interval '0 seconds'"),
-    ("retention day", "interval '1 day'", "interval '2 days'"),
+    ("retention 22 hours", "interval '22 hours'", "interval '1 day'"),
+    ("recovery clock", "AND (a.recovery_sent_at IS NULL OR a.recovery_sent_at <= $1)", ""),
+    ("recovery inclusive", "a.recovery_sent_at <= $1", "a.recovery_sent_at < $1"),
     ("inclusive boundary", "a.confirmation_sent_at <= $1", "a.confirmation_sent_at < $1"),
     ("OAuth identity", "i.provider IS DISTINCT FROM 'email'", "false"),
     ("OAuth metadata", "AND a.raw_app_meta_data -> 'providers' = '[\"email\"]'::jsonb", ""),
@@ -76,6 +101,14 @@ mutations = [
     ("identity DOB", "NEW.identity_data := public.scrub_under14_signup_birth_date(NEW.identity_data);", "NULL;"),
     ("14 boundary", "interval '14 years'", "interval '15 years'"),
     ("private ACL", "-- postgres (owner) alone", "GRANT EXECUTE ON FUNCTION public.purge_unconfirmed_signups(integer) TO authenticated;\n-- postgres (owner) alone"),
+    ("KST scrubber", "SET timezone = 'Asia/Seoul'\nAS $$", "SET timezone = 'UTC'\nAS $$"),
+    ("KST age gate", "ALTER FUNCTION public.enforce_user_age_tier() SET timezone = 'Asia/Seoul';",
+     "ALTER FUNCTION public.enforce_user_age_tier() RESET timezone;"),
+    ("KST confirmation", "ALTER FUNCTION public.complete_verified_email_signup() SET timezone = 'Asia/Seoul';",
+     "ALTER FUNCTION public.complete_verified_email_signup() RESET timezone;"),
+    ("KST profile completion", "  SET timezone = 'Asia/Seoul';", "  RESET timezone;"),
+    ("failed count", "failed := failed + 1;", "failed := failed;"),
+    ("skipped count", "skipped := skipped + (1 - v_count);", "skipped := skipped;"),
 ]
 for label, before, after in mutations:
     if installer.count(before) != 1:
@@ -87,8 +120,29 @@ for label, before, after in mutations:
     print("KILLED: " + label, flush=True)
 run(behavior)
 print(f"PASS: {len(mutations)}/{len(mutations)} semantic SQL mutants killed; real SQL restored", flush=True)
+for label, before, after in [
+    ("failure warning", "RAISE WARNING 'T07 cleanup:", "RAISE NOTICE 'T07 cleanup:"),
+    ("execution counts", "RAISE LOG 'T07 cleanup: deleted=% skipped=% failed=%', deleted, skipped, failed;", "NULL;"),
+]:
+    if installer.count(before) != 1:
+        raise RuntimeError("Mutation anchor drift: " + label)
+    result = run("BEGIN;\n" + installer.replace(before, after) + "\n" + probe + "\nROLLBACK;")
+    try:
+        assert_diagnostics(result)
+    except AssertionError as error:
+        if not str(error).startswith("T07_DIAGNOSTICS: missing"):
+            raise
+        print("KILLED diagnostics: " + label, flush=True)
+    else:
+        raise RuntimeError("Diagnostic mutant survived: " + label)
+assert_diagnostics(run(behavior))
+print("PASS: 2/2 diagnostic mutants killed; counts and WARNING restored", flush=True)
 down = (ROOT / "db/migration-drafts/rollback/UNNUMBERED_unconfirmed_signup_cleanup_down.sql").read_text(encoding="utf-8")
+require_failure("BEGIN; ALTER FUNCTION public.enforce_user_age_tier() SET timezone='Europe/Paris';\n" + down,
+                "down refuses unexpected signup timezone override")
 run("BEGIN;\n" + down + "\nCOMMIT;")
+if run(signup_snapshot_sql).stdout != signup_before:
+    raise RuntimeError("Rollback changed existing signup functions/config/ACL")
 if "t" not in run("SELECT to_regprocedure('public.purge_unconfirmed_signups(integer)') IS NULL;").stdout.splitlines():
     raise RuntimeError("Rollback left the cleanup function installed")
 run("BEGIN;\n" + installer + "\nCOMMIT;")
@@ -160,6 +214,7 @@ first_writers = [
     ("new OAuth", f"INSERT INTO auth.identities(user_id,provider) VALUES('{race_id}','apple')", "0|0|0"),
     ("existing identity", f"UPDATE auth.identities SET provider='apple' WHERE user_id='{race_id}'", "0|0|1"),
     ("profile", f"INSERT INTO public.users(id,email,birth_date) VALUES('{race_id}','race@example.invalid','1990-01-01')", "0|0|0"),
+    ("recovery/magic link", f"UPDATE auth.users SET recovery_sent_at=now() WHERE id='{race_id}'", "0|0|0"),
 ]
 for label, writer, expected in first_writers:
     race_fixture()
@@ -214,4 +269,4 @@ for label, writer in [("confirmation", first_writers[0][1]), ("new OAuth", first
     finally:
         follower.close()
         leader.close()
-print("PASS: 7 concurrency schedules", flush=True)
+print("PASS: 8 concurrency schedules", flush=True)
