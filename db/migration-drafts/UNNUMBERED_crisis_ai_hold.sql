@@ -1,9 +1,9 @@
 -- D4 (2026-10-07 01:20): keep the person's record, skip later AI processing.
--- Unnumbered preparation only. Do not apply to production or activate readers
--- until the complete reader inventory and rollout in the accompanying design
--- are verified. 0225 and 0263 must already be applied. Applying this SQL alone
--- immediately holds known RED records and clears their vectors, including new
--- inserts from old apps. No UI change. This file is NOT a full D4 rollout.
+-- Standalone application is D4's server half: held-record vector cleanup and
+-- AI-only views. 0225 and 0263 must already be applied. Known RED/interview-held
+-- records are held immediately, including new writes from old apps; no dormant
+-- switch. Reader/writer wiring and UI are separate PRs, not a full D4 rollout.
+-- No screen code changes; held records leave vector search/related results.
 -- No raw text scan, external request, new content copy, or unhold operation.
 SET LOCAL lock_timeout = '10s';
 
@@ -139,6 +139,8 @@ CREATE TRIGGER guard_wiki_page_ai_hold BEFORE INSERT OR UPDATE ON public.wiki_pa
 -- Existing authoritative record flags, not a new interpretation of raw text.
 -- No source/page backfill is inferred from tags, titles, or prose. Also repair
 -- residual vectors left on already-held rows by an earlier draft + 0263.
+-- The normal updated_at trigger remains active: changed rows get the backfill
+-- transaction time. Do not bypass ordinary writes or the 0263 consent guards.
 UPDATE public.records SET ai_hold = true
 WHERE (ai_hold OR interview_ai_hold OR ai_followup ->> 'zone' = 'red')
   AND (NOT ai_hold OR embedding IS NOT NULL OR embedding_model IS NOT NULL);
@@ -146,15 +148,25 @@ WHERE (ai_hold OR interview_ai_hold OR ai_followup ->> 'zone' = 'red')
 -- These views are for future AI readers only. The user's own detail/export
 -- readers must keep using the original tables. Missing views must fail closed;
 -- there is no fallback to an unfiltered table.
+-- Explicit AI projections only; system_tags and unrelated columns must not
+-- become view dependencies (0218 rollback drops records.system_tags).
+-- Reader/column evidence and the remaining tag-aware wiring are in the design.
 CREATE OR REPLACE VIEW public.records_ai_eligible
 WITH (security_invoker = true, security_barrier = true) AS
-SELECT r.* FROM public.records r WHERE NOT r.ai_hold AND NOT r.interview_ai_hold;
+SELECT r.id, r.user_id, r.kind, r.topic, r.body, r.summary, r.structured,
+       r.prompt, r.audit_period, r.tags, r.ai_followup, r.created_at,
+       r.embedding, r.embedding_model
+FROM public.records r WHERE NOT r.ai_hold AND NOT r.interview_ai_hold;
 CREATE OR REPLACE VIEW public.sources_ai_eligible
 WITH (security_invoker = true, security_barrier = true) AS
-SELECT s.* FROM public.sources s WHERE NOT s.ai_hold;
+SELECT s.id, s.user_id, s.kind, s.title, s.source_url, s.storage_path,
+       s.frontmatter, s.tags, s.ingested, s.captured_at
+FROM public.sources s WHERE NOT s.ai_hold;
 CREATE OR REPLACE VIEW public.wiki_pages_ai_eligible
 WITH (security_invoker = true, security_barrier = true) AS
-SELECT w.* FROM public.wiki_pages w
+SELECT w.id, w.user_id, w.slug, w.kind, w.title, w.body_md, w.frontmatter,
+       w.tags, w.source_id, w.created_at, w.updated_at, w.embedding, w.embedding_model
+FROM public.wiki_pages w
 WHERE NOT w.ai_hold
   AND (w.source_id IS NULL OR EXISTS (
     SELECT 1 FROM public.sources s

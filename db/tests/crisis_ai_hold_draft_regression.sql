@@ -236,6 +236,21 @@ SELECT pg_temp.assert_true((SELECT count(*) = 4 AND bool_and(
   FROM consent_triggers_before b JOIN pg_trigger t USING (oid)), 'all four 0263 trigger identities definitions and enablement unchanged');
 SELECT pg_temp.assert_true((SELECT NOT prosecdef AND proconfig @> ARRAY['search_path=""']
   FROM pg_proc WHERE oid = 'public.guard_record_ai_hold_embedding()'::regprocedure), 'final cleanup adds no definer privilege');
+
+-- Exercise the real historical down file while all three AI views are live.
+-- SELECT r.* used to pin system_tags and fail here with SQLSTATE 2BP01.
+\ir ../migrations/rollback/0218_down.sql
+SELECT pg_temp.assert_true(NOT EXISTS (SELECT 1 FROM pg_attribute
+  WHERE attrelid = 'public.records'::regclass AND attname = 'system_tags' AND NOT attisdropped),
+  '0218 rollback drops system_tags with draft installed');
+SELECT pg_temp.assert_true((SELECT count(*) = 3 FROM pg_class
+  WHERE oid IN ('public.records_ai_eligible'::regclass, 'public.sources_ai_eligible'::regclass,
+    'public.wiki_pages_ai_eligible'::regclass)), '0218 rollback retains all AI views');
+SELECT pg_temp.assert_true((SELECT count(*) = 1 FROM public.records_ai_eligible),
+  '0218 rollback preserves record eligibility');
+SELECT pg_temp.assert_true((SELECT body = 'upserted original' AND ai_hold
+  AND embedding IS NULL AND embedding_model IS NULL FROM public.records
+  WHERE id = '28000000-0000-4000-8000-000000000043'), '0218 rollback preserves held original and empty pair');
 ROLLBACK;
 
 -- Run the entire existing 0263 suite with the draft installed, including adult,
@@ -244,6 +259,11 @@ ROLLBACK;
 BEGIN;
 \ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql
 \ir records_embedding_consent_regression.sql
+
+-- Also retain 0218's full hand-move / down / reapply behavior under the draft.
+BEGIN;
+\ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql
+\ir records_system_tags_regression.sql
 
 DO $rollback_verified$
 BEGIN

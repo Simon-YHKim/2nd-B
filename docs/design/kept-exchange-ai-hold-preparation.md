@@ -95,7 +95,7 @@ Execution sources, hashes and JSON are in the T28 preparation handoff evidence.
 6. Preserve server-owned `interview_ai_hold`, 0225 late RED/40001 transaction retry
    without model retry, and explicit r0 versus T36 rule versioning. No transcript
    activation, Q13 expansion, original-text deletion, coverage rollback or model
-   reclassification is authorized here. #2535 remains inactive and unnumbered;
+   reclassification is authorized here. #2535 is unnumbered; standalone application immediately supplies D4's server half (held-record vector cleanup and AI-only views), with reader/writer wiring and UI in separate PRs;
    #2440 BLOCK3 and frozen/failed candidates remain closed.
 
 Tests use the actual registry, account/content boundaries and formatters with

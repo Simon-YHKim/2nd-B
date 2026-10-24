@@ -9,8 +9,10 @@
 준비다. 초안 검토와 운영 적용은 별도다. 앱 읽기 전환, 저장 호출 연결, 표시, 파생물·경합
 처리를 이 SQL만으로 완료했다고 판단하지 않는다.
 
-**2026-10-24 단독 적용 판단: D4와 같다.** 앱 연결 없이도 서버가 보호를 시작함 · 화면 변화
-없음 · 사용자 원문 · 내보내기 보존. 여기서 시작하는 범위는 알려진 red·인터뷰 보류의
+**2026-10-24 단독 적용 판단: D4의 서버 절반이다.** 보류 행 벡터 비움·AI 전용 뷰가 적용 즉시
+동작한다. 화면 코드 변경은 없고, 보류 행은 연결된 기록·의미 검색 결과에서 빠진다.
+사용자 원문과 내보내기 대상 행은 보존한다. 내보내기에는 아래 세 열이 추가된다.
+여기서 시작하는 범위는 알려진 red·인터뷰 보류의
 영구 상태와 벡터 제거다. 기존 행 backfill과 새 INSERT/UPDATE가 즉시 달라진다. 휴면
 스위치는 두지 않는다. 일반 본문 AI 읽기와 모든 파생물까지 자동 차단한다는 뜻은 아니다.
 
@@ -59,6 +61,10 @@ PostgreSQL의 같은 종류 BEFORE 트리거는 이름 순서로 실행되며, `
 
 재적용은 이미 `ai_hold=true`인데 이전 초안 때문에 벡터가 남은 행도 정리한다. 기존 보류와
 원문은 유지한다. 비보류 행이나 이미 NULL인 보류 행을 불필요하게 갱신하지 않는다.
+백필로 바뀐 records 행의 `updated_at`은 기존 `trg_records_updated_at`에 의해 적용
+트랜잭션 시각이 된다. `SET updated_at = updated_at`으로는 BEFORE 트리거를 막지 못한다.
+일회성 시각 보존을 위해 트리거를 끄거나 쓰기 우회 장치를 추가하지 않는다. 원문 편집 시각을
+그대로 보존한다고 주장하지 않으며, 이 값은 계정 내보내기에도 반영된다.
 
 records는 기존 `ai_followup.zone=red`와 `interview_ai_hold`를 상속한다. 기존의 이 두
 표시만 초기 보류로 옮기며, 원문을 읽어 새 모델 분류를 하거나 태그로 추측하지 않는다.
@@ -69,6 +75,41 @@ AI 전용 읽기 뷰 셋은 `security_invoker`와 `security_barrier`를 사용�
 호출자 권한으로 따른다. anon에게 열지 않고, authenticated·service_role에는 SELECT만
 준다. 위키 뷰는 연결된 source가 같은 소유자의 보류되지 않은 행인지도 확인한다.
 source 페이지를 다른 대상에 붙이거나 연결을 지워 이미 알게 된 보류를 해제할 수 없다.
+
+### AI 뷰의 명시적 열과 근거
+
+`SELECT *`는 세 표의 관계없는 열까지 의존하므로 쓰지 않는다. 특히 `system_tags`를
+빼서 `rollback/0218_down.sql`의 열 삭제가 막히지 않게 한다. 뷰는 원본 행 타입의 대체물이
+아니다. 아래는 현재 읽기 코드에서 확인한 투영이며 실제 호출부 전환은 별도 PR이다.
+
+| 뷰 | 열 | 현재 읽기 근거 |
+| --- | --- | --- |
+| `records_ai_eligible` | `id, user_id, kind, topic, body, summary, structured, prompt, audit_period, tags, ai_followup, created_at, embedding, embedding_model` | `records/load-structured.ts`, `records/records-embeddings.ts`, `persona/build.ts`, `persona/seven-proposal-context.ts`, `persona/role-cards.ts`, `dashboard/load.ts`, `wiki/context-pack.ts`; `0071_records_pgvector.sql`의 `match_records` 결과·필터·벡터 정렬 |
+| `sources_ai_eligible` | `id, user_id, kind, title, source_url, storage_path, frontmatter, tags, ingested, captured_at` | `wiki/queries.ts`의 소유·수집 상태 필터와 시간 정렬; `wiki/phase1.ts`, `phase2.ts`, `promote-pending.ts`, `export.ts`의 본문 다운로드·분류·승격·문맥 입력 |
+| `wiki_pages_ai_eligible` | `id, user_id, slug, kind, title, body_md, frontmatter, tags, source_id, created_at, updated_at, embedding, embedding_model` | `wiki/queries.ts`의 소유·종류·출처·시간 조회; `wiki/export.ts`, `embeddings.ts`, `materialize.ts`; `0047_wiki_pgvector.sql`의 `match_wiki_pages` 결과·필터·벡터 정렬 |
+
+`system_tags`를 쓰는 northstar·build·role-cards·export 등은 뷰 이름만 바꾸면 안 된다.
+연결 PR에서 용도별 태그 계약과 보류 재확인을 별도로 검증해야 하며, 빠진 열을 얻으려고
+AI 본문 읽기를 원본 표로 되돌리지 않는다. 명시한 열 자체의 타입 변경은 여전히 뷰 의존성을
+고려해야 한다. 모든 미래 스키마 변경을 자유롭게 만든다는 뜻은 아니다.
+
+### 계정 내보내기와 Q-H1
+
+`export-account`의 `records`, `sources`, `wiki_pages`는 열 목록 없이 `select('*')`를
+사용한다. 초안 적용 즉시 각 행에 `ai_hold`가 추가되며, 보류 원문도 기존처럼 내보낸다.
+내보내기 범위·동의·원문을 바꾸지 않는다. 단독 적용의 records 초기 값은 이미 내보내던
+`interview_ai_hold`와 `ai_followup.zone=red`에서 오며 sources·wiki_pages에는 백필이 없다.
+일반 중단·저장 실패로 켜는 표식은 아니다. 향후 쓰기는 알려진 위기 판정에서만 켜도록
+연결해야 한다. SQL 자체는 판정의 진위를 검증하지 않고 소유자의 명시적 true도 받는다.
+위키는 보류 부모를 상속하며 부모가 없거나 다른 소유자일 때도 보수적으로 true가 된다.
+따라서 true를 위기 판정의 증명으로 읽지 않는다.
+
+**[COUNSEL TO CONFIRM] Q-H1**: 세 `ai_hold` 열을 기존 `records.interview_ai_hold` 및
+인터뷰 표식과 함께 [DPIA 6.1.3](../legal/DPIA-2ndB-minors-draft.md)에 기록한다.
+단독 적용은 이미 내보내던 판정값을 재표현하며 새 분류를 하지 않는다. 향후 로컬 판정·
+source 쓰기와 위키 상속으로 생길 값은 연결 PR에서 다시 검토한다. 표 분류 래칫은 열을
+검사하지 않으므로 세 열의 문서화와 wildcard 계약은 `account-export-inventory.test.ts`가
+별도로 고정한다. 표 수·분류 수는 그대로다.
 
 없는 뷰·조회 실패를 원본 테이블로 우회하지 않는다. 새 표·원문 복사·해시·로그는 없으므로
 삭제 수명은 기존 세 테이블을 따른다. 보류 열과 장치를 지우는 down migration은 제공하지
@@ -109,11 +150,14 @@ AI 요청이 시작된 뒤 다른 경로에서 보류가 생기는 경우는 DB 
    보류 유지·원문 보존·초기 승계·권한·소유권·벡터 차단·늦은 부모 보류·재적용을 확인한다.
    0263 함수·트리거 정의/ACL/활성 상태 불변과 기존 0263 SQL 회귀 전체를 초안 설치 후
    다시 검사한다. 마지막 정리 제거·순서 역전·비보류까지 비움·기존 보류 backfill 누락은
-   실패해야 한다. 트랜잭션 되돌림은 시험용이며 운영 down이 아니다.
-2. 위 표의 읽기·쓰기와 파생물·경합 검증을 구현한다. 의미 판정과 낱말 검사 중 이미
-   알려진 더 강한 판정을 보류에 남기며, 나중의 약한 판정으로 낮추지 않는다.
-3. 독립 검토 PASS·새 중간 지적 0·CI 통과 뒤, 적용 직전 main과 다른 브랜치 번호를
+   실패해야 한다. 초안 설치 상태에서 실제 0218 down과 기존 0218 회귀 전체도 통과해야
+   한다. 트랜잭션 되돌림은 시험용이며 운영 down이 아니다.
+2. 독립 검토 PASS·새 중간 지적 0·CI 통과 뒤, 적용 직전 main과 다른 브랜치 번호를
    확인해 새 마이그레이션 번호를 잡는다. 콘솔 세션이 운영 사전 집계와 적용·검증을 맡는다.
+   단독 적용은 위의 서버 절반을 즉시 실행하며 앱 연결 완료를 선행 조건으로 두지 않는다.
+   번호 승격 PR에서 초안 전용 fixture·경로·롤백 검증 레인도 번호 설치 상태에 맞춘다.
+3. 별도 PR에서 위 표의 읽기·쓰기와 파생물·경합 검증을 구현한다. 의미 판정과 낱말 검사 중
+   이미 알려진 더 강한 판정을 보류에 남기며, 나중의 약한 판정으로 낮추지 않는다.
 4. 서버 완료 증거 뒤 앱 연결을 머지한다. 8081 실제 저장·재시도·계정 전환·보류 표시,
    `app:parity` 같음, 필요한 폰 검증까지 확인해야 T28 완료다.
 

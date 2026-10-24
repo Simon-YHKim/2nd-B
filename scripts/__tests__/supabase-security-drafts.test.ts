@@ -446,6 +446,25 @@ describe("migration drafts: one copy per migration, and scratch PostgreSQL cover
     expect(regression).toContain("RAISE EXCEPTION 'D4 scratch rollback left draft objects'");
   });
 
+  test("D4 AI views project only reader columns without pinning unrelated rollback columns", () => {
+    const draft = read("db/migration-drafts/UNNUMBERED_crisis_ai_hold.sql");
+    const projections = {
+      records: "id user_id kind topic body summary structured prompt audit_period tags ai_followup created_at embedding embedding_model",
+      sources: "id user_id kind title source_url storage_path frontmatter tags ingested captured_at",
+      wiki_pages: "id user_id slug kind title body_md frontmatter tags source_id created_at updated_at embedding embedding_model",
+    };
+    for (const [table, columns] of Object.entries(projections)) {
+      const select = draft.match(new RegExp(`CREATE OR REPLACE VIEW public\\.${table}_ai_eligible[\\s\\S]*?AS\\s+SELECT ([\\s\\S]*?)\\s+FROM public\\.${table}\\b`));
+      expect(select).not.toBeNull();
+      expect(select![1].split(",").map(column => column.trim().replace(/^[rsw]\./, "")))
+        .toEqual(columns.split(" "));
+    }
+    const regression = read("db/tests/crisis_ai_hold_draft_regression.sql");
+    expect(regression).toContain("\\ir ../migrations/rollback/0218_down.sql");
+    expect(regression).toContain("'0218 rollback preserves held original and empty pair'");
+    expect(regression).toContain("BEGIN;\n\\ir ../migration-drafts/UNNUMBERED_crisis_ai_hold.sql\n\\ir records_system_tags_regression.sql");
+  });
+
   test("runs 0263 consent contracts and real races on an isolated full-schema clone", () => {
     const runner = read("scripts/test-records-embedding-consent-sql.mjs");
     expect(workflow).toContain('- "scripts/test-records-embedding-consent-sql.mjs"');
