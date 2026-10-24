@@ -66,11 +66,17 @@ test("dormant modules are not imported by chat or settings; existing prefs are u
 
 test("UI is gated, five-line copy is required, settings and submit remain disabled", () => {
   const ui = read("src/components/consent/RecordReadConsent.tsx");
-  expect(ui).toContain("if (!RECORD_READ_ENABLED || isMinor !== false || !copy || copy.lines.length !== 5) return null;");
+  expect(ui).toContain("if (!RECORD_READ_ENABLED || isMinor !== false || !copy?.version || copy.lines.length !== 5) return null;");
   expect(ui).toContain("if (!RECORD_READ_ENABLED) return null;");
-  expect(ui).toContain("lines: readonly [ConsentLine, ConsentLine, ConsentLine, ConsentLine, ConsentLine]");
-  expect(ui).toContain("value={false} disabled");
-  expect(ui).toContain('label={t("recordRead.agree")} disabled');
+  expect(read("src/lib/chat/record-read-copy.ts")).toContain("lines: readonly [ConsentLine, ConsentLine, ConsentLine, RetentionLine, ConsentLine]");
+  expect(ui).toContain('value={state === "on" && isMinor === false} disabled');
+  expect(ui).toContain('copy.settings[state] : copy.settings.minor');
+  expect(ui).toContain('label={copy.agree} disabled');
+  expect(ui).toContain('label={copy.notNow} disabled variant="secondary" style={styles.button}');
+  expect(ui).toContain('onPress={() => onOpenPolicyClause(line.link.section)}');
+  expect(ui).toContain('accessibilityRole="link"');
+  expect(ui).toContain('{copy.smallPrint}');
+  expect(ui).toContain('{copy.afterPress[outcome]}');
   expect(ui).not.toMatch(/\.rpc\(|fetch\(|savePrivacyPrefs|set_record_body_consent/);
 });
 
@@ -78,6 +84,6 @@ test("approved labels have five locale key sets; unreviewed consent languages re
   const packs = ["en", "ko", "es", "pt", "id"].map(locale => JSON.parse(read(`locales/${locale}/consent.json`)).recordRead);
   expect(packs[1].title).toBe("대화에서 내 기록을 읽어도 될까요?");
   expect(packs[1].setting).toBe("기록 읽기");
-  for (const pack of packs) expect(Object.keys(pack)).toEqual(["title", "ack", "agree", "notNow", "setting"]);
+  for (const pack of packs) expect(Object.keys(pack)).toEqual(["title", "ack", "agree", "notNow", "setting", "lines", "smallPrint", "policyClause", "afterPress", "settings"]);
   for (const pack of packs.slice(2)) expect(pack).toEqual(packs[0]);
 });

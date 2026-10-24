@@ -1,11 +1,26 @@
 -- T10 slice 1. UNNUMBERED, never auto-applied. No provider/record-body read path.
--- The empty contract is intentional: no approved five-line original or document
--- version has been supplied. Q-261018-45 postpones T65 and forbids its claims.
+-- The approved Q-71 copy exists (10-13 20:43; legal recheck 17:09). The empty
+-- contract awaits the privacy-policy revision and its document tuple, not copy.
+-- Q-261018-45 postpones T65; the card uses legal's pre-S4 public-policy wording.
 -- Number -> Relay -> real-model QA -> flag,
 -- with approved copy/DPIA/privacy policy and T71 checks BEFORE activation.
 -- Reuse the retained consent ledger: no new user table or deletion/export class.
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
+
+-- Every DEFINER below is created by this role. Fail before changing the schema
+-- if it cannot read/write the same retained ledger as the trusted 0193 writer.
+DO $record_body_owner_preflight$
+DECLARE owner_id oid;
+BEGIN
+  SELECT relowner INTO owner_id FROM pg_catalog.pg_class WHERE oid='public.consent_records'::regclass;
+  IF owner_id IS DISTINCT FROM (SELECT oid FROM pg_catalog.pg_roles WHERE rolname=current_user)
+    OR current_user IN ('anon','authenticated','service_role')
+    OR NOT EXISTS(SELECT 1 FROM pg_catalog.pg_proc
+      WHERE oid='public.complete_verified_email_signup()'::regprocedure AND proowner=owner_id) THEN
+    RAISE EXCEPTION 'record_body_server_writer_owner_not_ready' USING ERRCODE='55000';
+  END IF;
+END $record_body_owner_preflight$;
 
 ALTER TABLE public.consent_records
   ADD COLUMN record_body_order bigint GENERATED ALWAYS AS IDENTITY,
@@ -49,6 +64,35 @@ REVOKE ALL ON FUNCTION public.capture_record_body_consent() FROM PUBLIC,anon,aut
 CREATE TRIGGER capture_record_body_consent BEFORE INSERT ON public.consent_records
   FOR EACH ROW EXECUTE FUNCTION public.capture_record_body_consent();
 
+-- BYPASSRLS is not permission to mint/reorder evidence or rewrite a revoke.
+-- Freeze the whole trusted row except the existing 0063 ip/ua retention scrub.
+CREATE FUNCTION public.guard_record_body_receipt_update() RETURNS trigger
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+BEGIN
+  IF (OLD.record_body_order,OLD.record_body_trusted) IS DISTINCT FROM (NEW.record_body_order,NEW.record_body_trusted)
+    OR ((OLD.record_body_trusted OR NEW.purposes ? 'llm_record_body')
+      AND (to_jsonb(OLD)-'ip_hash'-'ua_hash') IS DISTINCT FROM (to_jsonb(NEW)-'ip_hash'-'ua_hash')) THEN
+    RAISE EXCEPTION 'record_body_receipt_immutable' USING ERRCODE='42501';
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.guard_record_body_receipt_update() FROM PUBLIC,anon,authenticated,service_role;
+CREATE TRIGGER guard_record_body_receipt_update BEFORE UPDATE ON public.consent_records
+  FOR EACH ROW EXECUTE FUNCTION public.guard_record_body_receipt_update();
+
+-- Same deletion fence and lock order as 0194/0262/0236: advisory -> auth ->
+-- public profile (caller) -> receipts. Deletion holds the exclusive advisory lock.
+CREATE FUNCTION public.record_body_account_guard(p_user_id uuid) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' SET row_security = off AS $$
+BEGIN
+  IF p_user_id IS NULL THEN RETURN false; END IF;
+  PERFORM pg_advisory_xact_lock_shared(hashtextextended(p_user_id::text,260913));
+  PERFORM 1 FROM auth.users WHERE id=p_user_id AND deleted_at IS NULL AND email_confirmed_at IS NOT NULL FOR SHARE;
+  IF NOT FOUND OR EXISTS(SELECT 1 FROM public.account_deletion_tombstones WHERE user_id=p_user_id) THEN RETURN false; END IF;
+  RETURN true;
+END $$;
+REVOKE ALL ON FUNCTION public.record_body_account_guard(uuid) FROM PUBLIC,anon,authenticated,service_role;
+
 CREATE FUNCTION public.record_body_adult(p_birth_date date,p_minor_tier text,p_status text)
 RETURNS boolean LANGUAGE sql STABLE SET search_path = '' AS $$
   SELECT COALESCE(p_minor_tier='adult' AND p_status='active' AND p_birth_date IS NOT NULL
@@ -62,6 +106,8 @@ RETURNS boolean LANGUAGE sql STABLE SET search_path = '' AS $$
     AND u.privacy_prefs->'llm_record_body'='true'::jsonb
     AND c.optional_consents->'llm_record_body'='true'::jsonb
     AND c.sensitive_data_ack AND c.llm_processing_ack AND c.overseas_transfer_ack
+    AND EXISTS(SELECT 1 FROM auth.users a WHERE a.id=u.id AND a.deleted_at IS NULL AND a.email_confirmed_at IS NOT NULL)
+    AND NOT EXISTS(SELECT 1 FROM public.account_deletion_tombstones t WHERE t.user_id=u.id)
     AND EXISTS(SELECT 1 FROM public.record_body_consent_contract() contract
       WHERE (contract.consent_version,contract.policy_version,contract.terms_version)=
         (c.consent_version,c.policy_version,c.terms_version))
@@ -75,9 +121,18 @@ REVOKE ALL ON FUNCTION public.record_body_consent_decision(uuid) FROM PUBLIC,ano
 -- Enforce age even against direct/service-role preference writes. No enable from
 -- a plain settings save; only a trusted, current grant can introduce this value.
 CREATE FUNCTION public.clamp_record_body_preference() RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' SET row_security = off AS $$
 DECLARE granted boolean;
 BEGIN
+  -- Legacy full-object settings saves omit this key. Keep the stored choice;
+  -- explicit false still withdraws. RPC receipt CAS owns every fresh enable.
+  IF TG_OP='UPDATE' AND NOT (COALESCE(NEW.privacy_prefs,'{}') ? 'llm_record_body')
+    AND OLD.privacy_prefs ? 'llm_record_body' THEN
+    NEW.privacy_prefs := COALESCE(NEW.privacy_prefs,'{}')
+      || jsonb_build_object('llm_record_body',OLD.privacy_prefs->'llm_record_body');
+  END IF;
+  -- Installing a dormant feature must not introduce a key into unrelated rows.
+  IF NOT (COALESCE(NEW.privacy_prefs,'{}') ? 'llm_record_body') THEN RETURN NEW; END IF;
   IF current_setting('transaction_isolation') <> 'read committed'
     AND (NEW.privacy_prefs->'llm_record_body'='true'::jsonb
       OR (TG_OP='UPDATE' AND OLD.privacy_prefs->'llm_record_body'='true'::jsonb)) THEN
@@ -99,47 +154,32 @@ CREATE TRIGGER zzzz_record_body_preference BEFORE INSERT OR UPDATE OF privacy_pr
   ON public.users FOR EACH ROW EXECUTE FUNCTION public.clamp_record_body_preference();
 
 CREATE FUNCTION public.invalidate_record_body_consent() RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' SET row_security = off AS $$
 DECLARE subject uuid; prior public.consent_records%ROWTYPE;
 BEGIN
-  IF TG_TABLE_NAME='users' THEN
-    IF OLD.privacy_prefs->'llm_record_body' IS NOT DISTINCT FROM NEW.privacy_prefs->'llm_record_body'
-      AND OLD.birth_date IS NOT DISTINCT FROM NEW.birth_date
-      AND OLD.minor_tier IS NOT DISTINCT FROM NEW.minor_tier
-      AND OLD.account_status IS NOT DISTINCT FROM NEW.account_status THEN RETURN NEW; END IF;
+  IF OLD.privacy_prefs->'llm_record_body'='true'::jsonb
+    AND NEW.privacy_prefs->'llm_record_body' IS DISTINCT FROM 'true'::jsonb THEN
     subject := NEW.id;
-    IF OLD.privacy_prefs->'llm_record_body'='true'::jsonb
-      AND NEW.privacy_prefs->'llm_record_body' IS DISTINCT FROM 'true'::jsonb THEN
-      SELECT * INTO prior FROM public.consent_records WHERE user_id=subject AND record_body_trusted
-        ORDER BY record_body_order DESC LIMIT 1;
-      IF prior.optional_consents->'llm_record_body'='true'::jsonb THEN
-        INSERT INTO public.consent_records(user_id,age_band,minor_tier,consent_version,policy_version,terms_version,
-          purposes,optional_consents,locale)
-        VALUES(subject,CASE WHEN NEW.minor_tier='adult' THEN 'adult' ELSE 'minor_self' END,NEW.minor_tier,
-          prior.consent_version,prior.policy_version,prior.terms_version,'["llm_record_body"]',
-          '{"llm_record_body":false}',prior.locale);
-      END IF;
+    SELECT * INTO prior FROM public.consent_records WHERE user_id=subject AND record_body_trusted
+      ORDER BY record_body_order DESC LIMIT 1;
+    IF prior.optional_consents->'llm_record_body'='true'::jsonb THEN
+      INSERT INTO public.consent_records(user_id,age_band,minor_tier,consent_version,policy_version,terms_version,
+        purposes,optional_consents,locale)
+      VALUES(subject,CASE WHEN NEW.minor_tier='adult' THEN 'adult' ELSE 'minor_self' END,NEW.minor_tier,
+        prior.consent_version,prior.policy_version,prior.terms_version,'["llm_record_body"]',
+        '{"llm_record_body":false}',prior.locale);
     END IF;
-  ELSE
-    IF NOT NEW.record_body_trusted THEN RETURN NEW; END IF;
-    subject := NEW.user_id;
-    PERFORM 1 FROM public.users WHERE id=subject FOR UPDATE;
   END IF;
-  -- Separate purpose must invalidate an in-flight service snapshot even when
-  -- the original service receipt did not list this optional key (0193 does not).
-  UPDATE public.llm_consent_receipts SET state_revision=state_revision+1
-    WHERE consent_record_id=(SELECT consent_record_id FROM public.llm_consent_receipts
-      WHERE user_id=subject ORDER BY receipt_order DESC LIMIT 1);
+  -- The appended T10 receipt changes only record_body_consent_snapshot's token.
+  -- Never touch the shared service revision: live leases/dashboard do not use T10.
   RETURN NEW;
 END $$;
 REVOKE ALL ON FUNCTION public.invalidate_record_body_consent() FROM PUBLIC,anon,authenticated,service_role;
 CREATE TRIGGER invalidate_record_body_user AFTER UPDATE OF privacy_prefs,birth_date,minor_tier,account_status ON public.users
   FOR EACH ROW EXECUTE FUNCTION public.invalidate_record_body_consent();
-CREATE TRIGGER invalidate_record_body_event AFTER INSERT ON public.consent_records
-  FOR EACH ROW EXECUTE FUNCTION public.invalidate_record_body_consent();
 
 CREATE FUNCTION public.set_record_body_consent(p_grant boolean,p_expected_receipt uuid,p_version text,p_sensitive_ack boolean,p_locale text)
-RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' SET row_security = off AS $$
 DECLARE subject uuid := auth.uid(); u public.users%ROWTYPE; prior public.consent_records%ROWTYPE;
   contract record; receipt uuid;
 BEGIN
@@ -147,6 +187,7 @@ BEGIN
     RAISE EXCEPTION 'record_body_auth_required' USING ERRCODE='42501';
   END IF;
   IF current_setting('transaction_isolation') <> 'read committed' THEN RAISE EXCEPTION 'record_body_requires_read_committed'; END IF;
+  IF NOT public.record_body_account_guard(subject) THEN RAISE EXCEPTION 'record_body_account_unavailable' USING ERRCODE='42501'; END IF;
   SELECT * INTO u FROM public.users WHERE id=subject FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'record_body_auth_required'; END IF;
   SELECT * INTO prior FROM public.consent_records WHERE user_id=subject AND record_body_trusted
@@ -181,11 +222,12 @@ REVOKE ALL ON FUNCTION public.set_record_body_consent(boolean,uuid,text,boolean,
 GRANT EXECUTE ON FUNCTION public.set_record_body_consent(boolean,uuid,text,boolean,text) TO authenticated;
 
 CREATE FUNCTION public.record_body_consent_snapshot(p_user_id uuid)
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' SET row_security = off AS $$
 DECLARE permitted boolean; service_token text; receipt uuid;
 BEGIN
   IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN RETURN '{"allowed":false,"token":null}'::jsonb; END IF;
   IF current_setting('transaction_isolation') <> 'read committed' THEN RAISE EXCEPTION 'record_body_requires_read_committed'; END IF;
+  IF NOT public.record_body_account_guard(p_user_id) THEN RETURN '{"allowed":false,"token":null}'::jsonb; END IF;
   PERFORM 1 FROM public.users WHERE id=p_user_id FOR UPDATE;
   IF NOT FOUND THEN RETURN '{"allowed":false,"token":null}'::jsonb; END IF;
   permitted := public.record_body_consent_decision(p_user_id);

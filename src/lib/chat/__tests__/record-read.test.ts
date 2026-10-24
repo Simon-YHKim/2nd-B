@@ -18,8 +18,38 @@ test.each([
   ["account 110-123-456789", "account [number]"],
   ["０１０\u200b１２３４５６７８", "[number]"],
   ["DE89 3704 0044 0532 0130 00", "[account]"],
+  ["de89 3704 0044 0532 0130 00", "[account]"],
+  ["DE89370400440532013000", "[account]"],
+  ["GB82 WEST 1234 5698 7654 32 paid today", "[account] paid today"],
+  ["FY24 plan for the team was ok", "FY24 plan for the team was ok"],
+  ["CS50 course is going well today", "CS50 course is going well today"],
+  ["kf94 mask was okay today", "kf94 mask was okay today"],
+  ["GS25 store near home", "GS25 store near home"],
+  ["FY24 PLAN NEXT 1234", "FY24 PLAN NEXT 1234"],
+  ["2026-10-24에 만났다", "2026-10-24에 만났다"],
+  ["2026/10/24, 2026.10.24, 2015-2019 대학 생활", "2026/10/24, 2026.10.24, 2015-2019 대학 생활"],
+  ["월급 3500000원, 예산 3500000000원, $3500000, 3500000 USD", "월급 3500000원, 예산 3500000000원, $3500000, 3500000 USD"],
+  ["3500000000원을 모았다", "3500000000원을 모았다"],
+  ["2026\n1024\n3500", "2026\n1024\n3500"],
+  ["hong @ naver.com", "[email]"], ["hong(at)naver.com", "[email]"],
   ["2026, 12 pages and 3 ideas", "2026, 12 pages and 3 ideas"],
 ])("masks contacts/accounts: %s", (input, expected) => expect(maskRecordBodyIdentifiers(input)).toBe(expected));
+
+test.each(["–", "·", "ㆍ", "_", "\u00AD", "\u180E"])("masks phone separator %s", separator => {
+  expect(maskRecordBodyIdentifiers(`010${separator}1234${separator}5678`)).toBe("[number]");
+});
+
+test.each(["가", "a", "a."])("bounded email scan on long unspaced %s text", unit => {
+  const text = unit.repeat(80_000);
+  const start = performance.now();
+  expect(maskRecordBodyIdentifiers(text)).toBe(text);
+  expect(performance.now() - start).toBeLessThan(1500);
+});
+
+test("top N cannot exceed five even when the caller requests more", () => {
+  const records = Array.from({ length: 8 }, (_, i) => candidate({ id: String(i), relevance: i + 1 }));
+  expect(selectRecordBodyExcerpts(records, "owner", 100, false).map(r => r.id)).toEqual(["7", "6", "5", "4", "3"]);
+});
 
 test("masks before the cut and counts Unicode characters without splitting pairs", () => {
   const results = selectRecordBodyExcerpts([candidate({ body: "😀".repeat(595) + "010-1234-5678" })], "owner", 1, false);
