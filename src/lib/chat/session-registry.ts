@@ -224,6 +224,8 @@ export function createChatSessionRegistry(content: ChatContentBoundary, newId = 
     getSnapshot: snapshot,
     /** Controllers read by session ownership, including after the last route was popped. */
     getSessionSnapshot(token: ChatSessionToken): ChatSessionSnapshot | null { return owns(token) ? active!.snapshot : null; },
+    /** Consent grants use the high-water mark, including removed/replaced turns. */
+    getNextSequence(token: ChatSessionToken): number | null { return owns(token) ? active!.maxSequence + 1 : null; },
     getDraftSnapshot(token: ChatSessionToken): ChatDraftSnapshot | null { return owns(token) ? active!.draft : null; },
     isCurrent: owns,
     attachView(ownerId: string, entryId: string, intent: ChatContextIntent | null = null) {
