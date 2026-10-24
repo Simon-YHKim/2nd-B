@@ -1,0 +1,43 @@
+{
+  "provenance": "Coordinator read-only production PG17.6 capture, 2026-10-24: b0264-blocks/prod-prestate-items-261024.txt. Added items measured on PG18.3 after unchanged 0264, with the same 33-item prestate. No production-after observation.",
+  "localSetupSql": "GRANT ALL PRIVILEGES ON TABLE public.sources TO anon, authenticated, service_role;",
+  "beforeItems": [
+    "[\"column\", \"captured_at\", \"timestamp with time zone\", -1, true, \"now()\", \"\", \"\", null, null]",
+    "[\"column\", \"content_hash\", \"text\", -1, false, null, \"\", \"\", null, null]",
+    "[\"column\", \"dedup_bands\", \"text[]\", -1, false, null, \"\", \"\", null, null]",
+    "[\"column\", \"dedup_of\", \"uuid\", -1, false, null, \"\", \"\", null, null]",
+    "[\"column\", \"dedup_signature\", \"integer[]\", -1, false, null, \"\", \"\", null, null]",
+    "[\"column\", \"frontmatter\", \"jsonb\", -1, true, \"'{}'::jsonb\", \"\", \"\", null, null]",
+    "[\"column\", \"id\", \"uuid\", -1, true, \"gen_random_uuid()\", \"\", \"\", null, null]",
+    "[\"column\", \"ingested\", \"boolean\", -1, true, \"false\", \"\", \"\", null, null]",
+    "[\"column\", \"ingested_at\", \"timestamp with time zone\", -1, false, null, \"\", \"\", null, null]",
+    "[\"column\", \"kind\", \"text\", -1, true, null, \"\", \"\", null, null]",
+    "[\"column\", \"relevance_score\", \"integer\", -1, false, null, \"\", \"\", null, null]",
+    "[\"column\", \"simon_relevance\", \"integer\", -1, false, null, \"\", \"\", null, null]",
+    "[\"column\", \"source_url\", \"text\", -1, false, null, \"\", \"\", null, null]",
+    "[\"column\", \"storage_path\", \"text\", -1, true, null, \"\", \"\", null, null]",
+    "[\"column\", \"tags\", \"text[]\", -1, true, \"ARRAY[]::text[]\", \"\", \"\", null, null]",
+    "[\"column\", \"title\", \"text\", -1, true, null, \"\", \"\", null, null]",
+    "[\"column\", \"user_id\", \"uuid\", -1, true, null, \"\", \"\", null, null]",
+    "[\"constraint\", \"sources_dedup_of_fkey\", \"f\", false, false, true, true, true, \"FOREIGN KEY (dedup_of) REFERENCES sources(id) ON DELETE SET NULL\"]",
+    "[\"constraint\", \"sources_ingested_pair\", \"c\", false, false, true, true, false, \"CHECK (((ingested = false) OR (ingested_at IS NOT NULL)))\"]",
+    "[\"constraint\", \"sources_kind_check\", \"c\", false, false, true, true, false, \"CHECK ((kind = ANY (ARRAY['inbox'::text, 'article'::text, 'video'::text, 'paper'::text, 'reddit'::text, 'code'::text, 'ai_tool'::text, 'self_knowledge'::text])))\"]",
+    "[\"constraint\", \"sources_pkey\", \"p\", false, false, true, true, true, \"PRIMARY KEY (id)\"]",
+    "[\"constraint\", \"sources_relevance_range\", \"c\", false, false, true, true, false, \"CHECK (((simon_relevance IS NULL) OR ((simon_relevance >= 1) AND (simon_relevance <= 5))))\"]",
+    "[\"constraint\", \"sources_relevance_score_range\", \"c\", false, false, true, true, false, \"CHECK (((relevance_score IS NULL) OR ((relevance_score >= 1) AND (relevance_score <= 5))))\"]",
+    "[\"constraint\", \"sources_user_id_fkey\", \"f\", false, false, true, true, true, \"FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\"]",
+    "[\"index\", \"sources_dedup_bands_gin\", false, true, true, true, \"CREATE INDEX sources_dedup_bands_gin ON public.sources USING gin (dedup_bands)\"]",
+    "[\"index\", \"sources_dedup_of_idx\", false, true, true, true, \"CREATE INDEX sources_dedup_of_idx ON public.sources USING btree (dedup_of)\"]",
+    "[\"index\", \"sources_pkey\", true, true, true, true, \"CREATE UNIQUE INDEX sources_pkey ON public.sources USING btree (id)\"]",
+    "[\"index\", \"sources_tags_gin\", false, true, true, true, \"CREATE INDEX sources_tags_gin ON public.sources USING gin (tags)\"]",
+    "[\"index\", \"sources_user_captured_idx\", false, true, true, true, \"CREATE INDEX sources_user_captured_idx ON public.sources USING btree (user_id, captured_at DESC)\"]",
+    "[\"index\", \"sources_user_content_hash_uniq\", true, true, true, true, \"CREATE UNIQUE INDEX sources_user_content_hash_uniq ON public.sources USING btree (user_id, content_hash) WHERE (content_hash IS NOT NULL)\"]",
+    "[\"index\", \"sources_user_ingested_idx\", false, true, true, true, \"CREATE INDEX sources_user_ingested_idx ON public.sources USING btree (user_id, ingested)\"]",
+    "[\"policy\", \"sources_owner_all\", \"PERMISSIVE\", [\"authenticated\"], \"ALL\", \"(user_id = ( SELECT auth.uid() AS uid))\", \"(user_id = ( SELECT auth.uid() AS uid))\"]",
+    "[\"table\", true, false, \"r\", \"p\", \"postgres\", [\"anon=arwdDxtm/postgres\", \"authenticated=arwdDxtm/postgres\", \"postgres=arwdDxtm/postgres\", \"service_role=arwdDxtm/postgres\"]]"
+  ],
+  "addedBy0264": [
+    "[\"column\", \"system_tags\", \"text[]\", -1, true, \"ARRAY[]::text[]\", \"\", \"\", \"Markers explicitly attached by the app, including reasoning:ratified. Never inferred from old tags; sources.tags keeps user tags and domain: classification.\", null]",
+    "[\"constraint\", \"sources_system_tags_shape\", \"c\", false, false, true, true, false, \"CHECK (\\nCASE\\n    WHEN (cardinality(system_tags) = 0) THEN true\\n    WHEN ((array_ndims(system_tags) <> 1) OR (array_lower(system_tags, 1) <> 1)) THEN false\\n    WHEN (array_position(system_tags, NULL::text) IS NOT NULL) THEN false\\n    WHEN (cardinality(system_tags) > 16) THEN false\\n    WHEN ((length(array_to_string(system_tags, ','::text)) - length(replace(array_to_string(system_tags, ','::text), ','::text, ''::text))) <> (cardinality(system_tags) - 1)) THEN false\\n    WHEN (array_to_string(system_tags, ','::text) !~ '^[A-Za-z0-9_.:-]{1,64}(,[A-Za-z0-9_.:-]{1,64})*$'::text) THEN false\\n    WHEN (lower(array_to_string(system_tags, ','::text)) ~ '(^|,)domain:'::text) THEN false\\n    ELSE true\\nEND)\"]"
+  ]
+}

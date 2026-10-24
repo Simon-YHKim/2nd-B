@@ -9,8 +9,51 @@ import {
 const migration = readFileSync(resolve("db/migrations/0264_sources_system_tags.sql"), "utf8");
 const block = buildT54RelayBlock(migration);
 const wrapper = block.split("$mig0264$;")[1];
+const production = JSON.parse(readFileSync(resolve(
+  "scripts/__tests__/fixtures/t54-sources-production-fingerprint.json",
+), "utf8")) as { beforeItems: string[]; addedBy0264: string[]; localSetupSql: string };
+// Preserve PostgreSQL jsonb text spacing. All fixture items are ASCII, so this
+// byte ordering is the same as the SQL expression's COLLATE "C" ordering.
+const fingerprint = (items: string[]) => createHash("md5")
+  .update([...items].sort().join("\n")).digest("hex");
 
 describe("T54 reviewed migration and Relay handoff", () => {
+  test("pins the measured production prestate, including its explicit table ACL", () => {
+    expect(production.beforeItems).toHaveLength(33);
+    expect(fingerprint(production.beforeItems)).toBe("cf5c155ce8bbae06de1e63a9560d7d00");
+    expect(T54_EXPECTED.sourcesBefore).toBe(fingerprint(production.beforeItems));
+    const table = production.beforeItems.find((item) => JSON.parse(item)[0] === "table")!;
+    expect(JSON.parse(table)).toEqual(["table", true, false, "r", "p", "postgres", [
+      "anon=arwdDxtm/postgres", "authenticated=arwdDxtm/postgres",
+      "postgres=arwdDxtm/postgres", "service_role=arwdDxtm/postgres",
+    ]]);
+    const vanilla = production.beforeItems.map((item) => item === table
+      ? '["table", true, false, "r", "p", "postgres", null]' : item);
+    expect(fingerprint(vanilla)).toBe("7f1153faff057989785dd7bc3c190ac4");
+    expect(T54_EXPECTED.sourcesBefore).not.toBe(fingerprint(vanilla));
+  });
+
+  test("pins the unchanged 0264 additions on the production prestate", () => {
+    expect(production.addedBy0264.map((item) => JSON.parse(item).slice(0, 2))).toEqual([
+      ["column", "system_tags"], ["constraint", "sources_system_tags_shape"],
+    ]);
+    const after = fingerprint([...production.beforeItems, ...production.addedBy0264]);
+    expect(after).toBe("507dd52cdcfb7685bb495d672a0683e9");
+    expect(T54_EXPECTED.sourcesAfter).toBe(after);
+    expect(wrapper).toContain(`IS DISTINCT FROM '${fingerprint(production.beforeItems)}'`);
+    expect(wrapper).toContain(`IS DISTINCT FROM '${after}'`);
+    expect(wrapper).not.toContain("2ec5cd68ac4f0bbb9d16dc7943b078a5");
+  });
+
+  test("retains ACL, owner, RLS and policy checks without adding production grants", () => {
+    for (const field of ["unnest(a.attacl)", "unnest(c.relacl)", "pg_get_userbyid(c.relowner)",
+      "c.relrowsecurity", "c.relforcerowsecurity", "FROM pg_policies"]) {
+      expect(T54_SOURCES_SCHEMA).toContain(field);
+    }
+    expect(block).not.toContain(production.localSetupSql);
+    expect(wrapper).not.toMatch(/\b(?:GRANT|REVOKE)\b/);
+  });
+
   test("embeds the reviewed LF bytes, including its terminal newline", () => {
     const body = block.split("$mig0264$")[1];
     expect(body).toBe(migration.replace(/\r\n/g, "\n"));

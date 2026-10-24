@@ -176,14 +176,54 @@ npx tsx scripts/build-t54-relay-block.ts <새로운-로컬-산출물-폴더>
 기존 번호 파일 자체의 정상 재적용 허용과 Relay 래퍼의 중복 거절은 구분한다.
 
 코디네이터가 별도 질의를 운영에서 읽기 전용으로 실행해 아래 기대값을 먼저 대조한다.
-이는 운영 실측값이 아니라 PostgreSQL 18.3에서 계산한 로컬 기대값이다.
-불일치는 중단 사유이며 기대값을 운영에 맞춰 임의로 바꾸지 않는다.
+적용 전 값은 코디네이터의 **2026-10-24 운영 PostgreSQL 17.6 읽기 전용 실측**이다.
+적용 후 값은 운영 sources 항목 33줄을 정확히 재현한 PostgreSQL 18.3 복제 DB에
+변경 없는 0264를 적용해 계산했다. 운영의 적용 후 실측은 아직 아니다.
+이후 불일치도 중단 사유이며 항목별 원인을 확인하기 전 기대값을 바꾸지 않는다.
 
 | 대상 | 적용 전 md5 | 적용 후 md5 |
 |---|---|---|
-| sources 칼럼·제약·인덱스·RLS·정책·권한 | `7f1153faff057989785dd7bc3c190ac4` | `2ec5cd68ac4f0bbb9d16dc7943b078a5` |
+| sources 칼럼·제약·인덱스·RLS·정책·권한 | `cf5c155ce8bbae06de1e63a9560d7d00` | `507dd52cdcfb7685bb495d672a0683e9` |
 | sources 사용자 트리거·함수 본문·권한 | `d4293a68fb609923d404e4a1bf234cc5` | 동일 |
 | records.system_tags 칼럼·제약 | `db9032428b9c0e618c947a22a68ca898` | 동일 |
+
+### 운영 지문 불일치의 원인과 fixture
+
+원문은 코디네이터가 제공한 `b0264-blocks/prod-prestate-items-261024.txt`다.
+0263이 없는 기존 로컬 스냅샷에서 같은 질의의 항목을 정렬해 줄별로 대조했다.
+**1~32줄이 같고 33번째 `table` 항목의 ACL만 다르다.** 열 기본값 표기·제약·인덱스·
+RLS·정책·소유자는 같으며 트리거와 records 표식 지문도 같다.
+
+| 33번째 항목의 마지막 값 | 내용 |
+|---|---|
+| 기존 로컬 | `null` (`pg_class.relacl`) |
+| 운영 | `["anon=arwdDxtm/postgres", "authenticated=arwdDxtm/postgres", "postgres=arwdDxtm/postgres", "service_role=arwdDxtm/postgres"]` |
+
+로컬 부트스트랩은 함수 기본 권한과 일부 테이블 권한만 준비한다
+(`.github/workflows/supabase-dry-run.yml`). sources를 만든 0022에도 테이블 GRANT가
+없어서 해당 재생에는 운영의 명시적 테이블 권한이 빠졌다. `null`은 모든 역할에
+권한이 없다는 뜻이 아니라 PostgreSQL 기본 권한을 뜻한다. `m`은 PG17에도 있는
+MAINTAIN이다([PostgreSQL 17 권한 문서](https://www.postgresql.org/docs/17/ddl-priv.html)).
+따라서 이번 불일치는 PG18의 NOT NULL 카탈로그 차이나 기본값 출력 차이가 아니다.
+
+운영 ACL은 [Supabase 초기 스키마의 테이블 기본 권한](https://github.com/supabase/postgres/blob/develop/migrations/db/init-scripts/00000000000000-initial-schema.sql)과
+같은 형태다. 다만 그 ACL이 실제로 언제·어떤 경로로 부여됐는지는 제공된 카탈로그로
+확인할 수 없다. 기대값의 근거는 일반적인 기본 설정이 아닌 **이 운영의 실측 33줄**이다.
+
+로컬의 새 복제 DB에만 다음 fixture를 적용하자 33줄 전체와 운영 md5가 일치했다.
+운영 블록에는 이 GRANT를 넣지 않았고 지문 질의에서 권한 등 어떤 항목도 빼지 않았다.
+
+```sql
+-- Local disposable replica only. Not part of the Relay block or migration.
+GRANT ALL PRIVILEGES ON TABLE public.sources TO anon, authenticated, service_role;
+```
+
+`scripts/__tests__/fixtures/t54-sources-production-fingerprint.json`은 운영 원문 33개와
+0264가 추가하는 두 항목(칼럼·제약)의 PostgreSQL JSONB 텍스트를 보존한다.
+정렬 후 개행으로 연결하되 끝 개행 없이 md5를 계산한다. 적용 후 항목은 35개이며
+기존 33개 변경은 0이다. 이전 vanilla 재생값 `7f1153faff057989785dd7bc3c190ac4`와
+`2ec5cd68ac4f0bbb9d16dc7943b078a5`는 이제 운영 가드의 기대값으로 사용하지 않는다.
+기존 CI 공통 부트스트랩의 권한은 바꾸지 않는다.
 
 제약 지문의 `contype <> 'n'`은 PG18에 추가된 NOT NULL 행만 제외한다.
 NOT NULL 자체는 `pg_attribute.attnotnull`로 검사한다. 별도 질의와 블록의 지문 식은 같다.
@@ -200,8 +240,16 @@ Relay 1518 블록의 본문 md5 대조 후 추출)를 적용했다. 0263~0269는
 로컬 pgvector 대역·HNSW/IVFFlat 생략·pg_cron opt-out을 사용했다. 이 차이는 지문 대상
 객체를 바꾸지 않지만 실제 확장 기능과 운영의 객체·ACL 일치까지 입증하지는 않는다.
 
-Relay 실행 검사 31/31, 동시 실행 2개 중 성공 1·중복 거절 1, 기존 SQL 계약 17/17과
+초기 로컬 재생에서는 Relay 실행 검사 31/31, 동시 실행 2개 중 성공 1·중복 거절 1, 기존 SQL 계약 17/17과
 SQL 변이 9/9를 확인했다. 선행 누락 여섯 가지·본문 변조·스키마/권한/트리거 변경·사후
 불일치는 모두 원장과 기존 상태를 남기지 않고 거절됐다. 합성 sources 2행을 포함한
-public 스키마·권한·데이터는 번호 파일 직접 적용과 같았다. 실제 QA·PostgREST·운영
-지문 대조·Relay 적용, 그 뒤 #2658 머지·웹 게시·8081 확인은 코디네이터에게 남긴다.
+public 스키마·권한·데이터는 번호 파일 직접 적용과 같았다. 이번 운영 ACL 재현 결과는
+로컬 산출물 `b0264-pg/fingerprint-fix/`에 별도로 기록한다. 실제 QA·PostgREST·Relay 적용,
+그 뒤 #2658 머지·웹 게시·8081 확인은 코디네이터에게 남긴다.
+
+운영 ACL 재현 후 검사: Relay 39/39, 동시 성공 1·중복 거절 1·원장 1행, SQL 계약 17/17,
+SQL 변이 9/9 차단. 이전 블록은 운영 모양에서 거절되고 새 블록은 vanilla 모양에서 거절된다.
+SELECT·MAINTAIN 회수, PUBLIC 권한 추가, 적용 후 ACL 변경도 전체 rollback을 확인했다.
+관련 Jest 21 suites·321 tests, 생성기 변이 12/12 차단(옛 전후 기대값 복원·ACL 검사 제거 포함),
+tsc·변경 파일 ESLint·금지어·C7·긴 줄표 검사가 통과했다. 로컬 PG는 stop=0·status=3,
+55574 포트 닫힘을 확인했다. 전체 verify는 최신 PR CI가 판정한다.

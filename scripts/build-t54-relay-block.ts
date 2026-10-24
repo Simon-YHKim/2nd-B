@@ -4,9 +4,13 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 export const T54_BODY_MD5 = "455fdf6e2ef02ba68ee1e055e077cff3";
+// Before: coordinator's read-only PG17.6 capture (2026-10-24). After: unchanged
+// 0264 on a local replica with all 33 captured items, including the table ACL.
+// The vanilla replay omits sources' Supabase grants; its hashes are not Relay pins.
+// Evidence: __tests__/fixtures/t54-sources-production-fingerprint.json.
 export const T54_EXPECTED = {
-  sourcesBefore: "7f1153faff057989785dd7bc3c190ac4",
-  sourcesAfter: "2ec5cd68ac4f0bbb9d16dc7943b078a5",
+  sourcesBefore: "cf5c155ce8bbae06de1e63a9560d7d00",
+  sourcesAfter: "507dd52cdcfb7685bb495d672a0683e9",
   triggers: "d4293a68fb609923d404e4a1bf234cc5",
   recordsMarker: "db9032428b9c0e618c947a22a68ca898",
 };
