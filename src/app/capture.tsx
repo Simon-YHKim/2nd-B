@@ -2704,7 +2704,6 @@ ${transcript}`;
     try {
       const baseTag = noteMode;
       const tags = [
-        baseTag,
         ...(noteDraft.mode === "todo" && noteDraft.todoDone ? ["done"] : []),
         ...(noteDraft.tags ?? []),
       ];
@@ -2715,6 +2714,7 @@ ${transcript}`;
         kind: "note",
         body: noteBody,
         tags,
+        systemTags: [baseTag],
         domainIntent: noteDraft.domainIntent,
         tier: progression.tier,
         // 0066: 4W1H keeps the machine-readable payload beside the flattened body.

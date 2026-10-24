@@ -34,6 +34,7 @@ import { SEVEN_STARS } from "@/lib/persona/seven-stars";
 import { listAllRecords } from "@/lib/records/list-all-records";
 import { buildRoleRecordsGraph } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
+import { hasCaptureMarker, isReasoningRatified } from "@/lib/records/system-tags";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import { useFocusedWikiPage } from "@/lib/wiki/use-focused-wiki-page";
 import type { WikiPageRow } from "@/lib/wiki/types";
@@ -201,13 +202,13 @@ function recordType(r: TimelineRecord): RType {
   const has = (...k: string[]) => k.some((x) => tags.includes(x));
   if (r.kind === "audit_response") return "todo";
   const hay = `${r.topic ?? ""} ${r.summary ?? ""} ${r.body ?? ""}`;
-  if (has("link", "링크", "url") || URL_RE.test(hay)) return "link";
-  if (has("voice", "음성") || DUR_RE.test(hay)) return "voice";
+  if (hasCaptureMarker(r, "link") || has("링크", "url") || URL_RE.test(hay)) return "link";
+  if (hasCaptureMarker(r, "voice") || has("음성") || DUR_RE.test(hay)) return "voice";
   if (has("photo", "사진", "image", "이미지")) return "photo";
   return "text";
 }
 function isUnfiled(r: TimelineRecord): boolean {
-  return stripDomainTags(r.tags ?? []).length === 0;
+  return stripDomainTags(r.tags ?? []).length === 0 && !isReasoningRatified(r);
 }
 function timelineTitle(r: TimelineRecord, fallback: string): string {
   const s = r.summary?.trim() || r.topic?.trim();
@@ -371,7 +372,7 @@ export function DeepSpaceRecordsScreen() {
     ]).then(([recs, sources]) => {
       const srcRecs: RecordsTimelineRecord[] = sources.map((s) => ({
         id: s.id, origin: "source", sourceId: s.sourceId, kind: "note",
-        summary: s.title, topic: s.title, body: null, tags: s.tags, created_at: s.created_at,
+        summary: s.title, topic: s.title, body: null, tags: s.tags, system_tags: s.system_tags, created_at: s.created_at,
       }));
       const merged = [...recs, ...srcRecs].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
       return merged;

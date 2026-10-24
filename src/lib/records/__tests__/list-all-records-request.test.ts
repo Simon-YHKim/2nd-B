@@ -46,7 +46,7 @@ it("first page: the owner's rows, newest first, no date condition", async () => 
   expect(requests).toHaveLength(1);
   const [first] = requests;
   expect(first.pathname).toBe("/rest/v1/records");
-  expect(first.searchParams.get("select")).toBe("id,kind,body,topic,summary,tags,created_at,audit_period");
+  expect(first.searchParams.get("select")).toBe("id,kind,body,topic,summary,tags,system_tags,created_at,audit_period");
   expect(first.searchParams.get("user_id")).toBe(`eq.${OWNER}`);
   expect(first.searchParams.get("order")).toBe("created_at.desc,id.desc");
   expect(first.searchParams.get("limit")).toBe(String(WIKI_RECORDS_PAGE));

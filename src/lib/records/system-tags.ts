@@ -23,9 +23,11 @@
 //   system_tags  markers the app attaches to say HOW the record was produced.
 //                0218 moves exactly two writers: TTFV and the recall interview.
 //
-// Other app-attached tags (capture modes voice/todo/fourw, call_reflection, the
+// T54 (Q-261013-40/41) also moves capture memo/fourw/todo/link/voice and
+// reasoning:ratified at their writers; sources gains the column in 0264.
+// Other app-attached tags (call_reflection, done, the
 // assessment family, life_audit + framework, career_achievement + year:,
-// NORTHSTAR, imported:*, reasoning:ratified) still live in `tags`. Each has its
+// NORTHSTAR, imported:*) still live in `tags`. Each has its
 // own readers; they can move writer by writer into the same column later.
 //
 // NO COLUMN (design P6). The client can meet a database without the column (a
@@ -40,6 +42,8 @@
 // as it did before 0218. A write with markers goes through
 // writeWithSystemTagsColumn instead, which first checks that a PGRST204 means a
 // missing column and not a schema cache that has not caught up (gate ST-01).
+// P6 exception: ratification writes require both columns and never fall back;
+// rolling back 0218 stops record ratification until the column is restored.
 
 /** The recall interview marker. Completion, Polaris evidence and the career
  *  timeline's interview origin key off it. */
@@ -65,6 +69,38 @@ export function recallInterviewSystemTags(locale: "en" | "ko"): string[] {
 export interface SystemTaggedRow {
   tags?: readonly string[] | null;
   system_tags?: readonly string[] | null;
+}
+
+export const REASONING_RATIFIED_TAG = "reasoning:ratified";
+export type CaptureMarker = "memo" | "fourw" | "todo" | "link" | "voice";
+
+/** Narrow legacy feature compatibility, never provenance or a display filter. */
+export function hasCaptureMarker(row: SystemTaggedRow, marker: CaptureMarker): boolean {
+  return strings(row.system_tags).includes(marker) || strings(row.tags).some((tag) => tag.toLowerCase() === marker);
+}
+
+/** Shared by candidate exclusion, inbox and brightness. Old tags stay untouched. */
+export function isReasoningRatified(row: SystemTaggedRow): boolean {
+  return strings(row.system_tags).includes(REASONING_RATIFIED_TAG) || strings(row.tags).includes(REASONING_RATIFIED_TAG);
+}
+
+/** A ratification PATCH compares only system_tags (T54 review option A).
+ * User tags are JSON payload only: arbitrary user characters never become an
+ * array filter literal. Concurrent user-tag edits retain the existing race.
+ * The schema limits system markers to ASCII; quote even NULL to keep it text.
+ * Missing columns, malformed markers and overflow fail before any write. */
+export function reasoningTagPatch(tags: string[], row: SystemTaggedRow): {
+  payload: { tags: string[]; system_tags: string[] };
+  expected: string;
+} {
+  const prior = row.system_tags;
+  if (!Array.isArray(prior) || prior.length > 16 || prior.some((tag) =>
+    typeof tag !== "string" || !/^[A-Za-z0-9_.:-]{1,64}$/.test(tag) || /^domain:/i.test(tag))) {
+    throw new Error("Ratification requires a valid system_tags column");
+  }
+  const next = prior.includes(REASONING_RATIFIED_TAG) ? [...prior] : [...prior, REASONING_RATIFIED_TAG];
+  if (next.length > 16) throw new Error("Ratification system_tags limit exceeded");
+  return { payload: { tags, system_tags: next }, expected: `{${prior.map((tag) => `"${tag}"`).join(",")}}` };
 }
 
 function strings(value: unknown): string[] {

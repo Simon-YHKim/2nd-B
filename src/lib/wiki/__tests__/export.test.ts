@@ -48,6 +48,17 @@ function source(over: Partial<SourceRow>): SourceRow {
 }
 
 describe("composeWikiExport", () => {
+  test("T54 exports user and legacy tags verbatim, never system markers", () => {
+    const hidden = composeWikiExport([], [source({ tags: ["memo"], system_tags: ["reasoning:ratified", "voice"] })], {});
+    expect(hidden.prompt).toContain("tags: memo");
+    expect(hidden.prompt).not.toContain("reasoning:ratified");
+    expect(hidden.prompt).not.toContain("voice");
+    const legacy = composeWikiExport([], [source({ tags: ["memo", "reasoning:ratified", "voice"], system_tags: [] })], {});
+    expect(legacy.prompt).toContain("memo");
+    expect(legacy.prompt).toContain("reasoning:ratified");
+    expect(legacy.prompt).toContain("voice");
+  });
+
   test.each([undefined, 5])("northstar labels use full-body fingerprints before clipping (%s)", (bodyCharLimit) => {
     const body = "I keep learning.";
     const row = { kind: "note", topic: null, body, created_at: "2026-10-19", tags: [northstarAiTag(body)] };

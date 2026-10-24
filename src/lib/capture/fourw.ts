@@ -1,7 +1,7 @@
 // 4W1H structured capture (rev2 P4a, 담기): five format boxes — 누가 / 언제 /
 // 어디서 / 무엇을 / 어떻게 — composed into ONE plain-text note body. Transient
 // capture mode (like voice/todo): saves through createRecord(kind:"note") with
-// a #fourw tag, so it rides the existing records + safety (C9/C3) path with no
+// a `fourw` app marker in system_tags (T54 · 0218), so it rides the existing records + safety (C9/C3) path with no
 // new DB kind. Pure + tested; the screen owns state and rendering.
 
 export const FOURW_KEYS = ["who", "when", "where", "what", "how"] as const;

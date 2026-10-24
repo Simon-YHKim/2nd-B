@@ -38,6 +38,14 @@ const PAGES = [page("attachment", "concept", ["psychology", "growth"]), page("si
 const SOURCES = [source("A morning routine", ["habits", "psychology"]), source("Deep work", ["habits"])];
 
 describe("composeContextPack — §6 two-layer structure", () => {
+  it("T54 counts same-word user topics without adding system markers", () => {
+    const item = { ...source("Source", ["memo", "fourw"]), system_tags: ["voice", "reasoning:ratified"] };
+    const pack = composeContextPack([], [item], {});
+    expect(pack.full).toContain("memo");
+    expect(pack.full).toContain("fourw");
+    expect(pack.full).not.toContain("reasoning:ratified");
+    expect(pack.full).not.toContain("voice");
+  });
   it("puts the rules in the header, above the detail and the task", () => {
     const pack = composeContextPack(PAGES, SOURCES, { asOf: "2026-06-16", identity: { displayName: "Simon" } });
     expect(pack.header).toContain("spec: PolaScope Personal Context Layer");

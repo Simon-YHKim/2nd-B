@@ -259,7 +259,10 @@ describe("deep-space records source detail routing", () => {
       // filter and navigation contracts retain executed regression coverage.
       // Base 5246d593 reproduces a4183028; the standalone wiki function is
       // byte-identical. See role-evidence-read-failure for real helper/UI tests.
-      "5a5efe6bc6d0b7aa96ff4363f07566525d82075d689d14fb9bfcd650f35db611",
+      // T54: this slice changes only the source-to-record mapping, preserving
+      // system_tags for the shared inbox predicate. Type/predicate helpers are
+      // outside this slice and exercised by t54-system-tags.test.ts.
+      "202474b6bf660fb8176b2062a4fed7f2af77463191a5f57f303184c153b87ee2",
     );
     // Re-pinned 2026-09-20 (R48): the wiki screen now honours a ?focusPageId= that names
     // a page outside the 200-row slice it loads -- the RAG citation path can cite one,

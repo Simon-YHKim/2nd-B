@@ -60,6 +60,7 @@ import { useProgression } from "@/lib/progression/useProgression";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 import { detectDomain } from "@/lib/records/detect-domain";
 import { getRecordById, listRecentRecords, updateRecordTags } from "@/lib/records/create";
+import { hasCaptureMarker, isReasoningRatified } from "@/lib/records/system-tags";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { classifyInputAnyLocale } from "@/lib/safety/classifier";
 import { isAiExcludedSource } from "@/lib/wiki/ai-exclusion";
@@ -82,7 +83,6 @@ import { fontFamilies } from "@/theme/typography";
  *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
  */
 const rsnAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
-const REASONING_RATIFIED_TAG = "reasoning:ratified";
 const MAX_SELECTION = 5;
 export const REASONING_LIST_READ_TIMEOUT_MS = 10_000;
 
@@ -134,6 +134,7 @@ export interface ReasoningItem {
   createdAt: string;
   body?: string;
   tags: string[];
+  system_tags?: readonly string[] | null;
   icon: "notes" | "link" | "mic" | "task";
 }
 
@@ -515,9 +516,8 @@ async function applyReasoningProposal(
       : [];
     await updateRecordTags(userId, proposal.refId, [
       domainTagFor(proposal.domain),
-      REASONING_RATIFIED_TAG,
-      ...stripDomainTags(latestTags).filter((tag) => tag !== REASONING_RATIFIED_TAG),
-    ]);
+      ...stripDomainTags(latestTags),
+    ], latestRecord);
     return;
   }
   const latestSource = await getSource(userId, proposal.refId);
@@ -525,9 +525,8 @@ async function applyReasoningProposal(
   if (isProfileContextImportSource(latestSource.frontmatter)) throw new SourceImportManagedError(proposal.refId);
   await updateSourceTags(userId, proposal.refId, [
     domainTagFor(proposal.domain),
-    REASONING_RATIFIED_TAG,
-    ...stripDomainTags(latestSource.tags).filter((tag) => tag !== REASONING_RATIFIED_TAG),
-  ]);
+    ...stripDomainTags(latestSource.tags),
+  ], latestSource);
   // Promotion is best-effort, deliberately. The load-bearing write is the domain
   // tag above — that is what brightens the star. Promotion used to run unguarded
   // here, inside an apply loop that has no per-proposal try/catch, so ONE source
@@ -898,7 +897,7 @@ export default function ReasoningScreen() {
         const recordItems: ReasoningItem[] = records.map((row) => {
           const tags = Array.isArray(row.tags) ? (row.tags as string[]) : [];
           const icon =
-            tags.includes("voice") ? "mic" : tags.includes("todo") || tags.includes("fourw") ? "task" : "notes";
+            hasCaptureMarker(row, "voice") ? "mic" : hasCaptureMarker(row, "todo") || hasCaptureMarker(row, "fourw") ? "task" : "notes";
           return {
             key: `record:${row.id}`,
             refKind: "record",
@@ -908,6 +907,7 @@ export default function ReasoningScreen() {
             createdAt: row.created_at,
             body: row.body,
             tags,
+            system_tags: row.system_tags,
             icon,
           };
         });
@@ -919,12 +919,13 @@ export default function ReasoningScreen() {
           meta: `${tl("ds.reasoningScreen.kindLink")} · ${relativeTime(source.created_at, ago)}`,
           createdAt: source.created_at,
           tags: source.tags ?? [],
+          system_tags: source.system_tags,
           icon: "link",
         }));
         setListRead({
           ownerId: userId, epoch: accountEpoch, attempt: listAttempt, language: uiLng, status: "ready",
           items: [...recordItems, ...sourceItems]
-            .filter((item) => !item.tags.includes(REASONING_RATIFIED_TAG))
+            .filter((item) => !isReasoningRatified(item))
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
             .slice(0, 80),
         });

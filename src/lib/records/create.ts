@@ -25,7 +25,7 @@ import { domainTagFor, isDomainId, stripDomainTags, type DomainId } from "../per
 import { withDomainTag } from "./detect-domain";
 import { embedAndStoreRecord, recordsEmbeddingAllowed } from "./records-embeddings";
 import type { RecordFollowup } from "./followup";
-import { legacyTagLayout, normalizeSystemTags, withSystemTagsColumn, writeWithSystemTagsColumn } from "./system-tags";
+import { legacyTagLayout, normalizeSystemTags, reasoningTagPatch, withSystemTagsColumn, writeWithSystemTagsColumn, type SystemTaggedRow } from "./system-tags";
 import { classifyInputAnyLocale } from "../safety/classifier";
 
 export type RecordKind = "journal" | "note" | "audit_response";
@@ -585,7 +585,7 @@ export async function listRecentRecords(userId: string, limit = 500) {
           .limit(limit),
   );
   if (error) throw error;
-  return (data ?? []) as NonNullable<typeof data>[number][];
+  return (data ?? []) as (NonNullable<typeof data>[number] & SystemTaggedRow)[];
 }
 
 /** Fetch Polaris-cited records by id, including evidence older than the
@@ -593,13 +593,15 @@ export async function listRecentRecords(userId: string, limit = 500) {
 export async function listRecordsByIds(userId: string, ids: readonly string[]) {
   const uniqueIds = [...new Set(ids)].filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 60);
   if (!userId || uniqueIds.length === 0) return [];
-  const { data, error } = await getSupabaseClient()
-    .from("records")
-    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured")
-    .eq("user_id", userId)
-    .in("id", uniqueIds);
+  const { data, error } = await withSystemTagsColumn((columnPresent) => {
+    const table = getSupabaseClient().from("records");
+    const query = columnPresent
+      ? table.select("id, kind, body, ai_followup, topic, summary, conclusion, tags, system_tags, created_at, structured")
+      : table.select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured");
+    return query.eq("user_id", userId).in("id", uniqueIds);
+  });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as (NonNullable<typeof data>[number] & SystemTaggedRow)[];
 }
 
 // Read a single record by id (deep-space /record detail). RLS scopes to
@@ -607,26 +609,30 @@ export async function listRecordsByIds(userId: string, ids: readonly string[]) {
 // Returns null when the id doesn't exist or isn't the caller's.
 export async function getRecordById(userId: string, id: string) {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from("records")
-    .select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured")
-    .eq("user_id", userId)
-    .eq("id", id)
-    .maybeSingle();
+  const { data, error } = await withSystemTagsColumn((columnPresent) => {
+    const table = supabase.from("records");
+    const query = columnPresent
+      ? table.select("id, kind, body, ai_followup, topic, summary, conclusion, tags, system_tags, created_at, structured")
+      : table.select("id, kind, body, ai_followup, topic, summary, conclusion, tags, created_at, structured");
+    return query.eq("user_id", userId).eq("id", id).maybeSingle();
+  });
   if (error) throw error;
-  return data;
+  return data as (NonNullable<typeof data> & SystemTaggedRow) | null;
 }
 
-/** Replace a record's tags column. Owner-only via the records_owner_all RLS
- *  policy (0009); the explicit user_id keeps the index-friendly WHERE first. */
-export async function updateRecordTags(userId: string, id: string, tags: string[]): Promise<void> {
+/** Replace user tags, or atomically add the ratification marker when given the
+ * freshly read row. The latter requires system_tags and compares its exact prior
+ * value. Owner-only via records_owner_all RLS and the explicit user_id. */
+export async function updateRecordTags(userId: string, id: string, tags: string[], ratification?: SystemTaggedRow): Promise<void> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
+  const patch = ratification ? reasoningTagPatch(tags, ratification) : null;
+  let query = supabase
     .from("records")
-    .update({ tags })
+    .update(patch ? patch.payload : { tags })
     .eq("user_id", userId)
-    .eq("id", id)
-    .select("id");
+    .eq("id", id);
+  if (patch) query = query.filter("system_tags", "eq", patch.expected);
+  const { data, error } = await query.select("id");
   if (error) throw error;
   // A 0-row update returns error===null (a Supabase no-op success), so a stale
   // or RLS-filtered id would read as a successful write and the optimistic UI
