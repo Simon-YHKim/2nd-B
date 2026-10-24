@@ -4204,6 +4204,12 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/consent_email_v9_20261006_regression.sql
+      # 0262: email-v10 / service-v5 (Z5 쉬운 말 · 방침 2026-10-07). 공지형·재동의 없음.
+      # 번호 재생이 이미 적용했다. v4~v9 · service-v1/v2/v4 유지.
+      - name: Exercise the numbered 2026-10-18 email-v10 consent contract
+        env:
+          PGPASSWORD: postgres
+        run: psql -X -h localhost -U postgres -v ON_ERROR_STOP=1 -f db/tests/consent_email_v10_20261018_regression.sql
       - name: Exercise numbered 0206 avatar column contract on scratch PostgreSQL
         env:
           PGPASSWORD: postgres
