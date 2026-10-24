@@ -941,4 +941,26 @@ This DPIA draft is **not effective** until completed and signed by qualified leg
 
 ---
 
+### T10 preparation note (2026-10-24, inactive)
+
+Journal text remains excluded by default from the current chat export; this slice does not
+change `conversation.ts`, its prompts, or `includeRecords`. The unnumbered
+`UNNUMBERED_record_body_consent.sql` has an empty contract and cannot accept a grant.
+The new UI is unmounted and its switch is false. No new processing is activated.
+
+Proposed wording for the later reviewed change: only adults who separately consent to
+`llm_record_body` may have parts of question-relevant entries sent for chat answers,
+limited to a decided top N and 600 characters per entry. Exclude held/red entries and
+health/activity measurements, mask contact/account identifiers before truncation, and
+stop from the next turn after withdrawal. Audit evidence must contain only hashes and
+entry IDs, not entry text. Server consent, age and current-snapshot enforcement at the
+actual egress boundary remain required; client helpers alone do not establish this.
+
+This paragraph describes a proposed exception, not the current data flow or a legal
+approval. The approved five-line original, N, document versions, privacy-policy revision,
+R/egress integration and real-model verification remain outstanding. Q-261018-45
+(DECISIONS.md, 2026-10-18 12:00, recorded as `Q-45 다`) defers organisation-setting
+confirmation and omits the corresponding claims; this slice makes no provider training
+or retention-period promise. See [T10 scope and activation order](../qa/T10-RECORD-READ.md).
+
 *End of DPIA DRAFT. Prepared by the engineering/orchestration layer as a fact-grounded working draft for counsel completion. All `[COUNSEL TO CONFIRM]` flags remain open legal determinations. Account-deletion claims were re-read against source on 2026-09-13; the wider document retains its original 2026-06-14 baseline and is still being re-baselined. This document is not legal advice and is not effective until the Section 8 block is signed.*

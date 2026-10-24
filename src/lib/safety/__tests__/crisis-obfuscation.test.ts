@@ -96,7 +96,8 @@ describe("Q-261011-05 obfuscation request gate (not a verdict)", () => {
     // T06 review: retire the two unused recovery-card strings (4447 - 2).
     // 2026-10-24: T53 dormant report form adds 20 strings per locale (Z74).
     // T53 review: reply route and permanent rejection add two strings per locale.
-    expect(strings).toHaveLength(4467);
+    // T10: five dormant consent labels; the five-line body awaits its approved original.
+    expect(strings).toHaveLength(4472);
     expect(strings.filter(hasCrisisObfuscation)).toEqual([]);
   });
 

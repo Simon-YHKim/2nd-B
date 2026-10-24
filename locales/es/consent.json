@@ -204,5 +204,12 @@
     "consent_check_unavailable": "We could not check your AI processing consent. Check its status before trying again.",
     "blockedHelp": "Your other consent choices still apply. Review your privacy settings if AI processing remains unavailable.",
     "privacySettings": "Open privacy settings"
+  },
+  "recordRead": {
+    "title": "Let the assistant read your entries?",
+    "ack": "I agree to the processing of sensitive information in my entries for this purpose.",
+    "agree": "Agree",
+    "notNow": "Not now",
+    "setting": "Read entries"
   }
 }
