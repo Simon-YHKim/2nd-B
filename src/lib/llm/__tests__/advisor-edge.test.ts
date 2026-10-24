@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 // Regression test for the 2026-06-03 re-audit (HIGH + C3 MED): callAdvisor's
 // LIVE EDGE path was previously uncovered, so CI stayed green while it was
 // broken in prod. This locks in the fix:

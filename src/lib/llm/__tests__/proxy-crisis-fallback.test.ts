@@ -1,3 +1,6 @@
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+beforeEach(() => { __resetAccountEpochForTests(); noteResolvedOwner("u1"); });
+
 // C9 fallback regression tests (2026-06-10 audit follow-up).
 //
 // The gemini-proxy Edge Function is the second, server-authoritative crisis

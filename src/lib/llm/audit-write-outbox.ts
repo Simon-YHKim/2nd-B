@@ -5,6 +5,7 @@ import { insertAiAuditLog } from "../supabase/audit";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
 import { insertCrisisEvent } from "../supabase/crisis-events";
 import { runAccountLocalMutation } from "../account/local-deletion-fence";
+import { captureLiveOwnerCheck, observeLiveOwner } from "../auth/live-owner-guard";
 
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
@@ -224,14 +225,20 @@ async function deliver(entry: AuditWriteEntry, captured?: CapturedAuditDelivery)
     throw new Error("audit_session_owner_mismatch");
   }
   captured?.assertCurrent();
+  // A queued row belongs to its original ID, not its original epoch. Returning
+  // to that account may drain it; an active delivery still dies on any switch.
+  const live = captured ? undefined : observeLiveOwner(captureLiveOwnerCheck(entry.ownerUserId));
+  try {
+  live?.assertCurrent();
+  const signal = captured?.signal ?? live?.signal;
   if (isKeyedEntryId(entry.id)) {
     // The owner checks above still gate this path: the server scopes the key
     // to auth.uid(), so delivering A's row under B's token would not dedupe -
     // it would write A's event as B's. It never gets that far.
     if (entry.kind === "ai_audit_log") {
-      await insertAiAuditLog(entry.payload, captured?.accessToken, captured?.signal, entry.id);
+      await insertAiAuditLog(entry.payload, captured?.accessToken, signal, entry.id);
     } else {
-      await insertCrisisEvent(entry.payload, captured?.accessToken, captured?.signal, entry.id);
+      await insertCrisisEvent(entry.payload, captured?.accessToken, signal, entry.id);
     }
     return;
   }
@@ -239,15 +246,16 @@ async function deliver(entry: AuditWriteEntry, captured?: CapturedAuditDelivery)
     if (captured) {
       await insertAiAuditLog(entry.payload, captured.accessToken, captured.signal);
     } else {
-      await insertAiAuditLog(entry.payload);
+      await insertAiAuditLog(entry.payload, undefined, signal);
     }
     return;
   }
   if (captured) {
     await insertCrisisEvent(entry.payload, captured.accessToken, captured.signal);
   } else {
-    await insertCrisisEvent(entry.payload);
+    await insertCrisisEvent(entry.payload, undefined, signal);
   }
+  } finally { live?.release(); }
 }
 
 async function flushNow(ownerUserId?: string, captured?: CapturedAuditDelivery): Promise<void> {

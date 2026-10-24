@@ -7,7 +7,7 @@ import type { AccountOwnerLease } from "../auth/account-epoch";
 import type { AuthenticatedAccountSessionLease } from "../auth/account-session-lease";
 import type { createContentWipeLedger } from "../account/content-wipe";
 import { kstDateToday } from "./limits";
-
+import { classifyChatTurnError, parseChatTurnReservation, parseChatUsageCount, type ChatTurnUsage } from "./turn-reservation";
 type UsageReadExecution = Pick<AuthenticatedAccountSessionLease, "userId" | "signal" | "assertCurrent">;
 export type CapturedChatUsageExecution = Readonly<{
   session: AuthenticatedAccountSessionLease;
@@ -62,17 +62,18 @@ export async function readChatUsageDetail(
   userId: string,
   day: string = kstDateToday(),
   execution?: UsageReadExecution,
+  liveSignal?: AbortSignal,
 ): Promise<ChatUsageDetail> {
   assertUsageRead(userId, execution);
   const supabase = getSupabaseClient();
   let data, error;
   try {
-    ({ data, error } = await supabase
+    const query = supabase
       .from("chat_usage")
       .select("count, ad_bonus")
       .eq("user_id", userId)
-      .eq("day", day)
-      .maybeSingle());
+      .eq("day", day);
+    ({ data, error } = await (liveSignal ? query.abortSignal(liveSignal) : query).maybeSingle());
   } catch (failure) {
     assertUsageRead(userId, execution);
     throw failure;
@@ -228,14 +229,16 @@ export async function bumpChatUsageIfUnderCap(
   cap: number,
   day: string = kstDateToday(),
   execution?: CapturedChatUsageExecution,
+  liveSignal?: AbortSignal,
 ): Promise<number> {
   if (execution !== undefined) return bumpCapturedUsage(userId, cap, day, execution);
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.rpc("bump_chat_usage_if_under_cap", {
+  const query = supabase.rpc("bump_chat_usage_if_under_cap", {
     p_user_id: userId,
     p_day: day,
     p_cap: cap,
   });
+  const { data, error } = await (liveSignal ? query.abortSignal(liveSignal) : query);
   if (error) {
     // Postgres raises chat_limit_exceeded with SQLSTATE P0001. Supabase's
     // PostgREST surfaces it via error.message containing the raised text.
@@ -250,4 +253,41 @@ export async function bumpChatUsageIfUnderCap(
   // hand out a fresh quota and let the daily cap be bypassed).
   if (typeof data !== "number") throw new Error("invalid_chat_usage_response");
   return data;
+}
+
+/**
+ * T39 A1-U, dormant: no production caller until the server admission gate is ready.
+ * A failed/ambiguous reservation may already have bumped usage. Only a confirmed
+ * missing 0255 RPC permits one legacy bump, which carries no turn receipt.
+ * Existing live and captured callers keep bumpChatUsageIfUnderCap unchanged.
+ */
+export async function bumpChatUsageForTurn(
+  userId: string,
+  cap: number,
+  day: string = kstDateToday(),
+  liveSignal?: AbortSignal,
+): Promise<ChatTurnUsage> {
+  const supabase = getSupabaseClient();
+  const request = supabase.rpc("bump_chat_usage_for_turn", { p_user_id: userId, p_day: day });
+  const result = await (liveSignal ? request.abortSignal(liveSignal) : request);
+  if (result.error) {
+    const reason = classifyChatTurnError(result.error, result.status);
+    if (reason === "limit") throw new ChatLimitExceededError();
+    if (reason !== "missing") throw result.error;
+
+    // Keep raw status/error here: the older wrapper's substring cap check cannot
+    // establish a confirmed rejection for this new protocol.
+    const fallback = supabase.rpc("bump_chat_usage_if_under_cap", {
+      p_user_id: userId, p_day: day, p_cap: cap,
+    });
+    const legacy = await (liveSignal ? fallback.abortSignal(liveSignal) : fallback);
+    if (legacy.error) {
+      if (classifyChatTurnError(legacy.error, legacy.status) === "limit") throw new ChatLimitExceededError();
+      throw legacy.error;
+    }
+    const count: unknown = legacy.data;
+    return { count: parseChatUsageCount(count), turnId: null };
+  }
+  const receipt: unknown = result.data;
+  return parseChatTurnReservation(receipt);
 }

@@ -21,11 +21,15 @@ jest.mock("../../env", () => ({
 }));
 
 const mockInsertAudit = jest.fn().mockResolvedValue(undefined);
+const mockEnqueue = jest.fn().mockResolvedValue(undefined);
+jest.mock("../audit-write-outbox", () => ({ enqueueAuditWrite: (...args: unknown[]) => mockEnqueue(...args) }));
 jest.mock("../../supabase/audit", () => ({
   insertAiAuditLog: (...args: unknown[]) => mockInsertAudit(...args),
 }));
 
 import { classifySafety, fixedCrisisResponse } from "../safety";
+import { __resetAccountEpochForTests, noteResolvedOwner } from "../../auth/account-epoch";
+import { captureLiveOwnerCheck } from "../../auth/live-owner-guard";
 
 const LIVE_ENV = {
   EXPO_PUBLIC_SUPABASE_URL: "https://x.supabase.co",
@@ -54,6 +58,23 @@ describe("classifySafety (layered)", () => {
     mockGenerateContent.mockClear();
     mockEnv.mockReset();
     mockInsertAudit.mockClear();
+    mockEnqueue.mockClear();
+  });
+
+  test("a sent direct classifier retains its RED and C3 for the original owner", async () => {
+    __resetAccountEpochForTests(); noteResolvedOwner("a"); mockEnv.mockReturnValue(LIVE_ENV);
+    let finish!: (result: { text: string }) => void;
+    mockGenerateContent.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const pending = classifySafety("Give away my things and say goodbye.", "en", {
+      userId: "a", assertCurrent: captureLiveOwnerCheck("a"), retainResult: true,
+    });
+    expect(mockGenerateContent.mock.calls[0][0].config.abortSignal).toBeUndefined();
+    noteResolvedOwner("b");
+    finish({ text: JSON.stringify({ zone: "red", triggers: ["active_ideation_no_method"], confidence: 0.9 }) });
+    expect(await pending).toMatchObject({ zone: "red" });
+    expect(mockInsertAudit).not.toHaveBeenCalled();
+    expect(mockEnqueue).toHaveBeenCalledWith(expect.objectContaining({ kind: "ai_audit_log", ownerUserId: "a",
+      payload: expect.objectContaining({ userId: "a", safetyZone: "red", purpose: "safety_classify" }) }));
   });
 
   test.each([
