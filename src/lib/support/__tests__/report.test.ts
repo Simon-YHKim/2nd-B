@@ -154,7 +154,8 @@ test("support screen wires both switched entries and preserves existing copy key
   const flow = read("src/screens/deepspace/SupportScreen.tsx");
   expect(flow).toContain('const reportsEnabled = inAppReportsEnabled()');
   expect(flow).toContain('if (reportsEnabled && reportKind) return <SupportReportForm');
-  expect(flow).toContain('<SupportHome onReport={reportsEnabled ? setReportKind : undefined} />');
+  expect(flow).toContain('<DeepSpaceSupportDesignScreen onReport={reportsEnabled ? setReportKind : undefined} />');
+  expect(flow).toContain('export function SupportScreen()');
   expect(read("src/app/support.tsx")).toContain('@/screens/deepspace/SupportScreen');
   expect(source).toContain('onReport ? onReport("inquiry") : Linking.openURL(\'mailto:kim0405@hayangzip.com\')');
   expect(source).toContain('onReport ? onReport("bug") : Linking.openURL(\'mailto:kim0405@hayangzip.com?subject=Bug%20report\')');
