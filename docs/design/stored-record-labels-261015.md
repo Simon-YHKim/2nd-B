@@ -28,6 +28,7 @@
 
 - wiki.json pieces/orphans/leavePiece, manual.json leavePiece: 해당 namespace의 활성 호출자 없음. 다른 namespace의 같은 키/변수 이름을 호출자로 세지 않는다.
 - home.ds.capture.openRecords: src 활성 호출자 없음.
+  - 2026-10-24 정정: 호출자가 있다. `src/components/deep-space/DeepSpaceViews.tsx` CaptureView 의 저장 뒤 버튼(`/records` 로 이동, 지금 `/capture` 스크랩 패널)이 쓴다. 8081 저장 확인에서 「기록 보관소에서 보기」가 보여 T45 후속으로 다섯 언어를 `capture.saved.seeRecords`(「위키 보기」)와 같게 맞췄다.
 - home.ds.values.domain1/2/3Count 및 loading: ValuesLensView의 예시/분기이지만 ValuesLensView 자체 호출자 없음. 예시 숫자를 실제 기록 수로 집계하지 않는다.
 - core-brain piecesWord/piecesCount/seeEvidencePieces, secondb nPieces: 활성 호출자 없음.
 - premium GraphNodeChip: 정의/배럴 export만 있고 그리는 곳 없음. village-ui: active formats는 knowledge.accent만 쓰며 남은 별가루 문구는 읽지 않는다.
